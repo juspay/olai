@@ -50,6 +50,7 @@ import type { Element, Root } from "hast"
 
 import { type Heading, headingOf } from "./outline.ts"
 import { hrefOf } from "../routes.ts"
+import { WELL } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 
 export interface Rewrite {
@@ -171,10 +172,11 @@ const resolveDocument = (element: Element, from: string): void => {
   }
 }
 
-/** What an undrawn picture looks like: a quiet inline box, in the same family
- *  as the app's other readouts — visible enough to be seen where the picture
- *  was, quiet enough that a page of them is still a page of text. */
-const UNDRAWN = "inline-block rounded bg-well shadow-[var(--shadow-well)] px-1.5 py-0.5 " +
+/** What an undrawn picture looks like: a WELL at chip scale (`../surface.ts`),
+ *  the same recess an inline run of code sits in — visible enough to be seen
+ *  where the picture was, quiet enough that a page of them is still a page of
+ *  text, and a hole in the sheet rather than a box drawn on it. */
+const UNDRAWN = `inline-block rounded ${WELL} px-1.5 py-0.5 ` +
   "font-mono text-xs text-muted"
 
 /** Move this element's id, and any link into this block, into the block's own

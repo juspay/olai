@@ -4,6 +4,7 @@ import { AA, contrastRatio } from "./contrast.ts"
 import {
   climbs,
   depthOf,
+  RUNG_TOKENS,
   RUNGS,
   SHADOW_TOKENS,
   stepOf,
@@ -31,6 +32,12 @@ const complaints = (
     return said === undefined ? [] : [`${palette.name}: ${said}`]
   })
 
+/** Every shadow that says a surface is ABOVE — which is every one of them but
+ *  the well. Derived rather than listed, so a sixth shadow is covered by the two
+ *  claims below on the day it is added rather than on the day somebody notices
+ *  the list was never updated. */
+const FLOATING = SHADOW_TOKENS.filter((token) => token !== "well")
+
 describe("the altitude ramp", () => {
   test("every palette climbs away from its own ground", () => {
     // The direction, and it is the whole of the light/dark asymmetry: depth is
@@ -40,7 +47,7 @@ describe("the altitude ramp", () => {
     // cut INTO the desk.
     expect(
       complaints((palette) =>
-        climbs(palette, depthOf(palette)) ? undefined : "the ramp does not climb"
+        climbs(depthOf(palette)) ? undefined : "the ramp does not climb"
       ),
     ).toEqual([])
   })
@@ -114,9 +121,7 @@ describe("the shadows", () => {
       complaints((palette) => {
         const shadows = depthOf(palette).shadows
         if (!shadows.well.startsWith("inset ")) return "its well is not inset"
-        const floating = (["card", "paper", "raised", "lift"] as const).filter(
-          (token) => shadows[token].startsWith("inset "),
-        )
+        const floating = FLOATING.filter((token) => shadows[token].startsWith("inset "))
         return floating.length === 0
           ? undefined
           : `${floating.join(", ")} lead with an inset shadow`
@@ -133,7 +138,7 @@ describe("the shadows", () => {
       complaints((palette) => {
         if (palette.scheme !== "dark") return undefined
         const shadows = depthOf(palette).shadows
-        const unlit = (["card", "paper", "raised", "lift"] as const).filter(
+        const unlit = FLOATING.filter(
           (token) => !shadows[token].includes("inset 0 1px 0 rgb(255 255 255"),
         )
         return unlit.length === 0
@@ -172,7 +177,7 @@ describe("the AA promise, on the new surfaces", () => {
     expect(promised.length).toBeGreaterThan(0)
     const under = promised.flatMap((palette) => {
       const depth = depthOf(palette)
-      return (["canvas", "well", "raised"] as const).flatMap((surface) =>
+      return RUNG_TOKENS.flatMap((surface) =>
         (["ink", "muted"] as const).flatMap((foreground) => {
           const ratio = contrastRatio(
             palette.colors[foreground],

@@ -48,7 +48,7 @@ import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
 import { createSelection } from "./selection.ts"
 import type { Commit } from "./state.ts"
-import { LIFT, RAISED, WELL } from "../surface.ts"
+import { ACTS, LIFT, RAISED, WELL } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { Unpushed } from "./Unpushed.tsx"
 
@@ -228,7 +228,7 @@ export function Panel(props: {
       <Show when={anything()}>
         <button
           type="button"
-          class={`self-end rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-paper ${LIFT} disabled:opacity-50`}
+          class={`self-end rounded-full ${ACTS} ${LIFT} px-4 py-1.5 text-xs font-semibold text-paper disabled:opacity-50`}
           data-testid={TESTID.commitNow}
           disabled={!ready() || props.commit.working() || nothingTicked()}
           onClick={() => props.commit.commit(draft(), selection.paths())}

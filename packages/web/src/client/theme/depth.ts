@@ -63,10 +63,18 @@ import { contrastRatio, relativeLuminance } from "./contrast.ts"
 import { mixed, translucent } from "./hex.ts"
 import type { Palette } from "./palettes.ts"
 
-/** The fills, read through `--color-…` so every one has utilities — `bg-well`,
- *  `bg-raised`, `border-canvas`. The order is the order they are written into a
- *  palette's block. */
-export const SURFACE_TOKENS = ["canvas", "well", "raised", "picked"] as const
+/** THE RAMP: the three altitudes, in the order they climb. Its own list because
+ *  it is what every claim about depth is a claim about — the ordering, the step,
+ *  the AA promise on a ground body text lands on — and `picked` below is a state
+ *  rather than a rung, so a question asked of all four would have no answer. */
+export const RUNG_TOKENS = ["canvas", "well", "raised"] as const
+
+export type RungToken = (typeof RUNG_TOKENS)[number]
+
+/** Every fill the grammar paints with, read through `--color-…` so each has its
+ *  utilities — `bg-well`, `bg-raised`, `border-canvas`. The order is the order
+ *  they are written into a palette's block. */
+export const SURFACE_TOKENS = [...RUNG_TOKENS, "picked"] as const
 
 export type SurfaceToken = (typeof SURFACE_TOKENS)[number]
 
@@ -164,14 +172,15 @@ const tintOf = (palette: Palette): string =>
  */
 const surfacesOf = (palette: Palette): Record<SurfaceToken, string> => {
   const paper = palette.colors.paper
-  const tint = tintOf(palette)
+  /** The far end of the ramp — the rung `paper` is NOT. Named once, because
+   *  which of the two ends is the ground is the scheme's one decision and
+   *  spelling the climb twice would be two places for it to be edited. */
+  const far = climb(paper, tintOf(palette), RUNGS.top)
   const dark = palette.scheme === "dark"
-
-  const canvas = dark ? paper : climb(paper, tint, RUNGS.top)
-  const raised = dark ? climb(paper, tint, RUNGS.top) : paper
+  const raised = dark ? far : paper
   return {
-    canvas,
-    well: climb(paper, tint, RUNGS.well),
+    canvas: dark ? paper : far,
+    well: climb(paper, tintOf(palette), RUNGS.well),
     raised,
     picked: mixed(raised, palette.colors.accent, PICK[palette.scheme]),
   }
@@ -253,15 +262,25 @@ export const depthOf = (palette: Palette): Depth => ({
  * Exported so the claim is asked the same way it is built, rather than
  * re-derived beside the assertion.
  */
-export const stepOf = (depth: Depth, token: SurfaceToken): number =>
+export const stepOf = (depth: Depth, token: RungToken): number =>
   contrastRatio(depth.surfaces[token], depth.surfaces.canvas)
 
-/** Whether a palette's ramp climbs the way its scheme says it must: away from
- *  the ground, which is DARKER on a light ground and LIGHTER on a dark one. A
- *  ramp that inverted would be a card cut INTO the desk. */
-export const climbs = (palette: Palette, depth: Depth): boolean => {
+/**
+ * Whether a ramp climbs at all: strictly up in luminance from the ground,
+ * through the well, to a floating surface.
+ *
+ * ONE question for both schemes, which is the point — a light palette's canvas
+ * is its paper darkened and a dark one's raised surface is its paper lightened,
+ * and read as distance-from-the-ground the two are the same sentence. A ramp
+ * that inverted would be a card cut INTO the desk.
+ *
+ * It is asked of the DEPTH and not of the palette: the scheme is already spent
+ * by the time these three values exist, so a palette here would be a parameter
+ * whose only use is to be ignored.
+ */
+export const climbs = (depth: Depth): boolean => {
   const ground = relativeLuminance(depth.surfaces.canvas)
   const above = relativeLuminance(depth.surfaces.raised)
   const between = relativeLuminance(depth.surfaces.well)
-  return above > ground && between > ground && above > between
+  return above > between && between > ground
 }

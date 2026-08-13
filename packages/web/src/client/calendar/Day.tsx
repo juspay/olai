@@ -42,7 +42,7 @@
 import { Show } from "solid-js"
 
 import { Link } from "../router.tsx"
-import { LIFTS } from "../surface.ts"
+import { ACTS, LIFTS } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 import { dayNumber } from "./month.ts"
@@ -146,7 +146,7 @@ export function Day(props: {
    *  hover for the reason the note at the top of this file gives. */
   const ground = (): string =>
     props.open
-      ? "bg-accent shadow-[var(--shadow-card)]"
+      ? ACTS
       : live()
       ? LIFTS
       : ""
