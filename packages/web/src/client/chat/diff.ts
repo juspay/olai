@@ -22,14 +22,21 @@
  * Three things it does that a naive LCS does not, and each is what makes the
  * result readable rather than merely correct:
  *
- *   - **common prefix and suffix come off first.** An edit in the middle of a
- *     long file is the ordinary case, and trimming both ends turns it into a
- *     comparison of a few lines rather than of the whole document.
+ *   - **common prefix and suffix come off the COMPARISON first.** An edit in
+ *     the middle of a long file is the ordinary case, and trimming both ends
+ *     turns the quadratic part into a few lines rather than the whole document.
+ *     (They are still walked and still become rows — one cheap object per line
+ *     — and the collapsing below is what keeps them off the screen. Emitting
+ *     the ends pre-collapsed would make this O(the change) rather than O(the
+ *     file); it is not worth splitting the one collapsing rule in two for a
+ *     millisecond per rendered diff.)
  *   - **the comparison is BOUNDED.** The table is quadratic, and a browser
  *     rewriting a ten-thousand-line file must not be a frozen tab; past the
  *     budget the middle is reported as one removal and one addition, which is
- *     true, is what a diff of two unrelated texts looks like anyway, and is
- *     reached only by an edit nobody was going to read line by line.
+ *     true and is what a diff of two unrelated texts looks like anyway. The
+ *     answer SAYS SO (`wholesale`), because the trim is what makes it matter:
+ *     every row is then a change, so the first rows are the top of the old
+ *     file, which looks like an ordinary diff and is not one.
  *   - **unchanged runs collapse into a GAP.** Without it the first lines of a
  *     500-line file are 500 lines of context with the change somewhere below,
  *     and a panel that trims to the first few would show a reader nothing but
@@ -59,6 +66,18 @@ export interface Diff {
    *  `oldText`, kept as a fact rather than flattened into "every line added",
    *  because "created" and "rewritten from empty" are different news. */
   readonly created: boolean
+  /**
+   * The two sides were too far apart to line up, so this is a wholesale
+   * replacement rather than a comparison: everything gone, then everything
+   * arrived.
+   *
+   * CARRIED rather than kept quiet, because the trim is what makes it matter.
+   * Past the budget every row is a change, so the first rows a trimmed view
+   * shows are the top of the OLD file — which looks exactly like an ordinary
+   * diff and is not one. A reader who is told can open it; a reader who is not
+   * is reading something confidently misleading.
+   */
+  readonly wholesale: boolean
 }
 
 /** How many unchanged lines are kept either side of a change. Two is enough to
@@ -79,13 +98,17 @@ const CELLS = 250_000
 export const diffOf = (before: string | null, after: string): Diff => {
   const was = linesIn(before ?? "")
   const now = linesIn(after)
-  const lines = withGaps(compare(was, now))
-  return {
-    lines,
-    added: lines.filter((line) => line.kind === "add").length,
-    removed: lines.filter((line) => line.kind === "remove").length,
-    created: before === null,
+  const compared = compare(was, now)
+  const lines = withGaps(compared.lines)
+  // Counted in ONE pass over the rows rather than by filtering the array twice
+  // for two numbers that are read together.
+  let added = 0
+  let removed = 0
+  for (const line of lines) {
+    if (line.kind === "add") added++
+    else if (line.kind === "remove") removed++
   }
+  return { lines, added, removed, created: before === null, wholesale: compared.wholesale }
 }
 
 /**
@@ -103,11 +126,12 @@ const linesIn = (text: string): ReadonlyArray<string> => {
   return lines
 }
 
-/** Every line of both sides, in order, each marked with what became of it. */
+/** Every line of both sides, in order, each marked with what became of it —
+ *  and whether the middle had to be given up on rather than compared. */
 const compare = (
   was: ReadonlyArray<string>,
   now: ReadonlyArray<string>,
-): ReadonlyArray<DiffLine> => {
+): { readonly lines: ReadonlyArray<DiffLine>; readonly wholesale: boolean } => {
   const lines: Array<DiffLine> = []
   let head = 0
   while (head < was.length && head < now.length && was[head] === now[head]) {
@@ -128,9 +152,13 @@ const compare = (
   // themselves when the middle starts.
   const middleWas = was.slice(head, was.length - tail)
   const middleNow = now.slice(head, now.length - tail)
+  // The budget is decided HERE rather than inside the walk, because giving up
+  // on lining the two sides up is a fact about the answer and the panel says
+  // so — see {@link Diff.wholesale}.
+  const wholesale = middleWas.length * middleNow.length > CELLS
   let i = 0
   let j = 0
-  for (const step of steps(middleWas, middleNow)) {
+  for (const step of steps(middleWas, middleNow, wholesale)) {
     if (step === "same") {
       lines.push(same(middleWas[i]!, head + i + 1, head + j + 1))
       i++
@@ -147,7 +175,7 @@ const compare = (
   for (let back = tail; back > 0; back--) {
     lines.push(same(was[was.length - back]!, was.length - back + 1, now.length - back + 1))
   }
-  return lines
+  return { lines, wholesale }
 }
 
 const same = (text: string, before: number, after: number): DiffLine => ({
@@ -174,17 +202,22 @@ const arrived = (text: string, after: number): DiffLine => ({
   hidden: 0,
 })
 
-/** What happens to each line of the two middles, in order. */
+/**
+ * What happens to each line of the two middles, in order.
+ *
+ * An EMPTY side needs no special case: the table below degenerates to one row
+ * or one column and the two drains at the end emit the whole of the other side,
+ * which is exactly "all added" or "all removed".
+ */
 const steps = (
   was: ReadonlyArray<string>,
   now: ReadonlyArray<string>,
+  /** Whether the caller has already decided these two are too far apart to
+   *  line up ({@link Diff.wholesale}): everything gone, then everything
+   *  arrived, which is the shape a diff of two unrelated texts takes anyway. */
+  wholesale: boolean,
 ): ReadonlyArray<"same" | "add" | "remove"> => {
-  if (was.length === 0) return now.map(() => "add")
-  if (now.length === 0) return was.map(() => "remove")
-  // Past the budget the two are reported as unrelated: everything gone, then
-  // everything arrived. Honest, and the shape a diff of two very different
-  // texts takes anyway.
-  if (was.length * now.length > CELLS) {
+  if (wholesale) {
     return [...was.map(() => "remove" as const), ...now.map(() => "add" as const)]
   }
 

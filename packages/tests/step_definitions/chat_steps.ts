@@ -42,6 +42,7 @@ import {
   CHAT_MODEL,
   CHAT_NEW,
   CHAT_NO_AGENT,
+  CHAT_NUDGE,
   CHAT_PANEL,
   CHAT_QUEUED,
   CHAT_REFUSAL,
@@ -792,6 +793,22 @@ Then(
     assert.ok(
       shown.includes(said),
       `the write's story does not say "${said}"; it says: ${shown}`,
+    );
+  },
+);
+
+Then(
+  "the write's nudge says {string}",
+  async function (this: OlaiWorld, said: string) {
+    // What the rollup noticed about a write that LANDED — advice, never a
+    // reason anything failed. A person who asked an agent for something is
+    // owed the aside a person who pressed a key already gets.
+    const nudge = this.page.locator(CHAT_NUDGE).first();
+    await nudge.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const shown = oneLine(await nudge.innerText());
+    assert.ok(
+      shown.includes(said),
+      `the write's nudge does not mention "${said}"; it says: ${shown}`,
     );
   },
 );

@@ -81,7 +81,7 @@ import type { AskAnswer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
 import { type Form, formOf, PERMISSION_FIELD, permissionFormOf } from "./asks.ts"
-import { diffsOf } from "./diffs.ts"
+import { diffsOf, relativeTo } from "./diffs.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import {
   allowedWithoutAsking,
@@ -400,7 +400,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // every other field here.
             diffs: diffsOf(update.content, options.cwd),
             wrote: wroteIn(update.rawOutput),
-            locations: locationsOf(update.locations),
+            locations: locationsOf(update.locations, options.cwd),
           })
           return
         case "available_commands_update":
@@ -997,14 +997,21 @@ const progressOf = (
 
 /** Where the call is working. `path:line` when the agent said which line, and
  *  the path alone when it did not — a `:0` invented for the second case would
- *  be a claim about a file nobody made. */
+ *  be a claim about a file nobody made.
+ *
+ *  Spelled root-relative by the same rule a diff's path is ({@link
+ *  ./diffs.ts}), because these two land on ONE row: a follow-along location and
+ *  the diff under it naming the same file in two different ways is the row
+ *  disagreeing with itself. */
 const locationsOf = (
   locations: ReadonlyArray<ToolCallLocation> | null | undefined,
+  cwd: string,
 ): ReadonlyArray<string> | undefined => {
   if (locations == null || locations.length === 0) return undefined
-  return locations.map((at) =>
-    typeof at.line === "number" ? `${at.path}:${at.line}` : at.path
-  )
+  return locations.map((at) => {
+    const path = relativeTo(cwd, at.path)
+    return typeof at.line === "number" ? `${path}:${at.line}` : path
+  })
 }
 
 /** A tool call's arguments and result, as one folded block. JSON rather than

@@ -80,7 +80,7 @@ export const wroteIn = (rawOutput: unknown): Wrote | undefined => {
     // draw a blank where the story goes.
     sort: sortIn(reply.sort),
     title: reply.title,
-    file: typeof reply.file === "string" ? reply.file : "",
+    file: typeof reply.file === "string" && reply.file !== "" ? reply.file : null,
     nudge: typeof reply.nudge === "string" && reply.nudge !== "" ? reply.nudge : null,
   }
 }

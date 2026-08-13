@@ -203,8 +203,10 @@ export const Wrote = Schema.Struct({
   sort: Schema.NullOr(Sort),
   /** The node the write was about, by title — as the reply names it. */
   title: Schema.String,
-  /** Which outline it lives in now, root-relative. */
-  file: Schema.String,
+  /** Which outline it lives in now, root-relative. `null` for a reply that
+   *  named none — one spelling of absent across the three fields that can be,
+   *  rather than a second empty for this one to mean it with. */
+  file: Schema.NullOr(Schema.String),
   /** What the rollup noticed — advice on a write that LANDED, never a reason
    *  anything failed. `null` when there was nothing to say. */
   nudge: Schema.NullOr(Schema.String),
@@ -270,7 +272,15 @@ export const ChatEntry = Schema.Struct({
    *  not where it shows up. See {@link FileDiff}. */
   diffs: Schema.optionalKey(Schema.Array(FileDiff)),
   /** `tool` only: what this call WROTE through the ops layer, as a node-level
-   *  story rather than as a diff. See {@link Wrote}. */
+   *  story rather than as a diff. See {@link Wrote}.
+   *
+   *  Independent of `diffs` rather than exclusive with it, because the two are
+   *  read off different halves of a report — the content blocks and the tool
+   *  result — and a report says nothing about the half it does not carry. In
+   *  practice a call is one or the other: a tool cannot both go through the ops
+   *  layer and rewrite a file, since the agent has no filesystem channel here
+   *  and olai's own tools take no bytes. A row that somehow carried both would
+   *  draw both, which is the honest thing to do about a call that did both. */
   wrote: Schema.optionalKey(Wrote),
   /** `tool` only: the files the call is working in, as `path` or `path:line`.
    *  The protocol's follow-along locations, which is what lets a reader see

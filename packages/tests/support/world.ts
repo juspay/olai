@@ -371,6 +371,7 @@ export const CHAT_DIFF = selector(TESTID.chatDiff);
 export const CHAT_DIFF_LINE = selector(TESTID.chatDiffLine);
 export const CHAT_DIFF_EXPAND = selector(TESTID.chatDiffExpand);
 export const CHAT_WROTE = selector(TESTID.chatWrote);
+export const CHAT_NUDGE = selector(TESTID.chatNudge);
 export const CHAT_REFUSAL = selector(TESTID.chatRefusal);
 export const CHAT_TROUBLE = selector(TESTID.chatTrouble);
 export const CHAT_ASK = selector(TESTID.chatAsk);

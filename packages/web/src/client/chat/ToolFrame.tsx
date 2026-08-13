@@ -22,7 +22,8 @@
  * And a third escapes it for a different reason: what the call CHANGED. A diff
  * of a file it rewrote ({@link ./Diff.tsx}), or the node-level story of a write
  * it made through the ops layer ({@link ./Wrote.tsx}) — the two vocabularies,
- * one per kind of write, and a call is at most one of them. That is not detail:
+ * one per kind of write, and in practice a call is one or the other. That is
+ * not detail:
  * the arguments are what was asked for, and this is what happened to somebody's
  * files. It is trimmed rather than folded, and the trim opens where it stands.
  *
@@ -109,7 +110,7 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
       </button>
 
       {/* What the call CHANGED, outside the fold — in whichever of the two
-          vocabularies applies, and a call is at most one of them. A change is
+          vocabularies applies, which in practice is one of them. A change is
           not detail: the arguments are what was asked for, and this is what
           happened to somebody's files. Folding it away would be putting the
           one thing the row is about behind the same click as the JSON. */}

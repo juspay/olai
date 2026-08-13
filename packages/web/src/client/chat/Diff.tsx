@@ -40,10 +40,12 @@ const TRIMMED = 6
 
 /** What each kind of row looks like: the marker in the gutter, and how the row
  *  is painted. A table rather than three ternaries in the markup, so "what does
- *  an added line look like" is answered in one place — and TOTAL over the
- *  kinds, including the gap, whose answer is "nothing" and which draws its own
- *  row below. A missing key would leave that as an accident rather than a
- *  decision. */
+ *  an added line look like" is answered in one place. TOTAL over the kinds,
+ *  including the gap — whose row still asks for a `row` class (it is painted
+ *  like an unchanged line) while drawing its own contents below, so its `mark`
+ *  and `tone` go unread. Spelled anyway rather than left as a missing key: an
+ *  answer of "nothing" is a decision, and `said.ts`'s `MARK` makes the same
+ *  one. */
 const LOOK: Readonly<Record<DiffLine["kind"], { mark: string; row: string; tone: string }>> =
   {
     add: { mark: "+", row: "bg-done/10", tone: "text-done" },
@@ -67,10 +69,16 @@ export function Diff(props: {
   // two texts with a status beside them.
   const computed = createMemo(() => diffOf(props.diff.oldText, props.diff.newText))
   const key = () => diffKey(props.call, props.diff.path)
-  const open = () => isUnfolded(key())
+  // A MEMO, because the fold set is one signal for every diff on screen: any
+  // fold anywhere re-runs this, and a memo over the boolean is what stops that
+  // reaching the slice and the list below it. Without it, opening one diff
+  // re-slices and re-reconciles every other one in the transcript.
+  const open = createMemo(() => isUnfolded(key()))
   const lines = () => computed().lines
-  const hidden = () => Math.max(0, lines().length - TRIMMED)
-  const shown = () => (open() ? lines() : lines().slice(0, TRIMMED))
+  /** How many rows the trim is holding back — never the `hidden` a gap row
+   *  carries, which counts unchanged lines inside the diff. */
+  const more = () => Math.max(0, lines().length - TRIMMED)
+  const shown = createMemo(() => (open() ? lines() : lines().slice(0, TRIMMED)))
 
   return (
     <div
@@ -88,6 +96,14 @@ export function Diff(props: {
             additions, and so is a file everything was appended to. */}
         <Show when={computed().created}>
           <span class="shrink-0 text-done">new</span>
+        </Show>
+        {/* The two sides were too far apart to line up, so every row below is
+            a change and the first ones are the top of the old file. Said out
+            loud rather than drawn as though it were an ordinary diff. */}
+        <Show when={computed().wholesale}>
+          <span class="shrink-0 text-muted" data-testid={TESTID.chatDiffWholesale}>
+            rewritten whole
+          </span>
         </Show>
         <Show when={computed().added > 0}>
           <span class="shrink-0 text-done">+{computed().added}</span>
@@ -137,7 +153,7 @@ export function Diff(props: {
       {/* IN PLACE: the same block grows, so the reader's eye stays where the
           change is. Absent when the whole diff already fits, because a control
           that does nothing is worse than no control. */}
-      <Show when={hidden() > 0}>
+      <Show when={more() > 0}>
         <button
           type="button"
           class="w-full border-t border-rule px-2 py-1 text-left font-mono text-[0.6875rem] text-muted hover:text-ink"
@@ -145,7 +161,7 @@ export function Diff(props: {
           aria-expanded={open()}
           onClick={() => toggleFold(key())}
         >
-          {open() ? "show less" : `+${hidden()} more lines`}
+          {open() ? "show less" : `+${more()} more lines`}
         </button>
       </Show>
     </div>

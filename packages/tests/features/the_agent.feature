@@ -39,6 +39,11 @@ Feature: Talking to the agent
     When I ask the agent "done kitchen"
     Then node "kitchen" is done
     And the chat shows no refusal
+    # ... and the rollup's remark rides the write's own story, where the person
+    # who asked for it is looking — the same aside a keystroke already gets
+    # under its row. Advice on a write that LANDED, never a reason one did not.
+    And the chat says the write "marked done"
+    And the write's nudge says "unfinished"
 
   @scratch:chat
   Scenario: A refused write shows its detail in chat

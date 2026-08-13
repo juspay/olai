@@ -96,6 +96,22 @@ describe("what changed between two texts", () => {
     const diff = diffOf(before, after)
     expect(performance.now() - started).toBeLessThan(500)
     expect([diff.added, diff.removed]).toEqual([900, 900])
+    // ...and it SAYS it gave up, which is the half that matters on screen: every
+    // row is a change, so a trimmed view shows the top of the old file, and a
+    // reader not told that is reading something that looks like an ordinary
+    // diff and is not one.
+    expect(diff.wholesale).toBe(true)
+  })
+
+  test("an ordinary edit is compared rather than given up on", () => {
+    expect(diffOf("one\ntwo\n", "one\nTWO\n").wholesale).toBe(false)
+    // A big file with a small edit is the ordinary case and must stay on the
+    // compared side of the budget: the common ends come off before the table
+    // is sized, so what is compared is the change and not the document.
+    const long = Array.from({ length: 2000 }, (_, at) => `line ${at}`)
+    const edited = [...long]
+    edited[900] = "line nine hundred, rewritten"
+    expect(diffOf(`${long.join("\n")}\n`, `${edited.join("\n")}\n`).wholesale).toBe(false)
   })
 
   test("line numbers are the two files' own", () => {

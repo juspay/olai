@@ -47,8 +47,15 @@ import type { FilePlan } from "./plan.ts"
  * that landed and changed nothing. Saying *edited* there would be inventing a
  * change to report.
  *
- * Only the files the plan TOUCHES are compared, which is what keeps this a pass
- * over one or two outlines rather than over the corpus. That is sound because
+ * Only the files the plan TOUCHES are compared — one walk of the set keeping
+ * one or two outlines' records, and a comparison over those alone rather than
+ * over the corpus. (The walk is the set's, because that is the shape the
+ * snapshot has: `OutlineSet` is a flat list of located nodes, deliberately, and
+ * every consumer that grouped it by file ended up flattening the groups back
+ * out. `pending.ts` memoises its own cut of the same thing, and reusing it here
+ * would trade this filtered pass for a grouping of every file in the corpus,
+ * warm only when a commit survey has already run against this very snapshot.)
+ * The comparison is sound because
  * the only op that moves a node between files is `archive`, and it plans both
  * ends — so a node that left one file is matched to the record that arrived in
  * the other, and reads as *archived* rather than as a departure and an unrelated

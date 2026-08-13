@@ -45,8 +45,10 @@ export function Wrote(props: { readonly wrote: Written }) {
       {/* Which outline it landed in, quietly: one directory is many files, and
           a person watching an agent work is entitled to know which one moved
           without unfolding the arguments. */}
-      <Show when={props.wrote.file !== ""}>
-        <p class="pl-5 font-mono text-[0.6875rem] text-muted/70">{props.wrote.file}</p>
+      <Show when={props.wrote.file}>
+        {(file) => (
+          <p class="pl-5 font-mono text-[0.6875rem] text-muted/70">{file()}</p>
+        )}
       </Show>
       <Show when={props.wrote.nudge}>
         {(nudge) => (

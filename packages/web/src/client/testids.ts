@@ -430,6 +430,10 @@ export const TESTID = {
   chatDiffLine: "chat-diff-line",
   /** The control that opens a trimmed diff in place, and shuts it again. */
   chatDiffExpand: "chat-diff-expand",
+  /** Said in a diff's header when the two texts were too far apart to line up
+   *  line by line: every row below is a change, so a trimmed view shows the
+   *  top of the old file rather than an edit. */
+  chatDiffWholesale: "chat-diff-wholesale",
   /** What an olai WRITE did, in the commit panel's own words — never a diff.
    *  `data-sort` is the format's classification (`done`, `noted`, `moved`, …),
    *  or `unchanged` for a write that moved no record. */
