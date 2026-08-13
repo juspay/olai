@@ -59,7 +59,7 @@ export const hintOf = async (
   await showPreferences(world.page);
   const hint = row(world, pref).locator(PREFS_HINT);
   await hint.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  return (await hint.innerText()) ?? "";
+  return await hint.innerText();
 };
 
 // ── opening it ─────────────────────────────────────────────────────────

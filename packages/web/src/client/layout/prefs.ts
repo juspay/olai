@@ -14,6 +14,7 @@
 import { type Accessor, createSignal } from "solid-js"
 
 import {
+  parseBool,
   readPreference,
   watchPreference,
   writePreference,
@@ -46,11 +47,11 @@ export const MIN_MAIN_PX = 280
 export type ChatSnap = "half" | "full"
 
 // ── parse helpers (exported for unit tests) ───────────────────────────────
-
-export const parseBool = (raw: string | null, fallback: boolean): boolean => {
-  if (raw === null) return fallback
-  return raw === "true"
-}
+//
+// What a stored BOOLEAN says is not one of them: that is the storage
+// convention rather than anything about a panel, so it lives beside the
+// storage (`../preference.ts`) and is read by every stored boolean this
+// browser keeps.
 
 export const parsePx = (
   raw: string | null,

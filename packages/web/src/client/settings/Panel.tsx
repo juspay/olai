@@ -29,7 +29,7 @@
  * worse than two words for one. This is the surface; that is the mechanism.
  */
 
-import type { Anchor } from "../anchor.ts"
+import { type Anchor, styleOf } from "../anchor.ts"
 import { doneHiddenDefault, setDoneHiddenDefault } from "./done.ts"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
@@ -58,16 +58,7 @@ export function Panel(props: {
     <section
       ref={props.inside}
       class="fixed z-50 flex flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-lg border border-rule bg-paper p-3 text-sm shadow-lg"
-      // Both edges are named explicitly, and exactly one of them has a value —
-      // a computed key here compiles away silently (see `commit/Panel.tsx`,
-      // where that cost a panel its vertical position).
-      style={{
-        left: `${props.at.left}px`,
-        width: `${props.at.width}px`,
-        "max-height": `${props.at.maxHeight}px`,
-        bottom: props.at.side === "bottom" ? `${props.at.offset}px` : undefined,
-        top: props.at.side === "top" ? `${props.at.offset}px` : undefined,
-      }}
+      style={styleOf(props.at)}
       data-testid={TESTID.prefsPanel}
       aria-label="preferences"
     >

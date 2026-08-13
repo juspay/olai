@@ -36,18 +36,25 @@ export interface Popover {
    *  been measured, which is to say until it has been opened once. */
   readonly at: Accessor<Anchor | null>
   readonly toggle: () => void
-  /** Shut it. `restoreFocus` is what a dismissal a keyboard made owes and one a
-   *  pointer made does not. */
-  readonly close: (restoreFocus?: boolean) => void
   /** `ref` on the control that opens it. */
   readonly setTrigger: (el: HTMLElement | undefined) => void
   /** `ref` on the panel itself — see the two roots above. */
   readonly setPanel: (el: HTMLElement | undefined) => void
 }
 
+/** Whether two placements would draw the same box. */
+const sameBox = (a: Anchor | null, b: Anchor | null): boolean =>
+  a === b ||
+  (a !== null && b !== null && a.left === b.left && a.width === b.width &&
+    a.maxHeight === b.maxHeight && a.side === b.side && a.offset === b.offset)
+
 export const createPopover = (): Popover => {
   const [open, setOpen] = createSignal(false)
-  const [at, setAt] = createSignal<Anchor | null>(null)
+  // Compared by VALUE, because `measure` mints a fresh box every time it runs
+  // and it runs on every scroll event in the document: by identity, a scroll
+  // that moved the trigger nowhere would still rebuild the panel's five style
+  // strings for Solid to diff and discard.
+  const [at, setAt] = createSignal<Anchor | null>(null, { equals: sameBox })
 
   let trigger: HTMLElement | undefined
   let panel: HTMLElement | undefined
@@ -107,7 +114,6 @@ export const createPopover = (): Popover => {
     // A press of the trigger while it is up is a keyboard-reachable dismissal
     // like Escape, so the focus goes back the same way.
     toggle: () => (open() ? close(true) : setOpen(true)),
-    close,
     setTrigger: (el) => {
       trigger = el
     },

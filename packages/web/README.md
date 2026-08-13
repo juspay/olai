@@ -1263,11 +1263,10 @@ not drawn rather than anything marked.
 
 The done switch is the one with a preference BEHIND it (`settings/done.ts`): its
 place in the reading is `boolean | undefined`, and `undefined` — nobody has
-pressed it on this page — reads the preference. `doneHiddenIn` is that rule,
-spelled once because it is read twice, and the second reading is where it would
-go wrong: pressing the switch has to flip what is on screen, and negating the
-reading's own `undefined` is the same answer again for a reader whose preference
-is already "hidden".
+pressed it on this page — reads the preference. That rule is stated once, in the
+`doneHidden` memo, and pressing the switch negates THAT rather than the reading
+behind it: `!undefined` is "hidden" for a reader whose preference already is,
+which would be a switch whose first press does nothing.
 
 All three are `createStamped` (`stamped.ts`): a value plus the thing it belongs
 to, read through a memo that compares them. That is what makes them start over

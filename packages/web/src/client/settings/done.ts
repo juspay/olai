@@ -24,6 +24,7 @@
 import { type Accessor, createSignal } from "solid-js"
 
 import {
+  parseBool,
   readPreference,
   watchPreference,
   writePreference,
@@ -31,13 +32,12 @@ import {
 
 export const DONE_HIDDEN_KEY = "olai.done.hidden"
 
-/** What this browser stored, as an answer. Anything that is not the word this
- *  file writes is nobody's pick — an older olai's spelling, a value typed into
- *  a console — and the honest reading of it is the default. */
-export const parseDoneHidden = (raw: string | null): boolean => raw === "true"
+/** Shown, for a browser that has never been asked — and for a value nothing
+ *  here ever wrote, which is `parseBool`'s rule and not this file's. */
+const SHOWN = false
 
 const [hidden, setHidden] = createSignal(
-  parseDoneHidden(readPreference(DONE_HIDDEN_KEY)),
+  parseBool(readPreference(DONE_HIDDEN_KEY), SHOWN),
 )
 
 /** Whether a page nobody has pressed the Done switch on hides what is done. */
@@ -53,5 +53,5 @@ export const setDoneHiddenDefault = (value: boolean): void => {
  *  because a preference belongs to the browser and a browser is more than one
  *  tab. */
 export const followDoneDefault = (): void => {
-  watchPreference(DONE_HIDDEN_KEY, (value) => setHidden(parseDoneHidden(value)))
+  watchPreference(DONE_HIDDEN_KEY, (value) => setHidden(parseBool(value, SHOWN)))
 }

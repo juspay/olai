@@ -62,6 +62,25 @@ const MARGIN = 12
 /** What the panel wants when there is room: 24rem at this app's root size. */
 const WANTED = 384
 
+/**
+ * The same answer as CSS, which is the half a panel actually renders.
+ *
+ * Here rather than in each panel because of the hazard in it: both edges have
+ * to be named as STATIC keys with exactly one of them holding a value. A
+ * computed key — `[at.side]` — compiles away silently, since Solid reads a
+ * style object at build time and emits one `setProperty` per literal key, and
+ * the panel comes out with no vertical position at all and sits just below the
+ * fold. That cost the Commit panel its placement once; a second copy of this is
+ * a second chance to make the same mistake.
+ */
+export const styleOf = (at: Anchor): Record<string, string | undefined> => ({
+  left: `${at.left}px`,
+  width: `${at.width}px`,
+  "max-height": `${at.maxHeight}px`,
+  bottom: at.side === "bottom" ? `${at.offset}px` : undefined,
+  top: at.side === "top" ? `${at.offset}px` : undefined,
+})
+
 export const anchoredTo = (pill: Box, view: Viewport): Anchor => {
   // Never wider than the window has room for — on a phone that is the whole
   // width less the margins, which is why the width is computed here rather

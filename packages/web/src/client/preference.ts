@@ -46,6 +46,23 @@ export const readPreference = (key: string): string | null => {
   }
 }
 
+/**
+ * What a stored BOOLEAN says, and the one rule about reading one: only the word
+ * this app writes is a pick, and everything else — a key nobody has ever set, a
+ * value from an older olai, something typed into a console — is the caller's
+ * own default.
+ *
+ * Here rather than beside any one preference, because it is the storage
+ * convention rather than a fact about panels or about finished work, and it is
+ * now read by every stored boolean this browser keeps (`layout/prefs.ts`,
+ * `settings/done.ts`). Two spellings of it is one place for it to change and
+ * another to stay as it was.
+ */
+export const parseBool = (raw: string | null, fallback: boolean): boolean => {
+  if (raw === null) return fallback
+  return raw === "true"
+}
+
 /** Keys already complained about, so a picker somebody is playing with does
  *  not fill the console with the same sentence forty times. Once per key is
  *  enough to be findable and few enough to be read. */

@@ -13,7 +13,7 @@
  * attribute a framework drops when it is false announces nothing at all.
  */
 
-import { createSelector, For } from "solid-js"
+import { For } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
@@ -28,9 +28,11 @@ export function Segmented<T extends string>(props: {
   readonly value: T
   readonly onPick: (value: T) => void
 }) {
-  // Notifies the two buttons that changed rather than every button in the
-  // strip — the same reason the theme chips use one (`../theme/Chips.tsx`).
-  const isInForce = createSelector(() => props.value)
+  // A plain comparison, and deliberately not the `createSelector` the theme
+  // chips use: a selector earns its keep by notifying only the entries that
+  // changed, and in a strip of two or three EVERY entry changes when the pick
+  // does. Fifteen chips are the case it was written for.
+  const isInForce = (value: T): boolean => props.value === value
 
   return (
     <div class="inline-flex overflow-hidden rounded-full border border-rule">

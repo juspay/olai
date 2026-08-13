@@ -108,7 +108,7 @@ Then(
   "the theme row names the theme in force",
   async function (this: OlaiWorld) {
     const expected = (await namedTheme(this)) ?? DEFAULT_THEME;
-    await showChips(this);
+    // `hintOf` opens the panel itself — this step reads a sentence, not a chip.
     const hint = (await hintOf(this, "theme")).trim();
     assert.ok(
       hint.startsWith(expected),

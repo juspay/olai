@@ -212,7 +212,7 @@ export function Commit() {
           </Show>
           {/* Which way the panel opens, and it opens DOWNWARD from the header
               — `../anchor.ts` picks the side with the room. Not below 40rem:
-              the bar holds six things at 390pt, and a caret is the cheapest of
+              the bar holds five things at 390pt, and a caret is the cheapest of
               them to give up — what it says is "there is more", which the words
               beside it would rather spend the pixels saying. */}
           <Show when={!inert()}>

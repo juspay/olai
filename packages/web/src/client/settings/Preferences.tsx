@@ -8,7 +8,7 @@
  *
  * It REPLACED the theme pill rather than joining it. The pill was a preference
  * with a control of its own outside the place preferences are set, and a bar
- * that has six things in it at 390pt cannot spend one of them on a second door
+ * that has five things in it at 390pt cannot spend one of them on a second door
  * to a panel that is already there — the same argument `one-git-indicator`
  * settled for the two git chips. What the pill promised (it NAMED the theme in
  * force) is kept: the theme row's hint names it, one gesture further in, and
@@ -34,10 +34,10 @@
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
+import { ICON_BUTTON } from "../readout.ts"
 import { Panel } from "./Panel.tsx"
 import { createPopover } from "../popover.ts"
 import { TESTID } from "../testids.ts"
-import { TARGET_BOX } from "../touch.ts"
 
 export function Preferences() {
   // Whether it is up, where it goes, and the three ways it shuts —
@@ -50,11 +50,11 @@ export function Preferences() {
       <button
         type="button"
         ref={popover.setTrigger}
-        // `TARGET_BOX` for the reason the burger and the agent toggle carry it:
-        // a glyph on its own is a target a finger misses sideways as well as
-        // vertically. Released on a pointer (`md:`).
-        class={`inline-flex shrink-0 items-center justify-center gap-1 rounded-full border border-rule bg-paper px-2 py-1.5 font-mono text-xs hover:text-ink sm:px-3 ${TARGET_BOX} md:min-h-0 md:min-w-0 ${
-          open() ? "border-accent text-ink" : "text-muted"
+        // The bar's icon-button shape (`../readout.ts`), which the agent toggle
+        // beside it wears too — including the 44px a finger needs. The BORDER
+        // is this button's own: it says whether the panel is up.
+        class={`${ICON_BUTTON} border ${
+          open() ? "border-accent text-ink" : "border-rule text-muted"
         }`}
         data-testid={TESTID.prefsTrigger}
         aria-expanded={open()}

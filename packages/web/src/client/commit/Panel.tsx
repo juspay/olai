@@ -42,7 +42,7 @@ import { isReady } from "@olai/format"
 import { createSignal, Show } from "solid-js"
 
 import { agoOf } from "./ago.ts"
-import type { Anchor } from "../anchor.ts"
+import { type Anchor, styleOf } from "../anchor.ts"
 import { because, scopeOf, trouble, verbatim, waitingIn, WHO } from "./said.ts"
 import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
@@ -101,18 +101,7 @@ export function Panel(props: {
     <section
       ref={props.inside}
       class="fixed z-50 flex flex-col gap-3 overflow-y-auto overflow-x-hidden rounded-lg border border-rule bg-paper p-3 text-sm shadow-lg"
-      // Both edges are named explicitly, and exactly one of them has a value.
-      // A computed key here — `[props.at.side]` — compiles away silently: Solid
-      // reads this object literal at build time and emits one `setProperty` per
-      // STATIC key, so the panel came out with no vertical position at all and
-      // sat just below the fold.
-      style={{
-        left: `${props.at.left}px`,
-        width: `${props.at.width}px`,
-        "max-height": `${props.at.maxHeight}px`,
-        bottom: props.at.side === "bottom" ? `${props.at.offset}px` : undefined,
-        top: props.at.side === "top" ? `${props.at.offset}px` : undefined,
-      }}
+      style={styleOf(props.at)}
       data-testid={TESTID.commitPanel}
       data-repo={pending().repo._tag}
       aria-label="uncommitted changes"

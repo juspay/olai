@@ -71,21 +71,6 @@ const fresh = (): Reading => ({
   doneHidden: undefined,
 })
 
-/**
- * What the Done switch reads as: what this page was told, or — on a page nobody
- * has told anything — the preference.
- *
- * Spelled once because it is read twice, and the second reading is where it
- * would go wrong: pressing the switch has to flip what is ON SCREEN, and a
- * `!current.doneHidden` over the reading's own `undefined` is the same answer
- * again for a reader whose preference is already "hidden" — a switch whose
- * first press does nothing.
- */
-export const doneHiddenIn = (
-  told: boolean | undefined,
-  preferred: boolean,
-): boolean => told ?? preferred
-
 export const createView = (route: Accessor<Route>): View => {
   const reading = createStamped(() => hrefOf(route()), fresh)
 
@@ -94,8 +79,13 @@ export const createView = (route: Accessor<Route>): View => {
   // invalidated by a click it does not care about — which, for the page's rows,
   // means rebuilding the tree every time a reader folds one row.
   const collapsed = createMemo(() => reading.value().collapsed)
+  /** What this page was told, or — on a page nobody has told anything — the
+   *  preference. The ONE statement of that rule: pressing the switch is a
+   *  negation of this memo rather than of the reading behind it, because
+   *  `!undefined` is "hidden" for a reader whose preference already is, which
+   *  is a switch whose first press does nothing. */
   const doneHidden = createMemo(() =>
-    doneHiddenIn(reading.value().doneHidden, doneHiddenDefault())
+    reading.value().doneHidden ?? doneHiddenDefault()
   )
 
   return {
@@ -119,12 +109,10 @@ export const createView = (route: Accessor<Route>): View => {
         return { ...current, collapsed: next }
       }),
     doneHidden,
-    // Pressed against what is ON SCREEN — see {@link doneHiddenIn}.
+    // Pressed against what is ON SCREEN — the memo above, not the reading it
+    // is derived from.
     toggleDone: () =>
-      reading.edit((current) => ({
-        ...current,
-        doneHidden: !doneHiddenIn(current.doneHidden, doneHiddenDefault()),
-      })),
+      reading.edit((current) => ({ ...current, doneHidden: !doneHidden() })),
     visible: (rows) => doneHidden() ? withoutDone(rows) : rows,
   }
 }

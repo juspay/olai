@@ -190,7 +190,9 @@ function MenuPanel(props: {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === "Escape") props.onClose()
     }
-    // pointerdown, capture — same as theme/Picker and note/expand.
+    // pointerdown, capture — the same dismissal `../popover.ts` owns for the
+    // header's two panels, and `note/expand.ts` for a row's note. This one is
+    // laid out inside its row rather than portalled, so it has ONE root.
     document.addEventListener("pointerdown", onPointer, true)
     document.addEventListener("keydown", onKey)
     onCleanup(() => {
