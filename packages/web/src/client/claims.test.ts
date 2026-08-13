@@ -62,7 +62,7 @@ const filesSpelling = (pattern: RegExp): ReadonlyArray<string> =>
 // equality rather than "nothing else" keeps the sweep honest, because a
 // pattern that rotted would report an empty list here instead of passing.
 test("only wire.ts dials: connectSurface( is called exactly once in the client", () => {
-  expect(filesSpelling(/connectSurface\(/)).toEqual(["wire.ts"])
+  expect(filesSpelling(/connectSurface\s*\(/)).toEqual(["wire.ts"])
 })
 
 // status.ts's claim — it "says what each of the five looks like, and nothing

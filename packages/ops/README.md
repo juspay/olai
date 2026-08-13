@@ -86,10 +86,10 @@ the format.
 **The package exports four things, and the rest of that table is inside.**
 `codec`, `make`, `Query`, `TOOLS` — one socket per concept, not the wires behind
 it. The planner and the commit hook are what those are made of; a consumer wants
-the writer, not the plan, and its own tests reach it directly. The one type that
-travels with them is `GitState`, because a consumer PUBLISHES that value; what
-produces it — this layer's survey, over `@olai/git`'s subprocesses — stays in
-here.
+the writer, not the plan, and its own tests reach it directly. `GitState`, the
+one type that used to travel beside them, is `@olai/format`'s declaration now —
+this layer still PRODUCES the value (its survey, over `@olai/git`'s
+subprocesses), and a consumer publishing it imports the type from the floor.
 
 The TABLE is exported and used to be private, and the reason it changed is that
 this package used to own an MCP server too. What a consumer wanted then was the
