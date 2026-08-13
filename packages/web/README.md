@@ -309,7 +309,7 @@ above it declaring a prop for it. The text itself is not fetched — it arrives
 on the manifest, so a document edited on disk redraws by the mechanism that was
 already there.
 
-## Five routes, and what each is a property of
+## Six routes, and what each is a property of
 
 `routes.ts` is the whole of the URL contract, and it is a bijection its own
 test insists on: a link the app writes has to be a link it can read back.
@@ -331,6 +331,9 @@ test insists on: a link the app writes has to be a link it can read back.
   home screen and an agent can each keep — so resolving it takes a clock, and a
   clock is exactly what parsing a URL must not have. `routes.ts` stays pure and
   `page.ts` is handed the day.
+- `/agenda` names no day either, and unlike `/today` it never will: it is those
+  same dates read forward. A horizon in the address — how far ahead it looked —
+  would be a link that meant something different tomorrow.
 
 `page.ts` turns a route into the page it names, in one place, which is what
 keeps the sidebar and the main pane agreeing: the entry that lights up is the
@@ -341,7 +344,7 @@ set to work one out from.
 
 Navigation is real `<a href>`s (`router.tsx`), so ⌘-click and "copy link
 address" behave the way they do everywhere else; a plain left click is
-intercepted and answered in place. There is no router library: five addresses
+intercepted and answered in place. There is no router library: six addresses
 do not need one.
 
 Navigating is also the one thing here that moves the page, so the router is
@@ -410,6 +413,34 @@ what they always were, a day whose note is on screen does not claim to be empty,
 and nothing here writes — creating a note is `md-editing`, later. Which days
 those are is asked of the DOCUMENTS' key set rather than of the derivation,
 because it is a question about filenames.
+
+## And the same dates, forward
+
+`src/client/agenda/` is `/agenda`: what is OWED. It is a query like a day and
+not a place, its answer is `@olai/format`'s (`agendaOf`, at whatever day it is),
+and what it draws is the day page's own row — `day/DayGroups.tsx` and
+`day/DayNode.tsx`, one component each, because a node the set has dated is the
+same row whichever question collected it. Three sections, and a section with
+nothing in it is not drawn at all: **Overdue** (the one answer no day page can
+give, since a slipped task is on a day nobody visits), **Today** minus finished
+work, and **Upcoming** — the next days that have anything, each heading a link
+to that day's own page, where the note and the finished work this page leaves
+out are read.
+
+The visible half of `overdue` is a TONE: `DateBadge.tsx` takes the attention
+colour wherever the predicate holds, on every row the pill is drawn — a tree
+row, a day entry, a zoomed heading — and never on an occurrence, because a dated
+bullet is not late work. Which row is late is decided where the NODE is (a badge
+is handed a string), and `data-overdue` carries the answer in both directions,
+since a pill that must never turn amber is as much of the promise as one that
+must. What that predicate needs and the set cannot give is today, so `today.tsx`
+is a context beside `derived.tsx` for the reason that one exists: a thousand-row
+tree would otherwise thread the clock through three signatures to reach one
+leaf. The accessor is what keeps it honest past midnight.
+
+It writes nothing, the way a day page writes nothing: an empty agenda says
+"Nothing is due." and offers nothing to press. Rescheduling is a `date`, and the
+place to change one is the row where the node actually lives.
 
 ## Fifteen palettes, and the one you picked
 
@@ -480,7 +511,7 @@ label is whole`), which is the fence for the version of this bar that shipped
 
 Principle: the header carries what is about the app; the sidebar
 (`Sidebar.tsx` / `layout/Rail.tsx`) carries what is about the DIRECTORY —
-calendar + file tree only, collapsing on desktop to an icon rail. The header
+the agenda, the calendar and the file tree, collapsing on desktop to an icon rail. The header
 is on every screen App draws, including the error report and the waiting page,
 so there is one home for chrome and no corner-pills special case those screens
 used to need. The sole exception is the fault card: `main.tsx`'s
@@ -901,7 +932,7 @@ shell would show outlines that had stopped being true.
 
 Below **48rem** — the racket original's own breakpoint, and Tailwind's `md` —
 two things change. There is no second column to put the directory in, so the
-sidebar (calendar + file tree only) goes behind a BURGER in the app header as a
+sidebar (agenda, calendar, file tree) goes behind a BURGER in the app header as a
 slide-over **drawer with scrim**: shut, the outline has the screen under the
 header; open, the drawer covers the left with a dim scrim over the page.
 Navigation taps (and the scrim) put it away; folder folds do not. App chrome

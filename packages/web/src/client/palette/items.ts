@@ -41,6 +41,13 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     search: "go to today journal day calendar",
   },
   {
+    id: "nav-agenda",
+    label: "Go to the agenda",
+    hint: "what is due",
+    action: { kind: "route", route: { kind: "agenda" } },
+    search: "go to agenda due overdue upcoming owed",
+  },
+  {
     id: "panel-sidebar",
     label: "Toggle sidebar",
     hint: "⌘\\",

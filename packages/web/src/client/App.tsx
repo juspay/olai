@@ -4,8 +4,9 @@
  *
  * Layout principle: the header carries what is about the APP (wordmark,
  * connection, agent, theme); the sidebar carries what is about the DIRECTORY
- * (calendar + file tree), collapsing to an icon rail when minimized; chat is
- * a resizable dock or a minimized pill/strip. All layout state is client-local.
+ * (the agenda, the calendar, the file tree), collapsing to an icon rail when
+ * minimized; chat is a resizable dock or a minimized pill/strip. All layout
+ * state is client-local.
  *
  * This file is the composition and nothing else — the subscription, the route,
  * the clock, the one derivation of the set, which page that adds up to, and the
@@ -15,6 +16,7 @@
 import { dailyNoteDays, datedDays } from "@olai/format"
 import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
 
+import { AgendaPage } from "./agenda/AgendaPage.tsx"
 import { AppHeader } from "./AppHeader.tsx"
 import { Calendar } from "./calendar/Calendar.tsx"
 import { Panel as ChatPanel } from "./chat/Panel.tsx"
@@ -44,6 +46,7 @@ import { OutlinePage } from "./OutlinePage.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
+import { TodayProvider } from "./today.tsx"
 import { createView } from "./view.ts"
 import { connectionStatus, olai } from "./wire.ts"
 
@@ -168,6 +171,7 @@ export default function App() {
             {(open) => (
               <RouterProvider router={router}>
                 <DerivedProvider derived={outlines.derived()}>
+                <TodayProvider today={today()}>
                 <DocumentsProvider documents={documents}>
                   {/*
                     Desktop: two columns (rail or full sidebar + main), widths
@@ -257,6 +261,11 @@ export default function App() {
                             />
                           )}
                         </Match>
+                        <Match when={only(open(), "agenda")}>
+                          {(open) => (
+                            <AgendaPage agenda={open().agenda} today={open().date} />
+                          )}
+                        </Match>
                         <Match when={only(open(), "nothing")}>
                           {(nothing) => (
                             <Nothing
@@ -269,6 +278,7 @@ export default function App() {
                     </main>
                   </div>
                 </DocumentsProvider>
+                </TodayProvider>
                 </DerivedProvider>
               </RouterProvider>
             )}

@@ -9,6 +9,7 @@ test("empty query returns every shell item", () => {
 
 test("filter matches label and search haystack", () => {
   expect(filterItems("today").map((i) => i.id)).toEqual(["nav-today"])
+  expect(filterItems("overdue").map((i) => i.id)).toEqual(["nav-agenda"])
   expect(filterItems("toggle sidebar").map((i) => i.id)).toEqual(["panel-sidebar"])
   expect(filterItems("agent").map((i) => i.id)).toEqual(["panel-chat"])
 })

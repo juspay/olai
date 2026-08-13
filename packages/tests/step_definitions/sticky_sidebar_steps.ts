@@ -186,7 +186,28 @@ Then(
         page: window.scrollY,
       }));
 
+    // From the TOP of the column, put there rather than assumed: opening an
+    // outline clicks an entry, and a browser scrolls the entry it is given
+    // focus of into view — so a column whose list starts low enough may already
+    // be sitting at its own bottom, where a wheel turned down has nothing left
+    // to move and this step would be measuring the setup rather than the pin.
+    // Where the column happens to be parked is nobody's promise; that a wheel
+    // over it moves the COLUMN and not the page is the whole of this one.
+    await body.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+
     const start = await reading();
+    // The reset is a PRECONDITION of what follows, so it is asserted here
+    // rather than left to fail later as a wheel that could not move: a column
+    // this step could not put at its top would otherwise report itself as a
+    // pin that does not work.
+    assert.strictEqual(
+      start.top,
+      0,
+      `the column is at ${Math.round(start.top)}px rather than its top, so the ` +
+        "wheel below is not being turned from where this step says it is",
+    );
     assert.ok(
       start.content > start.strip + EDGE,
       `the column holds ${Math.round(start.content)}px of directory in a ` +

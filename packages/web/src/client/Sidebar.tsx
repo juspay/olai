@@ -1,5 +1,11 @@
 /**
- * The ways around the DIRECTORY: the month, and the directory as a TREE.
+ * The ways around the DIRECTORY: the agenda, the month, and the directory as a
+ * TREE.
+ *
+ * The first two are the journal's two questions and they sit together, above
+ * the files: a month is what HAPPENED, read backward a day at a time, and the
+ * agenda is the same dates read forward — what is owed. Neither is a thing on
+ * disk, which is exactly why they are here rather than in the tree below them.
  *
  * Desktop: a resizable column when open, replaced by the icon rail when
  * minimized (./layout/Rail.tsx). Mobile: a slide-over drawer with scrim under
@@ -69,7 +75,7 @@ import {
 import { ancestorDirs, type FileRow, fileTree } from "./fileTree.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
-import { Link } from "./router.tsx"
+import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
 
@@ -209,6 +215,7 @@ export function Sidebar(props: {
           // open several without reopening the drawer each time.
           onClick={() => props.onClose()}
         >
+          <Agenda />
           {props.children}
 
           <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
@@ -219,6 +226,27 @@ export function Sidebar(props: {
         </div>
       </nav>
     </>
+  )
+}
+
+/** The way to what is owed, above the month.
+ *
+ *  Whether it is the page being read is asked of the ROUTE rather than passed
+ *  down beside the open file: the agenda belongs to no outline — it crosses all
+ *  of them — so `active` has nothing to say about it, and the router is already
+ *  what every link in this column goes through. */
+function Agenda() {
+  const router = useRouter()
+
+  return (
+    <Link
+      route={{ kind: "agenda" }}
+      class={`${ENTRY} mb-2`}
+      testid={TESTID.agendaLink}
+      current={router.route().kind === "agenda"}
+    >
+      Agenda
+    </Link>
   )
 }
 

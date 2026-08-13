@@ -16,6 +16,7 @@ const ROUTES: ReadonlyArray<Route> = [
   { kind: "node", id: "a-minted_id9" },
   { kind: "day", date: "2026-08-10" },
   { kind: "today" },
+  { kind: "agenda" },
 ]
 
 test("every route survives being written to a URL and read back", () => {
@@ -33,6 +34,15 @@ test("the addresses are the documented ones", () => {
   )
   expect(hrefOf({ kind: "day", date: "2026-08-10" })).toBe("/d/2026-08-10")
   expect(hrefOf({ kind: "today" })).toBe("/today")
+  expect(hrefOf({ kind: "agenda" })).toBe("/agenda")
+})
+
+// `/agenda` spells nothing at all — not a day, not a horizon. An address that
+// carried how far ahead it looked would be a link that meant something else
+// tomorrow, and the answer is derived from the clock either way.
+test("the agenda is one address, and it names no date", () => {
+  expect(routeOf("/agenda")).toEqual({ kind: "agenda" })
+  expect(routeOf("/agenda/2026-08-12")).toEqual({ kind: "outline", file: null })
 })
 
 // `/today` names no day: it names the day it IS, and which day that is takes a

@@ -31,6 +31,10 @@
  *
  * They are one module because they are one reading of the set, and a calendar
  * whose dots disagreed with the day you opened would be worse than no calendar.
+ * The FORWARD reading — what is owed rather than what is on — is ./agenda.ts,
+ * which is built out of these: its Today section IS {@link datedOn}'s answer,
+ * and every section of it is grouped by {@link byOutline}, so an agenda cannot
+ * disagree with the day page a reader clicks through to.
  *
  * A THIRD reading joined them, and it is the one exception to the sentence
  * above about filenames: a document whose basename is exactly an ISO date IS
@@ -111,8 +115,13 @@ export interface Occasioned {
 /** One of a node's dates, with the node it belongs to. Lifted out of the
  *  record because every function below would otherwise re-narrow a field this
  *  one walk already decided — and because a node with two dates is two of
- *  these, which is exactly what "on both days" means. */
-interface Dated extends Occasioned {
+ *  these, which is exactly what "on both days" means.
+ *
+ *  Exported inside the package for the reason {@link byOutline} is: the forward
+ *  reading (./agenda.ts) asks about several days at once, and it must ask them
+ *  of this walk rather than of a second one that could disagree about what
+ *  carries a date. It is not part of the package's public surface. */
+export interface Dated extends Occasioned {
   readonly at: LocatedRegular
 }
 
@@ -182,6 +191,32 @@ const datedNodes = (derived: Derived): ReadonlyArray<Dated> =>
   )
 
 /**
+ * The same dates, bucketed by the day each falls on — ONE walk over the set.
+ *
+ * Which is what it is for: a reading that asks about one day can afford to walk
+ * and filter, and a reading that asks about NINE — the agenda's today and the
+ * days ahead of it (./agenda.ts) — cannot, because that is nine full passes
+ * over a directory this app means to serve thousands of nodes from. Asked once
+ * here, every one of those days is a lookup.
+ *
+ * A bucket keeps the set's own order, and {@link datesOf}'s precedence within
+ * one record — which is what {@link groupedOn} then reads to decide which of a
+ * node's two dates names the row.
+ */
+export const datedByDay = (
+  derived: Derived,
+): ReadonlyMap<string, ReadonlyArray<Dated>> => {
+  const days = new Map<string, Array<Dated>>()
+  for (const dated of datedNodes(derived)) {
+    const day = dayOf(dated.date)
+    const bucket = days.get(day)
+    if (bucket === undefined) days.set(day, [dated])
+    else bucket.push(dated)
+  }
+  return days
+}
+
+/**
  * The days of `month` (`YYYY-MM`) that have at least one node on them.
  *
  * A SET, not counts: the calendar draws a dot, and a number nothing prints is
@@ -233,42 +268,83 @@ export interface DayGroup {
  * An empty array is a real answer: a day with nothing on it is a page that
  * says so, not a page that is missing.
  */
-export const datedOn = (derived: Derived, day: string): ReadonlyArray<DayGroup> => {
-  const byFile = new Map<string, Array<Dated>>()
+export const datedOn = (derived: Derived, day: string): ReadonlyArray<DayGroup> =>
+  groupedOn(derived, datedByDay(derived).get(day) ?? [])
+
+/**
+ * The rows one day's records make: one per RECORD, situated, grouped.
+ *
+ * The half of {@link datedOn} that is about a day's own records rather than
+ * about finding them, taken out for the reading that has already found
+ * them — the agenda hands over the same day's records minus what is finished,
+ * and a second spelling of "one row per record, situated" would be a second
+ * chance to draw a node twice on one of the two pages.
+ */
+export const groupedOn = (
+  derived: Derived,
+  dated: ReadonlyArray<Dated>,
+): ReadonlyArray<DayGroup> => {
   // Keyed by the RECORD, not by its id. Both dates of a node come off one
   // `located`, so this says "one row per record" without borrowing the
   // validator's uniqueness rule — and these walks deliberately run over sets it
   // has condemned (./derive.ts), where two files claiming one id are two nodes
   // a reader still has to be shown.
   const placed = new Set<LocatedRegular>()
-  for (const dated of datedNodes(derived)) {
-    if (dayOf(dated.date) !== day || placed.has(dated.at)) continue
-    placed.add(dated.at)
-    const group = byFile.get(dated.at.file)
-    if (group === undefined) byFile.set(dated.at.file, [dated])
-    else group.push(dated)
+  const entries: Array<DayEntry> = []
+  for (const one of dated) {
+    if (placed.has(one.at)) continue
+    placed.add(one.at)
+    entries.push(entryOf(derived, one))
+  }
+  return byOutline(entries)
+}
+
+/** The node, situated, wearing the date that put it here — the shape every
+ *  reading of the set's dates hands its view, minted in one place. */
+export const entryOf = (derived: Derived, dated: Dated): DayEntry => ({
+  ...situate(derived, dated.at),
+  occasion: dated.occasion,
+  date: dated.date,
+})
+
+/**
+ * Dated nodes, grouped by the outline they live in: groups in path order, each
+ * group's nodes in time order.
+ *
+ * The grouping RULE, in one place, because two readings of the set draw the
+ * same list — a day ({@link datedOn}) and the agenda's three sections
+ * (./agenda.ts). The file is the only heading that is true for either of them,
+ * for the same reason: a `parent` never crosses one, so two nodes in two
+ * outlines have no common ancestry to draw them under. Two copies of it would
+ * be two chances for one page to sort its outlines differently from the other.
+ *
+ * Not exported past this package: what a consumer gets is the two questions,
+ * already answered.
+ */
+export const byOutline = (
+  entries: ReadonlyArray<DayEntry>,
+): ReadonlyArray<DayGroup> => {
+  const byFile = new Map<string, Array<DayEntry>>()
+  for (const entry of entries) {
+    const group = byFile.get(entry.shows.file)
+    if (group === undefined) byFile.set(entry.shows.file, [entry])
+    else group.push(entry)
   }
 
   return [...byFile.entries()]
     .sort(([left], [right]) => Order.String(left, right))
-    .map(([file, nodes]) => ({
-      file,
-      // The node, situated, wearing the date that put it here.
-      nodes: nodes.sort(byTime).map(({ at, occasion, date }) => ({
-        ...situate(derived, at),
-        occasion,
-        date,
-      })),
-    }))
+    .map(([file, nodes]) => ({ file, nodes: nodes.sort(byTime) }))
 }
 
 /** Code-point order on the stored text, ties on the line — the same rule the
  *  error report sorts by (./errors.ts), and effect's own comparator rather
  *  than a hand-rolled one: `localeCompare` would put the same day in two
- *  orders on two machines. */
-const byTime = (left: Dated, right: Dated): number =>
+ *  orders on two machines. A bare date sorts before any datetime on the same
+ *  day, which is what makes "the day itself" the earliest thing in it; oldest
+ *  first is the same comparator read over more than one day (./agenda.ts). */
+const byTime = (left: DayEntry, right: DayEntry): number =>
   left.date === right.date
-    ? left.at.line - right.at.line
+    ? left.shows.line - right.shows.line
     : Order.String(left.date, right.date)
 
 // ── the day's own note ─────────────────────────────────────────────────

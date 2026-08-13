@@ -2,8 +2,8 @@
 
 The format core ([docs/format.md](../../docs/format.md)): `parseOutline` per
 file, `validate` per set, and the derivations — sibling order, tags, mirror
-expansion, the rollup a parent displays, what is dated a given day — that both
-the validator and the view read from. It is the bottom of the layering: it knows about records, files
+expansion, the rollup a parent displays, what is dated a given day, what is
+overdue as of one — that both the validator and the view read from. It is the bottom of the layering: it knows about records, files
 and rules, and nothing about disks, servers or browsers.
 
 Nothing outside these two functions may reject an outline. Not the reader, not
@@ -154,6 +154,25 @@ document PATHS rather than a derived set, which is the shape of the wire — a
 browser holds every path and only the bodies of what is on screen. Nothing about
 this is a rule the validator enforces: a daily note is a view convention over
 filenames, and no record mentions it.
+
+`agenda.ts` reads those same dates FORWARD: what is owed rather than what is
+on. It adds no field and no rule — `date` says when, the mark says whether it is
+work, and the two together are the whole reading, so `date` with no mark is an
+occurrence that can never be late and `date` with `todo` or `doing` is due work.
+`isOverdue(node, today)` is that predicate spelled ONCE (`todo ∨ doing`, and
+`day(date) < day(today)` by plain string order, because dates are text here too
+— both sides through `dayOf`, so it answers about a day whichever shape of ISO
+value it is handed), and it is read by the page's first section and by the tone
+a date badge takes, the way `blocked` is one predicate read at both ends of its
+arrow. `agendaOf` assembles the three sections a reader wants — overdue, today,
+the next days that have anything — out of ONE bucketed walk (`datedByDay`), read
+back through the same `groupedOn` and `byOutline` a day page is built from, so
+the agenda and the day it links to cannot be two readings and nine days cost one
+pass rather than nine. `done` is
+filtered from all three: this question is what is OWED, and what happened is the
+day view's. TODAY IS AN ARGUMENT, never a clock: a derivation that read one
+would answer differently on the machine it ran on, and what day it is belongs to
+the reader (`web/src/client/clock.ts`).
 
 `stamp.ts` is the other direction, and every date value olai WRITES is minted
 there: `stampOf` produces a local ISO datetime carrying its offset, which is

@@ -30,15 +30,11 @@
  */
 
 import type { DayGroup } from "@olai/format"
-import { Key } from "@solid-primitives/keyed"
 import { For, Show } from "solid-js"
 
-import { CRUMB } from "../Breadcrumbs.tsx"
-import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
-import { DayNode } from "./DayNode.tsx"
+import { DayGroups } from "./DayGroups.tsx"
 import { DayNote } from "./DayNote.tsx"
-import { placeOf } from "./place.ts"
 
 export function DayPage(props: {
   readonly date: string
@@ -83,37 +79,9 @@ export function DayPage(props: {
         </p>
       </Show>
 
-      <Show when={props.groups.length > 0}>
-        {/* Keyed, like the tree is (../Tree.tsx): every frame the live store
-            publishes mints these afresh, and a group or an entry that is the
-            same one as last frame keeps its DOM — and its rendered note —
-            rather than being rebuilt. A group IS its outline, so that is its
-            key; an entry is one record of the set, which `file/id` names the
-            same way `Row.key` names a place. */}
-        <Key each={props.groups} by="file">
-          {(group) => (
-            <section
-              class="mb-6"
-              data-testid={TESTID.dayGroup}
-              data-file={group().file}
-            >
-              <h2 class="m-0 mb-2 font-mono text-xs text-muted">
-                <Link
-                  route={{ kind: "outline", file: group().file }}
-                  class={CRUMB}
-                >
-                  {group().file}
-                </Link>
-              </h2>
-              <ul class="m-0 list-none p-0">
-                <Key each={group().nodes} by={placeOf}>
-                  {(dated) => <DayNode dated={dated()} />}
-                </Key>
-              </ul>
-            </section>
-          )}
-        </Key>
-      </Show>
+      {/* The day's own answer: every node the set has on it, under the outline
+          each lives in — the same list the agenda draws (./DayGroups.tsx). */}
+      <DayGroups groups={props.groups} heading="h2" />
     </section>
   )
 }
