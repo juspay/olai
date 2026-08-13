@@ -32,14 +32,26 @@
  *   paper   <- paper       the page itself
  *   ink     <- ink         what is written on it
  *   muted   <- dim         a label, a timestamp, a note's chrome
- *   rule    <- line        a border, and the surface a row lights up with
+ *   rule    <- line        that palette's OWN border value
  *   accent  <- blue-fg     a link, the entry in force, the focus ring
  *   done    <- green       finished, and the live connection dot
  *   doing   <- amber-fg    in flight
  *   alarm   <- rose-fg     an error, a refusal
  *
- * which for the eleven imported rows is one more step back, to the slots their
- * own themes are written in — `paper` is their `background-primary`, `ink`
+ * `rule` is the one of the eight the APP has stopped painting lines with, and it
+ * is worth saying why the column stays. It was "a border, and the surface a row
+ * lights up with"; a row lights up by RISING since the depth pass, and the lines
+ * the pass kept are drawn in a DERIVED seam (`./depth.ts`) — because `rule` is
+ * whatever value each palette wrote for its own borders, and three of them wrote
+ * something that is not a line colour at all. `robot`'s rule IS its alarm, and it
+ * says so twenty lines down: pulling them apart would be inventing a value
+ * rather than porting one. So the column is still the imported fact it always
+ * was, still previewed by the chip that wears it (`./Chips.tsx`) and still the
+ * tint a table head lifts its row with — it is simply no longer what the app
+ * reaches for when it wants a line.
+ *
+ * The mapping, for the eleven imported rows, is one more step back — to the slots
+ * their own themes are written in — `paper` is their `background-primary`, `ink`
  * their `text-primary`, `muted` their `text-tertiary`, `rule` their
  * `border-primary`, and the four accents their named colour ramp
  * (`text-blue`, `text-green`, `text-yellow`, `text-red`) rather than their

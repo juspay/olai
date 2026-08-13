@@ -33,7 +33,7 @@ export function Wrote(props: { readonly wrote: Written }) {
 
   return (
     <div
-      class="border-t border-rule px-2 py-1 text-xs"
+      class="border-t border-seam px-2 py-1 text-xs"
       data-testid={TESTID.chatWrote}
       data-sort={props.wrote.sort ?? "unchanged"}
     >

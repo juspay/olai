@@ -131,4 +131,4 @@ export const ROW_TITLE = "text-[0.9375rem] leading-snug"
 export const ROW_NOTE = "text-[0.875rem] leading-snug text-muted"
 
 /** How far a child list indents from its parent, and the vertical guide. */
-export const CHILD_INDENT = "ml-3 list-none border-l border-rule pl-3 md:ml-4 md:pl-4"
+export const CHILD_INDENT = "ml-3 list-none border-l border-seam pl-3 md:ml-4 md:pl-4"

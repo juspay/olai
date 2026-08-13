@@ -266,7 +266,11 @@ function MobileSheet() {
             setChatSnap(chatSnap() === "half" ? "full" : "half")
           }}
         >
-          <span class="h-1 w-10 rounded-full bg-rule" aria-hidden="true" />
+          {/* The grabber's FACE, not a hairline: it is a thing to put a thumb
+              on, so it keeps a fill — the seam (`../surface.ts`), which is a step
+              off the surface it sits on in every palette, rather than `rule`,
+              which is one palette's alarm. */}
+          <span class="h-1 w-10 rounded-full bg-seam" aria-hidden="true" />
         </div>
         <Header chat={chat} />
         <Show when={!off()} fallback={<NoAgent />}>

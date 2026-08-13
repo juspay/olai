@@ -80,7 +80,7 @@ export function DateBadge(props: {
       class="shrink-0 rounded-full inset-ring px-2 text-xs"
       classList={{
         "inset-ring-alarm text-alarm": props.overdue,
-        "inset-ring-rule text-muted": !props.overdue,
+        "inset-ring-seam text-muted": !props.overdue,
         "cursor-pointer hover:inset-ring-ink hover:text-ink": picks(),
       }}
       data-testid={TESTID.date}

@@ -154,7 +154,7 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
         <Show when={props.entry.progress}>
           {(progress) => (
             <pre
-              class="m-0 max-h-64 overflow-auto whitespace-pre-wrap border-t border-rule px-2 py-1 font-mono text-[0.6875rem] text-ink"
+              class="m-0 max-h-64 overflow-auto whitespace-pre-wrap border-t border-seam px-2 py-1 font-mono text-[0.6875rem] text-ink"
               data-testid={TESTID.chatToolProgress}
             >{progress()}</pre>
           )}
@@ -162,7 +162,7 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
         <Show when={props.entry.detail}>
           {(detail) => (
             <pre
-              class="m-0 max-h-64 overflow-auto border-t border-rule px-2 py-1 font-mono text-[0.6875rem] text-muted"
+              class="m-0 max-h-64 overflow-auto border-t border-seam px-2 py-1 font-mono text-[0.6875rem] text-muted"
               data-testid={TESTID.chatToolDetail}
             >{detail()}</pre>
           )}

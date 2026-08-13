@@ -15,11 +15,22 @@
  *   raised   CONTENT, floating ABOVE the ground — the document sheet, a chat
  *            message, a menu, a pill. Told by a drop shadow.
  *
- * And a fourth fill that is not a rung but a STATE: `picked`, the accent-tinted
- * ground of the thing a reader chose (the option they answered with). It is
- * here rather than spelled as `bg-accent/12` at each site because a tint over a
- * raised surface has to be mixed against THAT surface to be the same tint in
- * every palette — an opacity composites over whatever happens to be behind it.
+ * And two fills that are not rungs:
+ *
+ *   picked   the accent-tinted ground of the thing a reader chose. Here rather
+ *            than spelled as `bg-accent/12` at each site because a tint over a
+ *            raised surface has to be mixed against THAT surface to be the same
+ *            tint in every palette — an opacity composites over whatever
+ *            happens to be behind it.
+ *   seam     the colour of a line the pass KEPT. Elevation replaced the
+ *            hairlines, so what is left is only the lines that mean something —
+ *            a menu's group break, the outline's nesting guide, a resize handle,
+ *            a rule under a major heading — and those need a colour that is
+ *            about SEPARATION and nothing else. It used to be `rule`, which is a
+ *            value each palette wrote for its own borders, and on `robot` that
+ *            value IS its alarm: every line in the app came out the colour of an
+ *            error, louder than the accent the pass had just finished rationing.
+ *            Derived, so a line is quiet on all fifteen by construction.
  *
  * ## Why it is derived rather than written, and what "by construction" buys
  *
@@ -65,16 +76,16 @@ import type { Palette } from "./palettes.ts"
 
 /** THE RAMP: the three altitudes, in the order they climb. Its own list because
  *  it is what every claim about depth is a claim about — the ordering, the step,
- *  the AA promise on a ground body text lands on — and `picked` below is a state
- *  rather than a rung, so a question asked of all four would have no answer. */
+ *  the AA promise on a ground body text lands on — and the two below are states
+ *  rather than rungs, so a question asked of all five would have no answer. */
 export const RUNG_TOKENS = ["canvas", "well", "raised"] as const
 
 export type RungToken = (typeof RUNG_TOKENS)[number]
 
 /** Every fill the grammar paints with, read through `--color-…` so each has its
- *  utilities — `bg-well`, `bg-raised`, `border-canvas`. The order is the order
+ *  utilities — `bg-well`, `bg-raised`, `border-seam`. The order is the order
  *  they are written into a palette's block. */
-export const SURFACE_TOKENS = [...RUNG_TOKENS, "picked"] as const
+export const SURFACE_TOKENS = [...RUNG_TOKENS, "picked", "seam"] as const
 
 export type SurfaceToken = (typeof SURFACE_TOKENS)[number]
 
@@ -122,10 +133,46 @@ export const RUNGS = {
   top: 1.36,
 } as const
 
+/**
+ * The floor a floating surface has to clear off the ground, whatever `RUNGS`
+ * says — an INDEPENDENT number, and it exists because the obvious test is
+ * circular.
+ *
+ * "No palette's cards vanish" asked against `RUNGS.top` only ever proves that
+ * the derivation hit its own target: quiet the knob to 1.05 and every palette
+ * still passes while every card nearly disappears. So the claim is made twice —
+ * once against the ramp (did the climb land where it was aimed) and once against
+ * this (is the result a surface a person can see) — and this one is written down
+ * from the ratified mock rather than from the ramp: `#FFFFFF` over `#E9E7F2`
+ * measures 1.21, which is a step the human looked at and approved.
+ */
+export const VISIBLE = 1.21
+
 /** How much accent goes into a picked surface. More on a dark ground for the
  *  reason everything else here is asymmetric: the same 16% over a near-black
  *  card is a tint nobody can see. */
 const PICK = { light: 0.16, dark: 0.3 } as const
+
+/**
+ * How far a SEAM is from the surface it is drawn ON — the faintest line that
+ * surface can carry and still show it.
+ *
+ * Measured off `raised` rather than off the paper, and that is what makes one
+ * fraction serve both schemes. A line in this app is drawn on CONTENT — a rule
+ * under a heading, a break between two groups of a menu, the seam between the
+ * halves of a tool call — and `raised` is the content surface on either side of
+ * the asymmetry. Mixing it toward the palette's INK then takes care of the
+ * direction on its own: a light palette's ink is dark, so the seam comes out
+ * darker than the sheet; a dark palette's is light, so it comes out lighter than
+ * the card. A separating line only has to be not-its-surface, in whichever
+ * direction that surface leaves free.
+ *
+ * 0.22 is where `chalk`'s seam lands on `#C8C8C3`, which is its `rule`
+ * (`#C9CDBF`) to within a hex step — so the light palettes look exactly as they
+ * did, and the change is entirely about the rows where `rule` was never a line
+ * colour to begin with.
+ */
+const SEAM = 0.22
 
 /**
  * `from`, mixed toward `toward` until it is `ratio` away from `from` — the
@@ -184,6 +231,12 @@ const surfacesOf = (palette: Palette): Record<SurfaceToken, string> => {
     well: climb(paper, tint, RUNGS.well),
     raised,
     picked: mixed(raised, palette.colors.accent, PICK[palette.scheme]),
+    // Toward the palette's own INK rather than toward `rule`, and that is the
+    // whole point of it: `rule` is a value each palette wrote for its own
+    // borders, and three of them wrote something that is not a line colour at
+    // all — `robot`'s rule IS its alarm, so every line the app drew on that row
+    // came out in the colour of an error. See `SEAM`.
+    seam: mixed(raised, palette.colors.ink, SEAM),
   }
 }
 
@@ -227,8 +280,16 @@ const shadowsOf = (palette: Palette): Record<ShadowToken, string> => {
 
   return dark
     ? {
+      // The inset hairline is DOUBLE the light side's, and it is doing a job
+      // there that it only helps with here: on a `#000000` canvas the inner
+      // shadow is black on black and contributes nothing, so the lit edge of the
+      // hollow is the only cue a well in the GROUND has. It is still the weak
+      // half of the grammar on the three true-black rows — a well inside the
+      // sheet recesses properly, a well in the canvas reads as a slightly
+      // lighter pad — and it is weak because there is nothing below zero, not
+      // because nobody looked.
       well: `inset 0 1px 3px ${cast(0.55)}, inset 0 0 0 1px ${
-        translucent("#FFFFFF", 0.04)
+        translucent("#FFFFFF", 0.09)
       }`,
       card: `0 1px 2px ${cast(0.5)}, 0 3px 10px ${cast(0.35)}${lit(0.06)}`,
       paper: `0 1px 2px ${cast(0.5)}, 0 10px 30px ${cast(0.4)}${lit(0.07)}`,

@@ -272,7 +272,7 @@ export function Composer(props: {
         />
         <button
           type="button"
-          class={`${CONTROL} w-8 inset-ring inset-ring-rule text-muted hover:text-ink`}
+          class={`${CONTROL} w-8 inset-ring inset-ring-seam text-muted hover:text-ink`}
           data-testid={TESTID.chatAttachButton}
           aria-label="attach a file"
           onClick={() => picker?.click()}
@@ -316,7 +316,7 @@ export function Composer(props: {
         <Show when={props.chat.state().commands.length > 0}>
           <button
             type="button"
-            class={`${CONTROL} w-8 inset-ring inset-ring-rule font-mono text-muted hover:text-ink`}
+            class={`${CONTROL} w-8 inset-ring inset-ring-seam font-mono text-muted hover:text-ink`}
             data-testid={TESTID.chatCommands}
             aria-label="show the agent's slash commands"
             onClick={askForAll}

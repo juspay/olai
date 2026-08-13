@@ -246,7 +246,7 @@ function MenuPanel(props: {
                 (`../surface.ts`). */}
             <For each={props.actions}>
               {(action) => (
-                <li classList={{ "mt-1 border-t border-rule/70 pt-1": action.divider }}>
+                <li classList={{ "mt-1 border-t border-seam pt-1": action.divider }}>
                   <button
                     type="button"
                     class={`block w-full cursor-pointer rounded-lg border-0 bg-transparent px-3 py-1.5 text-left text-ink ${LIFTS}`}

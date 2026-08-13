@@ -88,7 +88,7 @@ export function Diff(props: {
       data-path={props.diff.path}
       data-expanded={open()}
     >
-      <p class="flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-[0.6875rem]">
+      <p class="flex items-baseline gap-2 border-b border-seam px-2 py-1 font-mono text-[0.6875rem]">
         <span class="min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
           {props.diff.path}
         </span>
@@ -157,7 +157,7 @@ export function Diff(props: {
       <Show when={more() > 0}>
         <button
           type="button"
-          class="w-full border-t border-rule px-2 py-1 text-left font-mono text-[0.6875rem] text-muted hover:text-ink"
+          class="w-full border-t border-seam px-2 py-1 text-left font-mono text-[0.6875rem] text-muted hover:text-ink"
           data-testid={TESTID.chatDiffExpand}
           aria-expanded={open()}
           onClick={() => toggleFold(key())}

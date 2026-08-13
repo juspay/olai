@@ -89,7 +89,7 @@
   --color-doing: #8F5200;
   --color-alarm: #8E3348;
 
-  /* THE THREE ALTITUDES, and the state that is not one. Here for the same
+  /* THE THREE ALTITUDES, and the two states that are not rungs. Here for the same
    * reason the eight above are — Tailwind will not emit `bg-well` for a
    * `--color-well` it has not seen — and DERIVED rather than chosen: these are
    * what `theme/depth.ts` climbs to from the default palette's paper, and
@@ -107,6 +107,7 @@
   --color-well: #EBEBE7;
   --color-raised: #FAFAF6;
   --color-picked: #D5DFE1;
+  --color-seam: #C8C8C3;
 
   /* Panel widths. Defaults match the pre-rework constants (16rem sidebar,
    * 26rem chat). The reader owns the live values: layout/css.ts writes pixel
@@ -273,7 +274,7 @@
   margin-top: var(--olai-md-space-headTopMajor);
   margin-bottom: var(--olai-md-space-headBottomMajor);
   padding-bottom: var(--olai-md-pad-headRule);
-  border-bottom: var(--olai-md-border-head) solid var(--color-rule);
+  border-bottom: var(--olai-md-border-head) solid var(--color-seam);
   font-weight: var(--olai-md-weight-major);
 }
 
@@ -358,7 +359,7 @@
 }
 
 .olai-md blockquote {
-  border-left: var(--olai-md-border-quote) solid var(--color-rule);
+  border-left: var(--olai-md-border-quote) solid var(--color-seam);
   padding-left: var(--olai-md-pad-quoteX);
   color: var(--color-muted);
 }
@@ -518,7 +519,7 @@
  * room to be read in, and why it is set from the TOP: a two-line cell centred
  * against a one-line neighbour puts two values on three baselines. */
 .olai-md :is(th, td) {
-  border-bottom: var(--olai-md-border-rule) solid var(--color-rule);
+  border-bottom: var(--olai-md-border-rule) solid var(--color-seam);
   padding: var(--olai-md-pad-cellY) var(--olai-md-pad-cellX);
   text-align: left;
   vertical-align: top;
@@ -536,7 +537,7 @@
 .olai-md hr {
   margin: var(--olai-md-space-rule) 0;
   border: 0;
-  border-top: var(--olai-md-border-rule) solid var(--color-rule);
+  border-top: var(--olai-md-border-rule) solid var(--color-seam);
 }
 
 /* Footnotes, as GFM renders them: a rule, then the notes, then a back-link per
@@ -545,7 +546,7 @@
  * coming from a utility nothing in this repo's source could have scanned. */
 .olai-md .footnotes {
   margin-top: var(--olai-md-space-rule);
-  border-top: var(--olai-md-border-rule) solid var(--color-rule);
+  border-top: var(--olai-md-border-rule) solid var(--color-seam);
   padding-top: var(--olai-md-pad-fenceY);
   font-size: calc(var(--olai-md-of-footnotes) * 1em);
   color: var(--color-muted);

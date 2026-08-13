@@ -213,7 +213,7 @@ export function AskForm(props: {
               </button>
               <button
                 type="button"
-                class={`flex h-8 items-center rounded-full inset-ring inset-ring-rule px-3.5 text-xs text-muted ${LIFT} hover:text-ink disabled:opacity-60`}
+                class={`flex h-8 items-center rounded-full inset-ring inset-ring-seam px-3.5 text-xs text-muted ${LIFT} hover:text-ink disabled:opacity-60`}
                 data-testid={TESTID.chatAskDismiss}
                 disabled={sending()}
                 onClick={dismiss}

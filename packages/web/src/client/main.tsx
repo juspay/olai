@@ -29,7 +29,8 @@ trackVisibleViewport()
 
 // The theme the shell's boot script already put on `<html>`, taken up by the
 // app: a stored name no palette offers is forgotten here, and the browser
-// chrome catches up with the paper the page is actually painted in. Started
+// chrome catches up with the GROUND the page is actually painted on
+// (theme/chrome.ts says why the ground and not the paper). Started
 // here for the same reason as the line above — it belongs to the document, and
 // it outlives every component.
 followStoredTheme()

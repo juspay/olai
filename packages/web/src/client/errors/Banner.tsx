@@ -14,6 +14,7 @@
 import type { OutlineError } from "@olai/format"
 import { Show } from "solid-js"
 
+import { CARD } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { Lede } from "./Lede.tsx"
 import { Report } from "./Report.tsx"
@@ -38,7 +39,12 @@ const unreadable = (errors: ReadonlyArray<OutlineError>): boolean =>
 export function Banner(props: { readonly errors: ReadonlyArray<OutlineError> }) {
   return (
     <aside
-      class="mb-6 rounded border border-alarm bg-alarm/5 px-4 py-3"
+      // A CARD with an alarm RING, not a box round a region (`../surface.ts`): the
+      // last box the pass left. It stays loud — an error is the one thing on the
+      // page that should be — but it is loud in the app's own grammar now, the
+      // same card-plus-inset-ring the header's lit controls wear, so the news is
+      // the ring and the alarm ink rather than a hairline rectangle.
+      class={`mb-6 rounded-xl ${CARD} inset-ring-2 inset-ring-alarm px-4 py-3`}
       data-testid={TESTID.staleBanner}
     >
       <h2 class="m-0 mb-1 text-base font-bold text-alarm">
