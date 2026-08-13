@@ -6,6 +6,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { SIDEBAR_WIDTH_KEY } from "@olai/web/src/client/layout/prefs.ts";
 import {
   APP_HEADER,
   CHAT_PANEL,
@@ -130,9 +131,7 @@ Then("the sidebar width survived the reload", async function (this: OlaiWorld) {
     () => (window as unknown as { __olaiSideAfter?: number }).__olaiSideAfter,
   );
   // After reload the stash is gone — read localStorage instead.
-  const stored = await this.page.evaluate(() =>
-    localStorage.getItem("olai.sidebar.width"),
-  );
+  const stored = await this.stored(SIDEBAR_WIDTH_KEY);
   assert.ok(stored !== null, "sidebar width was not persisted");
   const px = Number(stored);
   assert.ok(Number.isFinite(px), `stored width is not a number: ${stored}`);

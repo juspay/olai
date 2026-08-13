@@ -319,10 +319,7 @@ When(
 );
 
 Then("this browser has stored no theme", async function (this: OlaiWorld) {
-  const stored = await this.page.evaluate(
-    (key) => localStorage.getItem(key),
-    THEME_STORAGE_KEY,
-  );
+  const stored = await this.stored(THEME_STORAGE_KEY);
   assert.equal(stored, null, `this browser still keeps "${stored}"`);
 });
 

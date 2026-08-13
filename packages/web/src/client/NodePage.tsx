@@ -63,7 +63,7 @@ function Zoom(props: {
   const today = useToday()
 
   return (
-    <Editable rows={() => props.rows} view={props.view}>
+    <Editable rows={() => props.rows}>
       <header class="mb-4">
         <div class="flex items-baseline justify-between gap-4">
           <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
@@ -139,7 +139,7 @@ function Zoom(props: {
           </Show>
         }
       >
-        <Tree rows={props.rows} view={props.view} />
+        <Tree rows={props.rows} />
       </Show>
     </Editable>
   )

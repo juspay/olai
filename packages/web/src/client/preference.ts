@@ -63,6 +63,27 @@ export const parseBool = (raw: string | null, fallback: boolean): boolean => {
   return raw === "true"
 }
 
+/**
+ * What a stored JSON value says, and `undefined` for everything that is not
+ * one: a key nobody has set, a half-written entry, something typed into a
+ * console.
+ *
+ * The same rule as {@link parseBool} and here for the same reason — it is the
+ * storage convention rather than a fact about folds or about folders, and it is
+ * now read by both of the stored values this browser keeps that are more than a
+ * word (`fold/memory.ts`, `fold/folders.ts`). What SHAPE the answer has to have
+ * is the caller's, because only the caller knows one; that it is not an error
+ * to report is decided here, once.
+ */
+export const parsedJson = (raw: string | null): unknown => {
+  if (raw === null) return undefined
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return undefined
+  }
+}
+
 /** Keys already complained about, so a picker somebody is playing with does
  *  not fill the console with the same sentence forty times. Once per key is
  *  enough to be findable and few enough to be read. */

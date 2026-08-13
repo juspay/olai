@@ -8,6 +8,8 @@ import { render } from "solid-js/web"
 
 import App from "./App.tsx"
 import { Fault } from "./errors/Fault.tsx"
+import { followFolders } from "./fold/folders.ts"
+import { followFolds } from "./fold/memory.ts"
 import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
 import { followDoneDefault } from "./settings/done.ts"
@@ -35,10 +37,13 @@ trackVisibleViewport()
 followStoredTheme()
 
 // Layout preferences (sidebar open/width, chat open/width/snap), what a page
-// does with finished work, and the phone/desktop media query —
-// document-lifetime, like the theme.
+// does with finished work, what this browser has folded — of the outline and of
+// the directory — and the phone/desktop media query — document-lifetime, like
+// the theme.
 followLayout()
 followDoneDefault()
+followFolds()
+followFolders()
 trackDesktop()
 
 const root = document.getElementById("root")

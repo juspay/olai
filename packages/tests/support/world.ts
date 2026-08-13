@@ -1131,6 +1131,22 @@ export class OlaiWorld extends World {
     };
   }
 
+  /** What this BROWSER is keeping under a preference key, straight out of its
+   *  storage.
+   *
+   *  Four features now ask it — the theme, the panel widths, what a page does
+   *  with finished work, and what is folded — and each had spelled the same
+   *  `evaluate` round trip for itself. Here for the reason `documentBody` is:
+   *  more than one step file asks, and passing the key THROUGH `evaluate`
+   *  rather than closing over it is the mistake this stops anybody making a
+   *  fifth time (the browser context has no access to this process's scope).
+   *
+   *  `page` is a parameter for the scenarios about a SECOND tab, which read the
+   *  same origin's storage from another document. */
+  stored(key: string, page: Page = this.page): Promise<string | null> {
+    return page.evaluate((name) => localStorage.getItem(name), key);
+  }
+
   /** Poll until `check` holds, or fail saying what was being waited for.
    *
    *  Playwright's own locators already retry, so this is only for the

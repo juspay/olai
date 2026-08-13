@@ -13,11 +13,12 @@
  * (connection, agent, preferences) lives in the header; this column is only the
  * directory.
  *
- * Directory nodes collapse client-locally like the outline tree's folds
- * (./view.ts): nothing is written, two readers of the same directory may fold
- * it differently, and a fold survives navigation because the tree is of the
- * directory rather than of the open page. Folders start collapsed — a deep
- * corpus is not a wall of paths — and a directory the reader has unfolded
+ * Directory nodes fold client-locally like the outline tree's folds, and are
+ * REMEMBERED the same way (./fold/folders.ts): nothing is written to the
+ * directory, two readers of it may fold it differently, and a folder left open
+ * is still open after a reload — which is the same 2026-08-13 ruling that made
+ * a node's fold a preference rather than a page's. Folders start collapsed — a
+ * deep corpus is not a wall of paths — and a directory the reader has unfolded
  * stays open until they fold it again. The chain of folders holding the open
  * file is always drawn open so the selection is never hidden under a shut
  * parent (#105).
@@ -65,14 +66,14 @@ import { Key } from "@solid-primitives/keyed"
 import {
   createMemo,
   createSelector,
-  createSignal,
   type JSX,
   Match,
   Show,
   Switch,
 } from "solid-js"
 
-import { ancestorDirs, type FileRow, fileTree } from "./fileTree.ts"
+import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
+import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
 import { Link, useRouter } from "./router.tsx"
@@ -93,7 +94,8 @@ const DIR =
 interface TreeView {
   readonly isActive: (file: string) => boolean
   readonly broken: ReadonlyMap<string, BrokenFile>
-  /** Directories the reader has unfolded. Absent = collapsed (the default). */
+  /** Directories the reader has unfolded, and this browser remembers. Absent =
+   *  collapsed (the default). */
   readonly expanded: () => ReadonlySet<string>
   /** Directory chain of the open file — always drawn open so the selection
    *  is reachable. Does not write into `expanded`; a preference the reader
@@ -116,21 +118,6 @@ export function Sidebar(props: {
   /** Shut the mobile drawer (navigation, scrim). */
   readonly onClose: () => void
 }) {
-  // Unfolded directories, keyed by their root-relative path. A Set rather than
-  // a boolean per node so a directory that is not in it is simply collapsed —
-  // the default a deep corpus wants, and the same shape the outline tree uses
-  // for folds (./view.ts), only inverted: there the set holds what is shut
-  // because nodes start open; here it holds what is open because folders
-  // start shut (#105).
-  const [expanded, setExpanded] = createSignal(new Set<string>())
-  const toggle = (path: string) => {
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (!next.delete(path)) next.add(path)
-      return next
-    })
-  }
-
   // The open file's parent chain, as a set for O(1) membership in each Dir.
   // Memoised on the active path alone: folding a folder must not rewalk it.
   const openAncestry = createMemo(() => {
@@ -144,12 +131,19 @@ export function Sidebar(props: {
   const isActive = createSelector(() => props.active)
   const tree = createMemo(() => fileTree(props.files, props.documents))
 
+  // Folding a folder is remembered, and the write drops folders that are not in
+  // the directory any more (./fold/folders.ts). Which those are is read off the
+  // TREE — one answer to "what folders are there", the walk that decides what is
+  // on screen — and asked on the click rather than memoised, because that is the
+  // only moment anybody wants it.
+  const toggle = (path: string) => toggleFolder(path, dirsIn(tree()))
+
   const view: TreeView = {
     isActive,
     get broken() {
       return props.broken
     },
-    expanded,
+    expanded: openFolders,
     openAncestry,
     toggle,
   }

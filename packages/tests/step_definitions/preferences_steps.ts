@@ -314,10 +314,7 @@ Then(
 Then(
   "this browser has stored that done nodes are {string}",
   async function (this: OlaiWorld, state: string) {
-    const stored = await this.page.evaluate(
-      (key) => localStorage.getItem(key),
-      DONE_HIDDEN_KEY,
-    );
+    const stored = await this.stored(DONE_HIDDEN_KEY);
     assert.equal(
       stored,
       state === "hidden" ? "true" : "false",
