@@ -152,6 +152,38 @@ export const Ask = Schema.Struct({
 export type Ask = typeof Ask.Type
 
 /**
+ * A NODE a message is about — what "ask agent" on a row arms the composer with.
+ *
+ * The armed thing is an ID and only an id ({@link ../../surface/src/index.ts}'s
+ * `chat.send`): a browser knows which row was clicked and nothing else that will
+ * still be true when the server reads it. Everything below is the SET's answer,
+ * read at the moment the turn is accepted — so the agent is never told a title
+ * that disagrees with the file, and a node archived between arming and sending
+ * refuses the send rather than naming something that has moved.
+ *
+ * The fields are the ones {@link ../../ops/src/query.ts}'s `Found` leads with,
+ * and for its reasons: the id is the handle every olai tool takes, `file:line`
+ * is where a person is pointed, and `path` — the canonical ancestor titles,
+ * outermost first — is what makes a bare title like "order" mean something.
+ * What is deliberately NOT here is the node's CONTENT: a subtree pasted into a
+ * prompt is a copy that stops being true the moment anything writes, and the
+ * agent has `read_node` / `read_subtree` for the live one. That is the same
+ * decision an attachment already makes — the agent is handed the path and reads
+ * the file itself, rather than the bytes riding the prompt.
+ */
+export const NodeContext = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  /** Root-relative, like every other `file:line` olai spells. */
+  file: Schema.String,
+  line: Schema.Int,
+  /** The canonical ancestor titles, outermost first. Empty at the top level of
+   *  an outline, which is the answer rather than a gap in it. */
+  path: Schema.Array(Schema.String),
+})
+export type NodeContext = typeof NodeContext.Type
+
+/**
  * A file the agent rewrote, as the protocol reports it.
  *
  * STRUCTURED, and that is the whole point: ACP sends a tool call's diff as a
@@ -201,6 +233,15 @@ export type FileDiff = typeof FileDiff.Type
  */
 export const Wrote = Schema.Struct({
   sort: Schema.NullOr(Sort),
+  /** The node the write was about, by ID — the reply's own `Applied.id`, which
+   *  is the one thing in this row that names a node rather than describing one.
+   *
+   *  It is here so the row can be a REFERENCE: an olai write is the shape a
+   *  transcript actually contains most often, and until this crossed the wire
+   *  the panel could say *marked done · order the new cabinets* and still have
+   *  nothing to point at. `null` for a reply that carried no id, which is a
+   *  payload this layer reads defensively rather than a case olai produces. */
+  id: Schema.NullOr(Schema.String),
   /** The node the write was about, by title — as the reply names it. */
   title: Schema.String,
   /** Which outline it lives in now, root-relative. `null` for a reply that
@@ -219,8 +260,9 @@ export type Wrote = typeof Wrote.Type
  * A union of six kinds rather than a struct with everything optional, because
  * they are drawn differently and a reader has to switch on something:
  *
- *   - `user` — what was typed, and the names of any pictures sent with it.
- *     Never markdown: it is quoted, not rendered.
+ *   - `user` — what was typed, the names of any pictures sent with it, and the
+ *     nodes it was ABOUT ({@link NodeContext}). Never markdown: it is quoted,
+ *     not rendered.
  *   - `agent` — the agent's prose, accumulated as it streams. Rendered as
  *     markdown once the turn is done, which is a view-time decision.
  *   - `tool` — a tool call, foldable, updated in place by its own id, carrying
@@ -295,6 +337,15 @@ export const ChatEntry = Schema.Struct({
   /** True while the agent is still adding to this entry. The panel shows a
    *  cursor; nothing else depends on it. */
   streaming: Schema.optionalKey(Schema.Boolean),
+  /** `user` only: the nodes this message was ABOUT — what the composer was
+   *  armed with when it was sent, resolved against the set at that moment.
+   *
+   *  A row of the conversation rather than a fact the browser keeps, for the
+   *  reason nothing else in this panel is optimistic: what was sent is what the
+   *  server put here, so two tabs agree and a reload still says which node the
+   *  question was about. It is also what makes the row a reference — the chips
+   *  point back at the rows they were armed from ({@link NodeContext}). */
+  context: Schema.optionalKey(Schema.Array(NodeContext)),
   /** `user` only: the pictures sent with the message, by FILE NAME.
    *
    *  Names and not paths, and not bytes. The agent was handed the tmp path in

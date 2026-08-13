@@ -39,13 +39,17 @@
 
 import type { ChatEntry } from "@olai/surface"
 import { createScheduled, throttle } from "@solid-primitives/scheduled"
-import { createMemo, Match, Show, Switch } from "solid-js"
+import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 
 
 import { Attachments } from "./Attachments.tsx"
+import { Context } from "./Context.tsx"
+import { useDerived } from "../derived.tsx"
+import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { TESTID } from "../testids.ts"
 import { AskForm } from "./AskForm.tsx"
+import { markNodeRefs } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import type { Chat } from "./state.ts"
 import { ToolFrame } from "./ToolFrame.tsx"
@@ -65,6 +69,11 @@ export function Entry(props: {
   readonly chat: Chat
 }) {
   const due = createScheduled((run) => throttle(run, FRAME_MS))
+  const derived = useDerived()
+  /** The element the agent's rendered answer lands in, so the ids it names can
+   *  be found in it ({@link ./refs.ts}). A ref rather than a query on the pane:
+   *  the pass is over ONE message, and it re-runs while that message streams. */
+  let said: HTMLDivElement | undefined
   /** The text to draw: the current one whenever the throttle says so, and the
    *  last one it allowed otherwise. A settled entry passes straight through —
    *  the final text must never be the one the throttle happened to skip. */
@@ -72,6 +81,25 @@ export function Entry(props: {
     const text = props.entry.text
     if (props.entry.streaming !== true) return text
     return due() ? text : previous
+  })
+
+  // After every frame of the answer, and after every frame of the SET: an id
+  // is a reference because a node with that id is loaded, and both halves of
+  // that move — the sentence as it streams, and the file as anybody writes to
+  // it. Reading both here is what keeps the two in step without a cache key
+  // for the set (which is the reason this is not a step in the pipeline).
+  //
+  // ...and after the PIPELINE lands, which is the third thing that moves and
+  // the one that is easy to forget: what is in the element until then is the
+  // answer's own text, `pre-wrap` and with no code spans in it at all
+  // (`../markdown/chunk.ts`). A pass that did not track it would run once
+  // against that text, find nothing, and never run again.
+  createEffect(() => {
+    shown()
+    markdownReady()
+    const indexes = derived()
+    if (said === undefined || indexes === undefined) return
+    markNodeRefs(said, (id) => indexes.byId.has(id))
   })
 
   return (
@@ -84,6 +112,12 @@ export function Entry(props: {
     >
       <Switch>
         <Match when={props.entry.kind === "user"}>
+          {/* What the message was ABOUT, above what it said — the order the
+              composer had them in, and the order they were meant in: the node
+              is the subject and the words are what was asked about it. Still
+              pressable here, which is the other half of this feature: the row
+              a question was asked from is one press away from the answer. */}
+          <Context nodes={props.entry.context ?? []} />
           {/* The pictures first, then the words — which is the order they were
               put in, and it keeps a message whose whole content is a
               screenshot from being an empty grey box with a chip under it. */}
@@ -96,6 +130,11 @@ export function Entry(props: {
         </Match>
 
         <Match when={props.entry.kind === "agent"}>
+          {/* A wrapper with no styling of its own, purely so the rendered
+              answer is an element this component can reach into: `Markdown`
+              owns its own div (it is the one place `innerHTML` is written) and
+              what is inside it belongs to no component at all. */}
+          <div ref={said}>
           <Markdown
             source={shown()}
             from={AGENT_WROTE_IT}
@@ -114,6 +153,7 @@ export function Entry(props: {
               it belongs to, since markdown decides what the last block is and a
               block cannot be reached into from out here. `::after` is reaching
               into it, which is exactly what was wanted. */}
+          </div>
         </Match>
 
         <Match when={props.entry.kind === "tool"}>

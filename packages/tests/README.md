@@ -216,6 +216,25 @@ made by a process it has never heard of". They are `@scratch:` for the usual
 reason — the agent writes — and the child process is killed in `After` beside
 the server, before the directory both were watching is removed.
 
+## The claim only the AGENT can make
+
+`features/node_context.feature` is about a row handing the agent a node, and
+what has to be proved is not that a chip appeared — it is that the node reached
+the AGENT, in a form it can act on. No browser can say that. So the scripted
+agent says it: its `context` verb reads the id out of its own prompt, calls the
+real `read_node` with it over the real MCP route, and reports the title that
+came back. A sentence like *`order` is the node titled order the new cabinets*
+cannot be produced by a build where the id never left the browser.
+
+The sentence had to be picked carefully, and a sabotage run is what said so: the
+chip on the sent message carries the node's TITLE too, so a step matching the
+bare title anywhere in the panel passed with the context stripped out of the
+prompt entirely. What it asserts on now is the agent's own phrasing, scoped to
+the answer. The same run caught an absence asserted before the thing it was
+about had arrived. Both are the ordinary failure of an e2e assertion — passing
+for a reason that is not the feature — and both are cheap to find by breaking
+the code on purpose and expensive to find any other way.
+
 ## Colour, which is the one thing a step may not write down
 
 `features/theming.feature` is about fifteen palettes, and not one of its steps

@@ -766,6 +766,35 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  // WHAT THE AGENT RECEIVED, asserted by the agent itself. A node armed on a
+  // row reaches a prompt as one line naming its id (`@olai/chat`'s
+  // `context.ts`), and the whole claim of that design is that the id is the
+  // handle olai's own tools take — so this reads the line, calls `read_node`
+  // with what it found, and says the TITLE that came back. A scenario that
+  // sees the right title has proof the id crossed the wire and resolved: no
+  // spelling of the prompt that lost it could produce that sentence.
+  if (verb === "context") {
+    const named = [...text.matchAll(/^Node in context: `([^`]+)`/gm)].map(
+      (match) => match[1] ?? "",
+    )
+    if (named.length === 0) {
+      say("no node in context.")
+      respond(id, { stopReason: "end_turn" })
+      return
+    }
+    for (const node of named) {
+      const read = await useTool("read_node", { id: node })
+      const found = read["structuredContent"] as { title?: string } | undefined
+      // A SENTENCE the browser could not have written on its own — the chip on
+      // the message carries the title too, so a scenario matching the bare
+      // title would pass on a build that never put the node in the prompt at
+      // all. (It did, until a sabotage run said so.)
+      say(`\`${node}\` is the node titled ${found?.title ?? "?"}.\n`)
+    }
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "done") {
     await useTool("set_done", { id: argument })
     say(`marked \`${argument}\` done.`)

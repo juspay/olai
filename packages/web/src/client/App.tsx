@@ -133,6 +133,18 @@ export default function App() {
 
   return (
     <UndoContext.Provider value={undo}>
+      {/* The route and the set's indexes wrap the WHOLE app rather than the
+          open page, because they are facts about neither: an address is what
+          this tab is looking at, and the indexes are one derivation of the
+          directory. Both used to sit inside the page's own `<Match>`, which
+          was fine while the page was the only thing that read them — the chat
+          panel is a sibling of it (it draws in every shape of the app, error
+          view included), and it reads both now: a node named in the transcript
+          reads its title out of the indexes and, when the node is not on this
+          page, goes to its own address. Threading either down to it as a prop
+          is what `./derived.tsx`'s own header rules out. */}
+      <RouterProvider router={router}>
+      <DerivedProvider derived={outlines.derived()}>
       <Connection readout={connectionReadout()} />
       <ChatPanel />
       <Palette
@@ -169,8 +181,6 @@ export default function App() {
           </Match>
           <Match when={page()}>
             {(open) => (
-              <RouterProvider router={router}>
-                <DerivedProvider derived={outlines.derived()}>
                 <TodayProvider today={today()}>
                 <DocumentsProvider documents={documents}>
                   {/*
@@ -279,13 +289,13 @@ export default function App() {
                   </div>
                 </DocumentsProvider>
                 </TodayProvider>
-                </DerivedProvider>
-              </RouterProvider>
             )}
             </Match>
           </Switch>
         </div>
       </div>
+      </DerivedProvider>
+      </RouterProvider>
     </UndoContext.Provider>
   )
 }

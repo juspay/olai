@@ -31,8 +31,11 @@
 
 import { For, onCleanup, onMount, Show } from "solid-js"
 
+import { focusNode } from "../focus.ts"
+import { useRouter } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { Entry } from "./Entry.tsx"
+import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import type { Chat } from "./state.ts"
 
@@ -42,6 +45,7 @@ import type { Chat } from "./state.ts"
 const NEAR = 64
 
 export function Transcript(props: { readonly chat: Chat }) {
+  const router = useRouter()
   let pane: HTMLDivElement | undefined
   let content: HTMLDivElement | undefined
   /** Should new text pull the view down with it? True until the reader scrolls
@@ -65,6 +69,18 @@ export function Transcript(props: { readonly chat: Chat }) {
     onCleanup(() => grown.disconnect())
   })
 
+  /** An id the agent named, pressed. ONE listener on the pane rather than a
+   *  handler per span, because the spans are inside rendered markdown and
+   *  belong to no component — the same arrangement a relative link between two
+   *  documents has on the main pane, for the same reason. The panel's OWN
+   *  references are buttons and do not come through here (`./NodeRef.tsx`);
+   *  both ends call the same `focusNode`. */
+  const pressed = (target: EventTarget | null): void => {
+    const id = nodeRefIn(target)
+    if (id === null) return
+    focusNode(id, () => router.go({ kind: "node", id }))
+  }
+
   return (
     <div
       class="flex-1 overflow-y-auto px-3 py-2"
@@ -72,6 +88,18 @@ export function Transcript(props: { readonly chat: Chat }) {
       ref={pane}
       onScroll={() => {
         following = atBottom()
+      }}
+      onClick={(event) => pressed(event.target)}
+      // The keyboard's half of the same control: a marked span is given
+      // `role="button"` and a tab stop (`./refs.ts`), and those two promise
+      // Enter and Space do what a click does.
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return
+        if (nodeRefIn(event.target) === null) return
+        // Space scrolls a pane it is pressed in, which is exactly the pane
+        // this is — and the press was aimed at a reference.
+        event.preventDefault()
+        pressed(event.target)
       }}
     >
       {/* A wrapper with no styling of its own, purely so there is something

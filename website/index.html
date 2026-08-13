@@ -172,6 +172,8 @@
   .chat .op { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-top: 0.7rem; }
   .chat .op b { color: var(--done); font-weight: 600; }
   .chat .agent { background: var(--well); border: 1px solid var(--rule); }
+  /* the node a message is about, armed on the composer */
+  .chat .ctx { display: inline-flex; gap: 0.35rem; align-items: baseline; margin-top: 0.7rem; padding: 0.1rem 0.4rem; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--rule)); border-radius: 6px; font-size: 0.72rem; color: var(--accent); }
   /* what a call CHANGED: a node story for an olai write, a diff for a file */
   .chat .wrote { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.82rem; margin-top: 0.35rem; padding-left: 1.1rem; }
   .chat .wrote .said { margin-left: auto; color: var(--muted); font-size: 0.78rem; }
@@ -677,9 +679,20 @@ The corner unit is the **risky one** — see
     trimmed to a few rows and expands where it stands. An outline never gets a
     text diff — one line per node means a text diff of one is a single enormous
     line with everything on it changing at once.</p>
+    <p>A row can hand the agent the node it stands for. <em>Ask agent</em> in
+    the row menu arms the box with that node — a chip above what you type,
+    removable until you send — and the turn is then about <strong>that
+    node</strong> rather than about whatever your sentence re-describes. What
+    the agent is handed is the node’s id, the same handle its tools take, with
+    the title and where it lives; not a copy of its contents, which would stop
+    being true the moment anything wrote. It points back, too: an id in the
+    conversation is pressable, and pressing one brings that row onto the page.
+    Nothing had to be invented for that — an agent already writes ids in
+    backticks, and one becomes a link exactly when your outlines declare it.</p>
     <div class="cols">
       <div class="panel chat">
         <div class="file">chat · any ACP agent</div>
+        <div class="ctx"><span>◦</span><span>Book the plumber</span></div>
         <div class="msg you">plumber's booked — tick it off</div>
         <div class="op"><b>✓</b> set_done · book-plumber</div>
         <div class="wrote"><span>✓</span><span>Book the plumber</span><span class="said">marked done</span></div>

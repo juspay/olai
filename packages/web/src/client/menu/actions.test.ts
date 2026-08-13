@@ -19,12 +19,15 @@ import { derive, rowsOf, type Row } from "@olai/format"
 import { setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
+import { armedNodes, releaseArmed } from "../chat/armed.ts"
 import { flatten } from "../edit/order.ts"
+import { chatOpen, setChatOpen } from "../layout/prefs.ts"
 import { nodeMenuActions } from "./actions.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":true}`,
   `{"id":"install","parent":"kitchen","ord":"a1","title":"install them"}`,
+  `{"id":"echo","ord":"a2","mirror":"install"}`,
 ].join("\n")
 
 const derived = derive(setOf({ "house.jsonl": HOUSE }).nodes)
@@ -86,4 +89,23 @@ test("a verb that WRITES still answers with a promise the panel can read", () =>
   // and an unhandled rejection from a write nobody awaited is noise in every
   // other file's run.
   void (answer as Promise<unknown>).catch(() => {})
+})
+
+test("`Ask agent` arms the composer with the node the row SHOWS", () => {
+  // The rule a fold and a mark verb already follow, read one verb over: a
+  // mirror is a placement, it has no title of its own, and the node to ask
+  // about is what it is a placement OF. Arming the record instead would put an
+  // id in the prompt that `read_node` answers `missing` for.
+  releaseArmed()
+  entry("echo", "Ask agent").run()
+  expect(armedNodes()).toEqual(["install"])
+  releaseArmed()
+})
+
+test("...and it opens the panel the chip is in", () => {
+  // A chip in a panel nobody can see is a gesture that did nothing.
+  setChatOpen(false)
+  entry("install", "Ask agent").run()
+  expect(chatOpen()).toBe(true)
+  releaseArmed()
 })

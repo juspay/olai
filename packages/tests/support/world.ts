@@ -426,6 +426,20 @@ export const CHAT_ATTACH_BUTTON = selector(TESTID.chatAttachButton);
 /** The panel saying a dragged file would land HERE. Present only while a drag
  *  carrying files is over the panel's body. */
 export const CHAT_DROP = selector(TESTID.chatDrop);
+/** A node a message is ABOUT — armed in the composer, or sent, on the row.
+ *  `data-node` is the id, which is what was armed and what was sent. */
+export const CHAT_CONTEXT = selector(TESTID.chatContext);
+export const CHAT_CONTEXT_CHIP = selector(TESTID.chatContextChip);
+export const CHAT_CONTEXT_REMOVE = selector(TESTID.chatContextRemove);
+/** What the agent said, rendered. Reached by the scenarios that ask whether an
+ *  id INSIDE it became a reference — everything else about an answer is read
+ *  off the transcript as text. */
+export const CHAT_SAID = selector(TESTID.chatSaid);
+/** A node named in the panel and pressable, by the id it points at. One
+ *  selector for all three shapes — a chip, the node an olai write was about,
+ *  and an id the agent wrote in its own prose — because they are one
+ *  affordance and a scenario should not have to know which produced it. */
+export const chatNodeRef = (id: string): string => `[data-node-ref="${id}"]`;
 
 /** The app has finished its first render when it has committed to one of its
  *  three shapes: a docked header (the set loaded and the directory column is

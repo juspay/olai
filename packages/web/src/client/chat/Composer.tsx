@@ -34,6 +34,15 @@
  *     the gate's own list to keep that true: a dialog that greys out a PDF the
  *     drop would have taken is the one half-truth a person meets without any
  *     refusal to explain it.
+ *   - **a message can be ABOUT a node.** "Ask agent" on a row arms this box
+ *     with that node ({@link ./armed.ts}), and it sits in a chip above the
+ *     input until it is sent or taken off — the attachment strip's arrangement,
+ *     because it is the attachment strip's claim: this went with the message.
+ *     What is armed is an ID; what the chip reads is the title, out of the live
+ *     set; what rides the send is the id again, and the SERVER says what the
+ *     node is. So a row armed, renamed and then sent reaches the agent under
+ *     the name it has now, and a row armed and then archived refuses the send
+ *     rather than sending a question with no subject.
  *   - **`/` opens the agent's own commands**, and so does the button beside
  *     the input, which shows the WHOLE list. Typing filters; the button is for
  *     when you do not know what to type, which is most of the time you want a
@@ -48,11 +57,15 @@
  * fight over one box.
  */
 
+import { nodeNamed } from "@olai/format"
 import { ATTACHMENT_EXTENSIONS } from "@olai/surface"
-import { createEffect, createSignal, on, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, on, Show } from "solid-js"
 
+import { useDerived } from "../derived.tsx"
 import { TESTID } from "../testids.ts"
+import { armedNodes, disarmNode, releaseArmed, restoreArmed } from "./armed.ts"
 import { Attachments } from "./Attachments.tsx"
+import { type Chip, Context } from "./Context.tsx"
 import type { Holding } from "./holding.ts"
 import { SlashMenu } from "./SlashMenu.tsx"
 import type { Chat } from "./state.ts"
@@ -78,6 +91,22 @@ export function Composer(props: {
   let picker: HTMLInputElement | undefined
 
   const working = () => props.chat.state().status === "thinking"
+
+  const derived = useDerived()
+  /** The armed nodes as chips: the id is what was armed and what will be sent,
+   *  and the TITLE is read out of the live set here — through the format's own
+   *  rule for what an id names, the one `see` links resolve with. So a row
+   *  armed and then retitled by anybody says the new title, and nothing about
+   *  the chip is a copy. An id the set does not declare reads as the id, which
+   *  is what a dangling `see` does and for the same reason: the strip says what
+   *  is armed rather than going blank about it. */
+  const armed = createMemo<ReadonlyArray<Chip>>(() =>
+    armedNodes().map((id) => {
+      const indexes = derived()
+      const named = indexes === undefined ? undefined : nodeNamed(indexes, id)
+      return { id, title: named?.node.title ?? id }
+    })
+  )
 
   /** The word being completed: everything after a `/` that starts the draft.
    *  Only at the start — a slash mid-sentence is a slash. `null` is "this is
@@ -118,6 +147,19 @@ export function Composer(props: {
     ),
   )
 
+  // ...and the same for a node armed from a row, which is the same gesture
+  // seen from the other end of the app: "Ask agent" happened somewhere in the
+  // tree, and the next thing to do with it is type the question. The caret is
+  // what says the panel is now the thing being aimed at.
+  createEffect(
+    on(
+      () => armedNodes().length,
+      (now, before) => {
+        if (before !== undefined && now > before) input?.focus()
+      },
+    ),
+  )
+
   /**
    * Send, and PUT IT BACK if the server would not take it.
    *
@@ -134,8 +176,17 @@ export function Composer(props: {
    */
   const send = async () => {
     const text = draft()
-    if (text.trim() === "" && props.holding.pending().length === 0) return
+    if (
+      text.trim() === "" &&
+      props.holding.pending().length === 0 &&
+      armedNodes().length === 0
+    ) return
     const attachments = props.holding.release()
+    // Released with the attachments and put back with them: an armed node is
+    // part of the message in exactly the way a picture is, and a refusal that
+    // restored one and not the other would leave a message that is not the one
+    // that was refused.
+    const context = releaseArmed()
     setDraft("")
     dismiss()
     // Where the caret already is, unless something took it — a person sending
@@ -145,10 +196,12 @@ export function Composer(props: {
     const taken = await props.chat.send(
       text,
       attachments.map((attachment) => attachment.path),
+      context,
     )
     if (taken) return
     setDraft((typing) => (typing === "" ? text : typing))
     props.holding.restore(attachments)
+    restoreArmed(context)
   }
 
   const accept = (name: string) => {
@@ -193,6 +246,12 @@ export function Composer(props: {
       <Show when={open()}>
         <SlashMenu commands={matches()} onAccept={accept} onDismiss={dismiss} />
       </Show>
+
+      {/* Above the box, where what is being typed is: what this message is
+          ABOUT is part of it until it is sent, and removable until then. Over
+          the attachments rather than under them because it is the subject of
+          the sentence and they are what came with it. */}
+      <Context nodes={armed()} onRemove={disarmNode} />
 
       {/* Above the box, where what is being typed is: an attachment is part of
           the message until it is sent. */}
