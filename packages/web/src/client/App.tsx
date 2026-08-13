@@ -45,6 +45,7 @@ import { fileOf, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
+import { runAsync } from "./run.ts"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
 import { createView } from "./view.ts"
@@ -114,7 +115,9 @@ export default function App() {
   // ⌘Z could not spend. What the page owns instead is when it ENDS: cleared
   // when the reader opens another outline, because a stack of ops on rows that
   // are not on screen is a stack nobody could predict the effect of.
-  const undo = createUndo()
+  // The wire is handed in HERE — `undoing.ts` keeps no import of it, so its
+  // stack rules stay checkable by a unit test that never dials anything.
+  const undo = createUndo((edit) => runAsync(olai.procedures.edit.apply(edit)))
   // A MEMO, and it is load-bearing: `page()` is minted afresh on every
   // revision the store publishes, so an effect tracking it directly would
   // clear the stack on every write — including, in the frame it arrives, the

@@ -11,10 +11,13 @@
  * arrived, and the person who hit it could say nothing about it but "it went
  * blank".
  *
- * So this is drawn by an `<ErrorBoundary>` around the whole shell (../main.tsx),
- * and it says what that white tab could not: WHAT threw, verbatim and
- * unsummarised — the same promise ./Report.tsx makes about the format's own
- * errors — and the two ways out of a render with no state left worth resuming.
+ * So this is drawn by `SurfaceFaultBoundary` around the whole shell
+ * (../main.tsx). The boundary owns catching, recording and PRINTING — `text`
+ * arrives already printed by the framework's `thrownText`, verbatim and never
+ * empty — and this component keeps only the LOOK: it says what that white tab
+ * could not — WHAT threw, unsummarised, the same promise ./Report.tsx makes
+ * about the format's own errors — and the two ways out of a render with no
+ * state left worth resuming.
  *
  * TWO, because a reload alone can be a loop. `reloadForUpdate` is the
  * framework's reload, for the reason ../connection/Connection.tsx gives — it
@@ -31,14 +34,13 @@
 
 import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
 
-import { thrownText } from "./thrown.ts"
 import { Lede } from "./Lede.tsx"
 import { Reload } from "../Reload.tsx"
 import { hrefOf } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 
-export function Fault(props: { readonly error: unknown }) {
+export function Fault(props: { readonly text: string }) {
   return (
     <main class="max-w-4xl p-8" data-testid={TESTID.fault}>
       <h1 class="m-0 mb-2 text-2xl font-bold text-alarm">This page broke</h1>
@@ -54,7 +56,7 @@ export function Fault(props: { readonly error: unknown }) {
         class="mb-4 max-w-full overflow-x-auto rounded border border-rule bg-rule/30 p-3 text-xs text-ink"
         data-testid={TESTID.faultDetail}
       >
-        {thrownText(props.error)}
+        {props.text}
       </pre>
       <div class="flex flex-wrap items-center gap-4">
         <Reload onReload={reloadForUpdate} />

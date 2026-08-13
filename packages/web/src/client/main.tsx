@@ -3,7 +3,7 @@
  */
 
 import { retireServiceWorker } from "@kolu/surface-app/lifecycle"
-import { ErrorBoundary } from "solid-js"
+import { SurfaceFaultBoundary } from "@kolu/surface-app/solid"
 import { render } from "solid-js/web"
 
 import App from "./App.tsx"
@@ -55,6 +55,12 @@ if (root === null) throw new Error("no #root element")
 // half worth keeping. Solid unmounts the subtree that faulted either way — the
 // choice is only between a card that says so and a white tab.
 //
+// The boundary is the framework's (`SurfaceFaultBoundary`): it catches,
+// records to the console — a boundary SWALLOWS, so without that record the
+// fault reaches no console at all — and prints the thrown value verbatim.
+// This root does not ride `SurfaceAppProvider`, so the boundary is composed
+// standalone; all that stays here is the LOOK.
+//
 // Nothing above this line is inside it, and that is the honest boundary of what
 // a boundary can do. The calls above run before there is a tree to replace, so
 // a throw in one of them is a bundle that never started — and the LISTENERS
@@ -65,20 +71,9 @@ if (root === null) throw new Error("no #root element")
 // they are safe.
 render(
   () => (
-    <ErrorBoundary
-      fallback={(error: unknown) => {
-        // The RECORD, and it is not decoration: a boundary SWALLOWS. Without
-        // this line the fault reaches no console at all — Solid re-throws only
-        // when nothing catches — so a page that faulted after its first frame
-        // would fail a browser test as a bare timeout on a missing element,
-        // with the `there should be no page errors` assertion beside it green.
-        // One line naming the moment, the way wire.ts records a retired socket.
-        console.error("olai: this client threw while drawing the page —", error)
-        return <Fault error={error} />
-      }}
-    >
+    <SurfaceFaultBoundary fault={(text) => <Fault text={text} />}>
       <App />
-    </ErrorBoundary>
+    </SurfaceFaultBoundary>
   ),
   root,
 )

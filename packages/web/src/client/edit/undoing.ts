@@ -30,8 +30,6 @@ import type { Applied, Edit, OpFailure } from "@olai/surface"
 import { type Accessor, createContext, createSignal, useContext } from "solid-js"
 import { Result } from "effect"
 
-import { runAsync } from "../run.ts"
-import { olai } from "../wire.ts"
 import { serial } from "./queue.ts"
 import { EMPTY, kept, recorded, type Side, type Stack, type Step, taken } from "./undo.ts"
 
@@ -79,16 +77,14 @@ export const useUndo = (): Undo => {
   return undo
 }
 
-/** How an edit reaches the write gate. The one impure thing this module does,
- *  and it is an ARGUMENT for the reason `@olai/ops`' planner takes its clock
- *  and its id minter as arguments: everything else here is a value, and a
- *  stack rule that can only be checked by pressing a key in a browser is a
- *  rule nothing checks. */
+/** How an edit reaches the write gate — an ARGUMENT, for the reason
+ *  `@olai/ops`' planner takes its clock and its id minter as arguments:
+ *  everything in this module is a value, and a stack rule that can only be
+ *  checked by pressing a key in a browser is a rule nothing checks. The one
+ *  caller with a wire (App.tsx) passes it; nothing here imports one. */
 export type Apply = (edit: Edit) => Promise<Result.Result<Applied, OpFailure>>
 
-const overTheWire: Apply = (edit) => runAsync(olai.procedures.edit.apply(edit))
-
-export const createUndo = (apply: Apply = overTheWire): Undo => {
+export const createUndo = (apply: Apply): Undo => {
   const [stack, setStack] = createSignal<Stack>(EMPTY)
   const [said, setSaid] = createSignal<Said | null>(null)
 

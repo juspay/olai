@@ -123,13 +123,16 @@ The three above are errors as DATA — read off the wire and drawn on purpose �
 so none of them can say anything about a bug in this client: a render that has
 thrown is not running the code that would draw them, and what a reader got was
 a white tab with the truth in a console they had no reason to open. So the
-shell is wrapped in an `<ErrorBoundary>` (`main.tsx`) and `errors/Fault.tsx` is
-what it draws: what threw, verbatim, and the two ways out — a reload for a
-bundle that is stale, and `/` for a page that is poison, because a fault is
-usually deterministic for the route it happened on and Reload alone would be a
-loop. A boundary SWALLOWS, so the fallback also logs the fault once: otherwise
-the truth is in no console at all, and a browser test meets it as a timeout on a
-missing element. There is no way to ASK the app for one —
+shell is wrapped in kolu's `SurfaceFaultBoundary` (`main.tsx` — composed
+standalone, since this root does not ride `SurfaceAppProvider`), and
+`errors/Fault.tsx` is the LOOK it draws with: what threw — printed upstream by
+the framework's `thrownText`, handed here as text, verbatim — and the two ways
+out — a reload for a bundle that is stale, and `/` for a page that is poison,
+because a fault is usually deterministic for the route it happened on and
+Reload alone would be a loop. A boundary SWALLOWS, so the framework's boundary
+also records the fault to the console once: otherwise the truth is in no
+console at all, and a browser test meets it as a timeout on a missing element.
+There is no way to ASK the app for one —
 `features/the_client_breaks.feature` injects a fault from outside the bundle,
 and says why at length.
 
@@ -524,8 +527,8 @@ the agenda, the calendar and the file tree, collapsing on desktop to an icon rai
 is on every screen App draws, including the error report and the waiting page,
 so there is one home for chrome and no corner-pills special case those screens
 used to need. The sole exception is the fault card: `main.tsx`'s
-`<ErrorBoundary>` sits above `App`, so a thrown render never reaches the header
-(a broken client has no chrome to trust).
+`SurfaceFaultBoundary` sits above `App`, so a thrown render never reaches the
+header (a broken client has no chrome to trust).
 
 The bar **sticks** (`sticky top-0`, layer `z-[45]`): this app scrolls the
 document, so a bar in normal flow took the connection dot, the commit pill and

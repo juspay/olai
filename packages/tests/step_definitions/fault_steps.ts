@@ -62,7 +62,21 @@ When("I open a page it cannot draw", async function (this: OlaiWorld) {
   // `settle`, not `open`: the same wait every scenario in the suite does, minus
   // the one line that REJECTS a fault card as the failure it is for all of
   // them. This is the scenario that wants one.
-  await this.settle("/");
+  //
+  // NAMED when it times out, because for this scenario a settle that never saw
+  // a shape is not noise — it is the white tab itself, the exact thing the
+  // boundary exists to replace. Without this, removing the boundary reads as a
+  // bare Playwright timeout instead of saying what came back: nothing.
+  try {
+    await this.settle("/");
+  } catch (cause) {
+    throw new Error(
+      "nothing settled: no docked header, no error view, no fault card — a " +
+        "white tab. The injected fault threw and nothing drew a card for it: " +
+        "is the shell still wrapped in SurfaceFaultBoundary (main.tsx)?",
+      { cause },
+    );
+  }
   assert.equal(
     await this.page.locator(FAULT).count(),
     1,
@@ -76,6 +90,15 @@ When("I open a page it cannot draw", async function (this: OlaiWorld) {
 Then("the page says it broke", async function (this: OlaiWorld) {
   await this.page
     .locator(FAULT)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  // The one sentence olai still owns. The boundary, the record and the printed
+  // text are the framework's (`SurfaceFaultBoundary`), so what this app can
+  // still get wrong is the LOOK — and its first words are this heading. By
+  // ROLE, not testid: a card that demoted the sentence to a styled <div>
+  // would have changed what a reader is handed while keeping every testid
+  // in place.
+  await this.page
+    .getByRole("heading", { name: "This page broke" })
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
