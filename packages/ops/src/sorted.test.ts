@@ -76,6 +76,31 @@ describe("what a write is called", () => {
     expect(sorting(house(), { op: "archive", id: "order" })).toBe("archived")
   })
 
+  test("clearing a date is the opposite event of setting one, on one op", () => {
+    // The case the commit message cites as a reason not to tabulate by op
+    // name: `set_date` is one tool and two events, told apart by what the
+    // field became rather than by which tool was called.
+    const scheduled = setOf({
+      "house.jsonl": `{"id":"order","ord":"a0","title":"order","date":"2026-08-20"}`,
+    })
+    expect(sorting(scheduled, { op: "date", id: "order", date: null })).toBe("unscheduled")
+  })
+
+  test("a new outline is created, seeded or empty", () => {
+    // The other cited case, and both halves of it. A SEEDED create makes
+    // records, so the comparison answers; an EMPTY one makes a file and no
+    // record at all, and *nothing changed* would be a lie about a write that
+    // just brought an outline into being.
+    expect(
+      sorting(house(), {
+        op: "create",
+        file: "garden.jsonl",
+        seed: { title: "Garden", children: [{ title: "prune the apple" }] },
+      }),
+    ).toBe("created")
+    expect(sorting(house(), { op: "create", file: "garden.jsonl" })).toBe("created")
+  })
+
   test("a write that changes no record says nothing rather than `edited`", () => {
     // Retyping a title as it already reads. The planner refuses most no-ops
     // outright (`set_done` on a node that is already done is a refusal, not a

@@ -81,6 +81,27 @@ Feature: Talking to the agent
     And the diff shows the line "- a walnut worktop, ordered on the tenth" as added
 
   @scratch:chat
+  Scenario: An outline the agent rewrote by hand is still never a text diff
+    # The rule is about the FILE, not about the tool that wrote it: a `.jsonl`
+    # is one line per node, so a text diff of one is a single enormous line.
+    # olai's own writes cannot produce one — they go through the ops layer —
+    # but an agent's own `Edit` can name any file, and one aimed at an outline
+    # used to arrive as a diff block and be drawn as ordinary lines.
+    When I ask the agent "edit house.jsonl"
+    Then the chat shows the outline "house.jsonl" changing
+    And the outline change says "note rewritten"
+    And the chat shows no diff
+
+  @scratch:chat
+  Scenario: A rewrite too big to compare says so rather than looking like a hunk
+    # Past the comparison budget the two sides are reported as unrelated, so
+    # every row is a change and the trimmed view shows the top of the OLD file
+    # — which looks exactly like an ordinary diff and is not one.
+    When I ask the agent "edit huge.md"
+    Then the chat shows a diff of "huge.md"
+    And the diff says it was rewritten whole
+
+  @scratch:chat
   Scenario: An olai write tells its story instead of showing a diff
     # The other vocabulary, and the rule behind it: a `.jsonl` diff is one
     # enormous line per node with everything on it changing at once, which is

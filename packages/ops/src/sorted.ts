@@ -47,6 +47,12 @@ import type { FilePlan } from "./plan.ts"
  * that landed and changed nothing. Saying *edited* there would be inventing a
  * change to report.
  *
+ * A FILE is not a record, though, and one op moves the first without the
+ * second: `create_outline` with no seed mints an empty `.jsonl`, which compares
+ * as nothing at all. That one is *created* — a file that was not there before
+ * is exactly what the word means, and the alternative is a panel telling
+ * somebody that a write which just made an outline changed nothing.
+ *
  * Only the files the plan TOUCHES are compared — one walk of the set keeping
  * one or two outlines' records, and a comparison over those alone rather than
  * over the corpus. (The walk is the set's, because that is the shape the
@@ -78,5 +84,14 @@ export const sortOfWrite = (
   }
   const now = new Map(files.map((planned) => [planned.file, planned.nodes]))
   const changes = changesOf(was, now)
-  return (changes.find((change) => change.id === about) ?? biggestOf(changes))?.sort
+  const change = changes.find((entry) => entry.id === about) ?? biggestOf(changes)
+  if (change !== null && change !== undefined) return change.sort
+  // No RECORD moved — and one write can still mean something, because a file is
+  // not a record: `create_outline` with no seed mints an empty `.jsonl`, which
+  // compares as nothing at all. Reporting *nothing changed* about a write that
+  // just brought a file into being is a lie the panel would draw, so the
+  // arrival of the FILE is the change, in the word the format already has for
+  // a thing that was not there before.
+  const known = new Set(before.files)
+  return files.some((planned) => !known.has(planned.file)) ? "created" : undefined
 }

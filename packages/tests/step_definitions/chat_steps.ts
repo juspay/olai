@@ -35,6 +35,7 @@ import {
   CHAT_DIFF,
   CHAT_DIFF_EXPAND,
   CHAT_DIFF_LINE,
+  CHAT_DIFF_WHOLESALE,
   CHAT_DROP,
   CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
@@ -43,6 +44,8 @@ import {
   CHAT_NEW,
   CHAT_NO_AGENT,
   CHAT_NUDGE,
+  CHAT_OUTLINE_CHANGE,
+  CHAT_OUTLINE_DIFF,
   CHAT_PANEL,
   CHAT_QUEUED,
   CHAT_REFUSAL,
@@ -796,6 +799,39 @@ Then(
     );
   },
 );
+
+Then(
+  "the chat shows the outline {string} changing",
+  async function (this: OlaiWorld, file: string) {
+    await this.page
+      .locator(`${CHAT_OUTLINE_DIFF}[data-path="${file}"]`)
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
+Then(
+  "the outline change says {string}",
+  async function (this: OlaiWorld, said: string) {
+    // The Commit panel's own phrase for the same event — which is the parity
+    // that makes this a second reading of one vocabulary rather than a second
+    // vocabulary.
+    const row = this.page.locator(CHAT_OUTLINE_CHANGE).first();
+    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const shown = oneLine(await row.innerText());
+    assert.ok(
+      shown.includes(said),
+      `the outline's change does not say "${said}"; it says: ${shown}`,
+    );
+  },
+);
+
+Then("the diff says it was rewritten whole", async function (this: OlaiWorld) {
+  // The half of a bound that matters on screen: a reader who is not told is
+  // reading the top of the old file as though it were a hunk.
+  await this.page
+    .locator(CHAT_DIFF_WHOLESALE)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
 
 Then(
   "the write's nudge says {string}",

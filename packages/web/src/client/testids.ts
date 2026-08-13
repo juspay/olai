@@ -430,6 +430,19 @@ export const TESTID = {
   chatDiffLine: "chat-diff-line",
   /** The control that opens a trimmed diff in place, and shuts it again. */
   chatDiffExpand: "chat-diff-expand",
+  /** One OUTLINE the call rewrote — its own name, because the whole claim is
+   *  that this is never the row above: a `.jsonl` is one line per node, so it
+   *  is drawn as node changes and there is no text diff of one anywhere.
+   *  `data-path` is the file, `data-expanded` whether the trim has been
+   *  opened. */
+  chatOutlineDiff: "chat-outline-diff",
+  /** One node inside it, in the Commit panel's own words. `data-sort` is the
+   *  format's classification, `data-node-id` which node. */
+  chatOutlineChange: "chat-outline-change",
+  /** ... or the sentence that replaces those rows when one side of the file
+   *  does not parse. Still never a text diff — an outline nothing can read is
+   *  news, not a reason to fall back to lines. */
+  chatOutlineUnreadable: "chat-outline-unreadable",
   /** Said in a diff's header when the two texts were too far apart to line up
    *  line by line: every row below is a change, so a trimmed view shows the
    *  top of the old file rather than an edit. */

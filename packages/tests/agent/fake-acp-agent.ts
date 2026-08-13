@@ -20,7 +20,9 @@
  *
  *   done <id>    call `set_done` on that node, then say so
  *   add <title>  call `add_node` under the first outline's first root
- *   edit [file]  report a DIRECT file edit, as a `diff` content block
+ *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
+ *                outline if the name ends `.jsonl`, an over-budget rewrite for
+ *                `huge.md`, an ordinary markdown edit otherwise
  *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
  *   deaf         go quiet with our stdin closed, so nothing said back arrives
@@ -240,6 +242,36 @@ const EDITED = {
     "_Rewritten while you watched._",
     "",
   ].join("\n"),
+}
+
+/**
+ * The same gesture aimed at an OUTLINE — an agent's own `Edit` on a `.jsonl`,
+ * which is the one thing olai's own tools cannot do and the one file a text
+ * diff may never be drawn of.
+ *
+ * The records are the chat fixture's own, so what the panel reports is a change
+ * to a node a scenario can name.
+ */
+const EDITED_OUTLINE = {
+  before: [
+    `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets"}`,
+    "",
+  ].join("\n"),
+  after: [
+    `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","desc":"oak, twelve of them"}`,
+    "",
+  ].join("\n"),
+}
+
+/** A rewrite past the panel's comparison budget: two texts with nothing in
+ *  common and more lines than the table may have cells, which is the case that
+ *  has to SAY it gave up rather than draw the top of the old file as though it
+ *  were a hunk. */
+const REWRITTEN = {
+  before: `${Array.from({ length: 600 }, (_, at) => `was ${at}`).join("\n")}\n`,
+  after: `${Array.from({ length: 600 }, (_, at) => `now ${at}`).join("\n")}\n`,
 }
 
 const COMMANDS = [
@@ -698,6 +730,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "edit") {
     const toolCallId = `call-${++nextMcpId}`
     const file = argument === "" ? "notes.md" : argument
+    // Which TEXTS depends on the file, because what the panel has to do with
+    // them depends on the file: an outline may never be drawn as lines, and a
+    // rewrite past the comparison budget has to say that it is one.
+    const texts = file.endsWith(".jsonl")
+      ? EDITED_OUTLINE
+      : file === "huge.md"
+      ? REWRITTEN
+      : EDITED
     notify("session/update", {
       sessionId,
       update: {
@@ -711,8 +751,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
           {
             type: "diff",
             path: `${cwd}/${file}`,
-            oldText: EDITED.before,
-            newText: EDITED.after,
+            oldText: texts.before,
+            newText: texts.after,
           },
         ],
       },

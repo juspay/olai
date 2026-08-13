@@ -737,6 +737,15 @@ Three components earn their own file:
   cell, because a browser must not freeze on a ten-thousand-line rewrite), and
   the colours are spent on the tint and the marker rather than on the words:
   text stays `ink`, which is the pair every palette promises.
+- **`OutlineDiff.tsx` / `outline.ts`** are what make "never a text diff of a
+  `.jsonl`" true of the FILE rather than of the tool. Olai's own writes cannot
+  produce one; an agent's own `Edit` can name any file, and one aimed at an
+  outline used to arrive as a diff block and render as lines. So an outline's
+  two texts are parsed and compared as RECORDS — `parseOutline` + `changesOf`,
+  the same pair the Commit panel's rows come from — and drawn as node rows in
+  the same words. A side that will not parse says which side and draws nothing
+  else: an agent hand-editing an outline is exactly how a `.jsonl` stops
+  parsing, and lines are not a better answer to that than a sentence.
 - **`Wrote.tsx`** draws the other kind, and never as a diff — an outline is one
   line per node, so a text diff of one is a single enormous line with
   everything on it changing at once. It is the node-level story in the words

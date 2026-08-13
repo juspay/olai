@@ -118,8 +118,13 @@ export const diffOf = (before: string | null, after: string): Diff => {
  * rather than an empty last line, so it is dropped: keeping it makes every file
  * end in a phantom line, and appending to such a file reads as one line changed
  * (the empty one) and one added.
+ *
+ * EXPORTED for the reconstruction property ({@link ./diff.test.ts}), which
+ * replays a rendering back over the old text and demands the new one: the
+ * property is about the SCRIPT, and a test that split the texts its own way
+ * would be testing its own splitting at the same time.
  */
-const linesIn = (text: string): ReadonlyArray<string> => {
+export const linesIn = (text: string): ReadonlyArray<string> => {
   if (text === "") return []
   const lines = text.split("\n")
   if (lines[lines.length - 1] === "") lines.pop()

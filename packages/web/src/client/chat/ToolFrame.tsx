@@ -38,12 +38,15 @@
  * unfolded it to avoid.
  */
 
+import { fileKind } from "@olai/format"
 import type { ChatEntry } from "@olai/surface"
-import { For, Show } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { Diff } from "./Diff.tsx"
 import { isUnfolded, toggleFold } from "./folds.ts"
+import { OutlineDiff } from "./OutlineDiff.tsx"
 import { Wrote } from "./Wrote.tsx"
 
 /** What each status looks like in one character. Words would wrap the line the
@@ -117,9 +120,27 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
       <Show when={props.entry.wrote}>
         {(wrote) => <Wrote wrote={wrote()} />}
       </Show>
-      <For each={props.entry.diffs}>
-        {(diff) => <Diff call={props.entry.id} diff={diff} />}
-      </For>
+      {/* Keyed BY PATH rather than by position, the way every other list in
+          this app is keyed: a call is reported twice, and the second report
+          carries the same blocks in a fresh array — under `<For>` that is a
+          new object at the same index, which remounts the row and throws away
+          what it owns while a reader is looking at it. The rule the frame
+          itself follows, one list down. */}
+      <Key each={props.entry.diffs} by="path">
+        {(diff) => (
+          /* Which SHAPE a change is drawn in is decided by the FILE and not by
+             the tool: an outline is one line per node, so a text diff of one is
+             a single enormous line — the rule the Commit panel has always had,
+             and it holds for an agent's own `Edit` as much as for an olai
+             write. */
+          <Show
+            when={fileKind(diff().path) === "outline"}
+            fallback={<Diff call={props.entry.id} diff={diff()} />}
+          >
+            <OutlineDiff call={props.entry.id} diff={diff()} />
+          </Show>
+        )}
+      </Key>
 
       <Show when={open()}>
         {/* Progress FIRST: it is the live half, and a reader who unfolded a
