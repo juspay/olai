@@ -1,12 +1,21 @@
 /**
- * ⌘K command palette — the SHELL only.
+ * ⌘K command palette — the shell, plus jump-to-node search.
  *
- * Navigation, panel toggles, reset widths, and a `>` prefix that sends the
- * rest to the agent. Jump-to-node type-ahead and op actions are the separate
- * `palette` roadmap item.
+ * Navigation, panel toggles, reset widths, a `>` prefix that sends the rest
+ * to the agent — and, under the shell rows, NODES: the query goes to the
+ * server's search procedure as you type (debounced, latest-wins), and every
+ * hit is a row that jumps to that node's page. The matching is entirely the
+ * server's — the same reading an agent's `search_nodes` gets, semantic index
+ * included when the machine has an embedder — so what this palette finds and
+ * what an agent finds cannot drift (items.ts says why there is no local
+ * matcher). A semantic hit wears `≈`; on a machine with no embedder such rows
+ * simply never arrive and the palette says nothing about it.
  *
- * `>` ask uses `run` with a real failure handler: a refusal is shown in the
- * palette rather than dropped (run.ts forbids a silent handler).
+ * Op actions are still the separate `palette` roadmap item.
+ *
+ * `>` ask and the search both use `run` with a real failure handler: a
+ * refusal is shown in the palette rather than dropped (run.ts forbids a
+ * silent handler).
  */
 
 import {
@@ -19,7 +28,8 @@ import {
   Show,
 } from "solid-js"
 
-import type { OpFailure } from "@olai/surface"
+import type { OpFailure, SearchHit } from "@olai/surface"
+import { debounce } from "@solid-primitives/scheduled"
 
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
@@ -32,7 +42,7 @@ import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../run.ts"
-import { askQuery, filterItems, type PaletteItem } from "./items.ts"
+import { askQuery, filterItems, nodeItem, type PaletteItem } from "./items.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { isEditingTarget, matchKey } from "../keys.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
@@ -60,9 +70,38 @@ export function Palette(props: {
   let previousFocus: HTMLElement | null = null
 
   const ask = createMemo(() => askQuery(query()))
+
+  // Node hits, from the server — LATEST-WINS: an answer to a query the box
+  // has moved past is dropped by sequence number, so a slow reply can never
+  // overwrite a fresher one. Debounced so a burst of keystrokes is one call.
+  const [hits, setHits] = createSignal<ReadonlyArray<SearchHit>>([])
+  let asked = 0
+  const search = debounce((text: string) => {
+    const seq = ++asked
+    run(
+      olai.procedures.search.nodes({ text, limit: 8 }),
+      (failure: OpFailure) => {
+        if (seq === asked) setAskError(failure.message)
+      },
+      (answer) => {
+        if (seq === asked) setHits(answer.hits)
+      },
+    )
+  }, 120)
+  createEffect(() => {
+    const text = query().trim()
+    if (open() && ask() === null && text !== "") {
+      search(text)
+    } else {
+      search.clear()
+      asked++
+      setHits([])
+    }
+  })
+
   const items = createMemo(() => {
     if (ask() !== null) return [] as ReadonlyArray<PaletteItem>
-    return filterItems(query())
+    return [...filterItems(query()), ...hits().map(nodeItem)]
   })
 
   const close = () => {

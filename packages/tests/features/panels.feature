@@ -80,6 +80,20 @@ Feature: Toggleable & resizable panels
     Then the sidebar rail is showing
 
   @corpus:good
+  Scenario: Palette search finds a node and jumps to it
+    # The query goes to the server's search procedure — the same reading an
+    # agent's search_nodes gets, semantic index included when the machine has
+    # an embedder. A CI lane has none, so these hits are substring only:
+    # search degrading to exactly this is the feature's contract, not a gap.
+    Given I open the outline "house.jsonl"
+    When I press the palette shortcut
+    And I type "hinges" into the palette
+    Then the palette lists the node "pick the hinges"
+    When I pick the palette item "pick the hinges"
+    Then the address is "/n/hinges"
+    And the zoomed node is "hinges"
+
+  @corpus:good
   Scenario: Keyboard toggles the sidebar and the chat
     Given I open the outline "house.jsonl"
     When I press the sidebar shortcut

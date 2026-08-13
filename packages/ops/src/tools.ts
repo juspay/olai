@@ -57,10 +57,17 @@ import {
 
 /** The set as a reader sees it: the files that were found, and the derivations
  *  every answer is computed from. One value, so a run of queries walks the tree
- *  once ({@link ./query.ts}). */
+ *  once ({@link ./query.ts}).
+ *
+ *  `recall` is the semantic reading standing behind the server, when one is —
+ *  `null` is the ordinary case and changes nothing but the paraphrase matches
+ *  (`Query.searchWith`). On the reading rather than threaded to one tool so
+ *  the two faces that search (the MCP tool here, the palette's procedure in
+ *  `@olai/server`) cannot be handed different indexes over one snapshot. */
 export interface Reading {
   readonly set: OutlineSet
   readonly derived: Derived
+  readonly recall: Query.Recall | null
 }
 
 interface Described {
@@ -103,6 +110,10 @@ export interface Acting {
 export type Tool =
   | (Described & {
     readonly kind: "read"
+    /** The answer, or an `Effect` of it — the one read that returns an Effect
+     *  is the search, whose semantic half asks an embedder. The dispatcher in
+     *  `@olai/server` flattens either; a reader with nothing to await stays a
+     *  plain function rather than dressing up as a program. */
     readonly read: (at: Reading, args: never) => unknown
   })
   | (Described & {
@@ -123,7 +134,7 @@ export type Tool =
 const SearchArgs = Schema.Struct({
   text: Schema.String.annotate({
     description:
-      "Words to look for. Case-folded substrings, no operators: every word must appear somewhere in the same node.",
+      "Words to look for. Case-folded substrings, no operators: every word must appear somewhere in the same node. When a local embedder is available, nodes that say the same thing in other words are appended after the exact matches.",
   }),
   limit: Schema.optionalKey(
     Schema.Number.annotate({
@@ -234,9 +245,9 @@ export const TOOLS: ReadonlyArray<Tool> = [
   read(
     "search_nodes",
     "Search nodes",
-    "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by.",
+    "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by.\n\nExact matches come first and are evidence — the words are in the node. When a local embedder is present, hits with `matched: \"meaning\"` follow: nodes the index reads as saying the same thing in other words, worth checking rather than trusting. With no embedder there are simply no such hits; that is not an error and nothing will say so.",
     SearchArgs,
-    (at, args: typeof SearchArgs.Type) => Query.search(at.derived, args),
+    (at, args: typeof SearchArgs.Type) => Query.searchWith(at, args),
   ),
   read(
     "read_node",

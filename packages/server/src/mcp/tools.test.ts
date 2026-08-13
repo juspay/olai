@@ -26,7 +26,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { type OutlineError, type OutlineSet } from "@olai/format"
-import { codec, make as makeOps, TOOLS } from "@olai/ops"
+import { codec, make as makeOps, Query, TOOLS } from "@olai/ops"
 import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
@@ -60,10 +60,13 @@ interface Fixture {
 }
 
 /** The whole face over a fresh directory: store, ops, surface, tools, and an
- *  MCP client on the other end of a linked transport pair. */
+ *  MCP client on the other end of a linked transport pair. `recall` stands a
+ *  scripted semantic index behind the reading, the way a composition root
+ *  stands the real one — absent is the ordinary substring-only face. */
 const withTools = <A>(
   files: Readonly<Record<string, string>>,
   use: (fixture: Fixture) => Promise<A>,
+  recall?: Query.Recall,
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-tools-")))
   for (const [file, contents] of Object.entries(files)) {
@@ -83,6 +86,7 @@ const withTools = <A>(
       store,
       root,
       commits: "off",
+      recall: recall ?? null,
       // The ops layer's own fixture context — deterministic ids and one fixed
       // instant — rather than a second spelling of it up here, which is a
       // fixture free to drift from the assertions that package is written
@@ -381,6 +385,27 @@ test("search and subtree carry a node's see so an agent can traverse", async () 
     // A node with no see does not pretend to have one.
     expect(children.find((child) => child["id"] === "install")).not.toHaveProperty("see")
   })
+})
+
+test("with a semantic index standing, search_nodes appends meaning hits — through the real client", async () => {
+  // What this proves that the ops tests cannot: the one read whose answer is
+  // an EFFECT (the semantic half asks an embedder) flattens through the
+  // dispatcher, the SDK's framing and the schema bridge, and lands as the
+  // same structured answer every other read gives. The recall is scripted at
+  // the seam — no embedder, no model, per kolu-ci-1.
+  await withTools(
+    { "house.jsonl": HOUSE },
+    async ({ client }) => {
+      const answer = await call(client, "search_nodes", { text: "purchase the cupboards" })
+      expect(answer.isError).toBe(false)
+      // Not one of those words is in any node — substring alone answers
+      // nothing, and the index fills in the paraphrase.
+      expect(answer.structured["hits"]).toMatchObject([
+        { id: "order", matched: "meaning", title: "order the cabinets" },
+      ])
+    },
+    { nearest: () => Effect.succeed([{ id: "order", score: 0.9 }]) },
+  )
 })
 
 // ── writing ────────────────────────────────────────────────────────────

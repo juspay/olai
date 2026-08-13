@@ -1,10 +1,17 @@
 /**
- * The palette SHELL's catalogue: navigation, panel toggles, ask-the-agent.
+ * The palette SHELL's catalogue: navigation, panel toggles, ask-the-agent —
+ * and the shape a NODE takes when search answers with one.
  *
- * Jump-to-node type-ahead and op actions belong to the separate `palette`
- * roadmap item — not here. A `>` prefix on the query sends the rest to the
- * agent rather than filtering this list.
+ * Op actions belong to the separate `palette` roadmap item — not here. A `>`
+ * prefix on the query sends the rest to the agent rather than filtering this
+ * list. Node hits arrive from the server's search procedure (Palette.tsx asks
+ * it as you type) rather than from a matcher of this file's own: the browser
+ * holds every node and could grep them, and deliberately does not, because the
+ * palette and an agent's `search_nodes` must be one reading
+ * (`@olai/surface`'s search.ts has the argument).
  */
+
+import type { SearchHit } from "@olai/surface"
 
 import type { Route } from "../routes.ts"
 
@@ -76,6 +83,28 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     search: "reset panel widths sidebar chat default size",
   },
 ]
+
+/**
+ * One search hit as a palette row: choosing it jumps to the node's page.
+ *
+ * The hint is where the node SITS (its nearest ancestor, or its file at top
+ * level) — a bare title in a list of strangers means nothing. A semantic hit
+ * wears `≈` in front: the query's words are NOT in this node, the index reads
+ * it as saying the same thing, and a reader is owed the difference between
+ * evidence and resemblance. When no embedder is present such hits simply
+ * never arrive, and nothing here says so — the absence of a feature is not an
+ * error.
+ */
+export const nodeItem = (hit: SearchHit): PaletteItem => ({
+  id: `node-${hit.id}`,
+  label: hit.title,
+  hint: `${hit.matched === "meaning" ? "≈ " : ""}${
+    hit.path[hit.path.length - 1] ?? hit.file
+  }`,
+  action: { kind: "route", route: { kind: "node", id: hit.id } },
+  // Never filtered locally: the server already decided these match.
+  search: "",
+})
 
 /** Filter shell items by a free-text query (no `>` prefix). */
 export const filterItems = (

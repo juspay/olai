@@ -44,7 +44,7 @@
  */
 
 import { NOTHING_PENDING } from "@olai/format"
-import type { Ops, Status } from "@olai/ops"
+import { type Ops, Query, type Status } from "@olai/ops"
 import type {
   CommitRequest,
   CommitResult,
@@ -468,6 +468,14 @@ export const bind = (
         // binding here to forget. What the answer NARROWS the ops layer's to
         // is `applyEdit`'s decision, above, rather than a second one made here.
         edit: { apply: ({ input }) => applyEdit(input) },
+        // The palette's search: the SAME call `search_nodes` makes for an
+        // agent — one reading over one snapshot, semantic index included when
+        // one is standing — so the two faces answer identically by
+        // construction rather than by two matchers agreeing (HACKING.md).
+        search: {
+          nodes: ({ input }) =>
+            Effect.flatMap(wiring.ops.read, (at) => Query.searchWith(at, input)),
+        },
         git: {
           // The button's door. `writer: "web"` is decided in `serve.ts`, where
           // the ops layer is built — a procedure is a transport, and which

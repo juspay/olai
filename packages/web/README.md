@@ -1178,9 +1178,17 @@ clears the home-bar inset (`CLEARANCE`).
 
 ## Command palette shell
 
-`src/client/palette/` is the ⌘K shell: navigation (home, today), panel toggles,
-and a `>` prefix that sends the rest to the agent. Jump-to-node type-ahead and
-op actions belong to the separate `palette` roadmap item.
+`src/client/palette/` is the ⌘K shell — navigation (home, today), panel
+toggles, a `>` prefix that sends the rest to the agent — plus jump-to-node
+search: the query goes to the server's `search.nodes` procedure as you type
+(debounced, latest-wins by sequence number), and every hit is a row that
+routes to `/n/<id>`. The matching is entirely the server's — the same reading
+an agent's `search_nodes` gets, semantic index included when the machine has
+an embedder — so there is deliberately no matcher in this client
+(`items.ts` says why), and a semantic hit wears `≈` in its hint because the
+reader is owed the difference between evidence and resemblance. On a machine
+with no embedder those rows simply never arrive, and nothing here says so.
+Op actions belong to the separate `palette` roadmap item.
 
 ## The keyboard, in one file
 

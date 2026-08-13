@@ -4,6 +4,9 @@
   flags, the home-manager module, and `olai mcp`.
 - [editing.md](editing.md) — typing into an outline: the keys, what a draft
   is, and how ⌘Z takes an edit back.
+- [search.md](search.md) — one search, two faces: substring as evidence,
+  paraphrase recall behind a local embedder, and the derived index that
+  degrades to nothing.
 - [git.md](git.md) — the git integration: commit modes, the pill, and the
   audit view.
 - [chat.md](chat.md) — the chat agent: ACP and `OLAI_ACP_AGENT`, the node

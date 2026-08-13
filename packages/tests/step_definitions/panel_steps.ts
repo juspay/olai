@@ -280,6 +280,30 @@ Then("the palette shows an ask error", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+/** Fill without Enter — search runs as you type; Enter would pick a row. */
+When(
+  "I type {string} into the palette",
+  async function (this: OlaiWorld, text: string) {
+    const input = this.page.locator(PALETTE_INPUT);
+    await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await input.fill(text);
+  },
+);
+
+Then(
+  "the palette lists the node {string}",
+  async function (this: OlaiWorld, title: string) {
+    // A debounce and one server round trip sit between the keystroke and the
+    // row, so this waits rather than reads. `data-id^="node-"` tells a node
+    // hit from a shell item that happens to share a word.
+    await this.page
+      .locator(`${PALETTE_ITEM}[data-id^="node-"]`)
+      .filter({ hasText: title })
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
 // ── mobile drawer + sheet geometry ─────────────────────────────────────
 
 Then(

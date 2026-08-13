@@ -34,7 +34,9 @@ one (there is no offline mode, on purpose — a cached copy of an outline is a
 copy that has stopped being true). A ⚙ in the header opens the preferences —
 one of the fifteen named palettes, and whether pages open with finished work
 shown — stored in the browser and sent nowhere; `⌘K` opens a command palette,
-where the keyboard-shortcut list also lives.
+where the keyboard-shortcut list also lives. Type into the palette and it
+searches the outlines as well — the same reading an agent's `search_nodes`
+gets, jump on Enter ([docs/search.md](search.md)).
 
 ### Behind a reverse proxy
 
