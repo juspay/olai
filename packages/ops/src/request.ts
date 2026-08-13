@@ -309,6 +309,42 @@ export const ArchiveRequest = Schema.Struct({
 })
 
 /**
+ * Take a subtree back OUT of an `Archive.jsonl` — the inverse `archive` never
+ * had, built once here and exposed on both faces together (HACKING.md's
+ * consistency rule; `parity-unarchive`).
+ *
+ * Where it lands is the one real question, and the DEFAULT answer is the
+ * archive's own record of where it came from: the scaffold of ancestor titles
+ * `archive` wrote above the node, matched back against the live outlines
+ * beside the archive. That chain is titles rather than ids — the scaffold's
+ * ids are minted, precisely so they cannot collide with the live ancestors' —
+ * so the match can be empty (the chain was retitled or archived itself) or
+ * plural (two branches spell the same path), and both are REFUSALS that name
+ * what was found rather than guesses. `parent` and `file` are the caller's way
+ * past them, and they are {@link LANDING}'s own pair: under that node, or at
+ * the top level of that outline.
+ */
+export const UnarchiveRequest = Schema.Struct({
+  op: Schema.Literal("unarchive"),
+  id: Schema.String.annotate({
+    description:
+      "The `id` of a node in an `Archive.jsonl`. It comes back out with everything under it.",
+  }),
+  file: Schema.optionalKey(
+    Schema.String.annotate({
+      description:
+        "Outline to restore into, at top level. Ignored when `parent` is present. Absent (with no `parent`), the recorded chain of ancestor titles decides — refused, naming what it found, when that chain matches nowhere or more than one place.",
+    }),
+  ),
+  parent: Schema.optionalKey(
+    Schema.String.annotate({
+      description:
+        "Id of the live node it goes back under. Absent, the recorded ancestor chain decides (see `file`).",
+    }),
+  ),
+})
+
+/**
  * What a brand-new outline is born holding: a capture, exactly as `add_node`
  * takes one — the same fields, the same `children`, the same depth.
  *
@@ -451,6 +487,7 @@ export const Request = Schema.Union([
   DateRequest,
   MoveRequest,
   ArchiveRequest,
+  UnarchiveRequest,
   CreateRequest,
   SeeRequest,
   MirrorRequest,

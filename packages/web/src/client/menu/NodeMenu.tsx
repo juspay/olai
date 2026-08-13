@@ -270,7 +270,7 @@ function MenuPanel(props: {
  *
  * The QUESTION is the group's accessible name as well as its text, so a reader
  * arriving on the confirm button by keyboard is told what they are confirming
- * rather than reading the word "Archive" twice. The caret goes to that button
+ * rather than reading the words "Move to Trash" twice. The caret goes to that
  * on mount — a panel that swapped its content under an unmoved focus would
  * leave the keyboard on an element that is no longer there.
  */

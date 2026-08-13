@@ -185,6 +185,27 @@ because they are what the archive is for:
 - both files are validated as one set before either is written, and both land
   in one commit.
 
+`unarchive` is the way back out (`parity-unarchive` — for a long while there
+was none, on any face), and it is the archive read in reverse:
+
+- the subtree returns INTACT, ids and all — the set is one namespace and the
+  node never left it, so nothing can collide and nothing is re-pointed;
+- **where it lands is the archive's own record by default**: the scaffold of
+  ancestor titles above the node, matched back against the live outlines in
+  the archive's directory. Titles, not ids — the scaffold's ids are minted —
+  so the match can fail two ways, and both are refusals that NAME what was
+  found: nowhere (the chain was retitled, or put away itself) and more than
+  one place. `parent` / `file` are the caller's way past them, judged as
+  `add_node` judges the same pair — except that an archive is refused as a
+  destination, because putting something back IN is `archive`'s job;
+- it lands LAST among its new siblings: the archive does not record where in
+  a row a node sat, and a guess dressed as a restore would be worse than the
+  honest answer every other arrival gets;
+- **the scaffold is tidied on the way out** — an ancestor the removal leaves
+  empty is dropped, provided it is the bare title record `archive` mints and
+  nothing in the set still names it — so archive-then-unarchive leaves the
+  archive exactly as it stood.
+
 ## The git commit
 
 A commit is something somebody ASKS for. Writes land on disk and wait; the two

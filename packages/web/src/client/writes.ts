@@ -57,9 +57,10 @@ import type { Said } from "./edit/undoing.ts"
  * a keystroke does ({@link ./edit/editing.tsx}): the server says what would take
  * a write back, `undefined` and all, and which of these verbs HAS an inverse is
  * its answer rather than this file's opinion. So ⌘Z takes back a mark chosen
- * from the menu, a date picked on a badge and a date cleared from either, and
- * says "nothing to undo" after an archive — because there is no unarchive on
- * any face to say it with.
+ * from the menu, a date picked on a badge and a date cleared from either, a
+ * move to the Trash — the inverse is `unarchive`, carrying the place the row
+ * sat — and a `Put back` pressed in the Trash, whose inverse is the archive
+ * again.
  */
 export const applying = async (
   edit: Edit,

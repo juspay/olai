@@ -48,6 +48,13 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     search: "go to agenda due overdue upcoming owed",
   },
   {
+    id: "nav-trash",
+    label: "Go to the Trash",
+    hint: "what was put away",
+    action: { kind: "route", route: { kind: "trash" } },
+    search: "go to trash archive archived put away restore put back",
+  },
+  {
     id: "panel-sidebar",
     label: "Toggle sidebar",
     hint: "⌘\\",

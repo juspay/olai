@@ -114,9 +114,31 @@ it became something anybody else can see.
 
 **There is no delete key.** What ⌘Z can take back is a row you have just made —
 the un-create, which is the inverse of the `Enter` that made it. Where it goes
-is `Archive.jsonl`, keeping its id, which is what archiving does to anything: a
+is the Trash, keeping its id, which is what putting anything away does: a
 trash rather than a shredder, refused outright once anything has been filed
 under it, and not something a key of its own can ask for.
+
+## The Trash
+
+The `•••` menu's **Move to Trash** puts a row and everything under it away,
+behind a question that names how many rows go. Where they go is
+`Archive.jsonl` on disk — an outline like any other to an agent, whose tool
+for the same gesture is still called `archive_node` — but to a person it is
+the **Trash** at the foot of the sidebar: every archive under the directory,
+readable and not editable, each subtree drawn under the chain of ancestor
+titles it hung off.
+
+**Put back** is the one verb a Trash row has, and it is the whole reason the
+Trash is a trash. It sends the same `unarchive` op an agent's
+`unarchive_node` sends — the op both faces got in the same change, because
+neither face may do what the other cannot — and the subtree returns where
+the recorded chain says it came from, last among its new siblings, children
+and ids intact. A chain that no longer stands (retitled, or put away itself)
+is a refusal in the ops layer's own words under the row, never a guess; an
+agent can name a destination outright, and restoring the chain first is the
+way through for the mouse. ⌘Z after a Move to Trash puts the row back too —
+the undo knows the exact parent it sat under — and ⌘Z after a Put back is
+the archive again.
 
 Deliberately absent, each its own item: delete, split and merge, multi-select,
 and drag-and-drop.

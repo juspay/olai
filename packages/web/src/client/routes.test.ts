@@ -17,6 +17,7 @@ const ROUTES: ReadonlyArray<Route> = [
   { kind: "day", date: "2026-08-10" },
   { kind: "today" },
   { kind: "agenda" },
+  { kind: "trash" },
 ]
 
 test("every route survives being written to a URL and read back", () => {
@@ -35,6 +36,19 @@ test("the addresses are the documented ones", () => {
   expect(hrefOf({ kind: "day", date: "2026-08-10" })).toBe("/d/2026-08-10")
   expect(hrefOf({ kind: "today" })).toBe("/today")
   expect(hrefOf({ kind: "agenda" })).toBe("/agenda")
+  expect(hrefOf({ kind: "trash" })).toBe("/trash")
+})
+
+// `/trash` spells no file for the agenda's reason: which archives exist is the
+// set's answer, and an address that named one would mean something different
+// the day a subdirectory gets its own. An archive's own outline address still
+// parses — what page it opens is `page.ts`'s call, not this parser's.
+test("the trash is one address, and an archive's path is still an outline's", () => {
+  expect(routeOf("/trash")).toEqual({ kind: "trash" })
+  expect(routeOf("/o/Archive.jsonl")).toEqual({
+    kind: "outline",
+    file: "Archive.jsonl",
+  })
 })
 
 // `/agenda` spells nothing at all — not a day, not a horizon. An address that

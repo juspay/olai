@@ -358,6 +358,24 @@ test("retiring something that is not a placement is the OPS layer's to refuse", 
     .toEqual({ op: "unmirror", id: "kitchen" })
 })
 
+test("unarchive passes through, destination and all — the chain is the op's to follow", () => {
+  // `Put back` sends the id alone and the ops layer follows the recorded
+  // chain; an undo sends the place it read off this seam. Neither is resolved
+  // here — there is nothing about siblings or marks to read — so both travel
+  // as they are, and every refusal met is the planner's own.
+  expect(asked({ verb: "unarchive", id: "handles" }))
+    .toEqual({ op: "unarchive", id: "handles" })
+  expect(asked({ verb: "unarchive", id: "handles", parent: "install" }))
+    .toEqual({ op: "unarchive", id: "handles", parent: "install" })
+  expect(asked({ verb: "unarchive", id: "loose", file: "house.jsonl" }))
+    .toEqual({ op: "unarchive", id: "loose", file: "house.jsonl" })
+})
+
+test("the inverse of a put-back is the archive that made the row a trash row", () => {
+  expect(inverse({ verb: "unarchive", id: "handles" }))
+    .toEqual([{ verb: "archive", id: "handles" }])
+})
+
 test("archive is the op, subtree and all — the fence is the menu's question", () => {
   // `kitchen` has three children and a placement under it. Nothing here counts
   // them: the reader was asked, in the panel, before this was ever sent, and a
@@ -581,15 +599,25 @@ test("a MIRROR has no date of its own either", () => {
   expect(inverse({ verb: "date", id: "echo", date: null })).toEqual([])
 })
 
+test("an archive records the place the row is about to stop having", () => {
+  // The parent as this reading holds it — an id an agent would have named,
+  // not the title chain the archive is about to write in its place. An undo
+  // that leaned on the chain would be a title match where the server had the
+  // fact in hand.
+  expect(inverse({ verb: "archive", id: "install" }))
+    .toEqual([{ verb: "unarchive", id: "install", parent: "kitchen" }])
+  expect(inverse({ verb: "remove", id: "handles" }))
+    .toEqual([{ verb: "unarchive", id: "handles", parent: "install" }])
+  // A row at top level has no parent to come back under, so its FILE is the
+  // recorded fact — the same pair the op takes.
+  expect(inverse({ verb: "archive", id: "loose" }))
+    .toEqual([{ verb: "unarchive", id: "loose", file: "house.jsonl" }])
+})
+
 test("what nothing would take back says so with an empty list", () => {
-  // THREE writes answer that way, and they mean three different things. A
-  // `remove` and an `archive` have put records in `Archive.jsonl`, which no
-  // move brings back out (a parent is same-file by the format, and the archive
-  // is another file) and which no face can unarchive yet. An `unmirror` could
-  // be undone in principle — put the placement back — and this surface has no
-  // verb that creates one, so inventing a browser-only mirror-create to serve
-  // an undo would be the deviation the menu's verbs exist to close.
-  expect(inverse({ verb: "remove", id: "handles" })).toEqual([])
-  expect(inverse({ verb: "archive", id: "install" })).toEqual([])
+  // ONE write answers that way now. An `unmirror` could be undone in
+  // principle — put the placement back — and this surface has no verb that
+  // creates one, so inventing a browser-only mirror-create to serve an undo
+  // would be the deviation the menu's verbs exist to close.
   expect(inverse({ verb: "unmirror", id: "echo" })).toEqual([])
 })

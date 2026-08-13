@@ -28,6 +28,12 @@
  * so it spells nothing at all. A horizon in the URL would be an address that
  * meant something different tomorrow, which is the one thing a link may not do.
  *
+ * `/trash` spells nothing for the same reason: it is a question asked of the
+ * set — every `Archive.jsonl` under the directory — not a file's address. The
+ * files it reads still HAVE addresses (`/o/Archive.jsonl` parses like any
+ * outline path), and what such an address opens is the trash view, because an
+ * archive is not a place you edit (`page.ts` decides that, not this parser).
+ *
  * Pure, and parsing and printing live beside each other on purpose: they are
  * one bijection, and the test that says so (`routes.test.ts`) is the only
  * thing standing between a link the app writes and a link it cannot read back.
@@ -45,6 +51,11 @@ export type Route =
   | { readonly kind: "today" }
   /** What is owed, read forward from whatever day it is. */
   | { readonly kind: "agenda" }
+  /** What was put away: every `Archive.jsonl` under the directory, read-only.
+   *  It spells no file for the reason `/agenda` spells no horizon — which
+   *  archives exist is the set's answer, and an address that named one would
+   *  mean something different the day a subdirectory gets its own. */
+  | { readonly kind: "trash" }
 
 const OUTLINE_PREFIX = "/o/"
 const DOCUMENT_PREFIX = "/doc/"
@@ -52,6 +63,7 @@ const NODE_PREFIX = "/n/"
 const DAY_PREFIX = "/d/"
 const TODAY = "/today"
 const AGENDA = "/agenda"
+const TRASH = "/trash"
 
 /** Encoded per segment, so a path with a directory in it stays readable in the
  *  URL bar rather than turning into a run of `%2F`. */
@@ -60,6 +72,7 @@ export const hrefOf = (route: Route): string => {
   if (route.kind === "day") return DAY_PREFIX + encodeURIComponent(route.date)
   if (route.kind === "today") return TODAY
   if (route.kind === "agenda") return AGENDA
+  if (route.kind === "trash") return TRASH
   if (route.kind === "document") return DOCUMENT_PREFIX + spell(route.file)
   return route.file === null ? "/" : OUTLINE_PREFIX + spell(route.file)
 }
@@ -115,6 +128,8 @@ export const routeOf = (pathname: string): Route =>
     ? { kind: "today" }
     : pathname === AGENDA
     ? { kind: "agenda" }
+    : pathname === TRASH
+    ? { kind: "trash" }
     : pathname.startsWith(OUTLINE_PREFIX)
     ? { kind: "outline", file: decodeURIComponent(pathname.slice(OUTLINE_PREFIX.length)) }
     : { kind: "outline", file: null }
