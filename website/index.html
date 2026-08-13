@@ -110,6 +110,10 @@
     padding: 0 0.5em; white-space: nowrap; flex: none;
   }
   .pill.late { border-color: var(--alarm); color: var(--alarm); }
+  /* WHICH of the node's dates this is — said inside the pill, quietly, and only
+     where a page collects both (a tree row draws the `date` field and needs no
+     saying). */
+  .pill .occ { margin-right: 0.4em; opacity: 0.7; }
   /* a row draws at most one, and it goes at the end — as .marklbl does */
   .row .pill { margin-left: auto; }
   .note { color: var(--muted); font-size: 0.85rem; padding-left: 2.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -369,8 +373,8 @@ The corner unit is the **risky one** — see
         <p>Fog on the water. Only the ferry has a deadline, so it went
         first.</p>
         <div class="file" style="margin-top:1rem">kitchen.jsonl</div>
-        <div class="row"><span class="box doing"></span><span class="t">Order the new cabinets</span></div>
-        <div class="row"><span class="box done"></span><span class="t strike">Pick the counter stone</span></div>
+        <div class="row"><span class="box"></span><span class="t">Book the plumber</span><span class="pill">2026-08-12</span></div>
+        <div class="row"><span class="box done"></span><span class="t strike">Pick the counter stone</span><span class="pill"><span class="occ">done</span>2026-08-12T16:20:03-04:00</span></div>
       </div>
     </div>
   </div>
@@ -446,12 +450,12 @@ The corner unit is the **risky one** — see
 
         <p class="sect">overdue</p>
         <p class="grp">kitchen.jsonl</p>
-        <p class="trail">Kitchen renovation ›</p>
+        <p class="trail">Kitchen renovation</p>
         <div class="row"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
 
         <p class="sect">today</p>
         <p class="grp">kitchen.jsonl</p>
-        <p class="trail">Kitchen renovation ›</p>
+        <p class="trail">Kitchen renovation</p>
         <div class="row"><span class="box"></span><span class="t">Book the plumber</span><span class="pill">2026-08-12</span></div>
         <p class="grp">trip.jsonl</p>
         <div class="row"><span class="bullet">●</span><span class="t">Ferry tickets go on sale</span><span class="pill">2026-08-12</span></div>
