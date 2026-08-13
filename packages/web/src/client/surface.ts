@@ -91,11 +91,14 @@ export const CANVAS = "bg-canvas"
  *
  * The canvas's own fill, so the pills standing on it read as cards rather than
  * dissolving into a raised bar — which is exactly what the ratified mock draws.
- * And a card's shadow, because the page scrolls underneath a sticky bar and
- * something has to say which of the two is on top. Both halves are the reason
- * this is not just `CANVAS`.
+ * A card's shadow, because the page scrolls underneath a sticky bar and
+ * something has to say which of the two is on top. And a one-pixel seam along
+ * the bottom edge, because a shadow alone dissolved against the paper sitting
+ * four pixels under it: the mock's bar has its own altitude so content scrolls
+ * *under* something.
  */
-export const BAR = "bg-canvas shadow-[var(--shadow-card)]"
+export const BAR =
+  "bg-canvas shadow-[var(--shadow-card),0_1px_0_0_var(--color-seam)]"
 
 /**
  * A PANEL over the page that is still made of the ground: the chat dock, the
@@ -119,6 +122,14 @@ export const CARD = "bg-raised shadow-[var(--shadow-card)]"
 
 /** The document sheet. */
 export const PAPER = "bg-raised shadow-[var(--shadow-paper)]"
+
+/**
+ * The sheet's readable measure. Applied on the paper so surplus width becomes
+ * canvas gutter rather than a 1500px column of 150-character note lines — which
+ * is the floating-sheet thesis, not leftover space. The length lives in
+ * `--width-paper` (`styles.css`) so a reviewer has one number to argue about.
+ */
+export const MEASURE = "max-w-[var(--width-paper)]"
 
 /** A surface that has come up: menus, popovers, a question still open. */
 export const RAISED = "bg-raised shadow-[var(--shadow-raised)]"

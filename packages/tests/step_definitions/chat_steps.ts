@@ -37,6 +37,7 @@ import {
   CHAT_DIFF_LINE,
   CHAT_DIFF_WHOLESALE,
   CHAT_DROP,
+  CHAT_EMPTY,
   CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
   CHAT_INPUT,
@@ -904,12 +905,14 @@ When("I start a new conversation", async function (this: OlaiWorld) {
 Then("the chat is empty", async function (this: OlaiWorld) {
   // A new conversation EMPTIES the panel. The agent's context is gone, so
   // nothing above could be followed up — a transcript you cannot refer to is
-  // history the panel would be keeping for its own sake.
+  // history the panel would be keeping for its own sake. The empty-state card
+  // is the furniture that remains: an empty rail is not a void.
   await this.waitUntil(
     async () => (await this.page.locator(CHAT_ENTRY).count()) === 0,
     "the transcript to empty",
     HYDRATION_TIMEOUT,
   );
+  await this.page.locator(CHAT_EMPTY).waitFor({ state: "visible" });
 });
 
 When("I open the session picker", async function (this: OlaiWorld) {

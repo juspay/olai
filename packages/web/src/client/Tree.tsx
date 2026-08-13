@@ -91,6 +91,11 @@ import { applying } from "./writes.ts"
 export function Tree(props: {
   readonly rows: ReadonlyArray<Row>
   readonly view: View
+  /** File-root rows (Now / Infrastructure / Viewing). Hairlines used to tell
+   *  those apart; with them retired they need air and a slightly stronger
+   *  type. Only the outline page passes this — a zoomed tree's top rows are
+   *  children of a subject, not sections of a file. */
+  readonly section?: boolean
 }) {
   return (
     <ul class="m-0 list-none p-0" data-testid={TESTID.outlineTree}>
@@ -102,7 +107,7 @@ export function Tree(props: {
           mints per PLACE holds each row across the frame, and only the
           bindings whose values actually moved re-run. */}
       <Key each={props.rows} by="key">
-        {(row) => <Branch row={row()} view={props.view} />}
+        {(row) => <Branch row={row()} view={props.view} section={props.section} />}
       </Key>
     </ul>
   )
@@ -111,6 +116,8 @@ export function Tree(props: {
 function Branch(props: {
   readonly row: Row
   readonly view: View
+  /** A file-root section. Children do not pass this down. */
+  readonly section?: boolean
 }) {
   // A memo, not a plain accessor: folding one row mints a new Set, and five
   // separate computations in this component read it. Without the memo every
@@ -187,8 +194,9 @@ function Branch(props: {
 
   return (
     <li
-      class="my-0.5"
+      class={props.section === true ? "mt-8 mb-2 first:mt-0" : "my-0.5"}
       data-testid={TESTID.node}
+      data-section={props.section === true ? "true" : undefined}
       data-node-id={props.row.at.node.id}
       data-status={props.row.status}
       data-collapsed={String(collapsed())}
@@ -208,7 +216,10 @@ function Branch(props: {
           the same number PAST_CONTROLS is arithmetic over (./touch.ts). */}
       <div
         class={`group/row flex items-center ${GUTTER_GAP} ${WAITING_DIM(props.row.blocked)}`}
-        classList={{ "rounded-sm bg-accent/10": editing() }}
+        classList={{
+          "rounded-sm bg-accent/10": editing(),
+          "font-semibold tracking-[0.04em]": props.section === true,
+        }}
         data-testid={TESTID.nodeGutter}
       >
         {/* Hover strip: triangle always (phone) / hover-reveal (pointer);

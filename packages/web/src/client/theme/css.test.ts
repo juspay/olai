@@ -160,6 +160,14 @@ describe("the stylesheet's @theme", () => {
     }
   })
 
+  test("declares the sheet's own measure", async () => {
+    // Finding 1: the paper is 48rem, not the column. Pinned here so a quiet
+    // deletion of the token (which would stretch the sheet back to the
+    // leftover width) fails in this file rather than on a 1600px screenshot.
+    const theme = await themeBlock()
+    expect(theme).toContain("--width-paper: 48rem;")
+  })
+
   test("does NOT declare the depth shadows", async () => {
     // Stated as a claim rather than left as an absence. Tailwind bakes a theme
     // shadow's value into the utility it emits, so a `--shadow-card` in here

@@ -194,7 +194,7 @@ export function Composer(props: {
   }
 
   return (
-    <div class={`relative m-2 shrink-0 rounded-xl ${CARD} p-2.5`}>
+    <div class={`relative m-2 shrink-0 rounded-xl ${CARD} p-3`}>
       <Show when={open()}>
         <SlashMenu commands={matches()} onAccept={accept} onDismiss={dismiss} />
       </Show>
@@ -247,7 +247,7 @@ export function Composer(props: {
         }}
       />
 
-      <div class="mt-2 flex items-center gap-2">
+      <div class="mt-3 flex items-center gap-2 border-t border-seam pt-3">
         {/* The only way in on a phone, which has no Ctrl+V and nothing to drag
             from. `capture` is deliberately absent: a picture is usually one
             already in the roll, and naming a camera would make that the

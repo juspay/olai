@@ -25,10 +25,19 @@ export function OutlinePage(props: {
 }) {
   return (
     <Editable rows={() => props.rows} view={props.view}>
-      <header class="mb-4 flex items-baseline justify-end gap-2">
+      {/* A HEADER LINE, not a dead band: the file crumb and the Done pill
+          share one row so the sheet's top is inhabited, the way a zoomed
+          page already sits the crumbs beside the same pill. */}
+      <header class="mb-5 flex items-baseline justify-between gap-4">
+        <h1
+          class="m-0 min-w-0 truncate font-mono text-sm text-muted"
+          title={props.file}
+        >
+          {props.file}
+        </h1>
         <DoneToggle hidden={props.view.doneHidden()} onToggle={props.view.toggleDone} />
       </header>
-      <Tree rows={props.rows} view={props.view} />
+      <Tree rows={props.rows} view={props.view} section />
       {/* An outline that holds nothing still has to be startable, and a tree
           of no rows offers nowhere to press a key. Only when the file really
           is empty: rows can also be missing because this reading is hiding

@@ -31,6 +31,7 @@
 
 import { For, onCleanup, onMount, Show } from "solid-js"
 
+import { CARD } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { Entry } from "./Entry.tsx"
 import { Refusal } from "./Refusal.tsx"
@@ -78,6 +79,14 @@ export function Transcript(props: { readonly chat: Chat }) {
           whose HEIGHT can be observed: the pane's own size never changes, and
           it is the content inside it that grows. */}
       <div ref={content}>
+        <Show when={props.chat.rows().length === 0}>
+          <div
+            class={`mt-1 rounded-xl ${CARD} px-4 py-8 text-sm leading-relaxed text-muted`}
+            data-testid={TESTID.chatEmpty}
+          >
+            Nothing in this conversation yet.
+          </div>
+        </Show>
         <For each={props.chat.rows()}>
           {(key) => {
             const entry = props.chat.entry(key)

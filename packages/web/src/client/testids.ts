@@ -429,6 +429,8 @@ export const TESTID = {
   chatSessionList: "chat-session-list",
   chatSession: "chat-session",
   chatTranscript: "chat-transcript",
+  /** Furniture for an empty session — a quiet card so the rail is not a void. */
+  chatEmpty: "chat-empty",
   /** The panel saying a dragged file would land HERE: drawn over the
    *  transcript and the composer while a drag carrying files is over them,
    *  and gone the moment it is not. */

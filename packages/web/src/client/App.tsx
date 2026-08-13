@@ -52,7 +52,7 @@ import { OutlinePage } from "./OutlinePage.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
-import { PAPER } from "./surface.ts"
+import { MEASURE, PAPER } from "./surface.ts"
 import { TodayProvider } from "./today.tsx"
 import { createView } from "./view.ts"
 import { connectionReadout, olai } from "./wire.ts"
@@ -222,10 +222,16 @@ export default function App() {
                         used to be `main`'s whole spacing is now split: margin
                         outside the sheet, pad inside it.
 
+                        MEASURE is the sheet's readable width. Surplus is canvas
+                        gutter, which is what makes a 1600px window strengthen
+                        the floating-sheet thesis instead of stretching note
+                        lines to 150 characters. Centered in the column so the
+                        gutters fall evenly.
+
                         Extra bottom pad on phone when the chat strip is up so
                         the last lines of a long page are not trapped under it. */}
                     <main
-                      class={`overflow-x-auto rounded-2xl ${PAPER} mx-2 mb-2 mt-1 px-4 pt-4 ${CLEARANCE} md:mx-4 md:mb-4 md:px-12 md:py-10 lg:mr-6 lg:pl-16 lg:pr-12 ${
+                      class={`overflow-x-auto rounded-2xl ${PAPER} ${MEASURE} mx-2 mb-2 mt-2 px-4 pt-4 ${CLEARANCE} md:mx-auto md:mb-4 md:mt-3 md:px-10 md:pt-7 md:pb-10 ${
                         !desktop() && !chatOpen() ? "pb-16" : ""
                       }`}
                       // A link in RENDERED MARKDOWN is an anchor no component

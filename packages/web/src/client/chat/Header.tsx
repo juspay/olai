@@ -37,10 +37,10 @@ export function Header(props: {
   const state = () => props.chat.state()
 
   return (
-    // The session line is CHROME on the dock's canvas: no fill, no rule
-    // under it. What separates it from the transcript is that the transcript
-    // is a stack of cards and this is not one.
-    <header class="flex shrink-0 items-baseline gap-2 px-3 pb-1 pt-2.5">
+    // A CARD in the dock's stack, not chrome floating on the canvas: an empty
+    // session still has furniture this way (the header, then the empty-state
+    // card in the transcript), instead of a line of text over 800px of void.
+    <header class={`mx-2 mt-2 flex shrink-0 items-baseline gap-2 rounded-xl ${CARD} px-3 py-2.5`}>
       <div class="min-w-0 flex-1">
         <div
           class="truncate text-sm"

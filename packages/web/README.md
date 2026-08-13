@@ -498,6 +498,15 @@ Four consequences worth knowing before reading any component:
    rather than a generated `shadow-card`: Tailwind bakes a theme shadow's VALUE
    into the utility it emits, so a `:root[data-theme="pitch"]` block re-answering
    the property could never reach it. Spelled once, in `surface.ts`.
+5. **The paper has a measure.** `--width-paper` (48rem) is the sheet's own
+   width; surplus at a wide viewport is canvas gutter, which is what makes the
+   floating-sheet thesis hold on real data instead of stretching note lines to
+   the column's edge. The Done pill lives on a header line with the filename
+   (not in a dead band of blank sheet). Sidebar filenames ellipsis with a
+   `title` tooltip. Top-level sections get air and a slightly stronger type.
+   An empty chat session still has furniture (header card + empty-state card).
+   Tag chips use `bg-picked` (a tint from the palette's table) and a real
+   radius. The composer toolbar sits under a seam, not tight against the input.
 
 ### …and the hard part, which is fifteen palettes and both schemes
 

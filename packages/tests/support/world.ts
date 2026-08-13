@@ -382,6 +382,7 @@ export const CHAT_SESSIONS = selector(TESTID.chatSessions);
 export const CHAT_SESSIONS_REFUSED = selector(TESTID.chatSessionsRefused);
 export const CHAT_SESSION = selector(TESTID.chatSession);
 export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
+export const CHAT_EMPTY = selector(TESTID.chatEmpty);
 export const CHAT_NO_AGENT = selector(TESTID.chatNoAgent);
 export const CHAT_ENTRY = selector(TESTID.chatEntry);
 export const CHAT_NEW = selector(TESTID.chatNew);

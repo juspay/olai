@@ -90,9 +90,14 @@ import { CARD, LIFT, LIFTS, OVER, SPINE } from "./surface.ts"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
 
-/** One file entry's own geometry and type, in every state. */
+/** One file entry's own geometry and type, in every state.
+ *
+ *  `truncate` rather than `break-all`: a long filename ellipsises with the
+ *  full name on `title`, instead of wrapping mid-character (`stamp-reverts.m`
+ *  / `d`). `min-w-0 w-full` is what lets a flex row actually shrink to the
+ *  column — without them `truncate` is a no-op and the wrap comes back. */
 const ENTRY =
-  `flex ${TARGET} items-center break-all rounded-lg px-2 py-0.5 text-[0.8125rem] ` +
+  `flex min-w-0 w-full ${TARGET} items-center rounded-lg px-2 py-0.5 text-[0.8125rem] ` +
   "leading-snug no-underline text-ink md:min-h-0"
 
 /**
@@ -120,7 +125,7 @@ const entryLook = (current: boolean): string => (current ? IN_FORCE : AT_REST)
 /** A directory row: folds, does not navigate. Lifts like a file entry — it is
  *  as pressable as one — and never lights, because a folder is not a page. */
 const DIR =
-  `flex ${TARGET} items-center gap-0.5 rounded-lg px-1 py-0.5 text-[0.8125rem] ` +
+  `flex min-w-0 w-full ${TARGET} items-center gap-0.5 rounded-lg px-1 py-0.5 text-[0.8125rem] ` +
   `leading-snug text-muted ${LIFTS} hover:text-ink md:min-h-0`
 
 interface TreeView {
@@ -261,7 +266,7 @@ export function Sidebar(props: {
           <Agenda />
           {props.children}
 
-          <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
+          <ul class="m-0 min-w-0 list-none p-0" data-testid={TESTID.outlineList}>
             <Key each={tree()} by="key">
               {(row) => <Entry row={row()} view={view} />}
             </Key>
@@ -351,14 +356,16 @@ function Dir(props: {
             ▼
           </span>
         </span>
-        <span class="break-all">{props.row.name}</span>
+        <span class="min-w-0 truncate" title={props.row.name}>
+          {props.row.name}
+        </span>
       </button>
       {/* No guide line down the children: the indent already says whose they
           are, and a hairline that repeats it is exactly the kind the depth pass
           removed. (The OUTLINE's own indent keeps its guide — nesting there can
           run deep enough that the indent alone stops being readable.) */}
       <Show when={!folded()}>
-        <ul class="m-0 ml-2 list-none p-0 pl-2">
+        <ul class="m-0 ml-2 min-w-0 list-none p-0 pl-2">
           <Key each={props.row.children} by="key">
             {(child) => <Entry row={child()} view={props.view} />}
           </Key>
@@ -375,7 +382,7 @@ function File(props: {
   const outline = props.row.of === "outline"
 
   return (
-    <li class="mb-1">
+    <li class="mb-1 min-w-0">
       <Link
         route={
           outline
@@ -383,11 +390,12 @@ function File(props: {
             : { kind: "document", file: props.row.file }
         }
         class={entryLook(props.view.isActive(props.row.file))}
+        title={props.row.name}
         testid={outline ? TESTID.outlineLink : TESTID.documentLink}
         current={props.view.isActive(props.row.file)}
         broken={outline && props.view.broken.has(props.row.file)}
       >
-        {props.row.name}
+        <span class="min-w-0 flex-1 truncate">{props.row.name}</span>
         <Show when={outline && props.view.broken.has(props.row.file)}>
           <span class="ml-1 text-alarm" title="this file could not be read">
             ⚠

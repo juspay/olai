@@ -118,6 +118,11 @@
   --width-chat: 26rem;
   --width-sidebar: 16rem;
   --width-rail: 3rem;
+  /* The sheet's own measure. Surplus width is canvas gutter — which is the
+   * floating-sheet thesis, not leftover space. 48rem is ~70–80ch of the
+   * outline's type after the sheet's pad; past that, note lines ran 150
+   * characters to the edge and the paper stopped reading as a sheet. */
+  --width-paper: 48rem;
 
   /* The app header's height. The chat dock sits UNDER the bar (chat/Panel.tsx),
    * so its `top` and its height both subtract this; the header itself is

@@ -26,14 +26,19 @@ import type { Element, ElementContent, Root } from "hast"
 import { TESTID } from "../testids.ts"
 
 /**
- * The class a styled tag wears — the Workflowy-exact pill (#102): a subtle
- * rounded chip, not bold accent text.
+ * The class a styled tag wears — a chip, not a smear.
+ *
+ * The fill is `bg-picked`: accent mixed into the raised surface, from the
+ * palette's own table (`theme/depth.ts`), rather than `bg-accent/15` which
+ * composites over whatever happens to be behind it and comes out as a pale
+ * square on warm papers. The radius is `rounded-md` so it reads as a pill
+ * rather than a highlight.
  *
  * A complete string literal so Tailwind's content scan still finds every
  * utility when the markup is built as HTML rather than as a Solid element.
  */
 export const TAG_CLASS =
-  "mx-0.5 inline-block max-w-full rounded-sm bg-accent/15 px-1 py-px text-[0.8125rem] font-normal leading-snug text-accent"
+  "mx-0.5 inline-block max-w-full rounded-md bg-picked px-1.5 py-px text-[0.8125rem] font-normal leading-snug text-accent"
 
 /** Subtrees where a `#…` sequence is not a tag: code is code, a link's text
  *  and href are not re-parsed for tags (a URL fragment is the sharpest case). */
