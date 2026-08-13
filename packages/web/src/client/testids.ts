@@ -178,6 +178,8 @@ export const TESTID = {
    *  when one is renamed — and markup that exists only to be read back by a
    *  test is markup every reader ships. */
   themeChip: "theme-chip",
+  /** The Font row's select. `value` is the typeface in force. */
+  fontSelect: "font-select",
 
   // ── preferences ──────────────────────────────────────────────────────
   /** The header's one way into the preferences, and the only door there is:
@@ -186,7 +188,7 @@ export const TESTID = {
   prefsTrigger: "prefs-trigger",
   /** The panel it opens (portalled out of the header). */
   prefsPanel: "prefs-panel",
-  /** One preference on it; `data-pref` is which — `theme`, `done`. */
+  /** One preference on it; `data-pref` is which — `theme`, `font`, `done`. */
   prefsRow: "prefs-row",
   /** That row's hint: what the choice IN FORCE means, re-read whenever the
    *  control moves. Its own name because it is the half of a settings row that
