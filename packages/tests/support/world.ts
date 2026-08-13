@@ -163,6 +163,18 @@ export const NODE = selector(TESTID.node);
 export const NODE_TITLE = selector(TESTID.nodeTitle);
 export const TAG = selector(TESTID.tag);
 export const DATE = selector(TESTID.date);
+/** The date picker, in place under the row it was opened on — from the pill
+ *  above, or from the `•••` menu's `Set date…`. Its box is a native
+ *  `<input type="date">`, so what it holds is the ten characters the record
+ *  will hold; its button's LABEL is the verb, and `Clear date` is the menu's
+ *  own words for the same edit once the box has been emptied. */
+export const DATE_PICKER = selector(TESTID.datePicker);
+export const DATE_PICKER_DAY = selector(TESTID.datePickerDay);
+export const DATE_PICKER_SET = selector(TESTID.datePickerSet);
+export const DATE_PICKER_CANCEL = selector(TESTID.datePickerCancel);
+/** Said when the node stores a value a day box cannot hold — a datetime,
+ *  quoted verbatim, with what picking a day would do to it. */
+export const DATE_PICKER_NOTICE = selector(TESTID.datePickerNotice);
 /** The rollup badge beside a title: how many of the tasks under this node are
  *  done. An annotation — the node's OWN mark is the checkbox. */
 export const PROGRESS = selector(TESTID.progress);

@@ -2,9 +2,11 @@
  * What the `•••` menu may WRITE on a given row, as values.
  *
  * The catalog of write verbs, pure over the row the menu was opened on: which
- * entries a reader is offered, and the exact {@link Edit} each one sends. No
- * socket, no clipboard and no component — those are `./actions.ts`'s — so the
- * two decisions that live here are decidable in a unit test:
+ * entries a reader is offered, and the exact {@link Edit} each one sends — or,
+ * for the one whose value a person still has to choose, that it opens the
+ * row's date picker ({@link Does}). No socket, no clipboard and no component —
+ * those are `./actions.ts`'s — so the two decisions that live here are
+ * decidable in a unit test:
  *
  *   - **which of them apply.** Every entry in this list changes something. A
  *     verb that would be refused for asking about nothing is not drawn at all:
@@ -26,16 +28,41 @@
 import { ARCHIVE, type Derived, isMirror, MARKS, type Row, type Status } from "@olai/format"
 import type { Edit } from "@olai/surface"
 
+import { datePick } from "../date/pick.ts"
 import { under } from "./subtree.ts"
 
-/** One write the menu offers: what it is called, what it sends, and what it
+/**
+ * What choosing a verb DOES — two answers rather than one, because one entry
+ * has a question of its own to ask first.
+ *
+ * Almost all of them are an edit, known the moment the menu is drawn: the mark
+ * to put on, the date to take off, the placement to retire. `Set date…` is the
+ * exception and it is not an exception to the SEAM — what it eventually sends
+ * is the same `date` edit `Clear date` sends, through the same gate — only to
+ * the timing: a date is a value somebody has to choose, and a menu entry
+ * cannot carry one. So it opens the row's picker
+ * ({@link ../date/DatePicker.tsx}) and the write happens a gesture later.
+ *
+ * A tagged union rather than an optional `edit`, for the reason the wire's own
+ * anchors are one: "an entry with no edit" is spellable by accident, and the
+ * arm that opens something is a thing a reader should be able to find.
+ */
+export type Does =
+  | { readonly kind: "edit"; readonly edit: Edit }
+  | { readonly kind: "pick-date" }
+
+/** The ordinary answer, at the site that gives it — so the list below reads as
+ *  a list of verbs rather than a list of wrappers. */
+const sends = (edit: Edit): Does => ({ kind: "edit", edit })
+
+/** One write the menu offers: what it is called, what it does, and what it
  *  asks first — if it asks anything. */
 export interface Verb {
   readonly id: string
   readonly label: string
-  /** The one edit choosing it sends. A VALUE: what happens to it — the wire,
-   *  the refusal, the line that says so — is `./writes.ts`'s. */
-  readonly edit: Edit
+  /** What choosing it does. A VALUE: the wire, the refusal, the line that says
+   *  so and the picker are all `./actions.ts`'s and `../writes.ts`'s. */
+  readonly does: Does
   /** The question the menu puts in its own panel before sending, for the one
    *  verb that takes a branch away. Absent means "just do it", which is every
    *  other verb here: they are each one op, and each one has an inverse or an
@@ -80,25 +107,44 @@ export const writeVerbs = (
       verbs.push({
         id: `mark-${mark}`,
         label,
-        edit: { verb: "mark", id: shown.node.id, mark },
+        does: sends({ verb: "mark", id: shown.node.id, mark }),
       })
     }
     if (row.status !== undefined) {
       verbs.push({
         id: "clear-mark",
         label: "Clear mark",
-        edit: { verb: "mark", id: shown.node.id, mark: null },
+        does: sends({ verb: "mark", id: shown.node.id, mark: null }),
       })
     }
-    // The REMOVAL half of a node's date. Setting one is the `!` picker's
-    // (`input-widgets`), which is a thing you type rather than a thing you
-    // choose from a list; clearing is the half that has nowhere else to live,
-    // and until now had nowhere at all.
+    // A node's DATE, in two entries — and only the second of them writes on
+    // the spot.
+    //
+    // Setting one has to ask which day, which is why this entry opens the
+    // row's picker instead of carrying an edit (`../date/DatePicker.tsx`);
+    // the ellipsis is what says so, the way it does in every menu. It is
+    // offered on a dated row too, under the other of its two names: the pill
+    // on the row opens the same picker, and a menu that could only take a date
+    // OFF would be the affordance a mouse has for changing one hiding behind a
+    // badge nobody has been told is a control.
+    //
+    // CLEARING keeps the verb #124 gave it, unchanged — and it is now the same
+    // CONSTRUCTOR as well as the same words: an emptied box is a pick of
+    // nothing, so this entry IS `datePick(id, "")` rather than a second literal
+    // that happens to agree with it (`../date/pick.ts`). The two doors could
+    // only ever have disagreed silently — the ops layer reads `""` and `null`
+    // as the same disk effect — so the one spelling is the only thing that can
+    // hold "one way to say no date" up.
+    verbs.push({
+      id: "set-date",
+      label: shown.node.date === undefined ? "Set date…" : "Change date…",
+      does: { kind: "pick-date" },
+    })
     if (shown.node.date !== undefined) {
       verbs.push({
         id: "clear-date",
         label: "Clear date",
-        edit: { verb: "date", id: shown.node.id, date: null },
+        does: sends(datePick(shown.node.id, "")),
       })
     }
   }
@@ -116,7 +162,7 @@ export const writeVerbs = (
     verbs.push({
       id: "remove-placement",
       label: "Remove this placement",
-      edit: { verb: "unmirror", id: row.at.node.id },
+      does: sends({ verb: "unmirror", id: row.at.node.id }),
     })
   } else if (shown !== undefined && derived !== undefined) {
     // ARCHIVE is drawn on a node's own row and not on a mirror of it, which is
@@ -127,7 +173,7 @@ export const writeVerbs = (
     verbs.push({
       id: "archive",
       label: "Archive",
-      edit: { verb: "archive", id: shown.node.id },
+      does: sends({ verb: "archive", id: shown.node.id }),
       // Counted over the SET rather than over this row's children: what the
       // write moves is not what the page happens to be drawing (`./subtree.ts`).
       confirm: archiveQuestion(shown.node.title, under(derived, shown.node.id)),

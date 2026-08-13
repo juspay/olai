@@ -24,7 +24,7 @@ import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { HOVER_CELL, MENU_REVEAL } from "../touch.ts"
-import type { Said } from "./writes.ts"
+import type { Said } from "../edit/undoing.ts"
 
 export interface MenuAction {
   readonly id: string

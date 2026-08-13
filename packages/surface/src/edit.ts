@@ -39,14 +39,16 @@
  * NOT EVERY VERB IS A KEY, and the ones that are not arrived from two
  * directions that meet in the middle of this list.
  *
- * THREE ARE THE `•••` MENU'S, and they are here for a rule rather than for a
+ * THREE ARE THE POINTER'S, and they are here for a rule rather than for a
  * feature: "MCP and Web ops must be consistent; never deviate" (HACKING.md).
- * An agent could clear a date, retire a placement and archive a subtree, and a
- * person at the same directory could do none of them — a standing deviation
- * (`editor-op-parity`), not editor growth. `date`, `unmirror` and `archive`
- * close it for ops that already exist on the other face: each resolves to the
- * request `set_date` / `remove_mirror` / `archive_node` would have sent, judged
- * by the same planner, refused in the same words.
+ * An agent could set or clear a date, retire a placement and archive a
+ * subtree, and a person at the same directory could do none of them — a
+ * standing deviation (`editor-op-parity`), not editor growth. `date`,
+ * `unmirror` and `archive` close it for ops that already exist on the other
+ * face: each resolves to the request `set_date` / `remove_mirror` /
+ * `archive_node` would have sent, judged by the same planner, refused in the
+ * same words. Two of them are chosen from the `•••` menu; `date` is sent by
+ * that menu (`Clear date`) and by the picker a row's date pill opens.
  *
  * TWO ARE AN UNDO'S, and they are the one place this list is not shaped like a
  * key at all. `place` and `remove` say where a row SAT and that a row this
@@ -244,19 +246,26 @@ export const Edit = Schema.Union([
    * The scheduling date, set or cleared — `set_date`'s own reach, spelled the
    * way {@link Applied} spells `desc`, because nothing is resolved behind it.
    *
-   * The menu sends only `null` today: CLEARING is the half of this that has
-   * nowhere else to live, and putting a date ON one belongs to the `!` picker
-   * (`input-widgets`), which is a typing affordance rather than a menu entry.
-   * The field is nonetheless the op's full one, and that is the point of this
-   * verb existing at all — the deviation being closed is "MCP can change a
-   * node's date and a person cannot", so the wire says what the op says and
-   * the UI arrives at its own pace. It is also what lets an undo put a cleared
-   * date back, which a clear-only verb could not spell.
+   * BOTH HALVES ARE A PERSON'S NOW, and they arrived a PR apart: the `•••`
+   * menu's `Clear date` sends the `null`, and the date picker a row opens —
+   * from its own date pill, or from the menu entry beside that verb — sends
+   * the day (`parity-date`). The field was the op's full one from the first
+   * day regardless, which is the point of this verb existing at all: the
+   * deviation being closed is "MCP can change a node's date and a person
+   * cannot", so the wire says what the op says and the UI arrived at its own
+   * pace. It is also what lets an undo put a cleared date back, which a
+   * clear-only verb could not spell.
    */
   Schema.Struct({
     verb: Schema.Literal("date"),
     id: Id,
-    /** `null` clears it, which is the only value a menu sends. */
+    /**
+     * `null` clears it. Anything else is the value VERBATIM — a date is text
+     * in this format (docs/format.md), so a day picked in a browser crosses
+     * as the ten characters that were picked and reaches the validator as
+     * they were typed. Nothing on the way parses one, and the validator is
+     * the gate at the far end, exactly as it is for an agent's `set_date`.
+     */
     date: Schema.NullOr(Schema.String),
   }),
   /**

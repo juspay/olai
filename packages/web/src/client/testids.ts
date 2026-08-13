@@ -60,8 +60,33 @@ export const TESTID = {
    *  of the node's dates it is; `data-overdue` says whether the node is late on
    *  it — a `data-` fact in both directions, never the tone it is painted,
    *  because an OCCURRENCE never turning amber is as much of the promise as an
-   *  overdue task doing so. */
+   *  overdue task doing so. `data-picks` says whether pressing it opens the
+   *  picker, which it does only where the row is editable — a day page and the
+   *  agenda draw the same pill over a query. */
   date: "date",
+
+  // ── the date picker ──────────────────────────────────────────────────
+  /** The picker, in place under the row it was opened on: from the pill above,
+   *  or from the `•••` menu's `Set date…`. Present only while it is open, so a
+   *  page carrying none has nobody picking a date. */
+  datePicker: "date-picker",
+  /** The day itself — a native `<input type="date">`, whose value is the ten
+   *  characters the record will hold. */
+  datePickerDay: "date-picker-day",
+  /** The button that sends it. Its LABEL is the verb: `Set date`, or the
+   *  menu's own `Clear date` once the box has been emptied — one spelling of
+   *  taking a date off, however a reader arrived at it. Disabled when pressing
+   *  it would ask for nothing. */
+  datePickerSet: "date-picker-set",
+  /** The way out that writes nothing. Escape is the other. */
+  datePickerCancel: "date-picker-cancel",
+  /** Said when the node stores a value a day box cannot hold — a datetime,
+   *  quoted verbatim, with what picking a day would do to it. */
+  datePickerNotice: "date-picker-notice",
+  /** What the last press had to say, keeping the panel open to say it.
+   *  `data-tone` is which mood — `alarm` for the ops layer's own refusal,
+   *  `aside` for a remark on a write that landed. */
+  datePickerSaid: "date-picker-said",
   /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
    *  the title, never the node's own mark, which is the checkbox. */
   progress: "progress",

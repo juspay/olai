@@ -89,7 +89,7 @@ export type {
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
-export { dailyNoteDays, dailyNotesOn, datedDays, datedOn } from "./dates.ts"
+export { dailyNoteDays, dailyNotesOn, datedDays, datedOn, dayOf } from "./dates.ts"
 export type { DayEntry, DayGroup, Occasion } from "./dates.ts"
 export { agendaOf, isOverdue, nothingDue } from "./agenda.ts"
 export type { Agenda, AgendaDay } from "./agenda.ts"

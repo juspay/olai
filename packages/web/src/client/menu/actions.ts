@@ -11,7 +11,7 @@
  *     the route and the reading, the writes from `./verbs.ts` as {@link Edit}s
  *     over the row;
  *   - what RUNNING one does is here, and it is the only thing here: an
- *     edit goes to the write gate (`./writes.ts`), a copy goes to the
+ *     edit goes to the write gate (`../writes.ts`), a copy goes to the
  *     clipboard, a fold goes to the reading.
  *
  * So the file that decides which verbs a row can take is a pure function with
@@ -32,7 +32,7 @@ import type { View } from "../view.ts"
 import { asText } from "./subtree.ts"
 import type { MenuAction } from "./NodeMenu.tsx"
 import { writeVerbs } from "./verbs.ts"
-import { applying } from "./writes.ts"
+import { applying } from "../writes.ts"
 
 /**
  * The verbs this row offers. `go` is the SPA navigator — never
@@ -59,6 +59,12 @@ export const nodeMenuActions = (args: {
    *  the same stack a keystroke does, so ⌘Z does not have two meanings
    *  depending on which hand made the edit. */
   readonly record: Undo["record"]
+  /** Open the row's date picker — the one verb whose write is a gesture later,
+   *  because a date is a value somebody has to choose (`./verbs.ts`'s `Does`).
+   *  The picker belongs to the ROW rather than to this panel: the pill on the
+   *  line opens the same one, and the panel is closed by the time either of
+   *  them has been chosen. */
+  readonly pickDate: () => void
 }): ReadonlyArray<MenuAction> => {
   const id = args.row.at.node.id
   const items: MenuAction[] = [
@@ -102,12 +108,25 @@ export const nodeMenuActions = (args: {
     },
   })
 
-  // The verb, with the one field that is not a menu's business — the edit —
-  // turned into the running of it. Spread rather than copied field by field:
+  // The verb, with the one field that is not a menu's business — what it does
+  // — turned into the running of it. Spread rather than copied field by field:
   // a hand-written list of names here is the list that goes stale the day a
   // verb grows a field, silently, because both shapes still compile.
   const writes: MenuAction[] = writeVerbs(args.row, args.derived).map(
-    ({ edit, ...verb }) => ({ ...verb, run: () => applying(edit, args.record) }),
+    ({ does, ...verb }) => ({
+      ...verb,
+      // A BLOCK, and the `return` under it is load-bearing: an action answers
+      // with what it has to SAY, and anything but `undefined` is drawn as a
+      // sentence beside the `•••`. Opening the picker has nothing to say, and
+      // an expression body would have handed the panel whatever the opener
+      // happened to evaluate to — which is how this shipped an empty box under
+      // the menu for a moment (a Solid setter answers with the new value, and
+      // `() => void` accepts any return, so nothing but the screen said so).
+      run: () => {
+        if (does.kind === "edit") return applying(does.edit, args.record)
+        args.pickDate()
+      },
+    }),
   )
   // A pure READ, and the only reason it sits among the writes is that it is
   // about the subtree rather than about this tab: it is the one clipboard verb

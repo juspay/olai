@@ -23,6 +23,7 @@ import {
   NODE_MENU_ITEM,
   NODE_MENU_PANEL,
   NODE_MENU_SAID,
+  nodeSelector,
   oneLine,
   POLL_TIMEOUT,
 } from "../support/world.ts";
@@ -146,6 +147,40 @@ Then(
       line.tone,
       "alarm",
       `"${id}" said ${JSON.stringify(line.text)} in the wrong tone — a refusal is an alarm`,
+    );
+  },
+);
+
+/**
+ * NOTHING at all — the absence of the line, which is its own claim and not the
+ * weaker "it did not say X".
+ *
+ * The entry that opens the date picker is why this exists: `run` answers with
+ * what an action has to SAY, and an expression body calling a Solid setter
+ * answers with the setter's new value — which the panel then drew as a
+ * bordered box with no words in it. `data-tone` cannot catch that (there is
+ * none), and no text assertion can either. The absence is the assertion.
+ *
+ * READ ONCE, and that is the whole of why this is not `support/said.ts`'s
+ * `saysNothing`: that one WAITS for the locators to be gone, which this line
+ * always is eventually — it clears itself after `SAID_MS`. A poll would have
+ * sat there for six seconds and then passed over a box that had been on screen
+ * the whole time, which is exactly what it did the first time this step was
+ * written. The gesture has already been through `waitForFrame`, and the panel
+ * draws its line in the same tick it is told to, so NOW is when there is
+ * something to see.
+ */
+Then(
+  "the node menu of {string} says nothing",
+  async function (this: OlaiWorld, id: string) {
+    const line = this.page.locator(`${nodeSelector(id)} ${NODE_MENU_SAID}`);
+    const said = await line.count();
+    assert.strictEqual(
+      said,
+      0,
+      said === 0 ? "" : `the node menu of "${id}" drew a line saying ${
+        JSON.stringify(oneLine(await line.first().innerText()))
+      } — an action that has nothing to say must answer with nothing`,
     );
   },
 );

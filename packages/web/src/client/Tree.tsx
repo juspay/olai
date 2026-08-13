@@ -55,11 +55,13 @@
 
 import { isOverdue, type Row } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, Match, Show, Switch } from "solid-js"
+import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
+import { DatePicker } from "./date/DatePicker.tsx"
+import { datePick } from "./date/pick.ts"
 import { useDerived } from "./derived.tsx"
 import { useEditor } from "./edit/editing.tsx"
 import { useUndo } from "./edit/undoing.ts"
@@ -84,6 +86,7 @@ import {
   ROW_TITLE,
 } from "./touch.ts"
 import type { View } from "./view.ts"
+import { applying } from "./writes.ts"
 
 export function Tree(props: {
   readonly rows: ReadonlyArray<Row>
@@ -132,7 +135,7 @@ function Branch(props: {
   // confirm has to name what the write moves (./menu/subtree.ts).
   const derived = useDerived()
   // ⌘Z is one stack for this page, whichever hand wrote: a menu verb files
-  // what would take it back exactly as a keystroke does (./menu/writes.ts).
+  // what would take it back exactly as a keystroke does (./writes.ts).
   const undo = useUndo()
   // Whether this row's date has gone by on work nobody has finished. Asked of
   // the node the row SHOWS — a mirror carries neither a date nor a mark — and
@@ -141,6 +144,16 @@ function Branch(props: {
 
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
+
+  /** Is this row's date picker open? Local to the ROW rather than to either of
+   *  the two things that open it — the pill on the line, and the `•••` menu's
+   *  `Set date…` — because it is one picker and the menu panel is closed by the
+   *  time it has been chosen from (./date/DatePicker.tsx). */
+  const [picking, setPicking] = createSignal(false)
+  /** ...and one opener for both of them, so the two triggers cannot drift. */
+  const openPicker = (): void => {
+    setPicking(true)
+  }
 
   // The editor is one draft for the whole page, and this is the one question a
   // row asks of it: is the caret HERE? Asked of WHERE the caret is rather than
@@ -216,6 +229,7 @@ function Branch(props: {
               view: props.view,
               go: router.go,
               record: undo.record,
+              pickDate: openPicker,
             })}
           />
           <Show
@@ -285,6 +299,7 @@ function Branch(props: {
                 date={shows().node.date}
                 overdue={isOverdue(shows().node, today())}
                 onEdit={() => editor.open(props.row, "title")}
+                onPickDate={openPicker}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">
@@ -296,6 +311,24 @@ function Branch(props: {
           </Match>
         </Switch>
       </div>
+
+      {/* The date picker, in place under the line it was opened on — from the
+          pill on that line, or from the `•••` menu's `Set date…`. Indented
+          past the gutter like everything else a row says, and drawn whether
+          the row is collapsed or not: it is about THIS node, not about what is
+          under it. The id it names is the node the row SHOWS, so a pick at a
+          mirror lands on its target, exactly as the mark verbs do. */}
+      <Show when={picking() ? shown() : undefined}>
+        {(shows) => (
+          <div class={PAST_CONTROLS}>
+            <DatePicker
+              date={shows().node.date}
+              onPick={(day) => applying(datePick(shows().node.id, day), undo.record)}
+              onClose={() => setPicking(false)}
+            />
+          </div>
+        )}
+      </Show>
 
       {/* What the last write said about this row — the reason it was refused,
           or the nudge from one that landed. Above the body rather than in it,

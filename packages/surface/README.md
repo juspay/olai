@@ -210,14 +210,18 @@ write:
   `unmirror`, `archive`), and a name that differs from an op's is a name with
   arithmetic behind it. Ops itself learns none of it: an op does not know it is
   being called over a wire.
-- **three of the verbs are the `•••` menu's**, and they are here to close a
-  DEVIATION rather than to grow the editor: an agent could clear a date, retire
-  a placement and archive a subtree, and a person could do none of them
+- **three of the verbs are the POINTER's**, and they are here to close a
+  DEVIATION rather than to grow the editor: an agent could set or clear a date,
+  retire a placement and archive a subtree, and a person could do none of them
   (HACKING.md — "MCP and Web ops must be consistent; never deviate"). `date`,
   `unmirror` and `archive` each resolve to the request the equivalent tool
   sends. A fence the UI wants stays in the UI: `archive` takes a subtree because
   `archive_node` does, and the confirm naming how many rows go is the menu's own
   second step — put here, it would be a rule the agent's op does not have.
+  `date` is the one with two senders and it always carried the op's full
+  `string | null`: the `•••` menu sends the `null` (`Clear date`), and the date
+  picker on a row sends the day somebody chose — the ten characters, verbatim,
+  because a date is TEXT (`docs/format.md`) and nothing on this face parses one.
 - **two of the verbs are an UNDO's**, and they are the one place the list is
   not shaped like a key: `place` says where a row SAT, `remove` that a row this
   session created should go. They name absolute things because "put it back"

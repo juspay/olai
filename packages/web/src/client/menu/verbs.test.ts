@@ -12,6 +12,7 @@ import { derive, rowsOf, type Row } from "@olai/format"
 import { setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
+import { datePick } from "../date/pick.ts"
 import { flatten } from "../edit/order.ts"
 import { writeVerbs } from "./verbs.ts"
 
@@ -42,12 +43,22 @@ const row = (id: string): Row => {
 const labels = (id: string): ReadonlyArray<string> =>
   writeVerbs(row(id), derived).map((verb) => verb.label)
 
-const edit = (id: string, label: string) => {
-  const verb = writeVerbs(row(id), derived).find((one) => one.label === label)
-  if (verb === undefined) {
+const verb = (id: string, label: string) => {
+  const found = writeVerbs(row(id), derived).find((one) => one.label === label)
+  if (found === undefined) {
     throw new Error(`\`${id}\` offers no ${JSON.stringify(label)}: ${labels(id).join(", ")}`)
   }
-  return verb
+  return found
+}
+
+/** The edit one entry sends — and a failure naming the entry when it sends
+ *  none, which is the one that opens the picker instead. */
+const edit = (id: string, label: string) => {
+  const does = verb(id, label).does
+  if (does.kind !== "edit") {
+    throw new Error(`\`${id}\`'s ${JSON.stringify(label)} opens something; it sends no edit`)
+  }
+  return does.edit
 }
 
 // ── the mark section ───────────────────────────────────────────────────
@@ -57,6 +68,7 @@ test("a node with no mark is offered the three, and nothing to clear", () => {
     "Mark todo",
     "Mark doing",
     "Complete",
+    "Set date…",
     "Archive",
   ])
 })
@@ -69,6 +81,7 @@ test("the mark a node already carries is not offered back to it", () => {
     "Mark todo",
     "Complete",
     "Clear mark",
+    "Set date…",
     "Archive",
   ])
 })
@@ -83,7 +96,7 @@ test("a done node is still offered the two that walk it back, because ops answer
 })
 
 test("a mark names the node the row SHOWS, so a mirror marks its target", () => {
-  expect(edit("kitchen-herbs", "Mark doing").edit).toEqual({
+  expect(edit("kitchen-herbs", "Mark doing")).toEqual({
     verb: "mark",
     id: "herbs",
     mark: "doing",
@@ -91,7 +104,7 @@ test("a mark names the node the row SHOWS, so a mirror marks its target", () => 
 })
 
 test("clearing a mark is the same verb saying none", () => {
-  expect(edit("kitchen", "Clear mark").edit).toEqual({
+  expect(edit("kitchen", "Clear mark")).toEqual({
     verb: "mark",
     id: "kitchen",
     mark: null,
@@ -106,17 +119,60 @@ test("only a dated row offers to clear one", () => {
 })
 
 test("clearing a date sends the op's own null", () => {
-  expect(edit("order", "Clear date").edit).toEqual({
+  expect(edit("order", "Clear date")).toEqual({
     verb: "date",
     id: "order",
     date: null,
   })
 })
 
+test("the menu's clear and the picker's emptied box are ONE edit", () => {
+  // The two doors, compared. They are one constructor today (`Clear date` is
+  // `datePick(id, "")`), and this is what says so from the outside: a split
+  // could not be seen any other way, because the ops layer reads `""` and
+  // `null` as the same effect on disk — so a door that started sending the
+  // other one would go on working while the faces diverged. Updating the
+  // literal in the test above can no longer hide that.
+  expect(edit("order", "Clear date")).toEqual(datePick("order", ""))
+})
+
+test("every row that draws a node can reach the picker, under the name that fits it", () => {
+  // The one entry offered whatever the row carries, because both halves of
+  // `set_date` are now a person's: an undated node is being SCHEDULED, a dated
+  // one CHANGED. A dated row's other door is the pill on the line itself.
+  expect(labels("install")).toContain("Set date…")
+  expect(labels("order")).toContain("Change date…")
+  expect(labels("order")).not.toContain("Set date…")
+})
+
+test("the picker entry sends nothing on its own", () => {
+  // The write is a gesture later, when a day has been chosen — and it is then
+  // the same `date` edit `Clear date` sends (`../date/pick.ts`). An entry that
+  // carried one here would have to invent a day.
+  expect(verb("install", "Set date…").does).toEqual({ kind: "pick-date" })
+  expect(verb("order", "Change date…").does).toEqual({ kind: "pick-date" })
+})
+
+test("the two date entries are next to each other, in that order", () => {
+  // Change, then clear: the reader is looking at a date, and the two things
+  // they can do to it read as one pair rather than being separated by the
+  // verb that takes the branch away.
+  expect(labels("order").filter((label) => label.toLowerCase().includes("date")))
+    .toEqual(["Change date…", "Clear date"])
+})
+
+test("a placement offers the picker for the node it SHOWS", () => {
+  // `herbs` is undated, so the mirror's row says what its target says. Which
+  // id the write names is not this file's answer at all: the picker is opened
+  // on the row, and the row hands it the node it draws (`../Tree.tsx`), which
+  // is the same rule the mark verbs follow.
+  expect(labels("kitchen-herbs")).toContain("Set date…")
+})
+
 // ── the placement ──────────────────────────────────────────────────────
 
 test("a mirror row retires ITS OWN record, never the node it shows", () => {
-  expect(edit("kitchen-herbs", "Remove this placement").edit).toEqual({
+  expect(edit("kitchen-herbs", "Remove this placement")).toEqual({
     verb: "unmirror",
     id: "kitchen-herbs",
   })
@@ -142,11 +198,11 @@ test("archive is a node's verb, not a placement's", () => {
   // retiring it; archiving from there would put away a subtree living
   // somewhere else, out of sight.
   expect(labels("kitchen-herbs")).not.toContain("Archive")
-  expect(edit("install", "Archive").edit).toEqual({ verb: "archive", id: "install" })
+  expect(edit("install", "Archive")).toEqual({ verb: "archive", id: "install" })
 })
 
 test("the confirm names the row and how much goes with it", () => {
-  expect(edit("kitchen", "Archive").confirm).toBe(
+  expect(verb("kitchen", "Archive").confirm).toBe(
     "Archive “kitchen remodel” and the 4 rows under it? They go to Archive.jsonl " +
       "with their ids kept — there is no unarchive yet, so bringing them back means " +
       "editing that file.",
@@ -154,7 +210,7 @@ test("the confirm names the row and how much goes with it", () => {
 })
 
 test("a childless row is asked about on its own", () => {
-  expect(edit("install", "Archive").confirm).toBe(
+  expect(verb("install", "Archive").confirm).toBe(
     "Archive “install them”? It goes to Archive.jsonl with its id kept — there is " +
       "no unarchive yet, so bringing it back means editing that file.",
   )
@@ -172,5 +228,5 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
   // one verb whose question is about the SET may not be offered with a number
   // read off something else.
   expect(writeVerbs(row("kitchen"), undefined).map((verb) => verb.label))
-    .toEqual(["Mark todo", "Complete", "Clear mark"])
+    .toEqual(["Mark todo", "Complete", "Clear mark", "Set date…"])
 })
