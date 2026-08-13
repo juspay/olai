@@ -99,14 +99,25 @@ function ResizeHandle(props: {
         })
       }}
     >
-      {/* The line IS the affordance, so it stays — but it is quiet at rest since
-          the depth pass: the seam it used to draw is a change of altitude now
-          (`../surface.ts`), and a full-strength hairline there reads as the
-          border that was removed rather than as something to grab. Under the
-          pointer it is the accent at full strength, which is what a control that
-          is about to be used should look like. */}
+      {/* NOTHING AT REST, and the accent under the pointer.
+
+          This line used to be `bg-rule` at half strength, on the argument that
+          the affordance had to be visible. The depth pass took that argument
+          away: the seam it was drawing IS a change of altitude now — the sheet's
+          own edge on one side, the dock's shadow on the other — so a hairline
+          here was the border the pass claims to have removed, drawn one more
+          time. And `rule` is a value each palette wrote for its own borders, so
+          on `robot` (whose rule IS its alarm) half strength was still a red frame
+          the height of the window, louder than the accent the pass had just
+          finished rationing.
+
+          What is left is the platform's own idiom for a draggable edge: a 6px
+          strip that answers `col-resize`, and a line that appears when the
+          pointer is on it. The strip is the target, the cursor is the discovery,
+          and the accent is spent at the moment the control is about to be used —
+          which is exactly the budget the grammar sets for it. */}
       <span
-        class="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-rule/50 transition-colors group-hover:bg-accent group-active:bg-accent"
+        class="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-transparent transition-colors group-hover:bg-accent group-active:bg-accent"
         aria-hidden="true"
       />
     </div>

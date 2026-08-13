@@ -54,15 +54,33 @@
  * ## The lines the pass KEPT, and where each of them is
  *
  * "Elevation replaces borders" is a claim a reviewer should be able to check by
- * reading one list, so here is the list. Two are accent lines and belong to this
- * vocabulary: the SPINE below (the file in force), and the question card's top
- * bar, which is a `border-t` at its own site because it is used exactly once
- * (`chat/AskForm.tsx`). Three are structural and are not accent at all: a
- * menu's group break (`menu/NodeMenu.tsx`), the outline's nesting guide
- * (`touch.ts`'s `CHILD_INDENT` — nesting can run deeper than an indent alone
- * stays readable), and the panel resize handles (`layout/Handle.tsx`), which are
- * controls and say so louder under the pointer. Anything else drawing a hairline
- * around a surface is a bug against this file.
+ * reading one list, so here is the list.
+ *
+ * TWO are accent, and they are the two things the app has to answer: the SPINE
+ * below (which file am I reading) and the question card's top bar (what is
+ * waiting on me) — the latter a `border-t` at its own site, because it is used
+ * exactly once (`chat/AskForm.tsx`).
+ *
+ * The rest are structural, and every one of them is drawn in `border-seam` /
+ * `bg-seam` — a derived colour that means SEPARATION and nothing else
+ * (`theme/depth.ts`). They used to be `--color-rule`, which is a value each
+ * palette wrote for its own borders, and on `robot` that value IS its alarm: the
+ * nesting guide, every heading rule and every card's internal break came out the
+ * colour of an error, louder than the accent this file had just finished
+ * rationing. The sites: a menu's group break (`menu/NodeMenu.tsx`), the
+ * outline's nesting guide (`touch.ts`'s `CHILD_INDENT` — nesting can run deeper
+ * than an indent alone stays readable), the internal breaks inside a tool call
+ * and a diff (`chat/`), the commit panel's section rules, the ghost buttons'
+ * rings, and the document's own typography (`styles.css` — a heading rule, a
+ * quote bar, table rules, an `hr`).
+ *
+ * And the resize handles (`layout/Handle.tsx`) draw NOTHING at rest. That was
+ * the last hairline standing: the seam it drew is a change of altitude now, so
+ * the line was the border this file claims to have removed, drawn once more. What
+ * says "draggable" is the `col-resize` cursor over its 6px strip, and the accent
+ * arrives when the pointer does.
+ *
+ * Anything else drawing a hairline around a surface is a bug against this file.
  */
 
 /** The ground the whole app sits on. */

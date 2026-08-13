@@ -9,6 +9,7 @@ import {
   SHADOW_TOKENS,
   stepOf,
   SURFACE_TOKENS,
+  VISIBLE,
 } from "./depth.ts"
 import { mixed } from "./hex.ts"
 import { PALETTES } from "./palettes.ts"
@@ -52,10 +53,10 @@ describe("the altitude ramp", () => {
     ).toEqual([])
   })
 
-  test("no palette's cards vanish into its canvas", () => {
-    // The failure this file exists for. `RUNGS.top` is what a floating surface
-    // owes the ground; anything at or under 1 would be invisible, and the mock
-    // this grammar was ratified from measures 1.21.
+  test("every palette's climb lands where the ramp aimed it", () => {
+    // Half of the vanish claim, and the half that is CIRCULAR on its own: it
+    // proves the bisection reached `RUNGS.top`, and would go on passing if
+    // somebody quieted that knob to 1.05. The other half is the next test.
     expect(
       complaints((palette) => {
         const step = stepOf(depthOf(palette), "raised")
@@ -63,6 +64,23 @@ describe("the altitude ramp", () => {
           ? undefined
           : `a raised surface is ${step.toFixed(3)}:1 off the canvas, under ` +
             `the ramp's ${RUNGS.top}`
+      }),
+    ).toEqual([])
+  })
+
+  test("no palette's cards vanish into its canvas", () => {
+    // The failure this file exists for, asked against a floor that does NOT
+    // come from the ramp: `VISIBLE` is the mock's own measurement, so lowering
+    // `RUNGS.top` fails here rather than passing quietly. Two numbers, because
+    // "the derivation worked" and "the result can be seen" are two claims and
+    // only the second one is about a reader.
+    expect(
+      complaints((palette) => {
+        const step = stepOf(depthOf(palette), "raised")
+        return step >= VISIBLE
+          ? undefined
+          : `a raised surface is ${step.toFixed(3)}:1 off the canvas, under ` +
+            `the ${VISIBLE} a person was shown and approved`
       }),
     ).toEqual([])
   })
@@ -90,6 +108,30 @@ describe("the altitude ramp", () => {
     // spread is float noise plus one hex step of rounding, not a decision.
     const steps = PALETTES.map((palette) => stepOf(depthOf(palette), "raised"))
     expect(Math.max(...steps) - Math.min(...steps)).toBeLessThan(0.05)
+  })
+
+  test("no palette's seam is a colour that means something else", () => {
+    // The point of deriving a seam at all. `rule` is a value each palette wrote
+    // for its own borders, and three of them wrote something that is not a line
+    // colour: `robot`'s rule IS its alarm, `matcha`'s is its muted ink. Drawing
+    // the app's kept lines in that value made every nesting guide and heading
+    // rule on those rows read as an error or as text. So a seam may be none of
+    // the palette's own signal colours, and it has to be a real step off the
+    // surface it is drawn on — content, which is `raised` on either side of the
+    // asymmetry.
+    expect(
+      complaints((palette) => {
+        const depth = depthOf(palette)
+        const seam = depth.surfaces.seam
+        const borrowed = (["accent", "done", "doing", "alarm", "rule"] as const)
+          .filter((token) => palette.colors[token].toUpperCase() === seam)
+        if (borrowed.length > 0) return `its seam IS its ${borrowed.join("/")}`
+        const off = contrastRatio(seam, depth.surfaces.raised)
+        return off >= 1.3
+          ? undefined
+          : `its seam is ${off.toFixed(2)}:1 off a card, too close to be a line`
+      }),
+    ).toEqual([])
   })
 
   test("the picked state is the accent, over that palette's own card", () => {

@@ -463,10 +463,29 @@ the vocabulary, `theme/depth.ts` the values):
 Four consequences worth knowing before reading any component:
 
 1. **Elevation replaced borders.** A surface's edge is its fill and its shadow.
-   The lines still drawn are the ones that MEAN something: the accent spine on
-   the file in force, the accent bar on a question waiting to be answered, a
-   menu's group break, the outline's own nesting guide, and the resize handles —
-   which are controls.
+   The lines still drawn are the ones that MEAN something, and there are two
+   kinds. Two are ACCENT, because they answer the app's two questions: the spine
+   on the file in force, and the bar on a question waiting for you. The rest are
+   structural and drawn in a derived **seam** — a menu's group break, the
+   outline's own nesting guide, the internal breaks inside a tool call or a diff,
+   the ghost buttons' rings, and the document's own typography. The resize handles
+   draw **nothing** at rest: the seam they used to draw is a change of altitude
+   now, so that line was the border this pass claims to have removed, and what
+   says "draggable" is the `col-resize` cursor over its strip plus the accent
+   under the pointer.
+
+   The seam is derived for the same reason the surfaces are, and the failing case
+   is the instructive one. `--color-rule` is whatever value each palette wrote for
+   its own borders, and `robot`'s rule IS its alarm — the table says so, and says
+   why pulling them apart would be inventing a value rather than porting one. So
+   every line the app drew on that row came out the colour of an error, louder
+   than the accent the pass had just finished rationing. `seam` is the palette's
+   own ink mixed into `raised`, which makes it a step off the surface a line is
+   actually drawn on, in whichever direction that surface leaves free, on all
+   fifteen. On `chalk` it lands within a hex step of the old `rule`, so the light
+   palettes look exactly as they did; `rule` keeps its column as the imported fact
+   it always was, previewed by the chip that wears it and still the tint a table
+   head lifts its row with.
 2. **The accent is spent, not sprinkled**: today, the day being read, the file in
    force, links, the chosen option, the primary button. The agent chip's amber
    stays the second, rarer signal.
@@ -504,12 +523,20 @@ the ground in luminance, and `paper` is whichever end of it the palette already
 named.
 
 `theme/depth.test.ts` is what holds that to every row: the ramp climbs the right
-way, no palette's cards land under `RUNGS.top` off its canvas, a well sits
-between the ground and a card, the fifteen steps are the same height to within
-float noise, a well's shadow is inset and a card's is not, every dark palette
-has the lit edge and every light one casts its own ink — and the AA promise
-`chalk` makes is kept on all three new grounds, since body text lands on them
-now. A palette added as a row arrives with depth already.
+way, a well sits between the ground and a card, the fifteen steps are the same
+height to within float noise, a well's shadow is inset and a card's is not, every
+dark palette has the lit edge and every light one casts its own ink, no palette's
+seam is one of its own signal colours — and the AA promise `chalk` makes is kept
+on all three new grounds, since body text lands on them now. A palette added as a
+row arrives with depth already.
+
+The vanish claim is made **twice**, against two independent numbers, and that is
+deliberate: asked only against `RUNGS.top` it would be circular — it would prove
+the bisection hit its own target and would go on passing if somebody quieted the
+knob to 1.05. So one test asks "did the climb land where the ramp aimed it"
+(`RUNGS.top`) and another asks "is the result a surface a person can see"
+(`VISIBLE`, which is the ratified mock's own 1.21 rather than anything the ramp
+says). Lowering `RUNGS.top` fails the second one.
 
 ## Fifteen palettes, and the one you picked
 

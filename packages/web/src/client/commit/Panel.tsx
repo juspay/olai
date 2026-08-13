@@ -249,7 +249,7 @@ function Rule(props: { readonly children: string }) {
   return (
     <p class="flex items-center gap-2 text-[0.65rem] uppercase tracking-wide text-muted">
       <span class="shrink-0">{props.children}</span>
-      <span class="h-px grow bg-rule" aria-hidden="true" />
+      <span class="h-px grow bg-seam" aria-hidden="true" />
     </p>
   )
 }

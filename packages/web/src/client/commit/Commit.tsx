@@ -68,6 +68,7 @@ import { agoOf, createNow } from "./ago.ts"
 import { explain, faceOf, isInert, MARK } from "./said.ts"
 import { Panel } from "./Panel.tsx"
 import { PILL } from "../readout.ts"
+import { LIFT } from "../surface.ts"
 import { createPopover } from "../popover.ts"
 import { createCommit } from "./state.ts"
 import { TESTID } from "../testids.ts"
@@ -169,8 +170,15 @@ export function Commit() {
           // width, and what is left is this label — the longest in the bar, and
           // the one whose first glyph (`✓`, `⚠`) carries most of its meaning
           // when the rest of it goes.
+          // …and the LIFT is this pill's own, not the shape's: `PILL` is worn by
+          // the connection indicator too, which is a readout and opens nothing.
+          // This one opens a panel, and in the depth grammar what can be pressed
+          // advertises it by rising (`../surface.ts`). The faces with no panel
+          // behind them do not rise either, for the same reason they do not
+          // report `aria-expanded`: a control that offers a gesture it will not
+          // answer is a promise the page does not keep.
           class={`${PILL} max-w-[9rem] sm:max-w-none ${
-            inert() ? "opacity-60" : "hover:text-ink"
+            inert() ? "opacity-60" : `${LIFT} hover:text-ink`
           }`}
           data-testid={TESTID.commitPill}
           // The STATE as an attribute, so a scenario asserts on which face this
