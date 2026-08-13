@@ -33,20 +33,15 @@ test("a stored datetime starts on the day it falls on", () => {
 test("a picked day travels as those ten characters and nothing else", () => {
   // The whole of docs/format.md's rule at this seam: no parse, no format, no
   // instant. What was picked is what the record will hold.
-  expect(datePick("order", "2026-09-01")).toEqual({
+  //
+  // Setting and CHANGING are this one case: the stored date is not an argument,
+  // so which of the two a person thinks they are doing is a fact about the node
+  // and nothing this function asks. Nor is the id — it travels as the caller
+  // named it, which is how a pick at a mirror lands on the node the row shows.
+  expect(datePick("herbs", "2026-09-01")).toEqual({
     verb: "date",
-    id: "order",
+    id: "herbs",
     date: "2026-09-01",
-  })
-})
-
-test("changing a date is the same edit as setting one", () => {
-  // There is one verb. Which of the two a person thinks they are doing is a
-  // fact about what the node happened to carry, and nothing this file asks.
-  expect(datePick("order", "2026-12-24")).toEqual({
-    verb: "date",
-    id: "order",
-    date: "2026-12-24",
   })
 })
 
@@ -54,16 +49,6 @@ test("an emptied box is the menu's own clear, to the field", () => {
   // `•••` → `Clear date` sends exactly this (`../menu/verbs.ts`), and that is
   // the point: the picker absorbs the gesture rather than spelling it twice.
   expect(datePick("order", "")).toEqual({ verb: "date", id: "order", date: null })
-})
-
-test("the id is the caller's — a mirror's row names the node it SHOWS", () => {
-  // Passed through, never resolved here: which id a row means is decided where
-  // the row is drawn, and by the time it is here it is one id.
-  expect(datePick("herbs", "2026-09-01")).toEqual({
-    verb: "date",
-    id: "herbs",
-    date: "2026-09-01",
-  })
 })
 
 // ── the button: what it says and whether it does anything ─────────────

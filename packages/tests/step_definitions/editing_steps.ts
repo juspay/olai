@@ -355,6 +355,28 @@ Then(
   },
 );
 
+/**
+ * The `date` field, as the EXACT string on disk — the pair to the step below,
+ * and beside it for that reason.
+ *
+ * Exact is the whole assertion: what a picked day claims is that it reaches
+ * the record as the ten characters that were picked, so a client that put the
+ * value through an instant on the way would write `2026-09-01T00:00:00.000Z`,
+ * which every date-SHAPED assertion but this one would happily pass.
+ */
+Then(
+  "{string} holds the node {string} dated {string}",
+  async function (this: OlaiWorld, file: string, id: string, date: string) {
+    await this.waitUntil(
+      async () =>
+        recordsIn(this, file).some(
+          (node) => node["id"] === id && node["date"] === date,
+        ),
+      `${file} to hold ${JSON.stringify(id)} with \`date\` exactly ${JSON.stringify(date)}`,
+    );
+  },
+);
+
 Then(
   "{string} holds the node {string} with no date",
   async function (this: OlaiWorld, file: string, id: string) {

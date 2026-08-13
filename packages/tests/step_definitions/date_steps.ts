@@ -7,12 +7,9 @@
  * ways out that write nothing — and the rest of the tree's steps are about
  * rows.
  *
- * The one thing these are careful about is VERBATIM. What is being claimed is
- * that a picked day reaches the record as those ten characters, so the disk
- * assertion compares the `date` field as a STRING and not as a day: a client
- * that put the value through an instant on the way would write
- * `2026-09-01T00:00:00.000Z`, which every date-shaped assertion but an exact
- * one would happily pass.
+ * What the DIRECTORY says afterwards is not here: the two assertions about a
+ * node's `date` field on disk are a pair — dated, and not dated — and they live
+ * together with every other disk assertion in `editing_steps.ts`.
  */
 
 import * as assert from "node:assert";
@@ -38,16 +35,18 @@ import type { OlaiWorld } from "../support/world.ts";
 When(
   "I open the date picker on {string}",
   async function (this: OlaiWorld, id: string) {
-    await this.press(this.within(id, DATE));
+    await this.clickWithin(id, DATE);
     await panel(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
 
-/** The open panel. One spelling, so the steps below cannot wait on it four
- *  slightly different ways. */
+/** The panel, the box, and the button — one spelling each, so the steps below
+ *  cannot wait on them four slightly different ways. */
 const panel = (world: OlaiWorld) => world.page.locator(DATE_PICKER);
 
 const box = (world: OlaiWorld) => world.page.locator(DATE_PICKER_DAY);
+
+const button = (world: OlaiWorld) => world.page.locator(DATE_PICKER_SET);
 
 Then("the date picker is open", async function (this: OlaiWorld) {
   await panel(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -77,9 +76,8 @@ Then(
 Then(
   "the date picker offers to {string}",
   async function (this: OlaiWorld, label: string) {
-    const button = this.page.locator(DATE_PICKER_SET);
-    await button.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(oneLine(await button.innerText()), label);
+    await button(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await button(this).innerText()), label);
   },
 );
 
@@ -98,10 +96,9 @@ Then(
 /** Nothing to write is nothing to press — the same rule the menu's catalog
  *  follows for an entry whose only outcome would be "it already says that". */
 Then("the date picker's button is dead", async function (this: OlaiWorld) {
-  const button = this.page.locator(DATE_PICKER_SET);
-  await button.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await button(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual(
-    await button.isDisabled(),
+    await button(this).isDisabled(),
     true,
     "the picker offers to write something that would change nothing",
   );
@@ -115,7 +112,7 @@ Then("the date picker's button is dead", async function (this: OlaiWorld) {
  *  control. */
 When("I pick the date {string}", async function (this: OlaiWorld, day: string) {
   await box(this).fill(day);
-  await this.press(this.page.locator(DATE_PICKER_SET));
+  await this.press(button(this));
 });
 
 When("I empty the date picker", async function (this: OlaiWorld) {
@@ -124,29 +121,14 @@ When("I empty the date picker", async function (this: OlaiWorld) {
 });
 
 When("I press the date picker's button", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(DATE_PICKER_SET));
+  await this.press(button(this));
 });
 
 When("I cancel the date picker", async function (this: OlaiWorld) {
   await this.press(this.page.locator(DATE_PICKER_CANCEL));
 });
 
-// ── what the file says, and what the page does not offer ───────────────
-
-/** The `date` field, as the exact string on disk. See this file's header:
- *  exact is the assertion. */
-Then(
-  "{string} holds the node {string} dated {string}",
-  async function (this: OlaiWorld, file: string, id: string, date: string) {
-    await this.waitUntil(
-      async () =>
-        this.servedNodes(file).some(
-          (node) => node["id"] === id && node["date"] === date,
-        ),
-      `${file} to hold ${JSON.stringify(id)} with \`date\` exactly ${JSON.stringify(date)}`,
-    );
-  },
-);
+// ── what the page does not offer ───────────────────────────────────────
 
 /** A pill that says something rather than doing something — the day page and
  *  the agenda, which are a query over the whole set drawn read-only. Asked as

@@ -25,14 +25,14 @@
  * WHAT IS NOT HERE is any judgement about the date itself. The validator is
  * the gate — on the set the write would produce, as it is for an agent's
  * `set_date` — so a value this layer disliked would be a rule the web has and
- * MCP does not (HACKING.md). The one thing it fences is a write that would ask
- * for nothing, which is `../menu/verbs.ts`'s rule about entries that can only
- * produce "already so": a button that sends the date already stored is a
- * button whose only outcome is a shrug.
+ * MCP does not (HACKING.md). The one thing it fences is a GESTURE that would
+ * produce no write at all, which is the draft's own rule and not a fence on
+ * what may be written ({@link pressOf}).
  *
- * Two functions and no state: {@link startsAt} is where the box begins,
- * {@link pressOf} is everything about the button, and {@link datePick} is the
- * one edit it sends. What a day MEANS is nobody's here — a date is text.
+ * Four functions and no state: {@link startsAt} is where the box begins,
+ * {@link pressOf} is everything about the button, {@link datePick} is the one
+ * edit it sends, and {@link noticeOf} is the sentence for a stored value the
+ * box cannot hold. What a day MEANS is nobody's here — a date is text.
  */
 
 import { dayOf } from "@olai/format"
@@ -86,11 +86,14 @@ export interface Press {
  * derived together they cannot.
  *
  * **Dead means the write would ask for nothing** — an empty box over a node
- * with no date, or the day it already carries. That is `../menu/verbs.ts`' rule
- * about entries whose only outcome would be "it already says that", one layer
- * down. A stored DATETIME is the case worth naming: `2026-08-11T15:40` and
- * `2026-08-11` are different records, so picking the day it falls on is a real
- * write.
+ * with no date, or the day it already carries. That is the EDITOR's own rule
+ * one field along (`../edit/draft.ts`: a commit that would change nothing sends
+ * nothing, so sitting in a row is not a git commit), rather than a fence this
+ * face invents: the ops layer would accept `set_date` to the value already
+ * stored from either caller, and what is refused here is not a write but a
+ * gesture that would produce none. A stored DATETIME is the case worth naming:
+ * `2026-08-11T15:40` and `2026-08-11` are different records, so picking the day
+ * it falls on is a real write.
  *
  * **An emptied box is `Clear date`** — the `•••` menu's own words, #124's verb,
  * for the edit {@link datePick} spells with `null`. The picker ABSORBS the

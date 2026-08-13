@@ -1386,13 +1386,17 @@ What it is:
   dead button in the one place somebody is most likely to be reaching for
   exactly that. #124's menu verb stays exactly where it was. On an undated node
   the button stays `Set date` and is simply dead: there is nothing to clear,
-  and `pick.ts`' `wouldWrite` is the same rule the menu's catalog follows about
-  entries whose only outcome would be "it already says that".
-- **the pure half is `pick.ts`** — what the box starts with, whether pressing
-  would write anything, what the button is called, and the one `Edit` it sends
-  — so those rules are a unit test rather than something only a browser can
-  answer. `DatePicker.tsx` is the panel; the row owns whether it is open
-  (`Tree.tsx`), because two things open the one picker.
+  and a dead button naming a verb nobody can perform is worse than one naming
+  the verb they came for.
+- **the pure half is `pick.ts`** — where the box starts, the one `Edit` a pick
+  sends, and `pressOf`, which answers what the button SAYS and whether it does
+  anything as one value. Those two were two functions until they shipped
+  disagreeing (a `Clear date` offered over a node with no date to clear), which
+  is the argument for deriving them together. A dead button is the editor's own
+  rule one field along (`edit/draft.ts`: a commit that would change nothing
+  sends nothing), never a fence on what may be written. `DatePicker.tsx` is the
+  panel; the row owns whether it is open (`Tree.tsx`), because two things open
+  the one picker.
 - **it names the node the row SHOWS**, so a pick at a mirror lands on its
   target — the standing routing rule, one field along from the marks. And it is
   the same intent, at the same gate: what lands is the request an agent's

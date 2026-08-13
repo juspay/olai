@@ -44,9 +44,8 @@ import type { Undo } from "./edit/undoing.ts"
  *  ONE declaration, and it is the undo line's ({@link ./edit/undoing.ts}):
  *  several surfaces in this client say a thing about a write in these two
  *  moods, and a second spelling of the same pair would be a second answer to
- *  which moods there are. Re-exported so a panel reads it from the module it is
- *  answered by. */
-export type { Said } from "./edit/undoing.ts"
+ *  which moods there are. Imported here rather than re-exported, so the type
+ *  has one import path as well as one declaration. */
 import type { Said } from "./edit/undoing.ts"
 
 /**

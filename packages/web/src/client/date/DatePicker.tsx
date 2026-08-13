@@ -184,7 +184,12 @@ export function DatePicker(props: {
             // the same contract the `•••` menu's line and the row editor's
             // keep.
             data-tone={message().tone}
+            // Announced, never focus-stealing — the caret is in the box, and
+            // the reader's place is not ours to take. A refusal interrupts what
+            // a screen reader is saying and a remark does not, which is the
+            // pair the `•••` menu's line already keeps.
             role={message().tone === "alarm" ? "alert" : "status"}
+            aria-live={message().tone === "alarm" ? "assertive" : "polite"}
           >
             {message().text}
           </p>

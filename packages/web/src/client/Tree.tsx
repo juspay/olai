@@ -150,9 +150,7 @@ function Branch(props: {
    *  `Set date…` — because it is one picker and the menu panel is closed by the
    *  time it has been chosen from (./date/DatePicker.tsx). */
   const [picking, setPicking] = createSignal(false)
-  /** ...and one opener for both of them. A BLOCK, so it answers with nothing:
-   *  a Solid setter answers with the new value, and the menu draws whatever an
-   *  action answers with as a sentence beside the `•••`. */
+  /** ...and one opener for both of them, so the two triggers cannot drift. */
   const openPicker = (): void => {
     setPicking(true)
   }
