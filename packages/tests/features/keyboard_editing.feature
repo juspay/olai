@@ -172,11 +172,13 @@ Feature: Keyboard editing
     When I click the title of "kitchen-herbs"
     And I press "Control+Shift+Enter"
     Then the node "kitchen-herbs" has no status
+    # The DISK assertion is the target's, and only the target's: a placement
+    # carrying a mark is a record the validator refuses, so asking THIS file
+    # whether `kitchen-herbs` has one is a question every mirror answers the
+    # same way — it would pass just as well if the write had missed `herbs`
+    # entirely (review, 2026-08-12). What says the walk landed is the row above
+    # and the file below.
     And "garden.jsonl" holds the node "herbs" with no mark
-    # And the placement is untouched, carrying no mark of its own — which is the
-    # claim above said the other way round, and the reason the row had a box to
-    # walk at all was its target's.
-    And "house.jsonl" holds the node "kitchen-herbs" with no mark
 
   Scenario: The keys keep working after the row has moved
     # The caret is what a structural op nearly costs: the row is redrawn where

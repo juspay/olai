@@ -194,18 +194,24 @@ test("toggling reads the stored mark rather than being told it", () => {
 
 // ── the mark walk ──────────────────────────────────────────────────────
 
+/** The same house with one node carrying a mark — the middle of the ring,
+ *  which the fixture has no node sitting at. A `replace` over the line rather
+ *  than a second fixture: what these tests are about is the ONE field, and a
+ *  parallel corpus would be seven lines of agreement to keep. */
+const marked = (id: string, mark: string): Reading => {
+  const line = HOUSE.split("\n").find((one) => one.includes(`"id":"${id}"`))
+  if (line === undefined) throw new Error(`no \`${id}\` in the fixture`)
+  return reading(setOf({
+    "house.jsonl": HOUSE.replace(line, `${line.slice(0, -1)},"${mark}":true}`),
+  }))
+}
+
 test("the walk goes bullet → todo → doing → bullet, one op a step", () => {
   // The whole ring, and the last step is the one that makes an unmarked node
   // an ANSWER rather than a gap: `doing` walks to no mark at all, which is the
   // stored mark's own op undone — the same request `Clear mark` builds.
   expect(asked({ verb: "walk", id: "install" })).toEqual({ op: "todo", id: "install" })
-  const marked = reading(setOf({
-    "house.jsonl": HOUSE.replace(
-      `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
-      `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","todo":true}`,
-    ),
-  }))
-  expect(asked({ verb: "walk", id: "install" }, marked))
+  expect(asked({ verb: "walk", id: "install" }, marked("install", "todo")))
     .toEqual({ op: "doing", id: "install" })
   expect(asked({ verb: "walk", id: "order" }))
     .toEqual({ op: "doing", id: "order", undo: true })
@@ -468,8 +474,13 @@ test("a walk is taken back by the mark it stepped off, in ONE call", () => {
   // this node carry — so it needs no inverse of its own. What it never needs is
   // the two-call form: `done` is not a stop on the ring, so no step of it
   // leaves finished work behind to be undone first.
+  // Every stop of the ring, so the inverse is covered as completely as the
+  // request is (review, 2026-08-12): out of a bullet, out of `todo`, and off
+  // the last stop back onto the mark it stepped off.
   expect(inverse({ verb: "walk", id: "install" }))
     .toEqual([{ verb: "mark", id: "install", mark: null }])
+  expect(inverse({ verb: "walk", id: "install" }, "minted", marked("install", "todo")))
+    .toEqual([{ verb: "mark", id: "install", mark: "todo" }])
   expect(inverse({ verb: "walk", id: "order" }))
     .toEqual([{ verb: "mark", id: "order", mark: "doing" }])
 })
