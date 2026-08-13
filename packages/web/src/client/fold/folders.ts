@@ -20,7 +20,12 @@
 
 import { type Accessor, createSignal } from "solid-js"
 
-import { readPreference, watchPreference, writePreference } from "../preference.ts"
+import {
+  parsedJson,
+  readPreference,
+  watchPreference,
+  writePreference,
+} from "../preference.ts"
 
 export const FOLDERS_KEY = "olai.sidebar.folders"
 
@@ -28,13 +33,7 @@ export const FOLDERS_KEY = "olai.sidebar.folders"
  *  asked and a value this app did not write both come to (./memory.ts says why
  *  that is a default rather than an error). */
 export const parseFolders = (raw: string | null): ReadonlySet<string> => {
-  if (raw === null) return new Set()
-  let decoded: unknown
-  try {
-    decoded = JSON.parse(raw)
-  } catch {
-    return new Set()
-  }
+  const decoded = parsedJson(raw)
   if (!Array.isArray(decoded)) return new Set()
   return new Set(decoded.filter((path): path is string => typeof path === "string"))
 }

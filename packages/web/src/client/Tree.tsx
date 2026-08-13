@@ -67,7 +67,7 @@ import { useEditor } from "./edit/editing.tsx"
 import { useUndo } from "./edit/undoing.ts"
 import { NewRow } from "./edit/NewRow.tsx"
 import { DescEditor, keyHandler, Said, TitleEditor } from "./edit/RowEditor.tsx"
-import { foldOf, foldsUnder } from "./fold/rows.ts"
+import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
 import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
@@ -112,13 +112,15 @@ function Branch(props: {
   readonly row: Row
   readonly view: View
 }) {
-  // The NODE this row folds by — its target if it is a mirror, so the fold is
-  // the node's wherever the node appears (./fold/rows.ts).
-  const fold = createMemo(() => foldOf(props.row))
   // A memo, not a plain accessor: folding one row mints a new Set, and five
   // separate computations in this component read it. Without the memo every
   // row in the tree re-runs all five on every click.
-  const collapsed = createMemo(() => props.view.collapsed().has(fold().id))
+  //
+  // Asked of the NODE this row folds by — its target if it is a mirror, so the
+  // fold is the node's wherever the node appears (./fold/rows.ts).
+  const collapsed = createMemo(() =>
+    props.view.collapsed().has(foldIdOf(props.row))
+  )
   // The RECORD a row shows, file and all — the file is what a note's relative
   // picture and a `doc` are relative to, and for a mirror that is the file the
   // node is DEFINED in rather than the one being read.
@@ -246,7 +248,7 @@ function Branch(props: {
               data-testid={TESTID.toggle}
               aria-expanded={!collapsed()}
               aria-label={collapsed() ? "expand" : "collapse"}
-              onClick={() => props.view.toggle(fold())}
+              onClick={() => props.view.toggle(foldOf(props.row))}
             >
               {/* Small filled triangle — Workflowy's chevron, rotated. */}
               <span

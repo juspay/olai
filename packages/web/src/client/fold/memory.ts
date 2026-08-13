@@ -33,7 +33,12 @@
 import type { Derived } from "@olai/format"
 import { type Accessor, createSignal } from "solid-js"
 
-import { readPreference, watchPreference, writePreference } from "../preference.ts"
+import {
+  parsedJson,
+  readPreference,
+  watchPreference,
+  writePreference,
+} from "../preference.ts"
 import type { Fold } from "./rows.ts"
 
 export const FOLDS_KEY = "olai.folds"
@@ -45,13 +50,7 @@ export type Folds = ReadonlyMap<string, ReadonlySet<string>>
  *  never been asked, a value from an older olai, and a hand-edited entry all
  *  come to. */
 export const parseFolds = (raw: string | null): Folds => {
-  if (raw === null) return new Map()
-  let decoded: unknown
-  try {
-    decoded = JSON.parse(raw)
-  } catch {
-    return new Map()
-  }
+  const decoded = parsedJson(raw)
   if (decoded === null || typeof decoded !== "object" || Array.isArray(decoded)) {
     return new Map()
   }

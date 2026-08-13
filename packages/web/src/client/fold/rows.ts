@@ -31,18 +31,23 @@ export interface Fold {
   readonly file: string
 }
 
+/** The RECORD a fold is of: what the row shows, or — for a row that shows
+ *  nothing — the row's own. Said once, so the two readings below cannot come
+ *  to different answers about the same row the day a fourth `kind` arrives. */
+const foldedRecord = (row: Row) =>
+  row.kind === "node" || row.kind === "mirror" ? row.shows : row.at
+
 /** The id a row folds by. Its own function because the walk that flattens a
  *  drawn page (`../edit/order.ts`) asks it of every row and wants no object
  *  for the answer. */
-export const foldIdOf = (row: Row): string =>
-  row.kind === "node" || row.kind === "mirror" ? row.shows.node.id : row.at.node.id
+export const foldIdOf = (row: Row): string => foldedRecord(row).node.id
 
 /** The whole fold of a row — what a WRITE needs, which is the id and the file
  *  it is remembered under. */
-export const foldOf = (row: Row): Fold =>
-  row.kind === "node" || row.kind === "mirror"
-    ? { id: row.shows.node.id, file: row.shows.file }
-    : { id: row.at.node.id, file: row.at.file }
+export const foldOf = (row: Row): Fold => {
+  const record = foldedRecord(row)
+  return { id: record.node.id, file: record.file }
+}
 
 /** Every fold under `row` (including `row` itself) that has children to hide or
  *  show — what "Collapse all" / "Expand all" name. Leaves are skipped: there is
