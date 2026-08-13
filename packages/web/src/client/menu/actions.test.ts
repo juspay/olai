@@ -47,8 +47,8 @@ const actionsFor = (id: string, pickDate: () => unknown) =>
     view: {
       collapsed: () => new Set<string>(),
       toggle: () => {},
-      collapseKeys: () => {},
-      expandKeys: () => {},
+      collapseAll: () => {},
+      expandAll: () => {},
       doneHidden: () => false,
       toggleDone: () => {},
       visible: (rows) => rows,

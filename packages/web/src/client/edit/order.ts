@@ -11,9 +11,15 @@
  * Pure over rows and a fold set, so the one thing worth getting wrong — where
  * `↓` goes from the last child of a collapsed parent — is a unit test rather
  * than a thing to try in a browser.
+ *
+ * The fold set is NODE IDS (`../fold/rows.ts`), which is what the reading holds
+ * — a place asks it about the node it shows. The caret is still a PLACE: two
+ * mirrors of one node fold together and are two different rows to stand in.
  */
 
 import type { Row } from "@olai/format"
+
+import { foldIdOf } from "../fold/rows.ts"
 
 /** Every row on screen, in the order they are painted.
  *
@@ -29,7 +35,7 @@ export const flatten = (
   const walk = (level: ReadonlyArray<Row>): void => {
     for (const row of level) {
       drawn.push(row)
-      if (!collapsed.has(row.key)) walk(row.children)
+      if (!collapsed.has(foldIdOf(row))) walk(row.children)
     }
   }
   walk(rows)

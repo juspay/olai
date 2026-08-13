@@ -15,11 +15,12 @@ Feature: One place to set how this browser reads
   of what they still promise, and it opens this panel to reach them.
 
   The Done row is the DEFAULT for a per-view switch rather than a second switch.
-  A reading belongs to a page — so folds start fresh when you zoom — but "I do
-  not want to look at finished work" is a claim about the reader, and pressing
-  it again on every page opened is what a preference exists to stop. Two
-  scenarios below are that distinction: changing it moves the page you are on,
-  and it leaves alone a page whose own switch has been pressed.
+  This switch belongs to a page — so it starts fresh when you zoom, unlike a
+  fold, which is this browser's and is kept (`folds_are_remembered.feature`) —
+  but "I do not want to look at finished work" is a claim about the reader, and
+  pressing it again on every page opened is what a preference exists to stop.
+  Two scenarios below are that distinction: changing it moves the page you are
+  on, and it leaves alone a page whose own switch has been pressed.
 
   Scenario: The preferences open from the header, and say whose they are
     When I open the app

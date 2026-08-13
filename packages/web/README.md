@@ -571,8 +571,8 @@ the rule is: the ones that are a CHOICE and have nowhere else to be made.
   pill. The row's hint names the theme in force, which is what the pill
   promised.
 - **Done** — `Visible` / `Hidden`, and it is the DEFAULT for the per-view switch
-  rather than a second switch (`settings/done.ts`). A reading belongs to a page,
-  so folds start fresh when you zoom; but "I do not want to look at finished
+  rather than a second switch (`settings/done.ts`). This switch belongs to a
+  page, so it starts fresh when you zoom; but "I do not want to look at finished
   work" is a claim about the READER, and pressing it again on every page opened
   is what a preference exists to stop. So `view.ts`'s reading holds `undefined`
   there until somebody presses the switch on that page, and `undefined` reads
@@ -1412,25 +1412,55 @@ is waiting on rather than here.
 
 ## What belongs to a reading, not to the file
 
-`view.ts` holds the two per-view switches — what is folded, and whether done
+`view.ts` holds the two reading switches — what is folded, and whether done
 nodes are drawn — and the calendar holds a third, which month is on screen.
 None of them goes to the server or to disk, and hiding what is done is a row
 not drawn rather than anything marked.
 
-The done switch is the one with a preference BEHIND it (`settings/done.ts`): its
-place in the reading is `boolean | undefined`, and `undefined` — nobody has
-pressed it on this page — reads the preference. That rule is stated once, in the
-`doneHidden` memo, and pressing the switch negates THAT rather than the reading
-behind it: `!undefined` is "hidden" for a reader whose preference already is,
-which would be a switch whose first press does nothing.
+What they differ in is HOW LONG THEY LAST, and that is the interesting half.
 
-All three are `createStamped` (`stamped.ts`): a value plus the thing it belongs
-to, read through a memo that compares them. That is what makes them start over
-at the right moment — a page you zoom into is a new thing to read, and
-inheriting the last page's folds would fold places this reader has never seen —
-with no effect watching a route to clear anything, and so no frame in which the
-held value and the thing it belongs to disagree. What they differ in is the
-stamp, and that is the whole of the difference: a reading belongs to the PAGE,
+**Folding is this browser's** (`fold/`), and it used to be the page's. The
+argument for the page was that somewhere you zoom into is a new thing to read;
+the answer (2026-08-13, human) is that a person with a real corpus was
+re-collapsing the same big trees on every single visit, which is a bug and not a
+doctrine. So a fold is a preference now — `preference.ts`, `olai.folds`, per
+device, carried into this browser's other tabs by the `storage` event and
+nowhere else at all.
+
+It is kept **by node id**, grouped by the file the node is DEFINED in, and each
+half of that is load-bearing. A `Row.key` is a PLACE — the chain of records
+above it — so it changes when a node moves, and the walk under a zoomed node
+spells the same row differently than the whole outline does; a fold kept under
+one would be a fold lost on the round trip. And the file makes pruning
+answerable: the ids a served file declares are known, so what is left over in
+its bucket is a node somebody deleted, while a file that is broken or not served
+right now says nothing about its nodes and keeps every fold it has. Pruning
+happens as the entry is rewritten, which is exactly when the derivation is in
+hand.
+
+One consequence is a RULING rather than a fallout: one node, one fold state. A
+mirror folds by what it SHOWS, so folding a placement folds the node wherever it
+appears — including in the outline the node itself lives in. The per-place
+independence that fell out of place keys is gone deliberately, and there is one
+fold vocabulary rather than two (`fold/rows.ts` is the whole of it; `view.ts`
+only spends it). The sidebar's folders are the same memory inverted
+(`fold/folders.ts`, `olai.sidebar.folders`): nodes start open so what is stored
+is what is shut, folders start collapsed (#105) so what is stored is what is
+open.
+
+**The done switch is the page's**, and it is the one with a preference BEHIND it
+(`settings/done.ts`): its place in the reading is `boolean | undefined`, and
+`undefined` — nobody has pressed it on this page — reads the preference. That
+rule is stated once, in the `doneHidden` memo, and pressing the switch negates
+THAT rather than the reading behind it: `!undefined` is "hidden" for a reader
+whose preference already is, which would be a switch whose first press does
+nothing.
+
+It and the calendar's month are `createStamped` (`stamped.ts`): a value plus the
+thing it belongs to, read through a memo that compares them. That is what makes
+them start over at the right moment, with no effect watching a route to clear
+anything, and so no frame in which the held value and the thing it belongs to
+disagree. What they differ in is the stamp: the done switch belongs to the PAGE,
 while the month belongs to the month it is ANCHORED to, because walking from
 one outline to another is no reason to snap the calendar back to today.
 

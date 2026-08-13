@@ -34,7 +34,8 @@ Feature: Serve a directory
     # Folders start shut so a deep corpus is not a wall of paths; a root
     # outline (house) has no ancestors, so both folders stay collapsed until
     # the reader opens one. Expanding shows the children; collapsing hides
-    # them again. The fold is client-local.
+    # them again. The fold is client-local, and this browser remembers which
+    # folders are open (`folds_are_remembered.feature`).
     Given I open the outline "house.jsonl"
     Then the file tree shows the folder "Daily"
     And the file tree shows the folder "notes"

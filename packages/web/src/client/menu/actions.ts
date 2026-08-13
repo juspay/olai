@@ -27,6 +27,7 @@
 import type { Derived, Row } from "@olai/format"
 
 import type { Undo } from "../edit/undoing.ts"
+import { type Fold, foldOf } from "../fold/rows.ts"
 import { hrefOf, type Route } from "../routes.ts"
 import type { View } from "../view.ts"
 import { asText } from "./subtree.ts"
@@ -51,7 +52,10 @@ export const nodeMenuActions = (args: {
    *  this reading happens to be drawing (`./subtree.ts`). */
   readonly derived: Derived | undefined
   readonly collapsed: boolean
-  readonly foldable: ReadonlyArray<string>
+  /** Every node under this row that has children — what the two "all" verbs
+   *  name. Passed in rather than walked here: the walk is the tree's, and it is
+   *  memoised per row (`../Tree.tsx`). */
+  readonly foldable: ReadonlyArray<Fold>
   readonly view: View
   /** Same-document navigation — the bullet's verb, not a full reload. */
   readonly go: (route: Route) => void
@@ -78,18 +82,20 @@ export const nodeMenuActions = (args: {
     items.push({
       id: args.collapsed ? "expand" : "collapse",
       label: args.collapsed ? "Expand" : "Collapse",
-      run: () => args.view.toggle(args.row.key),
+      // The NODE this row shows, not the place it sits in — the same fold the
+      // triangle beside it presses (`../fold/rows.ts`).
+      run: () => args.view.toggle(foldOf(args.row)),
     })
     items.push(
       {
         id: "expand-all",
         label: "Expand all",
-        run: () => args.view.expandKeys(args.foldable),
+        run: () => args.view.expandAll(args.foldable),
       },
       {
         id: "collapse-all",
         label: "Collapse all",
-        run: () => args.view.collapseKeys(args.foldable),
+        run: () => args.view.collapseAll(args.foldable),
       },
     )
   }
