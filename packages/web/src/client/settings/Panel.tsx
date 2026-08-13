@@ -12,7 +12,7 @@
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
- * theme, the typeface, and what a page does with finished work. The layout
+ * theme, the typeface, and what this browser does with finished work. The layout
  * values in `../layout/prefs.ts` are stored the same way and are deliberately
  * NOT here — a sidebar width is set by dragging the sidebar, and a panel
  * being open is set by the control that opens it. Copying them into a

@@ -1287,8 +1287,8 @@ loop a person is in, and nothing about outlines:
   The last stop is an answer rather than a gap (`format.md`: an unmarked node is
   not an unfinished one), so the walk takes a mark OFF as well as putting one
   on. `done` is not a stop on that ring, deliberately: passing through it would
-  stamp a completion instant, fire the rollup's nudge and hide the row under the
-  done toggle, all on the way somewhere else. And the walk does not smuggle a
+  stamp a completion instant, fire the rollup's nudge and hide the row under
+  Prefs' Done setting, all on the way somewhere else. And the walk does not smuggle a
   node back out of `done` — it asks for `todo` outright and meets the ops
   layer's refusal under the row, whose sentence names the key that gets through
   it. Two ops, the second one the person's, exactly as the menu asks two clicks

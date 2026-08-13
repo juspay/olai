@@ -118,7 +118,11 @@ function Zoom(props: {
         fallback={
           <Show
             when={props.zoomed.children.length === 0}
-            fallback={<p class="text-muted">{nothingUnder(props.zoomed)}</p>}
+            fallback={
+              <p class="text-muted" data-testid={TESTID.emptyUnder}>
+                {nothingUnder(props.zoomed)}
+              </p>
+            }
           >
             {/* Nothing under it, and nothing hidden either — so the honest
                 thing to offer is the first child, which a page with no rows
@@ -143,5 +147,5 @@ const nothingUnder = (
   zoomed: Extract<Zoomed, { readonly kind: "node" }>,
 ): string =>
   zoomed.children.length > 0 && doneHidden()
-    ? "Everything under this node is done, and done nodes are hidden."
+    ? "Everything under this node is done, and Prefs is hiding finished work."
     : "Nothing under this node."

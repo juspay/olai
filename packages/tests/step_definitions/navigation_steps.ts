@@ -21,6 +21,7 @@ import {
   POLL_TIMEOUT,
   SEE_REFS,
   TIP,
+  EMPTY_UNDER,
   ZOOM,
   ZOOM_TITLE,
 } from "../support/world.ts";
@@ -50,6 +51,19 @@ Then(
       "data-node-id",
       id,
       "the zoomed page",
+    );
+  },
+);
+
+Then(
+  "the page says Prefs is hiding finished work",
+  async function (this: OlaiWorld) {
+    const said = this.page.locator(EMPTY_UNDER);
+    await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      /prefs/i.test(await said.innerText()),
+      "the empty page names the state and not Prefs, so a reader whose " +
+        "finished work is hidden has no door back",
     );
   },
 );

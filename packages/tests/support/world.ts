@@ -242,6 +242,8 @@ export const START_LINE = selector(TESTID.startLine);
 /** The heading of a zoomed page. Carries the CANONICAL node's id, which is
  *  what lets a scenario say "zooming a mirror lands on the node itself". */
 export const ZOOM_TITLE = selector(TESTID.zoomTitle);
+/** Said on a zoomed page with no rows — a leaf, or Prefs hiding finished work. */
+export const EMPTY_UNDER = selector(TESTID.emptyUnder);
 export const BREADCRUMBS = selector(TESTID.breadcrumbs);
 export const CRUMB = selector(TESTID.crumb);
 /** The month in the sidebar, and one day of it. A day says what it is in

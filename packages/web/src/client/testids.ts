@@ -281,6 +281,11 @@ export const TESTID = {
   /** One line of it. */
   shortcut: "shortcut",
 
+  /** Said on a zoomed page that has no rows to draw: a leaf, or a subtree
+   *  Prefs has hidden. The sentence names Prefs when the cause is the
+   *  preference — the only on-page mention of the setting, now the pill is
+   *  gone. */
+  emptyUnder: "empty-under",
   /** The heading of a zoomed page — carries the CANONICAL node's id, which is
    *  what makes "a mirror lands on the node itself" an assertion. */
   zoomTitle: "zoom-title",

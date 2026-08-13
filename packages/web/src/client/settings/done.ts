@@ -29,9 +29,9 @@ const pref = createPreference(DONE_HIDDEN_KEY, boolCodec(SHOWN))
 /** Whether this browser hides what is done. */
 export const doneHidden: Accessor<boolean> = pref.value
 
-/** Persist on change — `pref.set` writes `olai.done.hidden`. A signal-only
- *  setter (`persist: false`) would hide the page and forget it on reload;
- *  `preferences.feature` "It is remembered" is the pin. */
+/** Persist on change — `pref.set` writes `olai.done.hidden`. The write is
+ *  fenced by `preferences.feature`'s stored-key step (on master before this
+ *  PR). The reload scenario fences the boot read, not this setter. */
 export const setDoneHidden = (value: boolean): void => pref.set(value)
 
 /** The rows this reading actually draws. The preference and what it does to a

@@ -33,8 +33,9 @@ of each thing the view has to draw:
 | a doing child | `order` (house.jsonl:3) |
 | a todo child | `knobs` — an unstarted task nothing is waiting on, so an EMPTY box |
 | a todo child that is BLOCKED | `hinges` — the waiting glyph in the mark column instead, and the row dimmed |
-| a parent the done toggle must not hide | `frames` (garden.jsonl) — both its tasks done, and NOBODY marked it |
-| a note that must survive the done toggle | `slugs` under `frames` — nobody finished it, nobody called it work |
+| a parent hiding finished work must not hide | `frames` (garden.jsonl) — both its tasks done, and NOBODY marked it |
+| a note that must survive hiding finished work | `slugs` under `frames` — nobody finished it, nobody called it work |
+| a subtree that is entirely done | `compost` (garden.jsonl) — two done children, nothing unmarked, so Prefs-hidden empties its page |
 | a bullet that is not a task | `handles` — no mark, so no status and no box at all |
 | a marked parent | `kitchen` is `doing`, `herbs` is `doing` — stored, like any other mark |
 | a rollup | `kitchen` shows `1/2`: `demo` done, `order` under way, `install` not a task |

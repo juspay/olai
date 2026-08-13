@@ -289,7 +289,9 @@ const pickDoneAndLeave = async (
   value: "hidden" | "visible",
 ): Promise<void> => {
   await pickDone(world.page, value);
-  await world.page.keyboard.press("Escape");
+  // The trigger, not Escape: hide/show is about the TREE, and a global
+  // Escape would cancel an editor or a menu the next step is about.
+  await world.press(world.page.locator(PREFS_TRIGGER));
   await world.page
     .locator(PREFS_PANEL)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
@@ -327,9 +329,8 @@ Then(
   "the Done row explains that finished work is {string}",
   async function (this: OlaiWorld, expected: string) {
     const hint = await hintOf(this, "done");
-    const said = new RegExp(`finished work[\\s\\S]*${expected}`, "i");
     assert.ok(
-      said.test(hint),
+      hint.includes(`Finished work is ${expected}`),
       `the Done row says "${hint}", which does not say finished work is ` +
         `${expected}`,
     );

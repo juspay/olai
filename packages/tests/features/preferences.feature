@@ -118,9 +118,11 @@ Feature: One place to set how this browser reads
     Then the Done row explains that finished work is "shown"
 
   Scenario: There is one switch, and it moves the page you are on
-    # The pill used to be a per-page override, so Prefs could leave a page
-    # somebody had already spoken about. Prefs is the one home now: hide and
-    # show go through the same circuit, and a later pick is the reading.
+    # THE FENCE FOR A REINTRODUCED OVERRIDE. The pill used to leave a page
+    # somebody had already spoken about; this ends with demo SHOWN after Prefs
+    # says visible, which is the inverse of the old pin. Hide/show-and-come-back
+    # in zoom_and_navigate is the tree filter; this one is that Prefs is the
+    # only circuit.
     Given I open the outline "house.jsonl"
     When I hide the done nodes
     Then the node "demo" is not shown
@@ -128,8 +130,10 @@ Feature: One place to set how this browser reads
     Then the node "demo" is shown
 
   Scenario: The preference follows you onto a page you have not opened
-    # The other half: there is no per-page override to start over on, so a
-    # pick is the reading of every page, including one you zoom into next.
+    # A pick is the reading of every page, including one you zoom into next.
+    # `Hiding done nodes works on a zoomed page too` is the same filter on a
+    # page you opened first; this one is that zooming does not start a new
+    # reading.
     Given I open the outline "house.jsonl"
     When I set Done to "hidden"
     And I press Escape on the preferences
@@ -138,12 +142,13 @@ Feature: One place to set how this browser reads
     Then the node "demo" is not shown
 
   Scenario: It is remembered, and it is this browser's
-    # THE PIN FOR THE WRITE. Prefs rides olai.done.hidden on createPreference
-    # — the same circuit the theme uses, persisted on change, read back on
-    # boot. A control that only held a signal would look right until you
-    # reloaded. Sabotage: `setDoneHidden` with persist: false. Same-tab hide
-    # still works; this scenario is the one that goes red, because reload
-    # reads the key and finds nothing.
+    # THE PIN FOR THE BOOT READ. Prefs writes olai.done.hidden on
+    # createPreference; the write itself is already fenced by
+    # "this browser has stored" on the hide scenario above (a line master
+    # shipped). This one is that the first read after a reload honours that
+    # key. Sabotage: apply the default at module load and leave the write
+    # and the follow alone (`pref.set(SHOWN, { persist: false })` after the
+    # factory). That reddens this scenario and nothing else.
     Given I open the outline "house.jsonl"
     Then the node "demo" is shown
     When I set Done to "hidden"

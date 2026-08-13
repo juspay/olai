@@ -285,10 +285,11 @@ Theme row's hint now. Mutation-tested both times — hard-coding the name to
 `features/preferences.feature` carries the same second-tab scenario for the
 OTHER preference, and it is worth its own sentence because a reload cannot ask
 the question: deleting `followDoneHidden()` outright passes every other Done
-scenario in the file, and fails this one. The reload scenario is the other
-half: Prefs writes `olai.done.hidden` on `createPreference`, and
-`setDoneHidden(..., { persist: false })` still hides the page but leaves
-that key `null` after a reload. It also holds the two ends of the panel's
+scenario in the file, and fails this one. The reload scenario is the boot
+read, not the write: applying the default at module load
+(`pref.set(SHOWN, { persist: false })` after the factory) reddens only
+`It is remembered`. The write is the stored-key step on the hide scenario,
+which master already shipped. It also holds the two ends of the panel's
 TAB CYCLE — Shift+Tab out to the trigger, Tab back in to the first control —
 which is the promise a portalled panel cannot get from document order.
 Both were sabotage-checked against the fix they are the fence for.
@@ -369,7 +370,7 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="node-ref"]` | one link from a node to another node inside either of those rows; the target id rides `data-ref` on a span inside it |
 | `[data-testid="zoom-title"][data-node-id]` | the heading of a zoomed page — the CANONICAL node's id |
 | `[data-testid="breadcrumbs"]` / `[data-testid="crumb"]` | the ancestry above a zoomed node, and one link in it |
-
+| `[data-testid="empty-under"]` | said on a zoomed page with no rows: a leaf, or a subtree Prefs has hidden |
 | `[data-testid="not-found"][data-reason]` | shown when `/n/<id>` names no node |
 | `[data-testid="error-view"]` | shown INSTEAD of sidebar + tree when nothing has ever validated |
 | `[data-testid="error-file-group"][data-file]` | one group per file with errors |
