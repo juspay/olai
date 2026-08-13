@@ -334,6 +334,7 @@ export const PREFS_HINT = selector(TESTID.prefsHint);
 export const PREFS_CHOICE = selector(TESTID.prefsChoice);
 export const PREFS_SCOPE = selector(TESTID.prefsScope);
 export const THEME_CHIP = selector(TESTID.themeChip);
+export const FONT_SELECT = selector(TESTID.fontSelect);
 
 /** The Commit pill in the chrome, and the panel it opens. The pill is ALWAYS
  *  drawn, and it is the header's ONE answer about git — `data-state` is which

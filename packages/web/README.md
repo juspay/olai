@@ -88,14 +88,18 @@ A node's
 free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
 title, resolved at view time through the same indexes.
 
-The typefaces are Source Serif 4 on the page (outline titles, a document) and
-Source Sans 3 on the chrome (header, sidebar, notes, chat): nixpkgs, composed
-by `nix/fonts.nix`, converted to woff2 at build time (`build.ts` via
-`OLAI_FONTS_DIR` / `OLAI_WOFF2_COMPRESS` from the flake shell and `default.nix`)
-and served from `/fonts/` — no CDN, no font binary in the repo. Eleven theme
-tokens paint every surface (`theme/palettes.ts`); the look follows every
-palette, dark and light. The outline sits on `paper`; the header, sidebar and
-agent dock sit on `desk`; a card or popover is `panel`; a filled chip is `pill`.
+The typeface is a pick, like the theme: `theme/fonts.ts` is the catalog, the
+build generates `@font-face` and one `:root[data-font="…"]` block per row, and
+the preferences panel's Font row draws one option per row. The default is
+Atkinson Hyperlegible — one voice on the page, the chrome, and the notes.
+The Olai row keeps three jobs distinct (Literata / iA Writer Quattro /
+iA Writer Mono). Hosted files come from nixpkgs
+(`nix/fonts.nix`), converted to woff2 at build time (`build.ts` via
+`OLAI_FONTS_DIR` / `OLAI_WOFF2_COMPRESS`) and served from `/fonts/` — no CDN,
+no font binary in the repo. Generics download nothing. Eleven theme tokens
+paint every surface (`theme/palettes.ts`); the look follows every palette,
+dark and light. The outline sits on `paper`; the header, sidebar and agent
+dock sit on `desk`; a card or popover is `panel`; a filled chip is `pill`.
 
 What a node cannot start until is answered in that same mark column (resolved
 2026-08-11, human): an `after` target that is a task and not done is in the

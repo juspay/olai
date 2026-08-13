@@ -44,8 +44,8 @@ let
 
     # b2n.hook propagates its own bun; listing ours first wins on PATH, so the
     # bun that installs and the bun the wrapper execs are one version.
-    # woff2 converts the composed Source Sans / Source Serif TTFs to the
-    # /fonts/*.woff2 the client serves.
+    # woff2 converts the composed catalog TTFs/OTFs to the /fonts/*.woff2
+    # the client serves.
     nativeBuildInputs = [ pkgs.bun b2n.hook pkgs.woff2 ];
 
     bunDeps = b2n.fetchBunDeps { bunNix = ./bun.nix; };

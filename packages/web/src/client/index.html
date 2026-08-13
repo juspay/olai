@@ -23,13 +23,15 @@
          else does — what happens after a chip is pressed is
          src/client/theme/.
 
-         It deliberately knows no theme names: the sheet carries a block per
-         palette and the table that generates them lives in one place
-         (src/client/theme/palettes.ts). A stored name no palette offers is
-         forgotten by the app once it is up, which is the first moment anything
-         knows the list. The key is that table's THEME_STORAGE_KEY and the
-         attribute is its THEME_ATTRIBUTE; theme/css.test.ts holds this script
-         to both.
+         It deliberately knows no theme or font names: the sheet carries a
+         block per palette and per typeface, and the tables that generate
+         them live in one place each (src/client/theme/palettes.ts,
+         src/client/theme/fonts.ts). A stored name no row offers is
+         forgotten by the app once it is up, which is the first moment
+         anything knows the lists. The keys are those tables'
+         THEME_STORAGE_KEY / FONT_STORAGE_KEY and the attributes are
+         THEME_ATTRIBUTE / FONT_ATTRIBUTE; theme/css.test.ts and
+         theme/fontCss.test.ts hold this script to both.
 
          `setAttribute`, not `dataset.theme`: they are the same thing today,
          and the day a pref's name has a hyphen in it they are not. -->
@@ -37,6 +39,8 @@
       try {
         var picked = localStorage.getItem("olai.theme");
         if (picked) document.documentElement.setAttribute("data-theme", picked);
+        var face = localStorage.getItem("olai.font");
+        if (face) document.documentElement.setAttribute("data-font", face);
       } catch {}
     </script>
     <!-- The browser chrome around an installed app: a phone's status bar, an

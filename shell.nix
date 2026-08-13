@@ -20,9 +20,10 @@ pkgs.mkShell {
     # the tests.
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
-    # Source Sans 3 + Source Serif 4 — TTFs composed by nix/fonts.nix,
-    # converted to woff2 by the client build. No CDN, no font binary in the
-    # repo. The packaged build (default.nix) sets the same two variables.
+    # Hosted typefaces — TTFs/OTFs composed by nix/fonts.nix from the catalog
+    # in packages/web/src/client/theme/fonts.ts, converted to woff2 by the
+    # client build. No CDN, no font binary in the repo. The packaged build
+    # (default.nix) sets the same two variables.
     OLAI_FONTS_DIR = "${olaiFonts}";
     OLAI_WOFF2_COMPRESS = "${pkgs.woff2}/bin/woff2_compress";
   };

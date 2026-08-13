@@ -37,13 +37,14 @@
  *
  * The CIRCUIT over these primitives — read the entry into a signal, write a
  * change back, follow the browser's other tabs — is {@link createPreference},
- * and every stored value this browser keeps runs on it, with ONE exception.
- * The theme cannot: its first read belongs to the shell's boot script, which
- * runs before any module exists, because a themed first paint cannot wait for
- * one — and `<html>` is the state its signal mirrors, so a second copy in a
- * signal here would be the disagreement theme/state.ts exists to prevent. So
- * theme/state.ts keeps its own wiring and imports the primitives, and a test
- * beside this file holds the line: nothing else may.
+ * and every stored value this browser keeps runs on it, with TWO exceptions.
+ * The theme and the typeface cannot: their first read belongs to the shell's
+ * boot script, which runs before any module exists, because a first paint
+ * cannot wait for one — and `<html>` is the state their signals mirror, so a
+ * second copy in a signal here would be the disagreement theme/state.ts and
+ * theme/fontState.ts exist to prevent. So those two keep their own wiring and
+ * import the primitives, and a test beside this file holds the line: nothing
+ * else may.
  */
 
 import { type Accessor, createSignal } from "solid-js"
@@ -226,9 +227,10 @@ export interface Preference<T> {
  * `layout/prefs.ts` alone, and again for the folds, the sidebar's folders and
  * the done default — and the copies had begun to drift under maintenance. What
  * varies per key is only the codec; everything a codec cannot express is not a
- * preference's to vary. The one deliberate absence is the theme: its first
- * read is the boot script's (see the header), so it stays on the primitives,
- * and the claim test names it as the only client file allowed to.
+ * preference's to vary. The two deliberate absences are the theme and the
+ * typeface: their first read is the boot script's (see the header), so they
+ * stay on the primitives, and the claim test names them as the only client
+ * files allowed to.
  */
 export const createPreference = <T>(
   key: string,

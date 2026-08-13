@@ -44,8 +44,10 @@ import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
 import type { BunPlugin } from "bun"
 
-import { scaleCss } from "./client/theme/scale.ts"
+import { fontCss } from "./client/theme/fontCss.ts"
+import { HOSTED_FILES, woff2Name } from "./client/theme/fonts.ts"
 import { paletteCss } from "./client/theme/css.ts"
+import { scaleCss } from "./client/theme/scale.ts"
 
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), "client")
 
@@ -121,35 +123,28 @@ const tailwindUtilities = async (): Promise<string> => {
  */
 const buildStylesheet = async (): Promise<ArrayBuffer> =>
   new Response(
-    `${await tailwindUtilities()}\n${scaleCss()}\n${paletteCss()}`,
+    `${await tailwindUtilities()}\n${scaleCss()}\n${paletteCss()}\n${fontCss()}`,
   ).arrayBuffer()
 
 /**
- * Source Sans 3 and Source Serif 4, served from /fonts/*.woff2.
+ * The hosted faces, served from /fonts/*.woff2.
  *
- * Source TTFs come from nixpkgs via `nix/fonts.nix` and `OLAI_FONTS_DIR`
- * (shell.nix and default.nix). They are converted to woff2 at build time —
- * never committed — so a CDN is never asked and the repo stays free of font
- * binaries. Missing the env is a loud failure in the packaged build; the
- * dev loop gets the same env from the flake shell.
+ * The catalog is `client/theme/fonts.ts`; nixpkgs files land in one directory
+ * via `nix/fonts.nix` and `OLAI_FONTS_DIR` (shell.nix and default.nix). They
+ * are converted to woff2 at build time — never committed — so a CDN is never
+ * asked and the repo stays free of font binaries. Missing the env is a loud
+ * failure in the packaged build; the dev loop gets the same env from the
+ * flake shell.
  */
-const FONT_FACES = [
-  "SourceSans3-Regular.ttf",
-  "SourceSans3-It.ttf",
-  "SourceSans3-Semibold.ttf",
-  "SourceSans3-Bold.ttf",
-  "SourceSerif4-Regular.ttf",
-  "SourceSerif4-It.ttf",
-  "SourceSerif4-Semibold.ttf",
-  "SourceSerif4-Bold.ttf",
-] as const
+const FONT_FACES = HOSTED_FILES.map((file) => file.file)
 
 const installFonts = async (distDir: string): Promise<void> => {
   const fontsDir = process.env.OLAI_FONTS_DIR
   if (fontsDir === undefined || fontsDir === "") {
     throw new Error(
       "OLAI_FONTS_DIR is unset — the flake shell and default.nix both set it " +
-        "to nix/fonts.nix (Source Sans 3 + Source Serif 4); run via `just serve` / `nix build`.",
+        "to nix/fonts.nix (the catalog in client/theme/fonts.ts); run via " +
+        "`just serve` / `nix build`.",
     )
   }
   const out = resolve(distDir, "fonts")
@@ -165,8 +160,8 @@ const installFonts = async (distDir: string): Promise<void> => {
     if (!existsSync(src)) {
       throw new Error(`font face missing at ${src} (OLAI_FONTS_DIR=${fontsDir})`)
     }
-    const woff2Name = face.replace(/\.ttf$/i, ".woff2")
-    const dest = join(out, woff2Name)
+    const converted = woff2Name(face)
+    const dest = join(out, converted)
     // Skip reconvert when the woff2 is already newer than the TTF — `just serve`
     // re-runs the whole client build on every keystroke, and three compresses
     // cost ~300ms for nothing when the faces have not moved.
@@ -174,7 +169,7 @@ const installFonts = async (distDir: string): Promise<void> => {
       const srcM = statSync(src).mtimeMs
       const destM = statSync(dest).mtimeMs
       if (destM >= srcM) {
-        console.log(`font: ${woff2Name} (cached)`)
+        console.log(`font: ${converted} (cached)`)
         continue
       }
     }
@@ -191,12 +186,12 @@ const installFonts = async (distDir: string): Promise<void> => {
           `(OLAI_WOFF2_COMPRESS)?`,
       )
     }
-    const produced = tmp.replace(/\.ttf$/i, ".woff2")
+    const produced = tmp.replace(/\.(ttf|otf)$/i, ".woff2")
     if (!existsSync(produced)) {
       throw new Error(`${compress} produced no ${produced}`)
     }
     cpSync(produced, dest)
-    console.log(`font: ${woff2Name}`)
+    console.log(`font: ${converted}`)
   }
   await Bun.$`rm -rf ${work}`
 }
