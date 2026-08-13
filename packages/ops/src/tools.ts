@@ -3,9 +3,13 @@
  * nothing else.
  *
  * This is a CLOSED list, and what is missing from it is the design. There is no
- * file read, no file write, no directory listing, no shell and no grep — the
- * agent cannot name a byte, only a node. Two consequences follow, and both were
- * paid for:
+ * file read, no directory listing, no shell and no grep, and no write that
+ * names a byte — the agent names a NODE, or (since `md-editing`) a whole
+ * DOCUMENT. That second one is the closest this list comes to a file write and
+ * is deliberately not one: `write_document` takes a `.md` the set already
+ * holds and replaces its text ENTIRELY, through the same plan → validate →
+ * stage → rename → commit gate, so there is no offset, no range, and nothing
+ * for a caller to splice. Two consequences follow, and both were paid for:
  *
  *   - a malformed outline is unrepresentable through this path. Every write
  *     goes through {@link ./plan.ts} to whole records and the format's own
@@ -343,7 +347,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "create_document",
     "Create a document",
-    "Start a new `.md` document under the served directory. `file` is a relative `.md` path (no absolute paths, no `..`); refused if that document already exists — `write_document` is what edits one, and the split is what keeps a typo from minting a file. `text` is what it is born holding; absent creates it empty. The new document joins the set on the write's own revision, so the sidebar and every open tab see it immediately, and the write lands and waits for `commit` like any other.",
+    "Start a new `.md` document under the served directory. `file` is a relative `.md` path (no absolute paths, no `..`); refused if that document already exists — `write_document` is what edits one, and the split is what keeps a typo from minting a file. `text` is what it is born holding; absent creates it empty. The new document joins the set on the write's own revision, so the sidebar and every open tab see it immediately, and the write lands and waits for `commit` like any other.\n\nWHERE IT GOES IS A CONVENTION YOU READ, NOT ONE YOU PICK. This directory is somebody's vault and it already has a shape: look at `surface://collections/documents` before choosing a path, and put the new file where its neighbours are. That matters most for a DAY'S NOTE, whose name is the whole of what makes it one (a basename that is exactly an ISO date, `2026-08-13.md`): a vault keeping `Daily/2026/08/2026-08-12.md` wants `Daily/2026/08/2026-08-13.md`, and the same file at the root is a second convention nobody asked for. The web's calendar derives exactly that from the newest existing daily note; there is no separate op for it because the answer is a path, and this is the tool that takes one.",
     CreateDocumentRequest,
     { op: "create-doc" },
   ),

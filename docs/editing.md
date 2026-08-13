@@ -138,6 +138,14 @@ editor), **Cancel** abandons (Escape), and nothing commits on a timer — a
 document mid-edit is often half a sentence, and every open tab would see the
 half.
 
+**Leaving the page abandons it too, and that includes leaving for another
+document.** A draft belongs to the file it was typed in: open another one and
+the editor closes with the draft still unwritten, exactly as Cancel would.
+That is worth saying out loud because the alternative is the quiet kind of
+wrong — a draft that followed you to the next file could be saved onto it, and
+where two documents happen to say the same thing (two empty notes, two copies
+of one file) the conflict guard below would not even notice.
+
 A save is ONE op at the same gate as everything else: validated, published on
 its own revision (the other tab showing this document redraws on the frame it
 lands), audit-trailed, and WAITING in the commit panel like any other write.

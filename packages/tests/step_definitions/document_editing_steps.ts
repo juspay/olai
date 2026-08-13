@@ -10,6 +10,7 @@
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
+import { isoDayOf } from "@olai/web/src/client/clock.ts";
 import type { Page } from "playwright";
 
 import {
@@ -20,6 +21,7 @@ import {
   DOCUMENT_EDIT,
   DOCUMENT_EDITOR,
   DOCUMENT_OVERWRITE,
+  DOCUMENT_PAGE,
   DOCUMENT_SAID,
   DOCUMENT_SAVE,
   HYDRATION_TIMEOUT,
@@ -54,6 +56,21 @@ Then(
       held.includes(text),
       `the editor holds ${JSON.stringify(oneLine(held))}, which does not ` +
         `contain ${JSON.stringify(text)}`,
+    );
+  },
+);
+
+Then(
+  "the document editor holds no text containing {string}",
+  async function (this: OlaiWorld, text: string) {
+    const editor = this.page.locator(DOCUMENT_EDITOR);
+    await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const held = await editor.inputValue();
+    assert.ok(
+      !held.includes(text),
+      `the editor holds ${JSON.stringify(oneLine(held))}, which carries ` +
+        `${JSON.stringify(text)} — a draft has followed its typist onto ` +
+        "another file",
     );
   },
 );
@@ -174,5 +191,38 @@ When(
     const mint = this.calendarDay(date).locator(CALENDAR_MINT);
     await mint.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await this.press(mint);
+  },
+);
+
+/**
+ * TODAY's cell — the one bare day a page that is not a day page is certain to
+ * be showing, because the month a calendar anchors to with no day open is
+ * today's (`Calendar.tsx`), and nothing in the journal fixture is dated this
+ * century. Asked of the clock the same way the client asks it, so the two
+ * cannot disagree about which day it is at a local midnight.
+ */
+When("I press today's bare day", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  const mint = this.calendarDay(isoDayOf(new Date())).locator(CALENDAR_MINT);
+  await mint.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.press(mint);
+});
+
+/** Where the vault's own convention puts today's note: the newest existing
+ *  daily note's directory with its date segments re-spelled, which for this
+ *  fixture is `<root>/<yyyy>/<mm>/`. Computed rather than written out, since
+ *  what day it is is not a thing a feature file can spell. */
+Then(
+  "the document open is today's note under {string}",
+  async function (this: OlaiWorld, root: string) {
+    const today = isoDayOf(new Date());
+    const wanted = `${root}/${today.slice(0, 4)}/${today.slice(5, 7)}/${today}.md`;
+    await this.expectAttribute(
+      DOCUMENT_PAGE,
+      "data-file",
+      wanted,
+      "the document page",
+      HYDRATION_TIMEOUT,
+    );
   },
 );

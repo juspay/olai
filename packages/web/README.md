@@ -310,9 +310,17 @@ one, and the more honest, since those are real documents somebody wrote.
 `src/client/document/` is what a document looks like: its own page, the
 reference a `doc`-carrying node shows wherever it is drawn, and the context
 that lets a row deep in a tree find a document's text without every component
-above it declaring a prop for it. The text itself is not fetched — it arrives
-on the manifest, so a document edited on disk redraws by the mechanism that was
-already there.
+above it declaring a prop for it. The text arrives on the documents collection,
+one key at a time (`keys` + `get`, no `deltas` — `snapshot-scale`), so a
+document edited on disk redraws by the mechanism that was already there and a
+directory of thousands costs a first paint of paths rather than of bodies.
+
+The page is KEYED on its path, and that is load-bearing rather than tidy: the
+router's arm is a `<Match>` over an object, which Solid compares as a boolean,
+so `/doc/a.md` → `/doc/b.md` would otherwise keep the same page instance and
+everything it decided once — which document was just minted, and which file the
+open editor's draft and `was` belong to — would be a decision about the file
+you stopped reading.
 
 ### And a document is WRITTEN here too
 

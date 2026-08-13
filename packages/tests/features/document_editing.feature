@@ -120,6 +120,64 @@ Feature: Documents become writable
     When I create the document "finishes.md" from the sidebar
     Then the creation is refused saying "already a document"
 
+  # A DOCUMENT IS NOT A MOUNT, and these three are the difference. Going from
+  # one document to another keeps the same page on screen — same route kind,
+  # same arm — so anything the page decided "once, at mount" is a decision it
+  # made about the file you are no longer reading. Which editor is open, which
+  # file a draft belongs to, and whether a freshly minted document was minted
+  # are all that kind of decision, and every one of them is wrong the moment
+  # the file changes underneath it rather than the page.
+  #
+  # The two creation scenarios above start from an outline and from a day, so
+  # they change the arm and remount by luck. These start from a DOCUMENT,
+  # which is the ordinary path — the calendar and the file tree are in the
+  # sidebar of every page, including a document's.
+
+  @scratch:good
+  Scenario: A document created while reading another still lands in its editor
+    Given I open the document "finishes.md"
+    And I mark the page
+    When I create the document "notes/wiring.md" from the sidebar
+    Then the document open is "notes/wiring.md"
+    And the document editor is open
+    And the page has not reloaded
+
+  # TODAY's cell, because a document page anchors the month to today rather
+  # than to a day it is not of — and nothing in this vault is dated this
+  # century, so today is bare. Which is the ordinary way anybody reaches this:
+  # reading a note, wanting to write down what happened today.
+  @scratch:journal
+  Scenario: A bare day pressed while reading a document still lands in its editor
+    Given I open the document "notes/ferry.md"
+    And I mark the page
+    When I press today's bare day
+    Then the document open is today's note under "Daily"
+    And the document editor is open
+    And the page has not reloaded
+
+  # The clobber shape. A draft belongs to the file it was typed in, and a
+  # `was` guard cannot save you here: two documents whose text happens to
+  # match — two empty notes, two copies of one file — would let A's draft land
+  # on B with the guard satisfied. So the draft may not cross the file at all.
+  @scratch:good
+  Scenario: An edit in flight does not follow you to the next document
+    Given I open the document "finishes.md"
+    And I start editing the document
+    And I retype the document as:
+      """
+      # Finishes
+
+      Handles: **mine**, and they belong to finishes.md alone.
+      """
+    When I click the document "kitchen-sink.md"
+    Then the document open is "kitchen-sink.md"
+    And the document editor is gone
+    # And what an editor opened here holds is THIS file, never the draft left
+    # behind on the last one.
+    When I start editing the document
+    Then the document editor holds text containing "Kitchen sink"
+    And the document editor holds no text containing "belong to finishes.md alone"
+
   @scratch:journal
   Scenario: A bare calendar day mints that day's note where the vault keeps them
     # The vault's convention is Daily/YYYY/MM/, and nobody configured that:

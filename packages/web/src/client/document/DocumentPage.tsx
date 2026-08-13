@@ -47,10 +47,40 @@ import { useDocument } from "./documents.tsx"
 import { consumeMinted } from "./minted.ts"
 import { Toc } from "./Toc.tsx"
 
+/**
+ * A document page is a page OF A FILE, and this is what makes that true.
+ *
+ * KEYED, on the path, and it is not belt-and-braces: without it, going from
+ * one document to another is not a mount at all. The route's arm is a `<Match>`
+ * whose condition is an object, and Solid compares those as booleans
+ * (`!a === !b`), so the arm stays true across `/doc/a.md` → `/doc/b.md` and the
+ * page below simply takes a new `file` prop. Everything {@link OneDocument}
+ * decides ONCE — whether this document was just minted (and so opens editing),
+ * and, through {@link DocEditor}, which file a draft and its `was` belong to —
+ * would then be a decision about the file you have stopped reading. The second
+ * of those is the sharp one: a draft that followed its typist onto another
+ * document could be saved over it, and where the two texts happen to match
+ * (two empty notes, two copies of one file) the `was` guard would let it.
+ *
+ * So identity is the PATH, and a different path is a different page. It is
+ * keyed HERE rather than at the router's arm because it is this component's own
+ * invariant: a caller that forgot would put the bug back, and callers should
+ * not have to know. Same spelling as ./Toc.tsx one level down, for the same
+ * reason and against the same defect.
+ */
 export function DocumentPage(props: { readonly file: string }) {
+  return (
+    <Show when={props.file} keyed>
+      {(file) => <OneDocument file={file} />}
+    </Show>
+  )
+}
+
+function OneDocument(props: { readonly file: string }) {
   const document = useDocument(() => props.file)
-  // Fresh per page mount, which is what scopes it: navigating away closes the
-  // editor, and the draft goes with it — a draft is an editor's, never a file's.
+  // Fresh per page mount — and a page is one FILE (see above), so navigating
+  // anywhere else, another document included, closes the editor and the draft
+  // goes with it: a draft is an editor's, never a file's.
   const [editing, setEditing] = createSignal(consumeMinted(props.file))
 
   return (
