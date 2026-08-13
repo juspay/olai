@@ -87,8 +87,8 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       const undo = at.derived.status.get(edit.id) === edit.mark
       return Result.succeed({ op: edit.mark, id: edit.id, ...(undo ? { undo } : {}) })
     }
-    case "cycle":
-      return cycleRequest(at.derived, edit)
+    case "walk":
+      return walkRequest(at.derived, edit)
     // The five that resolve nothing, and are spelled like the ops they are —
     // which is what makes the ones above legible as the ones that do. Three
     // are the menu's: a date is a date, a placement is named by the row it is,
@@ -378,39 +378,40 @@ const NEXT: Record<Status, Status | null> = {
 }
 
 /**
- * One step round {@link NEXT}, as the op it is.
+ * One step round {@link NEXT} — and then it is a MARK, named outright.
+ *
+ * That is the whole of this function, and it is why it does not build a request
+ * of its own: "put this mark on" and "take the one it has off" are two things
+ * {@link markRequest} already spells, for the `•••` menu and for an undo, and
+ * the second of them is spelled in the one way the ops layer accepts (the
+ * stored mark's own op, with `undo`). A walk that assembled those itself would
+ * be that rule with two homes — and the day the ops layer spells clearing
+ * differently, one of them would go on sending the old shape. So the walk
+ * answers only the question that is its own: which answer comes next.
  *
  * The STORED mark is read here rather than sent, for the reason `toggle`'s is:
  * where the walk goes depends on where the node is, that is a fact about the
  * set this write is judged against, and a tab answering it from a frame it drew
- * would ask for a step somebody else had already taken.
- *
- * `null` on the ring is "carrying none", and it becomes the stored mark's own
- * op with `undo` — the only way the ops layer spells taking a mark off, and the
- * same request {@link markRequest} builds for `Clear mark`. It is reachable
- * only from `doing`, so the mark to undo is always the one the node has.
+ * would ask for a step somebody else had already taken. It is the mark a row
+ * DRAWS, which for a placement is its target's (`Derived` makes that one hop),
+ * so the step asked at a mirror is the step the reader can see. The ID is not
+ * resolved with it — it travels as the caller named it, and a mark on a
+ * placement is refused by the ops layer naming the node to use instead, exactly
+ * as it refuses the same tool call from an agent.
  */
-const cycleRequest = (
+const walkRequest = (
   derived: Derived,
-  edit: Extract<Edit, { verb: "cycle" }>,
+  edit: Extract<Edit, { verb: "walk" }>,
 ): Resolved => {
-  if (!derived.byId.has(edit.id)) return Result.fail(notFound(derived, edit.id))
-  // The mark a row DRAWS, which for a placement is its target's (`Derived`
-  // makes that one hop) — so the step a walk asked at a mirror resolves to is
-  // the step the reader can see. The ID is not resolved with it: it travels as
-  // the caller named it, and the ops layer refuses a mark on a placement in its
-  // own words, naming the node to use instead, exactly as it refuses the same
-  // tool call from an agent. What keeps a person from ever meeting that is the
-  // client, which sends the id of the node a row SHOWS.
   const stored = derived.status.get(edit.id)
-  // A bullet is where the ring starts.
-  if (stored === undefined) return Result.succeed({ op: "todo", id: edit.id })
-  const next = NEXT[stored]
-  return Result.succeed(
-    next === null
-      ? { op: stored, id: edit.id, undo: true }
-      : { op: next, id: edit.id },
-  )
+  return markRequest(derived, {
+    verb: "mark",
+    id: edit.id,
+    // A bullet is where the ring starts. An id nothing declares reads like one
+    // here and is refused a line later, by the same `notFound` every other verb
+    // answers with.
+    mark: stored === undefined ? "todo" : NEXT[stored],
+  })
 }
 
 /**
@@ -491,6 +492,11 @@ const removeRequest = (
 export const inverseOf = (
   at: Reading,
   edit: Edit,
+  /** What {@link requestFor} made of that edit — the op that is about to run.
+   *  Passed in rather than resolved again, and READ rather than re-derived: the
+   *  one thing the mark verbs disagree about is whether the write leaves the
+   *  node finished, and every one of them has already answered it here. */
+  request: Request,
   /** The node the write turned out to be about — which for an `add` is the row
    *  that did not exist when this reading was taken, and is the only thing here
    *  that cannot be read off it. */
@@ -506,13 +512,19 @@ export const inverseOf = (
     case "place":
       return placementOf(at.derived, edit.id)
     // All three ask one question — which mark does this node carry right now —
-    // before the write that replaces it. The only thing that differs between
-    // them is {@link leavesDone}, which the three spell differently and which
-    // is named once rather than three arms deep.
+    // before the write that replaces it. The only other thing `markOf` needs is
+    // whether the write LEAVES the node done, and the resolved request is
+    // exactly that answer: `done`'s own op, not being undone. Read off what is
+    // about to run rather than restated per verb, so a fourth mark verb, or
+    // `done` joining the ring, is answered by construction.
     case "toggle":
-    case "cycle":
+    case "walk":
     case "mark":
-      return markOf(at.derived, edit.id, leavesDone(at.derived, edit))
+      return markOf(
+        at.derived,
+        edit.id,
+        request.op === "done" && request.undo !== true,
+      )
     // The text this write is about to replace, and the text it is replacing it
     // WITH — the second half being the guard, so the undo may only overwrite
     // what this write wrote. Symmetric, so replaying it answers with the pair
@@ -597,32 +609,6 @@ const dateOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
 }
 
 /**
- * Does this mark write leave the node DONE?
- *
- * The one thing the three mark verbs disagree about, asked as a question rather
- * than answered three times inside {@link inverseOf}'s switch. Each spells it in
- * its own terms, and none of them can be read off the mark alone:
- *
- *   - a `toggle` that FINDS the mark already there takes it off, so the one
- *     that finishes something is the one that did not find `done`;
- *   - a `cycle` never does — `done` is not a stop on the ring;
- *   - a `mark` says outright what it wants.
- */
-const leavesDone = (
-  derived: Derived,
-  edit: Extract<Edit, { verb: "toggle" | "cycle" | "mark" }>,
-): boolean => {
-  switch (edit.verb) {
-    case "toggle":
-      return edit.mark === "done" && derived.status.get(edit.id) !== "done"
-    case "cycle":
-      return false
-    case "mark":
-      return edit.mark === "done"
-  }
-}
-
-/**
  * The mark a node carries, as the edits that would put it back.
  *
  * TWO of them for exactly one shape of write, and it is the ops layer's policy
@@ -640,22 +626,27 @@ const leavesDone = (
  * against the row it had just been taken off of ("carries no mark, so there is
  * none to take off"), and the entry was dropped with a reason nobody could act
  * on. The mark walk's last stop is that same write, so the bug was on the ring.
- * What decides it is not what is being restored but what the write LEAVES,
- * which is a question about the verb rather than about the mark — so it arrives
- * answered ({@link leavesDone}) instead of being guessed here.
+ * What decides it is not what is being restored but what the write LEAVES, and
+ * that is read off the REQUEST rather than re-derived from the verb
+ * ({@link inverseOf}) — the request is what is about to run, so it answers for
+ * every mark verb there is and every one there will be.
  */
 const markOf = (
   derived: Derived,
   id: string,
+  /** Whether the write this reverses leaves the node DONE. */
   finished: boolean,
 ): ReadonlyArray<Edit> => {
   const stored = derived.status.get(id) ?? null
-  // A node that carried nothing goes back to carrying nothing, whatever the
-  // write put on it — one call, and the only one that can say "none".
-  if (stored === null) return [{ verb: "mark", id, mark: null }]
-  return finished && stored !== "done"
-    ? [{ verb: "mark", id, mark: null }, { verb: "mark", id, mark: stored }]
-    : [{ verb: "mark", id, mark: stored }]
+  const back: Edit = { verb: "mark", id, mark: stored }
+  // The two guards are two different things being ruled out, and neither is the
+  // other: a node that carried NOTHING goes back to carrying nothing, which is
+  // the one call that can say "none" — and a node that carried `done` puts
+  // `done` back, which is the one mark the ops layer never asks to be undone
+  // first.
+  return finished && stored !== null && stored !== "done"
+    ? [{ verb: "mark", id, mark: null }, back]
+    : [back]
 }
 
 /**

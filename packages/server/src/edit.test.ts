@@ -198,16 +198,16 @@ test("the walk goes bullet → todo → doing → bullet, one op a step", () => 
   // The whole ring, and the last step is the one that makes an unmarked node
   // an ANSWER rather than a gap: `doing` walks to no mark at all, which is the
   // stored mark's own op undone — the same request `Clear mark` builds.
-  expect(asked({ verb: "cycle", id: "install" })).toEqual({ op: "todo", id: "install" })
+  expect(asked({ verb: "walk", id: "install" })).toEqual({ op: "todo", id: "install" })
   const marked = reading(setOf({
     "house.jsonl": HOUSE.replace(
       `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
       `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","todo":true}`,
     ),
   }))
-  expect(asked({ verb: "cycle", id: "install" }, marked))
+  expect(asked({ verb: "walk", id: "install" }, marked))
     .toEqual({ op: "doing", id: "install" })
-  expect(asked({ verb: "cycle", id: "order" }))
+  expect(asked({ verb: "walk", id: "order" }))
     .toEqual({ op: "doing", id: "order", undo: true })
 })
 
@@ -217,7 +217,7 @@ test("the walk asks a done node for `todo`, and the ops layer is what says no", 
   // is the request `set_todo` makes and the one the ops layer refuses in its
   // own words ("undo that first"). Fencing it here would hide the refusal a
   // person needs to meet, and teach a rule this layer does not own.
-  expect(asked({ verb: "cycle", id: "demo" })).toEqual({ op: "todo", id: "demo" })
+  expect(asked({ verb: "walk", id: "demo" })).toEqual({ op: "todo", id: "demo" })
 })
 
 test("a walk on a mirror steps from the mark that row DRAWS, and keeps its id", () => {
@@ -226,12 +226,12 @@ test("a walk on a mirror steps from the mark that row DRAWS, and keeps its id", 
   // second-guessed with it: a mark on a placement is refused by the ops layer
   // naming the node to use instead, exactly as it refuses the same tool call
   // from an agent. The client sends the id of the node a row SHOWS.
-  expect(asked({ verb: "cycle", id: "echo" }))
+  expect(asked({ verb: "walk", id: "echo" }))
     .toEqual({ op: "doing", id: "echo", undo: true })
 })
 
 test("a walk on a node nothing declares is not found", () => {
-  expect(refused({ verb: "cycle", id: "ghost" })._tag).toBe("NotFoundFailure")
+  expect(refused({ verb: "walk", id: "ghost" })._tag).toBe("NotFoundFailure")
 })
 
 test("an id the CALLER named travels as it is, mirror or not", () => {
@@ -406,11 +406,15 @@ test("a row somebody has put work under is not an undo's to take back", () => {
 
 /** The inverse of an edit over the house, with the id an `add` would have
  *  minted for the one case that needs one. */
+/** The inverse, over the same reading — and paired with the request the edit
+ *  RESOLVES to, exactly as the one real caller pairs them (`./runtime.ts`).
+ *  Resolved here rather than handed in, so a test cannot accidentally ask what
+ *  would take back a write that was never going to happen. */
 const inverse = (
   edit: Edit,
   applied = "minted",
   at: Reading = reading(),
-): ReadonlyArray<Edit> => inverseOf(at, edit, applied)
+): ReadonlyArray<Edit> => inverseOf(at, edit, asked(edit, at), applied)
 
 test("a move records where the row SAT — its parent, and the row above it", () => {
   // `install` is third among the kitchen's children, so the place it leaves is
@@ -464,9 +468,9 @@ test("a walk is taken back by the mark it stepped off, in ONE call", () => {
   // this node carry — so it needs no inverse of its own. What it never needs is
   // the two-call form: `done` is not a stop on the ring, so no step of it
   // leaves finished work behind to be undone first.
-  expect(inverse({ verb: "cycle", id: "install" }))
+  expect(inverse({ verb: "walk", id: "install" }))
     .toEqual([{ verb: "mark", id: "install", mark: null }])
-  expect(inverse({ verb: "cycle", id: "order" }))
+  expect(inverse({ verb: "walk", id: "order" }))
     .toEqual([{ verb: "mark", id: "order", mark: "doing" }])
 })
 

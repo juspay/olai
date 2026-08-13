@@ -92,8 +92,8 @@ test("toggling the mark answers to either platform's Enter chord", () => {
 test("the mark walk is the same chord with shift, on either platform", () => {
   // The two mark keys are one modifier apart, which is the grammar: `Enter` is
   // the row's key, and what is held says which kind of change it is.
-  expect(editKey(key("Enter", { ctrl: true, shift: true }), "line")).toBe("cycle")
-  expect(editKey(key("Enter", { meta: true, shift: true }), "line")).toBe("cycle")
+  expect(editKey(key("Enter", { ctrl: true, shift: true }), "line")).toBe("walk")
+  expect(editKey(key("Enter", { meta: true, shift: true }), "line")).toBe("walk")
 })
 
 test("the walk does not eat the note's key, and the note does not eat the walk", () => {
@@ -174,7 +174,7 @@ test("every editing key is written down for a person", () => {
     "up",
     "down",
     "toggle",
-    "cycle",
+    "walk",
     "note",
     "prev",
     "next",

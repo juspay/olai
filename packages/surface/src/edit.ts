@@ -192,7 +192,7 @@ export const Edit = Schema.Union([
    * `done` back and the second one is the person's, which is the rule the `•••`
    * menu already keeps for the mouse.
    */
-  Schema.Struct({ verb: Schema.Literal("cycle"), id: Id }),
+  Schema.Struct({ verb: Schema.Literal("walk"), id: Id }),
   Schema.Struct({
     verb: Schema.Literal("title"),
     id: Id,

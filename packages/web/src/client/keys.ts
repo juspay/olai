@@ -132,7 +132,7 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
  *   - `toggle` — `Ctrl+Enter` (and `⌘+Enter`, which is what Workflowy trains
  *     an Apple reader's hands to reach for; neither collides with the three
  *     reserved chords above, none of which is `Enter`).
- *   - `cycle` — `Ctrl+Shift+Enter` (`⌘⇧Enter`): the MARK WALK, which is how a
+ *   - `walk` — `Ctrl+Shift+Enter` (`⌘⇧Enter`): the MARK WALK, which is how a
  *     person writes the other two marks and takes one off. `Enter` is the row's
  *     key and a modifier says which kind of change it is, so the mark keys are
  *     one chord apart — and SHIFT is already this app's "the same key, one step
@@ -154,7 +154,7 @@ export type EditAction =
   | "up"
   | "down"
   | "toggle"
-  | "cycle"
+  | "walk"
   | "note"
   | "prev"
   | "next"
@@ -193,7 +193,7 @@ export const editKey = (
   if (field === "block") return null
 
   if (event.key === "Enter") {
-    if (event.ctrlKey || event.metaKey) return event.shiftKey ? "cycle" : "toggle"
+    if (event.ctrlKey || event.metaKey) return event.shiftKey ? "walk" : "toggle"
     if (event.altKey) return null
     return "add"
   }
@@ -262,7 +262,7 @@ export const SHORTCUTS: ReadonlyArray<{
       {
         keys: "⌘⇧Enter / Ctrl+⇧Enter",
         what: "walk the mark on: to do, then doing, then none",
-        action: "cycle",
+        action: "walk",
       },
       { keys: "Shift+Enter", what: "write the note under it", action: "note" },
       { keys: "↑ / ↓", what: "walk to the row above or below", action: "prev" },

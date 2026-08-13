@@ -131,13 +131,16 @@ Feature: Keyboard editing
     # as well as put one on, and the record it leaves carries none of the three.
     # `done` is not on the ring: finishing something is `Ctrl+Enter`'s, and
     # nothing should tick work off on the way past.
+    # The marks themselves are asked of the PAGE, like every other key: nothing
+    # is echoed, so a box on screen is a box the file said. The DISK assertion
+    # is for the one stop the page cannot make a claim about — no box drawn and
+    # no field left behind are two different facts, and the second is the one
+    # that says unmarked is an answer rather than a rendering.
     When I click the title of "handles"
     And I press "Control+Shift+Enter"
     Then the node "handles" has status "todo"
-    And "house.jsonl" holds a node marked todo titled "choose the handles"
     When I press "Control+Shift+Enter"
     Then the node "handles" has status "doing"
-    And "house.jsonl" holds a node marked doing titled "choose the handles"
     When I press "Control+Shift+Enter"
     Then the node "handles" has no status
     And "house.jsonl" holds the node "handles" with no mark
@@ -160,7 +163,6 @@ Feature: Keyboard editing
     Then the node "demo" has no status
     When I press "Control+Shift+Enter"
     Then the node "demo" has status "todo"
-    And "house.jsonl" holds a node marked todo titled "take out the old counters"
 
   Scenario: The walk at a mirror lands on the node it shows
     # The mark rule the checkbox and Ctrl+Enter already follow, for the key that
@@ -171,7 +173,10 @@ Feature: Keyboard editing
     And I press "Control+Shift+Enter"
     Then the node "kitchen-herbs" has no status
     And "garden.jsonl" holds the node "herbs" with no mark
-    And "house.jsonl" holds the node "kitchen-herbs"
+    # And the placement is untouched, carrying no mark of its own — which is the
+    # claim above said the other way round, and the reason the row had a box to
+    # walk at all was its target's.
+    And "house.jsonl" holds the node "kitchen-herbs" with no mark
 
   Scenario: The keys keep working after the row has moved
     # The caret is what a structural op nearly costs: the row is redrawn where

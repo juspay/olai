@@ -177,7 +177,7 @@ write:
 
 - **the verbs are INTENTS.** `Tab` says "indent this", not "reparent it under
   the node above and put it last"; `Ctrl+Enter` says "toggle done", not "set"
-  or "clear"; `Ctrl+Shift+Enter` (`cycle`) says "walk this row's mark on", not
+  or "clear"; `Ctrl+Shift+Enter` (`walk`) says "walk this row's mark on", not
   which of the three that lands on — the ring, and the argument for `done` not
   being a stop on it, are the resolver's. What a row's neighbours are, and what
   mark it carries, are facts
