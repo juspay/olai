@@ -204,7 +204,19 @@ was none, on any face), and it is the archive read in reverse:
 - **the scaffold is tidied on the way out** — an ancestor the removal leaves
   empty is dropped, provided it is the bare title record `archive` mints and
   nothing in the set still names it — so archive-then-unarchive leaves the
-  archive exactly as it stood.
+  archive exactly as it stood;
+- **and the scaffold itself may not come back.** Only what was MOVED is
+  restorable. A scaffold record is a copy of a title that never left, so
+  restoring one would stand a second live node beside the original and hang the
+  archive's rows off the copy. Nothing on disk marks a minted record, so the
+  refusal asks the two questions that together are what a signpost IS: the
+  record is BARE — the exact shape `archive` mints, a title standing at a place
+  — and a live node AT THE LANDING already carries that title, which is the
+  copy showing itself (a scaffold exists precisely because its ancestor is
+  still there). Content that happens to be title-only left a hole behind it, so
+  nothing answers to its name and it restores like anything else. Asking only
+  the first would refuse every plain heading anybody archived, which is the
+  ordinary case rather than the rare one.
 
 ## The git commit
 

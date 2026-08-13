@@ -150,6 +150,30 @@ agent's writes. ⌘Z takes back what THIS tab did, on THIS outline, this session
 
 ## Open
 
+- **Is an archived node FROZEN?** Raised by the review of `trash-parity`
+  (2026-08-13) and deliberately left to the human, because it is a decision
+  about the SET rather than about a view. The Trash view is read-only, and
+  `/o/Archive.jsonl` opens it — but `/n/<archived-id>` is still the ordinary
+  node page, with its editor, and the day page and the agenda still list
+  archived dated work and link to it (the human's own 2026-08-11 ruling: work
+  that was put away is still work that happened).
+
+  The reason this PR did not simply close that page: **the ops layer permits
+  editing an archived node.** Nothing in the planner reads `isArchived` on the
+  way into `set_title` / `set_desc` / `set_date` / the marks — the flag gates
+  blockedness, the change classification and unarchive's own rules, and
+  nothing else. So an agent can retitle archived work today. Making the web
+  page refuse would be the web expressing LESS than MCP, which is
+  `editor-op-parity` again with the faces swapped — this item's own bug, in
+  reverse.
+
+  So the question is not "should the page be read-only" but "should the SET
+  refuse to edit what has been put away", answered once in the ops layer and
+  met identically by both faces. That has real consequences (an agent could no
+  longer fix a typo in archived work; it interacts with the day/agenda
+  ruling), which is exactly why it is the human's to rule on rather than a
+  parity fix's to assume.
+
 - ~~**Derived status in the edit UI**: unlike Workflowy, completing a parent isn't just unpropagated — it's *refused* (derived state).~~ **Closed 2026-08-11** (`hide-done-scope`): status derivation is gone, so olai IS the Workflowy model here — `Ctrl+Enter` on a parent stores a mark like it would on a leaf. The rollup badge is drawn beside an editable row like any other, since the editor replaces only the title span.
 - **Delete without undo — deferred entirely, 2026-08-11 (human), and STILL OPEN.** `undo` did not close it. What that item shipped is the UN-CREATE — the inverse of an `add`, sent by no key, over a row that was just made and has nothing under it, resolving to `archive` — which is the "arrives with undo" half read strictly. A delete KEY (which rows? a subtree? a confirmation?) is untouched and is the human's to rule on.
 - ~~**A write's `nudge` has nowhere to go on the keyboard path.**~~ **Closed in this item**: it is a dim line under the row, dismissed by the next keystroke. See above.

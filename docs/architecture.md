@@ -14,7 +14,7 @@ files on disk ── load + validate ──▶ snapshot ── surface collectio
       │                                            │                         │
       │                                       MCP tools           edit procedures
       │                                            │                         │
-      └── ops (create, add, mark, move, archive, see) ◀──────────────────────┘
+      └── ops (create, add, mark, move, archive, unarchive, see) ◀───────────┘
                                                  ▲
                                                  └── stdio ── an agent in a terminal
 ```

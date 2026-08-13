@@ -128,6 +128,12 @@ the **Trash** at the foot of the sidebar: every archive under the directory,
 readable and not editable, each subtree drawn under the chain of ancestor
 titles it hung off.
 
+Not every row in there is a thing you put away. Above each pile sit the
+**titles the archive wrote down to remember where it hung** — so the tree still
+reads years later — and those are signposts rather than nodes: the ones they
+name never left. Pressing **Put back** on a signpost says so, and names the
+live row that still carries the title. What comes back is what went in.
+
 **Put back** is the one verb a Trash row has, and it is the whole reason the
 Trash is a trash. It sends the same `unarchive` op an agent's
 `unarchive_node` sends — the op both faces got in the same change, because

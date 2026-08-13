@@ -69,6 +69,57 @@ When(
   },
 );
 
+/** The signpost rows the archive minted carry no id a scenario chose — they
+ *  are the ancestor TITLES — so they are reached the way a reader reaches
+ *  them: by the words on the row. */
+const titledRow = (world: OlaiWorld, title: string) =>
+  world.page
+    .locator(TRASH_ROW)
+    .filter({ has: world.page.getByText(title, { exact: true }) })
+    .last();
+
+When(
+  "I put back the row titled {string} from the Trash",
+  async function (this: OlaiWorld, title: string) {
+    const row = titledRow(this, title);
+    await row.hover();
+    await row.locator(TRASH_PUT_BACK).first().click();
+    await this.waitForFrame();
+  },
+);
+
+/** The signpost refusal, in the ops layer's own words. A substring rather than
+ *  the whole sentence: what this pins is that the REASON reached the row it
+ *  was pressed on, in the alarm tone — the sentence itself is the planner's
+ *  and is pinned verbatim where it is written (`plan.test.ts`). */
+Then(
+  "the Trash says under the row titled {string} that it is a signpost",
+  async function (this: OlaiWorld, title: string) {
+    const line = titledRow(this, title).locator(TRASH_SAID).first();
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const text = oneLine(await line.innerText());
+    assert.match(
+      text,
+      /is the title `archive` wrote above what was put away/,
+      `the line under ${JSON.stringify(title)} reads ${JSON.stringify(text)}`,
+    );
+    assert.strictEqual(await line.getAttribute("data-tone"), "alarm");
+  },
+);
+
+/** Exactly one, which is the whole of MUST-FIX 1: restoring a signpost used to
+ *  mint a SECOND live node carrying a title the set already had. */
+Then(
+  "{string} holds one node titled {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    await this.waitUntil(
+      async () =>
+        this.servedNodes(file).filter((node) => node["title"] === title).length === 1,
+      `${file} to hold exactly one node titled ${JSON.stringify(title)}`,
+    );
+  },
+);
+
 /** A put-back that could not land, in the ops layer's own words — VERBATIM
  *  and in the alarm tone, the same contract every other refusal line keeps.
  *  The row it is about is named, because a trash holds many rows and a

@@ -62,6 +62,26 @@ Feature: The trash can be seen into, and taken out of
     And the Trash is empty
     And there should be no page errors
 
+  Scenario: The signpost above a pile is not a row you can put back
+    # The root row of a pile in the Trash is the TITLE the archive wrote to
+    # remember where things hung — a copy of a node that never left. It is the
+    # row a person reaching for "put this pile back" clicks first, so the
+    # refusal has to be the ops layer's own sentence rather than a missing
+    # button: it names the live node that still carries the title, and says to
+    # put back what was put away.
+    When I open the node menu of "knobs"
+    And I choose "Move to Trash" from the node menu
+    And I choose "Move to Trash" from the node menu
+    Then "Archive.jsonl" holds the node "knobs"
+    When I open the Trash
+    Then the Trash lists the node "knobs"
+    # The signpost carries the live `install`'s title, and putting it back
+    # would stand a second one beside it with `knobs` hanging off the copy.
+    When I put back the row titled "install the cabinets" from the Trash
+    Then the Trash says under the row titled "install the cabinets" that it is a signpost
+    And "house.jsonl" holds one node titled "install the cabinets"
+    And there should be no page errors
+
   Scenario: A chain that no longer stands is refused, and restoring it heals the way back
     # `knobs` goes in first, so its recorded chain ends at `install the
     # cabinets`; then `install` goes in too, and the chain matches nothing

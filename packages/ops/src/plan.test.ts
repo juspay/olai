@@ -1266,6 +1266,63 @@ describe("unarchive", () => {
     expect(archive.map((node) => node.id)).toEqual(["n9"])
   })
 
+  /**
+   * THE SIGNPOST IS NOT A NODE (review of #147, S1/S2).
+   *
+   * `archive` writes two kinds of record: the subtree it MOVED, ids and all,
+   * and above it a scaffold of the live ancestors' TITLES under freshly minted
+   * ids. The Trash draws both, and the scaffold is the root row — so "put this
+   * pile back" is the click that reaches for it first. Restoring one mints a
+   * second live node carrying a title the set already has, and hangs the
+   * archived rows off the copy instead of the original.
+   */
+  /** One archive's records, read off the set the plan produced. */
+  const archived = (set: OutlineSet): ReadonlyArray<Node> =>
+    nodesOf(set.nodes, "Archive.jsonl").map((located) => located.node)
+
+  test("the signpost the archive minted above a node is not restorable", () => {
+    const set = after(house(), { op: "archive", id: "order" })
+    // `n1` is that scaffold: minted by `archive` to carry the LIVE `kitchen`'s
+    // title, and the root row of the Trash.
+    expect(record(archived(set), "n1")).toMatchObject({ title: "Kitchen remodel" })
+
+    const failure = refused(set, { op: "unarchive", id: "n1" })
+    expect(failure.message).toContain("Kitchen remodel")
+    // It names the live node that already carries the title, so the reader
+    // knows which one is the real one…
+    expect(failure.message).toContain("`kitchen`")
+    // …and what to put back instead.
+    expect(failure.message).toContain("what was put away")
+  })
+
+  test("a signpost part-way down the chain is refused the same way", () => {
+    // A two-deep chain, so the inner husk is the one that would duplicate a
+    // live node that is not the root.
+    const deep = setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
+        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote"}`,
+      ].join("\n"),
+    })
+    const set = after(deep, { op: "archive", id: "quote" })
+    expect(record(archived(set), "n2"))
+      .toMatchObject({ title: "order the cabinets", parent: "n1" })
+
+    const failure = refused(set, { op: "unarchive", id: "n2" })
+    expect(failure.message).toContain("order the cabinets")
+    expect(failure.message).toContain("`order`")
+  })
+
+  /** And the fence does NOT catch content that merely looks like scaffold: a
+   *  node carrying only a title kept its own id when `archive` moved it, and
+   *  nothing live is called what it is called. `loose` is exactly that. */
+  test("a title-only node the archive MOVED is still restorable", () => {
+    const set = after(house(), { op: "archive", id: "loose" })
+    const source = fileOf(planned(set, { op: "unarchive", id: "loose" }), "house.jsonl")
+    expect(record(source, "loose").title).toBe("a node with no children")
+  })
+
   test("an emptied ancestor that is not bare scaffold is kept — it is content", () => {
     const set = setOf({
       "house.jsonl": KITCHEN,

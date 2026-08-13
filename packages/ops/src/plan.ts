@@ -1385,6 +1385,9 @@ const planUnarchive = (
   if (Result.isFailure(landing)) return Result.fail(landing.failure)
   const { file: destination, parent } = landing.success
 
+  const signpost = notASignpost(scope, node, destination, parent)
+  if (Result.isFailure(signpost)) return Result.fail(signpost.failure)
+
   for (const touched of [file, destination]) {
     const may = writable(scope, touched)
     if (Result.isFailure(may)) return Result.fail(may.failure)
@@ -1536,6 +1539,60 @@ const unarchiveLanding = (
             })`
         }. Give \`parent\` (it goes under that node) or \`file\` (top level) to ` +
         `say where it goes back`,
+    }),
+  )
+}
+
+/**
+ * THE SIGNPOST IS NOT A NODE — the one thing in an archive that may not come
+ * back out (review of #147, driven twice).
+ *
+ * `archive` writes two kinds of record. The subtree it MOVED keeps its own ids
+ * and leaves a hole where it was; above that it mints a scaffold of the live
+ * ancestors' TITLES, under ids nobody chose, so the archive still reads like
+ * the tree it came out of. Only the first kind was ever put away. The second is
+ * a copy of something that never left — restore one and the set gains a second
+ * node carrying a title it already has, with the archive's rows hanging off the
+ * copy instead of the original. It is also the click the Trash invites, because
+ * the scaffold is the ROOT row: "put this pile back" reaches for it first.
+ *
+ * WHAT TELLS THE TWO APART, since nothing on disk marks a minted record: the
+ * pair of conditions below, and each is doing its own work.
+ *
+ *   - BARE is the shape `archive` mints — a title standing at a place, nothing
+ *     else ({@link bareScaffold}) — so anything carrying a mark, a date, a note
+ *     or an edge is content and is never asked about;
+ *   - A TWIN AT THE LANDING is the copy showing itself. A scaffold record
+ *     exists precisely BECAUSE its ancestor is still live and still carries
+ *     that title, so the node it would duplicate is sitting exactly where this
+ *     one would land. Content that happens to be title-only left a hole behind
+ *     it, so nothing there answers to its name.
+ *
+ * Asking only the first would have been the tempting rule and it is wrong: a
+ * plain heading with rows under it — no mark, no date, no note — is the most
+ * ordinary thing anybody archives, and refusing it would make the common case
+ * unrestorable on the face that has no way to name a landing. Asking only the
+ * second would refuse a real node somebody had re-created by hand under the
+ * same name, which is theirs to have.
+ */
+const notASignpost = (
+  scope: Scope,
+  node: RegularNode,
+  destination: string,
+  parent: string | undefined,
+): Result.Result<void, OpFailure> => {
+  if (!bareScaffold(node)) return Result.succeed(undefined)
+  const twin = siblingsOf(scope.derived, destination, parent).find(
+    (at) => !isMirror(at.node) && at.node.title === node.title,
+  )
+  if (twin === undefined) return Result.succeed(undefined)
+  return Result.fail(
+    new UsageFailure({
+      reason: `\`${twin.node.id}\` in \`${twin.file}\` is already called ` +
+        `\`${node.title}\`, and this record carries nothing but that title — it is ` +
+        `the title \`archive\` wrote above what was put away rather than something ` +
+        `that was put away. Restoring it would stand a second one beside it and ` +
+        `hang the archive's rows off the copy. Put back what is under it instead.`,
     }),
   )
 }

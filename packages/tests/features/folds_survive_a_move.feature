@@ -13,7 +13,13 @@ Feature: A fold survives the node moving
   same file would read "house.jsonl does not declare it any more" as a deletion
   and quietly forget the fold. Gone means gone from the SET.
 
-  Scenario: A node moved to the Trash is still folded where it lands
+  What is pinned here is the MEMORY, and since the Trash arrived that is all
+  that can be: an archive is no longer an outline a reader opens, and the Trash
+  draws no fold controls, so "still folded where it lands" is a claim about the
+  store rather than about anything on screen. The fold is kept for a file this
+  reader can no longer fold — which is right the day the node comes back out.
+
+  Scenario: A node moved to the Trash keeps its fold in the memory, under the file it landed in
     Given I open the outline "house.jsonl"
     When I collapse the node "install"
     Then the node "install" is collapsed

@@ -1443,6 +1443,15 @@ what it is to a person; the file keeps its name, the ops vocabulary keeps
   sidebar's file tree never lists an archive; the `Trash` entry at the foot of
   the column is its one door, drawn whether or not anything was ever archived,
   because an empty trash is a fact rather than a hidden control.
+- **The signposts are drawn, and refuse.** The tree includes the scaffold of
+  ancestor titles `archive` minted, and the root row of a pile IS one of them —
+  so "put this back" reaches for it first. `Put back` is offered there like
+  anywhere else and the OPS LAYER refuses it, naming the live node that already
+  carries the title and saying to put back the rows under it instead. The
+  button is deliberately NOT hidden: the rule is the op's, both faces meet the
+  same sentence, and a client that greyed it out would either teach a rule this
+  app does not have or need its own copy of the landing walk to know which rows
+  qualify — which is the face-split this whole item exists to close.
 - **Read-only, one verb.** No editor mounts here, no `•••`, no checkbox — a
   row is its title and `Put back`, which sends the `unarchive` edit with the
   id alone. Where the subtree returns is the ops layer's own default: the
