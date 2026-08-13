@@ -19,9 +19,11 @@ Feature: The ••• menu writes
     # `kitchen` is doing, has children, has no date and is a node rather than a
     # placement — so: no `Mark doing` (it carries one, and the row's own
     # checkbox is what says which), no `Clear date`, no `Remove this
-    # placement`. A rule between the two halves: everything above the divider
-    # changes what this tab is looking at, everything below it changes the
-    # directory.
+    # placement`. The date entry is `Set date…` rather than `Change date…` for
+    # the same reason, and its ellipsis says it opens the picker rather than
+    # writing (`setting_a_date.feature`). A rule between the two halves:
+    # everything above the divider changes what this tab is looking at,
+    # everything below it changes the directory.
     Given the node "kitchen" is expanded
     When I open the node menu of "kitchen"
     Then the node menu offers exactly:
@@ -33,6 +35,7 @@ Feature: The ••• menu writes
       | Mark todo         |
       | Complete          |
       | Clear mark        |
+      | Set date…         |
       | Archive           |
       | Copy as text      |
 

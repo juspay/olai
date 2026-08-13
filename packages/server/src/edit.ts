@@ -597,10 +597,11 @@ const textOf = (
  * its own to restore (the menu names the node a row shows, so it does not send
  * one; an id that arrives anyway is the ops layer's to refuse).
  *
- * This is why the wire's `date` field is the op's full `string | null` rather
- * than the `null` the menu is the only sender of today: a clear-only verb could
- * not spell its own inverse, and `Clear date` is precisely the menu write a
- * person is most likely to want back.
+ * This is why the wire's `date` field is the op's full `string | null`: a
+ * clear-only verb could not spell its own inverse, and `Clear date` is
+ * precisely the write a person is most likely to want back. It answers for the
+ * other direction too, now that the web can pick a day (`parity-date`) — a
+ * date set over nothing is put back as nothing, which is the same arm.
  */
 const dateOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   const located = derived.byId.get(id)

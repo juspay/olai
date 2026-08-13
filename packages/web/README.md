@@ -1281,16 +1281,26 @@ would have sent, judged by the same planner and refused in the same words.
 
 | file | what it owns |
 |---|---|
-| `verbs.ts` | which writes a row offers, and the exact `Edit` each sends. Pure over a `Row`, so the contextual rules are a unit test |
+| `verbs.ts` | which writes a row offers, and what each one DOES — the exact `Edit` it sends, or that it opens the row's date picker. Pure over a `Row`, so the contextual rules are a unit test |
 | `subtree.ts` | what hangs under a row: the count a confirm names, and the text a copy produces. Pure |
-| `writes.ts` | the write gate, and turning both answers into one sentence |
 | `actions.ts` | the catalog: the view verbs, the writes, the clipboard |
 | `NodeMenu.tsx` | the panel, its confirm step, and the line beside the `•••` |
+
+The write gate itself is `../writes.ts`, one level up: two surfaces send a
+pointer's write now (this menu and the date picker), and the four lines that
+turn a refusal or a nudge into a sentence may not have two copies.
 
 - **The reads are still first, and a rule separates them.** Above it, verbs
   that change what this tab is looking at (zoom, the four folds, copy link);
   below it, verbs that change the directory. Reaching for `Collapse all` and
   hitting `Archive` is a mistake the ORDER can prevent.
+- **One entry OPENS something instead of writing.** `Set date…` on an undated
+  row, `Change date…` on a dated one — a date is a value somebody has to
+  choose, so the entry opens the row's picker (below) and the write happens a
+  gesture later, through the same seam every other verb rides. The ellipsis is
+  what says so; `verbs.ts`' `Does` is where the two answers are declared, so a
+  verb that opens something is a thing a reader can find rather than an entry
+  with a missing edit.
 - **Every entry is a verb that would do something.** The mark a node already
   carries is not offered back to it, `Clear mark` appears only on a marked row,
   `Clear date` only on a dated one, `Remove this placement` on any row whose
@@ -1314,7 +1324,7 @@ would have sent, judged by the same planner and refused in the same words.
   says so honestly: there is no unarchive on ANY face yet, so bringing
   something back means editing `Archive.jsonl`.
 - **⌘Z takes back a menu write too.** A verb files what would undo it on the
-  same stack a keystroke files on (`writes.ts` → `Undo.record`), so the chord
+  same stack a keystroke files on (`../writes.ts` → `Undo.record`), so the chord
   does not mean two different things depending on which hand made the edit.
   Which writes HAVE an inverse is the server's answer rather than the menu's: a
   mark and a cleared date do (`inverseOf`), an `archive` does not, because
@@ -1331,8 +1341,69 @@ would have sent, judged by the same planner and refused in the same words.
   answers and says which is which).
 
 Not here: `see` / `after` edge editing and mirror creation (they want a node
-search — `parity-see`, `parity-after`, `input-widgets`), setting a date (the
-`!` picker), move-to, duplicate, and unarchive, which no face has yet.
+search — `parity-see`, `parity-after`, `input-widgets`), move-to, duplicate,
+and unarchive, which no face has yet.
+
+## The date picker
+
+`src/client/date/` is the other half of `set_date`. MCP could set a node's
+`date` or clear it; the web could only clear one, which is the same
+consistency deviation the menu's verbs closed one field at a time
+(`parity-date`, under `editor-op-parity`). Two doors, one picker:
+
+- **the date pill on a row IS the control.** A dated node already draws its
+  date, so pressing it opens the picker — the badge becomes a `<button>` and
+  nothing else about it moves (`DateBadge.tsx`: same box, same tone, same
+  testid, same `data-` facts, plus `data-picks`). Offered only where the row is
+  editable, which is the rule a title's `onEdit` already follows: a day page
+  and the agenda are a QUERY over the whole set, drawn read-only, so the pill
+  there says something rather than doing something.
+- **the `•••` menu's `Set date…` / `Change date…`** is the door for a row with
+  no date to press, and the one a keyboard reaches.
+
+What it is:
+
+- **`<input type="date">`, because it cannot mint an instant.** Its value is a
+  `YYYY-MM-DD` string or nothing, which is exactly what the format stores —
+  dates are TEXT, verbatim, and a date-only value round-tripped through a
+  `Date` comes back a datetime (`docs/format.md`). So the day picked is the ten
+  characters written, with nothing parsing or formatting on the way, and the
+  calendar, the locale and the keyboard entry are the browser's on every
+  platform olai is read on. A node scheduled for an INSTANT seeds the day that
+  instant falls on (`@olai/format`'s `dayOf`, the same reading the calendar
+  takes) and the panel says so verbatim, because picking a day replaces the
+  time as well.
+- **in place, under the row.** Everything else a row says about a write is
+  drawn there — the refusal under a title, the note, the aside about a mirror
+  — and a floating panel would be the one editing surface with geometry of its
+  own to keep anchored. Escape and Cancel are the ways out; a click OUTSIDE is
+  deliberately not one, because the browser's own calendar popup is chrome
+  outside the document and a dismissal listening for a pointer elsewhere would
+  shut the picker the moment somebody reached into it.
+- **clearing is absorbed, in the menu's own words.** Empty the box on a dated
+  node and the button reads `Clear date` and sends `Clear date`'s edit — one
+  spelling of taking a date off, whichever door a reader came through, and no
+  dead button in the one place somebody is most likely to be reaching for
+  exactly that. #124's menu verb stays exactly where it was. On an undated node
+  the button stays `Set date` and is simply dead: there is nothing to clear,
+  and `pick.ts`' `wouldWrite` is the same rule the menu's catalog follows about
+  entries whose only outcome would be "it already says that".
+- **the pure half is `pick.ts`** — what the box starts with, whether pressing
+  would write anything, what the button is called, and the one `Edit` it sends
+  — so those rules are a unit test rather than something only a browser can
+  answer. `DatePicker.tsx` is the panel; the row owns whether it is open
+  (`Tree.tsx`), because two things open the one picker.
+- **it names the node the row SHOWS**, so a pick at a mirror lands on its
+  target — the standing routing rule, one field along from the marks. And it is
+  the same intent, at the same gate: what lands is the request an agent's
+  `set_date` would have sent, so the agenda and the day pages move the moment
+  the file says they should, and ⌘Z takes the pick back off the same stack a
+  keystroke files on.
+
+A phone reaches this on a dated row (the pill is drawn everywhere) and not on
+an undated one, since the `•••` menu is a pointer affordance below `md` — the
+same gap the checkbox has, and it closes with the touch affordances that item
+is waiting on rather than here.
 
 
 ## What belongs to a reading, not to the file

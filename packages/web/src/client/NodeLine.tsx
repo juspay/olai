@@ -63,6 +63,9 @@ export function NodeLine(props: {
    *  loop that started in one of them would be typing into a page whose rows
    *  are a query rather than a tree. */
   readonly onEdit?: () => void
+  /** Clicking the DATE opens the picker on it — the same split as `onEdit`,
+   *  one field along, and absent in the same places for the same reason. */
+  readonly onPickDate?: () => void
 }) {
   return (
     <>
@@ -84,6 +87,7 @@ export function NodeLine(props: {
             date={date()}
             occasion={props.occasion}
             overdue={props.overdue}
+            onPick={props.onPickDate}
           />
         )}
       </Show>

@@ -66,6 +66,33 @@ A new row is that same idea: **Enter** opens a line where the row will go, and
 the node is written the moment it has a title. So an outline never fills up
 with blank bullets, and a key pressed by accident writes nothing at all.
 
+## Putting a node on a day
+
+A node's `date` is what it is scheduled for ([format.md](format.md)), and it is
+the one thing an agent could change that a person could not — so it has a
+picker, in place under the row, and two ways to open one.
+
+**A dated row's own pill is the control.** Press the date beside the title and
+the picker opens on it. A row with no date has no pill to press, so its way in
+is the ••• menu: **Set date…** on a row with none, **Change date…** on one that
+has one.
+
+What you get is your browser's own date picker, and what is written is the day
+you picked, exactly as it is written — `2026-09-01`, ten characters, never a
+timestamp this app invented on the way. **Enter** sets it, **Escape** and
+**Cancel** leave without writing, and ⌘Z takes a pick back like any other edit.
+Empty the box and the button becomes **Clear date**, which is the ••• menu's
+own verb and the same write: one way to say "no date", whichever door you came
+through.
+
+A node scheduled for a time of day rather than a bare day keeps whatever it
+says on disk until you pick — the box shows the day that time falls on, and the
+panel says what picking one would replace, because a picker picks days.
+
+The row moves the moment the file says so: a task given a day that has gone is
+in Overdue on the agenda and on that day's page, without a reload and without
+this page deciding anything for itself.
+
 ## Taking an edit back
 
 **⌘Z takes back the last edit you made on this outline** — and it is not a
