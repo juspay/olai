@@ -395,11 +395,13 @@ export type Command = typeof Command.Type
  * knew nothing (juspay/kolu#2146). A reason without the path leaves the reader
  * where the incident started.
  *
- * It is REQUIRED rather than nullable, which is a bet worth stating: every
- * server olai can find is one it found on this host's PATH, so there has never
- * been one to report without a file. The day a server is probed over a socket
- * or a URL instead, this widens — a nullable that nothing can produce is a
- * branch nobody can check, and the wire ships with its own client.
+ * `null` is the one failure that never reached a file, and it is the reason this
+ * field is nullable at all: an environment that names a padi with no `kolu` on
+ * PATH to reach it (`../../chat/src/kolu.ts`). This member shipped with `where`
+ * required on the argument that a server olai can find is one it found on PATH
+ * — true of every reason that comes back from a spawn, and not of the one that
+ * never got to spawn anything. The absence IS the finding there, so it is spelt
+ * as one rather than as a sentinel path that is not a path.
  *
  * A server that is simply NOT INSTALLED is not one of these. Nothing failed on
  * a host that is not running kolu, and a panel reporting an absence as a fault
@@ -410,8 +412,9 @@ export const MissingServer = Schema.Struct({
   /** What it is called — the same name the session would have been given it
    *  under, which is the name the agent's own tools would have carried. */
   name: Schema.String,
-  /** The executable that was probed, absolute. */
-  where: Schema.String,
+  /** The executable that was probed, absolute — or `null` when the failure was
+   *  that there was nothing to probe. */
+  where: Schema.NullOr(Schema.String),
   /** In the server's or the probe's own words. Never a category. */
   why: Schema.String,
 })

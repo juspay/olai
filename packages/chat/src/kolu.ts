@@ -54,6 +54,27 @@ const COMMAND = "kolu"
 const ARGS = ["mcp"] as const
 const SOCKET = "PADI_SOCKET"
 
+/**
+ * ... and what it means when that variable is set and there is nothing to run.
+ *
+ * The one case where "no `kolu` on PATH" is NOT the ordinary case. Absence is
+ * normally quiet on purpose — olai auto-detects, nothing declares that a host
+ * is meant to have kolu, and a panel complaining on every machine that has
+ * never heard of it is the same mistake as saying nothing, reached from the
+ * other side. `PADI_SOCKET` is the exception, because it is not a guess: a kolu
+ * terminal sets it for the processes it starts, and a person who set it by hand
+ * meant it. Something already said a padi is here.
+ *
+ * That makes this the original incident with a different PATH — and the PATH is
+ * exactly what differs, because OLAI'S is not the user's. The home-manager unit
+ * starts `olai web` as a systemd user service passing neither (`nix/home/
+ * module.nix`), so a kolu that is on a person's interactive PATH need not be on
+ * the one this process was started with. Which was the whole shape of the
+ * mystery: everything looked right, from the wrong side of an environment.
+ */
+const EXPECTED = `${SOCKET} names a padi on this host, but no \`kolu\` is on the PATH `
+  + `this server was started with — so there is nothing here to reach it through`
+
 /** What the probe reads. A padi's identity — the commit it is running, when it
  *  started — is the daemon's own, so an answer cannot be produced by a kolu
  *  that reached no daemon: that one fails the read with `padi transport down`.
@@ -96,10 +117,18 @@ export interface Server {
 export type Detected =
   /** Kolu is here, and it answered. */
   | { readonly _tag: "kolu"; readonly server: Server }
-  /** No `kolu` on PATH at all — the ordinary case, and not a fault. */
+  /** No `kolu` on PATH, and nothing said there should be — the ordinary case,
+   *  and not a fault. */
   | { readonly _tag: "none" }
-  /** A `kolu` on PATH that did not answer, and what happened. */
-  | { readonly _tag: "silent"; readonly kolu: string; readonly why: string }
+  /**
+   * Something was expected here and is not usable, and what happened.
+   *
+   * `kolu` is the file that would not answer, or `null` for the one way of
+   * failing that never got as far as a file: {@link EXPECTED}, where the
+   * environment named a padi and PATH had nothing to reach it with. A path is
+   * what a reader most wants and is not always a thing that exists.
+   */
+  | { readonly _tag: "silent"; readonly kolu: string | null; readonly why: string }
 
 /** The server to hand a session, out of whatever the probe found. */
 export const serverOf = (found: Detected): Server | null =>
@@ -120,9 +149,10 @@ export const serverOf = (found: Detected): Server | null =>
  * between this and the wire that would translate it — and a second spelling of
  * "a server, where it was, and why not" is a second thing to keep in step.
  *
- * The path is always there, and that is a property of the `silent` arm rather
- * than a coincidence: this probe only has anything to report about a `kolu` it
- * RESOLVED, so a reason without a file is not a state it can reach.
+ * The path is `null` for exactly one of the ways of failing, and it is the one
+ * that never reached a file: a padi named by the environment with no `kolu` on
+ * PATH to reach it ({@link EXPECTED}). Every other reason is about a binary
+ * that was resolved and started, and names it.
  */
 export const missingFrom = (found: Detected): MissingServer | null =>
   found._tag === "silent"
@@ -138,9 +168,6 @@ export const missingFrom = (found: Detected): MissingServer | null =>
  * already spawns a subprocess and handshakes with it.
  */
 export const detect: Effect.Effect<Detected> = Effect.gen(function*() {
-  const command = onPath(COMMAND)
-  if (command === null) return { _tag: "none" }
-
   // Forwarded rather than merely inherited, because the ACP agent is what
   // spawns this and its environment is its own business — the variable travels
   // as part of the entry, exactly as kolu's `.mcp.json` declares it. Unset is
@@ -148,9 +175,19 @@ export const detect: Effect.Effect<Detected> = Effect.gen(function*() {
   // there is more than one to choose from (which the probe then reports as
   // "no", correctly — that host is ambiguous, not ours to guess about).
   const socket = process.env[SOCKET]
-  const env: Readonly<Record<string, string>> = socket === undefined || socket === ""
-    ? {}
-    : { [SOCKET]: socket }
+  const expected = socket !== undefined && socket !== ""
+  const env: Readonly<Record<string, string>> = expected ? { [SOCKET]: socket } : {}
+
+  const command = onPath(COMMAND)
+  if (command === null) {
+    // Nothing to probe — but "nothing to probe" and "nothing was expected" are
+    // two facts, and only the second is quiet. See {@link EXPECTED}.
+    if (!expected) return { _tag: "none" }
+    yield* Effect.logDebug("a padi is named here but kolu is not on this PATH").pipe(
+      Effect.annotateLogs({ [SOCKET]: socket }),
+    )
+    return { _tag: "silent", kolu: null, why: EXPECTED }
+  }
 
   const why = yield* Effect.promise(() => whyNotAnswered(command, env))
   if (why !== null) {
@@ -237,21 +274,34 @@ const whyNotAnswered = async (
   // the same promise for the same reason.
   return await Promise.race([
     unstartable(child).then(couldNotStart),
-    askOver(child),
+    askOver(child, PROBE_MS),
   ])
 }
 
-/** Say all of it, and wait for the one answer that decides it — then kill the
- *  process either way ({@link whyNotAnswered} is what starts it, and says why
- *  the start is a question of its own). */
-const askOver = async (child: ChildProcess): Promise<string | null> => {
+/**
+ * Say all of it, and wait for the one answer that decides it — then kill the
+ * process either way ({@link whyNotAnswered} is what starts it, and says why
+ * the start is a question of its own).
+ *
+ * The deadline is a PARAMETER and this is exported for one reason, which is the
+ * same reason {@link PROBE_ID} is: a test needs it. Two of the four sentences
+ * here are told apart only by the `expired` flag — a wedged server and one that
+ * hung up are the same closed pipe — so the flag is exactly the sort of thing
+ * that rots into the wrong sentence, and the only way to exercise it through
+ * `detect` is to spend five real seconds on every run forever. A fixture that
+ * reads and never answers, given a tenth of a second, says the same thing.
+ */
+export const askOver = async (
+  child: ChildProcess,
+  deadlineMs: number,
+): Promise<string | null> => {
   /** Whether the deadline is what ended this, so the closed pipe below is read
    *  as the timeout it is rather than as an agent that hung up. */
   let expired = false
   const deadline = setTimeout(() => {
     expired = true
     child.kill("SIGKILL")
-  }, PROBE_MS)
+  }, deadlineMs)
   try {
     const stream = streamOver(child)
     const writer = stream.writable.getWriter()
@@ -264,7 +314,7 @@ const askOver = async (child: ChildProcess): Promise<string | null> => {
       const next = await reader.read()
       if (next.done) {
         return expired
-          ? `it did not answer within ${PROBE_MS / 1000}s`
+          ? `it did not answer within ${deadlineMs / 1000}s`
           : "it closed the connection without answering"
       }
       if (!answersTheProbe(next.value)) continue

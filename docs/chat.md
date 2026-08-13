@@ -132,10 +132,21 @@ header — the name, and the reason the probe or the server itself gave:
 The reason is the point. Every way of failing looks the same from the outside —
 the agent simply has fewer tools — and they want different things done about
 them: a padi that is not running is one thing, a `kolu` that is an older build
-missing half its verbs is another, and a file on PATH that will not run at all
-is a third. The path is there for the same reason: a padi-spawned terminal
-prepends its own bundled copy of kolu, so *which* one answered is the question
-this usually turns out to be.
+missing half its verbs is another, a file on PATH that will not run at all is a
+third, and one that reads and never answers is a fourth. (There is a fifth
+sentence, `talking to it failed: …`, and seeing it means something unusual: the
+reason a broken pipe reached you before the reason the file would not run.) The
+path is there for the same reason: a padi-spawned terminal prepends its own
+bundled copy of kolu, so *which* one answered is the question this usually turns
+out to be — and the one failure with no path to name says so instead.
+
+**`PADI_SOCKET` counts as somebody saying kolu should be here.** If the variable
+is set — a kolu terminal sets it for what it starts, and a person who set it by
+hand meant it — and there is no `kolu` on the PATH this server was started with,
+that is a miss and the panel says so. It is worth knowing because *olai's* PATH
+is not your shell's: run as a systemd user service (the home-manager unit), it
+inherits neither, so a kolu you can run in a terminal is not necessarily one
+this process can see. That was the original mystery from the other side.
 
 It is per conversation, because the detection is: start a padi and the next
 conversation has the terminals, with nothing to restart and nothing left on
@@ -143,7 +154,8 @@ screen saying otherwise.
 
 **A machine that is simply not running kolu sees none of this**, and that is
 deliberate — nothing failed. What the panel reports is a tool server that was
-here and would not work, never the absence of one that was never installed.
+here and would not work, or one something said would be; never the absence of
+one that was never installed.
 
 What olai cannot report is a server it handed over that the *agent* then failed
 to connect to: ACP answers `session/new` with a session id and says nothing per

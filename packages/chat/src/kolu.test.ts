@@ -12,6 +12,7 @@
  * like (juspay/kolu#2146), and it must not become a session's MCP server.
  */
 
+import { spawn } from "node:child_process"
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, join } from "node:path"
@@ -21,6 +22,7 @@ import { Effect } from "effect"
 
 import { mcpServersOf } from "./agent.ts"
 import {
+  askOver,
   detect,
   type Detected,
   missingFrom,
@@ -160,6 +162,27 @@ describe("detecting kolu", () => {
     expect(serverOf(found)).toBeNull()
   })
 
+  /**
+   * The fourth sentence, and the one that had no case.
+   *
+   * A wedged server and a server that hung up reach the same closed pipe, and
+   * the only thing that tells them apart is the `expired` flag the deadline
+   * sets — exactly the sort of thing that rots into the wrong sentence with
+   * every other test still green. It used to be untestable through `detect`
+   * without spending five real seconds per run, so `askOver` takes the deadline
+   * and this spends a tenth of one instead.
+   *
+   * The fixture READS and never answers, which is what a wedge is: a process
+   * that is alive and holding its client. A fixture that exited would close the
+   * pipe and take the other branch.
+   */
+  test("a kolu that reads and never answers is a deadline, not a hang-up", async () => {
+    const bin = koluOnPath(`process.stdin.on("data", () => {})\n`)
+    const child = spawn(bin, ["mcp"], { stdio: ["pipe", "pipe", "ignore"] })
+
+    expect(await askOver(child, 150)).toBe("it did not answer within 0.15s")
+  })
+
   // The lock the fixtures above carry, stated where a reader will look for it:
   // they answer only what a daemon owns, so a probe swapped to `initialize`,
   // `tools/list` or `resources/list` — every one of which a real kolu answers
@@ -180,8 +203,41 @@ describe("detecting kolu", () => {
     const dir = mkdtempSync(join(tmpdir(), "olai-kolu-"))
     made.push(dir)
     process.env["PATH"] = dir
+    // Said rather than inherited: with the variable set this is a DIFFERENT
+    // case (below), so a developer running this suite from inside a kolu
+    // terminal must not get a different answer than CI does.
+    delete process.env["PADI_SOCKET"]
 
     expect(await detected()).toEqual({ _tag: "none" })
+  })
+
+  /**
+   * ... unless something already said a padi is expected here.
+   *
+   * The hole the reviewer found in this file's own definition. "No kolu on
+   * PATH" is the ordinary case because olai auto-detects and nothing declares
+   * an expectation — but `PADI_SOCKET` IS a declaration: it is set by a kolu
+   * terminal for the processes it starts, and by a person who meant it. A
+   * server that inherited it and cannot see `kolu` is the original incident
+   * with a different PATH, and olai's PATH is not the user's — the home-manager
+   * unit passes neither (`nix/home/module.nix`).
+   *
+   * The narrowness is the point. Without the variable this stays quiet, so a
+   * machine that has never heard of kolu never hears about it.
+   */
+  test("a padi named by the environment with no kolu to reach it is a miss", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "olai-kolu-"))
+    made.push(dir)
+    process.env["PATH"] = dir
+    process.env["PADI_SOCKET"] = "/run/user/1000/padi-abc/padi.sock"
+
+    const found = await detected()
+    expect(found).toMatchObject({ _tag: "silent", kolu: null })
+    // The variable is NAMED, because it is the thing that made this a fault
+    // rather than an absence, and the thing a reader can go and look at.
+    expect(found._tag === "silent" && found.why).toContain("PADI_SOCKET")
+    // ... and there is no file to name, which is the finding itself.
+    expect(missingFrom(found)).toMatchObject({ name: "kolu", where: null })
   })
 
   test("no PADI_SOCKET forwards nothing, and kolu resolves its own", async () => {
@@ -241,6 +297,13 @@ describe("what a session that did not get kolu can be told", () => {
     const found = await missing()
     expect(found).toMatchObject({ name: "kolu", where: bin })
     expect(found?.why).toStartWith("it could not be started:")
+    // ... and NOT the fifth sentence. `talking to it failed: …` is what
+    // `askOver` comes back with when our own write loses to a stdin the failed
+    // exec destroyed, and it is what the un-raced version of this file said —
+    // a fact about our end of a pipe, on a screen where the file's name
+    // belongs. Asserting the sentence that must not appear is what makes this
+    // case about the RACE rather than about the words that won it.
+    expect(found?.why).not.toContain("stream was destroyed")
   })
 
   test("a kolu that answered is nothing to report", async () => {
@@ -258,8 +321,31 @@ describe("what a session that did not get kolu can be told", () => {
     const dir = mkdtempSync(join(tmpdir(), "olai-kolu-"))
     made.push(dir)
     process.env["PATH"] = dir
+    // Explicit, and this is the line that caught it: the machine this was
+    // written on IS running kolu, so the ambient variable was set and the
+    // quiet case silently became the loud one. A claim about the ordinary
+    // host has to say which host it means.
+    delete process.env["PADI_SOCKET"]
 
     expect(await missing()).toBeNull()
+  })
+
+  // ... and the sentence a person gets when the environment says otherwise.
+  // Its own case here as well as in `detect`'s block, because what is asserted
+  // is the RENDERED fact — a name, no path, and a reason that names the
+  // variable somebody can go and look at.
+  test("a padi named with nothing to reach it says so, and names no file", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "olai-kolu-"))
+    made.push(dir)
+    process.env["PATH"] = dir
+    process.env["PADI_SOCKET"] = "/run/user/1000/padi-abc/padi.sock"
+
+    expect(await missing()).toEqual({
+      name: "kolu",
+      where: null,
+      why: "PADI_SOCKET names a padi on this host, but no `kolu` is on the PATH "
+        + "this server was started with — so there is nothing here to reach it through",
+    })
   })
 })
 

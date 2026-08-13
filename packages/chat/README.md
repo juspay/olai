@@ -197,6 +197,16 @@ against no padi does (juspay/kolu#2146), and the one worth telling somebody
 about. Those four used to be one `false` with the reason destroyed inside a
 `catch` before anything could report it.
 
+**`PADI_SOCKET` set with nothing on PATH is `silent` too**, and it is the one
+`silent` with no file to name. Absence is quiet because olai auto-detects and
+nothing declares that a host should have kolu — but that variable is a
+declaration, set by a kolu terminal for what it starts and by a person who meant
+it. And the PATH it is measured against is OLAI's: run as a systemd user service
+(`nix/home/module.nix` passes neither), this process need not see a `kolu` its
+user runs every day, which is the original incident approached from the
+environment instead of from the binary. Narrow on purpose — without the variable
+this stays quiet, so a machine that never heard of kolu never hears about it.
+
 **And the no is on screen.** One probe answers both halves: `Kolu.serverOf` is
 what a session is handed, `Kolu.missingFrom` is what a person is owed about the
 one it was not, and `agent.ts` reads both off the same `Detected` rather than

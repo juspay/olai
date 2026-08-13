@@ -142,7 +142,9 @@ subject of their own:
   server's own words and the file that was probed, because "it did not attach"
   is the one thing every way of failing has in common and the one thing that
   never helped anybody. Empty is the ordinary case, and a server that is not
-  installed is not in it: nothing failed.
+  installed is not in it: nothing failed — unless something already said it
+  should be there (`PADI_SOCKET`), which is the one absence that is a fault and
+  the one `where` that is `null`.
 - **the procedures are the verbs**: send, cancel, new, load, the list the
   picker draws, and `attach`. Each declares its failure channel, so "a turn is
   already running" arrives as a `busy` a caller can branch on rather than as an

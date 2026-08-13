@@ -539,9 +539,20 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
          *
          * Raced against the handshake rather than checked after it, so which
          * reason wins is not a question about the order two failures happen in.
+         *
+         * SUBSCRIBED HERE, on the line after the spawn, rather than when the
+         * race runs — `Effect.promise` does not call its thunk until the fiber
+         * reaches it, and between here and there sit the stderr wiring, the
+         * exit handler and `connect`. The exec `error` lands a millisecond or
+         * so after `spawn` returns, so that window has been winning; it does
+         * not have to keep winning, and a listener attached too late is both an
+         * uncaught exception and the destroyed-stream sentence coming back.
+         * `kolu.ts` attaches on the line after its own spawn for the same
+         * reason.
          */
+        const started = unstartable(child)
         const failedToStart: Effect.Effect<never, AgentGone> = Effect.flatMap(
-          Effect.promise(() => unstartable(child)),
+          Effect.promise(() => started),
           (why) => notStarted(why),
         )
 

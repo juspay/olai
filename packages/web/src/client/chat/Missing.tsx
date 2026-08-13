@@ -94,10 +94,16 @@ function Row(props: { readonly server: MissingServer }) {
           kolu, and a padi-spawned terminal prepends its own bundled copy. It
           truncates and keeps the whole of it on the `title`, because a store
           path is longer than this drawer and the tail of one is the half that
-          identifies it. */}
-      <p class="truncate pl-3 text-muted/70" title={props.server.where}>
-        {props.server.where}
-      </p>
+          identifies it.
+
+          Absent for the one failure that never reached a file, where the
+          reason above is the whole of it — an empty line under it would be
+          this panel implying a path it does not have. */}
+      <Show when={props.server.where}>
+        {(where) => (
+          <p class="truncate pl-3 text-muted/70" title={where()}>{where()}</p>
+        )}
+      </Show>
     </div>
   )
 }

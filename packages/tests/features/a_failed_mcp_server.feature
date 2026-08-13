@@ -44,6 +44,16 @@ Feature: A failed MCP server is a visible fact
     Then the chat is empty
     And the panel says "kolu" is missing from this conversation
 
+  @phone @scratch:chat
+  Scenario: The same fact on a phone
+    # The two layouts share one `Face`, so the sheet CANNOT draw a different
+    # panel than the dock — which is an argument, and this is the assertion.
+    # A future split of that component would otherwise be caught on a desktop
+    # viewport only, and a phone is where a person is least able to go and read
+    # a log instead.
+    Then the panel says "kolu" is missing from this conversation
+    And the reason it gives is "padi transport down"
+
   @scratch:chat @kolu
   Scenario: A conversation that got everything says nothing new
     # The first two lines look like `kolu_terminals`' and are load-bearing
