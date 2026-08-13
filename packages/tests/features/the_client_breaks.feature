@@ -9,7 +9,8 @@ Feature: When olai itself breaks
   What a reader got instead was a white tab, with the truth in a console they
   had no reason to open. That is exactly how PR #70's `RangeError` arrived, and
   the person who hit it could say nothing about it but "it went blank". So the
-  shell is wrapped in an `<ErrorBoundary>`, and this is what it draws.
+  shell is wrapped in kolu's `SurfaceFaultBoundary` — the framework catches,
+  records and prints; olai owns only the LOOK — and this is what it draws.
 
   There is no way to ASK this app to break, and there should not be: a fault
   switch is a fault switch, on in production too. So the fault is injected from
