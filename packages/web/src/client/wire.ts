@@ -14,9 +14,11 @@
  * cannot say whether it is connected is a page that lies when it is not
  * (juspay/kolu#2133 made the terminal state a required option because of it).
  *
- *   - `status` is the four states an indicator needs — `connecting`, `live`,
- *     `reconnecting`, `retired` — with the terminal one spelled out rather than
- *     folded into the transient ones. It is exported, rendered, and asserted on.
+ *   - `readout` is the five states an indicator needs — `connecting`, `live`,
+ *     `degraded`, `reconnecting`, `retired` — the wire's own four folded with
+ *     the subscription-health fact, so `live` is a claim about what reaches
+ *     this page rather than about a socket. It is exported, rendered, and
+ *     asserted on.
  *   - `retired` is the handler the seam requires. It cannot be left out, and it
  *     is answered below.
  *
@@ -43,8 +45,8 @@ const connection = await connectSurface({
   // no default, so a wire that compiles has been asked what happens when it dies.
   //
   // What a READER sees is not wired from here: the indicator and the reload
-  // screen ride `status()`, so the retirement has ONE source and the dot and the
-  // screen cannot disagree about it. This is the RECORD — one line naming the
+  // screen ride `readout()`, so the retirement has ONE source and the dot and
+  // the screen cannot disagree about it. This is the RECORD — one line naming the
   // moment, for whoever is looking at the console of a tab that stopped. (Kolu
   // itself passes a leaf recorder here, for the same reason.) A `warn`, not an
   // `error`: nothing is broken, the server was replaced.
@@ -57,8 +59,10 @@ const connection = await connectSurface({
 export const olai = connection.client
 
 /**
- * What the connection is doing — `connecting` / `live` / `reconnecting` /
- * `retired`. Read it: an indicator nobody renders is the bug this module had.
- * `./connection/status.ts` says what each of the four looks like.
+ * What the connection is doing — `connecting` / `live` / `degraded` /
+ * `reconnecting` / `retired`, with `needsReload` and, when degraded, the names
+ * of the subscriptions that stopped. Read it: an indicator nobody renders is
+ * the bug this module had. `./connection/status.ts` says what each of the five
+ * looks like, and nothing else about them.
  */
-export const connectionStatus = connection.status
+export const connectionReadout = connection.readout
