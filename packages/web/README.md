@@ -11,15 +11,15 @@ current by the live store underneath. ⌘K opens the command-palette shell
 (navigation, panel toggles, `>` to ask the agent). SolidJS over a WebSocket,
 styled with Tailwind v4, bundled by `Bun.build`.
 
-The build (`src/build.ts`) also writes `.br` / `.gz` siblings next to the
-hashed `/assets/*` files (`src/precompress.ts`). The static layer in
-`@kolu/surface-app` negotiates them on `Accept-Encoding` (brotli preferred,
-gzip fallback, identity honoured); the shell is never compressed. Matching is
-a **bare token set** (no q-value parsing, ported from the `serve-static` it
-replaced): `br, gzip` gets brotli, but `br;q=0.8, gzip;q=1.0` falls through to
-identity. Real browsers send bare tokens, so the shipped path is unaffected.
-Already-compressed media types (e.g. `.png`) stay identity even if a stray
-sibling sits on disk.
+`src/build.ts` composes `buildSurfaceClient` and adds only what is olai's: the
+Solid JSX transform, the Tailwind stylesheet, the fonts, and the install
+surface's icons. Everything else about the dist is the helper's and is not an
+option — the content-hashed `/assets/*` names, the `no-store` shell that points
+at them, the `.br`/`.zst`/`.gz` siblings the static layer negotiates, and the
+chunk a dynamic `import()` asks for. This package wrote two of those by hand
+until kolu#2159: a `precompress.ts` that could never emit the `.zst` the server
+has preferred all along, and a second `Bun.build` for the markdown chunk because
+`splitting` was hardcoded off. Both are deleted rather than moved.
 
 ## What the client reads, and how it is put back together
 
@@ -213,22 +213,21 @@ sanitise, highlight, rewrite, stringify:
 
 ### It arrives when it is needed
 
-All of that is ~390 kB raw (~96 kB brotli) of `unified`, remark, rehype and
+All of that is ~390 kB raw (~95 kB brotli) of `unified`, remark, rehype and
 `highlight.js` grammars, and the first thing this app draws — a tree of rows —
-uses none of it. So the pipeline is bundled ON ITS OWN
-(`markdown/pipeline.ts` → `/assets/markdown-<hash>.js`, built by
-`src/markdown.ts`) and fetched the first time something on the page has
-markdown to interpret. The entry bundle went from 1 054 kB to 663 kB raw
-(274 kB → 180 kB brotli) when it moved out.
+uses none of it. So the pipeline is a CHUNK of its own
+(`markdown/pipeline.ts` → `/assets/pipeline-<hash>.js`) and is fetched the first
+time something on the page has markdown to interpret. The entry is ~700 kB raw
+(~185 kB brotli) with the pipeline out of it, against 1 054 kB with it in.
 
-- **the page finds it through the shell**, not through a compiled-in constant:
-  a `<meta name="olai-markdown">` in the `no-store` `index.html`, rewritten to
-  the hashed URL at build time, exactly as the entry and the stylesheet are.
-  `markdown/chunk.ts` reads it and `import()`s it — a variable specifier, which
-  is what keeps the graph out of `main-*.js` rather than merely unreached
-  inside it. (`buildSurfaceClient` sets `splitting: false` and takes no option
-  to change it, so the chunk is a second `Bun.build` this package owns — the
-  same shape `precompress.ts` already is, and the same thing to flag upstream.)
+- **the `import()` is the whole of the request.** `markdown/chunk.ts` names
+  `./pipeline.ts` literally; `buildSurfaceClient` splits on a dynamic import and
+  hashes chunks the same way it hashes the entry, so the chunk lands in the same
+  immutable `/assets/` dir and the entry references it by a URL that resolves
+  inside it. Nothing spells that URL: this used to be a `<meta>` on the shell,
+  rewritten by a second `Bun.build` of this package's own, because
+  `splitting` was hardcoded off upstream — three moving parts to say what one
+  `import()` says (kolu#2159 paid it in and they are all deleted).
 - **asking is what fetches it.** `markdownReady()` is a signal read: a memo
   that asks is a memo that re-runs when the file lands, and a page that never
   asks never pays. Nothing is primed at boot.
@@ -680,30 +679,30 @@ sitting on top of the last line of whatever scrolled under it. `Connection.tsx`
 keeps the one rule that is not about placement — when the reload surface takes
 the screen.
 
-`status.ts` is the whole policy and it is pure: a table over the wire's own four
-states (`connecting`, `live`, `reconnecting`, `retired`) saying what each looks
-like. That is where the mistake this folder exists to prevent would be made — a
-state that quietly reads as healthy, or a terminal one drawn like a transient
-one — so it is unit-tested directly, with no socket and no browser.
+`status.ts` is the LOOK and nothing else: a table over the five states saying
+what each is called here, which dot it paints, and what it claims in words. That
+is where the mistake this folder exists to prevent would be made — a state that
+quietly reads as healthy, or a terminal one drawn like a transient one — so it
+is unit-tested directly, with no socket and no browser.
 
-There is a FIFTH state, and it is not the wire's: `degraded`, drawn as `partly
-live`. Green is a claim about what REACHES the page rather than about a socket,
-so it is the conjunction of the transport status and the framework's
-`client.health()` — which knows the thing the transport cannot, that a socket
-can be open and answering while a subscription over it is dead. Nothing in olai
-read that fact until this was written, and what it cost is a `documents.keys`
-stream that died rendering as a directory with no documents in it under a green
-light. Its detail NAMES the streams that stopped, which is why it is a function
-rather than a row of the table, and `lookOf` is the one door to all five so a
-caller never asks which shape a state is in.
+WHICH state is true is not decided here and no longer can be. `connectSurface`
+hands back a READOUT (kolu#2160) folded from both facts a page's liveness
+depends on: the wire's own four states, plus `degraded` — drawn as `partly
+live` — for a socket that is open and answering while a subscription riding it
+is dead. This file used to do that fold itself out of `client.health()`, which
+made it a step every consumer had to remember; the consumer that forgot it drew
+a `documents.keys` stream that had died as a directory with no documents in it,
+under a green light. The framework's three rules travel with the readout now:
+`live` is the conjunction, a first frame that has not arrived never degrades
+(a pill that is amber most of the time is a pill nobody reads), and `degraded`
+names what stopped — non-empty by type, which is why `lookOf` takes the readout
+rather than a state name and a sentence with a hole in it is not spellable.
+`needsReload` rides it too, so `Connection.tsx` reads the bit rather than
+keeping its own list of terminal states.
 
-Two decisions inside it. ERRORS degrade the pill and PENDING does not: a first
-frame that has not arrived is what every page load looks like, and a pill that
-is amber most of the time is a pill nobody reads (the framework's own
-`gateStatus` is deliberately policy for a GATE — whether to draw the body at
-all — which is a different question). And it is folded into the pill rather
-than drawn beside it, for the reason the git readout is quiet when it is happy:
-one green claim per page, or neither is scanned.
+One decision here is still olai's beyond the wording: it is folded into the one
+pill rather than drawn beside it, for the reason the git readout is quiet when
+it is happy — one green claim per page, or neither is scanned.
 
 The degraded half is unit-tested only, and that gap is honest rather than
 missed: killing one subscription while leaving its socket up is not something a
@@ -803,6 +802,44 @@ Three components earn their own file:
   incremental content) is the first thing in the unfolded body, above the
   arguments. A call running for thirty seconds has something to show and its
   arguments are not it.
+
+  A third escapes it for a different reason — what the call CHANGED, which is
+  not detail: the arguments are what was asked for, and this is what happened
+  to somebody's files. Two components, one per kind of write, and a call is at
+  most one of them.
+- **`Diff.tsx`** draws a file the agent rewrote directly, the CLI's way: the
+  path, the counts, and the change trimmed to a few rows with the rest a click
+  away, opening in place. What is trimmed is the DIFF and never the file —
+  `diff.ts` collapses unchanged runs into gaps first — so the first rows are
+  the change rather than the top of a document. That fold is keyed by the call
+  AND the path (`folds.ts`), since one call can rewrite several files and one
+  file is rewritten again in a later turn.
+- **`diff.ts`** is the line diff itself, computed here because ACP carries two
+  texts rather than a patch. Hand-rolled: the packages that do this bring
+  character-level algorithms and patch application for the one function a panel
+  wants, in a bundle that ships to a browser — the same trade `@olai/git` took
+  over `simple-git`. Common ends come off first, the table is bounded (past the
+  budget the two sides are reported as unrelated rather than compared cell by
+  cell, because a browser must not freeze on a ten-thousand-line rewrite), and
+  the colours are spent on the tint and the marker rather than on the words:
+  text stays `ink`, which is the pair every palette promises.
+- **`OutlineDiff.tsx` / `outline.ts`** are what make "never a text diff of a
+  `.jsonl`" true of the FILE rather than of the tool. Olai's own writes cannot
+  produce one; an agent's own `Edit` can name any file, and one aimed at an
+  outline used to arrive as a diff block and render as lines. So an outline's
+  two texts are parsed and compared as RECORDS — `parseOutline` + `changesOf`,
+  the same pair the Commit panel's rows come from — and drawn as node rows in
+  the same words. A side that will not parse says which side and draws nothing
+  else: an agent hand-editing an outline is exactly how a `.jsonl` stops
+  parsing, and lines are not a better answer to that than a sentence.
+- **`Wrote.tsx`** draws the other kind, and never as a diff — an outline is one
+  line per node, so a text diff of one is a single enormous line with
+  everything on it changing at once. It is the node-level story in the words
+  `../changes.ts` holds, which is the same table the Commit panel's rows read:
+  the agent marks a node done, this says *marked done*, and the row waiting to
+  be committed says *marked done*. One event, one sentence, two places it is
+  seen — and one table, because two would be the day one of them started saying
+  something else.
 - **`Composer.tsx`** never disables its box. A message typed while the agent
   is working is sent and queues, so the button says `queue` and cancel appears
   BESIDE it rather than replacing it — sending and stopping are two things a
@@ -952,8 +989,12 @@ Writes land on disk and WAIT; this is what asks for the commit, and the agent's
 The panel never shows a text diff — a `.jsonl` diff is one enormous line per
 node — so every outline row is a NODE and what changed about it
 (`Outlines.tsx`). The classification is the server's (one `Sort` per change,
-from `@olai/format`), and `said.ts` is this client's own table of words for it:
-the log says `done:`, the panel says "marked done". `data-sort` is what a test
+from `@olai/format`), and `client/changes.ts` is this client's own table of
+words for it: the log says `done:`, the panel says "marked done". It sits a
+directory up rather than in `commit/` because the chat transcript draws an olai
+write in the same words — one event seen at two moments, and a second table is
+the day one of them starts saying something else. What stayed in `said.ts` is
+everything about the pill, which nothing else reads. `data-sort` is what a test
 asserts on, never the phrase, which the view is entitled to reword.
 
 **It reports on the WHOLE REPOSITORY**, which is `commit-whole-repo` and the

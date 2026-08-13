@@ -439,6 +439,41 @@ export const TESTID = {
   chatToolProgress: "chat-tool-progress",
   /** Where it is working: the follow-along file locations, on the line. */
   chatToolLocations: "chat-tool-locations",
+  /** One file the call REWROTE, drawn as a trimmed line diff. `data-path` is
+   *  the file (root-relative when it is under the served directory) and
+   *  `data-expanded` says whether the trim has been opened. */
+  chatDiff: "chat-diff",
+  /** One row of that diff. `data-kind` is `add` / `remove` / `same` / `gap` —
+   *  the fact, never the colour it is painted in, which is the whole subject
+   *  and so the last thing to assert on. */
+  chatDiffLine: "chat-diff-line",
+  /** The control that opens a trimmed diff in place, and shuts it again. */
+  chatDiffExpand: "chat-diff-expand",
+  /** One OUTLINE the call rewrote — its own name, because the whole claim is
+   *  that this is never the row above: a `.jsonl` is one line per node, so it
+   *  is drawn as node changes and there is no text diff of one anywhere.
+   *  `data-path` is the file, `data-expanded` whether the trim has been
+   *  opened. */
+  chatOutlineDiff: "chat-outline-diff",
+  /** One node inside it, in the Commit panel's own words. `data-sort` is the
+   *  format's classification, `data-node-id` which node. */
+  chatOutlineChange: "chat-outline-change",
+  /** ... or the sentence that replaces those rows when one side of the file
+   *  does not parse. Still never a text diff — an outline nothing can read is
+   *  news, not a reason to fall back to lines. */
+  chatOutlineUnreadable: "chat-outline-unreadable",
+  /** Said in a diff's header when the two texts were too far apart to line up
+   *  line by line: every row below is a change, so a trimmed view shows the
+   *  top of the old file rather than an edit. */
+  chatDiffWholesale: "chat-diff-wholesale",
+  /** What an olai WRITE did, in the commit panel's own words — never a diff.
+   *  `data-sort` is the format's classification (`done`, `noted`, `moved`, …),
+   *  or `unchanged` for a write that moved no record. */
+  chatWrote: "chat-wrote",
+  /** What the rollup noticed about that write. Advice on a write that LANDED,
+   *  never a reason anything failed — the transcript's own copy of the aside a
+   *  keystroke already gets under its row. */
+  chatNudge: "chat-nudge",
   /** A refused write, with its structured detail drawn out. */
   chatRefusal: "chat-refusal",
   /** What the last VERB refused — an empty send, a turn already running. */

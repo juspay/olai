@@ -32,6 +32,10 @@ import {
   CHAT_ATTACH_BUTTON,
   CHAT_ATTACHMENT_SIZE,
   CHAT_CANCEL,
+  CHAT_DIFF,
+  CHAT_DIFF_EXPAND,
+  CHAT_DIFF_LINE,
+  CHAT_DIFF_WHOLESALE,
   CHAT_DROP,
   CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
@@ -39,6 +43,9 @@ import {
   CHAT_MODEL,
   CHAT_NEW,
   CHAT_NO_AGENT,
+  CHAT_NUDGE,
+  CHAT_OUTLINE_CHANGE,
+  CHAT_OUTLINE_DIFF,
   CHAT_PANEL,
   CHAT_QUEUED,
   CHAT_REFUSAL,
@@ -57,6 +64,7 @@ import {
   CHAT_TROUBLE,
   CHAT_WAITING,
   CHAT_WORKING,
+  CHAT_WROTE,
   HYDRATION_TIMEOUT,
   NODE_TITLE,
   nodeSelector,
@@ -706,6 +714,140 @@ Then("the tool call is the element I marked", async function (this: OlaiWorld) {
       "update patches them in place.",
   );
 });
+
+// ── what a call changed ────────────────────────────────────────────────
+
+/** The FIRST diff drawn, which is the one the turn just produced. */
+const shownDiff = (world: OlaiWorld) => world.page.locator(CHAT_DIFF).first();
+
+Then(
+  "the chat shows a diff of {string}",
+  async function (this: OlaiWorld, file: string) {
+    // By PATH, root-relative: the protocol sends an absolute one, and a reader
+    // of this directory should see it spelled the way every `file:line` here
+    // is.
+    await this.page
+      .locator(`${CHAT_DIFF}[data-path="${file}"]`)
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
+Then("the chat shows no diff", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(CHAT_DIFF).count(),
+    0,
+    "an olai write drew a text diff. A `.jsonl` diff is one enormous line per " +
+      "node with everything on it changing at once — the panel's job for a " +
+      "write is the node-level story, and this is the rule that says so",
+  );
+});
+
+Then("the diff is trimmed", async function (this: OlaiWorld) {
+  const rows = await shownDiff(this).locator(CHAT_DIFF_LINE).count();
+  const whole = oneLine(await shownDiff(this).locator(CHAT_DIFF_EXPAND).innerText());
+  assert.match(
+    whole,
+    /more lines/,
+    `the diff drew all ${rows} of its rows; a turn that rewrote four files ` +
+      "would bury the conversation it belongs to",
+  );
+});
+
+When("I expand the diff", async function (this: OlaiWorld) {
+  await shownDiff(this).locator(CHAT_DIFF_EXPAND).click();
+});
+
+Then("the diff is expanded", async function (this: OlaiWorld) {
+  await this.expectAttribute(
+    CHAT_DIFF,
+    "data-expanded",
+    "true",
+    "the diff",
+    POLL_TIMEOUT,
+  );
+});
+
+Then(
+  "the diff shows the line {string} as added",
+  async function (this: OlaiWorld, text: string) {
+    // The KIND is asserted rather than the colour: what tone an added line
+    // wears is the whole subject here, and so the last thing to assert on —
+    // fifteen palettes paint it fifteen ways and all of them mean `add`.
+    const added = shownDiff(this).locator(`${CHAT_DIFF_LINE}[data-kind="add"]`);
+    await this.waitUntil(
+      async () => {
+        const rows = await added.allInnerTexts();
+        return rows.some((row) => oneLine(row).includes(text));
+      },
+      `the diff to show "${text}" as an added line`,
+      POLL_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the chat says the write {string}",
+  async function (this: OlaiWorld, said: string) {
+    // The commit panel's own words for the same event, which is the parity
+    // this is really about: one classification, two places it is read.
+    const wrote = this.page.locator(CHAT_WROTE).first();
+    await wrote.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const shown = oneLine(await wrote.innerText());
+    assert.ok(
+      shown.includes(said),
+      `the write's story does not say "${said}"; it says: ${shown}`,
+    );
+  },
+);
+
+Then(
+  "the chat shows the outline {string} changing",
+  async function (this: OlaiWorld, file: string) {
+    await this.page
+      .locator(`${CHAT_OUTLINE_DIFF}[data-path="${file}"]`)
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
+Then(
+  "the outline change says {string}",
+  async function (this: OlaiWorld, said: string) {
+    // The Commit panel's own phrase for the same event — which is the parity
+    // that makes this a second reading of one vocabulary rather than a second
+    // vocabulary.
+    const row = this.page.locator(CHAT_OUTLINE_CHANGE).first();
+    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const shown = oneLine(await row.innerText());
+    assert.ok(
+      shown.includes(said),
+      `the outline's change does not say "${said}"; it says: ${shown}`,
+    );
+  },
+);
+
+Then("the diff says it was rewritten whole", async function (this: OlaiWorld) {
+  // The half of a bound that matters on screen: a reader who is not told is
+  // reading the top of the old file as though it were a hunk.
+  await this.page
+    .locator(CHAT_DIFF_WHOLESALE)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+Then(
+  "the write's nudge says {string}",
+  async function (this: OlaiWorld, said: string) {
+    // What the rollup noticed about a write that LANDED — advice, never a
+    // reason anything failed. A person who asked an agent for something is
+    // owed the aside a person who pressed a key already gets.
+    const nudge = this.page.locator(CHAT_NUDGE).first();
+    await nudge.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const shown = oneLine(await nudge.innerText());
+    assert.ok(
+      shown.includes(said),
+      `the write's nudge does not mention "${said}"; it says: ${shown}`,
+    );
+  },
+);
 
 Then("the tool call's detail is folded away", async function (this: OlaiWorld) {
   assert.strictEqual(

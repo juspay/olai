@@ -116,6 +116,14 @@ subject of their own:
   updatable: the agent reports a call, then reports it again with a status, and
   the second report is an upsert on the same key rather than a second row.
 
+  A tool entry carries what its call CHANGED, and structured — never as prose
+  for a browser to parse back. Two shapes, because there are two kinds of write
+  and they may not be drawn the same way: a `FileDiff` per file the agent
+  rewrote directly (path, what it said, what it says now — the client derives
+  the line diff), and a `Wrote` for a write that went through the ops layer,
+  which is the node-level story in the format's own classification because a
+  `.jsonl` diff is one enormous line per node.
+
   The framework audit asked for "events paired with a collection", because an
   event replays nothing to a late joiner. A `deltas` collection is that pair in
   one member — the push and the history are the same frames down the same
@@ -135,12 +143,18 @@ origin gate and the session the listener already enforces for the websocket,
 where a second HTTP route would need its own copy of both. And it is CHUNKED,
 because a frame that scaled with the file would eventually be an oversized one,
 and the wire answers that by closing the socket rather than failing the call —
-taking every other subscription on that tab down with it. `src/attach.ts` holds
-the numbers and the derivation behind them (3 MiB per chunk, a multiple of 3 so
-base64's grouping divides it exactly; 50 MB per file, a separate number on
-purpose), and it lives here for the same reason the media URL does: the browser
-gates on it before encoding and the server gates on it before writing, and two
-copies of a threshold are two thresholds.
+taking every other subscription on that tab down with it. HOW it is cut up is
+not this package's: the arithmetic sits beside the cap it is derived from, in
+`@kolu/surface/frame-chunking`, and both ends import it from there. `attach.ts`
+carried a copy of that derivation until the pin that installed it — copied from
+kolu's own padi, where a 26 MB drop had proved it the hard way — and a margin
+kept in two places is a margin that eventually disagrees with itself.
+
+What `src/attach.ts` still holds is olai's POLICY: 50 MB per file, which is a
+separate number from a chunk on purpose (a cap smaller than one frame would mean
+the chunking never ran), and it lives here for the same reason the media URL
+does — the browser gates on it before encoding and the server gates on it before
+writing, and two copies of a threshold are two thresholds.
 
 The same module holds WHAT may be attached, and it is two lists that meet in
 one place: `/format`'s pictures (what a browser can paint, which is also

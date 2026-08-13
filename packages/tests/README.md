@@ -397,8 +397,17 @@ internal MCP server, over the real HTTP route, with the token the real
 layer and the real store — everything except the part that would need a
 language model, which is the one thing a CI lane cannot afford to be
 non-deterministic about. Behaviour is keyed on the prompt text (`done <id>`,
-`add <title>`, `servers`, `slow`, `hold`, `model <id>`, `crash`), so a scenario
-asks for what it needs.
+`add <title>`, `edit [file]`, `servers`, `slow`, `hold`, `model <id>`, `crash`),
+so a scenario asks for what it needs.
+
+`edit` is the one verb that deliberately does NOT reach the ops layer: it
+reports a direct file edit the way a real adapter does, as a tool call carrying
+a `diff` content block, and writes nothing to the disk. What is under test there
+is the panel's reading of the protocol, and a scripted agent that also wrote the
+file would be testing the store on the way past. The diff rides the
+announcement and the completion carries only a status, which is the shape a real
+one has and the one that catches the merge rule — a row that read a status-only
+report as "no diffs now" would drop the change at the moment the call finished.
 
 One behaviour is keyed on the prompt's SHAPE rather than its first word: a
 prompt naming an attached FILE opens it and says how many bytes it

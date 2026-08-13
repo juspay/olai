@@ -19,6 +19,14 @@
  *     asked for and then nothing at all until it completed, which is
  *     indistinguishable from one that had hung.
  *
+ * And a third escapes it for a different reason: what the call CHANGED. A diff
+ * of a file it rewrote ({@link ./Diff.tsx}), or the node-level story of a write
+ * it made through the ops layer ({@link ./Wrote.tsx}) — the two vocabularies,
+ * one per kind of write, and in practice a call is one or the other. That is
+ * not detail:
+ * the arguments are what was asked for, and this is what happened to somebody's
+ * files. It is trimmed rather than folded, and the trim opens where it stands.
+ *
  * The row is UPDATED rather than replaced. The transcript keys these by the
  * agent's own call id, so `pending` becoming `completed` is the same row
  * changing.
@@ -30,11 +38,16 @@
  * unfolded it to avoid.
  */
 
+import { fileKind } from "@olai/format"
 import type { ChatEntry } from "@olai/surface"
+import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { Diff } from "./Diff.tsx"
 import { isUnfolded, toggleFold } from "./folds.ts"
+import { OutlineDiff } from "./OutlineDiff.tsx"
+import { Wrote } from "./Wrote.tsx"
 
 /** What each status looks like in one character. Words would wrap the line the
  *  frame exists to keep to one. */
@@ -98,6 +111,36 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
           <span aria-hidden="true">{open() ? "▾" : "▸"}</span>
         </Show>
       </button>
+
+      {/* What the call CHANGED, outside the fold — in whichever of the two
+          vocabularies applies, which in practice is one of them. A change is
+          not detail: the arguments are what was asked for, and this is what
+          happened to somebody's files. Folding it away would be putting the
+          one thing the row is about behind the same click as the JSON. */}
+      <Show when={props.entry.wrote}>
+        {(wrote) => <Wrote wrote={wrote()} />}
+      </Show>
+      {/* Keyed BY PATH rather than by position, the way every other list in
+          this app is keyed: a call is reported twice, and the second report
+          carries the same blocks in a fresh array — under `<For>` that is a
+          new object at the same index, which remounts the row and throws away
+          what it owns while a reader is looking at it. The rule the frame
+          itself follows, one list down. */}
+      <Key each={props.entry.diffs} by="path">
+        {(diff) => (
+          /* Which SHAPE a change is drawn in is decided by the FILE and not by
+             the tool: an outline is one line per node, so a text diff of one is
+             a single enormous line — the rule the Commit panel has always had,
+             and it holds for an agent's own `Edit` as much as for an olai
+             write. */
+          <Show
+            when={fileKind(diff().path) === "outline"}
+            fallback={<Diff call={props.entry.id} diff={diff()} />}
+          >
+            <OutlineDiff call={props.entry.id} diff={diff()} />
+          </Show>
+        )}
+      </Key>
 
       <Show when={open()}>
         {/* Progress FIRST: it is the live half, and a reader who unfolded a

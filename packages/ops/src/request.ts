@@ -14,7 +14,7 @@
  * field names kept in step by hand.
  */
 
-import { MARKS } from "@olai/format"
+import { MARKS, type Sort } from "@olai/format"
 import { Schema } from "effect"
 
 /** An id the request names. Spelled once so every op's `id` field carries the
@@ -484,6 +484,22 @@ export interface Applied {
    *  back so an agent and a person both see it; absent when there is nothing
    *  to say, and never a reason a write did not happen. */
   readonly nudge?: string
+  /**
+   * What this write CHANGED, in the format's own classification — the same
+   * word the commit panel draws a pending row with.
+   *
+   * The `summary` above is a commit subject and this is a value to switch on,
+   * which is what a reader that draws a write rather than logging one needs:
+   * the chat transcript says *marked done* / *note rewritten* / *moved* about
+   * an olai write, because it may never say it with a text diff. Derived from
+   * the two readings the write is made of ({@link ./sorted.ts}) rather than
+   * from the op's name, so there is one classification of a change in this
+   * codebase and not two.
+   *
+   * ABSENT when the write changed no record — a mark set on a node that
+   * already carried it. Additive and optional, like `nudge` and `why`.
+   */
+  readonly sort?: Sort
   /** Every node this write brought into being, parent before child and siblings
    *  in the order they were given — id and title, so the caller can mark, note
    *  or capture UNDER one of them without a search for an id it never chose. A

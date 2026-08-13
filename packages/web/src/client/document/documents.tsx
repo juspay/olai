@@ -18,8 +18,10 @@
  *     directory with no documents in it. Being in the fact is half of it and
  *     was for a while the whole of it — nothing in the client READ the fact,
  *     so the enrolment bought a dead stream that was findable and still not
- *     reported. The connection pill reads it now (`../connection/status.ts`),
- *     which is what turns this line into the guarantee it always claimed.
+ *     reported. The connection readout folds it now, upstream and unskippably
+ *     (`connectSurface`, juspay/kolu#2160), which is what turns this line into
+ *     the guarantee it always claimed: this stream stopping is a pill that
+ *     says `partly live` and names `documents.keys`.
  *   - {@link Documents.read} is the BODY of one document, from a narrowed
  *     subscription whose keys are the documents somebody is showing. A body
  *     reaches this tab when a component asks for it and stops arriving when

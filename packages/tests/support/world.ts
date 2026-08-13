@@ -100,7 +100,8 @@ export const ROOT = "#root";
  *  already reads this module and a second copy of the three words is a second
  *  place for the tag pattern and the field to disagree. */
 export type GitMode = "repo" | "none" | "broken";
-/** The app header: wordmark + connection + agent + theme. Always on screen. */
+/** The app header: wordmark + connection + git + agent + preferences. Always on
+ *  screen. */
 export const APP_HEADER = selector(TESTID.appHeader);
 /** The `olai` wordmark in that bar. A TAG rather than a test id: it is the
  *  app's name and the bar's one heading, and markup that exists only to be read
@@ -378,6 +379,14 @@ export const CHAT_TOOL = selector(TESTID.chatTool);
 export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
 export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
 export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
+export const CHAT_DIFF = selector(TESTID.chatDiff);
+export const CHAT_DIFF_LINE = selector(TESTID.chatDiffLine);
+export const CHAT_DIFF_EXPAND = selector(TESTID.chatDiffExpand);
+export const CHAT_DIFF_WHOLESALE = selector(TESTID.chatDiffWholesale);
+export const CHAT_OUTLINE_DIFF = selector(TESTID.chatOutlineDiff);
+export const CHAT_OUTLINE_CHANGE = selector(TESTID.chatOutlineChange);
+export const CHAT_WROTE = selector(TESTID.chatWrote);
+export const CHAT_NUDGE = selector(TESTID.chatNudge);
 export const CHAT_REFUSAL = selector(TESTID.chatRefusal);
 export const CHAT_TROUBLE = selector(TESTID.chatTrouble);
 export const CHAT_ASK = selector(TESTID.chatAsk);

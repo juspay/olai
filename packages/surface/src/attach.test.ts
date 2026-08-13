@@ -1,80 +1,35 @@
 /**
- * The chunking arithmetic, on its own.
+ * The GATE, on its own — what olai will accept and what it says when it will
+ * not.
  *
- * Every number here was derived rather than picked (see `./attach.ts`), and
- * the two properties the derivation rests on are the ones a future edit is
- * most likely to break by "rounding" the chunk size: it must be a multiple of
- * 3 raw, so the base64 pieces are a multiple of 4 characters, and the pieces
- * must decode independently and concatenate to the original bytes. A 4 MiB
- * chunk looks tidier and fails both.
+ * The chunking arithmetic that used to be tested here is
+ * `@kolu/surface/frame-chunking`'s now, and its properties are pinned where the
+ * derivation is (kolu's `frameChunking.test.ts` measures the chunk against the
+ * cap it has to fit under). Re-asserting them here would be the copy coming
+ * back as a test.
+ *
+ * What is left is what no framework can decide: which extensions this app
+ * hands an agent, and the sentence a refused person reads.
  */
 
 import { isPicture, PICTURE_EXTENSIONS } from "@olai/format"
+import { FRAME_CHUNK_BYTES } from "@kolu/surface/frame-chunking"
 import { expect, test } from "bun:test"
 
 import {
   ATTACHMENT_EXTENSIONS,
   attachmentRejection,
-  base64DecodedLength,
-  CHUNK_BASE64_CHARS,
-  CHUNK_BYTES,
-  CHUNK_FRAME_BUDGET,
-  chunkBase64,
   DOCUMENT_EXTENSIONS,
   isAttachable,
   MAX_ATTACHMENT_BYTES,
 } from "./attach.ts"
 
-// The derivation's own conclusion, measured against the framework's frame cap
-// rather than against the number the comment says it is. A bump that moved the
-// cap fails here, which is the only place that would notice.
-test("a chunk fits a frame, with the headroom the derivation claims", () => {
-  expect(CHUNK_BASE64_CHARS).toBeLessThan(CHUNK_FRAME_BUDGET)
-  expect(CHUNK_FRAME_BUDGET / CHUNK_BASE64_CHARS).toBeGreaterThan(3)
-})
-
-test("the chunk size divides base64's grouping exactly", () => {
-  expect(CHUNK_BYTES % 3).toBe(0)
-  expect(CHUNK_BASE64_CHARS % 4).toBe(0)
-  // 3 MiB of bytes is exactly 4 MiB of base64 — the identity the size was
-  // chosen for, and the reason a whole chunk fits the frame with ~4x to spare.
-  expect(CHUNK_BASE64_CHARS).toBe(4 * 1024 * 1024)
-  // Two independent numbers: the cap on a FILE is much larger than one frame,
-  // which is the whole point of chunking. If these ever coincide again, the
-  // failure is a closed socket rather than a refused upload.
-  expect(MAX_ATTACHMENT_BYTES).toBeGreaterThan(CHUNK_BYTES)
-})
-
-test("the pieces decode independently and rejoin as the original bytes", () => {
-  // 3 bytes per 4 base64 characters, so 9 characters per 12-byte chunk is a
-  // size small enough to read and large enough to leave a short last piece.
-  const bytes = Buffer.from(
-    Array.from({ length: 50 }, (_, at) => (at * 37) % 256),
-  )
-  const pieces = chunkBase64(bytes.toString("base64"), 12)
-
-  expect(pieces.length).toBeGreaterThan(1)
-  // Each piece decodes ON ITS OWN — that is what the 4-character boundary
-  // buys, and it is what lets the server append chunk by chunk.
-  const rejoined = Buffer.concat(
-    pieces.map((piece) => Buffer.from(piece, "base64")),
-  )
-  expect(rejoined.equals(bytes)).toBe(true)
-})
-
-test("an empty file is still one write", () => {
-  expect(chunkBase64("", 12)).toEqual([""])
-})
-
-test("a chunk size off the 4-character grouping is a bug, not a slower upload", () => {
-  expect(() => chunkBase64("AAAA", 6)).toThrow(/multiple of 4/)
-})
-
-test("a base64 string's decoded length is known without decoding it", () => {
-  for (const size of [0, 1, 2, 3, 4, 5, 100]) {
-    const data = Buffer.alloc(size, 7).toString("base64")
-    expect(base64DecodedLength(data)).toBe(size)
-  }
+// The one relation between olai's number and the framework's, and the reason
+// they are two numbers: a POLICY cap on a file that was smaller than one frame
+// would mean the chunking never ran, and the failure of that is a closed socket
+// rather than a refused upload.
+test("the cap on a file is a different number from the size of a frame", () => {
+  expect(MAX_ATTACHMENT_BYTES).toBeGreaterThan(FRAME_CHUNK_BYTES)
 })
 
 test("the gate takes what can be looked at AND what can be read", () => {

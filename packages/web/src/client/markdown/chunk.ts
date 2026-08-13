@@ -1,18 +1,21 @@
 /**
  * When the markdown machinery arrives.
  *
- * ./pipeline.ts is a bundle of its own (~391 KB raw, ~96 KB brotli) and the
+ * ./pipeline.ts is a chunk of its own (~390 KB raw, ~95 KB brotli) and the
  * initial paint of an outline does not wait for it: a tree of titles,
  * checkboxes and badges is drawn out of `main-*.js` alone, and this file is
  * what fetches the rest — the first time something on the page turns out to
  * need a markdown parser, and never on a page where nothing does.
  *
- * The URL is not compiled into the bundle. The build writes
- * `/assets/markdown-<hash>.js` beside the entry and names it on the `no-store`
- * shell (a `<meta>`, read below), which is the same arrangement the entry and
- * the stylesheet already have: the shell is re-fetched every load and names
- * what is pinned immutable. It also means a rebuild that only changes the
- * markdown chunk does not change `main-*.js`'s bytes.
+ * The `import()` below is the WHOLE of the request. `buildSurfaceClient` splits
+ * on a dynamic import and names chunks with the same `[hash]` the entry gets
+ * (kolu#2159), so the pipeline lands in the same immutable `/assets/` dir and
+ * the entry references it by a URL that resolves inside it. Nothing here has to
+ * know that URL, and nothing has to write it anywhere: this file used to read a
+ * `<meta>` off the shell because the helper hardcoded `splitting: false` and
+ * olai therefore ran a second `Bun.build` and rewrote the shell itself — three
+ * moving parts (a build, a placeholder, a reader) held together to say what one
+ * `import()` says on its own.
  *
  * ## How the rest of the app asks
  *
@@ -37,7 +40,6 @@
 
 import { createSignal } from "solid-js"
 
-import { MARKDOWN_META } from "./meta.ts"
 import type { Pipeline } from "./pipeline.ts"
 
 /**
@@ -96,10 +98,10 @@ export const pipelineNow = (): Pipeline => {
 /**
  * Hand the pipeline over.
  *
- * Called by the fetch below, and directly by unit tests: a test runs in Bun
- * with no shell to read a `<meta>` off, so it imports ./pipeline.ts itself and
- * installs it. That is the same module the browser ends up with, which is what
- * makes those tests tests of the thing that ships.
+ * Called by the fetch below, and directly by unit tests: a test has no bundler
+ * splitting anything, so it imports ./pipeline.ts itself and installs it. That
+ * is the same module the browser ends up with, which is what makes those tests
+ * tests of the thing that ships.
  */
 export const installPipeline = (module: Pipeline): void => {
   setArrival(() => module)
@@ -107,11 +109,15 @@ export const installPipeline = (module: Pipeline): void => {
 
 const fetchPipeline = async (): Promise<void> => {
   try {
-    // A variable specifier, deliberately: the bundler leaves it alone, which
-    // is what keeps ./pipeline.ts's graph out of `main-*.js` instead of merely
-    // unreached inside it.
-    const href = chunkHref()
-    installPipeline((await import(href)) as Pipeline)
+    // The literal specifier is the point: the bundler READS it, which is what
+    // gets ./pipeline.ts's graph out of `main-*.js` and into a chunk of its own
+    // rather than merely unreached inside it. It was a variable while
+    // `splitting` was off, when a specifier the bundler could resolve would have
+    // been inlined — the opposite of what this file is for. It also carried an
+    // `as Pipeline`, which a variable specifier needs and this one does not: the
+    // namespace object is TYPED here, so renaming an export in ./pipeline.ts is
+    // a compile error rather than a page that loads and then cannot render.
+    installPipeline(await import("./pipeline.ts"))
   } catch (cause) {
     const error = new Error(
       `the markdown renderer could not be loaded: ${
@@ -122,18 +128,4 @@ const fetchPipeline = async (): Promise<void> => {
     console.error(error)
     setArrival(error)
   }
-}
-
-/** Where the build put it. A missing `<meta>` is a build that did not rewrite
- *  the shell, so it says that rather than importing `"null"`. */
-const chunkHref = (): string => {
-  const named = document
-    .querySelector(`meta[name="${MARKDOWN_META}"]`)
-    ?.getAttribute("content")
-  if (named === null || named === undefined || named === "") {
-    throw new Error(
-      `no <meta name="${MARKDOWN_META}"> on this page — the shell was not rewritten by the build`,
-    )
-  }
-  return named
 }

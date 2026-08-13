@@ -46,6 +46,7 @@ import {
 import { type Context, plan } from "./plan.ts"
 import { index } from "./query.ts"
 import type { Applied, Request } from "./request.ts"
+import { sortOfWrite } from "./sorted.ts"
 import type { Reading } from "./tools.ts"
 
 export interface Options {
@@ -268,11 +269,17 @@ export const make = (options: Options): Ops => {
         // `--commit=auto` has already committed — counting that one left a
         // clean tree reporting `chat agent 3` for work that is in the log.
         if (!committed) commits.wrote(writer)
+        // What the write CHANGED, classified the way a pending row is — off
+        // the two readings this write is made of, which are both still in
+        // hand. A reader that DRAWS a write rather than logging one needs a
+        // word it can switch on, and the summary above is a commit subject.
+        const sort = sortOfWrite(snapshot.value as OutlineSet, files, about.id)
         return {
           ...about,
           rev: written.success,
           committed,
           ...(why === undefined ? {} : { why }),
+          ...(sort === undefined ? {} : { sort }),
         }
       }
 
