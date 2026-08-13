@@ -210,7 +210,7 @@
  * the only tool there is.
  *
  * NO NUMBER IN THIS BLOCK IS A LITERAL. Every size, gap, pad, weight and rule
- * reads a custom property generated from `src/client/markdown/scale.ts` — the
+ * reads a custom property generated from `src/client/theme/scale.ts` — the
  * declared scales, which `packages/tests` then holds the rendered page to,
  * element by element, against the set for the context it is in. A rule that
  * wanted a value the scale does not have is a rule that has to change the

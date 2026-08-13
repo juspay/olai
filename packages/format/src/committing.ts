@@ -40,6 +40,37 @@ import { NodeChange } from "./changes.ts"
  */
 export { How, Reason, RepoState }
 
+/**
+ * What git is doing for the served directory, for the git indicator in the app
+ * header (`git-invisible`, #108) and for the agent that reads the same cell
+ * over MCP.
+ *
+ * FLAT — a status and the words that go with it — because this value TRAVELS:
+ * the ops layer derives it from its own survey's `RepoState` (never a second
+ * probe — two probes would be two answers to one question, a page saying "no
+ * git here" beside a panel offering to commit four changes), the surface
+ * declares it as the `git` cell, and the browser draws it. It used to be
+ * declared once per layer — an interface in `@olai/ops`, a schema in
+ * `@olai/surface`, "deliberately the same shape" kept in step by a comment —
+ * which is exactly the hand-kept mirror this file exists to retire. One
+ * declaration now, HERE, for the reason `RepoState` is re-exported above: this
+ * package is the floor both of those stand on.
+ *
+ * The four states are four different things to draw: `off` is `--no-commit`
+ * (an owner's choice, a setting and never a warning), `repo` is a work tree
+ * with writes committing (the quiet healthy default), `none` is not a work
+ * tree, and `error` is git tried and could not — the one that warns, with
+ * git's own words in `said`.
+ */
+export const GitState = Schema.Struct({
+  status: Schema.Literals(["off", "repo", "none", "error"]),
+  /** What git said, for the state that has something to quote — the reason a
+   *  reader gets rather than "something went wrong". `null` otherwise: a
+   *  healthy repository is not quoting anything. */
+  said: Schema.NullOr(Schema.String),
+})
+export type GitState = typeof GitState.Type
+
 /** Who asked for a write. Intent rather than identity — git only ever records
  *  the repository's own name and email, so without this an agent's edits are
  *  indistinguishable from the ones a person typed.

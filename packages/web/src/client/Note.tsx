@@ -14,7 +14,7 @@
  * markdown is SET rather than about what it is: a note is drawn inside the
  * app's furniture — under a node's title, in a column beside a tree — rather
  * than as a page somebody opened to read, so it takes the tighter of the two
- * spacing scales and a ceiling on its heading sizes (`markdown/scale.ts`).
+ * spacing scales and a ceiling on its heading sizes (`theme/scale.ts`).
  *
  * The class is named for that POSITION and not for the note, because a note is
  * not the only body in it: an attached document under a zoomed node
