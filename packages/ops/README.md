@@ -185,6 +185,39 @@ because they are what the archive is for:
 - both files are validated as one set before either is written, and both land
   in one commit.
 
+`unarchive` is the way back out (`parity-unarchive` — for a long while there
+was none, on any face), and it is the archive read in reverse:
+
+- the subtree returns INTACT, ids and all — the set is one namespace and the
+  node never left it, so nothing can collide and nothing is re-pointed;
+- **where it lands is the archive's own record by default**: the scaffold of
+  ancestor titles above the node, matched back against the live outlines in
+  the archive's directory. Titles, not ids — the scaffold's ids are minted —
+  so the match can fail two ways, and both are refusals that NAME what was
+  found: nowhere (the chain was retitled, or put away itself) and more than
+  one place. `parent` / `file` are the caller's way past them, judged as
+  `add_node` judges the same pair — except that an archive is refused as a
+  destination, because putting something back IN is `archive`'s job;
+- it lands LAST among its new siblings: the archive does not record where in
+  a row a node sat, and a guess dressed as a restore would be worse than the
+  honest answer every other arrival gets;
+- **the scaffold is tidied on the way out** — an ancestor the removal leaves
+  empty is dropped, provided it is the bare title record `archive` mints and
+  nothing in the set still names it — so archive-then-unarchive leaves the
+  archive exactly as it stood;
+- **and the scaffold itself may not come back.** Only what was MOVED is
+  restorable. A scaffold record is a copy of a title that never left, so
+  restoring one would stand a second live node beside the original and hang the
+  archive's rows off the copy. Nothing on disk marks a minted record, so the
+  refusal asks the two questions that together are what a signpost IS: the
+  record is BARE — the exact shape `archive` mints, a title standing at a place
+  — and a live node AT THE LANDING already carries that title, which is the
+  copy showing itself (a scaffold exists precisely because its ancestor is
+  still there). Content that happens to be title-only left a hole behind it, so
+  nothing answers to its name and it restores like anything else. Asking only
+  the first would refuse every plain heading anybody archived, which is the
+  ordinary case rather than the rare one.
+
 ## The git commit
 
 A commit is something somebody ASKS for. Writes land on disk and wait; the two
@@ -428,8 +461,15 @@ while every commit failed. It is cleared by the next commit that works.
 ## The tool surface, and what is missing from it
 
 `TOOLS` is a closed list, and the absences are the design: **no file read, no
-file write, no directory listing, no shell, no grep.** The agent cannot name a
-byte, only a node. Reads answer with `file:line`, the node's mark (absent when
+raw byte write, no directory listing, no shell, no grep.** The agent cannot
+name a byte, only a node — or, since `md-editing`, a DOCUMENT, which is the
+one whole-file unit the surface has and is still not a byte range:
+`create_document` mints a relative `.md` (refused if it exists) and
+`write_document` replaces one's text whole (refused if it does not — the
+split is what keeps a typo from minting a file), with an optional `was` that
+refuses, on every retry, a write over text the caller never read. Both ride
+the same validate → stage → rename → commit gate and the same audit trailer
+as every node write. Reads answer with `file:line`, the node's mark (absent when
 it carries none, because that is not a task), the ROLLUP of the tasks under it
 — which is not in the file and is an annotation, never a second answer to what
 the node is — its ancestor titles, which is what makes a bare title mean

@@ -3,8 +3,8 @@
 - [running.md](running.md) — how to serve a directory: `olai web` and its
   flags, the home-manager module, and `olai mcp`.
 - [editing.md](editing.md) — typing into an outline: the keys, what a draft
-  is, and how ⌘Z takes an edit back.
-- [search.md](search.md) — one search, two faces: substring as evidence,
+  is, how ⌘Z takes an edit back, and writing a document.
+- [search.md](search.md) — one search, several doors: substring as evidence,
   paraphrase recall behind a local embedder, and the derived index that
   degrades to nothing.
 - [git.md](git.md) — the git integration: commit modes, the pill, and the

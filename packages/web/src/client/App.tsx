@@ -48,6 +48,7 @@ import { createRouter, followed, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
+import { TrashPage } from "./trash/TrashPage.tsx"
 import { createView } from "./view.ts"
 import { connectionReadout, olai } from "./wire.ts"
 
@@ -279,6 +280,9 @@ export default function App() {
                           {(open) => (
                             <AgendaPage agenda={open().agenda} today={open().date} />
                           )}
+                        </Match>
+                        <Match when={only(open(), "trash")}>
+                          {(open) => <TrashPage files={open().files} />}
                         </Match>
                         <Match when={only(open(), "nothing")}>
                           {(nothing) => (

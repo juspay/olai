@@ -358,6 +358,24 @@ test("retiring something that is not a placement is the OPS layer's to refuse", 
     .toEqual({ op: "unmirror", id: "kitchen" })
 })
 
+test("unarchive passes through, destination and all — the chain is the op's to follow", () => {
+  // `Put back` sends the id alone and the ops layer follows the recorded
+  // chain; an undo sends the place it read off this seam. Neither is resolved
+  // here — there is nothing about siblings or marks to read — so both travel
+  // as they are, and every refusal met is the planner's own.
+  expect(asked({ verb: "unarchive", id: "handles" }))
+    .toEqual({ op: "unarchive", id: "handles" })
+  expect(asked({ verb: "unarchive", id: "handles", parent: "install" }))
+    .toEqual({ op: "unarchive", id: "handles", parent: "install" })
+  expect(asked({ verb: "unarchive", id: "loose", file: "house.jsonl" }))
+    .toEqual({ op: "unarchive", id: "loose", file: "house.jsonl" })
+})
+
+test("the inverse of a put-back is the archive that made the row a trash row", () => {
+  expect(inverse({ verb: "unarchive", id: "handles" }))
+    .toEqual([{ verb: "archive", id: "handles" }])
+})
+
 test("archive is the op, subtree and all — the fence is the menu's question", () => {
   // `kitchen` has three children and a placement under it. Nothing here counts
   // them: the reader was asked, in the panel, before this was ever sent, and a
@@ -581,15 +599,79 @@ test("a MIRROR has no date of its own either", () => {
   expect(inverse({ verb: "date", id: "echo", date: null })).toEqual([])
 })
 
+test("an archive records the place the row is about to stop having", () => {
+  // The parent as this reading holds it — an id an agent would have named,
+  // not the title chain the archive is about to write in its place. An undo
+  // that leaned on the chain would be a title match where the server had the
+  // fact in hand.
+  expect(inverse({ verb: "archive", id: "install" }))
+    .toEqual([{ verb: "unarchive", id: "install", parent: "kitchen" }])
+  expect(inverse({ verb: "remove", id: "handles" }))
+    .toEqual([{ verb: "unarchive", id: "handles", parent: "install" }])
+  // A row at top level has no parent to come back under, so its FILE is the
+  // recorded fact — the same pair the op takes.
+  expect(inverse({ verb: "archive", id: "loose" }))
+    .toEqual([{ verb: "unarchive", id: "loose", file: "house.jsonl" }])
+})
+
 test("what nothing would take back says so with an empty list", () => {
-  // THREE writes answer that way, and they mean three different things. A
-  // `remove` and an `archive` have put records in `Archive.jsonl`, which no
-  // move brings back out (a parent is same-file by the format, and the archive
-  // is another file) and which no face can unarchive yet. An `unmirror` could
-  // be undone in principle — put the placement back — and this surface has no
-  // verb that creates one, so inventing a browser-only mirror-create to serve
-  // an undo would be the deviation the menu's verbs exist to close.
-  expect(inverse({ verb: "remove", id: "handles" })).toEqual([])
-  expect(inverse({ verb: "archive", id: "install" })).toEqual([])
+  // ONE write answers that way now. An `unmirror` could be undone in
+  // principle — put the placement back — and this surface has no verb that
+  // creates one, so inventing a browser-only mirror-create to serve an undo
+  // would be the deviation the menu's verbs exist to close.
   expect(inverse({ verb: "unmirror", id: "echo" })).toEqual([])
+})
+
+// ── the documents' three ───────────────────────────────────────────────
+
+const NOTES = "# Notes\n\nwhat was here\n"
+const vault = (): Reading =>
+  reading(
+    setOf({ "house.jsonl": HOUSE }, [
+      ["notes.md", NOTES],
+      "Daily/2026/08/2026-08-12.md",
+    ]),
+  )
+
+test("a document commit travels as it was typed, `was` and all", () => {
+  expect(
+    asked({ verb: "doc", file: "notes.md", text: "new", was: NOTES }, vault()),
+  ).toEqual({ op: "doc", file: "notes.md", text: "new", was: NOTES })
+  // No `was` is the overwrite, and the field stays absent rather than
+  // travelling as `undefined` — the same spelling the text verbs keep.
+  expect(asked({ verb: "doc", file: "notes.md", text: "new" }, vault()))
+    .toEqual({ op: "doc", file: "notes.md", text: "new" })
+})
+
+test("a new document names its path outright", () => {
+  expect(asked({ verb: "docNew", file: "ideas.md" }, vault()))
+    .toEqual({ op: "create-doc", file: "ideas.md" })
+})
+
+test("a bare day resolves to the vault's own convention, read off this set", () => {
+  expect(asked({ verb: "docDay", date: "2026-09-01" }, vault()))
+    .toEqual({ op: "create-doc", file: "Daily/2026/09/2026-09-01.md" })
+  // A vault with no daily note yet starts the convention at the root.
+  expect(asked({ verb: "docDay", date: "2026-09-01" }))
+    .toEqual({ op: "create-doc", file: "2026-09-01.md" })
+})
+
+test("a docDay that is not a day is refused about the DATE, not the path", () => {
+  const failure = refused({ verb: "docDay", date: "someday" }, vault())
+  expect(failure.message).toContain("someday")
+  expect(failure.message).toContain("not a day")
+})
+
+test("a document commit's inverse is the text it replaced, guarded by what it wrote", () => {
+  expect(
+    inverse({ verb: "doc", file: "notes.md", text: "new" }, "notes.md", vault()),
+  ).toEqual([{ verb: "doc", file: "notes.md", text: NOTES, was: "new" }])
+})
+
+test("nothing takes a minted document back — no face removes one", () => {
+  expect(inverse({ verb: "docNew", file: "ideas.md" }, "ideas.md", vault()))
+    .toEqual([])
+  expect(
+    inverse({ verb: "docDay", date: "2026-09-01" }, "x.md", vault()),
+  ).toEqual([])
 })

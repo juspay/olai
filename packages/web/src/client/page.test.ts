@@ -248,6 +248,39 @@ test("the agenda lights up no outline, and draws no tree", () => {
   expect(rowsFor(SET, pageAt({ kind: "agenda" }))).toEqual([])
 })
 
+// ── the trash ──────────────────────────────────────────────────────────
+
+/** The same directory once something has been archived: the archives are in
+ *  the file list like anything else, and only this model treats them apart. */
+const WITH_ARCHIVES = ["Archive.jsonl", ...FILES, "wing/Archive.jsonl"]
+
+test("the trash is every archive the directory holds, and an empty one is a page", () => {
+  expect(pageAt({ kind: "trash" }, WITH_ARCHIVES)).toEqual({
+    kind: "trash",
+    files: ["Archive.jsonl", "wing/Archive.jsonl"],
+  })
+  // Nothing archived yet — the archive tool creates the file on first use, so
+  // an absent archive is an empty trash, never a missing page.
+  expect(pageAt({ kind: "trash" })).toEqual({ kind: "trash", files: [] })
+})
+
+test("an archive's own address opens the trash — it is not a place you edit", () => {
+  expect(pageAt({ kind: "outline", file: "Archive.jsonl" }, WITH_ARCHIVES)).toEqual({
+    kind: "trash",
+    files: ["Archive.jsonl", "wing/Archive.jsonl"],
+  })
+})
+
+test("a bare `/` never opens an archive, even one that sorts first", () => {
+  expect(pageAt({ kind: "outline", file: null }, WITH_ARCHIVES))
+    .toEqual({ kind: "outline", file: "garden.jsonl" })
+})
+
+test("the trash lights up no outline, and holds no row store", () => {
+  expect(fileOf(pageAt({ kind: "trash" }, WITH_ARCHIVES))).toBeUndefined()
+  expect(rowsFor(SET, pageAt({ kind: "trash" }, WITH_ARCHIVES))).toEqual([])
+})
+
 // A day draws no TREE. It is a list of nodes from all over the set, each with
 // its own ancestry — so the row store, which holds whichever tree is on screen,
 // holds nothing while one is open.

@@ -165,3 +165,13 @@ export const ARCHIVE = "Archive.jsonl"
 
 export const isArchived = (file: string): boolean =>
   file === ARCHIVE || file.endsWith(`/${ARCHIVE}`)
+
+/** The archive that sits beside `file`: same directory, the one name above.
+ *  `archive` writes there and `unarchive` reads back from there, and one
+ *  spelling of the adjacency is what makes the second visibly the first's
+ *  inverse — two ad-hoc path slices were two chances to disagree about where
+ *  a node's archive is. */
+export const archiveBeside = (file: string): string => {
+  const cut = file.lastIndexOf("/")
+  return cut === -1 ? ARCHIVE : `${file.slice(0, cut + 1)}${ARCHIVE}`
+}

@@ -3,9 +3,13 @@
  * nothing else.
  *
  * This is a CLOSED list, and what is missing from it is the design. There is no
- * file read, no file write, no directory listing, no shell and no grep — the
- * agent cannot name a byte, only a node. Two consequences follow, and both were
- * paid for:
+ * file read, no directory listing, no shell and no grep, and no write that
+ * names a byte — the agent names a NODE, or (since `md-editing`) a whole
+ * DOCUMENT. That second one is the closest this list comes to a file write and
+ * is deliberately not one: `write_document` takes a `.md` the set already
+ * holds and replaces its text ENTIRELY, through the same plan → validate →
+ * stage → rename → commit gate, so there is no offset, no range, and nothing
+ * for a caller to splice. Two consequences follow, and both were paid for:
  *
  *   - a malformed outline is unrepresentable through this path. Every write
  *     goes through {@link ./plan.ts} to whole records and the format's own
@@ -44,6 +48,7 @@ import {
   AddRequest,
   AfterRequest,
   ArchiveRequest,
+  CreateDocumentRequest,
   CreateRequest,
   DateRequest,
   DescRequest,
@@ -52,7 +57,9 @@ import {
   MoveRequest,
   SeeRequest,
   TitleRequest,
+  UnarchiveRequest,
   UnmirrorRequest,
+  WriteDocumentRequest,
 } from "./request.ts"
 
 /** The set as a reader sees it: the files that were found, and the derivations
@@ -356,9 +363,16 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "archive_node",
     "Archive a subtree",
-    "Move a node and everything under it into `Archive.jsonl` beside its outline, re-creating the chain of ancestor titles it hung off. Ids move with the nodes, so mirrors and edges pointing at them keep resolving. Nothing is stamped: archiving is not finishing.",
+    "Move a node and everything under it into `Archive.jsonl` beside its outline, re-creating the chain of ancestor titles it hung off. Ids move with the nodes, so mirrors and edges pointing at them keep resolving. Nothing is stamped: archiving is not finishing. `unarchive_node` is the way back.",
     ArchiveRequest,
     { op: "archive" },
+  ),
+  write(
+    "unarchive_node",
+    "Unarchive a subtree",
+    "Take a node and everything under it back OUT of an `Archive.jsonl` — the inverse of `archive_node`. The subtree comes back intact with its ids, and it lands LAST among its new siblings (the archive does not record where in a row a node sat). Where it lands: by default the chain of ancestor titles the archive recorded above the node is matched against the live outlines beside the archive, and the call is refused — naming what it found — when that chain matches nowhere or more than one place; give `parent` (it goes under that node) or `file` (top level of that outline) to decide instead. An ancestor the removal leaves empty in the archive is tidied away, provided it is the bare title scaffold `archive_node` wrote and nothing still names it.",
+    UnarchiveRequest,
+    { op: "unarchive" },
   ),
   write(
     "set_see",
@@ -387,6 +401,21 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Take one placement out. `id` is the MIRROR's own id — the placement — never the id of the node it shows: what goes is that one line, and the node keeps its title, its mark, its children, its own place in the outline that defines it, and every other placement of it. So this is what retires a finished item from a Now list without touching the work: nothing is archived, nothing is deleted, nothing is unsaid. Find the id with `read_node`: `mirrors` on the finished ITEM says where it is placed, and `placed` on the LIST says what is on it. Refused on the id of a regular node (`archive_node` is what puts a node and its subtree away), and refused while anything still names the placement — another mirror chained onto it, or an edge written at it — naming what to re-point first.",
     UnmirrorRequest,
     { op: "unmirror" },
+  ),
+
+  write(
+    "create_document",
+    "Create a document",
+    "Start a new `.md` document under the served directory. `file` is a relative `.md` path (no absolute paths, no `..`); refused if that document already exists — `write_document` is what edits one, and the split is what keeps a typo from minting a file. `text` is what it is born holding; absent creates it empty. The new document joins the set on the write's own revision, so the sidebar and every open tab see it immediately, and the write lands and waits for `commit` like any other.\n\nWHERE IT GOES IS A CONVENTION YOU READ, NOT ONE YOU PICK. This directory is somebody's vault and it already has a shape: look at `surface://collections/documents` before choosing a path, and put the new file where its neighbours are. That matters most for a DAY'S NOTE, whose name is the whole of what makes it one (a basename that is exactly an ISO date, `2026-08-13.md`): a vault keeping `Daily/2026/08/2026-08-12.md` wants `Daily/2026/08/2026-08-13.md`, and the same file at the root is a second convention nobody asked for. The web's calendar derives exactly that from the newest existing daily note; there is no separate op for it because the answer is a path, and this is the tool that takes one.",
+    CreateDocumentRequest,
+    { op: "create-doc" },
+  ),
+  write(
+    "write_document",
+    "Write a document",
+    "Replace a document's text, whole and verbatim. `file` names a `.md` the set already holds (refused with the closest path otherwise); `text` is the entire new content — markdown, stored exactly as given, interpreted only at view time, never validated. Read the document first (`surface://collections/documents/<path>`) and pass what you read as `was` to make the write CONDITIONAL: if the file has changed since — another editor, a `git pull` — the write is refused instead of landing on top of words you have not seen, and the answer says to read again. Omit `was` only when overwriting whatever is there is what you mean. The write lands on disk, reaches every open page on its own revision, and waits for `commit`.",
+    WriteDocumentRequest,
+    { op: "doc" },
   ),
 
   act(

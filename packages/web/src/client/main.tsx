@@ -13,6 +13,7 @@ import { followFolds } from "./fold/memory.ts"
 import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
 import { followDoneDefault } from "./settings/done.ts"
+import { followStoredFont } from "./theme/fontState.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 
@@ -35,6 +36,7 @@ trackVisibleViewport()
 // here for the same reason as the line above — it belongs to the document, and
 // it outlives every component.
 followStoredTheme()
+followStoredFont()
 
 // Layout preferences (sidebar open/width, chat open/width/snap), what a page
 // does with finished work, what this browser has folded — of the outline and of

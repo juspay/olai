@@ -23,78 +23,16 @@
  * the same tree. */
 @source "./";
 
-/* Source Sans 3 (chrome) and Source Serif 4 (the page) — nixpkgs, converted
- * to woff2 by the client build (packages/web/src/build.ts, nix/fonts.nix).
- * Absolute /fonts/ paths so a content-hashed /assets/styles-*.css still
- * resolves them. No CDN, no font binary in the repo. */
-@font-face {
-  font-family: "Source Sans 3";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/SourceSans3-Regular.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Source Sans 3";
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/SourceSans3-It.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Source Sans 3";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/SourceSans3-Semibold.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Source Sans 3";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/SourceSans3-Bold.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Source Serif 4";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/SourceSerif4-Regular.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Source Serif 4";
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/SourceSerif4-It.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Source Serif 4";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/SourceSerif4-Semibold.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Source Serif 4";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/SourceSerif4-Bold.woff2") format("woff2");
-}
+/* The typefaces themselves — `@font-face` and every `:root[data-font]`
+ * block — are generated from `theme/fonts.ts` and appended by the build.
+ * What stays here is the TOKEN NAMES and the default row's stacks, so
+ * Tailwind emits `font-sans` / `font-serif` / `font-mono`. The values must
+ * match the default row; `theme/fontCss.test.ts` holds them. */
 
 @theme {
-  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-serif: "Source Serif 4", ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Atkinson Hyperlegible Next", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Atkinson Hyperlegible Next", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Named for their job, not their hue, so a palette is the same eleven names
    * with different values and no utility has to know which one is in force.

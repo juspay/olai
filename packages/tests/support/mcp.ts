@@ -14,6 +14,7 @@
  * servers — the same argument, one directory over.
  */
 
+import * as assert from "node:assert";
 import { type ChildProcess, spawn } from "node:child_process";
 
 import { readMessages } from "./ndjson.ts";
@@ -151,4 +152,32 @@ export const callTool = async (
     );
   }
   return result;
+};
+
+/**
+ * Call one tool the suite EXPECTS to be refused, and hand back the answer
+ * rather than throwing it.
+ *
+ * The twin of {@link callTool}, and it exists because "a refusal is an answer"
+ * is a promise this suite asserts from two directions: a write the ops layer
+ * says no to comes back as a tool RESULT carrying its kind, never as a
+ * JSON-RPC error — which would be the server saying it could not process the
+ * call, and is not what happened. That assertion is the invariant rather than
+ * a detail of either step, so it is spelled once here instead of copied into
+ * every step whose subject is a refusal.
+ */
+export const tryTool = async (
+  agent: TerminalAgent,
+  name: string,
+  args: Readonly<Record<string, unknown>>,
+): Promise<Record<string, unknown>> => {
+  const answered = await agent.call("tools/call", { name, arguments: args });
+  assert.strictEqual(
+    answered.error,
+    undefined,
+    "a refused write came back as a JSON-RPC error, which says the server " +
+      "could not process the call — but it processed it and said no, and " +
+      "that answer has to reach the model",
+  );
+  return answered.result ?? {};
 };

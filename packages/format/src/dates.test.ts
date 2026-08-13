@@ -2,11 +2,13 @@ import { expect, test } from "bun:test"
 
 import {
   dailyNoteDays,
+  dailyNotePathFor,
   dailyNotesOn,
   datedDays,
   datedOn,
   dayOf,
   type DayEntry,
+  isDay,
   monthOf,
   noteDateOf,
 } from "./dates.ts"
@@ -389,4 +391,60 @@ test("a note and a dated node are two separate answers about one day", () => {
   expect(datedDays(SET, "2026-08").has("2026-08-06")).toBe(false)
   expect(dailyNoteDays(notes, "2026-08").has("2026-08-31")).toBe(false)
   expect(datedDays(SET, "2026-08").has("2026-08-31")).toBe(true)
+})
+
+// ── where a minted note goes ───────────────────────────────────────────
+
+// The convention is READ, never configured: the newest existing note's own
+// path is the example, and its date-shaped directory segments are re-spelled
+// for the new day. Detection's rule (`noteDateOf`), facing the other way.
+test("a minted note follows the newest note's directory, date segments re-spelled", () => {
+  const vault = [
+    "Daily/2025/12/2025-12-31.md",
+    "Daily/2026/08/2026-08-12.md",
+    "readme.md",
+  ]
+  expect(dailyNotePathFor(vault, "2026-09-01")).toBe("Daily/2026/09/2026-09-01.md")
+  // A different year re-spells the year segment too.
+  expect(dailyNotePathFor(vault, "2027-01-05")).toBe("Daily/2027/01/2027-01-05.md")
+})
+
+test("a YYYY-MM directory is one segment, re-spelled whole", () => {
+  expect(dailyNotePathFor(["journal/2026-08/2026-08-12.md"], "2026-09-01"))
+    .toBe("journal/2026-09/2026-09-01.md")
+})
+
+// WHOLE segments only: two digits appear inside years, and substring
+// replacement is how `2027` would lose its middle to a February.
+test("a segment that merely contains a date part travels verbatim", () => {
+  expect(dailyNotePathFor(["archive-2026/2026-02-05.md"], "2027-03-01"))
+    .toBe("archive-2026/2027-03-01.md")
+})
+
+test("a flat vault stays flat, and an empty one starts at the root", () => {
+  expect(dailyNotePathFor(["2026-08-12.md", "notes/other.md"], "2026-08-15"))
+    .toBe("2026-08-15.md")
+  expect(dailyNotePathFor([], "2026-08-15")).toBe("2026-08-15.md")
+  expect(dailyNotePathFor(["notes/other.md"], "2026-08-15")).toBe("2026-08-15.md")
+})
+
+// A vault mid-migration: the NEWEST note is where the convention currently
+// stands, so old notes somewhere else do not pull a new one back there.
+test("the newest note is the example, ties broken by path", () => {
+  expect(
+    dailyNotePathFor(
+      ["old/2026-01-01.md", "Daily/2026/08/2026-08-12.md"],
+      "2026-08-13",
+    ),
+  ).toBe("Daily/2026/08/2026-08-13.md")
+  expect(
+    dailyNotePathFor(["b/2026-08-12.md", "a/2026-08-12.md"], "2026-08-13"),
+  ).toBe("a/2026-08-13.md")
+})
+
+test("what may name a day is the note-detection rule, exported", () => {
+  expect(isDay("2026-08-13")).toBe(true)
+  expect(isDay("2026-8-13")).toBe(false)
+  expect(isDay("2026-08-13T10:00")).toBe(false)
+  expect(isDay("someday")).toBe(false)
 })

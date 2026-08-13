@@ -198,6 +198,9 @@ export function AskForm(props: {
               >
                 answer
               </button>
+              {/* Not `../pill.ts`'s quiet pill: this row's height is set by
+                  the accent "answer" beside it, so dismiss keeps h-8/px-3 —
+                  the shared px-2/py-1 would shrink it out of the pair. */}
               <button
                 type="button"
                 class="flex h-8 items-center rounded border border-rule px-3 text-xs text-muted hover:text-ink disabled:opacity-60"

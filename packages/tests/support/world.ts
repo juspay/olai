@@ -134,6 +134,23 @@ export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the
  *  node that attaches it. */
 export const DOCUMENT_BODY = selector(TESTID.documentBody);
+/** The way into a document's editor, on its page header. */
+export const DOCUMENT_EDIT = selector(TESTID.documentEdit);
+/** The editor itself — a textarea holding the document's SOURCE, verbatim.
+ *  Present exactly while the page is in its edit mode. */
+export const DOCUMENT_EDITOR = selector(TESTID.documentEditor);
+export const DOCUMENT_SAVE = selector(TESTID.documentSave);
+export const DOCUMENT_CANCEL = selector(TESTID.documentCancel);
+/** What the last document write had to say; `data-tone` is which mood. */
+export const DOCUMENT_SAID = selector(TESTID.documentSaid);
+/** The explicit "overwrite anyway" after a conflict refusal. */
+export const DOCUMENT_OVERWRITE = selector(TESTID.documentOverwrite);
+/** The notice, while the editor is open, that the file moved on disk. */
+export const DOCUMENT_DRIFTED = selector(TESTID.documentDrifted);
+/** The sidebar's way to a brand-new document, and the path box it opens. */
+export const NEW_DOCUMENT = selector(TESTID.newDocument);
+export const NEW_DOCUMENT_PATH = selector(TESTID.newDocumentPath);
+export const NEW_DOCUMENT_SAID = selector(TESTID.newDocumentSaid);
 /** A document's table of contents, above its body. A `<details>`: whether it is
  *  open is the element's own state. */
 export const TOC = selector(TESTID.toc);
@@ -234,6 +251,11 @@ export const CALENDAR = selector(TESTID.calendar);
 export const CALENDAR_DAY = selector(TESTID.calendarDay);
 export const CALENDAR_PREV = selector(TESTID.calendarPrev);
 export const CALENDAR_NEXT = selector(TESTID.calendarNext);
+/** The button a BARE day is — no node, no note — which mints that day's note.
+ *  Inside the `calendarDay` cell, so `data-date` rides one level up. */
+export const CALENDAR_MINT = selector(TESTID.calendarMint);
+/** What minting had to say when it was refused, under the grid. */
+export const CALENDAR_SAID = selector(TESTID.calendarSaid);
 /** One day, as a page: `/d/<date>` and `/today`. */
 export const DAY_PAGE = selector(TESTID.dayPage);
 export const DAY_GROUP = selector(TESTID.dayGroup);
@@ -251,6 +273,18 @@ export const AGENDA_DAY = selector(TESTID.agendaDay);
 export const AGENDA_EMPTY = selector(TESTID.agendaEmpty);
 /** The way to it from the directory column, above the month. */
 export const AGENDA_LINK = selector(TESTID.agendaLink);
+/** The trash: every archive the directory holds, read-only, one verb. */
+export const TRASH_PAGE = selector(TESTID.trashPage);
+/** One row of it — an archived node; `data-node-id` is which. */
+export const TRASH_ROW = selector(TESTID.trashRow);
+/** The one verb a trash row offers. */
+export const TRASH_PUT_BACK = selector(TESTID.trashPutBack);
+/** What the last put-back had to say, under its row; `data-tone` is the mood. */
+export const TRASH_SAID = selector(TESTID.trashSaid);
+/** Said in the rows' place when nothing is in the trash. */
+export const TRASH_EMPTY = selector(TESTID.trashEmpty);
+/** The way to it, at the foot of the directory column. */
+export const TRASH_LINK = selector(TESTID.trashLink);
 /** THE day's note, above those groups: a document named for the date itself.
  *  `data-file` is which. */
 export const DAY_NOTE = selector(TESTID.dayNote);
@@ -342,6 +376,7 @@ export const PREFS_HINT = selector(TESTID.prefsHint);
 export const PREFS_CHOICE = selector(TESTID.prefsChoice);
 export const PREFS_SCOPE = selector(TESTID.prefsScope);
 export const THEME_CHIP = selector(TESTID.themeChip);
+export const FONT_SELECT = selector(TESTID.fontSelect);
 
 /** The Commit pill in the chrome, and the panel it opens. The pill is ALWAYS
  *  drawn, and it is the header's ONE answer about git — `data-state` is which
@@ -773,6 +808,27 @@ export class OlaiWorld extends World {
    *  `toc_steps.ts`), and `.first()` being the right answer is one decision. */
   documentBody(): Locator {
     return this.page.locator(DOCUMENT_BODY).first();
+  }
+
+  /**
+   * Wait until something rendered inside `where` draws `text` in bold.
+   *
+   * The cheapest true statement that the markdown PIPELINE ran over text this
+   * suite put there, which is why several steps ask it — of this page's
+   * document, and of a second tab's, where the whole point is that a save
+   * reached a reader who was not the writer. One spelling, so a change to how
+   * `**bold**` renders is one place rather than a pair kept in step by hand;
+   * scoped to a locator rather than to the page because "the document" and
+   * "whatever that other tab is showing" are two different scopes.
+   */
+  async rendersBold(where: Locator, text: string): Promise<void> {
+    await this.waitUntil(
+      async () =>
+        (await where.locator("strong, b").allInnerTexts()).some(
+          (value) => value.trim() === text,
+        ),
+      `${JSON.stringify(text)} to be rendered in bold`,
+    );
   }
 
   /** One folder in the sidebar's file tree, by its root-relative path. */

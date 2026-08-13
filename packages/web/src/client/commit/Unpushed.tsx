@@ -39,6 +39,9 @@ export function Unpushed(props: { readonly commit: Commit }) {
             data-commits={props.commit.pending().unpushed?.commits ?? 0}
           >
             <span class="min-w-0 truncate">{words()}</span>
+            {/* Not `../pill.ts`'s quiet pill: this verb sits INSIDE a text-xs
+                line, so it keeps py-0.5 — the shared py-1 would thicken the
+                unpushed line it lives on. */}
             <button
               type="button"
               class="ml-auto shrink-0 rounded border border-rule px-2 py-0.5 hover:text-ink disabled:opacity-50"

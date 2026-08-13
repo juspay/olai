@@ -14,6 +14,7 @@
 import { createSignal, For, Match, Show, Switch } from "solid-js"
 
 import { Refusal } from "./Refusal.tsx"
+import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import type { Chat, Sessions as Answer } from "./state.ts"
 import type { OpFailure, SessionInfo } from "@olai/surface"
@@ -56,7 +57,7 @@ export function Sessions(props: { readonly chat: Chat }) {
     <div class="relative">
       <button
         type="button"
-        class="rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
+        class={QUIET_PILL}
         data-testid={TESTID.chatSessions}
         aria-expanded={picker()._tag !== "shut"}
         onClick={toggle}

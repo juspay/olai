@@ -30,7 +30,7 @@
  * is the same shape the row editor uses one level down.
  */
 
-import type { Edit } from "@olai/surface"
+import type { Applied, Edit, OpFailure } from "@olai/surface"
 import { Result } from "effect"
 
 import { runAsync } from "./run.ts"
@@ -57,19 +57,37 @@ import type { Said } from "./edit/undoing.ts"
  * a keystroke does ({@link ./edit/editing.tsx}): the server says what would take
  * a write back, `undefined` and all, and which of these verbs HAS an inverse is
  * its answer rather than this file's opinion. So ⌘Z takes back a mark chosen
- * from the menu, a date picked on a badge and a date cleared from either, and
- * says "nothing to undo" after an archive — because there is no unarchive on
- * any face to say it with.
+ * from the menu, a date picked on a badge and a date cleared from either, a
+ * move to the Trash — the inverse is `unarchive`, carrying the place the row
+ * sat — and a `Put back` pressed in the Trash, whose inverse is the archive
+ * again.
  */
 export const applying = async (
   edit: Edit,
   record: Undo["record"],
 ): Promise<Said | undefined> => {
-  const outcome = await runAsync(olai.procedures.edit.apply(edit))
+  const outcome = await applied(edit, record)
   if (Result.isFailure(outcome)) {
     return { tone: "alarm", text: outcome.failure.message }
   }
-  record(outcome.success.undo)
   const nudge = outcome.success.nudge
   return nudge === undefined ? undefined : { tone: "aside", text: nudge }
+}
+
+/**
+ * The same write, answering with WHAT LANDED rather than only what there is to
+ * say about it — for the caller that needs the answer's `id` to go somewhere:
+ * a minted document's PATH is the server's to derive (a bare calendar day
+ * carries a date, and where the vault keeps its notes is read off the set), so
+ * the affordance that pressed it can only learn where to navigate from the
+ * reply. Recording is the same either way — which writes have an inverse is
+ * the server's answer, filed here so no caller can forget to file it.
+ */
+export const applied = async (
+  edit: Edit,
+  record: Undo["record"],
+): Promise<Result.Result<Applied, OpFailure>> => {
+  const outcome = await runAsync(olai.procedures.edit.apply(edit))
+  if (Result.isSuccess(outcome)) record(outcome.success.undo)
+  return outcome
 }

@@ -18,7 +18,7 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import { olaiBin } from "../support/hooks.ts";
-import { callTool, connectTerminalAgent } from "../support/mcp.ts";
+import { callTool, connectTerminalAgent, tryTool } from "../support/mcp.ts";
 import { HYDRATION_TIMEOUT, type OlaiWorld } from "../support/world.ts";
 
 /** The half of a tool result a CALLER acts on. The prose beside it is what a
@@ -242,23 +242,47 @@ When(
   },
 );
 
+// ── documents, from a terminal ─────────────────────────────────────────
+
+When(
+  "the terminal agent creates the document {string} holding {string}",
+  async function (this: OlaiWorld, file: string, text: string) {
+    this.toolAnswer = await callTool(agentOf(this), "create_document", {
+      file,
+      text,
+    });
+  },
+);
+
+When(
+  "the terminal agent rewrites {string} expecting {string}, as {string}",
+  async function (this: OlaiWorld, file: string, was: string, text: string) {
+    this.toolAnswer = await callTool(agentOf(this), "write_document", {
+      file,
+      text,
+      was,
+    });
+  },
+);
+
+When(
+  "the terminal agent tries to rewrite {string} expecting {string}, as {string}",
+  async function (this: OlaiWorld, file: string, was: string, text: string) {
+    // `tryTool`, not `callTool`: the refusal is what this step is FOR.
+    this.toolAnswer = await tryTool(agentOf(this), "write_document", {
+      file,
+      text,
+      was,
+    });
+  },
+);
+
 When(
   "the terminal agent tries to mark {string} done",
   async function (this: OlaiWorld, id: string) {
-    // Not `callTool`: the refusal is what this step is FOR, so it is read off
-    // the reply rather than thrown.
-    const answered = await agentOf(this).call("tools/call", {
-      name: "set_done",
-      arguments: { id },
-    });
-    assert.strictEqual(
-      answered.error,
-      undefined,
-      "a refused write came back as a JSON-RPC error, which says the server " +
-        "could not process the call — but it processed it and said no, and " +
-        "that answer has to reach the model",
-    );
-    this.toolAnswer = answered.result ?? {};
+    // `tryTool`, not `callTool`: the refusal is what this step is FOR, so it
+    // is read off the reply rather than thrown.
+    this.toolAnswer = await tryTool(agentOf(this), "set_done", { id });
   },
 );
 

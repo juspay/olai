@@ -151,6 +151,38 @@ export const TESTID = {
   /** The document itself, rendered — on its own page, or inline under the node
    *  that attaches it. */
   documentBody: "document-body",
+  /** The way into a document's editor: the quiet control on the page header
+   *  that turns the rendered body into its source. */
+  documentEdit: "document-edit",
+  /** The editor itself — a textarea holding the document's SOURCE, verbatim.
+   *  Present exactly while the page is in its edit mode. */
+  documentEditor: "document-editor",
+  /** Commit the editor's text: one write, at the same gate every other edit
+   *  goes through. */
+  documentSave: "document-save",
+  /** Leave the editor without writing. The draft is abandoned, which is what
+   *  Escape means everywhere else in this app. */
+  documentCancel: "document-cancel",
+  /** Why the last document write did not happen — the ops layer's own words,
+   *  with the draft kept. One mood (`data-tone="alarm"`) and not the two a
+   *  row's line has: a document write has no rollup to remark on. */
+  documentSaid: "document-said",
+  /** The one refusal with a second door: after a conflict refusal, the
+   *  explicit "overwrite anyway" — a write with no `was`, chosen by a person
+   *  who has read the warning. */
+  documentOverwrite: "document-overwrite",
+  /** The notice, while the editor is open, that the file has changed on disk
+   *  underneath it — the live half of the conflict story, so the refusal at
+   *  save time is never the first anyone hears of it. */
+  documentDrifted: "document-drifted",
+  /** The sidebar's way to a brand-new document: the affordance that opens the
+   *  path box. */
+  newDocument: "new-document",
+  /** The path box itself — a relative `.md` path, committed with Enter. */
+  newDocumentPath: "new-document-path",
+  /** Why creating one did not happen — a refusal, verbatim, drawn by the same
+   *  `Refused` line `documentSaid` and `calendarSaid` are. */
+  newDocumentSaid: "new-document-said",
   /** A document's table of contents, above its body. A `<details>`, so whether
    *  it is open is the element's own `open` property and not a second flag —
    *  and ABSENT on a document with fewer than two headings, which is what makes
@@ -178,6 +210,8 @@ export const TESTID = {
    *  when one is renamed — and markup that exists only to be read back by a
    *  test is markup every reader ships. */
   themeChip: "theme-chip",
+  /** The Font row's select. `value` is the typeface in force. */
+  fontSelect: "font-select",
 
   // ── preferences ──────────────────────────────────────────────────────
   /** The header's one way into the preferences, and the only door there is:
@@ -186,7 +220,7 @@ export const TESTID = {
   prefsTrigger: "prefs-trigger",
   /** The panel it opens (portalled out of the header). */
   prefsPanel: "prefs-panel",
-  /** One preference on it; `data-pref` is which — `theme`, `done`. */
+  /** One preference on it; `data-pref` is which — `theme`, `font`, `done`. */
   prefsRow: "prefs-row",
   /** That row's hint: what the choice IN FORCE means, re-read whenever the
    *  control moves. Its own name because it is the half of a settings row that
@@ -263,6 +297,12 @@ export const TESTID = {
   calendarDay: "calendar-day",
   calendarPrev: "calendar-prev",
   calendarNext: "calendar-next",
+  /** The button a BARE day is — no node, no note — which mints that day's
+   *  note. Inside the `calendarDay` cell, so `data-date` rides one level up. */
+  calendarMint: "calendar-mint",
+  /** What minting had to say when it was refused — the ops layer's words,
+   *  under the grid. */
+  calendarSaid: "calendar-said",
   /** One day, as a page. `data-date` is the day it turned out to be, which
    *  `/today` does not spell. */
   dayPage: "day-page",
@@ -298,6 +338,32 @@ export const TESTID = {
   agendaLink: "agenda-link",
   /** Rail icon: the same way in when the column is collapsed. */
   railAgenda: "rail-agenda",
+  /** The way to the trash, at the foot of the directory column — below the
+   *  file tree because that is where a trash sits, and OUTSIDE it because an
+   *  archive is not an outline you open and edit. Drawn whether or not
+   *  anything has ever been archived: an empty trash is a fact, not a hidden
+   *  control. */
+  trashLink: "trash-link",
+  /** The trash, as a page. Every archive the directory holds, read-only. */
+  trashPage: "trash-page",
+  /** One archive's worth of rows on it; `data-file` is which `Archive.jsonl`.
+   *  Drawn per archive that holds anything; its heading appears only when the
+   *  directory holds more than one, the way the day page groups by file. */
+  trashGroup: "trash-group",
+  /** One row of the trash: an archived node, drawn but not editable.
+   *  `data-node-id` is which. */
+  trashRow: "trash-row",
+  /** The one verb a trash row offers: send the node and its subtree back where
+   *  the archive's recorded chain says they came from. */
+  trashPutBack: "trash-put-back",
+  /** What the last put-back had to say, under the row it was pressed on —
+   *  `data-tone` is the two moods every other verb line has: `alarm` for the
+   *  ops layer's refusal verbatim, `aside` for a remark on a write that
+   *  landed. */
+  trashSaid: "trash-said",
+  /** Said in the rows' place when nothing is in the trash — including when no
+   *  archive file exists yet, which is the same fact. */
+  trashEmpty: "trash-empty",
   doneToggle: "done-toggle",
   notFound: "not-found",
   errorView: "error-view",
