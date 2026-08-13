@@ -12,7 +12,9 @@ Feature: The journal, and the month in the sidebar
 
   Three marks, and they are three because a reader has to tell them apart at a
   glance: a day with something on it is a link with a dot, an empty day is
-  inert, today wears a ring, and the day being read is filled.
+  inert — a quiet number, not a link; pressing one mints the day's note, which
+  is document_editing.feature's subject — today wears a ring, and the day
+  being read is filled.
 
   @corpus:journal
   Scenario: A day with something on it is a link, and an empty one is not

@@ -44,8 +44,8 @@ import { applying } from "../writes.ts"
  * The READS come first and the writes after them, with a rule between the two
  * halves rather than a habit: everything above the divider changes what this
  * tab is looking at, everything below it changes the directory. A person
- * reaching for "Collapse all" and hitting "Archive" is a mistake the ORDER can
- * prevent, so it does.
+ * reaching for "Collapse all" and hitting "Move to Trash" is a mistake the
+ * ORDER can prevent, so it does.
  */
 export const nodeMenuActions = (args: {
   readonly row: Row

@@ -59,7 +59,7 @@ export function Preferences() {
         data-testid={TESTID.prefsTrigger}
         aria-expanded={open()}
         aria-haspopup="true"
-        title="preferences: theme, and what a page does with finished work"
+        title="preferences: theme, type, and what a page does with finished work"
         onClick={() => popover.toggle()}
       >
         {/* The word is `sr-only` below 40rem, exactly as the agent toggle's is:

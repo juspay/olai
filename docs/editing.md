@@ -114,9 +114,87 @@ it became something anybody else can see.
 
 **There is no delete key.** What ⌘Z can take back is a row you have just made —
 the un-create, which is the inverse of the `Enter` that made it. Where it goes
-is `Archive.jsonl`, keeping its id, which is what archiving does to anything: a
+is the Trash, keeping its id, which is what putting anything away does: a
 trash rather than a shredder, refused outright once anything has been filed
 under it, and not something a key of its own can ask for.
 
+## The Trash
+
+The `•••` menu's **Move to Trash** puts a row and everything under it away,
+behind a question that names how many rows go. Where they go is
+`Archive.jsonl` on disk — an outline like any other to an agent, whose tool
+for the same gesture is still called `archive_node` — but to a person it is
+the **Trash** at the foot of the sidebar: every archive under the directory,
+readable and not editable, each subtree drawn under the chain of ancestor
+titles it hung off.
+
+Not every row in there is a thing you put away. Above each pile sit the
+**titles the archive wrote down to remember where it hung** — so the tree still
+reads years later — and those are signposts rather than nodes: the ones they
+name never left. Pressing **Put back** on a signpost says so, and names the
+live row that still carries the title. What comes back is what went in.
+
+**Put back** is the one verb a Trash row has, and it is the whole reason the
+Trash is a trash. It sends the same `unarchive` op an agent's
+`unarchive_node` sends — the op both faces got in the same change, because
+neither face may do what the other cannot — and the subtree returns where
+the recorded chain says it came from, last among its new siblings, children
+and ids intact. A chain that no longer stands (retitled, or put away itself)
+is a refusal in the ops layer's own words under the row, never a guess; an
+agent can name a destination outright, and restoring the chain first is the
+way through for the mouse. ⌘Z after a Move to Trash puts the row back too —
+the undo knows the exact parent it sat under — and ⌘Z after a Put back is
+the archive again.
+
 Deliberately absent, each its own item: delete, split and merge, multi-select,
 and drag-and-drop.
+
+## Writing a document
+
+A `.md` under the served directory has always had a page; the page can be
+written now. **Edit**, on its header, turns the rendered body into its SOURCE
+— a textarea holding the file verbatim, which is the same trade every title
+and note makes: what you type is the source, and the rendering comes back
+when you leave. There is no toolbar and no WYSIWYG, because a document is
+markdown and markdown is text.
+
+The mode is declared, so leaving it is too — which is where a document
+differs from a note, and on purpose. A note is one line, entered by a click
+and committed on blur; a whole file written because a click strayed is a
+write nobody asked for. So **Save** commits (⌘Enter / Ctrl+Enter from the
+editor), **Cancel** abandons (Escape), and nothing commits on a timer — a
+document mid-edit is often half a sentence, and every open tab would see the
+half.
+
+**Leaving the page abandons it too, and that includes leaving for another
+document.** A draft belongs to the file it was typed in: open another one and
+the editor closes with the draft still unwritten, exactly as Cancel would.
+That is worth saying out loud because the alternative is the quiet kind of
+wrong — a draft that followed you to the next file could be saved onto it, and
+where two documents happen to say the same thing (two empty notes, two copies
+of one file) the conflict guard below would not even notice.
+
+A save is ONE op at the same gate as everything else: validated, published on
+its own revision (the other tab showing this document redraws on the frame it
+lands), audit-trailed, and WAITING in the commit panel like any other write.
+⌘Z takes a saved edit back, by the same rule as a retyped title: the inverse
+carries the text it expects to find, so it can only take back what this tab
+wrote.
+
+**The file can move underneath you, and nothing is clobbered either way.**
+Edit the same document in vim while the editor is open and the editor says so
+the moment the disk moves; a Save after that is refused, in the ops layer's
+own words, with your text kept exactly where you typed it. The refusal has
+two doors out and both are yours: take what you need and Cancel, or press
+**Overwrite what is there**, which is the same write minus the guard and
+means exactly what it says. An agent gets the identical story — its
+`write_document` takes a `was`, and the refusal is the same sentence.
+
+**Two ways to a document that does not exist.** The sidebar's **+ New
+document** asks for a path — relative, `.md`, judged by the same rules an
+agent's `create_document` is judged by — and a **bare calendar day** (no
+node, no note) mints that day's note, filed where your vault already keeps
+them: the convention is read off the newest existing daily note's own path
+(`Daily/2026/08/2026-08-12.md` puts September's first note at
+`Daily/2026/09/2026-09-01.md`), never configured. Either door lands in the
+new document's editor, and the sidebar lists the file on the same frame.

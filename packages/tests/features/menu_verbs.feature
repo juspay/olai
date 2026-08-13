@@ -37,7 +37,7 @@ Feature: The ••• menu writes
       | Complete          |
       | Clear mark        |
       | Set date…         |
-      | Archive           |
+      | Move to Trash     |
       | Copy as text      |
 
   Scenario: A row with no mark is offered all three, and nothing to clear
@@ -109,7 +109,7 @@ Feature: The ••• menu writes
     # record goes, the node it showed stays exactly where it lives.
     When I open the node menu of "kitchen-herbs"
     Then the node menu offers "Remove this placement"
-    And the node menu does not offer "Archive"
+    And the node menu does not offer "Move to Trash"
     When I choose "Remove this placement" from the node menu
     Then "house.jsonl" no longer holds the node "kitchen-herbs"
     And "garden.jsonl" holds the node "herbs"
@@ -135,14 +135,14 @@ Feature: The ••• menu writes
     Then the node menu of "kitchen-herbs" says "`kitchen-herbs` is still named by `order` (`see`, house.jsonl:2) — retiring it would leave that pointing at nothing. Re-point it at `herbs` (the node this placement shows), or retire it first."
     And "house.jsonl" holds the node "kitchen-herbs"
 
-  Scenario: Archive asks first, and names how much goes with it
+  Scenario: Moving to the Trash asks first, and names how much goes with it
     # The human's ruling: a subtree may be archived, WITH a confirm naming the
     # blast radius — and the confirm is this panel's own second step, not a
-    # browser dialog, which is chrome olai does not own. It also says where
-    # things go, because there is no unarchive on any face yet.
+    # browser dialog, which is chrome olai does not own. It also names the way
+    # back, because the Trash has one now: the sidebar entry, and Put back.
     When I open the node menu of "install"
-    And I choose "Archive" from the node menu
-    Then the node menu asks "Archive “install the cabinets” and the 3 rows under it? They go to Archive.jsonl with their ids kept — there is no unarchive yet, so bringing them back means editing that file."
+    And I choose "Move to Trash" from the node menu
+    Then the node menu asks "Move “install the cabinets” and the 3 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
     And "house.jsonl" holds a node titled "install the cabinets"
 
   Scenario: The confirm counts what the write moves, not what is on screen
@@ -156,24 +156,24 @@ Feature: The ••• menu writes
     When I hide the done nodes
     Then the node "demo" is not shown
     When I open the node menu of "kitchen"
-    And I choose "Archive" from the node menu
-    Then the node menu asks "Archive “kitchen remodel #home” and the 7 rows under it? They go to Archive.jsonl with their ids kept — there is no unarchive yet, so bringing them back means editing that file."
+    And I choose "Move to Trash" from the node menu
+    Then the node menu asks "Move “kitchen remodel #home” and the 7 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
 
   Scenario: Cancelling the confirm writes nothing
     When I open the node menu of "install"
-    And I choose "Archive" from the node menu
+    And I choose "Move to Trash" from the node menu
     And I choose "Cancel" from the node menu
     Then the node menu is not asking anything
-    And the node menu offers "Archive"
+    And the node menu offers "Move to Trash"
     And "house.jsonl" holds a node titled "install the cabinets"
 
-  Scenario: Confirming archives the subtree, ids and all
+  Scenario: Confirming moves the subtree to the Trash, ids and all
     # A trash rather than a shredder: the ids come along, so the `after` edges
     # and mirrors that name them go on resolving — which is the whole reason
-    # this is `archive` and not a delete.
+    # this is `archive` underneath and not a delete.
     When I open the node menu of "install"
-    And I choose "Archive" from the node menu
-    And I choose "Archive" from the node menu
+    And I choose "Move to Trash" from the node menu
+    And I choose "Move to Trash" from the node menu
     Then "house.jsonl" no longer holds the node "install"
     And "Archive.jsonl" holds the node "install"
     And "Archive.jsonl" holds the node "hinges"
@@ -183,8 +183,8 @@ Feature: The ••• menu writes
 
   Scenario: A childless row is asked about on its own
     When I open the node menu of "knobs"
-    And I choose "Archive" from the node menu
-    Then the node menu asks "Archive “pick the knobs”? It goes to Archive.jsonl with its id kept — there is no unarchive yet, so bringing it back means editing that file."
+    And I choose "Move to Trash" from the node menu
+    Then the node menu asks "Move “pick the knobs” to the Trash? It keeps its id, and the Trash in the sidebar is where to put it back."
 
   Scenario: Copy as text is the subtree, one tab per level
     # The indentation below is TABS — one per level, which is what every

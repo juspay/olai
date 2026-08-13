@@ -155,15 +155,20 @@ test("following applies another tab's write through the same parse", () => {
 test("no client file outside this module and the theme spells the circuit's read or watch", () => {
   // The receptacle's grip, as a fact the suite holds rather than a doctrine a
   // review remembers: every stored value runs on `createPreference`, so the
-  // primitives' read and watch are spelled here, in this test, and in
-  // `theme/state.ts` — whose first read belongs to the shell's boot script and
-  // which therefore keeps its own wiring (preference.ts says why) — and
-  // NOWHERE else. A hand-wired circuit has to read before it can do anything
-  // else, so this is the test a new one fails — the moment to reach for the
-  // factory instead. (The scan grips exactly what the ratified claim names:
-  // the read and the watch, not the write, whose callers outside the factory
-  // are the theme's own.)
-  const allowed = new Set(["preference.ts", "preference.test.ts", "theme/state.ts"])
+  // primitives' read and watch are spelled here, in this test, and in the two
+  // files whose first read belongs to the shell's boot script
+  // (`theme/state.ts`, `theme/fontState.ts`) and which therefore keep their
+  // own wiring (preference.ts says why) — and NOWHERE else. A hand-wired
+  // circuit has to read before it can do anything else, so this is the test a
+  // new one fails — the moment to reach for the factory instead. (The scan
+  // grips exactly what the ratified claim names: the read and the watch, not
+  // the write, whose callers outside the factory are the theme's own.)
+  const allowed = new Set([
+    "preference.ts",
+    "preference.test.ts",
+    "theme/state.ts",
+    "theme/fontState.ts",
+  ])
   const client = import.meta.dir
   const offenders: Array<string> = []
   for (const entry of readdirSync(client, { recursive: true })) {

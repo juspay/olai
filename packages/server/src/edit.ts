@@ -54,7 +54,9 @@
  */
 
 import {
+  dailyNotePathFor,
   type Derived,
+  isDay,
   isMirror,
   type Located,
   nodeNamed,
@@ -120,12 +122,51 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return Result.succeed({ op: "unmirror", id: edit.id })
     case "archive":
       return Result.succeed({ op: "archive", id: edit.id })
+    case "unarchive":
+      return Result.succeed({
+        op: "unarchive",
+        id: edit.id,
+        ...(edit.parent === undefined ? {} : { parent: edit.parent }),
+        ...(edit.file === undefined ? {} : { file: edit.file }),
+      })
     case "place":
       return placeRequest(at.derived, edit)
     case "mark":
       return markRequest(at.derived, edit)
     case "remove":
       return removeRequest(at.derived, edit)
+    // The documents' three. The first two resolve nothing — a file is named
+    // as the caller named it, and the ops layer's own refusals judge it — and
+    // the third is the one derivation a calendar cell cannot make for itself.
+    case "doc":
+      return Result.succeed({
+        op: "doc",
+        file: edit.file,
+        text: edit.text,
+        ...(edit.was === undefined ? {} : { was: edit.was }),
+      })
+    case "docNew":
+      return Result.succeed({ op: "create-doc", file: edit.file })
+    case "docDay": {
+      // The day's shape is checked HERE because the path it derives would
+      // otherwise be judged instead: a garbage date fed to the convention
+      // walk would refuse as "not a relative `.md` path", which teaches a
+      // reader about the wrong field.
+      if (!isDay(edit.date)) {
+        return Result.fail(
+          refusal(`\`${edit.date}\` is not a day (YYYY-MM-DD), so there is no note to mint for it`),
+        )
+      }
+      // WHERE the vault keeps its daily notes is a fact about the set — the
+      // newest existing note's own path is the convention — so it is read off
+      // the reading this write is judged against, exactly as every other
+      // placement is, and an agent makes the same two moves by hand.
+      const file = dailyNotePathFor(
+        at.set.documents.map((document) => document.file),
+        edit.date,
+      )
+      return Result.succeed({ op: "create-doc", file })
+    }
   }
 }
 
@@ -471,13 +512,15 @@ const removeRequest = (
  * gate like anything else, so the worst case is a refusal naming what moved —
  * never a silent write to the wrong place.
  *
- * An empty list means nothing here would take it back, and after the human
- * drove this (2026-08-12) there is exactly ONE write that answers that way: a
- * `remove`, which has put a node in the archive, and no move brings it out (a
- * parent is same-file by the format). A text edit used to answer that way too,
- * on the reading that the editor owns text — which is true of a DRAFT, where
- * Escape and blur are the semantics, and false of the op a committed draft
- * produced. A committed title has a perfect inverse: the title it replaced.
+ * An empty list means nothing here would take it back, and there is exactly
+ * ONE write that answers that way now: an `unmirror`, whose inverse would be a
+ * placement verb this surface does not have. A `remove` and an `archive`
+ * answered that way while the archive had no way out; `unarchive` is that way
+ * out (`parity-unarchive`), so both answer with it. A text edit used to answer
+ * that way too, on the reading that the editor owns text — which is true of a
+ * DRAFT, where Escape and blur are the semantics, and false of the op a
+ * committed draft produced. A committed title has a perfect inverse: the title
+ * it replaced.
  *
  * WHERE IT WOULD GO IF THE AGENT EVER WANTED ONE: down, into `@olai/ops`'
  * planner, beside the op whose effect it reverses — that is the layer that
@@ -538,20 +581,70 @@ export const inverseOf = (
     // overwrite — the ops layer's own `set_date` is what judges it either way.
     case "date":
       return dateOf(at.derived, edit.id)
-    // The three with nothing to answer, and each means it differently. A
-    // `remove` and an `archive` have put records in `Archive.jsonl`, which no
-    // move brings out (a parent is same-file by the format) — and there is no
-    // unarchive on any face to spell it with (`parity-unarchive`). An
-    // `unmirror` COULD be undone in principle, by placing the mirror back where
-    // it was; this surface has no verb for creating one (mirror creation is
-    // `input-widgets`' `((`), and inventing a browser-only placement verb to
-    // serve an undo would be exactly the deviation the menu's verbs exist to
-    // close. When that verb arrives, this arm is where it is answered.
+    // BOTH removals answer with the way back out of the trash, now that there
+    // is one (`parity-unarchive`): `unarchive`, carrying where the row SITS as
+    // this reading stands — its parent, or its file at top level — because
+    // those are facts the archive is about to replace with a scaffold of
+    // titles, and an undo is entitled to better than a title match. The ids
+    // are the server's own reading, so they are ids an agent would have named
+    // (the `place` rule); the replay is judged against the set as it is THEN,
+    // and a parent that has itself been archived since is the ops layer's
+    // refusal to give, in its own words.
     case "remove":
     case "archive":
+      return unarchiveOf(at.derived, edit.id)
+    // The inverse of an unarchive is the archive that made it — same subtree,
+    // same scaffold rebuilt, so ⌘Z after a `Put back` puts it back IN.
+    case "unarchive":
+      return [{ verb: "archive", id: edit.id }]
+    // An `unmirror` COULD be undone in principle, by placing the mirror back
+    // where it was; this surface has no verb for creating one (mirror creation
+    // is `input-widgets`' `((`), and inventing a browser-only placement verb to
+    // serve an undo would be exactly the deviation the menu's verbs exist to
+    // close. When that verb arrives, this arm is where it is answered.
     case "unmirror":
       return []
+    // A document commit is the text verbs' shape at file size: the inverse is
+    // the text it replaced, guarded by what this write wrote, so ⌘Z can only
+    // take back this tab's own words and somebody else's land as a refusal.
+    case "doc":
+      return documentTextOf(at, edit)
+    // Nothing takes a minted file back: there is no document removal on ANY
+    // face, which is an equal absence rather than a deviation — the shape
+    // `parity-unarchive` was in until #147 gave the archive its way out, and
+    // the same argument applies here. So the un-create cannot be spelled, and
+    // the entry says so by answering nothing rather than by leaving a ⌘Z that
+    // quietly does nothing.
+    case "docNew":
+    case "docDay":
+      return []
   }
+}
+
+/** The text a document holds, as the edit that would put it back — and nothing
+ *  for a path the reading does not hold, whose write the ops layer is about to
+ *  refuse in its own words. */
+const documentTextOf = (
+  at: Reading,
+  edit: Extract<Edit, { verb: "doc" }>,
+): ReadonlyArray<Edit> => {
+  const document = at.set.documents.find((entry) => entry.file === edit.file)
+  if (document === undefined) return []
+  return [{ verb: "doc", file: edit.file, text: document.text, was: edit.text }]
+}
+
+/** Where a row about to be archived sits, as the unarchive that would bring it
+ *  back there — and nothing at all for an id this reading does not hold or for
+ *  a placement, which the archive itself is about to refuse. */
+const unarchiveOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
+  const located = derived.byId.get(id)
+  if (located === undefined || isMirror(located.node)) return []
+  const parent = located.node.parent
+  return [{
+    verb: "unarchive",
+    id,
+    ...(parent === undefined ? { file: located.file } : { parent }),
+  }]
 }
 
 /** Where a row sits, as the one edit that would put it back there — and

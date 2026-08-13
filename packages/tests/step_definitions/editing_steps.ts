@@ -273,6 +273,23 @@ Then(
   },
 );
 
+/** The same, plus WHERE — the half presence cannot answer, asked by TITLE
+ *  because a row a keystroke created carries an id nobody chose. A restore
+ *  that put every id back at the top level would satisfy the step above and
+ *  fail this one. */
+Then(
+  "{string} holds a node titled {string} under {string}",
+  async function (this: OlaiWorld, file: string, title: string, parent: string) {
+    await this.waitUntil(
+      async () =>
+        this.servedNodes(file).some(
+          (node) => node["title"] === title && node["parent"] === parent,
+        ),
+      `${file} to hold ${JSON.stringify(title)} under ${JSON.stringify(parent)}`,
+    );
+  },
+);
+
 /** Nothing was written, and it STAYS unwritten for a while — read once, this
  *  would pass against a client that wrote a moment later, which is exactly the
  *  thing "a draft is not a write" claims did not happen. The window is a

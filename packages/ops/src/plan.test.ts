@@ -11,6 +11,7 @@
 import {
   derive,
   type Node,
+  nodesOf,
   type OpFailure,
   type OutlineSet,
   type RegularNode,
@@ -1087,6 +1088,257 @@ describe("archive", () => {
   })
 })
 
+// ── unarchive ──────────────────────────────────────────────────────────
+
+describe("unarchive", () => {
+  /** The set a plan leaves behind: every file re-serialized through the
+   *  format's own writer and re-parsed, which is the path a real write takes.
+   *  What the unarchive tests need it for is the archive op's OWN output — a
+   *  hand-written archive that drifted from what `planArchive` writes would
+   *  test a fixture rather than the inverse. */
+  const after = (set: OutlineSet, request: Request): OutlineSet => {
+    const texts = Object.fromEntries(
+      set.files.map((file) => [
+        file,
+        serializeOutline(nodesOf(set.nodes, file).map((located) => located.node)),
+      ]),
+    )
+    for (const file of planned(set, request).files) {
+      texts[file.file] = serializeOutline(file.nodes)
+    }
+    return setOf(texts)
+  }
+
+  test("the subtree comes back out, where the recorded chain says it came from", () => {
+    const set = after(house(), { op: "archive", id: "order" })
+    const result = planned(set, { op: "unarchive", id: "order" })
+
+    const source = fileOf(result, "house.jsonl")
+    expect(record(source, "order").parent).toBe("kitchen")
+    // Last among its new siblings: the archive does not record where in the
+    // row it sat, and the honest answer is the one every other arrival gets.
+    expect(childOrder(source, "kitchen")).toEqual(["demo", "install", "order"])
+    // The scaffold the removal left empty is tidied away, so archive-then-
+    // unarchive leaves the archive as it stood.
+    expect(fileOf(result, "Archive.jsonl")).toEqual([])
+    expect(result.summary).toBe("unarchive: order the cabinets")
+    expect(result.file).toBe("house.jsonl")
+  })
+
+  test("descendants come back along, shaped as they were", () => {
+    const start = setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order"}`,
+        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","done":"2026-07-01"}`,
+        `{"id":"sign","parent":"quote","ord":"a0","title":"sign it"}`,
+      ].join("\n"),
+    })
+    const set = after(start, { op: "archive", id: "order" })
+    const source = fileOf(planned(set, { op: "unarchive", id: "order" }), "house.jsonl")
+    expect(source.map((node) => node.id)).toEqual(["kitchen", "order", "quote", "sign"])
+    expect(record(source, "quote").parent).toBe("order")
+    expect(record(source, "sign").parent).toBe("quote")
+    // Nothing was stamped on the way in, and nothing is on the way out.
+    expect(record(source, "quote").done).toBe("2026-07-01")
+    expect(record(source, "sign").done).toBeUndefined()
+  })
+
+  test("an explicit `parent` overrides the chain", () => {
+    const set = after(house(), { op: "archive", id: "order" })
+    const source = fileOf(
+      planned(set, { op: "unarchive", id: "order", parent: "loose" }),
+      "house.jsonl",
+    )
+    expect(record(source, "order").parent).toBe("loose")
+  })
+
+  test("an explicit `file` lands it at top level", () => {
+    const set = after(house(), { op: "archive", id: "order" })
+    const source = fileOf(
+      planned(set, { op: "unarchive", id: "order", file: "house.jsonl" }),
+      "house.jsonl",
+    )
+    expect(record(source, "order").parent).toBeUndefined()
+    expect(source.filter((node) => node.parent === undefined).map((node) => node.id))
+      .toEqual(["kitchen", "loose", "order"])
+  })
+
+  test("a node that was never put away is refused", () => {
+    const failure = refused(house(), { op: "unarchive", id: "order" })
+    expect(failure.message).toContain("not an archive")
+  })
+
+  test("a mirror's id is refused, naming the node it shows", () => {
+    const set = setOf({
+      "Archive.jsonl": `{"id":"x","ord":"a0","title":"x"}`,
+      "week.jsonl": `{"id":"m","ord":"a0","mirror":"x"}`,
+    })
+    expect(refused(set, { op: "unarchive", id: "m" }).message).toContain("is a mirror")
+  })
+
+  test("a chain that matches nowhere is refused, naming the chain", () => {
+    const set = setOf({
+      "house.jsonl": KITCHEN,
+      "Archive.jsonl": [
+        `{"id":"n9","ord":"a0","title":"Old kitchen"}`,
+        `{"id":"gone","parent":"n9","ord":"a0","title":"something"}`,
+      ].join("\n"),
+    })
+    const failure = refused(set, { op: "unarchive", id: "gone" })
+    expect(failure.message).toContain("`Old kitchen`")
+    expect(failure.message).toContain("matches nothing")
+    expect(failure.message).toContain("`parent`")
+  })
+
+  test("a chain that matches more than one place is refused, naming each", () => {
+    const set = setOf({
+      "house.jsonl": KITCHEN,
+      "flat.jsonl": `{"id":"twin","ord":"a0","title":"Kitchen remodel"}`,
+      "Archive.jsonl": [
+        `{"id":"n9","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"gone","parent":"n9","ord":"a0","title":"something"}`,
+      ].join("\n"),
+    })
+    const failure = refused(set, { op: "unarchive", id: "gone" })
+    expect(failure.message).toContain("more than one place")
+    expect(failure.message).toContain("`kitchen`")
+    expect(failure.message).toContain("`twin`")
+  })
+
+  test("a top-level node goes back to the one outline beside its archive", () => {
+    const set = after(house(), { op: "archive", id: "loose" })
+    const source = fileOf(planned(set, { op: "unarchive", id: "loose" }), "house.jsonl")
+    expect(record(source, "loose").parent).toBeUndefined()
+  })
+
+  test("a top-level node with outlines to choose from is refused, naming them", () => {
+    const set = setOf({
+      "house.jsonl": KITCHEN,
+      "flat.jsonl": `{"id":"other","ord":"a0","title":"elsewhere"}`,
+      "Archive.jsonl": `{"id":"x","ord":"a0","title":"was top level"}`,
+    })
+    const failure = refused(set, { op: "unarchive", id: "x" })
+    expect(failure.message).toContain("top level")
+    expect(failure.message).toContain("`house.jsonl`")
+    expect(failure.message).toContain("`flat.jsonl`")
+  })
+
+  test("an archive is not a destination", () => {
+    const set = setOf({
+      "house.jsonl": KITCHEN,
+      "Archive.jsonl": [
+        `{"id":"kept","ord":"a0","title":"kept"}`,
+        `{"id":"x","ord":"a1","title":"was top level"}`,
+      ].join("\n"),
+    })
+    expect(refused(set, { op: "unarchive", id: "x", file: "Archive.jsonl" }).message)
+      .toContain("OUT of an archive")
+    expect(refused(set, { op: "unarchive", id: "x", parent: "kept" }).message)
+      .toContain("OUT of an archive")
+  })
+
+  test("scaffold still holding a sibling stays; only the emptied chain goes", () => {
+    const once = after(house(), { op: "archive", id: "order" })
+    const set = after(once, { op: "archive", id: "install" })
+    const archive = fileOf(planned(set, { op: "unarchive", id: "order" }), "Archive.jsonl")
+    // `install` is still put away under the same merged chain, so the scaffold
+    // above it is not empty and is not tidied.
+    expect(archive.map((node) => node.id)).toEqual(["n1", "install"])
+    expect(record(archive, "install").parent).toBe("n1")
+  })
+
+  test("a scaffold record something still names is kept", () => {
+    const set = setOf({
+      "house.jsonl": [
+        KITCHEN,
+        `{"id":"note","parent":"kitchen","ord":"a3","title":"see the old plan","see":["n9"]}`,
+      ].join("\n"),
+      "Archive.jsonl": [
+        `{"id":"n9","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"gone","parent":"n9","ord":"a0","title":"something"}`,
+      ].join("\n"),
+    })
+    const archive = fileOf(
+      planned(set, { op: "unarchive", id: "gone", parent: "kitchen" }),
+      "Archive.jsonl",
+    )
+    expect(archive.map((node) => node.id)).toEqual(["n9"])
+  })
+
+  /**
+   * THE SIGNPOST IS NOT A NODE (review of #147, S1/S2).
+   *
+   * `archive` writes two kinds of record: the subtree it MOVED, ids and all,
+   * and above it a scaffold of the live ancestors' TITLES under freshly minted
+   * ids. The Trash draws both, and the scaffold is the root row — so "put this
+   * pile back" is the click that reaches for it first. Restoring one mints a
+   * second live node carrying a title the set already has, and hangs the
+   * archived rows off the copy instead of the original.
+   */
+  /** One archive's records, read off the set the plan produced. */
+  const archived = (set: OutlineSet): ReadonlyArray<Node> =>
+    nodesOf(set.nodes, "Archive.jsonl").map((located) => located.node)
+
+  test("the signpost the archive minted above a node is not restorable", () => {
+    const set = after(house(), { op: "archive", id: "order" })
+    // `n1` is that scaffold: minted by `archive` to carry the LIVE `kitchen`'s
+    // title, and the root row of the Trash.
+    expect(record(archived(set), "n1")).toMatchObject({ title: "Kitchen remodel" })
+
+    const failure = refused(set, { op: "unarchive", id: "n1" })
+    expect(failure.message).toContain("Kitchen remodel")
+    // It names the live node that already carries the title, so the reader
+    // knows which one is the real one…
+    expect(failure.message).toContain("`kitchen`")
+    // …and what to put back instead.
+    expect(failure.message).toContain("what was put away")
+  })
+
+  test("a signpost part-way down the chain is refused the same way", () => {
+    // A two-deep chain, so the inner husk is the one that would duplicate a
+    // live node that is not the root.
+    const deep = setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
+        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote"}`,
+      ].join("\n"),
+    })
+    const set = after(deep, { op: "archive", id: "quote" })
+    expect(record(archived(set), "n2"))
+      .toMatchObject({ title: "order the cabinets", parent: "n1" })
+
+    const failure = refused(set, { op: "unarchive", id: "n2" })
+    expect(failure.message).toContain("order the cabinets")
+    expect(failure.message).toContain("`order`")
+  })
+
+  /** And the fence does NOT catch content that merely looks like scaffold: a
+   *  node carrying only a title kept its own id when `archive` moved it, and
+   *  nothing live is called what it is called. `loose` is exactly that. */
+  test("a title-only node the archive MOVED is still restorable", () => {
+    const set = after(house(), { op: "archive", id: "loose" })
+    const source = fileOf(planned(set, { op: "unarchive", id: "loose" }), "house.jsonl")
+    expect(record(source, "loose").title).toBe("a node with no children")
+  })
+
+  test("an emptied ancestor that is not bare scaffold is kept — it is content", () => {
+    const set = setOf({
+      "house.jsonl": KITCHEN,
+      "Archive.jsonl": [
+        `{"id":"was-real","ord":"a0","title":"a whole archived branch","done":"2026-07-01"}`,
+        `{"id":"leaf","parent":"was-real","ord":"a0","title":"its one leaf"}`,
+      ].join("\n"),
+    })
+    const archive = fileOf(
+      planned(set, { op: "unarchive", id: "leaf", parent: "kitchen" }),
+      "Archive.jsonl",
+    )
+    expect(archive.map((node) => node.id)).toEqual(["was-real"])
+  })
+})
+
 // ── see ────────────────────────────────────────────────────────────────
 
 describe("see", () => {
@@ -1584,6 +1836,96 @@ describe("unmirror", () => {
  * one-line diffs that merge, and an op that quietly renumbered a row or
  * re-spelled a date would be a conflict about nothing.
  */
+describe("documents", () => {
+  const NOTES = "# Notes\n\nwhat was here before\n"
+  const vault = (): OutlineSet =>
+    setOf({ "house.jsonl": KITCHEN }, [["notes/notes.md", NOTES], "flat.md"])
+
+  test("a write replaces the text whole, and touches no outline", () => {
+    const outcome = planned(vault(), {
+      op: "doc",
+      file: "notes/notes.md",
+      text: "# Notes\n\nrewritten\n",
+    })
+    expect(outcome.files).toEqual([])
+    expect(outcome.documents).toEqual([
+      { file: "notes/notes.md", text: "# Notes\n\nrewritten\n" },
+    ])
+    // The unit is the file, so the reply names it the way an outline write
+    // names its node.
+    expect(outcome.id).toBe("notes/notes.md")
+    expect(outcome.summary).toBe("doc: notes/notes.md")
+  })
+
+  test("a `was` that matches plans; one the file has moved past is refused", () => {
+    const conditional = planned(vault(), {
+      op: "doc",
+      file: "notes/notes.md",
+      text: "new",
+      was: NOTES,
+    })
+    expect(conditional.documents).toEqual([{ file: "notes/notes.md", text: "new" }])
+
+    const failure = refused(vault(), {
+      op: "doc",
+      file: "notes/notes.md",
+      text: "new",
+      was: "# Notes\n\nwhat this editor read, before vim got there\n",
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("has changed since it was read")
+    // Deliberately NOT quoting either text: a document is not a title, and
+    // the caller re-reads the file rather than a sentence.
+    expect(failure.message).not.toContain("vim got there")
+  })
+
+  test("a path the set does not hold is refused with the closest one that exists", () => {
+    const near = refused(vault(), { op: "doc", file: "notes/notez.md", text: "x" })
+    expect(near._tag).toBe("NotFoundFailure")
+    expect(near.message).toContain("notes/notes.md")
+
+    const far = refused(vault(), { op: "doc", file: "elsewhere.md", text: "x" })
+    expect(far._tag).toBe("NotFoundFailure")
+    expect(far.message).toContain("create_document")
+  })
+
+  test("a document that could not be read is never overwritten from a set that lost it", () => {
+    const set = setOf({}, [], { "broken.md": "anything at all" })
+    const failure = refused(set, { op: "doc", file: "broken.md", text: "x" })
+    expect(failure._tag).toBe("ValidationFailure")
+    expect(failure.message).toContain("Fix the file first")
+  })
+
+  test("create mints the file, empty or holding its text", () => {
+    const empty = planned(vault(), { op: "create-doc", file: "ideas.md" })
+    expect(empty.documents).toEqual([{ file: "ideas.md", text: "" }])
+    expect(empty.summary).toBe("create: ideas.md")
+
+    const seeded = planned(vault(), {
+      op: "create-doc",
+      file: "Daily/2026/08/2026-08-13.md",
+      text: "# Today\n",
+    })
+    expect(seeded.documents).toEqual([
+      { file: "Daily/2026/08/2026-08-13.md", text: "# Today\n" },
+    ])
+  })
+
+  test("create refuses a path that exists — write is what edits one", () => {
+    const failure = refused(vault(), { op: "create-doc", file: "flat.md" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("write_document")
+  })
+
+  test("create judges the path the way every minted path is judged", () => {
+    for (const path of ["/etc/notes.md", "../up.md", "a/./b.md", "notes.txt", ""]) {
+      const failure = refused(vault(), { op: "create-doc", file: path })
+      expect(failure._tag).toBe("UsageFailure")
+      expect(failure.message).toContain("is not a relative `.md` path")
+    }
+  })
+})
+
 describe("round trip", () => {
   const LEDGER = [
     `{"id":"now","ord":"a0","title":"Now"}`,

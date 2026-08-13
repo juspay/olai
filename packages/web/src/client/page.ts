@@ -19,7 +19,15 @@
  */
 
 import type { Agenda, BrokenFile, DayGroup, Derived, Row, Zoomed } from "@olai/format"
-import { agendaOf, dailyNotesOn, datedOn, rowsOf, rowsUnder, zoom } from "@olai/format"
+import {
+  agendaOf,
+  dailyNotesOn,
+  datedOn,
+  isArchived,
+  rowsOf,
+  rowsUnder,
+  zoom,
+} from "@olai/format"
 
 import type { Route } from "./routes.ts"
 
@@ -53,6 +61,12 @@ export type Page =
    *  spells no date and a page that says what is overdue owes the reader the
    *  day it is overdue as of. */
   | { readonly kind: "agenda"; readonly date: string; readonly agenda: Agenda }
+  /** What was put away: every archive the directory holds, in path order — an
+   *  EMPTY list is a real page (nothing has been archived yet), never a
+   *  missing one. Read-only by design: the one verb its rows offer is the way
+   *  back out, and the archive tool re-creates the file on first use, so an
+   *  absent archive and an empty trash are the same sight. */
+  | { readonly kind: "trash"; readonly files: ReadonlyArray<string> }
   /** An outline whose file did not parse: it has no tree to draw, so its own
    *  pane carries its errors instead. Every other outline is unaffected. */
   | { readonly kind: "broken"; readonly file: BrokenFile }
@@ -100,6 +114,8 @@ export const pageOf = (
     return { kind: "agenda", date: today, agenda: agendaOf(derived, today) }
   }
 
+  if (route.kind === "trash") return trashOf(found)
+
   if (route.kind === "day" || route.kind === "today") {
     const date = route.kind === "today" ? today : route.date
     return {
@@ -114,9 +130,12 @@ export const pageOf = (
     }
   }
 
-  // `/` is whichever outline was found first; a named one has to be served.
+  // `/` is whichever outline was found first — skipping the archives, which
+  // are the trash's to show and nobody's front page. A named one has to be
+  // served, and naming an archive opens the trash: an archive is not a place
+  // you edit, so the address a sidebar used to link goes where the entry went.
   const file = route.file === null
-    ? found.files[0]
+    ? found.files.find((candidate) => !isArchived(candidate))
     : found.files.includes(route.file)
     ? route.file
     : undefined
@@ -127,11 +146,20 @@ export const pageOf = (
       requested: found.files.length === 0 ? null : route.file,
     }
   }
+  if (isArchived(file)) return trashOf(found)
   const unreadable = found.broken.get(file)
   return unreadable === undefined
     ? { kind: "outline", file }
     : { kind: "broken", file: unreadable }
 }
+
+/** The trash page: the archives the directory holds, in the path order the
+ *  sidebar sorts by. One spelling for the route and for an archive's own
+ *  address, so the two doors cannot show two different trashes. */
+const trashOf = (found: Found): Page => ({
+  kind: "trash",
+  files: found.files.filter(isArchived),
+})
 
 /** The file the open page belongs to — the sidebar entry to light up, in
  *  whichever of its two lists. A zoomed node belongs to the file its CANONICAL

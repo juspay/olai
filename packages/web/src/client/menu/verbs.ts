@@ -25,7 +25,7 @@
  * that greyed that entry out would be teaching a rule this app does not have.
  */
 
-import { ARCHIVE, type Derived, isMirror, MARKS, type Row, type Status } from "@olai/format"
+import { type Derived, isMirror, MARKS, type Row, type Status } from "@olai/format"
 import type { Edit } from "@olai/surface"
 
 import { datePick } from "../date/pick.ts"
@@ -165,14 +165,18 @@ export const writeVerbs = (
       does: sends({ verb: "unmirror", id: row.at.node.id }),
     })
   } else if (shown !== undefined && derived !== undefined) {
-    // ARCHIVE is drawn on a node's own row and not on a mirror of it, which is
-    // the same split as the verb above rather than a missing case: the reader
-    // is looking at a placement, and the verb for a placement is retiring it.
-    // Archiving from here would put away a subtree that lives somewhere else,
-    // out of sight, on a click that reads as being about this line.
+    // The put-away is drawn on a node's own row and not on a mirror of it,
+    // which is the same split as the verb above rather than a missing case:
+    // the reader is looking at a placement, and the verb for a placement is
+    // retiring it. Archiving from here would put away a subtree that lives
+    // somewhere else, out of sight, on a click that reads as being about this
+    // line. The entry SPEAKS Trash — the human-facing name for the archive
+    // (`../trash/TrashPage.tsx`) — while the id below, the wire verb and the
+    // op stay `archive`: the file is still `Archive.jsonl` and the agent's
+    // tool is still `archive_node`; only the surface a person reads renames.
     verbs.push({
       id: "archive",
-      label: "Archive",
+      label: "Move to Trash",
       does: sends({ verb: "archive", id: shown.node.id }),
       // Counted over the SET rather than over this row's children: what the
       // write moves is not what the page happens to be drawing (`./subtree.ts`).
@@ -184,21 +188,23 @@ export const writeVerbs = (
 }
 
 /**
- * What the menu asks before it archives — the human's ruling (2026-08-12), in
- * two halves that both matter.
+ * What the menu asks before it moves a subtree to the Trash — the human's
+ * ruling (2026-08-12), in two halves that both matter.
  *
- * The BLAST RADIUS, because a subtree archive is the one menu verb whose reach
- * is bigger than the line it was chosen on, and a count is the only honest way
- * to say so on a row whose children may be collapsed.
+ * The BLAST RADIUS, because this is the one menu verb whose reach is bigger
+ * than the line it was chosen on, and a count is the only honest way to say so
+ * on a row whose children may be collapsed.
  *
- * And WHERE IT GOES, because the word "archive" invites a reader to assume a
- * bin they can open, and there is no unarchive on any face yet
- * (`parity-unarchive`). The file is the restore path, so the file is named.
+ * And THE WAY BACK, because "Trash" invites a reader to assume a bin they can
+ * open — and now there is one (`parity-unarchive`): the sidebar's Trash shows
+ * what was put away, and `Put back` on a row restores it. When the confirm
+ * first shipped there was no unarchive on any face, so it named the file as
+ * the restore path; the promise it makes moved with the feature.
  */
 const archiveQuestion = (title: string, rows: number): string =>
   rows === 0
-    ? `Archive “${title}”? It goes to ${ARCHIVE} with its id kept — ` +
-      `there is no unarchive yet, so bringing it back means editing that file.`
-    : `Archive “${title}” and the ${rows === 1 ? "row" : `${rows} rows`} under it? ` +
-      `They go to ${ARCHIVE} with their ids kept — there is no unarchive yet, ` +
-      `so bringing them back means editing that file.`
+    ? `Move “${title}” to the Trash? It keeps its id, and the Trash in the ` +
+      `sidebar is where to put it back.`
+    : `Move “${title}” and the ${rows === 1 ? "row" : `${rows} rows`} under it ` +
+      `to the Trash? They keep their ids, and the Trash in the sidebar is ` +
+      `where to put them back.`

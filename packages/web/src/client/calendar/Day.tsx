@@ -25,9 +25,15 @@
  * Either of the first two makes the cell a LINK — the day has something to
  * show, whether the reader wrote it or the set did.
  *
- * A day with neither is INERT: a dim number, no link, nothing to press.
- * Pressing it could only mean "write something here", and this pane writes
- * nothing — that arrives with the editing ops.
+ * A day with neither used to be INERT — pressing it could only mean "write
+ * something here", and this pane wrote nothing. The editing ops arrived, and
+ * the roadmap's own ruling with them: a bare day is now the creation
+ * affordance for that day's NOTE. Pressing one mints the note where the
+ * vault's own convention keeps them (the server reads it off the newest
+ * existing daily note — `docDay` in the edit surface) and lands in its
+ * editor. It still LOOKS like a quiet number, because a month of empty days
+ * is not thirty invitations; the affordance is the hover, the cursor and the
+ * label.
  *
  * The box is the same size in every state, so the month does not jump about as
  * a reader moves through it.
@@ -89,6 +95,10 @@ export function Day(props: {
   readonly today: boolean
   /** This is the day the open page is of. */
   readonly open: boolean
+  /** Mint this day's note — what pressing a BARE day means now that documents
+   *  are writable. The calendar owns the write; the cell only says which day
+   *  was pressed. */
+  readonly mint: (date: string) => void
 }) {
   /** The cell has SOMETHING to show — from the set, or from a file somebody
    *  wrote. It is what decides the ink, the hover and the link; which of the
@@ -157,7 +167,21 @@ export function Day(props: {
     >
       <Show
         when={live()}
-        fallback={<span class={look()}>{dayNumber(props.date)}</span>}
+        fallback={
+          <button
+            type="button"
+            // The quiet number it always was, with the affordance on approach:
+            // a month of empty days must not read as thirty invitations, and
+            // the hover, the cursor and the label are what say "pressable".
+            class={`${look()} w-full cursor-pointer border-dashed bg-transparent hover:border-rule hover:text-ink`}
+            data-testid={TESTID.calendarMint}
+            aria-label={`${props.date}, no note yet — create this day's note`}
+            title={`create ${props.date}'s note`}
+            onClick={() => props.mint(props.date)}
+          >
+            {dayNumber(props.date)}
+          </button>
+        }
       >
         <Link
           route={{ kind: "day", date: props.date }}

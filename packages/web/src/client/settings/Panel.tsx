@@ -12,12 +12,12 @@
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
- * theme, and what a page does with finished work. The layout values in
- * `../layout/prefs.ts` are stored the same way and are deliberately NOT here —
- * a sidebar width is set by dragging the sidebar, and a panel being open is set
- * by the control that opens it. Copying them into a settings list would be a
- * second control for something that already has one, which is the redundancy
- * `one-git-indicator` was filed over.
+ * theme, the typeface, and what a page does with finished work. The layout
+ * values in `../layout/prefs.ts` are stored the same way and are deliberately
+ * NOT here — a sidebar width is set by dragging the sidebar, and a panel
+ * being open is set by the control that opens it. Copying them into a
+ * settings list would be a second control for something that already has
+ * one, which is the redundancy `one-git-indicator` was filed over.
  *
  * Every row is `./Row.tsx`: a label, a control, and a line under it read off
  * the choice in force.
@@ -34,6 +34,8 @@ import { doneHidden, setDoneHidden } from "./done.ts"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
 import { TESTID } from "../testids.ts"
+import { FontSelect } from "../theme/FontSelect.tsx"
+import { currentTypeface } from "../theme/fontState.ts"
 import { ThemeChips } from "../theme/Chips.tsx"
 import { currentTheme } from "../theme/state.ts"
 
@@ -70,6 +72,10 @@ export function Panel(props: {
         <ThemeChips />
       </Row>
 
+      <Row label="Font" pref="font" hint={fontHint()}>
+        <FontSelect />
+      </Row>
+
       <Row label="Done" pref="done" hint={doneHint()}>
         <Segmented
           choices={DONE_CHOICES}
@@ -97,6 +103,8 @@ export function Panel(props: {
 const themeHint = (): string =>
   `${currentTheme()} is in force. Every colour on the page is this one table, ` +
   `so a pick repaints all of them at once.`
+
+const fontHint = (): string => currentTypeface().hint
 
 const doneHint = (): string =>
   doneHidden()

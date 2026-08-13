@@ -36,8 +36,12 @@
  * it arrives.
  */
 
-import { createMemo, createSelector, For, Show } from "solid-js"
+import { createMemo, createSelector, createSignal, For, Show } from "solid-js"
 
+import { mintAndOpen } from "../document/minted.ts"
+import { useUndo } from "../edit/undoing.ts"
+import { Refused } from "../Refused.tsx"
+import { useRouter } from "../router.tsx"
 import { createStamped } from "../stamped.ts"
 import { TESTID, type TestId } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
@@ -73,6 +77,23 @@ export function Calendar(props: {
 
   const dated = createMemo(() => props.days(month()))
   const noted = createMemo(() => props.noted(month()))
+
+  const undo = useUndo()
+  const router = useRouter()
+  const [minting, setMinting] = createSignal<string | null>(null)
+
+  /**
+   * A bare day, pressed: mint that day's note and land in its editor.
+   *
+   * The cell sends the DATE and nothing else — where the vault keeps its daily
+   * notes is the server's to read off the set (`docDay`), so the path comes
+   * back on the answer and is the one thing this page cannot know in advance.
+   * A refusal (two mints racing, a note arriving from another writer between
+   * frames) is drawn under the grid, verbatim, until the month is used again.
+   */
+  const mint = async (date: string): Promise<void> => {
+    setMinting(await mintAndOpen({ verb: "docDay", date }, undo.record, router.go))
+  }
 
   // Which cell is FILLED, as a selector rather than `day() === props.open` in
   // each of them: that form subscribes all thirty-odd days to the open one, so
@@ -124,11 +145,16 @@ export function Calendar(props: {
                   noted={noted().has(day())}
                   today={day() === props.today}
                   open={isOpen(day())}
+                  mint={(date) => void mint(date)}
                 />
               )}
             </Show>
           )}
         </For>
+      </div>
+
+      <div class="mt-2 empty:mt-0">
+        <Refused said={minting()} testid={TESTID.calendarSaid} compact />
       </div>
     </section>
   )
