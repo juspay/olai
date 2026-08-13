@@ -43,6 +43,8 @@ second copy of the transcript would be a second thing to be wrong.
 | `wrote.ts` | the other half of the same question, for a write that went through the ops layer: the reply's own classification of the change, its node, and the rollup's nudge. Never a diff — a `.jsonl` diff is one enormous line |
 | `transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
 | `attachments.ts` | the conversation's tmp directory: where an attached file lands, what a chunked upload may continue, and what the prompt says about it |
+| `context.ts` | the nodes a message is ABOUT, on their way into the prompt: one line per node, the id in backticks. Its sibling above is the argument — a handle the agent can act on, never a copy of the thing |
+| `prompt.ts` | the one rule for putting lines UNDER a message — a blank line between what a person wrote and what olai added, nothing at all to add when there is nothing, and the lines alone when there were no words. The two files above own only their own line |
 | `chat.ts` | the join, and the only place that knows both halves |
 
 A tool call is not instantaneous, so a frame is not just a status that flips.

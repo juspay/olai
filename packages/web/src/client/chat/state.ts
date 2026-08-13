@@ -127,16 +127,22 @@ export interface Chat {
    *  signal of its own: a refusal drawn in two places is one a reader learns
    *  to skip in both. */
   readonly refuse: (reasons: ReadonlyArray<string>) => void
-  /** What was typed, and the files already attached to it — by the paths
-   *  {@link Chat.attach} answered with.
+  /** What was typed, the files already attached to it — by the paths
+   *  {@link Chat.attach} answered with — and the nodes it is ABOUT, by id.
    *
    *  Answers whether the server TOOK it. A composer clears the box the moment
    *  it sends, which is right — but a send that was refused has to be able to
    *  put back what it threw away, and the refusal alone does not say what the
-   *  message was. */
+   *  message was.
+   *
+   *  IDS for the context and not the nodes themselves: what this tab drew is a
+   *  frame old, and the set is the server's to read (`server/src/context.ts`).
+   *  A refusal here is usually exactly that — an armed node the set no longer
+   *  declares — and it says so in the ops layer's own words. */
   readonly send: (
     text: string,
     attachments: ReadonlyArray<string>,
+    context: ReadonlyArray<string>,
   ) => Promise<boolean>
   /** Send a file to the conversation's tmp directory, chunk by chunk, and
    *  answer with what became of it.
@@ -248,11 +254,11 @@ export const createChat = (): Chat => {
           ? null
           : new UsageFailure({ reason: reasons.join("\n") }),
       ),
-    send: (text, attachments) =>
+    send: (text, attachments, context) =>
       new Promise((resolve) => {
         setRefused(null)
         run(
-          olai.procedures.chat.send({ text, attachments }),
+          olai.procedures.chat.send({ text, attachments, context }),
           (failure) => {
             setRefused(failure)
             resolve(false)

@@ -469,6 +469,10 @@ export const TESTID = {
   chatAskOutcome: "chat-ask-outcome",
   /** A tool call's row; `data-tool-status` is the agent's own status. */
   chatTool: "chat-tool",
+  /** The line that opens a tool call. Named rather than found as "the button
+   *  in the frame": the frame also draws what the call CHANGED, and the node
+   *  an olai write was about is a control there too. */
+  chatToolFold: "chat-tool-fold",
   chatToolDetail: "chat-tool-detail",
   /** What a call is SAYING as it runs — the protocol's incremental content,
    *  drawn above the arguments because it is the live half. */
@@ -542,6 +546,17 @@ export const TESTID = {
    *  is: it is the only one holding the bytes. */
   chatAttachmentSize: "chat-attachment-size",
   chatAttachmentRemove: "chat-attachment-remove",
+  /** The nodes a message is ABOUT — armed in the composer, or sent, on the row.
+   *  Each one is a `chatContextChip` carrying its node id in `data-node`. */
+  chatContext: "chat-context",
+  chatContextChip: "chat-context-chip",
+  /** Take an armed node back off before the message goes. */
+  chatContextRemove: "chat-context-remove",
+  /** A node NAMED in the panel and pressable: a context chip, or the node an
+   *  olai write was about. Carries the id in `data-node-ref`, which is the same
+   *  attribute the ids in the agent's own prose are marked with — one selector
+   *  for every reference, however it got there (`chat/refs.ts`). */
+  chatNodeRef: "chat-node-ref",
   /** The file picker beside the input — a phone has no Ctrl+V. */
   chatAttachButton: "chat-attach",
   /** The button that opens the WHOLE command list. Drawn only when the agent

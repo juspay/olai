@@ -7,8 +7,11 @@
  * nobody had chosen, and going back landed wherever the redraw happened to
  * leave things. Neither is a decision; both are what happens when nobody makes
  * one. This is the decision: a page you go TO starts at the top, a page you go
- * BACK to is where you left it, and every statement that moves the page is in
- * here — including telling the browser to stop moving it itself. ./router.tsx
+ * BACK to is where you left it, and every statement a NAVIGATION makes about
+ * where the page is is in here — including telling the browser to stop moving
+ * it itself. (The one statement outside it is ./focus.ts's, which moves a page
+ * that is not navigating anywhere: a row somebody asked to be shown, brought
+ * into view where they are.) ./router.tsx
  * says WHICH of the two a navigation gets, because a push and a pop are the one
  * thing it knows that this module does not.
  *

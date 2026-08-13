@@ -45,6 +45,7 @@ import {
   CHAT_OFF,
   type ChatEntry,
   type ChatState,
+  type NodeContext,
   type OpFailure,
   type SessionInfo,
 } from "@olai/surface"
@@ -54,6 +55,7 @@ import { Effect, Fiber, Semaphore } from "effect"
 import type { Adapter } from "./adapter.ts"
 import * as AcpAgent from "./agent.ts"
 import * as Attachments from "./attachments.ts"
+import * as Context from "./context.ts"
 import type { AgentEvent } from "./events.ts"
 import { type Change, Transcript } from "./transcript.ts"
 
@@ -84,13 +86,20 @@ export interface Chat {
   /** The transcript as it stands — what a fresh subscription is seeded with. */
   readonly entries: () => ReadonlyMap<string, ChatEntry>
   readonly state: () => ChatState
-  /** Prompt the agent with what was typed, and with the pictures already
+  /** Prompt the agent with what was typed, with the pictures already
    *  attached to this conversation — by the paths {@link Chat.attach}
    *  answered with, which are re-checked here before any of them reaches a
-   *  prompt. */
+   *  prompt — and with the nodes the message is ABOUT.
+   *
+   *  The nodes arrive RESOLVED: a caller hands over what the set says they
+   *  are, because this package has no set to ask. Which is the layering the
+   *  manifest already states (`chat` does not depend on `ops`), read from the
+   *  other side — the composition root resolves the ids the browser armed and
+   *  this turns them into a line of the prompt. */
   readonly send: (
     text: string,
     attachments: ReadonlyArray<string>,
+    context: ReadonlyArray<NodeContext>,
   ) => Effect.Effect<void, OpFailure>
   /** One chunk of a picture into the conversation's own tmp directory,
    *  answering with where the whole file is and what it is called there. See
@@ -329,13 +338,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const send = (
       text: string,
       attachments: ReadonlyArray<string>,
+      context: ReadonlyArray<NodeContext>,
     ): Effect.Effect<void, OpFailure> =>
       Effect.gen(function*() {
         const said = text.trim()
         // A picture on its own IS a message — "what is this" with a
-        // screenshot under it is the usual way of asking — so an empty box is
-        // only empty when nothing is attached to it either.
-        if (said === "" && attachments.length === 0) {
+        // screenshot under it is the usual way of asking — and so is a node on
+        // its own, for the same reason and by the same rule: a box is only
+        // empty when nothing was aimed at the conversation with it.
+        if (said === "" && attachments.length === 0 && context.length === 0) {
           return yield* new UsageFailure({ reason: "there is nothing to send" })
         }
         // A path is not authority: it arrived over the wire, and the only ones
@@ -348,16 +359,22 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // the ROW carries is the file NAMES: the tmp path is for the agent,
         // and a reader wants to see which picture went with which message.
         publish(
-          transcript.add(
-            "user",
-            said,
-            attachments.length === 0
+          transcript.add("user", said, {
+            ...(attachments.length === 0
               ? {}
-              : { attachments: attachments.map(Attachments.nameOf) },
-          ),
+              : { attachments: attachments.map(Attachments.nameOf) }),
+            // The nodes as the set answered for them, in the row rather than
+            // only in the prompt: what the message was ABOUT is part of what
+            // was said, so it survives a reload and reaches the other tab like
+            // everything else here.
+            ...(context.length === 0 ? {} : { context }),
+          }),
         )
 
-        const prompt = Attachments.promptWith(said, attachments)
+        const prompt = Attachments.promptWith(
+          Context.promptWith(said, context),
+          attachments,
+        )
         if (turn !== null) {
           queue.push(prompt)
           move({ queued: queue.length, trouble: null })

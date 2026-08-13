@@ -366,6 +366,20 @@ export const surface = defineSurface({
            *  re-checked against the conversation's own directory here — a
            *  path that arrived over the wire names nothing on its own. */
           attachments: Schema.optionalKey(Schema.Array(Schema.String)),
+          /** The nodes this message is ABOUT, by ID — what "ask agent" on a
+           *  row armed the composer with.
+           *
+           *  IDS AND NOTHING ELSE, which is the decision worth naming: a
+           *  browser drew a row from a frame that is already some
+           *  milliseconds old, so a title or a `file:line` it sent would be
+           *  its account of the set rather than the set's. The id is the one
+           *  thing it can say that the server can resolve — and resolving it
+           *  is what the server does, against the same reading a keystroke's
+           *  write is judged against, so what reaches the agent is the node
+           *  as it IS. An id nothing declares refuses the send: the message
+           *  was about that node, and sending it without one would be asking
+           *  the agent to guess which. */
+          context: Schema.optionalKey(Schema.Array(Schema.String)),
         }),
         error: ChatFailure,
       },
@@ -476,6 +490,7 @@ export {
   isOpFailure,
   kindOf,
   MissingServer,
+  NodeContext,
   OpFailure,
   SessionInfo,
   UsageFailure,

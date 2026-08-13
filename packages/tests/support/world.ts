@@ -20,6 +20,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
+// Aliased: `NODE_REF` below is the see/after reference ELEMENT (`NodeRefs.tsx`),
+// and this is the ATTRIBUTE a pressable node reference in the chat panel
+// carries. Two different things, one word — so the import says which.
+import { NODE_REF as CHAT_NODE_REF_ATTR } from "@olai/web/src/client/chat/refs.ts";
 import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 import {
   setDefaultTimeout,
@@ -391,6 +395,7 @@ export const CHAT_NEW = selector(TESTID.chatNew);
 export const CHAT_ENTRY_STREAMING =
   `${selector(TESTID.chatEntry)}[data-kind="agent"][data-streaming="true"]`;
 export const CHAT_TOOL = selector(TESTID.chatTool);
+export const CHAT_TOOL_FOLD = selector(TESTID.chatToolFold);
 export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
 export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
 export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
@@ -429,6 +434,28 @@ export const CHAT_ATTACH_BUTTON = selector(TESTID.chatAttachButton);
 /** The panel saying a dragged file would land HERE. Present only while a drag
  *  carrying files is over the panel's body. */
 export const CHAT_DROP = selector(TESTID.chatDrop);
+/** A node a message is ABOUT — armed in the composer, or sent, on the row.
+ *  `data-node` is the id, which is what was armed and what was sent. */
+export const CHAT_CONTEXT = selector(TESTID.chatContext);
+export const CHAT_CONTEXT_CHIP = selector(TESTID.chatContextChip);
+export const CHAT_CONTEXT_REMOVE = selector(TESTID.chatContextRemove);
+/** What the agent said, rendered. Reached by the scenarios that ask whether an
+ *  id INSIDE it became a reference — everything else about an answer is read
+ *  off the transcript as text. */
+export const CHAT_SAID = selector(TESTID.chatSaid);
+/** A node named in the panel and pressable, by the id it points at. One
+ *  selector for all three shapes — a chip, the node an olai write was about,
+ *  and an id the agent wrote in its own prose — because they are one
+ *  affordance and a scenario should not have to know which produced it.
+ *
+ *  The ATTRIBUTE is imported from the client that writes it, like every other
+ *  name in this file: a rename over there is a type error here rather than a
+ *  timeout. Note the id it carries is the RESOLVED one — a span saying `echo`
+ *  points at the node `echo` is a placement of, because that is the node a
+ *  reader can be shown. */
+export const chatNodeRef = (id: string): string => `[${CHAT_NODE_REF_ATTR}="${id}"]`;
+/** ...and any of them at all, for the steps that assert an absence. */
+export const NODE_REF_ANY = `[${CHAT_NODE_REF_ATTR}]`;
 
 /** The app has finished its first render when it has committed to one of its
  *  three shapes: a docked header (the set loaded and the directory column is

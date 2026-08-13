@@ -24,6 +24,7 @@ import { Show } from "solid-js"
 
 import { GLYPH, SAID } from "../changes.ts"
 import { TESTID } from "../testids.ts"
+import { Reference } from "./Reference.tsx"
 
 export function Wrote(props: { readonly wrote: Written }) {
   /** A write that changed no record has no honest word for what it did, and
@@ -39,7 +40,21 @@ export function Wrote(props: { readonly wrote: Written }) {
     >
       <p class="flex items-baseline gap-2">
         <span class="w-3 shrink-0 text-muted" aria-hidden="true">{glyph()}</span>
-        <span class="min-w-0 truncate text-ink">{props.wrote.title}</span>
+        {/* The node itself, and pressing it shows you the row: this is the
+            reference a transcript carries most often, because every write the
+            agent makes through the ops layer draws one of these. `id` is the
+            reply's own — a row that came back without one says the same words
+            and simply does not point. */}
+        <Show
+          when={props.wrote.id}
+          fallback={<span class="min-w-0 truncate text-ink">{props.wrote.title}</span>}
+        >
+          {(id) => (
+            <Reference id={id()} class="min-w-0 truncate">
+              {props.wrote.title}
+            </Reference>
+          )}
+        </Show>
         <span class="ml-auto shrink-0 text-muted">{said()}</span>
       </p>
       {/* Which outline it landed in, quietly: one directory is many files, and

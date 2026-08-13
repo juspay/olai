@@ -184,6 +184,16 @@ accepted — and one file is N calls to one send. What `send` grew is a list of
 PATHS, which are what `attach` answered with; the bytes are already on disk by
 then, and the agent is handed the path and reads the file itself.
 
+`send` grew a second list on the same argument, and it is the one place this
+spec says an id rather than a value: the NODES a message is about, as ids.
+Everything else about them — title, `file:line`, the ancestors that make a bare
+title mean something — is the SET's answer, and the set is the server's to read;
+a browser sending its own would be sending a reading of a frame that is already
+old. So the id crosses the wire, the server resolves it against the same
+snapshot a keystroke's write is judged against, and the resolved `NodeContext`
+comes back on the sent message's own row — where it is what the message was
+about, rather than something a browser remembers about a message it drew.
+
 `attach` answers with the file's NAME as well as its path, and that is not a
 convenience. The name a caller SENT is a request: the server sanitizes it and
 suffixes a collision, so `shot.png` pasted twice is `shot.png` and `shot-1.png`,

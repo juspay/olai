@@ -296,6 +296,21 @@ const pathTo = (
   return walk(from, [])
 }
 
+/**
+ * "That id is a placement, not a node — name the node."
+ *
+ * Exported for the reason {@link notFound} is: a caller ABOVE this layer meets
+ * the same id and owes the same sentence. `@olai/server` resolves the nodes a
+ * chat message is about the same way an op resolves the node it edits, and a
+ * mirror is no more describable than it is editable — two spellings of this
+ * would be two answers to one question about one id.
+ */
+export const notANode = (id: string, target: string): OpFailure =>
+  new UsageFailure({
+    reason: `\`${id}\` is a mirror — a second placement of \`${target}\`, ` +
+      `not a node of its own. Name \`${target}\` instead.`,
+  })
+
 /** The record with this id, or the refusal that says so. A MIRROR is not an
  *  answer: it is a second placement of a node that lives elsewhere, and every
  *  op edits the node. */
@@ -303,13 +318,7 @@ const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFa
   const located = scope.derived.byId.get(id)
   if (located === undefined) return Result.fail(unknownId(scope, id))
   if (isMirror(located.node)) {
-    return Result.fail(
-      new UsageFailure({
-        reason:
-          `\`${id}\` is a mirror — a second placement of \`${located.node.mirror}\`, ` +
-          `not a node of its own. Name \`${located.node.mirror}\` instead.`,
-      }),
-    )
+    return Result.fail(notANode(id, located.node.mirror))
   }
   return Result.succeed(located as LocatedRegular)
 }

@@ -49,6 +49,48 @@ question arrives as a form in the conversation, and nothing times out.
 Dismissing one is an answer too — the agent is told you would not say, never
 handed a choice you did not make.
 
+## Asking about one node
+
+A row's `•••` menu offers **Ask agent**, and choosing it opens the panel with
+that node in the box — a chip above what you type, which you can take off again
+before you send. The turn is then about THAT node rather than about whatever
+your sentence re-describes: "why is this waiting?" needs no title in it, and two
+nodes with the same title are not a thing you have to disambiguate in prose.
+
+What the agent is handed is the node's **id**, with its title, its `file:line`
+and the titles it hangs under, as one line under your message — the same
+arrangement an attached file gets, and for the same reason: the id is the handle
+every one of olai's tools takes, so the agent can read the node, mark it, note
+it or move it through the same gate as always. What it is NOT handed is a copy
+of the node's contents: a subtree pasted into a prompt stops being true the
+moment anything writes, and the agent has `read_node` for the live one.
+
+The chip says the title, but the title is not what is sent. Rename the node
+between arming and sending and the agent gets the name it has now; archive it
+and the send is refused, in the same words a tool call gets for an id nothing
+declares — because a question about a node is not one to ask without it.
+
+## Pointing back at a node
+
+Ids in the panel are pressable, and pressing one shows you that node: the row
+scrolls into view and says it is the one being talked about. If it is not on the
+page you are reading — another outline, a branch you have collapsed — you go to
+its own page instead.
+
+Three things in the conversation are ids, and none of them is a syntax anybody
+had to invent:
+
+- the **chips on your own message**, which are the nodes you asked about;
+- **what a write changed** — every edit the agent makes through olai's tools
+  draws a line naming the node, and that name is the node;
+- **an id the agent wrote in backticks**, which is how it spells one anyway,
+  because that is how every one of these tools describes its own arguments. A
+  backticked word becomes pressable exactly when the outlines you have loaded
+  declare it: `notes.md` and `--commit=off` stay what they are. An id that
+  names a MIRROR shows you the node it is a placement of — the same place a
+  `see` to that mirror lands, and the only one there is: a mirror is drawn
+  wherever its target is, and it is the target a row stands for.
+
 ## What it shows when it changes something
 
 A tool call is one folded line, and what the call CHANGED is not folded away —
