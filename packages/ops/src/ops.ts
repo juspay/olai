@@ -279,7 +279,7 @@ export const make = (options: Options): Ops => {
         // the two readings this write is made of, which are both still in
         // hand. A reader that DRAWS a write rather than logging one needs a
         // word it can switch on, and the summary above is a commit subject.
-        const sort = sortOfWrite(snapshot.value as OutlineSet, files, documents, about.id)
+        const sort = sortOfWrite(snapshot.value as OutlineSet, planned.success)
         return {
           ...about,
           rev: written.success,

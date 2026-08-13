@@ -17,22 +17,20 @@
  * keystroke replaces the text it was about.
  */
 
-import { Result } from "effect"
 import { createSignal, Show } from "solid-js"
 
 import { useUndo } from "../edit/undoing.ts"
-import type { Said } from "../edit/undoing.ts"
+import { Refused } from "../Refused.tsx"
 import { useRouter } from "../router.tsx"
 import { TESTID } from "../testids.ts"
-import { applied } from "../writes.ts"
-import { mintedDocument } from "./minted.ts"
+import { mintAndOpen } from "./minted.ts"
 
 export function NewDocument() {
   const undo = useUndo()
   const router = useRouter()
   const [open, setOpen] = createSignal(false)
   const [path, setPath] = createSignal("")
-  const [said, setSaid] = createSignal<Said | null>(null)
+  const [said, setSaid] = createSignal<string | null>(null)
 
   const close = (): void => {
     setOpen(false)
@@ -43,16 +41,9 @@ export function NewDocument() {
   const create = async (): Promise<void> => {
     const file = path().trim()
     if (file === "") return
-    const outcome = await applied({ verb: "docNew", file }, undo.record)
-    if (Result.isFailure(outcome)) {
-      setSaid({ tone: "alarm", text: outcome.failure.message })
-      return
-    }
-    close()
-    // The new page opens editing: minted is set BEFORE the navigation, which
-    // is the one-shot's whole contract.
-    mintedDocument(outcome.success.id)
-    router.go({ kind: "document", file: outcome.success.id })
+    const refused = await mintAndOpen({ verb: "docNew", file }, undo.record, router.go)
+    if (refused === null) close()
+    else setSaid(refused)
   }
 
   return (
@@ -83,7 +74,10 @@ export function NewDocument() {
           placeholder="notes/idea.md"
           spellcheck={false}
           value={path()}
-          ref={(box) => setTimeout(() => box.focus())}
+          // The caret in the box the moment it is drawn, on the microtask the
+          // date picker's own field uses — a timer here would be a third
+          // spelling of one gesture.
+          ref={(box) => queueMicrotask(() => box.focus())}
           onClick={(event) => event.stopPropagation()}
           onInput={(event) => {
             setPath(event.currentTarget.value)
@@ -100,18 +94,9 @@ export function NewDocument() {
             }
           }}
         />
-        <Show when={said()}>
-          {(refusal) => (
-            <p
-              class="m-0 mt-1 rounded border border-alarm bg-paper px-2 py-1 text-xs leading-snug text-alarm"
-              data-testid={TESTID.newDocumentSaid}
-              data-tone={refusal().tone}
-              role="alert"
-            >
-              {refusal().text}
-            </p>
-          )}
-        </Show>
+        <div class="mt-1">
+          <Refused said={said()} testid={TESTID.newDocumentSaid} compact />
+        </div>
       </Show>
     </div>
   )

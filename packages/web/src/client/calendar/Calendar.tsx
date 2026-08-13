@@ -36,17 +36,15 @@
  * it arrives.
  */
 
-import { Result } from "effect"
 import { createMemo, createSelector, createSignal, For, Show } from "solid-js"
 
-import { mintedDocument } from "../document/minted.ts"
+import { mintAndOpen } from "../document/minted.ts"
 import { useUndo } from "../edit/undoing.ts"
-import type { Said } from "../edit/undoing.ts"
+import { Refused } from "../Refused.tsx"
 import { useRouter } from "../router.tsx"
 import { createStamped } from "../stamped.ts"
 import { TESTID, type TestId } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
-import { applied } from "../writes.ts"
 import { monthGrid, monthLabel, monthOfDay, shiftMonth, WEEKDAYS } from "./month.ts"
 import { Day } from "./Day.tsx"
 
@@ -82,7 +80,7 @@ export function Calendar(props: {
 
   const undo = useUndo()
   const router = useRouter()
-  const [minting, setMinting] = createSignal<Said | null>(null)
+  const [minting, setMinting] = createSignal<string | null>(null)
 
   /**
    * A bare day, pressed: mint that day's note and land in its editor.
@@ -94,14 +92,7 @@ export function Calendar(props: {
    * frames) is drawn under the grid, verbatim, until the month is used again.
    */
   const mint = async (date: string): Promise<void> => {
-    const outcome = await applied({ verb: "docDay", date }, undo.record)
-    if (Result.isFailure(outcome)) {
-      setMinting({ tone: "alarm", text: outcome.failure.message })
-      return
-    }
-    setMinting(null)
-    mintedDocument(outcome.success.id)
-    router.go({ kind: "document", file: outcome.success.id })
+    setMinting(await mintAndOpen({ verb: "docDay", date }, undo.record, router.go))
   }
 
   // Which cell is FILLED, as a selector rather than `day() === props.open` in
@@ -162,18 +153,9 @@ export function Calendar(props: {
         </For>
       </div>
 
-      <Show when={minting()}>
-        {(refusal) => (
-          <p
-            class="m-0 mt-2 rounded border border-alarm bg-paper px-2 py-1 text-xs leading-snug text-alarm"
-            data-testid={TESTID.calendarSaid}
-            data-tone={refusal().tone}
-            role="alert"
-          >
-            {refusal().text}
-          </p>
-        )}
-      </Show>
+      <div class="mt-2 empty:mt-0">
+        <Refused said={minting()} testid={TESTID.calendarSaid} compact />
+      </div>
     </section>
   )
 }

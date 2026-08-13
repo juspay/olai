@@ -789,6 +789,27 @@ export class OlaiWorld extends World {
     return this.page.locator(DOCUMENT_BODY).first();
   }
 
+  /**
+   * Wait until something rendered inside `where` draws `text` in bold.
+   *
+   * The cheapest true statement that the markdown PIPELINE ran over text this
+   * suite put there, which is why several steps ask it — of this page's
+   * document, and of a second tab's, where the whole point is that a save
+   * reached a reader who was not the writer. One spelling, so a change to how
+   * `**bold**` renders is one place rather than a pair kept in step by hand;
+   * scoped to a locator rather than to the page because "the document" and
+   * "whatever that other tab is showing" are two different scopes.
+   */
+  async rendersBold(where: Locator, text: string): Promise<void> {
+    await this.waitUntil(
+      async () =>
+        (await where.locator("strong, b").allInnerTexts()).some(
+          (value) => value.trim() === text,
+        ),
+      `${JSON.stringify(text)} to be rendered in bold`,
+    );
+  }
+
   /** One folder in the sidebar's file tree, by its root-relative path. */
   fileDir(path: string): Locator {
     return this.page.locator(`${FILE_DIR}[data-path="${path}"]`);

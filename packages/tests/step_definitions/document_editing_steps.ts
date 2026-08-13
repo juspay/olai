@@ -14,6 +14,7 @@ import type { Page } from "playwright";
 
 import {
   CALENDAR_MINT,
+  DOCUMENT_BODY,
   DOCUMENT_CANCEL,
   DOCUMENT_DRIFTED,
   DOCUMENT_EDIT,
@@ -34,8 +35,10 @@ import type { OlaiWorld } from "../support/world.ts";
 
 When("I start editing the document", async function (this: OlaiWorld) {
   const edit = this.page.locator(DOCUMENT_EDIT);
+  // The hydration wait is its own: the control appears when the page has a
+  // body to edit. `press` is the click and the frame after it.
   await edit.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await edit.click();
+  await this.press(edit);
   await this.page
     .locator(DOCUMENT_EDITOR)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -70,9 +73,7 @@ When("I cancel the document editor", async function (this: OlaiWorld) {
 });
 
 When("I overwrite the document anyway", async function (this: OlaiWorld) {
-  const overwrite = this.page.locator(DOCUMENT_OVERWRITE);
-  await overwrite.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await overwrite.click();
+  await this.press(this.page.locator(DOCUMENT_OVERWRITE));
 });
 
 Then("the document editor is open", async function (this: OlaiWorld) {
@@ -132,13 +133,7 @@ Then(
   "the second tab renders bold text {string}",
   async function (this: OlaiWorld, text: string) {
     assert.ok(other !== undefined, "no second tab was opened");
-    await this.waitUntil(
-      async () =>
-        (await other!.locator("strong, b").allInnerTexts()).some(
-          (value) => value.trim() === text,
-        ),
-      `the second tab to render ${JSON.stringify(text)} in bold`,
-    );
+    await this.rendersBold(other.locator(DOCUMENT_BODY).first(), text);
   },
 );
 
@@ -178,7 +173,6 @@ When(
     await this.showSidebar();
     const mint = this.calendarDay(date).locator(CALENDAR_MINT);
     await mint.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await mint.click();
-    await this.waitForFrame();
+    await this.press(mint);
   },
 );

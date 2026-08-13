@@ -36,12 +36,7 @@ const sorting = (set: OutlineSet, request: Request): Sort | undefined => {
       `expected \`${request.op}\` to plan, and it refused: ${planned.failure.message}`,
     )
   }
-  return sortOfWrite(
-    set,
-    planned.success.files,
-    planned.success.documents ?? [],
-    planned.success.id,
-  )
+  return sortOfWrite(set, planned.success)
 }
 
 describe("what a write is called", () => {

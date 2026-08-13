@@ -163,9 +163,9 @@ export const TESTID = {
   /** Leave the editor without writing. The draft is abandoned, which is what
    *  Escape means everywhere else in this app. */
   documentCancel: "document-cancel",
-  /** What the last document write had to say, in the two moods every write
-   *  has: `data-tone` is `alarm` for a refusal (the draft is kept, the reason
-   *  is this) or `aside` for a remark about one that landed. */
+  /** Why the last document write did not happen — the ops layer's own words,
+   *  with the draft kept. One mood (`data-tone="alarm"`) and not the two a
+   *  row's line has: a document write has no rollup to remark on. */
   documentSaid: "document-said",
   /** The one refusal with a second door: after a conflict refusal, the
    *  explicit "overwrite anyway" — a write with no `was`, chosen by a person
@@ -180,8 +180,8 @@ export const TESTID = {
   newDocument: "new-document",
   /** The path box itself — a relative `.md` path, committed with Enter. */
   newDocumentPath: "new-document-path",
-  /** What creating one had to say — a refusal, verbatim. Same two-mood shape
-   *  as `documentSaid`. */
+  /** Why creating one did not happen — a refusal, verbatim, drawn by the same
+   *  `Refused` line `documentSaid` and `calendarSaid` are. */
   newDocumentSaid: "new-document-said",
   /** A document's table of contents, above its body. A `<details>`, so whether
    *  it is open is the element's own `open` property and not a second flag —

@@ -35,7 +35,7 @@
 import { createMemo, createSignal, onMount, Show } from "solid-js"
 
 import { useUndo } from "../edit/undoing.ts"
-import type { Said } from "../edit/undoing.ts"
+import { Refused } from "../Refused.tsx"
 import { TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
 
@@ -52,7 +52,10 @@ export function DocEditor(props: {
    *  sends, and the baseline drift is measured against. */
   const base = props.served
   const [text, setText] = createSignal(base)
-  const [said, setSaid] = createSignal<Said | null>(null)
+  /** The refusal, verbatim, or `null`. One mood and not two: a document write
+   *  has no rollup to remark on, so there is nothing an `aside` would say here
+   *  that leaving the editor does not already show. */
+  const [said, setSaid] = createSignal<string | null>(null)
   /** One write in flight at a time: Save pressed twice is one write, not a
    *  race between two. */
   const [busy, setBusy] = createSignal(false)
@@ -83,7 +86,7 @@ export function DocEditor(props: {
       if (outcome?.tone === "alarm") {
         // Refused: the draft is kept and the reason is the ops layer's own —
         // which for this editor is nearly always the file having moved.
-        setSaid(outcome)
+        setSaid(outcome.text)
         return
       }
       // Landed. A document write has no rollup to remark, so there is nothing
@@ -136,18 +139,7 @@ export function DocEditor(props: {
         }}
       />
 
-      <Show when={said()}>
-        {(refusal) => (
-          <p
-            class="m-0 rounded border border-alarm bg-paper px-3 py-1.5 text-[0.8125rem] leading-snug text-alarm"
-            data-testid={TESTID.documentSaid}
-            data-tone={refusal().tone}
-            role="alert"
-          >
-            {refusal().text}
-          </p>
-        )}
-      </Show>
+      <Refused said={said()} testid={TESTID.documentSaid} />
 
       <div class="flex items-center gap-2">
         <button

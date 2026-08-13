@@ -32,6 +32,7 @@ import {
   type Derived,
   didYouMean,
   drawnFrom,
+  fileKind,
   isMirror,
   type Located,
   type LocatedRegular,
@@ -343,19 +344,27 @@ const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFa
 /**
  * A file this op may write, or the refusal that says why not.
  *
- * An outline whose lines did not parse contributes no records to the set, so
- * re-emitting it from the set would erase everything in it. That has to be a
- * refusal, and it has to be the one that says which lines are broken — fix the
- * file, then edit it.
+ * A file the set could not READ contributes nothing to it, so re-emitting it
+ * from the set would erase whatever is really in it. That has to be a refusal,
+ * and it has to carry the errors — fix the file, then edit it.
+ *
+ * ONE rule, both kinds of file, because it is one rule: an outline whose lines
+ * did not parse has lost its records, and a document that could not be read has
+ * lost its text, and writing either from a set that is missing it is the same
+ * mistake. Only the clause differs, and which clause it is comes off the
+ * format's own {@link fileKind} rather than a flag a caller passes — so a caller
+ * cannot ask for the wrong sentence about the file it named.
  */
 const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> => {
   const broken = scope.set.broken.find((entry) => entry.file === file)
   if (broken !== undefined) {
     return Result.fail(
       new ValidationFailure({
-        reason:
-          `\`${file}\` has lines that do not parse, so its records are not loaded — ` +
-          `writing it would drop them. Fix the file first.`,
+        reason: `\`${file}\` ${
+          fileKind(file) === "document"
+            ? "could not be read, so what it holds is not loaded — writing it would drop that."
+            : "has lines that do not parse, so its records are not loaded — writing it would drop them."
+        } Fix the file first.`,
         errors: broken.errors,
       }),
     )
@@ -1769,30 +1778,22 @@ const planWriteDocument = (
   }
 
   // A document the directory holds but could not READ decodes to nothing, and
-  // overwriting nothing would drop whatever the file really says — the same
-  // rule `writable` states for an outline whose lines did not parse.
-  const broken = scope.set.broken.find((entry) => entry.file === request.file)
-  if (broken !== undefined) {
-    return Result.fail(
-      new ValidationFailure({
-        reason:
-          `\`${request.file}\` could not be read, so what it holds is not loaded — ` +
-          `writing it would drop that. Fix the file first.`,
-        errors: broken.errors,
-      }),
-    )
-  }
+  // overwriting nothing would drop whatever the file really says — which is
+  // `writable`'s own rule, read of the other kind of file.
+  const may = writable(scope, request.file)
+  if (Result.isFailure(may)) return Result.fail(may.failure)
 
-  if (request.was !== undefined && request.was !== document.text) {
-    return Result.fail(
-      new UsageFailure({
-        reason:
-          `\`${request.file}\` has changed since it was read — the text on disk is ` +
-          `not what this write expected to replace, so nothing was written. Read the ` +
-          `document again and re-derive your edit from what it says now.`,
-      }),
-    )
-  }
+  // The same conditional-write check the two text fields make, over a whole
+  // file: one function decides "did this still say what the caller thought",
+  // and the callers differ only in the sentence a reader gets.
+  const conflict = stale(
+    request.was,
+    document.text,
+    `\`${request.file}\` has changed since it was read — the text on disk is ` +
+      `not what this write expected to replace, so nothing was written. Read the ` +
+      `document again and re-derive your edit from what it says now.`,
+  )
+  if (conflict !== null) return Result.fail(conflict)
 
   return Result.succeed({
     files: [],
