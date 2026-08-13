@@ -1,7 +1,16 @@
 /**
- * The build's `.br` / `.gz` siblings actually reach a browser that asks for
- * them. Kolu's static layer owns the negotiation; this is the end-to-end seam
- * for olai — a real `serve` over a dist that looks like what `build.ts` emits.
+ * olai's own `serve` has the negotiating static layer in it.
+ *
+ * That is a COMPOSITION claim and the only one left here. What the negotiation
+ * DOES — which token beats which, that a q-value does not match, that an
+ * already-compressed media type stays identity, that the `no-store` shell is
+ * never encoded — is kolu's, tested against kolu's own emitter in its
+ * `dist.test.ts` (kolu#2159, which is also what emits the siblings now that
+ * olai's `precompress.ts` is gone). Restating any of it here would be a copy of
+ * the framework's internals living on as an assertion in a consumer.
+ *
+ * So: a hashed asset with siblings beside it, asked for the way a browser asks,
+ * comes back encoded — and comes back raw when nothing is offered.
  */
 
 import { collector, findSaid } from "@olai/log/testlib"
@@ -18,8 +27,9 @@ import { SERVER_LAYERS } from "./serve.testlib.ts"
 
 const BOUND_MS = 10_000
 
-/** A client dist with one hashed JS asset and both precompressed siblings —
- *  the layout `packages/web/src/precompress.ts` writes after a real build. */
+/** A client dist with one hashed JS asset and siblings beside it — the layout
+ *  `buildSurfaceClient` leaves behind, written by hand so this stays a test of
+ *  the SERVE rather than a second run of the build. */
 const clientDist = (): string => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-client-"))
   const assets = path.join(root, "assets")
@@ -98,7 +108,7 @@ const get = (
     req.on("error", reject)
   })
 
-test("Accept-Encoding: br serves the .br sibling with Content-Encoding: br", async () => {
+test("a hashed asset with a sibling beside it goes out encoded", async () => {
   const dist = clientDist()
   try {
     await withServer(dist, async (base) => {
@@ -118,88 +128,12 @@ test("Accept-Encoding: br serves the .br sibling with Content-Encoding: br", asy
   }
 })
 
-test("Accept-Encoding: gzip alone falls back to the .gz sibling", async () => {
-  const dist = clientDist()
-  try {
-    await withServer(dist, async (base) => {
-      const res = await get(`${base}/assets/main-abc123.js`, {
-        "Accept-Encoding": "gzip",
-      })
-      expect(res.headers["content-encoding"]).toBe("gzip")
-      expect(res.body.equals(
-        fs.readFileSync(path.join(dist, "assets", "main-abc123.js.gz")),
-      )).toBe(true)
-    })
-  } finally {
-    fs.rmSync(dist, { recursive: true, force: true })
-  }
-})
-
 test("identity is honoured — no Content-Encoding, raw bytes", async () => {
   const dist = clientDist()
   try {
     await withServer(dist, async (base) => {
       const res = await get(`${base}/assets/main-abc123.js`, {
         "Accept-Encoding": "identity",
-      })
-      expect(res.headers["content-encoding"]).toBeUndefined()
-      expect(res.body.toString("utf8")).toContain("identity-bundle-body")
-    })
-  } finally {
-    fs.rmSync(dist, { recursive: true, force: true })
-  }
-})
-
-test("the no-store shell is never served compressed, even with a sibling on disk", async () => {
-  const dist = clientDist()
-  fs.writeFileSync(path.join(dist, "index.html.br"), "BROTLI-SHELL")
-  try {
-    await withServer(dist, async (base) => {
-      const res = await get(`${base}/`, { "Accept-Encoding": "br, gzip" })
-      expect(res.status).toBe(200)
-      expect(res.headers["content-encoding"]).toBeUndefined()
-      expect(res.body.toString("utf8")).toContain("<!doctype html>")
-      expect(res.body.toString("utf8")).not.toBe("BROTLI-SHELL")
-    })
-  } finally {
-    fs.rmSync(dist, { recursive: true, force: true })
-  }
-})
-
-test("an already-compressed media type stays identity even with a stray .br sibling", async () => {
-  // The content-type guard in @kolu/surface-app: a .png (or woff2, …) whose
-  // build wrongly wrote a .br next to it must never go out as Content-Encoding:
-  // br — that would be double-compressed bytes under the image MIME. Verified
-  // by the review against a live serve; this pins it.
-  const dist = clientDist()
-  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xff, 0xfe])
-  fs.writeFileSync(path.join(dist, "assets", "logo-abc123.png"), png)
-  fs.writeFileSync(path.join(dist, "assets", "logo-abc123.png.br"), "BROTLI-PNG-NOT-USED")
-  try {
-    await withServer(dist, async (base) => {
-      const res = await get(`${base}/assets/logo-abc123.png`, {
-        "Accept-Encoding": "br, gzip",
-      })
-      expect(res.status).toBe(200)
-      expect(res.headers["content-encoding"]).toBeUndefined()
-      expect(String(res.headers["content-type"] ?? "")).toMatch(/png/i)
-      expect(res.body.equals(png)).toBe(true)
-    })
-  } finally {
-    fs.rmSync(dist, { recursive: true, force: true })
-  }
-})
-
-test("q-valued Accept-Encoding tokens do not match — identity, by design", async () => {
-  // Upstream negotiate() is a bare token Set (ported from serve-static): the
-  // string "br;q=0.8" is not the string "br", so a client that attaches a
-  // q-value to every encoding gets identity. Real browsers send bare tokens
-  // (`br, gzip`), so the shipped path is fine; this documents the edge.
-  const dist = clientDist()
-  try {
-    await withServer(dist, async (base) => {
-      const res = await get(`${base}/assets/main-abc123.js`, {
-        "Accept-Encoding": "gzip;q=1.0, br;q=0.8",
       })
       expect(res.headers["content-encoding"]).toBeUndefined()
       expect(res.body.toString("utf8")).toContain("identity-bundle-body")

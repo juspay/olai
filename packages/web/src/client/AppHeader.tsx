@@ -95,7 +95,7 @@ import { Show } from "solid-js"
 import { Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
-import { connectionStatus } from "./wire.ts"
+import { connectionReadout } from "./wire.ts"
 import { TESTID } from "./testids.ts"
 import { ThemePicker } from "./theme/Picker.tsx"
 import { TARGET_BOX } from "./touch.ts"
@@ -158,7 +158,7 @@ export function AppHeader(props: {
         class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 sm:gap-2"
         data-testid={TESTID.appChrome}
       >
-        <Indicator status={connectionStatus()} />
+        <Indicator readout={connectionReadout()} />
         <Commit />
         <ChatToggle />
         <ThemePicker />

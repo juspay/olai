@@ -488,15 +488,15 @@ export { type Applied, Anchor, Edit } from "./edit.ts"
 /** The one HTTP address both ends spell — see {@link ./media.ts}. */
 export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
 
-/** What an attachment may be and how it is cut up — the policy the browser
- *  gates on before encoding and the server gates on before writing. One
- *  module, for the same reason the media URL is one: two copies of a threshold
- *  are two thresholds. See {@link ./attach.ts}. */
+/** What an attachment may BE — the policy the browser gates on before encoding
+ *  and the server gates on before writing. One module, for the same reason the
+ *  media URL is one: two copies of a threshold are two thresholds. How it is
+ *  cut UP is not here and is not re-exported: that is
+ *  `@kolu/surface/frame-chunking`, which both ends import directly. See
+ *  {@link ./attach.ts}. */
 export {
   ATTACHMENT_EXTENSIONS,
   attachmentRejection,
-  base64DecodedLength,
-  chunkBase64,
   DOCUMENT_EXTENSIONS,
   isAttachable,
   MAX_ATTACHMENT_BYTES,

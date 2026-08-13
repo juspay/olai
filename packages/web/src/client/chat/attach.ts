@@ -5,8 +5,9 @@
  * has no Ctrl+V — and one way through: read the bytes, base64 them once, and
  * send them as a SEQUENCE of bounded `chat.attach` calls. The first creates
  * the file; each later one hands back the path it was given and appends. No
- * single frame scales with the file, which is the whole reason the calls
- * are chunked at all (`@olai/surface`'s `attach.ts` owns that derivation).
+ * single frame scales with the file, which is the whole reason the calls are
+ * chunked at all — the size of one is the framework's, derived beside the cap
+ * it has to fit under (`@kolu/surface/frame-chunking`).
  *
  * The chunks are SEQUENTIAL, not concurrent: the server appends to one growing
  * file, so two in flight would interleave their bytes and corrupt the file
@@ -21,11 +22,11 @@
  * client runs one, and that is deliberately still true here.
  */
 
+import { chunkBase64 } from "@kolu/surface/frame-chunking"
 import {
   type Attached,
   type AttachChunk,
   attachmentRejection,
-  chunkBase64,
   type OpFailure,
   UsageFailure,
 } from "@olai/surface"

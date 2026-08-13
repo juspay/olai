@@ -45,7 +45,7 @@ import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { createView } from "./view.ts"
-import { connectionStatus, olai } from "./wire.ts"
+import { connectionReadout, olai } from "./wire.ts"
 
 export default function App() {
   const outlines = createOutlines()
@@ -130,7 +130,7 @@ export default function App() {
 
   return (
     <UndoContext.Provider value={undo}>
-      <Connection status={connectionStatus()} />
+      <Connection readout={connectionReadout()} />
       <ChatPanel />
       <Palette
         go={(route) => router.go(route)}

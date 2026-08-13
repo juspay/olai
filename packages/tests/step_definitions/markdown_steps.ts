@@ -1,9 +1,10 @@
 /**
  * The markdown pipeline as a thing that ARRIVES.
  *
- * It is a chunk of its own (`packages/web/src/markdown.ts`), fetched the first
- * time a page needs to interpret markdown and never on a page that does not —
- * which is a claim about the network, so these steps are about the network.
+ * It is a chunk of its own — split out by the `import()` in
+ * `packages/web/src/client/markdown/chunk.ts` — fetched the first time a page
+ * needs to interpret markdown and never on a page that does not, which is a
+ * claim about the network, so these steps are about the network.
  * The one recording of what the page asked for is the world's (`support/`),
  * the same list the no-CDN step reads; what is added here is a way to hold the
  * answer back, so the moment before it lands is a moment a scenario can stand
@@ -18,13 +19,13 @@ import { DOCUMENT_BODY, HYDRATION_TIMEOUT, POLL_TIMEOUT } from "../support/world
 import type { OlaiWorld } from "../support/world.ts";
 
 /**
- * The chunk's URL, as the build names it (`packages/web/src/markdown.ts`:
- * `markdown-[hash].js`, under the hashed asset prefix). ONE spelling, used
- * both to intercept the request and to read the recording back — so what a
- * scenario holds up and what it then claims was never asked for cannot drift
- * apart.
+ * The chunk's URL, as the bundler names it: `[name]-[hash].js` under the hashed
+ * asset prefix, where the name is the split module's own — so the chunk holding
+ * `markdown/pipeline.ts` is `pipeline-<hash>.js`. ONE spelling, used both to
+ * intercept the request and to read the recording back, so what a scenario holds
+ * up and what it then claims was never asked for cannot drift apart.
  */
-const CHUNK_URL = /\/assets\/markdown-[^/]+\.js$/;
+const CHUNK_URL = /\/assets\/pipeline-[^/]+\.js$/;
 
 const asked = (world: OlaiWorld): ReadonlyArray<string> =>
   world.requests.filter((url) => CHUNK_URL.test(url));
