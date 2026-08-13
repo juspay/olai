@@ -51,10 +51,13 @@ export function Preferences() {
         type="button"
         ref={popover.setTrigger}
         // The bar's icon-button shape (`../readout.ts`), which the agent toggle
-        // beside it wears too — including the 44px a finger needs. The BORDER
-        // is this button's own: it says whether the panel is up.
-        class={`${ICON_BUTTON} border ${
-          open() ? "border-accent text-ink" : "border-rule text-muted"
+        // beside it wears too — including the 44px a finger needs. The RING is
+        // this button's own: it says whether the panel is up. An inset ring
+        // rather than the border it used to be, for the depth pass's reason —
+        // the resting state is a card and a hairline round a card is the thing
+        // elevation replaced — and inset so the box does not move when it lights.
+        class={`${ICON_BUTTON} ${
+          open() ? "inset-ring-2 inset-ring-accent text-ink" : "text-muted"
         }`}
         data-testid={TESTID.prefsTrigger}
         aria-expanded={open()}

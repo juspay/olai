@@ -27,6 +27,7 @@
 import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { CARD, LIFT } from "../surface.ts"
 import { Sessions } from "./Sessions.tsx"
 import type { Chat } from "./state.ts"
 
@@ -36,7 +37,10 @@ export function Header(props: {
   const state = () => props.chat.state()
 
   return (
-    <header class="flex shrink-0 items-center gap-2 border-b border-rule px-3 py-2">
+    // The session line is CHROME on the dock's canvas: no fill, no rule
+    // under it. What separates it from the transcript is that the transcript
+    // is a stack of cards and this is not one.
+    <header class="flex shrink-0 items-baseline gap-2 px-3 pb-1 pt-2.5">
       <div class="min-w-0 flex-1">
         <div
           class="truncate text-sm"
@@ -78,7 +82,7 @@ export function Header(props: {
         <Sessions chat={props.chat} />
         <button
           type="button"
-          class="rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
+          class={`rounded-full ${CARD} ${LIFT} px-2.5 py-1 text-xs text-muted hover:text-ink`}
           data-testid={TESTID.chatNew}
           onClick={() => props.chat.newSession()}
         >

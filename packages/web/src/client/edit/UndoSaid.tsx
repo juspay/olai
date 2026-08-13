@@ -18,6 +18,7 @@
 
 import { Show } from "solid-js"
 
+import { RAISED } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import type { Said } from "./undoing.ts"
 
@@ -29,10 +30,10 @@ export function UndoSaid(props: { readonly said: Said | null }) {
         // a thing to click — whatever is under it stays reachable.
         <div class="pointer-events-none fixed inset-x-0 top-[var(--height-header)] z-40 flex justify-center px-4">
           <p
-            class="mt-2 max-w-lg rounded border bg-paper px-3 py-1.5 text-[0.8125rem] leading-snug shadow-sm"
+            class={`mt-2 max-w-lg rounded-lg ${RAISED} px-3.5 py-2 text-[0.8125rem] leading-snug`}
             classList={{
-              "border-alarm text-alarm": said().tone === "alarm",
-              "border-rule text-muted": said().tone === "aside",
+              "inset-ring-2 inset-ring-alarm text-alarm": said().tone === "alarm",
+              "text-muted": said().tone === "aside",
             }}
             data-testid={TESTID.undoSaid}
             data-tone={said().tone}

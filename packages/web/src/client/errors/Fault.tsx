@@ -35,6 +35,7 @@ import { thrownText } from "./thrown.ts"
 import { Lede } from "./Lede.tsx"
 import { Reload } from "../Reload.tsx"
 import { hrefOf } from "../routes.ts"
+import { WELL } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 
@@ -51,7 +52,7 @@ export function Fault(props: { readonly error: unknown }) {
           a bug report is made of, and a fault surface that summarised the
           fault would be the white tab with extra steps. */}
       <pre
-        class="mb-4 max-w-full overflow-x-auto rounded border border-rule bg-rule/30 p-3 text-xs text-ink"
+        class={`mb-4 max-w-full overflow-x-auto rounded-lg ${WELL} p-3 text-xs text-ink`}
         data-testid={TESTID.faultDetail}
       >
         {thrownText(props.error)}

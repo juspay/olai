@@ -29,6 +29,7 @@
 import type { FileDiff } from "@olai/surface"
 import { createMemo, For, Show } from "solid-js"
 
+import { CARD } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { type DiffLine, diffOf } from "./diff.ts"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
@@ -82,7 +83,7 @@ export function Diff(props: {
 
   return (
     <div
-      class="mt-1 overflow-hidden rounded border border-rule"
+      class={`mt-1.5 overflow-hidden rounded-lg ${CARD}`}
       data-testid={TESTID.chatDiff}
       data-path={props.diff.path}
       data-expanded={open()}

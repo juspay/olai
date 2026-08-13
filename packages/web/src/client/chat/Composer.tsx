@@ -52,6 +52,7 @@ import { ATTACHMENT_EXTENSIONS } from "@olai/surface"
 import { createEffect, createSignal, on, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { CARD, LIFT, WELL } from "../surface.ts"
 import { Attachments } from "./Attachments.tsx"
 import type { Holding } from "./holding.ts"
 import { SlashMenu } from "./SlashMenu.tsx"
@@ -59,9 +60,13 @@ import type { Chat } from "./state.ts"
 
 /** Every control on the toolbar, the same height and the same corners. Written
  *  once because "these line up" is the property, and three copies of a class
- *  list line up only until somebody edits one. */
+ *  list line up only until somebody edits one.
+ *
+ *  It LIFTS, because everything on this row can be pressed (`../surface.ts`).
+ *  What it does not carry is an edge: each button says its own thing with an
+ *  inset ring, or — for the one primary verb — with the accent itself. */
 const CONTROL =
-  "flex h-8 shrink-0 items-center justify-center rounded border text-xs"
+  `flex h-8 shrink-0 items-center justify-center rounded-full text-xs ${LIFT}`
 
 export function Composer(props: {
   readonly chat: Chat
@@ -189,7 +194,7 @@ export function Composer(props: {
   }
 
   return (
-    <div class="relative shrink-0 border-t border-rule p-2">
+    <div class={`relative m-2 shrink-0 rounded-xl ${CARD} p-2.5`}>
       <Show when={open()}>
         <SlashMenu commands={matches()} onAccept={accept} onDismiss={dismiss} />
       </Show>
@@ -215,7 +220,10 @@ export function Composer(props: {
           their head until a box comes back is work the panel invented. */}
       <textarea
         ref={input}
-        class="w-full resize-none rounded border border-rule bg-paper px-2 py-1.5 text-sm outline-none focus:border-accent"
+        // A box to type in is a WELL, the same as a question's own fields
+        // (../surface.ts): a field is a hollow in the card holding it, which is
+        // what the hairline rectangle was standing in for.
+        class={`w-full resize-none rounded-lg ${WELL} px-2.5 py-2 text-sm outline-none focus:inset-ring-2 focus:inset-ring-accent`}
         data-testid={TESTID.chatInput}
         rows={2}
         placeholder={working() ? "…or say the next thing" : "ask the agent…"}
@@ -264,7 +272,7 @@ export function Composer(props: {
         />
         <button
           type="button"
-          class={`${CONTROL} w-8 border-rule text-muted hover:text-ink`}
+          class={`${CONTROL} w-8 inset-ring inset-ring-rule text-muted hover:text-ink`}
           data-testid={TESTID.chatAttachButton}
           aria-label="attach a file"
           onClick={() => picker?.click()}
@@ -308,7 +316,7 @@ export function Composer(props: {
         <Show when={props.chat.state().commands.length > 0}>
           <button
             type="button"
-            class={`${CONTROL} w-8 border-rule font-mono text-muted hover:text-ink`}
+            class={`${CONTROL} w-8 inset-ring inset-ring-rule font-mono text-muted hover:text-ink`}
             data-testid={TESTID.chatCommands}
             aria-label="show the agent's slash commands"
             onClick={askForAll}
@@ -320,7 +328,7 @@ export function Composer(props: {
         <Show when={working()}>
           <button
             type="button"
-            class={`${CONTROL} border-alarm px-3 text-alarm`}
+            class={`${CONTROL} inset-ring inset-ring-alarm px-3.5 text-alarm`}
             data-testid={TESTID.chatCancel}
             onClick={() => props.chat.cancel()}
           >
@@ -329,7 +337,10 @@ export function Composer(props: {
         </Show>
         <button
           type="button"
-          class={`${CONTROL} border-rule px-3 hover:border-accent hover:text-accent`}
+          /* THE PRIMARY VERB of the panel, and one of the four places the
+              accent is spent: filled rather than outlined, so the thing that
+              sends is the thing furthest forward on the row. */
+          class={`${CONTROL} bg-accent px-4 font-semibold text-paper`}
           data-testid={TESTID.chatSend}
           onClick={() => void send()}
         >

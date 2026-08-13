@@ -33,6 +33,7 @@ import { type Anchor, styleOf } from "../anchor.ts"
 import { doneHiddenDefault, setDoneHiddenDefault } from "./done.ts"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
+import { RAISED } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { ThemeChips } from "../theme/Chips.tsx"
 import { currentTheme } from "../theme/state.ts"
@@ -57,7 +58,7 @@ export function Panel(props: {
   return (
     <section
       ref={props.inside}
-      class="fixed z-50 flex flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-lg border border-rule bg-paper p-3 text-sm shadow-lg focus:outline-none"
+      class={`fixed z-50 flex flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-xl ${RAISED} p-4 text-sm focus:outline-none`}
       style={styleOf(props.at)}
       // Focusable, and never in the tab order: opening puts the caret here so a
       // keyboard is standing IN the panel rather than beside it (`../popover.ts`
@@ -84,7 +85,7 @@ export function Panel(props: {
           row on it and repeating it per row would be three copies of the
           doctrine. It is here at all because "where did this go" is exactly
           what a person wonders about a setting they just changed. */}
-      <p class="border-t border-rule pt-3 text-xs text-muted" data-testid={TESTID.prefsScope}>
+      <p class="pt-1 text-xs text-muted" data-testid={TESTID.prefsScope}>
         These are this browser's. They are stored here, reach every tab you have
         olai open in, and are never sent to the server.
       </p>

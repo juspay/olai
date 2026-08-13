@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test"
 
-import { customProperty, paletteBlock, paletteCss, selectorFor } from "./css.ts"
+import {
+  customProperty,
+  paletteBlock,
+  paletteCss,
+  selectorFor,
+  shadowProperty,
+} from "./css.ts"
+import { depthOf, SHADOW_TOKENS, SURFACE_TOKENS } from "./depth.ts"
 import {
   DEFAULT_PALETTE,
   DEFAULT_THEME,
@@ -28,6 +35,27 @@ describe("the generated palette blocks", () => {
       for (const token of PALETTE_TOKENS) {
         expect(block).toContain(
           `${customProperty(token)}: ${palette.colors[token]};`,
+        )
+      }
+    }
+  })
+
+  test("every theme declares every altitude, with the derivation's value", () => {
+    // The nine a palette does not write and gets anyway. Asserted per row for
+    // the reason the eight above are: a block that shipped without them would be
+    // a theme whose cards are painted with nothing, and the symptom is a
+    // transparent surface rather than an error.
+    for (const palette of PALETTES) {
+      const block = paletteBlock(palette)
+      const depth = depthOf(palette)
+      for (const token of SURFACE_TOKENS) {
+        expect(block).toContain(
+          `${customProperty(token)}: ${depth.surfaces[token]};`,
+        )
+      }
+      for (const token of SHADOW_TOKENS) {
+        expect(block).toContain(
+          `${shadowProperty(token)}: ${depth.shadows[token]};`,
         )
       }
     }
@@ -79,12 +107,17 @@ describe("the shell's boot script", () => {
     expect(html).toContain(`setAttribute("${THEME_ATTRIBUTE}"`)
   })
 
-  test("ships the default palette's paper as the browser chrome", async () => {
+  test("ships the default palette's canvas as the browser chrome", async () => {
     // The one colour the shell can know before the bundle runs: a page that
     // has picked nothing is in the default, and inventing a second value here
-    // would flash a different chrome on the first paint of every load.
+    // would flash a different chrome on the first paint of every load. The
+    // CANVAS, because the header is what meets that strip and the header is a
+    // floating strip of the ground (`./chrome.ts`) — the same value paper has on
+    // every dark palette, and a step off it on every light one.
     expect(await shell()).toContain(
-      `<meta name="theme-color" content="${DEFAULT_PALETTE.colors.paper}" />`,
+      `<meta name="theme-color" content="${
+        depthOf(DEFAULT_PALETTE).surfaces.canvas
+      }" />`,
     )
   })
 })
@@ -98,14 +131,45 @@ describe("the shell's boot script", () => {
  * to and what the default palette says have to be the same colour.
  */
 describe("the stylesheet's @theme", () => {
-  test("declares the default palette, token for token", async () => {
+  const themeBlock = async (): Promise<string> => {
     const sheet = await Bun.file(new URL("../styles.css", import.meta.url)).text()
     const theme = /@theme\s*\{([^}]*)\}/.exec(sheet)?.[1]
     expect(theme).toBeDefined()
+    return theme ?? ""
+  }
+
+  test("declares the default palette, token for token", async () => {
+    const theme = await themeBlock()
     for (const token of PALETTE_TOKENS) {
       expect(theme).toContain(
         `${customProperty(token)}: ${DEFAULT_PALETTE.colors[token]};`,
       )
+    }
+  })
+
+  test("declares the default palette's ALTITUDES, as the ramp derives them", async () => {
+    // `bg-canvas` and `bg-well` exist only because these names are here; the
+    // VALUES are inert on any browser this app runs in (the generated unlayered
+    // `:root` wins) and are the opacity fallback on one too old for
+    // `color-mix`. Which is exactly why they must be the default's and not a
+    // hand-picked shade that drifted from the derivation.
+    const theme = await themeBlock()
+    const depth = depthOf(DEFAULT_PALETTE)
+    for (const token of SURFACE_TOKENS) {
+      expect(theme).toContain(`${customProperty(token)}: ${depth.surfaces[token]};`)
+    }
+  })
+
+  test("does NOT declare the depth shadows", async () => {
+    // Stated as a claim rather than left as an absence. Tailwind bakes a theme
+    // shadow's value into the utility it emits, so a `--shadow-card` in here
+    // would generate a `shadow-card` that fifteen palettes could never
+    // re-answer — a utility that silently paints one theme's depth on all of
+    // them. They live on `:root` in the generated blocks and are read through
+    // the property (`../surface.ts`).
+    const theme = await themeBlock()
+    for (const token of SHADOW_TOKENS) {
+      expect(theme).not.toContain(`${shadowProperty(token)}:`)
     }
   })
 })

@@ -9,6 +9,11 @@
  * `--color-muted` it has seen in `@theme` — and the default palette's values,
  * which `./css.test.ts` holds to this table.
  *
+ * A block carries more than the eight the table writes: the altitudes the depth
+ * grammar paints with are DERIVED from them (`./depth.ts`) and written in
+ * beside them, so every palette gets the same depth by construction instead of
+ * by fifteen hand-tunings.
+ *
  * Every block is UNLAYERED, which is how it beats the `@layer theme` Tailwind
  * puts its own `:root` in. The default's block also lands on a bare `:root`,
  * because a page that picked nothing is in it — one block rather than two, so
@@ -18,6 +23,7 @@
  * is a pick, and the OS is not a picker.
  */
 
+import { depthOf, SHADOW_TOKENS, SURFACE_TOKENS } from "./depth.ts"
 import {
   DEFAULT_THEME,
   type Palette,
@@ -30,6 +36,13 @@ import {
  *  `text-ink` and `--color-ink` are one decision and not two. */
 export const customProperty = (token: string): string => `--color-${token}`
 
+/** …and the one a SHADOW is read through, which is Tailwind's other namespace
+ *  for the same reason. These are not declared in `@theme` — no utility is
+ *  generated from them, because a shadow is asked for by the token it reads
+ *  (`shadow-[var(--shadow-card)]`, spelled once in `../surface.ts`) — so this
+ *  spelling and that one are the whole contract. */
+export const shadowProperty = (token: string): string => `--shadow-${token}`
+
 /** The selector a page in this theme matches. The default matches TWO: its own
  *  name, and the page that has picked nothing at all.
  *
@@ -40,12 +53,23 @@ export const selectorFor = (palette: Palette): string => {
   return palette.name === DEFAULT_THEME ? `:root, ${named}` : named
 }
 
-/** One theme's block: its `color-scheme`, then its colours. */
+/** One theme's block: its `color-scheme`, its colours, then the depth it gets
+ *  by construction — the three altitudes and the shadows that say which is
+ *  which, derived from the eight above (`./depth.ts`). Derived rather than
+ *  written, so a palette added as a row arrives with depth already, and a
+ *  reviewer cannot forget the nine values a hand-written block would owe. */
 export const paletteBlock = (palette: Palette): string => {
+  const depth = depthOf(palette)
   const declarations = [
     `  color-scheme: ${palette.scheme};`,
     ...PALETTE_TOKENS.map(
       (token) => `  ${customProperty(token)}: ${palette.colors[token]};`,
+    ),
+    ...SURFACE_TOKENS.map(
+      (token) => `  ${customProperty(token)}: ${depth.surfaces[token]};`,
+    ),
+    ...SHADOW_TOKENS.map(
+      (token) => `  ${shadowProperty(token)}: ${depth.shadows[token]};`,
     ),
   ]
   return `${selectorFor(palette)} {\n${declarations.join("\n")}\n}`

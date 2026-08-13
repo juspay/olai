@@ -48,6 +48,7 @@ import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
 import { createSelection } from "./selection.ts"
 import type { Commit } from "./state.ts"
+import { LIFT, RAISED, WELL } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { Unpushed } from "./Unpushed.tsx"
 
@@ -100,7 +101,7 @@ export function Panel(props: {
   return (
     <section
       ref={props.inside}
-      class="fixed z-50 flex flex-col gap-3 overflow-y-auto overflow-x-hidden rounded-lg border border-rule bg-paper p-3 text-sm shadow-lg focus:outline-none"
+      class={`fixed z-50 flex flex-col gap-3 overflow-y-auto overflow-x-hidden rounded-xl ${RAISED} p-4 text-sm focus:outline-none`}
       style={styleOf(props.at)}
       // Focusable, never in the tab order — see `settings/Panel.tsx`, and
       // `../popover.ts` for why a portalled panel has to take the caret itself.
@@ -202,7 +203,7 @@ export function Panel(props: {
           // Tall enough for a composed message, which is a subject, a blank
           // line and its first detail line: the shorter box cut the detail in
           // half and looked like a rendering fault rather than a scroll.
-          class="min-h-24 w-full resize-y rounded border border-rule bg-paper p-2 font-mono text-xs"
+          class={`min-h-24 w-full resize-y rounded-lg ${WELL} p-2.5 font-mono text-xs outline-none focus:inset-ring-2 focus:inset-ring-accent`}
           data-testid={TESTID.commitMessage}
           aria-label="commit message"
           value={draft()}
@@ -227,7 +228,7 @@ export function Panel(props: {
       <Show when={anything()}>
         <button
           type="button"
-          class="self-end rounded border border-rule px-3 py-1.5 text-xs hover:text-ink disabled:opacity-50"
+          class={`self-end rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-paper ${LIFT} disabled:opacity-50`}
           data-testid={TESTID.commitNow}
           disabled={!ready() || props.commit.working() || nothingTicked()}
           onClick={() => props.commit.commit(draft(), selection.paths())}

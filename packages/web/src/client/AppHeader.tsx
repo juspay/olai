@@ -57,10 +57,11 @@
  * That is pre-existing and intentional — a broken client has no chrome to
  * trust — and is the sole exception to "the header is on every screen".
  *
- * Styled like the rest of the chrome: mono, muted, a rule under it, paper.
- * Height is `h-12` (3rem) and the static `--height-header` token in
- * `styles.css` — the chat drawer subtracts the same token so it sits under
- * this bar, not over it.
+ * Styled like the rest of the chrome: mono, muted, and a floating strip of the
+ * CANVAS — elevation where the hairline under it used to be (`./surface.ts`).
+ * Height is `h-12` (3rem) and the static
+ * `--height-header` token in `styles.css` — the chat drawer subtracts the same
+ * token so it sits under this bar, not over it.
  *
  * ## It STICKS, and that is what makes the rest of the chrome true
  *
@@ -99,6 +100,7 @@
 
 import { Show } from "solid-js"
 
+import { BAR } from "./surface.ts"
 import { Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
@@ -121,7 +123,12 @@ export function AppHeader(props: {
 }) {
   return (
     <header
-      class="sticky top-0 z-[45] flex h-12 shrink-0 items-center gap-2 border-b border-rule bg-paper px-3 font-mono md:px-4"
+      // A SURFACE, not a bar with a line under it: the seam between the header
+      // and the page scrolling beneath it is elevation now (./surface.ts). The
+      // bar keeps the CANVAS's fill so the pills standing on it read as cards,
+      // and takes a card's shadow because the page passes under it — which a
+      // hairline said on a light ground and not at all on a dark one.
+      class={`sticky top-0 z-[45] flex h-12 shrink-0 items-center gap-2 ${BAR} px-3 font-mono md:px-4`}
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >

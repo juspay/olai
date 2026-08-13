@@ -22,6 +22,7 @@
 
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 
+import { CARD, LIFT, LIFTS, RAISED } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { HOVER_CELL, MENU_REVEAL } from "../touch.ts"
 import type { Said } from "../edit/undoing.ts"
@@ -142,7 +143,7 @@ export function NodeMenu(props: {
           // node and says what to do about it — and a line that never wrapped
           // would run off the right of the screen with the reason on it.
           <span
-            class="absolute left-0 top-full z-20 mt-0.5 max-w-[24rem] w-max rounded border border-rule bg-paper px-2 py-1 text-xs shadow-md"
+            class={`absolute left-0 top-full z-20 mt-0.5 max-w-[24rem] w-max rounded-lg ${RAISED} px-2.5 py-1.5 text-xs`}
             classList={{
               "text-alarm": message().tone === "alarm",
               "text-muted": message().tone === "aside",
@@ -231,7 +232,7 @@ function MenuPanel(props: {
   return (
     <div
       data-testid={TESTID.nodeMenuPanel}
-      class="absolute left-0 top-full z-20 mt-0.5 min-w-[10.5rem] rounded border border-rule bg-paper py-1 text-sm text-ink shadow-md"
+      class={`absolute left-0 top-full z-20 mt-0.5 min-w-[10.5rem] rounded-xl ${RAISED} p-1 text-sm text-ink`}
     >
       <Show
         when={asking()}
@@ -239,12 +240,16 @@ function MenuPanel(props: {
           // Plain list, not role=menu: we do not implement roving focus /
           // arrow keys. A labelled group of buttons matches what is here.
           <ul ref={list} aria-label="node actions" class="m-0 list-none p-0">
+            {/* The group break KEEPS its hairline. It is not a box round a
+                surface — it is a line that says two verbs are different kinds of
+                thing, which is the class of line the depth pass kept
+                (`../surface.ts`). */}
             <For each={props.actions}>
               {(action) => (
-                <li classList={{ "mt-1 border-t border-rule pt-1": action.divider }}>
+                <li classList={{ "mt-1 border-t border-rule/70 pt-1": action.divider }}>
                   <button
                     type="button"
-                    class="block w-full cursor-pointer border-0 bg-transparent px-3 py-1.5 text-left text-ink hover:bg-rule"
+                    class={`block w-full cursor-pointer rounded-lg border-0 bg-transparent px-3 py-1.5 text-left text-ink ${LIFTS}`}
                     data-testid={TESTID.nodeMenuItem}
                     data-action={action.id}
                     onClick={() => chose(action)}
@@ -302,7 +307,7 @@ function Confirm(props: {
         </button>
         <button
           type="button"
-          class="cursor-pointer rounded border border-rule bg-transparent px-2 py-1 text-xs text-muted hover:text-ink"
+          class={`cursor-pointer rounded-full ${CARD} ${LIFT} px-2.5 py-1 text-xs text-muted hover:text-ink`}
           data-testid={TESTID.nodeMenuItem}
           data-action="cancel"
           onClick={() => props.onCancel(props.action)}

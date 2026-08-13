@@ -52,6 +52,7 @@
 import { createSignal, Show } from "solid-js"
 
 import type { Said } from "../edit/undoing.ts"
+import { CARD, LIFT, WELL } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 import { noticeOf, type Press, pressOf, startsAt } from "./pick.ts"
@@ -130,7 +131,7 @@ export function DatePicker(props: {
           Scheduled for
           <input
             type="date"
-            class={`${TARGET} md:min-h-0 rounded border border-rule bg-paper px-2 py-1 text-sm text-ink`}
+            class={`${TARGET} md:min-h-0 rounded-lg ${WELL} px-2.5 py-1 text-sm text-ink outline-none focus:inset-ring-2 focus:inset-ring-accent`}
             data-testid={TESTID.datePickerDay}
             value={day()}
             // The caret goes here as the panel attaches: it was opened to be
@@ -145,7 +146,7 @@ export function DatePicker(props: {
         </label>
         <button
           type="submit"
-          class={`${TARGET} md:min-h-0 cursor-pointer rounded border border-rule bg-transparent px-2 py-1 text-sm text-ink hover:bg-rule disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent`}
+          class={`${TARGET} md:min-h-0 cursor-pointer rounded-full ${CARD} ${LIFT} px-3 py-1 text-sm text-ink disabled:cursor-default disabled:text-muted`}
           data-testid={TESTID.datePickerSet}
           disabled={sending() || !press().writes}
         >

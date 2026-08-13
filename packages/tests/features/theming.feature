@@ -94,21 +94,28 @@ Feature: The theme is a pick, and it is yours
     And the lit theme chip is "pitch"
     And there should be no page errors
 
-  Scenario: The browser chrome follows the paper
-    # The status bar on a phone, the title bar of an installed window. The
-    # shell ships the default's paper, so it is right on the first paint; a
-    # page that picked repaints it from the same table that painted the page.
+  Scenario: The browser chrome follows the ground
+    # The status bar on a phone, the title bar of an installed window. What
+    # meets that strip is the app header, and since the depth pass the header is
+    # a floating strip of the GROUND rather than a panel of paper — so the
+    # chrome follows the canvas, which on a light palette is a step off the
+    # paper and on a dark one is the same colour. The shell ships the default's,
+    # so it is right on the first paint; a page that picked repaints it from the
+    # same table that painted the page.
     When I open the app
-    Then the browser chrome matches the paper
+    Then the browser chrome matches the ground
     When I pick the theme "matcha"
-    Then the browser chrome matches the paper
+    Then the browser chrome matches the ground
 
-  Scenario: The manifest opens the app in the paper an unpicked page paints
+  Scenario: The manifest opens the app in the ground an unpicked page paints
     # The manifest is the SERVER's and the palettes are the CLIENT's, and the
     # two packages do not import each other — so the only honest way to ask
-    # whether they still agree is to fetch one and measure the other.
+    # whether they still agree is to fetch one and measure the other. Doubly so
+    # now: the client's value is DERIVED from its palette table
+    # (`theme/depth.ts`), and there is nothing the server could import even if
+    # it were allowed to.
     When I open the app
-    Then the manifest's chrome is the paper this page paints
+    Then the manifest's chrome is the ground this page paints
 
   Scenario: Picking a theme asks the server for nothing
     When I open the app

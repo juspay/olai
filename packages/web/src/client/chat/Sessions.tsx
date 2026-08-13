@@ -14,6 +14,7 @@
 import { createSignal, For, Match, Show, Switch } from "solid-js"
 
 import { Refusal } from "./Refusal.tsx"
+import { CARD, LIFT, LIFTS, RAISED } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import type { Chat, Sessions as Answer } from "./state.ts"
 import type { OpFailure, SessionInfo } from "@olai/surface"
@@ -56,7 +57,7 @@ export function Sessions(props: { readonly chat: Chat }) {
     <div class="relative">
       <button
         type="button"
-        class="rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
+        class={`rounded-full ${CARD} ${LIFT} px-2.5 py-1 text-xs text-muted hover:text-ink`}
         data-testid={TESTID.chatSessions}
         aria-expanded={picker()._tag !== "shut"}
         onClick={toggle}
@@ -66,7 +67,7 @@ export function Sessions(props: { readonly chat: Chat }) {
 
       <Show when={picker()._tag !== "shut"}>
         <ul
-          class="absolute right-0 top-full z-50 mt-1 max-h-80 w-80 list-none overflow-y-auto rounded border border-rule bg-paper p-1 shadow-lg"
+          class={`absolute right-0 top-full z-50 mt-1 max-h-80 w-80 list-none overflow-y-auto rounded-xl ${RAISED} p-1`}
           data-testid={TESTID.chatSessionList}
         >
           {/* A `<Switch>` over the one signal, because the picker IS one: the
@@ -100,7 +101,7 @@ export function Sessions(props: { readonly chat: Chat }) {
                       <li>
                         <button
                           type="button"
-                          class="block w-full truncate rounded px-2 py-1 text-left text-xs hover:bg-rule"
+                          class={`block w-full truncate rounded-lg px-2 py-1 text-left text-xs ${LIFTS}`}
                           data-testid={TESTID.chatSession}
                           data-session-id={session.id}
                           data-current={session.id === current()}

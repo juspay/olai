@@ -41,6 +41,13 @@ const PROBE = "__olaiThemeLanded";
  *  of the generator, so a renamed namespace is a rename here too rather than a
  *  step that quietly reads an empty string. */
 const PAPER = customProperty("paper");
+/** …and the GROUND: what the page is painted on rather than what the document
+ *  sheet is painted in. The browser chrome follows this one, because what meets
+ *  that strip is the app header and the header is a floating strip of the ground
+ *  (`web/src/client/theme/chrome.ts`). On a dark palette the two are one colour;
+ *  on a light one the canvas is a step off the paper, which is the whole of the
+ *  depth grammar. */
+const CANVAS = customProperty("canvas");
 
 // ── picking ────────────────────────────────────────────────────────────
 
@@ -230,44 +237,43 @@ When(
 
 // ── the paint ──────────────────────────────────────────────────────────
 
-/** The one colour a step may talk about: the one the sheet painted and the
- *  browser resolved. It is compared against itself, never against a hex
- *  written here. */
-const paper = (world: OlaiWorld): Promise<string> =>
+/** A colour a step may talk about: one the sheet painted and the browser
+ *  resolved. It is compared against itself, never against a hex written here. */
+const painted = (world: OlaiWorld, property: string): Promise<string> =>
   world.page.evaluate(
-    (property) =>
+    (name) =>
       getComputedStyle(document.documentElement)
-        .getPropertyValue(property)
+        .getPropertyValue(name)
         .trim(),
-    PAPER,
+    property,
   );
 
 When("I note the paper colour", async function (this: OlaiWorld) {
-  this.paperBefore = await paper(this);
+  this.paperBefore = await painted(this, PAPER);
   assert.ok(this.paperBefore, `the sheet paints no ${PAPER}`);
 });
 
 Then("the paper colour has changed", async function (this: OlaiWorld) {
   assert.ok(this.paperBefore, "nothing noted the paper colour first");
   assert.notEqual(
-    await paper(this),
+    await painted(this, PAPER),
     this.paperBefore,
     "the attribute flipped but the sheet painted the same paper",
   );
 });
 
-Then("the browser chrome matches the paper", async function (this: OlaiWorld) {
+Then("the browser chrome matches the ground", async function (this: OlaiWorld) {
   // Both facts read in the SAME page function, and polled by the browser: the
   // meta is repainted from the palette a frame after a chip is pressed, so
   // this is a wait — and a wait made of two round trips per attempt would be
   // reading two values taken at different instants.
   const both = `({
     chrome: document.querySelector('meta[name="theme-color"]')?.getAttribute('content') ?? null,
-    paper: getComputedStyle(document.documentElement).getPropertyValue(${JSON.stringify(PAPER)}).trim(),
+    ground: getComputedStyle(document.documentElement).getPropertyValue(${JSON.stringify(CANVAS)}).trim(),
   })`;
   try {
     await this.page.waitForFunction(
-      `(both => both.chrome !== null && both.chrome.toLowerCase() === both.paper.toLowerCase())(${both})`,
+      `(both => both.chrome !== null && both.chrome.toLowerCase() === both.ground.toLowerCase())(${both})`,
       null,
       { timeout: POLL_TIMEOUT },
     );
@@ -275,28 +281,28 @@ Then("the browser chrome matches the paper", async function (this: OlaiWorld) {
     // The timeout says "it never matched"; say WHAT it said instead.
     const seen = (await this.page.evaluate(both)) as {
       chrome: string | null;
-      paper: string;
+      ground: string;
     };
     assert.equal(
       seen.chrome?.toLowerCase() ?? null,
-      seen.paper.toLowerCase(),
-      "the browser chrome is not the colour the page is painted in",
+      seen.ground.toLowerCase(),
+      "the browser chrome is not the colour the top of the page is painted in",
     );
     throw cause;
   }
 });
 
 Then(
-  "the manifest's chrome is the paper this page paints",
+  "the manifest's chrome is the ground this page paints",
   async function (this: OlaiWorld) {
     const manifest = await manifestOf(this);
-    const unpicked = await paper(this);
+    const unpicked = await painted(this, CANVAS);
     for (const field of ["theme_color", "background_color"] as const) {
       const declared = manifest[field];
       assert.equal(
         typeof declared === "string" ? declared.toLowerCase() : declared,
         unpicked.toLowerCase(),
-        `the manifest's ${field} is not the paper an unpicked page paints`,
+        `the manifest's ${field} is not the ground an unpicked page paints`,
       );
     }
   },

@@ -174,7 +174,7 @@ const resolveDocument = (element: Element, from: string): void => {
 /** What an undrawn picture looks like: a quiet inline box, in the same family
  *  as the app's other readouts — visible enough to be seen where the picture
  *  was, quiet enough that a page of them is still a page of text. */
-const UNDRAWN = "inline-block rounded border border-rule px-1.5 py-0.5 " +
+const UNDRAWN = "inline-block rounded bg-well shadow-[var(--shadow-well)] px-1.5 py-0.5 " +
   "font-mono text-xs text-muted"
 
 /** Move this element's id, and any link into this block, into the block's own
