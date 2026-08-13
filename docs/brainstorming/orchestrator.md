@@ -96,14 +96,20 @@ For `.olai`:
   target repo's `agents` file) read clearly as olai's.
 - File association, tooling, syntax highlighting get an anchor.
 
-Against / costs:
-- Migration touches everything that says `.jsonl` (code, tests, docs,
-  daily-notes and Archive conventions, the website).
-- Generic tooling (`jq`-style workflows) loses the extension hint, though the
-  content stays JSONL.
+Against / costs — examined and dismissed (the human's push-back, 2026-08-13):
+- Migration touches everything that says `.jsonl` — but the human is olai's
+  only user, so migration is one atomic PR, not a compatibility campaign.
+- "Generic tooling loses the extension hint" defended the wrong thing.
+  Structured access has one door — the MCP; a `jq` pipeline against the raw
+  file is a second reader that can drift from what olai means, the exact
+  disease the one-situater doctrine exists to kill. What legitimately
+  remains raw is `cat`/`grep`/`git diff`/`git blame` — break-glass and
+  history — and none of those care about the extension, only that the format
+  stays plain line-oriented text (it does).
 
-The obvious path if ratified: olai serves both extensions, `.olai` preferred;
-new outlines are born `.olai`; existing files migrate as an unhurried chore.
+The path if ratified, simplified accordingly: one atomic rename PR — files,
+code, tests, docs, website — new outlines born `.olai`, no dual-extension
+era needed.
 
 ## Open questions for ratification
 
