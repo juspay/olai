@@ -104,12 +104,14 @@ export function Entry(props: {
       markdownReady()
       const indexes = derived()
       if (said === undefined || indexes === undefined) return
-      // The format's own rule for what an id names — the one a `see` link and
-      // the composer's chip resolve with (`nodeNamed` follows a mirror to the
-      // node standing at it). `byId.has` would have been the convenient answer
-      // and a different one: it says yes to a placement id, which no row in
-      // the tree carries, so pressing it could only ever leave the page.
-      markNodeRefs(said, (id) => nodeNamed(indexes, id) !== undefined)
+      // The format's own rule for what an id names, and what it RESOLVES TO —
+      // the one a `see` link and the composer's chip use. `nodeNamed` follows
+      // a placement to the node standing at it, so a span saying `echo` is
+      // marked with `order`: rows carry the node they SHOW, so the placement's
+      // own id names no row and every press of it would leave the page for a
+      // node that is right there. Asking whether it merely resolved (`!==
+      // undefined`, or `byId.has`) is the same bug one step earlier.
+      markNodeRefs(said, (id) => nodeNamed(indexes, id)?.node.id ?? null)
     })
   }
 

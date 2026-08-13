@@ -25,6 +25,7 @@ import {
   CHAT_SAID,
   CHAT_WROTE,
   chatNodeRef,
+  NODE_REF_ANY,
   nodeSelector,
   POLL_TIMEOUT,
 } from "../support/world.ts";
@@ -128,8 +129,22 @@ Then(
     // The whole of the convention: a backtick is not a reference, a DECLARED
     // id is. An agent writes them around file names, flags and words, and
     // those stay what they are.
+    //
+    // The SPAN is waited for first, and that is the difference between this
+    // and a count of zero: until the markdown pipeline lands, the answer is
+    // its own escaped text with no `<code>` in it at all, and an absence
+    // asserted then is an absence about a paragraph — the same shape of
+    // nothing this suite has already been caught believing once.
+    await this.page
+      .locator(`${CHAT_SAID} code`)
+      .filter({ hasText: text })
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(
-      await this.page.locator(`${CHAT_SAID} ${chatNodeRef(text)}`).count(),
+      await this.page
+        .locator(`${CHAT_SAID} code${NODE_REF_ANY}`)
+        .filter({ hasText: text })
+        .count(),
       0,
       `the answer made "${text}" pressable, and nothing in the set declares it`,
     );
@@ -157,11 +172,21 @@ Then(
 
 Then("the node {string} is focused", async function (this: OlaiWorld, id: string) {
   await this.expectNodeAttribute(id, "data-focused", "true");
-  // ...and it is on the screen, which is the other half of what a reference
-  // does. A row the page merely lit up somewhere below the fold would satisfy
-  // the attribute and none of the point.
-  assert.ok(
-    await this.page.locator(nodeSelector(id)).first().isVisible(),
-    `"${id}" is focused but not on screen`,
+  // ...and it is IN THE VIEWPORT, which is the other half of what a reference
+  // does and the half the attribute cannot say. Playwright's `isVisible()` is
+  // "has a box and is not hidden" — true for a row a mile below the fold — so
+  // the box is intersected with the window instead. Polled, because the scroll
+  // is smooth: it is a rule about where the page ENDS UP, not about the frame
+  // the press happened in.
+  const row = this.page.locator(nodeSelector(id)).first();
+  await this.waitUntil(
+    async () => {
+      const box = await row.boundingBox();
+      if (box === null) return false;
+      const view = this.page.viewportSize();
+      if (view === null) return false;
+      return box.y + box.height > 0 && box.y < view.height;
+    },
+    `"${id}" to be on the screen, not merely lit up`,
   );
 });

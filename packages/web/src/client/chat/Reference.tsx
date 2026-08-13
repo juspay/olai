@@ -45,7 +45,17 @@ export function Reference(props: {
       // covers another outline, a collapsed branch and a row done-hidden has
       // left out, without this having to tell them apart. Which of those a
       // press does is `../focus.ts`'s one answer, not this component's.
-      onClick={() => show(props.id)}
+      //
+      // STOPPED here, because this button carries the same `data-node-ref` the
+      // agent's own spans do — one selector for every reference, which is what
+      // a scenario asks about — and the pane above listens for that attribute
+      // ({@link ./Transcript.tsx}). Without this, one press is two `show`s:
+      // two frames asked for, two scrolls, and — the day either of them stops
+      // being idempotent — two navigations.
+      onClick={(event) => {
+        event.stopPropagation()
+        show(props.id)
+      }}
     >
       {props.children}
     </button>

@@ -86,7 +86,10 @@ had to invent:
 - **an id the agent wrote in backticks**, which is how it spells one anyway,
   because that is how every one of these tools describes its own arguments. A
   backticked word becomes pressable exactly when the outlines you have loaded
-  declare it: `notes.md` and `--commit=off` stay what they are.
+  declare it: `notes.md` and `--commit=off` stay what they are. An id that
+  names a MIRROR shows you the node it is a placement of — the same place a
+  `see` to that mirror lands, and the only one there is: a mirror is drawn
+  wherever its target is, and it is the target a row stands for.
 
 ## What it shows when it changes something
 

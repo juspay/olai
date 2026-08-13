@@ -55,6 +55,11 @@ Feature: The outline and the chat point at each other
     Then the chat says the write "marked done"
     When I press the node "order" in the write
     Then the node "order" is focused
+    # ...IN PLACE, which is the half a lit-up row cannot say on its own: the
+    # zoomed page draws that node too, with the same attribute on it, so a
+    # press that always navigated would satisfy every other line here. The
+    # address is what tells the two apart.
+    And the address is "/o/house.jsonl"
 
   @scratch:chat
   Scenario: An id the agent named in its own prose is a reference, and nothing else is
@@ -65,6 +70,7 @@ Feature: The outline and the chat point at each other
     Then the agent's answer names the node "order"
     When I press the node "order" in the answer
     Then the node "order" is focused
+    And the address is "/o/house.jsonl"
     # ...and the same backticks around something the set does not declare stay
     # what they are. An agent writes them around file names and flags all day.
     When I ask the agent "edit"
@@ -73,6 +79,53 @@ Feature: The outline and the chat point at each other
     # backtick there was.
     Then the agent's answer says "rewrote notes.md"
     But the agent's answer does not make "notes.md" a reference
+
+  @scratch:chat
+  Scenario: A PLACEMENT the agent named lands on the node it shows
+    # An agent writes placement ids — `read_node` answers `mirrors` with them,
+    # `remove_mirror` takes them — and a mirror is not a row: every row carries
+    # the node it SHOWS. So a span marked with the placement's own id names no
+    # row on the page, and the press leaves for a node that is right there.
+    # The mirror is written here rather than into the fixture because it is
+    # this scenario's subject and nobody else's.
+    When I rewrite "house.jsonl" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets"}
+      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
+      {"id":"now-order","ord":"a1","mirror":"order"}
+      """
+    Then the node "now-order" is shown
+    When I ask the agent "name now-order"
+    # What the agent WROTE is `now-order`; what the reference points at is the
+    # node standing there, which is what a `see` to the same placement does.
+    Then the agent's answer names the node "order"
+    When I press the node "order" in the answer
+    Then the node "order" is focused
+    And the address is "/o/house.jsonl"
+
+  @scratch:chat
+  Scenario: An armed node that has gone refuses the send rather than losing the subject
+    # The join the units cannot make: a runtime that swallowed the resolver's
+    # refusal and sent anyway would keep every one of them green, and the agent
+    # would get a question with no subject in it.
+    When I open the node menu of "order"
+    And I choose "Ask agent" from the node menu
+    Then the composer is armed with "order"
+    When I rewrite "house.jsonl" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
+      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
+      """
+    Then the node "order" is not shown
+    When I ask the agent "context"
+    Then the chat shows a refusal
+    # ...and the message is still there to send again: what a refused send
+    # threw away comes back, chips and all, exactly as a refused attachment
+    # does.
+    And the composer is armed with "order"
 
   @scratch:chat
   Scenario: A node that is not on the page opens its own page

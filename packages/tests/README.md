@@ -235,6 +235,18 @@ about had arrived. Both are the ordinary failure of an e2e assertion — passing
 for a reason that is not the feature — and both are cheap to find by breaking
 the code on purpose and expensive to find any other way.
 
+Two more of that shape were found by review, and both are pinned here now. A
+press that should stay on the page asserts the ADDRESS afterwards: "the row lit
+up" is also true of a row on the page a navigation just landed on, so the
+scenarios that mean *in place* now say which page they are still on — and the
+one that means *go there* was already saying it. And a PLACEMENT the agent named
+is its own scenario, written with `I rewrite` rather than into the fixture,
+because it is that scenario's subject and nobody else's: the mirror id has to
+arrive at the node it shows, or the reference names a row that does not exist.
+The scripted agent's `name <id>` verb exists for it — an id in prose, no tool
+call, because the id a scenario wants named is not always one a tool would
+accept.
+
 ## Colour, which is the one thing a step may not write down
 
 `features/theming.feature` is about fifteen palettes, and not one of its steps

@@ -18,6 +18,7 @@
  *
  * Behaviour is keyed on the prompt text, so a scenario asks for what it needs:
  *
+ *   name <id>    say that id in backticks, and nothing else
  *   done <id>    call `set_done` on that node, then say so
  *   add <title>  call `add_node` under the first outline's first root
  *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
@@ -791,6 +792,16 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       // all. (It did, until a sabotage run said so.)
       say(`\`${node}\` is the node titled ${found?.title ?? "?"}.\n`)
     }
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // An id in PROSE and nothing else — no tool call, no write. What is under
+  // test is the panel's reading of a backtick, and the id a scenario wants to
+  // see named is not always one a tool would accept (a placement is the case
+  // this exists for: `set_done` refuses one, and an agent still writes them).
+  if (verb === "name") {
+    say(`look at \`${argument}\`.`)
     respond(id, { stopReason: "end_turn" })
     return
   }

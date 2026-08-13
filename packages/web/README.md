@@ -868,7 +868,13 @@ Three components earn their own file:
   id the agent wrote in its own prose. No syntax was invented — every olai tool
   spells an id in backticks in its own description, so an agent already emits
   them — and a code span becomes pressable exactly when the loaded set declares
-  what it says, which is what makes a false positive unrepresentable. The
+  what it says, which is what makes a false positive unrepresentable. It is
+  marked with the id the format RESOLVED rather than the one it says, and that
+  distinction is a placement: an agent writes mirror ids (`read_node` answers
+  `mirrors` with them), rows carry the node they SHOW, so a span marked with
+  the placement's own id would name no row on the page and every press of it
+  would leave for a node that is right there. Resolving is what a `see` to the
+  same placement already does. The
   marking is a DOM pass over one message rather than a step in the markdown
   pipeline, because that pipeline is pure and cached by source text while this
   answer depends on the SET; the press is one delegated listener on the

@@ -53,18 +53,29 @@ export const NODE_REF = "data-node-ref"
  * code, and an id inside one is a line somebody would paste rather than a node
  * the agent is pointing at.
  *
- * WHAT COUNTS as declared is the caller's — and there is one answer to it in
- * this app, the format's own `nodeNamed` ({@link ./Entry.tsx} passes it, the
- * composer's chip resolves with it, a `see` link resolves with it).
+ * **It answers with the id it RESOLVED to, not with the one the span says**,
+ * and the difference is a placement. An agent writes placement ids — that is
+ * what `read_node`'s `mirrors` answers with and what `remove_mirror` takes —
+ * and a mirror is not a row: every row in the tree carries the node it SHOWS
+ * (`../fold/rows.ts`), so a span marked with the placement's own id names
+ * nothing that can be focused and every press of it would leave the page for a
+ * node that is right there. Resolving is what a `see` link to the same
+ * placement already does.
+ *
+ * WHAT an id resolves TO is the caller's, and there is one answer to it in this
+ * app: the format's own `nodeNamed` ({@link ./Entry.tsx} passes it, the
+ * composer's chip and a `see` link resolve with it). It answers `null` for a
+ * span the set does not declare and for a placement whose chain is dead —
+ * there is nothing to point at either way.
  */
 export const nodeNamedBy = (
   text: string | null,
   inFence: boolean,
-  declares: (id: string) => boolean,
+  resolve: (id: string) => string | null,
 ): string | null => {
   if (inFence) return null
   const id = (text ?? "").trim()
-  return id !== "" && declares(id) ? id : null
+  return id === "" ? null : resolve(id)
 }
 
 /** What a marked span carries besides its id: it is not a control until this
@@ -92,13 +103,15 @@ const AS_A_CONTROL: ReadonlyArray<readonly [string, string]> = [
  */
 export const markNodeRefs = (
   root: HTMLElement,
-  declares: (id: string) => boolean,
+  resolve: (id: string) => string | null,
 ): void => {
   for (const span of root.querySelectorAll("code")) {
     // The pipeline emits a fence as `<pre><code>`, so the question is about
     // this span's own parent rather than a walk to the root.
     const inFence = span.parentElement?.tagName === "PRE"
-    const id = nodeNamedBy(span.textContent, inFence, declares)
+    // The RESOLVED id — the span goes on saying what the agent wrote, and
+    // points at the node a reader can be shown.
+    const id = nodeNamedBy(span.textContent, inFence, resolve)
     const marked = span.getAttribute(NODE_REF)
     if (id === marked) continue
     if (id === null) {
