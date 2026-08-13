@@ -63,6 +63,9 @@
     border: 1px solid var(--rule); border-radius: 10px; background: var(--paper);
     box-shadow: 0 1px 2px rgba(21,24,15,0.05), 0 8px 24px rgba(21,24,15,0.06);
     padding: 1rem 1.2rem 1.2rem; font-size: 0.92rem;
+    /* named, so a panel that overrides the eight tokens repaints its text too —
+       which is what the theme mocks below do */
+    color: var(--ink);
   }
   .panel .file { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); border-bottom: 1px solid var(--rule); padding-bottom: 0.6rem; margin-bottom: 0.6rem; }
 
@@ -77,6 +80,12 @@
   .strike { text-decoration: line-through; text-decoration-color: var(--muted); color: var(--muted); }
   .rollup { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
   .tagchip { color: var(--accent); }
+  .pill {
+    font-family: var(--mono); font-size: 0.72rem; line-height: 1.5;
+    border: 1px solid var(--rule); border-radius: 999px; padding: 0 0.5em;
+    color: var(--muted); white-space: nowrap; flex: none;
+  }
+  .pill.late { border-color: var(--alarm); color: var(--alarm); }
   .note { color: var(--muted); font-size: 0.85rem; padding-left: 2.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .docref { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); padding-left: 2.8rem; margin-top: 0.1rem; }
   .mdoc h3 { font-size: 1.05rem; margin-bottom: 0.3rem; }
@@ -92,6 +101,9 @@
   .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; align-items: start; margin-top: 1.5rem; }
   @media (max-width: 56rem) { .cols { grid-template-columns: minmax(0, 1fr); } }
 
+  /* a paragraph that follows another one, rather than a lead */
+  .then { margin-top: 0.9rem; }
+
   .diff .add { color: var(--done); }
   .diff .del { color: var(--alarm); }
   .diff .ctx { color: var(--muted); }
@@ -103,12 +115,66 @@
   table.keys td:first-child { white-space: nowrap; width: 1%; padding-right: 1.25rem; }
   kbd { font-size: 0.78rem; background: var(--well); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0.1em 0.45em; }
 
+  /* agenda mock */
+  .sect { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-top: 1rem; }
+  .panel .sect:first-of-type { margin-top: 0; }
+  .grp { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin: 0.5rem 0 0.2rem; }
+  .trail { font-size: 0.75rem; color: var(--muted); margin-top: 0.35rem; }
+  .row .t.grow { flex: 1; }
+
+  /* the date picker, open under a row */
+  .picker { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.4rem 0 0.1rem 2.8rem; font-size: 0.8rem; color: var(--muted); }
+  .field, .btn {
+    font-size: 0.78rem; border: 1px solid var(--rule); border-radius: 4px;
+    padding: 0.15rem 0.5rem; background: var(--paper); color: var(--ink);
+  }
+  .field { font-family: var(--mono); }
+  .btn.quiet { border-color: transparent; color: var(--muted); }
+
+  /* the mark walk */
+  .walk { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.65rem; font-size: 0.9rem; }
+  .walk .arw { color: var(--muted); }
+  .walk .stop { display: flex; align-items: baseline; gap: 0.4rem; }
+
   /* chat mock */
   .chat .msg { max-width: 85%; border-radius: 10px; padding: 0.5rem 0.8rem; margin-top: 0.7rem; }
   .chat .you { margin-left: auto; background: color-mix(in srgb, var(--accent) 10%, var(--paper)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--rule)); }
   .chat .op { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-top: 0.7rem; }
   .chat .op b { color: var(--done); font-weight: 600; }
   .chat .agent { background: var(--well); border: 1px solid var(--rule); }
+  /* what a call CHANGED: a node story for an olai write, a diff for a file */
+  .chat .wrote { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.82rem; margin-top: 0.35rem; padding-left: 1.1rem; }
+  .chat .wrote .said { margin-left: auto; color: var(--muted); font-size: 0.78rem; }
+  .chat .wrote .in { color: var(--muted); font-family: var(--mono); font-size: 0.7rem; }
+  .fdiff { border: 1px solid var(--rule); border-radius: 6px; margin-top: 0.4rem; overflow: hidden; font-family: var(--mono); font-size: 0.72rem; line-height: 1.6; }
+  .fdiff .path { display: flex; gap: 0.6rem; border-bottom: 1px solid var(--rule); padding: 0.2rem 0.5rem; color: var(--muted); }
+  .fdiff .path .n { margin-left: auto; }
+  .fdiff .path .plus { color: var(--done); }
+  .fdiff .path .minus { color: var(--alarm); }
+  .fdiff .body { overflow-x: auto; }
+  .fdiff .ln { display: flex; gap: 0.35rem; padding: 0 0.5rem; }
+  .fdiff .ln .no { width: 1.4rem; flex: none; text-align: right; color: var(--muted); opacity: 0.7; }
+  .fdiff .ln .mk { flex: none; }
+  .fdiff .ln .src { white-space: pre; }
+  .fdiff .ln.add { background: color-mix(in srgb, var(--done) 12%, transparent); }
+  .fdiff .ln.add .mk { color: var(--done); }
+  .fdiff .ln.del { background: color-mix(in srgb, var(--alarm) 12%, transparent); }
+  .fdiff .ln.del .mk { color: var(--alarm); }
+  .fdiff .ln.gap, .fdiff .more { color: var(--muted); }
+  .fdiff .more { border-top: 1px solid var(--rule); padding: 0.2rem 0.5rem; }
+
+  /* preferences mock */
+  .prefs .prow { border-top: 1px solid var(--rule); padding: 0.7rem 0; }
+  .prefs .prow:first-of-type { border-top: none; padding-top: 0.2rem; }
+  .prefs .lbl { font-weight: 600; font-size: 0.85rem; }
+  .prefs .hint { color: var(--muted); font-size: 0.78rem; margin-top: 0.35rem; }
+  .prefs .scope { border-top: 1px solid var(--rule); padding-top: 0.7rem; color: var(--muted); font-size: 0.78rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
+  .chip { font-family: var(--mono); font-size: 0.68rem; line-height: 1.7; border: 1px solid; border-radius: 999px; padding: 0 0.5em; }
+  .chip.on { box-shadow: 0 0 0 1px var(--paper), 0 0 0 3px var(--accent); }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; margin-top: 0.5rem; font-size: 0.78rem; }
+  .seg span { padding: 0.15rem 0.6rem; color: var(--muted); }
+  .seg span.on { background: var(--well); color: var(--ink); }
 
   /* comparison table */
   .tablewrap { overflow-x: auto; margin-top: 1.5rem; }
@@ -297,6 +363,119 @@ The corner unit is the **risky one** — see
         status is never computed from its children.</p>
       </div>
     </div>
+    <div class="cols">
+      <div class="panel">
+        <div class="file">⌘⇧Enter, on the row</div>
+        <p class="walk">
+          <span class="stop"><span class="bullet">●</span> no mark</span>
+          <span class="arw">→</span>
+          <span class="stop"><span class="box"></span> todo</span>
+          <span class="arw">→</span>
+          <span class="stop"><span class="box doing"></span> doing</span>
+          <span class="arw">→</span>
+          <span class="stop"><span class="bullet">●</span> no mark</span>
+        </p>
+        <p class="caption"><code>done</code> is not a stop on the ring.</p>
+      </div>
+      <div>
+        <p>Two keys write all three. <kbd>⌘</kbd>+<kbd>Enter</kbd> finishes
+        something, and takes that back: <code>done</code> is the mark with an
+        instant on it, which is what puts the work on that day’s page.
+        <kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Enter</kbd> walks the mark on, one step
+        round the answers a person gives about work they have <em>not</em>
+        finished. The last stop is an answer rather than a gap — a node
+        carrying no mark is not an unfinished one, and walking to it is how you
+        say a row was never a task.</p>
+        <p class="then">Finishing something is a thing you mean, not a thing to do on the
+        way past, so nothing stamps a completion while you are walking round —
+        and the walk will not take finished work backwards. Press it on a
+        finished row and the write is refused, in the same words an agent gets:
+        <em>nothing should decide on your behalf that finished work is not
+        finished</em>. ⌘Enter takes the <code>done</code> off, and the walk
+        carries on from there.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="agenda">
+  <div class="wrap">
+    <h2>Dates, and what is owed</h2>
+    <p class="lead">A node can carry a <code>date</code>: the day it is
+    scheduled for. The mark says whether it is work. Read together they answer
+    a third question, and no field stores the answer — <code>/agenda</code> is
+    that reading, taken of every outline at once.</p>
+    <div class="cols">
+      <div class="panel">
+        <div class="file">/agenda · 2026-08-12</div>
+
+        <p class="sect">overdue</p>
+        <p class="grp">kitchen.jsonl</p>
+        <p class="trail">Kitchen renovation ›</p>
+        <div class="row"><span class="box doing"></span><span class="t grow">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
+
+        <p class="sect">today</p>
+        <p class="grp">kitchen.jsonl</p>
+        <p class="trail">Kitchen renovation ›</p>
+        <div class="row"><span class="box"></span><span class="t grow">Book the plumber</span><span class="pill">2026-08-12</span></div>
+        <p class="grp">trip.jsonl</p>
+        <div class="row"><span class="bullet">●</span><span class="t grow">Ferry tickets go on sale</span><span class="pill">2026-08-12</span></div>
+
+        <p class="sect">upcoming</p>
+        <p class="grp"><a href="#daily">2026-08-15</a></p>
+        <div class="row"><span class="box"></span><span class="t grow">Template the countertop</span><span class="pill">2026-08-15</span></div>
+      </div>
+      <div>
+        <pre><code>overdue(n) ⇔ n carries todo or doing
+             ∧ day(n.date) &lt; today</code></pre>
+        <p class="caption">Derived when the page is drawn, stored nowhere, and
+        spelled once — the agenda's first section and the tone of every date
+        badge are the same predicate. <code>day()</code> is the first ten
+        characters and the comparison is plain string order: dates are text.</p>
+        <p class="then"><strong>Overdue is a definition, not a
+        flag.</strong> Nobody sets it and nothing stores it. <code>done</code>
+        extinguishes it by construction — finished work is late at nothing —
+        and a date with no mark is an <em>occurrence</em>: a delivery, a
+        birthday, a ferry. It draws no checkbox, its pill never turns amber,
+        and when its day passes it simply leaves. A day going by is not a
+        failure of a bullet.</p>
+      </div>
+    </div>
+    <div class="cols">
+      <div>
+        <p><strong>Three sections, because they are three pieces of news.</strong>
+        <em>Overdue</em> is every slipped task in the directory, oldest first,
+        grouped by the outline it lives in — the one answer no day page can
+        give, because a slipped task is on a day nobody visits. <em>Today</em>
+        is what today's day page holds, minus what is finished. <em>Upcoming</em>
+        is the next seven days that have anything on them, each heading a link
+        to that day's own page; days with nothing do not appear.</p>
+        <p class="then">A task nobody dated is absent entirely: it has no <em>when</em> to be
+        late against, and inventing one is what this format refuses to do. An
+        empty agenda says <em>Nothing is due.</em> and offers nothing to press —
+        every row on it lives somewhere else, and that is where it is changed.</p>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="file">kitchen.jsonl</div>
+          <div class="row"><span class="box"></span><span class="t grow">Book the plumber</span><span class="pill">2026-08-12</span></div>
+          <div class="picker">
+            <span>Scheduled for</span>
+            <span class="field">2026-08-19</span>
+            <span class="btn">Set date</span>
+            <span class="btn quiet">Cancel</span>
+          </div>
+        </div>
+        <p class="caption">Press the date beside a title and the picker opens in
+        place under the row. A row with no date has no pill to press, so its way
+        in is the <strong>•••</strong> menu: <em>Set date…</em>, or
+        <em>Change date…</em> on a row that has one. The control is the
+        browser's own <code>&lt;input type="date"&gt;</code>, so what is written
+        is the ten characters you picked, never a timestamp this app invented on
+        the way. Empty the box and the button becomes <em>Clear date</em> — the
+        menu's own verb, and the same write.</p>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -315,6 +494,7 @@ The corner unit is the **risky one** — see
       </table>
       <table class="keys">
         <tr><td><kbd>⌘</kbd>+<kbd>Enter</kbd></td><td>tick it off, or take that back</td></tr>
+        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Enter</kbd></td><td>walk the mark on: to do, then doing, then none</td></tr>
         <tr><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>write the note under it</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>drop what you were typing</td></tr>
         <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Z</kbd></td><td>put that edit back</td></tr>
@@ -325,7 +505,9 @@ The corner unit is the **risky one** — see
     never takes back what an agent or another tab did in the meantime, and one
     that no longer fits says why.</p>
     <p>Not everything has a key. Hover a row and the <strong>•••</strong> in the
-    gutter carries the rest: the three marks and clearing one, clearing a date,
+    gutter carries the rest: the three marks and clearing one, setting or
+    changing a date — which opens the same picker the row’s own pill does,
+    because a date is a value somebody has to choose — and clearing one,
     retiring one placement of a mirrored node, archiving a subtree — it asks
     first, and says how many rows go with it — and copying the subtree as
     tab-indented plain text. Those go on the same undo stack, so ⌘Z takes a
@@ -343,8 +525,11 @@ The corner unit is the **risky one** — see
     <p class="lead">The chat panel connects to any agent that speaks
     <a href="https://agentclientprotocol.com">ACP</a>. Claude Code is bundled as
     the default; set <code>OLAI_ACP_AGENT</code> to use a different agent CLI.
-    Agents get a fixed set of node tools and no file access, so every write is
-    validated before it lands.</p>
+    Olai hands an agent no filesystem — a fixed set of tools that can only name
+    nodes — so every write it asks olai for is validated before it lands. What a
+    coding assistant brings with it is its own: it edits files on the authority
+    it already has in a terminal, and olai neither grants that nor pretends it
+    away. It shows it.</p>
     <p>Files go in by paste, by drag, or by the picker: drag a screenshot, a
     PDF or a text file onto the conversation — several at once if you like —
     and the panel lights up the area that will take it while you are still
@@ -353,12 +538,42 @@ The corner unit is the **risky one** — see
     directory being served, and go away with it. A picture shows itself; a
     document shows its name and size. Anything olai will not take is refused
     where you dropped it, by name.</p>
+    <p class="then">A tool call is one folded line, and what the call <em>changed</em> is not
+    folded away. There are two kinds of change and the panel draws them
+    differently, because they are different things. A write through olai’s node
+    tools shows what changed about the <strong>node</strong>, in the same words
+    the commit panel uses for the same edit — <em>marked done</em>, <em>note
+    rewritten</em>, <em>moved</em> — and the outline it landed in. A file the
+    agent rewrote with its own tools shows a <strong>diff</strong>: the path,
+    how many lines came and went, and the change itself, with the unchanged
+    stretches collapsed so the first thing you read is what moved. It is
+    trimmed to a few rows and expands where it stands. An outline never gets a
+    text diff — one line per node means a text diff of one is a single enormous
+    line with everything on it changing at once.</p>
     <div class="cols">
       <div class="panel chat">
         <div class="file">chat · any ACP agent</div>
         <div class="msg you">plumber's booked — tick it off</div>
         <div class="op"><b>✓</b> set_done · book-plumber</div>
+        <div class="wrote"><span>✓</span><span>Book the plumber</span><span class="said">marked done</span></div>
+        <div class="wrote"><span class="in">kitchen.jsonl</span></div>
         <div class="msg agent">Done. Marked “Book the plumber” as done.</div>
+
+        <div class="msg you">the base units are carcass-only — say so in the doc</div>
+        <div class="op"><b>✓</b> Edit · cabinets.md</div>
+        <div class="fdiff">
+          <p class="path"><span>cabinets.md</span><span class="n plus">+3</span><span class="minus">−2</span></p>
+          <div class="body">
+            <div class="ln"><span class="no">1</span><span class="mk">&nbsp;</span><span class="src"># Cabinet specs</span></div>
+            <div class="ln gap"><span class="no"></span><span class="src">⋯ 3 unchanged</span></div>
+            <div class="ln del"><span class="no">6</span><span class="mk">-</span><span class="src">- 600&#8239;mm base × 4</span></div>
+            <div class="ln add"><span class="no">6</span><span class="mk">+</span><span class="src">- 600&#8239;mm base × 4, carcass only</span></div>
+            <div class="ln add"><span class="no">7</span><span class="mk">+</span><span class="src">- filler strip × 2</span></div>
+            <div class="ln"><span class="no">8</span><span class="mk">&nbsp;</span><span class="src">- corner carousel × 1</span></div>
+          </div>
+          <p class="more">+4 more lines</p>
+        </div>
+        <div class="msg agent">Added the carcass note and the filler strips.</div>
       </div>
       <div class="panel">
         <div class="file">kitchen.jsonl · live</div>
@@ -405,6 +620,93 @@ The corner unit is the **risky one** — see
         <pre><code>$ claude mcp add olai -- olai mcp ~/outlines</code></pre>
         <p class="caption">The same tools are available over MCP for agents
         running in a terminal. There is no write CLI.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="prefs">
+  <div class="wrap">
+    <h2>Preferences, and fifteen palettes</h2>
+    <p class="lead">One door in the app header, and two rows behind it: the
+    theme, and what a page does with finished work. Both are this browser’s —
+    stored here, carried into every other tab you have olai open in, and never
+    sent to the server. Two machines reading the same outlines are entitled to
+    look different, and the directory neither knows nor cares.</p>
+    <div class="cols">
+      <div class="panel prefs">
+        <div class="file">preferences</div>
+        <div class="prow">
+          <div class="lbl">Theme</div>
+          <div class="chips">
+            <span class="chip" style="background:#E4ECCA;color:#2C4222;border-color:#CDD8AB">leaf</span>
+            <span class="chip" style="background:#F0E7D2;color:#3D2F1B;border-color:#DCCEAC">manuscript</span>
+            <span class="chip on" style="background:#FAFAF6;color:#15180F;border-color:#C9CDBF">chalk</span>
+            <span class="chip" style="background:#000000;color:#C9D6B4;border-color:#242B1E">pitch</span>
+            <span class="chip" style="background:#FFFFFF;color:#2A3135;border-color:#DCE0E2">light</span>
+            <span class="chip" style="background:#2A3135;color:#FFFFFF;border-color:#5C6062">dark</span>
+            <span class="chip" style="background:#ECEEF0;color:#2A3135;border-color:#DCE0E2">vintage</span>
+            <span class="chip" style="background:#1E1E2E;color:#CDD6F4;border-color:#313244">catppuccin</span>
+            <span class="chip" style="background:#FFEFE2;color:#281603;border-color:#A1836B53">chocolate</span>
+            <span class="chip" style="background:#000000;color:#00FF00;border-color:#005500">hacker</span>
+            <span class="chip" style="background:#DDEABE;color:#415915;border-color:#85AC41">matcha</span>
+            <span class="chip" style="background:#FDF6F6;color:#615F7F;border-color:#E4D8EA">moon</span>
+            <span class="chip" style="background:#141414;color:#DCDBDB;border-color:#242424">neo</span>
+            <span class="chip" style="background:#282C33;color:#C8CCD4;border-color:#3B4048">one-dark</span>
+            <span class="chip" style="background:#000000;color:#FEA143;border-color:#E8393F">robot</span>
+          </div>
+          <p class="hint">chalk is in force. Every colour on the page is this
+          one table, so a pick repaints all of them at once.</p>
+        </div>
+        <div class="prow">
+          <div class="lbl">Done</div>
+          <div class="seg"><span class="on">Visible</span><span>Hidden</span></div>
+          <p class="hint">Pages open with finished work shown. Any page’s own
+          Done switch still overrides it.</p>
+        </div>
+        <p class="scope">These are this browser’s. They are stored here, reach
+        every tab you have olai open in, and are never sent to the server.</p>
+      </div>
+      <div>
+        <div class="panel" style="--paper:#000000;--ink:#C9D6B4;--muted:#77836A;--rule:#242B1E;--accent:#6FAECE;--done:#7FC97A;--doing:#D9A85A;--alarm:#D68B9A;--well:#12160F">
+          <div class="file">kitchen.jsonl · pitch</div>
+          <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
+          <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
+          <div class="row d1"><span class="box doing"></span><span class="t grow">Order the new cabinets</span><span class="pill late">2026-08-07</span></div>
+          <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
+        </div>
+        <div class="panel" style="--paper:#F0E7D2;--ink:#3D2F1B;--muted:#8C7B5C;--rule:#DCCEAC;--accent:#2F6580;--done:#5A7A34;--doing:#A05A16;--alarm:#9E4444;--well:#E7DBC0;margin-top:1rem">
+          <div class="file">kitchen.jsonl · manuscript</div>
+          <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
+          <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
+          <div class="row d1"><span class="box doing"></span><span class="t grow">Order the new cabinets</span><span class="pill late">2026-08-07</span></div>
+          <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
+        </div>
+        <p class="caption">The same rows, in two of the fifteen. A palette is
+        eight colours with a name; picking one writes <code>data-theme</code> on
+        <code>&lt;html&gt;</code>, and the stored pick lands there before the
+        first paint, so a reload never flashes the wrong one.</p>
+      </div>
+    </div>
+    <div class="cols">
+      <div>
+        <p><strong>Seven of the fifteen are dark grounds.</strong> There is no
+        <em>system</em> chip and no auto: the operating system’s preference is
+        not consulted at all, because two ways to be dark are two answers that
+        can disagree — with each other, and with the reader who already said
+        what they wanted. A page nobody has picked on reads in
+        <code>chalk</code>, which is the default and the one palette that
+        promises WCAG AA on every pair it paints; a unit test holds it to that,
+        pair by pair.</p>
+      </div>
+      <div>
+        <p><strong>Done: Visible or Hidden is a default, not a second
+        switch.</strong> A reading belongs to a page — folds start fresh when
+        you zoom — but “I do not want to look at finished work” is a claim about
+        the reader, and pressing it on every page opened is what a preference
+        exists to stop. So it moves the page you are on and leaves alone any
+        page whose own Done switch you have already pressed. Hiding finished
+        work is a row not drawn: never a node marked, never a file written.</p>
       </div>
     </div>
   </div>
