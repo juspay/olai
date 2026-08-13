@@ -31,18 +31,14 @@
  */
 
 import { surface } from "@olai/surface"
-import { surfaceWsUrl } from "@kolu/surface-app"
 import { connectSurface } from "@kolu/surface-app/solid"
 
 const connection = await connectSurface({
   surface,
-  // The dial URL, derived from the page's own origin by the ONE derivation
-  // both legs share (`surfaceWsUrl`): the serving side compares `pathname` for
-  // equality, and the scheme swap is the part a hand-spelled copy gets wrong
-  // only once the app is served over TLS. This file used to spell both by hand.
-  // A THUNK, as it always was, so `location` is read at dial time and a test
-  // that imports this module outside a browser never touches it.
-  url: () => surfaceWsUrl(location.origin),
+  // No `url`: the seam derives it — `surfaceWsUrl(location.origin)`, the ONE
+  // derivation both legs share — at connect time (juspay/kolu#2165). This file
+  // used to spell it, and before that to hand-roll both halves; a derivation
+  // that is never a choice is no longer a question this wire is asked.
   // What happens when the server retires this wire. Required by the seam, with
   // no default, so a wire that compiles has been asked what happens when it dies.
   //

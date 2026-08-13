@@ -23,3 +23,8 @@
 # exact dependency set: no version loses, and nothing nests.
 [install]
 linker = "isolated"
+
+# The client's browser globals, for unit tests that import its modules in
+# Node. The file says why it exists and how little it defines.
+[test]
+preload = ["./scripts/bun-test-preload.ts"]
