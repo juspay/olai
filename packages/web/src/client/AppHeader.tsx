@@ -53,9 +53,9 @@
  * live one.
  *
  * The one screen without this bar is the fault card: `main.tsx`'s
- * `<ErrorBoundary>` sits above `App`, so a thrown render never reaches here.
- * That is pre-existing and intentional — a broken client has no chrome to
- * trust — and is the sole exception to "the header is on every screen".
+ * `SurfaceFaultBoundary` sits above `App`, so a thrown render never reaches
+ * here. That is pre-existing and intentional — a broken client has no chrome
+ * to trust — and is the sole exception to "the header is on every screen".
  *
  * Styled like the rest of the chrome: sans, a rule under it, desk.
  * Height is `h-12` (3rem) and the static `--height-header` token in
