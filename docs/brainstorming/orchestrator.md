@@ -65,8 +65,21 @@ already has a "run agents" layer for some runtimes, just not for Claude Code
 or Grok today.[^apm] If it grows those, launching could be apm's job, with
 the definitions in `apm.yml`. A watch item, not a plan.
 
+**Option 4: `apm run` scripts — SPIKED, and it failed the test that
+matters.** `apm.yml` can hold npm-style scripts whose body is any command
+(the docs' own examples invoke claude), so launching works today — the spike
+booted the claude TUI through it with the right model and permissions. But
+**the wrapper blinds kolu**: with `apm run` on the terminal's argv, kolu sees
+a python process — the agent column goes empty, and `kolu wait` / `kolu
+debrief` (the tools the orchestrator babysits every lane with) time out.
+Measured, not guessed.[^spike] The spike's ranking: keep `kolu create --
+claude …` for launching; use apm at most as a prompt compiler off the spawn
+path. Full report: `apm-spike.md` in this directory.
+
 These compose rather than exclude: option 1 can ship now; option 2 is a kolu
-feature the node's content would migrate into; option 3 is an ecosystem bet.
+feature the node's content would migrate into; option 3 is an ecosystem bet;
+option 4 is measured out of the launch path (its prompt-compilation half
+remains interesting for the charter layer).
 
 Rejected along the way, for the record.[^rejected]
 
@@ -149,6 +162,17 @@ period.
     one-situater doctrine (every reading through the MCP, never a second
     parser) is why encouraging raw `jq` pipelines works against the
     product's grain.
+
+[^spike]: Grok spike, 2026-08-13, against apm 0.28.0 from source. Key
+    measurements: `kolu ls` for an `apm run`-wrapped claude shows
+    `FOREGROUND python`, agent JSON `null` the whole session (vs
+    `kind=claude-code, model=claude-opus-5` for the direct control);
+    `kolu wait --until awaiting,waiting` met in 8ms direct, timed out
+    wrapped. Also found: Claude/Grok are apm *targets* (config deployment),
+    not launch runtimes; `apm runtime setup codex` destructively rewrites
+    `~/.codex/config.toml`; registered-runtime scripts get their prompt
+    passed as an argument with Codex forced onto `codex exec`. Details:
+    `apm-spike.md`.
 
 [^halves]: "Ship in halves": the outline is the fix (the knowledge exists,
     launchers read it), the launch verb is the convenience (olai calling
