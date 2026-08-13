@@ -246,24 +246,54 @@ Then("the preferences panel opens downward, clear of the bar", async function (t
 
 // ── the Done preference ────────────────────────────────────────────────
 
-/** Press one segment of a row's control, and wait for it to say it is the one
+/** Press one segment of the Done row, and wait for it to say it is the one
  *  in force — so everything after this step is about what the app DID rather
- *  than about the click landing. */
+ *  than about the click landing. The outline pill that used to set this is
+ *  gone: Prefs is the one home, so hide/show and this step are one circuit. */
+const setDone = async (
+  world: OlaiWorld,
+  value: "hidden" | "visible",
+): Promise<void> => {
+  await showPreferences(world.page);
+  await world.press(
+    row(world, "done").locator(`${PREFS_CHOICE}[data-value="${value}"]`),
+  );
+  await world.expectAttribute(
+    `${PREFS_ROW}[data-pref="done"] ${PREFS_CHOICE}[data-value="${value}"]`,
+    "aria-pressed",
+    "true",
+    `the Done "${value}" choice`,
+  );
+};
+
 When(
   "I set Done to {string}",
   async function (this: OlaiWorld, value: string) {
-    await showPreferences(this.page);
-    await this.press(
-      row(this, "done").locator(`${PREFS_CHOICE}[data-value="${value}"]`),
-    );
-    await this.expectAttribute(
-      `${PREFS_ROW}[data-pref="done"] ${PREFS_CHOICE}[data-value="${value}"]`,
-      "aria-pressed",
-      "true",
-      `the Done "${value}" choice`,
-    );
+    if (value !== "hidden" && value !== "visible") {
+      throw new Error(`Done is "hidden" or "visible", not "${value}"`);
+    }
+    await setDone(this, value);
   },
 );
+
+/** Intent sentences the tree features already speak. They go through Prefs
+ *  and then put the panel away, because the next step is about the TREE and a
+ *  portalled panel would sit on top of it. */
+When("I hide the done nodes", async function (this: OlaiWorld) {
+  await setDone(this, "hidden");
+  await this.page.keyboard.press("Escape");
+  await this.page
+    .locator(PREFS_PANEL)
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+When("I show the done nodes", async function (this: OlaiWorld) {
+  await setDone(this, "visible");
+  await this.page.keyboard.press("Escape");
+  await this.page
+    .locator(PREFS_PANEL)
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
 
 /**
  * A SECOND page in the same context, which is what makes it a second tab of the
@@ -303,8 +333,9 @@ Then(
   "the Done row explains that finished work is {string}",
   async function (this: OlaiWorld, expected: string) {
     const hint = await hintOf(this, "done");
+    const said = new RegExp(`finished work[\\s\\S]*${expected}`, "i");
     assert.ok(
-      hint.includes(`finished work ${expected}`),
+      said.test(hint),
       `the Done row says "${hint}", which does not say finished work is ` +
         `${expected}`,
     );

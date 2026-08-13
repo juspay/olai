@@ -256,8 +256,6 @@ export const AGENDA_LINK = selector(TESTID.agendaLink);
 export const DAY_NOTE = selector(TESTID.dayNote);
 /** Its heading — the way from the day to the document's own page. */
 export const DAY_NOTE_LINK = selector(TESTID.dayNoteLink);
-/** The per-view Visible/Hidden switch for nodes that are done. */
-export const DONE_TOGGLE = selector(TESTID.doneToggle);
 /** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */
 export const NOT_FOUND = selector(TESTID.notFound);
 /** Shown INSTEAD of the sidebar and the tree when a set has never validated. */

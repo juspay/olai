@@ -298,7 +298,6 @@ export const TESTID = {
   agendaLink: "agenda-link",
   /** Rail icon: the same way in when the column is collapsed. */
   railAgenda: "rail-agenda",
-  doneToggle: "done-toggle",
   notFound: "not-found",
   errorView: "error-view",
   errorFileGroup: "error-file-group",

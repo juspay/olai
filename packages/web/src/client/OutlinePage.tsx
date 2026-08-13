@@ -9,11 +9,10 @@
 import type { Row } from "@olai/format"
 import { Show } from "solid-js"
 
-import { DoneToggle } from "./DoneToggle.tsx"
 import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
+import { doneHidden } from "./settings/done.ts"
 import { Tree } from "./Tree.tsx"
-import type { View } from "./view.ts"
 
 export function OutlinePage(props: {
   /** Which file this is — needed by exactly one thing, and it is the one
@@ -21,20 +20,16 @@ export function OutlinePage(props: {
    *  put a first one after. */
   readonly file: string
   readonly rows: ReadonlyArray<Row>
-  readonly view: View
 }) {
   return (
     <Editable rows={() => props.rows}>
-      <header class="mb-4 flex items-baseline justify-end gap-2">
-        <DoneToggle hidden={props.view.doneHidden()} onToggle={props.view.toggleDone} />
-      </header>
       <Tree rows={props.rows} />
       {/* An outline that holds nothing still has to be startable, and a tree
           of no rows offers nowhere to press a key. Only when the file really
           is empty: rows can also be missing because this reading is hiding
           what is done, and "write its first line" would be a lie over a tree
           that is one click from coming back. */}
-      <Show when={props.rows.length === 0 && !props.view.doneHidden()}>
+      <Show when={props.rows.length === 0 && !doneHidden()}>
         <StartLine
           at={{ kind: "first", file: props.file }}
           label="This outline is empty — write its first line."

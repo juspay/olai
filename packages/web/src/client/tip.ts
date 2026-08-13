@@ -43,7 +43,7 @@ export const clampedLeft = (
  *
  * Each tip closing itself on its own `mouseleave` is not enough, and the bug
  * that says so was on screen: a pointer resting on a mark while the tree
- * re-rendered under it — a fold, the done switch, a frame from the live store —
+ * re-rendered under it — a fold, a preference pick, a frame from the live store —
  * leaves the mark somewhere else with the pointer over nothing, and a browser
  * fires no `mouseleave` for an element that moved out from under a STATIONARY
  * pointer. That tip was then open for good: the only event that would have

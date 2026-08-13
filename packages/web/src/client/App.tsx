@@ -46,9 +46,9 @@ import { OutlinePage } from "./OutlinePage.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
+import { visible } from "./settings/done.ts"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
-import { createView } from "./view.ts"
 import { connectionReadout, olai } from "./wire.ts"
 
 export default function App() {
@@ -57,7 +57,6 @@ export default function App() {
   const errors = olai.cells.errors.use()
 
   const router = createRouter()
-  const view = createView(router.route)
   const today = createToday()
 
   // Mobile drawer open state. Ephemeral: a reload starts shut so the outline
@@ -102,7 +101,7 @@ export default function App() {
 
   const rows = createMemo(() => {
     const indexes = outlines.derived()
-    return indexes === undefined ? [] : view.visible(rowsFor(indexes, page()))
+    return indexes === undefined ? [] : visible(rowsFor(indexes, page()))
   })
 
   const docked = () => outlines.manifest() !== null && page() !== undefined
@@ -249,7 +248,7 @@ export default function App() {
                         </Match>
                         <Match when={only(open(), "node")}>
                           {(node) => (
-                            <NodePage zoomed={node().zoomed} rows={rows()} view={view} />
+                            <NodePage zoomed={node().zoomed} rows={rows()} />
                           )}
                         </Match>
                         <Match when={only(open(), "outline")}>
@@ -257,7 +256,6 @@ export default function App() {
                             <OutlinePage
                               file={outline().file}
                               rows={rows()}
-                              view={view}
                             />
                           )}
                         </Match>

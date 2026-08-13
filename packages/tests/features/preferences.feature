@@ -14,13 +14,12 @@ Feature: One place to set how this browser reads
   chips. The chips are the panel's Theme row now; `theming.feature` is the whole
   of what they still promise, and it opens this panel to reach them.
 
-  The Done row is the DEFAULT for a per-view switch rather than a second switch.
-  This switch belongs to a page — so it starts fresh when you zoom, unlike a
-  fold, which is this browser's and is kept (`folds_are_remembered.feature`) —
-  but "I do not want to look at finished work" is a claim about the reader, and
-  pressing it again on every page opened is what a preference exists to stop.
-  Two scenarios below are that distinction: changing it moves the page you are
-  on, and it leaves alone a page whose own switch has been pressed.
+  The Done row is the one switch. The floating pill that sat above the outline
+  was a second door for the same preference — the same redundancy the theme
+  pill used to be, and the same one `one-git-indicator` closed for the two git
+  chips. Prefs is the home; there is no per-page override. A pick moves the
+  page you are on, follows you onto a page you have not opened, and reaches
+  every other tab of this browser.
 
   Scenario: The preferences open from the header, and say whose they are
     When I open the app
@@ -114,27 +113,23 @@ Feature: One place to set how this browser reads
     When I set Done to "visible"
     Then the Done row explains that finished work is "shown"
 
-  Scenario: A page whose own switch has been pressed is left where it was put
-    # The per-view switch is not overridden by the preference behind it: it is
-    # what the preference is a DEFAULT for, so a page somebody has already
-    # spoken about stays as they left it.
+  Scenario: There is one switch, and it moves the page you are on
+    # The pill used to be a per-page override, so Prefs could leave a page
+    # somebody had already spoken about. Prefs is the one home now: hide and
+    # show go through the same circuit, and a later pick is the reading.
     Given I open the outline "house.jsonl"
     When I hide the done nodes
     Then the node "demo" is not shown
     When I set Done to "visible"
-    Then the node "demo" is not shown
+    Then the node "demo" is shown
 
-  Scenario: A page you go to starts on the default again
-    # The other half of the one above: what a page's own switch overrides is
-    # that page's reading, and a page you have never read has no reading to
-    # override with.
+  Scenario: The preference follows you onto a page you have not opened
+    # The other half: there is no per-page override to start over on, so a
+    # pick is the reading of every page, including one you zoom into next.
     Given I open the outline "house.jsonl"
     When I set Done to "hidden"
-    # The panel stays open on a press (a palette is judged by the page it
-    # paints), and the page's own switch is behind it.
     And I press Escape on the preferences
-    And I show the done nodes
-    Then the node "demo" is shown
+    Then the node "demo" is not shown
     When I zoom into the node "kitchen"
     Then the node "demo" is not shown
 
@@ -146,7 +141,7 @@ Feature: One place to set how this browser reads
 
   Scenario: A preference set in another tab lands in this one
     # A preference belongs to the BROWSER, and a browser is more than one tab —
-    # which is what `followDoneDefault` is for, and what a reload scenario
+    # which is what `followDoneHidden` is for, and what a reload scenario
     # cannot ask: deleting that line entirely would pass every other Done
     # scenario here. The theme has had this fence since it was written; this is
     # the same one for the second preference, through the same `storage` event.

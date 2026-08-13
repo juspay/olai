@@ -142,7 +142,8 @@ Feature: On a phone
     And every "folder toggle" is at least 44px tall and 44px wide
     And every "collapse toggle" is at least 44px tall and 28px wide
     And every "zoom bullet" is at least 44px tall and 28px wide
-    And every "done switch" is at least 44px tall and 44px wide
+    When I open the preferences
+    Then every "done choice" is at least 44px tall and 44px wide
 
   @corpus:journal @phone
   Scenario: The month is a grid of targets, not of numbers

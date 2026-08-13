@@ -11,16 +11,16 @@
  * directory with no dated node and no date-named document sees a month of inert
  * numbers.
  *
- * Which month is on screen is a reading, not an address — the same standing as
- * what is folded — so it is held by the same `createStamped` (../stamped.ts)
- * that view.ts uses, and starts over when the thing it belongs to moves rather
- * than when an effect gets round to noticing.
+ * Which month is on screen is a reading, not an address, so it is held by
+ * `createStamped` (../stamped.ts) and starts over when the thing it belongs to
+ * moves rather than when an effect gets round to noticing.
  *
  * What it belongs to is the ANCHOR, and that is the whole difference from a
- * reading of a page: a page's folds die with the page, while this is chrome,
- * and walking from one outline to another is no reason to snap the month back
- * to today. Paging therefore survives every navigation that does not change
- * which month the reader is looking at.
+ * fold or a done-visibility pick: those are this browser's and outlive every
+ * page, while this is chrome whose stamp is the month it is looking at, and
+ * walking from one outline to another is no reason to snap the month back to
+ * today. Paging therefore survives every navigation that does not change which
+ * month the reader is looking at.
  *
  * The dots are asked for per month rather than handed over as a set, so the
  * question is only asked about the month being drawn — and asking it INSIDE a
