@@ -22,6 +22,30 @@
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 
+  /* all fifteen, ported from web/src/client/theme/palettes.ts — one row per
+     theme, because a theme IS eight colours with a name. A mock wears one by
+     carrying `data-theme`, the attribute the app writes on <html>, so nothing
+     below has to know a hex to be repainted. chalk is here as well as above
+     because a chip wears it by name like any other. `well` is this page's own
+     token rather than a palette's, so it is derived from the two that decide
+     everything else. */
+  [data-theme] { --well: color-mix(in srgb, var(--ink) 6%, var(--paper)); }
+  [data-theme="leaf"]       { --paper:#E4ECCA; --ink:#2C4222; --muted:#74855F; --rule:#CDD8AB; --accent:#2B6A8F; --done:#3E7A3A; --doing:#B9741B; --alarm:#A84A5E; }
+  [data-theme="manuscript"] { --paper:#F0E7D2; --ink:#3D2F1B; --muted:#8C7B5C; --rule:#DCCEAC; --accent:#2F6580; --done:#5A7A34; --doing:#A05A16; --alarm:#9E4444; }
+  [data-theme="chalk"]      { --paper:#FAFAF6; --ink:#15180F; --muted:#555E4C; --rule:#C9CDBF; --accent:#134F75; --done:#2A6626; --doing:#8F5200; --alarm:#8E3348; }
+  [data-theme="pitch"]      { --paper:#000000; --ink:#C9D6B4; --muted:#77836A; --rule:#242B1E; --accent:#6FAECE; --done:#7FC97A; --doing:#D9A85A; --alarm:#D68B9A; }
+  [data-theme="light"]      { --paper:#FFFFFF; --ink:#2A3135; --muted:#868C90; --rule:#DCE0E2; --accent:#1C64F2; --done:#057A55; --doing:#9F580A; --alarm:#E02424; }
+  [data-theme="dark"]       { --paper:#2A3135; --ink:#FFFFFF; --muted:#9EA1A2; --rule:#5C6062; --accent:#76A9FA; --done:#31C48D; --doing:#E3A008; --alarm:#F98080; }
+  [data-theme="vintage"]    { --paper:#ECEEF0; --ink:#2A3135; --muted:#868C90; --rule:#DCE0E2; --accent:#1C64F2; --done:#057A55; --doing:#9F580A; --alarm:#E02424; }
+  [data-theme="catppuccin"] { --paper:#1E1E2E; --ink:#CDD6F4; --muted:#9399B2; --rule:#313244; --accent:#89B4FA; --done:#A6E3A1; --doing:#F9E2AF; --alarm:#F38BA8; }
+  [data-theme="chocolate"]  { --paper:#FFEFE2; --ink:#281603; --muted:#7D5E47; --rule:#A1836B53; --accent:#1A73E8; --done:#2DA044; --doing:#C99A00; --alarm:#D93636; }
+  [data-theme="hacker"]     { --paper:#000000; --ink:#00FF00; --muted:#009900; --rule:#005500; --accent:#76A9FA; --done:#31C48D; --doing:#E3A008; --alarm:#F98080; }
+  [data-theme="matcha"]     { --paper:#DDEABE; --ink:#415915; --muted:#85AC41; --rule:#85AC41; --accent:#2868A0; --done:#3D8828; --doing:#A88510; --alarm:#C43838; }
+  [data-theme="moon"]       { --paper:#FDF6F6; --ink:#615F7F; --muted:#8B6FA8; --rule:#E4D8EA; --accent:#6B8BC9; --done:#5FA876; --doing:#C9A84F; --alarm:#C85B5B; }
+  [data-theme="neo"]        { --paper:#141414; --ink:#DCDBDB; --muted:#9EA1A2; --rule:#242424; --accent:#76A9FA; --done:#8DBD6A; --doing:#F1C068; --alarm:#CF4653; }
+  [data-theme="one-dark"]   { --paper:#282C33; --ink:#C8CCD4; --muted:#5D636F; --rule:#3B4048; --accent:#73ADE9; --done:#A1C181; --doing:#DFC184; --alarm:#D07277; }
+  [data-theme="robot"]      { --paper:#000000; --ink:#FEA143; --muted:#7A8A8A; --rule:#E8393F; --accent:#3580D3; --done:#4ED8A3; --doing:#DFE361; --alarm:#E8393F; }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.6; }
@@ -117,10 +141,10 @@
 
   /* agenda mock */
   .sect { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-top: 1rem; }
-  .panel .sect:first-of-type { margin-top: 0; }
+  .panel .file + .sect { margin-top: 0; }
   .grp { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin: 0.5rem 0 0.2rem; }
   .trail { font-size: 0.75rem; color: var(--muted); margin-top: 0.35rem; }
-  .row .t.grow { flex: 1; }
+  .grow { flex: 1; }
 
   /* the date picker, open under a row */
   .picker { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.4rem 0 0.1rem 2.8rem; font-size: 0.8rem; color: var(--muted); }
@@ -170,7 +194,11 @@
   .prefs .hint { color: var(--muted); font-size: 0.78rem; margin-top: 0.35rem; }
   .prefs .scope { border-top: 1px solid var(--rule); padding-top: 0.7rem; color: var(--muted); font-size: 0.78rem; }
   .chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
-  .chip { font-family: var(--mono); font-size: 0.68rem; line-height: 1.7; border: 1px solid; border-radius: 999px; padding: 0 0.5em; }
+  .chip {
+    font-family: var(--mono); font-size: 0.68rem; line-height: 1.7;
+    border: 1px solid var(--rule); border-radius: 999px; padding: 0 0.5em;
+    background: var(--paper); color: var(--ink);
+  }
   .chip.on { box-shadow: 0 0 0 1px var(--paper), 0 0 0 3px var(--accent); }
   .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; margin-top: 0.5rem; font-size: 0.78rem; }
   .seg span { padding: 0.15rem 0.6rem; color: var(--muted); }
@@ -639,21 +667,21 @@ The corner unit is the **risky one** — see
         <div class="prow">
           <div class="lbl">Theme</div>
           <div class="chips">
-            <span class="chip" style="background:#E4ECCA;color:#2C4222;border-color:#CDD8AB">leaf</span>
-            <span class="chip" style="background:#F0E7D2;color:#3D2F1B;border-color:#DCCEAC">manuscript</span>
-            <span class="chip on" style="background:#FAFAF6;color:#15180F;border-color:#C9CDBF">chalk</span>
-            <span class="chip" style="background:#000000;color:#C9D6B4;border-color:#242B1E">pitch</span>
-            <span class="chip" style="background:#FFFFFF;color:#2A3135;border-color:#DCE0E2">light</span>
-            <span class="chip" style="background:#2A3135;color:#FFFFFF;border-color:#5C6062">dark</span>
-            <span class="chip" style="background:#ECEEF0;color:#2A3135;border-color:#DCE0E2">vintage</span>
-            <span class="chip" style="background:#1E1E2E;color:#CDD6F4;border-color:#313244">catppuccin</span>
-            <span class="chip" style="background:#FFEFE2;color:#281603;border-color:#A1836B53">chocolate</span>
-            <span class="chip" style="background:#000000;color:#00FF00;border-color:#005500">hacker</span>
-            <span class="chip" style="background:#DDEABE;color:#415915;border-color:#85AC41">matcha</span>
-            <span class="chip" style="background:#FDF6F6;color:#615F7F;border-color:#E4D8EA">moon</span>
-            <span class="chip" style="background:#141414;color:#DCDBDB;border-color:#242424">neo</span>
-            <span class="chip" style="background:#282C33;color:#C8CCD4;border-color:#3B4048">one-dark</span>
-            <span class="chip" style="background:#000000;color:#FEA143;border-color:#E8393F">robot</span>
+            <span class="chip" data-theme="leaf">leaf</span>
+            <span class="chip" data-theme="manuscript">manuscript</span>
+            <span class="chip on" data-theme="chalk">chalk</span>
+            <span class="chip" data-theme="pitch">pitch</span>
+            <span class="chip" data-theme="light">light</span>
+            <span class="chip" data-theme="dark">dark</span>
+            <span class="chip" data-theme="vintage">vintage</span>
+            <span class="chip" data-theme="catppuccin">catppuccin</span>
+            <span class="chip" data-theme="chocolate">chocolate</span>
+            <span class="chip" data-theme="hacker">hacker</span>
+            <span class="chip" data-theme="matcha">matcha</span>
+            <span class="chip" data-theme="moon">moon</span>
+            <span class="chip" data-theme="neo">neo</span>
+            <span class="chip" data-theme="one-dark">one-dark</span>
+            <span class="chip" data-theme="robot">robot</span>
           </div>
           <p class="hint">chalk is in force. Every colour on the page is this
           one table, so a pick repaints all of them at once.</p>
@@ -668,14 +696,14 @@ The corner unit is the **risky one** — see
         every tab you have olai open in, and are never sent to the server.</p>
       </div>
       <div>
-        <div class="panel" style="--paper:#000000;--ink:#C9D6B4;--muted:#77836A;--rule:#242B1E;--accent:#6FAECE;--done:#7FC97A;--doing:#D9A85A;--alarm:#D68B9A;--well:#12160F">
+        <div class="panel" data-theme="pitch">
           <div class="file">kitchen.jsonl · pitch</div>
           <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
           <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
           <div class="row d1"><span class="box doing"></span><span class="t grow">Order the new cabinets</span><span class="pill late">2026-08-07</span></div>
           <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
         </div>
-        <div class="panel" style="--paper:#F0E7D2;--ink:#3D2F1B;--muted:#8C7B5C;--rule:#DCCEAC;--accent:#2F6580;--done:#5A7A34;--doing:#A05A16;--alarm:#9E4444;--well:#E7DBC0;margin-top:1rem">
+        <div class="panel" data-theme="manuscript" style="margin-top:1rem">
           <div class="file">kitchen.jsonl · manuscript</div>
           <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
           <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
