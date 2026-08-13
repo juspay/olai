@@ -39,6 +39,11 @@ Feature: Talking to the agent
     When I ask the agent "done kitchen"
     Then node "kitchen" is done
     And the chat shows no refusal
+    # ... and the rollup's remark rides the write's own story, where the person
+    # who asked for it is looking — the same aside a keystroke already gets
+    # under its row. Advice on a write that LANDED, never a reason one did not.
+    And the chat says the write "marked done"
+    And the write's nudge says "unfinished"
 
   @scratch:chat
   Scenario: A refused write shows its detail in chat
@@ -61,6 +66,51 @@ Feature: Talking to the agent
     When I ask the agent "done order"
     Then the chat shows a completed tool call
     And the tool call's detail is folded away
+
+  @scratch:chat
+  Scenario: A file the agent rewrote shows what changed, trimmed
+    # The half of this feature that is NOT an outline. A direct edit to a `.md`
+    # or a source file shows up in no tree, so until the panel drew the diff
+    # the answer to "what did it change" was a terminal. Trimmed, because a
+    # turn can rewrite four files and the panel is 26rem wide.
+    When I ask the agent "edit"
+    Then the chat shows a diff of "notes.md"
+    And the diff is trimmed
+    When I expand the diff
+    Then the diff is expanded
+    And the diff shows the line "- a walnut worktop, ordered on the tenth" as added
+
+  @scratch:chat
+  Scenario: An outline the agent rewrote by hand is still never a text diff
+    # The rule is about the FILE, not about the tool that wrote it: a `.jsonl`
+    # is one line per node, so a text diff of one is a single enormous line.
+    # olai's own writes cannot produce one — they go through the ops layer —
+    # but an agent's own `Edit` can name any file, and one aimed at an outline
+    # used to arrive as a diff block and be drawn as ordinary lines.
+    When I ask the agent "edit house.jsonl"
+    Then the chat shows the outline "house.jsonl" changing
+    And the outline change says "note rewritten"
+    And the chat shows no diff
+
+  @scratch:chat
+  Scenario: A rewrite too big to compare says so rather than looking like a hunk
+    # Past the comparison budget the two sides are reported as unrelated, so
+    # every row is a change and the trimmed view shows the top of the OLD file
+    # — which looks exactly like an ordinary diff and is not one.
+    When I ask the agent "edit huge.md"
+    Then the chat shows a diff of "huge.md"
+    And the diff says it was rewritten whole
+
+  @scratch:chat
+  Scenario: An olai write tells its story instead of showing a diff
+    # The other vocabulary, and the rule behind it: a `.jsonl` diff is one
+    # enormous line per node with everything on it changing at once, which is
+    # the commit panel's own reason for never showing one. So a write through
+    # the ops layer is drawn as the node-level story, in the words the commit
+    # panel already uses for the same event.
+    When I ask the agent "done order"
+    Then the chat says the write "marked done"
+    And the chat shows no diff
 
   @scratch:chat
   Scenario: A turn can be cancelled mid-stream

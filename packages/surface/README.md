@@ -116,6 +116,14 @@ subject of their own:
   updatable: the agent reports a call, then reports it again with a status, and
   the second report is an upsert on the same key rather than a second row.
 
+  A tool entry carries what its call CHANGED, and structured — never as prose
+  for a browser to parse back. Two shapes, because there are two kinds of write
+  and they may not be drawn the same way: a `FileDiff` per file the agent
+  rewrote directly (path, what it said, what it says now — the client derives
+  the line diff), and a `Wrote` for a write that went through the ops layer,
+  which is the node-level story in the format's own classification because a
+  `.jsonl` diff is one enormous line per node.
+
   The framework audit asked for "events paired with a collection", because an
   event replays nothing to a late joiner. A `deltas` collection is that pair in
   one member — the push and the history are the same frames down the same

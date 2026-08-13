@@ -222,6 +222,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               status: event.status,
               detail: event.detail,
               progress: event.progress,
+              diffs: event.diffs,
+              wrote: event.wrote,
               locations: event.locations,
             }),
           )

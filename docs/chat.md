@@ -24,20 +24,59 @@ reopen it, and you are back in it — and (for the default agent)
 
 ## What it can touch
 
-The agent cannot free-write a file. It has no filesystem access at all: the
-only things it can name are nodes, through a closed list of tools — search,
-read a subtree, create an outline, add, mark, retitle, note, schedule, move,
-archive, place a mirror, retire one, and wire what a node waits on. So the
-edits it can express are the edits the format can be, and a malformed outline
-is not something it can produce. When a write is refused, the validator's own
-rows come back, pinned to the lines they are about; when a write lands but is
-worth a second look, the answer says so — advice about something that
-happened, never a refusal.
+**Olai hands the agent no filesystem.** What olai itself gives it is a closed
+list of tools that can only name nodes — search, read a subtree, create an
+outline, add, mark, retitle, note, schedule, move, archive, place a mirror,
+retire one, and wire what a node waits on — so the edits it can ask *olai* for
+are the edits the format can be, and a malformed outline is not something that
+path can produce. When a write is refused, the validator's own rows come back,
+pinned to the lines they are about; when a write lands but is worth a second
+look, the answer says so — advice about something that happened, never a
+refusal.
+
+**What the agent brings with it is its own.** The default agent is a coding
+assistant, and a coding assistant edits files: ask it to fix a typo in a `.md`
+and it will, with its own tools, on its own authority — the same authority it
+has in a terminal, over the directory it was started in. Olai neither grants
+that nor pretends it away; what it does is SHOW it, which is the section below.
+The one thing worth knowing is that an agent editing a `.jsonl` by hand is
+writing the format without the validator in front of it — the outlines are
+plain text and nothing stops that — so if you want an outline changed, ask for
+the change rather than for the edit, and it goes through the tools.
 
 It can ask you back: when it needs to know which of two things you meant, the
 question arrives as a form in the conversation, and nothing times out.
 Dismissing one is an answer too — the agent is told you would not say, never
 handed a choice you did not make.
+
+## What it shows when it changes something
+
+A tool call is one folded line, and what the call CHANGED is not folded away —
+the arguments are what was asked for, and this is what happened to your files.
+There are two kinds of change and the panel draws them differently, because they
+are different things.
+
+**A file the agent rewrote** — a `.md`, a source file, anything that is not a
+node — shows its diff, right there in the conversation: the path, how many lines
+came and went, and the change itself, with the unchanged stretches between two
+edits collapsed so what you read first is what moved. It is TRIMMED to a few
+lines, and a click opens the rest where it stands. That is the one thing the
+transcript is for here: an edit like this appears in no outline, so before it was
+drawn, the only way to see what an agent had done to a file was a terminal.
+
+**An outline never gets a text diff**, and that is deliberate: an outline is one
+line per node, so a text diff of one would be a single enormous line with
+everything on it changing at once. What shows instead is what changed about the
+NODE, in the same words the Commit panel uses for the same edit — *marked done*,
+*note rewritten*, *moved* — with the outline it lives in and, when the rollup
+has something to say, its remark underneath. The tree in front of you has
+already moved anyway; this is the sentence that says which write did it.
+
+That holds for the file rather than for the tool: an agent that edits a `.jsonl`
+with its own tools gets the same node-level rows, read out of the two versions
+of the file, and never lines. If one of those versions does not parse — which is
+how hand-editing an outline goes wrong — the panel says so and still draws no
+diff, and the file's own page shows you the validator's rows where they belong.
 
 ## Attachments
 
