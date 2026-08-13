@@ -1535,9 +1535,9 @@ independence that fell out of place keys is gone deliberately, and there is one
 fold vocabulary rather than two (`fold/rows.ts` is the whole of it). There is
 one CONDUIT too: a row reads `collapsedNodes` and presses `setFolded` itself
 (`Tree.tsx`, `menu/actions.ts`, `edit/Editable.tsx`), the way the theme and the
-panel widths are read wherever they are wanted — a member on the per-page
-`View` would be a second way to reach one browser-wide fact, and a per-page
-holder in front of it is what invites a copy. The sidebar's folders are the
+panel widths are read wherever they are wanted — a wrapper on a page object
+would be a second way to reach one browser-wide fact, and a holder in front
+of it is what invites a copy. The sidebar's folders are the
 same memory inverted
 (`fold/folders.ts`, `olai.sidebar.folders`): nodes start open so what is stored
 is what is shut, folders start collapsed (#105) so what is stored is what is

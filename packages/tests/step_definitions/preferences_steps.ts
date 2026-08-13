@@ -246,53 +246,61 @@ Then("the preferences panel opens downward, clear of the bar", async function (t
 
 // ── the Done preference ────────────────────────────────────────────────
 
-/** Press one segment of the Done row, and wait for it to say it is the one
- *  in force — so everything after this step is about what the app DID rather
- *  than about the click landing. The outline pill that used to set this is
- *  gone: Prefs is the one home, so hide/show and this step are one circuit. */
-const setDone = async (
-  world: OlaiWorld,
+/** Press one Done segment on a page. One spelling, because hide/show, the
+ *  Prefs step, and the second-tab step are one circuit now — the outline pill
+ *  that used to be a second door is gone. */
+const pickDone = async (
+  page: Page,
   value: "hidden" | "visible",
 ): Promise<void> => {
-  await showPreferences(world.page);
-  await world.press(
-    row(world, "done").locator(`${PREFS_CHOICE}[data-value="${value}"]`),
-  );
-  await world.expectAttribute(
+  await showPreferences(page);
+  const choice = page.locator(
     `${PREFS_ROW}[data-pref="done"] ${PREFS_CHOICE}[data-value="${value}"]`,
-    "aria-pressed",
-    "true",
-    `the Done "${value}" choice`,
   );
+  await choice.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await choice.click();
+  await choice
+    .and(page.locator('[aria-pressed="true"]'))
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+    .catch(() => {
+      throw new Error(`Done never took "${value}"`);
+    });
+};
+
+const asDone = (value: string): "hidden" | "visible" => {
+  if (value !== "hidden" && value !== "visible") {
+    throw new Error(`Done is "hidden" or "visible", not "${value}"`);
+  }
+  return value;
 };
 
 When(
   "I set Done to {string}",
   async function (this: OlaiWorld, value: string) {
-    if (value !== "hidden" && value !== "visible") {
-      throw new Error(`Done is "hidden" or "visible", not "${value}"`);
-    }
-    await setDone(this, value);
+    await pickDone(this.page, asDone(value));
   },
 );
 
 /** Intent sentences the tree features already speak. They go through Prefs
  *  and then put the panel away, because the next step is about the TREE and a
  *  portalled panel would sit on top of it. */
-When("I hide the done nodes", async function (this: OlaiWorld) {
-  await setDone(this, "hidden");
-  await this.page.keyboard.press("Escape");
-  await this.page
+const pickDoneAndLeave = async (
+  world: OlaiWorld,
+  value: "hidden" | "visible",
+): Promise<void> => {
+  await pickDone(world.page, value);
+  await world.page.keyboard.press("Escape");
+  await world.page
     .locator(PREFS_PANEL)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+};
+
+When("I hide the done nodes", async function (this: OlaiWorld) {
+  await pickDoneAndLeave(this, "hidden");
 });
 
 When("I show the done nodes", async function (this: OlaiWorld) {
-  await setDone(this, "visible");
-  await this.page.keyboard.press("Escape");
-  await this.page
-    .locator(PREFS_PANEL)
-    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  await pickDoneAndLeave(this, "visible");
 });
 
 /**
@@ -311,21 +319,7 @@ When(
   async function (this: OlaiWorld, value: string) {
     const other = await this.context.newPage();
     await other.goto("/");
-    await showPreferences(other);
-    const choice = other.locator(
-      `${PREFS_ROW}[data-pref="done"] ${PREFS_CHOICE}[data-value="${value}"]`,
-    );
-    await choice.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await choice.click();
-    await choice
-      .and(other.locator('[aria-pressed="true"]'))
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-      .catch(() => {
-        throw new Error(
-          `the second tab never took Done "${value}", so there was nothing ` +
-            "for this one to hear",
-        );
-      });
+    await pickDone(other, asDone(value));
   },
 );
 
