@@ -28,6 +28,7 @@ Feature: The ••• menu writes
     When I open the node menu of "kitchen"
     Then the node menu offers exactly:
       | Zoom in           |
+      | Ask agent         |
       | Collapse          |
       | Expand all        |
       | Collapse all      |

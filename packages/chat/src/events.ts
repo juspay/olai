@@ -14,7 +14,7 @@
  * the caller that asked is the one waiting.
  */
 
-import type { AskField, AskOutcome, FileDiff, Wrote } from "@olai/surface"
+import type { AskField, AskOutcome, FileDiff, MissingServer, Wrote } from "@olai/surface"
 
 /** A slash command the agent offers. */
 export interface Command {
@@ -89,6 +89,24 @@ export type AgentEvent =
   | { readonly _tag: "askSettled"; readonly id: string; readonly outcome: AskOutcome }
   /** The whole slash-command list, replaced rather than merged. */
   | { readonly _tag: "commands"; readonly commands: ReadonlyArray<Command> }
+  /**
+   * The MCP servers this conversation was opened with — specifically, the ones
+   * it was meant to have and did NOT, and why.
+   *
+   * Emitted once per session opened, BEFORE the session it belongs to, because
+   * the set is decided while the session is being asked for: what is handed to
+   * `session/new` is the same list this is the complement of. Replaced rather
+   * than merged, for the same reason `commands` is — the answer is a property
+   * of one conversation, and a padi started since the last one shows up as an
+   * empty list rather than as a row that has to be found and removed.
+   *
+   * What is NOT in here is a server the AGENT could not attach: ACP's
+   * `session/new` answers with a session id and says nothing per server, so
+   * whether the agent got a connection to what we handed over is a fact this
+   * client is never told. Olai reports the failures it can SEE — its own
+   * probe's — and does not guess at the rest.
+   */
+  | { readonly _tag: "servers"; readonly missing: ReadonlyArray<MissingServer> }
   /** The model this session runs, labelled the way the agent labels its own. */
   | { readonly _tag: "model"; readonly name: string | null }
   /** Which stored conversation this now is. `title` is `null` until the agent

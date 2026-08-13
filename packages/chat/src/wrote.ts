@@ -34,6 +34,7 @@ import type { Wrote } from "@olai/surface"
  *  is read, because this is somebody's payload rather than a decoded value. */
 interface Reply {
   readonly did?: unknown
+  readonly id?: unknown
   readonly title?: unknown
   readonly file?: unknown
   readonly sort?: unknown
@@ -79,6 +80,10 @@ export const wroteIn = (rawOutput: unknown): Wrote | undefined => {
     // payload, and a word the panel has no phrase for would ride the wire and
     // draw a blank where the story goes.
     sort: sortIn(reply.sort),
+    // The node itself, so the row the panel draws can POINT at it rather than
+    // only describe it. `null` for a reply that named none — this is somebody's
+    // payload, and every other field here is checked before it is read.
+    id: typeof reply.id === "string" && reply.id !== "" ? reply.id : null,
     title: reply.title,
     file: typeof reply.file === "string" && reply.file !== "" ? reply.file : null,
     nudge: typeof reply.nudge === "string" && reply.nudge !== "" ? reply.nudge : null,

@@ -130,8 +130,21 @@ subject of their own:
   subscription — so publishing each entry to an event as well would be one fact
   delivered twice and a dedup rule in the browser.
 - **`chat` is a cell**: which session this is, what it is called, which model is
-  running, what slash commands the agent offers, whether a turn is in flight.
-  One value the server owns, read-only on the wire.
+  running, what slash commands the agent offers, whether a turn is in flight,
+  and which MCP servers this conversation was meant to have and did NOT. One
+  value the server owns, read-only on the wire.
+
+  That last one (`missing`, a `MissingServer` per server) is on the cell rather
+  than in the transcript because it is a standing property of the conversation
+  and not something that happened at a point in it — a notice row would scroll
+  away under the first answer, which is exactly where a reader is when they
+  wonder why the agent cannot see their terminals. It carries the reason in the
+  server's own words and the file that was probed, because "it did not attach"
+  is the one thing every way of failing has in common and the one thing that
+  never helped anybody. Empty is the ordinary case, and a server that is not
+  installed is not in it: nothing failed — unless something already said it
+  should be there (`PADI_SOCKET`), which is the one absence that is a fault and
+  the one `where` that is `null`.
 - **the procedures are the verbs**: send, cancel, new, load, the list the
   picker draws, and `attach`. Each declares its failure channel, so "a turn is
   already running" arrives as a `busy` a caller can branch on rather than as an
@@ -170,6 +183,16 @@ questions — `attach` says where the bytes landed, `send` says a turn was
 accepted — and one file is N calls to one send. What `send` grew is a list of
 PATHS, which are what `attach` answered with; the bytes are already on disk by
 then, and the agent is handed the path and reads the file itself.
+
+`send` grew a second list on the same argument, and it is the one place this
+spec says an id rather than a value: the NODES a message is about, as ids.
+Everything else about them — title, `file:line`, the ancestors that make a bare
+title mean something — is the SET's answer, and the set is the server's to read;
+a browser sending its own would be sending a reading of a frame that is already
+old. So the id crosses the wire, the server resolves it against the same
+snapshot a keystroke's write is judged against, and the resolved `NodeContext`
+comes back on the sent message's own row — where it is what the message was
+about, rather than something a browser remembers about a message it drew.
 
 `attach` answers with the file's NAME as well as its path, and that is not a
 convenience. The name a caller SENT is a request: the server sanitizes it and

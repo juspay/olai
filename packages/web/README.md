@@ -794,7 +794,17 @@ a message on screen that was never sent. The transcript's `deltas` verb is what
 makes a tab opened halfway through a turn show the whole conversation: its
 first frame is the snapshot.
 
-Three components earn their own file:
+It says what it is SHORT of, too. When a conversation was meant to be handed an
+MCP server and was not — a `kolu` on this host's PATH that no padi answered —
+`Missing.tsx` draws a strip under the header naming it, with the reason the
+probe or the server gave and the file that was probed. Under the header rather
+than in the transcript, because it is a standing fact about the session like the
+model beside it; quiet rather than alarming (`panel` under the dock's `desk`,
+the header's own mono, one `alarm` dot), because nothing is broken — the agent
+answers, with fewer tools than it might have had. A healthy conversation draws
+nothing here at all, and so does a machine that is simply not running kolu.
+
+Inside the conversation, three components earn their own file:
 
 - **`Refusal.tsx`** is the one the error taxonomy exists for. A `validation`
   refusal carries the validator's own report as DATA, so it renders through the
@@ -844,6 +854,51 @@ Three components earn their own file:
   the same words. A side that will not parse says which side and draws nothing
   else: an agent hand-editing an outline is exactly how a `.jsonl` stops
   parsing, and lines are not a better answer to that than a sentence.
+- **`armed.ts` / `ContextChips.tsx` / `Reference.tsx` / `refs.ts` / `../focus.ts`** are
+  the two directions between a row and the conversation, and they are four small
+  files because they are four separate reasons to change.
+
+  A row's `•••` offers *Ask agent* (`../menu/actions.ts`), which arms the
+  composer with the node that row SHOWS and opens the panel. What is armed is an
+  ID and only an id (`armed.ts`, a module for the same reason the folds are one:
+  the door is in the main pane and the strip is at the bottom of the panel, with
+  the whole app between them). The chip reads the title out of the live set, so
+  a row armed and then retitled says the new name; the send carries the id, and
+  the SERVER resolves it (`@olai/server`'s `context.ts`) — a browser's account
+  of an outline is a frame old, and a node that has gone refuses the send rather
+  than sending a question with no subject. The chips ride the sent message too,
+  which is what makes them readable after a reload and in the other tab, and
+  `ContextChips.tsx` is one component for both moments the way `Attachments.tsx` is:
+  what differs is only that the pending one can be taken off.
+
+  Pointing back is the same ids read the other way. `Reference.tsx` is a BUTTON
+  and not a link — it shows you a row on the page you are on, and only falls
+  back to `/n/<id>` when the node is not drawn there — and `focus.ts` is the
+  whole of what "shows" means: `focusNode` is the mechanism and takes the
+  answer to "and if it is not here?" rather than knowing one (which keeps the
+  address the router's and keeps this testable), `useShowNode` is that answer
+  and there is one of it, for both the buttons this panel authors and the ids
+  inside markup it does not. The row wears `data-focused` and takes the same
+  accent the row holding the caret takes, and the page scrolls it into view.
+  Nothing is stored, nothing crosses the wire, and no editor is opened: being
+  shown a node is not being asked to type in it.
+
+  `refs.ts` is the third shape, and the only one this panel does not author: an
+  id the agent wrote in its own prose. No syntax was invented — every olai tool
+  spells an id in backticks in its own description, so an agent already emits
+  them — and a code span becomes pressable exactly when the loaded set declares
+  what it says, which is what makes a false positive unrepresentable. It is
+  marked with the id the format RESOLVED rather than the one it says, and that
+  distinction is a placement: an agent writes mirror ids (`read_node` answers
+  `mirrors` with them), rows carry the node they SHOW, so a span marked with
+  the placement's own id would name no row on the page and every press of it
+  would leave for a node that is right there. Resolving is what a `see` to the
+  same placement already does. The
+  marking is a DOM pass over one message rather than a step in the markdown
+  pipeline, because that pipeline is pure and cached by source text while this
+  answer depends on the SET; the press is one delegated listener on the
+  transcript pane, which is what a relative document link on the main pane
+  already is, for the same reason: rendered markdown belongs to no component.
 - **`Wrote.tsx`** draws the other kind, and never as a diff — an outline is one
   line per node, so a text diff of one is a single enormous line with
   everything on it changing at once. It is the node-level story in the words
@@ -851,7 +906,9 @@ Three components earn their own file:
   the agent marks a node done, this says *marked done*, and the row waiting to
   be committed says *marked done*. One event, one sentence, two places it is
   seen — and one table, because two would be the day one of them started saying
-  something else.
+  something else. The node it names is a REFERENCE (`Reference.tsx`): the reply
+  has always carried the id, and this is the shape a transcript holds most
+  often — every write through the ops layer draws one of these rows.
 - **`Composer.tsx`** never disables its box. A message typed while the agent
   is working is sent and queues, so the button says `queue` and cancel appears
   BESIDE it rather than replacing it — sending and stopping are two things a

@@ -26,9 +26,11 @@
 
 import type { Derived, Row } from "@olai/format"
 
+import { armNode } from "../chat/armed.ts"
 import type { Undo } from "../edit/undoing.ts"
 import { setFolded } from "../fold/memory.ts"
-import { type Fold, foldOf } from "../fold/rows.ts"
+import { type Fold, foldIdOf, foldOf } from "../fold/rows.ts"
+import { setChatOpen } from "../layout/prefs.ts"
 import { hrefOf, type Route } from "../routes.ts"
 import { asText } from "./subtree.ts"
 import type { MenuAction } from "./NodeMenu.tsx"
@@ -78,6 +80,28 @@ export const nodeMenuActions = (args: {
       id: "zoom",
       label: "Zoom in",
       run: () => args.go({ kind: "node", id }),
+    },
+    {
+      // The composer, armed with this node — a READ, and it sits among the
+      // reads for exactly the reason the divider below exists: it changes what
+      // this tab is pointed at and writes nothing at all. What happens to the
+      // node afterwards is whatever is typed next, through the same tools and
+      // the same gate as always.
+      //
+      // The NODE the row shows rather than the record standing there
+      // (`../fold/rows.ts`'s rule, the one a fold and a mark already follow):
+      // a mirror is a placement, it has no title of its own, and the thing to
+      // ask about is what it is a placement OF.
+      id: "ask-agent",
+      label: "Ask agent",
+      run: () => {
+        armNode(foldIdOf(args.row))
+        // A chip in a panel nobody can see is a gesture that did nothing. The
+        // panel is where the answer to "what did that do" is, so opening it is
+        // part of the verb rather than a nicety — the palette's `>` does the
+        // same thing for the same reason.
+        setChatOpen(true)
+      },
     },
   ]
   if (args.row.children.length > 0) {

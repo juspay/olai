@@ -36,10 +36,21 @@ describe("what an olai write says for itself", () => {
   test("the reply's own classification is what the row will draw", () => {
     expect(wroteIn(result(MARKED))).toEqual({
       sort: "done",
+      id: "order",
       title: "order the cabinets",
       file: "house.jsonl",
       nudge: null,
     })
+  })
+
+  test("the node's ID rides along, which is what makes the row a reference", () => {
+    // The reply has always carried it (`Applied.id`); until it crossed the wire
+    // the panel could say WHICH node a write was about and still have nothing
+    // to point at. A reply that names none says the same words and does not
+    // point, rather than pointing at an empty string.
+    const { id: _id, ...anonymous } = MARKED
+    expect(wroteIn(result(anonymous))?.id).toBeNull()
+    expect(wroteIn(result({ ...MARKED, id: 7 }))?.id).toBeNull()
   })
 
   test("a nudge rides along, because advice on a write that landed is news", () => {
