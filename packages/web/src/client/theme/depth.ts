@@ -172,15 +172,16 @@ const tintOf = (palette: Palette): string =>
  */
 const surfacesOf = (palette: Palette): Record<SurfaceToken, string> => {
   const paper = palette.colors.paper
+  const tint = tintOf(palette)
   /** The far end of the ramp — the rung `paper` is NOT. Named once, because
    *  which of the two ends is the ground is the scheme's one decision and
    *  spelling the climb twice would be two places for it to be edited. */
-  const far = climb(paper, tintOf(palette), RUNGS.top)
+  const far = climb(paper, tint, RUNGS.top)
   const dark = palette.scheme === "dark"
   const raised = dark ? far : paper
   return {
     canvas: dark ? paper : far,
-    well: climb(paper, tintOf(palette), RUNGS.well),
+    well: climb(paper, tint, RUNGS.well),
     raised,
     picked: mixed(raised, palette.colors.accent, PICK[palette.scheme]),
   }
