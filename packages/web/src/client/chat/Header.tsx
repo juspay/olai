@@ -26,6 +26,7 @@
 
 import { Show } from "solid-js"
 
+import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { Sessions } from "./Sessions.tsx"
 import type { Chat } from "./state.ts"
@@ -78,7 +79,7 @@ export function Header(props: {
         <Sessions chat={props.chat} />
         <button
           type="button"
-          class="rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
+          class={QUIET_PILL}
           data-testid={TESTID.chatNew}
           onClick={() => props.chat.newSession()}
         >

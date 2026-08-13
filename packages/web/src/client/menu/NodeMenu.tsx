@@ -22,6 +22,7 @@
 
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 
+import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { HOVER_CELL, MENU_REVEAL } from "../touch.ts"
 import type { Said } from "../edit/undoing.ts"
@@ -302,7 +303,7 @@ function Confirm(props: {
         </button>
         <button
           type="button"
-          class="cursor-pointer rounded border border-rule bg-transparent px-2 py-1 text-xs text-muted hover:text-ink"
+          class={`${QUIET_PILL} cursor-pointer`}
           data-testid={TESTID.nodeMenuItem}
           data-action="cancel"
           onClick={() => props.onCancel(props.action)}
