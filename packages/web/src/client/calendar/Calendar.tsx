@@ -87,7 +87,13 @@ export function Calendar(props: {
   const isOpen = createSelector(() => props.open)
 
   return (
-    <section class="olai-card mb-5 rounded-xl bg-panel p-3" data-testid={TESTID.calendar} data-month={month()}>
+    <section
+      // No horizontal pad below md: `p-3` plus the drawer's `p-4` left
+      // 41px cells on a 390pt phone, under the 44px finger rule.
+      class="olai-card mb-5 rounded-xl bg-panel py-3 md:p-3"
+      data-testid={TESTID.calendar}
+      data-month={month()}
+    >
       <header class="mb-1 flex items-center justify-between gap-1">
         <Step label="the month before" testid={TESTID.calendarPrev} onStep={() => page(-1)}>
           ‹
