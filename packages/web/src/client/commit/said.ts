@@ -8,10 +8,12 @@
  * from the fields that differ and what they became — and this is the table that
  * turns that into words a person reads.
  *
- * It is a table of ITS OWN rather than the one the commit message uses
- * (`@olai/ops`'s `message.ts`), and deliberately: one of them is a log line
- * somebody greps years later and the other is a phrase in a popover. Sharing
- * them would mean the panel saying `capture:` at somebody.
+ * What one CHANGE is called — *marked done*, *note rewritten* — is not here:
+ * it moved to `../changes.ts` when the chat transcript started drawing an olai
+ * write in the same words. Those two are one vocabulary about one event seen at
+ * two moments, and a second table is the day one of them starts saying
+ * something else. What stayed is everything about the PILL and the panel, which
+ * nothing else reads.
  */
 
 import {
@@ -19,7 +21,6 @@ import {
   type Pending,
   type Reason,
   type RepoState,
-  type Sort,
   type Writer,
 } from "@olai/format"
 import type { GitState } from "@olai/surface"
@@ -256,50 +257,6 @@ const alsoUnpushed = (said: string, pending: Pending): string => {
 const counted = (pending: Pending): string => {
   const waiting = waitingIn(pending)
   return `${waiting} ${waiting === 1 ? "change is" : "changes are"}`
-}
-
-/** The phrase, in the past tense, because every one of these has happened
- *  already: the write is on disk and this is what is waiting to be recorded. */
-export const SAID: Readonly<Record<Sort, string>> = {
-  created: "created",
-  archived: "archived",
-  gone: "gone from the file",
-  done: "marked done",
-  undone: "no longer done",
-  doing: "started",
-  "not-doing": "no longer started",
-  moved: "moved",
-  scheduled: "scheduled",
-  unscheduled: "unscheduled",
-  noted: "note rewritten",
-  renamed: "retitled",
-  linked: "links changed",
-  edited: "edited",
-}
-
-/**
- * One character standing for the same thing.
- *
- * Text, not an icon set: these sit in a list of node titles at the size of the
- * text around them, and a glyph that is already in the font is one that cannot
- * fail to load and cannot disagree with the word beside it. Every row carries
- * BOTH — the glyph is the scan, the word is the answer.
- */
-export const GLYPH: Readonly<Record<Sort, string>> = {
-  created: "+",
-  archived: "⌦",
-  gone: "⌦",
-  done: "✓",
-  undone: "○",
-  doing: "◐",
-  "not-doing": "○",
-  moved: "⇅",
-  scheduled: "◷",
-  unscheduled: "◷",
-  noted: "✎",
-  renamed: "✎",
-  linked: "→",
-  edited: "✎",
 }
 
 /**

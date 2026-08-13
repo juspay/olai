@@ -63,6 +63,30 @@ Feature: Talking to the agent
     And the tool call's detail is folded away
 
   @scratch:chat
+  Scenario: A file the agent rewrote shows what changed, trimmed
+    # The half of this feature that is NOT an outline. A direct edit to a `.md`
+    # or a source file shows up in no tree, so until the panel drew the diff
+    # the answer to "what did it change" was a terminal. Trimmed, because a
+    # turn can rewrite four files and the panel is 26rem wide.
+    When I ask the agent "edit"
+    Then the chat shows a diff of "notes.md"
+    And the diff is trimmed
+    When I expand the diff
+    Then the diff is expanded
+    And the diff shows the line "- a walnut worktop, ordered on the tenth" as added
+
+  @scratch:chat
+  Scenario: An olai write tells its story instead of showing a diff
+    # The other vocabulary, and the rule behind it: a `.jsonl` diff is one
+    # enormous line per node with everything on it changing at once, which is
+    # the commit panel's own reason for never showing one. So a write through
+    # the ops layer is drawn as the node-level story, in the words the commit
+    # panel already uses for the same event.
+    When I ask the agent "done order"
+    Then the chat says the write "marked done"
+    And the chat shows no diff
+
+  @scratch:chat
   Scenario: A turn can be cancelled mid-stream
     When I ask the agent "slow"
     Then the agent is working

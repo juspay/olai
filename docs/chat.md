@@ -39,6 +39,29 @@ question arrives as a form in the conversation, and nothing times out.
 Dismissing one is an answer too — the agent is told you would not say, never
 handed a choice you did not make.
 
+## What it shows when it changes something
+
+A tool call is one folded line, and what the call CHANGED is not folded away —
+the arguments are what was asked for, and this is what happened to your files.
+There are two kinds of change and the panel draws them differently, because they
+are different things.
+
+**A file the agent rewrote** — a `.md`, a source file, anything that is not a
+node — shows its diff, right there in the conversation: the path, how many lines
+came and went, and the change itself, with the unchanged stretches between two
+edits collapsed so what you read first is what moved. It is TRIMMED to a few
+lines, and a click opens the rest where it stands. That is the one thing the
+transcript is for here: an edit like this appears in no outline, so before it was
+drawn, the only way to see what an agent had done to a file was a terminal.
+
+**A node the agent wrote** never gets a text diff, and that is deliberate: an
+outline is one line per node, so a text diff of one would be a single enormous
+line with everything on it changing at once. What shows instead is what changed
+about the node, in the same words the Commit panel uses for the same edit —
+*marked done*, *note rewritten*, *moved* — with the outline it lives in and,
+when the rollup has something to say, its remark underneath. The tree in front of
+you has already moved anyway; this is the sentence that says which write did it.
+
 ## Attachments
 
 You can paste a file into the box — a screenshot, a photo of a whiteboard — or

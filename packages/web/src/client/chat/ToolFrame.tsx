@@ -19,6 +19,13 @@
  *     asked for and then nothing at all until it completed, which is
  *     indistinguishable from one that had hung.
  *
+ * And a third escapes it for a different reason: what the call CHANGED. A diff
+ * of a file it rewrote ({@link ./Diff.tsx}), or the node-level story of a write
+ * it made through the ops layer ({@link ./Wrote.tsx}) — the two vocabularies,
+ * one per kind of write, and a call is at most one of them. That is not detail:
+ * the arguments are what was asked for, and this is what happened to somebody's
+ * files. It is trimmed rather than folded, and the trim opens where it stands.
+ *
  * The row is UPDATED rather than replaced. The transcript keys these by the
  * agent's own call id, so `pending` becoming `completed` is the same row
  * changing.
@@ -31,10 +38,12 @@
  */
 
 import type { ChatEntry } from "@olai/surface"
-import { Show } from "solid-js"
+import { For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { Diff } from "./Diff.tsx"
 import { isUnfolded, toggleFold } from "./folds.ts"
+import { Wrote } from "./Wrote.tsx"
 
 /** What each status looks like in one character. Words would wrap the line the
  *  frame exists to keep to one. */
@@ -98,6 +107,18 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
           <span aria-hidden="true">{open() ? "▾" : "▸"}</span>
         </Show>
       </button>
+
+      {/* What the call CHANGED, outside the fold — in whichever of the two
+          vocabularies applies, and a call is at most one of them. A change is
+          not detail: the arguments are what was asked for, and this is what
+          happened to somebody's files. Folding it away would be putting the
+          one thing the row is about behind the same click as the JSON. */}
+      <Show when={props.entry.wrote}>
+        {(wrote) => <Wrote wrote={wrote()} />}
+      </Show>
+      <For each={props.entry.diffs}>
+        {(diff) => <Diff call={props.entry.id} diff={diff} />}
+      </For>
 
       <Show when={open()}>
         {/* Progress FIRST: it is the live half, and a reader who unfolded a

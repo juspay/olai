@@ -716,6 +716,35 @@ Three components earn their own file:
   incremental content) is the first thing in the unfolded body, above the
   arguments. A call running for thirty seconds has something to show and its
   arguments are not it.
+
+  A third escapes it for a different reason — what the call CHANGED, which is
+  not detail: the arguments are what was asked for, and this is what happened
+  to somebody's files. Two components, one per kind of write, and a call is at
+  most one of them.
+- **`Diff.tsx`** draws a file the agent rewrote directly, the CLI's way: the
+  path, the counts, and the change trimmed to a few rows with the rest a click
+  away, opening in place. What is trimmed is the DIFF and never the file —
+  `diff.ts` collapses unchanged runs into gaps first — so the first rows are
+  the change rather than the top of a document. That fold is keyed by the call
+  AND the path (`folds.ts`), since one call can rewrite several files and one
+  file is rewritten again in a later turn.
+- **`diff.ts`** is the line diff itself, computed here because ACP carries two
+  texts rather than a patch. Hand-rolled: the packages that do this bring
+  character-level algorithms and patch application for the one function a panel
+  wants, in a bundle that ships to a browser — the same trade `@olai/git` took
+  over `simple-git`. Common ends come off first, the table is bounded (past the
+  budget the two sides are reported as unrelated rather than compared cell by
+  cell, because a browser must not freeze on a ten-thousand-line rewrite), and
+  the colours are spent on the tint and the marker rather than on the words:
+  text stays `ink`, which is the pair every palette promises.
+- **`Wrote.tsx`** draws the other kind, and never as a diff — an outline is one
+  line per node, so a text diff of one is a single enormous line with
+  everything on it changing at once. It is the node-level story in the words
+  `../changes.ts` holds, which is the same table the Commit panel's rows read:
+  the agent marks a node done, this says *marked done*, and the row waiting to
+  be committed says *marked done*. One event, one sentence, two places it is
+  seen — and one table, because two would be the day one of them started saying
+  something else.
 - **`Composer.tsx`** never disables its box. A message typed while the agent
   is working is sent and queues, so the button says `queue` and cancel appears
   BESIDE it rather than replacing it — sending and stopping are two things a
@@ -862,8 +891,12 @@ Writes land on disk and WAIT; this is what asks for the commit, and the agent's
 The panel never shows a text diff — a `.jsonl` diff is one enormous line per
 node — so every outline row is a NODE and what changed about it
 (`Outlines.tsx`). The classification is the server's (one `Sort` per change,
-from `@olai/format`), and `said.ts` is this client's own table of words for it:
-the log says `done:`, the panel says "marked done". `data-sort` is what a test
+from `@olai/format`), and `client/changes.ts` is this client's own table of
+words for it: the log says `done:`, the panel says "marked done". It sits a
+directory up rather than in `commit/` because the chat transcript draws an olai
+write in the same words — one event seen at two moments, and a second table is
+the day one of them starts saying something else. What stayed in `said.ts` is
+everything about the pill, which nothing else reads. `data-sort` is what a test
 asserts on, never the phrase, which the view is entitled to reword.
 
 **It reports on the WHOLE REPOSITORY**, which is `commit-whole-repo` and the

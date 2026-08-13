@@ -20,6 +20,7 @@
  *
  *   done <id>    call `set_done` on that node, then say so
  *   add <title>  call `add_node` under the first outline's first root
+ *   edit [file]  report a DIRECT file edit, as a `diff` content block
  *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
  *   deaf         go quiet with our stdin closed, so nothing said back arrives
@@ -199,6 +200,47 @@ const CONFIG_OPTIONS = [
     ],
   },
 ]
+
+/**
+ * The two texts the `edit` verb reports — a `.md` a real agent would have
+ * rewritten with `Edit`.
+ *
+ * Shaped for what the panel has to do with it rather than for prose: unchanged
+ * lines at both ends (so the collapsed-run idiom is exercised on both sides),
+ * a replaced block in the middle, and enough rows in total that the trim has
+ * something to hide and the expand has something to show.
+ */
+const EDITED = {
+  before: [
+    "# Kitchen notes",
+    "",
+    "The remodel is in three parts, and two of them are waiting on the third.",
+    "",
+    "- oak doors, twelve of them, ordered on the second",
+    "- a worktop nobody has chosen yet",
+    "- the sink stays exactly where it is",
+    "- the tiles are somebody else's problem",
+    "",
+    "Nothing here is decided until the worktop is.",
+    "",
+  ].join("\n"),
+  after: [
+    "# Kitchen notes",
+    "",
+    "The remodel is in three parts, and two of them are waiting on the third.",
+    "",
+    "- oak doors, twelve of them, delivered on the ninth",
+    "- a walnut worktop, ordered on the tenth",
+    "- the sink stays exactly where it is",
+    "- the tiles are somebody else's problem",
+    "- the lights arrive with the worktop",
+    "",
+    "The worktop settles it: everything else can be booked in now.",
+    "",
+    "_Rewritten while you watched._",
+    "",
+  ].join("\n"),
+}
 
 const COMMANDS = [
   { name: "review", description: "review the outline" },
@@ -638,6 +680,48 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "model") {
     sdkInit(argument)
     say(`switched to ${argument}.`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // A DIRECT file edit — the thing an olai op is not. What a real adapter
+  // sends for an `Edit` is a tool call carrying a `diff` content block: an
+  // absolute path, the text that was there, and the text that is there now.
+  // Nothing is written to the disk here, deliberately: what is under test is
+  // the panel's reading of the protocol, and a scripted agent that also wrote
+  // the file would be testing the store on the way past.
+  //
+  // The diff rides the ANNOUNCEMENT and the completion carries only a status,
+  // which is the shape a real one has and the one that catches the merge rule:
+  // a row that read a status-only report as "no diffs now" would drop the
+  // change at the moment the call finished.
+  if (verb === "edit") {
+    const toolCallId = `call-${++nextMcpId}`
+    const file = argument === "" ? "notes.md" : argument
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: `Edit ${file}`,
+        status: "in_progress",
+        rawInput: { file_path: `${cwd}/${file}` },
+        _meta: { claudeCode: { toolName: "Edit" } },
+        content: [
+          {
+            type: "diff",
+            path: `${cwd}/${file}`,
+            oldText: EDITED.before,
+            newText: EDITED.after,
+          },
+        ],
+      },
+    })
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
+    })
+    say(`rewrote \`${file}\`.`)
     respond(id, { stopReason: "end_turn" })
     return
   }

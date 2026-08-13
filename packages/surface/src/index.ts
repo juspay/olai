@@ -472,11 +472,13 @@ export {
   ChatFailure,
   ChatState,
   Command,
+  FileDiff,
   isOpFailure,
   kindOf,
   OpFailure,
   SessionInfo,
   UsageFailure,
+  Wrote,
   YES_NO,
 } from "./chat.ts"
 

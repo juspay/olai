@@ -20,7 +20,8 @@
 import type { DirtyOutline, NodeChange } from "@olai/format"
 import { For, Show } from "solid-js"
 
-import { GLYPH, HOW, HOW_TONE, SAID } from "./said.ts"
+import { GLYPH, SAID } from "../changes.ts"
+import { HOW, HOW_TONE } from "./said.ts"
 import type { Selection } from "./selection.ts"
 import { TESTID } from "../testids.ts"
 import { Tick } from "./Tick.tsx"

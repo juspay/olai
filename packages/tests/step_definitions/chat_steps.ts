@@ -32,6 +32,9 @@ import {
   CHAT_ATTACH_BUTTON,
   CHAT_ATTACHMENT_SIZE,
   CHAT_CANCEL,
+  CHAT_DIFF,
+  CHAT_DIFF_EXPAND,
+  CHAT_DIFF_LINE,
   CHAT_DROP,
   CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
@@ -57,6 +60,7 @@ import {
   CHAT_TROUBLE,
   CHAT_WAITING,
   CHAT_WORKING,
+  CHAT_WROTE,
   HYDRATION_TIMEOUT,
   NODE_TITLE,
   nodeSelector,
@@ -706,6 +710,91 @@ Then("the tool call is the element I marked", async function (this: OlaiWorld) {
       "update patches them in place.",
   );
 });
+
+// ── what a call changed ────────────────────────────────────────────────
+
+/** The FIRST diff drawn, which is the one the turn just produced. */
+const shownDiff = (world: OlaiWorld) => world.page.locator(CHAT_DIFF).first();
+
+Then(
+  "the chat shows a diff of {string}",
+  async function (this: OlaiWorld, file: string) {
+    // By PATH, root-relative: the protocol sends an absolute one, and a reader
+    // of this directory should see it spelled the way every `file:line` here
+    // is.
+    await this.page
+      .locator(`${CHAT_DIFF}[data-path="${file}"]`)
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
+Then("the chat shows no diff", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(CHAT_DIFF).count(),
+    0,
+    "an olai write drew a text diff. A `.jsonl` diff is one enormous line per " +
+      "node with everything on it changing at once — the panel's job for a " +
+      "write is the node-level story, and this is the rule that says so",
+  );
+});
+
+Then("the diff is trimmed", async function (this: OlaiWorld) {
+  const rows = await shownDiff(this).locator(CHAT_DIFF_LINE).count();
+  const whole = oneLine(await shownDiff(this).locator(CHAT_DIFF_EXPAND).innerText());
+  assert.match(
+    whole,
+    /more lines/,
+    `the diff drew all ${rows} of its rows; a turn that rewrote four files ` +
+      "would bury the conversation it belongs to",
+  );
+});
+
+When("I expand the diff", async function (this: OlaiWorld) {
+  await shownDiff(this).locator(CHAT_DIFF_EXPAND).click();
+});
+
+Then("the diff is expanded", async function (this: OlaiWorld) {
+  await this.expectAttribute(
+    CHAT_DIFF,
+    "data-expanded",
+    "true",
+    "the diff",
+    POLL_TIMEOUT,
+  );
+});
+
+Then(
+  "the diff shows the line {string} as added",
+  async function (this: OlaiWorld, text: string) {
+    // The KIND is asserted rather than the colour: what tone an added line
+    // wears is the whole subject here, and so the last thing to assert on —
+    // fifteen palettes paint it fifteen ways and all of them mean `add`.
+    const added = shownDiff(this).locator(`${CHAT_DIFF_LINE}[data-kind="add"]`);
+    await this.waitUntil(
+      async () => {
+        const rows = await added.allInnerTexts();
+        return rows.some((row) => oneLine(row).includes(text));
+      },
+      `the diff to show "${text}" as an added line`,
+      POLL_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the chat says the write {string}",
+  async function (this: OlaiWorld, said: string) {
+    // The commit panel's own words for the same event, which is the parity
+    // this is really about: one classification, two places it is read.
+    const wrote = this.page.locator(CHAT_WROTE).first();
+    await wrote.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const shown = oneLine(await wrote.innerText());
+    assert.ok(
+      shown.includes(said),
+      `the write's story does not say "${said}"; it says: ${shown}`,
+    );
+  },
+);
 
 Then("the tool call's detail is folded away", async function (this: OlaiWorld) {
   assert.strictEqual(

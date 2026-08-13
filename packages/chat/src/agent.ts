@@ -81,6 +81,7 @@ import type { AskAnswer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
 import { type Form, formOf, PERMISSION_FIELD, permissionFormOf } from "./asks.ts"
+import { diffsOf } from "./diffs.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import {
   allowedWithoutAsking,
@@ -94,6 +95,7 @@ import {
 import * as Kolu from "./kolu.ts"
 import { streamOver } from "./pipes.ts"
 import * as Questions from "./questions.ts"
+import { wroteIn } from "./wrote.ts"
 
 /** An MCP server to hand a session, in olai's terms. {@link mcpServersOf}
  *  renders it into what the protocol wants. */
@@ -390,6 +392,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             status: (update.status ?? undefined) as ToolCallStatus | undefined,
             detail: detailOf(update.rawInput, update.rawOutput),
             progress: progressOf(update.content),
+            // The two vocabularies for what a call CHANGED, and a call is at
+            // most one of them: a direct file edit sends diff blocks, and a
+            // write through the ops layer answers with a reply olai wrote
+            // itself. Both are read structurally — `undefined` is "this report
+            // said nothing about that", which is the protocol's own rule for
+            // every other field here.
+            diffs: diffsOf(update.content, options.cwd),
+            wrote: wroteIn(update.rawOutput) ?? undefined,
             locations: locationsOf(update.locations),
           })
           return
@@ -956,11 +966,20 @@ const textOf = (content: ContentBlock): string => {
  * indistinguishable from a call that had hung.
  *
  * The protocol's three block kinds are read for the one thing a transcript row
- * can show: text. `content` is prose or an embedded resource, `diff` is a file
- * being rewritten and is named rather than rendered — a unified diff in a
- * folded frame is a page of text where a line was wanted, and the outline
- * itself is where an olai edit shows up anyway — and `terminal` is an id whose
- * output arrives over a separate member this client does not open.
+ * can show as a line: text. `content` is prose or an embedded resource, and
+ * `terminal` is an id whose output arrives over a separate member this client
+ * does not open.
+ *
+ * A `diff` is NOT read here any more, and that inversion is the whole of
+ * `chat-edit-diffs`. It used to be flattened to the sentence `— <path>` on the
+ * argument that a unified diff in a folded frame is a page of text where a line
+ * was wanted, and that the outline itself is where an olai edit shows up
+ * anyway. The second half is what stopped being true: a direct edit to a `.md`
+ * or a source file shows up in NO outline, so naming the file was the whole of
+ * what a person got and the answer to "what changed" was a terminal. It travels
+ * structurally now ({@link ./diffs.ts}) and the panel draws it, trimmed —
+ * naming it here as well would be the same file reported twice, once as a
+ * change and once as a sentence about one.
  *
  * REPLACES rather than appends, which is the protocol's own rule for an update:
  * a report carries the call's content as it stands now, so accumulating them
@@ -971,13 +990,7 @@ const progressOf = (
 ): string | undefined => {
   if (content == null || content.length === 0) return undefined
   const lines = content
-    .map((block) =>
-      block.type === "content"
-        ? textOf(block.content)
-        : block.type === "diff"
-        ? `— ${block.path}`
-        : ""
-    )
+    .map((block) => (block.type === "content" ? textOf(block.content) : ""))
     .filter((line) => line !== "")
   return lines.length === 0 ? undefined : lines.join("\n")
 }

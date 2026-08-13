@@ -420,6 +420,24 @@ export const TESTID = {
   chatToolProgress: "chat-tool-progress",
   /** Where it is working: the follow-along file locations, on the line. */
   chatToolLocations: "chat-tool-locations",
+  /** One file the call REWROTE, drawn as a trimmed line diff. `data-path` is
+   *  the file (root-relative when it is under the served directory) and
+   *  `data-expanded` says whether the trim has been opened. */
+  chatDiff: "chat-diff",
+  /** One row of that diff. `data-kind` is `add` / `remove` / `same` / `gap` —
+   *  the fact, never the colour it is painted in, which is the whole subject
+   *  and so the last thing to assert on. */
+  chatDiffLine: "chat-diff-line",
+  /** The control that opens a trimmed diff in place, and shuts it again. */
+  chatDiffExpand: "chat-diff-expand",
+  /** What an olai WRITE did, in the commit panel's own words — never a diff.
+   *  `data-sort` is the format's classification (`done`, `noted`, `moved`, …),
+   *  or `unchanged` for a write that moved no record. */
+  chatWrote: "chat-wrote",
+  /** What the rollup noticed about that write. Advice on a write that LANDED,
+   *  never a reason anything failed — the transcript's own copy of the aside a
+   *  keystroke already gets under its row. */
+  chatNudge: "chat-nudge",
   /** A refused write, with its structured detail drawn out. */
   chatRefusal: "chat-refusal",
   /** What the last VERB refused — an empty send, a turn already running. */

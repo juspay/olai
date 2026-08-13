@@ -14,7 +14,7 @@
  * the caller that asked is the one waiting.
  */
 
-import type { AskField, AskOutcome } from "@olai/surface"
+import type { AskField, AskOutcome, FileDiff, Wrote } from "@olai/surface"
 
 /** A slash command the agent offers. */
 export interface Command {
@@ -57,6 +57,15 @@ export type AgentEvent =
      *  blocks. Its own field rather than more `detail` because the two answer
      *  different questions — what was asked for, and what is happening. */
     readonly progress: string | undefined
+    /** The files it REWROTE, structured — path, what was there, what is there
+     *  now ({@link ./diffs.ts}). Its own field rather than a line of
+     *  `progress`, because a change flattened into a sentence is a change a
+     *  panel can no longer draw. */
+    readonly diffs: ReadonlyArray<FileDiff> | undefined
+    /** ... and what it WROTE through the ops layer, which is never a diff: the
+     *  node-level story the format's own vocabulary already has
+     *  ({@link ./wrote.ts}). */
+    readonly wrote: Wrote | undefined
     /** Where it is working: the follow-along file locations. */
     readonly locations: ReadonlyArray<string> | undefined
   }
