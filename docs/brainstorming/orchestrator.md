@@ -1,127 +1,156 @@
-# The orchestrator: from a terminal session to a thing that exists
+# The orchestrator: give it a real home
 
-Status: brainstorming, opened 2026-08-13 by the human, provoked by a real
-failure (the Fable burn: agents launched all day on the wrong model because
-the agent's spelling lived nowhere). Nothing here is ratified.
+Status: brainstorming, opened 2026-08-13 by the human. Nothing here is decided.
 
-## What the orchestrator is today
+## The problem, in one story
 
-A Claude Code session sitting in `~/code/olai`, following a charter that
-lives in a gist, holding everything else in its head: which lanes run where,
-which terminal is whose, what was approved, which CI hosts are sick, what
-"the Opus author" even means. It operates across repos (olai, kolu, drishti)
-— cutting worktrees, chartering authors and reviewers over kolu terminals,
-running merge gates, stamping the ledger.
+Today "the orchestrator" is a Claude session in a terminal. It follows a
+charter that lives in a gist, and it keeps everything else in its head: which
+agents are running where, what was approved, and even what "the Opus agent"
+means as a command. Twice today that head failed us: its memory gets wiped
+when the session compacts, and this morning every agent it launched ran on
+the wrong model — because the right command was written down nowhere, so a
+machine default won.[^burn]
 
-The failure mode is now proven, twice over: session memory dies at
-compaction, and knowledge that lives nowhere (the agent's argv) silently
-defaults. Everything the orchestrator knows that is not in a file is a burn
+Lesson: anything the orchestrator knows that is not in a file is a failure
 waiting to happen.
 
-## The question: where should the orchestrator live?
+## Question 1 — where should the orchestrator live?
 
-### Shape A — its own repo
+**Option A: its own repo.** A repo (say `~/code/orchestrator`) holding
+outlines: the agent definitions, the state of every running lane, the
+charter, the operational notes.[^own-repo] The orchestrator session runs
+there and works on the other repos.
 
-`~/code/orchestrator`, a git repo served by olai, holding outlines:
+**Option B: inside olai itself (the human's lean).** Olai already wants this
+— the roadmap has long had "orchestrate from the chat, not a terminal".
+If orchestration is an olai feature:
 
-- `agents` — one node per agent: title `opus`, note carrying the exact argv
-  (fenced block = the command), children carrying the why. Launchers read the
-  node (`read_node agent-opus`), never compose a command. A missing name
-  refuses loudly.
-- `lanes` — dispatch state as nodes: what runs where, terminal ids, briefs,
-  approvals, evidence pointers. Compaction-proof operational memory.
-- the charter — the gist retires into a versioned file/outline.
-- operational knowledge — the sick-host dossier, pin SHAs, CI conventions.
+- Agent definitions are **nodes** in an outline. The same thing you edit in
+  the app is the thing every launcher reads.
+- Starting a lane is an olai **operation**: olai asks kolu to make a terminal
+  in a fresh worktree and run the agent's command.[^kolu-verb]
+- Running lanes are **nodes too**: who's working, in which terminal, what
+  was reviewed, what was approved. The orchestrator's memory becomes the
+  outline — it survives anything.
+- Approving becomes a button on the node, not a chat message an LLM has to
+  remember.
+- The terminal orchestrator (me) becomes temporary labor, not the system of
+  record.
 
-The orchestrator session runs *there*, operating on target repos, whose
-roadmaps stay their own.
+Option B contains option A: where the outlines live becomes a small choice,
+not the architecture.
 
-### Shape B — orchestration is a built-in olai feature (the human's lean)
+## Question 2 — who knows how to start an agent?
 
-The stronger observation: olai already has the pieces, and a standing roadmap
-subtree asking for this ("Orchestrate from the chat, not a terminal", the
-oic-* children). If orchestration is olai-native:
+The heart of the wrong-model bug. Three candidate answers, none ratified:
 
-- **Agents are nodes** in a served outline (`agents.jsonl` or `.olai` —
-  below). The same definition the human edits in the outliner is the one
-  olai's own launch verb reads. No second store, no config file, no
-  `.claude/` collision — files are the database, and this is the database.
-- **Launching is an op**: olai calls kolu's `lifecycle_create` (which is
-  learning `--worktree` in kolu PR #2167 *right now*) with the argv from the
-  agent node. Kolu stays pure mechanism; its philosophy is untouched.
-- **Lanes are nodes**: a dispatch creates a node (or lives on the roadmap
-  item itself) carrying terminal id, brief, state. The pipeline's events —
-  review verdicts, delta reports, CI results, approvals — land as children.
-  The ledger discipline stops being the orchestrator's manual habit and
-  becomes the shape of the feature.
-- **Approvals are in-app**: "I approve X" becomes a verb on the node, not a
-  chat message an LLM must remember across compaction.
-- **The LLM orchestrator becomes optional labor**, not the system of record:
-  a chat agent (or a human) drives verbs; the state is always in the
-  outline. Today's terminal orchestrator is the transitional form.
+**Option 1: the command lives in a node.** An `agents` outline; the node
+titled `opus` carries the full command in its note. Launchers read the node
+and run exactly that. A missing node refuses loudly — nobody can fall back
+to a default.[^node-argv]
 
-Shape B subsumes Shape A: whether the orchestration outlines live in the
-operated repo or a dedicated one becomes a per-setup choice, not an
-architecture.
+**Option 2: kolu accepts a structured spec.** Instead of a raw command, the
+launcher passes kolu something like `{"type": "claude", "model": "opus",
+"perms": "bypass"}`, and kolu itself turns that into the right command line.
+The agent node then stores this small spec instead of a command string.
+What it buys: the flag spellings live in one place (kolu — the product whose
+job is agent terminals), and the spec has checkable fields instead of being
+a typo-prone string. What it costs: when an agent CLI renames a flag, the
+fix needs a kolu release instead of a node edit. The philosophy check passes
+with guardrails.[^spec]
 
-## The agent-launch aspect (the part the burn demands, in either shape)
+**Option 3: apm becomes the launcher.** apm — the agent package manager —
+already has a "run agents" layer for some runtimes, just not for Claude Code
+or Grok today.[^apm] If it grows those, launching could be apm's job, with
+the definitions in `apm.yml`. A watch item, not a plan.
 
-1. One node per agent; the note carries the exact argv; children carry
-   rationale and history.
-2. Every launcher — the terminal orchestrator today, olai's launch verb
-   tomorrow — reads the node and refuses on absence. Nobody ever composes a
-   model flag.
-3. Provenance: a dispatched lane records *which agent node* launched it (a
-   see-edge or mirror). The Fable burn becomes the failure this graph makes
-   impossible to miss: lanes citing no agent node are the smell.
-4. Verification stays: the launcher confirms the booted agent's identity
-   (e.g. Claude's `/status`) before chartering. A definition can be wrong;
-   the boot check catches it loudly.
-5. Rejected alternatives, for the record: hand-written `.claude/settings.json`
-   (apm-generated surface — reverted 2026-08-13); `.claude/settings.local.json`
-   (worked, machine-local, but a second store outside olai — removed at the
-   human's word); a kolu-side agents config (violates kolu's zero-config
-   philosophy); apm runtime settings (upstream feature that does not exist
-   yet — see apm-adoption; complementary, not competing).
+These compose rather than exclude: option 1 can ship now; option 2 is a kolu
+feature the node's content would migrate into; option 3 is an ecosystem bet.
 
-## Is it time for `.olai` over `.jsonl`?
+Rejected along the way, for the record.[^rejected]
 
-The human's question, raised now because new outlines (agents, lanes) are
-about to be born — the cheapest moment to decide.
+## Question 3 — is it time for `.olai` instead of `.jsonl`?
 
-For `.olai`:
-- The format is not "some JSON lines"; it is olai's dialect (ids, marks,
-  edges, one node per line). A name says so.
-- New kinds of outlines living in non-olai contexts (an orchestrator repo, a
-  target repo's `agents` file) read clearly as olai's.
-- File association, tooling, syntax highlighting get an anchor.
+New outlines (agents, lanes) are about to be born — the cheapest moment to
+rename. The objections both collapsed under the human's push-back: migration
+is one small PR because there is exactly one user, and the "generic tooling"
+argument was defending `jq`-style pipelines that the design *discourages*
+anyway — structured access has one door (the MCP), and the break-glass cases
+(`cat`, `grep`, `git diff`) don't care what a file is called.[^olai-ext]
 
-Against / costs — examined and dismissed (the human's push-back, 2026-08-13):
-- Migration touches everything that says `.jsonl` — but the human is olai's
-  only user, so migration is one atomic PR, not a compatibility campaign.
-- "Generic tooling loses the extension hint" defended the wrong thing.
-  Structured access has one door — the MCP; a `jq` pipeline against the raw
-  file is a second reader that can drift from what olai means, the exact
-  disease the one-situater doctrine exists to kill. What legitimately
-  remains raw is `cat`/`grep`/`git diff`/`git blame` — break-glass and
-  history — and none of those care about the extension, only that the format
-  stays plain line-oriented text (it does).
+If ratified: one atomic rename PR, new outlines born `.olai`, no transition
+period.
 
-The path if ratified, simplified accordingly: one atomic rename PR — files,
-code, tests, docs, website — new outlines born `.olai`, no dual-extension
-era needed.
+## Open questions
 
-## Open questions for ratification
-
-1. Shape B as the direction, with today's terminal orchestrator as the
-   transitional operator? (Shape A remains available as "where the outlines
-   live" even under B.)
-2. Which comes first: the `agents` outline + launch verb (small, kills the
-   burn class), or lane-state-as-nodes (bigger, kills the compaction class)?
-3. Does the launch verb wait on kolu #2167 (`lifecycle_create --worktree`)
-   landing, or ship reading agents nodes with the orchestrator still doing
-   the kolu calls?
-4. `.olai`: ratify dual-extension-prefer-new, or defer entirely?
-5. Where do cross-repo lane events get stamped once lanes are nodes — the
-   operated repo's roadmap (today's habit), the orchestration outline, or
+1. Ratify option B (orchestration in olai) as the direction?
+2. Pick from question 2 — or ship option 1 now and leave 2/3 open?
+3. Should the agents outline exist immediately (kills the wrong-model bug
+   with one small commit), with the launch button coming later?[^halves]
+4. `.olai`: ratify the atomic rename?
+5. When lanes become nodes, where do cross-repo events get stamped — the
+   worked-on repo's roadmap (today's habit), the orchestration outline, or
    both via mirrors?
+
+---
+
+[^burn]: 2026-08-13: all five dispatched authors ran on Fable instead of
+    Opus. The spawn command was bare `claude`; the machine default decided.
+    Fixed for the moment by explicit `--model opus
+    --dangerously-skip-permissions` flags at every spawn plus a `/status`
+    check before chartering. The orchestrator's charter gist:
+    gist.github.com/srid/af6b4bcccf649fb923e4e207a7b93c51.
+
+[^own-repo]: Contents sketch: `agents` (definitions), `lanes` (dispatch
+    state: terminal ids, briefs, approvals, evidence pointers), the charter
+    (the gist retires into a versioned file), operational knowledge (the
+    sick CI-host dossier, pin SHAs). Target repos keep their own roadmaps.
+
+[^kolu-verb]: Via kolu's `lifecycle_create` MCP tool, which is learning to
+    cut worktrees right now (kolu PR #2167, in flight from our own lane).
+    Kolu stays pure mechanism — it runs whatever command it is handed and
+    configures nothing, per kolu.dev/philosophy.
+
+[^node-argv]: The orchestrator becomes the first consumer: `read_node
+    agent-opus` before every spawn, run exactly what the note says. Zero new
+    olai code. Provenance comes free: a lane can carry an edge to the agent
+    node that launched it, so "which agent ran this?" is answerable — the
+    question the Fable burn couldn't answer.
+
+[^spec]: Philosophy check against kolu.dev/philosophy: (a) zero-setup
+    survives — kolu reads no file, stores nothing; the spec arrives in each
+    call; (b) agent-agnostic survives read as "no lock-in" — kolu already
+    has per-agent knowledge in its shell detection; composing flags is
+    detection's generative twin. Guardrails: unknown type/field/value
+    refuses in words (no default model exists anywhere in the path); raw
+    argv remains as the universal escape hatch; same spec always produces
+    the same argv, printable back for logging.
+
+[^apm]: microsoft/apm. Its runtime layer supports Copilot CLI, Codex,
+    Gemini CLI, and the LLM library — not Claude Code or Grok (Grok has
+    experimental *target* support, PR #2420, which is config deployment,
+    not launching). Related: apm deploys `.claude/` configuration (hooks,
+    MCP) into `settings.json`, and declined to own runtime permission
+    decisions (issue #1157's L2/L3 doctrine) — any settings-value
+    passthrough request must be framed as config lifecycle (L3), which they
+    claim. See apm-adoption on the roadmap.
+
+[^rejected]: Hand-written `.claude/settings.json` — worked (proven: repo
+    file beats machine default, `bypassPermissions` boots on), but that file
+    is apm-generated output and the commit was unauthorized; reverted.
+    `.claude/settings.local.json` — also worked, machine-local, uncommitted
+    by design (worktrees inherit it, even from kolu's bare root), but it is
+    a second store outside olai; removed at the human's word. A kolu config
+    file (`.kolu/agents.toml`) — violates kolu's zero-config principle;
+    never built.
+
+[^olai-ext]: The format stays plain line-oriented JSON either way. The
+    one-situater doctrine (every reading through the MCP, never a second
+    parser) is why encouraging raw `jq` pipelines works against the
+    product's grain.
+
+[^halves]: "Ship in halves": the outline is the fix (the knowledge exists,
+    launchers read it), the launch verb is the convenience (olai calling
+    kolu itself). The verb waits on kolu #2167 landing and on the
+    orchestrate-from-chat design deciding where launching lives in the UI.
