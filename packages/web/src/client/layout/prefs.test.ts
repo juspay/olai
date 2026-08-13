@@ -7,7 +7,6 @@ import {
   clamp,
   fitWidths,
   MIN_MAIN_PX,
-  parseBool,
   parsePx,
   parseSnap,
   RAIL_WIDTH_PX,
@@ -15,6 +14,7 @@ import {
   SIDEBAR_MAX_PX,
   SIDEBAR_MIN_PX,
 } from "./prefs.ts"
+import { parseBool } from "../preference.ts"
 
 test("clamp holds a value inside its bounds", () => {
   expect(clamp(10, 0, 20)).toBe(10)

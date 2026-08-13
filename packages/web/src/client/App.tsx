@@ -3,7 +3,7 @@
  * and one page open.
  *
  * Layout principle: the header carries what is about the APP (wordmark,
- * connection, agent, theme); the sidebar carries what is about the DIRECTORY
+ * connection, agent, preferences); the sidebar carries what is about the DIRECTORY
  * (the agenda, the calendar, the file tree), collapsing to an icon rail when
  * minimized; chat is a resizable dock or a minimized pill/strip. All layout
  * state is client-local.

@@ -10,7 +10,7 @@
  * Desktop: a resizable column when open, replaced by the icon rail when
  * minimized (./layout/Rail.tsx). Mobile: a slide-over drawer with scrim under
  * the header — not the old capped close-on-any-tap sheet. App chrome
- * (connection, agent, theme) lives in the header; this column is only the
+ * (connection, agent, preferences) lives in the header; this column is only the
  * directory.
  *
  * Directory nodes collapse client-locally like the outline tree's folds

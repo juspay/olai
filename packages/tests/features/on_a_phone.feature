@@ -5,8 +5,8 @@ Feature: On a phone
   the sidebar in, so the DIRECTORY (calendar + file tree) goes behind a
   BURGER in the app header as a slide-over DRAWER with scrim: shut, the
   outline has the whole screen under the header; open, the drawer covers the
-  left with a dim scrim over the page. App chrome — connection, agent, theme
-  — lives in the header and is never behind the burger. Chat is a bottom
+  left with a dim scrim over the page. App chrome — connection, agent,
+  preferences — lives in the header and is never behind the burger. Chat is a bottom
   sheet (half/full snap) rather than a side dock; minimized it is a strip
   above the thumb. And what a finger aims at gets bigger: 44px, the number
   both mobile platforms print in their guidelines.
@@ -69,10 +69,11 @@ Feature: On a phone
     Given I open the outline "garden.jsonl"
     Then the connection is "live"
     And the app chrome is inside the header
-    # Six things do not fit at 390pt, so the bar gives way in a stated order
+    # Five things do not fit at 390pt, so the bar gives way in a stated order
     # (AppHeader.tsx) and this label is the end of it. `one-git-indicator` first
     # shipped with the order wrong — `live` squeezed to `l…` beside a theme name
-    # drawn in full — and a screenshot is how that was found. This is the fence,
+    # drawn in full — and a screenshot is how that was found. (The theme name is
+    # not in the bar at all any more; the order it broke still is.) This is the fence,
     # and it is asserted in every state rather than only in the short one: the
     # bar is not full at `live`, so `live` alone would pass with the rule
     # removed. `reconnecting` and `server restarted` are what fill it.

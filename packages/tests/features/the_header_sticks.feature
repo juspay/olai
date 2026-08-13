@@ -1,7 +1,7 @@
 Feature: The header sticks
   The app header is CHROME, not part of the page. The wordmark, the connection
   dot, the commit pill (which is also the one thing that answers for git), the
-  agent toggle and the theme picker are permanent answers about the APP — that
+  agent toggle and the preferences are permanent answers about the APP — that
   is the whole argument for the bar existing rather than for those pills living
   beside the things they are about.
 
@@ -64,12 +64,14 @@ Feature: The header sticks
     And the heading "Lists" is clear of the header
 
   # A palette is a redefinition of eight custom properties and the bar's
-  # geometry knows nothing about it — but the CHIPS do hang off the header, and
-  # a positioned bar with a z-index is a stacking context they are now inside
-  # of. So the pick is made from the BOTTOM of a scrolled page: the popover has
-  # to open over the page rather than under it for the chip to take the click at
-  # all (Playwright refuses to click what something else would receive), and the
-  # bar has to be in the same place afterwards as before.
+  # geometry knows nothing about it — but the CHIPS hang off the header, in the
+  # preferences panel, and a positioned bar with a z-index is a stacking context
+  # anything drawn inside it would be trapped in. (That is why the panel is
+  # portalled out to the body; the chips' own popover was not, and rode at the
+  # bar's own layer.) So the pick is made from the BOTTOM of a scrolled page:
+  # the panel has to open over the page rather than under it for the chip to
+  # take the click at all (Playwright refuses to click what something else would
+  # receive), and the bar has to be in the same place afterwards as before.
   @corpus:good
   Scenario: The bar sticks in a dark palette, picked from a scrolled page
     Given the window is shorter than the page

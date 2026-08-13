@@ -42,3 +42,19 @@ export const PILL =
 
 /** The dot itself, which the state's own `dot` utility colours. */
 export const DOT = "inline-block size-2 shrink-0 rounded-full"
+
+/**
+ * The other shape in the bar: a BUTTON with a glyph on it — the agent toggle
+ * and the preferences trigger.
+ *
+ * Same argument as {@link PILL} one paragraph up, and the same geometry to keep
+ * in step: both take `touch.ts`'s 44px minimum below 48rem, because a glyph on
+ * its own is a target a finger misses sideways as well as vertically, and both
+ * release it on a pointer. What is NOT here is the border colour: the agent
+ * toggle's says whether a turn is running and the preferences' says whether the
+ * panel is open, which is each button's own news rather than this shape's.
+ */
+export const ICON_BUTTON =
+  "inline-flex shrink-0 items-center justify-center gap-1 rounded-full " +
+  "bg-paper px-2 py-1.5 font-mono text-xs hover:text-ink sm:px-3 " +
+  "min-h-11 min-w-11 md:min-h-0 md:min-w-0"

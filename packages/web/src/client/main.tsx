@@ -10,6 +10,7 @@ import App from "./App.tsx"
 import { Fault } from "./errors/Fault.tsx"
 import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
+import { followDoneDefault } from "./settings/done.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 
@@ -33,9 +34,11 @@ trackVisibleViewport()
 // it outlives every component.
 followStoredTheme()
 
-// Layout preferences (sidebar open/width, chat open/width/snap) and the
-// phone/desktop media query — document-lifetime, like the theme.
+// Layout preferences (sidebar open/width, chat open/width/snap), what a page
+// does with finished work, and the phone/desktop media query —
+// document-lifetime, like the theme.
 followLayout()
+followDoneDefault()
 trackDesktop()
 
 const root = document.getElementById("root")

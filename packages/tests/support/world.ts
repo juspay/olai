@@ -100,7 +100,8 @@ export const ROOT = "#root";
  *  already reads this module and a second copy of the three words is a second
  *  place for the tag pattern and the field to disagree. */
 export type GitMode = "repo" | "none" | "broken";
-/** The app header: wordmark + connection + agent + theme. Always on screen. */
+/** The app header: wordmark + connection + git + agent + preferences. Always on
+ *  screen. */
 export const APP_HEADER = selector(TESTID.appHeader);
 /** The `olai` wordmark in that bar. A TAG rather than a test id: it is the
  *  app's name and the bar's one heading, and markup that exists only to be read
@@ -270,17 +271,18 @@ export const CONNECTION = selector(TESTID.connection);
  */
 export const APP_CHROME = selector(TESTID.appChrome);
 
-/** Everything that belongs in that row, and nothing else may be. In order, and
- *  including the trigger inside the theme picker — a list a person has to come
- *  and edit is exactly the point: adding chrome to the header is a decision,
- *  and a second control reporting on git is the decision this fence is here to
- *  make somebody look at. */
+/** Everything that belongs in that row, and nothing else may be. In order — a
+ *  list a person has to come and edit is exactly the point: adding chrome to
+ *  the header is a decision, and a second control reporting on git is the
+ *  decision this fence is here to make somebody look at. The theme pill was the
+ *  fifth entry until `preferences-panel`, which is the same decision made
+ *  again: a preference with a door of its own, beside the door to the
+ *  preferences. */
 export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   TESTID.connection,
   TESTID.commitPill,
   TESTID.chatToggle,
-  TESTID.themePicker,
-  TESTID.themeTrigger,
+  TESTID.prefsTrigger,
 ];
 
 /** The attribute that readout carried. Kept as a selector so the fence catches
@@ -297,14 +299,24 @@ export const FAULT_DETAIL = selector(TESTID.faultDetail);
 /** The card's second way out, off the page that faulted. */
 export const FAULT_HOME = selector(TESTID.faultHome);
 
-/** The theme picker in the header: a pill that opens the chip strip. The
- *  browser tests import DEFAULT_THEME / storage key from `theme/palettes.ts`
- *  rather than reading attributes. A chip's `data-value` is the theme it
- *  offers and `aria-pressed` says whether it is the one in force — never the
- *  colour it is painted, which is the subject here and so the last thing to
- *  assert on. */
-export const THEME_PICKER = selector(TESTID.themePicker);
-export const THEME_TRIGGER = selector(TESTID.themeTrigger);
+/**
+ * The preferences: the header's one trigger, the panel behind it, and what is
+ * on it.
+ *
+ * The theme chips are a ROW of that panel rather than a popover of their own —
+ * so every theming scenario comes through this trigger, which is the whole of
+ * what `preferences-panel` changed about them. The browser tests still import
+ * DEFAULT_THEME / storage key from `theme/palettes.ts` rather than reading
+ * attributes; a chip's `data-value` is the theme it offers and `aria-pressed`
+ * says whether it is the one in force — never the colour it is painted, which
+ * is the subject here and so the last thing to assert on.
+ */
+export const PREFS_TRIGGER = selector(TESTID.prefsTrigger);
+export const PREFS_PANEL = selector(TESTID.prefsPanel);
+export const PREFS_ROW = selector(TESTID.prefsRow);
+export const PREFS_HINT = selector(TESTID.prefsHint);
+export const PREFS_CHOICE = selector(TESTID.prefsChoice);
+export const PREFS_SCOPE = selector(TESTID.prefsScope);
 export const THEME_CHIP = selector(TESTID.themeChip);
 
 /** The Commit pill in the chrome, and the panel it opens. The pill is ALWAYS

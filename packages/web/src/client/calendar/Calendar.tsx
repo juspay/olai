@@ -77,7 +77,7 @@ export function Calendar(props: {
   // Which cell is FILLED, as a selector rather than `day() === props.open` in
   // each of them: that form subscribes all thirty-odd days to the open one, so
   // clicking through a week re-runs the whole grid's effects to move one fill.
-  // theme/Picker.tsx is the house precedent and the reasoning is the same one;
+  // theme/Chips.tsx is the house precedent and the reasoning is the same one;
   // the difference here is that a day is also the cheapest thing on the page to
   // click repeatedly, which is exactly when a grid-wide re-diff is felt.
   //

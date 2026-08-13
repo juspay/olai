@@ -7,7 +7,7 @@
  * entry there, not a branch here.
  *
  * The panel is `absolute top-full` inside a positioned root — the same idiom
- * as `theme/Picker.tsx` and `chat/SlashMenu.tsx` — so it scrolls with its
+ * as `chat/SlashMenu.tsx` — so it scrolls with its
  * anchor and never lands below the fold as a detached `fixed` box would.
  * Drawn only on pointer devices (`MENU_REVEAL`); a phone keeps the triangle
  * and spends the width on the title.
@@ -190,7 +190,9 @@ function MenuPanel(props: {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === "Escape") props.onClose()
     }
-    // pointerdown, capture — same as theme/Picker and note/expand.
+    // pointerdown, capture — the same dismissal `../popover.ts` owns for the
+    // header's two panels, and `note/expand.ts` for a row's note. This one is
+    // laid out inside its row rather than portalled, so it has ONE root.
     document.addEventListener("pointerdown", onPointer, true)
     document.addEventListener("keydown", onKey)
     onCleanup(() => {

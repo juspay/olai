@@ -31,6 +31,18 @@ Feature: Committing on purpose
     Then the panel says the last commit was "not committed in this directory yet"
     And there should be no page errors
 
+  Scenario: Pressing the pill again puts the panel away
+    # TWO ROOTS, one bug. The pill and the panel are siblings — the panel is
+    # portalled out of the header — so a click-away that knows only the panel
+    # reads a press of the PILL as a press outside, shuts on the pointerdown,
+    # and is reopened a moment later by that same press's click. Pressing it a
+    # second time did nothing at all, and nothing could see it: the panel was
+    # open before and open after. The two popovers in this bar share their open
+    # state now (`web/src/client/popover.ts`), and this is its fence.
+    When I open the commit panel
+    And I press the commit pill
+    Then the commit panel is shut
+
   Scenario: An edit waits, is shown as what it is, and is committed on purpose
     # The whole corpus file, with ONE node changed: `mint` goes from under way
     # to done. Written out in full because the count below is the point — a

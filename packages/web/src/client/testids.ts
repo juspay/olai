@@ -9,12 +9,12 @@
  */
 
 export const TESTID = {
-  /** The app header: wordmark, connection, agent, theme. Always drawn — it is
-   *  chrome about the APP, and every shape of the app (including the error
-   *  report) gets it. */
+  /** The app header: wordmark, connection, agent, preferences. Always drawn —
+   *  it is chrome about the APP, and every shape of the app (including the
+   *  error report) gets it. */
   appHeader: "app-header",
   /** The row of pills inside it that are about the APP — the connection, the
-   *  Commit pill, the agent toggle, the theme picker. Its own name because the
+   *  Commit pill, the agent toggle, the preferences trigger. Its own name because the
    *  CONTENTS of that row are a claim: `one-git-indicator` was two chips
    *  answering one question, and the only way to hold that shut is to count
    *  what is in the row rather than to look for the chip that was removed. */
@@ -142,19 +142,38 @@ export const TESTID = {
    *  fragment, which is the whole claim — the id it names is the one the
    *  rendered heading carries. */
   tocLink: "toc-link",
-  /** The theme picker in the header: a compact pill that opens the chip strip.
+  /** One chip of the theme strip, which lives in the preferences panel's Theme
+   *  row. `data-value` is the theme it offers, `aria-pressed` says whether it
+   *  is the one in force — never the colour it is painted, which is the whole
+   *  subject here and so the last thing to assert on.
+   *
    *  What the DEFAULT theme is and where a pick is stored are not attributes on
-   *  it: the browser tests import those from `theme/palettes.ts` the same way
-   *  they import these names, which is a type error rather than a timeout when
-   *  one is renamed — and markup that exists only to be read back by a test is
-   *  markup every reader ships. */
-  themePicker: "theme-picker",
-  /** The pill that opens the chip strip. Names the theme in force. */
-  themeTrigger: "theme-trigger",
-  /** One chip of it. `data-value` is the theme it offers, `aria-pressed` says
-   *  whether it is the one in force — never the colour it is painted, which is
-   *  the whole subject here and so the last thing to assert on. */
+   *  anything: the browser tests import those from `theme/palettes.ts` the same
+   *  way they import these names, which is a type error rather than a timeout
+   *  when one is renamed — and markup that exists only to be read back by a
+   *  test is markup every reader ships. */
   themeChip: "theme-chip",
+
+  // ── preferences ──────────────────────────────────────────────────────
+  /** The header's one way into the preferences, and the only door there is:
+   *  the theme pill that used to sit beside it retired into the panel behind
+   *  this, so a scenario reaching a theme chip comes through here. */
+  prefsTrigger: "prefs-trigger",
+  /** The panel it opens (portalled out of the header). */
+  prefsPanel: "prefs-panel",
+  /** One preference on it; `data-pref` is which — `theme`, `done`. */
+  prefsRow: "prefs-row",
+  /** That row's hint: what the choice IN FORCE means, re-read whenever the
+   *  control moves. Its own name because it is the half of a settings row that
+   *  is easiest to let go stale, and a hint describing a state the app is not
+   *  in is worse than no hint at all. */
+  prefsHint: "prefs-hint",
+  /** One segment of a two-or-three-way choice. `data-value` is what it picks,
+   *  `aria-pressed` whether it is the one in force. */
+  prefsChoice: "prefs-choice",
+  /** What every row on the panel has in common, said once: these belong to this
+   *  browser and reach no server. */
+  prefsScope: "prefs-scope",
   /** A row's own LINE: the controls in its gutter and the title beside them,
    *  and nothing belonging to a row nested under it. Rows nest, so "this
    *  node's checkbox" needs a handle on the line rather than on the subtree —

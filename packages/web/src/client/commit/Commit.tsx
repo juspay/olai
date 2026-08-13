@@ -52,35 +52,38 @@
  *
  * WHERE THE PANEL GOES is not the layout's, and cannot be. It is portalled out
  * of whatever the pill is inside and positioned against the VIEWPORT
- * (`./anchor.ts`), which is what a popover in a scrolling column needs: an
+ * (`../anchor.ts`), which is what a popover in a scrolling column needs: an
  * overflow container clips in both axes, and one laid out inside the sidebar was
  * cut off at the 16rem column, taking the commit message, the writer and half
  * the button with it. Which way it opens is that arithmetic's answer rather than
  * a constant — from the header it opens downward, because that is the side with
- * the room.
+ * the room. Being open, being placed and being dismissed are `../popover.ts`,
+ * which the preferences at the other end of the bar are the second consumer of.
  */
 
-import { createEffect, createSignal, onCleanup, Show } from "solid-js"
+import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { agoOf, createNow } from "./ago.ts"
-import { type Anchor, anchoredTo } from "./anchor.ts"
-import { createNoteExpand } from "../note/expand.ts"
 import { explain, faceOf, isInert, MARK } from "./said.ts"
 import { Panel } from "./Panel.tsx"
 import { PILL } from "../readout.ts"
+import { createPopover } from "../popover.ts"
 import { createCommit } from "./state.ts"
 import { TESTID } from "../testids.ts"
 import { Tip } from "../Tip.tsx"
 
 export function Commit() {
   const commit = createCommit()
-  // The client's one answer to "open until you click somewhere else"
-  // (`../note/expand.ts`), which the note under a row is the other consumer of. Both
-  // the pill and the portalled panel register as inside — they are siblings in
-  // different corners of the document, so the pill is not an ancestor that
-  // could speak for the panel.
-  const panel = createNoteExpand()
+  // Whether the panel is up, where it goes, and the ways it shuts
+  // (`../popover.ts`, shared with the preferences at the other end of the bar).
+  // It used to be `note/expand.ts` — the row note's "open until you click
+  // somewhere else" — plus a measuring effect of this file's own, and the
+  // borrowed half was wrong here: that one keeps ONE root, so the pill and the
+  // portalled panel overwrote each other, a press of the pill was read as a
+  // click-away, and the pill's own click re-opened what it had just shut.
+  // Pressing it a second time did nothing at all.
+  const panel = createPopover()
   const now = createNow()
 
   const face = () => faceOf(commit.pending(), commit.heard(), commit.git())
@@ -89,39 +92,12 @@ export function Commit() {
    *  pointer opens, and the label everything else gets. */
   const said = () => explain(face(), commit.pending(), commit.git())
 
-  let pill: HTMLButtonElement | undefined
-  const [anchor, setAnchor] = createSignal<Anchor | null>(null)
-
-  /** Re-read where the pill is. Cheap, and it has to happen again whenever the
-   *  window or the column under it moves: an anchored popover that goes stale
-   *  on a scroll is worse than one that never moved at all. */
-  const measure = () => {
-    if (pill === undefined) return
-    setAnchor(anchoredTo(pill.getBoundingClientRect(), {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    }))
-  }
-
-  createEffect(() => {
-    if (!panel.expanded()) return
-    measure()
-    // CAPTURE phase for `scroll`: what moves under the panel is the sidebar
-    // rather than the document, and a scroll event does not bubble.
-    window.addEventListener("resize", measure)
-    document.addEventListener("scroll", measure, true)
-    onCleanup(() => {
-      window.removeEventListener("resize", measure)
-      document.removeEventListener("scroll", measure, true)
-    })
-  })
-
   /**
    * How long ago the last commit was, for the one face that has one — and `""`
    * everywhere else.
    *
    * Beside {@link says} rather than inside it, because it is the half the bar
-   * gives up first: at 390pt the header has six things in it, and `· 3m ago` is
+   * gives up first: at 390pt the header has five things in it, and `· 3m ago` is
    * the only piece of any label that a reader can lose and still be told what
    * they came to find out. It is drawn from `sm` up; the exact instant, with
    * the message and the writer, is a tap away in the panel at every width.
@@ -179,10 +155,7 @@ export function Commit() {
       <Tip text={said()}>
         <button
           type="button"
-          ref={(el) => {
-            pill = el
-            panel.setRoot(el)
-          }}
+          ref={panel.setTrigger}
           // The header's own pill (`../readout.ts`), the same one the connection
           // wears and the same one the retired git readout wore: the bar is a
           // fixed height, so a long label truncates rather than wrapping. It
@@ -209,7 +182,7 @@ export function Commit() {
           // Absent rather than `false` on the faces with no panel behind them:
           // a control that says it can expand and never does is a promise the
           // page does not keep.
-          aria-expanded={inert() ? undefined : panel.expanded()}
+          aria-expanded={inert() ? undefined : panel.open()}
           // `aria-disabled`, NOT `disabled`. A disabled button takes no focus,
           // and the sentence below is the whole point of the control in exactly
           // the states where nothing can be written — see the header.
@@ -238,22 +211,22 @@ export function Commit() {
             <span class="shrink-0">· {unpushed()} unpushed</span>
           </Show>
           {/* Which way the panel opens, and it opens DOWNWARD from the header
-              — `./anchor.ts` picks the side with the room. Not below 40rem:
-              the bar holds six things at 390pt, and a caret is the cheapest of
+              — `../anchor.ts` picks the side with the room. Not below 40rem:
+              the bar holds five things at 390pt, and a caret is the cheapest of
               them to give up — what it says is "there is more", which the words
               beside it would rather spend the pixels saying. */}
           <Show when={!inert()}>
             <span class="hidden shrink-0 sm:inline" aria-hidden="true">
-              {panel.expanded() ? "▴" : "▾"}
+              {panel.open() ? "▴" : "▾"}
             </span>
           </Show>
         </button>
       </Tip>
       {/* Out of the header entirely — see the header comment. */}
-      <Show when={panel.expanded() && !inert() ? anchor() : null}>
+      <Show when={panel.open() && !inert() ? panel.at() : null}>
         {(at) => (
           <Portal>
-            <Panel commit={commit} now={now()} at={at()} inside={panel.setRoot} />
+            <Panel commit={commit} now={now()} at={at()} inside={panel.setPanel} />
           </Portal>
         )}
       </Show>
