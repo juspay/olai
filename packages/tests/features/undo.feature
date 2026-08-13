@@ -147,6 +147,24 @@ Feature: Undo
     And I press "ControlOrMeta+z"
     Then the node "hinges" has status "todo"
 
+  Scenario: A mark the walk took off is put back by putting it on
+    # The other shape, and the one that used to be wrong: two calls are for the
+    # write that leaves a node DONE, and taking a mark off leaves a bullet. The
+    # pair this answered with sent "take the mark off" at a row that no longer
+    # had one, so the undo was refused a moment after it was pressed and dropped
+    # with a reason nobody could act on.
+    When I click the title of "hinges"
+    And I press "Control+Shift+Enter"
+    Then the node "hinges" has status "doing"
+    When I press "Control+Shift+Enter"
+    Then the node "hinges" has no status
+    When I click away from the editor
+    And I press "ControlOrMeta+z"
+    Then the node "hinges" has status "doing"
+    And nothing is said about the undo
+    When I press "ControlOrMeta+Shift+z"
+    Then the node "hinges" has no status
+
   Scenario: A new row is taken back into the archive
     When I click the title of "handles"
     And I press "Enter"

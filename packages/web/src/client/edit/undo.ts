@@ -42,10 +42,10 @@ import type { Edit } from "@olai/surface"
 /**
  * One thing a person did, as what would take it back.
  *
- * A LIST rather than one edit, and it is one edit for everything but a mark
- * that displaced another: the ops layer refuses to put `todo` back on a node
- * that is currently `done` in a single call, so the way back is the two calls
- * an agent would make (the surface says the rest). Replayed in order, and a
+ * A LIST rather than one edit, and it is one edit for everything but the write
+ * that TICKS A NODE OFF: the ops layer refuses to put `todo` back on a node
+ * that is now `done` in a single call, so the way back from that one is the two
+ * calls an agent would make (the surface says the rest). Replayed in order, and a
  * refusal partway stops there — what landed is on the other side of the stack
  * by then, so ⌘⇧Z puts back exactly the half that went.
  */

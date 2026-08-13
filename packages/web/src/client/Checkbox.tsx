@@ -26,11 +26,14 @@
  * waiting on nothing and an unmarked one is not work, so the face composes
  * with exactly the marks that can be blocked.
  *
- * The box is display-only, and stays so now that a mark CAN be changed: what
- * ticks one is `Ctrl+Enter` in the row's own editor (`./edit/editing.tsx`),
- * which is where every other edit is made and where the keys that make them
- * are declared. A click handler here would be a second way to spell the one
- * write, reachable from a row nobody is editing — and the click is already
+ * The box is display-only, and stays so now that all three marks CAN be
+ * written: what ticks one off is `Ctrl+Enter` in the row's own editor, and what
+ * walks it round the other answers is `Ctrl+Shift+Enter` (`./edit/editing.tsx`)
+ * — the editor is where every other edit is made and where the keys that make
+ * them are declared. A click handler here would be a second way to spell one of
+ * those writes, reachable from a row nobody is editing — and a box with FOUR
+ * readings has no obvious click anyway: what a person means by one is exactly
+ * the question the two keys answer separately — and the click is already
  * spent, which is why the blocked face may be a LINK without promising
  * anything false: it goes to the node's own page, where its blockers are named
  * in full (`./Blocked.tsx`). What it is waiting on rides in the `aria-label`,

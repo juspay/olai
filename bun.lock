@@ -117,6 +117,7 @@
       "name": "@olai/tests",
       "version": "0.1.0",
       "dependencies": {
+        "@olai/format": "workspace:*",
         "@olai/web": "workspace:*",
       },
       "devDependencies": {

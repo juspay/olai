@@ -2,7 +2,8 @@
 Feature: Keyboard editing
   The Workflowy loop, without the agent: click a title and type, Enter for the
   next line, Tab and Shift+Tab for the shape, Alt+Shift+arrows to reorder,
-  Ctrl+Enter to tick something off, Shift+Enter for the note.
+  Ctrl+Enter to tick something off, Ctrl+Shift+Enter to walk the mark on to
+  what it is not finished at, Shift+Enter for the note.
 
   Every one of those is one op through the same write gate the agent's tools go
   through, and nothing is echoed: what you see is the file coming back. Which
@@ -122,6 +123,55 @@ Feature: Keyboard editing
     Then the node "handles" has status "done"
     When I press "Control+Enter"
     Then the node "handles" has no status
+
+  Scenario: The mark walk writes the two marks Ctrl+Enter cannot, and takes one off
+    # `Ctrl+Shift+Enter` is one step round the ring: a bullet, then `todo`, then
+    # `doing`, then a bullet again. The last stop is an ANSWER rather than a gap
+    # — the format draws it as no box at all — so the walk can take a mark off
+    # as well as put one on, and the record it leaves carries none of the three.
+    # `done` is not on the ring: finishing something is `Ctrl+Enter`'s, and
+    # nothing should tick work off on the way past.
+    When I click the title of "handles"
+    And I press "Control+Shift+Enter"
+    Then the node "handles" has status "todo"
+    And "house.jsonl" holds a node marked todo titled "choose the handles"
+    When I press "Control+Shift+Enter"
+    Then the node "handles" has status "doing"
+    And "house.jsonl" holds a node marked doing titled "choose the handles"
+    When I press "Control+Shift+Enter"
+    Then the node "handles" has no status
+    And "house.jsonl" holds the node "handles" with no mark
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: The walk will not take finished work back in one, and says so in the ops layer's words
+    # The refusal a person MUST meet rather than one the UI absorbs: `demo` is
+    # done, `done` is off the ring, so the walk asks for the ring's first answer
+    # outright — the same request `set_todo` makes — and the ops layer refuses
+    # it in the sentence an agent gets. The sentence names the way through, and
+    # the way through is one key: `Ctrl+Enter` takes the done off, and the walk
+    # carries on from the bullet it leaves. Two ops, the second one the
+    # person's, exactly as an agent makes them.
+    When I click the title of "demo"
+    And I press "Control+Shift+Enter"
+    Then the refusal says "`take out the old counters` is done. Undo that first — nothing should decide on your behalf that finished work is not finished."
+    And the node "demo" has status "done"
+    When I press "Control+Enter"
+    Then the node "demo" has no status
+    When I press "Control+Shift+Enter"
+    Then the node "demo" has status "todo"
+    And "house.jsonl" holds a node marked todo titled "take out the old counters"
+
+  Scenario: The walk at a mirror lands on the node it shows
+    # The mark rule the checkbox and Ctrl+Enter already follow, for the key that
+    # writes the other two: a placement stores no mark of its own, so the step
+    # is taken on the node — in the file that node lives in — and the placement
+    # draws what comes back. `herbs` is `doing`, so one step is no mark at all.
+    When I click the title of "kitchen-herbs"
+    And I press "Control+Shift+Enter"
+    Then the node "kitchen-herbs" has no status
+    And "garden.jsonl" holds the node "herbs" with no mark
+    And "house.jsonl" holds the node "kitchen-herbs"
 
   Scenario: The keys keep working after the row has moved
     # The caret is what a structural op nearly costs: the row is redrawn where

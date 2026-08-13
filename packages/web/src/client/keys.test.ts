@@ -89,6 +89,30 @@ test("toggling the mark answers to either platform's Enter chord", () => {
   expect(editKey(key("Enter", { meta: true }), "line")).toBe("toggle")
 })
 
+test("the mark walk is the same chord with shift, on either platform", () => {
+  // The two mark keys are one modifier apart, which is the grammar: `Enter` is
+  // the row's key, and what is held says which kind of change it is.
+  expect(editKey(key("Enter", { ctrl: true, shift: true }), "line")).toBe("cycle")
+  expect(editKey(key("Enter", { meta: true, shift: true }), "line")).toBe("cycle")
+})
+
+test("the walk does not eat the note's key, and the note does not eat the walk", () => {
+  // The regression this ordering exists for: `Shift+Enter` is the note and
+  // `Ctrl+Shift+Enter` is the walk, so the note's branch has to name the two
+  // modifiers it must not see — otherwise the more specific chord is swallowed
+  // by the more general one and the mark key opens a textarea.
+  expect(editKey(key("Enter", { shift: true }), "line")).toBe("note")
+  expect(editKey(key("Enter", { ctrl: true, shift: true }), "line")).not.toBe("note")
+})
+
+test("neither mark key is a note's", () => {
+  // A note is prose; the keys that edit a ROW are the row's. `Ctrl+Enter` has
+  // always been dead in one, and the walk is dead there for the same reason
+  // rather than by omission.
+  expect(editKey(key("Enter", { ctrl: true }), "block")).toBeNull()
+  expect(editKey(key("Enter", { ctrl: true, shift: true }), "block")).toBeNull()
+})
+
 test("the bare arrows move between rows; modified ones do not", () => {
   expect(editKey(key("ArrowUp"), "line")).toBe("prev")
   expect(editKey(key("ArrowDown"), "line")).toBe("next")
@@ -150,6 +174,7 @@ test("every editing key is written down for a person", () => {
     "up",
     "down",
     "toggle",
+    "cycle",
     "note",
     "prev",
     "next",
