@@ -3,7 +3,7 @@
 ## Code Review
 
 - Tests
-  - If a new feature was added, or a bug fixed, is there a test (unit or e2e) that reproduces it and ensures a future regression won't happen with tests passing?
+  - If a new feature was added, or a bug fixed, there must be a corresponding test (unit or e2e)for it. 
 - Docs
   - docs/* is up to date
   - website/ is up to date
