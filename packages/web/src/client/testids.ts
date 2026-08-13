@@ -458,6 +458,10 @@ export const TESTID = {
   chatAskOutcome: "chat-ask-outcome",
   /** A tool call's row; `data-tool-status` is the agent's own status. */
   chatTool: "chat-tool",
+  /** The line that opens a tool call. Named rather than found as "the button
+   *  in the frame": the frame also draws what the call CHANGED, and the node
+   *  an olai write was about is a control there too. */
+  chatToolFold: "chat-tool-fold",
   chatToolDetail: "chat-tool-detail",
   /** What a call is SAYING as it runs — the protocol's incremental content,
    *  drawn above the arguments because it is the live half. */

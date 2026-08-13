@@ -58,6 +58,7 @@ import {
   CHAT_TOGGLE,
   CHAT_TOOL,
   CHAT_TOOL_DETAIL,
+  CHAT_TOOL_FOLD,
   CHAT_TOOL_LOCATIONS,
   CHAT_TOOL_PROGRESS,
   CHAT_TRANSCRIPT,
@@ -596,7 +597,7 @@ Then("the chat is not streaming", async function (this: OlaiWorld) {
 const heldTool = (world: OlaiWorld) => world.page.locator(CHAT_TOOL).first();
 
 When("I unfold the tool call", async function (this: OlaiWorld) {
-  await heldTool(this).locator("button").click();
+  await heldTool(this).locator(CHAT_TOOL_FOLD).click();
 });
 
 Then(
