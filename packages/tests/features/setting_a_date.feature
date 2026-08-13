@@ -41,6 +41,11 @@ Feature: Setting a date from the web
     When I choose "Set date…" from the node menu
     Then the date picker is open
     And the date picker holds ""
+    # ...and the menu says NOTHING. An entry answers with what it has to say,
+    # and opening a picker has nothing — this shipped as an empty bordered box
+    # under the `•••` once, because a Solid setter answers with the new value
+    # and `() => void` accepts any return.
+    And the node menu of "install" says nothing
     When I pick the date "2026-09-01"
     Then the node "install" shows the date "2026-09-01"
     And "house.jsonl" holds the node "install" dated "2026-09-01"
@@ -80,6 +85,11 @@ Feature: Setting a date from the web
     And I open the node menu of "install"
     And I choose "Set date…" from the node menu
     Then the date picker's button is dead
+    # And what the dead button SAYS is the verb they came for. `Clear date`
+    # here would be an offer to take away something that is not there — which
+    # is what it read before the label and the deadness became one answer, and
+    # a scenario that only asked about deadness would have kept that green.
+    And the date picker offers to "Set date"
 
   Scenario: Escape closes it and writes nothing
     When I open the date picker on "order"

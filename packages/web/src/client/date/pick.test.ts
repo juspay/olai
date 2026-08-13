@@ -65,8 +65,10 @@ test("an empty box on an UNDATED node is still waiting for a day", () => {
 })
 
 test("nothing to write is nothing to press", () => {
-  // The other no-op: the date already stored. `../menu/verbs.ts`' rule — an
-  // entry whose only outcome is "already so" teaches nobody anything.
+  // The other no-op: the date already stored. The EDITOR's rule one field
+  // along (`../edit/draft.ts`: a commit that would change nothing sends
+  // nothing) — not a fence on what may be written, which the ops layer would
+  // accept from either face.
   expect(pressOf("2026-08-10", "2026-08-10")).toEqual({
     label: "Set date",
     writes: false,

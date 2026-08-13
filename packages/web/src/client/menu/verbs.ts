@@ -28,6 +28,7 @@
 import { ARCHIVE, type Derived, isMirror, MARKS, type Row, type Status } from "@olai/format"
 import type { Edit } from "@olai/surface"
 
+import { datePick } from "../date/pick.ts"
 import { under } from "./subtree.ts"
 
 /**
@@ -127,9 +128,13 @@ export const writeVerbs = (
     // OFF would be the affordance a mouse has for changing one hiding behind a
     // badge nobody has been told is a control.
     //
-    // CLEARING keeps the verb #124 gave it, unchanged, and the picker uses the
-    // same words for the same edit when its box is emptied — one spelling of
-    // taking a date off, at both doors (`../date/pick.ts`).
+    // CLEARING keeps the verb #124 gave it, unchanged — and it is now the same
+    // CONSTRUCTOR as well as the same words: an emptied box is a pick of
+    // nothing, so this entry IS `datePick(id, "")` rather than a second literal
+    // that happens to agree with it (`../date/pick.ts`). The two doors could
+    // only ever have disagreed silently — the ops layer reads `""` and `null`
+    // as the same disk effect — so the one spelling is the only thing that can
+    // hold "one way to say no date" up.
     verbs.push({
       id: "set-date",
       label: shown.node.date === undefined ? "Set date…" : "Change date…",
@@ -139,7 +144,7 @@ export const writeVerbs = (
       verbs.push({
         id: "clear-date",
         label: "Clear date",
-        does: sends({ verb: "date", id: shown.node.id, date: null }),
+        does: sends(datePick(shown.node.id, "")),
       })
     }
   }

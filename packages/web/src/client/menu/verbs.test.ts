@@ -12,6 +12,7 @@ import { derive, rowsOf, type Row } from "@olai/format"
 import { setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
+import { datePick } from "../date/pick.ts"
 import { flatten } from "../edit/order.ts"
 import { writeVerbs } from "./verbs.ts"
 
@@ -123,6 +124,16 @@ test("clearing a date sends the op's own null", () => {
     id: "order",
     date: null,
   })
+})
+
+test("the menu's clear and the picker's emptied box are ONE edit", () => {
+  // The two doors, compared. They are one constructor today (`Clear date` is
+  // `datePick(id, "")`), and this is what says so from the outside: a split
+  // could not be seen any other way, because the ops layer reads `""` and
+  // `null` as the same effect on disk — so a door that started sending the
+  // other one would go on working while the faces diverged. Updating the
+  // literal in the test above can no longer hide that.
+  expect(edit("order", "Clear date")).toEqual(datePick("order", ""))
 })
 
 test("every row that draws a node can reach the picker, under the name that fits it", () => {

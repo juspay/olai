@@ -50,13 +50,18 @@ export const startsAt = (stored: string | undefined): string =>
   stored === undefined ? "" : dayOf(stored)
 
 /**
- * The one edit a pick sends — `set_date`'s own reach, and the SAME edit the
- * `•••` menu's `Clear date` sends when the box has been emptied.
+ * The one edit a pick sends — `set_date`'s own reach, and the constructor the
+ * `•••` menu's `Clear date` calls as well ({@link ../menu/verbs.ts}).
  *
- * One function for both halves, so the two spellings cannot drift: an empty
- * box is "no date", which is `null`, which is the value that verb has always
- * carried ({@link ../../../../surface/src/edit.ts}). The date is passed
- * through verbatim; nothing here has an opinion about what a day looks like.
+ * ONE FUNCTION FOR BOTH DOORS, and it is a function rather than two agreeing
+ * literals because agreement is not a thing anyone can see: an empty box is
+ * "no date", which is `null`, and the ops layer reads `null` and `""` as the
+ * same effect on disk — so a door that started sending the other one would go
+ * on working while the two faces had quietly split. There is nothing to
+ * compare, only one thing to call.
+ *
+ * The date is passed through verbatim; nothing here has an opinion about what
+ * a day looks like.
  */
 export const datePick = (id: string, day: string): Edit => ({
   verb: "date",
