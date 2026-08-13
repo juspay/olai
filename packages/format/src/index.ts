@@ -101,6 +101,8 @@ export type { Records } from "./changes.ts"
 export {
   CommitRequest,
   CommitResult,
+  GIT_OFF,
+  GitState,
   How,
   isPossible,
   isReady,

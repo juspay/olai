@@ -44,7 +44,7 @@ import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
 import type { BunPlugin } from "bun"
 
-import { scaleCss } from "./client/markdown/scale.ts"
+import { scaleCss } from "./client/theme/scale.ts"
 import { paletteCss } from "./client/theme/css.ts"
 
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), "client")
@@ -106,7 +106,7 @@ const tailwindUtilities = async (): Promise<string> => {
  * utilities, then the markdown scales, then the named palettes.
  *
  * Both generated blocks are TypeScript tables that something else also reads —
- * `client/theme/palettes.ts` by the theme chips, `client/markdown/scale.ts`
+ * `client/theme/palettes.ts` by the theme chips, `client/theme/scale.ts`
  * by the browser test that holds the rendered page to it — and a `.css` file
  * cannot import one, so they are composed in here rather than written into
  * `styles.css`.

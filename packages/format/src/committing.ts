@@ -40,6 +40,40 @@ import { NodeChange } from "./changes.ts"
  */
 export { How, Reason, RepoState }
 
+/**
+ * What git is doing for the served directory, for the git indicator in the app
+ * header (`git-invisible`, #108) and for the agent that reads the same cell
+ * over MCP.
+ *
+ * FLAT — a status and the words that go with it — because this value TRAVELS:
+ * the ops layer derives it from its own survey's `RepoState` (`gitOf`, which
+ * owns the one-survey coherence argument), the surface declares it as the
+ * `git` cell (which says how each of the four states is drawn), and the
+ * browser draws it. It used to be declared once per layer — an interface in
+ * `@olai/ops`, a schema in `@olai/surface`, "deliberately the same shape"
+ * kept in step by a comment — which is exactly the hand-kept mirror this file
+ * exists to retire. One declaration now, HERE, for the reason `RepoState` is
+ * re-exported above: this package is the floor both of those stand on.
+ */
+export const GitState = Schema.Struct({
+  status: Schema.Literals(["off", "repo", "none", "error"]),
+  /** What git said, for the state that has something to quote — the reason a
+   *  reader gets rather than "something went wrong". `null` otherwise: a
+   *  healthy repository is not quoting anything. */
+  said: Schema.NullOr(Schema.String),
+})
+export type GitState = typeof GitState.Type
+
+/** What a page reads before the first frame arrives, and what a `--no-commit`
+ *  serve stays in — beside its type for the reason {@link NOTHING_PENDING} is
+ *  beside `Pending` below. `off` is the right default twice over: it is the
+ *  calmest of the four, so a page cannot flash "git error" at a healthy
+ *  repository on its way to the truth. (What the page says before it has heard
+ *  ANYTHING is not this value — the pill has a face of its own for that,
+ *  because "we have not been told" and "commits are off" are two different
+ *  claims.) */
+export const GIT_OFF: GitState = { status: "off", said: null }
+
 /** Who asked for a write. Intent rather than identity — git only ever records
  *  the repository's own name and email, so without this an agent's edits are
  *  indistinguishable from the ones a person typed.

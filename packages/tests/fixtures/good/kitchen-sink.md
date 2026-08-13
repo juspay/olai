@@ -8,7 +8,7 @@ instead of discovering a month later that two heading levels had quietly become
 the same size.
 
 It is also what the RHYTHM is checked against. The type and spacing scales are
-declared in `packages/web/src/client/markdown/scale.ts`, the stylesheet is
+declared in `packages/web/src/client/theme/scale.ts`, the stylesheet is
 generated from them, and `features/documents.feature` walks every element of
 this page — and of a note carrying the same surface — asserting each computed
 size, gap, pad and border is a value from those sets. So a drive-by `margin:

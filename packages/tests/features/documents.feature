@@ -59,7 +59,7 @@ Feature: Documents
     And there should be no page errors
 
   # The RHYTHM, as an invariant rather than a look somebody once approved. The
-  # scale is declared in `@olai/web`'s markdown/scale.ts, the stylesheet is
+  # scale is declared in `@olai/web`'s theme/scale.ts, the stylesheet is
   # generated from it, and these two walk every element the fixture draws —
   # once as a document, once as a note, because a note re-answers three of the
   # sizes and the sweep has to see both sets.

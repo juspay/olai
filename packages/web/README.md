@@ -276,7 +276,7 @@ name that is not the block's text, which is a different change and not this
 one.
 
 How that markdown is SET is the other half. The numbers are **not** in the
-stylesheet: `src/client/markdown/scale.ts` declares the type scale and the two
+stylesheet: `src/client/theme/scale.ts` declares the type scale and the two
 spacing scales, `src/build.ts` generates the CSS from it (the same arrangement
 the palettes use), and every rule in `styles.css` reads a custom property. That
 is what makes the rhythm testable — `packages/tests` walks a rendered document

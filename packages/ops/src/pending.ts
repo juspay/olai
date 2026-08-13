@@ -51,6 +51,7 @@ import {
   changesOf,
   composed,
   fileKind,
+  type GitState,
   type How,
   type LastCommit,
   type Node,
@@ -89,14 +90,8 @@ export const COMMIT_MODES = ["off", "manual", "auto"] as const
 export type CommitMode = (typeof COMMIT_MODES)[number]
 
 /**
- * What git is doing for this directory, for the git indicator in the app header
- * (`git-invisible`, #108) and for the agent that reads the same cell over MCP.
- *
- * FLAT — a status and the words that go with it — because this value is
- * published: it is the surface's `git` cell, and the cell's schema declares this
- * shape. The two are kept in step by the compiler rather than by hand, which is
- * what lets this layer, which knows nothing about a wire, still declare a value
- * that travels on one.
+ * What git is doing for this directory — `@olai/format`'s {@link GitState},
+ * re-exported beside the {@link gitOf} that produces the value.
  *
  * It is DERIVED from {@link Pending}'s own `repo` ({@link gitOf}) and not asked
  * for separately. That is the whole of the coherence: this and the pending value
@@ -104,12 +99,7 @@ export type CommitMode = (typeof COMMIT_MODES)[number]
  * one question — a page saying "no git here" beside a panel offering to commit
  * four changes. One survey, two readings.
  */
-export interface GitState {
-  readonly status: "off" | "repo" | "none" | "error"
-  /** What git said, for the state that has something to quote. `null`
-   *  otherwise — a healthy repository is not quoting anything. */
-  readonly said: string | null
-}
+export type { GitState }
 
 /**
  * This value's answer, from the repository's.

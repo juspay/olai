@@ -225,8 +225,9 @@ archiving reads as one change to one node rather than as a removal and an
 unrelated arrival.
 
 `src/committing.ts` is the values that answer travels in — what is waiting,
-what was last recorded, whether the repository can take a commit, what asking
-for one answers with. Git plumbing is `@olai/ops`'s, and so is everything that
+what was last recorded, what git is doing for the directory (`GitState`, with
+its before-first-frame `GIT_OFF`), whether the repository can take a commit,
+what asking for one answers with. Git plumbing is `@olai/ops`'s, and so is everything that
 never crosses the wire: how olai spells a commit message, and the values of the
 `--commit` flag. What is here is exactly what `@olai/surface` imports, which is
 why it is here at all — this package is the floor both that layer and the wire

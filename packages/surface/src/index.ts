@@ -74,6 +74,8 @@ import {
   BrokenFile,
   CommitRequest,
   CommitResult,
+  GIT_OFF,
+  GitState,
   Located,
   NOTHING_PENDING,
   OutlineError,
@@ -204,26 +206,12 @@ export const LOADED: Manifest = {}
  * moves twice at most in an ordinary serve — once when the directory is probed,
  * and again if a commit ever refuses — so nothing here is a stream of anything.
  *
- * The shape is deliberately the same as `@olai/ops`' own `GitState`, which is
- * where the value comes from: the server hands one straight to the other, so
- * the two declarations drifting is a type error at the seam rather than a
- * mapping nobody re-reads.
+ * The shape is `@olai/format`'s, re-exported rather than declared, the way
+ * `Pending` and `RepoState` are — one declaration on the floor this spec and
+ * the ops layer both stand on, so there is no second spelling to drift. Its
+ * before-first-frame default `GIT_OFF` travels with it.
  */
-export const GitState = Schema.Struct({
-  status: Schema.Literals(["off", "repo", "none", "error"]),
-  /** What git said, for the state that has something to quote — the reason a
-   *  reader gets rather than "something went wrong". `null` otherwise. */
-  said: Schema.NullOr(Schema.String),
-})
-export type GitState = typeof GitState.Type
-
-/** What a page reads before the first frame arrives, and what a `--no-commit`
- *  serve stays in. `off` is the right default twice over: it is the calmest of
- *  the four, so a page cannot flash "git error" at a healthy repository on its
- *  way to the truth. (What the page says before it has heard ANYTHING is not
- *  this value — the pill has a face of its own for that, because "we have not
- *  been told" and "commits are off" are two different claims.) */
-export const GIT_OFF: GitState = { status: "off", said: null }
+export { GIT_OFF, GitState }
 
 /** When two answers are the same answer, so the cell can stay quiet. There is
  *  exactly one thing this value can say, so there is exactly one thing that can

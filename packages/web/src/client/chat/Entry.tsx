@@ -155,7 +155,7 @@ export function Entry(props: {
               // `olai-md-compact`: an answer is drawn in a 26rem drawer beside
               // the page, not as a page — so it takes the tighter spacing scale
               // and the heading ceiling, the same ones a note takes
-              // (`markdown/scale.ts`). Without it an agent opening with a `#`
+              // (`theme/scale.ts`). Without it an agent opening with a `#`
               // sets a 2rem heading in a column half that wide.
               class="olai-md-compact text-sm"
               testid={TESTID.chatSaid}

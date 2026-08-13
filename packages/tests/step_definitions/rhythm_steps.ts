@@ -1,7 +1,7 @@
 /**
  * The rendered markdown, held to the scale it declares.
  *
- * `@olai/web`'s `markdown/scale.ts` is the type and spacing scale — the closed
+ * `@olai/web`'s `theme/scale.ts` is the type and spacing scale — the closed
  * sets every element of a note or a document may draw a size, a gap, a pad and
  * a border from. The stylesheet is GENERATED from that table; this walks what
  * the browser actually laid out and asserts every element is on it.
@@ -35,7 +35,7 @@ import {
   TYPE,
   UNDER_TITLE,
   WEIGHT,
-} from "@olai/web/src/client/markdown/scale.ts";
+} from "@olai/web/src/client/theme/scale.ts";
 
 import { HYDRATION_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -185,7 +185,7 @@ Then(
       offences,
       [],
       `${offences.length} value(s) off the declared scale ` +
-        `(packages/web/src/client/markdown/scale.ts):\n  ` +
+        `(packages/web/src/client/theme/scale.ts):\n  ` +
         offences.map((one) => `${one.element} ${one.property}: ${one.value}`).join("\n  "),
     );
   },

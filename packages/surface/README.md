@@ -58,9 +58,10 @@ Which kind each member is was a decision. Three are the outline:
   the same question and gets the same answer, which is HACKING.md's consistency
   rule rather than a convenience. It
   moves at most twice in an ordinary serve — the probe, and a commit that
-  refuses — so nothing about it is a stream. Its shape is deliberately the same
-  as `@olai/ops`' own `GitState`: the server hands one straight to the other,
-  and the two drifting is a type error at that seam.
+  refuses — so nothing about it is a stream. Its shape is `@olai/format`'s
+  `GitState`, re-exported rather than declared: the ops layer produces the
+  value, this spec carries it, and one declaration on the floor both stand on
+  leaves no second spelling to drift.
 
 `OutlineEntry` carries a file's nodes, its `rev`, and its `broken` — and the
 last of those is the per-entity error scope as DATA: a file that stopped
