@@ -21,9 +21,9 @@
  *     `elicitation/create` is a form; a `session/request_permission` that is not
  *     one of ours is a single-select. What is HERE is that both are the same
  *     question and which methods carry them; the payload shapes are
- *     {@link ./asks.ts} and the promise-per-question state machine is
- *     {@link ./questions.ts}, so neither is one more thing this file's closure
- *     has to get right at the same time as a subprocess.
+ *     `@olai/acp`'s (its `asks.ts`) and the promise-per-question state machine
+ *     is {@link ./questions.ts}, so neither is one more thing this file's
+ *     closure has to get right at the same time as a subprocess.
  *   - **which permission requests are answered without asking.** Bypass mode is
  *     the design (resolved 2026-08-09), so a call to one of the MCP servers WE
  *     handed this session — olai's mediated ops, kolu's terminals — is allowed
@@ -79,13 +79,20 @@ import type {
   ToolCallLocation,
   ToolCallStatus,
 } from "@agentclientprotocol/sdk"
+import {
+  diffsOf,
+  type Form,
+  formOf,
+  PERMISSION_FIELD,
+  permissionFormOf,
+  Refused,
+  relativeTo,
+} from "@olai/acp"
 import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
 import type { AskAnswer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
-import { type Form, formOf, PERMISSION_FIELD, permissionFormOf } from "./asks.ts"
-import { diffsOf, relativeTo } from "./diffs.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import {
   allowedWithoutAsking,
@@ -310,7 +317,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       signal: AbortSignal,
     ): Promise<CreateElicitationResponse> => {
       const form = formOf(params)
-      if (form instanceof UsageFailure) {
+      if (form instanceof Refused) {
         undrawable(form.reason)
         return { action: "decline" }
       }
@@ -1031,7 +1038,7 @@ const textOf = (content: ContentBlock): string => {
  * anyway. The second half is what stopped being true: a direct edit to a `.md`
  * or a source file shows up in NO outline, so naming the file was the whole of
  * what a person got and the answer to "what changed" was a terminal. It travels
- * structurally now ({@link ./diffs.ts}) and the panel draws it, trimmed —
+ * structurally now (`@olai/acp`'s `diffsOf`) and the panel draws it, trimmed —
  * naming it here as well would be the same file reported twice, once as a
  * change and once as a sentence about one.
  *
@@ -1053,8 +1060,8 @@ const progressOf = (
  *  the path alone when it did not — a `:0` invented for the second case would
  *  be a claim about a file nobody made.
  *
- *  Spelled root-relative by the same rule a diff's path is ({@link
- *  ./diffs.ts}), because these two land on ONE row: a follow-along location and
+ *  Spelled root-relative by the same rule a diff's path is (`@olai/acp`'s
+ *  `relativeTo`), because these two land on ONE row: a follow-along location and
  *  the diff under it naming the same file in two different ways is the row
  *  disagreeing with itself. */
 const locationsOf = (

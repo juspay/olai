@@ -16,11 +16,10 @@ import type {
   CreateElicitationRequest,
   RequestPermissionRequest,
 } from "@agentclientprotocol/sdk"
-import { UsageFailure } from "@olai/format"
-import { type AskField, YES_NO } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
-import { contentOf, formOf, PERMISSION_FIELD, permissionFormOf } from "./asks.ts"
+import { contentOf, formOf, PERMISSION_FIELD, permissionFormOf, Refused } from "./asks.ts"
+import { type AskField, YES_NO } from "./wire.ts"
 
 /** The shape `askUserQuestionsToCreateRequest` builds for ONE single-select
  *  question: the question itself as the message, a titled `oneOf`, and the
@@ -61,7 +60,7 @@ const field = (fields: ReadonlyArray<AskField>, key: string): AskField => {
 
 const formIn = (request: CreateElicitationRequest) => {
   const form = formOf(request)
-  if (form instanceof UsageFailure) throw new Error(`undrawable: ${form.reason}`)
+  if (form instanceof Refused) throw new Error(`undrawable: ${form.reason}`)
   return form
 }
 
@@ -176,9 +175,9 @@ describe("a question, as a form", () => {
       },
     } as CreateElicitationRequest)
 
-    expect(refused).toBeInstanceOf(UsageFailure)
-    expect((refused as UsageFailure).reason).toContain("weird")
-    expect((refused as UsageFailure).reason).toContain("_something-new")
+    expect(refused).toBeInstanceOf(Refused)
+    expect((refused as Refused).reason).toContain("weird")
+    expect((refused as Refused).reason).toContain("_something-new")
   })
 
   test("a url elicitation is undrawable rather than half-drawn", () => {
@@ -188,7 +187,7 @@ describe("a question, as a form", () => {
       elicitationId: "e1",
       message: "Sign in",
       url: "https://example.invalid/auth",
-    })).toBeInstanceOf(UsageFailure)
+    })).toBeInstanceOf(Refused)
   })
 })
 
@@ -285,8 +284,8 @@ describe("the answers, going back", () => {
     // never offered is a sentence it never wrote, attributed to the person who
     // was asked.
     const refused = contentOf(fields, [{ key: "question_0", values: ["mahogany"] }])
-    expect(refused).toBeInstanceOf(UsageFailure)
-    expect((refused as UsageFailure).reason).toContain("mahogany")
+    expect(refused).toBeInstanceOf(Refused)
+    expect((refused as Refused).reason).toContain("mahogany")
 
     // ... and the free-text box beside it still takes anything, which is what
     // it is for.
@@ -339,15 +338,15 @@ describe("the answers, going back", () => {
       attachedTo: null,
     }]
     const refused = contentOf(typed, [{ key: "age", values: ["forty"] }])
-    expect(refused).toBeInstanceOf(UsageFailure)
-    expect((refused as UsageFailure).reason).toContain("forty")
+    expect(refused).toBeInstanceOf(Refused)
+    expect((refused as Refused).reason).toContain("forty")
   })
 
   test("an answer for a field nobody asked for is refused", () => {
     // The form on screen is not the form that was sent, so nothing about the
     // rest of it can be trusted either.
     expect(contentOf(fields, [{ key: "question_7", values: ["x"] }]))
-      .toBeInstanceOf(UsageFailure)
+      .toBeInstanceOf(Refused)
   })
 
   test("a required field left empty is refused", () => {
@@ -361,7 +360,7 @@ describe("the answers, going back", () => {
       attachedTo: null,
     }]
     const refused = contentOf(required, [])
-    expect(refused).toBeInstanceOf(UsageFailure)
-    expect((refused as UsageFailure).reason).toContain("Name")
+    expect(refused).toBeInstanceOf(Refused)
+    expect((refused as Refused).reason).toContain("Name")
   })
 })

@@ -58,7 +58,7 @@ export type AgentEvent =
      *  different questions — what was asked for, and what is happening. */
     readonly progress: string | undefined
     /** The files it REWROTE, structured — path, what was there, what is there
-     *  now ({@link ./diffs.ts}). Its own field rather than a line of
+     *  now (`@olai/acp`'s `diffsOf`). Its own field rather than a line of
      *  `progress`, because a change flattened into a sentence is a change a
      *  panel can no longer draw. */
     readonly diffs: ReadonlyArray<FileDiff> | undefined

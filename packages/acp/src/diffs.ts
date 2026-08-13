@@ -3,9 +3,9 @@
  *
  * A tool call's content is a list of blocks and this file is about exactly one
  * kind of them: `diff`, which is a file being rewritten — a path, what was
- * there, and what is there now. Every other kind is somebody else's
- * ({@link ./agent.ts}'s `progressOf`, which reads them for the one thing a line
- * of a transcript can show).
+ * there, and what is there now. Every other kind is somebody else's (the chat
+ * package's `progressOf`, which reads them for the one thing a line of a
+ * transcript can show).
  *
  * It used to be read the same way as the rest and that is what this file
  * replaces: a diff block was flattened into the sentence `— <path>` in the
@@ -16,19 +16,20 @@
  * so the transcript naming it was the whole of what a person got, and the
  * answer to "what did it change" was a terminal.
  *
- * So the wire carries the diff STRUCTURED (`@olai/surface`'s `FileDiff`) and
- * the panel draws it. Nothing here computes a line diff: the two texts are what
- * the protocol sends and what a browser derives its rendering from, which keeps
+ * So the wire carries the diff STRUCTURED ({@link FileDiff}) and the panel
+ * draws it. Nothing here computes a line diff: the two texts are what the
+ * protocol sends and what a browser derives its rendering from, which keeps
  * this side free of a second diff implementation and keeps the client's one
  * where every other view-time derivation lives.
  *
- * PURE, and tested as such — the {@link ./interpret.ts} pattern, for the same
+ * PURE, and tested as such — the {@link ./asks.ts} pattern, for the same
  * reason: a reading of somebody else's payload is a function over a value, not
  * a branch reachable only by talking a subprocess into sending one.
  */
 
 import type { ToolCallContent } from "@agentclientprotocol/sdk"
-import type { FileDiff } from "@olai/surface"
+
+import type { FileDiff } from "./wire.ts"
 
 /**
  * Every file this report says was rewritten, or `undefined` for a report that
@@ -76,7 +77,7 @@ export const diffsOf = (
  * String work rather than `node:path`: both sides are already absolute and
  * already normalised by whoever produced them, and the only question being
  * asked is whether one is under the other. The trailing-slash trim is the same
- * one {@link ./agent.ts} does for a stored session's `cwd` — an agent keeps the
+ * one the chat package does for a stored session's `cwd` — an agent keeps the
  * spelling it was handed.
  */
 export const relativeTo = (cwd: string, path: string): string => {

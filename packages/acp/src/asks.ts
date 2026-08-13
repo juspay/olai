@@ -28,14 +28,16 @@
  * whole request UNDRAWABLE, and the caller declines it saying which property
  * and which type: half a form is a form somebody can submit while believing
  * they answered all of it, and an agent that then acts on the half it got is
- * the failure this rule exists to prevent. Never silently ignored — it renders
- * as a notice, like every other thing that went wrong (HACKING.md).
+ * the failure this rule exists to prevent. Never silently ignored — the caller
+ * renders it as a notice, like every other thing that went wrong (HACKING.md).
  *
- * "A value, or a `UsageFailure` saying why not" is how everything here answers,
- * in both directions. It is the vocabulary the rest of olai already refuses
- * things in — `UsageFailure` is precisely "the request itself is wrong; nothing
- * was read" — so a question this panel cannot draw and an answer that does not
- * fit its question are the same kind of no, spelled the same way.
+ * "A value, or a {@link Refused} saying why not" is how everything here
+ * answers, in both directions: a question this panel cannot draw and an answer
+ * that does not fit its question are the same kind of no, spelled the same
+ * way. The word is this package's own, deliberately — olai's domain refuses
+ * things as `UsageFailure`, and that word stays domestic. The chat package
+ * translates at the seam it consumes this from, which is what keeps this
+ * package a leaf that speaks ACP and nothing of olai.
  *
  * ## Text, both ways
  *
@@ -55,8 +57,21 @@ import type {
   PermissionOption,
   RequestPermissionRequest,
 } from "@agentclientprotocol/sdk"
-import { UsageFailure } from "@olai/format"
-import { type AskAnswer, type AskChoice, type AskField, YES_NO } from "@olai/surface"
+
+import { type AskAnswer, type AskChoice, type AskField, YES_NO } from "./wire.ts"
+
+/**
+ * A payload this vocabulary cannot say — the one word this package refuses in.
+ *
+ * A plain class rather than a schema, because it never travels a wire and
+ * never rides an Effect channel: it is returned as a value, told apart with
+ * `instanceof`, and carries the sentence a person reads. The DOMAIN'S refusal
+ * word (`UsageFailure`) is minted from it at the boundary, by the caller —
+ * never here, which is the whole seam.
+ */
+export class Refused {
+  constructor(readonly reason: string) {}
+}
 
 /** A form to put in front of a person: what the agent said it needs, and the
  *  fields to fill in. */
@@ -79,20 +94,19 @@ const CUSTOM_ANSWER = "_askUserQuestionCustomAnswer"
 // ── elicitation/create, form mode ──────────────────────────────────────
 
 /** A form elicitation, as a form. */
-export const formOf = (request: CreateElicitationRequest): Form | UsageFailure => {
+export const formOf = (request: CreateElicitationRequest): Form | Refused => {
   if (request.mode !== "form") {
-    return new UsageFailure({
-      reason:
-        `the agent asked for a \`${request.mode}\` elicitation, which this panel does not draw`,
-    })
+    return new Refused(
+      `the agent asked for a \`${request.mode}\` elicitation, which this panel does not draw`,
+    )
   }
   const fields = fieldsOf((request as { requestedSchema?: ElicitationSchema }).requestedSchema)
-  return fields instanceof UsageFailure ? fields : { message: request.message, fields }
+  return fields instanceof Refused ? fields : { message: request.message, fields }
 }
 
 const fieldsOf = (
   schema: ElicitationSchema | undefined,
-): ReadonlyArray<AskField> | UsageFailure => {
+): ReadonlyArray<AskField> | Refused => {
   const properties = schema?.properties ?? {}
   const required = new Set(schema?.required ?? [])
   const fields: Array<AskField> = []
@@ -102,11 +116,11 @@ const fieldsOf = (
   for (const [key, property] of Object.entries(properties)) {
     const field = fieldOf(key, property, required.has(key))
     if (field === null) {
-      return new UsageFailure({
-        reason: `the agent asked for \`${key}\`, a \`${
+      return new Refused(
+        `the agent asked for \`${key}\`, a \`${
           String((property as { type?: unknown }).type)
         }\` field this panel does not draw`,
-      })
+      )
     }
     fields.push(field)
   }
@@ -252,27 +266,27 @@ export const permissionFormOf = (request: RequestPermissionRequest): Form => ({
 export const contentOf = (
   fields: ReadonlyArray<AskField>,
   answers: ReadonlyArray<AskAnswer>,
-): Record<string, string | number | boolean | Array<string>> | UsageFailure => {
+): Record<string, string | number | boolean | Array<string>> | Refused => {
   const byKey = new Map(fields.map((field) => [field.key, field]))
   const content: Record<string, string | number | boolean | Array<string>> = {}
 
   for (const answer of answers) {
     const field = byKey.get(answer.key)
     if (field === undefined) {
-      return new UsageFailure({
-        reason: `\`${answer.key}\` is not one of the fields this question asked for`,
-      })
+      return new Refused(
+        `\`${answer.key}\` is not one of the fields this question asked for`,
+      )
     }
     const value = valueOf(field, answer.values)
-    if (value instanceof UsageFailure) return value
+    if (value instanceof Refused) return value
     if (value !== undefined) content[field.key] = value
   }
 
   for (const field of fields) {
     if (field.required && content[field.key] === undefined) {
-      return new UsageFailure({
-        reason: `${field.label ?? field.key} needs an answer`,
-      })
+      return new Refused(
+        `${field.label ?? field.key} needs an answer`,
+      )
     }
   }
   return content
@@ -282,7 +296,7 @@ export const contentOf = (
 const valueOf = (
   field: AskField,
   values: ReadonlyArray<string>,
-): string | number | boolean | Array<string> | undefined | UsageFailure => {
+): string | number | boolean | Array<string> | undefined | Refused => {
   if (field.kind === "choices") {
     const picked = values.filter((value) => value !== "")
     const stranger = picked.find((value) => !offers(field, value))
@@ -300,11 +314,11 @@ const valueOf = (
     case "integer": {
       const number = Number(only)
       if (!Number.isFinite(number) || (field.kind === "integer" && !Number.isInteger(number))) {
-        return new UsageFailure({
-          reason: `${field.label ?? field.key} wants ${
+        return new Refused(
+          `${field.label ?? field.key} wants ${
             field.kind === "integer" ? "a whole number" : "a number"
           }, and \`${only}\` is not one`,
-        })
+        )
       }
       return number
     }
@@ -328,10 +342,10 @@ const valueOf = (
 const offers = (field: AskField, value: string): boolean =>
   field.choices.some((choice) => choice.value === value)
 
-const notAnOption = (field: AskField, value: string): UsageFailure =>
-  new UsageFailure({
-    reason: `\`${value}\` is not one of the options ${field.label ?? field.key} offered`,
-  })
+const notAnOption = (field: AskField, value: string): Refused =>
+  new Refused(
+    `\`${value}\` is not one of the options ${field.label ?? field.key} offered`,
+  )
 
 /** A string that is actually there, or the fallback. The protocol spells
  *  "absent" three ways — missing, `null`, `""` — and a label made of one of
