@@ -44,6 +44,7 @@ import {
   AddRequest,
   AfterRequest,
   ArchiveRequest,
+  CreateDocumentRequest,
   CreateRequest,
   DateRequest,
   DescRequest,
@@ -53,6 +54,7 @@ import {
   SeeRequest,
   TitleRequest,
   UnmirrorRequest,
+  WriteDocumentRequest,
 } from "./request.ts"
 
 /** The set as a reader sees it: the files that were found, and the derivations
@@ -336,6 +338,21 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Take one placement out. `id` is the MIRROR's own id — the placement — never the id of the node it shows: what goes is that one line, and the node keeps its title, its mark, its children, its own place in the outline that defines it, and every other placement of it. So this is what retires a finished item from a Now list without touching the work: nothing is archived, nothing is deleted, nothing is unsaid. Find the id with `read_node`: `mirrors` on the finished ITEM says where it is placed, and `placed` on the LIST says what is on it. Refused on the id of a regular node (`archive_node` is what puts a node and its subtree away), and refused while anything still names the placement — another mirror chained onto it, or an edge written at it — naming what to re-point first.",
     UnmirrorRequest,
     { op: "unmirror" },
+  ),
+
+  write(
+    "create_document",
+    "Create a document",
+    "Start a new `.md` document under the served directory. `file` is a relative `.md` path (no absolute paths, no `..`); refused if that document already exists — `write_document` is what edits one, and the split is what keeps a typo from minting a file. `text` is what it is born holding; absent creates it empty. The new document joins the set on the write's own revision, so the sidebar and every open tab see it immediately, and the write lands and waits for `commit` like any other.",
+    CreateDocumentRequest,
+    { op: "create-doc" },
+  ),
+  write(
+    "write_document",
+    "Write a document",
+    "Replace a document's text, whole and verbatim. `file` names a `.md` the set already holds (refused with the closest path otherwise); `text` is the entire new content — markdown, stored exactly as given, interpreted only at view time, never validated. Read the document first (`surface://collections/documents/<path>`) and pass what you read as `was` to make the write CONDITIONAL: if the file has changed since — another editor, a `git pull` — the write is refused instead of landing on top of words you have not seen, and the answer says to read again. Omit `was` only when overwriting whatever is there is what you mean. The write lands on disk, reaches every open page on its own revision, and waits for `commit`.",
+    WriteDocumentRequest,
+    { op: "doc" },
   ),
 
   act(

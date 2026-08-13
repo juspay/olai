@@ -242,6 +242,49 @@ When(
   },
 );
 
+// ── documents, from a terminal ─────────────────────────────────────────
+
+When(
+  "the terminal agent creates the document {string} holding {string}",
+  async function (this: OlaiWorld, file: string, text: string) {
+    this.toolAnswer = await callTool(agentOf(this), "create_document", {
+      file,
+      text,
+    });
+  },
+);
+
+When(
+  "the terminal agent rewrites {string} expecting {string}, as {string}",
+  async function (this: OlaiWorld, file: string, was: string, text: string) {
+    this.toolAnswer = await callTool(agentOf(this), "write_document", {
+      file,
+      text,
+      was,
+    });
+  },
+);
+
+When(
+  "the terminal agent tries to rewrite {string} expecting {string}, as {string}",
+  async function (this: OlaiWorld, file: string, was: string, text: string) {
+    // Not `callTool`: the refusal is what this step is FOR — see the mark
+    // twin below.
+    const answered = await agentOf(this).call("tools/call", {
+      name: "write_document",
+      arguments: { file, text, was },
+    });
+    assert.strictEqual(
+      answered.error,
+      undefined,
+      "a refused write came back as a JSON-RPC error, which says the server " +
+        "could not process the call — but it processed it and said no, and " +
+        "that answer has to reach the model",
+    );
+    this.toolAnswer = answered.result ?? {};
+  },
+);
+
 When(
   "the terminal agent tries to mark {string} done",
   async function (this: OlaiWorld, id: string) {

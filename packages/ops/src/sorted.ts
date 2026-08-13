@@ -36,7 +36,7 @@ import {
   type Sort,
 } from "@olai/format"
 
-import type { FilePlan } from "./plan.ts"
+import type { DocumentPlan, FilePlan } from "./plan.ts"
 
 /**
  * The one word for what this plan does to that set, or `undefined` when it does
@@ -70,10 +70,21 @@ import type { FilePlan } from "./plan.ts"
 export const sortOfWrite = (
   before: OutlineSet,
   files: ReadonlyArray<FilePlan>,
+  documents: ReadonlyArray<DocumentPlan>,
   /** The node the write was about, so the word is about it rather than about
    *  whatever else the same plan touched. */
   about: string,
 ): Sort | undefined => {
+  // A DOCUMENT write classifies off the same two readings a node's does — what
+  // the set held, what the plan writes — asked of the text instead of the
+  // records: a path the set did not hold is *created*, a text that differs is
+  // *edited*, and identical text is a write that changed nothing.
+  const doc = documents.find((planned) => planned.file === about) ?? documents[0]
+  if (doc !== undefined) {
+    const prior = before.documents.find((entry) => entry.file === doc.file)
+    if (prior === undefined) return "created"
+    return prior.text === doc.text ? undefined : "edited"
+  }
   const touched = new Set(files.map((planned) => planned.file))
   const was = new Map<string, Array<Node>>()
   for (const located of before.nodes) {

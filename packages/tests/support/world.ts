@@ -134,6 +134,23 @@ export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the
  *  node that attaches it. */
 export const DOCUMENT_BODY = selector(TESTID.documentBody);
+/** The way into a document's editor, on its page header. */
+export const DOCUMENT_EDIT = selector(TESTID.documentEdit);
+/** The editor itself — a textarea holding the document's SOURCE, verbatim.
+ *  Present exactly while the page is in its edit mode. */
+export const DOCUMENT_EDITOR = selector(TESTID.documentEditor);
+export const DOCUMENT_SAVE = selector(TESTID.documentSave);
+export const DOCUMENT_CANCEL = selector(TESTID.documentCancel);
+/** What the last document write had to say; `data-tone` is which mood. */
+export const DOCUMENT_SAID = selector(TESTID.documentSaid);
+/** The explicit "overwrite anyway" after a conflict refusal. */
+export const DOCUMENT_OVERWRITE = selector(TESTID.documentOverwrite);
+/** The notice, while the editor is open, that the file moved on disk. */
+export const DOCUMENT_DRIFTED = selector(TESTID.documentDrifted);
+/** The sidebar's way to a brand-new document, and the path box it opens. */
+export const NEW_DOCUMENT = selector(TESTID.newDocument);
+export const NEW_DOCUMENT_PATH = selector(TESTID.newDocumentPath);
+export const NEW_DOCUMENT_SAID = selector(TESTID.newDocumentSaid);
 /** A document's table of contents, above its body. A `<details>`: whether it is
  *  open is the element's own state. */
 export const TOC = selector(TESTID.toc);
@@ -234,6 +251,11 @@ export const CALENDAR = selector(TESTID.calendar);
 export const CALENDAR_DAY = selector(TESTID.calendarDay);
 export const CALENDAR_PREV = selector(TESTID.calendarPrev);
 export const CALENDAR_NEXT = selector(TESTID.calendarNext);
+/** The button a BARE day is — no node, no note — which mints that day's note.
+ *  Inside the `calendarDay` cell, so `data-date` rides one level up. */
+export const CALENDAR_MINT = selector(TESTID.calendarMint);
+/** What minting had to say when it was refused, under the grid. */
+export const CALENDAR_SAID = selector(TESTID.calendarSaid);
 /** One day, as a page: `/d/<date>` and `/today`. */
 export const DAY_PAGE = selector(TESTID.dayPage);
 export const DAY_GROUP = selector(TESTID.dayGroup);

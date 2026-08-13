@@ -151,6 +151,38 @@ export const TESTID = {
   /** The document itself, rendered — on its own page, or inline under the node
    *  that attaches it. */
   documentBody: "document-body",
+  /** The way into a document's editor: the quiet control on the page header
+   *  that turns the rendered body into its source. */
+  documentEdit: "document-edit",
+  /** The editor itself — a textarea holding the document's SOURCE, verbatim.
+   *  Present exactly while the page is in its edit mode. */
+  documentEditor: "document-editor",
+  /** Commit the editor's text: one write, at the same gate every other edit
+   *  goes through. */
+  documentSave: "document-save",
+  /** Leave the editor without writing. The draft is abandoned, which is what
+   *  Escape means everywhere else in this app. */
+  documentCancel: "document-cancel",
+  /** What the last document write had to say, in the two moods every write
+   *  has: `data-tone` is `alarm` for a refusal (the draft is kept, the reason
+   *  is this) or `aside` for a remark about one that landed. */
+  documentSaid: "document-said",
+  /** The one refusal with a second door: after a conflict refusal, the
+   *  explicit "overwrite anyway" — a write with no `was`, chosen by a person
+   *  who has read the warning. */
+  documentOverwrite: "document-overwrite",
+  /** The notice, while the editor is open, that the file has changed on disk
+   *  underneath it — the live half of the conflict story, so the refusal at
+   *  save time is never the first anyone hears of it. */
+  documentDrifted: "document-drifted",
+  /** The sidebar's way to a brand-new document: the affordance that opens the
+   *  path box. */
+  newDocument: "new-document",
+  /** The path box itself — a relative `.md` path, committed with Enter. */
+  newDocumentPath: "new-document-path",
+  /** What creating one had to say — a refusal, verbatim. Same two-mood shape
+   *  as `documentSaid`. */
+  newDocumentSaid: "new-document-said",
   /** A document's table of contents, above its body. A `<details>`, so whether
    *  it is open is the element's own `open` property and not a second flag —
    *  and ABSENT on a document with fewer than two headings, which is what makes
@@ -263,6 +295,12 @@ export const TESTID = {
   calendarDay: "calendar-day",
   calendarPrev: "calendar-prev",
   calendarNext: "calendar-next",
+  /** The button a BARE day is — no node, no note — which mints that day's
+   *  note. Inside the `calendarDay` cell, so `data-date` rides one level up. */
+  calendarMint: "calendar-mint",
+  /** What minting had to say when it was refused — the ops layer's words,
+   *  under the grid. */
+  calendarSaid: "calendar-said",
   /** One day, as a page. `data-date` is the day it turned out to be, which
    *  `/today` does not spell. */
   dayPage: "day-page",

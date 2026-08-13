@@ -324,7 +324,14 @@
     <h2>Markdown documents</h2>
     <p class="lead">Notes are Markdown. Longer content goes in <code>.md</code>
     files, referenced from the outline by the <code>doc</code> field. Each
-    document gets its own page and appears in the sidebar's file tree.</p>
+    document gets its own page and appears in the sidebar's file tree — and
+    the page edits: <em>Edit</em> turns the rendered body into its source,
+    <em>Save</em> is one operation through the same layer the agent's
+    <code>write_document</code> uses, and a file that changed on disk while
+    you were typing refuses the save in plain words instead of being silently
+    overwritten, in either direction. New documents come from the sidebar's
+    path box, or from a bare calendar day — pressing one creates that day's
+    note where your vault already keeps them.</p>
     <div class="cols">
       <div>
         <pre><code># Cabinet specs
@@ -654,8 +661,9 @@ The corner unit is the **risky one** — see
     <p class="lead">The chat panel connects to any agent that speaks
     <a href="https://agentclientprotocol.com">ACP</a>. Claude Code is bundled as
     the default; set <code>OLAI_ACP_AGENT</code> to use a different agent CLI.
-    Olai hands an agent no filesystem — a fixed set of tools that can only name
-    nodes — so every write it asks olai for is validated before it lands. What a
+    Olai hands an agent no filesystem — a fixed set of tools that name nodes
+    and whole documents, never bytes — so every write it asks olai for is
+    validated before it lands. What a
     coding assistant brings with it is its own: it edits files on the authority
     it already has in a terminal, and olai neither grants that nor pretends it
     away. It shows it.</p>

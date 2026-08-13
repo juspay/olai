@@ -299,6 +299,53 @@ export const Edit = Schema.Union([
    */
   Schema.Struct({ verb: Schema.Literal("archive"), id: Id }),
 
+  // ── the documents' three ─────────────────────────────────────────────
+
+  /**
+   * A DOCUMENT's text, replaced whole — the editor a `.md` page becomes, and
+   * the one verb here whose subject is a file rather than a node, because a
+   * document has no node: its unit is the file, and `file` is spelled the way
+   * every other reading of one is (root-relative, the collection's own key).
+   *
+   * `was` is the draft's guard, and it is the text verbs' `was` at file size:
+   * the editor sends what it READ, so a file that moved underneath it — vim,
+   * a `git pull`, the agent — refuses the commit instead of being silently
+   * clobbered, and the refusal keeps the draft (the silent-errors doctrine,
+   * where it matters most). Omitting it is how "overwrite anyway" is spelled,
+   * which is a thing a person may explicitly choose after reading the refusal.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("doc"),
+    file: Schema.String,
+    text: Schema.String,
+    was: Was(Schema.String),
+  }),
+  /**
+   * A brand-new document, named outright — the sidebar's creation affordance.
+   * The one OTHER place this surface names a file, and for the same reason
+   * `Anchor`'s `first` does: there is nothing in the set yet to anchor on.
+   * Resolves to the ops layer's own create, so a path that exists or smuggles
+   * a `..` is refused in the same words an agent's `create_document` gets.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("docNew"),
+    file: Schema.String,
+  }),
+  /**
+   * A bare calendar day, pressed — mint that day's note. The verb carries the
+   * DATE and not a path, and that asymmetry is the whole design: where the
+   * vault keeps its daily notes is a fact about the set (the newest existing
+   * note's own path is the convention, `@olai/format`'s `dailyNotePathFor`),
+   * so it is read on the server, against the reading the write is judged on,
+   * rather than computed in a tab from a document list some frames old — the
+   * same argument that makes `Tab` say "indent this". An agent minting a note
+   * makes the same two moves by hand: read the paths, `create_document`.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("docDay"),
+    date: Schema.String,
+  }),
+
   // ── the two an undo speaks ───────────────────────────────────────────
 
   /**

@@ -314,6 +314,31 @@ above it declaring a prop for it. The text itself is not fetched — it arrives
 on the manifest, so a document edited on disk redraws by the mechanism that was
 already there.
 
+### And a document is WRITTEN here too
+
+The page's **Edit** turns the rendered body into its source
+(`document/DocEditor.tsx`): a textarea holding the file verbatim, which is the
+same trade every title and note makes — what you type is the source, and the
+rendering comes back when you leave. The mode is declared, so leaving it is
+too: **Save** commits (⌘Enter on the editor's own element, the row editors'
+rule), **Cancel** abandons (Escape), and nothing commits on blur or on a timer
+— a whole file written because a click strayed, or half a sentence published
+by an idle tick, is a write nobody asked for. The commit is one `doc` intent
+through the same `edit.apply` every key sends, carrying `was` — the text this
+editor READ — so a file that moved underneath (vim, a `git pull`, the agent)
+refuses the save in the ops layer's own words, with the draft kept and the
+drift already announced by a line that appeared the moment the served text
+stopped matching. **Overwrite what is there** is the explicit second verb
+after that refusal: the same write minus the guard. A saved edit records its
+inverse on the same ⌘Z stack a keystroke's does.
+
+Creation has two doors, both landing in the new document's editor
+(`document/minted.ts` is the one-shot hand-off): the sidebar's **+ New
+document** path box (`document/NewDocument.tsx`, the `docNew` intent), and a
+BARE calendar day — no node, no note — whose cell mints that day's note
+(`calendar/Day.tsx`, the `docDay` intent, the path derived on the server from
+the vault's own convention).
+
 ## Six routes, and what each is a property of
 
 `routes.ts` is the whole of the URL contract, and it is a bijection its own

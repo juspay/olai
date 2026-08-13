@@ -36,11 +36,17 @@
  * it arrives.
  */
 
-import { createMemo, createSelector, For, Show } from "solid-js"
+import { Result } from "effect"
+import { createMemo, createSelector, createSignal, For, Show } from "solid-js"
 
+import { mintedDocument } from "../document/minted.ts"
+import { useUndo } from "../edit/undoing.ts"
+import type { Said } from "../edit/undoing.ts"
+import { useRouter } from "../router.tsx"
 import { createStamped } from "../stamped.ts"
 import { TESTID, type TestId } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
+import { applied } from "../writes.ts"
 import { monthGrid, monthLabel, monthOfDay, shiftMonth, WEEKDAYS } from "./month.ts"
 import { Day } from "./Day.tsx"
 
@@ -73,6 +79,30 @@ export function Calendar(props: {
 
   const dated = createMemo(() => props.days(month()))
   const noted = createMemo(() => props.noted(month()))
+
+  const undo = useUndo()
+  const router = useRouter()
+  const [minting, setMinting] = createSignal<Said | null>(null)
+
+  /**
+   * A bare day, pressed: mint that day's note and land in its editor.
+   *
+   * The cell sends the DATE and nothing else — where the vault keeps its daily
+   * notes is the server's to read off the set (`docDay`), so the path comes
+   * back on the answer and is the one thing this page cannot know in advance.
+   * A refusal (two mints racing, a note arriving from another writer between
+   * frames) is drawn under the grid, verbatim, until the month is used again.
+   */
+  const mint = async (date: string): Promise<void> => {
+    const outcome = await applied({ verb: "docDay", date }, undo.record)
+    if (Result.isFailure(outcome)) {
+      setMinting({ tone: "alarm", text: outcome.failure.message })
+      return
+    }
+    setMinting(null)
+    mintedDocument(outcome.success.id)
+    router.go({ kind: "document", file: outcome.success.id })
+  }
 
   // Which cell is FILLED, as a selector rather than `day() === props.open` in
   // each of them: that form subscribes all thirty-odd days to the open one, so
@@ -124,12 +154,26 @@ export function Calendar(props: {
                   noted={noted().has(day())}
                   today={day() === props.today}
                   open={isOpen(day())}
+                  mint={(date) => void mint(date)}
                 />
               )}
             </Show>
           )}
         </For>
       </div>
+
+      <Show when={minting()}>
+        {(refusal) => (
+          <p
+            class="m-0 mt-2 rounded border border-alarm bg-paper px-2 py-1 text-xs leading-snug text-alarm"
+            data-testid={TESTID.calendarSaid}
+            data-tone={refusal().tone}
+            role="alert"
+          >
+            {refusal().text}
+          </p>
+        )}
+      </Show>
     </section>
   )
 }

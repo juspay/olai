@@ -77,7 +77,10 @@ basename is exactly an ISO date — `2026-08-12.md`, wherever in the tree it sit
 (`2026-08-10-recap.md` is a document about a day and deliberately not one; two
 files claiming one date are both shown, in path order). It is a view
 convention over the directory rather than a rule about records: nothing here
-validates it, no field records it, and olai does not write these files. What it
+validates it and no field records it. Olai WRITES one on request now — a bare
+calendar day minted into that day's note lands where the newest existing
+daily note says the vault keeps them — and the convention stays exactly this
+paragraph's: the file is named for its day, and nothing else says so. What it
 changes about the sentence above is only that a day now has two halves — what
 somebody wrote about it, and what the set says was on it — and never that a
 node's dates are read differently.
@@ -154,6 +157,7 @@ reads it, and the page that collects the answer — the agenda — are
 A `.md` file under the served directory is a **document**, and documents are part of the loaded set — path and text — for the same reason the nodes are: `doc` points into them, so a reference the validator cannot see is one it cannot check, and a document read out of band would be a second read of the disk, at a different moment from the outline that named it.
 
 - A document's text is **content, like `desc`**: stored verbatim, interpreted as markdown only at view time. Nothing about it is validated; a `.md` cannot make a set invalid.
+- A document is **written the way everything else is** ([Writing](#writing)): whole, through the one write gate, never as a byte range. The two ops are create (a relative `.md` path judged segment by segment, refused if it exists) and write (the whole new text, refused if the path does not exist — so a typo cannot mint a file). A write may carry `was`, the text the caller read, and is refused if the file has moved since — checked on every retry, which is the conflict story for a document edited in vim under an open editor.
 - **The whole set loads; a body travels when it is read.** Those are two rules, and only the first one is about this format: every document is decoded, cached and revised with the rest of the directory, whatever a reader asks for. What crosses a wire is the transport's business — olai's serves the paths to everyone and one document's text to whoever opens it, because a directory of thousands of `.md` files cannot put every body in a first frame. It is still ONE read of the disk: the body comes off the same live set at a named revision, not from a second reader that could disagree with it.
 - `doc` **attaches** one to a node, relative to the outline that names it — a node names a file beside itself, not beside whoever is reading it. The rule is one function (`docOf`), read by the validator and by the view.
 - A document may point at **pictures** beside itself: a relative `![](art/shot.png)` resolves against the document's own directory (a note's resolves against its outline's) and is served from a route restricted to picture extensions. A `..` is clamped at the served directory rather than escaping it, and nothing else is drawn at all — no remote host, no `data:`, no absolute path, no `.svg`, since an SVG is a document that can script. Pictures are not part of the set: nothing loads them, and they exist only as the target of a relative link.

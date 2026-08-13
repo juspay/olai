@@ -23,24 +23,50 @@
  * about to draw from, on the same key, so surveying a document costs no second
  * pass and nothing on the wire. It arrives when the BODY does, for the same
  * reason the body does — there is nothing to make a contents out of until then.
+ *
+ * AND IT BECOMES WRITABLE, by a declared mode rather than a click in the
+ * prose: the body is rendered markdown full of links a reader is entitled to
+ * follow, so a click that went to a caret would delete the reading surface to
+ * save a press — the note editor's argument, landing on the other side at this
+ * size. Edit turns the body into its source and hands the rest to
+ * {@link DocEditor}, which owns the draft, the conflict story and the two
+ * chords. A document that was MINTED a moment ago (the sidebar's path box, a
+ * bare calendar day) opens editing — that is `./minted.ts`'s one-shot — since
+ * an empty page with the affordance one more click away is not what "start
+ * writing" means.
  */
 
-import { createMemo, Show } from "solid-js"
+import { createMemo, createSignal, Show } from "solid-js"
 
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { outlineOf } from "../markdown/render.ts"
 import { TESTID } from "../testids.ts"
+import { DocEditor } from "./DocEditor.tsx"
 import { useDocument } from "./documents.tsx"
+import { consumeMinted } from "./minted.ts"
 import { Toc } from "./Toc.tsx"
 
 export function DocumentPage(props: { readonly file: string }) {
   const document = useDocument(() => props.file)
+  // Fresh per page mount, which is what scopes it: navigating away closes the
+  // editor, and the draft goes with it — a draft is an editor's, never a file's.
+  const [editing, setEditing] = createSignal(consumeMinted(props.file))
 
   return (
     <section data-testid={TESTID.documentPage} data-file={props.file}>
-      <header class="mb-4">
+      <header class="mb-4 flex items-baseline justify-between gap-2">
         <h1 class="m-0 font-mono text-sm text-muted">{props.file}</h1>
+        <Show when={document() !== undefined && !editing()}>
+          <button
+            type="button"
+            class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
+            data-testid={TESTID.documentEdit}
+            onClick={() => setEditing(true)}
+          >
+            Edit
+          </button>
+        </Show>
       </header>
       {/* No placeholder: the body of a document this directory HAS is on its
           way, and a "reading…" line under a heading that is already drawn
@@ -48,27 +74,42 @@ export function DocumentPage(props: { readonly file: string }) {
           never reaches this page — the page model answers that with its own
           screen (../page.ts). */}
       <Show when={document()}>
-        {(served) => {
-          // Empty until the markdown chunk lands, for the same reason the body
-          // below is the file's own text until then: there is nothing to make
-          // a contents out of until something has read the headings. The
-          // `<Markdown>` under it is what asks for the chunk; this memo re-runs
-          // when it arrives (../markdown/chunk.ts).
-          const headings = createMemo(() =>
-            markdownReady() ? outlineOf(served().text, props.file) : [],
-          )
-          return (
-            <>
-              <Toc file={props.file} headings={headings()} />
-              <Markdown
-                source={served().text}
-                from={props.file}
-                testid={TESTID.documentBody}
-              />
-            </>
-          )
-        }}
+        {(served) => (
+          <Show
+            when={editing()}
+            fallback={<Rendered file={props.file} text={served().text} />}
+          >
+            <DocEditor
+              file={props.file}
+              served={served().text}
+              onDone={() => setEditing(false)}
+            />
+          </Show>
+        )}
       </Show>
     </section>
+  )
+}
+
+/** The reading face: the contents, then the body — exactly what the page was
+ *  before it could edit, in a component so the mode switch above stays one
+ *  `Show` rather than two trees interleaved. */
+function Rendered(props: { readonly file: string; readonly text: string }) {
+  // Empty until the markdown chunk lands, for the same reason the body is the
+  // file's own text until then: there is nothing to make a contents out of
+  // until something has read the headings. The `<Markdown>` under it is what
+  // asks for the chunk; this memo re-runs when it arrives (../markdown/chunk.ts).
+  const headings = createMemo(() =>
+    markdownReady() ? outlineOf(props.text, props.file) : [],
+  )
+  return (
+    <>
+      <Toc file={props.file} headings={headings()} />
+      <Markdown
+        source={props.text}
+        from={props.file}
+        testid={TESTID.documentBody}
+      />
+    </>
   )
 }

@@ -9,8 +9,9 @@ Feature: Daily notes
   day and is drawn first; the dated nodes are what the set says was ON it and
   are drawn below, exactly as before. That is a knowing amendment to "the
   journal is a query" rather than a hole in it — the note JOINS the query's
-  answer and never replaces it, so a day with neither is still inert and this
-  pane still writes nothing.
+  answer and never replaces it, so a day with neither is still nowhere to GO —
+  what such a day offers now is the mint affordance, which is
+  document_editing.feature's subject rather than this one's.
 
   The fixtures are in 2019 for the reason the rest of the journal's are: a
   calendar is one of the few things whose behaviour depends on what day it is,
@@ -97,8 +98,9 @@ Feature: Daily notes
     And the day "2019-11-08" has a note
     And the day "2019-11-08" has nothing on it
     And the day "2019-11-08" is a link
-    # Neither, so inert: pressing it could only mean "write something here",
-    # and this pane writes nothing.
+    # Neither, so inert: nowhere to go. (Pressing one MINTS the day's note
+    # now — document_editing.feature — so inert means "not a link", not
+    # "nothing to press".)
     And the day "2019-11-07" is inert
     # And a document that merely NAMES a date leaves its day inert too.
     And the day "2019-11-09" is inert

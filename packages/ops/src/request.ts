@@ -343,6 +343,68 @@ export const CreateRequest = Schema.Struct({
 })
 
 /**
+ * Replace a DOCUMENT's text — the one write that is not about a node, because
+ * a document has none: a `.md` is content the way a `desc` is, and its unit is
+ * the file.
+ *
+ * WHOLE TEXT, deliberately. A patch language here would be a second way to
+ * assemble bytes, and the glued-line bug is what this layer exists to make
+ * unrepresentable; a document handed over whole is stored verbatim, and there
+ * is nothing between the caller's text and the file for anyone to get wrong.
+ * Nothing about the text is validated — markdown is interpreted at view time,
+ * and a `.md` cannot make a set invalid (docs/format.md's Documents).
+ *
+ * `was` is the conflict story, and it is {@link TitleRequest}'s `was` at file
+ * size: the same file can be edited in vim mid-session, so a caller that read
+ * the document and is writing back what it edited says what it read — and the
+ * write is refused, on EVERY retry the write gate makes, if the file has moved
+ * since. Absent overwrites, which is what "set this document to X" means.
+ */
+export const WriteDocumentRequest = Schema.Struct({
+  op: Schema.Literal("doc"),
+  file: Schema.String.annotate({
+    description:
+      "Path of a document (`.md`) under the served directory, exactly as the set lists it.",
+  }),
+  text: Schema.String.annotate({
+    description:
+      "The document's new text, whole and verbatim. Markdown, stored exactly as given " +
+      "and interpreted only at view time.",
+  }),
+  was: Schema.optionalKey(
+    Schema.String.annotate({
+      description:
+        "The text this write expects the document to hold right now — what you read " +
+        "before editing. Supply it to make the write CONDITIONAL: if the file has " +
+        "changed since (another editor, a `git pull`), the write is refused instead of " +
+        "landing on top of words you have not seen. Absent overwrites whatever is there.",
+    }),
+  ),
+})
+
+/**
+ * A brand-new document under the served directory — `create_outline`'s twin
+ * for the other kind of file, and split from {@link WriteDocumentRequest} for
+ * the reason those two are split: a write that could mint a file on a mistyped
+ * path would turn every typo into a new document, silently. Create refuses a
+ * path that exists; write refuses one that does not.
+ */
+export const CreateDocumentRequest = Schema.Struct({
+  op: Schema.Literal("create-doc"),
+  file: Schema.String.annotate({
+    description:
+      "Relative path of the new document under the served directory. Must end in " +
+      "`.md`. No absolute path, no `..` / `.` segments, no separators inside a " +
+      "segment. Refused if that document already exists.",
+  }),
+  text: Schema.optionalKey(
+    Schema.String.annotate({
+      description: "What the document is born holding. Absent creates it empty.",
+    }),
+  ),
+})
+
+/**
  * Add and/or remove `see` targets on an existing node. Incremental rather
  * than a whole-array replace: an agent that has just discovered one reference
  * should not have to re-state every other one it already set. Both fields are
@@ -456,6 +518,8 @@ export const Request = Schema.Union([
   MirrorRequest,
   UnmirrorRequest,
   AfterRequest,
+  WriteDocumentRequest,
+  CreateDocumentRequest,
 ])
 export type Request = typeof Request.Type
 

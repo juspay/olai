@@ -120,3 +120,45 @@ under it, and not something a key of its own can ask for.
 
 Deliberately absent, each its own item: delete, split and merge, multi-select,
 and drag-and-drop.
+
+## Writing a document
+
+A `.md` under the served directory has always had a page; the page can be
+written now. **Edit**, on its header, turns the rendered body into its SOURCE
+— a textarea holding the file verbatim, which is the same trade every title
+and note makes: what you type is the source, and the rendering comes back
+when you leave. There is no toolbar and no WYSIWYG, because a document is
+markdown and markdown is text.
+
+The mode is declared, so leaving it is too — which is where a document
+differs from a note, and on purpose. A note is one line, entered by a click
+and committed on blur; a whole file written because a click strayed is a
+write nobody asked for. So **Save** commits (⌘Enter / Ctrl+Enter from the
+editor), **Cancel** abandons (Escape), and nothing commits on a timer — a
+document mid-edit is often half a sentence, and every open tab would see the
+half.
+
+A save is ONE op at the same gate as everything else: validated, published on
+its own revision (the other tab showing this document redraws on the frame it
+lands), audit-trailed, and WAITING in the commit panel like any other write.
+⌘Z takes a saved edit back, by the same rule as a retyped title: the inverse
+carries the text it expects to find, so it can only take back what this tab
+wrote.
+
+**The file can move underneath you, and nothing is clobbered either way.**
+Edit the same document in vim while the editor is open and the editor says so
+the moment the disk moves; a Save after that is refused, in the ops layer's
+own words, with your text kept exactly where you typed it. The refusal has
+two doors out and both are yours: take what you need and Cancel, or press
+**Overwrite what is there**, which is the same write minus the guard and
+means exactly what it says. An agent gets the identical story — its
+`write_document` takes a `was`, and the refusal is the same sentence.
+
+**Two ways to a document that does not exist.** The sidebar's **+ New
+document** asks for a path — relative, `.md`, judged by the same rules an
+agent's `create_document` is judged by — and a **bare calendar day** (no
+node, no note) mints that day's note, filed where your vault already keeps
+them: the convention is read off the newest existing daily note's own path
+(`Daily/2026/08/2026-08-12.md` puts September's first note at
+`Daily/2026/09/2026-09-01.md`), never configured. Either door lands in the
+new document's editor, and the sidebar lists the file on the same frame.
