@@ -27,6 +27,13 @@
  * up spending its last pixels on a label nobody came for while `live` dies at
  * `l…` — which is what it did:
  *
+ *   0. The SEARCH BOX, first and completely: it is `md:` and up only, and on a
+ *      phone the same door is a 44px magnifier that opens the ⌘K palette
+ *      (`search/HeaderSearch.tsx` argues both halves). An input narrowed to a
+ *      slot is still an input, so on desktop it is also the one control here
+ *      that may shrink to nothing before any pill loses a character — which is
+ *      what its `min-w-0` and its cap are for.
+ *
  *   1. The last commit's AGE goes first (`commit/Commit.tsx`'s `· 3m ago`,
  *      `sm` and up only). It is the only piece of any label a reader can lose
  *      and still be told what they came for, and the panel has the exact
