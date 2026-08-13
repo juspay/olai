@@ -428,6 +428,17 @@ export const TESTID = {
   chatSessions: "chat-sessions",
   chatSessionList: "chat-session-list",
   chatSession: "chat-session",
+  /** The strip under the header naming an MCP server this conversation was
+   *  meant to have and did not. Absent — not empty — on a healthy session.
+   *  One `chatMissingServer` inside it per server. */
+  chatMissing: "chat-missing",
+  /** One such server. `data-server` is its name; the reason is the
+   *  `chatMissingWhy` inside it. */
+  chatMissingServer: "chat-missing-server",
+  /** Why it is not here, in the server's or the probe's own words. Its own id
+   *  because it is the half the whole feature exists for: a strip that named
+   *  the server and not the reason would be the log line again, on screen. */
+  chatMissingWhy: "chat-missing-why",
   chatTranscript: "chat-transcript",
   /** The panel saying a dragged file would land HERE: drawn over the
    *  transcript and the composer while a drag carrying files is over them,

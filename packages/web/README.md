@@ -785,7 +785,17 @@ a message on screen that was never sent. The transcript's `deltas` verb is what
 makes a tab opened halfway through a turn show the whole conversation: its
 first frame is the snapshot.
 
-Three components earn their own file:
+It says what it is SHORT of, too. When a conversation was meant to be handed an
+MCP server and was not — a `kolu` on this host's PATH that no padi answered —
+`Missing.tsx` draws a strip under the header naming it, with the reason the
+probe or the server gave and the file that was probed. Under the header rather
+than in the transcript, because it is a standing fact about the session like the
+model beside it; quiet rather than alarming (`panel` under the dock's `desk`,
+the header's own mono, one `alarm` dot), because nothing is broken — the agent
+answers, with fewer tools than it might have had. A healthy conversation draws
+nothing here at all, and so does a machine that is simply not running kolu.
+
+Inside the conversation, three components earn their own file:
 
 - **`Refusal.tsx`** is the one the error taxonomy exists for. A `validation`
   refusal carries the validator's own report as DATA, so it renders through the

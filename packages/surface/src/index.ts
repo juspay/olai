@@ -489,6 +489,7 @@ export {
   FileDiff,
   isOpFailure,
   kindOf,
+  MissingServer,
   NodeContext,
   OpFailure,
   SessionInfo,
