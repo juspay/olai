@@ -29,6 +29,40 @@ Feature: One place to set how this browser reads
     And the panel says these preferences are this browser's
     And there should be no page errors
 
+  Scenario: A keyboard opens it and is standing inside it
+    # THE REGRESSION THIS EXISTS FOR. The theme chips used to be laid out inside
+    # the trigger's own box, so they were the next thing in document order and
+    # Tab reached them. This panel is portalled to the end of the body, which
+    # puts it after the sidebar, the tree and everything else — so opening it
+    # and leaving the caret on the trigger means the controls are not reachable
+    # in any sense a person would accept.
+    #
+    # So the trigger and its panel are ONE tab cycle: opening moves the caret
+    # into the panel, Shift+Tab goes back out to the trigger, and Tab goes in to
+    # the first control.
+    When I open the app
+    And I focus the preferences trigger
+    And I press Enter
+    Then the preferences are open
+    And the preferences panel has the focus
+    When I press Shift+Tab
+    Then the preferences trigger has the focus
+    When I press Tab
+    Then the first control in the preferences has the focus
+    When I press Shift+Tab
+    Then the preferences trigger has the focus
+
+  Scenario: Tab does not walk out of an open panel
+    # The other half of one cycle: the last control leads back to the trigger
+    # rather than to the page underneath, which is what a portalled panel would
+    # otherwise hand a keyboard.
+    When I open the app
+    And I open the preferences
+    And I press Shift+Tab
+    Then the preferences trigger has the focus
+    When I press Shift+Tab
+    Then the last control in the preferences has the focus
+
   Scenario: Escape shuts it and hands the keyboard back
     # Somebody who opened this, tabbed into it and pressed Escape would
     # otherwise land on `<body>`, which is nowhere.
@@ -108,6 +142,19 @@ Feature: One place to set how this browser reads
     And I set Done to "hidden"
     And I reload the page
     Then the Done row explains that finished work is "hidden"
+
+  Scenario: A preference set in another tab lands in this one
+    # A preference belongs to the BROWSER, and a browser is more than one tab —
+    # which is what `followDoneDefault` is for, and what a reload scenario
+    # cannot ask: deleting that line entirely would pass every other Done
+    # scenario here. The theme has had this fence since it was written; this is
+    # the same one for the second preference, through the same `storage` event.
+    Given I open the outline "house.jsonl"
+    Then the node "demo" is shown
+    When a second tab sets Done to "hidden"
+    Then the node "demo" is not shown
+    And the Done row explains that finished work is "hidden"
+    And there should be no page errors
 
   Scenario: Setting a preference asks the server for nothing
     # The whole doctrine, as an assertion: a pick is stored in this browser and

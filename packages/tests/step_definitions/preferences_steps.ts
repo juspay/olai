@@ -90,6 +90,86 @@ When("I press Escape on the preferences", async function (this: OlaiWorld) {
   await this.page.keyboard.press("Escape");
 });
 
+// ── where the caret is ─────────────────────────────────────────────────
+
+When("I focus the preferences trigger", async function (this: OlaiWorld) {
+  await this.page.locator(PREFS_TRIGGER).focus();
+});
+
+When("I press Enter", async function (this: OlaiWorld) {
+  await this.page.keyboard.press("Enter");
+});
+
+When("I press Tab", async function (this: OlaiWorld) {
+  await this.page.keyboard.press("Tab");
+});
+
+When("I press Shift+Tab", async function (this: OlaiWorld) {
+  await this.page.keyboard.press("Shift+Tab");
+});
+
+/** What has the caret, named the way this suite names things: its test id, or
+ *  — for a control inside a panel that has none of its own — enough of it to
+ *  say which control it is. */
+const focused = (world: OlaiWorld): Promise<string> =>
+  world.page.evaluate(() => {
+    const el = document.activeElement;
+    if (el === null || el === document.body) return "nothing";
+    const id = el.getAttribute("data-testid");
+    const value = el.getAttribute("data-value");
+    return `${id ?? el.tagName.toLowerCase()}${value === null ? "" : `=${value}`}`;
+  });
+
+Then("the preferences panel has the focus", async function (this: OlaiWorld) {
+  assert.equal(
+    await focused(this),
+    TESTID.prefsPanel,
+    "opening the panel left the caret outside it, so a keyboard reaches the " +
+      "controls only after walking the whole page (the panel is portalled to " +
+      "the end of the body)",
+  );
+});
+
+/**
+ * The first and last things a Tab may land on INSIDE the panel, asked of the
+ * page rather than written down here.
+ *
+ * Written down, they would be "the leaf chip" and "the Hidden segment" — which
+ * is a list of what the panel happens to contain today, and a scenario about
+ * the tab CYCLE would then fail the day a row is added. What it is really
+ * asking is that the cycle's ends join up to the trigger.
+ */
+const endControl = (world: OlaiWorld, which: "first" | "last"): Promise<string> =>
+  world.page.evaluate((end) => {
+    const panel = document.querySelector('[data-testid="prefs-panel"]');
+    const controls = [
+      ...(panel?.querySelectorAll<HTMLElement>(
+        'a[href], button:not(:disabled), input:not(:disabled), textarea:not(:disabled)',
+      ) ?? []),
+    ];
+    const el = end === "first" ? controls[0] : controls[controls.length - 1];
+    if (el === undefined) return "nothing";
+    const id = el.getAttribute("data-testid");
+    const value = el.getAttribute("data-value");
+    return `${id ?? el.tagName.toLowerCase()}${value === null ? "" : `=${value}`}`;
+  }, which);
+
+Then(
+  "the {word} control in the preferences has the focus",
+  async function (this: OlaiWorld, which: string) {
+    if (which !== "first" && which !== "last") {
+      throw new Error(`there is no "${which}" control; say first or last`);
+    }
+    const expected = await endControl(this, which);
+    assert.notEqual(expected, "nothing", "the panel offers no controls at all");
+    assert.equal(
+      await focused(this),
+      expected,
+      `Tab was supposed to land on the ${which} control in the panel`,
+    );
+  },
+);
+
 When("I click the wordmark", async function (this: OlaiWorld) {
   // Somewhere that is neither the trigger nor the panel, and that does nothing
   // of its own — a node title would open an editor, and a scenario about a
@@ -107,8 +187,8 @@ Then("the preferences trigger has the focus", async function (this: OlaiWorld) {
   assert.equal(
     focused,
     TESTID.prefsTrigger,
-    `the focus is on ${focused ?? "nothing"} after Escape, not back on the ` +
-      "control that opened the panel",
+    `the focus is on ${focused ?? "nothing"}, not on the control that opened ` +
+      "the panel",
   );
 });
 
@@ -182,6 +262,40 @@ When(
       "true",
       `the Done "${value}" choice`,
     );
+  },
+);
+
+/**
+ * A SECOND page in the same context, which is what makes it a second tab of the
+ * same browser rather than a second browser: one origin, one `localStorage`,
+ * and the `storage` event this app listens for is fired in every document of it
+ * except the one that wrote.
+ *
+ * Driven through the panel rather than through `setItem`, so what crosses is a
+ * preference somebody actually set. Left open on purpose, exactly as the
+ * theme's twin is (`theme_steps.ts`): a preference that only crossed once the
+ * other tab was gone would pass a scenario that closed it.
+ */
+When(
+  "a second tab sets Done to {string}",
+  async function (this: OlaiWorld, value: string) {
+    const other = await this.context.newPage();
+    await other.goto("/");
+    await showPreferences(other);
+    const choice = other.locator(
+      `${PREFS_ROW}[data-pref="done"] ${PREFS_CHOICE}[data-value="${value}"]`,
+    );
+    await choice.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await choice.click();
+    await choice
+      .and(other.locator('[aria-pressed="true"]'))
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+      .catch(() => {
+        throw new Error(
+          `the second tab never took Done "${value}", so there was nothing ` +
+            "for this one to hear",
+        );
+      });
   },
 );
 

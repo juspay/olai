@@ -57,8 +57,14 @@ export function Panel(props: {
   return (
     <section
       ref={props.inside}
-      class="fixed z-50 flex flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-lg border border-rule bg-paper p-3 text-sm shadow-lg"
+      class="fixed z-50 flex flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-lg border border-rule bg-paper p-3 text-sm shadow-lg focus:outline-none"
       style={styleOf(props.at)}
+      // Focusable, and never in the tab order: opening puts the caret here so a
+      // keyboard is standing IN the panel rather than beside it (`../popover.ts`
+      // says why a portal needs that), and Tab from here is the first control.
+      // No ring on it, because it is a waypoint rather than a control — what
+      // gets one is whatever the first Tab lands on.
+      tabindex="-1"
       data-testid={TESTID.prefsPanel}
       aria-label="preferences"
     >

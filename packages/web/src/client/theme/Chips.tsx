@@ -44,7 +44,15 @@ export function ThemeChips() {
           // A chip is small type in a wrapped row; the touch rule applies to
           // the box a finger aims at, and below 48rem this is one of them
           // (../touch.ts).
-          class={`${TARGET_BOX} inline-flex flex-none items-center justify-center rounded-full border px-2 font-mono text-[0.6875rem] leading-none aria-pressed:ring-2 aria-pressed:ring-accent aria-pressed:ring-offset-1 aria-pressed:ring-offset-paper md:min-h-0 md:min-w-0 md:py-1`}
+          //
+          // TWO rings, and they are the same ring for two different questions:
+          // `aria-pressed` is which theme is in force, `focus-visible` is where
+          // the caret is. The second is not decoration here — a chip paints
+          // itself in the palette it offers, so a focused pitch/hacker/robot
+          // chip is a black pill wearing whatever outline the browser gives it
+          // against black. The ring is the PAGE's accent rather than the chip's,
+          // for the same reason: it has to be visible against the chip.
+          class={`${TARGET_BOX} inline-flex flex-none items-center justify-center rounded-full border px-2 font-mono text-[0.6875rem] leading-none ring-offset-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-accent aria-pressed:ring-offset-1 md:min-h-0 md:min-w-0 md:py-1`}
           style={{
             background: palette.colors.paper,
             color: palette.colors.ink,

@@ -44,7 +44,11 @@ export function Segmented<T extends string>(props: {
             // segments share a border, so what says which one is in force is
             // the fill rather than a ring — a ring inside a strip lands on top
             // of its neighbour's edge.
-            class={`${TARGET} inline-flex items-center px-3 text-xs md:min-h-0 md:py-1 ${
+            // The ring is the caret and the FILL is the pick — a segment shares
+            // its border with its neighbour, so a ring on the pressed one would
+            // sit on top of the edge beside it. `-inset` rather than an offset
+            // for the same reason: the ring has to stay inside the strip.
+            class={`${TARGET} inline-flex items-center px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent md:min-h-0 md:py-1 ${
               isInForce(choice.value)
                 ? "bg-accent/15 text-ink"
                 : "text-muted hover:text-ink"

@@ -251,6 +251,14 @@ asserts under a new name, is that something NAMES the theme in force: it is the
 Theme row's hint now. Mutation-tested both times — hard-coding the name to
 "chalk" passed every theming scenario until a step asked.
 
+`features/preferences.feature` carries the same second-tab scenario for the
+OTHER preference, and it is worth its own sentence because a reload cannot ask
+the question: deleting `followDoneDefault()` outright passes every other Done
+scenario in the file, and fails this one. It also holds the two ends of the
+panel's TAB CYCLE — Shift+Tab out to the trigger, Tab back in to the first
+control — which is the promise a portalled panel cannot get from document order.
+Both were sabotage-checked against the fix they are the fence for.
+
 ## Breaking the client on purpose
 
 `features/the_client_breaks.feature` is the one scenario whose subject is a bug

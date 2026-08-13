@@ -22,8 +22,37 @@
  * left where the pointer put it otherwise. Somebody who opened a panel, tabbed
  * into it and pressed Escape would land on `<body>`, which is nowhere.
  *
+ * ## And focus has to get IN, which a portal does not do by itself
+ *
+ * That is the price of the portal, and it was a regression rather than a
+ * shortcoming: the theme popover this replaced was laid out INSIDE its trigger's
+ * own box, so the chips were the next thing in document order and Tab reached
+ * them. A panel appended to `<body>` is the last thing on the page, so a
+ * keyboard leaving the trigger walked the sidebar, the tree and everything else
+ * first — which is not "the control is keyboard reachable", it is the control
+ * being at the end of a queue nobody finishes.
+ *
+ * Two halves put it back, and they are one rule: **the trigger and its panel are
+ * one tab cycle**.
+ *
+ *   - Opening MOVES focus into the panel (its own box, which takes a
+ *     `tabindex="-1"` for the purpose), so a person who opened it with the
+ *     keyboard is standing in it rather than beside it. `queueMicrotask` for the
+ *     same reason the command palette uses one: the element is not attached at
+ *     the instant the signal flips.
+ *   - While it is open, Tab and Shift+Tab WRAP inside that cycle — the trigger,
+ *     then the panel's controls in order, then the trigger again. So Tab from
+ *     the trigger is the first control, Shift+Tab from the first control is the
+ *     trigger, and nothing reaches the page underneath while a panel is over it.
+ *
+ * The Tab handler lives here rather than in `./keys.ts` for the reason the
+ * command palette's does (`palette/Palette.tsx`): the registry is the app's
+ * global CHORDS and the row editor's bare keys, and a bare Tab that means one
+ * thing only while a particular surface is on screen belongs to that surface.
+ *
  * What this does NOT own is the panel's markup or its width — only whether it
- * is up, and the box `./anchor.ts` says it goes in.
+ * is up, the box `./anchor.ts` says it goes in, and where the caret is while it
+ * is there.
  */
 
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
@@ -38,9 +67,24 @@ export interface Popover {
   readonly toggle: () => void
   /** `ref` on the control that opens it. */
   readonly setTrigger: (el: HTMLElement | undefined) => void
-  /** `ref` on the panel itself — see the two roots above. */
+  /** `ref` on the panel itself — see the two roots above. It must carry a
+   *  `tabindex="-1"`, because this is also what takes the focus when the panel
+   *  opens. */
   readonly setPanel: (el: HTMLElement | undefined) => void
 }
+
+/**
+ * What a Tab may land on inside a panel, in the order it lands.
+ *
+ * The ordinary list, and deliberately not a general one: these panels hold
+ * buttons, boxes to type in and ticks, and a `[tabindex]` that is not `-1` is
+ * how anything else would ask to be included. `:disabled` is excluded because
+ * the Commit button spends most of its life that way and a cycle that stopped
+ * on it would be a cycle with a dead end in it.
+ */
+const TABBABLE =
+  'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), ' +
+  'textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 
 /** Whether two placements would draw the same box. */
 const sameBox = (a: Anchor | null, b: Anchor | null): boolean =>
@@ -63,6 +107,15 @@ export const createPopover = (): Popover => {
     setOpen(false)
     if (restoreFocus) trigger?.focus()
   }
+
+  /** The one tab cycle the trigger and its panel make between them, in the
+   *  order a Tab walks it. */
+  const ring = (): ReadonlyArray<HTMLElement> => [
+    ...(trigger === undefined ? [] : [trigger]),
+    ...(panel === undefined
+      ? []
+      : [...panel.querySelectorAll<HTMLElement>(TABBABLE)]),
+  ]
 
   /** Re-read where the trigger is. Cheap, and it has to happen again whenever
    *  the window or the column under it moves: an anchored popover that goes
@@ -87,9 +140,35 @@ export const createPopover = (): Popover => {
       close()
     }
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return
+      if (event.key === "Escape") {
+        event.preventDefault()
+        close(true)
+        return
+      }
+      if (event.key !== "Tab") return
+      // The cycle, in tab order: the control that opened it, then what is
+      // inside it. Read fresh on every press, because a panel's controls come
+      // and go — the Commit panel grows a message box and a button the moment
+      // there is anything to record.
+      const cycle = ring()
+      if (cycle.length === 0) return
+      const active = document.activeElement
+      // The panel's own box is where opening leaves the caret, and it stands
+      // between the trigger and the first control: Tab goes on in, Shift+Tab
+      // goes back out to the control that opened it.
+      if (active === panel) {
+        event.preventDefault()
+        ;(event.shiftKey ? cycle[0] : cycle[1] ?? cycle[0])?.focus()
+        return
+      }
+      const at = cycle.indexOf(active as HTMLElement)
+      // Focus somewhere else entirely is left alone: the pointer can put it
+      // there, and taking it back would be this panel deciding where somebody
+      // else's click landed.
+      if (at === -1) return
       event.preventDefault()
-      close(true)
+      const step = event.shiftKey ? -1 : 1
+      cycle[(at + step + cycle.length) % cycle.length]?.focus()
     }
     // Capture, so a press that also navigates still shuts this first — and so
     // the trigger's own click can toggle without racing a bubble-phase
@@ -119,6 +198,11 @@ export const createPopover = (): Popover => {
     },
     setPanel: (el) => {
       panel = el
+      // As it ATTACHES, which is the moment it exists — a portal is appended to
+      // the body, so nothing about opening carries a keyboard into it and the
+      // signal flipping is one tick too early to ask. `queueMicrotask` for the
+      // same reason the command palette uses one.
+      if (el !== undefined) queueMicrotask(() => el.focus())
     },
   }
 }

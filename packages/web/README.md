@@ -603,6 +603,30 @@ Dismissal is therefore a pointer outside it, Escape, or the trigger again; the
 two a keyboard can reach put focus back on the trigger. A theme pick does NOT
 dismiss it: a palette is judged by looking at the page it paints.
 
+**And focus has to get IN, which is the other half of the portal's price.** The
+theme popover this replaced was laid out inside its trigger's own box, so the
+chips were next in document order and Tab reached them; a panel appended to
+`<body>` is the last thing on the page, so a keyboard leaving the trigger walked
+the sidebar and the tree first. That is not "keyboard reachable", it is being at
+the end of a queue nobody finishes — a regression against the control this panel
+absorbed, and the reason `popover.ts` owns focus as well as placement. The rule
+is that **a trigger and its panel are one tab cycle**: opening moves the caret
+into the panel (its own box, `tabindex="-1"`), and while it is open Tab and
+Shift+Tab wrap around trigger → controls → trigger, so nothing underneath is
+reachable while a panel is over it. The Commit panel gets the same, being the
+same receptacle. `features/preferences.feature` holds both ends of the cycle.
+The Tab handler lives beside the panel rather than in `keys.ts` for the reason
+the command palette's does: the registry is global chords and the row editor's
+bare keys, and a bare Tab that means something only while one surface is up
+belongs to that surface.
+
+Where the caret IS has to be visible on a chip, too: a chip paints itself in the
+palette it offers, so a focused `pitch` chip is a black pill wearing whatever
+outline the browser draws against black. Chips and segments carry an explicit
+`focus-visible` ring in the PAGE's accent — the same ring `aria-pressed` uses to
+say which one is in force, because the two questions ("where am I" and "which is
+picked") deserve the same answer in the same colour.
+
 ## The directory column is pinned too
 
 The other half of the chrome is the sidebar, and the argument is the header's
