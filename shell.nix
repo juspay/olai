@@ -2,6 +2,7 @@
 { pkgs ? import ./nix/nixpkgs.nix { } }:
 let
   kolu = import ./nix/kolu.nix;
+  olaiFonts = import ./nix/fonts.nix { inherit pkgs; };
 in
 pkgs.mkShell {
   name = "olai-shell";
@@ -19,10 +20,10 @@ pkgs.mkShell {
     # the tests.
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
-    # Workflowy's Open Sans — TTFs from nixpkgs, converted to woff2 by the
-    # client build (packages/web/src/build.ts). No CDN, no font binary in the
+    # Source Sans 3 + Source Serif 4 — TTFs composed by nix/fonts.nix,
+    # converted to woff2 by the client build. No CDN, no font binary in the
     # repo. The packaged build (default.nix) sets the same two variables.
-    OLAI_FONTS_DIR = "${pkgs.open-sans}/share/fonts/truetype";
+    OLAI_FONTS_DIR = "${olaiFonts}";
     OLAI_WOFF2_COMPRESS = "${pkgs.woff2}/bin/woff2_compress";
   };
 
@@ -32,7 +33,8 @@ pkgs.mkShell {
     jq # scripts/check-kolu-deps.sh
     nixpkgs-fmt
     npins
-    open-sans
+    source-sans
+    source-serif
     woff2
   ];
 }

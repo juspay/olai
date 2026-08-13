@@ -27,7 +27,7 @@ export function Rail(props: {
 }) {
   return (
     <div
-      class="sticky top-[var(--height-header,3rem)] hidden h-[calc(100dvh-var(--height-header,3rem))] w-[var(--width-rail,3rem)] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-rule bg-paper py-2 md:flex"
+      class="sticky top-[var(--height-header,3rem)] hidden h-[calc(100dvh-var(--height-header,3rem))] w-[var(--width-rail,3rem)] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-rule/70 bg-desk py-2 md:flex"
       data-testid={TESTID.sidebarRail}
       aria-label="directory rail"
     >

@@ -189,7 +189,7 @@ export function Composer(props: {
   }
 
   return (
-    <div class="relative shrink-0 border-t border-rule p-2">
+    <div class="relative shrink-0 p-2">
       <Show when={open()}>
         <SlashMenu commands={matches()} onAccept={accept} onDismiss={dismiss} />
       </Show>
@@ -215,7 +215,7 @@ export function Composer(props: {
           their head until a box comes back is work the panel invented. */}
       <textarea
         ref={input}
-        class="w-full resize-none rounded border border-rule bg-paper px-2 py-1.5 text-sm outline-none focus:border-accent"
+        class="w-full resize-none rounded-xl border border-rule/80 bg-paper px-3 py-2 text-sm outline-none focus:border-accent"
         data-testid={TESTID.chatInput}
         rows={2}
         placeholder={working() ? "…or say the next thing" : "ask the agent…"}
@@ -329,7 +329,7 @@ export function Composer(props: {
         </Show>
         <button
           type="button"
-          class={`${CONTROL} border-rule px-3 hover:border-accent hover:text-accent`}
+          class={`${CONTROL} border-transparent bg-accent px-3 font-semibold text-paper hover:opacity-90`}
           data-testid={TESTID.chatSend}
           onClick={() => void send()}
         >

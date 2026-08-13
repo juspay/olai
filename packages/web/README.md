@@ -88,11 +88,14 @@ A node's
 free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
 title, resolved at view time through the same indexes.
 
-The typeface is Workflowy's own Open Sans: nixpkgs' `open-sans` package, converted
-to woff2 at build time (`build.ts` via `OLAI_FONTS_DIR` / `OLAI_WOFF2_COMPRESS`
-from the flake shell and `default.nix`) and served from `/fonts/` — no CDN, no
-font binary in the repo. The eight theme tokens still paint every surface
-(`theme/palettes.ts`); the look follows every palette, dark and light.
+The typefaces are Source Serif 4 on the page (outline titles, a document) and
+Source Sans 3 on the chrome (header, sidebar, notes, chat): nixpkgs, composed
+by `nix/fonts.nix`, converted to woff2 at build time (`build.ts` via
+`OLAI_FONTS_DIR` / `OLAI_WOFF2_COMPRESS` from the flake shell and `default.nix`)
+and served from `/fonts/` — no CDN, no font binary in the repo. Eleven theme
+tokens paint every surface (`theme/palettes.ts`); the look follows every
+palette, dark and light. The outline sits on `paper`; the header, sidebar and
+agent dock sit on `desk`; a card or popover is `panel`; a filled chip is `pill`.
 
 What a node cannot start until is answered in that same mark column (resolved
 2026-08-11, human): an `after` target that is a task and not done is in the
@@ -445,7 +448,7 @@ place to change one is the row where the node actually lives.
 
 `src/client/theme/` is a TABLE and the things generated from it. `palettes.ts`
 holds fifteen named palettes — the racket implementation's four and eleven read
-off the original WorkFlowy theme stylesheets — each a value for the same eight
+off the original WorkFlowy theme stylesheets — each a value for the same eleven
 tokens `styles.css` declares. Everything else follows from it: `css.ts`
 generates one unlayered `:root[data-theme="…"]` block per row, which `src/build.ts`
 appends to the Tailwind output, and `Chips.tsx` draws one chip per row, each

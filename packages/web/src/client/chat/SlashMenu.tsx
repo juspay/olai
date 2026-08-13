@@ -70,7 +70,7 @@ export function SlashMenu(props: {
 
   return (
     <ul
-      class="absolute bottom-full left-2 right-2 z-50 mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule bg-paper p-1 shadow-lg"
+      class="absolute bottom-full left-2 right-2 z-50 mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg"
       data-testid={TESTID.chatSlashMenu}
     >
       <For each={props.commands}>

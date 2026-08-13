@@ -18,7 +18,7 @@ export function DoneToggle(
     <button
       type="button"
       // A target on a phone (./touch.ts), a pill on a laptop.
-      class={`inline-flex ${TARGET} shrink-0 cursor-pointer items-center rounded-full border border-rule bg-transparent px-4 py-1 text-xs text-muted hover:text-ink md:min-h-0 md:px-3`}
+      class={`inline-flex ${TARGET} shrink-0 cursor-pointer items-center rounded-full border border-transparent bg-pill px-4 py-1 text-xs text-muted hover:text-ink md:min-h-0 md:px-3`}
       data-testid={TESTID.doneToggle}
       data-hidden={String(props.hidden)}
       aria-pressed={props.hidden}

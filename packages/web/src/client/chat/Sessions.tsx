@@ -66,7 +66,7 @@ export function Sessions(props: { readonly chat: Chat }) {
 
       <Show when={picker()._tag !== "shut"}>
         <ul
-          class="absolute right-0 top-full z-50 mt-1 max-h-80 w-80 list-none overflow-y-auto rounded border border-rule bg-paper p-1 shadow-lg"
+          class="absolute right-0 top-full z-50 mt-1 max-h-80 w-80 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg"
           data-testid={TESTID.chatSessionList}
         >
           {/* A `<Switch>` over the one signal, because the picker IS one: the

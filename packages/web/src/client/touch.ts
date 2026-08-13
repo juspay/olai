@@ -119,7 +119,7 @@ export const PAST_CONTROLS = "ml-24 md:ml-20"
  * by a pixel when the caret arrived would be this file's kind of bug, and
  * three literals were three chances for one of them to miss a change.
  */
-export const ROW_TITLE = "text-[0.9375rem] leading-snug"
+export const ROW_TITLE = "font-serif text-[0.9375rem] leading-snug"
 
 /**
  * A row's NOTE, as type: what the clamped line, the rendered note and the

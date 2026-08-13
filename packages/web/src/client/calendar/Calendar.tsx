@@ -87,12 +87,12 @@ export function Calendar(props: {
   const isOpen = createSelector(() => props.open)
 
   return (
-    <section class="mb-5" data-testid={TESTID.calendar} data-month={month()}>
+    <section class="olai-card mb-5 rounded-xl bg-panel p-3" data-testid={TESTID.calendar} data-month={month()}>
       <header class="mb-1 flex items-center justify-between gap-1">
         <Step label="the month before" testid={TESTID.calendarPrev} onStep={() => page(-1)}>
           ‹
         </Step>
-        <h2 class="m-0 text-xs font-normal tracking-wide text-muted">
+        <h2 class="m-0 text-xs font-semibold tracking-wide text-ink">
           {monthLabel(month())}
         </h2>
         <Step label="the month after" testid={TESTID.calendarNext} onStep={() => page(1)}>

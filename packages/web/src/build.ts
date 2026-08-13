@@ -125,19 +125,23 @@ const buildStylesheet = async (): Promise<ArrayBuffer> =>
   ).arrayBuffer()
 
 /**
- * Workflowy's Open Sans, served from /fonts/*.woff2.
+ * Source Sans 3 and Source Serif 4, served from /fonts/*.woff2.
  *
- * Source TTFs come from nixpkgs' `open-sans` via `OLAI_FONTS_DIR` (shell.nix
- * and default.nix). They are converted to woff2 at build time — never committed
- * — so a CDN is never asked and the repo stays free of font binaries. Missing
- * the env is a loud failure in the packaged build; the dev loop gets the same
- * env from the flake shell.
+ * Source TTFs come from nixpkgs via `nix/fonts.nix` and `OLAI_FONTS_DIR`
+ * (shell.nix and default.nix). They are converted to woff2 at build time —
+ * never committed — so a CDN is never asked and the repo stays free of font
+ * binaries. Missing the env is a loud failure in the packaged build; the
+ * dev loop gets the same env from the flake shell.
  */
 const FONT_FACES = [
-  "OpenSans-Regular.ttf",
-  "OpenSans-Italic.ttf",
-  "OpenSans-Semibold.ttf",
-  "OpenSans-Bold.ttf",
+  "SourceSans3-Regular.ttf",
+  "SourceSans3-It.ttf",
+  "SourceSans3-Semibold.ttf",
+  "SourceSans3-Bold.ttf",
+  "SourceSerif4-Regular.ttf",
+  "SourceSerif4-It.ttf",
+  "SourceSerif4-Semibold.ttf",
+  "SourceSerif4-Bold.ttf",
 ] as const
 
 const installFonts = async (distDir: string): Promise<void> => {
@@ -145,7 +149,7 @@ const installFonts = async (distDir: string): Promise<void> => {
   if (fontsDir === undefined || fontsDir === "") {
     throw new Error(
       "OLAI_FONTS_DIR is unset — the flake shell and default.nix both set it " +
-        "to nixpkgs' open-sans truetype directory; run via `just serve` / `nix build`.",
+        "to nix/fonts.nix (Source Sans 3 + Source Serif 4); run via `just serve` / `nix build`.",
     )
   }
   const out = resolve(distDir, "fonts")

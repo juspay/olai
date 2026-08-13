@@ -100,7 +100,7 @@ export function Panel(props: {
   return (
     <section
       ref={props.inside}
-      class="fixed z-50 flex flex-col gap-3 overflow-y-auto overflow-x-hidden rounded-lg border border-rule bg-paper p-3 text-sm shadow-lg focus:outline-none"
+      class="fixed z-50 flex flex-col gap-3 overflow-y-auto overflow-x-hidden rounded-lg border border-rule/70 bg-panel p-3 text-sm shadow-lg focus:outline-none"
       style={styleOf(props.at)}
       // Focusable, never in the tab order — see `settings/Panel.tsx`, and
       // `../popover.ts` for why a portalled panel has to take the caret itself.

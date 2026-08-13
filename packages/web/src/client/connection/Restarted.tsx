@@ -27,7 +27,7 @@ export function Restarted(props: { readonly onReload: () => void }) {
       class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
       data-testid={TESTID.restarted}
     >
-      <div class="pointer-events-auto max-w-sm rounded-lg border border-rule bg-paper px-6 py-5 shadow-lg">
+      <div class="pointer-events-auto max-w-sm rounded-lg border border-rule/70 bg-panel px-6 py-5 shadow-lg">
         <h2 class="m-0 mb-1 text-base font-bold text-ink">The server restarted</h2>
         <p class="m-0 mb-4 text-sm text-muted">
           This page came from a server process that is gone, so nothing on it

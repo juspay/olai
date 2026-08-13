@@ -36,10 +36,10 @@ export function Header(props: {
   const state = () => props.chat.state()
 
   return (
-    <header class="flex shrink-0 items-center gap-2 border-b border-rule px-3 py-2">
+    <header class="flex shrink-0 items-center gap-2 border-b border-rule/70 px-3 py-2">
       <div class="min-w-0 flex-1">
         <div
-          class="truncate text-sm"
+          class="truncate text-sm font-semibold"
           data-testid={TESTID.chatTitle}
         >
           {state().status === "off"
