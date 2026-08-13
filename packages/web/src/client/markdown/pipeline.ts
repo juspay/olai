@@ -6,17 +6,18 @@
  * in, the grammars a fence may name. ./render.ts is what CALLS it — the memo,
  * the ids, the tree walks — and it holds none of these imports, which is the
  * whole point. `unified` + remark + rehype + `highlight.js`'s common grammars
- * are ~391 KB of the client (~96 KB brotli), and an outline is titles,
+ * are ~390 KB of the client (~95 KB brotli), and an outline is titles,
  * checkboxes and badges: rows that need a markdown parser only when one of them
  * turns out to have markdown in it.
  *
- * So this file is a second bundle. `packages/web/src/build.ts` builds it on its
- * own into the same content-hashed `/assets/` the entry lives in, names it on
- * the `no-store` shell, and ./chunk.ts is what fetches it — the first time
- * anything asks for markdown, and never on a page that does not. A dynamic
- * `import()` whose specifier is a variable is left alone by the bundler, which
- * is what keeps this graph out of `main-*.js` rather than merely unreached in
- * it.
+ * So this file is a CHUNK of its own, and ./chunk.ts's `import("./pipeline.ts")`
+ * is the whole of what asks for that: the bundler reads the specifier, splits
+ * this graph out of the entry, and hashes it into the same immutable `/assets/`
+ * dir (`pipeline-<hash>.js`). The specifier used to be a VARIABLE, deliberately,
+ * to defeat a bundler that had splitting hardcoded off and would otherwise have
+ * inlined this here — deferred in evaluation, identical on the wire. That is
+ * `buildSurfaceClient`'s job now (kolu#2159), so the literal is what does the
+ * work.
  *
  * The stages, and why each is where it is:
  *
