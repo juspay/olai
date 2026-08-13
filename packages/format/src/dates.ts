@@ -426,3 +426,82 @@ export const dailyNoteDays = (
   }
   return days
 }
+
+/** Whether a string is a bare ISO day — the shape a daily note's stem has, and
+ *  the shape a request to MINT one must arrive in. The same rule
+ *  {@link noteDateOf} reads off a filename, exported for the writer's side of
+ *  it: a minted note is named for its day, so what may name one is decided
+ *  where the naming rule lives. */
+export const isDay = (value: string): boolean => ISO_DAY.test(value)
+
+/**
+ * Where `day`'s note would go, following the vault's own convention — the path
+ * a creation affordance mints when a bare day is pressed.
+ *
+ * CONVENTION IS READ, NEVER CONFIGURED, which is {@link noteDateOf}'s rule
+ * facing the other way: detection asks nothing but the filename, so minting may
+ * ask nothing but the filenames already there. The NEWEST existing daily note
+ * is the example the vault itself provides — the reader has been keeping notes
+ * somewhere, and the most recent one is where the convention currently stands,
+ * which matters for a vault mid-migration whose old notes live somewhere its
+ * new ones do not.
+ *
+ * Its directory is carried over with the DATE-SHAPED segments re-spelled for
+ * the new day: a segment that is exactly the example's year, month, day,
+ * `YYYY-MM` or `YYYY-MM-DD` becomes the same reading of the new date, and every
+ * other segment travels verbatim. So `Daily/2026/08/2026-08-12.md` puts
+ * September the 1st's note at `Daily/2026/09/2026-09-01.md`, `journal/2026-08/`
+ * follows the same way, and a flat vault stays flat. WHOLE segments only: a
+ * month is two digits, and two digits appear inside years — substring
+ * replacement is how `2027` loses its middle to a February.
+ *
+ * A vault with no daily note yet has no convention to read, and the answer is
+ * the simplest true one: the note goes at the root, named for its day. The
+ * first note is what every later one reads its convention from.
+ */
+export const dailyNotePathFor = (
+  documents: ReadonlyArray<string>,
+  day: string,
+): string => {
+  const name = `${day}.md`
+
+  /** The newest daily note, by its date — ties broken by path, so the answer
+   *  is the same on every read. */
+  let example: { readonly file: string; readonly date: string } | null = null
+  for (const file of documents) {
+    const date = noteDateOf(file)
+    if (date === null) continue
+    if (
+      example === null || date > example.date ||
+      (date === example.date && file < example.file)
+    ) {
+      example = { file, date }
+    }
+  }
+  if (example === null) return name
+
+  const from = {
+    year: example.date.slice(0, 4),
+    month: example.date.slice(5, 7),
+    day: example.date.slice(8, 10),
+  }
+  const to = { year: day.slice(0, 4), month: day.slice(5, 7), day: day.slice(8, 10) }
+
+  // Longest spelling first, so `2026-08` is one segment re-spelled rather than
+  // a year the month check can no longer recognise.
+  const respelled = (segment: string): string =>
+    segment === `${from.year}-${from.month}-${from.day}`
+      ? `${to.year}-${to.month}-${to.day}`
+      : segment === `${from.year}-${from.month}`
+      ? `${to.year}-${to.month}`
+      : segment === from.year
+      ? to.year
+      : segment === from.month
+      ? to.month
+      : segment === from.day
+      ? to.day
+      : segment
+
+  const directory = example.file.split("/").slice(0, -1).map(respelled)
+  return [...directory, name].join("/")
+}

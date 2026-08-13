@@ -34,6 +34,7 @@ import {
   type Derived,
   didYouMean,
   drawnFrom,
+  fileKind,
   isMirror,
   type Located,
   type LocatedRegular,
@@ -66,8 +67,21 @@ export interface FilePlan {
   readonly nodes: ReadonlyArray<Node>
 }
 
+/** One DOCUMENT, as the text it will hold after the write. Beside
+ *  {@link FilePlan} rather than an arm of it, because the two go to different
+ *  serialisers: an outline is records through the format's writer, and a
+ *  document is its text, verbatim — there is nothing to serialise and nothing
+ *  a writer could get wrong about it. */
+export interface DocumentPlan {
+  readonly file: string
+  readonly text: string
+}
+
 export interface Plan {
   readonly files: ReadonlyArray<FilePlan>
+  /** The documents this write replaces or creates, whole. Absent for every op
+   *  about nodes, which is all of them but two. */
+  readonly documents?: ReadonlyArray<DocumentPlan>
   /** The node the op was about, and where it lives once the write lands. */
   readonly id: string
   readonly title: string
@@ -181,6 +195,10 @@ export const plan = (
       return planUnmirror(scope, request)
     case "after":
       return planAfter(scope, request)
+    case "doc":
+      return planWriteDocument(scope, request)
+    case "create-doc":
+      return planCreateDocument(scope, request)
   }
 }
 
@@ -331,19 +349,27 @@ const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFa
 /**
  * A file this op may write, or the refusal that says why not.
  *
- * An outline whose lines did not parse contributes no records to the set, so
- * re-emitting it from the set would erase everything in it. That has to be a
- * refusal, and it has to be the one that says which lines are broken — fix the
- * file, then edit it.
+ * A file the set could not READ contributes nothing to it, so re-emitting it
+ * from the set would erase whatever is really in it. That has to be a refusal,
+ * and it has to carry the errors — fix the file, then edit it.
+ *
+ * ONE rule, both kinds of file, because it is one rule: an outline whose lines
+ * did not parse has lost its records, and a document that could not be read has
+ * lost its text, and writing either from a set that is missing it is the same
+ * mistake. Only the clause differs, and which clause it is comes off the
+ * format's own {@link fileKind} rather than a flag a caller passes — so a caller
+ * cannot ask for the wrong sentence about the file it named.
  */
 const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> => {
   const broken = scope.set.broken.find((entry) => entry.file === file)
   if (broken !== undefined) {
     return Result.fail(
       new ValidationFailure({
-        reason:
-          `\`${file}\` has lines that do not parse, so its records are not loaded — ` +
-          `writing it would drop them. Fix the file first.`,
+        reason: `\`${file}\` ${
+          fileKind(file) === "document"
+            ? "could not be read, so what it holds is not loaded — writing it would drop that."
+            : "has lines that do not parse, so its records are not loaded — writing it would drop them."
+        } Fix the file first.`,
         errors: broken.errors,
       }),
     )
@@ -1146,7 +1172,14 @@ const planCreate = (
  * Absolute paths (leading `/`) and Windows-style backslash separators never
  * become a segment that could be joined under the root by accident.
  */
-export const outlinePath = (raw: string): string | null => {
+export const outlinePath = (raw: string): string | null => creatable(raw, ".jsonl")
+
+/** The same judgment for the other kind of file a call may mint: one relative
+ *  `.md` under the served root. One rule, two extensions — the two create ops
+ *  must not differ in what a path may smuggle. */
+export const documentPath = (raw: string): string | null => creatable(raw, ".md")
+
+const creatable = (raw: string, extension: string): string | null => {
   if (raw === "" || raw.startsWith("/") || raw.includes("\\") || raw.includes("\0")) {
     return null
   }
@@ -1160,7 +1193,7 @@ export const outlinePath = (raw: string): string | null => {
   if (segments.length === 0) return null
 
   const file = segments.join("/")
-  return file.endsWith(".jsonl") ? file : null
+  return file.endsWith(extension) ? file : null
 }
 
 // ── archive ────────────────────────────────────────────────────────────
@@ -1994,6 +2027,125 @@ const planUnmirror = (
  * refuses a record whose parent is a placement, so no set this planner is ever
  * handed has a child hanging off one.
  */
+// ── documents ──────────────────────────────────────────────────────────
+
+/**
+ * Replace one document's text, whole.
+ *
+ * The op that is not about a node, and the shortest plan there is: the text IS
+ * the file, so there is no placement to compute, no records to re-emit, and
+ * nothing the format's writer has to be asked about. It still rides the whole
+ * gate — validate the set the write would produce, stage, rename, commit — so
+ * a document write is audit-trailed and revision-published exactly as a node
+ * write is, and an open page sees it the way it sees a `git pull`.
+ *
+ * TWO refusals are its own:
+ *
+ *   - a path the set does not hold, with the closest one that exists — the
+ *     `write`/`create` split, so a typo cannot mint a file;
+ *   - a `was` the file no longer says. THE CONFLICT STORY: the same file can be
+ *     edited in vim while a browser holds it open, and a caller that says what
+ *     it read is refused, on every retry the write gate makes, when the disk
+ *     has moved since ({@link TitleRequest}'s `was`, at file size). The refusal
+ *     deliberately does not quote either text — a document is not a title, and
+ *     the caller re-reads the file rather than a sentence.
+ */
+const planWriteDocument = (
+  scope: Scope,
+  request: Extract<Request, { op: "doc" }>,
+): Planned => {
+  const document = scope.set.documents.find((entry) => entry.file === request.file)
+  if (document === undefined) {
+    const near = didYouMean(
+      request.file,
+      scope.set.documents.map((entry) => entry.file),
+    )
+    return Result.fail(
+      new NotFoundFailure({
+        reason: near === ""
+          ? `\`${request.file}\` is not a document under the served directory — ` +
+            `\`create_document\` is what starts one`
+          : `\`${request.file}\` is not a document under the served directory${near}`,
+        named: request.file,
+      }),
+    )
+  }
+
+  // A document the directory holds but could not READ decodes to nothing, and
+  // overwriting nothing would drop whatever the file really says — which is
+  // `writable`'s own rule, read of the other kind of file.
+  const may = writable(scope, request.file)
+  if (Result.isFailure(may)) return Result.fail(may.failure)
+
+  // The same conditional-write check the two text fields make, over a whole
+  // file: one function decides "did this still say what the caller thought",
+  // and the callers differ only in the sentence a reader gets.
+  const conflict = stale(
+    request.was,
+    document.text,
+    `\`${request.file}\` has changed since it was read — the text on disk is ` +
+      `not what this write expected to replace, so nothing was written. Read the ` +
+      `document again and re-derive your edit from what it says now.`,
+  )
+  if (conflict !== null) return Result.fail(conflict)
+
+  return Result.succeed({
+    files: [],
+    documents: [{ file: request.file, text: request.text }],
+    id: request.file,
+    title: request.file,
+    file: request.file,
+    summary: `doc: ${request.file}`,
+  })
+}
+
+/**
+ * A brand-new document under the served directory.
+ *
+ * `create_outline`'s twin: the path is judged by the same segment rules with
+ * the other extension ({@link documentPath}), a path the set already holds is
+ * refused — write refuses a missing file and create an existing one, so a typo
+ * can never quietly mint a document — and the write gate's stage → validate →
+ * rename already knows how to make the directories a nested path needs. The
+ * sidebar sees the new file the way it sees everything: on the revision the
+ * write publishes.
+ */
+const planCreateDocument = (
+  scope: Scope,
+  request: Extract<Request, { op: "create-doc" }>,
+): Planned => {
+  const file = documentPath(request.file)
+  if (file === null) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `\`${request.file}\` is not a relative \`.md\` path under the served ` +
+          `directory (no absolute path, no \`..\`, no \`.\`, and the name must end ` +
+          `in \`.md\`)`,
+      }),
+    )
+  }
+
+  if (scope.set.documents.some((entry) => entry.file === file)) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `\`${file}\` is already a document under the served directory — create ` +
+          `starts a new one; \`write_document\` is what edits this one`,
+      }),
+    )
+  }
+
+  return Result.succeed({
+    files: [],
+    documents: [{ file, text: request.text ?? "" }],
+    id: file,
+    title: file,
+    file,
+    summary: `create: ${file}`,
+  })
+}
+
 const dependents = (scope: Scope, id: string): ReadonlyArray<string> =>
   scope.derived.nodes.flatMap((located) => {
     if (located.node.id === id) return []

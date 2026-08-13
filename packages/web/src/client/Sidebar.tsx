@@ -72,6 +72,7 @@ import {
   Switch,
 } from "solid-js"
 
+import { NewDocument } from "./document/NewDocument.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
@@ -223,7 +224,13 @@ export function Sidebar(props: {
               {(row) => <Entry row={row()} view={view} />}
             </Key>
           </ul>
+          {/* Directly under the tree, because the tree is what it adds to: the
+              way to a document that does not exist yet
+              (../document/NewDocument.tsx). */}
+          <NewDocument />
 
+          {/* And below both, the way OUT of the directory rather than into it:
+              what has been put away. */}
           <Trash />
         </div>
       </nav>

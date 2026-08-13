@@ -461,8 +461,15 @@ while every commit failed. It is cleared by the next commit that works.
 ## The tool surface, and what is missing from it
 
 `TOOLS` is a closed list, and the absences are the design: **no file read, no
-file write, no directory listing, no shell, no grep.** The agent cannot name a
-byte, only a node. Reads answer with `file:line`, the node's mark (absent when
+raw byte write, no directory listing, no shell, no grep.** The agent cannot
+name a byte, only a node — or, since `md-editing`, a DOCUMENT, which is the
+one whole-file unit the surface has and is still not a byte range:
+`create_document` mints a relative `.md` (refused if it exists) and
+`write_document` replaces one's text whole (refused if it does not — the
+split is what keeps a typo from minting a file), with an optional `was` that
+refuses, on every retry, a write over text the caller never read. Both ride
+the same validate → stage → rename → commit gate and the same audit trailer
+as every node write. Reads answer with `file:line`, the node's mark (absent when
 it carries none, because that is not a task), the ROLLUP of the tasks under it
 — which is not in the file and is an annotation, never a second answer to what
 the node is — its ancestor titles, which is what makes a bare title mean

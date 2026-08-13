@@ -621,3 +621,57 @@ test("what nothing would take back says so with an empty list", () => {
   // would be the deviation the menu's verbs exist to close.
   expect(inverse({ verb: "unmirror", id: "echo" })).toEqual([])
 })
+
+// ── the documents' three ───────────────────────────────────────────────
+
+const NOTES = "# Notes\n\nwhat was here\n"
+const vault = (): Reading =>
+  reading(
+    setOf({ "house.jsonl": HOUSE }, [
+      ["notes.md", NOTES],
+      "Daily/2026/08/2026-08-12.md",
+    ]),
+  )
+
+test("a document commit travels as it was typed, `was` and all", () => {
+  expect(
+    asked({ verb: "doc", file: "notes.md", text: "new", was: NOTES }, vault()),
+  ).toEqual({ op: "doc", file: "notes.md", text: "new", was: NOTES })
+  // No `was` is the overwrite, and the field stays absent rather than
+  // travelling as `undefined` — the same spelling the text verbs keep.
+  expect(asked({ verb: "doc", file: "notes.md", text: "new" }, vault()))
+    .toEqual({ op: "doc", file: "notes.md", text: "new" })
+})
+
+test("a new document names its path outright", () => {
+  expect(asked({ verb: "docNew", file: "ideas.md" }, vault()))
+    .toEqual({ op: "create-doc", file: "ideas.md" })
+})
+
+test("a bare day resolves to the vault's own convention, read off this set", () => {
+  expect(asked({ verb: "docDay", date: "2026-09-01" }, vault()))
+    .toEqual({ op: "create-doc", file: "Daily/2026/09/2026-09-01.md" })
+  // A vault with no daily note yet starts the convention at the root.
+  expect(asked({ verb: "docDay", date: "2026-09-01" }))
+    .toEqual({ op: "create-doc", file: "2026-09-01.md" })
+})
+
+test("a docDay that is not a day is refused about the DATE, not the path", () => {
+  const failure = refused({ verb: "docDay", date: "someday" }, vault())
+  expect(failure.message).toContain("someday")
+  expect(failure.message).toContain("not a day")
+})
+
+test("a document commit's inverse is the text it replaced, guarded by what it wrote", () => {
+  expect(
+    inverse({ verb: "doc", file: "notes.md", text: "new" }, "notes.md", vault()),
+  ).toEqual([{ verb: "doc", file: "notes.md", text: NOTES, was: "new" }])
+})
+
+test("nothing takes a minted document back — no face removes one", () => {
+  expect(inverse({ verb: "docNew", file: "ideas.md" }, "ideas.md", vault()))
+    .toEqual([])
+  expect(
+    inverse({ verb: "docDay", date: "2026-09-01" }, "x.md", vault()),
+  ).toEqual([])
+})

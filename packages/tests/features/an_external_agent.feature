@@ -151,6 +151,31 @@ Feature: An agent olai did not start
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A terminal writes a document, both faces of one gate
+    # The consistency rule, end to end: `create_document` mints the file and
+    # `write_document` replaces its text — the same two ops the browser's
+    # editor sends — and a page that never heard of the terminal follows,
+    # sidebar and rendered body both, with no reload.
+    # At the ROOT rather than in a fresh subdirectory: a directory born
+    # mid-serve is watched only from the next probe, so a rewrite inside one
+    # reaches the page on the backstop — real, and too slow for a scenario
+    # whose subject is the write path, not watcher latency.
+    When the terminal agent creates the document "plan.md" holding "# Plan"
+    Then the documents listed are "plan.md"
+    When I click the document "plan.md"
+    And the terminal agent rewrites "plan.md" expecting "# Plan", as "# Plan Dig **here** first."
+    Then the document renders bold text "here"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A terminal's stale document write is refused in words
+    # The conflict story on the agent's face: `was` said what the terminal
+    # READ, the file says something else, and the answer is a refusal carrying
+    # its kind — never a silent clobber of words nobody saw.
+    When the terminal agent creates the document "plan.md" holding "# Plan"
+    And the terminal agent tries to rewrite "plan.md" expecting "an older reading", as "clobber"
+    Then the terminal agent was refused with the kind "usage"
+
   Scenario: A refused write is an answer, not a protocol error
     # Nothing in the set declares `nowhere`. The refusal reaches the agent as a
     # tool RESULT carrying its kind as data — a JSON-RPC error would be the

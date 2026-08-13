@@ -106,13 +106,7 @@ Then(
   async function (this: OlaiWorld, text: string) {
     const rendered = body(this);
     await rendered.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await this.waitUntil(
-      async () =>
-        (await rendered.locator("strong, b").allInnerTexts()).some(
-          (value) => value.trim() === text,
-        ),
-      `the document to render ${JSON.stringify(text)} in bold`,
-    );
+    await this.rendersBold(rendered, text);
   },
 );
 

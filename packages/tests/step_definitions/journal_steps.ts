@@ -156,8 +156,10 @@ Then(
 Then("the day {string} is inert", async function (this: OlaiWorld, date: string) {
   await this.expectDayMark(date, "data-dated", false);
   await this.expectDayMark(date, "data-noted", false);
-  // Nothing to press: pressing it could only mean "write something here", and
-  // this pane writes nothing.
+  // Not a LINK: there is nothing to read on it. What a bare day carries
+  // instead is the mint affordance — a button that creates the day's note
+  // (`document_editing.feature`) — so "inert" means "nowhere to go", not
+  // "nothing to press".
   assert.strictEqual(
     await this.dayLink(date).count(),
     0,
