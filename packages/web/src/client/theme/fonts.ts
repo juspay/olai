@@ -115,7 +115,8 @@ const statics = (
 ]
 
 /** Every file the build converts. Deduped by construction: a family used by
- *  two rows (Literata is the default stack AND a pick) is listed once. */
+ *  two rows (Olai and Literata, Atkinson the default and Atkinson the pick)
+ *  is listed once. */
 export const HOSTED_FILES: ReadonlyArray<HostedFile> = [
   ...statics("Literata", {
     regular: "Literata-Regular.ttf",

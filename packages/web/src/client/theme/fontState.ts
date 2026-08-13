@@ -64,7 +64,7 @@ const show = (face: Typeface | undefined): void => {
  *
  *  Picking the DEFAULT is a pick like any other and is remembered as one: the
  *  alternative — storing nothing, so that the page falls back — would make
- *  "olai" mean two different things, and a later change of default would
+ *  "atkinson" mean two different things, and a later change of default would
  *  silently move everybody who had chosen the old one. */
 export const pickFont = (face: Typeface): void => {
   show(face)

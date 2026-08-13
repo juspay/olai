@@ -162,9 +162,9 @@ const installFonts = async (distDir: string): Promise<void> => {
     }
     const converted = woff2Name(face)
     const dest = join(out, converted)
-    // Skip reconvert when the woff2 is already newer than the TTF — `just serve`
-    // re-runs the whole client build on every keystroke, and three compresses
-    // cost ~300ms for nothing when the faces have not moved.
+    // Skip reconvert when the woff2 is already newer than the source — `just
+    // serve` re-runs the whole client build on every keystroke, and a full
+    // convert of every hosted file is wasted when the faces have not moved.
     if (existsSync(dest)) {
       const srcM = statSync(src).mtimeMs
       const destM = statSync(dest).mtimeMs

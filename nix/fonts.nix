@@ -17,7 +17,6 @@ let
     geist-font
     ia-writer-mono
     ia-writer-quattro
-    ibm-plex
     inter
     jetbrains-mono
     junicode
@@ -74,14 +73,14 @@ pkgs.runCommand "olai-fonts" { } ''
   cp ${ttf geist-font "GeistMono-Bold.ttf"} $out/
   cp ${ttf geist-font "GeistMono-BoldItalic.ttf"} $out/
 
-  cp ${ttf ibm-plex "IBMPlexMono-Regular.ttf"} $out/
-  cp ${ttf ibm-plex "IBMPlexMono-Italic.ttf"} $out/
-  cp ${ttf ibm-plex "IBMPlexMono-Bold.ttf"} $out/
-  cp ${ttf ibm-plex "IBMPlexMono-BoldItalic.ttf"} $out/
-  cp ${ttf ibm-plex "IBMPlexSans-Regular.ttf"} $out/
-  cp ${ttf ibm-plex "IBMPlexSans-Italic.ttf"} $out/
-  cp ${ttf ibm-plex "IBMPlexSans-Bold.ttf"} $out/
-  cp ${ttf ibm-plex "IBMPlexSans-BoldItalic.ttf"} $out/
+  cp ${ttf pkgs.ibm-plex.mono "IBMPlexMono-Regular.ttf"} $out/
+  cp ${ttf pkgs.ibm-plex.mono "IBMPlexMono-Italic.ttf"} $out/
+  cp ${ttf pkgs.ibm-plex.mono "IBMPlexMono-Bold.ttf"} $out/
+  cp ${ttf pkgs.ibm-plex.mono "IBMPlexMono-BoldItalic.ttf"} $out/
+  cp ${ttf pkgs.ibm-plex.sans "IBMPlexSans-Regular.ttf"} $out/
+  cp ${ttf pkgs.ibm-plex.sans "IBMPlexSans-Italic.ttf"} $out/
+  cp ${ttf pkgs.ibm-plex.sans "IBMPlexSans-Bold.ttf"} $out/
+  cp ${ttf pkgs.ibm-plex.sans "IBMPlexSans-BoldItalic.ttf"} $out/
 
   cp ${ttf inter "InterVariable.ttf"} $out/
   cp ${ttf inter "InterVariable-Italic.ttf"} $out/
