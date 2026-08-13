@@ -46,7 +46,7 @@ import { reasonOf } from "@olai/log"
 import type { MissingServer } from "@olai/surface"
 import { Effect } from "effect"
 
-import { streamOver } from "./pipes.ts"
+import { streamOver, unstartable } from "./pipes.ts"
 
 /** The executable, its verb, and the variable that says which padi. All three
  *  are kolu's own `.mcp.json` entry, unchanged. */
@@ -119,6 +119,10 @@ export const serverOf = (found: Detected): Server | null =>
  * `@olai/surface`'s own shape rather than one of ours, because there is nothing
  * between this and the wire that would translate it — and a second spelling of
  * "a server, where it was, and why not" is a second thing to keep in step.
+ *
+ * The path is always there, and that is a property of the `silent` arm rather
+ * than a coincidence: this probe only has anything to report about a `kolu` it
+ * RESOLVED, so a reason without a file is not a state it can reach.
  */
 export const missingFrom = (found: Detected): MissingServer | null =>
   found._tag === "silent"
@@ -221,27 +225,20 @@ const whyNotAnswered = async (
       env: { ...process.env, ...env },
     })
   } catch (cause) {
-    return couldNotStart(cause)
+    return couldNotStart(reasonOf(cause))
   }
 
-  // A file on PATH with the executable bit is not a program, and this is where
-  // that stops being our problem: a bad interpreter line, a text file somebody
-  // chmod'd, an architecture this host cannot run. The exec fails AFTER `spawn`
-  // has returned, so the `catch` above never sees one — it arrives as an
-  // `error` EVENT, and TWO things hang on somebody listening for it.
-  //
-  // The first is that nothing else is listening: an unhandled `error` on a
-  // child process is an uncaught exception, so olai's own server was one
-  // unrunnable `kolu` on a PATH away from going down. The second is that this
-  // is the only reason worth reading. Every other door reports the BROKEN PIPE
-  // that followed — "talking to it failed: Cannot call write after a stream was
-  // destroyed", which is a fact about our own write and says nothing about the
-  // file — so racing it is not belt and braces, it is the difference between
-  // naming the fault and describing our end of it.
-  const unstartable = new Promise<string>((resolve) => {
-    child.once("error", (cause) => resolve(couldNotStart(cause)))
-  })
-  return await Promise.race([unstartable, askOver(child)])
+  // A `kolu` on PATH with the executable bit is not necessarily a program, and
+  // an exec that fails does so AFTER `spawn` has returned — so the `catch`
+  // above never sees one. It is raced rather than merely handled, because what
+  // FOLLOWS an exec failure is our own write to a stdin that died with it, and
+  // that is the sentence `askOver` would otherwise come back with.
+  // {@link ../pipes.ts} owns the rest of the argument, and the ACP agent races
+  // the same promise for the same reason.
+  return await Promise.race([
+    unstartable(child).then(couldNotStart),
+    askOver(child),
+  ])
 }
 
 /** Say all of it, and wait for the one answer that decides it — then kill the
@@ -282,10 +279,9 @@ const askOver = async (child: ChildProcess): Promise<string | null> => {
 }
 
 /** The one sentence for a file that would not run, wherever the refusal reached
- *  us — Bun raises it on an event and Node may throw it, and a reader has no
- *  business being told which. */
-const couldNotStart = (cause: unknown): string =>
-  `it could not be started: ${reasonOf(cause)}`
+ *  us — Bun raises it on an event and Node may throw it for a malformed call,
+ *  and a reader has no business being told which. */
+const couldNotStart = (why: string): string => `it could not be started: ${why}`
 
 /** Two questions, and they were one three-valued answer: this one is "is this
  *  message ours at all", which is about the ENVELOPE and true of a refusal

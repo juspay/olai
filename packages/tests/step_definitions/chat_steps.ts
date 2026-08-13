@@ -1049,12 +1049,13 @@ Then("there is nothing to type into", async function (this: OlaiWorld) {
 Then(
   "the panel says {string} is missing from this conversation",
   async function (this: OlaiWorld, name: string) {
-    const row = this.page.locator(
-      `${CHAT_MISSING_SERVER}[data-server="${name}"]`,
-    );
-    await this.waitUntil(
-      async () => (await row.count()) > 0 && (await row.isVisible()),
-      `the panel to say \`${name}\` is missing from this conversation`,
+    // HYDRATION_TIMEOUT: the strip cannot exist until the probe has answered
+    // and the session has been asked for, which is a boot rather than a render.
+    await this.expectAttribute(
+      CHAT_MISSING_SERVER,
+      "data-server",
+      name,
+      "the strip under the chat header",
       HYDRATION_TIMEOUT,
     );
   },

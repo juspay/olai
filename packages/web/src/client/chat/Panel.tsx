@@ -11,12 +11,14 @@
  * TRANSCRIPT is subscribed only while the panel is open; Minimized reads a
  * module-scoped snapshot updated from here (`last.ts`), never the collection.
  *
- * Both layouts render the same `Body`, which is the conversation, the box and
- * the drop target around them: a file let go of anywhere on the conversation
- * is attached to it, and the chips land in the composer inside. The body only
- * — the header is session controls, and a file cannot go there.
+ * Both layouts render the same `Face` — the header, whatever this conversation
+ * is short of, and the conversation itself — so the two shells own their chrome
+ * and their geometry and nothing else. Inside it, `Body` is the conversation,
+ * the box and the drop target around them: a file let go of anywhere on the
+ * conversation is attached to it, and the chips land in the composer inside.
+ * The body only — the header is session controls, and a file cannot go there.
  *
- * Between the two sits {@link Missing}, which draws nothing at all unless this
+ * Between those two sits {@link Missing}, which draws nothing at all unless this
  * conversation was short of an MCP server it was meant to have. It is OUTSIDE
  * the no-agent fallback and outside the drop target on purpose: it is a fact
  * about the session rather than a part of the conversation, and it belongs
@@ -126,6 +128,30 @@ export function Toggle() {
 }
 
 /**
+ * Everything inside either shell: the header, whatever this conversation is
+ * short of, and then the conversation or the explanation of why there is none.
+ *
+ * The two layouts differ in their chrome and their geometry and never in THIS,
+ * and the argument is the one {@link Body} already makes one level down: three
+ * elements in a fixed order, kept identical in two places 100 lines apart, is
+ * one place for the next one to be added and another for it to be forgotten —
+ * and the phone is the copy that gets forgotten, because the scenarios that
+ * would notice mostly run on a desktop viewport.
+ */
+function Face(props: { readonly chat: Chat }) {
+  const off = () => props.chat.state().status === "off"
+  return (
+    <>
+      <Header chat={props.chat} />
+      <Missing chat={props.chat} />
+      <Show when={!off()} fallback={<NoAgent />}>
+        <Body chat={props.chat} />
+      </Show>
+    </>
+  )
+}
+
+/**
  * Everything under the header: the conversation, the box, and the drop target
  * around both.
  *
@@ -146,7 +172,6 @@ function Body(props: { readonly chat: Chat }) {
 
 function DesktopDock() {
   const chat = createChat()
-  const off = () => chat.state().status === "off"
 
   // Snapshot the last agent row for the minimized face; dies with this owner.
   createEffect(() => sampleLastAgent(chat))
@@ -163,11 +188,7 @@ function DesktopDock() {
       <div class="absolute inset-y-0 left-0 z-10">
         <ChatHandle />
       </div>
-      <Header chat={chat} />
-      <Missing chat={chat} />
-      <Show when={!off()} fallback={<NoAgent />}>
-        <Body chat={chat} />
-      </Show>
+      <Face chat={chat} />
     </aside>
   )
 }
@@ -179,7 +200,6 @@ function DesktopDock() {
  */
 function MobileSheet() {
   const chat = createChat()
-  const off = () => chat.state().status === "off"
   const [dragPct, setDragPct] = createSignal<number | null>(null)
   /** True when the last pointer gesture moved enough to count as a drag
    *  rather than a tap-to-cycle. */
@@ -270,11 +290,7 @@ function MobileSheet() {
         >
           <span class="h-1 w-10 rounded-full bg-rule" aria-hidden="true" />
         </div>
-        <Header chat={chat} />
-        <Missing chat={chat} />
-        <Show when={!off()} fallback={<NoAgent />}>
-          <Body chat={chat} />
-        </Show>
+        <Face chat={chat} />
       </aside>
     </div>
   )

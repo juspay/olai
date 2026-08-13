@@ -388,13 +388,18 @@ export type Command = typeof Command.Type
  * anybody, and the four ways of failing want four different things done about
  * them (`../../chat/src/kolu.ts`).
  *
- * `where` is the file that was probed, absolute, or `null` when the failure was
- * not about a particular one. It is here because the incident this member comes
- * from was a question about WHICH binary: a `kolu` on PATH is not necessarily
- * the host's kolu, a padi-spawned terminal prepends its own bundled copy, and
- * one of those was an older build that spawned perfectly and knew nothing
- * (juspay/kolu#2146). A reason without the path leaves the reader where the
- * incident started.
+ * `where` is the file that was probed, absolute. It is here because the incident
+ * this member comes from was a question about WHICH binary: a `kolu` on PATH is
+ * not necessarily the host's kolu, a padi-spawned terminal prepends its own
+ * bundled copy, and one of those was an older build that spawned perfectly and
+ * knew nothing (juspay/kolu#2146). A reason without the path leaves the reader
+ * where the incident started.
+ *
+ * It is REQUIRED rather than nullable, which is a bet worth stating: every
+ * server olai can find is one it found on this host's PATH, so there has never
+ * been one to report without a file. The day a server is probed over a socket
+ * or a URL instead, this widens — a nullable that nothing can produce is a
+ * branch nobody can check, and the wire ships with its own client.
  *
  * A server that is simply NOT INSTALLED is not one of these. Nothing failed on
  * a host that is not running kolu, and a panel reporting an absence as a fault
@@ -405,8 +410,8 @@ export const MissingServer = Schema.Struct({
   /** What it is called — the same name the session would have been given it
    *  under, which is the name the agent's own tools would have carried. */
   name: Schema.String,
-  /** The executable that was probed, absolute. `null` when there was none. */
-  where: Schema.NullOr(Schema.String),
+  /** The executable that was probed, absolute. */
+  where: Schema.String,
   /** In the server's or the probe's own words. Never a category. */
   why: Schema.String,
 })

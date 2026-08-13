@@ -91,10 +91,13 @@ function Row(props: { readonly server: MissingServer }) {
       </p>
       {/* WHICH file was asked. The incident this whole feature comes from was
           exactly this question: a `kolu` on PATH is not necessarily the host's
-          kolu, and a padi-spawned terminal prepends its own bundled copy. */}
-      <Show when={props.server.where}>
-        {(where) => <p class="truncate pl-3 text-muted/70" title={where()}>{where()}</p>}
-      </Show>
+          kolu, and a padi-spawned terminal prepends its own bundled copy. It
+          truncates and keeps the whole of it on the `title`, because a store
+          path is longer than this drawer and the tail of one is the half that
+          identifies it. */}
+      <p class="truncate pl-3 text-muted/70" title={props.server.where}>
+        {props.server.where}
+      </p>
     </div>
   )
 }
