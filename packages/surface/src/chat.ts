@@ -152,6 +152,38 @@ export const Ask = Schema.Struct({
 export type Ask = typeof Ask.Type
 
 /**
+ * A NODE a message is about — what "ask agent" on a row arms the composer with.
+ *
+ * The armed thing is an ID and only an id ({@link ../../surface/src/index.ts}'s
+ * `chat.send`): a browser knows which row was clicked and nothing else that will
+ * still be true when the server reads it. Everything below is the SET's answer,
+ * read at the moment the turn is accepted — so the agent is never told a title
+ * that disagrees with the file, and a node archived between arming and sending
+ * refuses the send rather than naming something that has moved.
+ *
+ * The fields are the ones {@link ../../ops/src/query.ts}'s `Found` leads with,
+ * and for its reasons: the id is the handle every olai tool takes, `file:line`
+ * is where a person is pointed, and `path` — the canonical ancestor titles,
+ * outermost first — is what makes a bare title like "order" mean something.
+ * What is deliberately NOT here is the node's CONTENT: a subtree pasted into a
+ * prompt is a copy that stops being true the moment anything writes, and the
+ * agent has `read_node` / `read_subtree` for the live one. That is the same
+ * decision an attachment already makes — the agent is handed the path and reads
+ * the file itself, rather than the bytes riding the prompt.
+ */
+export const NodeContext = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  /** Root-relative, like every other `file:line` olai spells. */
+  file: Schema.String,
+  line: Schema.Int,
+  /** The canonical ancestor titles, outermost first. Empty at the top level of
+   *  an outline, which is the answer rather than a gap in it. */
+  path: Schema.Array(Schema.String),
+})
+export type NodeContext = typeof NodeContext.Type
+
+/**
  * A file the agent rewrote, as the protocol reports it.
  *
  * STRUCTURED, and that is the whole point: ACP sends a tool call's diff as a
@@ -201,6 +233,15 @@ export type FileDiff = typeof FileDiff.Type
  */
 export const Wrote = Schema.Struct({
   sort: Schema.NullOr(Sort),
+  /** The node the write was about, by ID — the reply's own `Applied.id`, which
+   *  is the one thing in this row that names a node rather than describing one.
+   *
+   *  It is here so the row can be a REFERENCE: an olai write is the shape a
+   *  transcript actually contains most often, and until this crossed the wire
+   *  the panel could say *marked done · order the new cabinets* and still have
+   *  nothing to point at. `null` for a reply that carried no id, which is a
+   *  payload this layer reads defensively rather than a case olai produces. */
+  id: Schema.NullOr(Schema.String),
   /** The node the write was about, by title — as the reply names it. */
   title: Schema.String,
   /** Which outline it lives in now, root-relative. `null` for a reply that
@@ -219,8 +260,9 @@ export type Wrote = typeof Wrote.Type
  * A union of six kinds rather than a struct with everything optional, because
  * they are drawn differently and a reader has to switch on something:
  *
- *   - `user` — what was typed, and the names of any pictures sent with it.
- *     Never markdown: it is quoted, not rendered.
+ *   - `user` — what was typed, the names of any pictures sent with it, and the
+ *     nodes it was ABOUT ({@link NodeContext}). Never markdown: it is quoted,
+ *     not rendered.
  *   - `agent` — the agent's prose, accumulated as it streams. Rendered as
  *     markdown once the turn is done, which is a view-time decision.
  *   - `tool` — a tool call, foldable, updated in place by its own id, carrying
@@ -295,6 +337,15 @@ export const ChatEntry = Schema.Struct({
   /** True while the agent is still adding to this entry. The panel shows a
    *  cursor; nothing else depends on it. */
   streaming: Schema.optionalKey(Schema.Boolean),
+  /** `user` only: the nodes this message was ABOUT — what the composer was
+   *  armed with when it was sent, resolved against the set at that moment.
+   *
+   *  A row of the conversation rather than a fact the browser keeps, for the
+   *  reason nothing else in this panel is optimistic: what was sent is what the
+   *  server put here, so two tabs agree and a reload still says which node the
+   *  question was about. It is also what makes the row a reference — the chips
+   *  point back at the rows they were armed from ({@link NodeContext}). */
+  context: Schema.optionalKey(Schema.Array(NodeContext)),
   /** `user` only: the pictures sent with the message, by FILE NAME.
    *
    *  Names and not paths, and not bytes. The agent was handed the tmp path in
@@ -372,6 +423,55 @@ export const Command = Schema.Struct({
 export type Command = typeof Command.Type
 
 /**
+ * An MCP server this conversation was supposed to get and did NOT, and why.
+ *
+ * The whole of `mcp-fail-visible`, on the wire. A server that fails to attach
+ * used to leave one trace — a debug log line — and a session quietly short of
+ * its tools: the panel drew a healthy conversation, the agent could not see
+ * kolu's terminals, and the only way to find out which of those two facts was
+ * true was to read olai's log from outside the app. Making it a member is what
+ * makes it a fact a person can be shown.
+ *
+ * `why` is the SERVER'S OWN SENTENCE wherever there is one — a JSON-RPC error
+ * message, an exec failure's reason — with the probe's framing around it and
+ * nothing invented. That is the field's whole value: "kolu did not attach"
+ * names the symptom every failure shares and is the one thing that never helped
+ * anybody, and the four ways of failing want four different things done about
+ * them (`../../chat/src/kolu.ts`).
+ *
+ * `where` is the file that was probed, absolute. It is here because the incident
+ * this member comes from was a question about WHICH binary: a `kolu` on PATH is
+ * not necessarily the host's kolu, a padi-spawned terminal prepends its own
+ * bundled copy, and one of those was an older build that spawned perfectly and
+ * knew nothing (juspay/kolu#2146). A reason without the path leaves the reader
+ * where the incident started.
+ *
+ * `null` is the one failure that never reached a file, and it is the reason this
+ * field is nullable at all: an environment that names a padi with no `kolu` on
+ * PATH to reach it (`../../chat/src/kolu.ts`). This member shipped with `where`
+ * required on the argument that a server olai can find is one it found on PATH
+ * — true of every reason that comes back from a spawn, and not of the one that
+ * never got to spawn anything. The absence IS the finding there, so it is spelt
+ * as one rather than as a sentinel path that is not a path.
+ *
+ * A server that is simply NOT INSTALLED is not one of these. Nothing failed on
+ * a host that is not running kolu, and a panel reporting an absence as a fault
+ * is a panel a reader learns to ignore — which is the same mistake as saying
+ * nothing, arrived at from the other side.
+ */
+export const MissingServer = Schema.Struct({
+  /** What it is called — the same name the session would have been given it
+   *  under, which is the name the agent's own tools would have carried. */
+  name: Schema.String,
+  /** The executable that was probed, absolute — or `null` when the failure was
+   *  that there was nothing to probe. */
+  where: Schema.NullOr(Schema.String),
+  /** In the server's or the probe's own words. Never a category. */
+  why: Schema.String,
+})
+export type MissingServer = typeof MissingServer.Type
+
+/**
  * Where the conversation stands. Everything the header draws and everything a
  * composer needs to know about whether it may send.
  */
@@ -421,6 +521,23 @@ export const ChatState = Schema.Struct({
   /** The last thing that went wrong where no caller was waiting — a boot that
    *  failed, an agent that died mid-turn. `null` once a turn succeeds. */
   trouble: Schema.NullOr(Schema.String),
+  /**
+   * The MCP servers this conversation was meant to get and did not — see
+   * {@link MissingServer}.
+   *
+   * On the CELL rather than in the transcript, and that is the decision: this
+   * is a standing property of the conversation, like the model it runs on and
+   * the commands it offers, and not something that HAPPENED at a point in it. A
+   * notice row would scroll away under the first answer and be gone by the time
+   * anybody wondered why the agent could not see their terminals — which is the
+   * complaint this member exists to end, arrived at one screenful later.
+   *
+   * Decided per conversation, because the servers are: a padi started after
+   * olai is picked up by the next session, so this empties itself the moment
+   * one attaches. EMPTY is the ordinary case and the one every healthy session
+   * is in — nothing is drawn for it.
+   */
+  missing: Schema.Array(MissingServer),
 })
 export type ChatState = typeof ChatState.Type
 
@@ -436,6 +553,7 @@ export const CHAT_OFF: ChatState = {
   queued: 0,
   asking: 0,
   trouble: null,
+  missing: [],
 }
 
 /** Why a chat verb said no. `OpFailure`'s four kinds already cover it — `busy`

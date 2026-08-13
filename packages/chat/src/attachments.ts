@@ -42,6 +42,8 @@ import { appendFile, mkdtemp, realpath, rm, stat, writeFile } from "node:fs/prom
 import { tmpdir } from "node:os"
 import { basename, join, parse, sep } from "node:path"
 
+import { annotated } from "./prompt.ts"
+
 export interface Attachments {
   /** Write one chunk, and answer with where the whole file is and what it
    *  ended up being called. The first chunk (no `appendTo`) creates it; every
@@ -166,11 +168,7 @@ const NOT_OURS = "that attachment is not part of this conversation"
 export const promptWith = (
   said: string,
   paths: ReadonlyArray<string>,
-): string => {
-  if (paths.length === 0) return said
-  const attached = paths.map((path) => `Attached file: ${path}`).join("\n")
-  return said === "" ? attached : `${said}\n\n${attached}`
-}
+): string => annotated(said, paths.map((path) => `Attached file: ${path}`))
 
 /** What a stored attachment is CALLED — the one rule, so the answer `attach`
  *  gives and the name the transcript row carries cannot come apart. Derived

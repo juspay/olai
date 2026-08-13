@@ -41,9 +41,13 @@
  * The MCP servers a session is given are olai's own internal one — the standard
  * ACP shape, and the only channel the agent has to the ops layer — plus, when
  * this host is running kolu, kolu's terminals ({@link ./kolu.ts}), detected per
- * session rather than at boot. `fs` capabilities are FALSE in both directions
- * on purpose: this is not an editor, and an agent that could write a file whole
- * would be routing around the format. `elicitation.form` is TRUE, and it is
+ * session rather than at boot. A detection that FAILED is an event like any
+ * other (`servers`), so a conversation short of its tools is something the
+ * panel can say rather than something a log knew.
+ *
+ * `fs` capabilities are FALSE in both directions on purpose: this is not an
+ * editor, and an agent that could write a file whole would be routing around
+ * the format. `elicitation.form` is TRUE, and it is
  * what makes any of the above happen at all: without it the Claude Code adapter
  * puts `AskUserQuestion` in `disallowedTools`, so the agent cannot ask a
  * structured question — it has to guess, or write the question into prose and
@@ -93,7 +97,7 @@ import {
   toolNameIn,
 } from "./interpret.ts"
 import * as Kolu from "./kolu.ts"
-import { streamOver } from "./pipes.ts"
+import { streamOver, unstartable } from "./pipes.ts"
 import * as Questions from "./questions.ts"
 import { wroteIn } from "./wrote.ts"
 
@@ -501,6 +505,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       emit({ _tag: "model", name: name ?? id })
     }
 
+    /** The agent's own file would not run, said once for the two doors that
+     *  report it — a malformed spawn call, and the `error` event an exec
+     *  failure actually arrives on. It names the COMMAND, because the whole
+     *  value of this reason over the broken pipe that follows it is that a
+     *  person can see what they set. */
+    const notStarted = (why: string): AgentGone =>
+      new AgentGone({ why: `could not start the agent \`${options.command}\`: ${why}` })
+
     const start = (): Effect.Effect<Live, AgentGone> =>
       Effect.gen(function*() {
         const child = yield* Effect.try({
@@ -509,11 +521,40 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               cwd: options.cwd,
               stdio: ["pipe", "pipe", "pipe"],
             }),
-          catch: (cause) =>
-            new AgentGone({
-              why: `could not start the agent \`${options.command}\`: ${reasonOf(cause)}`,
-            }),
+          catch: (cause) => notStarted(reasonOf(cause)),
         })
+
+        /**
+         * The same refusal, arriving the way it actually arrives.
+         *
+         * `OLAI_ACP_AGENT` is a path a PERSON sets, which makes it the likeliest
+         * thing here to be wrong — and an exec that fails does so after `spawn`
+         * has returned, so the `catch` above has never once seen one. What
+         * happened instead was both halves of {@link ../pipes.ts}'s argument at
+         * their worst: an uncaught `error` event dumped a stack trace on olai's
+         * stderr, and the refusal a person got was ``initialize` failed: Cannot
+         * call write after a stream was destroyed` — our end of a dead pipe,
+         * where the sentence they needed was the name of the file that is not
+         * there.
+         *
+         * Raced against the handshake rather than checked after it, so which
+         * reason wins is not a question about the order two failures happen in.
+         *
+         * SUBSCRIBED HERE, on the line after the spawn, rather than when the
+         * race runs — `Effect.promise` does not call its thunk until the fiber
+         * reaches it, and between here and there sit the stderr wiring, the
+         * exit handler and `connect`. The exec `error` lands a millisecond or
+         * so after `spawn` returns, so that window has been winning; it does
+         * not have to keep winning, and a listener attached too late is both an
+         * uncaught exception and the destroyed-stream sentence coming back.
+         * `kolu.ts` attaches on the line after its own spawn for the same
+         * reason.
+         */
+        const started = unstartable(child)
+        const failedToStart: Effect.Effect<never, AgentGone> = Effect.flatMap(
+          Effect.promise(() => started),
+          (why) => notStarted(why),
+        )
 
         // The agent's stderr is a log sink, not a channel: the adapter
         // redirects all its console output there, and a pipe nobody drains
@@ -569,23 +610,28 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             onElicitation(context.params, context.signal))
           .connect(streamOver(child))
 
-        const initialized = (yield* ask(
-          connection,
-          methods.agent.initialize,
-          {
-            protocolVersion: PROTOCOL,
-            clientCapabilities: {
-              // Not an editor: the agent reaches the outlines through the ops
-              // tools or not at all.
-              fs: { readTextFile: false, writeTextFile: false },
-              // A form we can draw, and deliberately not a URL: `elicitation.url`
-              // sends a person out of the panel to a page olai knows nothing
-              // about, which is a different bargain and its own decision. An
-              // empty object is how the protocol spells "yes" here.
-              elicitation: { form: {} },
+        const initialized = (yield* Effect.raceFirst(
+          ask(
+            connection,
+            methods.agent.initialize,
+            {
+              protocolVersion: PROTOCOL,
+              clientCapabilities: {
+                // Not an editor: the agent reaches the outlines through the ops
+                // tools or not at all.
+                fs: { readTextFile: false, writeTextFile: false },
+                // A form we can draw, and deliberately not a URL: `elicitation.url`
+                // sends a person out of the panel to a page olai knows nothing
+                // about, which is a different bargain and its own decision. An
+                // empty object is how the protocol spells "yes" here.
+                elicitation: { form: {} },
+              },
+              clientInfo: { name: "olai", version: "0.1.0" },
             },
-            clientInfo: { name: "olai", version: "0.1.0" },
-          },
+          ),
+          // A handshake against a process that never ran cannot win this, and
+          // the point is which REASON is reported when it loses.
+          failedToStart,
         )) as InitializeResponse
 
         const capabilities = initialized.agentCapabilities
@@ -639,17 +685,25 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  is picked up by the next conversation instead of the next restart. */
     const servers = Effect.map(
       Kolu.detect,
-      // `serverOf` takes the half a session needs and drops the reason a
-      // refusal carries. That is deliberate for now — nothing draws it, and
-      // `mcp-fail-visible` is the item that will. When it does, this is the
-      // line that keeps the whole `Detected` rather than re-running the probe
-      // to ask again.
+      // ONE probe answers both halves. `serverOf` takes what a session is
+      // handed, and `missingFrom` takes what a person is owed about the one it
+      // was not — which used to be dropped here on the grounds that nothing
+      // drew it. Something does now (`mcp-fail-visible`), and it reads the same
+      // `Detected` rather than probing a second time: two probes could
+      // disagree, and the one a session was opened on is the one that is true
+      // about it.
       (found) => {
         const handing = mcpServersOf(options.tools(), Kolu.serverOf(found))
         // Remembered as they are handed over, because "the tools we gave this
         // conversation" is exactly the set the permission handler allows
         // without asking — and it is decided per conversation.
         given = handing.map((server) => server.name)
+        const absent = Kolu.missingFrom(found)
+        // Before the session, always — including when there is nothing to
+        // report. An empty list is the news on a conversation that has just
+        // been given what the last one lacked, and a panel only ever told about
+        // failures would go on drawing a fixed one.
+        emit({ _tag: "servers", missing: absent === null ? [] : [absent] })
         return handing
       },
     )

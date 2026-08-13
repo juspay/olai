@@ -457,6 +457,23 @@
   text-decoration: underline;
 }
 
+/* An id the agent named, made pressable (`chat/refs.ts`). It is a `<code>` in
+ * rendered markdown — markup this codebase did not author and cannot put a
+ * class on — which is the whole reason this rule is here rather than in a
+ * component. What it adds to the chip a code span already is: the accent, so it
+ * reads as a reference rather than as a quoted string, and a pointer. The
+ * background stays the code chip's, because that is what it IS — an id the
+ * agent wrote in backticks — and a second look would claim this panel had
+ * rewritten the sentence. */
+.olai-md code[data-node-ref] {
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.olai-md code[data-node-ref]:hover {
+  text-decoration: underline;
+}
+
 /* A heading's own address (`markdown/anchors.ts`). Everything here is either a
  * scale value or a statement that this is not type at all:
  *

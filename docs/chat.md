@@ -49,6 +49,48 @@ question arrives as a form in the conversation, and nothing times out.
 Dismissing one is an answer too — the agent is told you would not say, never
 handed a choice you did not make.
 
+## Asking about one node
+
+A row's `•••` menu offers **Ask agent**, and choosing it opens the panel with
+that node in the box — a chip above what you type, which you can take off again
+before you send. The turn is then about THAT node rather than about whatever
+your sentence re-describes: "why is this waiting?" needs no title in it, and two
+nodes with the same title are not a thing you have to disambiguate in prose.
+
+What the agent is handed is the node's **id**, with its title, its `file:line`
+and the titles it hangs under, as one line under your message — the same
+arrangement an attached file gets, and for the same reason: the id is the handle
+every one of olai's tools takes, so the agent can read the node, mark it, note
+it or move it through the same gate as always. What it is NOT handed is a copy
+of the node's contents: a subtree pasted into a prompt stops being true the
+moment anything writes, and the agent has `read_node` for the live one.
+
+The chip says the title, but the title is not what is sent. Rename the node
+between arming and sending and the agent gets the name it has now; archive it
+and the send is refused, in the same words a tool call gets for an id nothing
+declares — because a question about a node is not one to ask without it.
+
+## Pointing back at a node
+
+Ids in the panel are pressable, and pressing one shows you that node: the row
+scrolls into view and says it is the one being talked about. If it is not on the
+page you are reading — another outline, a branch you have collapsed — you go to
+its own page instead.
+
+Three things in the conversation are ids, and none of them is a syntax anybody
+had to invent:
+
+- the **chips on your own message**, which are the nodes you asked about;
+- **what a write changed** — every edit the agent makes through olai's tools
+  draws a line naming the node, and that name is the node;
+- **an id the agent wrote in backticks**, which is how it spells one anyway,
+  because that is how every one of these tools describes its own arguments. A
+  backticked word becomes pressable exactly when the outlines you have loaded
+  declare it: `notes.md` and `--commit=off` stay what they are. An id that
+  names a MIRROR shows you the node it is a placement of — the same place a
+  `see` to that mirror lands, and the only one there is: a mirror is drawn
+  wherever its target is, and it is the target a row stands for.
+
 ## What it shows when it changes something
 
 A tool call is one folded line, and what the call CHANGED is not folded away —
@@ -116,3 +158,48 @@ rather than assumed: olai starts the `kolu` it found and asks it to read
 something only a running daemon can answer, because a `kolu` on a PATH is not
 always the one this host is running, and a wrong build will start perfectly
 well and know nothing.
+
+## When a tool server does not arrive
+
+**A server that fails to attach is on screen, not in a log.** If there is a
+`kolu` on this host's PATH and it would not answer, the panel says so under the
+header — the name, and the reason the probe or the server itself gave:
+
+```
+● kolu is missing from this conversation
+  it refused to read the daemon's identity: surface-mcp: padi transport down
+  /nix/store/…/bin/kolu
+```
+
+The reason is the point. Every way of failing looks the same from the outside —
+the agent simply has fewer tools — and they want different things done about
+them: a padi that is not running is one thing, a `kolu` that is an older build
+missing half its verbs is another, a file on PATH that will not run at all is a
+third, and one that reads and never answers is a fourth. (There is a fifth
+sentence, `talking to it failed: …`, and seeing it means something unusual: the
+reason a broken pipe reached you before the reason the file would not run.) The
+path is there for the same reason: a padi-spawned terminal prepends its own
+bundled copy of kolu, so *which* one answered is the question this usually turns
+out to be — and the one failure with no path to name says so instead.
+
+**`PADI_SOCKET` counts as somebody saying kolu should be here.** If the variable
+is set — a kolu terminal sets it for what it starts, and a person who set it by
+hand meant it — and there is no `kolu` on the PATH this server was started with,
+that is a miss and the panel says so. It is worth knowing because *olai's* PATH
+is not your shell's: run as a systemd user service (the home-manager unit), it
+inherits neither, so a kolu you can run in a terminal is not necessarily one
+this process can see. That was the original mystery from the other side.
+
+It is per conversation, because the detection is: start a padi and the next
+conversation has the terminals, with nothing to restart and nothing left on
+screen saying otherwise.
+
+**A machine that is simply not running kolu sees none of this**, and that is
+deliberate — nothing failed. What the panel reports is a tool server that was
+here and would not work, or one something said would be; never the absence of
+one that was never installed.
+
+What olai cannot report is a server it handed over that the *agent* then failed
+to connect to: ACP answers `session/new` with a session id and says nothing per
+server, so that is not a fact this end is ever told. The failures shown are the
+ones olai found itself.

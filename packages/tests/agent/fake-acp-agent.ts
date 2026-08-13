@@ -18,6 +18,7 @@
  *
  * Behaviour is keyed on the prompt text, so a scenario asks for what it needs:
  *
+ *   name <id>    say that id in backticks, and nothing else
  *   done <id>    call `set_done` on that node, then say so
  *   add <title>  call `add_node` under the first outline's first root
  *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
@@ -762,6 +763,45 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
     })
     say(`rewrote \`${file}\`.`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // WHAT THE AGENT RECEIVED, asserted by the agent itself. A node armed on a
+  // row reaches a prompt as one line naming its id (`@olai/chat`'s
+  // `context.ts`), and the whole claim of that design is that the id is the
+  // handle olai's own tools take — so this reads the line, calls `read_node`
+  // with what it found, and says the TITLE that came back. A scenario that
+  // sees the right title has proof the id crossed the wire and resolved: no
+  // spelling of the prompt that lost it could produce that sentence.
+  if (verb === "context") {
+    const named = [...text.matchAll(/^Node in context: `([^`]+)`/gm)].map(
+      (match) => match[1] ?? "",
+    )
+    if (named.length === 0) {
+      say("no node in context.")
+      respond(id, { stopReason: "end_turn" })
+      return
+    }
+    for (const node of named) {
+      const read = await useTool("read_node", { id: node })
+      const found = read["structuredContent"] as { title?: string } | undefined
+      // A SENTENCE the browser could not have written on its own — the chip on
+      // the message carries the title too, so a scenario matching the bare
+      // title would pass on a build that never put the node in the prompt at
+      // all. (It did, until a sabotage run said so.)
+      say(`\`${node}\` is the node titled ${found?.title ?? "?"}.\n`)
+    }
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // An id in PROSE and nothing else — no tool call, no write. What is under
+  // test is the panel's reading of a backtick, and the id a scenario wants to
+  // see named is not always one a tool would accept (a placement is the case
+  // this exists for: `set_done` refuses one, and an agent still writes them).
+  if (verb === "name") {
+    say(`look at \`${argument}\`.`)
     respond(id, { stopReason: "end_turn" })
     return
   }

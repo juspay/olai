@@ -216,6 +216,37 @@ made by a process it has never heard of". They are `@scratch:` for the usual
 reason — the agent writes — and the child process is killed in `After` beside
 the server, before the directory both were watching is removed.
 
+## The claim only the AGENT can make
+
+`features/node_context.feature` is about a row handing the agent a node, and
+what has to be proved is not that a chip appeared — it is that the node reached
+the AGENT, in a form it can act on. No browser can say that. So the scripted
+agent says it: its `context` verb reads the id out of its own prompt, calls the
+real `read_node` with it over the real MCP route, and reports the title that
+came back. A sentence like *`order` is the node titled order the new cabinets*
+cannot be produced by a build where the id never left the browser.
+
+The sentence had to be picked carefully, and a sabotage run is what said so: the
+chip on the sent message carries the node's TITLE too, so a step matching the
+bare title anywhere in the panel passed with the context stripped out of the
+prompt entirely. What it asserts on now is the agent's own phrasing, scoped to
+the answer. The same run caught an absence asserted before the thing it was
+about had arrived. Both are the ordinary failure of an e2e assertion — passing
+for a reason that is not the feature — and both are cheap to find by breaking
+the code on purpose and expensive to find any other way.
+
+Two more of that shape were found by review, and both are pinned here now. A
+press that should stay on the page asserts the ADDRESS afterwards: "the row lit
+up" is also true of a row on the page a navigation just landed on, so the
+scenarios that mean *in place* now say which page they are still on — and the
+one that means *go there* was already saying it. And a PLACEMENT the agent named
+is its own scenario, written with `I rewrite` rather than into the fixture,
+because it is that scenario's subject and nobody else's: the mirror id has to
+arrive at the node it shows, or the reference names a row that does not exist.
+The scripted agent's `name <id>` verb exists for it — an id in prose, no tool
+call, because the id a scenario wants named is not always one a tool would
+accept.
+
 ## Colour, which is the one thing a step may not write down
 
 `features/theming.feature` is about fifteen palettes, and not one of its steps

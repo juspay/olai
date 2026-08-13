@@ -77,6 +77,7 @@ import {
 import { Duration, Effect, Result, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
+import { contextFor } from "./context.ts"
 import { inverseOf, requestFor } from "./edit.ts"
 import {
   type Change as CollectionChange,
@@ -432,8 +433,23 @@ export const bind = (
       },
       procedures: {
         chat: {
+          // The ids the composer was armed with become NODES here, over the
+          // same reading a keystroke's write is resolved against
+          // ({@link ./context.ts}) — so what the agent is told is the set's
+          // answer rather than the tab's, and an id nothing declares refuses
+          // the send instead of quietly sending a message with no subject.
           send: ({ input }) =>
-            withChat((open) => open.send(input.text, input.attachments ?? [])),
+            withChat((open) =>
+              Effect.flatMap(wiring.ops.read, (at) => {
+                const context = contextFor(at, input.context ?? [])
+                if (Result.isFailure(context)) return Effect.fail(context.failure)
+                return open.send(
+                  input.text,
+                  input.attachments ?? [],
+                  context.success,
+                )
+              })
+            ),
           // The chunk goes straight through, and so does the answer: what a
           // chunk MEANS — which file it continues, whether that file is this
           // conversation's, what the file ends up being called — belongs to

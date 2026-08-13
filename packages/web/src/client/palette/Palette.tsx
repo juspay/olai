@@ -21,6 +21,8 @@ import {
 
 import type { OpFailure } from "@olai/surface"
 
+import { releaseArmed, restoreArmed } from "../chat/armed.ts"
+
 import {
   resetPanelWidths,
   setChatOpen,
@@ -95,13 +97,28 @@ export function Palette(props: {
     close()
   }
 
+  /**
+   * `>` sends, and it sends what the COMPOSER is holding as well.
+   *
+   * This is the second door to one message. A node armed from a row
+   * (`../chat/armed.ts`) is part of the message being written, not part of the
+   * box it is being written in — so a send from here that ignored the strip
+   * would ask the agent a question with the subject left off, and leave the
+   * chip sitting in a composer whose message has already gone.
+   *
+   * It follows the composer's own order for the same reason
+   * (`../chat/Composer.tsx`): release before the call, put back what a refusal
+   * threw away, and only into a strip nobody has armed since.
+   */
   const sendAsk = (text: string) => {
     if (text.trim() === "") return
     setAskError(null)
+    const context = releaseArmed()
     run(
-      olai.procedures.chat.send({ text }),
+      olai.procedures.chat.send({ text, context }),
       (failure: OpFailure) => {
         setAskError(failure.message)
+        restoreArmed(context)
         // Leave the palette open so the refusal is visible; open the panel
         // so the reader can also recover there.
         setChatOpen(true)

@@ -37,15 +37,20 @@
  * that costs is bounded by the clock instead of by the agent.
  */
 
+import { nodeNamed } from "@olai/format"
 import type { ChatEntry } from "@olai/surface"
 import { createScheduled, throttle } from "@solid-primitives/scheduled"
-import { createMemo, Match, Show, Switch } from "solid-js"
+import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 
 
 import { Attachments } from "./Attachments.tsx"
+import { ContextChips } from "./ContextChips.tsx"
+import { useDerived } from "../derived.tsx"
+import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { TESTID } from "../testids.ts"
 import { AskForm } from "./AskForm.tsx"
+import { markNodeRefs } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import type { Chat } from "./state.ts"
 import { ToolFrame } from "./ToolFrame.tsx"
@@ -65,6 +70,11 @@ export function Entry(props: {
   readonly chat: Chat
 }) {
   const due = createScheduled((run) => throttle(run, FRAME_MS))
+  const derived = useDerived()
+  /** The element the agent's rendered answer lands in, so the ids it names can
+   *  be found in it ({@link ./refs.ts}). A ref rather than a query on the pane:
+   *  the pass is over ONE message, and it re-runs while that message streams. */
+  let said: HTMLDivElement | undefined
   /** The text to draw: the current one whenever the throttle says so, and the
    *  last one it allowed otherwise. A settled entry passes straight through —
    *  the final text must never be the one the throttle happened to skip. */
@@ -73,6 +83,37 @@ export function Entry(props: {
     if (props.entry.streaming !== true) return text
     return due() ? text : previous
   })
+
+  // ONLY for the agent's own prose, which is the only row that has rendered
+  // markdown in it — and `kind` never changes for an entry, so this is a
+  // question asked once rather than a `said === undefined` bail inside an
+  // effect every row of a long transcript would keep live. It also keeps the
+  // markdown chunk's fetch where it was: reading `markdownReady()` is what
+  // ASKS for the pipeline (`../markdown/chunk.ts`), and a panel of user
+  // messages should no more request it than a page of outline rows does.
+  //
+  // It re-runs on three things, because three things move: the sentence as it
+  // streams, the SET (an id is a reference because a node with that id is
+  // loaded, and files are written while a panel is open), and the pipeline
+  // landing — until which the element holds the answer's own text, `pre-wrap`
+  // and with no code spans in it at all, so a pass that did not track it would
+  // run once against that text and never again.
+  if (props.entry.kind === "agent") {
+    createEffect(() => {
+      shown()
+      markdownReady()
+      const indexes = derived()
+      if (said === undefined || indexes === undefined) return
+      // The format's own rule for what an id names, and what it RESOLVES TO —
+      // the one a `see` link and the composer's chip use. `nodeNamed` follows
+      // a placement to the node standing at it, so a span saying `echo` is
+      // marked with `order`: rows carry the node they SHOW, so the placement's
+      // own id names no row and every press of it would leave the page for a
+      // node that is right there. Asking whether it merely resolved (`!==
+      // undefined`, or `byId.has`) is the same bug one step earlier.
+      markNodeRefs(said, (id) => nodeNamed(indexes, id)?.node.id ?? null)
+    })
+  }
 
   return (
     <div
@@ -84,6 +125,12 @@ export function Entry(props: {
     >
       <Switch>
         <Match when={props.entry.kind === "user"}>
+          {/* What the message was ABOUT, above what it said — the order the
+              composer had them in, and the order they were meant in: the node
+              is the subject and the words are what was asked about it. Still
+              pressable here, which is the other half of this feature: the row
+              a question was asked from is one press away from the answer. */}
+          <ContextChips nodes={props.entry.context ?? []} />
           {/* The pictures first, then the words — which is the order they were
               put in, and it keeps a message whose whole content is a
               screenshot from being an empty grey box with a chip under it. */}
@@ -96,24 +143,31 @@ export function Entry(props: {
         </Match>
 
         <Match when={props.entry.kind === "agent"}>
-          <Markdown
-            source={shown()}
-            from={AGENT_WROTE_IT}
-            live={props.entry.streaming === true}
-            // `olai-md-compact`: an answer is drawn in a 26rem drawer beside
-            // the page, not as a page — so it takes the tighter spacing scale
-            // and the heading ceiling, the same ones a note takes
-            // (`theme/scale.ts`). Without it an agent opening with a `#`
-            // sets a 2rem heading in a column half that wide.
-            class="olai-md-compact text-sm"
-            testid={TESTID.chatSaid}
-          />
-          {/* The caret is CSS (styles.css), hung off the last block of the
-              rendered answer. An element of its own would have to go after the
-              markdown — which means on a line of its own, under the paragraph
-              it belongs to, since markdown decides what the last block is and a
-              block cannot be reached into from out here. `::after` is reaching
-              into it, which is exactly what was wanted. */}
+          {/* A wrapper with no styling of its own, purely so the rendered
+              answer is an element this component can reach into: `Markdown`
+              owns its own div (it is the one place `innerHTML` is written) and
+              what is inside it belongs to no component at all. */}
+          <div ref={said}>
+            <Markdown
+              source={shown()}
+              from={AGENT_WROTE_IT}
+              live={props.entry.streaming === true}
+              // `olai-md-compact`: an answer is drawn in a 26rem drawer beside
+              // the page, not as a page — so it takes the tighter spacing scale
+              // and the heading ceiling, the same ones a note takes
+              // (`theme/scale.ts`). Without it an agent opening with a `#`
+              // sets a 2rem heading in a column half that wide.
+              class="olai-md-compact text-sm"
+              testid={TESTID.chatSaid}
+            />
+            {/* The caret is CSS (styles.css), hung off the last block of the
+                rendered answer. An element of its own would have to go after
+                the markdown — which means on a line of its own, under the
+                paragraph it belongs to, since markdown decides what the last
+                block is and a block cannot be reached into from out here.
+                `::after` is reaching into it, which is exactly what was
+                wanted. */}
+          </div>
         </Match>
 
         <Match when={props.entry.kind === "tool"}>
