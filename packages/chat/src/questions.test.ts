@@ -7,11 +7,11 @@
  * registry lived inside the ACP client's closure; here it is one test.
  */
 
+import type { Form } from "@olai/acp"
 import { UsageFailure } from "@olai/format"
 import type { AskField, AskOutcome } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
-import type { Form } from "./asks.ts"
 import { make } from "./questions.ts"
 
 const choice: AskField = {

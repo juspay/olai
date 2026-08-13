@@ -21,10 +21,9 @@
  * see; here it is four lines of test.
  */
 
+import { contentOf, type Form, Refused } from "@olai/acp"
 import { UsageFailure } from "@olai/format"
 import type { AskAnswer, AskField, AskOutcome } from "@olai/surface"
-
-import { contentOf, type Form } from "./asks.ts"
 
 /** How a question ended: what the row records, and what goes on the wire. The
  *  two are computed together and travel together, so a row that says "answered"
@@ -123,8 +122,13 @@ export const make = (
     // Typed against the schema that asked for it BEFORE the question stops
     // waiting, so an answer that does not fit leaves it up rather than
     // recording one the agent was never sent.
+    //
+    // THE SEAM: the protocol package refuses in its own one word (`Refused`),
+    // because the domain's vocabulary must not enter a leaf that speaks ACP —
+    // and this caller renders refusals in the domain's, so the translation
+    // happens here, once, with nothing lost but the class.
     const content = contentOf(waiting.fields, answers)
-    if (content instanceof UsageFailure) return content
+    if (content instanceof Refused) return new UsageFailure({ reason: content.reason })
     waiting.settle({ outcome: { how: "answered", answers }, content })
     return "settled"
   }

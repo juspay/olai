@@ -1,0 +1,21 @@
+{
+  "name": "@olai/acp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//exports": "Two entries. `./wire` is the vocabulary WITHOUT the payload readers — the ask and diff shapes travel olai's wire, so @olai/surface re-exports them and the browser ends up importing this half; the main entry adds the projections over the protocol's own payloads, which only @olai/chat has any business reading. The same carve-out @olai/git makes with `./state`, for the same direction of dependency — the wire half reachable on its own.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./wire": "./src/wire.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "A LEAF that speaks ACP: `effect` for the schemas the wire half is declared in, and the protocol SDK for the payload TYPES the projections read — type-only imports, so no zod and no runtime SDK code enters this package's closure (the subprocess that runs the protocol lives in @olai/chat, which is where the SDK's runtime and its zod peer stay declared). No @olai/* sibling, deliberately: the domain's words must not enter — this package refuses in its own `Refused`, and @olai/chat translates to `UsageFailure` at the seam. Machine-checked by src/manifest.test.ts, not remembered.",
+  "dependencies": {
+    "@agentclientprotocol/sdk": "^1.3.0",
+    "effect": "4.0.0-beta.106"
+  }
+}

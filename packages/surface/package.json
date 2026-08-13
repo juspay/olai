@@ -11,8 +11,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "@olai/format only — the surface is a declaration, and the only olai types on the wire are the format's own. @kolu/surface is absent on purpose: it is hydrated from the Nix store rather than installed from bun.lock, so it is declared once for the whole tree in the root package.json (see bunfig.toml).",
+  "//dependencies": "@olai/format for the domain's wire vocabulary, and @olai/acp's `./wire` subpath for the protocol's — the surface is a declaration, and every olai type on the wire is owned by the package that speaks it and re-exported here (RepoState through format, the ask shapes through acp). @kolu/surface is absent on purpose: it is hydrated from the Nix store rather than installed from bun.lock, so it is declared once for the whole tree in the root package.json (see bunfig.toml).",
   "dependencies": {
+    "@olai/acp": "workspace:*",
     "@olai/format": "workspace:*",
     "effect": "4.0.0-beta.106"
   }

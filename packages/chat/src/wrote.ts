@@ -46,7 +46,7 @@ interface Reply {
  * when that output is not one.
  *
  * `undefined` rather than `null`, and that is the sibling convention rather
- * than a preference: {@link ./diffs.ts} answers the same way about the same
+ * than a preference: `@olai/acp`'s `diffsOf` answers the same way about the same
  * report, and both feed fields where `undefined` already MEANS something — "no
  * report said anything about this", which is the protocol's own rule for every
  * other field of a tool update. Two spellings of nothing would need converting

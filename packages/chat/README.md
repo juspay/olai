@@ -36,10 +36,8 @@ second copy of the transcript would be a second thing to be wrong.
 | `interpret.ts` | what the CLAUDE CODE adapter means by what it sends: which permission requests are answered without asking, `_meta.claudeCode.toolName`, the CLI `init` message it forwards, which config option is the model. Pure, so the adapter-specific VALUES are one file to read when olai is pointed at another agent |
 | `kolu.ts` | whether this host is running kolu, the stdio server to hand a session if it is — and, if it is not and should have been, the sentence saying why not |
 | `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages, and why a child never ran to have any — the two things the two subprocesses above have in common |
-| `asks.ts` | the two payloads that ask a PERSON something, projected into one form — and the answer projected back |
-| `questions.ts` | the questions on the wire, and the one rule about them: each ends exactly once, however it ends |
+| `questions.ts` | the questions on the wire, and the one rule about them: each ends exactly once, however it ends. Also the SEAM where `@olai/acp`'s own refusal word (`Refused`) becomes the domain's (`UsageFailure`) |
 | `events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
-| `diffs.ts` | the protocol's `diff` blocks, read as data: which file was rewritten, what it said, what it says now — and the path spelled root-relative the way every `file:line` here is |
 | `wrote.ts` | the other half of the same question, for a write that went through the ops layer: the reply's own classification of the change, its node, and the rollup's nudge. Never a diff — a `.jsonl` diff is one enormous line |
 | `transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
 | `attachments.ts` | the conversation's tmp directory: where an attached file lands, what a chunked upload may continue, and what the prompt says about it |
@@ -59,8 +57,9 @@ print the first half of a long output twice.
 used to be flattened into that same progress string as the sentence `— <path>`,
 on the argument that the outline is where an olai edit shows up anyway — and the
 second half of that stopped being true, because a direct edit to a `.md` or a
-source file shows up in no outline at all. So `diffs.ts` reads those blocks into
-`FileDiff`s and the panel draws the change; the client computes the line diff
+source file shows up in no outline at all. So `@olai/acp`'s `diffsOf` reads
+those blocks into `FileDiff`s and the panel draws the change; the client
+computes the line diff
 from the two texts, which is what keeps the wire carrying facts rather than a
 rendering. A write through the OPS layer gets the opposite treatment and for the
 commit panel's own reason — a `.jsonl` diff is one enormous line per node — so
@@ -104,13 +103,14 @@ afterwards saying what was asked and what was chosen:
 - **`session/request_permission`**: a list of named options for one tool call,
   which is a single-select with the options already spelled out.
 
-`asks.ts` projects both and is pure, so what a form looks like for a question
+`@olai/acp` projects both, purely, so what a form looks like for a question
 nobody has asked yet is a unit test. A property whose type this panel has no
 control for makes the whole request UNDRAWABLE: it is declined and said out
 loud, because half a form is one somebody submits believing they answered all of
-it. Both directions answer the same way the rest of olai refuses things — a
-value, or a `UsageFailure` saying why not — so a question that cannot be drawn
-and an answer that does not fit its question are one kind of no.
+it. Both directions answer with a value or that package's own `Refused` — one
+kind of no for a question that cannot be drawn and an answer that does not fit
+its question — and `questions.ts` translates it into the `UsageFailure` the
+rest of olai refuses things with, at the seam, once.
 
 `questions.ts` holds the promises, and has one rule: a question ends exactly
 once. Somebody answers in one tab while somebody dismisses in another, while the
@@ -150,7 +150,8 @@ permission request itself carries a display title, not a name), which is the one
 agent-specific `_meta` this package reads and the reason it is read.
 
 The rule itself is a PURE FUNCTION — `interpret.ts`,
-`allowedWithoutAsking(tool, given, options)` — for the reason `asks.ts` is one:
+`allowedWithoutAsking(tool, given, options)` — for the reason `@olai/acp` is
+pure:
 what stops this panel approving its own permissions should be a unit test on a
 payload rather than a branch you can only reach by starting a subprocess and
 talking it into asking. The e2e suite drives both requests through a real agent

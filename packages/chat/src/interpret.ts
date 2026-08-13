@@ -14,14 +14,14 @@
  * happens then is that a person is asked. **Nothing is ever approved by failing
  * to recognise it.**
  *
- * Everything is a PURE function over a payload — the {@link ./asks.ts} pattern,
- * for the reason that pattern exists: the rule that stops this panel approving
+ * Everything is a PURE function over a payload — `@olai/acp`'s pattern, for
+ * the reason that pattern exists: the rule that stops this panel approving
  * its own permissions is a function with unit tests rather than a branch
- * reachable only by starting a subprocess and talking it into asking. Which of
- * the two files a new reader belongs in is not which payload it reads but WHO
- * has to have sent it: `asks.ts` draws the protocol's own two ways of asking a
- * person something, from any agent; this is the file that is wrong about a
- * different one.
+ * reachable only by starting a subprocess and talking it into asking. Which
+ * side of that package boundary a new reader belongs on is not which payload
+ * it reads but WHO has to have sent it: `@olai/acp` reads the protocol's own
+ * shapes, true of any agent — which is why it is a package and this is not —
+ * and this is the file that is wrong about a different one.
  *
  * What is NOT here, and cannot be: the things `agent.ts` assumes this adapter
  * DOES rather than says — that a `tool_call` is announced before the permission
