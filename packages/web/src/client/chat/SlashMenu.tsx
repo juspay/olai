@@ -14,6 +14,7 @@
 import type { Command } from "@olai/surface"
 import { createSignal, For, onCleanup, onMount } from "solid-js"
 
+import { LIFTS, RAISED } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 
 export function SlashMenu(props: {
@@ -70,7 +71,7 @@ export function SlashMenu(props: {
 
   return (
     <ul
-      class="absolute bottom-full left-2 right-2 z-50 mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule bg-paper p-1 shadow-lg"
+      class={`absolute bottom-full left-2 right-2 z-50 mb-1 max-h-64 list-none overflow-y-auto rounded-xl ${RAISED} p-1`}
       data-testid={TESTID.chatSlashMenu}
     >
       <For each={props.commands}>
@@ -78,8 +79,8 @@ export function SlashMenu(props: {
           <li>
             <button
               type="button"
-              class={`block w-full truncate rounded px-2 py-1 text-left text-xs ${
-                index() === at() ? "bg-rule" : ""
+              class={`block w-full truncate rounded-lg px-2 py-1 text-left text-xs ${
+                index() === at() ? "bg-picked" : LIFTS
               }`}
               data-testid={TESTID.chatSlashCommand}
               data-command={command.name}

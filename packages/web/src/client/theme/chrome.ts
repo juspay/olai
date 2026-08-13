@@ -17,6 +17,7 @@
  * catches it up.
  */
 
+import { depthOf } from "./depth.ts"
 import type { Palette } from "./palettes.ts"
 
 const NAME = "theme-color"
@@ -36,7 +37,16 @@ const tag = (): Element => {
   return meta
 }
 
-/** Put the chrome in this palette. */
+/**
+ * Put the chrome in this palette.
+ *
+ * The CANVAS rather than the palette's paper, and it is the depth grammar's own
+ * answer: what actually meets this strip is the app header, and the header is a
+ * floating strip of the GROUND (`../surface.ts`'s `BAR`) rather than a raised
+ * panel. On a dark palette the two are the same colour, since the canvas IS the
+ * paper there; on a light one they are a step apart, and paper would leave a
+ * seam across the top of an installed window — a white bar over a tonal one.
+ */
 export const paintChrome = (palette: Palette): void => {
-  tag().setAttribute("content", palette.colors.paper)
+  tag().setAttribute("content", depthOf(palette).surfaces.canvas)
 }

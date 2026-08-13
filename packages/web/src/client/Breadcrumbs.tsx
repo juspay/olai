@@ -21,6 +21,7 @@ import { For, Show } from "solid-js"
 
 import { NodeTitle } from "./NodeTitle.tsx"
 import { Link } from "./router.tsx"
+import { LIFTS } from "./surface.ts"
 import { TESTID } from "./testids.ts"
 import { TARGET } from "./touch.ts"
 
@@ -32,8 +33,8 @@ import { TARGET } from "./touch.ts"
  *  EXPORTED, because a day page heads each group with the same kind of link to
  *  the same kind of place (./day/DayPage.tsx). Two identical strings would be
  *  two chances for one of them to stop being a target. */
-export const CRUMB = `inline-flex ${TARGET} items-center rounded px-1 ` +
-  "text-inherit no-underline hover:bg-rule hover:text-ink md:min-h-0"
+export const CRUMB = `inline-flex ${TARGET} items-center rounded-lg px-1.5 ` +
+  `text-inherit no-underline ${LIFTS} hover:text-ink md:min-h-0`
 
 export function Breadcrumbs(props: {
   /** The outline the trail roots at. Left out where the screen has already

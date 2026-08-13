@@ -23,6 +23,7 @@
 import { isPicture } from "@olai/format"
 import { createMemo, For, onCleanup, Show } from "solid-js"
 
+import { CARD } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { previewOf, sizeText } from "./previews.ts"
 
@@ -70,7 +71,7 @@ function Attachment(props: {
 
   return (
     <li
-      class="flex items-center gap-1 rounded border border-rule bg-paper px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted"
+      class={`flex items-center gap-1 rounded-lg ${CARD} px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted`}
       data-testid={TESTID.chatAttachment}
       data-name={props.name}
     >

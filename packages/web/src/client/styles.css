@@ -89,6 +89,25 @@
   --color-doing: #8F5200;
   --color-alarm: #8E3348;
 
+  /* THE THREE ALTITUDES, and the state that is not one. Here for the same
+   * reason the eight above are — Tailwind will not emit `bg-well` for a
+   * `--color-well` it has not seen — and DERIVED rather than chosen: these are
+   * what `theme/depth.ts` climbs to from the default palette's paper, and
+   * `theme/css.test.ts` holds them to that derivation exactly as it holds the
+   * eight to the table. Every other palette's three are generated into its own
+   * block at build time, which is what makes depth a property of the grammar
+   * rather than of any one theme.
+   *
+   * The SHADOWS that go with them are not here, and that is not an omission: no
+   * utility is generated from a `--shadow-*` this app writes, because Tailwind
+   * bakes a theme shadow's value into the utility and a palette re-answering the
+   * property could never reach it. They are read through the property itself
+   * (`surface.ts`), and they land on `:root` in the same generated blocks. */
+  --color-canvas: #D8D8D4;
+  --color-well: #EBEBE7;
+  --color-raised: #FAFAF6;
+  --color-picked: #D5DFE1;
+
   /* Panel widths. Defaults match the pre-rework constants (16rem sidebar,
    * 26rem chat). The reader owns the live values: layout/css.ts writes pixel
    * lengths onto `:root` from localStorage preferences, and both the dock and
@@ -346,11 +365,19 @@
  * first line box is dragged to the taller of the two — so the gap above the
  * first line came out visibly bigger than the gap under the last, on every
  * fence in the app. One font-size here and the block is symmetrical. */
+/* A FENCE IS A WELL — the depth grammar (src/client/surface.ts) read inside the
+ * sheet. A block of code is not prose and not a card either: it is a recess in
+ * the page, told by an inner shadow and its own fill, which is what retired the
+ * hairline box it used to be drawn as. The inset hairline that comes with
+ * `--shadow-well` is its edge, so it declares no border at all — and a computed
+ * `0` is `BORDER_PX.none`, which is a value on the declared scale rather than an
+ * exemption from it (`packages/tests` sweeps every border width here). */
 .olai-md pre {
   overflow-x: auto;
-  border: var(--olai-md-border-rule) solid var(--color-rule);
-  border-radius: 0.25rem;
+  border-radius: 0.5rem;
   padding: var(--olai-md-pad-fenceY) var(--olai-md-pad-fenceX);
+  background: var(--color-well);
+  box-shadow: var(--shadow-well);
   font-size: calc(var(--olai-md-of-code) * 1em);
   line-height: var(--olai-md-leading-body);
 }
@@ -368,13 +395,19 @@
 }
 
 /* Inline code is a chip; a fence is not. `code` inside a `<pre>` is already
- * inside a bordered block, and a second background there would be a box drawn
- * around every line of it. Faint in the light palettes, a slight lift in the
- * dark ones, and legible in both because the ink over it never changes. */
+ * inside a recess, and a second background there would be a box drawn around
+ * every line of it.
+ *
+ * The same WELL the fence takes, at chip scale: a run of code interrupting a
+ * sentence is the smallest recess in the sheet, and it is one decision with the
+ * block above rather than a tint of its own to keep in step. Legible in every
+ * palette because the ink over it never changes, and the depth test holds the
+ * well itself to the AA promise. */
 .olai-md :not(pre) > code {
   border-radius: 0.25rem;
   padding: var(--olai-md-pad-chipY) var(--olai-md-pad-chipX);
-  background: var(--olai-md-tint);
+  background: var(--color-well);
+  box-shadow: var(--shadow-well);
 }
 /* The caret at the end of an answer that is still arriving. On the LAST BLOCK
  * of the rendered markdown rather than after it: an element of its own would

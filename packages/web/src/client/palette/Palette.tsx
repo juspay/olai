@@ -27,6 +27,7 @@ import {
   toggleChat,
 } from "../layout/prefs.ts"
 import type { Route } from "../routes.ts"
+import { LIFTS, PICKED, RAISED } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../run.ts"
@@ -181,11 +182,16 @@ export function Palette(props: {
           data-testid={TESTID.paletteScrim}
           onClick={close}
         />
-        <div class="relative z-10 w-full max-w-lg overflow-hidden rounded-lg border border-rule bg-paper shadow-lg">
+        {/* The one surface in the app that has come all the way up: the palette
+            is over everything, so it takes the deepest raised shadow and the
+            widest radius of any panel (`../surface.ts`). No border — the ask
+            line under the input is gone with it, because the list below is
+            already told apart by the rows lifting under the pointer. */}
+        <div class={`relative z-10 w-full max-w-lg overflow-hidden rounded-2xl ${RAISED}`}>
           <input
             ref={input}
             type="text"
-            class="w-full border-b border-rule bg-transparent px-4 py-3 font-mono text-sm text-ink outline-none placeholder:text-muted"
+            class="w-full bg-transparent px-4 py-3.5 font-mono text-sm text-ink outline-none placeholder:text-muted"
             data-testid={TESTID.paletteInput}
             placeholder="Jump, toggle, or > ask the agent…"
             value={query()}
@@ -242,10 +248,8 @@ export function Palette(props: {
                     <li>
                       <button
                         type="button"
-                        class={`flex w-full items-baseline justify-between gap-3 rounded px-3 py-2 text-left text-sm ${
-                          index() === active()
-                            ? "bg-rule text-ink"
-                            : "text-ink hover:bg-rule/60"
+                        class={`flex w-full items-baseline justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm text-ink ${
+                          index() === active() ? PICKED : LIFTS
                         }`}
                         data-testid={TESTID.paletteItem}
                         data-id={item.id}

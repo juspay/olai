@@ -25,6 +25,16 @@
  * The entry that lights up is the file the open page lives in. A day page
  * lights none. An entry is marked when its file could not be read.
  *
+ * ## It is the GROUND, and the rows are what sits on it
+ *
+ * Since the depth pass this column has no fill and no border of its own on a
+ * desktop: it IS the canvas (`./surface.ts`), and everything in it is told by
+ * altitude instead. The month is a WELL sunk into it; a tree row is flush with
+ * it and LIFTS a pixel under the pointer; the row in force is a raised card
+ * wearing the accent spine. The one thing the column still paints is the phone
+ * DRAWER, which is the same box floating over the page and therefore needs both
+ * an opaque ground and a shadow.
+ *
  * ## It is PINNED, for the reason the header is
  *
  * This app scrolls the DOCUMENT, so a column in normal flow is as tall as the
@@ -76,19 +86,36 @@ import { ancestorDirs, type FileRow, fileTree } from "./fileTree.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
 import { Link, useRouter } from "./router.tsx"
+import { CANVAS, CARD, LIFT, LIFTS, SPINE } from "./surface.ts"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
 
-/** One file entry. Workflowy-quiet: soft hover, soft current. */
+/** One file entry's own geometry and type, in every state. */
 const ENTRY =
-  `flex ${TARGET} items-center break-all rounded-sm px-2 py-0.5 text-[0.8125rem] leading-snug ` +
-  "no-underline text-ink hover:bg-rule/60 aria-[current=page]:bg-rule " +
-  "aria-[current=page]:text-ink md:min-h-0"
+  `flex ${TARGET} items-center break-all rounded-lg px-2 py-0.5 text-[0.8125rem] ` +
+  "leading-snug no-underline text-ink md:min-h-0"
 
-/** A directory row: folds, does not navigate. */
+/**
+ * …and WHICH ALTITUDE it is at, which is the whole of what the depth pass
+ * changed here.
+ *
+ * At rest a row is part of the ground: ink on the canvas, no fill of its own,
+ * because a directory of forty files drawn as forty cards is a column of cards
+ * and not a directory. Under the pointer it LIFTS off the desk, which is this
+ * app's one way of saying a thing can be pressed (`./surface.ts`).
+ *
+ * The row IN FORCE is already up, so it does not lift — the same argument a day
+ * being read makes about its own hover (`./calendar/Day.tsx`) — and it wears the
+ * accent SPINE, one of the two lines the pass kept on purpose.
+ */
+const entryLook = (current: boolean): string =>
+  `${ENTRY} ${current ? `${SPINE} font-semibold` : LIFTS}`
+
+/** A directory row: folds, does not navigate. Lifts like a file entry — it is
+ *  as pressable as one — and never lights, because a folder is not a page. */
 const DIR =
-  `flex ${TARGET} items-center gap-0.5 rounded-sm px-1 py-0.5 text-[0.8125rem] ` +
-  "leading-snug text-muted hover:bg-rule/60 hover:text-ink md:min-h-0"
+  `flex ${TARGET} items-center gap-0.5 rounded-lg px-1 py-0.5 text-[0.8125rem] ` +
+  `leading-snug text-muted ${LIFTS} hover:text-ink md:min-h-0`
 
 interface TreeView {
   readonly isActive: (file: string) => boolean
@@ -175,7 +202,13 @@ export function Sidebar(props: {
           // the drawer into flow offsets). Desktop: a STICKY column, pinned
           // under the header (see the note above).
           (props.open ? "flex " : "hidden ") +
-          "z-40 flex-col border-r border-rule bg-paper " +
+          // No border and no paper: this column IS the ground, and the
+          // furniture in it (the month, the tree rows) is what sinks into or
+          // rises off it (./surface.ts). The `bg-canvas` earns its place on the
+          // PHONE, where the same box is a drawer over the page and has to be
+          // opaque — and the shadow with it, because a drawer floating over the
+          // page is the one time this column is above something.
+          `z-40 flex-col ${CANVAS} shadow-[var(--shadow-raised)] md:shadow-none ` +
           // Wide enough that the month's 7 day cells still hit 44×44.
           "fixed bottom-0 left-0 top-[var(--height-header,3rem)] w-[min(22rem,92vw)] " +
           // `top-` above is BOTH positions' offset — the drawer's inset and
@@ -193,7 +226,7 @@ export function Sidebar(props: {
             cover the calendar's month-step chevrons (top-right of the body). */}
         <button
           type="button"
-          class={`absolute bottom-2 right-2 z-10 hidden ${TARGET_BOX} items-center justify-center rounded border border-rule bg-paper text-muted hover:bg-rule/60 hover:text-ink md:inline-flex md:min-h-8 md:min-w-8`}
+          class={`absolute bottom-2 right-2 z-10 hidden ${TARGET_BOX} items-center justify-center rounded-lg ${CARD} ${LIFT} text-muted hover:text-ink md:inline-flex md:min-h-8 md:min-w-8`}
           data-testid={TESTID.sidebarCollapse}
           aria-label="collapse the sidebar to the icon rail"
           title="collapse sidebar"
@@ -241,7 +274,7 @@ function Agenda() {
   return (
     <Link
       route={{ kind: "agenda" }}
-      class={`${ENTRY} mb-2`}
+      class={`${entryLook(router.route().kind === "agenda")} mb-2`}
       testid={TESTID.agendaLink}
       current={router.route().kind === "agenda"}
     >
@@ -310,8 +343,12 @@ function Dir(props: {
         </span>
         <span class="break-all">{props.row.name}</span>
       </button>
+      {/* No guide line down the children: the indent already says whose they
+          are, and a hairline that repeats it is exactly the kind the depth pass
+          removed. (The OUTLINE's own indent keeps its guide — nesting there can
+          run deep enough that the indent alone stops being readable.) */}
       <Show when={!folded()}>
-        <ul class="m-0 ml-2 list-none border-l border-rule/70 p-0 pl-2">
+        <ul class="m-0 ml-2 list-none p-0 pl-2">
           <Key each={props.row.children} by="key">
             {(child) => <Entry row={child()} view={props.view} />}
           </Key>
@@ -335,7 +372,7 @@ function File(props: {
             ? { kind: "outline", file: props.row.file }
             : { kind: "document", file: props.row.file }
         }
-        class={ENTRY}
+        class={entryLook(props.view.isActive(props.row.file))}
         testid={outline ? TESTID.outlineLink : TESTID.documentLink}
         current={props.view.isActive(props.row.file)}
         broken={outline && props.view.broken.has(props.row.file)}

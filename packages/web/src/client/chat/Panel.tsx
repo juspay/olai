@@ -29,6 +29,7 @@ import {
   setChatSnap,
   type ChatSnap,
 } from "../layout/prefs.ts"
+import { CANVAS } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { ICON_BUTTON } from "../readout.ts"
 import { Composer } from "./Composer.tsx"
@@ -84,14 +85,16 @@ export function Toggle() {
       // this button's WIDTH with it, and a primary control a thumb has to aim
       // at is not somewhere to save 12px. This bar's other tap targets have
       // measured 44×44 since #104 and this one was 76×27 — wide, and never tall
-      // enough. The BORDER is this button's own news: a turn running, or the
-      // panel open.
-      class={`${ICON_BUTTON} border ${
+      // enough. The RING is this button's own news: a turn running, or the
+      // panel open — an inset ring rather than a border since the depth pass,
+      // so the resting state is a plain card and lighting one does not move the
+      // box by a pixel. Amber stays the app's second, rarer signal.
+      class={`${ICON_BUTTON} ${
         working()
-          ? "animate-pulse border-doing text-doing"
+          ? "animate-pulse inset-ring-2 inset-ring-doing text-doing"
           : open()
-          ? "border-accent text-ink"
-          : "border-rule text-muted"
+          ? "inset-ring-2 inset-ring-accent text-ink"
+          : "text-muted"
       }`}
       data-testid={TESTID.chatToggle}
       data-busy={working()}
@@ -145,7 +148,11 @@ function DesktopDock() {
 
   return (
     <aside
-      class="fixed right-0 top-[var(--height-header,3rem)] z-30 flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] max-w-full flex-col border-l border-rule bg-paper"
+      // The dock is a strip of the CANVAS, not a panel of paper: the entries
+      // inside it are the cards (../surface.ts), and a raised ground would
+      // dissolve them. It is fixed over the page, so what says it is in front
+      // is a shadow rather than the hairline that used to be down its edge.
+      class={`fixed right-0 top-[var(--height-header,3rem)] z-30 flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] max-w-full flex-col ${CANVAS} shadow-[var(--shadow-raised)]`}
       style={{ width: `${chatWidth()}px` }}
       data-testid={TESTID.chatPanel}
       data-status={chat.state().status}
@@ -230,7 +237,7 @@ function MobileSheet() {
         onClick={() => setChatOpen(false)}
       />
       <aside
-        class="absolute inset-x-0 bottom-0 flex flex-col rounded-t-xl border-t border-rule bg-paper shadow-lg"
+        class={`absolute inset-x-0 bottom-0 flex flex-col rounded-t-2xl ${CANVAS} shadow-[var(--shadow-raised)]`}
         style={{
           height: `${heightPct()}%`,
           "max-height": "100%",

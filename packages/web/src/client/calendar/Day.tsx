@@ -17,10 +17,16 @@
  *                   a pseudo-element has no text, so a shape distinction is
  *                   silence to a screen reader;
  *   today           a ring, wherever it falls and whatever else it is;
- *   you are here    FILLED — ink ground, paper number. The day you are reading
- *                   is not a shade of a day, it is the day. It outranks its own
- *                   hover, because the pointer is still over the cell that was
- *                   just clicked.
+ *   you are here    FILLED — ACCENT ground, paper number. The day you are
+ *                   reading is not a shade of a day, it is the day. It outranks
+ *                   its own hover, because the pointer is still over the cell
+ *                   that was just clicked.
+ *
+ * The fill is the accent since the depth pass, and it is the pass's rule rather
+ * than a change of mind about this cell: the accent goes to what ACTS or
+ * ANSWERS, and the day being read is the calendar's answer. Everything else in
+ * the month is ink on tone, and a live cell says it can be pressed by LIFTING
+ * out of the month's well rather than by tinting.
  *
  * Either of the first two makes the cell a LINK — the day has something to
  * show, whether the reader wrote it or the set did.
@@ -36,6 +42,7 @@
 import { Show } from "solid-js"
 
 import { Link } from "../router.tsx"
+import { LIFTS } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 import { dayNumber } from "./month.ts"
@@ -50,7 +57,7 @@ import { dayNumber } from "./month.ts"
  *  48rem (../touch.ts), the compact 1.75rem row above it. A day is the
  *  smallest target in this app and the one a finger is likeliest to miss into
  *  the day beside it. */
-const BOX = `flex ${TARGET} relative items-center justify-center rounded border ` +
+const BOX = `flex ${TARGET} relative items-center justify-center rounded-md ` +
   "text-xs tabular-nums no-underline md:min-h-7"
 
 /** The dot, as the pseudo-element it has to be — it sits UNDER the number
@@ -74,9 +81,11 @@ const DOT =
  *  fold is a dog-ear on a page, which is the thing it stands for. Inset a
  *  pixel so it sits inside the cell's own rounded border rather than across
  *  it, and `border-current` for the reason the dot is `bg-current` — it
- *  follows the cell into the fill. */
+ *  follows the cell into the fill. Two pixels rather than one since the depth
+ *  pass, which gave the cell a rounder corner and a ring drawn INSIDE it: at one
+ *  the triangle's own corner landed on the ring and read as a square. */
 const FOLD =
-  "before:absolute before:right-px before:top-px before:border-[0.22rem] " +
+  "before:absolute before:right-0.5 before:top-0.5 before:border-[0.22rem] " +
   "before:border-b-transparent before:border-l-transparent before:border-current " +
   "before:opacity-60 before:content-['']"
 
@@ -129,9 +138,27 @@ export function Day(props: {
       : live()
       ? "text-ink"
       : "text-muted"
-  const ground = (): string => props.open ? "bg-ink" : live() ? "hover:bg-rule" : ""
+  /** The GROUND, and since the depth pass it is the accent that fills the day
+   *  being read rather than the ink: this is one of the four things in the app
+   *  that ACTS or ANSWERS, and the accent is what the pass reserved for those.
+   *  A live day is flush with the month's well and LIFTS under the pointer
+   *  (../surface.ts) — the day being read is already up, and outranks its own
+   *  hover for the reason the note at the top of this file gives. */
+  const ground = (): string =>
+    props.open
+      ? "bg-accent shadow-[var(--shadow-card)]"
+      : live()
+      ? LIFTS
+      : ""
+  /** …and the RING, which is only ever today's. `inset-ring` rather than the
+   *  border it used to be, so a cell is the same size in every state without
+   *  every state having to declare a border colour of its own. Today AND being
+   *  read is still the ring around the fill — drawn in the paper, because an
+   *  accent ring on an accent ground is a ring nobody can see. */
   const ring = (): string =>
-    props.today ? "border-accent" : props.open ? "border-ink" : "border-transparent"
+    props.today
+      ? props.open ? "inset-ring-2 inset-ring-paper" : "inset-ring-2 inset-ring-accent"
+      : ""
 
   const look = (): string =>
     [

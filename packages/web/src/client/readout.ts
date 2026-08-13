@@ -21,6 +21,8 @@
  * should have to be edited to add a third readout.
  */
 
+import { CARD, LIFT } from "./surface.ts"
+
 /** How one state of a readout is drawn. */
 export interface Look {
   /** The dot. A background utility, because the dot IS the colour. */
@@ -34,11 +36,14 @@ export interface Look {
 }
 
 /** The pill both readouts wear, minus the width each one caps itself at. Quiet
- *  by construction — a border, paper and muted text — because chrome that
- *  competes with the outline is chrome a reader learns to skip. */
+ *  by construction — a CARD on the header's canvas and muted text — because
+ *  chrome that competes with the outline is chrome a reader learns to skip.
+ *  What said "this is a thing" used to be a hairline round it; it is elevation
+ *  now (`./surface.ts`), which is the one thing that reads the same on all
+ *  fifteen palettes. */
 export const PILL =
-  "flex min-w-0 items-center gap-1.5 truncate rounded-full border border-rule " +
-  "bg-paper px-2 py-1.5 text-xs text-muted sm:gap-2 sm:px-3"
+  `flex min-w-0 items-center gap-1.5 truncate rounded-full ${CARD} ` +
+  "px-2 py-1.5 text-xs text-muted sm:gap-2 sm:px-3"
 
 /** The dot itself, which the state's own `dot` utility colours. */
 export const DOT = "inline-block size-2 shrink-0 rounded-full"
@@ -53,8 +58,12 @@ export const DOT = "inline-block size-2 shrink-0 rounded-full"
  * release it on a pointer. What is NOT here is the border colour: the agent
  * toggle's says whether a turn is running and the preferences' says whether the
  * panel is open, which is each button's own news rather than this shape's.
+ *
+ * It LIFTS, and the pills beside it do not: this is the one of them that can be
+ * pressed, and in the depth grammar that is what a rise under the pointer means
+ * (`./surface.ts`).
  */
 export const ICON_BUTTON =
-  "inline-flex shrink-0 items-center justify-center gap-1 rounded-full " +
-  "bg-paper px-2 py-1.5 font-mono text-xs hover:text-ink sm:px-3 " +
+  `inline-flex shrink-0 items-center justify-center gap-1 rounded-full ${CARD} ${LIFT} ` +
+  "px-2 py-1.5 font-mono text-xs hover:text-ink sm:px-3 " +
   "min-h-11 min-w-11 md:min-h-0 md:min-w-0"

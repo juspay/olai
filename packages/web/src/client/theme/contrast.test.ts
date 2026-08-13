@@ -9,10 +9,17 @@ import { PALETTES, type PaletteToken } from "./palettes.ts"
  *  be rejecting a colour over a page that does not exist.
  *
  *  Each is a real site: body text and every accent read on the paper
- *  (`text-muted`, `text-alarm`, a link); `text-paper` on the sidebar entry in
- *  force and on the day being read (`bg-accent`, `bg-ink`); `text-ink` over the
- *  surface a row lights up with (`hover:bg-rule`). It is a claim about the
- *  components, so it lives here rather than with the arithmetic. */
+ *  (`text-muted`, `text-alarm`, a link); `text-paper` on the day being read and
+ *  on the app's primary buttons (`bg-accent`), and on the mobile scrim's own
+ *  ground (`bg-ink`). It is a claim about the components, so it lives here
+ *  rather than with the arithmetic.
+ *
+ *  `ink` on `rule` USED TO BE HERE and is deliberately gone: `hover:bg-rule` was
+ *  the surface a row lit up with, and since the depth pass a row lights up by
+ *  RISING — `bg-raised`, plus a shadow (`../surface.ts`). Nothing paints an
+ *  opaque `rule` any more; what is left of that token is hairlines and tints.
+ *  The three grounds that replaced it are held to the same AA line by
+ *  `./depth.test.ts`, against the surfaces the ramp actually derives. */
 const PAINTED: ReadonlyArray<readonly [PaletteToken, PaletteToken]> = [
   ["ink", "paper"],
   ["muted", "paper"],
@@ -22,7 +29,6 @@ const PAINTED: ReadonlyArray<readonly [PaletteToken, PaletteToken]> = [
   ["alarm", "paper"],
   ["paper", "accent"],
   ["paper", "ink"],
-  ["ink", "rule"],
 ]
 
 describe("contrast", () => {

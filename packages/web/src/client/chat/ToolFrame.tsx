@@ -43,6 +43,7 @@ import type { ChatEntry } from "@olai/surface"
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
+import { WELL } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { Diff } from "./Diff.tsx"
 import { isUnfolded, toggleFold } from "./folds.ts"
@@ -74,8 +75,12 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
     props.entry.detail !== undefined || props.entry.progress !== undefined
 
   return (
+    // A WELL (`../surface.ts`): a tool call is FURNITURE — what the agent is
+    // doing rather than what it said — so it is recessed into the dock's canvas
+    // while the answers around it float on it. `overflow-hidden` so an unfolded
+    // body stays inside the recess's own corners.
     <div
-      class="rounded border border-rule"
+      class={`overflow-hidden rounded-lg ${WELL}`}
       data-testid={TESTID.chatTool}
       data-tool-status={status()}
       data-tool-id={props.entry.id}

@@ -15,6 +15,7 @@
 
 import { For } from "solid-js"
 
+import { WELL } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 
@@ -35,23 +36,19 @@ export function Segmented<T extends string>(props: {
   const isInForce = (value: T): boolean => props.value === value
 
   return (
-    <div class="inline-flex overflow-hidden rounded-full border border-rule">
+    <div class={`inline-flex overflow-hidden rounded-full ${WELL}`}>
       <For each={props.choices}>
         {(choice) => (
           <button
             type="button"
-            // A target on a phone (../touch.ts), a pill on a laptop. The
-            // segments share a border, so what says which one is in force is
-            // the fill rather than a ring — a ring inside a strip lands on top
-            // of its neighbour's edge.
-            // The ring is the caret and the FILL is the pick — a segment shares
-            // its border with its neighbour, so a ring on the pressed one would
-            // sit on top of the edge beside it. `-inset` rather than an offset
-            // for the same reason: the ring has to stay inside the strip.
+            // A target on a phone (../touch.ts), a pill on a laptop. The strip
+            // is a WELL and the segments live inside it, so what says which one
+            // is in force is the FILL — the depth grammar's own picked surface
+            // (`../surface.ts`), the same tint a chosen option in the chat wears.
+            // The ring is the caret and nothing else, and it is `-inset` because
+            // a ring that reached outside would land on the strip's own edge.
             class={`${TARGET} inline-flex items-center px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent md:min-h-0 md:py-1 ${
-              isInForce(choice.value)
-                ? "bg-accent/15 text-ink"
-                : "text-muted hover:text-ink"
+              isInForce(choice.value) ? "bg-picked text-ink" : "text-muted hover:text-ink"
             }`}
             data-testid={TESTID.prefsChoice}
             data-value={choice.value}

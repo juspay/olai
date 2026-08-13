@@ -15,6 +15,7 @@
 import { For, Show } from "solid-js"
 
 import { SHORTCUTS } from "../keys.ts"
+import { RAISED, WELL } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 
 export function Shortcuts(props: {
@@ -36,7 +37,7 @@ export function Shortcuts(props: {
           aria-label="close the shortcuts"
           onClick={() => props.onClose()}
         />
-        <div class="relative z-10 max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-lg border border-rule bg-paper p-4 shadow-lg">
+        <div class={`relative z-10 max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-2xl ${RAISED} p-5`}>
           <For each={[...SHORTCUTS]}>
             {(group) => (
               <section class="mb-4 last:mb-0">
@@ -51,7 +52,7 @@ export function Shortcuts(props: {
                         data-testid={TESTID.shortcut}
                       >
                         <span class="text-ink">{shortcut.what}</span>
-                        <kbd class="shrink-0 rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted">
+                        <kbd class={`shrink-0 rounded ${WELL} px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted`}>
                           {shortcut.keys}
                         </kbd>
                       </li>

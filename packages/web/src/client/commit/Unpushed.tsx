@@ -23,6 +23,7 @@ import { Show } from "solid-js"
 
 import { pushTrouble, unpushedOf } from "./said.ts"
 import type { Commit } from "./state.ts"
+import { CARD, LIFT } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 
 export function Unpushed(props: { readonly commit: Commit }) {
@@ -41,7 +42,7 @@ export function Unpushed(props: { readonly commit: Commit }) {
             <span class="min-w-0 truncate">{words()}</span>
             <button
               type="button"
-              class="ml-auto shrink-0 rounded border border-rule px-2 py-0.5 hover:text-ink disabled:opacity-50"
+              class={`ml-auto shrink-0 rounded-full ${CARD} ${LIFT} px-2.5 py-0.5 hover:text-ink disabled:opacity-50`}
               data-testid={TESTID.commitPush}
               disabled={props.commit.pushing()}
               onClick={() => props.commit.push()}

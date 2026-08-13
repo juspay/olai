@@ -28,6 +28,7 @@
 import type { AskField, ChatEntry } from "@olai/surface"
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
+import { CARD, LIFT, RAISED } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { AskControl } from "./AskControl.tsx"
 import { draftAnswers, draftOf, forgetDraft, setDraft } from "./drafts.ts"
@@ -115,10 +116,19 @@ export function AskForm(props: {
 
   return (
     <Show when={ask()}>
+      {/* The question card, and the other of the two lines the depth pass kept:
+          an accent bar along its top edge (`../surface.ts` for the grammar it is
+          an exception to). A question waiting on a person is the one row in the
+          transcript that has COME UP — so it is `RAISED` while it waits and
+          settles to a resting `CARD` once it is answered, which is the same
+          "this outranks everything else on screen" said in depth rather than in
+          colour. The bar is a `border-t` rather than a shadow because it is
+          meant to be a line: it is the accent, spent on the thing that is
+          asking. */}
       {(form) => (
         <div
-          class={`rounded border-l-[3px] py-1.5 pl-3 pr-2 ${
-            waiting() ? "border-doing bg-doing/5" : "border-rule"
+          class={`rounded-xl border-t-[3px] border-accent px-3.5 py-3 ${
+            waiting() ? RAISED : CARD
           }`}
           data-testid={TESTID.chatAsk}
           data-asking={waiting()}
@@ -127,7 +137,7 @@ export function AskForm(props: {
           {/* The agent's own words. Quoted rather than rendered, like a user
               message: a question is a sentence somebody has to read exactly,
               and a `#` in it is a `#`. */}
-          <p class="m-0 whitespace-pre-wrap text-sm">{props.entry.text}</p>
+          <p class="m-0 whitespace-pre-wrap text-sm font-semibold">{props.entry.text}</p>
 
           <div class="mt-2 flex flex-col gap-3">
             <For each={blocks()}>
@@ -188,10 +198,13 @@ export function AskForm(props: {
               </p>
             }
           >
-            <div class="mt-2 flex items-center gap-2">
+            <div class="mt-2.5 flex items-center gap-2">
+              {/* The PRIMARY verb, and one of the four places the accent is
+                  spent: filled, not outlined, with a shadow in its own colour
+                  so it reads as the thing that has come furthest forward. */}
               <button
                 type="button"
-                class="flex h-8 items-center rounded border border-accent px-3 text-xs text-accent disabled:opacity-60"
+                class={`flex h-8 items-center rounded-full bg-accent px-3.5 text-xs font-semibold text-paper ${LIFT} disabled:opacity-60`}
                 data-testid={TESTID.chatAskSubmit}
                 disabled={sending()}
                 onClick={submit}
@@ -200,7 +213,7 @@ export function AskForm(props: {
               </button>
               <button
                 type="button"
-                class="flex h-8 items-center rounded border border-rule px-3 text-xs text-muted hover:text-ink disabled:opacity-60"
+                class={`flex h-8 items-center rounded-full inset-ring inset-ring-rule px-3.5 text-xs text-muted ${LIFT} hover:text-ink disabled:opacity-60`}
                 data-testid={TESTID.chatAskDismiss}
                 disabled={sending()}
                 onClick={dismiss}

@@ -16,6 +16,7 @@
  */
 
 import type { Route } from "../routes.ts"
+import { LIFTS } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import { setSidebarOpen } from "./prefs.ts"
@@ -27,7 +28,10 @@ export function Rail(props: {
 }) {
   return (
     <div
-      class="sticky top-[var(--height-header,3rem)] hidden h-[calc(100dvh-var(--height-header,3rem))] w-[var(--width-rail,3rem)] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-rule bg-paper py-2 md:flex"
+      // The collapsed face of the directory column, and the same altitude as its
+      // open one: this IS the canvas (../surface.ts), so the icons on it lift
+      // rather than sitting inside a panel with a line down its edge.
+      class="sticky top-[var(--height-header,3rem)] hidden h-[calc(100dvh-var(--height-header,3rem))] w-[var(--width-rail,3rem)] shrink-0 flex-col items-center gap-1 overflow-y-auto py-2 md:flex"
       data-testid={TESTID.sidebarRail}
       aria-label="directory rail"
     >
@@ -105,7 +109,7 @@ function RailButton(props: {
   return (
     <button
       type="button"
-      class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-muted hover:bg-rule/60 hover:text-ink md:min-h-9 md:min-w-9`}
+      class={`${TARGET_BOX} inline-flex items-center justify-center rounded-lg text-muted ${LIFTS} hover:text-ink md:min-h-9 md:min-w-9`}
       data-testid={props.testid}
       aria-label={props.label}
       title={props.title}

@@ -39,6 +39,7 @@
 import { createMemo, createSelector, For, Show } from "solid-js"
 
 import { createStamped } from "../stamped.ts"
+import { LIFTS, WELL } from "../surface.ts"
 import { TESTID, type TestId } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import { monthGrid, monthLabel, monthOfDay, shiftMonth, WEEKDAYS } from "./month.ts"
@@ -87,7 +88,23 @@ export function Calendar(props: {
   const isOpen = createSelector(() => props.open)
 
   return (
-    <section class="mb-5" data-testid={TESTID.calendar} data-month={month()}>
+    // A WELL: the month is FURNITURE, so it is recessed into the directory
+    // column's canvas rather than floating on it (../surface.ts). Which is also
+    // what lets the days inside it lift — a cell rising out of a hollow reads as
+    // pressable, where the same rise on a flat plane read as nothing.
+    //
+    // THE HORIZONTAL PAD IS `md` ONLY, and it is the touch rule that says so:
+    // seven day cells have to clear 44px inside this column below 48rem
+    // (../Sidebar.tsx sizes the drawer for exactly that), and 8px of padding on
+    // a well takes 1.1px off each of them. The recess still has an edge without
+    // it — the inset hairline in `--shadow-well` is that edge, which is the whole
+    // point of the grammar. Above the breakpoint a day is a 1.75rem row with
+    // room to spare, so the well gets its pad.
+    <section
+      class={`mb-5 rounded-xl ${WELL} py-2 md:px-2`}
+      data-testid={TESTID.calendar}
+      data-month={month()}
+    >
       <header class="mb-1 flex items-center justify-between gap-1">
         <Step label="the month before" testid={TESTID.calendarPrev} onStep={() => page(-1)}>
           ‹
@@ -143,7 +160,7 @@ function Step(props: {
       // A chevron is a small thing to hit, and unlike a day of the month it
       // has no grid column to fill it out — so it takes the box both ways
       // (../touch.ts).
-      class={`inline-flex ${TARGET_BOX} cursor-pointer items-center justify-center rounded border-0 bg-transparent px-1 text-xs text-muted hover:bg-rule hover:text-ink md:min-h-0 md:min-w-0`}
+      class={`inline-flex ${TARGET_BOX} cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent px-1 text-xs text-muted ${LIFTS} hover:text-ink md:min-h-0 md:min-w-0`}
       data-testid={props.testid}
       aria-label={props.label}
       onClick={props.onStep}

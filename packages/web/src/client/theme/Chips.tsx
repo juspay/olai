@@ -52,7 +52,14 @@ export function ThemeChips() {
           // chip is a black pill wearing whatever outline the browser gives it
           // against black. The ring is the PAGE's accent rather than the chip's,
           // for the same reason: it has to be visible against the chip.
-          class={`${TARGET_BOX} inline-flex flex-none items-center justify-center rounded-full border px-2 font-mono text-[0.6875rem] leading-none ring-offset-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-accent aria-pressed:ring-offset-1 md:min-h-0 md:min-w-0 md:py-1`}
+          // `ring-offset-raised` and not `-paper`: the gap a ring leaves has to
+          // be the colour of what is BEHIND the chip, and what is behind it is
+          // the preferences panel — a raised surface (`../surface.ts`), which is
+          // the palette's paper on every light theme and a step off it on every
+          // dark one. The chip itself still wears the palette's PAPER, because
+          // that is the value the table writes and the one colour that makes a
+          // theme recognisable in a 4rem pill.
+          class={`${TARGET_BOX} inline-flex flex-none items-center justify-center rounded-full border px-2 font-mono text-[0.6875rem] leading-none ring-offset-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-accent aria-pressed:ring-offset-1 md:min-h-0 md:min-w-0 md:py-1`}
           style={{
             background: palette.colors.paper,
             color: palette.colors.ink,

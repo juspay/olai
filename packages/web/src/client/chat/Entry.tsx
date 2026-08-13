@@ -44,6 +44,7 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { Attachments } from "./Attachments.tsx"
 import { Markdown } from "../markdown/Markdown.tsx"
+import { CARD, WELL } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { AskForm } from "./AskForm.tsx"
 import { Refusal } from "./Refusal.tsx"
@@ -76,7 +77,7 @@ export function Entry(props: {
 
   return (
     <div
-      class="mb-2"
+      class="mb-3"
       data-testid={TESTID.chatEntry}
       data-kind={props.entry.kind}
       data-entry-id={props.entry.id}
@@ -88,32 +89,41 @@ export function Entry(props: {
               put in, and it keeps a message whose whole content is a
               screenshot from being an empty grey box with a chip under it. */}
           <Attachments names={props.entry.attachments ?? []} />
+          {/* WHAT YOU SAID sits in the ground: a WELL rather than a card
+              (`../surface.ts`), because your own words are the thing you already
+              know and the answer is what you came back for. The two altitudes
+              are the whole of how the two sides of the conversation are told
+              apart now — there is no bubble, no border and no second tint. */}
           <Show when={props.entry.text !== ""}>
-            <p class="whitespace-pre-wrap rounded bg-rule/60 px-2 py-1 text-sm">
+            <p class={`whitespace-pre-wrap rounded-xl ${WELL} px-3 py-2 text-sm`}>
               {props.entry.text}
             </p>
           </Show>
         </Match>
 
         <Match when={props.entry.kind === "agent"}>
-          <Markdown
-            source={shown()}
-            from={AGENT_WROTE_IT}
-            live={props.entry.streaming === true}
-            // `olai-md-compact`: an answer is drawn in a 26rem drawer beside
-            // the page, not as a page — so it takes the tighter spacing scale
-            // and the heading ceiling, the same ones a note takes
-            // (`markdown/scale.ts`). Without it an agent opening with a `#`
-            // sets a 2rem heading in a column half that wide.
-            class="olai-md-compact text-sm"
-            testid={TESTID.chatSaid}
-          />
-          {/* The caret is CSS (styles.css), hung off the last block of the
-              rendered answer. An element of its own would have to go after the
-              markdown — which means on a line of its own, under the paragraph
-              it belongs to, since markdown decides what the last block is and a
-              block cannot be reached into from out here. `::after` is reaching
-              into it, which is exactly what was wanted. */}
+          {/* …and WHAT IT ANSWERED floats: the transcript is a stack of true
+              cards on the dock's canvas, which is the mock's right rail. */}
+          <div class={`rounded-xl ${CARD} px-3.5 py-3`}>
+            <Markdown
+              source={shown()}
+              from={AGENT_WROTE_IT}
+              live={props.entry.streaming === true}
+              // `olai-md-compact`: an answer is drawn in a 26rem drawer beside
+              // the page, not as a page — so it takes the tighter spacing scale
+              // and the heading ceiling, the same ones a note takes
+              // (`markdown/scale.ts`). Without it an agent opening with a `#`
+              // sets a 2rem heading in a column half that wide.
+              class="olai-md-compact text-sm"
+              testid={TESTID.chatSaid}
+            />
+            {/* The caret is CSS (styles.css), hung off the last block of the
+                rendered answer. An element of its own would have to go after the
+                markdown — which means on a line of its own, under the paragraph
+                it belongs to, since markdown decides what the last block is and a
+                block cannot be reached into from out here. `::after` is reaching
+                into it, which is exactly what was wanted. */}
+          </div>
         </Match>
 
         <Match when={props.entry.kind === "tool"}>

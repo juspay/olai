@@ -22,6 +22,7 @@
 import { type AskField, YES_NO } from "@olai/surface"
 import { For, Match, Show, Switch } from "solid-js"
 
+import { CARD, LIFT, PICKED, WELL } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 
 /** Yes and no, as the two choices they are. The VALUES are the surface's, not
@@ -87,7 +88,11 @@ export function AskControl(props: {
           // than with a message after the fact; the server checks it again,
           // because an input's `step` is a hint and not a gate.
           step={props.field.kind === "integer" ? 1 : undefined}
-          class="w-full rounded border border-rule bg-paper px-2 py-1.5 text-sm outline-none focus:border-accent disabled:text-muted"
+          // A BOX TO TYPE IN IS A WELL (`../surface.ts`): a field is a hollow in
+          // the surface holding it, which is what an input has looked like off a
+          // screen for a hundred years and what the hairline rectangle was
+          // standing in for. Focus fills the well's own edge with the accent.
+          class={`w-full rounded-lg ${WELL} px-2.5 py-1.5 text-sm outline-none focus:inset-ring-2 focus:inset-ring-accent disabled:text-muted`}
           data-testid={TESTID.chatAskText}
           data-field={props.field.key}
           placeholder={props.field.attachedTo === null
@@ -117,14 +122,20 @@ function Chips(props: {
   return (
     <div class="flex flex-wrap gap-1.5">
       <For each={props.choices}>
+        {/* An option LOOKS LIFTABLE and, once taken, looks taken: it lifts a
+            pixel under the pointer, and the one that was chosen fills with the
+            accent tint and takes the accent ring (`../surface.ts`). Both are the
+            depth grammar rather than this control's invention — what changed
+            here is that a chip no longer says "pickable" with a hairline round
+            it, which on fifteen palettes said it fifteen different amounts. */}
         {(choice) => (
           <button
             type="button"
-            class={`min-h-11 rounded border px-2 py-1 text-left text-sm ${
+            class={`min-h-11 rounded-xl px-3 py-1.5 text-left text-sm ${
               props.picked(choice.value)
-                ? "border-accent text-accent"
-                : "border-rule text-ink hover:border-accent"
-            } disabled:hover:border-rule`}
+                ? `${PICKED} font-semibold text-accent`
+                : `${CARD} ${LIFT} text-ink`
+            }`}
             data-testid={TESTID.chatAskChoice}
             data-value={choice.value}
             aria-pressed={props.picked(choice.value)}

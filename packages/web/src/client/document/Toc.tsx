@@ -52,6 +52,7 @@
 import { createMemo, For, Show } from "solid-js"
 
 import type { Heading } from "../markdown/outline.ts"
+import { WELL } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 
@@ -101,9 +102,13 @@ export function Toc(props: {
     // why this is belt as well as braces.
     <Show when={drawnFor()} keyed>
       <nav aria-label="Contents">
+        {/* A WELL, inside the sheet (`../surface.ts`): a contents is furniture
+            about the document rather than part of it, so it is recessed into
+            the paper the way the month is recessed into the rail — which is
+            also what retires the hairline box it used to be drawn as. */}
         <details
           open
-          class="mb-6 rounded border border-rule px-3 py-2"
+          class={`mb-6 rounded-xl ${WELL} px-4 py-3`}
           data-testid={TESTID.toc}
         >
           <summary class="cursor-pointer text-sm text-muted select-none">

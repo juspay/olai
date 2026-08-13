@@ -8,6 +8,12 @@
  * minimized; chat is a resizable dock or a minimized pill/strip. All layout
  * state is client-local.
  *
+ * DEPTH principle, which is the same statement about the third axis
+ * (`./surface.ts`): the page's ground is the CANVAS, the rails are furniture
+ * sunk into it, and the open page is the PAPER floating on it. Which is why
+ * `main` below is a sheet with a margin rather than a pane with padding — the
+ * margin is where the desk shows.
+ *
  * This file is the composition and nothing else — the subscription, the route,
  * the clock, the one derivation of the set, which page that adds up to, and the
  * rows that page draws.
@@ -46,6 +52,7 @@ import { OutlinePage } from "./OutlinePage.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
 import { Sidebar } from "./Sidebar.tsx"
+import { PAPER } from "./surface.ts"
 import { TodayProvider } from "./today.tsx"
 import { createView } from "./view.ts"
 import { connectionReadout, olai } from "./wire.ts"
@@ -207,10 +214,18 @@ export default function App() {
                         />
                       </Sidebar>
                     </Show>
-                    {/* Extra bottom pad on phone when the chat strip is up so
+                    {/* THE PAPER — the hero of the depth grammar (./surface.ts).
+                        The widest radius, the deepest resting shadow and the
+                        most generous padding in the app, floating on the canvas
+                        with the rails as the desk around it. Its own margin is
+                        what lets the ground show, which is why the padding that
+                        used to be `main`'s whole spacing is now split: margin
+                        outside the sheet, pad inside it.
+
+                        Extra bottom pad on phone when the chat strip is up so
                         the last lines of a long page are not trapped under it. */}
                     <main
-                      class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
+                      class={`overflow-x-auto rounded-2xl ${PAPER} mx-2 mb-2 mt-1 px-4 pt-4 ${CLEARANCE} md:mx-4 md:mb-4 md:px-12 md:py-10 lg:mr-6 lg:pl-16 lg:pr-12 ${
                         !desktop() && !chatOpen() ? "pb-16" : ""
                       }`}
                       // A link in RENDERED MARKDOWN is an anchor no component

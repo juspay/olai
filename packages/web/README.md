@@ -441,15 +441,86 @@ It writes nothing, the way a day page writes nothing: an empty agenda says
 "Nothing is due." and offers nothing to press. Rescheduling is a `date`, and the
 place to change one is the row where the node actually lives.
 
+## Three altitudes: how a surface says where it is
+
+The app used to be one plane. Sidebar, document and chat shared the paper and
+were told apart by hairlines, which is a diagram of the layout rather than a
+picture of it — and on fifteen palettes a 1px `--color-rule` says a different
+amount fifteen times.
+
+It has THREE now, and one grammar for reading them (`src/client/surface.ts` is
+the vocabulary, `theme/depth.ts` the values):
+
+- **canvas** — the ground. Tonal, never white. The page body wears it, and so do
+  the two rails and the header, because none of those is content.
+- **well** — furniture, recessed INTO whatever holds it: the month, a tool call's
+  line, a text box, the contents and the code fences inside the sheet. An inner
+  shadow and no drop shadow at all.
+- **raised** — content, floating above the ground: the document sheet, a chat
+  message, a menu, a pill. A drop shadow, deepest under the document, which is
+  the thing the reader came for.
+
+Four consequences worth knowing before reading any component:
+
+1. **Elevation replaced borders.** A surface's edge is its fill and its shadow.
+   The lines still drawn are the ones that MEAN something: the accent spine on
+   the file in force, the accent bar on a question waiting to be answered, a
+   menu's group break, the outline's own nesting guide, and the resize handles —
+   which are controls.
+2. **The accent is spent, not sprinkled**: today, the day being read, the file in
+   force, links, the chosen option, the primary button. The agent chip's amber
+   stays the second, rarer signal.
+3. **Interactive looks liftable.** A tree row, a day, an option, a menu item
+   rises a pixel with a stronger shadow under the pointer (`LIFT`/`LIFTS`), and a
+   picked thing fills with the accent tint plus a ring (`PICKED`). The RISE is
+   `motion-safe:` — a reader who asked for less motion still gets told what is
+   interactive.
+4. **A shadow is read through its custom property**, `shadow-[var(--shadow-card)]`
+   rather than a generated `shadow-card`: Tailwind bakes a theme shadow's VALUE
+   into the utility it emits, so a `:root[data-theme="pitch"]` block re-answering
+   the property could never reach it. Spelled once, in `surface.ts`.
+
+### …and the hard part, which is fifteen palettes and both schemes
+
+Depth hand-tuned per palette is fifteen chances for a card to vanish into the
+canvas, and that failure is invisible in review — nobody reading a hex can see
+that two of them are now the same shade. So the ramp is **derived**. `RUNGS`
+states the distance each rung holds from the palette's own paper, in the ratio
+WCAG states contrast in, and every palette's surfaces are climbed to it by
+bisection from that palette's own colours.
+
+The one asymmetry is the whole point: on a light ground depth is made by
+DARKENING what is behind, on a dark ground by LIGHTENING what is in front. A
+shadow on `pitch` (`#000000`) is not a subtle shadow, it is nothing. So the
+anchor moves — `paper` is the TOP rung on a light palette and the ramp descends
+from it toward that palette's own INK (which is what makes leaf's canvas
+green-grey and moon's lilac rather than fifteen shades of one grey); `paper` is
+the BOTTOM rung on a dark one, canvas IS the palette's paper, and the ramp
+ascends toward white. Dark cards also carry a one-pixel lit top edge, which is
+the only depth cue that survives a black ground.
+
+Read one way, both cases are the same sentence: the ramp always climbs away from
+the ground in luminance, and `paper` is whichever end of it the palette already
+named.
+
+`theme/depth.test.ts` is what holds that to every row: the ramp climbs the right
+way, no palette's cards land under `RUNGS.top` off its canvas, a well sits
+between the ground and a card, the fifteen steps are the same height to within
+float noise, a well's shadow is inset and a card's is not, every dark palette
+has the lit edge and every light one casts its own ink — and the AA promise
+`chalk` makes is kept on all three new grounds, since body text lands on them
+now. A palette added as a row arrives with depth already.
+
 ## Fifteen palettes, and the one you picked
 
 `src/client/theme/` is a TABLE and the things generated from it. `palettes.ts`
 holds fifteen named palettes — the racket implementation's four and eleven read
 off the original WorkFlowy theme stylesheets — each a value for the same eight
 tokens `styles.css` declares. Everything else follows from it: `css.ts`
-generates one unlayered `:root[data-theme="…"]` block per row, which `src/build.ts`
-appends to the Tailwind output, and `Chips.tsx` draws one chip per row, each
-chip wearing the palette it offers. The strip is the Theme row of the
+generates one unlayered `:root[data-theme="…"]` block per row — the eight it
+wrote plus the nine `depth.ts` derives — which `src/build.ts` appends to the
+Tailwind output, and `Chips.tsx` draws one chip per row, each chip wearing the
+palette it offers. The strip is the Theme row of the
 preferences panel (`settings/`, below); it used to be a popover of its own
 behind a header pill that named the theme in force, which was a preference with
 a door beside the door to the preferences. What that pill promised is kept by
@@ -459,10 +530,14 @@ what makes a
 forgotten token a type error rather than a `var()` that resolves to nothing in
 one theme only.
 
-Eight tokens and not the racket skin's fourteen: the six that did not come have
-no home in a client that paints one paper and gets its accent grounds from an
-opacity, and a token nothing paints with is a value nobody can check. The
-mapping is written down where the table is.
+Eight tokens WRITTEN and not the racket skin's fourteen: the six that did not
+come have no home in a client that paints one paper, and a token nothing paints
+with is a value nobody can check. The mapping is written down where the table is.
+The depth pass answered that question the other way round — it needed a second
+surface, a third, and the shadows between them — and the way it got them is the
+one this file recommends for the next such need: not six more columns to fill in
+fifteen times, but a DERIVATION off the eight, checked per row (see the section
+above).
 
 A pick is CLIENT state and never leaves the browser — a preference of this
 browser's (`preference.ts`, shared with the agent drawer's open state: storage
@@ -486,7 +561,10 @@ the default, which is `chalk`, which is the one palette that promises WCAG AA.
 That promise is arithmetic, so `contrast.ts` is arithmetic and
 `contrast.test.ts` holds the palette to it pair by pair — over the pairs this
 client actually paints, since rejecting a colour over a combination no
-component draws would be rejecting it over a page that does not exist.
+component draws would be rejecting it over a page that does not exist. Which is
+why `ink` on `rule` left that list with the depth pass: `hover:bg-rule` was the
+surface a row lit up with, and a row lights up by RISING now. The three grounds
+that replaced it are held to the same line by `depth.test.ts`.
 
 ## The app header
 

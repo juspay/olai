@@ -77,11 +77,11 @@ export function DateBadge(props: {
     <Dynamic
       component={picks() ? "button" : "span"}
       type={picks() ? "button" : undefined}
-      class="shrink-0 rounded-full border px-2 text-xs"
+      class="shrink-0 rounded-full inset-ring px-2 text-xs"
       classList={{
-        "border-alarm text-alarm": props.overdue,
-        "border-rule text-muted": !props.overdue,
-        "cursor-pointer hover:border-ink hover:text-ink": picks(),
+        "inset-ring-alarm text-alarm": props.overdue,
+        "inset-ring-rule text-muted": !props.overdue,
+        "cursor-pointer hover:inset-ring-ink hover:text-ink": picks(),
       }}
       data-testid={TESTID.date}
       data-occasion={occasion()}

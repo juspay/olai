@@ -99,8 +99,14 @@ function ResizeHandle(props: {
         })
       }}
     >
+      {/* The line IS the affordance, so it stays — but it is quiet at rest since
+          the depth pass: the seam it used to draw is a change of altitude now
+          (`../surface.ts`), and a full-strength hairline there reads as the
+          border that was removed rather than as something to grab. Under the
+          pointer it is the accent at full strength, which is what a control that
+          is about to be used should look like. */}
       <span
-        class="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-rule transition-colors group-hover:bg-accent group-active:bg-accent"
+        class="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-rule/50 transition-colors group-hover:bg-accent group-active:bg-accent"
         aria-hidden="true"
       />
     </div>

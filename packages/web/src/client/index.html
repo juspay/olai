@@ -41,13 +41,14 @@
     </script>
     <!-- The browser chrome around an installed app: a phone's status bar, an
          installed window's title bar. ONE of them, holding the DEFAULT theme's
-         paper — the palette a page that has picked nothing reads in — because
-         that is the only one this shell can know before the bundle runs. A
-         page that did pick repaints this from the table (theme/state.ts). The
-         value is `--color-paper` of the default palette, which cannot be read
-         from here (the sheet is a build artifact and this shell is what loads
-         it) and is pinned by theme/css.test.ts instead. -->
-    <meta name="theme-color" content="#FAFAF6" />
+         CANVAS — the app header is what touches this strip, and the header is a
+         floating strip of the ground rather than a raised panel
+         (src/client/surface.ts, theme/depth.ts). It is the default palette's
+         because that is the only one this shell can know before the bundle runs;
+         a page that did pick repaints it from the table (theme/state.ts). The
+         value cannot be read from here (the sheet is a build artifact and this
+         shell is what loads it) and is pinned by theme/css.test.ts instead. -->
+    <meta name="theme-color" content="#D8D8D4" />
     <!-- What the browser should assume before the sheet lands: it cannot know
          yet which theme this page is in, and the themes come both ways. Once
          the sheet is in, each palette's own `color-scheme` is what wins. -->
@@ -75,8 +76,14 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <!-- The page's own two utilities. Tailwind's preflight zeroes the body
-       margin; the palette and the font are ours. -->
-  <body class="bg-paper font-sans text-ink antialiased">
+       margin; the palette and the font are ours.
+
+       `bg-canvas` and not `bg-paper`: the body is the GROUND of the depth
+       grammar (src/client/surface.ts) — the tonal desk the rails sink into and
+       the document sheet floats on. On a light palette that is the paper
+       darkened a step; on a dark one it IS the palette's paper, which is why
+       pitch is still pitch. -->
+  <body class="bg-canvas font-sans text-ink antialiased">
     <div id="root"></div>
     <script type="module" src="./main.tsx"></script>
   </body>
