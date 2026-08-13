@@ -38,6 +38,18 @@ Feature: One place to set how this browser reads
     Then the preferences are shut
     And the preferences trigger has the focus
 
+  Scenario: The trigger puts it away again
+    # The other half of the two-root rule: a press ON the trigger is not a press
+    # outside the panel, and reading it as one shuts the panel on the
+    # pointerdown for the trigger's own click to reopen — a control that looks
+    # like it does nothing. `committing.feature` holds the same claim for the
+    # pill beside this, which is where the bug was.
+    When I open the app
+    And I open the preferences
+    And I press the preferences trigger
+    Then the preferences are shut
+    And the preferences trigger has the focus
+
   Scenario: A press outside it shuts it
     # The panel is portalled to the body, so it is not a descendant of the
     # control that opened it and neither of them can speak for the other — a

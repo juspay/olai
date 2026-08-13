@@ -586,12 +586,22 @@ deliberately not here: a sidebar width is set by dragging the sidebar, and a
 panel being open is set by the control that opens it. Copying them into a
 settings list would be a second control for something that already has one.
 
-The panel is **portalled to the body** and placed against the viewport
-(`anchor.ts`, shared with the Commit panel), because the bar it hangs off is a
-`sticky` box with a z-index — a stacking context three rem tall. Dismissal is a
-pointer outside it, Escape, or the trigger again; the two a keyboard can reach
-put focus back on the trigger. A theme pick does NOT dismiss it: a palette is
-judged by looking at the page it paints.
+The panel is **portalled to the body** and placed against the viewport, because
+the bar it hangs off is a `sticky` box with a z-index — a stacking context three
+rem tall. Being open, being placed and being dismissed are `popover.ts`, and the
+Commit pill two along is the other consumer: `anchor.ts` was already the shared
+PURE half, and this is the stateful half catching up. The two had forty lines
+each and had drifted — one grew Escape and a returned focus and the other never
+had them, and **one of them had its click-away wrong in a way nothing could
+see**: a portalled panel is not a descendant of its trigger, so a click-away
+that knows only the panel reads a press of the trigger as a press outside, and
+the trigger's own click then reopens what the pointerdown just shut. Pressing
+the Commit pill a second time did nothing at all. Both roots are consulted now,
+and both popovers have a scenario for it.
+
+Dismissal is therefore a pointer outside it, Escape, or the trigger again; the
+two a keyboard can reach put focus back on the trigger. A theme pick does NOT
+dismiss it: a palette is judged by looking at the page it paints.
 
 ## The directory column is pinned too
 
@@ -887,16 +897,19 @@ business making about a server it has not heard from. "Not told yet" and "turned
 off" being two different things is the same distinction the manifest cell draws
 with its `null`.
 
-The PANEL is portalled out of the sidebar and positioned against the viewport
-(`commit/anchor.ts`), which is not a style choice: the sidebar scrolls, and an
-overflow container clips in both axes, so a popover laid out inside it was cut
-off at the 16rem column — the message, the writer and half the button gone. The
-placement is a pure function of the pill's box and the window, so "pushed back
-inside near the right edge" and "flipped downward when the pill is too high to
-open upward" are a unit test rather than something to find by resizing a
-browser. It re-measures on resize and on scroll (capture phase — the sidebar
-scrolls, and `scroll` does not bubble), because a popover that goes stale where
-it was is worse than one that never moved.
+The PANEL is portalled out of the bar and positioned against the viewport
+(`anchor.ts`, shared with the preferences), which is not a style choice: a
+scrolling column and a three-rem bar both clip in both axes, so a popover laid
+out inside the sidebar was cut off at the 16rem column — the message, the writer
+and half the button gone. The placement is a pure function of the pill's box and
+the window, so "pushed back inside near the right edge" and "flipped downward
+when the pill is too high to open upward" are a unit test rather than something
+to find by resizing a browser. It re-measures on resize and on scroll (capture
+phase — a column scrolls, and `scroll` does not bubble), because a popover that
+goes stale where it was is worse than one that never moved. Whether it is open,
+and the three ways it shuts, are `popover.ts` — see the preferences above for
+what that receptacle is, and for the click-away bug that only showed up once
+both of its consumers were written down beside each other.
 
 Commits-off and no-work-tree are SETTINGS rather than faults — dim, inert, no
 warning colour. `⚠` is for the two anybody can act on, in the two tones that

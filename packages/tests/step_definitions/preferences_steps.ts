@@ -80,6 +80,12 @@ Then("the preferences are shut", async function (this: OlaiWorld) {
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
+/** Unconditionally, unlike `showPreferences`: the scenario that presses it a
+ *  SECOND time is asking what that press does. */
+When("I press the preferences trigger", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(PREFS_TRIGGER));
+});
+
 When("I press Escape on the preferences", async function (this: OlaiWorld) {
   await this.page.keyboard.press("Escape");
 });

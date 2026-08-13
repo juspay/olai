@@ -225,6 +225,18 @@ When("I open the commit panel", async function (this: OlaiWorld) {
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+/** Unconditionally, unlike the step above: the scenario that presses it a
+ *  SECOND time is asking what that press does. */
+When("I press the commit pill", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(COMMIT_PILL));
+});
+
+Then("the commit panel is shut", async function (this: OlaiWorld) {
+  await this.page
+    .locator(COMMIT_PANEL)
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
 Then(
   "the change to {string} is {string}",
   async function (this: OlaiWorld, id: string, sort: string) {

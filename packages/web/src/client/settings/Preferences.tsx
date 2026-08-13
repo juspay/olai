@@ -26,81 +26,30 @@
  * that a keyboard can reach put focus back on the trigger, because somebody who
  * opened this, tabbed into it and pressed Escape would otherwise land on
  * `<body>`. That behaviour came with the theme popover this replaced; it is
- * kept here rather than lost with it.
+ * kept here rather than lost with it, and it is `../popover.ts` rather than
+ * anything of this file's, because the Commit panel two pills along is the
+ * same object and had its own half of it.
  */
 
-import { createEffect, createSignal, onCleanup, Show } from "solid-js"
+import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
-import { type Anchor, anchoredTo } from "../anchor.ts"
 import { Panel } from "./Panel.tsx"
+import { createPopover } from "../popover.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 
 export function Preferences() {
-  const [open, setOpen] = createSignal(false)
-  const [anchor, setAnchor] = createSignal<Anchor | null>(null)
-
-  let trigger: HTMLButtonElement | undefined
-  let panel: HTMLElement | undefined
-
-  /** Shut it, and put focus back on the trigger when the dismissal came from a
-   *  key rather than from a pointer that has already gone somewhere. */
-  const close = (restoreFocus: boolean) => {
-    setOpen(false)
-    if (restoreFocus) trigger?.focus()
-  }
-
-  /** Re-read where the trigger is. It has to happen again whenever the window
-   *  or the page under it moves: an anchored popover that goes stale on a
-   *  scroll is worse than one that never moved at all. */
-  const measure = () => {
-    if (trigger === undefined) return
-    setAnchor(anchoredTo(trigger.getBoundingClientRect(), {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    }))
-  }
-
-  // Scoped to the open state, so a shut panel is not three document listeners
-  // for nothing.
-  createEffect(() => {
-    if (!open()) return
-    measure()
-    const onPointer = (event: PointerEvent) => {
-      const target = event.target
-      if (!(target instanceof Node)) return
-      // Two roots, not one: the trigger and the portalled panel are siblings in
-      // different corners of the document, so neither is an ancestor that could
-      // speak for the other.
-      if (trigger?.contains(target) || panel?.contains(target)) return
-      close(false)
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return
-      event.preventDefault()
-      close(true)
-    }
-    // Capture, so a press that also navigates still closes this first.
-    document.addEventListener("pointerdown", onPointer, true)
-    document.addEventListener("keydown", onKey)
-    window.addEventListener("resize", measure)
-    // Capture for `scroll` too: what moves under the panel may be a column
-    // rather than the document, and a scroll event does not bubble.
-    document.addEventListener("scroll", measure, true)
-    onCleanup(() => {
-      document.removeEventListener("pointerdown", onPointer, true)
-      document.removeEventListener("keydown", onKey)
-      window.removeEventListener("resize", measure)
-      document.removeEventListener("scroll", measure, true)
-    })
-  })
+  // Whether it is up, where it goes, and the three ways it shuts —
+  // `../popover.ts`, shared with the Commit panel beside this in the bar.
+  const popover = createPopover()
+  const open = popover.open
 
   return (
     <>
       <button
         type="button"
-        ref={trigger}
+        ref={popover.setTrigger}
         // `TARGET_BOX` for the reason the burger and the agent toggle carry it:
         // a glyph on its own is a target a finger misses sideways as well as
         // vertically. Released on a pointer (`md:`).
@@ -111,7 +60,7 @@ export function Preferences() {
         aria-expanded={open()}
         aria-haspopup="true"
         title="preferences: theme, and what a page does with finished work"
-        onClick={() => (open() ? close(true) : setOpen(true))}
+        onClick={() => popover.toggle()}
       >
         {/* The word is `sr-only` below 40rem, exactly as the agent toggle's is:
             the glyph is already an icon, the accessible name is unchanged, and
@@ -120,15 +69,10 @@ export function Preferences() {
         <span class="sr-only sm:not-sr-only">prefs</span>
       </button>
       {/* Out of the header entirely — see this file's header. */}
-      <Show when={open() ? anchor() : null}>
+      <Show when={open() ? popover.at() : null}>
         {(at) => (
           <Portal>
-            <Panel
-              at={at()}
-              inside={(el) => {
-                panel = el
-              }}
-            />
+            <Panel at={at()} inside={popover.setPanel} />
           </Portal>
         )}
       </Show>

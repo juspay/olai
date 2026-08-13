@@ -21,6 +21,12 @@
  *
  * Every row is `./Row.tsx`: a label, a control, and a line under it read off
  * the choice in force.
+ *
+ * The folder is `settings/` and every word on screen is "preferences", and that
+ * is deliberate rather than sloppy: `../preference.ts` beside it is the STORE —
+ * what this browser remembers and how — and a folder named one letter away from
+ * it would be two nearly identical names for two different things, which is
+ * worse than two words for one. This is the surface; that is the mechanism.
  */
 
 import type { Anchor } from "../anchor.ts"
