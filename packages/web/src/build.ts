@@ -227,9 +227,11 @@ const buildClient = async (distDir: string): Promise<void> => {
   // siblings beat it. So "the entry is 663 kB and 180 kB on the wire" stays a
   // number somebody can see after the step that printed it left this file.
   for (const asset of assets) {
-    const siblings = Object.entries(asset.siblings)
-      .map(([encoding, size]) => `${encoding}=${size}B`)
-    console.log(`asset: ${asset.file} ${asset.bytes}B ${siblings.join(" ")}`.trimEnd())
+    const parts = [`${asset.file} ${asset.bytes}B`]
+    for (const [encoding, size] of Object.entries(asset.siblings)) {
+      parts.push(`${encoding}=${size}B`)
+    }
+    console.log(`asset: ${parts.join(" ")}`)
   }
   // Fonts after the surface client so a wipe of dist does not strand them,
   // and so /fonts/* is a sibling of the icons at the dist root.

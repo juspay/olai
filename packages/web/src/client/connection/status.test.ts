@@ -30,6 +30,10 @@ const STATES: ReadonlyArray<SurfaceReadoutStatus> = [
   "retired",
 ]
 
+/** The four the table answers for. A narrowing predicate rather than a cast, so
+ *  a state leaving `LOOK` is a type error here too. */
+const TABLED = STATES.filter((state): state is keyof typeof LOOK => state !== "degraded")
+
 /** One of each, as the framework hands it over — `degraded` carries the names
  *  that make its sentence, and nothing else carries any. */
 const readoutOf = (status: SurfaceReadoutStatus): SurfaceReadout =>
@@ -77,7 +81,5 @@ test("the degraded detail names what stopped", () => {
 // its detail names what stopped — so a caller that had to know which shape a
 // state was in would be the split this collapses.
 test("every state is drawn through one function", () => {
-  for (const state of STATES.filter((s) => s !== "degraded")) {
-    expect(lookOf(readoutOf(state))).toBe(LOOK[state as keyof typeof LOOK])
-  }
+  for (const state of TABLED) expect(lookOf(readoutOf(state))).toBe(LOOK[state])
 })

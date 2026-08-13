@@ -1,5 +1,5 @@
 /**
- * Attaching a file to a prompt — the numbers and the gate, declared once.
+ * Attaching a file to a prompt — the gate, declared once.
  *
  * An attached file is BYTES, and bytes are the one thing this app's wire was
  * not built to carry: every other member is a fact about a file on disk. So the
@@ -11,9 +11,9 @@
  *
  * This module is what both ends of that agree on: the client's pre-flight gate
  * (refuse before encoding anything) and the server's authoritative one (refuse
- * before writing to disk) consume the SAME constants and the same rejection
- * wording, so the two cannot drift on the threshold or on what they say about
- * it. It lives in `surface` for the reason {@link ./media.ts} does: `@olai/web`
+ * before writing to disk) are the SAME function, so the two cannot drift on the
+ * threshold or on what they say about it. It lives in `surface` for the reason
+ * {@link ./media.ts} does: `@olai/web`
  * and `@olai/server` cannot import each other, and a contract kept in two
  * copies is a contract kept by memory.
  *

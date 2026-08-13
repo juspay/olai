@@ -1,7 +1,7 @@
 /**
  * When the markdown machinery arrives.
  *
- * ./pipeline.ts is a bundle of its own (~391 KB raw, ~96 KB brotli) and the
+ * ./pipeline.ts is a chunk of its own (~390 KB raw, ~95 KB brotli) and the
  * initial paint of an outline does not wait for it: a tree of titles,
  * checkboxes and badges is drawn out of `main-*.js` alone, and this file is
  * what fetches the rest — the first time something on the page turns out to

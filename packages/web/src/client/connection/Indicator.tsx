@@ -58,10 +58,12 @@ import { TESTID } from "../testids.ts"
 export const CLEARANCE = "pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
 
 export function Indicator(props: { readonly readout: SurfaceReadout }) {
-  // No memo over the fact any more: the readout IS the memo (`createSurfaceReadout`,
-  // folded once per connection, silent while its answer is unchanged), so the
-  // five expressions below read a value rather than re-walking the enrolled
-  // subscriptions once per expression per update.
+  // A plain function rather than a memo, which it could not be before: the
+  // expensive read was the subscription registry, and this component walked it
+  // per expression per update until the fold moved upstream. What is left is a
+  // table lookup (or, for `degraded`, one `join`) over a value that is already
+  // memoized — `createSurfaceReadout` folds once per connection and stays silent
+  // while its answer is unchanged.
   const look = () => lookOf(props.readout)
   return (
     <div
