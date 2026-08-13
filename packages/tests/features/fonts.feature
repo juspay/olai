@@ -26,6 +26,7 @@ Feature: The typeface is a pick, and it is yours
 
   Scenario: Picking a typeface sets the page
     When I open the app
+    And I mark the page
     And I pick the font "inter"
     Then the page is in the font "inter"
     And the font row names the typeface in force
