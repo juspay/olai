@@ -36,7 +36,7 @@ export function Shortcuts(props: {
           aria-label="close the shortcuts"
           onClick={() => props.onClose()}
         />
-        <div class="relative z-10 max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-lg border border-rule bg-paper p-4 shadow-lg">
+        <div class="relative z-10 max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-lg border border-rule/70 bg-panel p-4 shadow-lg">
           <For each={[...SHORTCUTS]}>
             {(group) => (
               <section class="mb-4 last:mb-0">

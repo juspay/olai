@@ -4,15 +4,15 @@ import { AA, contrastRatio, relativeLuminance } from "./contrast.ts"
 import { PALETTES, type PaletteToken } from "./palettes.ts"
 
 /** The pairs this client actually paints — a foreground, and the background it
- *  lands on. Not every pair the eight tokens could make: `muted` is never read
+ *  lands on. Not every pair the eleven tokens could make: `muted` is never read
  *  on `rule`, and holding a palette to a combination no component draws would
  *  be rejecting a colour over a page that does not exist.
  *
  *  Each is a real site: body text and every accent read on the paper
- *  (`text-muted`, `text-alarm`, a link); `text-paper` on the sidebar entry in
- *  force and on the day being read (`bg-accent`, `bg-ink`); `text-ink` over the
- *  surface a row lights up with (`hover:bg-rule`). It is a claim about the
- *  components, so it lives here rather than with the arithmetic. */
+ *  (`text-muted`, `text-alarm`, a link); chrome labels on the desk; a date
+ *  badge on its pill; `text-paper` on the day being read (`bg-ink`); `text-ink`
+ *  over the surface a row lights up with (`hover:bg-rule`). It is a claim
+ *  about the components, so it lives here rather than with the arithmetic. */
 const PAINTED: ReadonlyArray<readonly [PaletteToken, PaletteToken]> = [
   ["ink", "paper"],
   ["muted", "paper"],
@@ -20,6 +20,12 @@ const PAINTED: ReadonlyArray<readonly [PaletteToken, PaletteToken]> = [
   ["done", "paper"],
   ["doing", "paper"],
   ["alarm", "paper"],
+  ["ink", "desk"],
+  ["muted", "desk"],
+  ["ink", "panel"],
+  ["muted", "panel"],
+  ["ink", "pill"],
+  ["muted", "pill"],
   ["paper", "accent"],
   ["paper", "ink"],
   ["ink", "rule"],

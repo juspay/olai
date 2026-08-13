@@ -18,11 +18,26 @@ import { TESTID } from "./testids.ts"
 export function ProgressBadge(props: { readonly progress: Progress }) {
   return (
     <span
-      class="shrink-0 font-mono text-xs text-muted"
+      class="inline-flex shrink-0 items-center gap-1.5 font-mono text-xs text-muted"
       data-testid={TESTID.progress}
       data-progress={`${props.progress.done}/${props.progress.total}`}
       title={`${props.progress.done} of ${props.progress.total} tasks under this are done`}
     >
+      <span
+        class="inline-block h-0.5 w-7 overflow-hidden rounded-full bg-pill"
+        aria-hidden="true"
+      >
+        <span
+          class="block h-full rounded-full bg-done"
+          style={{
+            width: `${
+              props.progress.total === 0
+                ? 0
+                : Math.round((props.progress.done / props.progress.total) * 100)
+            }%`,
+          }}
+        />
+      </span>
       {props.progress.done}/{props.progress.total}
     </span>
   )

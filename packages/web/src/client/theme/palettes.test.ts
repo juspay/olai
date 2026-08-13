@@ -64,6 +64,7 @@ describe("the palette table", () => {
     // the first palette's paper and the last one's alarm, read off
     // master-racket's olai/web/theme.rkt.
     expect(paletteNamed("leaf")?.colors.paper).toBe("#E4ECCA")
+    expect(paletteNamed("chalk")?.colors.desk).toBe("#F2F2EC")
     expect(paletteNamed("robot")?.colors.alarm).toBe("#E8393F")
   })
 })

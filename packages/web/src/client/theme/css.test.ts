@@ -93,7 +93,7 @@ describe("the shell's boot script", () => {
  * The border with the STYLESHEET.
  *
  * Tailwind can only emit `text-muted` for a `--color-muted` it has seen in
- * `@theme`, so the eight defaults are spelled there as well as being in the
+ * `@theme`, so the eleven defaults are spelled there as well as being in the
  * table. This is what stops the two from drifting: what a utility falls back
  * to and what the default palette says have to be the same colour.
  */

@@ -44,7 +44,8 @@ let
 
     # b2n.hook propagates its own bun; listing ours first wins on PATH, so the
     # bun that installs and the bun the wrapper execs are one version.
-    # woff2 converts Open Sans TTFs to the /fonts/*.woff2 the client serves.
+    # woff2 converts the composed Source Sans / Source Serif TTFs to the
+    # /fonts/*.woff2 the client serves.
     nativeBuildInputs = [ pkgs.bun b2n.hook pkgs.woff2 ];
 
     bunDeps = b2n.fetchBunDeps { bunNix = ./bun.nix; };
@@ -73,7 +74,7 @@ let
       # binding at startup — even without --watch — and that binding wants
       # libstdc++, which the sandbox does not put on the loader path.
       export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:''${LD_LIBRARY_PATH:-}"
-      export OLAI_FONTS_DIR="${pkgs.open-sans}/share/fonts/truetype"
+      export OLAI_FONTS_DIR="${import ./nix/fonts.nix { inherit pkgs; }}"
       export OLAI_WOFF2_COMPRESS="${pkgs.woff2}/bin/woff2_compress"
       ${stamp.exportLine rev}
       bun packages/web/src/build.ts packages/web/dist

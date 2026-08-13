@@ -63,7 +63,7 @@ Feature: The header sticks
     Then the app header is at the top of the viewport
     And the heading "Lists" is clear of the header
 
-  # A palette is a redefinition of eight custom properties and the bar's
+  # A palette is a redefinition of eleven custom properties and the bar's
   # geometry knows nothing about it — but the CHIPS hang off the header, in the
   # preferences panel, and a positioned bar with a z-index is a stacking context
   # anything drawn inside it would be trapped in. (That is why the panel is

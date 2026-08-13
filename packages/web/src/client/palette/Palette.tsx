@@ -181,7 +181,7 @@ export function Palette(props: {
           data-testid={TESTID.paletteScrim}
           onClick={close}
         />
-        <div class="relative z-10 w-full max-w-lg overflow-hidden rounded-lg border border-rule bg-paper shadow-lg">
+        <div class="relative z-10 w-full max-w-lg overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg">
           <input
             ref={input}
             type="text"

@@ -23,50 +23,83 @@
  * the same tree. */
 @source "./";
 
-/* Workflowy's UI font — Open Sans — fetched and converted by the Nix build
- * (see packages/web/src/build.ts and shell.nix's OLAI_FONTS_DIR). Absolute
- * /fonts/ paths so a content-hashed /assets/styles-*.css still resolves them.
- * No CDN, no font binary in the repo. */
+/* Source Sans 3 (chrome) and Source Serif 4 (the page) — nixpkgs, converted
+ * to woff2 by the client build (packages/web/src/build.ts, nix/fonts.nix).
+ * Absolute /fonts/ paths so a content-hashed /assets/styles-*.css still
+ * resolves them. No CDN, no font binary in the repo. */
 @font-face {
-  font-family: "Open Sans";
+  font-family: "Source Sans 3";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/OpenSans-Regular.woff2") format("woff2");
+  src: url("/fonts/SourceSans3-Regular.woff2") format("woff2");
 }
 
 @font-face {
-  font-family: "Open Sans";
+  font-family: "Source Sans 3";
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/OpenSans-Italic.woff2") format("woff2");
+  src: url("/fonts/SourceSans3-It.woff2") format("woff2");
 }
 
 @font-face {
-  font-family: "Open Sans";
+  font-family: "Source Sans 3";
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/fonts/OpenSans-Semibold.woff2") format("woff2");
+  src: url("/fonts/SourceSans3-Semibold.woff2") format("woff2");
 }
 
 @font-face {
-  font-family: "Open Sans";
+  font-family: "Source Sans 3";
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("/fonts/OpenSans-Bold.woff2") format("woff2");
+  src: url("/fonts/SourceSans3-Bold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/SourceSerif4-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/SourceSerif4-It.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/SourceSerif4-Semibold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/SourceSerif4-Bold.woff2") format("woff2");
 }
 
 @theme {
-  --font-sans: "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4", ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Named for their job, not their hue, so a palette is the same eight names
+  /* Named for their job, not their hue, so a palette is the same eleven names
    * with different values and no utility has to know which one is in force.
    *
-   * These eight are the DEFAULT palette's — `chalk` — and they are the one
+   * These eleven are the DEFAULT palette's — `chalk` — and they are the one
    * place the table is spelled twice. Tailwind needs the NAMES here or it will
    * not emit `text-muted` at all; what it does with the VALUES is bake the
    * literal fallback beside every opacity utility (`.bg-alarm/5` gets both
@@ -82,6 +115,9 @@
    * `src/build.ts`). */
   --color-ink: #15180F;
   --color-paper: #FAFAF6;
+  --color-desk: #F2F2EC;
+  --color-panel: #F5F5F0;
+  --color-pill: #EDEFE6;
   --color-muted: #555E4C;
   --color-rule: #C9CDBF;
   --color-accent: #134F75;
@@ -122,7 +158,7 @@
   scroll-padding-top: var(--height-header);
 }
 
-/* A palette is a redefinition of the same eight custom properties, not a
+/* A palette is a redefinition of the same eleven custom properties, not a
  * `dark:` variant on every utility: every one of them already reads
  * `var(--color-…)`, so one block re-answers all of them at once. Those blocks
  * are not written here — they are generated from the table in
@@ -145,6 +181,14 @@
 /* In-place note expansion on a tree/day row. A short fade when motion is OK;
  * none under prefers-reduced-motion so the reflow is instant for readers who
  * asked for that (no rule at all in that case). */
+/* A raised card on the desk — the month, and anything else that sits up off
+ * the workbench. Ink-tinted so it follows every palette rather than a gray. */
+.olai-card {
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--color-ink) 6%, transparent),
+    0 8px 20px -14px color-mix(in srgb, var(--color-ink) 22%, transparent);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .olai-row-detail {
     animation: olai-row-detail-in 120ms ease-out;
@@ -195,6 +239,7 @@
  * is a recoverable thing to be doing, where mis-reading a value is not. */
 .olai-md {
   overflow-wrap: anywhere;
+  font-family: var(--font-serif);
 
   /* Declared rather than inherited. A block of markdown is drawn inside
    * whatever the page hands it — a page body, a tree row, a `text-sm` chat
@@ -209,6 +254,13 @@
    * named here rather than spelled at each surface, because the two are one
    * decision and would have to be changed together. */
   --olai-md-tint: color-mix(in srgb, var(--color-rule) 45%, transparent);
+}
+
+/* A compact block is furniture (a note, a chat reply), so it takes the chrome
+ * face rather than the page face `.olai-md` just set. A title is `.olai-md`
+ * without this class and stays serif. */
+.olai-md-compact {
+  font-family: var(--font-sans);
 }
 
 .olai-md :is(pre, th, td) {

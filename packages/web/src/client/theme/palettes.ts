@@ -5,7 +5,7 @@
  * one is adding a row, deleting one is deleting a row, and neither touches a
  * line of CSS — `./css.ts` generates every block in the sheet from what is
  * here, and `./Chips.tsx` draws one chip per row. Hand-written CSS would be
- * the same eight lines copied fifteen times, and one place per theme for a new
+ * the same eleven lines copied fifteen times, and one place per theme for a new
  * token to be forgotten.
  *
  * The values are the racket implementation's, ported hex for hex from
@@ -25,11 +25,13 @@
  *
  * ## The vocabulary, and what it left behind
  *
- * The racket skin painted with fourteen tokens; this client paints with eight,
- * and they are the eight `styles.css` already had. So each row is that row's
- * fourteen read through the one mapping below:
+ * The racket skin painted with fourteen tokens; this client paints with
+ * eleven. Each row is that row's fourteen read through the one mapping below:
  *
- *   paper   <- paper       the page itself
+ *   paper   <- paper       the page itself — the outline, a document
+ *   desk    <- paper-2     the workbench around it — header, sidebar, dock
+ *   panel   <- panel       a raised card: the month, a popover, a composer
+ *   pill    <- pill-bg     a filled chip: a date, a readout, a header control
  *   ink     <- ink         what is written on it
  *   muted   <- dim         a label, a timestamp, a note's chrome
  *   rule    <- line        a border, and the surface a row lights up with
@@ -39,26 +41,29 @@
  *   alarm   <- rose-fg     an error, a refusal
  *
  * which for the eleven imported rows is one more step back, to the slots their
- * own themes are written in — `paper` is their `background-primary`, `ink`
- * their `text-primary`, `muted` their `text-tertiary`, `rule` their
- * `border-primary`, and the four accents their named colour ramp
- * (`text-blue`, `text-green`, `text-yellow`, `text-red`) rather than their
- * semantic ones, which are pale mints and pinks that only work on a dark
- * ground. Three rows depart from that and each says so where it is written.
+ * own themes are written in — `paper` is their `background-primary`, `desk`
+ * their `background-secondary`, `panel` their `background-tertiary`, `pill`
+ * their `background-selected`, `ink` their `text-primary`, `muted` their
+ * `text-tertiary`, `rule` their `border-primary`, and the four accents their
+ * named colour ramp (`text-blue`, `text-green`, `text-yellow`, `text-red`)
+ * rather than their semantic ones, which are pale mints and pinks that only
+ * work on a dark ground. Three rows depart from that and each says so where
+ * it is written.
  *
- * The six that did not come — `paper-2`, `panel`, `pill-bg` and the three
- * accent GROUNDS — have no home in this client: it paints one paper, and its
- * accent pills are the accent at an opacity rather than a colour of their own.
- * A token nothing paints with is a value nobody can check, so they are not
- * carried. When a component wants a second surface, the way to give it one is
- * to add a column here and let the type error name every row that owes a value
- * — which is exactly what `Record<PaletteToken, string>` is for.
+ * The three accent GROUNDS did not come: a wash is the accent at an opacity,
+ * and a token nothing paints with is a value nobody can check. When a
+ * component wants another named surface, the way to give it one is to add a
+ * column here and let the type error name every row that owes a value —
+ * which is exactly what `Record<PaletteToken, string>` is for.
  */
 
 /** Every token a palette names. The order is the order they are written in a
  *  block, which is the order they are read in below. */
 export const PALETTE_TOKENS = [
   "paper",
+  "desk",
+  "panel",
+  "pill",
   "ink",
   "muted",
   "rule",
@@ -105,6 +110,9 @@ const TABLE = [
     scheme: "light",
     colors: {
       paper: "#E4ECCA",
+      desk: "#EDF2DC",
+      panel: "#EFF4DC",
+      pill: "#F5F8E6",
       ink: "#2C4222",
       muted: "#74855F",
       rule: "#CDD8AB",
@@ -121,6 +129,9 @@ const TABLE = [
     scheme: "light",
     colors: {
       paper: "#F0E7D2",
+      desk: "#F5EDDD",
+      panel: "#F7F0E2",
+      pill: "#FAF4E6",
       ink: "#3D2F1B",
       muted: "#8C7B5C",
       rule: "#DCCEAC",
@@ -139,6 +150,9 @@ const TABLE = [
     aa: true,
     colors: {
       paper: "#FAFAF6",
+      desk: "#F2F2EC",
+      panel: "#F5F5F0",
+      pill: "#EDEFE6",
       ink: "#15180F",
       muted: "#555E4C",
       rule: "#C9CDBF",
@@ -155,6 +169,9 @@ const TABLE = [
     scheme: "dark",
     colors: {
       paper: "#000000",
+      desk: "#0D110A",
+      panel: "#10140C",
+      pill: "#161B10",
       ink: "#C9D6B4",
       muted: "#77836A",
       rule: "#242B1E",
@@ -173,6 +190,9 @@ const TABLE = [
     scheme: "light",
     colors: {
       paper: "#FFFFFF",
+      desk: "#F3F4F4",
+      panel: "#DCE0E2",
+      pill: "#C1E1F2",
       ink: "#2A3135",
       muted: "#868C90",
       rule: "#DCE0E2",
@@ -188,6 +208,9 @@ const TABLE = [
     scheme: "dark",
     colors: {
       paper: "#2A3135",
+      desk: "#353C3F",
+      panel: "#5C6062",
+      pill: "#336677",
       ink: "#FFFFFF",
       muted: "#9EA1A2",
       rule: "#5C6062",
@@ -205,6 +228,9 @@ const TABLE = [
     scheme: "light",
     colors: {
       paper: "#ECEEF0",
+      desk: "#F3F4F4",
+      panel: "#DCE0E2",
+      pill: "#C1E1F2",
       ink: "#2A3135",
       muted: "#868C90",
       rule: "#DCE0E2",
@@ -220,6 +246,9 @@ const TABLE = [
     scheme: "dark",
     colors: {
       paper: "#1E1E2E",
+      desk: "#343546",
+      panel: "#45475A",
+      pill: "#313244",
       ink: "#CDD6F4",
       muted: "#9399B2",
       rule: "#313244",
@@ -236,6 +265,9 @@ const TABLE = [
     scheme: "light",
     colors: {
       paper: "#FFEFE2",
+      desk: "#F0DAC9",
+      panel: "#E6CDBB",
+      pill: "#FBDA8A",
       ink: "#281603",
       muted: "#7D5E47",
       rule: "#A1836B53",
@@ -252,6 +284,9 @@ const TABLE = [
     scheme: "dark",
     colors: {
       paper: "#000000",
+      desk: "#002200",
+      panel: "#003300",
+      pill: "#005500",
       ink: "#00FF00",
       muted: "#009900",
       rule: "#005500",
@@ -269,6 +304,9 @@ const TABLE = [
     scheme: "light",
     colors: {
       paper: "#DDEABE",
+      desk: "#EEF6CF",
+      panel: "#EEF6CF",
+      pill: "#EEF6CF",
       ink: "#415915",
       muted: "#85AC41",
       rule: "#85AC41",
@@ -284,6 +322,9 @@ const TABLE = [
     scheme: "light",
     colors: {
       paper: "#FDF6F6",
+      desk: "#ECE7EE",
+      panel: "#DFDEF2",
+      pill: "#EFEEF5",
       ink: "#615F7F",
       muted: "#8B6FA8",
       rule: "#E4D8EA",
@@ -299,6 +340,9 @@ const TABLE = [
     scheme: "dark",
     colors: {
       paper: "#141414",
+      desk: "#2D2D2D",
+      panel: "#373737",
+      pill: "#286C8E",
       ink: "#DCDBDB",
       muted: "#9EA1A2",
       rule: "#242424",
@@ -315,6 +359,9 @@ const TABLE = [
     scheme: "dark",
     colors: {
       paper: "#282C33",
+      desk: "#2F343E",
+      panel: "#3B4048",
+      pill: "#293B5B",
       ink: "#C8CCD4",
       muted: "#5D636F",
       rule: "#3B4048",
@@ -334,6 +381,9 @@ const TABLE = [
     scheme: "dark",
     colors: {
       paper: "#000000",
+      desk: "#1A2B2B",
+      panel: "#FEA14320",
+      pill: "#151413",
       ink: "#FEA143",
       muted: "#7A8A8A",
       rule: "#E8393F",

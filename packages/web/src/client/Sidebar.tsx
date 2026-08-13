@@ -79,11 +79,11 @@ import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
 
-/** One file entry. Workflowy-quiet: soft hover, soft current. */
+/** One file entry. Workflowy-quiet: soft hover, a wash when current. */
 const ENTRY =
-  `flex ${TARGET} items-center break-all rounded-sm px-2 py-0.5 text-[0.8125rem] leading-snug ` +
-  "no-underline text-ink hover:bg-rule/60 aria-[current=page]:bg-rule " +
-  "aria-[current=page]:text-ink md:min-h-0"
+  `flex ${TARGET} items-center break-all rounded-md px-2 py-0.5 text-[0.8125rem] leading-snug ` +
+  "no-underline text-ink hover:bg-rule/50 aria-[current=page]:bg-accent/15 " +
+  "aria-[current=page]:text-accent aria-[current=page]:font-semibold md:min-h-0"
 
 /** A directory row: folds, does not navigate. */
 const DIR =
@@ -175,7 +175,7 @@ export function Sidebar(props: {
           // the drawer into flow offsets). Desktop: a STICKY column, pinned
           // under the header (see the note above).
           (props.open ? "flex " : "hidden ") +
-          "z-40 flex-col border-r border-rule bg-paper " +
+          "z-40 flex-col border-r border-rule/70 bg-desk " +
           // Wide enough that the month's 7 day cells still hit 44×44.
           "fixed bottom-0 left-0 top-[var(--height-header,3rem)] w-[min(22rem,92vw)] " +
           // `top-` above is BOTH positions' offset — the drawer's inset and
@@ -193,7 +193,7 @@ export function Sidebar(props: {
             cover the calendar's month-step chevrons (top-right of the body). */}
         <button
           type="button"
-          class={`absolute bottom-2 right-2 z-10 hidden ${TARGET_BOX} items-center justify-center rounded border border-rule bg-paper text-muted hover:bg-rule/60 hover:text-ink md:inline-flex md:min-h-8 md:min-w-8`}
+          class={`absolute bottom-2 right-2 z-10 hidden ${TARGET_BOX} items-center justify-center rounded border border-rule/70 bg-panel text-muted hover:bg-rule/60 hover:text-ink md:inline-flex md:min-h-8 md:min-w-8`}
           data-testid={TESTID.sidebarCollapse}
           aria-label="collapse the sidebar to the icon rail"
           title="collapse sidebar"
