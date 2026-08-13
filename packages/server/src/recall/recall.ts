@@ -46,7 +46,7 @@ import {
 } from "effect"
 
 import { cacheFile, type CachedRow, defaultCacheDir, hashOf, load, save } from "./cache.ts"
-import { detectOllama, type Embedder } from "./embedder.ts"
+import type { Embedder } from "./embedder.ts"
 
 export interface Options {
   /** The served directory, resolved — the cache's key, never read from. */
@@ -54,10 +54,17 @@ export interface Options {
   /** The store's snapshot ref: current value then every revision, which is
    *  exactly the store's own contract and all the indexing loop needs. */
   readonly snapshot: SubscriptionRef.SubscriptionRef<Snapshot<OutlineSet> | null>
-  /** THE SEAM. How an embedder is found — Ollama detection by default; a test
-   *  hands in a deterministic fake and never requires a live model
-   *  (kolu-ci-1). `null` out of this is the ordinary machine. */
-  readonly embedder?: Effect.Effect<Embedder | null>
+  /**
+   * THE SEAM. How an embedder is found — `null` out of it is the ordinary
+   * machine, and the whole degradation story.
+   *
+   * REQUIRED, with no default, and that is the point: a default here is a
+   * network call that arrives by omission, which is how every test that
+   * stands a real server up came to probe Ollama. The composition roots say
+   * `embedderFrom(process.env)` out loud; a test hands in a deterministic
+   * fake and can never reach a live model (kolu-ci-1).
+   */
+  readonly embedder: Effect.Effect<Embedder | null>
   /** Where the cache sleeps — {@link defaultCacheDir} unless a test says. */
   readonly cacheDir?: string
 }
@@ -120,7 +127,7 @@ export const open = (
   Scope.Scope | FileSystem.FileSystem | Path.Path
 > =>
   Effect.gen(function*() {
-    const embedder = yield* (options.embedder ?? detectOllama)
+    const embedder = yield* options.embedder
     if (embedder === null) return null
     yield* Effect.logInfo(`recall: semantic search on (${embedder.id})`)
 
@@ -200,6 +207,10 @@ export const open = (
         // search excludes would answer with ids the search then drops.
         const due: Array<{ id: string; text: string; hash: string }> = []
         const nowFiled = new Map<string, Set<string>>()
+        /** Every id this walk saw. On the FIRST reconcile the walk is the
+         *  whole set, which is what makes it usable as the truth to prune a
+         *  reloaded cache against. */
+        const walked = new Set<string>()
         for (const located of Query.regulars(derived)) {
           if (!touched(located.file)) continue
           const id = located.node.id
@@ -208,6 +219,7 @@ export const open = (
           const ids = nowFiled.get(located.file) ?? new Set<string>()
           ids.add(id)
           nowFiled.set(located.file, ids)
+          walked.add(id)
           if (rows.get(id)?.hash !== hash) due.push({ id, text, hash })
         }
 
@@ -223,6 +235,23 @@ export const open = (
             moved = true
           }
         }
+        // …and, on the FIRST reconcile, against the whole walk rather than
+        // against `filed` — which remembers nothing yet. THE CACHE IS WHY:
+        // it restores vectors and not which file each came from, so a node
+        // deleted while this process was not running is in `rows` with no
+        // entry above to prune it, and every later reconcile skips the file
+        // it left because nothing about that file changed. It would sit
+        // there taking a `nearest` slot from a live node for as long as the
+        // cache lived. The first walk covered every file, so what it did not
+        // see is not in the set.
+        if (first) {
+          for (const id of [...rows.keys()]) {
+            if (walked.has(id)) continue
+            rows.delete(id)
+            moved = true
+          }
+        }
+
         for (const file of [...filed.keys()]) if (touched(file)) filed.delete(file)
         for (const [file, ids] of nowFiled) filed.set(file, ids)
 

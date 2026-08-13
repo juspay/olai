@@ -294,6 +294,64 @@ test("a node that leaves a re-read file leaves the index with it", async () => {
   fs.rmSync(dir, { recursive: true, force: true })
 })
 
+test("PIN (restart): a node deleted between serves does not come back with the cache", async () => {
+  // The RESTART half of the prune, and the half a within-process test cannot
+  // reach: a reloaded cache restores vectors for ids the outlines may have
+  // stopped declaring while this process was not running. The index is a
+  // derived reading — it may lag by a beat, it may never DISAGREE — and a
+  // ghost here is a disagreement that survives every later reconcile, because
+  // an unchanged corpus never re-reads the file the ghost came from.
+  //
+  // It is not visible as a wrong hit (`searchWith` resolves ids against the
+  // snapshot and drops what it cannot find) — it is worse than that: the
+  // ghost occupies a `nearest` slot, so a deleted node crowds a live
+  // paraphrase out of the fill.
+  const { dir, root } = scratch()
+
+  await run(Effect.gen(function*() {
+    const snapshot = yield* SubscriptionRef.make<Snapshot<OutlineSet> | null>(
+      snapOf(1, setOf(HOUSE)),
+    )
+    const recall = yield* open({
+      root,
+      snapshot,
+      embedder: Effect.succeed(fake()),
+      cacheDir: dir,
+    })
+    if (recall === null) throw new Error("the fake embedder was not taken")
+    yield* recall.settled
+  }))
+  expect(fs.existsSync(cacheFile(dir, root))).toBe(true)
+
+  // A second serve over a corpus that lost `buy` while nobody was watching.
+  await run(Effect.gen(function*() {
+    const without = setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"leak","parent":"kitchen","ord":"a1","title":"Fix the faucet"}`,
+      ].join("\n"),
+    })
+    const snapshot = yield* SubscriptionRef.make<Snapshot<OutlineSet> | null>(
+      snapOf(1, without),
+    )
+    const recall = yield* open({
+      root,
+      snapshot,
+      embedder: Effect.succeed(fake()),
+      cacheDir: dir,
+    })
+    if (recall === null) throw new Error("the fake embedder was not taken")
+    yield* recall.settled
+    expect(yield* recall.nearest("purchase food", 5)).toEqual([])
+  }))
+
+  // …and the ghost is gone from DISK too, not merely from this process's map:
+  // a cache that still holds it would hand it back to the next serve.
+  const slept = fs.readFileSync(cacheFile(dir, root), "utf8")
+  expect(slept).not.toContain(`"buy"`)
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
 test("a cache written beside a different embedder is discarded whole", async () => {
   const { dir, root } = scratch()
   const set = setOf(HOUSE)

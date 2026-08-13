@@ -1,15 +1,23 @@
 /**
- * The palette's node search, as a primitive — asked of the server, latest
- * answer wins.
+ * Node search, as a primitive — asked of the server, latest answer wins.
  *
- * It is a hook rather than lines inside `Palette.tsx` for the reason
- * HACKING.md gives twice: UI components stay encapsulated, and a browser
- * should use the SolidJS ecosystem rather than hand-roll it. `createResource`
- * is what a query-with-a-changing-input IS in Solid — it drops the answer to
- * a source that has since moved, and it holds nothing when the source goes
- * away — so the sequence counter and the three-statement reset branch this
- * replaced are gone, along with the chance of forgetting one of them when a
- * fourth condition lands.
+ * ONE READING, TWO DOORS. The ⌘K palette and the header's search box are both
+ * callers of this, drawing the same rows (`./Result.tsx`) from the same
+ * procedure; neither has a matcher, a ranking rule or a debounce of its own.
+ * That is the consistency doctrine one layer in from where it usually gets
+ * argued: it already says an agent's `search_nodes` and the browser must not
+ * drift, and a browser that grew a second in-house search would have broken
+ * the same rule inside one process. It lives in `search/` rather than in
+ * `palette/` because of that second door.
+ *
+ * It is a hook rather than lines inside a component for the reason HACKING.md
+ * gives twice: UI components stay encapsulated, and a browser should use the
+ * SolidJS ecosystem rather than hand-roll it. `createResource` is what a
+ * query-with-a-changing-input IS in Solid — it drops the answer to a source
+ * that has since moved, and it holds nothing when the source goes away — so
+ * the sequence counter and the three-statement reset branch this replaced are
+ * gone, along with the chance of forgetting one of them when a fourth
+ * condition lands.
  *
  * The MATCHING is entirely the server's (`@olai/surface`'s search.ts says
  * why): the same reading an agent's `search_nodes` gets, semantic index

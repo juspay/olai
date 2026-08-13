@@ -35,6 +35,7 @@ import { listen } from "./listener.ts"
 import { serveFace } from "./mcp/face.ts"
 import { MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
+import { embedderFrom } from "./recall/embedder.ts"
 import * as Recall from "./recall/recall.ts"
 import { bind, gitWiring, type Publishers } from "./runtime.ts"
 
@@ -113,7 +114,15 @@ export const serve = (options: ServeOptions) =>
     // ordinary machine and costs nothing anywhere. Opened before the ops
     // layer because it rides every Reading, and scoped like the store: its
     // indexing fiber dies with this serve.
-    const recall = yield* Recall.open({ root, snapshot: store.snapshot })
+    const recall = yield* Recall.open({
+      root,
+      snapshot: store.snapshot,
+      // Said out loud rather than defaulted inside the index: this is the one
+      // line in the web face that may touch the network at boot, and a test
+      // standing this server up gets whatever the environment says — which
+      // for every suite in this repo is `OLAI_EMBED=off`.
+      embedder: embedderFrom(process.env),
+    })
 
     const ops = makeOps({
       store,

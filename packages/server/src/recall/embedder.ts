@@ -61,15 +61,63 @@ export interface Embedder {
   ) => Effect.Effect<ReadonlyArray<Float32Array>, EmbedFailure>
 }
 
+/**
+ * The env var that turns embedding OFF without asking anything of the
+ * network — `OLAI_EMBED=off`.
+ *
+ * It exists because "no embedder" and "no DIAL" are two different claims, and
+ * only the second one is checkable by a test. Detection is fail-closed (a
+ * refused port answers `null` in microseconds and can never fail a boot), so
+ * for the PRODUCT the probe is harmless. For a test suite it is not: the
+ * brief's rule is that no test or CI path may reach a live model, and a probe
+ * that merely tends to find nothing is a probe whose answer depends on
+ * whether the machine running the suite happens to have Ollama up. The e2e
+ * harness already isolates the agent (a fake `kolu` first on PATH) and git
+ * for exactly this reason; this is the same treatment for the embedder.
+ *
+ * `off` and nothing else, because the switch is a claim rather than a
+ * preference: anything unrecognised is treated as "not off" so a typo cannot
+ * silently disable a feature somebody meant to have.
+ */
+export const EMBED_ENV = "OLAI_EMBED"
+export const EMBED_OFF = "off"
+
+/**
+ * WHICH embedder resolution this process gets — the one place that decision
+ * is made, and the reason {@link Options.embedder} is required rather than
+ * defaulted.
+ *
+ * `recall.ts` used to fall back to {@link detectOllama} when a caller said
+ * nothing, which is a network call arriving by omission: every composition
+ * root got it, and so did every test that stood a real server up. Now the
+ * default is spelled at the composition roots and nowhere else, so a caller
+ * that says nothing does not compile.
+ */
+export const embedderFrom = (
+  env: Env,
+): Effect.Effect<Embedder | null> =>
+  env[EMBED_ENV] === EMBED_OFF
+    ? Effect.as(
+      Effect.logDebug(`recall: ${EMBED_ENV}=${EMBED_OFF}; semantic search off`),
+      null,
+    )
+    : detectOllama(env)
+
+/** The environment, as an argument. Every knob this module reads comes
+ *  through here rather than off `process.env` in the middle of a function:
+ *  a test that says "with this environment, dial nothing" can only be
+ *  written if the environment is something a caller can hand over. */
+export type Env = Readonly<Record<string, string | undefined>>
+
 /** Ollama's own convention, normalised: `OLLAMA_HOST` may be a bare
  *  `host:port` or a full URL, and absent means the conventional loopback. */
-const ollamaHost = (): string => {
-  const host = process.env["OLLAMA_HOST"]
+const ollamaHost = (env: Env): string => {
+  const host = env["OLLAMA_HOST"]
   if (host === undefined || host === "") return "http://127.0.0.1:11434"
   return host.includes("://") ? host.replace(/\/$/, "") : `http://${host}`
 }
 
-const model = (): string => process.env["OLAI_EMBED_MODEL"] ?? "nomic-embed-text"
+const model = (env: Env): string => env["OLAI_EMBED_MODEL"] ?? "nomic-embed-text"
 
 /** How long a probe may take before the answer is "no Ollama here". Loopback
  *  answers or refuses in microseconds; this covers only the pathological
@@ -97,10 +145,10 @@ const prefixed = (name: string, kind: EmbedKind, text: string): string =>
  * for the ordinary "nothing on the port", info for the one case a person
  * could act on (Ollama is up, the model is one `ollama pull` away).
  */
-export const detectOllama: Effect.Effect<Embedder | null> = Effect.gen(
-  function*() {
-    const host = ollamaHost()
-    const wanted = model()
+export const detectOllama = (env: Env): Effect.Effect<Embedder | null> =>
+  Effect.gen(function*() {
+    const host = ollamaHost(env)
+    const wanted = model(env)
     // The reason a probe failed is never read — every way this can go wrong
     // is the same answer, "no Ollama here" — so it is not carried.
     const listed = yield* Effect.tryPromise({
@@ -134,8 +182,7 @@ export const detectOllama: Effect.Effect<Embedder | null> = Effect.gen(
       return null
     }
     return ollamaEmbedder(host, wanted)
-  },
-)
+  })
 
 /** The embedder over a host that answered the probe. Split from the detection
  *  so a test of the CALL shape needs no `/api/tags` to exist. */

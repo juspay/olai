@@ -1,11 +1,16 @@
 # Search
 
-One search, two faces. An agent asks `search_nodes` over MCP; a person types
-into the `⌘K` palette, which asks the server's `search.nodes` procedure. Both
-are callers of the same function over the same snapshot (`@olai/ops`'
-`Query.searchWith`), so what an agent finds and what the palette finds cannot
-drift — the browser holds every node and could grep them itself, and
-deliberately does not.
+One search, three doors. An agent asks `search_nodes` over MCP; a person types
+into the `⌘K` palette, or into the **search box in the header** — and on a
+phone, where there is no chord and no room in the bar, taps the magnifier,
+which opens that same palette. Every one of them is a caller of the same
+function over the same snapshot (`@olai/ops`' `Query.searchWith`), so what an
+agent finds and what a person finds cannot drift: the browser holds every node
+and could grep them itself, and deliberately does not.
+
+A result row is two lines — the title, then where the node lives, written
+nearest-ancestor-first so a narrow window truncates the outer crumbs rather
+than the one that says which node this is.
 
 ## Exact matches are evidence
 
@@ -57,3 +62,9 @@ which is not an error and is reported nowhere but a boot log line. With the
 embedder absent, results are **exactly** today's substring results: that
 equality is the degradation contract, and CI (which has no Ollama) proves the
 semantic path against a fake embedder behind the seam.
+
+`OLAI_EMBED=off` turns the feature off without the server so much as probing
+for an embedder. Every test suite in this repo sets it — the unit lane in
+`scripts/bun-test-preload.ts`, the browser lane in its server spawns — so no
+test path can reach a live model, which is a stronger claim than "the probe
+usually finds nothing" and the only one a test can check.

@@ -34,6 +34,8 @@ import type { OlaiWorld } from "../support/world.ts";
 
 const PALETTE_INPUT = `[data-testid="palette-input"]`;
 const PALETTE_ASK_ERROR = `[data-testid="palette-ask-error"]`;
+const HEADER_SEARCH = `[data-testid="header-search"]`;
+const HEADER_SEARCH_ITEM = `[data-testid="header-search-item"]`;
 const CHAT_PILL_TEXT = `[data-testid="chat-pill-text"]`;
 
 // ── desktop sidebar ────────────────────────────────────────────────────
@@ -292,6 +294,43 @@ When(
   "I type {string} into the palette",
   async function (this: OlaiWorld, text: string) {
     await fillPalette(this, text);
+  },
+);
+
+// ── the header's search box ────────────────────────────────────────────
+
+When(
+  "I search the header for {string}",
+  async function (this: OlaiWorld, text: string) {
+    const box = this.page.locator(HEADER_SEARCH);
+    await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    // Focus is what puts the results up, so this types rather than fills:
+    // `fill` sets the value without the box ever holding the caret.
+    await box.click();
+    await box.type(text);
+  },
+);
+
+Then(
+  "the header search lists the node {string}",
+  async function (this: OlaiWorld, title: string) {
+    await this.page
+      .locator(HEADER_SEARCH_ITEM)
+      .filter({ hasText: title })
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "I press the header search result {string}",
+  async function (this: OlaiWorld, title: string) {
+    await this.page
+      .locator(HEADER_SEARCH_ITEM)
+      .filter({ hasText: title })
+      .first()
+      .click();
+    await this.waitForFrame();
   },
 );
 

@@ -54,6 +54,9 @@ export const connectTerminalAgent = async (
       ...process.env,
       // stderr diagnostics stay logfmt; do not inherit OLAI_LOG=pretty.
       OLAI_LOG: "logfmt",
+      // As in `hooks.ts`: `olai mcp` resolves an embedder at boot like any
+      // other composition root, and no test path may reach a live model.
+      OLAI_EMBED: "off",
     },
   });
 

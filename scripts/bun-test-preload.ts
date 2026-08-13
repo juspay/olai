@@ -22,3 +22,24 @@ if (typeof globalThis.location === "undefined") {
   // is a stand-in for tests, not a `Location`.
   globalThis.location = new URL("http://olai.invalid") as unknown as Location
 }
+
+/**
+ * NO TEST DIALS A MODEL.
+ *
+ * The unit lane stands real servers up (`server/src/serve.test.ts`,
+ * `server/src/mcp/serve.test.ts` spawn the real composition roots), and their
+ * boot resolves an embedder. Detection is fail-closed, so nothing here would
+ * FAIL without this — but "tends to find nothing" is not the claim the brief
+ * makes. The claim is that no test path reaches a live model, and that is
+ * only true if the suite says so rather than hoping the machine running it
+ * has no Ollama up. A developer with `nomic-embed-text` pulled would
+ * otherwise run a different suite from CI's: live embeddings, real writes
+ * under `$XDG_CACHE_HOME/olai/recall/`, and a query timeout on the palette.
+ *
+ * The same isolation the e2e harness already gives the agent (a fake `kolu`
+ * first on PATH) and git. Spelled as the literal here rather than imported
+ * from `@olai/server`, because a preload that dragged the server's module
+ * graph in would run it before every test in the workspace; the pins in
+ * `recall/embedder.test.ts` are what keep the two spellings honest.
+ */
+process.env["OLAI_EMBED"] = "off"

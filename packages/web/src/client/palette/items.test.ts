@@ -24,8 +24,25 @@ test("a search hit becomes a row that jumps to the node", () => {
     matched: "title",
   })
   expect(item.label).toBe("pick the hinges")
-  expect(item.hint).toBe("install the cabinets")
+  // The place is a LINE OF ITS OWN, never an inline hint: an ancestor title
+  // is somebody's prose, and beside the title it starved it to one word per
+  // line and scrolled the palette sideways.
+  expect(item.hint).toBeUndefined()
   expect(item.action).toEqual({ kind: "route", route: { kind: "node", id: "hinges" } })
+})
+
+test("the place reads NEAREST ancestor first, so a truncation keeps what situates the node", () => {
+  // `path` is outermost-first; a line ellipsized from the end would lose the
+  // immediate parent — the one crumb that answers "which `pick the hinges`?".
+  const item = nodeItem({
+    id: "hinges",
+    title: "pick the hinges",
+    file: "house.jsonl",
+    line: 6,
+    path: ["kitchen remodel #home", "install the cabinets"],
+    matched: "title",
+  })
+  expect(item.place).toBe("install the cabinets · kitchen remodel #home")
 })
 
 test("a semantic hit wears ≈, and a top-level one is placed by its file", () => {
@@ -37,7 +54,7 @@ test("a semantic hit wears ≈, and a top-level one is placed by its file", () =
     path: [],
     matched: "meaning",
   })
-  expect(meaning.hint).toBe("≈ errands.jsonl")
+  expect(meaning.place).toBe("≈ errands.jsonl")
 })
 
 test("askQuery strips the > prefix", () => {

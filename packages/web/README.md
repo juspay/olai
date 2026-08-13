@@ -1180,15 +1180,32 @@ clears the home-bar inset (`CLEARANCE`).
 
 `src/client/palette/` is the ⌘K shell — navigation (home, today), panel
 toggles, a `>` prefix that sends the rest to the agent — plus jump-to-node
-search: the query goes to the server's `search.nodes` procedure as you type
-(debounced, latest-wins by sequence number), and every hit is a row that
-routes to `/n/<id>`. The matching is entirely the server's — the same reading
-an agent's `search_nodes` gets, semantic index included when the machine has
-an embedder — so there is deliberately no matcher in this client
-(`items.ts` says why), and a semantic hit wears `≈` in its hint because the
-reader is owed the difference between evidence and resemblance. On a machine
-with no embedder those rows simply never arrive, and nothing here says so.
-Op actions belong to the separate `palette` roadmap item.
+search. Op actions belong to the separate `palette` roadmap item.
+
+## Search: one reading, two doors
+
+`src/client/search/` holds the search itself, because the palette is not the
+only door to it:
+
+- `nodes.ts` — `createNodeSearch`, a `createResource` over a debounced query
+  (`@solid-primitives/scheduled`). The resource drops the answer to a query
+  the box has moved past, which is why there is no sequence counter here.
+- `Result.tsx` — the row both doors draw: TWO STACKED LINES, title then
+  place, each `truncate`d over `min-w-0`. It was one line with the place
+  inline, and a mono place refusing to shrink starved the title into
+  one-word-per-line rows and pushed the palette into a sideways scroll; a
+  popover never scrolls sideways.
+- `HeaderSearch.tsx` — the box in the app header, and on a phone a magnifier
+  that opens the ⌘K palette instead (the bar has no room, and a phone has no
+  chord — so before it, a phone had no door to search at all). Its panel
+  portals out of the header and is placed by `anchor.ts`'s `styleOf`.
+
+The matching is entirely the server's — the same `Query.searchWith` reading an
+agent's `search_nodes` gets, semantic index included when the machine has an
+embedder — so there is deliberately no matcher in this client (`palette/items.ts`
+says why), and a semantic hit wears `≈` on its place line because the reader is
+owed the difference between evidence and resemblance. On a machine with no
+embedder those rows simply never arrive, and nothing here says so.
 
 ## The keyboard, in one file
 
