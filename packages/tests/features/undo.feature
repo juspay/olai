@@ -165,7 +165,7 @@ Feature: Undo
     When I press "ControlOrMeta+Shift+z"
     Then the node "hinges" has no status
 
-  Scenario: A new row is taken back into the archive
+  Scenario: A new row is taken back into the Trash, and redo brings it out again
     When I click the title of "handles"
     And I press "Enter"
     And I type "a line typed by mistake"
@@ -177,9 +177,15 @@ Feature: Undo
     When I press "ControlOrMeta+z"
     Then "house.jsonl" holds no node titled "a line typed by mistake"
     And "Archive.jsonl" holds a node titled "a line typed by mistake"
-    # Said rather than left as a ⌘⇧Z that does nothing: a `move` is same-file by
-    # the format, so nothing this surface can send brings it back out.
-    And the undo says "archive"
+    # NOTHING is said now, and that is the news. This used to be the one entry
+    # that explained why it could not be redone — a `move` is same-file by the
+    # format, so nothing this surface could send brought a row back out of the
+    # archive. `unarchive` is that verb (`parity-unarchive`), so the write
+    # simply lands and the chord below simply works.
+    And nothing is said about the undo
+    When I press "ControlOrMeta+Shift+z"
+    Then "house.jsonl" holds a node titled "a line typed by mistake"
+    And "Archive.jsonl" holds no node titled "a line typed by mistake"
 
   Scenario: An undo does not clobber what somebody else did meanwhile
     # The whole reason this is an inverse and not a snapshot restore. Between

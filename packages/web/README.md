@@ -1316,13 +1316,18 @@ The rest follows from that:
   (its entries name rows in that one), bounded at a hundred, and holding only
   what THIS tab wrote.
 
-Two things it does not do, and both are the ops layer showing through rather
-than a choice made here. Putting a mark back over a node that is now `done`
-takes TWO ops — the layer refuses to walk finished work backwards in one — so
-an entry is a LIST of edits, replayed in order, which is exactly the two calls
-an agent would make. And undoing a row's creation ARCHIVES it (the only removal
-the set has), which no `move` brings back out, so that one entry says it cannot
-be redone rather than leaving a ⌘⇧Z that does nothing.
+One thing it does not do, and it is the ops layer showing through rather than a
+choice made here: putting a mark back over a node that is now `done` takes TWO
+ops — the layer refuses to walk finished work backwards in one — so an entry is
+a LIST of edits, replayed in order, which is exactly the two calls an agent
+would make.
+
+Undoing a row's creation ARCHIVES it (the only removal the set has), and that
+used to be the one entry which said it could not be redone, because no `move`
+brought a row back out of an archive. `unarchive` is the verb that does
+(`parity-unarchive`), so the un-create's inverse is now an `unarchive` carrying
+the exact place the row sat, ⌘⇧Z puts it back, and nothing here has a sentence
+for a redo that cannot happen.
 
 That un-create is the ONLY way anything is removed from this face, and it is
 not the delete key #109 deferred: no key sends it, it can only take back a row

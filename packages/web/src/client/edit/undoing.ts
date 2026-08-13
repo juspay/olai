@@ -124,10 +124,10 @@ export const createUndo = (apply: Apply): Undo => {
   /**
    * Replay one entry's edits, in order, stopping at the first refusal.
    *
-   * A VALUE out rather than four writes to signals as it goes: what to say is
-   * one decision — refused, or a nudge, or a row that cannot come back, or
-   * nothing at all — and a function that made it in pieces would be reading
-   * back what it had just written to find out which case it was in.
+   * A VALUE out rather than three writes to signals as it goes: what to say is
+   * one decision — refused, or a nudge, or nothing at all — and a function
+   * that made it in pieces would be reading back what it had just written to
+   * find out which case it was in.
    */
   const sent = async (
     step: Step,
@@ -174,12 +174,14 @@ export const createUndo = (apply: Apply): Undo => {
 
     const { back, said } = await sent(held.step, side)
     if (back.length === 0) {
-      // Nothing would replay it. Either it was refused (and `said` is the
-      // reason) or it landed and no edit brings it back — the only write that
-      // answers that way is a row taken back into the archive, which no move
-      // brings out (a parent is same-file by the format). Said rather than
-      // left as a ⌘⇧Z that does nothing.
-      setSaid(said ?? { tone: "aside", text: GONE })
+      // Nothing would replay it, and since `unarchive` arrived
+      // (`parity-unarchive`) that means exactly one thing: the replay was
+      // REFUSED, and `said` is the ops layer's own reason. A row taken into
+      // the archive used to be the other way here — it landed and no edit
+      // brought it back, so this said so instead of leaving a ⌘⇧Z that did
+      // nothing. There is a way back out now, so every write that LANDS
+      // answers with an inverse and that sentence has nothing left to say.
+      setSaid(said)
       return
     }
     setStack((current) => kept(current, side, back))
@@ -224,6 +226,3 @@ const REFUSED: Record<Side, string> = {
   done: "that edit could not be taken back:",
   undone: "that edit could not be put back:",
 }
-
-const GONE =
-  "the row is in the archive now, which is not somewhere redo can bring it back from"
