@@ -68,9 +68,9 @@ describe("what an olai write says for itself", () => {
   test("anything that is not one of our replies draws nothing", () => {
     // Somebody else's MCP server, a refusal (which carries no `did` and is
     // drawn as a refusal row of its own), and the two empties.
-    expect(wroteIn(result({ terminals: ["one", "two"] }))).toBeNull()
-    expect(wroteIn(result({ kind: "not-found", message: "no such node" }))).toBeNull()
-    expect(wroteIn(null)).toBeNull()
-    expect(wroteIn("done")).toBeNull()
+    expect(wroteIn(result({ terminals: ["one", "two"] }))).toBeUndefined()
+    expect(wroteIn(result({ kind: "not-found", message: "no such node" }))).toBeUndefined()
+    expect(wroteIn(null)).toBeUndefined()
+    expect(wroteIn("done")).toBeUndefined()
   })
 })

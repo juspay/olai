@@ -41,8 +41,15 @@ interface Reply {
 }
 
 /**
- * The story of an olai write out of a tool call's raw output, or `null` when
- * that output is not one.
+ * The story of an olai write out of a tool call's raw output, or `undefined`
+ * when that output is not one.
+ *
+ * `undefined` rather than `null`, and that is the sibling convention rather
+ * than a preference: {@link ./diffs.ts} answers the same way about the same
+ * report, and both feed fields where `undefined` already MEANS something — "no
+ * report said anything about this", which is the protocol's own rule for every
+ * other field of a tool update. Two spellings of nothing would need converting
+ * at the one call site that reads both.
  *
  * The output of an MCP call arrives as the whole result — `content`,
  * `structuredContent`, `isError` — so the structured half is looked for first
@@ -55,8 +62,8 @@ interface Reply {
  * refusal row with the validator's own detail in it. Nothing here has to tell
  * the two apart, because a refusal carries no `did`.
  */
-export const wroteIn = (rawOutput: unknown): Wrote | null => {
-  if (typeof rawOutput !== "object" || rawOutput === null) return null
+export const wroteIn = (rawOutput: unknown): Wrote | undefined => {
+  if (typeof rawOutput !== "object" || rawOutput === null) return undefined
   const outer = rawOutput as { readonly structuredContent?: unknown }
   const reply = (typeof outer.structuredContent === "object" &&
       outer.structuredContent !== null
@@ -64,7 +71,7 @@ export const wroteIn = (rawOutput: unknown): Wrote | null => {
     : rawOutput) as Reply
   // `did` is the marker and `title` is what the row says; a reply carrying
   // neither is not a write this panel can tell a story about.
-  if (typeof reply.did !== "string" || typeof reply.title !== "string") return null
+  if (typeof reply.did !== "string" || typeof reply.title !== "string") return undefined
   return {
     // Absent for a write that changed no record — the ops layer says so by
     // omission, and `null` is how the wire spells the same thing. CHECKED

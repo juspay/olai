@@ -122,33 +122,25 @@ const compare = (
     tail++
   }
 
+  // The two middles are indexed from their own zero and numbered from `head`,
+  // which is the whole of the bookkeeping: a line's number is where it sits in
+  // ITS OWN file, and the common prefix is exactly how far both files are into
+  // themselves when the middle starts.
   const middleWas = was.slice(head, was.length - tail)
   const middleNow = now.slice(head, now.length - tail)
-  let at = head
-  let to = head
+  let i = 0
+  let j = 0
   for (const step of steps(middleWas, middleNow)) {
     if (step === "same") {
-      lines.push(same(middleWas[at - head]!, at + 1, to + 1))
-      at++
-      to++
+      lines.push(same(middleWas[i]!, head + i + 1, head + j + 1))
+      i++
+      j++
     } else if (step === "remove") {
-      lines.push({
-        kind: "remove",
-        text: middleWas[at - head]!,
-        before: at + 1,
-        after: null,
-        hidden: 0,
-      })
-      at++
+      lines.push(gone(middleWas[i]!, head + i + 1))
+      i++
     } else {
-      lines.push({
-        kind: "add",
-        text: middleNow[to - head]!,
-        before: null,
-        after: to + 1,
-        hidden: 0,
-      })
-      to++
+      lines.push(arrived(middleNow[j]!, head + j + 1))
+      j++
     }
   }
 
@@ -162,6 +154,22 @@ const same = (text: string, before: number, after: number): DiffLine => ({
   kind: "same",
   text,
   before,
+  after,
+  hidden: 0,
+})
+
+const gone = (text: string, before: number): DiffLine => ({
+  kind: "remove",
+  text,
+  before,
+  after: null,
+  hidden: 0,
+})
+
+const arrived = (text: string, after: number): DiffLine => ({
+  kind: "add",
+  text,
+  before: null,
   after,
   hidden: 0,
 })

@@ -399,7 +399,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // said nothing about that", which is the protocol's own rule for
             // every other field here.
             diffs: diffsOf(update.content, options.cwd),
-            wrote: wroteIn(update.rawOutput) ?? undefined,
+            wrote: wroteIn(update.rawOutput),
             locations: locationsOf(update.locations),
           })
           return

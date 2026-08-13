@@ -40,12 +40,19 @@ const TRIMMED = 6
 
 /** What each kind of row looks like: the marker in the gutter, and how the row
  *  is painted. A table rather than three ternaries in the markup, so "what does
- *  an added line look like" is answered in one place. */
+ *  an added line look like" is answered in one place — and TOTAL over the
+ *  kinds, including the gap, whose answer is "nothing" and which draws its own
+ *  row below. A missing key would leave that as an accident rather than a
+ *  decision. */
 const LOOK: Readonly<Record<DiffLine["kind"], { mark: string; row: string; tone: string }>> =
   {
     add: { mark: "+", row: "bg-done/10", tone: "text-done" },
     remove: { mark: "-", row: "bg-alarm/10", tone: "text-alarm" },
-    same: { mark: " ", row: "", tone: "text-muted" },
+    // A NON-BREAKING space, and it is load-bearing: an ordinary one collapses
+    // in HTML, which shifted every unchanged line one character left of the
+    // changed lines around it — in a monospace column, where the whole point
+    // is that the lines are under each other.
+    same: { mark: " ", row: "", tone: "text-muted" },
     gap: { mark: "", row: "", tone: "text-muted" },
   }
 
@@ -98,6 +105,10 @@ export function Diff(props: {
               data-testid={TESTID.chatDiffLine}
               data-kind={line.kind}
             >
+              {/* ONE number column, and it is the line as the file reads NOW
+                  — except for a line that is gone, which has no such number
+                  and shows where it used to be. Two columns is what a diff
+                  tool with a full pane does; this is 26rem wide. */}
               <span
                 class="w-8 shrink-0 select-none pr-2 text-right text-muted/70"
                 aria-hidden="true"
