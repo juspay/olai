@@ -307,8 +307,8 @@ export const TESTID = {
   /** The trash, as a page. Every archive the directory holds, read-only. */
   trashPage: "trash-page",
   /** One archive's worth of rows on it; `data-file` is which `Archive.jsonl`.
-   *  Only drawn when the directory holds more than one, the way the day page
-   *  groups by file. */
+   *  Drawn per archive that holds anything; its heading appears only when the
+   *  directory holds more than one, the way the day page groups by file. */
   trashGroup: "trash-group",
   /** One row of the trash: an archived node, drawn but not editable.
    *  `data-node-id` is which. */
