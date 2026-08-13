@@ -81,10 +81,10 @@ test("nothing outside connection/status.ts reads the readout's raw states", () =
 })
 
 // pill.ts's claim — one spelling of the quiet pill button, worn by import.
-// The string was spelled near-identically at five sites across five modules
-// (PR #134's flag); the three that render identically wear the constant now,
-// and the two that keep a geometry of their own (the ask form's h-8 dismiss,
-// the unpushed line's py-0.5 Push) do not match this pattern — which is the
+// Same construction as the connectSurface sweep: asserting equality keeps it
+// honest, because pill.ts itself must keep matching — a respelled QUIET_PILL
+// fails here rather than rotting the pattern to an empty pass. The lookalikes
+// that deliberately diverge (`pill.ts` says where) do not match, which is the
 // point: what cannot reappear is the SHARED spelling, retyped.
 test("only pill.ts spells the quiet pill button", () => {
   const spelling = /rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink/

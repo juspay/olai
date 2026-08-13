@@ -9,18 +9,19 @@
  * for the spelling so a fourth site copies the constant rather than the
  * string.
  *
- * No background here on purpose: Tailwind's preflight already paints a button
- * transparent, so a `bg-transparent` in this string would be that fact
- * spelled in a second place. And no cursor either — whether a pointer is
- * offered belongs to the surface the button sits on (the menu panel says
- * `cursor-pointer` beside this; chrome does not).
+ * Not `readout.ts`'s PILL — that is the app bar's rounded-full readout chip;
+ * this is the bordered BUTTON. Two constants, because they are two shapes
+ * that change for two different reasons.
  *
- * Two buttons LOOK like this one and are deliberately not it, each holding a
- * geometry of its own: the ask form's "dismiss" is h-8/px-3 because it stands
- * beside an accent "answer" of the same height, and the Push on the unpushed
- * line is py-0.5 because it sits inside a line of text rather than under one.
- * Converging either would move pixels, which is a different change from
- * unifying a spelling — each says so where it diverges.
+ * No background in this string: Tailwind's preflight already paints a button
+ * transparent, so a `bg-transparent` here would say nothing. And no cursor —
+ * whether a pointer is offered belongs to the surface the button sits on
+ * (the menu panel says `cursor-pointer` beside this; chrome does not).
+ *
+ * Buttons that LOOK like this one but keep a geometry of their own — the ask
+ * form's dismiss, the unpushed line's Push — say why in place: converging
+ * them would move pixels, which is a different change from unifying a
+ * spelling.
  */
 export const QUIET_PILL =
   "rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
