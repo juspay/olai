@@ -2,10 +2,13 @@
  * The shape this browser keeps folds in, as a pure question: what the entry
  * says, what a fold does to it, and what a write drops on the way past.
  *
- * The signal over it is deliberately not here — it is three lines of
- * `readPreference` / `writePreference` around these functions, and what is
- * worth pinning is the arithmetic they do. The e2e feature is what says a fold
- * survives a reload.
+ * The circuit over it is `createPreference`'s (../preference.ts, tested
+ * beside it); what is pinned HERE is the arithmetic — plus the one wiring
+ * fact that is this file's own to hold: a write starts from the STORED ENTRY
+ * unioned with what the tab holds, which the last test drives through
+ * `setFolded` against real (shimmed) storage, because no pure test of
+ * `combined` can notice `setFolded` forgetting to call it. The e2e feature is
+ * what says a fold survives a reload.
  */
 
 import { derive } from "@olai/format"
@@ -14,10 +17,12 @@ import { expect, test } from "bun:test"
 
 import {
   combined,
+  FOLDS_KEY,
   idsByFile,
   parseFolds,
   printFolds,
   pruned,
+  setFolded,
   withFolds,
 } from "./memory.ts"
 
@@ -167,6 +172,47 @@ test("an unfold still removes, because the change goes on after the union", () =
   expect(withFolds(base, [{ id: "kitchen", file: "house.jsonl" }], false)).toEqual(
     foldsOf({ "house.jsonl": ["order"] }),
   )
+})
+
+test("a write starts from the ENTRY: a sibling tab's fold this tab never saw survives", () => {
+  // The wiring fact, driven end to end through `setFolded` and the factory's
+  // storage, because every test above exercises `combined` as a pure function
+  // and a `setFolded` that stopped calling it — base of what this tab holds
+  // alone, classic last-write-wins, the exact flattening #138 exists to
+  // forbid — would leave all of them green while a sibling tab's fold is
+  // thrown away.
+  const store = new Map<string, string>()
+  const g = globalThis as Record<string, unknown>
+  g.localStorage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => void store.set(key, value),
+    removeItem: (key: string) => void store.delete(key),
+  }
+  try {
+    // This tab folds herbs; the signal now holds it.
+    setFolded([{ id: "herbs", file: "garden.jsonl" }], true, undefined)
+    // A sibling tab rewrites the entry with a fold of its own. No `storage`
+    // event reaches this tab (`followFolds` was never started), so the signal
+    // still knows only about herbs — exactly the window the union covers.
+    store.set(FOLDS_KEY, `{"house.jsonl":["kitchen"]}`)
+    // This tab's next write must not throw the sibling's fold away.
+    setFolded([{ id: "install", file: "house.jsonl" }], true, undefined)
+    expect(store.get(FOLDS_KEY)).toBe(
+      `{"garden.jsonl":["herbs"],"house.jsonl":["install","kitchen"]}`,
+    )
+    // Unfold everything so the module signal is empty for whoever runs next.
+    setFolded(
+      [
+        { id: "herbs", file: "garden.jsonl" },
+        { id: "install", file: "house.jsonl" },
+        { id: "kitchen", file: "house.jsonl" },
+      ],
+      false,
+      undefined,
+    )
+  } finally {
+    delete g.localStorage
+  }
 })
 
 test("what a file declares is read off the set the browser is holding", () => {

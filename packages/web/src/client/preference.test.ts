@@ -170,7 +170,10 @@ test("no client file outside this module and the theme spells the circuit's read
     const path = String(entry)
     if (!/\.(ts|tsx)$/.test(path) || allowed.has(path)) continue
     const source = readFileSync(join(client, path), "utf8")
-    if (source.includes("readPreference(") || source.includes("watchPreference(")) {
+    // Word-bounded, and tolerant of space before the paren, so a call is a
+    // call however it is formatted — while `myReadPreference(` stays somebody
+    // else's name.
+    if (/\b(?:readPreference|watchPreference)\s*\(/.test(source)) {
       offenders.push(path)
     }
   }
