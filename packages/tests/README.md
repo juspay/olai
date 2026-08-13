@@ -285,9 +285,12 @@ Theme row's hint now. Mutation-tested both times — hard-coding the name to
 `features/preferences.feature` carries the same second-tab scenario for the
 OTHER preference, and it is worth its own sentence because a reload cannot ask
 the question: deleting `followDoneHidden()` outright passes every other Done
-scenario in the file, and fails this one. It also holds the two ends of the
-panel's TAB CYCLE — Shift+Tab out to the trigger, Tab back in to the first
-control — which is the promise a portalled panel cannot get from document order.
+scenario in the file, and fails this one. The reload scenario is the other
+half: Prefs writes `olai.done.hidden` on `createPreference`, and
+`setDoneHidden(..., { persist: false })` still hides the page but leaves
+that key `null` after a reload. It also holds the two ends of the panel's
+TAB CYCLE — Shift+Tab out to the trigger, Tab back in to the first control —
+which is the promise a portalled panel cannot get from document order.
 Both were sabotage-checked against the fix they are the fence for.
 
 ## Breaking the client on purpose

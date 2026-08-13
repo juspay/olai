@@ -134,10 +134,20 @@ Feature: One place to set how this browser reads
     Then the node "demo" is not shown
 
   Scenario: It is remembered, and it is this browser's
-    When I open the app
-    And I set Done to "hidden"
-    And I reload the page
-    Then the Done row explains that finished work is "hidden"
+    # THE PIN FOR THE WRITE. Prefs rides olai.done.hidden on createPreference
+    # — the same circuit the theme uses, persisted on change, read back on
+    # boot. A control that only held a signal would look right until you
+    # reloaded. Sabotage: `setDoneHidden` with persist: false. Same-tab hide
+    # still works; this scenario is the one that goes red, because reload
+    # reads the key and finds nothing.
+    Given I open the outline "house.jsonl"
+    Then the node "demo" is shown
+    When I set Done to "hidden"
+    Then the node "demo" is not shown
+    When I reload the page
+    Then this browser has stored that done nodes are "hidden"
+    And the Done row explains that finished work is "hidden"
+    And the node "demo" is not shown
 
   Scenario: A preference set in another tab lands in this one
     # A preference belongs to the BROWSER, and a browser is more than one tab —
