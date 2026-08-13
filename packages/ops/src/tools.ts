@@ -57,6 +57,7 @@ import {
   MoveRequest,
   SeeRequest,
   TitleRequest,
+  UnarchiveRequest,
   UnmirrorRequest,
   WriteDocumentRequest,
 } from "./request.ts"
@@ -311,9 +312,16 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "archive_node",
     "Archive a subtree",
-    "Move a node and everything under it into `Archive.jsonl` beside its outline, re-creating the chain of ancestor titles it hung off. Ids move with the nodes, so mirrors and edges pointing at them keep resolving. Nothing is stamped: archiving is not finishing.",
+    "Move a node and everything under it into `Archive.jsonl` beside its outline, re-creating the chain of ancestor titles it hung off. Ids move with the nodes, so mirrors and edges pointing at them keep resolving. Nothing is stamped: archiving is not finishing. `unarchive_node` is the way back.",
     ArchiveRequest,
     { op: "archive" },
+  ),
+  write(
+    "unarchive_node",
+    "Unarchive a subtree",
+    "Take a node and everything under it back OUT of an `Archive.jsonl` — the inverse of `archive_node`. The subtree comes back intact with its ids, and it lands LAST among its new siblings (the archive does not record where in a row a node sat). Where it lands: by default the chain of ancestor titles the archive recorded above the node is matched against the live outlines beside the archive, and the call is refused — naming what it found — when that chain matches nowhere or more than one place; give `parent` (it goes under that node) or `file` (top level of that outline) to decide instead. An ancestor the removal leaves empty in the archive is tidied away, provided it is the bare title scaffold `archive_node` wrote and nothing still names it.",
+    UnarchiveRequest,
+    { op: "unarchive" },
   ),
   write(
     "set_see",

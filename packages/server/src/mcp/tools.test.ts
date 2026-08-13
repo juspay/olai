@@ -198,6 +198,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
       "set_see",
       "set_title",
       "set_todo",
+      "unarchive_node",
       "write_document",
     ])
 
@@ -733,6 +734,29 @@ test("remove_mirror on a node refuses, and says what does put a node away", asyn
     expect(String(answer.structured["reason"])).toContain("archive_node")
     expect(refusals).toEqual(["unmirror: UsageFailure"])
     expect(read("house.jsonl")).toBe(HOUSE)
+  })
+})
+
+/** The trash, both ways, on the agent's face: `archive_node` puts a subtree
+ *  away and `unarchive_node` brings it back where the recorded chain says it
+ *  came from — the op `parity-unarchive` was owed on BOTH faces at once. */
+test("unarchive_node takes back what archive_node put away", async () => {
+  await withTools({ "house.jsonl": HOUSE }, async ({ client, read }) => {
+    const away = await call(client, "archive_node", { id: "order" })
+    expect(away.isError).toBe(false)
+    expect(read("house.jsonl")).not.toContain(`"id":"order"`)
+    expect(read("Archive.jsonl")).toContain(`"id":"order"`)
+
+    const back = await call(client, "unarchive_node", { id: "order" })
+    expect(back.isError).toBe(false)
+    expect(back.structured).toMatchObject({
+      summary: "unarchive: order the cabinets",
+      file: "house.jsonl",
+    })
+    // Back under its own parent — the chain of ancestor titles, followed — and
+    // the emptied scaffold tidied away behind it.
+    expect(read("house.jsonl")).toContain(`"id":"order","parent":"kitchen"`)
+    expect(read("Archive.jsonl")).toBe("")
   })
 })
 

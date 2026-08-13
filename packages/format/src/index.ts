@@ -53,7 +53,15 @@ export {
   PICTURE_EXTENSIONS,
   pictureOf,
 } from "./documents.ts"
-export { ARCHIVE, isArchived, isMirror, Located, MARKS, targetsOf } from "./node.ts"
+export {
+  ARCHIVE,
+  archiveBeside,
+  isArchived,
+  isMirror,
+  Located,
+  MARKS,
+  targetsOf,
+} from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
 export {

@@ -336,6 +336,32 @@ export const TESTID = {
   agendaLink: "agenda-link",
   /** Rail icon: the same way in when the column is collapsed. */
   railAgenda: "rail-agenda",
+  /** The way to the trash, at the foot of the directory column — below the
+   *  file tree because that is where a trash sits, and OUTSIDE it because an
+   *  archive is not an outline you open and edit. Drawn whether or not
+   *  anything has ever been archived: an empty trash is a fact, not a hidden
+   *  control. */
+  trashLink: "trash-link",
+  /** The trash, as a page. Every archive the directory holds, read-only. */
+  trashPage: "trash-page",
+  /** One archive's worth of rows on it; `data-file` is which `Archive.jsonl`.
+   *  Drawn per archive that holds anything; its heading appears only when the
+   *  directory holds more than one, the way the day page groups by file. */
+  trashGroup: "trash-group",
+  /** One row of the trash: an archived node, drawn but not editable.
+   *  `data-node-id` is which. */
+  trashRow: "trash-row",
+  /** The one verb a trash row offers: send the node and its subtree back where
+   *  the archive's recorded chain says they came from. */
+  trashPutBack: "trash-put-back",
+  /** What the last put-back had to say, under the row it was pressed on —
+   *  `data-tone` is the two moods every other verb line has: `alarm` for the
+   *  ops layer's refusal verbatim, `aside` for a remark on a write that
+   *  landed. */
+  trashSaid: "trash-said",
+  /** Said in the rows' place when nothing is in the trash — including when no
+   *  archive file exists yet, which is the same fact. */
+  trashEmpty: "trash-empty",
   doneToggle: "done-toggle",
   notFound: "not-found",
   errorView: "error-view",

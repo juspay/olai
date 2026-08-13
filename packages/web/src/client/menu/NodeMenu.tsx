@@ -22,9 +22,10 @@
 
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 
+import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { HOVER_CELL, MENU_REVEAL } from "../touch.ts"
-import type { Said } from "../edit/undoing.ts"
+import { type Said, SAID_MS } from "../edit/undoing.ts"
 
 export interface MenuAction {
   readonly id: string
@@ -42,11 +43,6 @@ export interface MenuAction {
    *  landed. Answering with nothing is the ordinary success. */
   readonly run: () => void | Promise<Said | void>
 }
-
-/** How long what an action said stays on the row. Long enough to read where
- *  the pointer already is, short enough that the gutter goes back to being a
- *  gutter without anybody dismissing anything. */
-const SAID_MS = 6_000
 
 export function NodeMenu(props: {
   readonly actions: ReadonlyArray<MenuAction>
@@ -270,7 +266,7 @@ function MenuPanel(props: {
  *
  * The QUESTION is the group's accessible name as well as its text, so a reader
  * arriving on the confirm button by keyboard is told what they are confirming
- * rather than reading the word "Archive" twice. The caret goes to that button
+ * rather than reading the words "Move to Trash" twice. The caret goes to that
  * on mount — a panel that swapped its content under an unmoved focus would
  * leave the keyboard on an element that is no longer there.
  */
@@ -302,7 +298,7 @@ function Confirm(props: {
         </button>
         <button
           type="button"
-          class="cursor-pointer rounded border border-rule bg-transparent px-2 py-1 text-xs text-muted hover:text-ink"
+          class={`${QUIET_PILL} cursor-pointer`}
           data-testid={TESTID.nodeMenuItem}
           data-action="cancel"
           onClick={() => props.onCancel(props.action)}

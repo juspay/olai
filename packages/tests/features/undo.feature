@@ -165,7 +165,7 @@ Feature: Undo
     When I press "ControlOrMeta+Shift+z"
     Then the node "hinges" has no status
 
-  Scenario: A new row is taken back into the archive
+  Scenario: A new row is taken back into the Trash, and redo brings it out again
     When I click the title of "handles"
     And I press "Enter"
     And I type "a line typed by mistake"
@@ -177,9 +177,40 @@ Feature: Undo
     When I press "ControlOrMeta+z"
     Then "house.jsonl" holds no node titled "a line typed by mistake"
     And "Archive.jsonl" holds a node titled "a line typed by mistake"
-    # Said rather than left as a ⌘⇧Z that does nothing: a `move` is same-file by
-    # the format, so nothing this surface can send brings it back out.
-    And the undo says "archive"
+    # NOTHING is said now, and that is the news. This used to be the one entry
+    # that explained why it could not be redone — a `move` is same-file by the
+    # format, so nothing this surface could send brought a row back out of the
+    # archive. `unarchive` is that verb (`parity-unarchive`), so the write
+    # simply lands and the chord below simply works.
+    And nothing is said about the undo
+    When I press "ControlOrMeta+Shift+z"
+    Then "house.jsonl" holds a node titled "a line typed by mistake"
+    And "Archive.jsonl" holds no node titled "a line typed by mistake"
+    # WHERE it landed, not just that it is back: the row was a sibling of
+    # `handles`, so it belongs under `install`. With the chain above it still
+    # standing, both roads lead there — the scenario below is the one that
+    # tells the two apart.
+    And "house.jsonl" holds a node titled "a line typed by mistake" under "install"
+
+  Scenario: The redo puts the row back where it SAT, not where the titles now point
+    # WHY the inverse of an archive carries a parent at all. It is an id the
+    # server read off the snapshot the archive was judged against, and an id
+    # outlives a retitle; the chain of ancestor TITLES the archive wrote down
+    # does not. Retitle that parent while the row is in the Trash and the two
+    # roads part: the chain names nothing any more, and the recorded parent
+    # still names the row's own branch.
+    When I click the title of "handles"
+    And I press "Enter"
+    And I type "a line typed by mistake"
+    And I press "Enter"
+    And I press "Escape"
+    And I press "ControlOrMeta+z"
+    Then "Archive.jsonl" holds a node titled "a line typed by mistake"
+    When another writer retitles "install" to "fit the cabinets" in "house.jsonl"
+    Then the node "install" has the title "fit the cabinets"
+    When I press "ControlOrMeta+Shift+z"
+    Then "house.jsonl" holds a node titled "a line typed by mistake" under "install"
+    And "Archive.jsonl" holds no node titled "a line typed by mistake"
 
   Scenario: An undo does not clobber what somebody else did meanwhile
     # The whole reason this is an inverse and not a snapshot restore. Between

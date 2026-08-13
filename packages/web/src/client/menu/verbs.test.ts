@@ -69,7 +69,7 @@ test("a node with no mark is offered the three, and nothing to clear", () => {
     "Mark doing",
     "Complete",
     "Set date…",
-    "Archive",
+    "Move to Trash",
   ])
 })
 
@@ -82,7 +82,7 @@ test("the mark a node already carries is not offered back to it", () => {
     "Complete",
     "Clear mark",
     "Set date…",
-    "Archive",
+    "Move to Trash",
   ])
 })
 
@@ -191,36 +191,36 @@ test("a node's own row has no placement verb", () => {
   expect(labels("install")).not.toContain("Remove this placement")
 })
 
-// ── the archive ────────────────────────────────────────────────────────
+// ── the trash ──────────────────────────────────────────────────────────
 
-test("archive is a node's verb, not a placement's", () => {
+test("the put-away is a node's verb, not a placement's", () => {
   // On a mirror the reader is looking at a line, and the verb for a line is
   // retiring it; archiving from there would put away a subtree living
-  // somewhere else, out of sight.
-  expect(labels("kitchen-herbs")).not.toContain("Archive")
-  expect(edit("install", "Archive")).toEqual({ verb: "archive", id: "install" })
+  // somewhere else, out of sight. The LABEL speaks Trash — the human-facing
+  // name — while the edit it sends is still the `archive` op's own word.
+  expect(labels("kitchen-herbs")).not.toContain("Move to Trash")
+  expect(edit("install", "Move to Trash")).toEqual({ verb: "archive", id: "install" })
 })
 
-test("the confirm names the row and how much goes with it", () => {
-  expect(verb("kitchen", "Archive").confirm).toBe(
-    "Archive “kitchen remodel” and the 4 rows under it? They go to Archive.jsonl " +
-      "with their ids kept — there is no unarchive yet, so bringing them back means " +
-      "editing that file.",
+test("the confirm names the row, how much goes with it, and the way back", () => {
+  expect(verb("kitchen", "Move to Trash").confirm).toBe(
+    "Move “kitchen remodel” and the 4 rows under it to the Trash? They keep " +
+      "their ids, and the Trash in the sidebar is where to put them back.",
   )
 })
 
 test("a childless row is asked about on its own", () => {
-  expect(verb("install", "Archive").confirm).toBe(
-    "Archive “install them”? It goes to Archive.jsonl with its id kept — there is " +
-      "no unarchive yet, so bringing it back means editing that file.",
+  expect(verb("install", "Move to Trash").confirm).toBe(
+    "Move “install them” to the Trash? It keeps its id, and the Trash in " +
+      "the sidebar is where to put it back.",
   )
 })
 
-test("nothing but the archive asks a question first", () => {
+test("nothing but the put-away asks a question first", () => {
   expect(
     writeVerbs(row("kitchen"), derived).filter((verb) => verb.confirm !== undefined)
       .map((verb) => verb.label),
-  ).toEqual(["Archive"])
+  ).toEqual(["Move to Trash"])
 })
 
 test("with no indexes yet there is no archive, rather than one nobody counted", () => {

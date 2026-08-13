@@ -233,10 +233,10 @@ write:
   `create`, no `see`, no `after`, no `mirror`, no chosen ids) and, where it
   differs, it differs because something is resolved behind it — so the verbs
   that resolve nothing use the ops layer's own words (`title`, `desc`, `date`,
-  `unmirror`, `archive`), and a name that differs from an op's is a name with
-  arithmetic behind it. Ops itself learns none of it: an op does not know it is
-  being called over a wire.
-- **three of the verbs are the POINTER's**, and they are here to close a
+  `unmirror`, `archive`, `unarchive`), and a name that differs from an op's is
+  a name with arithmetic behind it. Ops itself learns none of it: an op does
+  not know it is being called over a wire.
+- **four of the verbs are the POINTER's**, and they are here to close a
   DEVIATION rather than to grow the editor: an agent could set or clear a date,
   retire a placement and archive a subtree, and a person could do none of them
   (HACKING.md — "MCP and Web ops must be consistent; never deviate"). `date`,
@@ -248,6 +248,13 @@ write:
   `string | null`: the `•••` menu sends the `null` (`Clear date`), and the date
   picker on a row sends the day somebody chose — the ten characters, verbatim,
   because a date is TEXT (`docs/format.md`) and nothing on this face parses one.
+  `unarchive` is the fourth and the one that closed an equal ABSENCE rather
+  than a deviation: no face could take a node back out of the archive
+  (`parity-unarchive`), so the op was born in `@olai/ops` and both faces got it
+  in the same change — the Trash view's `Put back` sends the id alone and the
+  op follows the recorded chain of ancestor titles; its optional `parent` /
+  `file` are an undo's, carrying the place an archived row actually sat, read
+  off the snapshot by the server exactly as `place`'s ids are.
 - **two of the verbs are an UNDO's**, and they are the one place the list is
   not shaped like a key: `place` says where a row SAT, `remove` that a row this
   session created should go. They name absolute things because "put it back"
@@ -281,10 +288,12 @@ came from is kept and the reason shown beside it. What it ANSWERS with is the
 node the write was about, the ops layer's own `nudge` — advice on a success
 (the last task under a parent going done), which an agent already receives in
 its tool result and the person who pressed the key is exactly who it is for —
-and the inverse above, which is absent for the writes nothing would take back
-(the text edits, and a row that has gone to the archive). Nothing about the
-collections changed: they are still read-only on the wire, and an edit reaches
-a reader as the file it produced.
+and the inverse above, which is absent only for the one write nothing would
+take back (an `unmirror` — this face has no verb that places a mirror). A row
+that has gone to the archive answers with `unarchive` now, and a put-back
+answers with the archive again. Nothing about the collections changed: they
+are still read-only on the wire, and an edit reaches a reader as the file it
+produced.
 
 Who is on the other end is deliberately NOT a member here. It is a real
 question — a page bound to a server that has been replaced must know, and both

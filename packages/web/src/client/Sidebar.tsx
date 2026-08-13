@@ -61,7 +61,7 @@
  * scroll position rather than parked at the foot of the page.
  */
 
-import type { BrokenFile } from "@olai/format"
+import { type BrokenFile, isArchived } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
   createMemo,
@@ -130,7 +130,13 @@ export function Sidebar(props: {
   // form subscribes every entry to the open page. This notifies exactly the
   // entry that lit and the one that went out.
   const isActive = createSelector(() => props.active)
-  const tree = createMemo(() => fileTree(props.files, props.documents))
+  // The archives are not in the tree: an `Archive.jsonl` is not an outline a
+  // reader opens and edits, and the Trash entry below the tree is its one
+  // door. Filtered here rather than upstream because every other reader of
+  // `files` — the page model, the trash itself — wants the whole list.
+  const tree = createMemo(() =>
+    fileTree(props.files.filter((file) => !isArchived(file)), props.documents)
+  )
 
   // Folding a folder is remembered, and the write drops folders that are not in
   // the directory any more (./fold/folders.ts). Which those are is read off the
@@ -218,9 +224,14 @@ export function Sidebar(props: {
               {(row) => <Entry row={row()} view={view} />}
             </Key>
           </ul>
-          {/* Under the tree, because the tree is where files are: the way to a
-              document that does not exist yet (../document/NewDocument.tsx). */}
+          {/* Directly under the tree, because the tree is what it adds to: the
+              way to a document that does not exist yet
+              (../document/NewDocument.tsx). */}
           <NewDocument />
+
+          {/* And below both, the way OUT of the directory rather than into it:
+              what has been put away. */}
+          <Trash />
         </div>
       </nav>
     </>
@@ -244,6 +255,30 @@ function Agenda() {
       current={router.route().kind === "agenda"}
     >
       Agenda
+    </Link>
+  )
+}
+
+/** The way to what was put away, at the foot of the column — below the file
+ *  tree because that is where a trash sits, and OUTSIDE it because an archive
+ *  is not an outline to open and edit ({@link fileTree} never sees one).
+ *  Always drawn, like the agenda: an empty trash is a fact a reader may want,
+ *  not a control to hide until it would say something.
+ *
+ *  Whether it is the page being read is asked of the ROUTE, exactly as the
+ *  agenda asks: the trash belongs to no one file — it is every archive under
+ *  the directory — so `active` has nothing to say about it. */
+function Trash() {
+  const router = useRouter()
+
+  return (
+    <Link
+      route={{ kind: "trash" }}
+      class={`${ENTRY} mt-4 text-muted`}
+      testid={TESTID.trashLink}
+      current={router.route().kind === "trash"}
+    >
+      Trash
     </Link>
   )
 }
