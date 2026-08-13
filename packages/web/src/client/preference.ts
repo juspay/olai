@@ -34,7 +34,19 @@
  * is a promise made here rather than one taken on trust from a dependency.
  * One mechanism for both preferences beats a second one for the one of them
  * that would fit.
+ *
+ * The CIRCUIT over these primitives — read the entry into a signal, write a
+ * change back, follow the browser's other tabs — is {@link createPreference},
+ * and every stored value this browser keeps runs on it, with ONE exception.
+ * The theme cannot: its first read belongs to the shell's boot script, which
+ * runs before any module exists, because a themed first paint cannot wait for
+ * one — and `<html>` is the state its signal mirrors, so a second copy in a
+ * signal here would be the disagreement theme/state.ts exists to prevent. So
+ * theme/state.ts keeps its own wiring and imports the primitives, and a test
+ * beside this file holds the line: nothing else may.
  */
+
+import { type Accessor, createSignal } from "solid-js"
 
 /** What this browser remembers under `key`, or `null` for nothing — which is
  *  also the answer when storage refuses to be read. */
@@ -53,10 +65,10 @@ export const readPreference = (key: string): string | null => {
  * own default.
  *
  * Here rather than beside any one preference, because it is the storage
- * convention rather than a fact about panels or about finished work, and it is
- * now read by every stored boolean this browser keeps (`layout/prefs.ts`,
- * `settings/done.ts`). Two spellings of it is one place for it to change and
- * another to stay as it was.
+ * convention rather than a fact about panels or about finished work: it is the
+ * parse half of {@link boolCodec}, which every stored boolean this browser
+ * keeps runs on. Two spellings of it is one place for it to change and another
+ * to stay as it was.
  */
 export const parseBool = (raw: string | null, fallback: boolean): boolean => {
   if (raw === null) return fallback
@@ -161,3 +173,88 @@ export const watchPreference = (
     if (value !== undefined) apply(value)
   })
 }
+
+/**
+ * How one preference's VALUE relates to its stored string, which is the whole
+ * of what distinguishes one preference from another: what the entry says —
+ * where `null` is no entry at all, a browser never asked and storage refusing
+ * to be read alike — and what to write back, where `null` is "remember
+ * nothing", a key REMOVED rather than an empty husk left behind.
+ *
+ * `parse` owns the defaults, and owns them completely: a value this app did
+ * not write — an older olai, something typed into a console — is not an error
+ * to report, it is the default, and the codec is the one place that rule is
+ * spelled for its key. That is also what makes following another tab safe:
+ * whatever arrives goes through the same `parse` the first read did.
+ */
+export interface PreferenceCodec<T> {
+  readonly parse: (raw: string | null) => T
+  readonly print: (value: T) => string | null
+}
+
+/** The whole of `set`'s option surface, spelled once for the setters that
+ *  forward it (layout/prefs.ts): `persist: false` applies a value WITHOUT the
+ *  write — the drag handles' option, so a pointermove is not a storage write
+ *  and a cross-tab event twenty times a second. */
+export interface SetOptions {
+  readonly persist?: boolean
+}
+
+/** One preference, wired: the value in force, the two ways it changes (this
+ *  tab sets it; another tab's write arrives), and a read of the entry as it is
+ *  now for the one preference whose writes MERGE (fold/memory.ts). */
+export interface Preference<T> {
+  /** The value in force for this tab. */
+  readonly value: Accessor<T>
+  /** Apply `next` to this tab and remember it — or, with {@link SetOptions}'
+   *  `persist: false`, apply it to this tab alone. */
+  readonly set: (next: T, opts?: SetOptions) => void
+  /** What the entry says RIGHT NOW, not what this tab last saw: a sibling tab
+   *  may have written since. For a preference that is a set of independent
+   *  facts rather than one pick, a write starts from this. */
+  readonly stored: () => T
+  /** Follow the browser's other tabs for as long as this document lives —
+   *  started once, from `main.tsx`, because a preference belongs to the
+   *  browser and a browser is more than one tab. */
+  readonly follow: () => void
+}
+
+/**
+ * The read→signal→write→watch circuit, wired ONCE.
+ *
+ * Every stored key used to spell this by hand — five times in
+ * `layout/prefs.ts` alone, and again for the folds, the sidebar's folders and
+ * the done default — and the copies had begun to drift under maintenance. What
+ * varies per key is only the codec; everything a codec cannot express is not a
+ * preference's to vary. The one deliberate absence is the theme: its first
+ * read is the boot script's (see the header), so it stays on the primitives,
+ * and the claim test names it as the only client file allowed to.
+ */
+export const createPreference = <T>(
+  key: string,
+  codec: PreferenceCodec<T>,
+): Preference<T> => {
+  const [value, setValue] = createSignal(codec.parse(readPreference(key)))
+  // Wrapped so a T that is itself a function could never be taken for Solid's
+  // updater form.
+  const hold = (next: T): void => void setValue(() => next)
+  return {
+    value,
+    stored: () => codec.parse(readPreference(key)),
+    set: (next, opts) => {
+      hold(next)
+      if (opts?.persist !== false) writePreference(key, codec.print(next))
+    },
+    follow: () => {
+      watchPreference(key, (raw) => hold(codec.parse(raw)))
+    },
+  }
+}
+
+/** The codec every stored BOOLEAN runs on, spelled once beside the rule it
+ *  parses with ({@link parseBool}) so the third boolean cannot get the print
+ *  half slightly different from the first two. */
+export const boolCodec = (fallback: boolean): PreferenceCodec<boolean> => ({
+  parse: (raw) => parseBool(raw, fallback),
+  print: String,
+})

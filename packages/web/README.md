@@ -567,6 +567,15 @@ never sent. There is no cell, no procedure and nothing to commit, and the panel
 says so on its own footer line, because "where did this go" is exactly what a
 person wonders about a setting they just changed.
 
+The read→signal→write→watch circuit over that storage is wired ONCE
+(`createPreference`, in `preference.ts`): a stored value is its codec — what
+the entry says, defaults included, and what to write back — plus the one
+option, `persist: false`, which the drag handles use so a pointermove is not a
+storage write. Every stored key runs on it, and a test beside the factory holds
+the claim that only `theme/state.ts` still wires the primitives itself: the
+theme's first read belongs to the shell's boot script (above), which no module
+can be.
+
 **What is on it** is a narrower question than "every client-local value", and
 the rule is: the ones that are a CHOICE and have nowhere else to be made.
 

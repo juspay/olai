@@ -18,14 +18,9 @@
  * a reader who has opened three folders has said nothing about any node.
  */
 
-import { type Accessor, createSignal } from "solid-js"
+import type { Accessor } from "solid-js"
 
-import {
-  parsedJson,
-  readPreference,
-  watchPreference,
-  writePreference,
-} from "../preference.ts"
+import { createPreference, parsedJson } from "../preference.ts"
 
 export const FOLDERS_KEY = "olai.sidebar.folders"
 
@@ -52,26 +47,26 @@ export const prunedFolders = (
 ): ReadonlySet<string> =>
   live.size === 0 ? open : new Set([...open].filter((path) => live.has(path)))
 
-const [folders, setFolders] = createSignal<ReadonlySet<string>>(
-  parseFolders(readPreference(FOLDERS_KEY)),
-)
+/** The circuit (../preference.ts), the codec the two functions above. */
+const pref = createPreference(FOLDERS_KEY, {
+  parse: parseFolders,
+  print: printFolders,
+})
 
 /** The folders that are open right now. Absent from it is collapsed, which is
  *  the default. */
-export const openFolders: Accessor<ReadonlySet<string>> = folders
+export const openFolders: Accessor<ReadonlySet<string>> = pref.value
 
 /** Open a folder, or shut it, and remember which. `live` prunes on the way past
  *  — see the header, and ./memory.ts for why a write is when to do it. */
 export const toggleFolder = (path: string, live: ReadonlySet<string>): void => {
-  const next = new Set(folders())
+  const next = new Set(pref.value())
   if (!next.delete(path)) next.add(path)
-  const kept = prunedFolders(next, live)
-  setFolders(kept)
-  writePreference(FOLDERS_KEY, printFolders(kept))
+  pref.set(prunedFolders(next, live))
 }
 
 /** Follow it for as long as this document lives — a folder opened in another
  *  tab lands here, exactly as a fold does. */
 export const followFolders = (): void => {
-  watchPreference(FOLDERS_KEY, (value) => setFolders(parseFolders(value)))
+  pref.follow()
 }
