@@ -32,6 +32,13 @@
  * empty list: `missing` is empty on every conversation that got what it was
  * meant to, and a host that is not running kolu at all reports no absence
  * either (`../../../../chat/src/kolu.ts` — nothing failed, so nothing is said).
+ *
+ * It also does not reach the app header's agent toggle, which is the one piece
+ * of chrome a shut panel cannot swallow. That bit is spent on `asking` and
+ * should stay spent on it: a turn stopped on a question will never finish by
+ * itself, so a person who cannot see it is stuck. A conversation short of a
+ * tool is not stuck — the agent answers — so what it is owed is a place to be
+ * found, not an interruption.
  */
 
 import type { MissingServer } from "@olai/surface"
@@ -50,7 +57,7 @@ export function Missing(props: { readonly chat: Chat }) {
         data-testid={TESTID.chatMissing}
         aria-label="missing tools"
       >
-        <For each={missing()}>{(server) => <Server server={server} />}</For>
+        <For each={missing()}>{(server) => <Row server={server} />}</For>
       </section>
     </Show>
   )
@@ -58,7 +65,7 @@ export function Missing(props: { readonly chat: Chat }) {
 
 /** One of them: what is not here, why not, and — when the probe had one — which
  *  file it asked. */
-function Server(props: { readonly server: MissingServer }) {
+function Row(props: { readonly server: MissingServer }) {
   return (
     <div
       class="font-mono text-[0.6875rem] leading-snug"
@@ -67,7 +74,7 @@ function Server(props: { readonly server: MissingServer }) {
     >
       <p class="flex items-baseline gap-1.5 text-ink">
         <span
-          class="inline-block size-1.5 shrink-0 translate-y-[-1px] rounded-full bg-alarm"
+          class="inline-block size-1.5 shrink-0 -translate-y-px rounded-full bg-alarm"
           aria-hidden="true"
         />
         <span>

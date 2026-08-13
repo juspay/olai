@@ -123,9 +123,11 @@ well and know nothing.
 `kolu` on this host's PATH and it would not answer, the panel says so under the
 header — the name, and the reason the probe or the server itself gave:
 
-> ● **kolu** is missing from this conversation
-> it refused to read the daemon's identity: surface-mcp: padi transport down
-> /nix/store/…/bin/kolu
+```
+● kolu is missing from this conversation
+  it refused to read the daemon's identity: surface-mcp: padi transport down
+  /nix/store/…/bin/kolu
+```
 
 The reason is the point. Every way of failing looks the same from the outside —
 the agent simply has fewer tools — and they want different things done about
