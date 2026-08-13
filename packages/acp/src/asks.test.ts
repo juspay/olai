@@ -16,10 +16,10 @@ import type {
   CreateElicitationRequest,
   RequestPermissionRequest,
 } from "@agentclientprotocol/sdk"
-import { type AskField, YES_NO } from "./wire.ts"
 import { describe, expect, test } from "bun:test"
 
 import { contentOf, formOf, PERMISSION_FIELD, permissionFormOf, Refused } from "./asks.ts"
+import { type AskField, YES_NO } from "./wire.ts"
 
 /** The shape `askUserQuestionsToCreateRequest` builds for ONE single-select
  *  question: the question itself as the message, a titled `oneOf`, and the

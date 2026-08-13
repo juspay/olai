@@ -70,7 +70,6 @@ import { type AskAnswer, type AskChoice, type AskField, YES_NO } from "./wire.ts
  * never here, which is the whole seam.
  */
 export class Refused {
-  readonly _tag = "Refused"
   constructor(readonly reason: string) {}
 }
 

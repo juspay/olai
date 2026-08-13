@@ -24,10 +24,11 @@ import { For, Match, Show, Switch } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 
-/** Yes and no, as the two choices they are. The VALUES are the surface's, not
- *  ours: the far end reads them back into an actual boolean, so a spelling the
- *  two ends agreed by comment is one that eventually stops agreeing — silently,
- *  because a word that no longer matches just stops registering. */
+/** Yes and no, as the two choices they are. The VALUES are the protocol
+ *  vocabulary's (`@olai/acp`, through the surface's re-export), not ours: the
+ *  far end reads them back into an actual boolean, so a spelling the two ends
+ *  agreed by comment is one that eventually stops agreeing — silently, because
+ *  a word that no longer matches just stops registering. */
 const BOOLEAN = [
   { value: YES_NO.yes, label: "yes" },
   { value: YES_NO.no, label: "no" },

@@ -41,7 +41,7 @@
  * was never sent.
  */
 
-import { AskAnswer, AskField, AskOutcome, FileDiff } from "@olai/acp/wire"
+import { AskAnswer, AskChoice, AskField, AskOutcome, FileDiff, YES_NO } from "@olai/acp/wire"
 import {
   BusyFailure,
   isOpFailure,
@@ -53,22 +53,23 @@ import {
 import { Schema } from "effect"
 
 /**
- * The ask vocabulary, re-exported rather than declared.
+ * The ask vocabulary — and {@link FileDiff} below — re-exported rather than
+ * declared.
  *
- * `AskChoice`, `AskField`, `AskAnswer`, `AskOutcome`, `YES_NO` and
- * {@link FileDiff} belong to `@olai/acp` now — they are ACP's elicitation and
- * diff shapes in olai's spelling, and the package that speaks the protocol is
- * the one that owns its words. They are re-exported HERE because they TRAVEL:
- * the transcript entry below carries them, the browser draws them, and
- * consumers keep importing them from the spec they already import everything
- * else from — exactly the arrangement `RepoState` has, declared by `@olai/git`
- * and re-exported through `@olai/format`.
+ * `AskChoice`, `AskField`, `AskAnswer`, `AskOutcome`, `YES_NO` and `FileDiff`
+ * belong to `@olai/acp` now — they are ACP's elicitation and diff shapes in
+ * olai's spelling, and the package that speaks the protocol is the one that
+ * owns its words. They are re-exported HERE because they TRAVEL: the
+ * transcript entry below carries them, the browser draws them, and consumers
+ * keep importing them from the spec they already import everything else from
+ * — exactly the arrangement `RepoState` has, declared by `@olai/git` and
+ * re-exported through `@olai/format`.
  *
  * They come off the `@olai/acp/wire` subpath, which is the half of that
  * package with no protocol payload in it: the projections over ACP's own
  * payloads ride the main entry, and only `@olai/chat` reads those.
  */
-export { AskAnswer, AskChoice, AskField, AskOutcome, YES_NO } from "@olai/acp/wire"
+export { AskAnswer, AskChoice, AskField, AskOutcome, FileDiff, YES_NO }
 
 /**
  * A question the agent asked, and what became of it.
@@ -117,11 +118,6 @@ export const NodeContext = Schema.Struct({
   path: Schema.Array(Schema.String),
 })
 export type NodeContext = typeof NodeContext.Type
-
-/** A file the agent rewrote, as the protocol reports it — `@olai/acp`'s word,
- *  re-exported for the reason the ask vocabulary above is: it rides
- *  {@link ChatEntry} and the browser draws it. */
-export { FileDiff } from "@olai/acp/wire"
 
 /**
  * What an olai WRITE did to a node, which is the other half of the same
