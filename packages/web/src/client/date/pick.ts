@@ -29,6 +29,10 @@
  * for nothing, which is `../menu/verbs.ts`'s rule about entries that can only
  * produce "already so": a button that sends the date already stored is a
  * button whose only outcome is a shrug.
+ *
+ * Two functions and no state: {@link startsAt} is where the box begins,
+ * {@link pressOf} is everything about the button, and {@link datePick} is the
+ * one edit it sends. What a day MEANS is nobody's here — a date is text.
  */
 
 import { dayOf } from "@olai/format"
@@ -60,43 +64,47 @@ export const datePick = (id: string, day: string): Edit => ({
   date: day === "" ? null : day,
 })
 
-/**
- * Would pressing the button ask for anything?
- *
- * Three noes, and they are one rule read three ways — a write whose only
- * possible outcome is "it already says that" is not a write. An empty box over
- * a node with no date asks for a date to be taken off a node that has none;
- * the day already stored asks for the date it already carries.
- *
- * A stored DATETIME is a yes against its own day, and that is the case worth
- * naming: `2026-08-11T15:40` and `2026-08-11` are different records, so
- * picking the day the datetime falls on genuinely changes the file.
- */
-export const wouldWrite = (stored: string | undefined, day: string): boolean =>
-  day === "" ? stored !== undefined : day !== stored
+/** The button, as the two things a reader can see about it. */
+export interface Press {
+  /** What it says — which is the VERB, so the words are the ones the `•••`
+   *  menu uses for the same edit. */
+  readonly label: string
+  /** Whether pressing it would ask the directory for anything. `false` draws
+   *  it dead. */
+  readonly writes: boolean
+}
 
 /**
- * What the button is called, which is the whole of how clearing is spelled
- * here.
+ * What the button IS, over the node's stored date and the day in the box.
  *
- * An emptied box over a node that HAS a date means "no date", and the words
- * for that are the `•••` menu's own — `Clear date`, #124's verb, unchanged and
- * still where it was. The picker ABSORBS the gesture rather than adding a
- * second one: the label is the menu's label and {@link datePick} sends the
- * menu's edit, so there is one spelling of taking a date off however a reader
- * arrived at it. The alternative was a button that went dead the moment
- * somebody emptied the box, which is a dead end in the one place a person is
- * most likely to be reaching for exactly that.
+ * ONE answer, and it is one because the two halves are one question. They were
+ * two functions — what it says, and whether it does anything — and the first
+ * shipped disagreeing with the second: an undated node's empty box read
+ * `Clear date`, over a node with no date to clear, beside a button that was
+ * correctly dead. A label and an enabled-ness derived separately from the same
+ * two strings are two readings that can differ, which is the whole of that bug;
+ * derived together they cannot.
  *
- * Over a node with NO date it stays `Set date`, and that is the reason the
- * stored value is a parameter: an empty box on an undated node is a picker
- * waiting for a day, not an offer to take away something that is not there.
- * The button is dead in that state either way ({@link wouldWrite}) — a dead
- * button naming a verb nobody can perform is worse than a dead button naming
- * the one they came for.
+ * **Dead means the write would ask for nothing** — an empty box over a node
+ * with no date, or the day it already carries. That is `../menu/verbs.ts`' rule
+ * about entries whose only outcome would be "it already says that", one layer
+ * down. A stored DATETIME is the case worth naming: `2026-08-11T15:40` and
+ * `2026-08-11` are different records, so picking the day it falls on is a real
+ * write.
+ *
+ * **An emptied box is `Clear date`** — the `•••` menu's own words, #124's verb,
+ * for the edit {@link datePick} spells with `null`. The picker ABSORBS the
+ * gesture rather than adding a second spelling of it; the alternative was a
+ * button that went dead the moment somebody emptied the box, which is a dead
+ * end in the one place a person is most likely to be reaching for exactly that.
+ * Over a node with NO date the words stay `Set date`, because a dead button
+ * naming a verb nobody can perform is worse than a dead one naming the verb
+ * they came for.
  */
-export const pickLabel = (stored: string | undefined, day: string): string =>
-  day === "" && stored !== undefined ? "Clear date" : "Set date"
+export const pressOf = (stored: string | undefined, day: string): Press =>
+  day === ""
+    ? { label: stored === undefined ? "Set date" : "Clear date", writes: stored !== undefined }
+    : { label: "Set date", writes: day !== stored }
 
 /**
  * What the panel says about a stored value the box cannot hold — and nothing

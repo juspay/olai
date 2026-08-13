@@ -150,6 +150,12 @@ function Branch(props: {
    *  `Set date…` — because it is one picker and the menu panel is closed by the
    *  time it has been chosen from (./date/DatePicker.tsx). */
   const [picking, setPicking] = createSignal(false)
+  /** ...and one opener for both of them. A BLOCK, so it answers with nothing:
+   *  a Solid setter answers with the new value, and the menu draws whatever an
+   *  action answers with as a sentence beside the `•••`. */
+  const openPicker = (): void => {
+    setPicking(true)
+  }
 
   // The editor is one draft for the whole page, and this is the one question a
   // row asks of it: is the caret HERE? Asked of WHERE the caret is rather than
@@ -225,9 +231,7 @@ function Branch(props: {
               view: props.view,
               go: router.go,
               record: undo.record,
-              pickDate: () => {
-                setPicking(true)
-              },
+              pickDate: openPicker,
             })}
           />
           <Show
@@ -297,9 +301,7 @@ function Branch(props: {
                 date={shows().node.date}
                 overdue={isOverdue(shows().node, today())}
                 onEdit={() => editor.open(props.row, "title")}
-                onPickDate={() => {
-                  setPicking(true)
-                }}
+                onPickDate={openPicker}
               >
                 <Show when={props.row.kind !== "node"}>
                   <span class="mr-1 text-muted" title="a mirror of another node">

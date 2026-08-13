@@ -54,7 +54,7 @@ import { createSignal, Show } from "solid-js"
 import type { Said } from "../edit/undoing.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
-import { noticeOf, pickLabel, startsAt, wouldWrite } from "./pick.ts"
+import { noticeOf, type Press, pressOf, startsAt } from "./pick.ts"
 
 export function DatePicker(props: {
   /** The date the node stores, or nothing — what the box starts on, and what
@@ -81,9 +81,12 @@ export function DatePicker(props: {
   /** One press at a time: the gate is a round trip, and a second Enter while
    *  the first is in flight is two writes for one intention. */
   const [sending, setSending] = createSignal(false)
+  /** The button, in the one state it has — what it says and whether it does
+   *  anything, derived together ({@link ./pick.ts}) so they cannot disagree. */
+  const press = (): Press => pressOf(props.date, day())
 
   const send = async (): Promise<void> => {
-    if (sending() || !wouldWrite(props.date, day())) return
+    if (sending() || !press().writes) return
     setSending(true)
     setSaid(null)
     try {
@@ -144,9 +147,9 @@ export function DatePicker(props: {
           type="submit"
           class={`${TARGET} md:min-h-0 cursor-pointer rounded border border-rule bg-transparent px-2 py-1 text-sm text-ink hover:bg-rule disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent`}
           data-testid={TESTID.datePickerSet}
-          disabled={sending() || !wouldWrite(props.date, day())}
+          disabled={sending() || !press().writes}
         >
-          {pickLabel(props.date, day())}
+          {press().label}
         </button>
         <button
           type="button"

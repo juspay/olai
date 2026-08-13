@@ -10,7 +10,7 @@
 
 import { expect, test } from "bun:test"
 
-import { datePick, noticeOf, pickLabel, startsAt, wouldWrite } from "./pick.ts"
+import { datePick, noticeOf, pressOf, startsAt } from "./pick.ts"
 
 // ── what the box starts with ───────────────────────────────────────────
 
@@ -66,38 +66,40 @@ test("the id is the caller's — a mirror's row names the node it SHOWS", () => 
   })
 })
 
-// ── what the button says, and whether it does anything ─────────────────
+// ── the button: what it says and whether it does anything ─────────────
 
 test("an emptied box is spelled with the menu's own words", () => {
-  expect(pickLabel("2026-08-10", "")).toBe("Clear date")
-  expect(pickLabel("2026-08-10", "2026-09-01")).toBe("Set date")
+  expect(pressOf("2026-08-10", "")).toEqual({ label: "Clear date", writes: true })
 })
 
 test("an empty box on an UNDATED node is still waiting for a day", () => {
-  // Nothing to clear, so the button does not offer to: it is dead, and what a
-  // dead button says should be the verb the person came for.
-  expect(pickLabel(undefined, "")).toBe("Set date")
-  expect(pickLabel(undefined, "2026-09-01")).toBe("Set date")
+  // Nothing to clear, so the button does not offer to — and what a dead button
+  // says is the verb the person came for. Said together, because these two
+  // facts disagreed once: `Clear date` over a node with nothing to clear.
+  expect(pressOf(undefined, "")).toEqual({ label: "Set date", writes: false })
 })
 
 test("nothing to write is nothing to press", () => {
-  // Both no-ops: a clear over a node with no date, and the date it already
-  // carries. `../menu/verbs.ts`' rule — an entry whose only outcome is
-  // "already so" teaches nobody anything.
-  expect(wouldWrite(undefined, "")).toBe(false)
-  expect(wouldWrite("2026-08-10", "2026-08-10")).toBe(false)
+  // The other no-op: the date already stored. `../menu/verbs.ts`' rule — an
+  // entry whose only outcome is "already so" teaches nobody anything.
+  expect(pressOf("2026-08-10", "2026-08-10")).toEqual({
+    label: "Set date",
+    writes: false,
+  })
 })
 
-test("setting, changing and clearing all write", () => {
-  expect(wouldWrite(undefined, "2026-09-01")).toBe(true)
-  expect(wouldWrite("2026-08-10", "2026-09-01")).toBe(true)
-  expect(wouldWrite("2026-08-10", "")).toBe(true)
+test("setting and changing both write, under one name", () => {
+  expect(pressOf(undefined, "2026-09-01")).toEqual({ label: "Set date", writes: true })
+  expect(pressOf("2026-08-10", "2026-09-01")).toEqual({ label: "Set date", writes: true })
 })
 
 test("the day of a stored datetime is still a change", () => {
   // Two different records: writing the day drops the time, which is a write
   // and is exactly what the notice below warns about.
-  expect(wouldWrite("2026-08-11T15:40:03-04:00", "2026-08-11")).toBe(true)
+  expect(pressOf("2026-08-11T15:40:03-04:00", "2026-08-11")).toEqual({
+    label: "Set date",
+    writes: true,
+  })
 })
 
 // ── what it says about a value the box cannot hold ─────────────────────
