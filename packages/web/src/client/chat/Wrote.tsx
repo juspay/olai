@@ -24,7 +24,7 @@ import { Show } from "solid-js"
 
 import { GLYPH, SAID } from "../changes.ts"
 import { TESTID } from "../testids.ts"
-import { NodeRef } from "./NodeRef.tsx"
+import { Reference } from "./Reference.tsx"
 
 export function Wrote(props: { readonly wrote: Written }) {
   /** A write that changed no record has no honest word for what it did, and
@@ -50,9 +50,9 @@ export function Wrote(props: { readonly wrote: Written }) {
           fallback={<span class="min-w-0 truncate text-ink">{props.wrote.title}</span>}
         >
           {(id) => (
-            <NodeRef id={id()} class="min-w-0 truncate">
+            <Reference id={id()} class="min-w-0 truncate">
               {props.wrote.title}
-            </NodeRef>
+            </Reference>
           )}
         </Show>
         <span class="ml-auto shrink-0 text-muted">{said()}</span>

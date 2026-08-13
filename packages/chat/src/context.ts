@@ -1,8 +1,9 @@
 /**
  * The nodes a message is ABOUT, on their way into a prompt.
  *
- * The sibling of {@link ./attachments.ts}'s `promptWith`, and deliberately the
- * same shape of answer: one line per thing, appended under what was typed. A
+ * The sibling of {@link ./attachments.ts}'s `promptWith` — literally, now: the
+ * RULE for putting lines under a message is {@link ./prompt.ts}'s and this
+ * owns only the line. One line per thing, appended under what was typed. A
  * picture reaches the agent as a PATH it reads itself; a node reaches it as an
  * ID it can name in a tool call. Neither rides the prompt as content, and that
  * is the same argument twice — the bytes of a screenshot and the records of a
@@ -25,12 +26,16 @@
 
 import type { NodeContext } from "@olai/surface"
 
-/** One node, as the agent reads it. */
+import { annotated } from "./prompt.ts"
+
+/** One node, as the agent reads it. The `file:line` is spelled once and the
+ *  ancestors are the varying tail: this line is a contract with two other
+ *  files (the scripted agent parses it, the panel makes the same spelling
+ *  pressable), and half of it drifting is not a thing to leave to two arms of
+ *  a ternary. */
 export const lineFor = (node: NodeContext): string => {
-  const where = node.path.length === 0
-    ? `${node.file}:${node.line}`
-    : `${node.file}:${node.line}; under ${node.path.join(" › ")}`
-  return `Node in context: \`${node.id}\` — ${node.title} (${where})`
+  const under = node.path.length === 0 ? "" : `; under ${node.path.join(" › ")}`
+  return `Node in context: \`${node.id}\` — ${node.title} (${node.file}:${node.line}${under})`
 }
 
 /**
@@ -45,8 +50,4 @@ export const lineFor = (node: NodeContext): string => {
 export const promptWith = (
   said: string,
   nodes: ReadonlyArray<NodeContext>,
-): string => {
-  if (nodes.length === 0) return said
-  const named = nodes.map(lineFor).join("\n")
-  return said === "" ? named : `${said}\n\n${named}`
-}
+): string => annotated(said, nodes.map(lineFor))

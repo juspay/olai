@@ -68,16 +68,24 @@ export function Transcript(props: { readonly chat: Chat }) {
     onCleanup(() => grown.disconnect())
   })
 
-  /** An id the agent named, pressed. ONE listener on the pane rather than a
-   *  handler per span, because the spans are inside rendered markdown and
-   *  belong to no component — the same arrangement a relative link between two
-   *  documents has on the main pane, for the same reason. The panel's OWN
-   *  references are buttons and do not come through here (`./NodeRef.tsx`);
-   *  both ends call the same `focusNode`. */
-  const pressed = (target: EventTarget | null): void => {
+  /** An id the agent named, pressed — shown, or nothing when the press landed
+   *  on the words around one.
+   *
+   *  ONE listener on the pane rather than a handler per span, because the spans
+   *  are inside rendered markdown and belong to no component: the same
+   *  arrangement a relative link between two documents has on the main pane,
+   *  for the same reason. The panel's OWN references are buttons and do not
+   *  come through here (`./Reference.tsx`); both ends call the same
+   *  `useShowNode`.
+   *
+   *  It answers whether it CLAIMED the press, so the keyboard half below can
+   *  preventDefault on exactly the presses it took rather than asking the same
+   *  question twice about one event. */
+  const pressed = (target: EventTarget | null): boolean => {
     const id = nodeRefIn(target)
-    if (id === null) return
+    if (id === null) return false
     show(id)
+    return true
   }
 
   return (
@@ -88,17 +96,17 @@ export function Transcript(props: { readonly chat: Chat }) {
       onScroll={() => {
         following = atBottom()
       }}
-      onClick={(event) => pressed(event.target)}
+      onClick={(event) => {
+        pressed(event.target)
+      }}
       // The keyboard's half of the same control: a marked span is given
       // `role="button"` and a tab stop (`./refs.ts`), and those two promise
-      // Enter and Space do what a click does.
+      // Enter and Space do what a click does. Space scrolls a pane it is
+      // pressed in, which is exactly the pane this is — so the default is
+      // prevented for the presses this took, and left alone for the rest.
       onKeyDown={(event) => {
         if (event.key !== "Enter" && event.key !== " ") return
-        if (nodeRefIn(event.target) === null) return
-        // Space scrolls a pane it is pressed in, which is exactly the pane
-        // this is — and the press was aimed at a reference.
-        event.preventDefault()
-        pressed(event.target)
+        if (pressed(event.target)) event.preventDefault()
       }}
     >
       {/* A wrapper with no styling of its own, purely so there is something

@@ -21,7 +21,7 @@ import type { JSX } from "solid-js"
 import { useShowNode } from "../focus.ts"
 import { TESTID } from "../testids.ts"
 
-export function NodeRef(props: {
+export function Reference(props: {
   readonly id: string
   /** What it reads as. A title when the set has one, the id when it does not —
    *  the caller's decision, because the two callers know different amounts

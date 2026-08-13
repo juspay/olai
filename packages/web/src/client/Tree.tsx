@@ -71,7 +71,7 @@ import { NewRow } from "./edit/NewRow.tsx"
 import { DescEditor, keyHandler, Said, TitleEditor } from "./edit/RowEditor.tsx"
 import { collapsedNodes, setFolded } from "./fold/memory.ts"
 import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
-import { FOCUSED, focusedNode } from "./focus.ts"
+import { focusedNode } from "./focus.ts"
 import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
@@ -199,8 +199,12 @@ function Branch(props: {
   /** Is this row the one a reference in the chat panel just pointed at
    *  (./focus.ts)? Asked of the NODE the row shows, which is the rule a fold
    *  and a mark verb already follow — so every drawing of that node lights up,
-   *  wherever it appears, exactly as every mirror of a folded node is folded. */
-  const focused = () => focusedNode() !== null && focusedNode() === foldIdOf(props.row)
+   *  wherever it appears, exactly as every mirror of a folded node is folded.
+   *
+   *  A MEMO, like `collapsed` above and for its reason: two bindings read it,
+   *  and one press of a reference would otherwise re-derive it twice in every
+   *  row of the tree. */
+  const focused = createMemo(() => focusedNode() === foldIdOf(props.row))
 
   return (
     <li
@@ -216,9 +220,9 @@ function Branch(props: {
       data-editing={editing() ? "true" : undefined}
       // Which row the panel is pointing at, as a fact rather than as a colour
       // — the same treatment `data-editing` beside it gets. It is also what
-      // ./focus.ts aims its scroll at (`FOCUSED`, the one reader of this
-      // attribute), which is why the row that wears it is found rather than
-      // computed: a mirror of the node wears it too, and either will do.
+      // ./focus.ts aims its scroll at, which is why the row that wears it is
+      // found rather than computed: a mirror of the node wears it too, and
+      // either will do.
       data-focused={focused() ? "true" : undefined}
       // The ids this row is waiting on, in the promised order — absent when
       // nothing is in its way. The dim beside it is a styling decision a

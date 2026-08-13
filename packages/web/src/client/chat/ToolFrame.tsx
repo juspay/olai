@@ -83,7 +83,7 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
     >
       {/* The fold, named — because it is no longer the only control in this
           frame: what the call CHANGED is drawn under it, and the node an olai
-          write was about is a button of its own now ({@link ./NodeRef.tsx}).
+          write was about is a button of its own now ({@link ./Reference.tsx}).
           "The button in the tool frame" was a description that happened to be
           unique, and a scenario that reached for it that way found two. */}
       <button

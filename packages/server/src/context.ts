@@ -24,8 +24,8 @@
  * without a server, an agent or a socket.
  */
 
-import { ancestorsOf, isMirror, type OpFailure } from "@olai/format"
-import { notANode, notFound, type Reading } from "@olai/ops"
+import { isMirror, type LocatedRegular, type OpFailure } from "@olai/format"
+import { notANode, notFound, Query, type Reading } from "@olai/ops"
 import type { NodeContext } from "@olai/surface"
 import { Result } from "effect"
 
@@ -62,14 +62,14 @@ const nodeContextFor = (
   const located = at.derived.byId.get(id)
   if (located === undefined) return Result.fail(notFound(at.derived, id))
   if (isMirror(located.node)) return Result.fail(notANode(id, located.node.mirror))
-  return Result.succeed({
-    id,
-    title: located.node.title,
-    file: located.file,
-    line: located.line,
-    // The canonical chain, outermost first — the same one a node's page draws
-    // as breadcrumbs and a search hit carries as `path`. It is what makes a
-    // bare "order" mean something in a prompt about a directory of outlines.
-    path: ancestorsOf(at.derived, id).map((crumb) => crumb.node.title),
-  })
+  // Situated by the ops layer's own reader, which is what answers `read_node`
+  // about this id in the same conversation — so the two cannot describe one
+  // node differently. What is TAKEN from it is the subset a context line says:
+  // the mark and the edges are the agent's to read for itself, and a prompt is
+  // not the place to pre-empt a tool call.
+  const { id: found, title, file, line, path } = Query.foundOf(
+    at.derived,
+    located as LocatedRegular,
+  )
+  return Result.succeed({ id: found, title, file, line, path })
 }

@@ -48,25 +48,26 @@ export const focusedNode: Accessor<string | null> = focused
 
 /** The attribute a focused row carries — a FACT in the markup rather than a
  *  colour, so a scenario asking "which row is being pointed at" is not asking
- *  about a class name. It is also what the scroll below aims at: the row that
- *  wears it is the row to bring on screen, wherever in the tree it turned out
- *  to be, and a mirror of the node wears it too. */
-export const FOCUSED = "data-focused"
+ *  about a class name (`./Tree.tsx` writes it). It is also what the scroll
+ *  below aims at: the row that wears it is the row to bring on screen,
+ *  wherever in the tree it turned out to be, and a mirror of the node wears it
+ *  too. */
+const FOCUSED = "data-focused"
 
 /**
  * Point at `id`: light the row up, and bring it onto the screen.
  *
  * `elsewhere` is called when the node is not drawn on this page at all — a node
  * in another outline, one inside a collapsed branch, one hidden by
- * done-hidden. The caller passes the navigation that takes the reader to it,
- * because a route change belongs to the router and a module that reached for
- * one would be a second place the address is decided.
+ * done-hidden. It is a parameter rather than a route this module knows, because
+ * a route change belongs to the router; it is not exported, because there is
+ * exactly one answer to it and that answer is the hook below.
  *
  * The look happens after the frame that draws the attribute: the row does not
  * wear it yet when this returns, and asking the DOM before then would find
  * nothing and navigate away from a node that is right there.
  */
-export const focusNode = (id: string, elsewhere: () => void): void => {
+const focusNode = (id: string, elsewhere: () => void): void => {
   setFocused(id)
   requestAnimationFrame(() => {
     const row = document.querySelector(`[${FOCUSED}="true"]`)
@@ -82,16 +83,14 @@ export const focusNode = (id: string, elsewhere: () => void): void => {
 }
 
 /**
- * What pressing a reference DOES, decided once.
+ * What pressing a reference DOES — the whole of this module's surface, and
+ * decided once.
  *
- * {@link focusNode} is the mechanism and stays policy-free — it takes the
- * answer to "and if the node is not here?" rather than knowing one, which is
- * what keeps it testable and keeps the address the router's. This is the
- * answer, and there is one of it: every reference in the panel is either a
- * button this app authored ({@link ./chat/NodeRef.tsx}) or an id inside
- * rendered markdown that a listener on the pane catches
- * ({@link ./chat/Transcript.tsx}), and two places writing the same fallback is
- * one place for the two to start disagreeing about what a press means.
+ * Every reference in the panel is either a button this app authored
+ * ({@link ./chat/Reference.tsx}) or an id inside rendered markdown that a
+ * listener on the pane catches ({@link ./chat/Transcript.tsx}), and two places
+ * writing the same "and if it is not on this page?" is one place for the two to
+ * start disagreeing about what a press means.
  */
 export const useShowNode = (): ((id: string) => void) => {
   const router = useRouter()

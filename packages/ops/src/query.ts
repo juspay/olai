@@ -210,7 +210,17 @@ export const index = (set: OutlineSet): Derived => {
  */
 const INDEXED = new WeakMap<OutlineSet, Derived>()
 
-const foundOf = (derived: Derived, located: LocatedRegular): Found => {
+/**
+ * One node, situated — the shape every read here answers with.
+ *
+ * PUBLIC for the same reason `notFound` and `notANode` are: a caller above
+ * this layer situates the same node for the same agent. `@olai/server` builds
+ * the line that names a node a chat message is ABOUT, and "where does a node
+ * live, and what does it hang under" is a question this file already answers —
+ * a second `ancestorsOf(…).map(…)` up there would be a second answer, free to
+ * drift from the one `read_node` gives about the same id in the same turn.
+ */
+export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
   const status = derived.status.get(located.node.id)
   return {
     id: located.node.id,

@@ -1,7 +1,7 @@
 /**
  * The ids the AGENT names, made pressable — without inventing a syntax.
  *
- * The panel authors two kinds of reference itself ({@link ./NodeRef.tsx}): the
+ * The panel authors two kinds of reference itself ({@link ./Reference.tsx}): the
  * chips on a message, and the node an olai write was about. This is the third,
  * and it is the only one olai does not write: what the agent says in prose.
  *
@@ -52,6 +52,10 @@ export const NODE_REF = "data-node-ref"
  * a span inside a FENCE is nothing either: a fenced block is a quotation of
  * code, and an id inside one is a line somebody would paste rather than a node
  * the agent is pointing at.
+ *
+ * WHAT COUNTS as declared is the caller's — and there is one answer to it in
+ * this app, the format's own `nodeNamed` ({@link ./Entry.tsx} passes it, the
+ * composer's chip resolves with it, a `see` link resolves with it).
  */
 export const nodeNamedBy = (
   text: string | null,
@@ -63,33 +67,47 @@ export const nodeNamedBy = (
   return id !== "" && declares(id) ? id : null
 }
 
+/** What a marked span carries besides its id: it is not a control until this
+ *  makes it one, and a reference nobody can tab to is a reference half the
+ *  readers of this panel cannot press. ONE list, read forwards to mark and
+ *  backwards to unmark — two hand-written lists is how a `role="button"` gets
+ *  left on a span that has stopped being one. */
+const AS_A_CONTROL: ReadonlyArray<readonly [string, string]> = [
+  ["role", "button"],
+  ["tabindex", "0"],
+  ["title", "show this node"],
+]
+
 /**
  * Mark every code span in `root` that names a node, and unmark the rest.
  *
  * BOTH directions, because this runs again over the same element as an answer
  * streams: a span that read `ord` a moment ago can be `order` now, and a mark
  * left behind would be a reference to a node the sentence no longer names.
+ *
+ * It writes only where the answer MOVED. The pass runs on every frame of a
+ * streaming answer, most spans in agent prose are not ids at all (`true`,
+ * `house.jsonl`), and re-removing four absent attributes several times a
+ * second is work with no effect to show for it.
  */
 export const markNodeRefs = (
   root: HTMLElement,
   declares: (id: string) => boolean,
 ): void => {
   for (const span of root.querySelectorAll("code")) {
-    const id = nodeNamedBy(span.textContent, span.closest("pre") !== null, declares)
-    if (id !== null) {
-      span.setAttribute(NODE_REF, id)
-      // Reachable by keyboard, and announced as what it is: the span is not a
-      // control until this makes it one, and a reference nobody can tab to is
-      // a reference half the readers of this panel cannot press.
-      span.setAttribute("role", "button")
-      span.setAttribute("tabindex", "0")
-      span.setAttribute("title", "show this node")
+    // The pipeline emits a fence as `<pre><code>`, so the question is about
+    // this span's own parent rather than a walk to the root.
+    const inFence = span.parentElement?.tagName === "PRE"
+    const id = nodeNamedBy(span.textContent, inFence, declares)
+    const marked = span.getAttribute(NODE_REF)
+    if (id === marked) continue
+    if (id === null) {
+      span.removeAttribute(NODE_REF)
+      for (const [attribute] of AS_A_CONTROL) span.removeAttribute(attribute)
       continue
     }
-    span.removeAttribute(NODE_REF)
-    span.removeAttribute("role")
-    span.removeAttribute("tabindex")
-    span.removeAttribute("title")
+    span.setAttribute(NODE_REF, id)
+    for (const [attribute, value] of AS_A_CONTROL) span.setAttribute(attribute, value)
   }
 }
 
@@ -99,7 +117,6 @@ export const markNodeRefs = (
  *  optional calls inside a handler. */
 export const nodeRefIn = (target: EventTarget | null): string | null => {
   if (!(target instanceof Element)) return null
-  const marked = target.closest(`[${NODE_REF}]`)
-  const id = marked?.getAttribute(NODE_REF)
-  return id === undefined || id === null || id === "" ? null : id
+  const id = target.closest(`[${NODE_REF}]`)?.getAttribute(NODE_REF)
+  return id === undefined || id === "" ? null : id
 }

@@ -37,6 +37,7 @@
  * that costs is bounded by the clock instead of by the agent.
  */
 
+import { nodeNamed } from "@olai/format"
 import type { ChatEntry } from "@olai/surface"
 import { createScheduled, throttle } from "@solid-primitives/scheduled"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
@@ -83,24 +84,34 @@ export function Entry(props: {
     return due() ? text : previous
   })
 
-  // After every frame of the answer, and after every frame of the SET: an id
-  // is a reference because a node with that id is loaded, and both halves of
-  // that move — the sentence as it streams, and the file as anybody writes to
-  // it. Reading both here is what keeps the two in step without a cache key
-  // for the set (which is the reason this is not a step in the pipeline).
+  // ONLY for the agent's own prose, which is the only row that has rendered
+  // markdown in it — and `kind` never changes for an entry, so this is a
+  // question asked once rather than a `said === undefined` bail inside an
+  // effect every row of a long transcript would keep live. It also keeps the
+  // markdown chunk's fetch where it was: reading `markdownReady()` is what
+  // ASKS for the pipeline (`../markdown/chunk.ts`), and a panel of user
+  // messages should no more request it than a page of outline rows does.
   //
-  // ...and after the PIPELINE lands, which is the third thing that moves and
-  // the one that is easy to forget: what is in the element until then is the
-  // answer's own text, `pre-wrap` and with no code spans in it at all
-  // (`../markdown/chunk.ts`). A pass that did not track it would run once
-  // against that text, find nothing, and never run again.
-  createEffect(() => {
-    shown()
-    markdownReady()
-    const indexes = derived()
-    if (said === undefined || indexes === undefined) return
-    markNodeRefs(said, (id) => indexes.byId.has(id))
-  })
+  // It re-runs on three things, because three things move: the sentence as it
+  // streams, the SET (an id is a reference because a node with that id is
+  // loaded, and files are written while a panel is open), and the pipeline
+  // landing — until which the element holds the answer's own text, `pre-wrap`
+  // and with no code spans in it at all, so a pass that did not track it would
+  // run once against that text and never again.
+  if (props.entry.kind === "agent") {
+    createEffect(() => {
+      shown()
+      markdownReady()
+      const indexes = derived()
+      if (said === undefined || indexes === undefined) return
+      // The format's own rule for what an id names — the one a `see` link and
+      // the composer's chip resolve with (`nodeNamed` follows a mirror to the
+      // node standing at it). `byId.has` would have been the convenient answer
+      // and a different one: it says yes to a placement id, which no row in
+      // the tree carries, so pressing it could only ever leave the page.
+      markNodeRefs(said, (id) => nodeNamed(indexes, id) !== undefined)
+    })
+  }
 
   return (
     <div

@@ -835,7 +835,7 @@ Three components earn their own file:
   the same words. A side that will not parse says which side and draws nothing
   else: an agent hand-editing an outline is exactly how a `.jsonl` stops
   parsing, and lines are not a better answer to that than a sentence.
-- **`armed.ts` / `ContextChips.tsx` / `NodeRef.tsx` / `refs.ts` / `../focus.ts`** are
+- **`armed.ts` / `ContextChips.tsx` / `Reference.tsx` / `refs.ts` / `../focus.ts`** are
   the two directions between a row and the conversation, and they are four small
   files because they are four separate reasons to change.
 
@@ -852,7 +852,7 @@ Three components earn their own file:
   `ContextChips.tsx` is one component for both moments the way `Attachments.tsx` is:
   what differs is only that the pending one can be taken off.
 
-  Pointing back is the same ids read the other way. `NodeRef.tsx` is a BUTTON
+  Pointing back is the same ids read the other way. `Reference.tsx` is a BUTTON
   and not a link — it shows you a row on the page you are on, and only falls
   back to `/n/<id>` when the node is not drawn there — and `focus.ts` is the
   whole of what "shows" means: `focusNode` is the mechanism and takes the
@@ -881,7 +881,7 @@ Three components earn their own file:
   the agent marks a node done, this says *marked done*, and the row waiting to
   be committed says *marked done*. One event, one sentence, two places it is
   seen — and one table, because two would be the day one of them started saying
-  something else. The node it names is a REFERENCE (`NodeRef.tsx`): the reply
+  something else. The node it names is a REFERENCE (`Reference.tsx`): the reply
   has always carried the id, and this is the shape a transcript holds most
   often — every write through the ops layer draws one of these rows.
 - **`Composer.tsx`** never disables its box. A message typed while the agent
