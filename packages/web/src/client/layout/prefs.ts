@@ -11,14 +11,9 @@
  * the dock (e.g. 480 + 720 on a 1024px laptop).
  */
 
-import { type Accessor, createSignal } from "solid-js"
+import type { Accessor } from "solid-js"
 
-import {
-  parseBool,
-  readPreference,
-  watchPreference,
-  writePreference,
-} from "../preference.ts"
+import { boolCodec, createPreference, type SetOptions } from "../preference.ts"
 
 // ── keys ──────────────────────────────────────────────────────────────────
 
@@ -127,37 +122,49 @@ export const fitWidths = (
 const viewportWidth = (): number =>
   typeof window !== "undefined" ? window.innerWidth : 10_000
 
+// ── the five circuits, one factory ────────────────────────────────────────
+//
+// Each preference is its codec and nothing else; the read→signal→write→watch
+// wiring is `createPreference`'s (../preference.ts). The setters below stay,
+// because they are where a VALUE is decided — a width is clamped before it is
+// a width — and the accessors stay because a width is fitted to the viewport
+// on the way out, which is a fact about layout and not about storage.
+
+const sidebarOpenPref = createPreference(SIDEBAR_OPEN_KEY, boolCodec(true))
+
+const sidebarWidthPref = createPreference(SIDEBAR_WIDTH_KEY, {
+  parse: (raw) =>
+    parsePx(raw, SIDEBAR_DEFAULT_PX, SIDEBAR_MIN_PX, SIDEBAR_MAX_PX),
+  print: String,
+})
+
+const chatOpenPref = createPreference(CHAT_OPEN_KEY, boolCodec(false))
+
+const chatWidthPref = createPreference(CHAT_WIDTH_KEY, {
+  parse: (raw) => parsePx(raw, CHAT_DEFAULT_PX, CHAT_MIN_PX, CHAT_MAX_PX),
+  print: String,
+})
+
+const chatSnapPref = createPreference(CHAT_SNAP_KEY, {
+  parse: parseSnap,
+  print: (snap) => snap,
+})
+
 // ── sidebar open (desktop: full column vs icon rail) ──────────────────────
 
-const [isSidebarOpen, setSidebarOpenSignal] = createSignal(
-  parseBool(readPreference(SIDEBAR_OPEN_KEY), true),
-)
+export const sidebarOpen: Accessor<boolean> = sidebarOpenPref.value
 
-export const sidebarOpen: Accessor<boolean> = isSidebarOpen
-
-export const setSidebarOpen = (open: boolean): void => {
-  setSidebarOpenSignal(open)
-  writePreference(SIDEBAR_OPEN_KEY, String(open))
-}
+export const setSidebarOpen = (open: boolean): void => sidebarOpenPref.set(open)
 
 export const toggleSidebar = (): void => setSidebarOpen(!sidebarOpen())
 
 // ── sidebar width ─────────────────────────────────────────────────────────
 
-const [sidebarWidthPx, setSidebarWidthSignal] = createSignal(
-  parsePx(
-    readPreference(SIDEBAR_WIDTH_KEY),
-    SIDEBAR_DEFAULT_PX,
-    SIDEBAR_MIN_PX,
-    SIDEBAR_MAX_PX,
-  ),
-)
-
 /** Live width, clamped to the current viewport. */
 export const sidebarWidth: Accessor<number> = () =>
   fitWidths(
-    sidebarWidthPx(),
-    chatWidthPx(),
+    sidebarWidthPref.value(),
+    chatWidthPref.value(),
     sidebarOpen(),
     chatOpen(),
     viewportWidth(),
@@ -168,60 +175,32 @@ export const sidebarWidth: Accessor<number> = () =>
  * pointermove does not write localStorage (and fire cross-tab storage events);
  * the handle's `onEnd` persists once.
  */
-export const setSidebarWidth = (
-  px: number,
-  opts?: { readonly persist?: boolean },
-): void => {
-  const next = clamp(Math.round(px), SIDEBAR_MIN_PX, SIDEBAR_MAX_PX)
-  setSidebarWidthSignal(next)
-  if (opts?.persist !== false) writePreference(SIDEBAR_WIDTH_KEY, String(next))
-}
+export const setSidebarWidth = (px: number, opts?: SetOptions): void =>
+  sidebarWidthPref.set(clamp(Math.round(px), SIDEBAR_MIN_PX, SIDEBAR_MAX_PX), opts)
 
 // ── chat open (open dock/sheet vs minimized pill/strip) ───────────────────
 
-const [isChatOpen, setChatOpenSignal] = createSignal(
-  parseBool(readPreference(CHAT_OPEN_KEY), false),
-)
-
 /** Is the agent panel open right now? Minimized is the other of the two states. */
-export const chatOpen: Accessor<boolean> = isChatOpen
+export const chatOpen: Accessor<boolean> = chatOpenPref.value
 
-export const setChatOpen = (open: boolean): void => {
-  setChatOpenSignal(open)
-  writePreference(CHAT_OPEN_KEY, String(open))
-}
+export const setChatOpen = (open: boolean): void => chatOpenPref.set(open)
 
 export const toggleChat = (): void => setChatOpen(!chatOpen())
 
 // ── chat width ────────────────────────────────────────────────────────────
 
-const [chatWidthPx, setChatWidthSignal] = createSignal(
-  parsePx(
-    readPreference(CHAT_WIDTH_KEY),
-    CHAT_DEFAULT_PX,
-    CHAT_MIN_PX,
-    CHAT_MAX_PX,
-  ),
-)
-
 /** Live width, clamped to the current viewport. */
 export const chatWidth: Accessor<number> = () =>
   fitWidths(
-    sidebarWidthPx(),
-    chatWidthPx(),
+    sidebarWidthPref.value(),
+    chatWidthPref.value(),
     sidebarOpen(),
     chatOpen(),
     viewportWidth(),
   ).chat
 
-export const setChatWidth = (
-  px: number,
-  opts?: { readonly persist?: boolean },
-): void => {
-  const next = clamp(Math.round(px), CHAT_MIN_PX, CHAT_MAX_PX)
-  setChatWidthSignal(next)
-  if (opts?.persist !== false) writePreference(CHAT_WIDTH_KEY, String(next))
-}
+export const setChatWidth = (px: number, opts?: SetOptions): void =>
+  chatWidthPref.set(clamp(Math.round(px), CHAT_MIN_PX, CHAT_MAX_PX), opts)
 
 /** Reset both panels to their defaults (palette command for keyboard users). */
 export const resetPanelWidths = (): void => {
@@ -231,16 +210,9 @@ export const resetPanelWidths = (): void => {
 
 // ── mobile chat snap ──────────────────────────────────────────────────────
 
-const [chatSnapValue, setChatSnapSignal] = createSignal<ChatSnap>(
-  parseSnap(readPreference(CHAT_SNAP_KEY)),
-)
+export const chatSnap: Accessor<ChatSnap> = chatSnapPref.value
 
-export const chatSnap: Accessor<ChatSnap> = chatSnapValue
-
-export const setChatSnap = (snap: ChatSnap): void => {
-  setChatSnapSignal(snap)
-  writePreference(CHAT_SNAP_KEY, snap)
-}
+export const setChatSnap = (snap: ChatSnap): void => chatSnapPref.set(snap)
 
 // ── cross-tab follow ──────────────────────────────────────────────────────
 
@@ -252,30 +224,22 @@ export const setChatSnap = (snap: ChatSnap): void => {
  * the outline under the dock.
  */
 export const followLayout = (): void => {
-  watchPreference(SIDEBAR_OPEN_KEY, (value) => {
-    setSidebarOpenSignal(parseBool(value, true))
-  })
-  watchPreference(SIDEBAR_WIDTH_KEY, (value) => {
-    setSidebarWidthSignal(
-      parsePx(value, SIDEBAR_DEFAULT_PX, SIDEBAR_MIN_PX, SIDEBAR_MAX_PX),
-    )
-  })
-  watchPreference(CHAT_OPEN_KEY, (value) => {
-    setChatOpenSignal(parseBool(value, false))
-  })
-  watchPreference(CHAT_WIDTH_KEY, (value) => {
-    setChatWidthSignal(parsePx(value, CHAT_DEFAULT_PX, CHAT_MIN_PX, CHAT_MAX_PX))
-  })
-  watchPreference(CHAT_SNAP_KEY, (value) => {
-    setChatSnapSignal(parseSnap(value))
-  })
+  sidebarOpenPref.follow()
+  sidebarWidthPref.follow()
+  chatOpenPref.follow()
+  chatWidthPref.follow()
+  chatSnapPref.follow()
 
-  // Re-read fit on resize: accessors re-run when signals change, but a bare
-  // window resize does not touch a signal. Nudge a signal with its own value
-  // so Solid re-renders consumers of sidebarWidth/chatWidth.
+  // Re-fit on resize: accessors re-run when signals change, but a bare window
+  // resize does not touch a signal, so each width is nudged with its own value
+  // (no write — nothing changed in storage). Kept exactly as the hand-wired
+  // version had it, honestly named: under Solid's default equality a
+  // same-value set notifies nobody, so the nudge moves nothing until a signal
+  // actually changes — a pre-existing fact this migration preserves rather
+  // than fixes.
   const onResize = () => {
-    setSidebarWidthSignal((w) => w)
-    setChatWidthSignal((w) => w)
+    sidebarWidthPref.set(sidebarWidthPref.value(), { persist: false })
+    chatWidthPref.set(chatWidthPref.value(), { persist: false })
   }
   window.addEventListener("resize", onResize)
 }

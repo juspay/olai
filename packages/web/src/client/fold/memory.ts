@@ -31,14 +31,9 @@
  */
 
 import type { Derived } from "@olai/format"
-import { type Accessor, createSignal } from "solid-js"
+import type { Accessor } from "solid-js"
 
-import {
-  parsedJson,
-  readPreference,
-  watchPreference,
-  writePreference,
-} from "../preference.ts"
+import { createPreference, parsedJson } from "../preference.ts"
 import type { Fold } from "./rows.ts"
 
 export const FOLDS_KEY = "olai.folds"
@@ -258,14 +253,32 @@ interface Memory {
   readonly ids: ReadonlySet<string>
 }
 
-const memoryOf = (byFile: Folds): Memory => ({ byFile, ids: merged(byFile) })
+const memoryOf = (byFile: Folds): Memory => {
+  // The flat set is LAZY, because not every parse is read flat: `setFolded`'s
+  // look at the stored entry wants only the grouped half, and paying `merged`
+  // there would be a union built to be thrown away. It still cannot lag the
+  // grouped half — a Memory is immutable, so the answer is the same whenever
+  // it is first asked for.
+  let ids: ReadonlySet<string> | undefined
+  return {
+    byFile,
+    get ids() {
+      return (ids ??= merged(byFile))
+    },
+  }
+}
 
-const [memory, setMemory] = createSignal<Memory>(
-  memoryOf(parseFolds(readPreference(FOLDS_KEY))),
-)
+/** The circuit (../preference.ts), with the codec carrying `Memory` rather
+ *  than bare `Folds` so the flat set rides wherever a parse goes — the first
+ *  read, and a sibling tab's write arriving — and can never lag the grouped
+ *  one by a frame. */
+const pref = createPreference(FOLDS_KEY, {
+  parse: (raw) => memoryOf(parseFolds(raw)),
+  print: (memory) => printFolds(memory.byFile),
+})
 
 /** The nodes that are folded right now, by id. */
-export const collapsedNodes: Accessor<ReadonlySet<string>> = () => memory().ids
+export const collapsedNodes: Accessor<ReadonlySet<string>> = () => pref.value().ids
 
 /**
  * Fold the nodes `given`, or unfold them, and remember which.
@@ -279,8 +292,10 @@ export const collapsedNodes: Accessor<ReadonlySet<string>> = () => memory().ids
  *
  * The base is the ENTRY unioned with what this tab holds ({@link combined}),
  * not the held map alone, so a sibling tab's folds are not thrown away by this
- * one's — see there. The read costs one `getItem` and one parse per fold, over
- * a value bounded by what the reader has actually shut.
+ * one's — see there. `stored()` is that entry as it is NOW, and the reason the
+ * circuit offers it: this is the one preference whose writes merge instead of
+ * replace. The read costs one `getItem` and one parse per fold, over a value
+ * bounded by what the reader has actually shut.
  */
 export const setFolded = (
   given: ReadonlyArray<Fold>,
@@ -289,14 +304,13 @@ export const setFolded = (
 ): void => {
   const next = pruned(
     withFolds(
-      combined(parseFolds(readPreference(FOLDS_KEY)), memory().byFile),
+      combined(pref.stored().byFile, pref.value().byFile),
       given,
       collapsed,
     ),
     live === undefined ? new Map() : declaredIn(live),
   )
-  setMemory(memoryOf(next))
-  writePreference(FOLDS_KEY, printFolds(next))
+  pref.set(memoryOf(next))
 }
 
 /** Follow it for as long as this document lives — the same shape as
@@ -304,5 +318,5 @@ export const setFolded = (
  *  because a preference belongs to the browser and a browser is more than one
  *  tab. A fold made in another tab lands here without a reload. */
 export const followFolds = (): void => {
-  watchPreference(FOLDS_KEY, (value) => setMemory(memoryOf(parseFolds(value))))
+  pref.follow()
 }

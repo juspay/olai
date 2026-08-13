@@ -4,15 +4,19 @@ import {
   CHAT_DEFAULT_PX,
   CHAT_MAX_PX,
   CHAT_MIN_PX,
+  CHAT_WIDTH_KEY,
   clamp,
   fitWidths,
   MIN_MAIN_PX,
   parsePx,
   parseSnap,
   RAIL_WIDTH_PX,
+  setChatWidth,
+  setSidebarWidth,
   SIDEBAR_DEFAULT_PX,
   SIDEBAR_MAX_PX,
   SIDEBAR_MIN_PX,
+  SIDEBAR_WIDTH_KEY,
 } from "./prefs.ts"
 import { parseBool } from "../preference.ts"
 
@@ -45,6 +49,32 @@ test("parseSnap only accepts full; everything else is half", () => {
   expect(parseSnap(null)).toBe("half")
   expect(parseSnap("half")).toBe("half")
   expect(parseSnap("whatever")).toBe("half")
+})
+
+test("the width setters forward persist: false, so a pointermove writes nothing", () => {
+  // The factory's own test proves `set` honours the option; this one holds
+  // the hop in front of it — a setter that stopped forwarding `opts` would
+  // turn every pointermove of a drag into a storage write while the factory
+  // test stayed green. Storage is shimmed for the duration; bun's runner has
+  // none, and `readPreference` reads that absence as null either way.
+  const store = new Map<string, string>()
+  const g = globalThis as Record<string, unknown>
+  g.localStorage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => void store.set(key, value),
+    removeItem: (key: string) => void store.delete(key),
+  }
+  try {
+    setSidebarWidth(300, { persist: false })
+    setChatWidth(300, { persist: false })
+    expect(store.size).toBe(0)
+    setSidebarWidth(301)
+    setChatWidth(302)
+    expect(store.get(SIDEBAR_WIDTH_KEY)).toBe("301")
+    expect(store.get(CHAT_WIDTH_KEY)).toBe("302")
+  } finally {
+    delete g.localStorage
+  }
 })
 
 test("fitWidths keeps a main pane on a 1024px laptop at max stored widths", () => {

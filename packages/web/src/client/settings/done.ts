@@ -21,37 +21,29 @@
  * server.
  */
 
-import { type Accessor, createSignal } from "solid-js"
+import type { Accessor } from "solid-js"
 
-import {
-  parseBool,
-  readPreference,
-  watchPreference,
-  writePreference,
-} from "../preference.ts"
+import { boolCodec, createPreference } from "../preference.ts"
 
 export const DONE_HIDDEN_KEY = "olai.done.hidden"
 
 /** Shown, for a browser that has never been asked — and for a value nothing
- *  here ever wrote, which is `parseBool`'s rule and not this file's. */
+ *  here ever wrote, which is `boolCodec`'s rule and not this file's. */
 const SHOWN = false
 
-const [hidden, setHidden] = createSignal(
-  parseBool(readPreference(DONE_HIDDEN_KEY), SHOWN),
-)
+/** The circuit (../preference.ts); the codec is the whole of this file's say
+ *  in how it is stored. */
+const pref = createPreference(DONE_HIDDEN_KEY, boolCodec(SHOWN))
 
 /** Whether a page nobody has pressed the Done switch on hides what is done. */
-export const doneHiddenDefault: Accessor<boolean> = hidden
+export const doneHiddenDefault: Accessor<boolean> = pref.value
 
-export const setDoneHiddenDefault = (value: boolean): void => {
-  setHidden(value)
-  writePreference(DONE_HIDDEN_KEY, String(value))
-}
+export const setDoneHiddenDefault = (value: boolean): void => pref.set(value)
 
 /** Follow it for as long as this document lives — the same shape as
  *  `followStoredTheme` and `followLayout`, started once from `main.tsx`,
  *  because a preference belongs to the browser and a browser is more than one
  *  tab. */
 export const followDoneDefault = (): void => {
-  watchPreference(DONE_HIDDEN_KEY, (value) => setHidden(parseBool(value, SHOWN)))
+  pref.follow()
 }
