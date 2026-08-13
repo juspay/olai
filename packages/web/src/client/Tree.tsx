@@ -217,7 +217,7 @@ function Branch(props: {
       <div
         class={`group/row flex items-center ${GUTTER_GAP} ${WAITING_DIM(props.row.blocked)}`}
         classList={{
-          "rounded-sm bg-accent/10": editing(),
+          "rounded-sm bg-picked": editing(),
           "font-semibold tracking-[0.04em]": props.section === true,
         }}
         data-testid={TESTID.nodeGutter}
