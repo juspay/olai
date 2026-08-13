@@ -17,13 +17,23 @@
  * shadow's VALUE into the utility it emits, so a `:root[data-theme="pitch"]`
  * block re-answering the property would not reach it. Reading the property
  * through an arbitrary value is what makes a shadow follow the palette the way
- * every colour already does. Written once, here.
+ * every colour already does.
+ *
+ * WRITTEN ONCE, HERE, and the rule is worth stating because it is the only thing
+ * keeping this a vocabulary rather than a suggestion: nothing outside this file
+ * spells a `--shadow-*`. The one exception is `styles.css`, which paints a code
+ * fence and an inline chip as wells — a rendered document's tags come from a
+ * file on disk and carry no classes, so a descendant rule is the only tool there
+ * is, and a `.css` file cannot import a constant. It is the same exception that
+ * file's own header already claims for itself.
  *
  * ## The grammar, in one place
  *
  *   CANVAS   the ground. The page body wears it, and so does everything that is
- *            not content: the directory column, the icon rail, the chat dock.
+ *            not content: the directory column, the icon rail.
  *   BAR      a strip of the ground that floats anyway — the app header.
+ *   OVER     a whole panel of it that floats — the chat dock, the mobile sheet,
+ *            the phone's directory drawer.
  *   WELL     recessed: furniture, in the canvas or inside the sheet. An inner
  *            shadow, no drop shadow, and no border — the inset hairline that
  *            comes with the shadow is the edge.
@@ -40,6 +50,19 @@
  * Radii are Tailwind's own scale rather than tokens of their own: they do not
  * vary by palette, and three names for `rounded-lg`/`xl`/`2xl` would be a
  * second vocabulary for a decision the first one already makes.
+ *
+ * ## The lines the pass KEPT, and where each of them is
+ *
+ * "Elevation replaces borders" is a claim a reviewer should be able to check by
+ * reading one list, so here is the list. Two are accent lines and belong to this
+ * vocabulary: the SPINE below (the file in force), and the question card's top
+ * bar, which is a `border-t` at its own site because it is used exactly once
+ * (`chat/AskForm.tsx`). Three are structural and are not accent at all: a
+ * menu's group break (`menu/NodeMenu.tsx`), the outline's nesting guide
+ * (`touch.ts`'s `CHILD_INDENT` — nesting can run deeper than an indent alone
+ * stays readable), and the panel resize handles (`layout/Handle.tsx`), which are
+ * controls and say so louder under the pointer. Anything else drawing a hairline
+ * around a surface is a bug against this file.
  */
 
 /** The ground the whole app sits on. */
@@ -55,6 +78,18 @@ export const CANVAS = "bg-canvas"
  * this is not just `CANVAS`.
  */
 export const BAR = "bg-canvas shadow-[var(--shadow-card)]"
+
+/**
+ * A PANEL over the page that is still made of the ground: the chat dock, the
+ * mobile sheet, the phone's directory drawer.
+ *
+ * The same two halves `BAR` has, one altitude further up — these cover the page
+ * rather than sitting above a strip of it, and what is inside them is a stack of
+ * cards, which a raised fill would dissolve. It is the second reason `CANVAS`
+ * alone will not do, and having a name for it is what keeps three components
+ * from each reaching for `--shadow-raised` on their own.
+ */
+export const OVER = "bg-canvas shadow-[var(--shadow-raised)]"
 
 /** A recess. The inset hairline in `--shadow-well` is its edge — a box wearing
  *  this must not also carry a border, which is the whole of "elevation replaces
@@ -104,6 +139,23 @@ export const LIFTS = `${LIFT} hover:bg-raised`
  */
 export const PICKED =
   "bg-picked shadow-[var(--shadow-card)] inset-ring-2 inset-ring-accent"
+
+/**
+ * The thing that ACTS or ANSWERS: the accent, filled, at the resting card
+ * altitude.
+ *
+ * The app's primary verbs wear it — answer, send, commit — and so does the day
+ * being read, which is the calendar's answer. Fill and altitude only: the INK on
+ * it is the site's (a button says `text-paper` itself, and `calendar/Day.tsx`
+ * decides every property of a cell in exactly one place), and so is the LIFT,
+ * since a day that is already being read does not lift and a button does.
+ *
+ * It has a shadow at REST, unlike everything else the accent touches, and that is
+ * the point of it: this is the surface that has come furthest forward, so an
+ * outline would have been the wrong shape for it in a grammar where depth is what
+ * says forward.
+ */
+export const ACTS = "bg-accent shadow-[var(--shadow-card)]"
 
 /**
  * The row IN FORCE — the open file in the directory, and nothing else.

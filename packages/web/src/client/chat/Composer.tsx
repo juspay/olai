@@ -52,7 +52,7 @@ import { ATTACHMENT_EXTENSIONS } from "@olai/surface"
 import { createEffect, createSignal, on, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { CARD, LIFT, WELL } from "../surface.ts"
+import { ACTS, CARD, LIFT, WELL } from "../surface.ts"
 import { Attachments } from "./Attachments.tsx"
 import type { Holding } from "./holding.ts"
 import { SlashMenu } from "./SlashMenu.tsx"
@@ -340,7 +340,7 @@ export function Composer(props: {
           /* THE PRIMARY VERB of the panel, and one of the four places the
               accent is spent: filled rather than outlined, so the thing that
               sends is the thing furthest forward on the row. */
-          class={`${CONTROL} bg-accent px-4 font-semibold text-paper`}
+          class={`${CONTROL} ${ACTS} px-4 font-semibold text-paper`}
           data-testid={TESTID.chatSend}
           onClick={() => void send()}
         >

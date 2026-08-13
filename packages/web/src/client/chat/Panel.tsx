@@ -29,7 +29,7 @@ import {
   setChatSnap,
   type ChatSnap,
 } from "../layout/prefs.ts"
-import { CANVAS } from "../surface.ts"
+import { OVER } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { ICON_BUTTON } from "../readout.ts"
 import { Composer } from "./Composer.tsx"
@@ -148,11 +148,11 @@ function DesktopDock() {
 
   return (
     <aside
-      // The dock is a strip of the CANVAS, not a panel of paper: the entries
-      // inside it are the cards (../surface.ts), and a raised ground would
-      // dissolve them. It is fixed over the page, so what says it is in front
-      // is a shadow rather than the hairline that used to be down its edge.
-      class={`fixed right-0 top-[var(--height-header,3rem)] z-30 flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] max-w-full flex-col ${CANVAS} shadow-[var(--shadow-raised)]`}
+      // OVER (../surface.ts): a panel made of the GROUND, not of paper — the
+      // entries inside it are the cards, and a raised ground would dissolve
+      // them — and fixed over the page, so what says it is in front is a shadow
+      // rather than the hairline that used to be down its edge.
+      class={`fixed right-0 top-[var(--height-header,3rem)] z-30 flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] max-w-full flex-col ${OVER}`}
       style={{ width: `${chatWidth()}px` }}
       data-testid={TESTID.chatPanel}
       data-status={chat.state().status}
@@ -237,7 +237,7 @@ function MobileSheet() {
         onClick={() => setChatOpen(false)}
       />
       <aside
-        class={`absolute inset-x-0 bottom-0 flex flex-col rounded-t-2xl ${CANVAS} shadow-[var(--shadow-raised)]`}
+        class={`absolute inset-x-0 bottom-0 flex flex-col rounded-t-2xl ${OVER}`}
         style={{
           height: `${heightPct()}%`,
           "max-height": "100%",

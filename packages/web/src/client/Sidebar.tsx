@@ -86,7 +86,7 @@ import { ancestorDirs, type FileRow, fileTree } from "./fileTree.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
 import { Link, useRouter } from "./router.tsx"
-import { CANVAS, CARD, LIFT, LIFTS, SPINE } from "./surface.ts"
+import { CARD, LIFT, LIFTS, OVER, SPINE } from "./surface.ts"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
 
@@ -208,7 +208,7 @@ export function Sidebar(props: {
           // PHONE, where the same box is a drawer over the page and has to be
           // opaque — and the shadow with it, because a drawer floating over the
           // page is the one time this column is above something.
-          `z-40 flex-col ${CANVAS} shadow-[var(--shadow-raised)] md:shadow-none ` +
+          `z-40 flex-col ${OVER} md:shadow-none ` +
           // Wide enough that the month's 7 day cells still hit 44×44.
           "fixed bottom-0 left-0 top-[var(--height-header,3rem)] w-[min(22rem,92vw)] " +
           // `top-` above is BOTH positions' offset — the drawer's inset and

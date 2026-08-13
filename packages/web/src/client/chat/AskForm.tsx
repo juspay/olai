@@ -28,7 +28,7 @@
 import type { AskField, ChatEntry } from "@olai/surface"
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
-import { CARD, LIFT, RAISED } from "../surface.ts"
+import { ACTS, CARD, LIFT, RAISED } from "../surface.ts"
 import { TESTID } from "../testids.ts"
 import { AskControl } from "./AskControl.tsx"
 import { draftAnswers, draftOf, forgetDraft, setDraft } from "./drafts.ts"
@@ -204,7 +204,7 @@ export function AskForm(props: {
                   so it reads as the thing that has come furthest forward. */}
               <button
                 type="button"
-                class={`flex h-8 items-center rounded-full bg-accent px-3.5 text-xs font-semibold text-paper ${LIFT} disabled:opacity-60`}
+                class={`flex h-8 items-center rounded-full ${ACTS} ${LIFT} px-3.5 text-xs font-semibold text-paper disabled:opacity-60`}
                 data-testid={TESTID.chatAskSubmit}
                 disabled={sending()}
                 onClick={submit}
