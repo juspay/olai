@@ -31,15 +31,16 @@
  *   - **This is not the ops request vocabulary re-spelled.** It is smaller (no
  *     `create`, no `see`, no `after`, no `mirror`, no chosen ids) and, where it
  *     differs, it differs because something is resolved behind it. Where
- *     nothing is (`title`, `desc`, `date`, `archive`, `unmirror`), it uses the
- *     ops layer's own word, so a name that differs from an op's is a name with
- *     arithmetic behind it. Ops itself learns none of this — an op does not
- *     know it is being called over a wire, which is what its own manifest says.
+ *     nothing is (`title`, `desc`, `date`, `archive`, `unarchive`, `unmirror`),
+ *     it uses the ops layer's own word, so a name that differs from an op's is
+ *     a name with arithmetic behind it. Ops itself learns none of this — an op
+ *     does not know it is being called over a wire, which is what its own
+ *     manifest says.
  *
  * NOT EVERY VERB IS A KEY, and the ones that are not arrived from two
  * directions that meet in the middle of this list.
  *
- * THREE ARE THE POINTER'S, and they are here for a rule rather than for a
+ * FOUR ARE THE POINTER'S, and they are here for a rule rather than for a
  * feature: "MCP and Web ops must be consistent; never deviate" (HACKING.md).
  * An agent could set or clear a date, retire a placement and archive a
  * subtree, and a person at the same directory could do none of them — a
@@ -49,6 +50,10 @@
  * `archive_node` would have sent, judged by the same planner, refused in the
  * same words. Two of them are chosen from the `•••` menu; `date` is sent by
  * that menu (`Clear date`) and by the picker a row's date pill opens.
+ * `unarchive` is the fourth and the one exception to "already exist": no face
+ * had it (`parity-unarchive`), so the op was born in the ops layer and both
+ * faces got it in the same change — the Trash view's `Put back` sends it, and
+ * `unarchive_node` is the same call.
  *
  * TWO ARE AN UNDO'S, and they are the one place this list is not shaped like a
  * key at all. `place` and `remove` say where a row SAT and that a row this
@@ -292,12 +297,36 @@ export const Edit = Schema.Union([
    * this schema would be a rule an agent's `archive_node` does not have, which
    * is the deviation read backwards.
    *
-   * IT DOES NOT COME BACK YET, and that is not this face's gap: there is no
-   * unarchive on ANY face (`parity-unarchive`), so the archive file is the
-   * restore path for now and the confirm says so rather than implying a bin
-   * somebody can open.
+   * AND IT COMES BACK: `unarchive` below is the way out, so the trash really
+   * is one — the confirm can promise a bin somebody can open, because the
+   * Trash view opens it and `Put back` is on every row.
    */
   Schema.Struct({ verb: Schema.Literal("archive"), id: Id }),
+  /**
+   * Take a node and everything under it back OUT of the archive —
+   * `unarchive_node`, from the Trash view's `Put back`, and the other half of
+   * `parity-unarchive`: the op was born in the ops layer and reached both
+   * faces together, so neither face can do what the other cannot.
+   *
+   * The two optional fields are AN UNDO'S, not the button's. `Put back` sends
+   * the id alone, and where the subtree lands is the ops layer's own default:
+   * the chain of ancestor titles the archive recorded, matched back against
+   * the live outlines — refused, naming what it found, when that chain matches
+   * nowhere or more than one place. An undo of an `archive` knows better than
+   * the chain does: the server read the row's actual parent (or its file, at
+   * top level) off the snapshot the archive was judged against, and those are
+   * ids an agent would have named — the same rule `place` follows.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("unarchive"),
+    id: Id,
+    /** The live node it goes back under — an undo's record of where it sat.
+     *  Absent, the archive's own chain decides. */
+    parent: Schema.optionalKey(Id),
+    /** The outline whose top level it goes back to, when it sat at one.
+     *  Ignored when `parent` is present. */
+    file: Schema.optionalKey(Schema.String),
+  }),
 
   // ── the two an undo speaks ───────────────────────────────────────────
 
@@ -353,11 +382,9 @@ export const Edit = Schema.Union([
    * the fence is the refusal, and it is the ops layer's rule about what an
    * undo is entitled to: what it made, never what somebody built on it.
    *
-   * IT DOES NOT COME BACK, and that is not this face's gap: there is no
-   * unarchive on ANY face (human, 2026-08-12 — an equal absence rather than a
-   * deviation, one op to build once in the ops layer and expose to both faces
-   * together). So the undo of this one says it cannot be redone, and the day
-   * that op exists it stops having to.
+   * AND IT COMES BACK — `unarchive` is what an undo of this one answers with
+   * now, carrying the place the row sat, so ⌘Z on an un-create is no longer
+   * the one entry that could not be redone.
    */
   Schema.Struct({ verb: Schema.Literal("remove"), id: Id }),
 ])

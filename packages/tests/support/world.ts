@@ -251,6 +251,18 @@ export const AGENDA_DAY = selector(TESTID.agendaDay);
 export const AGENDA_EMPTY = selector(TESTID.agendaEmpty);
 /** The way to it from the directory column, above the month. */
 export const AGENDA_LINK = selector(TESTID.agendaLink);
+/** The trash: every archive the directory holds, read-only, one verb. */
+export const TRASH_PAGE = selector(TESTID.trashPage);
+/** One row of it — an archived node; `data-node-id` is which. */
+export const TRASH_ROW = selector(TESTID.trashRow);
+/** The one verb a trash row offers. */
+export const TRASH_PUT_BACK = selector(TESTID.trashPutBack);
+/** What the last put-back had to say, under its row; `data-tone` is the mood. */
+export const TRASH_SAID = selector(TESTID.trashSaid);
+/** Said in the rows' place when nothing is in the trash. */
+export const TRASH_EMPTY = selector(TESTID.trashEmpty);
+/** The way to it, at the foot of the directory column. */
+export const TRASH_LINK = selector(TESTID.trashLink);
 /** THE day's note, above those groups: a document named for the date itself.
  *  `data-file` is which. */
 export const DAY_NOTE = selector(TESTID.dayNote);

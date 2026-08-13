@@ -126,19 +126,19 @@ it are all consequences of one choice: an undo is a WRITE.
   and it is a trash rather than a shredder — the node keeps its id in
   `Archive.jsonl`, so everything pointing at it goes on resolving. It is
   refused for a row that has grown children since: an undo may take back what
-  it made, never what somebody built on it. The cost is that it does not come
-  back out (a `move` is same-file by the format), so that one entry says it
-  cannot be redone rather than leaving a ⌘⇧Z that does nothing.
+  it made, never what somebody built on it. The cost was that it did not come
+  back out (a `move` is same-file by the format), so that one entry said it
+  could not be redone rather than leaving a ⌘⇧Z that did nothing.
 
-  What that cost IS has a name as of the inventory below (2026-08-12): there is
-  **no unarchive on any face**, which is an equal absence rather than a
-  deviation — one op to build once in the ops layer and expose to both faces
-  together. The day it exists, this entry stops being the one that cannot be
-  redone, and nothing else here changes. The other half of that ruling cuts the
-  other way and is worth stating against this PR: the web has no archive
-  affordance at all, so what an un-create reaches for is an op only the agent
-  can otherwise ask for. It is reached ONLY as the inverse of a row this
-  session created — not a general archive door, and not the delete key.
+  What that cost WAS had a name as of the inventory below (2026-08-12): there
+  was **no unarchive on any face**, an equal absence rather than a deviation —
+  one op to build once in the ops layer and expose to both faces together.
+  **That day came (`trash-parity`, 2026-08-13)**: `unarchive` /
+  `unarchive_node` exist on both faces, the un-create's inverse is an
+  `unarchive` carrying the place the row sat, and this entry stopped being the
+  one that cannot be redone — nothing else here changed, exactly as predicted.
+  The other half of that ruling closed earlier the other way (`menu-verbs`):
+  the `•••` menu's archive door, behind its confirm.
 - **A move whose recorded parent has been archived** surfaces as the ops
   layer's own cross-file refusal, verbatim, and the entry is dropped — the
   other judgment call the dispatch named. Nothing here invents a sentence for
@@ -149,6 +149,30 @@ What it is NOT: a snapshot restore, persisted, cross-tab, or aware of the
 agent's writes. ⌘Z takes back what THIS tab did, on THIS outline, this session.
 
 ## Open
+
+- **Is an archived node FROZEN?** Raised by the review of `trash-parity`
+  (2026-08-13) and deliberately left to the human, because it is a decision
+  about the SET rather than about a view. The Trash view is read-only, and
+  `/o/Archive.jsonl` opens it — but `/n/<archived-id>` is still the ordinary
+  node page, with its editor, and the day page and the agenda still list
+  archived dated work and link to it (the human's own 2026-08-11 ruling: work
+  that was put away is still work that happened).
+
+  The reason this PR did not simply close that page: **the ops layer permits
+  editing an archived node.** Nothing in the planner reads `isArchived` on the
+  way into `set_title` / `set_desc` / `set_date` / the marks — the flag gates
+  blockedness, the change classification and unarchive's own rules, and
+  nothing else. So an agent can retitle archived work today. Making the web
+  page refuse would be the web expressing LESS than MCP, which is
+  `editor-op-parity` again with the faces swapped — this item's own bug, in
+  reverse.
+
+  So the question is not "should the page be read-only" but "should the SET
+  refuse to edit what has been put away", answered once in the ops layer and
+  met identically by both faces. That has real consequences (an agent could no
+  longer fix a typo in archived work; it interacts with the day/agenda
+  ruling), which is exactly why it is the human's to rule on rather than a
+  parity fix's to assume.
 
 - ~~**Derived status in the edit UI**: unlike Workflowy, completing a parent isn't just unpropagated — it's *refused* (derived state).~~ **Closed 2026-08-11** (`hide-done-scope`): status derivation is gone, so olai IS the Workflowy model here — `Ctrl+Enter` on a parent stores a mark like it would on a leaf. The rollup badge is drawn beside an editable row like any other, since the editor replaces only the title span.
 - **Delete without undo — deferred entirely, 2026-08-11 (human), and STILL OPEN.** `undo` did not close it. What that item shipped is the UN-CREATE — the inverse of an `add`, sent by no key, over a row that was just made and has nothing under it, resolving to `archive` — which is the "arrives with undo" half read strictly. A delete KEY (which rows? a subtree? a confirmation?) is untouched and is the human's to rule on.
@@ -180,7 +204,7 @@ Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
 | Multi-select + bulk complete/move/indent/delete | five gestures | filed `dragdrop-multiselect` |
 | **Duplicate** (subtree; result auto-tagged `#copy`; also `Alt+Drag` clone) | `Alt/⌘+Shift+D`, menu | **MISSING** |
 | **Move to** (search dialog; moves subtree anywhere, across lists) | slash command, menu | **MISSING** — olai's version is the harder cross-OUTLINE move: `parent` is same-file by the format, so this is an op design (move vs re-create vs mirror), not just a dialog |
-| **Delete** (recoverable from Trash) + **Trash restore** | `Ctrl/⌘+Shift+Backspace`, menu | ruled 2026-08-11: still no delete affordance. olai's trash is `Archive.jsonl`, and ARCHIVE now has one — the `•••` menu's `Archive`, subtree with a confirm naming the blast radius (human, 2026-08-12), closing `parity-archive`. **Unarchive/restore still exists on NO face** (equal absence rather than a deviation — one op to build in the ops layer and expose on both faces together, `parity-unarchive`), which is why the confirm says the archive file is the way back |
+| **Delete** (recoverable from Trash) + **Trash restore** | `Ctrl/⌘+Shift+Backspace`, menu | ruled 2026-08-11: still no delete affordance. olai's trash is `Archive.jsonl`, and ARCHIVE has one — the `•••` menu's `Move to Trash` (né `Archive`), subtree with a confirm naming the blast radius (human, 2026-08-12), closing `parity-archive`. **Trash restore shipped too** (`trash-parity`, 2026-08-13, closing `parity-unarchive`): the sidebar's Trash draws every archive read-only, `Put back` sends the `unarchive` op both faces got together, and the confirm now promises the bin it implies |
 | **Expand / collapse, persisted** (double-click triangle = all; `Ctrl+Space`, `Ctrl+↓/↑` variants) | per-node, saved | olai collapse is session view-state; whether stored collapse is a modification olai wants is **undecided** (it is a WRITE in Workflowy) |
 
 ### Marks
@@ -265,8 +289,11 @@ tool sends. What that left, in order of what it would take:
   building for `((`. A menu entry cannot ask "which node?".
 - `create_outline` (`parity-create-outline`): the sidebar's, not a row's.
 - setting a date: the `!` picker, `input-widgets`.
-- UNARCHIVE (`parity-unarchive`): still no op on either face, and the one
-  entry here that is an equal absence rather than a deviation.
+- ~~UNARCHIVE (`parity-unarchive`): still no op on either face, and the one
+  entry here that is an equal absence rather than a deviation.~~ **Closed
+  2026-08-13 (`trash-parity`)**: the op was born in the ops layer and both
+  faces got it together — `unarchive_node` for the agent, the Trash view's
+  `Put back` for the mouse.
 
 Duplicate, move-to, paste/export, formatting and bullet types remain genuinely
 new design work, each its own item.

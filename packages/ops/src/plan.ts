@@ -27,7 +27,9 @@
 import {
   ancestorsOf,
   ARCHIVE,
+  archiveBeside,
   chainOf,
+  isArchived,
   derive,
   type Derived,
   didYouMean,
@@ -74,10 +76,11 @@ export interface Plan {
    *  made a subtree — {@link Applied}'s own field says why. */
   readonly captured?: ReadonlyArray<Minted>
   /** The git commit subject, in the convention `olai` has always used:
-   *  `capture:` / `done:` / `doing:` / `todo:` / `move:` / `archive:` / `create:` /
-   *  `see:` / `after:` / `mirror:` / `unmirror:` and a title (or a path, when an
-   *  outline is born empty). A placement's subject names what it SHOWS — the
-   *  target's title — since a mirror has none of its own. */
+   *  `capture:` / `done:` / `doing:` / `todo:` / `move:` / `archive:` /
+   *  `unarchive:` / `create:` / `see:` / `after:` / `mirror:` / `unmirror:` and
+   *  a title (or a path, when an outline is born empty). A placement's subject
+   *  names what it SHOWS — the target's title — since a mirror has none of its
+   *  own. */
   readonly summary: string
   /** What the rollup would like the writer to notice, on a write that HAPPENED
    *  ({@link nudged}). Absent unless there is something to say. */
@@ -166,6 +169,8 @@ export const plan = (
       return planMove(scope, request)
     case "archive":
       return planArchive(scope, request)
+    case "unarchive":
+      return planUnarchive(scope, request)
     case "create":
       return planCreate(scope, request)
     case "see":
@@ -1188,8 +1193,7 @@ const planArchive = (
   if (Result.isFailure(target)) return Result.fail(target.failure)
   const { file, node } = target.success
 
-  const cut = file.lastIndexOf("/")
-  const archive = cut === -1 ? ARCHIVE : `${file.slice(0, cut + 1)}${ARCHIVE}`
+  const archive = archiveBeside(file)
   if (file === archive) {
     return Result.fail(
       new UsageFailure({ reason: `\`${node.title}\` is already in \`${archive}\`` }),
@@ -1201,14 +1205,7 @@ const planArchive = (
     if (Result.isFailure(may)) return Result.fail(may.failure)
   }
 
-  // Everything under the node, by `parent` — which is same-file by the format,
-  // so the walk never leaves this outline. The file's records are read ONCE and
-  // shared with the walk: `recordsOf` filters and sorts the whole set.
-  const records = recordsOf(scope, file)
-  const moving = subtreeOf(scope, records, node.id)
-  const movingIds = new Set(moving.map((record) => record.id))
-
-  const source = records.filter((record) => !movingIds.has(record.id))
+  const { keeps: source, descendants } = liftSubtree(scope, file, node.id)
   const existing = recordsOf(scope, archive)
 
   // The chain, outermost first, as titles. It is the DEFINING file's ancestry:
@@ -1245,14 +1242,9 @@ const planArchive = (
   }
 
   // The root is re-parented onto the scaffold; everything under it keeps the
-  // `parent` it had, so the subtree arrives shaped exactly as it left. Picked
-  // out by id rather than by position: the walk answers in FILE order, and
-  // nothing says a parent is written above its children.
-  const root = moving.find((record) => record.id === node.id)
-  const descendants = moving.filter((record) => record.id !== node.id)
-  if (root === undefined) throw new Error("the subtree walk lost its own root")
+  // `parent` it had, so the subtree arrives shaped exactly as it left.
   const reparented: Node = {
-    ...withParent(root, parent),
+    ...withParent(node, parent),
     ord: appendedOrd([existing, scaffold], parent),
   }
 
@@ -1292,6 +1284,28 @@ const subtreeOf = (
   return records.filter((record) => wanted.has(record.id))
 }
 
+/**
+ * A subtree, lifted out of its file: what the file KEEPS, and the node's
+ * descendants in file order. The node itself is deliberately not returned —
+ * the caller holds it, and re-parenting it is the caller's decision — so the
+ * two directions the trash has (`archive` out of a live outline, `unarchive`
+ * out of the archive) share one answer to "what is the whole subtree" and
+ * cannot drift about it.
+ */
+const liftSubtree = (
+  scope: Scope,
+  file: string,
+  id: string,
+): { readonly keeps: ReadonlyArray<Node>; readonly descendants: ReadonlyArray<Node> } => {
+  const records = recordsOf(scope, file)
+  const moving = subtreeOf(scope, records, id)
+  const movingIds = new Set(moving.map((record) => record.id))
+  return {
+    keeps: records.filter((record) => !movingIds.has(record.id)),
+    descendants: moving.filter((record) => record.id !== id),
+  }
+}
+
 /** An `ord` after everything already under `parent`.
  *
  *  One max scan rather than a filter-map-sort: `ord` is a base62 fractional
@@ -1311,6 +1325,286 @@ const appendedOrd = (
     }
   }
   return nextOrd(last)
+}
+
+// ── unarchive ──────────────────────────────────────────────────────────
+
+/**
+ * A subtree back OUT of an `Archive.jsonl` — the inverse `archive` waited for
+ * (`parity-unarchive`), and the reason the trash was never a shredder.
+ *
+ * The subtree comes back INTACT and the ids come with it, which is the archive
+ * op's own rule read in reverse: the set is one namespace, the node never left
+ * it, so nothing here can collide and nothing has to be re-pointed. What has to
+ * be DECIDED is where it lands, and the caller may not have said:
+ *
+ *   - a named `parent` or `file` is {@link landsIn}'s pair, judged the same way
+ *     `add` judges it — except that an archive is refused as a destination,
+ *     because putting something back INTO the trash is `archive`'s job and a
+ *     caller who spells it here has the wrong op;
+ *   - absent both, THE ARCHIVE'S OWN RECORD decides: the scaffold of ancestor
+ *     titles above the node is matched back against the live outlines in the
+ *     archive's directory. Titles, not ids — the scaffold's ids are minted
+ *     (see {@link planArchive}) — so the match can fail two ways, and both are
+ *     refusals that NAME what was found rather than guesses: nowhere (the
+ *     chain was retitled, or archived itself) and more than one place (two
+ *     branches spell the same path).
+ *
+ * It lands LAST among its new siblings. The archive does not record where in
+ * the row a node sat — an `ord` is meaningless outside the sibling set it was
+ * minted in — and a guess dressed as a restore would be worse than the honest
+ * answer, which is the same one every other arrival gets.
+ *
+ * The scaffold is TIDIED on the way out: an ancestor the removal leaves with
+ * nothing under it is dropped, provided it is bare (a title and a placement,
+ * nothing else — exactly what {@link planArchive} mints) and nothing in the set
+ * still names it. So archive-then-unarchive leaves the archive as it stood,
+ * rather than accumulating empty husks of everywhere anything ever went — and
+ * an ancestor that holds anything else, says anything else, or is pointed at
+ * stays, because dropping it would not be tidying.
+ */
+const planUnarchive = (
+  scope: Scope,
+  request: Extract<Request, { op: "unarchive" }>,
+): Planned => {
+  const target = regularAt(scope, request.id)
+  if (Result.isFailure(target)) return Result.fail(target.failure)
+  const { file, node } = target.success
+
+  if (!isArchived(file)) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `\`${node.title}\` is in \`${file}\`, which is not an archive — ` +
+          `\`unarchive_node\` takes back what \`archive_node\` put away, and this ` +
+          `one was never put away`,
+      }),
+    )
+  }
+
+  const landing = unarchiveLanding(scope, request, file, node)
+  if (Result.isFailure(landing)) return Result.fail(landing.failure)
+  const { file: destination, parent } = landing.success
+
+  const signpost = notASignpost(scope, node, destination, parent)
+  if (Result.isFailure(signpost)) return Result.fail(signpost.failure)
+
+  for (const touched of [file, destination]) {
+    const may = writable(scope, touched)
+    if (Result.isFailure(may)) return Result.fail(may.failure)
+  }
+
+  const { keeps, descendants } = liftSubtree(scope, file, node.id)
+
+  // The archive after the removal, with the empty scaffold above the node
+  // tidied away — deepest first, stopping at the first ancestor that still
+  // holds anything, carries more than a scaffold record does, or is named by
+  // something. "Named" reads the format's own `targetsOf` over the whole set,
+  // in ONE pass and only when there is a candidate at all — an edge written
+  // from anywhere, the returning subtree included, keeps its target. The
+  // child counts are one pass too, decremented as ancestors drop, so the walk
+  // never re-scans the one file in a set that grows without bound.
+  const byId = new Map(keeps.map((record) => [record.id, record]))
+  const holding = new Map<string, number>()
+  for (const record of keeps) {
+    if (record.parent !== undefined) {
+      holding.set(record.parent, (holding.get(record.parent) ?? 0) + 1)
+    }
+  }
+  let named: ReadonlySet<string> | undefined
+  const dropped = new Set<string>()
+  let up = node.parent
+  while (up !== undefined) {
+    const holder = byId.get(up)
+    if (holder === undefined) break
+    named ??= new Set(
+      scope.derived.nodes.flatMap((at) => targetsOf(at.node).map(([, id]) => id)),
+    )
+    if (
+      (holding.get(holder.id) ?? 0) > 0 ||
+      !bareScaffold(holder) ||
+      named.has(holder.id)
+    ) break
+    dropped.add(holder.id)
+    if (holder.parent !== undefined) {
+      holding.set(holder.parent, (holding.get(holder.parent) ?? 0) - 1)
+    }
+    up = holder.parent
+  }
+
+  const arriving = recordsOf(scope, destination)
+  const reparented: Node = {
+    ...withParent(node, parent),
+    ord: appendedOrd([arriving], parent),
+  }
+
+  return Result.succeed({
+    files: [
+      { file, nodes: keeps.filter((record) => !dropped.has(record.id)) },
+      { file: destination, nodes: [...arriving, reparented, ...descendants] },
+    ],
+    id: node.id,
+    title: node.title,
+    file: destination,
+    summary: `unarchive: ${node.title}`,
+  })
+}
+
+/**
+ * Where an unarchived subtree lands ({@link Landing}): the caller's `parent` /
+ * `file` when either is given, the archive's own scaffold chain otherwise.
+ *
+ * The named half leans on {@link landsIn} for everything it can — the same
+ * refusals `add` gives for an unknown parent or an unserved file — and adds
+ * the one rule that is this op's: an archive is not a destination. The
+ * resolved half is the inverse of {@link planArchive}'s scaffold walk, over
+ * TITLES, against every live outline in the archive's own directory — which is
+ * the only directory the node can have come from, since an archive sits
+ * beside what it archives.
+ */
+const unarchiveLanding = (
+  scope: Scope,
+  request: Extract<Request, { op: "unarchive" }>,
+  archive: string,
+  node: RegularNode,
+): Result.Result<Landing, OpFailure> => {
+  if (request.parent !== undefined || request.file !== undefined) {
+    const named = landsIn(scope, request)
+    if (Result.isFailure(named)) return named
+    if (isArchived(named.success.file)) {
+      return Result.fail(
+        new UsageFailure({
+          reason: `that would put \`${node.title}\` back into \`${named.success.file}\` — ` +
+            `unarchive takes things OUT of an archive; name a parent or file in a ` +
+            `live outline`,
+        }),
+      )
+    }
+    return named
+  }
+
+  const beside = scope.set.files.filter((candidate) =>
+    !isArchived(candidate) && archiveBeside(candidate) === archive
+  )
+  const chain = ancestorsOf(scope.derived, node.id).map((crumb) => crumb.node.title)
+
+  if (chain.length === 0) {
+    // Archived from the top level of SOME outline beside the archive — which
+    // one was never recorded, because a scaffold of no ancestors says nothing.
+    // One outline is no choice at all; more is the caller's.
+    if (beside.length === 1) return Result.succeed({ file: beside[0]! })
+    return Result.fail(
+      new UsageFailure({
+        reason: `\`${node.title}\` was archived from the top level of an outline ` +
+          `beside \`${archive}\`, and ${
+            beside.length === 0
+              ? "there is none now"
+              : `there is more than one (${beside.map((f) => `\`${f}\``).join(", ")})`
+          } — give \`file\` to say which it goes back into, or \`parent\` to put ` +
+          `it somewhere else`,
+      }),
+    )
+  }
+
+  // The chain, walked FORWARD over the live outlines: every top-level node
+  // spelling the first title, then every child of those spelling the next, so
+  // what is left at the end is every place the whole chain reaches. Titles are
+  // matched exactly, as the scaffold merge wrote them, and never through a
+  // mirror — a placement spells no title of its own.
+  let level: ReadonlyArray<Located> = beside
+    .flatMap((candidate) => siblingsOf(scope.derived, candidate, undefined))
+  let matches: ReadonlyArray<LocatedRegular> = []
+  for (const title of chain) {
+    matches = level.filter(
+      (at): at is LocatedRegular => !isMirror(at.node) && at.node.title === title,
+    )
+    level = matches.flatMap((at) => scope.derived.children.get(at.node.id) ?? [])
+  }
+
+  const found = matches[0]
+  if (matches.length === 1 && found !== undefined) {
+    return Result.succeed({ file: found.file, parent: found.node.id })
+  }
+  return Result.fail(
+    new UsageFailure({
+      reason: `\`${node.title}\` was archived from under ${chainOf(chain)}, and that ` +
+        `chain ${
+          matches.length === 0
+            ? `matches nothing in ${
+              beside.length === 0
+                ? `the outlines beside \`${archive}\` (there are none)`
+                : beside.map((f) => `\`${f}\``).join(", ")
+            } — it may have been retitled, or put away itself`
+            : `matches more than one place (${
+              matches.map((at) => `\`${at.node.id}\` (${at.file}:${at.line})`).join(", ")
+            })`
+        }. Give \`parent\` (it goes under that node) or \`file\` (top level) to ` +
+        `say where it goes back`,
+    }),
+  )
+}
+
+/**
+ * THE SIGNPOST IS NOT A NODE — the one thing in an archive that may not come
+ * back out (review of #147, driven twice).
+ *
+ * `archive` writes two kinds of record. The subtree it MOVED keeps its own ids
+ * and leaves a hole where it was; above that it mints a scaffold of the live
+ * ancestors' TITLES, under ids nobody chose, so the archive still reads like
+ * the tree it came out of. Only the first kind was ever put away. The second is
+ * a copy of something that never left — restore one and the set gains a second
+ * node carrying a title it already has, with the archive's rows hanging off the
+ * copy instead of the original. It is also the click the Trash invites, because
+ * the scaffold is the ROOT row: "put this pile back" reaches for it first.
+ *
+ * WHAT TELLS THE TWO APART, since nothing on disk marks a minted record: the
+ * pair of conditions below, and each is doing its own work.
+ *
+ *   - BARE is the shape `archive` mints — a title standing at a place, nothing
+ *     else ({@link bareScaffold}) — so anything carrying a mark, a date, a note
+ *     or an edge is content and is never asked about;
+ *   - A TWIN AT THE LANDING is the copy showing itself. A scaffold record
+ *     exists precisely BECAUSE its ancestor is still live and still carries
+ *     that title, so the node it would duplicate is sitting exactly where this
+ *     one would land. Content that happens to be title-only left a hole behind
+ *     it, so nothing there answers to its name.
+ *
+ * Asking only the first would have been the tempting rule and it is wrong: a
+ * plain heading with rows under it — no mark, no date, no note — is the most
+ * ordinary thing anybody archives, and refusing it would make the common case
+ * unrestorable on the face that has no way to name a landing. Asking only the
+ * second would refuse a real node somebody had re-created by hand under the
+ * same name, which is theirs to have.
+ */
+const notASignpost = (
+  scope: Scope,
+  node: RegularNode,
+  destination: string,
+  parent: string | undefined,
+): Result.Result<void, OpFailure> => {
+  if (!bareScaffold(node)) return Result.succeed(undefined)
+  const twin = siblingsOf(scope.derived, destination, parent).find(
+    (at) => !isMirror(at.node) && at.node.title === node.title,
+  )
+  if (twin === undefined) return Result.succeed(undefined)
+  return Result.fail(
+    new UsageFailure({
+      reason: `\`${twin.node.id}\` in \`${twin.file}\` is already called ` +
+        `\`${node.title}\`, and this record carries nothing but that title — it is ` +
+        `the title \`archive\` wrote above what was put away rather than something ` +
+        `that was put away. Restoring it would stand a second one beside it and ` +
+        `hang the archive's rows off the copy. Put back what is under it instead.`,
+    }),
+  )
+}
+
+/** Exactly what {@link planArchive} mints and nothing more: a title standing at
+ *  a place. A record carrying anything else — a mark, a date, a note, an edge —
+ *  was never a scaffold, whatever its shape suggests, and tidying it away would
+ *  throw content out of the trash. */
+const bareScaffold = (node: Node): boolean => {
+  if (isMirror(node)) return false
+  const { id: _id, parent: _parent, ord: _ord, title: _title, ...rest } = node
+  return Object.keys(rest).length === 0
 }
 
 // ── the edges: see, after ──────────────────────────────────────────────

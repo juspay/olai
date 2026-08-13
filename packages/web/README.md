@@ -314,7 +314,7 @@ above it declaring a prop for it. The text itself is not fetched — it arrives
 on the manifest, so a document edited on disk redraws by the mechanism that was
 already there.
 
-## Six routes, and what each is a property of
+## Seven routes, and what each is a property of
 
 `routes.ts` is the whole of the URL contract, and it is a bijection its own
 test insists on: a link the app writes has to be a link it can read back.
@@ -339,6 +339,11 @@ test insists on: a link the app writes has to be a link it can read back.
 - `/agenda` names no day either, and unlike `/today` it never will: it is those
   same dates read forward. A horizon in the address — how far ahead it looked —
   would be a link that meant something different tomorrow.
+- `/trash` spells nothing for the agenda's reason: which archives exist is the
+  set's answer, not the address's. An archive's own `/o/…` address still
+  parses like any outline path — what it OPENS is the trash view, because an
+  archive is not a place you edit, and that is `page.ts`'s decision rather
+  than the parser's.
 
 `page.ts` turns a route into the page it names, in one place, which is what
 keeps the sidebar and the main pane agreeing: the entry that lights up is the
@@ -349,7 +354,7 @@ set to work one out from.
 
 Navigation is real `<a href>`s (`router.tsx`), so ⌘-click and "copy link
 address" behave the way they do everywhere else; a plain left click is
-intercepted and answered in place. There is no router library: six addresses
+intercepted and answered in place. There is no router library: seven addresses
 do not need one.
 
 Navigating is also the one thing here that moves the page, so the router is
@@ -1311,13 +1316,18 @@ The rest follows from that:
   (its entries name rows in that one), bounded at a hundred, and holding only
   what THIS tab wrote.
 
-Two things it does not do, and both are the ops layer showing through rather
-than a choice made here. Putting a mark back over a node that is now `done`
-takes TWO ops — the layer refuses to walk finished work backwards in one — so
-an entry is a LIST of edits, replayed in order, which is exactly the two calls
-an agent would make. And undoing a row's creation ARCHIVES it (the only removal
-the set has), which no `move` brings back out, so that one entry says it cannot
-be redone rather than leaving a ⌘⇧Z that does nothing.
+One thing it does not do, and it is the ops layer showing through rather than a
+choice made here: putting a mark back over a node that is now `done` takes TWO
+ops — the layer refuses to walk finished work backwards in one — so an entry is
+a LIST of edits, replayed in order, which is exactly the two calls an agent
+would make.
+
+Undoing a row's creation ARCHIVES it (the only removal the set has), and that
+used to be the one entry which said it could not be redone, because no `move`
+brought a row back out of an archive. `unarchive` is the verb that does
+(`parity-unarchive`), so the un-create's inverse is now an `unarchive` carrying
+the exact place the row sat, ⌘⇧Z puts it back, and nothing here has a sentence
+for a redo that cannot happen.
 
 That un-create is the ONLY way anything is removed from this face, and it is
 not the delete key #109 deferred: no key sends it, it can only take back a row
@@ -1379,29 +1389,31 @@ turn a refusal or a nudge into a sentence may not have two copies.
   RECORD is a placement — asked of the record rather than of what the row drew,
   so the degenerate kinds need no case of their own (a set holding a mirror of
   nothing is one the validator refuses, so that row is not on screen to begin
-  with) — and `Archive` only on a node's own row, because on a placement the
-  verb IS retiring the placement.
+  with) — and `Move to Trash` only on a node's own row, because on a placement
+  the verb IS retiring the placement.
 - **What ops refuses is quoted, not summarised.** A `done` node still offers
   `Mark todo`, and choosing it answers with the ops layer's own sentence —
   *nothing should decide on your behalf that finished work is not finished* —
   because the two calls that walk it back are the two an agent makes, and the
   second click is the person's. A nudge from a write that LANDED arrives on the
   same line in the other mood (`data-tone`: `alarm` / `aside`).
-- **Archive asks first, and says how much goes.** The human's ruling: a subtree
-  may be archived WITH a confirm naming the blast radius — *"Archive “install
-  the cabinets” and the 3 rows under it?"* — and the confirm is this panel's own
-  second step rather than a `window.confirm()`, which is browser chrome olai
-  does not own and cannot say a sentence in. It is a trash and not a shredder
-  (the ids come along, so mirrors and `after` edges go on resolving), and it
-  says so honestly: there is no unarchive on ANY face yet, so bringing
-  something back means editing `Archive.jsonl`.
+- **Move to Trash asks first, and says how much goes.** The human's ruling: a
+  subtree may be put away WITH a confirm naming the blast radius — *"Move
+  “install the cabinets” and the 3 rows under it to the Trash?"* — and the
+  confirm is this panel's own second step rather than a `window.confirm()`,
+  which is browser chrome olai does not own and cannot say a sentence in. It
+  is a trash and not a shredder (the ids come along, so mirrors and `after`
+  edges go on resolving), and the confirm promises the way back it now has:
+  the sidebar's Trash, and `Put back` (below). The entry speaks Trash while
+  the wire verb, the op and the agent's tool stay `archive` — the file is
+  still `Archive.jsonl`, and only the human-facing surface renames.
 - **⌘Z takes back a menu write too.** A verb files what would undo it on the
   same stack a keystroke files on (`../writes.ts` → `Undo.record`), so the chord
   does not mean two different things depending on which hand made the edit.
-  Which writes HAVE an inverse is the server's answer rather than the menu's: a
-  mark and a cleared date do (`inverseOf`), an `archive` does not, because
-  there is no unarchive on any face to spell it with — and ⌘Z then says
-  "nothing to undo" rather than pretending.
+  Which writes HAVE an inverse is the server's answer rather than the menu's —
+  and every write here has one now: a mark and a cleared date restore
+  themselves, and a `Move to Trash` answers with `unarchive` carrying the
+  exact place the row sat (`inverseOf`), so ⌘Z brings it straight back.
 - **Copy as text** is the one pure read among them: the subtree as tab-indented
   plain text, titles verbatim, notes one level under their node, nothing
   encoding a mark or a date. A mirror copies what it draws. It follows the
@@ -1413,8 +1425,46 @@ turn a refusal or a nudge into a sentence may not have two copies.
   answers and says which is which).
 
 Not here: `see` / `after` edge editing and mirror creation (they want a node
-search — `parity-see`, `parity-after`, `input-widgets`), move-to, duplicate,
-and unarchive, which no face has yet.
+search — `parity-see`, `parity-after`, `input-widgets`), move-to, and
+duplicate. Unarchive is no longer on this list: it is the Trash's one verb
+(below), born in the ops layer and exposed on both faces together.
+
+## The Trash
+
+`src/client/trash/TrashPage.tsx` is `Archive.jsonl` made visible — the
+`parity-unarchive` ruling's UI half. The web calls it TRASH because that is
+what it is to a person; the file keeps its name, the ops vocabulary keeps
+`archive_node` / `unarchive_node`, and only the human-facing surface renames.
+
+- **One page for every archive.** `/trash` (and any archive's own `/o/…`
+  address — an archive is not a place you edit, so `page.ts` sends both doors
+  to the same view) draws each `Archive.jsonl` under the directory as the tree
+  the archive op wrote: scaffold titles, subtrees shaped as they left. The
+  sidebar's file tree never lists an archive; the `Trash` entry at the foot of
+  the column is its one door, drawn whether or not anything was ever archived,
+  because an empty trash is a fact rather than a hidden control.
+- **The signposts are drawn, and refuse.** The tree includes the scaffold of
+  ancestor titles `archive` minted, and the root row of a pile IS one of them —
+  so "put this back" reaches for it first. `Put back` is offered there like
+  anywhere else and the OPS LAYER refuses it, naming the live node that already
+  carries the title and saying to put back the rows under it instead. The
+  button is deliberately NOT hidden: the rule is the op's, both faces meet the
+  same sentence, and a client that greyed it out would either teach a rule this
+  app does not have or need its own copy of the landing walk to know which rows
+  qualify — which is the face-split this whole item exists to close.
+- **Read-only, one verb.** No editor mounts here, no `•••`, no checkbox — a
+  row is its title and `Put back`, which sends the `unarchive` edit with the
+  id alone. Where the subtree returns is the ops layer's own default: the
+  recorded chain of ancestor titles, matched back against the live outlines
+  beside the archive. A chain that matches nowhere or more than one place is
+  a refusal in the ops layer's own words, verbatim under the row
+  (`data-tone`, the same two moods every verb line has); `unarchive_node`
+  takes `parent` / `file` for an agent that knows better, and an undo sends
+  exactly those, because the server read the real place off the snapshot the
+  archive was judged against.
+- **The empty trash is a page.** The archive tool re-creates `Archive.jsonl`
+  on first use, so an absent file and an empty one are the same sight: "The
+  Trash is empty."
 
 ## The date picker
 
