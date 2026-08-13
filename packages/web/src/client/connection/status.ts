@@ -30,11 +30,23 @@
  *     There is nothing to wait for: recovery is a reload.
  */
 
-import type { SurfaceReadout, SurfaceReadoutStatus } from "@kolu/surface-app/solid"
+import type {
+  DegradedReadout,
+  SurfaceReadout,
+  SurfaceReadoutStatus,
+} from "@kolu/surface-app/solid"
 
 import type { Look } from "../readout.ts"
 
+/** The one door to the readout's types for this folder, so a component, this
+ *  table and the test that sweeps it are reading one spelling. */
 export type { SurfaceReadout, SurfaceReadoutStatus }
+
+/** The state whose look cannot be a constant, named by the framework's own type
+ *  rather than by the string. A rename upstream then moves the exclusion with
+ *  it; the string would have gone quietly vacuous, and the error would surface
+ *  three lines down as a missing table row rather than as what it is. */
+type Degraded = DegradedReadout["status"]
 
 /** How one state is drawn — the readout's own shape (`../readout.ts`), shared
  *  with the Commit pill beside it so a change to what a readout IS lands on
@@ -53,7 +65,7 @@ export type { Look }
  * `Exclude` is what keeps the exhaustiveness — drop a state from the union up
  * there and this stops compiling too.
  */
-export const LOOK: Record<Exclude<SurfaceReadoutStatus, "degraded">, Look> = {
+export const LOOK: Record<Exclude<SurfaceReadoutStatus, Degraded>, Look> = {
   connecting: {
     dot: "bg-muted",
     label: "connecting",

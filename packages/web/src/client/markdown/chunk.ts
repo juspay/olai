@@ -98,10 +98,10 @@ export const pipelineNow = (): Pipeline => {
 /**
  * Hand the pipeline over.
  *
- * Called by the fetch below, and directly by unit tests: a test runs in Bun
- * with no shell to read a `<meta>` off, so it imports ./pipeline.ts itself and
- * installs it. That is the same module the browser ends up with, which is what
- * makes those tests tests of the thing that ships.
+ * Called by the fetch below, and directly by unit tests: a test has no bundler
+ * splitting anything, so it imports ./pipeline.ts itself and installs it. That
+ * is the same module the browser ends up with, which is what makes those tests
+ * tests of the thing that ships.
  */
 export const installPipeline = (module: Pipeline): void => {
   setArrival(() => module)
@@ -113,8 +113,11 @@ const fetchPipeline = async (): Promise<void> => {
     // gets ./pipeline.ts's graph out of `main-*.js` and into a chunk of its own
     // rather than merely unreached inside it. It was a variable while
     // `splitting` was off, when a specifier the bundler could resolve would have
-    // been inlined — the opposite of what this file is for.
-    installPipeline((await import("./pipeline.ts")) as Pipeline)
+    // been inlined — the opposite of what this file is for. It also carried an
+    // `as Pipeline`, which a variable specifier needs and this one does not: the
+    // namespace object is TYPED here, so renaming an export in ./pipeline.ts is
+    // a compile error rather than a page that loads and then cannot render.
+    installPipeline(await import("./pipeline.ts"))
   } catch (cause) {
     const error = new Error(
       `the markdown renderer could not be loaded: ${

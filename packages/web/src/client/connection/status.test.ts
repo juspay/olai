@@ -13,33 +13,33 @@
  * neither a socket nor a browser.
  */
 
-import type { SurfaceReadout, SurfaceReadoutStatus } from "@kolu/surface-app/solid"
 import { expect, test } from "bun:test"
 
-import { lookOf, LOOK } from "./status.ts"
+import { lookOf, LOOK, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
 
-/** Every state, spelled out rather than derived from `LOOK`'s own keys — a
- *  table checked against itself checks nothing, and the point is that this list
- *  and the framework's union agree (the `Record` in `status.ts` is what makes a
- *  divergence a type error). */
-const STATES: ReadonlyArray<SurfaceReadoutStatus> = [
-  "connecting",
-  "live",
-  "degraded",
-  "reconnecting",
-  "retired",
-]
+/** The states the table answers for, DERIVED from it — which is not a table
+ *  checked against itself, because membership is already a type-level
+ *  guarantee (`status.ts`'s `Record` over the framework's union). What is
+ *  checked below is the VALUES: that no two states look alike. A hand-spelled
+ *  list would let a sixth state force a table row and then quietly escape every
+ *  sweep here, which is the half of the promise a type cannot make. */
+const TABLED = Object.keys(LOOK) as ReadonlyArray<keyof typeof LOOK>
 
-/** The four the table answers for. A narrowing predicate rather than a cast, so
- *  a state leaving `LOOK` is a type error here too. */
-const TABLED = STATES.filter((state): state is keyof typeof LOOK => state !== "degraded")
+/** All five: the table's, plus the one whose look is written rather than
+ *  stored. */
+const STATES: ReadonlyArray<SurfaceReadoutStatus> = [...TABLED, "degraded"]
 
 /** One of each, as the framework hands it over — `degraded` carries the names
- *  that make its sentence, and nothing else carries any. */
+ *  that make its sentence, and nothing else carries any.
+ *
+ *  `needsReload` is fixed rather than derived: which states are terminal is the
+ *  readout's rule and pinned upstream, nothing here reads the bit (it is
+ *  `Connection.tsx`'s), and re-deriving it in a fixture would be that rule
+ *  living on as a second copy in a file about wording. */
 const readoutOf = (status: SurfaceReadoutStatus): SurfaceReadout =>
   status === "degraded"
     ? { status, stopped: ["documents.keys"], needsReload: false }
-    : { status, needsReload: status === "retired" }
+    : { status, needsReload: false }
 
 // The bug this pill was built around, in one assertion: a tab the server closed
 // at the handshake — the wire retired, never to dial again — must not be drawn
