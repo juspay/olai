@@ -94,6 +94,14 @@ const tree: ReadonlyMap<string, ReadonlyArray<Source>> = new Map(
 
 const sources = (pkg: string): ReadonlyArray<Source> => tree.get(pkg) ?? []
 
+/** The SDK by any of its doors: the package, or a path under it — the pinned
+ *  SDK really exports subpaths (`experimental/v2`, …), and a claim that
+ *  matched the bare name alone was green under a subpath import (this file's
+ *  own review caught it). Inside `acp` the allowed-list stays the bare name
+ *  on purpose: reaching for a subpath there is a manifest edit, not a drift. */
+const isSdk = (spec: string): boolean =>
+  spec === "@agentclientprotocol/sdk" || spec.startsWith("@agentclientprotocol/sdk/")
+
 describe("the manifest", () => {
   test("the domain's words stay out: this package imports no @olai sibling", () => {
     for (const source of sources("acp")) {
@@ -119,16 +127,13 @@ describe("the manifest", () => {
     // reports is a runtime one — the import that would drag the SDK's code
     // and its zod peer into a closure that deliberately has neither.
     for (const source of sources("acp")) {
-      expect(
-        source.runtime.filter((spec) => spec === "@agentclientprotocol/sdk"),
-        source.file,
-      ).toEqual([])
+      expect(source.runtime.filter(isSdk), source.file).toEqual([])
     }
   })
 
   test("the protocol enters the tree in exactly two packages: acp and chat", () => {
     const speaking = [...tree.keys()].filter((pkg) =>
-      sources(pkg).some((source) => source.specifiers.includes("@agentclientprotocol/sdk"))
+      sources(pkg).some((source) => source.specifiers.some(isSdk))
     )
     expect(speaking.sort()).toEqual(["acp", "chat"])
   })

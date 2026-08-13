@@ -120,9 +120,11 @@ subject of their own:
   for a browser to parse back. Two shapes, because there are two kinds of write
   and they may not be drawn the same way: a `FileDiff` per file the agent
   rewrote directly (path, what it said, what it says now — the client derives
-  the line diff), and a `Wrote` for a write that went through the ops layer,
-  which is the node-level story in the format's own classification because a
-  `.jsonl` diff is one enormous line per node.
+  the line diff; the shape is `@olai/acp`'s, re-exported here the way the ask
+  vocabulary is, because it is ACP's diff report in olai's spelling), and a
+  `Wrote` for a write that went through the ops layer, which is the node-level
+  story in the format's own classification because a `.jsonl` diff is one
+  enormous line per node.
 
   The framework audit asked for "events paired with a collection", because an
   event replays nothing to a late joiner. A `deltas` collection is that pair in
@@ -312,9 +314,11 @@ either side of it.
 
 ## Layering
 
-Depends on `@olai/format` and nothing else in the workspace: the only olai
-types on the wire are the format's own, travelling verbatim. `server` and `web`
-both depend on this. [docs/architecture.md](../../docs/architecture.md) has the
+Depends on `@olai/format` and on `@olai/acp`'s `./wire` subpath, and nothing
+else in the workspace: every olai type on the wire is owned by the package
+that speaks it and re-exported here — the domain's by `format`, the protocol's
+ask and diff shapes by `acp` — travelling verbatim. `server` and `web` both
+depend on this. [docs/architecture.md](../../docs/architecture.md) has the
 reasoning.
 
 ## Running
