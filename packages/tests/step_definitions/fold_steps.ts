@@ -13,7 +13,12 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
-import { HYDRATION_TIMEOUT, POLL_TIMEOUT, TOGGLE } from "../support/world.ts";
+import {
+  HYDRATION_TIMEOUT,
+  nodeSelector,
+  POLL_TIMEOUT,
+  TOGGLE,
+} from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 /** The keys the client writes. Spelled here rather than imported from the
@@ -24,13 +29,10 @@ import type { OlaiWorld } from "../support/world.ts";
 const FOLDS_KEY = "olai.folds";
 const FOLDERS_KEY = "olai.sidebar.folders";
 
-const stored = (world: OlaiWorld, key: string): Promise<string | null> =>
-  world.page.evaluate((name) => localStorage.getItem(name), key);
-
 Then(
   "this browser remembers {string} folded in {string}",
   async function (this: OlaiWorld, id: string, file: string) {
-    const raw = await stored(this, FOLDS_KEY);
+    const raw = await this.stored(FOLDS_KEY);
     assert.ok(raw !== null, `this browser has nothing under ${FOLDS_KEY}`);
     const folds = JSON.parse(raw) as Record<string, ReadonlyArray<string>>;
     assert.ok(
@@ -47,7 +49,7 @@ Then("this browser remembers no folds", async function (this: OlaiWorld) {
   // reader who opened everything again leaves no entry behind rather than one
   // listing every node they have ever touched.
   assert.strictEqual(
-    await stored(this, FOLDS_KEY),
+    await this.stored(FOLDS_KEY),
     null,
     `this browser still keeps something under ${FOLDS_KEY}`,
   );
@@ -56,7 +58,7 @@ Then("this browser remembers no folds", async function (this: OlaiWorld) {
 Then(
   "this browser remembers the folder {string} open",
   async function (this: OlaiWorld, path: string) {
-    const raw = await stored(this, FOLDERS_KEY);
+    const raw = await this.stored(FOLDERS_KEY);
     assert.ok(raw !== null, `this browser has nothing under ${FOLDERS_KEY}`);
     const open = JSON.parse(raw) as ReadonlyArray<string>;
     assert.ok(
@@ -83,13 +85,16 @@ When(
   async function (this: OlaiWorld, id: string) {
     const other = await this.context.newPage();
     await other.goto(this.pathname());
-    const row = other.locator(`[data-node-id="${id}"]`).first();
+    // `nodeSelector`, not a bare `data-node-id`: a zoomed page puts that
+    // attribute on its heading as well as on its rows, so the unscoped
+    // spelling would match two things and quietly press whichever came first.
+    const row = other.locator(nodeSelector(id)).first();
     await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const toggle = row.locator(TOGGLE).first();
     await toggle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await toggle.click();
     await other
-      .locator(`[data-node-id="${id}"][data-collapsed="true"]`)
+      .locator(`${nodeSelector(id)}[data-collapsed="true"]`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
       .catch(() => {

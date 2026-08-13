@@ -18,19 +18,20 @@
 import type { Row } from "@olai/format"
 import { type Accessor, type JSX } from "solid-js"
 
-import type { View } from "../view.ts"
+import { collapsedNodes } from "../fold/memory.ts"
 import { createEditor, EditorProvider } from "./editing.tsx"
 
 export function Editable(props: {
-  /** What is drawn, and what is folded: the two halves of where `↑`/`↓` go and
-   *  of where a row that has moved is found again. */
+  /** What is drawn — half of where `↑`/`↓` go and of where a row that has moved
+   *  is found again. The other half is what is FOLDED, which is not a prop
+   *  because it is not this page's: it belongs to the browser
+   *  (`../fold/memory.ts`), and the editor reads it where the tree does. */
   readonly rows: Accessor<ReadonlyArray<Row>>
-  readonly view: View
   readonly children: JSX.Element
 }) {
   const editor = createEditor({
     rows: () => props.rows(),
-    collapsed: () => props.view.collapsed(),
+    collapsed: collapsedNodes,
   })
   return <EditorProvider editor={editor}>{props.children}</EditorProvider>
 }

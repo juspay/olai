@@ -27,9 +27,9 @@
 import type { Derived, Row } from "@olai/format"
 
 import type { Undo } from "../edit/undoing.ts"
+import { setFolded } from "../fold/memory.ts"
 import { type Fold, foldOf } from "../fold/rows.ts"
 import { hrefOf, type Route } from "../routes.ts"
-import type { View } from "../view.ts"
 import { asText } from "./subtree.ts"
 import type { MenuAction } from "./NodeMenu.tsx"
 import { writeVerbs } from "./verbs.ts"
@@ -47,16 +47,18 @@ import { applying } from "../writes.ts"
  */
 export const nodeMenuActions = (args: {
   readonly row: Row
-  /** The set's indexes, which one verb needs and the ROWS cannot answer: how
-   *  much an archive moves is a fact about the records, not about the tree
-   *  this reading happens to be drawing (`./subtree.ts`). */
+  /** The set's indexes, which two verbs need and the ROWS cannot answer: how
+   *  much an archive moves is a fact about the records rather than about the
+   *  tree this reading happens to be drawing (`./subtree.ts`), and a fold that
+   *  is REMEMBERED drops the ids of nodes the set no longer declares as it is
+   *  written (`../fold/memory.ts`). */
   readonly derived: Derived | undefined
   readonly collapsed: boolean
   /** Every node under this row that has children — what the two "all" verbs
-   *  name. Passed in rather than walked here: the walk is the tree's, and it is
-   *  memoised per row (`../Tree.tsx`). */
+   *  name. Passed in rather than walked here: the walk is over Row shape, which
+   *  is the tree's business (`../fold/rows.ts`), and this catalog is built for
+   *  a menu somebody has opened. */
   readonly foldable: ReadonlyArray<Fold>
-  readonly view: View
   /** Same-document navigation — the bullet's verb, not a full reload. */
   readonly go: (route: Route) => void
   /** The undo stack's recorder. A menu write files what would take it back on
@@ -83,19 +85,21 @@ export const nodeMenuActions = (args: {
       id: args.collapsed ? "expand" : "collapse",
       label: args.collapsed ? "Expand" : "Collapse",
       // The NODE this row shows, not the place it sits in — the same fold the
-      // triangle beside it presses (`../fold/rows.ts`).
-      run: () => args.view.toggle(foldOf(args.row)),
+      // triangle beside it presses (`../fold/rows.ts`), sent to the same
+      // memory (`../fold/memory.ts`), which is what makes the two controls one
+      // switch rather than two that agree.
+      run: () => setFolded([foldOf(args.row)], !args.collapsed, args.derived),
     })
     items.push(
       {
         id: "expand-all",
         label: "Expand all",
-        run: () => args.view.expandAll(args.foldable),
+        run: () => setFolded(args.foldable, false, args.derived),
       },
       {
         id: "collapse-all",
         label: "Collapse all",
-        run: () => args.view.collapseAll(args.foldable),
+        run: () => setFolded(args.foldable, true, args.derived),
       },
     )
   }

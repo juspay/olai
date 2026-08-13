@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { ancestorDirs, fileTree } from "./fileTree.ts"
+import { ancestorDirs, dirsIn, fileTree } from "./fileTree.ts"
 
 test("a flat directory is one list of files, outlines and documents mixed", () => {
   expect(fileTree(["garden.jsonl", "house.jsonl"], ["finishes.md"])).toEqual([
@@ -209,4 +209,14 @@ test("ancestorDirs is the directory chain above a nested file", () => {
   expect(ancestorDirs("house.jsonl")).toEqual([])
   expect(ancestorDirs("notes/palette.md")).toEqual(["notes"])
   expect(ancestorDirs("a/b/c.jsonl")).toEqual(["a", "a/b"])
+})
+
+// Which folders EXIST, read off the tree the sidebar draws — what the memory of
+// open folders is pruned against (`fold/folders.ts`). Off the rows rather than
+// off the paths, so there is one answer rather than two that could disagree.
+test("dirsIn is every folder the tree draws, nested ones included", () => {
+  expect(dirsIn(fileTree(["house.jsonl"], []))).toEqual(new Set())
+  expect(
+    dirsIn(fileTree(["Daily/2026/08.jsonl", "house.jsonl"], ["notes/palette.md"])),
+  ).toEqual(new Set(["Daily", "Daily/2026", "notes"]))
 })

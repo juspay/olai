@@ -24,11 +24,11 @@ export function OutlinePage(props: {
   readonly view: View
 }) {
   return (
-    <Editable rows={() => props.rows} view={props.view}>
+    <Editable rows={() => props.rows}>
       <header class="mb-4 flex items-baseline justify-end gap-2">
         <DoneToggle hidden={props.view.doneHidden()} onToggle={props.view.toggleDone} />
       </header>
-      <Tree rows={props.rows} view={props.view} />
+      <Tree rows={props.rows} />
       {/* An outline that holds nothing still has to be startable, and a tree
           of no rows offers nowhere to press a key. Only when the file really
           is empty: rows can also be missing because this reading is hiding

@@ -72,7 +72,7 @@ import {
   Switch,
 } from "solid-js"
 
-import { ancestorDirs, type FileRow, fileTree } from "./fileTree.ts"
+import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
@@ -118,18 +118,6 @@ export function Sidebar(props: {
   /** Shut the mobile drawer (navigation, scrim). */
   readonly onClose: () => void
 }) {
-  // Every directory the tree currently draws — a folder exists exactly while
-  // some file is under it, so the paths ARE the walk's own answer. Handed to
-  // the write below, which drops the memory of a folder that is not there any
-  // more (./fold/folders.ts).
-  const directories = createMemo(
-    () =>
-      new Set(
-        [...props.files, ...props.documents].flatMap((file) => ancestorDirs(file)),
-      ),
-  )
-  const toggle = (path: string) => toggleFolder(path, directories())
-
   // The open file's parent chain, as a set for O(1) membership in each Dir.
   // Memoised on the active path alone: folding a folder must not rewalk it.
   const openAncestry = createMemo(() => {
@@ -142,6 +130,13 @@ export function Sidebar(props: {
   // entry that lit and the one that went out.
   const isActive = createSelector(() => props.active)
   const tree = createMemo(() => fileTree(props.files, props.documents))
+
+  // Folding a folder is remembered, and the write drops folders that are not in
+  // the directory any more (./fold/folders.ts). Which those are is read off the
+  // TREE — one answer to "what folders are there", the walk that decides what is
+  // on screen — and asked on the click rather than memoised, because that is the
+  // only moment anybody wants it.
+  const toggle = (path: string) => toggleFolder(path, dirsIn(tree()))
 
   const view: TreeView = {
     isActive,

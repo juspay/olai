@@ -44,15 +44,6 @@ const actionsFor = (id: string, pickDate: () => unknown) =>
     derived,
     collapsed: false,
     foldable: [],
-    view: {
-      collapsed: () => new Set<string>(),
-      toggle: () => {},
-      collapseAll: () => {},
-      expandAll: () => {},
-      doneHidden: () => false,
-      toggleDone: () => {},
-      visible: (rows) => rows,
-    },
     go: () => {},
     record: () => {},
     // The lie: a setter answers with the new value, and this is what the

@@ -43,7 +43,13 @@ import type { Fold } from "./rows.ts"
 
 export const FOLDS_KEY = "olai.folds"
 
-/** file → the nodes of it this reader has folded. */
+/** file → the nodes of it this reader has folded.
+ *
+ *  NEVER an empty set: a file with nothing folded in it is not a key. The three
+ *  functions that mint one of these keep that (`parseFolds` skips an empty
+ *  list, `withFolds` deletes the file when its last id goes, `pruned` sets only
+ *  what survived), which is what lets `printFolds` ask `folds.size` and mean
+ *  "this browser is holding no folds at all". */
 export type Folds = ReadonlyMap<string, ReadonlySet<string>>
 
 /** What is in storage, or nothing at all — which is what a browser that has
@@ -71,13 +77,12 @@ export const parseFolds = (raw: string | null): Folds => {
  *  is what lets a test say what a fold wrote rather than what it happened to
  *  iterate. */
 export const printFolds = (folds: Folds): string | null => {
+  if (folds.size === 0) return null
   const out: Record<string, ReadonlyArray<string>> = {}
   for (const file of [...folds.keys()].sort()) {
-    const ids = folds.get(file)
-    if (ids === undefined || ids.size === 0) continue
-    out[file] = [...ids].sort()
+    out[file] = [...(folds.get(file) ?? [])].sort()
   }
-  return Object.keys(out).length === 0 ? null : JSON.stringify(out)
+  return JSON.stringify(out)
 }
 
 /** The same memory with `of` folded (or unfolded). One function for both, and
@@ -138,6 +143,29 @@ export const idsByFile = (derived: Derived): ReadonlyMap<string, ReadonlySet<str
   return out
 }
 
+/**
+ * ...and the one above, remembered for as long as the derivation it is of.
+ *
+ * The walk is over EVERY node in the directory, and a reader shutting a branch
+ * shuts several in a row — so a fresh walk per click is the corpus walked once
+ * per triangle, on the feature whose whole reason is somebody with a big one. A
+ * `Derived` is immutable and minted per published frame (`../outlines.ts`), so
+ * its identity is exactly the right key: N folds between two frames pay for one
+ * walk, and a frame that arrives drops the old answer with the old set.
+ *
+ * Weak, so nothing here is what keeps a retired revision of the whole directory
+ * alive.
+ */
+const declared = new WeakMap<Derived, ReadonlyMap<string, ReadonlySet<string>>>()
+
+const declaredIn = (derived: Derived): ReadonlyMap<string, ReadonlySet<string>> => {
+  const known = declared.get(derived)
+  if (known !== undefined) return known
+  const fresh = idsByFile(derived)
+  declared.set(derived, fresh)
+  return fresh
+}
+
 /** Every folded id, whichever file it came from. Ids are unique across the
  *  loaded set, so this is what a ROW is asked about — one membership test
  *  rather than a file lookup and then a set lookup, on a question every row on
@@ -181,7 +209,7 @@ export const setFolded = (
 ): void => {
   const next = pruned(
     withFolds(memory().byFile, given, collapsed),
-    live === undefined ? new Map() : idsByFile(live),
+    live === undefined ? new Map() : declaredIn(live),
   )
   setMemory(memoryOf(next))
   writePreference(FOLDS_KEY, printFolds(next))

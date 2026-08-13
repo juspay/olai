@@ -56,10 +56,7 @@ export default function App() {
   const errors = olai.cells.errors.use()
 
   const router = createRouter()
-  // The derivation goes in because a fold is REMEMBERED (`fold/memory.ts`):
-  // a write drops the folds of nodes this browser can see are gone, and the
-  // derivation is what knows which those are.
-  const view = createView(router.route, outlines.derived)
+  const view = createView(router.route)
   const today = createToday()
 
   // Mobile drawer open state. Ephemeral: a reload starts shut so the outline

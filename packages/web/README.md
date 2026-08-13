@@ -1412,12 +1412,15 @@ is waiting on rather than here.
 
 ## What belongs to a reading, not to the file
 
-`view.ts` holds the two reading switches — what is folded, and whether done
-nodes are drawn — and the calendar holds a third, which month is on screen.
+Three switches decide how a tab is reading rather than what the files say: what
+is folded, whether done nodes are drawn, and which month the calendar shows.
 None of them goes to the server or to disk, and hiding what is done is a row
 not drawn rather than anything marked.
 
-What they differ in is HOW LONG THEY LAST, and that is the interesting half.
+What they differ in is HOW LONG THEY LAST, and that is what decides where each
+one lives. `view.ts` holds the one that belongs to a PAGE; the fold memory is
+its own module because it belongs to the browser, and the calendar's month is
+the calendar's.
 
 **Folding is this browser's** (`fold/`), and it used to be the page's. The
 argument for the page was that somewhere you zoom into is a new thing to read;
@@ -1442,8 +1445,13 @@ One consequence is a RULING rather than a fallout: one node, one fold state. A
 mirror folds by what it SHOWS, so folding a placement folds the node wherever it
 appears — including in the outline the node itself lives in. The per-place
 independence that fell out of place keys is gone deliberately, and there is one
-fold vocabulary rather than two (`fold/rows.ts` is the whole of it; `view.ts`
-only spends it). The sidebar's folders are the same memory inverted
+fold vocabulary rather than two (`fold/rows.ts` is the whole of it). There is
+one CONDUIT too: a row reads `collapsedNodes` and presses `setFolded` itself
+(`Tree.tsx`, `menu/actions.ts`, `edit/Editable.tsx`), the way the theme and the
+panel widths are read wherever they are wanted — a member on the per-page
+`View` would be a second way to reach one browser-wide fact, and a per-page
+holder in front of it is what invites a copy. The sidebar's folders are the
+same memory inverted
 (`fold/folders.ts`, `olai.sidebar.folders`): nodes start open so what is stored
 is what is shut, folders start collapsed (#105) so what is stored is what is
 open.

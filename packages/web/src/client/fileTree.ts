@@ -114,6 +114,27 @@ export const fileTree = (
   return freeze(root, "")
 }
 
+/** Every directory the tree draws, by root-relative path.
+ *
+ *  Off the ROWS rather than off the paths they were built from, and that is the
+ *  point: a folder exists exactly while `fileTree` above makes one, so the
+ *  memory of which folders a reader left open (`fold/folders.ts`) is pruned
+ *  against the same walk that decides what is on screen. Two derivations of
+ *  "which folders are there" could disagree, and the way that shows is a
+ *  folder quietly forgetting it was open while it is still being drawn. */
+export const dirsIn = (rows: ReadonlyArray<FileRow>): ReadonlySet<string> => {
+  const out = new Set<string>()
+  const walk = (level: ReadonlyArray<FileRow>): void => {
+    for (const row of level) {
+      if (row.kind !== "dir") continue
+      out.add(row.path)
+      walk(row.children)
+    }
+  }
+  walk(rows)
+  return out
+}
+
 /** Directory paths that contain `file`, outermost first. Empty for a root
  *  file — there is no folder chain to open for `house.jsonl`. The sidebar
  *  uses this to keep the open file's ancestors unfolded so a collapsed-by-

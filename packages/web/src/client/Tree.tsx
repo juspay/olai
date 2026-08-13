@@ -49,8 +49,10 @@
  * A note on a row is Workflowy-style: one dim line under the title, clamped
  * with an ellipsis; click (or tap) expands in place to the full note and see
  * links; click again or click away collapses (./note/expand.ts). The date
- * badge stays on the title line. The READING (./view.ts) is only folds and
- * done-visibility — notes are not a switch.
+ * badge stays on the title line. Notes are not a switch — the only two this
+ * tree answers to are what is FOLDED, which belongs to the browser
+ * (./fold/memory.ts), and whether done rows are drawn, which belongs to the
+ * page and has already been applied to the rows handed here (./view.ts).
  */
 
 import { isOverdue, type Row } from "@olai/format"
@@ -67,6 +69,7 @@ import { useEditor } from "./edit/editing.tsx"
 import { useUndo } from "./edit/undoing.ts"
 import { NewRow } from "./edit/NewRow.tsx"
 import { DescEditor, keyHandler, Said, TitleEditor } from "./edit/RowEditor.tsx"
+import { collapsedNodes, setFolded } from "./fold/memory.ts"
 import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
 import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
@@ -85,12 +88,10 @@ import {
   PAST_CONTROLS,
   ROW_TITLE,
 } from "./touch.ts"
-import type { View } from "./view.ts"
 import { applying } from "./writes.ts"
 
 export function Tree(props: {
   readonly rows: ReadonlyArray<Row>
-  readonly view: View
 }) {
   return (
     <ul class="m-0 list-none p-0" data-testid={TESTID.outlineTree}>
@@ -102,7 +103,7 @@ export function Tree(props: {
           mints per PLACE holds each row across the frame, and only the
           bindings whose values actually moved re-run. */}
       <Key each={props.rows} by="key">
-        {(row) => <Branch row={row()} view={props.view} />}
+        {(row) => <Branch row={row()} />}
       </Key>
     </ul>
   )
@@ -110,17 +111,18 @@ export function Tree(props: {
 
 function Branch(props: {
   readonly row: Row
-  readonly view: View
 }) {
+  // Read from the fold memory itself (./fold/memory.ts) rather than through a
+  // per-page object: what is folded belongs to this BROWSER, and a row is where
+  // it is wanted — the same way the directory's folders are read in Sidebar.tsx.
+  //
   // A memo, not a plain accessor: folding one row mints a new Set, and five
   // separate computations in this component read it. Without the memo every
   // row in the tree re-runs all five on every click.
   //
   // Asked of the NODE this row folds by — its target if it is a mirror, so the
   // fold is the node's wherever the node appears (./fold/rows.ts).
-  const collapsed = createMemo(() =>
-    props.view.collapsed().has(foldIdOf(props.row))
-  )
+  const collapsed = createMemo(() => collapsedNodes().has(foldIdOf(props.row)))
   // The RECORD a row shows, file and all — the file is what a note's relative
   // picture and a `doc` are relative to, and for a mirror that is the file the
   // node is DEFINED in rather than the one being read.
@@ -129,9 +131,12 @@ function Branch(props: {
     : undefined
 
   const hasChildren = () => props.row.children.length > 0
-  // The nodes expand/collapse all name — recomputed only when the row object
-  // moves.
-  const foldable = createMemo(() => foldsUnder(props.row))
+  // The nodes expand/collapse all name. NOT a memo, which is the same argument
+  // the menu catalog below makes for itself: a memo is eager and `props.row` is
+  // a fresh object on every frame the store publishes, so memoising this would
+  // walk every row's whole subtree on every frame — the tree squared — to
+  // answer a question only an OPEN menu asks.
+  const foldable = () => foldsUnder(props.row)
   // SPA navigate for the menu's "Zoom in" — same path as the bullet, never
   // location.assign (which reloads the document and kills the reading).
   const router = useRouter()
@@ -232,7 +237,6 @@ function Branch(props: {
               derived: derived(),
               collapsed: collapsed(),
               foldable: foldable(),
-              view: props.view,
               go: router.go,
               record: undo.record,
               pickDate: openPicker,
@@ -248,7 +252,7 @@ function Branch(props: {
               data-testid={TESTID.toggle}
               aria-expanded={!collapsed()}
               aria-label={collapsed() ? "expand" : "collapse"}
-              onClick={() => props.view.toggle(foldOf(props.row))}
+              onClick={() => setFolded([foldOf(props.row)], !collapsed(), derived())}
             >
               {/* Small filled triangle — Workflowy's chevron, rotated. */}
               <span
@@ -396,7 +400,7 @@ function Branch(props: {
       <Show when={!collapsed() && props.row.children.length > 0}>
         <ul class={CHILD_INDENT}>
           <Key each={props.row.children} by="key">
-            {(child) => <Branch row={child()} view={props.view} />}
+            {(child) => <Branch row={child()} />}
           </Key>
         </ul>
       </Show>
