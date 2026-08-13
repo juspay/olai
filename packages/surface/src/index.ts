@@ -74,6 +74,7 @@ import {
   BrokenFile,
   CommitRequest,
   CommitResult,
+  GIT_OFF,
   GitState,
   Located,
   NOTHING_PENDING,
@@ -205,22 +206,12 @@ export const LOADED: Manifest = {}
  * moves twice at most in an ordinary serve — once when the directory is probed,
  * and again if a commit ever refuses — so nothing here is a stream of anything.
  *
- * The shape is `@olai/format`'s, RE-EXPORTED rather than declared, the way
- * `Pending` and `RepoState` are: the ops layer produces the value, this spec
- * carries it, the browser draws it, and it used to be declared here a second
- * time — "deliberately the same shape" as `@olai/ops`' own, kept in step by a
- * comment. One declaration on the floor both stand on now, so there is no seam
- * left for the two to drift across.
+ * The shape is `@olai/format`'s, re-exported rather than declared, the way
+ * `Pending` and `RepoState` are — one declaration on the floor this spec and
+ * the ops layer both stand on, so there is no second spelling to drift. Its
+ * before-first-frame default `GIT_OFF` travels with it.
  */
-export { GitState }
-
-/** What a page reads before the first frame arrives, and what a `--no-commit`
- *  serve stays in. `off` is the right default twice over: it is the calmest of
- *  the four, so a page cannot flash "git error" at a healthy repository on its
- *  way to the truth. (What the page says before it has heard ANYTHING is not
- *  this value — the pill has a face of its own for that, because "we have not
- *  been told" and "commits are off" are two different claims.) */
-export const GIT_OFF: GitState = { status: "off", said: null }
+export { GIT_OFF, GitState }
 
 /** When two answers are the same answer, so the cell can stay quiet. There is
  *  exactly one thing this value can say, so there is exactly one thing that can

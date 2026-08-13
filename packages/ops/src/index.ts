@@ -50,7 +50,6 @@ export {
   commitDoors,
   type CommitFace,
   type CommitMode,
-  type GitState,
   type Status,
 } from "./pending.ts"
 export { type Applied, Request } from "./request.ts"

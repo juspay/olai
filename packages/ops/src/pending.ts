@@ -91,11 +91,7 @@ export type CommitMode = (typeof COMMIT_MODES)[number]
 
 /**
  * What git is doing for this directory — `@olai/format`'s {@link GitState},
- * re-exported rather than declared: this layer used to keep its own interface,
- * "deliberately the same shape" as the surface's schema, the two held in step
- * by a comment. The one declaration lives on the floor now, beside the
- * `RepoState` it is derived from, and both this layer and the wire spec import
- * it.
+ * re-exported beside the {@link gitOf} that produces the value.
  *
  * It is DERIVED from {@link Pending}'s own `repo` ({@link gitOf}) and not asked
  * for separately. That is the whole of the coherence: this and the pending value

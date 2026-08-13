@@ -27,22 +27,6 @@ import * as path from "node:path"
 const CLIENT = import.meta.dirname
 const SELF = import.meta.filename
 
-/** Every source file under the client, this one excluded — the sweeps below
- *  quote the spellings they hunt, and a sweep that caught its own net would
- *  teach the next reader to weaken the pattern rather than the code. */
-const sources = (): ReadonlyArray<string> => {
-  const found: string[] = []
-  const walk = (dir: string): void => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name)
-      if (entry.isDirectory()) walk(full)
-      else if (/\.tsx?$/.test(entry.name) && full !== SELF) found.push(full)
-    }
-  }
-  walk(CLIENT)
-  return found
-}
-
 /** The file's code, with its comments removed. Line comments are only taken
  *  when `//` opens the line or follows whitespace, so a `https://…` inside a
  *  string survives; the cost is a comment pasted mid-expression surviving too,
@@ -53,12 +37,24 @@ const codeOf = (file: string): string =>
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|\s)\/\/.*$/gm, "$1")
 
-/** Where each file that matched is, client-relative, so a failure is a
- *  file list rather than a boolean. */
+/** Every source file under the client — client-relative path and stripped
+ *  code, read ONCE for however many sweeps accrue below. This file is
+ *  excluded: the sweeps quote the spellings they hunt, and a sweep that
+ *  caught its own net would teach the next reader to weaken the pattern
+ *  rather than the code. */
+const SOURCES: ReadonlyArray<{ file: string; code: string }> = fs
+  .readdirSync(CLIENT, { recursive: true, withFileTypes: true })
+  .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name))
+  .map((entry) => path.join(entry.parentPath, entry.name))
+  .filter((full) => full !== SELF)
+  .map((full) => ({ file: path.relative(CLIENT, full), code: codeOf(full) }))
+
+/** Where each file that matched is, so a failure is a file list rather than
+ *  a boolean. */
 const filesSpelling = (pattern: RegExp): ReadonlyArray<string> =>
-  sources()
-    .filter((file) => pattern.test(codeOf(file)))
-    .map((file) => path.relative(CLIENT, file))
+  SOURCES
+    .filter((one) => pattern.test(one.code))
+    .map((one) => one.file)
     .sort()
 
 // wire.ts's own opening line — "the only file in the client that knows a
