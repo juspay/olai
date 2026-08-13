@@ -31,9 +31,10 @@ outline, and it updates in place — and a pill in its header is green only
 while a server is actually answering; restart the server under an open tab
 and the page says so and offers a reload. It reads on a phone and installs as
 one (there is no offline mode, on purpose — a cached copy of an outline is a
-copy that has stopped being true). Fifteen named palettes sit behind a pill in
-the header, stored in the browser and sent nowhere; `⌘K` opens a command
-palette, where the keyboard-shortcut list also lives.
+copy that has stopped being true). A ⚙ in the header opens the preferences —
+one of the fifteen named palettes, and whether pages open with finished work
+shown — stored in the browser and sent nowhere; `⌘K` opens a command palette,
+where the keyboard-shortcut list also lives.
 
 ### Behind a reverse proxy
 
