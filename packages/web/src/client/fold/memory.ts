@@ -87,7 +87,15 @@ export const printFolds = (folds: Folds): string | null => {
 
 /** The same memory with `of` folded (or unfolded). One function for both, and
  *  for one fold or a hundred, because "Collapse all" is the same write as a
- *  triangle — the menu just names more of them. */
+ *  triangle — the menu just names more of them.
+ *
+ *  An id is taken out of every OTHER file on its way, in both directions, which
+ *  is the storage half of "one node, one fold state": a node has one home at a
+ *  time, so a copy left under the file it used to live in would be a second
+ *  answer — and the one that wins, since the id set every row reads is the
+ *  union. It can be left behind: a bucket for a file this browser cannot
+ *  currently see is deliberately never pruned ({@link pruned}), so a node that
+ *  moved out of a file that then stopped parsing is exactly the case. */
 export const withFolds = (
   folds: Folds,
   given: ReadonlyArray<Fold>,
@@ -96,6 +104,10 @@ export const withFolds = (
   const next = new Map<string, Set<string>>()
   for (const [file, ids] of folds) next.set(file, new Set(ids))
   for (const fold of given) {
+    for (const [file, ids] of next) {
+      if (file === fold.file) continue
+      if (ids.delete(fold.id) && ids.size === 0) next.delete(file)
+    }
     const ids = next.get(fold.file) ?? new Set<string>()
     if (collapsed) ids.add(fold.id)
     else ids.delete(fold.id)
@@ -106,29 +118,60 @@ export const withFolds = (
 }
 
 /**
- * The same memory with the folds of nodes that are no longer there dropped.
+ * The same memory with the folds of nodes that are no longer there dropped —
+ * and the folds of nodes that MOVED filed under where they moved to.
  *
- * `live` is what this browser can currently SEE — file → the ids it declares —
- * and a file missing from it is missing on purpose: a file that would not parse,
- * or one this directory does not serve any more, is not evidence that its nodes
- * are gone. So a bucket is pruned only against a file that is present, and
- * everything else is left exactly as it was.
+ * `live` is what this browser can currently SEE, file → the ids it declares,
+ * and two rules come out of it.
+ *
+ * A file missing from `live` is missing on purpose: a file that would not
+ * parse, or one this directory does not serve any more, is not evidence that
+ * its nodes are gone, so its bucket is left exactly as it was.
+ *
+ * And GONE MEANS GONE FROM THE SET, not from the file the fold is filed under.
+ * That is the whole point of keying by id: `archive` is a MOVE — the record
+ * lands in `Archive.jsonl` with its id kept while the file it left goes on
+ * being served with the rest of its nodes — and reading "house.jsonl does not
+ * declare it any more" as a deletion would forget a fold precisely when the
+ * design promises to keep it (a place key could not survive that move at all,
+ * which is why it is not the key). So an id its own file no longer declares is
+ * looked for in the others, and re-homed when one of them has it. Only an id no
+ * live file declares is dropped.
  */
 export const pruned = (
   folds: Folds,
   live: ReadonlyMap<string, ReadonlySet<string>>,
 ): Folds => {
-  const next = new Map<string, ReadonlySet<string>>()
+  const next = new Map<string, Set<string>>()
+  const keep = (file: string, id: string): void => {
+    const ids = next.get(file)
+    if (ids === undefined) next.set(file, new Set([id]))
+    else ids.add(id)
+  }
   for (const [file, ids] of folds) {
     const known = live.get(file)
     if (known === undefined) {
-      next.set(file, ids)
+      for (const id of ids) keep(file, id)
       continue
     }
-    const kept = new Set([...ids].filter((id) => known.has(id)))
-    if (kept.size > 0) next.set(file, kept)
+    for (const id of ids) {
+      const home = known.has(id) ? file : homeOf(id, live)
+      if (home !== undefined) keep(home, id)
+    }
   }
   return next
+}
+
+/** The live file that declares `id`, or nothing — which is the answer that
+ *  makes {@link pruned} drop it. A scan, and it can be: it runs only for an id
+ *  its own file has stopped declaring, which is a node somebody moved or
+ *  deleted since this browser folded it. */
+const homeOf = (
+  id: string,
+  live: ReadonlyMap<string, ReadonlySet<string>>,
+): string | undefined => {
+  for (const [file, ids] of live) if (ids.has(id)) return file
+  return undefined
 }
 
 /** file → the ids the served set says it declares. The other half of
@@ -176,6 +219,38 @@ const merged = (folds: Folds): ReadonlySet<string> => {
   return out
 }
 
+/**
+ * Everything either of two readings of this memory holds.
+ *
+ * What a write starts FROM, and the reason it is not simply what this tab is
+ * holding: a fold is a SET of independent facts rather than one value, so two
+ * tabs are not making rival picks the way two theme presses are — they are each
+ * adding a different fact, and last-write-wins over the whole entry throws one
+ * of them away. Tab A folds a tree, tab B folds another one from a map that has
+ * not heard about A yet, and A's fold is gone for good.
+ *
+ * So a write reads the entry back, unions it with what this tab holds, and
+ * applies its own change on top — which is why the change goes on LAST and why
+ * this is a union rather than a merge with rules: an unfold is a removal, and a
+ * removal that ran before the union would be undone by it.
+ *
+ * A browser that will not give storage back reads as nothing here, and then the
+ * union is just what this tab holds — which is `preference.ts`'s standing
+ * promise that a preference which cannot be remembered is still a preference
+ * for this tab.
+ */
+export const combined = (stored: Folds, held: Folds): Folds => {
+  const out = new Map<string, Set<string>>()
+  for (const source of [stored, held]) {
+    for (const [file, ids] of source) {
+      const into = out.get(file)
+      if (into === undefined) out.set(file, new Set(ids))
+      else for (const id of ids) into.add(id)
+    }
+  }
+  return out
+}
+
 /** The two readings of one memory, minted together so the flat one can never
  *  be a frame behind the grouped one. */
 interface Memory {
@@ -201,6 +276,11 @@ export const collapsedNodes: Accessor<ReadonlySet<string>> = () => memory().ids
  * in hand and the entry is being rewritten anyway. `undefined` — a page that
  * has not loaded a set — prunes nothing, which is the same rule as a file
  * that is not in it.
+ *
+ * The base is the ENTRY unioned with what this tab holds ({@link combined}),
+ * not the held map alone, so a sibling tab's folds are not thrown away by this
+ * one's — see there. The read costs one `getItem` and one parse per fold, over
+ * a value bounded by what the reader has actually shut.
  */
 export const setFolded = (
   given: ReadonlyArray<Fold>,
@@ -208,7 +288,11 @@ export const setFolded = (
   live: Derived | undefined,
 ): void => {
   const next = pruned(
-    withFolds(memory().byFile, given, collapsed),
+    withFolds(
+      combined(parseFolds(readPreference(FOLDS_KEY)), memory().byFile),
+      given,
+      collapsed,
+    ),
     live === undefined ? new Map() : declaredIn(live),
   )
   setMemory(memoryOf(next))

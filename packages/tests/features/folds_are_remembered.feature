@@ -91,6 +91,9 @@ Feature: The outline remembers how you left it
     And I choose "Expand all" from the node menu
     And I reload the page
     Then the children of "install" are shown
+    # Said of the STORAGE too, so "wrote nothing at all" and "wrote something
+    # this reader cannot see" cannot both look like a page that came back open.
+    And this browser remembers no folds
 
   Scenario: A folder you opened in the directory is still open after a reload
     Given I open the outline "house.jsonl"

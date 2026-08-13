@@ -12,7 +12,14 @@ import { derive } from "@olai/format"
 import { setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { idsByFile, parseFolds, printFolds, pruned, withFolds } from "./memory.ts"
+import {
+  combined,
+  idsByFile,
+  parseFolds,
+  printFolds,
+  pruned,
+  withFolds,
+} from "./memory.ts"
 
 const foldsOf = (entry: Record<string, ReadonlyArray<string>>) =>
   new Map(Object.entries(entry).map(([file, ids]) => [file, new Set(ids)]))
@@ -80,8 +87,28 @@ test("a value this app did not write is nothing, and the reader gets the default
   )
 })
 
+test("a node that MOVED to another file keeps its fold, under the new file", () => {
+  // The case pruning by bucket alone gets wrong, and it is the ordinary one:
+  // `archive` keeps the id and moves the record to `Archive.jsonl`, leaving the
+  // source file served with the rest of its nodes. Read as "not declared by
+  // house.jsonl any more" that is indistinguishable from a deletion — and the
+  // whole point of keying by id is that a fold survives a move.
+  const live = new Map([
+    ["house.jsonl", new Set(["kitchen", "order"])],
+    ["Archive.jsonl", new Set(["install"])],
+  ])
+  expect(pruned(foldsOf({ "house.jsonl": ["kitchen", "install"] }), live)).toEqual(
+    foldsOf({ "house.jsonl": ["kitchen"], "Archive.jsonl": ["install"] }),
+  )
+})
+
 test("the fold of a node that is gone is dropped", () => {
-  const live = new Map([["house.jsonl", new Set(["kitchen"])]])
+  // Gone means gone from the whole SET, not from the file it used to be in —
+  // which is what the move above is the other side of.
+  const live = new Map([
+    ["house.jsonl", new Set(["kitchen"])],
+    ["garden.jsonl", new Set(["herbs"])],
+  ])
   expect(pruned(foldsOf({ "house.jsonl": ["kitchen", "deleted"] }), live)).toEqual(
     foldsOf({ "house.jsonl": ["kitchen"] }),
   )
@@ -99,6 +126,46 @@ test("a file this browser cannot see keeps its folds", () => {
   // Nothing loaded at all prunes nothing.
   expect(pruned(foldsOf({ "house.jsonl": ["gone"] }), new Map())).toEqual(
     foldsOf({ "house.jsonl": ["gone"] }),
+  )
+})
+
+test("an id lives in ONE bucket: folding it where it moved to clears the old one", () => {
+  // The write half of the same rule. A stale copy would win anyway — the set
+  // every row reads is the union — so "one node, one fold state" has to hold in
+  // the storage and not only in the id.
+  const stale = foldsOf({ "house.jsonl": ["install"] })
+  expect(withFolds(stale, [{ id: "install", file: "Archive.jsonl" }], true))
+    .toEqual(foldsOf({ "Archive.jsonl": ["install"] }))
+  // ...and unfolding finds it wherever it is, not only under the file named.
+  expect(withFolds(stale, [{ id: "install", file: "Archive.jsonl" }], false))
+    .toEqual(new Map())
+})
+
+test("a write starts from the ENTRY unioned with what this tab holds", () => {
+  // Two tabs are not making rival picks the way two theme presses are: they are
+  // each adding a different fact. Starting from the held map alone is how one
+  // tab's fold disappears when the other writes from a map that predates it.
+  const stored = foldsOf({ "house.jsonl": ["kitchen"] })
+  const held = foldsOf({ "garden.jsonl": ["herbs"] })
+  expect(combined(stored, held)).toEqual(
+    foldsOf({ "house.jsonl": ["kitchen"], "garden.jsonl": ["herbs"] }),
+  )
+  // The same file from both sides is one bucket, not two.
+  expect(combined(stored, foldsOf({ "house.jsonl": ["order"] }))).toEqual(
+    foldsOf({ "house.jsonl": ["kitchen", "order"] }),
+  )
+  // A browser that will not give its storage back reads as nothing, and then
+  // the union is exactly what this tab is holding.
+  expect(combined(parseFolds(null), held)).toEqual(held)
+})
+
+test("an unfold still removes, because the change goes on after the union", () => {
+  const base = combined(
+    foldsOf({ "house.jsonl": ["kitchen", "order"] }),
+    foldsOf({ "house.jsonl": ["kitchen"] }),
+  )
+  expect(withFolds(base, [{ id: "kitchen", file: "house.jsonl" }], false)).toEqual(
+    foldsOf({ "house.jsonl": ["order"] }),
   )
 })
 

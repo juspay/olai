@@ -1434,12 +1434,32 @@ It is kept **by node id**, grouped by the file the node is DEFINED in, and each
 half of that is load-bearing. A `Row.key` is a PLACE — the chain of records
 above it — so it changes when a node moves, and the walk under a zoomed node
 spells the same row differently than the whole outline does; a fold kept under
-one would be a fold lost on the round trip. And the file makes pruning
-answerable: the ids a served file declares are known, so what is left over in
-its bucket is a node somebody deleted, while a file that is broken or not served
-right now says nothing about its nodes and keeps every fold it has. Pruning
-happens as the entry is rewritten, which is exactly when the derivation is in
-hand.
+one would be a fold lost on the round trip. The file is what makes pruning
+answerable at all: a file this browser cannot currently see — one that would not
+parse, one no longer served — says nothing about its nodes, so its folds are
+left alone rather than dropped into an absence.
+
+What that file may NOT be read as is a claim about one id. **Gone means gone
+from the set**, and the case that proves it is the ordinary one: `archive` is a
+move, not a delete — the record lands in `Archive.jsonl` with its id kept, and
+the file it left goes on being served with the rest of its nodes. Pruning each
+bucket against its own file alone reads that as a deletion and forgets the fold
+at exactly the moment keying by id was supposed to keep it (a place key could
+not survive the move at all, which is why it is not the key). So an id its own
+file has stopped declaring is looked for in the others and re-filed under
+whichever one has it; only an id no live file declares is dropped. The same rule
+holds on the write side — an id is taken out of every other bucket as it is
+folded — because the set a row reads is the union, so a copy left behind under
+the old file would be the answer that wins.
+
+Pruning happens as the entry is rewritten, which is exactly when the derivation
+is in hand. A write starts from the stored entry unioned with what this tab
+holds, and applies its own change on top: a fold is a SET of independent facts
+rather than one value, so two tabs are not making rival picks the way two theme
+presses are — last-write-wins over the whole entry would throw one tab's fold
+away, and the union is what stops it. A browser that will not give its storage
+back reads as nothing there, which leaves the union as what this tab holds —
+`preference.ts`'s standing promise.
 
 One consequence is a RULING rather than a fallout: one node, one fold state. A
 mirror folds by what it SHOWS, so folding a placement folds the node wherever it
