@@ -27,6 +27,7 @@
 import {
   ancestorsOf,
   ARCHIVE,
+  archiveBeside,
   chainOf,
   isArchived,
   derive,
@@ -1192,8 +1193,7 @@ const planArchive = (
   if (Result.isFailure(target)) return Result.fail(target.failure)
   const { file, node } = target.success
 
-  const cut = file.lastIndexOf("/")
-  const archive = cut === -1 ? ARCHIVE : `${file.slice(0, cut + 1)}${ARCHIVE}`
+  const archive = archiveBeside(file)
   if (file === archive) {
     return Result.fail(
       new UsageFailure({ reason: `\`${node.title}\` is already in \`${archive}\`` }),
@@ -1205,14 +1205,7 @@ const planArchive = (
     if (Result.isFailure(may)) return Result.fail(may.failure)
   }
 
-  // Everything under the node, by `parent` — which is same-file by the format,
-  // so the walk never leaves this outline. The file's records are read ONCE and
-  // shared with the walk: `recordsOf` filters and sorts the whole set.
-  const records = recordsOf(scope, file)
-  const moving = subtreeOf(scope, records, node.id)
-  const movingIds = new Set(moving.map((record) => record.id))
-
-  const source = records.filter((record) => !movingIds.has(record.id))
+  const { keeps: source, descendants } = liftSubtree(scope, file, node.id)
   const existing = recordsOf(scope, archive)
 
   // The chain, outermost first, as titles. It is the DEFINING file's ancestry:
@@ -1249,14 +1242,9 @@ const planArchive = (
   }
 
   // The root is re-parented onto the scaffold; everything under it keeps the
-  // `parent` it had, so the subtree arrives shaped exactly as it left. Picked
-  // out by id rather than by position: the walk answers in FILE order, and
-  // nothing says a parent is written above its children.
-  const root = moving.find((record) => record.id === node.id)
-  const descendants = moving.filter((record) => record.id !== node.id)
-  if (root === undefined) throw new Error("the subtree walk lost its own root")
+  // `parent` it had, so the subtree arrives shaped exactly as it left.
   const reparented: Node = {
-    ...withParent(root, parent),
+    ...withParent(node, parent),
     ord: appendedOrd([existing, scaffold], parent),
   }
 
@@ -1294,6 +1282,28 @@ const subtreeOf = (
   descend(id)
   // Back in FILE order: the archive should read the way the outline did.
   return records.filter((record) => wanted.has(record.id))
+}
+
+/**
+ * A subtree, lifted out of its file: what the file KEEPS, and the node's
+ * descendants in file order. The node itself is deliberately not returned —
+ * the caller holds it, and re-parenting it is the caller's decision — so the
+ * two directions the trash has (`archive` out of a live outline, `unarchive`
+ * out of the archive) share one answer to "what is the whole subtree" and
+ * cannot drift about it.
+ */
+const liftSubtree = (
+  scope: Scope,
+  file: string,
+  id: string,
+): { readonly keeps: ReadonlyArray<Node>; readonly descendants: ReadonlyArray<Node> } => {
+  const records = recordsOf(scope, file)
+  const moving = subtreeOf(scope, records, id)
+  const movingIds = new Set(moving.map((record) => record.id))
+  return {
+    keeps: records.filter((record) => !movingIds.has(record.id)),
+    descendants: moving.filter((record) => record.id !== id),
+  }
 }
 
 /** An `ord` after everything already under `parent`.
@@ -1380,41 +1390,53 @@ const planUnarchive = (
     if (Result.isFailure(may)) return Result.fail(may.failure)
   }
 
-  const records = recordsOf(scope, file)
-  const moving = subtreeOf(scope, records, node.id)
-  const movingIds = new Set(moving.map((record) => record.id))
+  const { keeps, descendants } = liftSubtree(scope, file, node.id)
 
   // The archive after the removal, with the empty scaffold above the node
   // tidied away — deepest first, stopping at the first ancestor that still
   // holds anything, carries more than a scaffold record does, or is named by
-  // something (`dependents` reads the whole set, so an edge written from
-  // anywhere keeps its target).
-  let remaining = records.filter((record) => !movingIds.has(record.id))
+  // something. "Named" reads the format's own `targetsOf` over the whole set,
+  // in ONE pass and only when there is a candidate at all — an edge written
+  // from anywhere, the returning subtree included, keeps its target. The
+  // child counts are one pass too, decremented as ancestors drop, so the walk
+  // never re-scans the one file in a set that grows without bound.
+  const byId = new Map(keeps.map((record) => [record.id, record]))
+  const holding = new Map<string, number>()
+  for (const record of keeps) {
+    if (record.parent !== undefined) {
+      holding.set(record.parent, (holding.get(record.parent) ?? 0) + 1)
+    }
+  }
+  let named: ReadonlySet<string> | undefined
+  const dropped = new Set<string>()
   let up = node.parent
   while (up !== undefined) {
-    const holder = remaining.find((record) => record.id === up)
-    if (holder === undefined || isMirror(holder)) break
+    const holder = byId.get(up)
+    if (holder === undefined) break
+    named ??= new Set(
+      scope.derived.nodes.flatMap((at) => targetsOf(at.node).map(([, id]) => id)),
+    )
     if (
-      remaining.some((record) => record.parent === holder.id) ||
+      (holding.get(holder.id) ?? 0) > 0 ||
       !bareScaffold(holder) ||
-      dependents(scope, holder.id).length > 0
+      named.has(holder.id)
     ) break
-    remaining = remaining.filter((record) => record.id !== holder.id)
+    dropped.add(holder.id)
+    if (holder.parent !== undefined) {
+      holding.set(holder.parent, (holding.get(holder.parent) ?? 0) - 1)
+    }
     up = holder.parent
   }
 
-  const root = moving.find((record) => record.id === node.id)
-  const descendants = moving.filter((record) => record.id !== node.id)
-  if (root === undefined) throw new Error("the subtree walk lost its own root")
   const arriving = recordsOf(scope, destination)
   const reparented: Node = {
-    ...withParent(root, parent),
+    ...withParent(node, parent),
     ord: appendedOrd([arriving], parent),
   }
 
   return Result.succeed({
     files: [
-      { file, nodes: remaining },
+      { file, nodes: keeps.filter((record) => !dropped.has(record.id)) },
       { file: destination, nodes: [...arriving, reparented, ...descendants] },
     ],
     id: node.id,
@@ -1457,10 +1479,8 @@ const unarchiveLanding = (
     return named
   }
 
-  const directory = archive.slice(0, archive.length - ARCHIVE.length)
   const beside = scope.set.files.filter((candidate) =>
-    !isArchived(candidate) &&
-    candidate.slice(0, candidate.lastIndexOf("/") + 1) === directory
+    !isArchived(candidate) && archiveBeside(candidate) === archive
   )
   const chain = ancestorsOf(scope.derived, node.id).map((crumb) => crumb.node.title)
 

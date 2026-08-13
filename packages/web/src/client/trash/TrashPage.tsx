@@ -29,14 +29,10 @@ import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Match, onCleanup, Show, Switch } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
-import { type Said, useUndo } from "../edit/undoing.ts"
+import { type Said, SAID_MS, useUndo } from "../edit/undoing.ts"
 import { NodeTitle } from "../NodeTitle.tsx"
 import { TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
-
-/** How long a row's answer stays on screen — the `•••` menu's own dwell, for
- *  the same kind of line. */
-const SAID_MS = 6_000
 
 export function TrashPage(props: {
   /** Every archive the directory holds, in path order (`page.ts`). */
@@ -44,14 +40,15 @@ export function TrashPage(props: {
 }) {
   const derived = useDerived()
 
+  // Only the archives with anything in them: an archive emptied by put-backs
+  // draws nothing, exactly like one that never existed — and "the trash is
+  // empty" is then simply this list being empty, not a second predicate.
   const groups = createMemo(() => {
     const indexes = derived()
-    return indexes === undefined ? [] : props.files.map((file) => ({
-      file,
-      rows: rowsOf(indexes, file),
-    }))
+    return indexes === undefined ? [] : props.files
+      .map((file) => ({ file, rows: rowsOf(indexes, file) }))
+      .filter((group) => group.rows.length > 0)
   })
-  const empty = createMemo(() => groups().every((group) => group.rows.length === 0))
 
   return (
     <div data-testid={TESTID.trashPage} class="mx-auto max-w-3xl">
@@ -63,14 +60,14 @@ export function TrashPage(props: {
         </p>
       </header>
       <Show
-        when={!empty()}
+        when={groups().length > 0}
         fallback={
           <p class="text-muted" data-testid={TESTID.trashEmpty}>
             The Trash is empty.
           </p>
         }
       >
-        <Key each={groups().filter((group) => group.rows.length > 0)} by="file">
+        <Key each={groups()} by="file">
           {(group) => (
             <section data-testid={TESTID.trashGroup} data-file={group().file}>
               {/* One archive is the ordinary case and needs no heading; a
@@ -166,6 +163,7 @@ function Branch(props: {
             data-testid={TESTID.trashSaid}
             data-tone={line().tone}
             role={line().tone === "alarm" ? "alert" : "status"}
+            aria-live={line().tone === "alarm" ? "assertive" : "polite"}
           >
             {line().text}
           </p>
@@ -182,8 +180,9 @@ function Branch(props: {
 
 /** What a trash row is called. A node or a mirror says the title of the node
  *  it shows, rendered the one way titles are; the two degenerate kinds a
- *  condemned set could hold say the id the walk actually stopped on, the same
- *  answer the outline tree gives. */
+ *  condemned set could hold say the outline tree's own sentences (`Tree.tsx`,
+ *  quoted — a reader who meets the same broken record on two pages should
+ *  read the same words about it). */
 function Title(props: {
   readonly row: Row
 }) {
@@ -199,14 +198,15 @@ function Title(props: {
       <Match when={props.row.kind === "dangling" ? props.row : undefined}>
         {(row) => (
           <span class="text-muted">
-            a mirror of {row().missing}, which is not in the set
+            a mirror of `{row().missing}`, which no node declares
           </span>
         )}
       </Match>
       <Match when={props.row.kind === "cycle" ? props.row : undefined}>
         {(row) => (
           <span class="text-muted">
-            a mirror that loops through {row().through}
+            this mirror is inside the subtree it shows (`{row().through}`) — not
+            expanded
           </span>
         )}
       </Match>

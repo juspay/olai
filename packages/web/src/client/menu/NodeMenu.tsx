@@ -24,7 +24,7 @@ import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { HOVER_CELL, MENU_REVEAL } from "../touch.ts"
-import type { Said } from "../edit/undoing.ts"
+import { type Said, SAID_MS } from "../edit/undoing.ts"
 
 export interface MenuAction {
   readonly id: string
@@ -42,11 +42,6 @@ export interface MenuAction {
    *  landed. Answering with nothing is the ordinary success. */
   readonly run: () => void | Promise<Said | void>
 }
-
-/** How long what an action said stays on the row. Long enough to read where
- *  the pointer already is, short enough that the gutter goes back to being a
- *  gutter without anybody dismissing anything. */
-const SAID_MS = 6_000
 
 export function NodeMenu(props: {
   readonly actions: ReadonlyArray<MenuAction>

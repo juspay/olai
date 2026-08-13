@@ -41,6 +41,11 @@ export interface Said {
   readonly text: string
 }
 
+/** How long a surface's said-line stays before clearing itself. ONE number,
+ *  beside the type every such line renders: the `•••` menu's dwell and the
+ *  trash's were equal only by hand-maintenance while each spelled its own. */
+export const SAID_MS = 6_000
+
 export interface Undo {
   /** A write this tab just made, as what would take it back — the server's
    *  answer, verbatim, `undefined` and all — which write has an inverse is the
