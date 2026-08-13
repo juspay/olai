@@ -41,7 +41,14 @@
  * was never sent.
  */
 
-import { BusyFailure, isOpFailure, kindOf, OpFailure, UsageFailure } from "@olai/format"
+import {
+  BusyFailure,
+  isOpFailure,
+  kindOf,
+  OpFailure,
+  Sort,
+  UsageFailure,
+} from "@olai/format"
 import { Schema } from "effect"
 
 /**
@@ -145,6 +152,68 @@ export const Ask = Schema.Struct({
 export type Ask = typeof Ask.Type
 
 /**
+ * A file the agent rewrote, as the protocol reports it.
+ *
+ * STRUCTURED, and that is the whole point: ACP sends a tool call's diff as a
+ * path and two texts, and the transcript used to flatten every content block a
+ * call carried into one progress STRING — so what reached a browser about a
+ * file being rewritten was the sentence `— /some/path`, and the change itself
+ * was gone before the wire. A panel cannot draw what a wire has already turned
+ * into prose, and re-parsing prose back into a diff is not a thing this
+ * codebase will do.
+ *
+ * Two texts rather than a unified diff, because that is what the protocol
+ * carries and because the LINE diff is a view-time computation: the client
+ * derives it ({@link ../../web/src/client/chat/diff.ts}) the same way it
+ * derives everything else it draws.
+ *
+ * `oldText` is `null` for a file that did not exist — the protocol's own way of
+ * saying "this is new", and a distinction the panel draws rather than flattening
+ * into an empty file.
+ *
+ * `path` is ROOT-RELATIVE when the file is under the served directory and
+ * absolute otherwise, which is the spelling every `file:line` in olai already
+ * uses. The relativising happens where the served directory is known — in the
+ * chat package, beside the session that was started in it.
+ */
+export const FileDiff = Schema.Struct({
+  path: Schema.String,
+  oldText: Schema.NullOr(Schema.String),
+  newText: Schema.String,
+})
+export type FileDiff = typeof FileDiff.Type
+
+/**
+ * What an olai WRITE did to a node, which is the other half of the same
+ * feature and deliberately not a diff.
+ *
+ * A `.jsonl` diff is one enormous line per node with everything on it changing
+ * at once — the commit panel's own rule, and the reason `@olai/format`
+ * classifies a change into a {@link Sort} instead. So a tool call that went
+ * through the ops layer carries the node-level story: the same word the commit
+ * panel draws (*marked done*, *note rewritten*, *moved*), the node it is about,
+ * and whatever the rollup had to say about it.
+ *
+ * The `sort` is the reply's own (`@olai/ops`' `Applied.sort`), derived there
+ * from the two readings the write is made of — never re-derived here and never
+ * read out of the summary's prose. It is `null` for a write that changed no
+ * record, where there is no honest word for what happened.
+ */
+export const Wrote = Schema.Struct({
+  sort: Schema.NullOr(Sort),
+  /** The node the write was about, by title — as the reply names it. */
+  title: Schema.String,
+  /** Which outline it lives in now, root-relative. `null` for a reply that
+   *  named none — one spelling of absent across the three fields that can be,
+   *  rather than a second empty for this one to mean it with. */
+  file: Schema.NullOr(Schema.String),
+  /** What the rollup noticed — advice on a write that LANDED, never a reason
+   *  anything failed. `null` when there was nothing to say. */
+  nudge: Schema.NullOr(Schema.String),
+})
+export type Wrote = typeof Wrote.Type
+
+/**
  * What a row of the conversation is.
  *
  * A union of six kinds rather than a struct with everything optional, because
@@ -154,7 +223,10 @@ export type Ask = typeof Ask.Type
  *     Never markdown: it is quoted, not rendered.
  *   - `agent` — the agent's prose, accumulated as it streams. Rendered as
  *     markdown once the turn is done, which is a view-time decision.
- *   - `tool` — a tool call, foldable, updated in place by its own id.
+ *   - `tool` — a tool call, foldable, updated in place by its own id, carrying
+ *     what it CHANGED in whichever of the two vocabularies applies: a
+ *     {@link FileDiff} per file it rewrote directly, or the node-level
+ *     {@link Wrote} story of a write that went through the ops layer.
  *   - `ask` — a question the agent asked, as a form to answer: the options it
  *     offered, the boxes it left, and — once it has been answered — what was
  *     chosen. The turn is blocked on it while `ask.outcome` is `null`.
@@ -194,6 +266,22 @@ export const ChatEntry = Schema.Struct({
    *  live half: a call that has been running for thirty seconds has something
    *  to show, and its arguments are not it. */
   progress: Schema.optionalKey(Schema.String),
+  /** `tool` only: the files this call REWROTE, one entry per diff block the
+   *  protocol sent. Drawn rather than folded — a direct file edit is the one
+   *  thing about a call whose whole content is the change, and the outline is
+   *  not where it shows up. See {@link FileDiff}. */
+  diffs: Schema.optionalKey(Schema.Array(FileDiff)),
+  /** `tool` only: what this call WROTE through the ops layer, as a node-level
+   *  story rather than as a diff. See {@link Wrote}.
+   *
+   *  Independent of `diffs` rather than exclusive with it, because the two are
+   *  read off different halves of a report — the content blocks and the tool
+   *  result — and a report says nothing about the half it does not carry. In
+   *  practice a call is one or the other: a tool cannot both go through the ops
+   *  layer and rewrite a file, since the agent has no filesystem channel here
+   *  and olai's own tools take no bytes. A row that somehow carried both would
+   *  draw both, which is the honest thing to do about a call that did both. */
+  wrote: Schema.optionalKey(Wrote),
   /** `tool` only: the files the call is working in, as `path` or `path:line`.
    *  The protocol's follow-along locations, which is what lets a reader see
    *  WHERE an agent is without unfolding anything. */

@@ -1,5 +1,11 @@
 /**
- * Which tool calls the reader has unfolded, by the call's own id.
+ * Which things in the transcript the reader has opened, by key.
+ *
+ * TWO of them, and they are one signal because they are one gesture: a tool
+ * call's detail, keyed by the call's own id, and a trimmed diff inside such a
+ * call, keyed by the call and the file it is about ({@link diffKey}). A second
+ * signal for the second one would be the same argument written twice, and the
+ * argument is below.
  *
  * MODULE-SCOPED, and keyed by id rather than held inside the row, because the
  * row is not the thing that lasts. The panel is rebuilt from nothing whenever
@@ -21,8 +27,23 @@ import { createSignal } from "solid-js"
 
 const [unfolded, setUnfolded] = createSignal<ReadonlySet<string>>(new Set())
 
-/** Is this call's detail showing? */
+/** Is this one open? */
 export const isUnfolded = (id: string): boolean => unfolded().has(id)
+
+/**
+ * The key a trimmed diff is remembered under: the call, and the file.
+ *
+ * Both halves are needed and neither is enough. One call can rewrite several
+ * files — an agent editing a module and its test — so the call alone would open
+ * and close them together; and one file is edited again in a later turn, so the
+ * path alone would come up open in a call the reader has not seen yet.
+ *
+ * Joined by a separator that can occur in neither half, and spelled as an
+ * ESCAPE rather than typed: a control character in the source makes the whole
+ * file binary to git — which is what the first draft of this line did, and a
+ * file nothing can diff or blame line by line is a worse price than any key.
+ */
+export const diffKey = (call: string, path: string): string => `${call}\u0000${path}`
 
 export const toggleFold = (id: string): void => {
   setUnfolded((open) => {

@@ -47,6 +47,7 @@ in the system had to arrange:
 | `request.ts` | the things a writer may ask for, as schemas — one declaration serving the planner's switch, the tool schemas and the decoder |
 | `plan.ts` | the whole decision, PURE: a snapshot and a request into the files that write would produce |
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
+| `sorted.ts` | what a write CHANGED, in one word — the format's own classification, derived from the two readings the write is made of rather than from the op's name |
 | `pending.ts` | what is waiting to be committed, derived from git, the one verb that commits it, and what git is doing for the directory at all — one survey, both answers |
 | `message.ts` | what a commit nobody wrote a message for says, and how olai recognises its own commits — the `olai` prefix and the `X-Olai-Writer` trailer, handed down to the plumbing rather than known by it |
 | `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
@@ -271,6 +272,18 @@ person already knows how to read is worth more than a better one they do not:
 | after | `after: TITLE` |
 | mirror | `mirror: TITLE` — the TARGET's title, not the placement's id |
 | unmirror | `unmirror: TITLE` |
+
+Beside that summary the reply carries **`Applied.sort`**, which is the same
+change said in the vocabulary a reader SWITCHES on rather than logs: `done`,
+`noted`, `moved`, `archived`. A summary is a commit subject and cannot be
+branched on, and the chat transcript needs to branch on it — a write through
+this layer is drawn there as the node-level story (*marked done*, *note
+rewritten*) and never as a text diff, for the reason the commit panel has never
+shown one. It is DERIVED rather than tabulated by op name (`sorted.ts`): the two
+readings a write is made of are both in hand when the reply is assembled, so the
+same `changesOf` that classifies a pending row classifies this — one
+classification in this codebase, not two agreeing by hand. Absent when the write
+changed no record, because there is no honest word for that.
 
 `create` is how a brand-new outline file is born: `add` only writes into a file
 the set already holds. The path is a relative `.jsonl` under the served

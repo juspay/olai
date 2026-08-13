@@ -13,6 +13,11 @@ node_modules
 # Throwaway scripts used while working; never part of a commit.
 /.probe
 
+# Screenshots taken to show a reviewer that a change looks right. They are
+# evidence for a pull request, not part of the tree — the features are what
+# holds the behaviour, and a PNG in git is a claim nobody can re-run.
+/evidence
+
 # Review notes handed to the implementing agent — read, acted on, never
 # committed. The PR is the record; a stale critique in the tree is not.
 /PR-REVIEW.md

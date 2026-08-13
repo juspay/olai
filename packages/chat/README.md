@@ -39,6 +39,8 @@ second copy of the transcript would be a second thing to be wrong.
 | `asks.ts` | the two payloads that ask a PERSON something, projected into one form — and the answer projected back |
 | `questions.ts` | the questions on the wire, and the one rule about them: each ends exactly once, however it ends |
 | `events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
+| `diffs.ts` | the protocol's `diff` blocks, read as data: which file was rewritten, what it said, what it says now — and the path spelled root-relative the way every `file:line` here is |
+| `wrote.ts` | the other half of the same question, for a write that went through the ops layer: the reply's own classification of the change, its node, and the rollup's nudge. Never a diff — a `.jsonl` diff is one enormous line |
 | `transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
 | `attachments.ts` | the conversation's tmp directory: where an attached file lands, what a chunked upload may continue, and what the prompt says about it |
 | `chat.ts` | the join, and the only place that knows both halves |
@@ -50,6 +52,20 @@ own call id, so a report is an upsert on the same key rather than a second row.
 Content REPLACES rather than accumulates, which is the protocol's own rule for
 an update: a report carries the call's content as it stands, so appending would
 print the first half of a long output twice.
+
+**What a call CHANGED travels structured, in two vocabularies.** A `diff` block
+used to be flattened into that same progress string as the sentence `— <path>`,
+on the argument that the outline is where an olai edit shows up anyway — and the
+second half of that stopped being true, because a direct edit to a `.md` or a
+source file shows up in no outline at all. So `diffs.ts` reads those blocks into
+`FileDiff`s and the panel draws the change; the client computes the line diff
+from the two texts, which is what keeps the wire carrying facts rather than a
+rendering. A write through the OPS layer gets the opposite treatment and for the
+commit panel's own reason — a `.jsonl` diff is one enormous line per node — so
+`wrote.ts` reads olai's own tool reply into the node-level story instead:
+*marked done*, *note rewritten*, *moved*. The classification is the reply's
+(`@olai/ops`' `Applied.sort`), never re-derived here and never read out of
+prose.
 
 `events.ts` is the seam that makes the rest of this hold. Nothing above it
 spells `session/update`, reads a `ContentBlock`, or knows which `configOptions`

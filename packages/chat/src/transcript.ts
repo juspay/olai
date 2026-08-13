@@ -29,7 +29,14 @@
  * be wrong.
  */
 
-import type { AskField, AskOutcome, ChatEntry, OpFailure } from "@olai/surface"
+import type {
+  AskField,
+  AskOutcome,
+  ChatEntry,
+  FileDiff,
+  OpFailure,
+  Wrote,
+} from "@olai/surface"
 
 export interface Change {
   readonly upserts: ReadonlyArray<readonly [string, ChatEntry]>
@@ -113,6 +120,8 @@ export class Transcript {
       readonly status?: ChatEntry["status"] | undefined
       readonly detail?: string | undefined
       readonly progress?: string | undefined
+      readonly diffs?: ReadonlyArray<FileDiff> | undefined
+      readonly wrote?: Wrote | undefined
       readonly locations?: ReadonlyArray<string> | undefined
     },
   ): Change {
@@ -123,6 +132,12 @@ export class Transcript {
     // report carries the call's content and locations AS THEY STAND, so
     // appending would print the first half of a long output twice.
     const progress = move.progress ?? current?.progress
+    // The same rule for what the call CHANGED, and it is what keeps a diff on
+    // screen: the announcement carries the blocks, the completion that follows
+    // carries only a status, and a row that read that as "no diffs now" would
+    // drop the change at the moment the call finished.
+    const diffs = move.diffs ?? current?.diffs
+    const wrote = move.wrote ?? current?.wrote
     const locations = move.locations ?? current?.locations
     return both(
       this.#close(),
@@ -132,6 +147,8 @@ export class Transcript {
         status: move.status ?? current?.status ?? "pending",
         ...(detail === undefined ? {} : { detail }),
         ...(progress === undefined ? {} : { progress }),
+        ...(diffs === undefined ? {} : { diffs }),
+        ...(wrote === undefined ? {} : { wrote }),
         ...(locations === undefined ? {} : { locations }),
       }),
     )
