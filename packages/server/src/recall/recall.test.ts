@@ -259,6 +259,41 @@ test("the cache is the memory: an unchanged corpus is never re-embedded, a chang
   fs.rmSync(dir, { recursive: true, force: true })
 })
 
+test("a node that leaves a re-read file leaves the index with it", async () => {
+  // The reconcile walks only the files a revision says moved, so pruning is
+  // the half that cannot be inferred from the walk: an id that used to live
+  // in a touched file and no longer does has to be dropped, or the index goes
+  // on answering with a node the outlines no longer declare.
+  const { dir, root } = scratch()
+  await run(Effect.gen(function*() {
+    const set = setOf(HOUSE)
+    const snapshot = yield* SubscriptionRef.make<Snapshot<OutlineSet> | null>(
+      snapOf(1, set),
+    )
+    const recall = yield* open({
+      root,
+      snapshot,
+      embedder: Effect.succeed(fake()),
+      cacheDir: dir,
+    })
+    if (recall === null) throw new Error("the fake embedder was not taken")
+    yield* recall.settled
+    expect((yield* recall.nearest("purchase food", 5)).map((near) => near.id))
+      .toEqual(["buy"])
+
+    const without = setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"leak","parent":"kitchen","ord":"a1","title":"Fix the faucet"}`,
+      ].join("\n"),
+    })
+    yield* SubscriptionRef.set(snapshot, snapOf(2, without))
+    yield* recall.settled
+    expect(yield* recall.nearest("purchase food", 5)).toEqual([])
+  }))
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
 test("a cache written beside a different embedder is discarded whole", async () => {
   const { dir, root } = scratch()
   const set = setOf(HOUSE)

@@ -263,12 +263,19 @@ When(
   },
 );
 
+/** Type into the palette box, waiting for it first — the one spelling both
+ *  the ask step and the search step are written in terms of. */
+const fillPalette = async (world: OlaiWorld, text: string) => {
+  const input = world.page.locator(PALETTE_INPUT);
+  await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await input.fill(text);
+  return input;
+};
+
 When(
   "I ask the palette {string}",
   async function (this: OlaiWorld, text: string) {
-    const input = this.page.locator(PALETTE_INPUT);
-    await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await input.fill(text);
+    const input = await fillPalette(this, text);
     await input.press("Enter");
     await this.waitForFrame();
   },
@@ -284,9 +291,7 @@ Then("the palette shows an ask error", async function (this: OlaiWorld) {
 When(
   "I type {string} into the palette",
   async function (this: OlaiWorld, text: string) {
-    const input = this.page.locator(PALETTE_INPUT);
-    await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await input.fill(text);
+    await fillPalette(this, text);
   },
 );
 

@@ -254,8 +254,14 @@ const edgesOf = (
 /** Every regular node of the set, in file-then-line order. Mirrors are left
  *  out of every answer here: a mirror is a second PLACEMENT of a node, and
  *  returning it would be the same node twice with two locations, one of which
- *  is not where it is defined and so not where a write would land. */
-const regulars = (derived: Derived): ReadonlyArray<LocatedRegular> =>
+ *  is not where it is defined and so not where a write would land.
+ *
+ *  EXPORTED because the semantic index walks the same nodes (`@olai/server`'s
+ *  `recall/`), and "which nodes are indexable" has to be the same rule as
+ *  "which nodes are findable" — an index over nodes a search excludes is an
+ *  index that answers with ids the search then drops, which is the one way a
+ *  derived reading starts contradicting the snapshot it is derived from. */
+export const regulars = (derived: Derived): ReadonlyArray<LocatedRegular> =>
   derived.nodes.filter((located) => !isMirror(located.node)) as ReadonlyArray<
     LocatedRegular
   >
@@ -280,6 +286,12 @@ const positionBonus = (haystack: string, needle: string): number => {
  *  enough to disappear. The reason to look for a node you finished is usually
  *  that you finished it. */
 const DONE_PENALTY = 300
+
+/** How many hits an unasked-for limit means. ONE spelling, because
+ *  {@link searchWith} sizes the room left for semantic hits against exactly
+ *  the number {@link search} capped at — two literals that drifted would
+ *  silently mis-size that fill. */
+const DEFAULT_LIMIT = 12
 
 /**
  * Case-folded substrings, no operators: a query is words, and every word has
@@ -346,7 +358,7 @@ export const search = (
   // under the cursor between two keystrokes. `scored` is already in that order
   // and `sort` is stable.
   const ranked = scored.slice().sort((a, b) => b.score - a.score)
-  const limit = query.limit ?? 12
+  const limit = query.limit ?? DEFAULT_LIMIT
   return { hits: ranked.slice(0, limit).map((entry) => entry.hit), total: ranked.length }
 }
 
@@ -416,26 +428,29 @@ export const searchWith = (
   query: { readonly text: string; readonly limit?: number },
 ): Effect.Effect<Search> => {
   const exact = search(at.derived, query)
-  const limit = query.limit ?? 12
+  const limit = query.limit ?? DEFAULT_LIMIT
   const room = limit - exact.hits.length
+  // The empty query is asked as the TEXT being blank, not as `exact` being
+  // empty: a query that matched nothing is exactly the query this feature
+  // exists for, and reading "no exact hits" as "nothing to look for" would
+  // switch the semantic half off precisely when it is the only half left.
   if (at.recall === null || room <= 0 || query.text.trim() === "") {
     return Effect.succeed(exact)
   }
-  const recall = at.recall
-  return Effect.map(recall.nearest(query.text, limit), (near) => {
-    const answered = new Set(exact.hits.map((hit) => hit.id))
-    const filled: Array<Hit> = []
-    for (const { id } of near) {
-      if (filled.length >= room) break
-      if (answered.has(id)) continue
-      const located = at.derived.byId.get(id)
-      if (located === undefined || isMirror(located.node)) continue
-      filled.push({
-        ...foundOf(at.derived, located as LocatedRegular),
-        matched: "meaning",
+  const answered = new Set(exact.hits.map((hit) => hit.id))
+  return Effect.map(at.recall.nearest(query.text, limit), (near) => {
+    const filled = near
+      .filter(({ id }) => !answered.has(id))
+      .flatMap(({ id }): ReadonlyArray<Hit> => {
+        const located = at.derived.byId.get(id)
+        return located === undefined || isMirror(located.node)
+          ? []
+          : [{
+            ...foundOf(at.derived, located as LocatedRegular),
+            matched: "meaning" as const,
+          }]
       })
-    }
-    if (filled.length === 0) return exact
+      .slice(0, room)
     return {
       hits: [...exact.hits, ...filled],
       total: exact.total + filled.length,

@@ -101,6 +101,8 @@ export const detectOllama: Effect.Effect<Embedder | null> = Effect.gen(
   function*() {
     const host = ollamaHost()
     const wanted = model()
+    // The reason a probe failed is never read — every way this can go wrong
+    // is the same answer, "no Ollama here" — so it is not carried.
     const listed = yield* Effect.tryPromise({
       try: async () => {
         const reply = await fetch(`${host}/api/tags`, {
@@ -114,14 +116,14 @@ export const detectOllama: Effect.Effect<Embedder | null> = Effect.gen(
           entry.name === undefined ? [] : [entry.name]
         )
       },
-      catch: (cause) => new EmbedFailure({ reason: String(cause) }),
-    }).pipe(Effect.result)
+      catch: (cause) => cause,
+    }).pipe(Effect.orElseSucceed(() => null))
 
-    if (listed._tag === "Failure") {
+    if (listed === null) {
       yield* Effect.logDebug(`recall: no Ollama at ${host}; semantic search off`)
       return null
     }
-    const present = listed.success.some(
+    const present = listed.some(
       (name) => name === wanted || name.split(":")[0] === wanted,
     )
     if (!present) {

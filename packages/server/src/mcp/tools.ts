@@ -37,7 +37,7 @@
  */
 
 import { kindOf, type OpFailure, type Writer } from "@olai/format"
-import { type Ops, type Reading, type Tool } from "@olai/ops"
+import { type Ops, type Searching, type Tool } from "@olai/ops"
 import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
 import { Effect, Schema } from "effect"
 
@@ -145,20 +145,10 @@ const answer = (
         tool.act(ops, args as never, writer),
         (result) => ({ ...(result as object), did: tool.name }),
       )
-      // A reader answers with a value or an Effect of one (the table's own
-      // contract — the search's semantic half asks an embedder). Flattened
-      // HERE, once, so the table stays free to grow another awaiting read
-      // without this file changing again.
-      // A reader answers with a value or an Effect of one (the table's own
-      // contract — the search's semantic half asks an embedder). Flattened
-      // HERE, once, so the table stays free to grow another awaiting read
-      // without this file changing again.
-      : Effect.flatMap(ops.read, (at: Reading) => {
-        const answered = tool.read(at, args as never)
-        return Effect.isEffect(answered)
-          ? (answered as Effect.Effect<unknown, OpFailure>)
-          : Effect.succeed(answered)
-      }),
+      // Every read is an Effect by the table's own contract, so there is
+      // nothing to test here and nothing this file has to know about which
+      // read it is holding.
+      : Effect.flatMap(ops.read, (at: Searching) => tool.read(at, args as never)),
     (failure: OpFailure) => refusal(tool.name, failure),
   )
 

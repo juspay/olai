@@ -61,16 +61,17 @@ export const defaultCacheDir = (): string => {
   return `${base}/olai/recall`
 }
 
-/** One file per served directory, keyed by a hash of its resolved path — two
- *  directories never share vectors, and a path never leaks into a filename. */
-export const cacheFile = (dir: string, root: string): string =>
-  `${dir}/${createHash("sha256").update(root).digest("hex").slice(0, 16)}.jsonl`
-
-/** What the index hashes: the exact text it embeds. Sliced short because a
- *  hash of a prefix still changes when the prefix does, and embedding models
- *  read a bounded window anyway ({@link ../recall/recall.ts}'s `textOf`). */
+/** What the index hashes: the exact text it embeds. Truncated because a hash
+ *  of a prefix still changes when the prefix does, and 64 bits is far more
+ *  than "did this note change" needs. */
 export const hashOf = (text: string): string =>
   createHash("sha256").update(text).digest("hex").slice(0, 16)
+
+/** One file per served directory, keyed by a hash of its resolved path — two
+ *  directories never share vectors, and a path never leaks into a filename.
+ *  The same {@link hashOf}, so the truncation length is decided once. */
+export const cacheFile = (dir: string, root: string): string =>
+  `${dir}/${hashOf(root)}.jsonl`
 
 /**
  * Read the cache, or `null` for "build from nothing": absent, unparseable,
@@ -84,9 +85,9 @@ export const load = (
 ): Effect.Effect<Map<string, CachedRow> | null, never, FileSystem.FileSystem> =>
   Effect.gen(function*() {
     const fs = yield* FileSystem.FileSystem
-    const read = yield* Effect.result(fs.readFileString(file))
-    if (read._tag === "Failure") return null
-    const lines = read.success.split("\n").filter((line) => line !== "")
+    const read = yield* Effect.orElseSucceed(fs.readFileString(file), () => null)
+    if (read === null) return null
+    const lines = read.split("\n").filter((line) => line !== "")
     if (lines.length === 0) return null
     try {
       const meta = JSON.parse(lines[0] as string) as Meta
@@ -138,17 +139,23 @@ export const save = (
         ).toString("base64"),
       }))
     }
+    // Staged then renamed by hand rather than through `@olai/store`'s `Disk`,
+    // which owns this exact pair of verbs: that module is built around a
+    // SERVED ROOT and reaching for it would mean widening `@olai/store`'s
+    // exports so a cache in another directory entirely could borrow two
+    // lines. The property both want — a reader never sees half a file — is
+    // the rename, and it is spelled here.
     const staged = `${file}.${process.pid}.tmp`
-    const write = Effect.gen(function*() {
+    yield* Effect.gen(function*() {
       yield* fs.makeDirectory(path.dirname(file), { recursive: true })
       yield* fs.writeFileString(staged, lines.join("\n") + "\n")
       yield* fs.rename(staged, file)
-    })
-    const outcome = yield* Effect.result(write)
-    if (outcome._tag === "Failure") {
-      yield* Effect.logWarning(
-        `recall: could not write the index cache at ${file}: ` +
-          String(outcome.failure),
-      )
-    }
+    }).pipe(
+      Effect.tapError((cause) =>
+        Effect.logWarning(
+          `recall: could not write the index cache at ${file}: ${String(cause)}`,
+        )
+      ),
+      Effect.ignore,
+    )
   })

@@ -24,7 +24,7 @@
  * it. One declaration, several uses, no second list to keep in step.
  */
 
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 
 import {
   type CommitRequest,
@@ -32,12 +32,12 @@ import {
   type CommitResult,
   type Derived,
   MARKS,
+  type OpFailure,
   type OutlineSet,
   type PushResult,
   type Status,
   type Writer,
 } from "@olai/format"
-import type { Effect } from "effect"
 
 import * as Query from "./query.ts"
 import {
@@ -59,14 +59,31 @@ import {
  *  every answer is computed from. One value, so a run of queries walks the tree
  *  once ({@link ./query.ts}).
  *
- *  `recall` is the semantic reading standing behind the server, when one is —
- *  `null` is the ordinary case and changes nothing but the paraphrase matches
- *  (`Query.searchWith`). On the reading rather than threaded to one tool so
- *  the two faces that search (the MCP tool here, the palette's procedure in
- *  `@olai/server`) cannot be handed different indexes over one snapshot. */
+ *  TWO FIELDS, and both are pure functions of one snapshot. That is the whole
+ *  of what this name promises, and two modules above this layer advertise
+ *  themselves on it — `@olai/server`'s `edit.ts` and `context.ts` are "pure
+ *  over a Reading". A live handle to a model server does not belong in it;
+ *  {@link Searching} is where that goes. */
 export interface Reading {
   readonly set: OutlineSet
   readonly derived: Derived
+}
+
+/**
+ * A reading, plus the semantic index standing behind the server when one is.
+ *
+ * What {@link Ops.read} actually answers, and what the tools table's readers
+ * are handed — structurally still a {@link Reading}, so a caller that only
+ * derives (the keystroke resolver, the chat context resolver) takes the
+ * narrower type and keeps an enforceable purity claim rather than a comment.
+ *
+ * `null` is the ordinary case and changes nothing but the paraphrase matches
+ * (`Query.searchWith`). It rides the reading rather than being threaded to one
+ * tool so the two faces that search — the MCP tool here, the palette's
+ * procedure in `@olai/server` — cannot be handed different indexes over one
+ * snapshot.
+ */
+export interface Searching extends Reading {
   readonly recall: Query.Recall | null
 }
 
@@ -110,11 +127,13 @@ export interface Acting {
 export type Tool =
   | (Described & {
     readonly kind: "read"
-    /** The answer, or an `Effect` of it — the one read that returns an Effect
-     *  is the search, whose semantic half asks an embedder. The dispatcher in
-     *  `@olai/server` flattens either; a reader with nothing to await stays a
-     *  plain function rather than dressing up as a program. */
-    readonly read: (at: Reading, args: never) => unknown
+    /** ONE shape, always an `Effect` — so a dispatcher runs every read the
+     *  same way and never tests what came back. Three of the four readers
+     *  have nothing to await and are written as plain functions in the table
+     *  below; {@link read} is what lifts them, so the "which arm answers how"
+     *  decision stays here rather than half here and half in a shape check in
+     *  another package. */
+    readonly read: (at: Searching, args: never) => Effect.Effect<unknown, OpFailure>
   })
   | (Described & {
     readonly kind: "write"
@@ -160,19 +179,40 @@ const NoArgs = Schema.Struct({})
 
 // ── the list ───────────────────────────────────────────────────────────
 
+/** A read that answers from the snapshot alone — lifted into the one shape
+ *  {@link Tool} declares, so the table can go on being written as the plain
+ *  functions these readers are. */
 const read = <A>(
   name: string,
   title: string,
   description: string,
   schema: Schema.Codec<A, never, never, never> | Schema.Top,
-  reader: (at: Reading, args: A) => unknown,
+  reader: (at: Searching, args: A) => unknown,
+): Tool =>
+  readEffect(
+    name,
+    title,
+    description,
+    schema,
+    (at, args: A) => Effect.sync(() => reader(at, args)),
+  )
+
+/** A read that has something to ASK — the search, whose semantic half reaches
+ *  an embedder. Same arm and same contract as {@link read}; what differs is
+ *  that this reader is already a program. */
+const readEffect = <A>(
+  name: string,
+  title: string,
+  description: string,
+  schema: Schema.Codec<A, never, never, never> | Schema.Top,
+  reader: (at: Searching, args: A) => Effect.Effect<unknown, OpFailure>,
 ): Tool => ({
   name,
   title,
   description,
   schema,
   kind: "read",
-  read: reader as (at: Reading, args: never) => unknown,
+  read: reader as (at: Searching, args: never) => Effect.Effect<unknown, OpFailure>,
 })
 
 const write = (
@@ -242,7 +282,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     NoArgs,
     (at) => ({ outlines: Query.outlines(at.set, at.derived) }),
   ),
-  read(
+  readEffect(
     "search_nodes",
     "Search nodes",
     "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by.\n\nExact matches come first and are evidence — the words are in the node. When a local embedder is present, hits with `matched: \"meaning\"` follow: nodes the index reads as saying the same thing in other words, worth checking rather than trusting. With no embedder there are simply no such hits; that is not an error and nothing will say so.",

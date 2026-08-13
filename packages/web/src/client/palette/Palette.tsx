@@ -28,8 +28,7 @@ import {
   Show,
 } from "solid-js"
 
-import type { OpFailure, SearchHit } from "@olai/surface"
-import { debounce } from "@solid-primitives/scheduled"
+import type { OpFailure } from "@olai/surface"
 
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
@@ -43,6 +42,7 @@ import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../run.ts"
 import { askQuery, filterItems, nodeItem, type PaletteItem } from "./items.ts"
+import { createNodeSearch } from "./search.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { isEditingTarget, matchKey } from "../keys.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
@@ -71,37 +71,16 @@ export function Palette(props: {
 
   const ask = createMemo(() => askQuery(query()))
 
-  // Node hits, from the server — LATEST-WINS: an answer to a query the box
-  // has moved past is dropped by sequence number, so a slow reply can never
-  // overwrite a fresher one. Debounced so a burst of keystrokes is one call.
-  const [hits, setHits] = createSignal<ReadonlyArray<SearchHit>>([])
-  let asked = 0
-  const search = debounce((text: string) => {
-    const seq = ++asked
-    run(
-      olai.procedures.search.nodes({ text, limit: 8 }),
-      (failure: OpFailure) => {
-        if (seq === asked) setAskError(failure.message)
-      },
-      (answer) => {
-        if (seq === asked) setHits(answer.hits)
-      },
-    )
-  }, 120)
-  createEffect(() => {
-    const text = query().trim()
-    if (open() && ask() === null && text !== "") {
-      search(text)
-    } else {
-      search.clear()
-      asked++
-      setHits([])
-    }
-  })
+  // The nodes, from the server — one primitive, its own failure, and no
+  // request bookkeeping in this component ({@link ./search.ts}). It is asked
+  // only while the palette is open and the query is not an `>` ask.
+  const nodes = createNodeSearch(() =>
+    open() && ask() === null ? query() : null
+  )
 
   const items = createMemo(() => {
     if (ask() !== null) return [] as ReadonlyArray<PaletteItem>
-    return [...filterItems(query()), ...hits().map(nodeItem)]
+    return [...filterItems(query()), ...nodes.hits().map(nodeItem)]
   })
 
   const close = () => {
@@ -273,6 +252,20 @@ export function Palette(props: {
               <div
                 class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
                 data-testid={TESTID.paletteAskError}
+                role="alert"
+              >
+                {err()}
+              </div>
+            )}
+          </Show>
+          {/* The SEARCH's own refusal, in its own row: it is a different
+              question from the `>` ask, so it gets a different answer slot
+              rather than overwriting one the reader may still be reading. */}
+          <Show when={nodes.failure()}>
+            {(err) => (
+              <div
+                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
+                data-testid={TESTID.paletteSearchError}
                 role="alert"
               >
                 {err()}
