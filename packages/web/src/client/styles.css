@@ -222,11 +222,15 @@
    * container; the ratio is the scale's. */
   line-height: var(--olai-md-leading-body);
 
-  /* The tint a rendered block lifts a surface with: an inline code chip, a
-   * table head. Derived from the rule colour rather than named in the palette,
-   * so it follows all fifteen without a sixteenth token to keep in step — and
-   * named here rather than spelled at each surface, because the two are one
-   * decision and would have to be changed together. */
+  /* The tint a TABLE HEAD lifts its row with. Derived from the rule colour
+   * rather than named in the palette, so it follows all fifteen without a
+   * sixteenth token to keep in step.
+   *
+   * It used to serve the inline code chip as well, and does not since the depth
+   * pass: a chip is a WELL now, the same recess the fence around it is
+   * (src/client/surface.ts). A head cell keeps a flat tint rather than joining
+   * them, and the reason is the shape — an inner shadow on a `th` draws a hollow
+   * around every cell to say what one tint says across the row. */
   --olai-md-tint: color-mix(in srgb, var(--color-rule) 45%, transparent);
 }
 

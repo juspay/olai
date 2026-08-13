@@ -107,9 +107,15 @@ const ENTRY =
  * The row IN FORCE is already up, so it does not lift — the same argument a day
  * being read makes about its own hover (`./calendar/Day.tsx`) — and it wears the
  * accent SPINE, one of the two lines the pass kept on purpose.
+ *
+ * The two answers are BUILT ONCE, at module scope, rather than composed per row:
+ * there are exactly two of them, a directory is forty rows, and this is read
+ * again every time the selection moves.
  */
-const entryLook = (current: boolean): string =>
-  `${ENTRY} ${current ? `${SPINE} font-semibold` : LIFTS}`
+const AT_REST = `${ENTRY} ${LIFTS}`
+const IN_FORCE = `${ENTRY} ${SPINE} font-semibold`
+
+const entryLook = (current: boolean): string => (current ? IN_FORCE : AT_REST)
 
 /** A directory row: folds, does not navigate. Lifts like a file entry — it is
  *  as pressable as one — and never lights, because a folder is not a page. */
@@ -209,7 +215,11 @@ export function Sidebar(props: {
           // opaque — and the shadow with it, because a drawer floating over the
           // page is the one time this column is above something.
           `z-40 flex-col ${OVER} md:shadow-none ` +
-          // Wide enough that the month's 7 day cells still hit 44×44.
+          // Wide enough that the month's 7 day cells still hit 44×44 — this
+          // width MINUS the body's `p-4` is the grid they divide, so anything
+          // that pads a box between the two spends that budget. The month's own
+          // well is `md:px-2` for exactly this reason (`./calendar/Calendar.tsx`),
+          // and a phone scenario measures it (`packages/tests`, on_a_phone).
           "fixed bottom-0 left-0 top-[var(--height-header,3rem)] w-[min(22rem,92vw)] " +
           // `top-` above is BOTH positions' offset — the drawer's inset and
           // this column's sticky threshold are the same seam, so they read the
