@@ -48,6 +48,12 @@ export type { SurfaceReadout, SurfaceReadoutStatus }
  *  three lines down as a missing table row rather than as what it is. */
 type Degraded = DegradedReadout["status"]
 
+/** Its runtime spelling, declared AT that type rather than typed out a second
+ *  time — so the table's exclusion below and the door in {@link lookOf} are the
+ *  same fact, and a rename upstream fails here, at the spelling, rather than
+ *  leaving one of the two silently comparing against a state nothing can be. */
+const DEGRADED: Degraded = "degraded"
+
 /** How one state is drawn — the readout's own shape (`../readout.ts`), shared
  *  with the Commit pill beside it so a change to what a readout IS lands on
  *  both.
@@ -99,7 +105,7 @@ export const LOOK: Record<Exclude<SurfaceReadoutStatus, Degraded>, Look> = {
  * is non-empty by type, so the hole is not spellable.
  */
 export const lookOf = (readout: SurfaceReadout): Look =>
-  readout.status !== "degraded" ? LOOK[readout.status] : {
+  readout.status !== DEGRADED ? LOOK[readout.status] : {
     dot: "bg-doing",
     label: "partly live",
     detail:

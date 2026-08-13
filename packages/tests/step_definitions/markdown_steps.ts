@@ -30,6 +30,30 @@ const CHUNK_URL = /\/assets\/pipeline-[^/]+\.js$/;
 const asked = (world: OlaiWorld): ReadonlyArray<string> =>
   world.requests.filter((url) => CHUNK_URL.test(url));
 
+/**
+ * What to print when a step expected the chunk to have been asked for and it
+ * was not.
+ *
+ * The failure this has to be legible for is NAMING ROT rather than a broken
+ * page: the chunk is called `pipeline-<hash>.js` because the bundler names a
+ * split chunk after the module it starts at, which is a spelling olai does not
+ * choose and did not choose before (it was `markdown-<hash>.js`, written by a
+ * build step this repo owned). If it moves again, every step here goes quiet in
+ * the same way — "the page never asked" — and the log has to be enough to tell
+ * that from a page that genuinely did not ask. So the pattern goes in the
+ * message beside every `/assets/*` the page DID fetch, and the two together
+ * name the mismatch without anybody opening this file.
+ */
+const diagnosis = (world: OlaiWorld): string => {
+  const assets = world.requests.filter((url) => url.includes("/assets/"));
+  return [
+    `expected a request matching ${CHUNK_URL}`,
+    ...(assets.length === 0
+      ? ["this page fetched nothing under /assets/ at all"]
+      : ["the /assets/* this page did fetch:", ...assets.map((url) => `  ${url}`)]),
+  ].join("\n  ");
+};
+
 Given("the markdown pipeline is held up", async function (this: OlaiWorld) {
   const held: Route[] = [];
   this.heldMarkdown = held;
@@ -52,7 +76,9 @@ When("the markdown pipeline arrives", async function (this: OlaiWorld) {
   );
   assert.ok(
     held.length > 0,
-    "the page never asked for the markdown pipeline, so letting it through proves nothing",
+    `the page never asked for the markdown pipeline, so letting it through proves nothing\n  ${
+      diagnosis(this)
+    }`,
   );
   for (const route of held) await route.continue();
   this.heldMarkdown = [];
@@ -69,10 +95,13 @@ Then("nothing has asked for the markdown pipeline", function (this: OlaiWorld) {
 });
 
 Then("the markdown pipeline was fetched once", function (this: OlaiWorld) {
+  const requested = asked(this);
   assert.strictEqual(
-    asked(this).length,
+    requested.length,
     1,
-    `the page asked for the markdown pipeline ${asked(this).length} time(s)`,
+    `the page asked for the markdown pipeline ${requested.length} time(s)\n  ${
+      requested.length === 0 ? diagnosis(this) : requested.join("\n  ")
+    }`,
   );
 });
 
