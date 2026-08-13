@@ -239,6 +239,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         case "commands":
           move({ commands: event.commands })
           return
+        case "servers":
+          // A fact about the conversation, so it lands on the cell beside the
+          // model and the commands rather than as a row: a notice scrolls away
+          // and this is true for as long as the session is.
+          move({ missing: event.missing })
+          return
         case "model":
           move({ model: event.name })
           return
@@ -263,7 +269,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // DEAD agent leaves the rows where they are — nobody asked for that,
           // and the `gone` notice explains them.
           if (event.why === "new") publish(transcript.clear())
-          move({ session: null, commands: [], asking: asking() })
+          // The missing servers go with the session they were missing FROM.
+          // The next one is probed fresh and says so before it opens; leaving
+          // the last one's answer up in between would be the panel reporting a
+          // conversation that no longer exists — and, for a dead agent, one
+          // nobody is in.
+          move({ session: null, commands: [], asking: asking(), missing: [] })
           return
         case "replayStarted":
           publish(transcript.clear())

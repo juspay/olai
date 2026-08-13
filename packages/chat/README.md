@@ -34,8 +34,8 @@ second copy of the transcript would be a second thing to be wrong.
 | `adapter.ts` | which executable speaks ACP: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off |
 | `agent.ts` | the ACP client: one subprocess, one protocol. Nothing else in olai spells `session/prompt` |
 | `interpret.ts` | what the CLAUDE CODE adapter means by what it sends: which permission requests are answered without asking, `_meta.claudeCode.toolName`, the CLI `init` message it forwards, which config option is the model. Pure, so the adapter-specific VALUES are one file to read when olai is pointed at another agent |
-| `kolu.ts` | whether this host is running kolu, and the stdio server to hand a session if it is |
-| `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages — the one thing the two subprocesses above have in common |
+| `kolu.ts` | whether this host is running kolu, the stdio server to hand a session if it is — and, if it is not and should have been, the sentence saying why not |
+| `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages, and why a child never ran to have any — the two things the two subprocesses above have in common |
 | `asks.ts` | the two payloads that ask a PERSON something, projected into one form — and the answer projected back |
 | `questions.ts` | the questions on the wire, and the one rule about them: each ends exactly once, however it ends |
 | `events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
@@ -195,15 +195,53 @@ it carries `why`: it could not be started, it closed the pipe, it timed out, or
 it refused the daemon's own identity read — which is what a build running
 against no padi does (juspay/kolu#2146), and the one worth telling somebody
 about. Those four used to be one `false` with the reason destroyed inside a
-`catch` before anything could report it. The reason is a VALUE rather than a
-log line so that `mcp-fail-visible` has something to render; nothing draws it
-yet, and `agent.ts` takes only the server (`Kolu.serverOf`).
+`catch` before anything could report it.
+
+**`PADI_SOCKET` set with nothing on PATH is `silent` too**, and it is the one
+`silent` with no file to name. Absence is quiet because olai auto-detects and
+nothing declares that a host should have kolu — but that variable is a
+declaration, set by a kolu terminal for what it starts and by a person who meant
+it. And the PATH it is measured against is OLAI's: run as a systemd user service
+(`nix/home/module.nix` passes neither), this process need not see a `kolu` its
+user runs every day, which is the original incident approached from the
+environment instead of from the binary. Narrow on purpose — without the variable
+this stays quiet, so a machine that never heard of kolu never hears about it.
+
+**And the no is on screen.** One probe answers both halves: `Kolu.serverOf` is
+what a session is handed, `Kolu.missingFrom` is what a person is owed about the
+one it was not, and `agent.ts` reads both off the same `Detected` rather than
+probing twice. A `silent` becomes a `servers` event carrying the server's name,
+the file that was probed and the reason in the words it was given in; the state
+cell holds it for the life of the conversation and the panel draws it under its
+header (`mcp-fail-visible`). A `none` becomes nothing at all — nothing failed on
+a host that is not running kolu, and a panel that reported that absence as a
+fault would be a complaint on every machine that has never heard of kolu.
+
+The `it could not be started` arm is a second door and has to be: under Bun an
+exec failure arrives as an `error` EVENT on a child `spawn` has already
+returned, so the `try` around the spawn never sees one. That axis is
+`pipes.ts`'s (`unstartable`), beside the framing, because it is the same
+question — what a Node child does to the process that spawned it — and because
+**both** subprocesses this package starts had the same two problems: an
+unhandled `error` event is an uncaught exception, and what follows an exec
+failure is our own write to a stdin that died with it, so the reason a person
+got was `Cannot call write after a stream was destroyed`.
+
+That mattered most on the one this file is not about. `OLAI_ACP_AGENT` is a path
+a PERSON sets — a typo, a moved binary, a store path that was collected — which
+makes it the likeliest thing here to be wrong, and it was the case that reported
+the least: a stack trace on olai's stderr, and a panel saying `initialize` had
+failed on a destroyed stream. `agent.ts` races the same promise against its
+handshake now and refuses with `could not start the agent \`<command>\`: …`,
+which names the thing to go and fix.
 
 The probe is a JSON-RPC conversation on a subprocess's pipes, which is what the
 ACP session is too — so the framing lives in `pipes.ts` and neither of them owns
-it. What that file encapsulates is one axis: how a Node child's pipes become Web
-streams under Bun's node compatibility. `kolu.ts` writes three messages and
-reads until one of them is answered; it does not know what a newline is.
+it. What that file encapsulates is one axis, read at both ends: what a Node
+child does to the process that spawned it under Bun's node compatibility — how
+its pipes become Web streams, and how it says it never ran. `kolu.ts` writes
+three messages and reads until one of them is answered; it does not know what a
+newline is, and it does not know how an exec failure is delivered.
 
 **What is detected is the DAEMON, not kolu's web server**, which may be running
 on another machine reaching this host as a remote. `PADI_SOCKET` is forwarded

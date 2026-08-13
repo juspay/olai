@@ -40,6 +40,9 @@ import {
   CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
   CHAT_INPUT,
+  CHAT_MISSING,
+  CHAT_MISSING_SERVER,
+  CHAT_MISSING_WHY,
   CHAT_MODEL,
   CHAT_NEW,
   CHAT_NO_AGENT,
@@ -1035,6 +1038,73 @@ Then("there is nothing to type into", async function (this: OlaiWorld) {
       "is worse than the explanation that replaces it",
   );
 });
+
+// ── a server that did not attach ───────────────────────────────────────
+//
+// The claim is about the PANEL, which is the whole of `mcp-fail-visible`: what
+// the session was handed is already asserted through the agent's own `servers`
+// answer (`kolu_terminals.feature`), and it was asserted there while a person
+// looking at the app could see nothing at all.
+
+Then(
+  "the panel says {string} is missing from this conversation",
+  async function (this: OlaiWorld, name: string) {
+    // HYDRATION_TIMEOUT: the strip cannot exist until the probe has answered
+    // and the session has been asked for, which is a boot rather than a render.
+    await this.expectAttribute(
+      CHAT_MISSING_SERVER,
+      "data-server",
+      name,
+      "the strip under the chat header",
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the reason it gives is {string}",
+  async function (this: OlaiWorld, reason: string) {
+    const said = oneLine(await this.page.locator(CHAT_MISSING_WHY).innerText());
+    assert.ok(
+      said.includes(reason),
+      `the panel names a missing server without the reason "${reason}", which is ` +
+        `the half the feature exists for — a name on its own is the debug log ` +
+        `line again, on screen. It reads: ${said}`,
+    );
+  },
+);
+
+/** Which file was probed. The incident this comes from was exactly this
+ *  question — a `kolu` on PATH is not necessarily the host's kolu — so the
+ *  path is asserted as a path rather than as a string the scenario spells: it
+ *  is a temporary directory's, and only the running server knows it. */
+Then("it names the file it probed", async function (this: OlaiWorld) {
+  const said = oneLine(
+    await this.page.locator(CHAT_MISSING_SERVER).first().innerText(),
+  );
+  assert.ok(
+    /\/[^\s]*\/kolu\b/.test(said),
+    `the panel does not say WHICH kolu it probed, which is the question the ` +
+      `incident behind this feature started from. It reads: ${said}`,
+  );
+});
+
+/** ... and the other side of it: a healthy conversation looks exactly as it did
+ *  before this feature existed. No wait of its own — the step before it has
+ *  waited on something the panel could only have drawn after the session was
+ *  opened, so a strip that was coming would be here. */
+Then(
+  "the panel says nothing about a missing server",
+  async function (this: OlaiWorld) {
+    assert.strictEqual(
+      await this.page.locator(CHAT_MISSING).count(),
+      0,
+      "the panel reports a missing MCP server on a conversation that was given " +
+        "every one of them — a complaint a reader cannot act on is one they " +
+        "learn to skip on the conversations where it is true",
+    );
+  },
+);
 
 // ── pictures ───────────────────────────────────────────────────────────
 //

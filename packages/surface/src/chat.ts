@@ -372,6 +372,55 @@ export const Command = Schema.Struct({
 export type Command = typeof Command.Type
 
 /**
+ * An MCP server this conversation was supposed to get and did NOT, and why.
+ *
+ * The whole of `mcp-fail-visible`, on the wire. A server that fails to attach
+ * used to leave one trace — a debug log line — and a session quietly short of
+ * its tools: the panel drew a healthy conversation, the agent could not see
+ * kolu's terminals, and the only way to find out which of those two facts was
+ * true was to read olai's log from outside the app. Making it a member is what
+ * makes it a fact a person can be shown.
+ *
+ * `why` is the SERVER'S OWN SENTENCE wherever there is one — a JSON-RPC error
+ * message, an exec failure's reason — with the probe's framing around it and
+ * nothing invented. That is the field's whole value: "kolu did not attach"
+ * names the symptom every failure shares and is the one thing that never helped
+ * anybody, and the four ways of failing want four different things done about
+ * them (`../../chat/src/kolu.ts`).
+ *
+ * `where` is the file that was probed, absolute. It is here because the incident
+ * this member comes from was a question about WHICH binary: a `kolu` on PATH is
+ * not necessarily the host's kolu, a padi-spawned terminal prepends its own
+ * bundled copy, and one of those was an older build that spawned perfectly and
+ * knew nothing (juspay/kolu#2146). A reason without the path leaves the reader
+ * where the incident started.
+ *
+ * `null` is the one failure that never reached a file, and it is the reason this
+ * field is nullable at all: an environment that names a padi with no `kolu` on
+ * PATH to reach it (`../../chat/src/kolu.ts`). This member shipped with `where`
+ * required on the argument that a server olai can find is one it found on PATH
+ * — true of every reason that comes back from a spawn, and not of the one that
+ * never got to spawn anything. The absence IS the finding there, so it is spelt
+ * as one rather than as a sentinel path that is not a path.
+ *
+ * A server that is simply NOT INSTALLED is not one of these. Nothing failed on
+ * a host that is not running kolu, and a panel reporting an absence as a fault
+ * is a panel a reader learns to ignore — which is the same mistake as saying
+ * nothing, arrived at from the other side.
+ */
+export const MissingServer = Schema.Struct({
+  /** What it is called — the same name the session would have been given it
+   *  under, which is the name the agent's own tools would have carried. */
+  name: Schema.String,
+  /** The executable that was probed, absolute — or `null` when the failure was
+   *  that there was nothing to probe. */
+  where: Schema.NullOr(Schema.String),
+  /** In the server's or the probe's own words. Never a category. */
+  why: Schema.String,
+})
+export type MissingServer = typeof MissingServer.Type
+
+/**
  * Where the conversation stands. Everything the header draws and everything a
  * composer needs to know about whether it may send.
  */
@@ -421,6 +470,23 @@ export const ChatState = Schema.Struct({
   /** The last thing that went wrong where no caller was waiting — a boot that
    *  failed, an agent that died mid-turn. `null` once a turn succeeds. */
   trouble: Schema.NullOr(Schema.String),
+  /**
+   * The MCP servers this conversation was meant to get and did not — see
+   * {@link MissingServer}.
+   *
+   * On the CELL rather than in the transcript, and that is the decision: this
+   * is a standing property of the conversation, like the model it runs on and
+   * the commands it offers, and not something that HAPPENED at a point in it. A
+   * notice row would scroll away under the first answer and be gone by the time
+   * anybody wondered why the agent could not see their terminals — which is the
+   * complaint this member exists to end, arrived at one screenful later.
+   *
+   * Decided per conversation, because the servers are: a padi started after
+   * olai is picked up by the next session, so this empties itself the moment
+   * one attaches. EMPTY is the ordinary case and the one every healthy session
+   * is in — nothing is drawn for it.
+   */
+  missing: Schema.Array(MissingServer),
 })
 export type ChatState = typeof ChatState.Type
 
@@ -436,6 +502,7 @@ export const CHAT_OFF: ChatState = {
   queued: 0,
   asking: 0,
   trouble: null,
+  missing: [],
 }
 
 /** Why a chat verb said no. `OpFailure`'s four kinds already cover it — `busy`
