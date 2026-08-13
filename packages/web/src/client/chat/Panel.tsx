@@ -15,6 +15,13 @@
  * the drop target around them: a file let go of anywhere on the conversation
  * is attached to it, and the chips land in the composer inside. The body only
  * — the header is session controls, and a file cannot go there.
+ *
+ * Between the two sits {@link Missing}, which draws nothing at all unless this
+ * conversation was short of an MCP server it was meant to have. It is OUTSIDE
+ * the no-agent fallback and outside the drop target on purpose: it is a fact
+ * about the session rather than a part of the conversation, and it belongs
+ * where the header's other facts are — above the scroll, and never carried
+ * away by it.
  */
 
 import { createEffect, createSignal, Show } from "solid-js"
@@ -37,6 +44,7 @@ import { Header } from "./Header.tsx"
 import { createHolding } from "./holding.ts"
 import { sampleLastAgent } from "./last.ts"
 import { Minimized } from "./Minimized.tsx"
+import { Missing } from "./Missing.tsx"
 import { NoAgent } from "./NoAgent.tsx"
 import { type Chat, createChat, createChatState } from "./state.ts"
 import { Transcript } from "./Transcript.tsx"
@@ -156,6 +164,7 @@ function DesktopDock() {
         <ChatHandle />
       </div>
       <Header chat={chat} />
+      <Missing chat={chat} />
       <Show when={!off()} fallback={<NoAgent />}>
         <Body chat={chat} />
       </Show>
@@ -262,6 +271,7 @@ function MobileSheet() {
           <span class="h-1 w-10 rounded-full bg-rule" aria-hidden="true" />
         </div>
         <Header chat={chat} />
+        <Missing chat={chat} />
         <Show when={!off()} fallback={<NoAgent />}>
           <Body chat={chat} />
         </Show>

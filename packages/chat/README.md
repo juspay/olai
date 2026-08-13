@@ -34,7 +34,7 @@ second copy of the transcript would be a second thing to be wrong.
 | `adapter.ts` | which executable speaks ACP: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off |
 | `agent.ts` | the ACP client: one subprocess, one protocol. Nothing else in olai spells `session/prompt` |
 | `interpret.ts` | what the CLAUDE CODE adapter means by what it sends: which permission requests are answered without asking, `_meta.claudeCode.toolName`, the CLI `init` message it forwards, which config option is the model. Pure, so the adapter-specific VALUES are one file to read when olai is pointed at another agent |
-| `kolu.ts` | whether this host is running kolu, and the stdio server to hand a session if it is |
+| `kolu.ts` | whether this host is running kolu, the stdio server to hand a session if it is — and, if it is not and should have been, the sentence saying why not |
 | `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages — the one thing the two subprocesses above have in common |
 | `asks.ts` | the two payloads that ask a PERSON something, projected into one form — and the answer projected back |
 | `questions.ts` | the questions on the wire, and the one rule about them: each ends exactly once, however it ends |
@@ -195,9 +195,24 @@ it carries `why`: it could not be started, it closed the pipe, it timed out, or
 it refused the daemon's own identity read — which is what a build running
 against no padi does (juspay/kolu#2146), and the one worth telling somebody
 about. Those four used to be one `false` with the reason destroyed inside a
-`catch` before anything could report it. The reason is a VALUE rather than a
-log line so that `mcp-fail-visible` has something to render; nothing draws it
-yet, and `agent.ts` takes only the server (`Kolu.serverOf`).
+`catch` before anything could report it.
+
+**And the no is on screen.** One probe answers both halves: `Kolu.serverOf` is
+what a session is handed, `Kolu.missingFrom` is what a person is owed about the
+one it was not, and `agent.ts` reads both off the same `Detected` rather than
+probing twice. A `silent` becomes a `servers` event carrying the server's name,
+the file that was probed and the reason in the words it was given in; the state
+cell holds it for the life of the conversation and the panel draws it under its
+header (`mcp-fail-visible`). A `none` becomes nothing at all — nothing failed on
+a host that is not running kolu, and a panel that reported that absence as a
+fault would be a complaint on every machine that has never heard of kolu.
+
+The `it could not be started` arm is a second door and has to be: under Bun an
+exec failure arrives as an `error` EVENT on a child `spawn` has already
+returned, so the `try` around the spawn never sees one. Listening for it is both
+how that reason survives — every other door reports the broken pipe that
+followed, which is a fact about olai's own write — and why an unrunnable `kolu`
+on somebody's PATH is no longer an uncaught exception in olai's server.
 
 The probe is a JSON-RPC conversation on a subprocess's pipes, which is what the
 ACP session is too — so the framing lives in `pipes.ts` and neither of them owns

@@ -41,9 +41,13 @@
  * The MCP servers a session is given are olai's own internal one — the standard
  * ACP shape, and the only channel the agent has to the ops layer — plus, when
  * this host is running kolu, kolu's terminals ({@link ./kolu.ts}), detected per
- * session rather than at boot. `fs` capabilities are FALSE in both directions
- * on purpose: this is not an editor, and an agent that could write a file whole
- * would be routing around the format. `elicitation.form` is TRUE, and it is
+ * session rather than at boot. A detection that FAILED is an event like any
+ * other (`servers`), so a conversation short of its tools is something the
+ * panel can say rather than something a log knew.
+ *
+ * `fs` capabilities are FALSE in both directions on purpose: this is not an
+ * editor, and an agent that could write a file whole would be routing around
+ * the format. `elicitation.form` is TRUE, and it is
  * what makes any of the above happen at all: without it the Claude Code adapter
  * puts `AskUserQuestion` in `disallowedTools`, so the agent cannot ask a
  * structured question — it has to guess, or write the question into prose and
@@ -639,17 +643,25 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  is picked up by the next conversation instead of the next restart. */
     const servers = Effect.map(
       Kolu.detect,
-      // `serverOf` takes the half a session needs and drops the reason a
-      // refusal carries. That is deliberate for now — nothing draws it, and
-      // `mcp-fail-visible` is the item that will. When it does, this is the
-      // line that keeps the whole `Detected` rather than re-running the probe
-      // to ask again.
+      // ONE probe answers both halves. `serverOf` takes what a session is
+      // handed, and `missingFrom` takes what a person is owed about the one it
+      // was not — which used to be dropped here on the grounds that nothing
+      // drew it. Something does now (`mcp-fail-visible`), and it reads the same
+      // `Detected` rather than probing a second time: two probes could
+      // disagree, and the one a session was opened on is the one that is true
+      // about it.
       (found) => {
         const handing = mcpServersOf(options.tools(), Kolu.serverOf(found))
         // Remembered as they are handed over, because "the tools we gave this
         // conversation" is exactly the set the permission handler allows
         // without asking — and it is decided per conversation.
         given = handing.map((server) => server.name)
+        const absent = Kolu.missingFrom(found)
+        // Before the session, always — including when there is nothing to
+        // report. An empty list is the news on a conversation that has just
+        // been given what the last one lacked, and a panel only ever told about
+        // failures would go on drawing a fixed one.
+        emit({ _tag: "servers", missing: absent === null ? [] : [absent] })
         return handing
       },
     )

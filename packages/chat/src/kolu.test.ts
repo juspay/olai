@@ -20,7 +20,14 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
 import { mcpServersOf } from "./agent.ts"
-import { detect, type Detected, PROBE_ID, type Server, serverOf } from "./kolu.ts"
+import {
+  detect,
+  type Detected,
+  missingFrom,
+  PROBE_ID,
+  type Server,
+  serverOf,
+} from "./kolu.ts"
 
 /** Everything this test made, undone after each case: the directories it put
  *  on PATH, and PATH itself. */
@@ -44,11 +51,17 @@ afterEach(() => {
  * (the ordinary one to develop this on) would otherwise decide half of these
  * cases itself.
  */
-const koluOnPath = (body: string): string => {
+const koluOnPath = (body: string): string =>
+  fileOnPath(`#!${process.execPath}\n${body}`)
+
+/** The same, for the cases that are about the FILE rather than about what it
+ *  says — a program this host cannot run is one of the ways a `kolu` on PATH
+ *  fails, and it cannot be written as a script this interpreter would take. */
+const fileOnPath = (contents: string): string => {
   const dir = mkdtempSync(join(tmpdir(), "olai-kolu-"))
   made.push(dir)
   const bin = join(dir, "kolu")
-  writeFileSync(bin, `#!${process.execPath}\n${body}`)
+  writeFileSync(bin, contents)
   chmodSync(bin, 0o755)
   process.env["PATH"] = dir
   return bin
@@ -176,6 +189,77 @@ describe("detecting kolu", () => {
     delete process.env["PADI_SOCKET"]
 
     expect(await server()).toMatchObject({ env: {} })
+  })
+})
+
+/**
+ * The failure SHAPES, as the panel gets to draw them (`mcp-fail-visible`).
+ *
+ * One case per way a `kolu` on PATH can fail to be this host's, and each asserts
+ * the sentence rather than the fact that there is one: a strip that said "kolu
+ * did not attach" four times would be the debug log line on screen, which is
+ * precisely what the incident these cases come from was debugged around. What
+ * is being locked is that the reason SURVIVES — the server's own words where it
+ * gave any, and a sentence about the file where it could not.
+ *
+ * The deadline still has no case, for the reason stated above: the only way to
+ * exercise it is to spend it.
+ */
+describe("what a session that did not get kolu can be told", () => {
+  const missing = async () => missingFrom(await detected())
+
+  test("a refusal carries the words the server refused in", async () => {
+    const bin = koluOnPath(script(false))
+
+    expect(await missing()).toEqual({
+      name: "kolu",
+      where: bin,
+      why: "it refused to read the daemon's identity: padi transport down",
+    })
+  })
+
+  test("a binary that hangs up says so, and names no refusal it never made", async () => {
+    const bin = koluOnPath(`process.exit(0)\n`)
+
+    expect(await missing()).toEqual({
+      name: "kolu",
+      where: bin,
+      why: "it closed the connection without answering",
+    })
+  })
+
+  // The one that does not arrive through the pipes at all. Under Bun an exec
+  // failure is an `error` EVENT on a child that has already been returned, so
+  // this case is also the regression test for the listener that catches it:
+  // without one the event is an uncaught exception, and a file on somebody's
+  // PATH takes olai's server down. It would report the broken pipe that
+  // followed, too — "Cannot call write after a stream was destroyed", which is
+  // a sentence about our own write and says nothing about the file.
+  test("a file that will not run is named as one, not as a broken pipe", async () => {
+    const bin = fileOnPath("#!/nonexistent/interpreter\nnot a program\n")
+
+    const found = await missing()
+    expect(found).toMatchObject({ name: "kolu", where: bin })
+    expect(found?.why).toStartWith("it could not be started:")
+  })
+
+  test("a kolu that answered is nothing to report", async () => {
+    koluOnPath(script(true))
+
+    expect(await missing()).toBeNull()
+  })
+
+  // The distinction the whole member exists to keep: NOTHING WENT WRONG on a
+  // host that is not running kolu, and a panel that reported that absence as a
+  // fault would carry a permanent complaint on every machine that has never
+  // heard of kolu — which is the same as saying nothing, reached from the other
+  // side.
+  test("no kolu on PATH is not a missing server", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "olai-kolu-"))
+    made.push(dir)
+    process.env["PATH"] = dir
+
+    expect(await missing()).toBeNull()
   })
 })
 

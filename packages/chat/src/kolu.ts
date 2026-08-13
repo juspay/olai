@@ -43,6 +43,7 @@ import { type ChildProcess, spawn } from "node:child_process"
 
 import type { AnyMessage } from "@agentclientprotocol/sdk"
 import { reasonOf } from "@olai/log"
+import type { MissingServer } from "@olai/surface"
 import { Effect } from "effect"
 
 import { streamOver } from "./pipes.ts"
@@ -103,6 +104,26 @@ export type Detected =
 /** The server to hand a session, out of whatever the probe found. */
 export const serverOf = (found: Detected): Server | null =>
   found._tag === "kolu" ? found.server : null
+
+/**
+ * ... and the other half: what to SAY about a session that did not get it.
+ *
+ * The two arms that are not a server are not the same answer, which is the
+ * whole reason {@link Detected} has three. A host with no kolu on it had
+ * nothing go wrong and is owed no sentence — reporting an absence as a fault
+ * would put a permanent complaint on the panel of every machine that has never
+ * heard of kolu, which is most of them. A kolu that is HERE and would not
+ * answer is the one worth telling somebody about, and `null` is what used to be
+ * said about both.
+ *
+ * `@olai/surface`'s own shape rather than one of ours, because there is nothing
+ * between this and the wire that would translate it — and a second spelling of
+ * "a server, where it was, and why not" is a second thing to keep in step.
+ */
+export const missingFrom = (found: Detected): MissingServer | null =>
+  found._tag === "silent"
+    ? { name: COMMAND, where: found.kolu, why: found.why }
+    : null
 
 /**
  * Kolu's MCP server if this host is running kolu, and why not if it is not.
@@ -178,13 +199,16 @@ const CONVERSATION: ReadonlyArray<AnyMessage> = [
  * kill it either way. This process is a PROBE and never a client: the session
  * gets its own, spawned by the agent.
  *
- * Every way of failing still arrives by ONE door — the pipes closing ends the
- * read below, and the deadline is a KILL rather than a race — but they no
- * longer arrive as one indistinguishable `false`. `null` means it answered;
- * anything else is the sentence saying which of the four happened, which is
- * the difference between "kolu is not running here" (fine, and common) and
- * "the kolu on your PATH is a build that cannot do this" (worth knowing, and
- * previously invisible).
+ * `null` means it answered; anything else is the sentence saying which way it
+ * did not, which is the difference between "kolu is not running here" (fine,
+ * and common) and "the kolu on your PATH is a build that cannot do this" (worth
+ * knowing, and — until `mcp-fail-visible` drew it — invisible).
+ *
+ * Almost every way of failing arrives by one door: the pipes closing ends the
+ * read, and the deadline is a KILL rather than a race, so a wedged server and a
+ * server that hung up are the same `done` with a flag to tell them apart. The
+ * ONE that cannot come that way is a file that would not exec, which is a
+ * second door and says below why it has to be.
  */
 const whyNotAnswered = async (
   command: string,
@@ -197,9 +221,33 @@ const whyNotAnswered = async (
       env: { ...process.env, ...env },
     })
   } catch (cause) {
-    return `it could not be started: ${reasonOf(cause)}`
+    return couldNotStart(cause)
   }
 
+  // A file on PATH with the executable bit is not a program, and this is where
+  // that stops being our problem: a bad interpreter line, a text file somebody
+  // chmod'd, an architecture this host cannot run. The exec fails AFTER `spawn`
+  // has returned, so the `catch` above never sees one — it arrives as an
+  // `error` EVENT, and TWO things hang on somebody listening for it.
+  //
+  // The first is that nothing else is listening: an unhandled `error` on a
+  // child process is an uncaught exception, so olai's own server was one
+  // unrunnable `kolu` on a PATH away from going down. The second is that this
+  // is the only reason worth reading. Every other door reports the BROKEN PIPE
+  // that followed — "talking to it failed: Cannot call write after a stream was
+  // destroyed", which is a fact about our own write and says nothing about the
+  // file — so racing it is not belt and braces, it is the difference between
+  // naming the fault and describing our end of it.
+  const unstartable = new Promise<string>((resolve) => {
+    child.once("error", (cause) => resolve(couldNotStart(cause)))
+  })
+  return await Promise.race([unstartable, askOver(child)])
+}
+
+/** Say all of it, and wait for the one answer that decides it — then kill the
+ *  process either way ({@link whyNotAnswered} is what starts it, and says why
+ *  the start is a question of its own). */
+const askOver = async (child: ChildProcess): Promise<string | null> => {
   /** Whether the deadline is what ended this, so the closed pipe below is read
    *  as the timeout it is rather than as an agent that hung up. */
   let expired = false
@@ -232,6 +280,12 @@ const whyNotAnswered = async (
     child.kill("SIGKILL")
   }
 }
+
+/** The one sentence for a file that would not run, wherever the refusal reached
+ *  us — Bun raises it on an event and Node may throw it, and a reader has no
+ *  business being told which. */
+const couldNotStart = (cause: unknown): string =>
+  `it could not be started: ${reasonOf(cause)}`
 
 /** Two questions, and they were one three-valued answer: this one is "is this
  *  message ours at all", which is about the ENVELOPE and true of a refusal

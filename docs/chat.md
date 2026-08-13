@@ -116,3 +116,34 @@ rather than assumed: olai starts the `kolu` it found and asks it to read
 something only a running daemon can answer, because a `kolu` on a PATH is not
 always the one this host is running, and a wrong build will start perfectly
 well and know nothing.
+
+## When a tool server does not arrive
+
+**A server that fails to attach is on screen, not in a log.** If there is a
+`kolu` on this host's PATH and it would not answer, the panel says so under the
+header — the name, and the reason the probe or the server itself gave:
+
+> ● **kolu** is missing from this conversation
+> it refused to read the daemon's identity: surface-mcp: padi transport down
+> /nix/store/…/bin/kolu
+
+The reason is the point. Every way of failing looks the same from the outside —
+the agent simply has fewer tools — and they want different things done about
+them: a padi that is not running is one thing, a `kolu` that is an older build
+missing half its verbs is another, and a file on PATH that will not run at all
+is a third. The path is there for the same reason: a padi-spawned terminal
+prepends its own bundled copy of kolu, so *which* one answered is the question
+this usually turns out to be.
+
+It is per conversation, because the detection is: start a padi and the next
+conversation has the terminals, with nothing to restart and nothing left on
+screen saying otherwise.
+
+**A machine that is simply not running kolu sees none of this**, and that is
+deliberate — nothing failed. What the panel reports is a tool server that was
+here and would not work, never the absence of one that was never installed.
+
+What olai cannot report is a server it handed over that the *agent* then failed
+to connect to: ACP answers `session/new` with a session id and says nothing per
+server, so that is not a fact this end is ever told. The failures shown are the
+ones olai found itself.

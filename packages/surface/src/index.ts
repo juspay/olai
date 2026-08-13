@@ -475,6 +475,7 @@ export {
   FileDiff,
   isOpFailure,
   kindOf,
+  MissingServer,
   OpFailure,
   SessionInfo,
   UsageFailure,
