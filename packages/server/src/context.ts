@@ -24,8 +24,8 @@
  * without a server, an agent or a socket.
  */
 
-import { ancestorsOf, isMirror, type OpFailure, UsageFailure } from "@olai/format"
-import { notFound, type Reading } from "@olai/ops"
+import { ancestorsOf, isMirror, type OpFailure } from "@olai/format"
+import { notANode, notFound, type Reading } from "@olai/ops"
 import type { NodeContext } from "@olai/surface"
 import { Result } from "effect"
 
@@ -48,27 +48,20 @@ export const contextFor = (
   return Result.succeed(nodes)
 }
 
-/** One of them. A MIRROR is refused in the ops layer's own words: a placement
- *  has no title, no mark and no ancestry of its own, so there is nothing here
- *  to say about one — and naming the node it shows is what every op already
- *  asks for. Nothing in the panel can arm one (a row arms the node it SHOWS),
- *  which is why this is a guard rather than a case: an id off the wire is a
- *  request, never a fact. */
+/** One of them. Both refusals are the ops layer's own sentences (`notFound`,
+ *  `notANode`) rather than versions of them worded here: a mirror is no more
+ *  describable than it is editable — a placement has no title, no mark and no
+ *  ancestry of its own — and an id that is refused by an op and by this should
+ *  be refused in one voice. Nothing in the panel can arm a mirror (a row arms
+ *  the node it SHOWS), which is why that arm is a guard rather than a case: an
+ *  id off the wire is a request, never a fact. */
 const nodeContextFor = (
   at: Reading,
   id: string,
 ): Result.Result<NodeContext, OpFailure> => {
   const located = at.derived.byId.get(id)
   if (located === undefined) return Result.fail(notFound(at.derived, id))
-  if (isMirror(located.node)) {
-    return Result.fail(
-      new UsageFailure({
-        reason:
-          `\`${id}\` is a mirror — a second placement of \`${located.node.mirror}\`, ` +
-          `not a node of its own. Name \`${located.node.mirror}\` instead.`,
-      }),
-    )
-  }
+  if (isMirror(located.node)) return Result.fail(notANode(id, located.node.mirror))
   return Result.succeed({
     id,
     title: located.node.title,

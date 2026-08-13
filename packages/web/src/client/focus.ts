@@ -38,6 +38,8 @@
 
 import { type Accessor, createSignal } from "solid-js"
 
+import { useRouter } from "./router.tsx"
+
 const [focused, setFocused] = createSignal<string | null>(null)
 
 /** The node being pointed at, or `null`. Read by every row of the tree
@@ -77,4 +79,21 @@ export const focusNode = (id: string, elsewhere: () => void): void => {
     // see about the node they were just told about is what hangs under it.
     row.scrollIntoView({ block: "center", behavior: "smooth" })
   })
+}
+
+/**
+ * What pressing a reference DOES, decided once.
+ *
+ * {@link focusNode} is the mechanism and stays policy-free — it takes the
+ * answer to "and if the node is not here?" rather than knowing one, which is
+ * what keeps it testable and keeps the address the router's. This is the
+ * answer, and there is one of it: every reference in the panel is either a
+ * button this app authored ({@link ./chat/NodeRef.tsx}) or an id inside
+ * rendered markdown that a listener on the pane catches
+ * ({@link ./chat/Transcript.tsx}), and two places writing the same fallback is
+ * one place for the two to start disagreeing about what a press means.
+ */
+export const useShowNode = (): ((id: string) => void) => {
+  const router = useRouter()
+  return (id) => focusNode(id, () => router.go({ kind: "node", id }))
 }

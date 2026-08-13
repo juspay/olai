@@ -30,7 +30,7 @@ export interface Chip {
   readonly title: string
 }
 
-export function Context(props: {
+export function ContextChips(props: {
   readonly nodes: ReadonlyArray<Chip>
   /** Drawn as a × when given: the composer's strip can disarm one before it is
    *  sent. A row in the transcript is something that happened, and nothing

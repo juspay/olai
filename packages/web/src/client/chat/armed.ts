@@ -19,6 +19,13 @@
  * once should not fight over one composer, and arming is part of typing. It is
  * deliberately not remembered across a reload either — an armed node is the
  * message you are in the middle of writing, not a preference.
+ *
+ * The strip beside it ({@link ./holding.ts}) has the same four verbs and one
+ * more rule, and the difference is what each of them REFERS to: an attachment
+ * names a file in the conversation's own tmp directory, so leaving the
+ * conversation throws it away and the chip has to go with it. A node names a
+ * row in the directory, which no conversation owns — so an armed node survives
+ * a new conversation, and the two are not one abstraction with a flag.
  */
 
 import { type Accessor, createSignal } from "solid-js"

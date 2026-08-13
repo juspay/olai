@@ -43,7 +43,7 @@ import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 
 
 import { Attachments } from "./Attachments.tsx"
-import { Context } from "./Context.tsx"
+import { ContextChips } from "./ContextChips.tsx"
 import { useDerived } from "../derived.tsx"
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
@@ -117,7 +117,7 @@ export function Entry(props: {
               is the subject and the words are what was asked about it. Still
               pressable here, which is the other half of this feature: the row
               a question was asked from is one press away from the answer. */}
-          <Context nodes={props.entry.context ?? []} />
+          <ContextChips nodes={props.entry.context ?? []} />
           {/* The pictures first, then the words — which is the order they were
               put in, and it keeps a message whose whole content is a
               screenshot from being an empty grey box with a chip under it. */}
@@ -135,24 +135,25 @@ export function Entry(props: {
               owns its own div (it is the one place `innerHTML` is written) and
               what is inside it belongs to no component at all. */}
           <div ref={said}>
-          <Markdown
-            source={shown()}
-            from={AGENT_WROTE_IT}
-            live={props.entry.streaming === true}
-            // `olai-md-compact`: an answer is drawn in a 26rem drawer beside
-            // the page, not as a page — so it takes the tighter spacing scale
-            // and the heading ceiling, the same ones a note takes
-            // (`markdown/scale.ts`). Without it an agent opening with a `#`
-            // sets a 2rem heading in a column half that wide.
-            class="olai-md-compact text-sm"
-            testid={TESTID.chatSaid}
-          />
-          {/* The caret is CSS (styles.css), hung off the last block of the
-              rendered answer. An element of its own would have to go after the
-              markdown — which means on a line of its own, under the paragraph
-              it belongs to, since markdown decides what the last block is and a
-              block cannot be reached into from out here. `::after` is reaching
-              into it, which is exactly what was wanted. */}
+            <Markdown
+              source={shown()}
+              from={AGENT_WROTE_IT}
+              live={props.entry.streaming === true}
+              // `olai-md-compact`: an answer is drawn in a 26rem drawer beside
+              // the page, not as a page — so it takes the tighter spacing scale
+              // and the heading ceiling, the same ones a note takes
+              // (`markdown/scale.ts`). Without it an agent opening with a `#`
+              // sets a 2rem heading in a column half that wide.
+              class="olai-md-compact text-sm"
+              testid={TESTID.chatSaid}
+            />
+            {/* The caret is CSS (styles.css), hung off the last block of the
+                rendered answer. An element of its own would have to go after
+                the markdown — which means on a line of its own, under the
+                paragraph it belongs to, since markdown decides what the last
+                block is and a block cannot be reached into from out here.
+                `::after` is reaching into it, which is exactly what was
+                wanted. */}
           </div>
         </Match>
 

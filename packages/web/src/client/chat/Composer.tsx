@@ -65,7 +65,7 @@ import { useDerived } from "../derived.tsx"
 import { TESTID } from "../testids.ts"
 import { armedNodes, disarmNode, releaseArmed, restoreArmed } from "./armed.ts"
 import { Attachments } from "./Attachments.tsx"
-import { type Chip, Context } from "./Context.tsx"
+import { type Chip, ContextChips } from "./ContextChips.tsx"
 import type { Holding } from "./holding.ts"
 import { SlashMenu } from "./SlashMenu.tsx"
 import type { Chat } from "./state.ts"
@@ -133,27 +133,16 @@ export function Composer(props: {
 
   const open = () => showing() && matches().length > 0
 
-  // A file landed, wherever it was let go of — so the caret comes here,
-  // because the next thing to do with an attachment is ask about it. Watching
-  // the strip rather than doing it inside the attach loop is what lets a drop
-  // anywhere on the PANEL end with the box ready to type in: this row never
-  // hears about that gesture, only about what it left behind.
+  // SOMETHING LANDED IN THE STRIP, so the caret comes here — a file let go of
+  // anywhere on the panel, or a node armed from a row somewhere in the tree.
+  // Both are the same gesture from this row's point of view: it never hears
+  // about the drop or the menu, only about what they left behind, and the next
+  // thing to do with either is ask about it. One effect over the whole strip,
+  // because "the caret goes to the box" is one rule and two of them would be
+  // two chances to focus twice on a drop that also armed something.
   createEffect(
     on(
-      () => props.holding.pending().length,
-      (now, before) => {
-        if (before !== undefined && now > before) input?.focus()
-      },
-    ),
-  )
-
-  // ...and the same for a node armed from a row, which is the same gesture
-  // seen from the other end of the app: "Ask agent" happened somewhere in the
-  // tree, and the next thing to do with it is type the question. The caret is
-  // what says the panel is now the thing being aimed at.
-  createEffect(
-    on(
-      () => armedNodes().length,
+      () => props.holding.pending().length + armedNodes().length,
       (now, before) => {
         if (before !== undefined && now > before) input?.focus()
       },
@@ -251,7 +240,7 @@ export function Composer(props: {
           ABOUT is part of it until it is sent, and removable until then. Over
           the attachments rather than under them because it is the subject of
           the sentence and they are what came with it. */}
-      <Context nodes={armed()} onRemove={disarmNode} />
+      <ContextChips nodes={armed()} onRemove={disarmNode} />
 
       {/* Above the box, where what is being typed is: an attachment is part of
           the message until it is sent. */}

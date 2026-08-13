@@ -835,7 +835,7 @@ Three components earn their own file:
   the same words. A side that will not parse says which side and draws nothing
   else: an agent hand-editing an outline is exactly how a `.jsonl` stops
   parsing, and lines are not a better answer to that than a sentence.
-- **`armed.ts` / `Context.tsx` / `NodeRef.tsx` / `refs.ts` / `../focus.ts`** are
+- **`armed.ts` / `ContextChips.tsx` / `NodeRef.tsx` / `refs.ts` / `../focus.ts`** are
   the two directions between a row and the conversation, and they are four small
   files because they are four separate reasons to change.
 
@@ -849,13 +849,17 @@ Three components earn their own file:
   of an outline is a frame old, and a node that has gone refuses the send rather
   than sending a question with no subject. The chips ride the sent message too,
   which is what makes them readable after a reload and in the other tab, and
-  `Context.tsx` is one component for both moments the way `Attachments.tsx` is:
+  `ContextChips.tsx` is one component for both moments the way `Attachments.tsx` is:
   what differs is only that the pending one can be taken off.
 
   Pointing back is the same ids read the other way. `NodeRef.tsx` is a BUTTON
   and not a link — it shows you a row on the page you are on, and only falls
   back to `/n/<id>` when the node is not drawn there — and `focus.ts` is the
-  whole of what "shows" means: the row wears `data-focused` and takes the same
+  whole of what "shows" means: `focusNode` is the mechanism and takes the
+  answer to "and if it is not here?" rather than knowing one (which keeps the
+  address the router's and keeps this testable), `useShowNode` is that answer
+  and there is one of it, for both the buttons this panel authors and the ids
+  inside markup it does not. The row wears `data-focused` and takes the same
   accent the row holding the caret takes, and the page scrolls it into view.
   Nothing is stored, nothing crosses the wire, and no editor is opened: being
   shown a node is not being asked to type in it.

@@ -18,8 +18,7 @@
 
 import type { JSX } from "solid-js"
 
-import { focusNode } from "../focus.ts"
-import { useRouter } from "../router.tsx"
+import { useShowNode } from "../focus.ts"
 import { TESTID } from "../testids.ts"
 
 export function NodeRef(props: {
@@ -30,7 +29,7 @@ export function NodeRef(props: {
   readonly children: JSX.Element
   readonly class?: string
 }) {
-  const router = useRouter()
+  const show = useShowNode()
 
   return (
     <button
@@ -42,11 +41,11 @@ export function NodeRef(props: {
       data-node-ref={props.id}
       title="show this node"
       aria-label={`show ${props.id}`}
-      onClick={() =>
-        // On this page if it is here; at its own address if it is not — which
-        // covers another outline, a collapsed branch and a row done-hidden has
-        // left out, without this having to tell them apart.
-        focusNode(props.id, () => router.go({ kind: "node", id: props.id }))}
+      // On this page if it is here; at its own address if it is not — which
+      // covers another outline, a collapsed branch and a row done-hidden has
+      // left out, without this having to tell them apart. Which of those a
+      // press does is `../focus.ts`'s one answer, not this component's.
+      onClick={() => show(props.id)}
     >
       {props.children}
     </button>

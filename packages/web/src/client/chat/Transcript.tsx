@@ -31,8 +31,7 @@
 
 import { For, onCleanup, onMount, Show } from "solid-js"
 
-import { focusNode } from "../focus.ts"
-import { useRouter } from "../router.tsx"
+import { useShowNode } from "../focus.ts"
 import { TESTID } from "../testids.ts"
 import { Entry } from "./Entry.tsx"
 import { nodeRefIn } from "./refs.ts"
@@ -45,7 +44,7 @@ import type { Chat } from "./state.ts"
 const NEAR = 64
 
 export function Transcript(props: { readonly chat: Chat }) {
-  const router = useRouter()
+  const show = useShowNode()
   let pane: HTMLDivElement | undefined
   let content: HTMLDivElement | undefined
   /** Should new text pull the view down with it? True until the reader scrolls
@@ -78,7 +77,7 @@ export function Transcript(props: { readonly chat: Chat }) {
   const pressed = (target: EventTarget | null): void => {
     const id = nodeRefIn(target)
     if (id === null) return
-    focusNode(id, () => router.go({ kind: "node", id }))
+    show(id)
   }
 
   return (
