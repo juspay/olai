@@ -506,24 +506,13 @@ export const inverseOf = (
     case "place":
       return placementOf(at.derived, edit.id)
     // All three ask one question — which mark does this node carry right now —
-    // before the write that replaces it. What differs between them is only
-    // whether that write is about to leave the node FINISHED, which is what
-    // decides whether the way back is one call or two, and each says so for
-    // itself rather than leaving `markOf` to infer it.
+    // before the write that replaces it. The only thing that differs between
+    // them is {@link leavesDone}, which the three spell differently and which
+    // is named once rather than three arms deep.
     case "toggle":
-      return markOf(
-        at.derived,
-        edit.id,
-        // A toggle that finds the mark already there takes it OFF, so the one
-        // that leaves a node done is the one that did not find `done`.
-        edit.mark === "done" && at.derived.status.get(edit.id) !== "done",
-      )
     case "cycle":
-      // `done` is not a stop on the ring, so a walk never leaves finished work
-      // behind — and the mark it stepped off always goes back in one call.
-      return markOf(at.derived, edit.id, false)
     case "mark":
-      return markOf(at.derived, edit.id, edit.mark === "done")
+      return markOf(at.derived, edit.id, leavesDone(at.derived, edit))
     // The text this write is about to replace, and the text it is replacing it
     // WITH — the second half being the guard, so the undo may only overwrite
     // what this write wrote. Symmetric, so replaying it answers with the pair
@@ -608,6 +597,32 @@ const dateOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
 }
 
 /**
+ * Does this mark write leave the node DONE?
+ *
+ * The one thing the three mark verbs disagree about, asked as a question rather
+ * than answered three times inside {@link inverseOf}'s switch. Each spells it in
+ * its own terms, and none of them can be read off the mark alone:
+ *
+ *   - a `toggle` that FINDS the mark already there takes it off, so the one
+ *     that finishes something is the one that did not find `done`;
+ *   - a `cycle` never does — `done` is not a stop on the ring;
+ *   - a `mark` says outright what it wants.
+ */
+const leavesDone = (
+  derived: Derived,
+  edit: Extract<Edit, { verb: "toggle" | "cycle" | "mark" }>,
+): boolean => {
+  switch (edit.verb) {
+    case "toggle":
+      return edit.mark === "done" && derived.status.get(edit.id) !== "done"
+    case "cycle":
+      return false
+    case "mark":
+      return edit.mark === "done"
+  }
+}
+
+/**
  * The mark a node carries, as the edits that would put it back.
  *
  * TWO of them for exactly one shape of write, and it is the ops layer's policy
@@ -625,15 +640,13 @@ const dateOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
  * against the row it had just been taken off of ("carries no mark, so there is
  * none to take off"), and the entry was dropped with a reason nobody could act
  * on. The mark walk's last stop is that same write, so the bug was on the ring.
- * What decides it is not what is being restored but what the write LEAVES, and
- * only a caller knows that — hence `finished`.
+ * What decides it is not what is being restored but what the write LEAVES,
+ * which is a question about the verb rather than about the mark — so it arrives
+ * answered ({@link leavesDone}) instead of being guessed here.
  */
 const markOf = (
   derived: Derived,
   id: string,
-  /** Whether the write this reverses leaves the node DONE. The one fact the
-   *  number of calls turns on, and each arm of {@link inverseOf} answers it for
-   *  its own verb rather than this file guessing from the mark it found. */
   finished: boolean,
 ): ReadonlyArray<Edit> => {
   const stored = derived.status.get(id) ?? null
