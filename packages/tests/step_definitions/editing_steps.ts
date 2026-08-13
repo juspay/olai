@@ -23,6 +23,8 @@ import * as assert from "node:assert";
 
 import { Then, When } from "@cucumber/cucumber";
 
+import { MARKS } from "@olai/format";
+
 import { IDLE_COMMIT } from "@olai/web/src/client/edit/draft.ts";
 
 import type { Locator } from "playwright";
@@ -362,6 +364,29 @@ Then(
           (node) => node["id"] === id && node["date"] === undefined,
         ),
       `${file} to hold ${JSON.stringify(id)} with no \`date\` field`,
+    );
+  },
+);
+
+/**
+ * A record carrying NONE of the three marks — which is what "unmarked" is on
+ * disk, and the answer the format draws as no box at all.
+ *
+ * Asked of the record rather than of the page, because the page can only say
+ * that no box is drawn and the claim being made is stronger: the field is gone.
+ * Over `MARKS` rather than three named fields, so a fourth mark could not
+ * arrive and leave this quietly passing.
+ */
+Then(
+  "{string} holds the node {string} with no mark",
+  async function (this: OlaiWorld, file: string, id: string) {
+    await this.waitUntil(
+      async () =>
+        recordsIn(this, file).some(
+          (node) =>
+            node["id"] === id && MARKS.every((mark) => node[mark] === undefined),
+        ),
+      `${file} to hold ${JSON.stringify(id)} carrying none of ${MARKS.join(", ")}`,
     );
   },
 );

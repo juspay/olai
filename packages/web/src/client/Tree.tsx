@@ -33,8 +33,9 @@
  * it. The status checkbox beside it (./Checkbox.tsx)
  * reads the same stored done/doing the title tones with, and a row with no
  * mark shows no box at all — a bullet is not a task. The box stays
- * display-only: what ticks it is `Ctrl+Enter` in the row's own editor, which
- * is where every other edit is made too (./edit/editing.tsx).
+ * display-only: what ticks it is `Ctrl+Enter` in the row's own editor, and what
+ * walks it round the other two answers is `Ctrl+Shift+Enter` — which is where
+ * every other edit is made too (./edit/editing.tsx).
  *
  * A row is EDITABLE in place. Click its title and the title span is replaced
  * by an input in the same cell — no second layout and no mode — and the keys

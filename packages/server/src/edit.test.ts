@@ -192,6 +192,54 @@ test("toggling reads the stored mark rather than being told it", () => {
     .toEqual({ op: "done", id: "demo", undo: true })
 })
 
+// ── the mark walk ──────────────────────────────────────────────────────
+
+/** The same house with one node carrying a mark — the middle of the ring,
+ *  which the fixture has no node sitting at. A `replace` over the line rather
+ *  than a second fixture: what these tests are about is the ONE field, and a
+ *  parallel corpus would be seven lines of agreement to keep. */
+const marked = (id: string, mark: string): Reading => {
+  const line = HOUSE.split("\n").find((one) => one.includes(`"id":"${id}"`))
+  if (line === undefined) throw new Error(`no \`${id}\` in the fixture`)
+  return reading(setOf({
+    "house.jsonl": HOUSE.replace(line, `${line.slice(0, -1)},"${mark}":true}`),
+  }))
+}
+
+test("the walk goes bullet → todo → doing → bullet, one op a step", () => {
+  // The whole ring, and the last step is the one that makes an unmarked node
+  // an ANSWER rather than a gap: `doing` walks to no mark at all, which is the
+  // stored mark's own op undone — the same request `Clear mark` builds.
+  expect(asked({ verb: "walk", id: "install" })).toEqual({ op: "todo", id: "install" })
+  expect(asked({ verb: "walk", id: "install" }, marked("install", "todo")))
+    .toEqual({ op: "doing", id: "install" })
+  expect(asked({ verb: "walk", id: "order" }))
+    .toEqual({ op: "doing", id: "order", undo: true })
+})
+
+test("the walk asks a done node for `todo`, and the ops layer is what says no", () => {
+  // `done` is not a stop on the ring — nothing should finish work on the way
+  // past — so a walk from it asks for the ring's first answer OUTRIGHT, which
+  // is the request `set_todo` makes and the one the ops layer refuses in its
+  // own words ("undo that first"). Fencing it here would hide the refusal a
+  // person needs to meet, and teach a rule this layer does not own.
+  expect(asked({ verb: "walk", id: "demo" })).toEqual({ op: "todo", id: "demo" })
+})
+
+test("a walk on a mirror steps from the mark that row DRAWS, and keeps its id", () => {
+  // `echo` shows `order`, which is `doing` — and a mirror's status IS its
+  // target's, so the step is the one the reader can see. The id is not
+  // second-guessed with it: a mark on a placement is refused by the ops layer
+  // naming the node to use instead, exactly as it refuses the same tool call
+  // from an agent. The client sends the id of the node a row SHOWS.
+  expect(asked({ verb: "walk", id: "echo" }))
+    .toEqual({ op: "doing", id: "echo", undo: true })
+})
+
+test("a walk on a node nothing declares is not found", () => {
+  expect(refused({ verb: "walk", id: "ghost" })._tag).toBe("NotFoundFailure")
+})
+
 test("an id the CALLER named travels as it is, mirror or not", () => {
   // The other half of the consistency rule. `set_done` on a mirror is refused
   // by the ops layer, naming the node to use instead — so `toggle` on one is
@@ -364,11 +412,15 @@ test("a row somebody has put work under is not an undo's to take back", () => {
 
 /** The inverse of an edit over the house, with the id an `add` would have
  *  minted for the one case that needs one. */
+/** The inverse, over the same reading — and paired with the request the edit
+ *  RESOLVES to, exactly as the one real caller pairs them (`./runtime.ts`).
+ *  Resolved here rather than handed in, so a test cannot accidentally ask what
+ *  would take back a write that was never going to happen. */
 const inverse = (
   edit: Edit,
   applied = "minted",
   at: Reading = reading(),
-): ReadonlyArray<Edit> => inverseOf(at, edit, applied)
+): ReadonlyArray<Edit> => inverseOf(at, edit, asked(edit, at), applied)
 
 test("a move records where the row SAT — its parent, and the row above it", () => {
   // `install` is third among the kitchen's children, so the place it leaves is
@@ -415,6 +467,43 @@ test("putting a mark back over a `done` node is TWO ops, as it is for an agent",
       { verb: "mark", id: "order", mark: null },
       { verb: "mark", id: "order", mark: "doing" },
     ])
+})
+
+test("a walk is taken back by the mark it stepped off, in ONE call", () => {
+  // The walk asks the same question every other mark write asks — what does
+  // this node carry — so it needs no inverse of its own. What it never needs is
+  // the two-call form: `done` is not a stop on the ring, so no step of it
+  // leaves finished work behind to be undone first.
+  // Every stop of the ring, so the inverse is covered as completely as the
+  // request is (review, 2026-08-12): out of a bullet, out of `todo`, and off
+  // the last stop back onto the mark it stepped off.
+  expect(inverse({ verb: "walk", id: "install" }))
+    .toEqual([{ verb: "mark", id: "install", mark: null }])
+  expect(inverse({ verb: "walk", id: "install" }, "minted", marked("install", "todo")))
+    .toEqual([{ verb: "mark", id: "install", mark: "todo" }])
+  expect(inverse({ verb: "walk", id: "order" }))
+    .toEqual([{ verb: "mark", id: "order", mark: "doing" }])
+})
+
+test("taking a mark OFF is put back by putting it on, and nothing else", () => {
+  // The pair this used to answer with was refused on replay: its first half
+  // took a mark off a row that no longer had one ("carries no mark"), and the
+  // undo was dropped with a reason nobody could act on. Two calls are for the
+  // write that leaves a node DONE, and taking a mark off leaves it a bullet.
+  expect(inverse({ verb: "mark", id: "order", mark: null }))
+    .toEqual([{ verb: "mark", id: "order", mark: "doing" }])
+})
+
+test("a mark chosen outright says for itself whether the way back is two", () => {
+  // `Complete` over a `doing` row is the shape that needs both calls; `Mark
+  // doing` over the same row is one, because what it leaves is not done.
+  expect(inverse({ verb: "mark", id: "order", mark: "done" }))
+    .toEqual([
+      { verb: "mark", id: "order", mark: null },
+      { verb: "mark", id: "order", mark: "doing" },
+    ])
+  expect(inverse({ verb: "mark", id: "order", mark: "todo" }))
+    .toEqual([{ verb: "mark", id: "order", mark: "doing" }])
 })
 
 test("a new row is taken back by the id the write minted, not one read before it", () => {

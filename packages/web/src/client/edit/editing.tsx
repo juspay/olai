@@ -440,9 +440,14 @@ export const createEditor = (
     prev: () => enqueue(() => step(-1)),
     next: () => enqueue(() => step(1)),
     // The MARK is a fact about the node a row SHOWS — which is what the
-    // checkbox beside it draws — so a mirror ticks off its target.
+    // checkbox beside it draws — so a mirror ticks off its target. Both mark
+    // keys name that id, and neither says where the write goes: `toggle` sends
+    // the mark and lets the server read the direction, `walk` sends neither
+    // and lets it read both. What a row carries is a fact about the set, and
+    // this tab is looking at a frame of it.
     toggle: () =>
       enqueue(() => structural((held) => ({ verb: "toggle", id: held.id, mark: "done" }))),
+    walk: () => enqueue(() => structural((held) => ({ verb: "walk", id: held.id }))),
     // A MOVE is about the row itself, so a mirror moves as the placement it is
     // and the node it stands for stays where it lives.
     in: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "in" }))),

@@ -13,9 +13,10 @@
  *
  *   - **The verbs are INTENTS, and the placement is the server's.** `Tab` says
  *     "indent this", not "reparent it under the node above and put it last";
- *     `Ctrl+Enter` says "toggle done", not "set done" or "clear done". What a
- *     row's neighbours are, and what mark it carries, are facts about the
- *     snapshot — so they are read where the snapshot IS
+ *     `Ctrl+Enter` says "toggle done", not "set done" or "clear done";
+ *     `Ctrl+Shift+Enter` says "walk this row's mark on", not which mark that
+ *     lands on. What a row's neighbours are, and what mark it carries, are
+ *     facts about the snapshot — so they are read where the snapshot IS
  *     ({@link ../../server/src/edit.ts}) rather than computed from a tree a tab
  *     drew some frames ago and posted back. A browser that computed them would
  *     be a second reading of the set, free to disagree with the one the write
@@ -172,6 +173,26 @@ export const Edit = Schema.Union([
    *  is the format's own and a fourth mark should not arrive writable
    *  everywhere except here. */
   Schema.Struct({ verb: Schema.Literal("toggle"), id: Id, mark: Schema.Literals(MARKS) }),
+  /**
+   * The MARK WALK: put this node at the next answer along, whatever it is on
+   * now — `Ctrl+Shift+Enter`, and the keyboard's half of writing all three
+   * marks.
+   *
+   * It carries no mark for the same reason `toggle` carries no direction:
+   * where the walk goes depends on where the node IS, that is a fact about the
+   * snapshot, and a tab that read it off a frame it drew a moment ago would be
+   * asking for a step somebody else has already taken. The ring itself — which
+   * answer follows which, and that `done` is not one of its stops — is the
+   * resolver's ({@link ../../server/src/edit.ts}), beside the reading it needs.
+   *
+   * WHAT IT IS NOT is a shortcut past anything the ops layer judges. The step
+   * it resolves to is one op — the same `set_todo` / `set_doing` / undo an
+   * agent would send — so a walk asked of finished work is REFUSED, in the ops
+   * layer's own words, under the row the key was pressed in. Two calls walk
+   * `done` back and the second one is the person's, which is the rule the `•••`
+   * menu already keeps for the mouse.
+   */
+  Schema.Struct({ verb: Schema.Literal("walk"), id: Id }),
   Schema.Struct({
     verb: Schema.Literal("title"),
     id: Id,
@@ -360,11 +381,13 @@ export const Applied = Schema.Struct({
    * ones being undone.
    *
    * A LIST, in the order it must be replayed, and it is one edit for
-   * everything but a mark that displaced another: putting `todo` back on a
-   * node that is currently `done` is two ops, because the ops layer refuses to
-   * walk finished work backwards in one (`plan.ts` — "undo that first"). Two
-   * calls is exactly what an agent would make, which is what keeps the faces
+   * everything but the write that TICKS A NODE OFF: putting `todo` back on a
+   * node that is now `done` is two ops, because the ops layer refuses to walk
+   * finished work backwards in one (`plan.ts` — "undo that first"). Two calls
+   * is exactly what an agent would make, which is what keeps the faces
    * consistent; a shortcut here would be the web doing something MCP cannot.
+   * Every other way back is ONE — including taking a mark off, whose inverse is
+   * simply putting it on again.
    *
    * ABSENT when nothing would take it back, which is now only the write that
    * has already gone somewhere no op reaches: a row taken into the archive

@@ -1170,6 +1170,21 @@ loop a person is in, and nothing about outlines:
   one gesture, because a clamped line is not something anybody can type into.
   Click away and it folds back, exactly as it did before; the full RENDERED
   note is the node's own page, where a note has always been the body.
+- **Two keys write the three marks, and they are one modifier apart.** `Enter`
+  is the row's key and what is held says which kind of change it is:
+  `Ctrl+Enter` finishes something (and takes that back), `Ctrl+Shift+Enter`
+  WALKS the mark on — a bullet, then `todo`, then `doing`, then a bullet again.
+  The last stop is an answer rather than a gap (`format.md`: an unmarked node is
+  not an unfinished one), so the walk takes a mark OFF as well as putting one
+  on. `done` is not a stop on that ring, deliberately: passing through it would
+  stamp a completion instant, fire the rollup's nudge and hide the row under the
+  done toggle, all on the way somewhere else. And the walk does not smuggle a
+  node back out of `done` — it asks for `todo` outright and meets the ops
+  layer's refusal under the row, whose sentence names the key that gets through
+  it. Two ops, the second one the person's, exactly as the menu asks two clicks
+  and an agent makes two calls. Where the ring goes is resolved on the SERVER,
+  over the mark the node actually carries (`server/src/edit.ts`), for the reason
+  `Ctrl+Enter` sends "toggle" rather than a direction.
 - **Where the caret is, said twice.** The row holding it is toned and its
   bullet takes the accent (`data-editing` on the row is what a scenario asks).
   A blinking cursor at the end of a title is the whole affordance a walk with
@@ -1246,7 +1261,8 @@ Two more shapes this leaves, named because a reader will look for them:
   Editing it wants the caret model to mean something on a page with one
   heading and N rows, which is a decision rather than a line of code.
 - **the checkbox is display-only.** `Ctrl+Enter` in a row's editor ticks a node
-  off and the `•••` menu writes any of the three marks; the box itself stays a
+  off, `Ctrl+Shift+Enter` walks its mark on, and the `•••` menu writes any of
+  the three; the box itself stays a
   reading (`Checkbox.tsx` says why). The menu is a pointer-device affordance
   (hidden below `md`), so a phone can open a title by tapping it and still
   cannot tick it — desktop-first for this item, and a touch affordance belongs

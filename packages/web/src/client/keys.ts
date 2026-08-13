@@ -132,6 +132,14 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
  *   - `toggle` — `Ctrl+Enter` (and `⌘+Enter`, which is what Workflowy trains
  *     an Apple reader's hands to reach for; neither collides with the three
  *     reserved chords above, none of which is `Enter`).
+ *   - `walk` — `Ctrl+Shift+Enter` (`⌘⇧Enter`): the MARK WALK, which is how a
+ *     person writes the other two marks and takes one off. `Enter` is the row's
+ *     key and a modifier says which kind of change it is, so the mark keys are
+ *     one chord apart — and SHIFT is already this app's "the same key, one step
+ *     further" (`Shift+Tab` against `Tab`, `⌘⇧Z` against `⌘Z`). Which answer a
+ *     step lands on is the server's, over the mark the node actually carries
+ *     ({@link ../../../server/src/edit.ts} holds the ring, and the argument for
+ *     `done` not being on it).
  *   - `note` — `Shift+Enter`: open the note under the row, and close it again
  *     from inside.
  *   - `prev` / `next` — the bare arrows, moving the caret between rows. The
@@ -146,6 +154,7 @@ export type EditAction =
   | "up"
   | "down"
   | "toggle"
+  | "walk"
   | "note"
   | "prev"
   | "next"
@@ -170,11 +179,21 @@ export const editKey = (
   // Order matters: every branch below is a more specific reading of a key a
   // later branch also matches, and the modifiers are what tell them apart.
   if (event.key === "Escape") return "cancel"
-  if (event.key === "Enter" && event.shiftKey && !event.altKey) return "note"
+  // The NOTE is `Shift+Enter` and nothing else on top of it — the bare pair.
+  // Adding Ctrl or Meta makes it the mark walk, one branch down, which is why
+  // this test names the two modifiers it must not see rather than letting an
+  // earlier match swallow the chord. Both mark keys then live in the one
+  // `Enter`-with-a-modifier branch, where they are legible as the pair they
+  // are, and both are dead in a note for the reason everything below is: a
+  // note is prose, and the keys that edit a ROW are the row's.
+  if (
+    event.key === "Enter" && event.shiftKey && !event.altKey && !event.ctrlKey &&
+    !event.metaKey
+  ) return "note"
   if (field === "block") return null
 
   if (event.key === "Enter") {
-    if (event.ctrlKey || event.metaKey) return "toggle"
+    if (event.ctrlKey || event.metaKey) return event.shiftKey ? "walk" : "toggle"
     if (event.altKey) return null
     return "add"
   }
@@ -240,6 +259,11 @@ export const SHORTCUTS: ReadonlyArray<{
       { keys: "Alt+Shift+↑", what: "move up among its siblings", action: "up" },
       { keys: "Alt+Shift+↓", what: "move down among its siblings", action: "down" },
       { keys: "⌘Enter / Ctrl+Enter", what: "tick it off, or take that back", action: "toggle" },
+      {
+        keys: "⌘⇧Enter / Ctrl+⇧Enter",
+        what: "walk the mark on: to do, then doing, then none",
+        action: "walk",
+      },
       { keys: "Shift+Enter", what: "write the note under it", action: "note" },
       { keys: "↑ / ↓", what: "walk to the row above or below", action: "prev" },
       { keys: "Escape", what: "drop what you were typing", action: "cancel" },

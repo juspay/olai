@@ -10,6 +10,7 @@ shortcuts** in the ⌘K palette.
 | **Tab** / **Shift+Tab** | indent under the row above, or out again |
 | **Alt+Shift+↑/↓** | move a row among its siblings |
 | **⌘Enter** / **Ctrl+Enter** | tick it off, or take that back |
+| **⌘⇧Enter** / **Ctrl+⇧Enter** | walk the mark on: to do, then doing, then none |
 | **Shift+Enter** | write the note under it |
 | **↑** / **↓** | walk to the row above or below |
 | **Escape** | drop what you were typing |
@@ -21,6 +22,37 @@ size, and the row you are in is toned so you can see where the caret went. What
 you type is the SOURCE — `**bold**` and `#tags` as they are written — and the
 rendering comes back the moment you leave. A note is the same trade one line
 down.
+
+## The three marks, from the keyboard
+
+There are three marks and a node carries at most one of them
+([format.md](format.md)) — so there are two keys, and between them they write
+all three and take one off.
+
+**⌘Enter finishes something**, and takes that back. It is the mark with an
+instant on it: a `done` says when, which is what puts the work on that day's
+page.
+
+**⌘⇧Enter walks the mark on** — one step round the answers a person gives about
+work they have NOT finished: a bullet, then `todo`, then `doing`, then a bullet
+again. That last stop is an answer rather than a gap. A node carrying no mark is
+not an unfinished one, it is a bullet, and the page draws it with no box at all;
+walking to it is how you say a row was never a task, or has stopped being one.
+
+`done` is deliberately not a stop on that ring. Finishing something is a thing
+you mean, not a thing to do on the way past, so nothing stamps a completion
+while you are walking round.
+
+**And the walk will not take finished work backwards.** Press it on a row that
+is done and the write is refused, in the same words an agent gets: *nothing
+should decide on your behalf that finished work is not finished*. The way
+through is the sentence's own — ⌘Enter takes the `done` off, and the walk
+carries on from the bullet that leaves. Two presses, the second one yours; the
+••• menu asks the same two clicks for the mouse, and an agent makes the same two
+calls.
+
+Every one of these is a fact about the node a row SHOWS, so pressing either key
+at a mirror marks the node it stands for, and every placement of it follows.
 
 A key is not a change to the page. Every one of them is one operation through
 the same gate the agent writes through, so a row moves when the file says it

@@ -1,8 +1,9 @@
 /**
  * What a keyboard — or a menu entry — MEANT, in terms of ops.
  *
- * The browser sends intents — "indent this", "toggle done", "a new sibling
- * after that", "this node is doing now" ({@link ../../surface/src/edit.ts}) —
+ * The browser sends intents — "indent this", "toggle done", "walk this mark on
+ * one", "a new sibling after that", "this node is doing now"
+ * ({@link ../../surface/src/edit.ts}) —
  * and every one of them becomes exactly ONE {@link Request} for the ops layer
  * to plan. This file is that mapping and nothing else: it reads the snapshot,
  * works out the placement the intent implies, and hands back a request. It
@@ -59,6 +60,7 @@ import {
   nodeNamed,
   type OpFailure,
   siblingsOf,
+  type Status,
   UsageFailure,
 } from "@olai/format"
 import { notFound, type Reading, type Request } from "@olai/ops"
@@ -85,6 +87,8 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       const undo = at.derived.status.get(edit.id) === edit.mark
       return Result.succeed({ op: edit.mark, id: edit.id, ...(undo ? { undo } : {}) })
     }
+    case "walk":
+      return walkRequest(at.derived, edit)
     // The five that resolve nothing, and are spelled like the ops they are —
     // which is what makes the ones above legible as the ones that do. Three
     // are the menu's: a date is a date, a placement is named by the row it is,
@@ -338,6 +342,79 @@ const markRequest = (
 }
 
 /**
+ * THE RING the mark walk goes round, and the whole of the design is which
+ * answers are on it.
+ *
+ * Three of the four are: **no mark → `todo` → `doing` → no mark**. Those are
+ * the answers a person gives about work they have NOT finished, and the last
+ * of them is an answer rather than a gap — the format's own rule, drawn as the
+ * absence of a box (docs/format.md's Status). A walk that could not reach it
+ * would be a keyboard that can put a box on a row and never take it off.
+ *
+ * **`done` is not a stop on it**, and it is the one entry here worth arguing.
+ * A ring that passed through `done` would stamp a completion instant, fire the
+ * rollup's nudge and — under the done toggle — take the row off the screen, all
+ * on the way to somewhere else; finishing something is not a thing to do in
+ * passing. `Ctrl+Enter` is where finishing lives, both ways, and it is the
+ * mark that has an instant.
+ *
+ * So a `done` node's next step is `todo` — the first stop of the ring, asked
+ * for OUTRIGHT, which the ops layer REFUSES: *"is done. Undo that first —
+ * nothing should decide on your behalf that finished work is not finished."*
+ * That is deliberate and it is the point of not fencing it here. The refusal
+ * lands under the row in the ops layer's own words, and the sentence names the
+ * key to press: `Ctrl+Enter` takes the `done` off, and the walk carries on from
+ * there. Two ops, the second one the person's — exactly the two calls an agent
+ * makes, and exactly what the `•••` menu already asks of the mouse. A ring that
+ * quietly sent both would be the web doing in one keystroke what MCP needs two
+ * for, which is the deviation HACKING.md forbids; a ring that skipped `done`
+ * silently would be this file teaching a rule the ops layer owns, and hiding
+ * the one refusal a person most needs to have met.
+ */
+const NEXT: Record<Status, Status | null> = {
+  todo: "doing",
+  doing: null,
+  done: "todo",
+}
+
+/**
+ * One step round {@link NEXT} — and then it is a MARK, named outright.
+ *
+ * That is the whole of this function, and it is why it does not build a request
+ * of its own: "put this mark on" and "take the one it has off" are two things
+ * {@link markRequest} already spells, for the `•••` menu and for an undo, and
+ * the second of them is spelled in the one way the ops layer accepts (the
+ * stored mark's own op, with `undo`). A walk that assembled those itself would
+ * be that rule with two homes — and the day the ops layer spells clearing
+ * differently, one of them would go on sending the old shape. So the walk
+ * answers only the question that is its own: which answer comes next.
+ *
+ * The STORED mark is read here rather than sent, for the reason `toggle`'s is:
+ * where the walk goes depends on where the node is, that is a fact about the
+ * set this write is judged against, and a tab answering it from a frame it drew
+ * would ask for a step somebody else had already taken. It is the mark a row
+ * DRAWS, which for a placement is its target's (`Derived` makes that one hop),
+ * so the step asked at a mirror is the step the reader can see. The ID is not
+ * resolved with it — it travels as the caller named it, and a mark on a
+ * placement is refused by the ops layer naming the node to use instead, exactly
+ * as it refuses the same tool call from an agent.
+ */
+const walkRequest = (
+  derived: Derived,
+  edit: Extract<Edit, { verb: "walk" }>,
+): Resolved => {
+  const stored = derived.status.get(edit.id)
+  return markRequest(derived, {
+    verb: "mark",
+    id: edit.id,
+    // A bullet is where the ring starts. An id nothing declares reads like one
+    // here and is refused a line later, by the same `notFound` every other verb
+    // answers with.
+    mark: stored === undefined ? "todo" : NEXT[stored],
+  })
+}
+
+/**
  * A row, taken back.
  *
  * `archive` is the whole of it, because `archive` is the whole of what the set
@@ -415,6 +492,11 @@ const removeRequest = (
 export const inverseOf = (
   at: Reading,
   edit: Edit,
+  /** What {@link requestFor} made of that edit — the op that is about to run.
+   *  Passed in rather than resolved again, and READ rather than re-derived: the
+   *  one thing the mark verbs disagree about is whether the write leaves the
+   *  node finished, and every one of them has already answered it here. */
+  request: Request,
   /** The node the write turned out to be about — which for an `add` is the row
    *  that did not exist when this reading was taken, and is the only thing here
    *  that cannot be read off it. */
@@ -429,9 +511,20 @@ export const inverseOf = (
     case "move":
     case "place":
       return placementOf(at.derived, edit.id)
+    // All three ask one question — which mark does this node carry right now —
+    // before the write that replaces it. The only other thing `markOf` needs is
+    // whether the write LEAVES the node done, and the resolved request is
+    // exactly that answer: `done`'s own op, not being undone. Read off what is
+    // about to run rather than restated per verb, so a fourth mark verb, or
+    // `done` joining the ring, is answered by construction.
     case "toggle":
+    case "walk":
     case "mark":
-      return markOf(at.derived, edit.id)
+      return markOf(
+        at.derived,
+        edit.id,
+        request.op === "done" && request.undo !== true,
+      )
     // The text this write is about to replace, and the text it is replacing it
     // WITH — the second half being the guard, so the undo may only overwrite
     // what this write wrote. Symmetric, so replaying it answers with the pair
@@ -499,18 +592,6 @@ const textOf = (
 }
 
 /**
- * The mark a node carries, as the edits that would put it back.
- *
- * TWO of them whenever what is being restored is not `done`, and that is the
- * ops layer's policy showing through rather than a shape chosen here: any mark
- * other than `done` over a node that IS done is refused — "nothing should
- * decide on your behalf that finished work is not finished" — and the node
- * these are replayed against is one this write is about to tick off. So the
- * `done` comes off first and the old mark goes back on, which is exactly the
- * two calls an agent would make. Anything else would be the web doing in one
- * op what MCP needs two for, which is the deviation HACKING.md forbids.
- */
-/**
  * The date a node carries, as the edit that would put it back — and nothing at
  * all for an id this reading does not hold, or a MIRROR, which has no date of
  * its own to restore (the menu names the node a row shows, so it does not send
@@ -527,11 +608,45 @@ const dateOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   return [{ verb: "date", id, date: located.node.date ?? null }]
 }
 
-const markOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
+/**
+ * The mark a node carries, as the edits that would put it back.
+ *
+ * TWO of them for exactly one shape of write, and it is the ops layer's policy
+ * showing through rather than a shape chosen here: a mark that is not `done`,
+ * over a node that IS done, is refused — "nothing should decide on your behalf
+ * that finished work is not finished". So when the write being reversed is the
+ * one that ticks the node off, the `done` has to come off before the old mark
+ * goes back on, which is exactly the two calls an agent would make. Anything
+ * else would be the web doing in one op what MCP needs two for, which is the
+ * deviation HACKING.md forbids.
+ *
+ * EVERY OTHER WAY BACK IS ONE CALL, and reading it as "two whenever a mark
+ * displaced another" cost an undo: `Clear mark` on a `doing` row answered with
+ * a pair whose first half — take the mark off — was refused a moment later
+ * against the row it had just been taken off of ("carries no mark, so there is
+ * none to take off"), and the entry was dropped with a reason nobody could act
+ * on. The mark walk's last stop is that same write, so the bug was on the ring.
+ * What decides it is not what is being restored but what the write LEAVES, and
+ * that is read off the REQUEST rather than re-derived from the verb
+ * ({@link inverseOf}) — the request is what is about to run, so it answers for
+ * every mark verb there is and every one there will be.
+ */
+const markOf = (
+  derived: Derived,
+  id: string,
+  /** Whether the write this reverses leaves the node DONE. */
+  finished: boolean,
+): ReadonlyArray<Edit> => {
   const stored = derived.status.get(id) ?? null
-  return stored === null || stored === "done"
-    ? [{ verb: "mark", id, mark: stored }]
-    : [{ verb: "mark", id, mark: null }, { verb: "mark", id, mark: stored }]
+  const back: Edit = { verb: "mark", id, mark: stored }
+  // The two guards are two different things being ruled out, and neither is the
+  // other: a node that carried NOTHING goes back to carrying nothing, which is
+  // the one call that can say "none" — and a node that carried `done` puts
+  // `done` back, which is the one mark the ops layer never asks to be undone
+  // first.
+  return finished && stored !== null && stored !== "done"
+    ? [{ verb: "mark", id, mark: null }, back]
+    : [back]
 }
 
 /**

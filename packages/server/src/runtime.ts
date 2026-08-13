@@ -289,8 +289,10 @@ export const bind = (
         return Effect.map(wiring.ops.run(request.success, wiring.writer), (done) => {
           // AFTER the run, because an `add`'s inverse names the row the write
           // brought into being — and from the reading BEFORE it, because
-          // everything else it needs the write is about to change.
-          const undo = inverseOf(at, edit, done.id)
+          // everything else it needs the write is about to change. The resolved
+          // REQUEST goes with the edit: what a write leaves behind is a fact
+          // about the op that ran, and it has already been worked out once.
+          const undo = inverseOf(at, edit, request.success, done.id)
           return {
             id: done.id,
             ...(done.nudge === undefined ? {} : { nudge: done.nudge }),

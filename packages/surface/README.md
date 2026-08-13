@@ -191,7 +191,10 @@ write:
 
 - **the verbs are INTENTS.** `Tab` says "indent this", not "reparent it under
   the node above and put it last"; `Ctrl+Enter` says "toggle done", not "set"
-  or "clear". What a row's neighbours are, and what mark it carries, are facts
+  or "clear"; `Ctrl+Shift+Enter` (`walk`) says "walk this row's mark on", not
+  which of the three that lands on — the ring, and the argument for `done` not
+  being a stop on it, are the resolver's. What a row's neighbours are, and what
+  mark it carries, are facts
   about the SNAPSHOT — so they are read where the snapshot is, against the
   revision the write is judged against, rather than computed from a tree a tab
   drew some frames ago and posted back.
