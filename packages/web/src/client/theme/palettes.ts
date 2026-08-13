@@ -4,7 +4,7 @@
  * A theme is a PALETTE WITH A NAME, and this table is the whole of it: adding
  * one is adding a row, deleting one is deleting a row, and neither touches a
  * line of CSS — `./css.ts` generates every block in the sheet from what is
- * here, and `./Picker.tsx` draws one chip per row. Hand-written CSS would be
+ * here, and `./Chips.tsx` draws one chip per row. Hand-written CSS would be
  * the same eight lines copied fifteen times, and one place per theme for a new
  * token to be forgotten.
  *

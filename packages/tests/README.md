@@ -243,6 +243,14 @@ one `localStorage`, and a `storage` event fired in every document of it except
 the one that wrote. The second tab is left open on purpose — a preference that
 only crossed once the other tab was gone would pass a scenario that closed it.
 
+The chips themselves are a ROW of the preferences panel
+(`features/preferences.feature`), so every scenario here opens that panel to
+reach one — `showPreferences` in `preferences_steps.ts` is shared for exactly
+that. What the retired header pill promised, and what the theming feature still
+asserts under a new name, is that something NAMES the theme in force: it is the
+Theme row's hint now. Mutation-tested both times — hard-coding the name to
+"chalk" passed every theming scenario until a step asked.
+
 ## Breaking the client on purpose
 
 `features/the_client_breaks.feature` is the one scenario whose subject is a bug
@@ -337,8 +345,13 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="commit-change"][data-node-id][data-sort]` | one node that changed, and WHAT changed about it — never the phrase it is rendered as |
 | `[data-testid="commit-blocked"]` | why the repository cannot take a commit right now |
 | `[data-testid="commit-message"]` / `[data-testid="commit-now"]` | the message box, and the button |
-| `[data-testid="theme-picker"]` | the theme picker in the sidebar |
-| `[data-testid="theme-chip"][data-value]` | one chip; `aria-pressed` says whether it is the one in force |
+| `[data-testid="prefs-trigger"]` | the header's one way into the preferences — the theme pill beside it retired into the panel |
+| `[data-testid="prefs-panel"]` | the panel it opens, portalled out of the header |
+| `[data-testid="prefs-row"][data-pref]` | one preference on it — `theme`, `done` |
+| `[data-testid="prefs-hint"]` | that row's line about the choice IN FORCE, re-read whenever the control moves |
+| `[data-testid="prefs-choice"][data-value]` | one segment of a two-way choice; `aria-pressed` says which is in force |
+| `[data-testid="prefs-scope"]` | the footer line: these are this browser's, and are never sent |
+| `[data-testid="theme-chip"][data-value]` | one chip of the Theme row; `aria-pressed` says whether it is the one in force |
 
 ## Adding a test
 

@@ -1,6 +1,7 @@
 /**
- * The theme picker: what a chip writes, what this browser keeps, and what the
- * page repaints to.
+ * The theme: what a chip writes, what this browser keeps, and what the page
+ * repaints to. The chips are the preferences panel's Theme row, so every step
+ * here opens that panel first (`preferences_steps.ts`).
  *
  * The theme TABLE is imported, not read back off the page — `DEFAULT_THEME`,
  * `THEME_ATTRIBUTE`, `THEME_STORAGE_KEY` and `customProperty` come from the
@@ -28,12 +29,8 @@ import {
 } from "@olai/web/src/client/theme/palettes.ts";
 
 import { manifestOf } from "./install_steps.ts";
-import {
-  HYDRATION_TIMEOUT,
-  POLL_TIMEOUT,
-  THEME_CHIP,
-  THEME_TRIGGER,
-} from "../support/world.ts";
+import { hintOf, showPreferences } from "./preferences_steps.ts";
+import { HYDRATION_TIMEOUT, POLL_TIMEOUT, THEME_CHIP } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 /** What the parse probe leaves on `window`. Named once: an init script and two
@@ -55,18 +52,17 @@ When("I pick the default theme", async function (this: OlaiWorld) {
   await pick(this, DEFAULT_THEME);
 });
 
-/** Open the header's theme popover if the chips are not already on screen.
- *  The picker is a compact pill in the app header; chips live behind it so
- *  fifteen names do not crowd the bar. */
+/** Open the preferences if the chips are not already on screen. The strip is
+ *  the panel's Theme row: fifteen names never crowded the bar, because the bar
+ *  never held them — what changed with `preferences-panel` is that the pill in
+ *  front of them is gone and this is the one door. */
 const showChips = async (
   world: OlaiWorld,
   page: Page = world.page,
 ): Promise<void> => {
   const chip = page.locator(THEME_CHIP).first();
   if (await chip.isVisible().catch(() => false)) return;
-  const trigger = page.locator(THEME_TRIGGER);
-  await trigger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await trigger.click();
+  await showPreferences(page);
   await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 };
 
@@ -75,17 +71,13 @@ const showChips = async (
  *  Waiting on the page rather than on the click is what keeps everything after
  *  it an assertion about the theme instead of about timing; `expectAttribute`
  *  is what makes the failure say which theme the page is in instead of timing
- *  out with nothing to show. Also waits for the popover to shut — a pick that
- *  left the strip open would pass the attribute and still fail the
- *  presentation promise. */
+ *  out with nothing to show. The panel is deliberately NOT waited on to shut:
+ *  it is a settings surface rather than a menu, and it stays open so two
+ *  palettes can be compared on the page they paint. */
 const pick = async (world: OlaiWorld, theme: string): Promise<void> => {
   await showChips(world);
   await world.press(world.page.locator(`${THEME_CHIP}[data-value="${theme}"]`));
   await world.expectAttribute("html", THEME_ATTRIBUTE, theme, "the page");
-  await world.page
-    .locator(THEME_CHIP)
-    .first()
-    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 };
 
 // ── what the page is in ────────────────────────────────────────────────
@@ -102,31 +94,28 @@ Then("the page names no theme", async function (this: OlaiWorld) {
   assert.equal(named, null, `the page already names a theme: ${named}`);
 });
 
-/** The header pill names the theme in force — including the default when
- *  nobody has picked. Mutation-tested: hard-coding the trigger to "chalk"
- *  still passed every theming scenario until this step existed. */
+/**
+ * The Theme row NAMES the theme in force — including the default when nobody
+ * has picked.
+ *
+ * This is the promise the retired header pill carried, kept where the rest of
+ * the preferences are said. It is worth its own step for the reason it was
+ * worth one there: mutation-tested, hard-coding the name to "chalk" passed
+ * every theming scenario until something asserted it. Fifteen chips wearing
+ * fifteen palettes say which is which and not which is ON.
+ */
 Then(
-  "the theme trigger names the theme in force",
+  "the theme row names the theme in force",
   async function (this: OlaiWorld) {
     const expected = (await namedTheme(this)) ?? DEFAULT_THEME;
-    const trigger = this.page.locator(THEME_TRIGGER);
-    await trigger.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    const shown = ((await trigger.innerText()) ?? "").trim();
-    assert.equal(
-      shown,
-      expected,
-      `the theme trigger says "${shown}", but the page is in "${expected}"`,
+    await showChips(this);
+    const hint = (await hintOf(this, "theme")).trim();
+    assert.ok(
+      hint.startsWith(expected),
+      `the Theme row says "${hint}", but the page is in "${expected}"`,
     );
   },
 );
-
-Then("the theme popover is shut", async function (this: OlaiWorld) {
-  assert.strictEqual(
-    await this.page.locator(THEME_CHIP).first().isVisible().catch(() => false),
-    false,
-    "the theme chip strip is still open after a pick (or Escape)",
-  );
-});
 
 /** Waited for, not read once — one sentence for the claim however the theme
  *  got here. A pick made in this tab is already on `<html>` by the time the
@@ -220,9 +209,9 @@ When(
     const other = await this.context.newPage();
     await other.goto("/");
     // The same three things `pick` does in this tab, against that one: open
-    // the header's theme popover (chips are behind the pill), press, and wait
-    // for THAT tab to be in the theme, so everything after this step is about
-    // the pick CROSSING rather than about the click landing.
+    // that tab's preferences (the chips are the panel's Theme row), press, and
+    // wait for THAT tab to be in the theme, so everything after this step is
+    // about the pick CROSSING rather than about the click landing.
     await showChips(this, other);
     const chip = other.locator(`${THEME_CHIP}[data-value="${theme}"]`);
     await chip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });

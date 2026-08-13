@@ -97,7 +97,7 @@ const tailwindUtilities = async (): Promise<string> => {
  * utilities, then the markdown scales, then the named palettes.
  *
  * Both generated blocks are TypeScript tables that something else also reads —
- * `client/theme/palettes.ts` by the theme picker, `client/markdown/scale.ts`
+ * `client/theme/palettes.ts` by the theme chips, `client/markdown/scale.ts`
  * by the browser test that holds the rendered page to it — and a `.css` file
  * cannot import one, so they are composed in here rather than written into
  * `styles.css`.

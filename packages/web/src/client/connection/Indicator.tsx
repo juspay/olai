@@ -9,7 +9,7 @@
  *
  * WHERE it goes is the layout's to say, not this component's. There is one
  * answer now: the app header (`../AppHeader.tsx`), beside the agent toggle and
- * the theme picker, on every shape of the app — including the error report and
+ * the preferences, on every shape of the app — including the error report and
  * the waiting page, which are exactly the pages whose connection a reader wants
  * to know about most of all. The two-home layout (sidebar footer, or a corner
  * when there was no sidebar) collapsed with the header; a pill fixed to the

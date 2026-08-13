@@ -35,10 +35,10 @@ import {
   OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
+  PREFS_TRIGGER,
   SIDEBAR,
   SIDEBAR_BODY,
   SIDEBAR_TOGGLE,
-  THEME_TRIGGER,
   TOGGLE,
   WORDMARK,
   ZOOM,
@@ -151,7 +151,7 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
     { name: "connection", sel: CONNECTION },
     { name: "commit pill", sel: COMMIT_PILL },
     { name: "agent toggle", sel: CHAT_TOGGLE },
-    { name: "theme trigger", sel: THEME_TRIGGER },
+    { name: "preferences trigger", sel: PREFS_TRIGGER },
   ];
   for (const pill of pills) {
     const box = await this.box(this.page.locator(pill.sel), pill.name);

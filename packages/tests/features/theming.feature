@@ -1,9 +1,15 @@
 @corpus:good
 Feature: The theme is a pick, and it is yours
-  Fifteen named palettes behind a pill in the app header. Pressing one writes `data-theme` on
-  `<html>`, this browser remembers it, and the sheet repaints — every colour on
-  the page is a custom property, so one attribute re-answers all of them at
-  once.
+  Fifteen named palettes, in the Theme row of the preferences panel
+  (`preferences.feature`). Pressing one writes `data-theme` on `<html>`, this
+  browser remembers it, and the sheet repaints — every colour on the page is a
+  custom property, so one attribute re-answers all of them at once.
+
+  The panel STAYS OPEN on a pick, unlike the pill-and-popover this row replaced:
+  a palette is judged by looking at the page it paints, and shutting the surface
+  after every press would make comparing two of them a matter of reopening it.
+  What that pill promised — it NAMED the theme in force — is kept by the row's
+  own hint, which is what "the theme row names the theme in force" asserts.
 
   It is CLIENT state, all of it. Nothing about a pick reaches the server: it is
   stored in this browser, the same way the agent drawer's open state is, so two
@@ -27,7 +33,7 @@ Feature: The theme is a pick, and it is yours
   Scenario: A fresh browser reads in the default theme
     When I open the app
     Then the page names no theme
-    And the theme trigger names the theme in force
+    And the theme row names the theme in force
     And the lit theme chip is the default
     And every theme chip agrees with what it announces
 
@@ -37,8 +43,7 @@ Feature: The theme is a pick, and it is yours
     And I mark the page
     And I pick the theme "pitch"
     Then the page is in the theme "pitch"
-    And the theme trigger names the theme in force
-    And the theme popover is shut
+    And the theme row names the theme in force
     And the lit theme chip is "pitch"
     And the paper colour has changed
     And the page has not reloaded

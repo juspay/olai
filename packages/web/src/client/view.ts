@@ -15,6 +15,16 @@
  * another page is simply never the one that gets read, so there is no frame in
  * which the held reading and the open page disagree.
  *
+ * Starting fresh is not the same as starting at a constant, and the Done switch
+ * is where those two come apart. Which places are folded is a fact about the
+ * page you are on and nothing else; whether you want to look at finished work
+ * at all is a fact about the READER, and pressing it again on every page opened
+ * is what a preference exists to stop. So the reading holds `undefined` there
+ * until somebody presses the switch on this page, and `undefined` reads
+ * `settings/done.ts` — which means changing the preference moves every page
+ * nobody has pressed it on, including this one, and leaves the pages somebody
+ * has exactly as they left them.
+ *
  * Notes are not a reading switch. Every row draws one way (one dim clamped
  * line under the title; click or tap expands in place, click again or away
  * collapses) — see Tree.tsx and day/DayNode.tsx. There is no density cell and
@@ -26,6 +36,7 @@ import { withoutDone } from "@olai/format"
 import { type Accessor, createMemo } from "solid-js"
 
 import { hrefOf, type Route } from "./routes.ts"
+import { doneHiddenDefault } from "./settings/done.ts"
 import { createStamped } from "./stamped.ts"
 
 export interface View {
@@ -50,13 +61,30 @@ export interface View {
  *  the stamp rather than a field. */
 interface Reading {
   readonly collapsed: ReadonlySet<string>
-  readonly doneHidden: boolean
+  /** `undefined` is "nobody has pressed the switch on this page", which is a
+   *  different fact from "shown" and is what defers to the preference. */
+  readonly doneHidden: boolean | undefined
 }
 
 const fresh = (): Reading => ({
   collapsed: new Set(),
-  doneHidden: false,
+  doneHidden: undefined,
 })
+
+/**
+ * What the Done switch reads as: what this page was told, or — on a page nobody
+ * has told anything — the preference.
+ *
+ * Spelled once because it is read twice, and the second reading is where it
+ * would go wrong: pressing the switch has to flip what is ON SCREEN, and a
+ * `!current.doneHidden` over the reading's own `undefined` is the same answer
+ * again for a reader whose preference is already "hidden" — a switch whose
+ * first press does nothing.
+ */
+export const doneHiddenIn = (
+  told: boolean | undefined,
+  preferred: boolean,
+): boolean => told ?? preferred
 
 export const createView = (route: Accessor<Route>): View => {
   const reading = createStamped(() => hrefOf(route()), fresh)
@@ -66,7 +94,9 @@ export const createView = (route: Accessor<Route>): View => {
   // invalidated by a click it does not care about — which, for the page's rows,
   // means rebuilding the tree every time a reader folds one row.
   const collapsed = createMemo(() => reading.value().collapsed)
-  const doneHidden = createMemo(() => reading.value().doneHidden)
+  const doneHidden = createMemo(() =>
+    doneHiddenIn(reading.value().doneHidden, doneHiddenDefault())
+  )
 
   return {
     collapsed,
@@ -89,8 +119,12 @@ export const createView = (route: Accessor<Route>): View => {
         return { ...current, collapsed: next }
       }),
     doneHidden,
+    // Pressed against what is ON SCREEN — see {@link doneHiddenIn}.
     toggleDone: () =>
-      reading.edit((current) => ({ ...current, doneHidden: !current.doneHidden })),
+      reading.edit((current) => ({
+        ...current,
+        doneHidden: !doneHiddenIn(current.doneHidden, doneHiddenDefault()),
+      })),
     visible: (rows) => doneHidden() ? withoutDone(rows) : rows,
   }
 }

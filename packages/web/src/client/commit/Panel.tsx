@@ -42,7 +42,7 @@ import { isReady } from "@olai/format"
 import { createSignal, Show } from "solid-js"
 
 import { agoOf } from "./ago.ts"
-import type { Anchor } from "./anchor.ts"
+import type { Anchor } from "../anchor.ts"
 import { because, scopeOf, trouble, verbatim, waitingIn, WHO } from "./said.ts"
 import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
@@ -54,7 +54,7 @@ import { Unpushed } from "./Unpushed.tsx"
 export function Panel(props: {
   readonly commit: Commit
   readonly now: number
-  /** Where to sit, in viewport pixels — see `./anchor.ts` for why this is not
+  /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
    *  a matter of CSS alone. */
   readonly at: Anchor
   /** Register this surface with the click-away, since it is portalled and so is

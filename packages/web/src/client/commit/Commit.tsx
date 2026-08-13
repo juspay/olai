@@ -52,7 +52,7 @@
  *
  * WHERE THE PANEL GOES is not the layout's, and cannot be. It is portalled out
  * of whatever the pill is inside and positioned against the VIEWPORT
- * (`./anchor.ts`), which is what a popover in a scrolling column needs: an
+ * (`../anchor.ts`), which is what a popover in a scrolling column needs: an
  * overflow container clips in both axes, and one laid out inside the sidebar was
  * cut off at the 16rem column, taking the commit message, the writer and half
  * the button with it. Which way it opens is that arithmetic's answer rather than
@@ -64,7 +64,7 @@ import { createEffect, createSignal, onCleanup, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { agoOf, createNow } from "./ago.ts"
-import { type Anchor, anchoredTo } from "./anchor.ts"
+import { type Anchor, anchoredTo } from "../anchor.ts"
 import { createNoteExpand } from "../note/expand.ts"
 import { explain, faceOf, isInert, MARK } from "./said.ts"
 import { Panel } from "./Panel.tsx"
@@ -238,7 +238,7 @@ export function Commit() {
             <span class="shrink-0">· {unpushed()} unpushed</span>
           </Show>
           {/* Which way the panel opens, and it opens DOWNWARD from the header
-              — `./anchor.ts` picks the side with the room. Not below 40rem:
+              — `../anchor.ts` picks the side with the room. Not below 40rem:
               the bar holds six things at 390pt, and a caret is the cheapest of
               them to give up — what it says is "there is more", which the words
               beside it would rather spend the pixels saying. */}

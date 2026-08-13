@@ -22,7 +22,7 @@ import {
   HEADINGS,
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
-  THEME_TRIGGER,
+  PREFS_TRIGGER,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -59,7 +59,7 @@ Then(
   async function (this: OlaiWorld) {
     for (const [selector, name] of [
       [CHAT_TOGGLE, "chat-toggle"],
-      [THEME_TRIGGER, "theme-trigger"],
+      [PREFS_TRIGGER, "prefs-trigger"],
     ] as const) {
       const found = await this.topmostTestidOver(this.page.locator(selector), name);
       assert.strictEqual(

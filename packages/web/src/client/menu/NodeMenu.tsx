@@ -7,7 +7,7 @@
  * entry there, not a branch here.
  *
  * The panel is `absolute top-full` inside a positioned root — the same idiom
- * as `theme/Picker.tsx` and `chat/SlashMenu.tsx` — so it scrolls with its
+ * as `chat/SlashMenu.tsx` — so it scrolls with its
  * anchor and never lands below the fold as a detached `fixed` box would.
  * Drawn only on pointer devices (`MENU_REVEAL`); a phone keeps the triangle
  * and spends the width on the title.

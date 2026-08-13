@@ -3,9 +3,10 @@
  *
  * Principle (settled with the layout rethink): the header carries what is about
  * the APP — the wordmark, the connection, git (ONE pill: the Commit pill, which
- * absorbed the readout that used to sit beside it), the agent toggle, the theme
- * — and the sidebar carries what is about the DIRECTORY — the calendar and the
- * file tree.
+ * absorbed the readout that used to sit beside it), the agent toggle, and the
+ * PREFERENCES (which absorbed the theme pill for the same reason: a preference
+ * with a door of its own, next to the door to the preferences) — and the
+ * sidebar carries what is about the DIRECTORY — the calendar and the file tree.
  * One home for chrome means one place to look, including on the error report and
  * the waiting page; the corner-pills special case those screens used to need is
  * gone because the header is always there.
@@ -20,31 +21,36 @@
  * inside a fixed height centred the second row off the top of the viewport on a
  * 390pt phone in every connection state longer than `live`.
  *
- * SIX things do not fit at 390pt, and this is the order they give way in. It is
- * stated here because it is one decision about the bar, made in four files, and
- * a bar that squeezes whatever happens to be squeezable is a bar that ends up
- * spending its last pixels on a theme name while `live` dies at `l…` — which is
- * what it did:
+ * FIVE things do not fit at 390pt, and this is the order they give way in. It
+ * is stated here because it is one decision about the bar, made in four files,
+ * and a bar that squeezes whatever happens to be squeezable is a bar that ends
+ * up spending its last pixels on a label nobody came for while `live` dies at
+ * `l…` — which is what it did:
  *
  *   1. The last commit's AGE goes first (`commit/Commit.tsx`'s `· 3m ago`,
  *      `sm` and up only). It is the only piece of any label a reader can lose
  *      and still be told what they came for, and the panel has the exact
  *      instant a tap away.
- *   2. The agent's WORD goes next — `>_` is already an icon, and the word stays
- *      in the accessible name (`sr-only`), so nothing is lost but pixels. Its
- *      BOX does not go with it: the button takes `touch.ts`'s 44px minimum,
- *      which the burger and the theme trigger have had since #104 and this one
- *      never did (it measured 76×27 — wide, and never tall enough). What a
- *      thumb aims at came out of this bigger than it went in.
+ *   2. The agent's WORD and the preferences' word go next — `>_` and `⚙` are
+ *      already icons, and the word stays in the accessible name (`sr-only`), so
+ *      nothing is lost but pixels. Their BOXES do not go with them: both take
+ *      `touch.ts`'s 44px minimum, which the burger has had since #104 and the
+ *      agent toggle never did (it measured 76×27 — wide, and never tall
+ *      enough). What a thumb aims at came out of this bigger than it went in.
  *   3. Then the Commit pill's label truncates. It is the longest in the bar,
  *      and its first glyph (`✓`, `⚠`) is most of what it says.
  *   4. The connection's label is LAST and in practice never: it has a floor
  *      (`shrink-0`), so `live` stays `live`. Its own `max-w` still caps the
  *      long states, which is that pill's own business.
  *
- * The wordmark, the burger and the theme name never give way at all: the first
- * two are the app's identity and the way back to the directory, and the theme
- * pill has a promise of its own to keep (it NAMES the theme in force).
+ * The wordmark and the burger never give way at all: they are the app's
+ * identity and the way back to the directory. There used to be a third — the
+ * theme pill, which NAMED the theme in force and so could not be allowed to
+ * shrink to `pi…`. It is gone from the bar entirely (`settings/`), and what it
+ * promised is kept a gesture in, on the theme row's own hint. That is the trade
+ * this bar could afford to make and the connection's cannot: the theme is
+ * painted on every pixel of the page, while a dead socket looks exactly like a
+ * live one.
  *
  * The one screen without this bar is the fault card: `main.tsx`'s
  * `<ErrorBoundary>` sits above `App`, so a thrown render never reaches here.
@@ -85,9 +91,10 @@
  * is what stops a page scrolling UNDER the bar from painting over it, and below
  * the modals (the command palette and the restarted card, 50), which cover the
  * whole viewport and must cover this too. A positioned bar with a z-index is a
- * stacking context, so the one popover drawn INSIDE it — the theme picker's —
- * rides at 45 as well; the two overlays that must escape (the commit panel, a
- * tip) already portal to the body and are unaffected.
+ * stacking context, which is why NOTHING in the bar opens inside it any more:
+ * the theme popover used to, and rode at 45 with it, and its replacement
+ * (`settings/`) portals to the body the way the commit panel and a tip already
+ * did. A 3rem box is not somewhere a panel can hang out of.
  */
 
 import { Show } from "solid-js"
@@ -96,8 +103,8 @@ import { Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
 import { connectionStatus } from "./wire.ts"
+import { Preferences } from "./settings/Preferences.tsx"
 import { TESTID } from "./testids.ts"
-import { ThemePicker } from "./theme/Picker.tsx"
 import { TARGET_BOX } from "./touch.ts"
 
 export function AppHeader(props: {
@@ -149,19 +156,24 @@ export function AppHeader(props: {
           readout used to sit between them answering the second question a
           second time, and two chips for one subject is what the human filed.
           Every state that readout drew is a face of this pill now — including
-          the fault, with git's own words on its tip. */}
+          the fault, with git's own words on its tip.
+
+          The preferences trigger is LAST, and it is one control rather than
+          two: the theme pill that used to be here is a row inside the panel it
+          opens (`settings/`). A door beside a door into the same room is the
+          same redundancy `one-git-indicator` closed. */}
       <div
-        // `gap-1` below 40rem rather than `gap-1.5`: six pills at 390pt spend
-        // three gaps between them, and 6px of white space is a word on the
-        // label that gives way first. The bar's own spacing is the last thing
-        // to spend before the order below starts costing a reader words.
+        // `gap-1` below 40rem rather than `gap-1.5`: the pills at 390pt spend a
+        // gap between each pair, and 6px of white space is a word on the label
+        // that gives way first. The bar's own spacing is the last thing to
+        // spend before the order below starts costing a reader words.
         class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 sm:gap-2"
         data-testid={TESTID.appChrome}
       >
         <Indicator status={connectionStatus()} />
         <Commit />
         <ChatToggle />
-        <ThemePicker />
+        <Preferences />
       </div>
     </header>
   )

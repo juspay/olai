@@ -1,7 +1,7 @@
 # @olai/web — the SolidJS client, and the build that produces it
 
-An app header (wordmark, connection, the one git pill, agent toggle, theme), a
-directory panel
+An app header (wordmark, connection, the one git pill, agent toggle,
+preferences), a directory panel
 (month + file tree of every outline and document under the folders they live
 in — full column or a ~3rem icon rail on desktop; slide-over drawer with scrim
 on a phone), a resizable agent dock (or bottom sheet on a phone; minimized to a
@@ -449,10 +449,14 @@ holds fifteen named palettes — the racket implementation's four and eleven rea
 off the original WorkFlowy theme stylesheets — each a value for the same eight
 tokens `styles.css` declares. Everything else follows from it: `css.ts`
 generates one unlayered `:root[data-theme="…"]` block per row, which `src/build.ts`
-appends to the Tailwind output, and `Picker.tsx` draws one chip per row, each
-chip wearing the palette it offers — behind a compact header pill that opens the
-strip as a popover (fifteen chips cannot live in the bar itself; behaviour is
-unchanged). Adding a theme is adding a row; the row type is what makes a
+appends to the Tailwind output, and `Chips.tsx` draws one chip per row, each
+chip wearing the palette it offers. The strip is the Theme row of the
+preferences panel (`settings/`, below); it used to be a popover of its own
+behind a header pill that named the theme in force, which was a preference with
+a door beside the door to the preferences. What that pill promised is kept by
+the row's hint, and the panel stays open on a pick so two palettes can be
+compared on the page they paint. Adding a theme is adding a row; the row type is
+what makes a
 forgotten token a type error rather than a `var()` that resolves to nothing in
 one theme only.
 
@@ -493,21 +497,24 @@ rather than about the page — the connection indicator, the Commit pill (the ON
 git indicator, drawn in every state including `commits off`), the agent toggle
 (always on screen; pressed
 while the agent panel is open; busy pulse in either state while a turn runs),
-and the theme picker as a compact popover (a pill names the theme in force;
-chips open under it). On a phone the directory burger joins the left edge next
-to the wordmark.
+and the PREFERENCES trigger (`settings/`, below), which is one door rather than
+two: the theme pill used to sit beside it, and a preference with a control of
+its own next to the control for the preferences is the redundancy
+`one-git-indicator` closed for the two git chips. On a phone the directory
+burger joins the left edge next to the wordmark.
 
-**Six things do not fit in a 390pt bar, so the ORDER they give way in is a
+**Five things do not fit in a 390pt bar, so the ORDER they give way in is a
 decision** rather than whatever the flexbox happens to squeeze — that is written
 out in the component's own header and implemented across four files. The last
-commit's age goes first (`· 3m ago`, `sm` and up), then the agent's word (kept
-`sr-only`, so the button's accessible name never shrinks), then the Commit
-pill's label truncates — its `✓` / `⚠` is most of what it says — and the
-connection's label is last and in practice never, because it has a floor. The
-wordmark and the theme name never give way at all. `features/on_a_phone.feature`
-holds the end of that order shut in every connection state (`the connection's
-label is whole`), which is the fence for the version of this bar that shipped
-`live` squeezed to `l…`.
+commit's age goes first (`· 3m ago`, `sm` and up), then the agent's and the
+preferences' words (kept `sr-only`, so neither button's accessible name
+shrinks), then the Commit pill's label truncates — its `✓` / `⚠` is most of what
+it says — and the connection's label is last and in practice never, because it
+has a floor. The wordmark and the burger never give way at all; the theme name,
+which was the third of those, is not in the bar any longer.
+`features/on_a_phone.feature` holds the end of that order shut in every
+connection state (`the connection's label is whole`), which is the fence for the
+version of this bar that shipped `live` squeezed to `l…`.
 
 Principle: the header carries what is about the app; the sidebar
 (`Sidebar.tsx` / `layout/Rail.tsx`) carries what is about the DIRECTORY —
@@ -539,6 +546,52 @@ The chat dock sits **under** the header, not over it (`chat/Panel.tsx`
 subtracts `--height-header`): the bar stays reachable while the agent is open.
 Layout widths, open/minimized state and the mobile chat snap live in
 `layout/prefs.ts` (client-local, never sent).
+
+## The preferences, in one place
+
+`src/client/settings/` is a trigger in that bar and the panel behind it: rows,
+each a label, a control, and a line under it read off the CHOICE IN FORCE
+(`Row.tsx`). The shape is kolu's settings popover — an anchored popover of
+setting rows with reactive per-choice hints — and the hint is the part worth
+copying: a row of tidy labels is a quiz, because "Done: Hidden" says what the
+control is set to and nothing about what the app will now do, while a sentence
+that changes as you press answers "what did I just do" in the same gesture.
+
+**The backing store is deliberately NOT kolu's.** Its rows read and write wire
+singletons, because its preferences are the server's; olai's are client-local
+(`docs/architecture.md`), so every row here goes through `preference.ts` —
+`localStorage`, carried into the browser's other tabs by the `storage` event,
+never sent. There is no cell, no procedure and nothing to commit, and the panel
+says so on its own footer line, because "where did this go" is exactly what a
+person wonders about a setting they just changed.
+
+**What is on it** is a narrower question than "every client-local value", and
+the rule is: the ones that are a CHOICE and have nowhere else to be made.
+
+- **Theme** — the fifteen chips (`theme/Chips.tsx`), moved in from the header
+  pill. The row's hint names the theme in force, which is what the pill
+  promised.
+- **Done** — `Visible` / `Hidden`, and it is the DEFAULT for the per-view switch
+  rather than a second switch (`settings/done.ts`). A reading belongs to a page,
+  so folds start fresh when you zoom; but "I do not want to look at finished
+  work" is a claim about the READER, and pressing it again on every page opened
+  is what a preference exists to stop. So `view.ts`'s reading holds `undefined`
+  there until somebody presses the switch on that page, and `undefined` reads
+  this — which means changing it moves every page nobody has pressed it on,
+  *including the one on screen*, and leaves the pages somebody has exactly as
+  they left them.
+
+The layout values in `layout/prefs.ts` are stored the same way and are
+deliberately not here: a sidebar width is set by dragging the sidebar, and a
+panel being open is set by the control that opens it. Copying them into a
+settings list would be a second control for something that already has one.
+
+The panel is **portalled to the body** and placed against the viewport
+(`anchor.ts`, shared with the Commit panel), because the bar it hangs off is a
+`sticky` box with a z-index — a stacking context three rem tall. Dismissal is a
+pointer outside it, Escape, or the trigger again; the two a keyboard can reach
+put focus back on the trigger. A theme pick does NOT dismiss it: a palette is
+judged by looking at the page it paints.
 
 ## The directory column is pinned too
 
@@ -586,7 +639,7 @@ keep showing the last thing they were told — so a pill reports it always, in
 every shape of the app, and is green only while a server is answering.
 
 WHERE it sits is the layout's, not the indicator's: the app header, beside the
-agent toggle and the theme picker. It used to have two homes (sidebar footer,
+agent toggle and the preferences. It used to have two homes (sidebar footer,
 or a corner when there was no sidebar); the header collapsed that. Always fixed
 to the corner is what it used to be before even that, and it meant a pill
 sitting on top of the last line of whatever scrolled under it. `Connection.tsx`
@@ -1194,6 +1247,14 @@ search — `parity-see`, `parity-after`, `input-widgets`), setting a date (the
 nodes are drawn — and the calendar holds a third, which month is on screen.
 None of them goes to the server or to disk, and hiding what is done is a row
 not drawn rather than anything marked.
+
+The done switch is the one with a preference BEHIND it (`settings/done.ts`): its
+place in the reading is `boolean | undefined`, and `undefined` — nobody has
+pressed it on this page — reads the preference. `doneHiddenIn` is that rule,
+spelled once because it is read twice, and the second reading is where it would
+go wrong: pressing the switch has to flip what is on screen, and negating the
+reading's own `undefined` is the same answer again for a reader whose preference
+is already "hidden".
 
 All three are `createStamped` (`stamped.ts`): a value plus the thing it belongs
 to, read through a memo that compares them. That is what makes them start over

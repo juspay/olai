@@ -1,12 +1,18 @@
 /**
- * Where the Commit panel goes, given where its pill is.
+ * Where a panel goes, given where the pill that opens it is.
  *
- * The panel cannot be laid out inside the sidebar. The sidebar scrolls
- * (`Sidebar.tsx`'s `overflow-y-auto`), and an overflow container clips in BOTH
- * axes — so a popover wider than the 16rem column was cut off at the column's
- * edge, taking the commit message, the writer and half the button with it. It
- * is rendered in a portal and positioned against the VIEWPORT instead, which is
- * why this arithmetic exists at all.
+ * A panel cannot be laid out inside the box its trigger lives in. The sidebar
+ * scrolls (`Sidebar.tsx`'s `overflow-y-auto`) and an overflow container clips
+ * in BOTH axes — so a popover wider than the 16rem column was cut off at the
+ * column's edge, taking the commit message, the writer and half the button with
+ * it — and the app header is a positioned bar three rem tall, which is not a
+ * box a panel of settings can hang out of either. Both are rendered in a portal
+ * and positioned against the VIEWPORT instead, which is why this arithmetic
+ * exists at all.
+ *
+ * It sits here rather than beside either of them because it is now the answer
+ * for BOTH — the Commit panel (`commit/`) and the preferences panel
+ * (`settings/`) — and a copy per popover is a geometry to fix twice.
  *
  * PURE, and taking the viewport as an argument: the interesting cases are a
  * pill near an edge and a window too short for the panel, and none of them is
@@ -37,11 +43,12 @@ export interface Anchor {
    * Which edge {@link Anchor.offset} is measured from — which is to say, which
    * way the panel opens.
    *
-   * `bottom` is the ordinary answer, because the pill lives at the bottom of
-   * the screen in both of its homes and a panel that opened downward from there
-   * would have nowhere to go. `top` is what happens when the pill is high up
-   * anyway: on a phone the sidebar is a header rather than a column, and a
-   * panel opening upward from there would be a zero-height box.
+   * `bottom` measures up from the window's bottom edge, so the panel opens
+   * UPWARD — the answer for a pill low on the screen, where a panel opening
+   * downward would have nowhere to go. `top` is the other way round, and it is
+   * what every pill in the app header gets: three rem from the top there is no
+   * room above at all, and a panel opening upward from there would be a
+   * zero-height box.
    */
   readonly side: "bottom" | "top"
   readonly offset: number
