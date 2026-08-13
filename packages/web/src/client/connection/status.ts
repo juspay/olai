@@ -1,36 +1,58 @@
 /**
- * The connection, as something to look at.
+ * The connection, as something to look at — and ONLY that.
  *
- * One pure table over the wire's own four states, and it is a table rather than
- * a derivation because there is nothing left to derive: the transport reports
- * `connecting` / `live` / `reconnecting` / `retired` directly, terminal state
- * included. It used to say `down` for a wire that had been retired, which is
- * where this class of bug hides — the one state that never heals, wearing the
- * name of the one that does. A page must never draw those the same.
+ * WHAT is true about the connection is not decided here and no longer can be:
+ * `connectSurface` hands back a READOUT (kolu#2160), the five states folded
+ * from both facts a page's liveness depends on — the wire's own four, plus the
+ * one the transport cannot see, a socket that is open and answering while a
+ * subscription riding it is dead. This file used to fold that itself, out of
+ * `client.health()`, and the fold is upstream now: `degraded` NAMES the
+ * subscriptions that stopped, a first frame that has not arrived never
+ * degrades, and `needsReload` travels on the readout rather than being
+ * re-derived from a hand-kept list of terminal states.
  *
- * The four, and why a reader needs all four:
+ * What is left is the LOOK, which is this house's and stays this house's: what
+ * each state is CALLED here, which colour it paints, and the sentence green
+ * makes — "the files on disk reach this page as they change" is olai's claim
+ * about olai, and no framework may write it.
+ *
+ * The five, and why a reader needs all five:
  *
  *   - `connecting` — the first dial has not answered yet. Not an alarm: every
  *     page load passes through it.
- *   - `live` — a socket is open and answering. This is the ONLY green one.
+ *   - `live` — everything reaches this page. The ONLY green one.
+ *   - `degraded` — a socket that is fine over something that is not. Its
+ *     detail names what stopped, which is why it is not in the table below.
  *   - `reconnecting` — we had a server and the socket is gone; the link is
  *     re-dialling on its own. The page is showing what it last knew.
  *   - `retired` — the server closed this tab at the handshake, because the
  *     process that served it has been replaced. The link has stopped for good.
  *     There is nothing to wait for: recovery is a reload.
- *
- * And a FIFTH the transport cannot report, because it is not about the
- * transport: a socket that is open and answering while a subscription over it
- * is dead ({@link Readout}, below). Green here is a claim about what reaches
- * the page, not about a socket, so it is the conjunction of the two.
  */
 
-import type { SurfaceHealth } from "@kolu/surface/solid"
-import type { SurfaceConnectionStatus } from "@kolu/surface-app/solid"
+import type {
+  DegradedReadout,
+  SurfaceReadout,
+  SurfaceReadoutStatus,
+} from "@kolu/surface-app/solid"
 
 import type { Look } from "../readout.ts"
 
-export type { SurfaceConnectionStatus }
+/** The one door to the readout's types for this folder, so a component, this
+ *  table and the test that sweeps it are reading one spelling. */
+export type { SurfaceReadout, SurfaceReadoutStatus }
+
+/** The state whose look cannot be a constant, named by the framework's own type
+ *  rather than by the string. A rename upstream then moves the exclusion with
+ *  it; the string would have gone quietly vacuous, and the error would surface
+ *  three lines down as a missing table row rather than as what it is. */
+type Degraded = DegradedReadout["status"]
+
+/** Its runtime spelling, declared AT that type rather than typed out a second
+ *  time — so the table's exclusion below and the door in {@link lookOf} are the
+ *  same fact, and a rename upstream fails here, at the spelling, rather than
+ *  leaving one of the two silently comparing against a state nothing can be. */
+const DEGRADED: Degraded = "degraded"
 
 /** How one state is drawn — the readout's own shape (`../readout.ts`), shared
  *  with the Commit pill beside it so a change to what a readout IS lands on
@@ -39,9 +61,17 @@ export type { SurfaceConnectionStatus }
  *  connection. */
 export type { Look }
 
-/** A `Record`, so every state must be given a look: an unlisted one would be a
- *  connection state with no appearance, which is the bug wearing a new hat. */
-export const LOOK: Record<SurfaceConnectionStatus, Look> = {
+/**
+ * A `Record` over every state whose appearance is FIXED, so a sixth arriving
+ * upstream is a type error in this table rather than a state with no
+ * appearance.
+ *
+ * `degraded` is excluded rather than absent: its detail names what stopped, so
+ * it cannot be a constant, and {@link lookOf} is where it is written. The
+ * `Exclude` is what keeps the exhaustiveness — drop a state from the union up
+ * there and this stops compiling too.
+ */
+export const LOOK: Record<Exclude<SurfaceReadoutStatus, Degraded>, Look> = {
   connecting: {
     dot: "bg-muted",
     label: "connecting",
@@ -66,72 +96,18 @@ export const LOOK: Record<SurfaceConnectionStatus, Look> = {
   },
 }
 
-/** Is this a state a reload, and only a reload, gets out of? The one place the
- *  rule lives, beside the reload it gates. */
-export const needsReload = (status: SurfaceConnectionStatus): boolean =>
-  status === "retired"
-
 /**
- * The fifth state, and the one the transport CANNOT SEE.
+ * How a readout looks — all five states, through one door.
  *
- * A socket is open and answering while a subscription over it is dead: the
- * framework's `client.health()` knows, and until this nothing in olai read it.
- * What that cost is exactly the shape of bug the pill exists to prevent — a
- * dead `documents.keys` renders as a directory with no documents in it, under
- * a green light saying the files on disk reach this page as they change.
- *
- * So the readout is a function of BOTH facts, and the green one is the
- * conjunction. `live` is the only state that can degrade: the other three are
- * already saying something about the wire, and a subscription's error while
- * the socket is down is a consequence rather than news.
+ * It takes the READOUT rather than a state, and that is what keeps the
+ * degraded sentence whole: `lookOf("degraded")` would draw "nothing is
+ * arriving on " — a sentence with a hole in it — and the readout's `stopped`
+ * is non-empty by type, so the hole is not spellable.
  */
-export type Readout = SurfaceConnectionStatus | "degraded"
-
-/**
- * ERRORS degrade the pill; PENDING does not — which is a policy decision, and
- * ours to make (the framework's `gateStatus` is deliberately policy for a GATE:
- * whether to draw the body at all).
- *
- * A first frame that has not arrived is what every page load looks like, and a
- * per-key document subscription is pending every time somebody opens a row. A
- * pill that went amber for those would be amber most of the time, which is a
- * pill nobody reads — and an indicator nobody reads is the failure this whole
- * file is about, wearing the opposite hat.
- */
-export const unhealthy = (health: SurfaceHealth): ReadonlyArray<string> =>
-  health.subs.filter((sub) => sub.error !== undefined).map((sub) => sub.name)
-
-/** What the header draws: the wire's own state, unless the wire is fine and
- *  something riding it is not. */
-export const readoutOf = (
-  status: SurfaceConnectionStatus,
-  stopped: ReadonlyArray<string>,
-): Readout => (status === "live" && stopped.length > 0 ? "degraded" : status)
-
-/**
- * How the readout looks — ALL five states, through one door, from the SAME
- * two facts `readoutOf` reads.
- *
- * It derives the readout rather than taking one, and that is the point: given
- * the state separately, `lookOf("degraded", [])` would be spellable and would
- * draw "nothing is arriving on " — a sentence with a hole in it, for a state
- * the domain does not have. A caller that wants the state's NAME asks
- * `readoutOf`; nothing has to keep two answers in step.
- *
- * `LOOK` stays a `Record` because a missing transport state must be a type
- * error, and the fifth cannot join it: its detail NAMES what stopped, and a
- * reader told only that "something is not arriving" has been told the least
- * useful true thing available.
- */
-export const lookOf = (
-  status: SurfaceConnectionStatus,
-  stopped: ReadonlyArray<string>,
-): Look => {
-  const readout = readoutOf(status, stopped)
-  return readout !== "degraded" ? LOOK[readout] : {
+export const lookOf = (readout: SurfaceReadout): Look =>
+  readout.status !== DEGRADED ? LOOK[readout.status] : {
     dot: "bg-doing",
     label: "partly live",
     detail:
-      `connected, but nothing is arriving on ${stopped.join(", ")} — what is on screen is missing whatever those carry, and may be missing it silently`,
+      `connected, but nothing is arriving on ${readout.stopped.join(", ")} — what is on screen is missing whatever those carry, and may be missing it silently`,
   }
-}

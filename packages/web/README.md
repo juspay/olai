@@ -11,15 +11,15 @@ current by the live store underneath. ⌘K opens the command-palette shell
 (navigation, panel toggles, `>` to ask the agent). SolidJS over a WebSocket,
 styled with Tailwind v4, bundled by `Bun.build`.
 
-The build (`src/build.ts`) also writes `.br` / `.gz` siblings next to the
-hashed `/assets/*` files (`src/precompress.ts`). The static layer in
-`@kolu/surface-app` negotiates them on `Accept-Encoding` (brotli preferred,
-gzip fallback, identity honoured); the shell is never compressed. Matching is
-a **bare token set** (no q-value parsing, ported from the `serve-static` it
-replaced): `br, gzip` gets brotli, but `br;q=0.8, gzip;q=1.0` falls through to
-identity. Real browsers send bare tokens, so the shipped path is unaffected.
-Already-compressed media types (e.g. `.png`) stay identity even if a stray
-sibling sits on disk.
+`src/build.ts` composes `buildSurfaceClient` and adds only what is olai's: the
+Solid JSX transform, the Tailwind stylesheet, the fonts, and the install
+surface's icons. Everything else about the dist is the helper's and is not an
+option — the content-hashed `/assets/*` names, the `no-store` shell that points
+at them, the `.br`/`.zst`/`.gz` siblings the static layer negotiates, and the
+chunk a dynamic `import()` asks for. This package wrote two of those by hand
+until kolu#2159: a `precompress.ts` that could never emit the `.zst` the server
+has preferred all along, and a second `Bun.build` for the markdown chunk because
+`splitting` was hardcoded off. Both are deleted rather than moved.
 
 ## What the client reads, and how it is put back together
 
@@ -213,22 +213,21 @@ sanitise, highlight, rewrite, stringify:
 
 ### It arrives when it is needed
 
-All of that is ~390 kB raw (~96 kB brotli) of `unified`, remark, rehype and
+All of that is ~390 kB raw (~95 kB brotli) of `unified`, remark, rehype and
 `highlight.js` grammars, and the first thing this app draws — a tree of rows —
-uses none of it. So the pipeline is bundled ON ITS OWN
-(`markdown/pipeline.ts` → `/assets/markdown-<hash>.js`, built by
-`src/markdown.ts`) and fetched the first time something on the page has
-markdown to interpret. The entry bundle went from 1 054 kB to 663 kB raw
-(274 kB → 180 kB brotli) when it moved out.
+uses none of it. So the pipeline is a CHUNK of its own
+(`markdown/pipeline.ts` → `/assets/pipeline-<hash>.js`) and is fetched the first
+time something on the page has markdown to interpret. The entry is ~700 kB raw
+(~185 kB brotli) with the pipeline out of it, against 1 054 kB with it in.
 
-- **the page finds it through the shell**, not through a compiled-in constant:
-  a `<meta name="olai-markdown">` in the `no-store` `index.html`, rewritten to
-  the hashed URL at build time, exactly as the entry and the stylesheet are.
-  `markdown/chunk.ts` reads it and `import()`s it — a variable specifier, which
-  is what keeps the graph out of `main-*.js` rather than merely unreached
-  inside it. (`buildSurfaceClient` sets `splitting: false` and takes no option
-  to change it, so the chunk is a second `Bun.build` this package owns — the
-  same shape `precompress.ts` already is, and the same thing to flag upstream.)
+- **the `import()` is the whole of the request.** `markdown/chunk.ts` names
+  `./pipeline.ts` literally; `buildSurfaceClient` splits on a dynamic import and
+  hashes chunks the same way it hashes the entry, so the chunk lands in the same
+  immutable `/assets/` dir and the entry references it by a URL that resolves
+  inside it. Nothing spells that URL: this used to be a `<meta>` on the shell,
+  rewritten by a second `Bun.build` of this package's own, because
+  `splitting` was hardcoded off upstream — three moving parts to say what one
+  `import()` says (kolu#2159 paid it in and they are all deleted).
 - **asking is what fetches it.** `markdownReady()` is a signal read: a memo
   that asks is a memo that re-runs when the file lands, and a page that never
   asks never pays. Nothing is primed at boot.
@@ -593,30 +592,30 @@ sitting on top of the last line of whatever scrolled under it. `Connection.tsx`
 keeps the one rule that is not about placement — when the reload surface takes
 the screen.
 
-`status.ts` is the whole policy and it is pure: a table over the wire's own four
-states (`connecting`, `live`, `reconnecting`, `retired`) saying what each looks
-like. That is where the mistake this folder exists to prevent would be made — a
-state that quietly reads as healthy, or a terminal one drawn like a transient
-one — so it is unit-tested directly, with no socket and no browser.
+`status.ts` is the LOOK and nothing else: a table over the five states saying
+what each is called here, which dot it paints, and what it claims in words. That
+is where the mistake this folder exists to prevent would be made — a state that
+quietly reads as healthy, or a terminal one drawn like a transient one — so it
+is unit-tested directly, with no socket and no browser.
 
-There is a FIFTH state, and it is not the wire's: `degraded`, drawn as `partly
-live`. Green is a claim about what REACHES the page rather than about a socket,
-so it is the conjunction of the transport status and the framework's
-`client.health()` — which knows the thing the transport cannot, that a socket
-can be open and answering while a subscription over it is dead. Nothing in olai
-read that fact until this was written, and what it cost is a `documents.keys`
-stream that died rendering as a directory with no documents in it under a green
-light. Its detail NAMES the streams that stopped, which is why it is a function
-rather than a row of the table, and `lookOf` is the one door to all five so a
-caller never asks which shape a state is in.
+WHICH state is true is not decided here and no longer can be. `connectSurface`
+hands back a READOUT (kolu#2160) folded from both facts a page's liveness
+depends on: the wire's own four states, plus `degraded` — drawn as `partly
+live` — for a socket that is open and answering while a subscription riding it
+is dead. This file used to do that fold itself out of `client.health()`, which
+made it a step every consumer had to remember; the consumer that forgot it drew
+a `documents.keys` stream that had died as a directory with no documents in it,
+under a green light. The framework's three rules travel with the readout now:
+`live` is the conjunction, a first frame that has not arrived never degrades
+(a pill that is amber most of the time is a pill nobody reads), and `degraded`
+names what stopped — non-empty by type, which is why `lookOf` takes the readout
+rather than a state name and a sentence with a hole in it is not spellable.
+`needsReload` rides it too, so `Connection.tsx` reads the bit rather than
+keeping its own list of terminal states.
 
-Two decisions inside it. ERRORS degrade the pill and PENDING does not: a first
-frame that has not arrived is what every page load looks like, and a pill that
-is amber most of the time is a pill nobody reads (the framework's own
-`gateStatus` is deliberately policy for a GATE — whether to draw the body at
-all — which is a different question). And it is folded into the pill rather
-than drawn beside it, for the reason the git readout is quiet when it is happy:
-one green claim per page, or neither is scanned.
+One decision here is still olai's beyond the wording: it is folded into the one
+pill rather than drawn beside it, for the reason the git readout is quiet when
+it is happy — one green claim per page, or neither is scanned.
 
 The degraded half is unit-tested only, and that gap is honest rather than
 missed: killing one subscription while leaving its socket up is not something a

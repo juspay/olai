@@ -6,12 +6,23 @@
  * server that builds on startup — is a second build with different inputs from
  * the one CI proves, and the two would drift.
  *
- * The freshness contract — content-hashed `/assets/*` names, the `no-store`
- * shell that points at them, the commit stamped onto that shell — belongs to
- * `@kolu/surface-app/bun`. This file composes it and supplies only what is
- * genuinely olai's: the Solid JSX transform, the Tailwind stylesheet, and the
- * build-time `.br`/`.gz` siblings (`./precompress.ts`) the static layer
- * negotiates on the wire.
+ * The whole DIST contract — content-hashed `/assets/*` names, the `no-store`
+ * shell that points at them, the commit stamped onto that shell, the
+ * precompressed siblings the static layer negotiates, and the chunk a dynamic
+ * `import()` asks for — belongs to `@kolu/surface-app/bun` (kolu#2159). This
+ * file composes it and supplies only what is genuinely olai's: the Solid JSX
+ * transform, the Tailwind stylesheet, the fonts and the install surface's
+ * icons.
+ *
+ * Two post-steps used to live here and are gone rather than moved. `.br`/`.gz`
+ * siblings were written by a `./precompress.ts` of ours, which could never emit
+ * the `.zst` the server has PREFERRED since it stopped using Hono's
+ * `serve-static` — so the negotiation's best arm had nothing to serve, in every
+ * consumer, for the whole life of the feature. And the markdown pipeline was a
+ * second `Bun.build` plus a hand-rewrite of the shell the helper had just
+ * written, because `splitting` was hardcoded off; it is on and unconditional
+ * now, so the `import()` in `client/markdown/chunk.ts` is the whole of the
+ * request and the chunk lands hashed in the same immutable dir.
  *
  * The Solid transform is a Bun plugin rather than Bun's own JSX handling:
  * Bun's default transform emits `React.createElement`, which Solid does not
@@ -35,8 +46,6 @@ import type { BunPlugin } from "bun"
 
 import { scaleCss } from "./client/markdown/scale.ts"
 import { paletteCss } from "./client/theme/css.ts"
-import { buildMarkdownChunk } from "./markdown.ts"
-import { precompressAssets } from "./precompress.ts"
 
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), "client")
 
@@ -189,7 +198,7 @@ const installFonts = async (distDir: string): Promise<void> => {
 }
 
 const buildClient = async (distDir: string): Promise<void> => {
-  await buildSurfaceClient({
+  const { assets } = await buildSurfaceClient({
     entrypoint: resolve(CLIENT, "main.tsx"),
     distDir,
     htmlTemplate: resolve(CLIENT, "index.html"),
@@ -212,24 +221,20 @@ const buildClient = async (distDir: string): Promise<void> => {
     publicDir: resolve(CLIENT, "public"),
     plugins: [solidJsx],
   })
-  // The markdown pipeline as a bundle of its own, named on the shell the call
-  // above just wrote — see ./markdown.ts for why it is not a flag on it.
-  const markdown = await buildMarkdownChunk(CLIENT, distDir, [solidJsx])
-  console.log(`markdown chunk: ${markdown.href} ${markdown.bytes}B`)
+  // What the helper emitted, reported rather than re-walked: one row per
+  // compressible file in the hashed dir — the entry, the markdown chunk the
+  // `import()` split out, the stylesheet — with the identity size and whatever
+  // siblings beat it. So "the entry is 700 kB and 185 kB on the wire" stays a
+  // number somebody can see after the step that printed it left this file.
+  for (const asset of assets) {
+    const siblings = Object.entries(asset.siblings)
+      .map(([encoding, size]) => ` ${encoding}=${size}B`)
+      .join("")
+    console.log(`asset: ${asset.file} ${asset.bytes}B${siblings}`)
+  }
   // Fonts after the surface client so a wipe of dist does not strand them,
   // and so /fonts/* is a sibling of the icons at the dist root.
   await installFonts(distDir)
-  // Precompressed siblings for `/assets/*` — see ./precompress.ts. The static
-  // layer in @kolu/surface-app negotiates them; without this step the build
-  // ships identity-only and the negotiation has nothing to serve.
-  const written = await precompressAssets(resolve(distDir, "assets"))
-  for (const row of written) {
-    if (row.br === null && row.gz === null) continue
-    const parts = [`${row.file} ${row.raw}B`]
-    if (row.br !== null) parts.push(`br=${row.br}B`)
-    if (row.gz !== null) parts.push(`gz=${row.gz}B`)
-    console.log(`precompress: ${parts.join(" ")}`)
-  }
 }
 
 if (import.meta.main) {

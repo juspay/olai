@@ -34,13 +34,9 @@
  * the file appeared to be renamed mid-upload.
  */
 
+import { base64DecodedLength } from "@kolu/surface/frame-chunking"
 import { type OpFailure, UsageFailure } from "@olai/format"
-import {
-  type Attached,
-  type AttachChunk,
-  attachmentRejection,
-  base64DecodedLength,
-} from "@olai/surface"
+import { type Attached, type AttachChunk, attachmentRejection } from "@olai/surface"
 import { Effect } from "effect"
 import { appendFile, mkdtemp, realpath, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"

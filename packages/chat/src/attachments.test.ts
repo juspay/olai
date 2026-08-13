@@ -22,7 +22,8 @@ import {
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 
-import { chunkBase64, MAX_ATTACHMENT_BYTES } from "@olai/surface"
+import { chunkBase64 } from "@kolu/surface/frame-chunking"
+import { MAX_ATTACHMENT_BYTES } from "@olai/surface"
 
 import { make, promptWith, safeName } from "./attachments.ts"
 
