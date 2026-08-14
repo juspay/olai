@@ -57,15 +57,39 @@ and both of the others are things it shipped rather than things it found:
   embedding, not at boot, so a serve whose index is already up to date and
   whose reader never searches by meaning never starts one at all. It listens
   on a unix socket in `$XDG_RUNTIME_DIR` — no TCP port, nothing the network
-  can reach — costs about 66 MB of memory while it is up, and stops when olai
-  stops. If olai is `kill -9`'d the child cannot be told to stop, so the next
+  can reach — and stops when olai stops. If the child dies on its own, the
+  next search starts a new one (no faster than once every 15 seconds, so a
+  model server that cannot start does not get respawned on every keystroke).
+  If olai itself is `kill -9`'d the child cannot be told to stop, so the next
   `olai` you start sweeps it up.
 
-`OLAI_RECALL=off` turns the second one off entirely: search goes back to
-matching the letters you type, which is exactly what it did before, and
-nothing reports a missing feature. `OLAI_EMBED_SERVER` and `OLAI_EMBED_MODEL`
-name the two halves — a nix-built olai bakes both in, and setting either to
-the empty string is the same off switch by another door.
+  **How much memory:** it depends on what has been embedded, not just on
+  being up. Measured on x86_64-linux: **~30–66 MB shortly after it starts**
+  (one reviewer's machine reported the low end, this one the high end), rising
+  to **~158 MB** while indexing a corpus of 148 essay-length notes and staying
+  there for the life of the process. About 54 MB of that is the memory-mapped
+  weights, which the kernel can reclaim under pressure. `--ctx-size` does not
+  move it — 512, 2048 and 8192 all measured the same.
+
+### `olai mcp` starts the embedder too
+
+The list above is written for `olai web`, but it is not a property of that
+face. `olai mcp` — the stdio server an agent starts for itself — opens the
+**same** index, so it lazily spawns an embedder of its own on the same terms.
+
+That means a machine can hold **several at once**: one per running olai
+process, including two over the same directory if `olai web` is up and an
+agent starts `olai mcp` beside it. Nothing is shared between them, because
+nothing about them is a singleton — each is a child of the process that
+started it and dies with it. This is said out loud rather than left to be
+discovered: the reason this feature was rebuilt at all is that an earlier
+version left a model server running and did not mention it.
+
+`OLAI_RECALL=off` turns the embedder off entirely, on either face: search goes
+back to matching the letters you type, which is exactly what it did before,
+and nothing reports a missing feature. `OLAI_EMBED_SERVER` and
+`OLAI_EMBED_MODEL` name the two halves — a nix-built olai bakes both in, and
+setting either to the empty string is the same off switch by another door.
 
 ### Behind a reverse proxy
 

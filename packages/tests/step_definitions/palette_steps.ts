@@ -168,25 +168,43 @@ Then(
   },
 );
 
+/** How long the palette waits for a keystroke to stop moving before it asks
+ *  the server (`web/src/client/search/nodes.ts`'s `SETTLE_MS`), plus room for
+ *  the round trip behind it. The step below cannot assert an ABSENCE without
+ *  outliving this: two animation frames are ~32 ms, and an empty list read
+ *  that early is the debounce not having fired, not the server's answer. */
+const SEARCH_SETTLE_MS = 900;
+
 Then(
   "the palette lists no node at all",
   async function (this: OlaiWorld) {
-    // Read after a frame rather than polled: the emptiness has to be true NOW,
-    // and waiting for it would pass on a palette that dropped the rows later —
-    // the same argument the sibling above makes.
+    // An absence is the one assertion that cannot be made by waiting for
+    // something to appear, so this waits out the thing that would otherwise
+    // make it true for the wrong reason: it polls until the list IS empty
+    // (which is the server's answer landing, when rows were up before), then
+    // outlives the debounce and a round trip and reads again. Passing requires
+    // the emptiness to survive an answer, not to precede one.
     //
     // Beside `lists the node` rather than in the feature-specific file that
     // first needed it: it is an assertion about THE PALETTE, and a second home
     // for palette assertions is how two of them start disagreeing about what a
     // node row is.
-    await this.waitForFrame();
-    const rows = await this.page
-      .locator(`${PALETTE_ITEM}[data-id^="node-"]`)
-      .allInnerTexts();
+    const rows = this.page.locator(`${PALETTE_ITEM}[data-id^="node-"]`);
+    const deadline = Date.now() + POLL_TIMEOUT;
+    for (;;) {
+      if ((await rows.count()) === 0) break;
+      if (Date.now() > deadline) {
+        const listed = (await rows.allInnerTexts()).map(oneLine);
+        assert.fail(`the palette listed nodes: ${listed.join(" | ")}`);
+      }
+      await this.page.waitForTimeout(50);
+    }
+    await this.page.waitForTimeout(SEARCH_SETTLE_MS);
+    const listed = (await rows.allInnerTexts()).map(oneLine);
     assert.deepStrictEqual(
-      rows.map(oneLine),
+      listed,
       [],
-      `the palette listed nodes: ${rows.map(oneLine).join(" | ")}`,
+      `the palette listed nodes after the search settled: ${listed.join(" | ")}`,
     );
   },
 );

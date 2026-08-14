@@ -160,9 +160,9 @@ describe("searchWith — the semantic merge", () => {
     near: ReadonlyArray<Near>,
     calls?: Array<string>,
   ): Recall => ({
-    nearest: (text, limit) =>
+    nearest: (text) =>
       Effect.sync(() => {
-        calls?.push(`${text} (${limit})`)
+        calls?.push(text)
         return near
       }),
   })
@@ -243,5 +243,51 @@ describe("searchWith — the semantic merge", () => {
     ))
     expect(answered).toEqual({ hits: [], total: 0 })
     expect(calls).toEqual([])
+  })
+
+  test("`total` counts every resembling node, not the few that fitted", () => {
+    // The field is documented uncapped, and it has to mean ONE thing across
+    // both halves of the answer — never "how many matched, plus however many
+    // paraphrases the screen had room for". The index answers with every
+    // neighbour above its floor; the merge counts them and draws what fits.
+    const derived = at()
+    const merged = Effect.runSync(searchWith(
+      {
+        derived,
+        recall: recallOf([
+          { id: "git", score: 0.9 },
+          { id: "bugs", score: 0.8 },
+          { id: "now", score: 0.7 },
+          { id: "focus", score: 0.65 },
+        ]),
+      },
+      { text: "header", limit: 2 },
+    ))
+    // One exact hit, one seat left, four nodes resemble the query.
+    expect(merged.hits.map((hit) => [hit.id, hit.matched])).toEqual([
+      ["sticky", "title"],
+      ["git", "meaning"],
+    ])
+    expect(merged.total).toBe(5)
+  })
+
+  test("what is counted is what COULD have been shown — a ghost and a mirror are neither", () => {
+    const derived = at()
+    const merged = Effect.runSync(searchWith(
+      {
+        derived,
+        recall: recallOf([
+          { id: "ghost", score: 0.9 },
+          { id: "now-sticky", score: 0.85 },
+          { id: "sticky", score: 0.8 },
+          { id: "git", score: 0.7 },
+        ]),
+      },
+      { text: "header" },
+    ))
+    // `ghost` is not in the snapshot, `now-sticky` is a placement, `sticky` is
+    // already answered exactly. One node is left, and the total says so.
+    expect(merged.hits.map((hit) => hit.id)).toEqual(["sticky", "git"])
+    expect(merged.total).toBe(2)
   })
 })

@@ -172,8 +172,9 @@ port stolen in between reads as itself instead of as a mysteriously dead page.
 
 Every server this harness spawns runs with `OLAI_RECALL=off`, so search is the
 substring reading and no model server is started. That is a resource decision:
-the suite spawns hundreds of servers and an idle embedder is about 66 MB of
-resident memory each, while none of those scenarios is about recall. It uses the
+the suite spawns hundreds of servers and an embedder costs 30-66 MB of
+resident memory at rest (more once it has indexed anything), while none of
+those scenarios is about recall. It uses the
 PRODUCT’S OWN off switch rather than a test-only hatch — `OLAI_RECALL=off` is a
 documented knob a reader has for the same reason (`docs/running.md`).
 

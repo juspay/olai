@@ -2,11 +2,15 @@
  * How an embedder is FOUND — the half of {@link ./embedder.ts} that runs
  * without a model server.
  *
- * Nothing here spawns anything, and that is the point twice over: detection is
+ * NO MODEL SERVER RUNS HERE, and that is the point twice over: detection is
  * supposed to be paths rather than a probe (the whole reason the feature could
  * come back), and a unit lane must not start a llama-server. What the real
  * embedder does once it is found is proved end to end by the e2e suite against
  * the packaged binary, which is the only build that has one.
+ *
+ * The one test that DOES spawn spawns a two-line shell script that exits at
+ * once — the restart policy is a fact about what olai does when its child
+ * dies, and there is no way to observe that without a child that dies.
  */
 
 import { NodeServices } from "@effect/platform-node"
@@ -167,6 +171,46 @@ test("the sweep reads only its own leavings", async () => {
   try {
     await sweepIn(dir)
     expect(fs.existsSync(stranger)).toBe(true)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+// ── a child that dies is not a verdict for the life of the serve ───────
+
+test("a start that failed is TRIED AGAIN, behind a cooldown — not remembered forever", async () => {
+  // The memo that stops two keystrokes spawning two servers must not also
+  // decide, once, that recall is off until olai restarts. Observed without a
+  // model server: `llama-server` is a two-line script that exits at once, so
+  // the start fails immediately, and what the SECOND embed says is the whole
+  // test — a cached verdict would repeat the first reason, while a re-armed
+  // memo reaches the spawn guard and says it is waiting out the cooldown.
+  const dir = scratch("olai-restart-")
+  const server = path.join(dir, "llama-server")
+  const model = path.join(dir, "bge-small-en-v1.5-q8_0.gguf")
+  fs.writeFileSync(server, "#!/bin/sh\nexit 3\n", { mode: 0o755 })
+  fs.writeFileSync(model, "not a model")
+  try {
+    await withEnv(
+      { [SERVER_ENV_VAR]: server, [MODEL_ENV_VAR]: model, XDG_RUNTIME_DIR: dir },
+      () =>
+        Effect.runPromise(
+          Effect.gen(function*() {
+            const embedder = yield* detectPackaged(path.join(dir, "served"))
+            if (embedder === null) throw new Error("the fake paths were not taken")
+
+            const first = yield* Effect.result(embedder.embed("document", ["x"]))
+            expect(first._tag).toBe("Failure")
+            expect(String(first._tag === "Failure" ? first.failure.reason : ""))
+              .toContain("exited with 3")
+
+            const second = yield* Effect.result(embedder.embed("document", ["x"]))
+            expect(second._tag).toBe("Failure")
+            expect(String(second._tag === "Failure" ? second.failure.reason : ""))
+              .toContain("cooldown")
+          }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+        ),
+    )
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }

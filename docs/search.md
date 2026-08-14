@@ -63,9 +63,14 @@ Substring hits are **evidence**: the words are in the node, and you can check.
 A semantic hit is **resemblance**: the index reads the node as saying the same
 thing, and it is sometimes wrong. So the exact matches come first, always, and
 paraphrase matches only fill what is left of the answer — a query whose exact
-matches already fill it never asks the index at all. A hit that arrived by
-meaning wears **`≈`** in front of its place line, because that difference is
-the reader's to have rather than to guess at.
+matches already fill it never asks the index at all.
+
+That difference is the reader's to have rather than to guess at, and each door
+says it in its own terms: on the **screen** — the header box, the `⌘K` palette,
+the `((` widget — a hit that arrived by meaning wears **`≈`** in front of its
+place line; over **MCP**, `search_nodes` carries `matched: "meaning"` on the
+hit instead, which is the same fact in the shape an agent reads. There is no
+`≈` in a tool result, and no field on the screen.
 
 It runs on what olai ships and nothing else. The embedder is a `llama-server`
 from `pkgs.llama-cpp` and the model is `bge-small-en-v1.5` (33 M parameters,

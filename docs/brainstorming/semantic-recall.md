@@ -128,12 +128,23 @@ supposed to arrive without ceremony. The override is a one-line lever in
 | cold start — first ever, weights not in page cache | **~490 ms** |
 | query embed, warm server, n=100 | **p50 3.6 ms · p95 4.4 ms · max 6.5 ms** |
 | scan 148 vectors (naive JS `reduce`) | **0.40 ms** |
-| resident memory of the running `llama-server` | **66 MB** |
+| resident memory, shortly after start | **66 MB** here · **~30 MB** on a reviewer's machine |
+| resident memory, after indexing 148 essay-length notes | **~158 MB**, and it stays there |
 
 The palette debounces at 200 ms and the whole semantic leg is under 5 ms of
 that, so recall costs a keystroke nothing it can feel.
 
-**A correction worth recording**, because it is the difference between an
+**Two corrections worth recording.** The first is the resident-memory figure
+above: this design doc originally claimed a flat 66 MB, which was the number
+shortly after start and not the number a working index costs. Both reviewers
+went looking — one measured ~30 MB on their machine (a serve that had barely
+embedded anything), and re-measuring here found ~158 MB once a real corpus had
+gone through it, of which ~54 MB is the memory-mapped weights. `--ctx-size`
+turned out not to be the lever: 512, 2048 and 8192 all measured the same, and
+`--sleep-idle-seconds` reclaims none of it. The honest shape is a range that
+depends on what has been embedded, and it is stated that way now.
+
+The second, because it is the difference between an
 honest number and a scary one: the first pass at these timings was taken while
 a 16-core llama.cpp compile was running in the same shell, and reported 490 ms
 cold start, 10 ms p50 and a 34.8 s index build. Those are contention numbers,
@@ -195,11 +206,56 @@ about the second embedder anybody puts behind the seam.
 
 ## Why this is GO
 
-+196 MB of closure, ~4 ms per query, 66 MB resident, a few seconds of one-time
++196 MB of closure, ~4 ms per query, 66 MB resident at rest and ~158 MB after
+indexing, a few seconds of one-time
 background indexing, and 222 KiB of cache — for a search that finds the note
 you cannot name. Nothing is fetched at run time, nothing is expected to be
 installed, and with the feature off the substring reading is unchanged byte
 for byte. The parking verdict's condition is met on its own terms.
+
+## What the review changed
+
+Two reviewers (grok, opencode) read the first implementation. Nothing blocking;
+nine notes between them, and four of those turned into behaviour rather than
+prose:
+
+- **The count told the truth about hits and not about matches.** The merge set
+  `total = exact.total + <what fitted on screen>`, while the field is
+  documented as the uncapped number of nodes that MATCHED. So the index now
+  answers with every neighbour above its floor and the merge counts them,
+  drawing only what fits. A bound belongs where the scale is known — on the
+  floor, not on a display limit.
+- **A dead child stayed dead.** The start was memoised so two keystrokes could
+  not spawn two servers, but the memo could never be dropped: a `llama-server`
+  that died mid-serve, or one start that failed, turned recall off for the life
+  of the serve with one log line. The memo is invalidated on child exit and on
+  a failed start now, behind a 15-second cooldown so a crash loop is not
+  respawned per keystroke. "olai owns this process" has to include bringing it
+  back.
+- **A comment named a retry that does not exist.** A failed embed batch was
+  said to be retried by "the next revision (or the store's backstop probe)" —
+  but the backstop publishes nothing when the listing is unchanged, so a
+  transient failure on a corpus nobody is editing stranded the index until a
+  restart. The batch retries twice on this fiber (1 s, 4 s) and the comment
+  says what actually happens after that.
+- **An e2e absence proved less than it claimed.** The recall-off scenario read
+  an empty result list two animation frames after typing, which beats the
+  200 ms debounce. It now asks a question that fills the list first, so
+  emptiness is something the server did, and outlives the debounce before
+  reading. Chasing the finding further turned up the harder half and the
+  scenario now says so out loud: **no assertion made through the browser can
+  tell recall OFF from recall on-but-not-yet-indexed**, because the index
+  fills in behind the boot and an empty answer is honest in both states. That
+  was checked the only way it can be — by tagging the off scenario `@recall`
+  and watching it still pass. The byte-for-byte contract is the unit pin,
+  which is sabotage-verified; the scenario holds shut what only the real
+  product can show.
+
+The rest were documentation, and are folded in above and in
+[running.md](../running.md): `olai mcp` spawns the same child and several can
+be resident at once; the resident-memory range; `≈` is the screen's spelling
+of resemblance and `matched: "meaning"` is MCP's; and the palette's debounce
+comment no longer quotes a warm p50 as if it covered the first query.
 
 ## A receptacle named, not built
 

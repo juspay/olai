@@ -42,6 +42,7 @@ import {
   FileSystem,
   Path,
   Ref,
+  type Result,
   type Scope,
   Stream,
   SubscriptionRef,
@@ -110,6 +111,38 @@ const textOf = (located: LocatedRegular): string => {
  *  document side tolerates a model loading from disk; a person at a palette
  *  does not. */
 const QUERY_TIMEOUT = Duration.seconds(3)
+
+/**
+ * How long a failed embed batch waits before being tried again, and how often.
+ *
+ * The reason there is a retry at all: a snapshot that fails to be absorbed
+ * waits for the NEXT one, and a directory nobody is editing does not produce a
+ * next one — the store's backstop probe publishes nothing when the listing is
+ * unchanged. So a single transient failure (a model server that died and is
+ * being restarted underneath, a machine that stalled) would otherwise strand
+ * the whole index until olai was restarted, on exactly the corpus least likely
+ * to nudge it: a static one.
+ *
+ * Short and few, because it is the INDEXING fiber that waits here, not a
+ * search — substring answers throughout, and a retry budget that ran for
+ * minutes would only delay the honest "it is off" log line.
+ */
+const RETRIES = [Duration.seconds(1), Duration.seconds(4)] as const
+
+/** Run an embed, retrying a failure on the schedule above. Failure after the
+ *  last attempt is the caller's to log and carry on from. */
+const attempt = <A, E>(
+  embed: Effect.Effect<A, E>,
+): Effect.Effect<Result.Result<A, E>> =>
+  Effect.gen(function*() {
+    let outcome = yield* Effect.result(embed)
+    for (const wait of RETRIES) {
+      if (outcome._tag !== "Failure") return outcome
+      yield* Effect.sleep(wait)
+      outcome = yield* Effect.result(embed)
+    }
+    return outcome
+  })
 
 /**
  * Stand up the semantic index, or `null` when no embedder is found — and
@@ -195,13 +228,20 @@ export const open = (
 
         for (let at = 0; at < due.length; at += BATCH) {
           const batch = due.slice(at, at + BATCH)
-          const embedded = yield* Effect.result(
+          const embedded = yield* attempt(
             embedder.embed("document", batch.map((entry) => entry.text)),
           )
           if (embedded._tag === "Failure") {
-            // The index keeps what it has and this snapshot stays un-absorbed;
-            // the next revision (or the store's backstop probe) retries. What
-            // must not happen is a throw: this fiber is the whole feature.
+            // Every retry is spent. The index keeps what it has and this
+            // snapshot stays UN-ABSORBED until a later revision brings the
+            // same nodes back round — and a corpus nobody edits publishes no
+            // later revision, so on a static directory that means until olai
+            // is next started. Said plainly because it used to say the store's
+            // backstop probe would retry, and it does not: the backstop
+            // publishes nothing when the listing is unchanged
+            // (`@olai/store`'s "a probe that finds nothing changed publishes
+            // nothing"). What must not happen is a throw: this fiber is the
+            // whole feature.
             yield* sayOnce(embedded.failure.message)
             if (moved || at > 0) yield* save(file, embedder.id, rows)
             return
@@ -225,7 +265,7 @@ export const open = (
       reconcile,
     ).pipe(Effect.forkScoped)
 
-    const nearest: Query.Recall["nearest"] = (text, limit) =>
+    const nearest: Query.Recall["nearest"] = (text) =>
       Effect.gen(function*() {
         if (rows.size === 0) return []
         const embedded = yield* Effect.result(
@@ -245,9 +285,11 @@ export const open = (
           // a vector space rather than about an index (embedder.ts says why).
           if (score >= embedder.floor) scored.push({ id, score })
         }
-        return scored
-          .sort((a, b) => b.score - a.score)
-          .slice(0, limit)
+        // UNCAPPED, best first: the caller counts what resembles the query
+        // and decides what fits on the screen, which is the only way its
+        // `total` can mean one thing (`@olai/ops`' Search). The floor above is
+        // what bounds this — a bound belongs where the scale is known.
+        return scored.sort((a, b) => b.score - a.score)
       })
 
     const settled = Effect.gen(function*() {

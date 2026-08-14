@@ -118,8 +118,21 @@ export interface Hit extends Found {
 
 export interface Search {
   readonly hits: ReadonlyArray<Hit>
-  /** How many nodes matched in all. `hits` is capped; this is not, so "twelve
-   *  of ninety" is sayable. */
+  /**
+   * How many nodes matched in all, by whichever reading answered. `hits` is
+   * capped at the limit; this is not, so "twelve of ninety" is sayable.
+   *
+   * ONE MEANING, and {@link searchWith} is careful to keep it one: the
+   * paraphrase half counts every above-floor neighbour it could have shown,
+   * not the few that fitted. A field that were uncapped for exact matches and
+   * capped for semantic ones would be two fields wearing one name.
+   *
+   * When exact matches EXCEED the limit, `hits` is a window onto them and the
+   * ones past it are absent from `hits` while still counted here — that is
+   * the shape {@link search} has always had, and it is deliberate. Note that
+   * it never coexists with a paraphrase hit: room is only left over when
+   * nothing was truncated.
+   */
   readonly total: number
 }
 
@@ -394,10 +407,15 @@ export interface Near {
  * reading a search falls back from — never a dependency a search waits on.
  */
 export interface Recall {
-  readonly nearest: (
-    text: string,
-    limit: number,
-  ) => Effect.Effect<ReadonlyArray<Near>>
+  /**
+   * Every neighbour the index reads as close enough to be a paraphrase,
+   * best first. UNCAPPED, and that is the point: the caller has to be able to
+   * say how many nodes resemble the query, not how many it had room to draw
+   * ({@link Search}' `total`). What bounds this is the index's own
+   * similarity floor, which is where a bound belongs — a count cut off at a
+   * display limit is not a count.
+   */
+  readonly nearest: (text: string) => Effect.Effect<ReadonlyArray<Near>>
 }
 
 /**
@@ -419,12 +437,19 @@ export interface Recall {
  * semantic index is a derived reading, and a missing derivation must cost
  * nothing but the paraphrase matches themselves.
  *
- * Asked for `limit` neighbours rather than the room left: every neighbour
- * that also matched by substring is dropped as already answered, and when
- * there is room at all every substring match is on the answer (`total` counts
- * them, hits are capped at the same limit) — so `limit` is exactly enough for
- * the worst overlap. An id the snapshot no longer declares is skipped, not
- * resolved: the index lags the truth, never contradicts it.
+ * COUNTED HONESTLY, which is why the index is asked for every neighbour above
+ * its floor rather than for a capped few: `total` is documented as the number
+ * of nodes that MATCHED, and a paraphrase half that reported only what fitted
+ * on the screen would make one field mean two things. So every resolvable,
+ * not-already-answered neighbour is counted, and the first `room` of them are
+ * drawn.
+ *
+ * The dedup is against `exact.hits` and that is complete, not approximate:
+ * `room > 0` is only reachable when the substring pass did NOT fill the limit,
+ * and a substring pass that did not fill the limit truncated nothing — so the
+ * hits in hand ARE every exact match, and no node can be counted twice. An id
+ * the snapshot no longer declares is skipped, not resolved: the index lags the
+ * truth, never contradicts it.
  */
 export const searchWith = (
   at: { readonly derived: Derived; readonly recall: Recall | null },
@@ -437,23 +462,28 @@ export const searchWith = (
     return Effect.succeed(exact)
   }
   const recall = at.recall
-  return Effect.map(recall.nearest(query.text, limit), (near) => {
+  return Effect.map(recall.nearest(query.text), (near) => {
     const answered = new Set(exact.hits.map((hit) => hit.id))
     const filled: Array<Hit> = []
+    /** Every neighbour that WOULD have been a hit — what `total` reports,
+     *  whether or not there was room to draw it. */
+    let resembling = 0
     for (const { id } of near) {
-      if (filled.length >= room) break
       if (answered.has(id)) continue
       const located = at.derived.byId.get(id)
       if (located === undefined || isMirror(located.node)) continue
-      filled.push({
-        ...foundOf(at.derived, located as LocatedRegular),
-        matched: "meaning",
-      })
+      resembling += 1
+      if (filled.length < room) {
+        filled.push({
+          ...foundOf(at.derived, located as LocatedRegular),
+          matched: "meaning",
+        })
+      }
     }
-    if (filled.length === 0) return exact
+    if (resembling === 0) return exact
     return {
       hits: [...exact.hits, ...filled],
-      total: exact.total + filled.length,
+      total: exact.total + resembling,
     }
   })
 }

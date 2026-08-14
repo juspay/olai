@@ -37,7 +37,7 @@
  * quality with nothing anywhere saying why.
  */
 
-import { Data, Effect, FileSystem, Path, Scope } from "effect"
+import { Data, Duration, Effect, FileSystem, Path, Scope } from "effect"
 import { spawn } from "node:child_process"
 import { createHash } from "node:crypto"
 import { tmpdir } from "node:os"
@@ -145,6 +145,13 @@ const CONTEXT = 8192
  *  the server holds nothing worth saving — the index it feeds is derived and
  *  already written. */
 const STOP_GRACE_MS = 2_000
+
+/** How long after a spawn attempt before another is allowed. The floor under
+ *  a crash loop: a `llama-server` that dies on start (a corrupt model, a
+ *  machine out of memory) must not be respawned once per keystroke, and
+ *  recall going quiet for a few seconds costs nothing a reader can see —
+ *  substring answers throughout. */
+const RESTART_COOLDOWN_MS = 15_000
 
 /**
  * Where the socket goes. A unix socket path is capped at ~104 bytes by the
@@ -326,19 +333,81 @@ const packagedEmbedder = (
     // later, on some keystroke's fiber. Without this the process would belong
     // to whichever request happened to start it and die when that request did.
     const scope = yield* Effect.scope
-    // ONE start, however many callers race for the first embed: `cached`
-    // memoises the effect, so the second caller waits on the first's process
-    // rather than spawning a second server over the same socket.
-    const started = yield* Effect.cached(
+
+    /** When the last spawn was attempted, so a child that dies the moment it
+     *  is started cannot be respawned once per keystroke. `0` is "never". */
+    let attemptedAt = 0
+    /** Set by the finalizer before it kills, so the exit handler can tell a
+     *  shutdown from a death and not try to bring the process back while the
+     *  serve is being torn down. */
+    let stopping = false
+    /** Drops the memo below. A `let` because the child's exit handler is
+     *  installed by `start`, which runs inside the very expression that
+     *  produces `invalidate` — the knot has to be tied after it exists. */
+    let forget: () => void = () => {}
+
+    // ONE start, however many callers race for the first embed — the memo is
+    // what keeps two of them from spawning two servers over one socket — but a
+    // memo that can NEVER be dropped is a decision this layer has no business
+    // making. A child that dies mid-serve, or a start that failed once, would
+    // otherwise leave `nearest` answering empty for the life of the serve,
+    // said once in the log and never again; and the whole claim of this file
+    // is that olai OWNS this process. So the memo is invalidated when the
+    // child exits and when a start fails, and the next embed brings the server
+    // back.
+    const [started, invalidate] = yield* Effect.cachedInvalidateWithTTL(
       Effect.provideService(
-        start(server, model, socket, fs, path),
+        Effect.gen(function*() {
+          const since = Date.now() - attemptedAt
+          if (attemptedAt !== 0 && since < RESTART_COOLDOWN_MS) {
+            // A crash-looping model server must not be respawned per
+            // keystroke. Refusing is not a verdict — the memo is dropped again
+            // by the caller below, so the attempt after the cooldown is
+            // allowed.
+            return yield* new StartFailure({
+              reason: `waiting out the restart cooldown (last attempt ${
+                Math.round(since / 1_000)
+              }s ago)`,
+            })
+          }
+          attemptedAt = Date.now()
+          stopping = false
+          yield* start(server, model, socket, fs, path, () => {
+            if (!stopping) forget()
+          })
+        }),
         Scope.Scope,
         scope,
       ),
+      // Effectively forever: this memo is dropped by the two events above,
+      // never by the clock. A TTL is the shape the library offers; the policy
+      // is ours.
+      Duration.days(365),
+    )
+    forget = () => {
+      Effect.runSync(invalidate)
+    }
+    // The finalizer that tells the exit handler a death is a shutdown. It runs
+    // BEFORE `start`'s own kill finalizer, because finalizers unwind in
+    // reverse order of registration and this one is registered first.
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => {
+        stopping = true
+      })
     )
 
+    /** The server, up — or a failure that has already dropped the memo, so the
+     *  next caller may try again rather than inheriting this one's verdict. */
+    const upOrRearm = Effect.gen(function*() {
+      const outcome = yield* Effect.result(started)
+      if (outcome._tag === "Failure") {
+        yield* invalidate
+        return yield* outcome.failure
+      }
+    })
+
     const embed: Embedder["embed"] = (kind, texts) =>
-      Effect.flatMap(started, () =>
+      Effect.flatMap(upOrRearm, () =>
         Effect.tryPromise({
           try: async () => {
             const reply = await fetch("http://localhost/v1/embeddings", {
@@ -402,6 +471,11 @@ const start = (
   socket: string,
   fs: FileSystem.FileSystem,
   path: Path.Path,
+  /** Told when the child exits on its own. The caller uses it to drop the
+   *  memo that says a server is up, so the next embed starts a new one. It is
+   *  NOT called for the exit the finalizer causes — the caller distinguishes
+   *  those, because a shutdown is not something to recover from. */
+  onGone: () => void,
 ): Effect.Effect<void, StartFailure, Scope.Scope> =>
   Effect.gen(function*() {
     yield* Effect.ignore(fs.makeDirectory(path.dirname(socket), { recursive: true }))
@@ -433,6 +507,12 @@ const start = (
       tail = (tail + chunk.toString()).slice(-2_000)
     })
     child.on("error", () => {})
+    // The death this file is about. `exit` fires for a crash, an OOM kill and
+    // for the finalizer's own SIGTERM alike, so telling those apart is the
+    // caller's job and not this one's.
+    child.on("exit", () => {
+      onGone()
+    })
 
     // Who to reap, and who is allowed to. Written BEFORE the wait, so a start
     // that times out is still recorded — an orphan nobody knows about is the
