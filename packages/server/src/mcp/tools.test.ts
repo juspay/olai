@@ -25,7 +25,7 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
-import { type OutlineError, type OutlineSet } from "@olai/format"
+import { type FailureKind, type OutlineError, type OutlineSet } from "@olai/format"
 import { codec, make as makeOps, TOOLS } from "@olai/ops"
 import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
@@ -36,6 +36,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
+import type { Agree, Identical } from "../agree.ts"
 import { watchFault } from "../fault.ts"
 import { bind, gitWiring } from "../runtime.ts"
 import { serveFace } from "./face.ts"
@@ -470,6 +471,87 @@ test("arguments that do not fit the tool are refused before any planning", async
     // report: a malformed call is not a refused write.
     expect(refusals).toEqual([])
     expect(read("house.jsonl")).toBe(HOUSE)
+  })
+})
+
+/**
+ * The four kinds are FOUR, and each is accounted for here.
+ *
+ * `refusal` (`./tools.ts`) spells `kindOf(failure)` into the structured detail,
+ * and `kindOf` reads `@olai/format`'s closed table — so a fifth kind is one
+ * edit there and a new word arriving at an agent everywhere. This list is what
+ * makes that edit stop here first: three of the four are pinned by the tests
+ * around it, and the fourth is named as unreachable rather than forgotten.
+ *
+ * `busy` is that fourth. Its only raiser is the write loop giving up after
+ * `ROUNDS` re-plans, each overtaken by another writer — a condition a test can
+ * only produce by standing up a store that rewrites itself continuously, which
+ * would be a test of the retry rather than of this contract. It is reachable in
+ * production and it is deliberately not provoked here.
+ */
+const PINNED_KINDS = ["usage", "not-found", "validation", "busy"] as const
+export type EveryKindIsAccountedFor = Agree<
+  Identical<typeof PINNED_KINDS[number], FailureKind> extends true ? true
+    : "@olai/format grew a refusal kind that no test here pins. Pin it, or name it unreachable like `busy`."
+>
+
+/**
+ * A `validation` refusal, which is the kind whose payload is the whole point.
+ *
+ * The other three carry a sentence and at most an id. This one carries the
+ * VALIDATOR'S OWN ROWS — `file`, `line`, `code`, `message` per finding — which
+ * is what lets an agent fix the one line that is wrong instead of re-reading a
+ * directory it cannot parse. It is also the only kind whose detail is an array
+ * of objects, so it is the only one the schema bridge and `structuredContent`
+ * could plausibly flatten on the way out.
+ *
+ * AND THE SAME ROWS ARRIVE THE OTHER WAY. A refused call is one door onto
+ * "what is wrong here"; `surface://cells/errors` is the other, and it is the
+ * one the browser draws its banner from. Asserting they are the same rows is
+ * the whole of "one surface for browser and agents" at the point where it would
+ * actually be felt: an agent and a person looking at a broken directory are
+ * looking at one report.
+ */
+test("a directory that will not load refuses with the validator's own rows", async () => {
+  // A SET-WIDE break, deliberately, rather than one unparseable file: a lone
+  // bad file is absorbed (the survivors are clean, so it rides as
+  // `OutlineSet.broken` and the rest stays live — format's error scope). What
+  // rejects a set is a rule that needs to know what else exists, and a `parent`
+  // nothing declares is the plainest one.
+  await withTools({
+    "house.jsonl": HOUSE,
+    "orphan.jsonl": `{"id":"stray","parent":"kitchn","ord":"a0","title":"a lost row"}\n`,
+  }, async ({ client }) => {
+    const read = await call(client, "search_nodes", { text: "kitchen" })
+    expect(read.isError).toBe(true)
+    expect(read.structured["kind"]).toBe("validation")
+
+    // A WRITE refuses the same way, and that is the point of the kind: a
+    // refused write and a broken file on disk are explained by one report.
+    const write = await call(client, "set_done", { id: "order" })
+    expect(write.isError).toBe(true)
+    expect(write.structured["kind"]).toBe("validation")
+
+    // The rows themselves, as DATA — situated, not a sentence to parse.
+    const rows = read.structured["errors"] as ReadonlyArray<Record<string, unknown>>
+    expect(Array.isArray(rows)).toBe(true)
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows[0]).toMatchObject({ file: "orphan.jsonl" })
+    for (const row of rows) {
+      expect(typeof row["code"]).toBe("string")
+      expect(typeof row["message"]).toBe("string")
+      expect(typeof row["line"]).toBe("number")
+    }
+    expect(write.structured["errors"]).toEqual(rows)
+
+    // And the resource an agent can WATCH says the same thing, in the same
+    // vocabulary, at the same instant — which is what one surface means.
+    const answer = await client.readResource({ uri: "surface://cells/errors" })
+    const part = answer.contents[0]
+    if (part === undefined || !("text" in part)) {
+      throw new Error("surface://cells/errors: expected one text part")
+    }
+    expect(JSON.parse(part.text as string)).toEqual(rows)
   })
 })
 

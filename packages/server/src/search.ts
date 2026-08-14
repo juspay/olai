@@ -24,15 +24,15 @@
  * arriving through the one seam nobody was watching.
  *
  * So the agreement is ASSERTED here, at the only place both spellings are in
- * scope, and asserted as IDENTITY rather than as assignability. Assignability
- * is what fails to catch this: an extra optional field on either side is
- * assignable in both directions, and an extra required field is only caught if
- * some producer inside `@olai/ops` happens not to supply it.
+ * scope, and asserted as IDENTITY rather than as assignability — {@link
+ * ./agree.ts} owns the reason that distinction is the whole of the fence.
  */
 
 import type { Reading } from "@olai/ops"
 import { Query } from "@olai/ops"
 import type { SearchAnswer, SearchRequest } from "@olai/surface"
+
+import type { Agree, Identical } from "./agree.ts"
 
 /**
  * The browser's door to the one reading.
@@ -46,28 +46,6 @@ export const searchFor = (at: Reading, request: SearchRequest): SearchAnswer =>
   Query.search(at.derived, request)
 
 // ── the fence ──────────────────────────────────────────────────────────
-
-/**
- * Type identity, the conditional-type way.
- *
- * Two deferred conditionals are the same type only if their checked types are
- * the same type — so this sees optionality, `readonly`, and a field present on
- * one side and not the other, none of which mutual assignability sees. It is
- * the standard formulation and it is here rather than imported because it is
- * four lines and a dependency for four lines is worse.
- */
-type Identical<A, B> = (<T>() => T extends A ? 1 : 2) extends
-  (<T>() => T extends B ? 1 : 2) ? true : false
-
-/**
- * A compile error when the two are not the same type, and one that SAYS SO.
- *
- * The straightforward spelling — a `T extends true` parameter — reports "Type
- * 'false' does not satisfy the constraint 'true'", which tells whoever broke it
- * nothing about what they broke. Passing the complaint through as the failing
- * type instead puts the sentence in the compiler's own output, where it is read.
- */
-type Agree<_ extends true> = never
 
 /**
  * What both faces ASK — `@olai/ops`' `SearchQuery` (the JSON Schema an agent
