@@ -85,6 +85,21 @@ changes about the sentence above is only that a day now has two halves — what
 somebody wrote about it, and what the set says was on it — and never that a
 node's dates are read differently.
 
+**Two outline filenames mean something too, and both are conventions rather
+than rules.** An `Archive.jsonl` holds what was put away, beside the outline it
+left (the section above says what that does to blockedness); an `Inbox.jsonl`
+is where a capture lands when the caller names no file. Both are read by NAME:
+the inbox is whichever outline is called `Inbox.jsonl`, case-insensitively,
+wherever in the tree it sits — shallowest first, then path order, so a
+directory that already keeps `notes/inbox.jsonl` captures into the file it has
+— and a directory with none gets `Inbox.jsonl` at the root, minted by the same
+single operation that writes the first line into it. Nothing validates either
+name and no field records them; `@olai/format` spells both (`ARCHIVE` /
+`isArchived`, `INBOX` / `inboxIn`) so every face resolves them identically.
+Both faces reach the inbox the same way: the browser's `⌘K` `+` sends a line
+and no file and the server resolves it, and an agent reads the outlines and
+calls `add_node` or `create_outline` itself.
+
 **Two fields put a node on a day**: `date`, which is what it is scheduled for,
 and a dated `done` — `{"done":"2026-08-11T15:40:03-04:00"}` is work someone
 finished at that instant. Both place identically: a node finished on the 11th is

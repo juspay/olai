@@ -124,6 +124,40 @@ Feature: The ⌘K palette writes
     Then the palette asks "Move “install the cabinets” and the 3 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
     And "house.jsonl" holds a node titled "install the cabinets"
 
+  Scenario: The question takes the caret, and Tab cycles its two ways out
+    # A question nobody's keyboard can reach is a question only a mouse may
+    # answer — and the palette's own Tab trap made that literal, because it
+    # sent every Tab back to the box. While the question stands, the trap is
+    # the QUESTION's (review, 2026-08-14).
+    Given I open the node "install"
+    When I press the palette shortcut
+    And I choose "Move to Trash" from the palette
+    Then the palette's caret is on "go"
+    When I press "Tab"
+    Then the palette's caret is on "cancel"
+    When I press "Tab"
+    Then the palette's caret is on "go"
+    # …and the way out by keyboard is still Escape, which cancels the question
+    # rather than the palette.
+    When I press "Escape"
+    Then the palette is not asking anything
+    And the command palette is open
+    And "house.jsonl" holds a node titled "install the cabinets"
+
+  Scenario: A prefix typed behind the question does not steal its Enter
+    # The Switch draws the question above both prefixes because nothing typed
+    # next may quietly become the answer. Enter has to keep the same promise:
+    # it answers what is on screen, not what is in a box somebody clicked back
+    # into (review, 2026-08-14).
+    Given I open the node "install"
+    When I press the palette shortcut
+    And I choose "Move to Trash" from the palette
+    And I click the palette box
+    And I type "+ oops" into the palette
+    And I press "Enter"
+    Then "house.jsonl" no longer holds the node "install"
+    And "Inbox.jsonl" holds exactly 0 nodes titled "oops"
+
   Scenario: Cancelling the question writes nothing
     Given I open the node "install"
     When I press the palette shortcut
@@ -186,6 +220,27 @@ Feature: The ⌘K palette writes
     And I capture "buy the walnut stain" from the palette
     Then "Inbox.jsonl" holds a node titled "buy the walnut stain"
     And the palette remarks "captured “buy the walnut stain” to Inbox.jsonl"
+    And there should be no page errors
+
+  Scenario: A second Enter on the first capture is not a second write
+    # THE BLOCKING FINDING (review, 2026-08-14). The capture keeps the box and
+    # the palette, so nothing visible has happened while the round trip is out
+    # — which is exactly when a hand repeats the key. Both sends are judged
+    # against a reading the first has not landed in yet, so on a directory
+    # with no inbox both resolve to the same `create Inbox.jsonl`, the write
+    # gate re-plans that REQUEST rather than re-resolving the edit, and the
+    # second comes back refused in `create_outline`'s own words — over a line
+    # that DID land, with the refusal overwriting the remark saying so.
+    #
+    # So: one write at a time, the date picker's rule. The remark below is the
+    # assertion that matters twice over — it proves the first landed AND that
+    # no refusal overwrote it.
+    When I press the palette shortcut
+    And I type "+ buy the walnut stain" into the palette
+    And I press "Enter" without waiting
+    And I press "Enter" without waiting
+    Then the palette remarks "captured “buy the walnut stain” to Inbox.jsonl"
+    And "Inbox.jsonl" holds exactly 1 node titled "buy the walnut stain"
     And there should be no page errors
 
   Scenario: A capture of nothing is refused in the ops layer's own words

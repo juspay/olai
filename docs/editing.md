@@ -242,8 +242,14 @@ looking at is a fact you and the palette can both see.
 
 `Set date…` stays on the row, because it opens the row's own picker and there
 is nothing for the palette to open. `Move to Trash` asks its question in the
-palette's own box, with the same sentence and the same count the menu asks —
-Escape or **Cancel** backs out, choosing it again goes ahead.
+palette's own box, with the same sentence and the same count the menu asks.
+**The question takes the caret when it is raised** — so Enter answers it, Tab
+cycles its two ways out, and Escape or **Cancel** backs out. Nothing you type
+elsewhere becomes the answer.
+
+**One write at a time.** The gate is a round trip, and a second Enter while the
+first is still out is two writes for one intention — so the second is ignored
+rather than sent, exactly as the date picker's button already worked.
 
 A refusal, or a nudge from a write that landed, is drawn in the palette and
 the palette stays up: a modal that closed on top of the reason would be

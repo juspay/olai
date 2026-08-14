@@ -214,6 +214,35 @@ Then(
   },
 );
 
+/**
+ * WHERE THE KEYBOARD IS — asked of `document.activeElement`'s own `data-id`,
+ * which is the fact the markup publishes about a row or a way out.
+ *
+ * A question nobody's keyboard can reach is a question only a mouse may
+ * answer, and the palette's Tab trap made that literal until the confirm
+ * learned to take the caret (review, 2026-08-14). So the caret is asserted
+ * rather than assumed — a screen reader's reading of this panel is the focus
+ * moving into it.
+ */
+Then(
+  "the palette's caret is on {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.waitUntil(
+      async () =>
+        (await this.page.evaluate(() =>
+          document.activeElement?.getAttribute("data-id") ?? null
+        )) === id,
+      `the palette's caret to be on ${JSON.stringify(id)}`,
+    );
+  },
+);
+
+/** Back into the box on purpose — the only way to be typing while a question
+ *  is up, and the setup for what Enter means there. */
+When("I click the palette box", async function (this: OlaiWorld) {
+  await this.page.locator(PALETTE_INPUT).click();
+});
+
 Then("the palette is not asking anything", async function (this: OlaiWorld) {
   await this.page
     .locator(PALETTE_CONFIRM)

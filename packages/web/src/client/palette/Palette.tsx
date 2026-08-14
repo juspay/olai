@@ -156,8 +156,36 @@ export function Palette(props: {
    *  same box, exactly as the `•••` menu's confirm does rather than as browser
    *  chrome olai does not own. */
   const [asking, setAsking] = createSignal<Asking | null>(null)
+  /**
+   * A WRITE IS IN FLIGHT — the date picker's rule, in the surface that needed
+   * it most: "the gate is a round trip, and a second Enter while the first is
+   * in flight is two writes for one intention" ({@link ../date/DatePicker.tsx}).
+   *
+   * The capture is what makes it load-bearing rather than tidy. It keeps the
+   * box AND the palette, so nothing visible has happened while the round trip
+   * is out — which is exactly the moment a hand repeats the key. The second
+   * send is judged against the reading the first has not landed in yet, so on
+   * a directory with no inbox both resolve to the same `create Inbox.jsonl`,
+   * and the write gate re-plans that REQUEST rather than re-resolving the
+   * edit: the second comes back refused in the words `create_outline` gets —
+   * *already an outline … capture into this one with `add_node`* — over a line
+   * that DID land, and the refusal overwrites the remark saying so. Found by
+   * review, 2026-08-14.
+   *
+   * It guards every write this palette makes, not just that one, because the
+   * argument is about the gate rather than about the verb: two `Complete`s for
+   * one press are two ops, and the second is refused for asking about nothing.
+   * The `>` ask is deliberately not on it — that is a message to the agent
+   * rather than a write to the directory, it closes the palette on its way
+   * out, and the composer beside it has always let a person send twice.
+   */
+  const [sending, setSending] = createSignal(false)
   let input: HTMLInputElement | undefined
   let previousFocus: HTMLElement | null = null
+  /** The confirm's own GO button while a question is up — where the caret
+   *  goes when the question is raised, and half of what Tab cycles between. */
+  let go: HTMLButtonElement | undefined
+  let cancel: HTMLButtonElement | undefined
 
   /** What the box is doing — one value, so "showing the list" and "composing a
    *  line" cannot disagree ({@link ./items.ts}'s `Mode`). */
@@ -288,8 +316,11 @@ export function Palette(props: {
    * which surface made the edit.
    */
   const sendEdit = (edit: Edit) => {
+    if (sending()) return
+    setSending(true)
     setSaid(null)
     void applying(edit, undo.record).then((said) => {
+      setSending(false)
       if (said === undefined) {
         close()
         return
@@ -327,8 +358,11 @@ export function Palette(props: {
    * and wrong out loud for a directory that keeps `notes/inbox.jsonl`.
    */
   const sendCapture = (text: string) => {
+    if (sending()) return
+    setSending(true)
     setSaid(null)
     void applied({ verb: "capture", title: text }, undo.record).then((outcome) => {
+      setSending(false)
       if (Outcome.isFailure(outcome)) {
         setSaid({ tone: "alarm", text: outcome.failure.message })
         return
@@ -379,6 +413,22 @@ export function Palette(props: {
   }
 
   const confirm = () => {
+    // THE QUESTION FIRST, above both prefixes, for the reason the Switch draws
+    // it first: it is up because somebody chose the verb that asks it, and
+    // nothing they type next may quietly become the answer — nor may Enter
+    // quietly become something ELSE while it is standing there. Read the other
+    // way round, `+ …` typed into a box behind the question sent a capture on
+    // an Enter the reader aimed at the question (review, 2026-08-14): the
+    // layout kept the promise and the key did not.
+    //
+    // Reaching this from the BOX at all takes a deliberate click back into it,
+    // because raising the question moves the caret onto its own button — so
+    // the ordinary path is the button's own Enter, and this is the belt.
+    const question = asking()
+    if (question !== null) {
+      answer(question)
+      return
+    }
     const box = mode()
     if (box.kind === "ask") {
       sendAsk(box.text)
@@ -386,14 +436,6 @@ export function Palette(props: {
     }
     if (box.kind === "capture") {
       sendCapture(box.text)
-      return
-    }
-    // The question, if one is up: Enter is the second press that answers it,
-    // which is the two-step the `•••` menu asks for and the same two calls an
-    // agent makes.
-    const question = asking()
-    if (question !== null) {
-      answer(question)
       return
     }
     // Nothing lit is nothing chosen — see {@link NOTHING}. No `?? list[0]`
@@ -423,10 +465,17 @@ export function Palette(props: {
           event.preventDefault()
           escape()
         }
-        // Simple focus trap: keep Tab inside the dialog while open.
-        if (paletteOpen() && event.key === "Tab" && input) {
+        // Simple focus trap: keep Tab inside the dialog while open — and
+        // inside the QUESTION while one is up, which is the part that stopped
+        // being simple when the confirm moved in here. Sending Tab back to the
+        // box then would have been a trap that made the two buttons it draws
+        // unreachable by keyboard (review, 2026-08-14), so while the question
+        // is standing Tab cycles its two ways out and nothing else.
+        if (paletteOpen() && event.key === "Tab") {
           event.preventDefault()
-          input.focus()
+          if (asking() === null) input?.focus()
+          else if (document.activeElement === go) cancel?.focus()
+          else go?.focus()
         }
         return
       }
@@ -591,16 +640,38 @@ export function Palette(props: {
                 next may quietly become the answer. */}
             <Match when={asking()}>
               {(question) => (
-                <div class="px-4 py-3" role="group" aria-label={question().question}>
+                <div
+                  class="px-4 py-3"
+                  role="group"
+                  aria-label={question().question}
+                >
+                  {/* ANNOUNCED, and not only drawn. The caret is in the box
+                      when the verb is chosen, so without this a reader who
+                      cannot see the panel is told nothing at all and their
+                      next Enter archives a subtree. `alert` + `assertive` is
+                      the same pair a refusal gets one row up — this is the
+                      other sentence in this palette that must interrupt. */}
                   <p
                     class="m-0 text-xs leading-snug text-ink"
                     data-testid={TESTID.paletteConfirm}
+                    role="alert"
+                    aria-live="assertive"
                   >
                     {question().question}
                   </p>
                   <div class="mt-2 flex gap-2">
                     <button
                       type="button"
+                      // AND THE CARET COMES IN, which is the `•••` menu's own
+                      // confirm rule (`../menu/NodeMenu.tsx`): a question
+                      // nobody's keyboard can reach is a question only a mouse
+                      // may answer, and the Tab trap above made that literal.
+                      // A microtask because the element is not in the document
+                      // at the instant the ref runs.
+                      ref={(element) => {
+                        go = element
+                        queueMicrotask(() => element.focus())
+                      }}
                       class={`${ALARM_PILL} cursor-pointer`}
                       data-testid={TESTID.paletteItem}
                       data-id="go"
@@ -610,6 +681,7 @@ export function Palette(props: {
                     </button>
                     <button
                       type="button"
+                      ref={cancel}
                       class={`${QUIET_PILL} cursor-pointer`}
                       data-testid={TESTID.paletteItem}
                       data-id="cancel"
