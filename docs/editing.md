@@ -25,6 +25,15 @@ you type is the SOURCE — `**bold**` and `#tags` as they are written — and th
 rendering comes back the moment you leave. A note is the same trade one line
 down.
 
+**What has no key is in the row's `•••` menu**, and it has two doors. On a
+pointer device, hover a row and the `•••` appears in the gutter left of the
+collapse triangle. A phone has no hover and no room for it, so there the door
+is the row itself: **hold a finger on a row** and the same menu opens under it,
+with the same verbs. Nothing in it is a mouse's alone. A finger that MOVES is
+scrolling the page, not pressing — the menu comes up only for one that stays
+put — and the tap that lifting it would otherwise leave behind is dropped, so a
+press never also opens the row for editing or follows its bullet.
+
 ## The three marks, from the keyboard
 
 There are three marks and a node carries at most one of them

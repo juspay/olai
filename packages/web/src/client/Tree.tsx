@@ -24,6 +24,11 @@
  * halo when children are hidden); then the status checkbox. The hover strip
  * is always visible on a phone (no hover there) — see ./touch.ts.
  *
+ * The `•••` itself is not drawn below 48rem, where there is no room for it,
+ * so a phone reaches the same menu by HOLDING a finger on the row instead
+ * (./longPress.ts, ./menu/door.ts). Both doors open one menu with one catalog;
+ * neither device gets a verb the other does not.
+ *
  * A row that cannot start yet says so twice and quietly: the mark column draws
  * the waiting glyph instead of the box (./Checkbox.tsx), and the row's own
  * line and body dim. The dim is on those two rather than on the `<li>`,
@@ -77,6 +82,7 @@ import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { nodeMenuActions } from "./menu/actions.ts"
+import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
 import { useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
@@ -84,6 +90,7 @@ import { useToday } from "./today.tsx"
 import {
   CHILD_INDENT,
   GUTTER_GAP,
+  HELD,
   HOVER_CELL,
   HOVER_GUTTER,
   HOVER_REVEAL,
@@ -157,6 +164,13 @@ function Branch(props: {
 
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
+
+  /** Both doors to this row's `•••` menu, whether it is open, and the line all
+   *  of that is about: the `•••` in the gutter, and — where that is not drawn,
+   *  which is every screen under 48rem — a long press on the row, which is
+   *  then also what the panel hangs off (./menu/door.ts). Called here, in the
+   *  row's own owner, so a press in flight is disposed with the row. */
+  const menu = createMenuDoor()
 
   /** Is this row's date picker open? Local to the ROW rather than to either of
    *  the two things that open it — the pill on the line, and the `•••` menu's
@@ -235,7 +249,26 @@ function Branch(props: {
           every descendant's menu and triangle at once. Gap is GUTTER_GAP —
           the same number PAST_CONTROLS is arithmetic over (./touch.ts). */}
       <div
-        class={`group/row flex items-center ${GUTTER_GAP} ${WAITING_DIM(props.row.blocked)}`}
+        ref={menu.line}
+        // `relative` for the phone's menu root, which is out of the gutter's
+        // flow so that a strip with no `•••` in it stays exactly as wide as
+        // its triangle (./touch.ts's arithmetic). `HELD` is the other half of
+        // what the long press below does about the browser's own gesture, for
+        // the platform that raises it without an event to prevent.
+        class={`group/row relative flex items-center ${HELD} ${GUTTER_GAP} ${
+          WAITING_DIM(props.row.blocked)
+        }`}
+        // The phone's door to the `•••` menu: hold a finger on the row. Touch
+        // only, so a mouse and a pen are untouched — and so is the page, which
+        // goes on scrolling under a finger that moves (./longPress.ts).
+        //
+        // Named one by one rather than spread: a spread anywhere on an element
+        // moves EVERY attribute of it onto Solid's runtime `spread` path,
+        // where the `classList` beside them is diffed key by key on every
+        // frame the store publishes — for every row in the outline. The two
+        // handlers are the whole of `LongPress`.
+        onPointerDown={menu.hold.onPointerDown}
+        onContextMenu={menu.hold.onContextMenu}
         // Two ways of being THE row, drawn in one accent and told apart by
         // weight: the caret fills its row, a reference outlines the row it
         // points at. One vocabulary, because "this is the one" is one thing to
@@ -248,8 +281,10 @@ function Branch(props: {
         }}
         data-testid={TESTID.nodeGutter}
       >
-        {/* Hover strip: triangle always (phone) / hover-reveal (pointer);
-            ••• menu only on pointer devices (hidden below md). */}
+        {/* Hover strip: triangle always (phone) / hover-reveal (pointer). The
+            `•••` is drawn on pointer devices only; below md its root is still
+            here but out of the strip's flow, holding the panel a long press
+            opens (./menu/NodeMenu.tsx). */}
         <div class={HOVER_GUTTER}>
           {/* The catalog is built where it is READ, which is inside the open
               panel: Solid compiles a dynamic component prop to a getter, so
@@ -258,6 +293,7 @@ function Branch(props: {
               counts the rows under this one (`menu/subtree.ts`), and a walk
               per row per frame would be the tree squared. */}
           <NodeMenu
+            door={menu}
             actions={nodeMenuActions({
               row: props.row,
               derived: derived(),
