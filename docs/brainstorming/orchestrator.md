@@ -41,6 +41,44 @@ If orchestration is an olai feature:
 Option B contains option A: where the outlines live becomes a small choice,
 not the architecture.
 
+**2026-08-14, the human's strong signal**: orchestration will most likely
+happen **from olai chat itself** — whose agent sessions already hold kolu's
+MCP tools. So the operator in the transitional period is not necessarily a
+terminal Claude at all: it is the chat agent, speaking kolu's verbs as tool
+calls (worktree-cutting `lifecycle_create` shipped in kolu #2167), with the
+outline as its memory. The terminal orchestrator's remaining edge is only
+what the chat has not grown yet.
+
+## How the orchestrator hears that a lane finished (babysitting)
+
+Learned the hard way on 2026-08-13, when a watcher quietly timed out and a
+finished lane sat unread. The options, agent-agnostic ones first — the
+human's constraint: whatever we lean on must work from codex and opencode
+too, not just Claude.
+
+- **Blocking waits — the portable answer, in use now.** kolu's `wait` /
+  `debrief` block on the daemon's own event stream (push, not polling). Any
+  agent that can run a shell command — all of them — can hold one. The one
+  wart is the mandatory timeout, which created the lapse; the charter now
+  wraps it in a self-re-arming loop, and the upstream ask is that
+  **block-forever become the default** (the socket already fails loudly when
+  the daemon dies, so the timeout defends nothing).[^timeout]
+- **The same waits as MCP tools** — when kolu MCP is wired into a session,
+  identical shape, better transport: schema-validated arguments and no shell
+  quoting (both charter-mangling incidents on 2026-08-13 were bash eating
+  backticks — a failure class tool calls do not have). Works identically for
+  any MCP-speaking agent.
+- **Rejected: agent-native push.** Claude Code's "channels" can push events
+  into an open session, but only Claude's, and only an always-on one — a
+  daemon impersonated by an LLM session. Fails the agnostic test the way
+  apm's runtime list did. (Checked against the docs: MCP notifications
+  cannot wake an idle turn-based session at all; resource subscriptions are
+  not implemented in Claude Code's client.)[^wake]
+- **End state: olai subscribes.** When orchestration is olai-native, the
+  subscriber is a server that never sleeps between turns — it holds a real
+  kolu-MCP subscription/stream and updates lane nodes live. Agent-agnostic
+  by construction, because the listener is not an LLM harness.
+
 ## Question 2 — who knows how to start an agent?
 
 The heart of the wrong-model bug. Three candidate answers, none ratified:
@@ -173,6 +211,17 @@ period.
     `~/.codex/config.toml`; registered-runtime scripts get their prompt
     passed as an argument with Codex forced onto `codex exec`. Details:
     `apm-spike.md`.
+
+[^timeout]: Also observed: `kolu watch` (the streaming verb) emitted nothing
+    in two live samples, one taken while a lane was actively working —
+    possibly TTY-only output or bursts-only semantics. Filed mentally as a
+    question for upstream, not a request.
+
+[^wake]: Verified via the Claude Code docs (channels, channels-reference,
+    mcp): idle sessions have exactly three wake paths — user input,
+    background-task completion, remote control. Server-initiated events
+    ("channels") deliver only to open sessions; `list_changed` is the only
+    MCP notification processed, and only mid-turn.
 
 [^halves]: "Ship in halves": the outline is the fix (the knowledge exists,
     launchers read it), the launch verb is the convenience (olai calling
