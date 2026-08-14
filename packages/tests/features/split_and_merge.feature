@@ -141,8 +141,12 @@ Feature: Splitting and merging a row
     And "house.jsonl" holds no node titled " the handles"
     When I press "ControlOrMeta+Shift+z"
     Then the node "handles" has the title "choose"
+    # And the redo is the whole write, not half of it: the tail is a record on
+    # disk again, immediately after the head — which is the placement the
+    # merge-as-inverse shape exists to get right.
+    And "house.jsonl" holds a node titled " the handles" under "install"
 
-  Scenario: ⌘Z after a merge brings the row back with its children and its mark
+  Scenario: ⌘Z after a merge brings the row back with its children
     # The one inverse on this surface that is a whole sequence: the record out
     # of the trash, back into its place, its children back under it, and the
     # survivor's title put back guarded by what the merge made it.
@@ -158,3 +162,61 @@ Feature: Splitting and merging a row
     And the node "glazing" is a child of "frames"
     And the node "sowing" is a child of "frames"
     And the node "herbs" comes before "frames"
+
+  Scenario: ⌘Z after a merge brings the mark back out of the Trash with it
+    # The other half of the promise the nudge makes. `knobs` is marked `todo`;
+    # merging it puts that mark in the Trash with the record rather than
+    # destroying it, so the way back has to bring it out again — which is what
+    # `unarchive` restoring the record intact means, and the mark is the field
+    # that says so.
+    When I click the title of "knobs"
+    And I put the caret at the start of the line
+    And I press "Backspace"
+    Then "house.jsonl" no longer holds the node "knobs"
+    When I press "Escape"
+    And I press "ControlOrMeta+z"
+    Then the node "knobs" has status "todo"
+    And the node "hinges" has the title "pick the hinges"
+    And the node "hinges" comes before "knobs"
+
+  Scenario: A split at a mirror is refused, in the ops layer's own words
+    # A split puts a SECOND ROW on the page, so it names the row's own record
+    # like a merge does — and a placement is not a node. Named through the
+    # mirror instead, the tail would be minted beside `herbs` in `garden.jsonl`:
+    # a mirror draws its target's children and never its siblings, so the two
+    # halves of one sentence would stop being siblings on screen and the caret
+    # would follow the tail off the page.
+    When I click the title of "kitchen-herbs"
+    And I put the caret after "the herb bed"
+    And I press "Enter"
+    Then the refusal says "is a mirror"
+    And "garden.jsonl" holds a node titled "the herb bed by the door"
+    And "garden.jsonl" holds no node titled " by the door"
+    # And the row goes on working: the refusal wrote nothing and the caret is
+    # still where it was.
+    And the row being typed holds "the herb bed by the door"
+
+  Scenario: Backspace at the start of a row that is still a draft writes it, then joins it
+    # The ordinary "I meant this on the previous line" gesture. The key is
+    # claimed at offset zero, so it is this feature's to answer — and a merge
+    # joins the two titles the SET holds, so the line has to be written before
+    # it can be joined onto anything. That is the same order every structural
+    # key follows.
+    When I click the title of "hinges"
+    And I press "Enter"
+    And I type "and the soft-close ones"
+    And I put the caret at the start of the line
+    And I press "Backspace"
+    Then "house.jsonl" holds a node titled "pick the hingesand the soft-close ones"
+    And the caret is at offset 15
+
+  Scenario: Backspace at the start of an EMPTY draft still writes nothing
+    # The other half of the case above, and it is not a regression: an empty
+    # new row is not a node, so there is nothing to join — the key does what the
+    # field's own Backspace at offset zero always did there, which is nothing.
+    When I click the title of "hinges"
+    And I press "Enter"
+    And I press "Backspace"
+    Then a new row is being typed
+    And the node "hinges" has the title "pick the hinges"
+    And the outline "house.jsonl" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"

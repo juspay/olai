@@ -200,13 +200,13 @@ the decision:
   archive" is not an answer for a row that is still on screen;
 - **the children move**, in order, to the end of the survivor's own. Nothing may
   be orphaned by a keystroke;
-- **the mark, the date and the edges go with the RECORD into the archive.** The
-  format allows one mark per node and the survivor already has its own answer,
-  so there is no merge of two — and nothing is destroyed, because the record
-  keeps its id in `Archive.jsonl` and `unarchive_node` brings it back. What the
-  op owes is that this is never silent, which is what the reply's `nudge` is
-  for: a `done` that has left the live outline is exactly the news a person is
-  owed.
+- **the mark, the date, the attached `doc` and the edges go with the RECORD into
+  the archive.** The format allows one of each per node and the survivor already
+  has its own answer, so there is no merge of two — and nothing is destroyed,
+  because the record keeps its id in `Archive.jsonl` and `unarchive_node` brings
+  it back. What the op owes is that this is never silent, which is what the
+  reply's `nudge` is for: a `done` that has left the live outline is exactly the
+  news a person is owed, and so is the file that was attached to it.
 
 Refused when the node is first among its siblings (nothing above it), when the
 row above is a MIRROR (a placement has no title to merge into) and, like every

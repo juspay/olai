@@ -185,19 +185,25 @@ export type EditAction =
 export type EditField = "line" | "block"
 
 /**
- * Where the caret is in the field the key was pressed in — the one thing about
- * the DOM that two of these keys depend on.
+ * Where the caret is in the field the key was pressed in, and what that field
+ * holds — the one thing about the DOM that two of these keys depend on.
  *
- * Three numbers rather than the element, so this file stays pure of the DOM
- * beyond the event and both matchers stay unit-testable with no window. A
- * selection is spelled by `start` and `end` differing, which is what makes
- * "Backspace at the start of a line" and "Backspace deleting a selection that
- * begins at the start of a line" two different answers rather than one.
+ * A VALUE rather than the element, so this file stays pure of the DOM beyond
+ * the event and both matchers stay unit-testable with no window. A selection is
+ * spelled by `start` and `end` differing, which is what makes "Backspace at the
+ * start of a line" and "Backspace deleting a selection that begins at the start
+ * of a line" two different answers rather than one.
+ *
+ * The TEXT rather than its length, because "is there a half here" is not "is
+ * there a character here": a half that is nothing but spaces is a title this
+ * format cannot hold, and the documented answer for a half it cannot hold is
+ * that the key is an `add`. Reading the length alone made `"  hello"` split at
+ * offset 2 into a refusal a person then had to read.
  */
 export interface Caret {
   readonly start: number
   readonly end: number
-  readonly length: number
+  readonly text: string
 }
 
 export const editKey = (
@@ -227,14 +233,17 @@ export const editKey = (
   if (event.key === "Enter") {
     if (event.ctrlKey || event.metaKey) return event.shiftKey ? "walk" : "toggle"
     if (event.altKey) return null
-    // TEXT ON BOTH SIDES is the whole test, and each half rules out a case this
-    // format cannot hold or does not mean. Nothing before the caret would leave
-    // the row with an empty title, which is not a node the ops layer will
-    // write — so `Enter` at the head of a line goes on being the key that opens
-    // the next one, and there is no blank row to insert above. Nothing after it
-    // is the ordinary end-of-line press. A SELECTION spanning to either end
-    // reads the same way, since what a split keeps is what falls outside it.
-    return at !== undefined && at.start > 0 && at.end < at.length ? "split" : "add"
+    // A TITLE ON BOTH SIDES is the whole test, and each half rules out a case
+    // this format cannot hold. Nothing before the caret would leave the row with
+    // an empty title, which is not a node the ops layer will write — so `Enter`
+    // at the head of a line goes on being the key that opens the next one, and
+    // there is no blank row to insert above. Nothing after it is the ordinary
+    // end-of-line press. A SELECTION spanning to either end reads the same way,
+    // since what a split keeps is what falls outside it. And a half that is
+    // nothing but whitespace is one of those cases rather than a split the ops
+    // layer would refuse a moment later — the decision is that a half this
+    // format cannot hold makes the key an `add`, so it is spelled here.
+    return at !== undefined && halves(at) ? "split" : "add"
   }
   // The caret at the very start with nothing selected — the one place a
   // `Backspace` has nothing of its own to delete, which is exactly why it is
@@ -258,6 +267,12 @@ export const editKey = (
   }
   return null
 }
+
+/** Whether cutting here leaves a TITLE on both sides — which is not the same
+ *  question as "is there a character on both sides": a node needs a title, and
+ *  a title of spaces is not one. */
+const halves = (at: Caret): boolean =>
+  at.text.slice(0, at.start).trim() !== "" && at.text.slice(at.end).trim() !== ""
 
 /**
  * The keys, written down for a PERSON.

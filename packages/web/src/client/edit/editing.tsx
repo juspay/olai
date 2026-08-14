@@ -425,6 +425,18 @@ export const createEditor = (
    *
    * The caret follows the TAIL, at its head, which is where the eye is: the
    * words after the cut are the ones that moved.
+   *
+   * IT NAMES THE ROW'S OWN RECORD, not the node the row shows — the same id a
+   * `merge` names, and the opposite of what a plain text edit does. A split is
+   * two things at once: it says what a node SAYS, and it puts a second row on
+   * the page. The second half is what decides, because it is the half a reader
+   * is looking at: named through a mirror, the tail would be minted beside the
+   * TARGET, in the file that node lives in — a page this reader may not have
+   * open, where a mirror draws its target's children and never its siblings.
+   * The two halves of one sentence would stop being siblings on screen, and the
+   * caret would follow the tail off the page (`follow` cannot find a row that is
+   * not drawn here, so no editor mounts at all). So a placement is refused, in
+   * the ops layer's own `notANode` words, exactly as a merge at one is.
    */
   const split = async (at: Caret) => {
     if (draft()?.kind === "new" && !(await commit())) return
@@ -433,7 +445,7 @@ export const createEditor = (
     const title = held.text.slice(0, at.start)
     const rest = held.text.slice(at.end)
     idle.clear()
-    const done = await redrawing({ verb: "split", id: held.id, title, rest }, slotOf(held))
+    const done = await redrawing({ verb: "split", id: held.row, title, rest }, slotOf(held))
     if (done === null) return
     setDraft(opening(done, 0))
     setCaret((n) => n + 1)
@@ -442,11 +454,20 @@ export const createEditor = (
   /**
    * `Backspace` AT THE START OF A LINE: this row joins the one above it.
    *
-   * The commit comes FIRST here where a split needs none, and the asymmetry is
-   * the ops layer's: a merge joins the two titles THE SET HOLDS — it carries no
-   * text at all — so a half-typed line has to be on disk before it can be
-   * joined onto anything. Which is the same order every other structural key
-   * follows, and for the same reason.
+   * The commit comes FIRST here — for a row that exists AND for one that does
+   * not — and the asymmetry with a split is the ops layer's: a merge joins the
+   * two titles THE SET HOLDS and carries no text at all, so a half-typed line
+   * has to be on disk before it can be joined onto anything. That is the same
+   * order every other structural key follows, and for the same reason.
+   *
+   * A ROW THAT DOES NOT EXIST YET is the case that makes it matter, and it is
+   * the ordinary "I meant this on the previous line" gesture: `Enter`, type,
+   * `Home`, `Backspace`. The key is claimed here, so it is this function's to
+   * answer — and answering it means writing the line first, which is exactly
+   * what a blur or an idle tick would have done a moment later. A draft with
+   * NOTHING in it writes nothing, `commit` says so, and the merge stops at the
+   * guard below: the field's own `Backspace` at offset zero already did nothing
+   * there, and Escape is still what abandons.
    *
    * The caret lands on the SEAM, which is the length of the joined title minus
    * the length of what was joined onto it. Both numbers come from the write:
@@ -456,7 +477,11 @@ export const createEditor = (
    */
   const merge = async () => {
     const before = draft()
-    if (before === null || before.kind !== "row" || before.field !== "title") return
+    if (before === null) return
+    // A note is prose; the keys that edit a ROW are the row's. (The matcher
+    // says the same thing one layer up — this is the guard for a caller that
+    // is not the matcher.)
+    if (before.kind === "row" && before.field !== "title") return
     if (!(await commit())) return
     const held = draft()
     if (held === null || held.kind !== "row") return

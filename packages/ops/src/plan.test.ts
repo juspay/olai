@@ -1149,23 +1149,42 @@ describe("merge", () => {
       .toBe("the second")
   })
 
-  test("a mark, a date or an edge goes with the record — and is said out loud", () => {
+  test("a mark, a date, a document or an edge goes with the record — and is said out loud", () => {
+    // Every field a node carries ONE of, so the survivor's own answer stands
+    // and this one leaves the live outline. None of them may go quietly —
+    // `doc` was the one that did, for a review (2026-08-14).
     const set = setOf({
       "house.jsonl": [
         `{"id":"a","ord":"a0","title":"a"}`,
-        `{"id":"b","ord":"a1","title":"b","done":"2026-08-01","date":"2026-09-01","see":["a"]}`,
+        `{"id":"b","ord":"a1","title":"b","done":"2026-08-01","date":"2026-09-01","doc":"finishes.md","see":["a"]}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "merge", id: "b" })
     expect(record(fileOf(result, "Archive.jsonl"), "b")).toMatchObject({
       done: "2026-08-01",
       date: "2026-09-01",
+      doc: "finishes.md",
       see: ["a"],
     })
     expect(record(fileOf(result, "house.jsonl"), "a").done).toBeUndefined()
     expect(result.nudge).toContain("`done` mark")
     expect(result.nudge).toContain("its date")
+    expect(result.nudge).toContain("its document `finishes.md`")
     expect(result.nudge).toContain("its edges")
+  })
+
+  test("a node carrying only a document still says so", () => {
+    // The list is assembled per field, so the one that was silent has to be
+    // pinned ALONE as well — a nudge that only appears beside a mark would be
+    // the same hole one field over.
+    const set = setOf({
+      "house.jsonl": [
+        `{"id":"a","ord":"a0","title":"a"}`,
+        `{"id":"b","ord":"a1","title":"b","doc":"finishes.md"}`,
+      ].join("\n"),
+    })
+    expect(planned(set, { op: "merge", id: "b" }).nudge)
+      .toContain("kept its document `finishes.md`")
   })
 
   test("the first of its siblings has nothing above it", () => {

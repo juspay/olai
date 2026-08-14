@@ -602,6 +602,20 @@ export const inverseOf = (
     // came off — one edit, and the ops layer's own inverse rather than one
     // assembled here. `applied` is the new node, which is the only id in this
     // whole function that did not exist when the reading was taken.
+    //
+    // IT CARRIES NO `was`, and that is a known residual rather than an
+    // oversight (reviewed twice, 2026-08-14). The alternative on the table was
+    // `remove` + a guarded `title`, and it is worse where it counts: `remove`
+    // is undone by `unarchive`, which lands LAST among its siblings, so undo
+    // then redo of a split in the middle of a row would put the tail at the end
+    // of it. Merge-as-inverse gets the placement right because the merge's own
+    // inverse carries a `place`. What is left open is the same contract every
+    // opposite-op inverse here already has (`unarchive` answers with `archive`
+    // and no guard either): a concurrent retitle of the head is concatenated
+    // rather than refused, and rows somebody hung under the tail are adopted
+    // rather than refusing. Closing it means guarding `merge` itself — on both
+    // faces, so an agent's `merge_node` gets the same field — which is a change
+    // to the op rather than to this arm.
     case "split":
       return [{ verb: "merge", id: applied }]
     // A merge is the one write here whose inverse is a SEQUENCE, and it is a

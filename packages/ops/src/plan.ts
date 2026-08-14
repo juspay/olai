@@ -1350,6 +1350,11 @@ const carriedOff = (scope: Scope, node: RegularNode): string | undefined => {
   const mark = scope.derived.status.get(node.id)
   if (mark !== undefined) kept.push(`its \`${mark}\` mark`)
   if (node.date !== undefined) kept.push("its date")
+  // The ATTACHED DOCUMENT is the same class as the mark and was quiet for one
+  // review: a node carries one `doc`, so the survivor's own answer stands and
+  // this one leaves the live outline with the record. A reader who put a file
+  // on that row is owed the sentence exactly as much as one who ticked it off.
+  if (node.doc !== undefined) kept.push(`its document \`${node.doc}\``)
   if (targetsOf(node).length > 0) kept.push("its edges")
   if (kept.length === 0) return undefined
   const said = kept.length === 1

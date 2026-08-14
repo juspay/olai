@@ -286,11 +286,14 @@ write:
   editor's own and not a reading of the outline) and it carries them as two
   TITLES rather than a caret index, for the reason no verb on either face names
   a range into a field. `merge` carries nothing but an id: which sibling is
-  above is a fact about the set. Their ids differ, and the difference is the
-  editor's own rule — `split` names the node the row SHOWS, because a split is
-  what a node SAYS; `merge` names the ROW's own record, because a merge takes a
-  row off the page, so one asked at a mirror is refused in the ops layer's
-  `notANode` words rather than joining two rows in a file nobody is looking at.
+  above is a fact about the set. BOTH name the ROW's own record rather than the
+  node the row shows, which is where they part from every plain text edit here:
+  each puts a row on the page a reader has open, or takes one off it, so each is
+  a question about where rows SIT. Asked at a mirror, both are refused in the
+  ops layer's `notANode` words — a placement is not a node, and a split named
+  through one would mint the tail beside the TARGET, in a file the reader is not
+  looking at, leaving the two halves of one sentence unrelated on screen and the
+  caret following the tail off the page.
 - **neither removal here is a delete.** `remove` is the inverse of an `add`: no
   key sends it, the only row it can take back is a row that was just made, and
   what it resolves to is `archive` — narrowed to a node with nothing under it.

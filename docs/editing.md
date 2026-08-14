@@ -83,7 +83,8 @@ after the caret to split off. At the HEAD of one it is that too, and that is a
 decision worth saying out loud: an outliner you have used would put a blank row
 above, and here there is no blank row to put — a node needs a title
 ([format.md](format.md)) — so nothing is written that the write gate would have
-to refuse.
+to refuse. Cutting where one side would be nothing but spaces is the same thing
+for the same reason, and reads the same way.
 
 **Backspace at the START of a line joins it onto the row above** — its sibling,
 the row your eye is on. The two titles run together with nothing between them,
@@ -98,16 +99,27 @@ are no silent losses in it:
   what was already there. Nothing is orphaned by a keystroke.
 - **the notes join**, one blank line apart, and a row with no note simply takes
   the other's.
-- **its mark, its date and what it waits on go with its record to the Trash.**
-  A node carries at most one mark and the surviving row already has its own
-  answer, so there is nothing to merge — and the record is not destroyed: it is
-  in the Trash with its id, and **Put back** returns it. What you get instead of
-  silence is a line under the row saying what went, because a `done` leaving the
-  outline is exactly the thing nobody should have to notice for themselves.
+- **its mark, its date, the document on it and what it waits on go with its
+  record to the Trash.** A node carries at most one of each and the surviving
+  row already has its own answer, so there is nothing to merge — and the record
+  is not destroyed: it is in the Trash with its id, and **Put back** returns it.
+  What you get instead of silence is a line under the row saying what went,
+  because a `done` leaving the outline is exactly the thing nobody should have
+  to notice for themselves.
 
 The first row of a level has nothing above it to join, and a row above that is
 a mirror has no title of its own to join onto; both say so under the row, in the
-ops layer's own words.
+ops layer's own words. **Neither key works at a mirror**, and that is the same
+sentence read once more: a mirror is a second placement of a node that lives
+somewhere else, so cutting one in two would put the half that came off beside
+that node, in a file you do not have open — the two halves of your sentence
+would stop being neighbours. Both refuse there, naming the node to go to.
+
+**A line you have only just started counts.** Neither key needs the row to have
+been saved: what you typed is written first, exactly as walking away from it
+would have written it, and then it is cut or joined. So `Enter`, a few words,
+`Home`, `Backspace` puts them on the line above — which is what that gesture
+means everywhere else.
 
 **⌘Z takes either back.** The undo of a split is the merge that puts the two
 halves back together; the undo of a merge is longer and does the whole thing —

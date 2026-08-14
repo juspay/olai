@@ -231,16 +231,17 @@ export const Edit = Schema.Union([
    * when they press the key is the editor's text, which is the editor's own and
    * not a reading of the set.
    *
-   * The `id` is the node the row SHOWS, like every other text edit here, and
-   * the contrast with `add` is the editor's own rule rather than an accident:
-   * what a node SAYS names the node a row shows, where a row SITS names the
-   * row's own record. `Enter` at the end of a line creates a node that has
-   * nothing to do with what the row says, so it goes where the reader is
-   * looking — beside the PLACEMENT. A split creates the other half of one
-   * sentence, so it goes beside the node whose sentence it is, and the two
-   * halves stay siblings, which is the whole meaning of the gesture. Where
-   * exactly the tail lands is the ops layer's (immediately after the head), so
-   * nothing is resolved behind this verb.
+   * The `id` is the ROW's own record, which is the same id a `merge` names and
+   * the opposite of what a plain text edit here names. A split is two things at
+   * once — it says what a node SAYS, and it puts a second row on the page — and
+   * the second half decides, because it is the half a reader is looking at.
+   * Named through a mirror, the tail would be minted beside the TARGET, in the
+   * file that node lives in: a mirror draws its target's children and never its
+   * siblings, so the two halves of one sentence would stop being siblings on
+   * screen and the caret would follow the tail off the page. So a placement is
+   * refused, in the ops layer's own `notANode` words, exactly as a merge at one
+   * is. Where the tail lands otherwise is the ops layer's (immediately after
+   * the head), so nothing is resolved behind this verb.
    */
   Schema.Struct({
     verb: Schema.Literal("split"),
@@ -262,12 +263,12 @@ export const Edit = Schema.Union([
    * only WHEN — a caret at offset zero with nothing selected, which is the one
    * position where `Backspace` has nothing of its own to delete.
    *
-   * `id` is the ROW's own record, where {@link Edit} `split`'s is the node the
-   * row shows — the same rule read the other way. A merge takes a ROW off the
-   * page and gives what hung under it to the row above, which is a question
-   * about where rows sit; so a merge asked at a mirror is refused in the ops
-   * layer's own `notANode` words, naming the node to go to, rather than
-   * quietly joining two rows in a file the reader is not looking at.
+   * `id` is the ROW's own record, as `split`'s is: both keys change how many
+   * rows there are on the page a reader has open, so both are questions about
+   * where rows SIT rather than about what a node says. A merge asked at a
+   * mirror is refused in the ops layer's own `notANode` words, naming the node
+   * to go to, rather than quietly joining two rows in a file the reader is not
+   * looking at.
    *
    * It is refused, in the ops layer's own words, when the row is first among
    * its siblings and when the row above is a mirror; and what happens to the

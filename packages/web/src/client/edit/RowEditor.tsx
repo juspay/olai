@@ -208,7 +208,7 @@ const caretOf = (target: EventTarget | null): Caret | undefined => {
   }
   const { selectionStart, selectionEnd, value } = target
   if (selectionStart === null || selectionEnd === null) return undefined
-  return { start: selectionStart, end: selectionEnd, length: value.length }
+  return { start: selectionStart, end: selectionEnd, text: value }
 }
 
 /**

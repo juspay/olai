@@ -1360,18 +1360,27 @@ loop a person is in, and nothing about outlines:
   behaves. At the END of a line `Enter` is the key it always was, and at the
   HEAD of one it is too: an empty title is not a node this format can hold, so
   there is no blank row to insert above and nothing is written the write gate
-  would refuse. `Backspace` is claimed at the ONE position where it has nothing
+  would refuse. A half that is nothing but WHITESPACE is the same case and is
+  answered the same way, in the matcher, rather than as a refusal a person then
+  has to read. `Backspace` is claimed at the ONE position where it has nothing
   of its own to delete, and is the field's own everywhere else.
   Both are ONE op — `split` and `merge`, the same two an agent calls — which is
   the difference that matters: a merge joins two titles, joins their notes,
   hands the row above everything that hung under this one and puts the record
   in the archive, and a sequence assembled here could stop halfway through
-  that. The caret is a fact about the FIELD, so it is read at the one DOM site
-  that has an element (`keyHandler` in `RowEditor.tsx`) and travels as a value
-  — which is what keeps the matcher and the editor both testable with no
-  browser. Where it LANDS afterwards is the draft's (`at`): the head of the
-  half that came off, or the seam two halves were joined at, neither of which
-  is the end of the text or where it was in an editor that has gone away.
+  that. Both COMMIT FIRST when the row is still a draft, because the row has to
+  exist before it can be cut or joined — a split then cuts what the `add` wrote,
+  and a merge joins it onto the line above, which is the ordinary "I meant this
+  on the previous line" gesture. Both name the ROW's own record, not the node
+  the row shows: each changes how many rows the reader's page has, so each is a
+  question about where rows SIT, and both are refused at a mirror in the ops
+  layer's own words rather than writing in a file nobody is looking at. The
+  caret is a fact about the FIELD, so it is read at the one DOM site that has an
+  element (`keyHandler` in `RowEditor.tsx`) and travels as a value — which is
+  what keeps the matcher and the editor both testable with no browser. Where it
+  LANDS afterwards is the draft's (`caret`): the head of the half that came off,
+  or the seam two halves were joined at, neither of which is the end of the text
+  or where it was in an editor that has gone away.
 - **Where the caret is, said twice.** The row holding it is toned and its
   bullet takes the accent (`data-editing` on the row is what a scenario asks).
   A blinking cursor at the end of a title is the whole affordance a walk with
