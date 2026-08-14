@@ -43,10 +43,13 @@ export interface Dismissable {
   /** Whether the panel is up. Nothing is listened for while it is not — a shut
    *  panel is not two document listeners for nothing. */
   readonly open: Accessor<boolean>
-  /** The panel itself: a pointer inside it is not a pointer outside it. */
-  readonly panel: Accessor<HTMLElement | undefined>
+  /** What counts as INSIDE: a pointer down in here is not a pointer down
+   *  outside. The panel, for a panel; the note control, for a note that opens
+   *  in place. */
+  readonly root: Accessor<HTMLElement | undefined>
   /**
-   * The control that opens it, when the panel is PORTALLED away from it.
+   * The control that opens it, when it is OUTSIDE that root — which is what a
+   * portal makes of every trigger.
    *
    * Two roots, and it is the bug worth naming: a portalled panel is not a
    * descendant of its trigger, so a click-away that knows only the panel reads
@@ -72,13 +75,13 @@ export const dismissOn = (on: Dismissable): void => {
   createInteractOutside(
     {
       isDisabled: shut,
-      // The trigger counts as inside, and only ever the trigger: the panel is
+      // The trigger counts as inside, and only ever the trigger: the root is
       // the ref below, and Kobalte checks that one itself.
       shouldExcludeElement: (element) =>
         on.trigger?.()?.contains(element) === true,
       onPointerDownOutside: () => on.dismiss("pointer"),
     },
-    on.panel,
+    on.root,
   )
 
   createEscapeKeyDown({

@@ -135,7 +135,7 @@ export const createPopover = (): Popover => {
   // and only the one a keyboard can make puts the caret back on the trigger.
   dismissOn({
     open,
-    panel: () => panel,
+    root: () => panel,
     trigger: () => trigger,
     dismiss: (how) => close(how === "escape"),
   })

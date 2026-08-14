@@ -38,7 +38,7 @@ export const createNoteExpand = (): NoteExpand => {
   // is no portalled trigger to consult as well.
   dismissOn({
     open,
-    panel: () => root,
+    root: () => root,
     dismiss: () => setOpen(false),
   })
 
