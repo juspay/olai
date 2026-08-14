@@ -78,7 +78,6 @@ import { DescEditor, keyHandler, Said, TitleEditor } from "./edit/RowEditor.tsx"
 import { collapsedNodes, setFolded } from "./fold/memory.ts"
 import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
 import { focusedNode } from "./focus.ts"
-import { longPressOn } from "./longPress.ts"
 import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
@@ -165,18 +164,14 @@ function Branch(props: {
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
 
-  /** Who may open this row's `•••` menu, and whether it is open. The ROW's,
-   *  because there are two doors: the `•••` in the gutter, and — where that is
-   *  not drawn, which is every screen under 48rem — a LONG PRESS on the line
-   *  below (./menu/door.ts says why the two booleans are two). */
+  /** Both doors to this row's `•••` menu, and whether it is open: the one in
+   *  the gutter, and — where that is not drawn, which is every screen under
+   *  48rem — a long press on the line below (./menu/door.ts). Called here, in
+   *  the row's own owner, so a press in flight is disposed with the row. */
   const menu = createMenuDoor()
   /** The line itself, which is the phone's menu anchor: with no `•••` to hang
    *  the panel off, it hangs off the row. */
   let line: HTMLDivElement | undefined
-  // Called in the component so the timer and the listeners a press in flight
-  // holds are disposed with the row, and so the handlers are made once rather
-  // than on every frame the store publishes.
-  const press = longPressOn(menu.show)
 
   /** Is this row's date picker open? Local to the ROW rather than to either of
    *  the two things that open it — the pill on the line, and the `•••` menu's
@@ -267,8 +262,8 @@ function Branch(props: {
         }`}
         // The phone's door to the `•••` menu: hold a finger on the row.
         // Touch only, so a mouse and a pen are untouched — and so is the page,
-        // which goes on scrolling under a finger that moves (../longPress.ts).
-        {...press}
+        // which goes on scrolling under a finger that moves (./longPress.ts).
+        {...menu.hold}
         // Two ways of being THE row, drawn in one accent and told apart by
         // weight: the caret fills its row, a reference outlines the row it
         // points at. One vocabulary, because "this is the one" is one thing to

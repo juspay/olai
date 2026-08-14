@@ -1523,7 +1523,7 @@ would have sent, judged by the same planner and refused in the same words.
 | `subtree.ts` | what hangs under a row: the count a confirm names, and the text a copy produces. Pure |
 | `actions.ts` | the catalog: the view verbs, the writes, the clipboard |
 | `NodeMenu.tsx` | the panel, its confirm step, and the line beside the `•••` |
-| `door.ts` | who may open it, and whether it is open — the ROW's, since there are two doors and only one of them is inside the menu |
+| `door.ts` | the two doors and the state behind them — the `•••`'s open/shut, and the long press that is the other door, handed out together so a row cannot wire one and forget the other |
 
 The write gate itself is `../writes.ts`, one level up: two surfaces send a
 pointer's write now (this menu and the date picker), and the four lines that
