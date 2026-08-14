@@ -226,21 +226,15 @@ test("a day lights up no outline, and says which day it turned out to be", () =>
 
 // ── the agenda ─────────────────────────────────────────────────────────
 
-// The forward half of the same question, and the same shape of answer: no file,
-// no node, one reading of the whole set at whatever day it is. What this model
-// settles is that the arm carries the DAY as well as the sections — the address
-// spells no date, and a page saying what is overdue owes the reader the day it
-// is overdue as of.
+// The forward half of the same question: no file, no node, and — since the
+// directory column marks what is owed on every screen — no sections either. The
+// reading is the app's one `agendaOf` (`App.tsx`), so what this model settles is
+// the DAY alone: the address spells no date, and a page saying what is overdue
+// owes the reader the day it is overdue as of.
 test("the agenda is answered for today, and says which day that was", () => {
   const page = pageAt({ kind: "agenda" })
   expect(only(page, "agenda")?.date).toBe(TODAY)
-  // `install` and `herbs` are both dated today in these fixtures and neither is
-  // marked, so today's section holds two occurrences and nothing is overdue.
-  expect(only(page, "agenda")?.agenda.overdue).toEqual([])
-  expect(only(page, "agenda")?.agenda.today.map((group) => group.file)).toEqual([
-    "garden.jsonl",
-    "house.jsonl",
-  ])
+  expect(only(page, "agenda")).toEqual({ kind: "agenda", date: TODAY })
 })
 
 test("the agenda lights up no outline, and draws no tree", () => {

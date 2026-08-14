@@ -336,7 +336,23 @@ export const TESTID = {
   /** The way to the agenda from the directory column, above the month — the
    *  journal's two questions, side by side. */
   agendaLink: "agenda-link",
-  /** Rail icon: the same way in when the column is collapsed. */
+  /** What that entry has to REPORT, wrapped around the link the way a calendar
+   *  cell wraps its day. Three facts, and none of them a colour: `data-owed` is
+   *  which face it wears — `overdue` (something has slipped: the app's alarm,
+   *  and the count on it is the late one), `today` (the quiet chip: a nudge,
+   *  not an alarm) or `quiet` (nothing owed, nothing said) — while
+   *  `data-overdue` and `data-today` are the two counts THEMSELVES, so a
+   *  scenario can hold the number that is shown and the one that is only
+   *  spoken. They are the agenda page's own rows counted (`owedOf`), never a
+   *  second reading of the directory. */
+  agendaOwed: "agenda-owed",
+  /** The number ON that entry — the chip itself, so "the count is drawn" is a
+   *  promise a scenario can hold rather than an attribute it infers. Absent
+   *  entirely when nothing is owed: an agenda with nothing on it wears no
+   *  chip, not a zero. */
+  agendaCount: "agenda-count",
+  /** Rail icon: the same way in when the column is collapsed, wearing the same
+   *  `data-owed` faces as a dot — no room for a count in three rem. */
   railAgenda: "rail-agenda",
   /** The way to the trash, at the foot of the directory column — below the
    *  file tree because that is where a trash sits, and OUTSIDE it because an

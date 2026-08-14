@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { agendaOf, isOverdue, nothingDue, UPCOMING_DAYS } from "./agenda.ts"
+import { agendaOf, isOverdue, nothingDue, owedOf, UPCOMING_DAYS } from "./agenda.ts"
 import { derive, type Derived } from "./derive.ts"
 import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import { type Located, type RegularNode } from "./node.ts"
@@ -265,6 +265,50 @@ test("Upcoming is bounded by the days it shows, not by a window of dates", () =>
   expect(upcoming.length).toBe(UPCOMING_DAYS)
   expect(upcoming[0]!.date).toBe("2026-08-13")
   expect(upcoming.at(-1)!.date).toBe("2026-08-19")
+})
+
+// ── how much of it there is ────────────────────────────────────────────
+
+test("the counts are the rows the page draws, across every outline", () => {
+  const owed = owedOf(agendaOf(SET, TODAY))
+  // `posts` and `permit` are late in one file. Today is `ferry` AND the
+  // birthday beside it: the count is of the ROWS the section draws, and that
+  // section holds occurrences — which is why nothing here calls them due. The
+  // task finished this morning is in neither, on the page or in the count.
+  expect(owed).toEqual({ overdue: 2, today: 2 })
+})
+
+test("a count is of NODES, and never of the outlines they are grouped under", () => {
+  // The same two late tasks, one per file: a mark saying "2" means two things
+  // are late, and a group-count would have said the same number for the wrong
+  // reason — so they are split here on purpose.
+  const spread = derive(
+    nodesOfFiles({
+      "work.jsonl": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-10"}`,
+      "life.jsonl": `{"id":"visas","ord":"a0","title":"send the visa forms","todo":true,"date":"2026-08-09"}`,
+    }),
+  )
+  const agenda = agendaOf(spread, TODAY)
+  expect(agenda.overdue.length).toBe(2)
+  expect(owedOf(agenda).overdue).toBe(2)
+})
+
+test("what is COMING is not owed: Upcoming is no part of the counts", () => {
+  const ahead = derive(
+    nodesOfFiles({
+      "work.jsonl": `{"id":"pack","ord":"a0","title":"pack the bags","todo":true,"date":"2026-08-14"}`,
+    }),
+  )
+  const agenda = agendaOf(ahead, TODAY)
+  expect(agenda.upcoming.length).toBe(1)
+  expect(owedOf(agenda)).toEqual({ overdue: 0, today: 0 })
+})
+
+test("nothing due is nothing counted", () => {
+  expect(owedOf({ overdue: [], today: [], upcoming: [] })).toEqual({
+    overdue: 0,
+    today: 0,
+  })
 })
 
 test("the archive keeps its place, for the reason a day page keeps it", () => {

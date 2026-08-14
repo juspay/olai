@@ -25,9 +25,11 @@ import { Then, When } from "@cucumber/cucumber";
 import { isoDayOf, untilMidnight } from "@olai/web/src/client/clock.ts";
 
 import {
+  AGENDA_COUNT,
   AGENDA_DAY,
   AGENDA_EMPTY,
   AGENDA_LINK,
+  AGENDA_OWED,
   AGENDA_PAGE,
   AGENDA_SECTION,
   DATE,
@@ -38,6 +40,7 @@ import {
   NODE,
   nodeSelector,
   POLL_TIMEOUT,
+  RAIL_AGENDA,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -218,6 +221,119 @@ Then(
     await expectOverdue(this, id, false);
   },
 );
+
+// ── what the DIRECTORY says about it ───────────────────────────────────
+
+/**
+ * The mark on the agenda entry, asked as the FACT it carries rather than as the
+ * colour it was painted — the rule every readout in this suite follows, and the
+ * reason the entry spells `data-owed` at all.
+ *
+ * VISIBLE first, and that is load-bearing rather than belt-and-braces: on a
+ * phone the whole directory is a sheet that is rendered and hidden, so an
+ * attribute read off the DOM alone would pass for a reader who cannot see the
+ * entry at all. The count is read as TEXT, because "3" being on screen is the
+ * half of this that a `data-` attribute cannot promise.
+ */
+const expectMark = async (
+  world: OlaiWorld,
+  face: string,
+  shown: number,
+): Promise<void> => {
+  await world.page
+    .locator(AGENDA_OWED)
+    .first()
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await world.expectAttribute(AGENDA_OWED, "data-owed", face, "the agenda entry");
+  const chip = world.page.locator(AGENDA_COUNT).first();
+  await world.waitUntil(
+    async () => (await chip.innerText().catch(() => "")).trim() === String(shown),
+    `the agenda entry to show "${shown}"`,
+  );
+};
+
+/** Something has slipped: the app's alarm, and the number on it is the LATE
+ *  one — whatever else the same reading holds. */
+Then(
+  "the agenda entry is on fire with {int} late",
+  async function (this: OlaiWorld, late: number) {
+    await expectMark(this, "overdue", late);
+    await this.expectAttribute(
+      AGENDA_OWED,
+      "data-overdue",
+      String(late),
+      "the agenda entry",
+    );
+  },
+);
+
+/** Work on today and nothing late: the quiet face a date badge wears when it is
+ *  not overdue. A nudge is not an alarm. */
+Then(
+  "the agenda entry nudges with {int} on today",
+  async function (this: OlaiWorld, count: number) {
+    await expectMark(this, "today", count);
+    await this.expectAttribute(
+      AGENDA_OWED,
+      "data-today",
+      String(count),
+      "the agenda entry",
+    );
+  },
+);
+
+/** The other half of the loud state: the today count is still COUNTED when the
+ *  alarm is what is drawn, so the quieter fact is spoken rather than lost. */
+Then(
+  "the agenda entry also carries {int} on today",
+  async function (this: OlaiWorld, count: number) {
+    await this.expectAttribute(
+      AGENDA_OWED,
+      "data-today",
+      String(count),
+      "the agenda entry",
+    );
+  },
+);
+
+Then("the agenda entry is quiet", async function (this: OlaiWorld) {
+  await this.expectAttribute(AGENDA_OWED, "data-owed", "quiet", "the agenda entry");
+});
+
+/**
+ * No chip at all — an agenda with nothing on it wears no mark, not a zero.
+ *
+ * Read AFTER the face above has been waited for, which is what makes it a real
+ * assertion: an absence checked against a page that has not drawn its answer
+ * yet is an absence of everything.
+ */
+Then("the agenda entry wears no count", async function (this: OlaiWorld) {
+  await this.expectAttribute(AGENDA_OWED, "data-owed", "quiet", "the agenda entry");
+  assert.strictEqual(
+    await this.page.locator(AGENDA_COUNT).count(),
+    0,
+    "the agenda entry wears a count with nothing owed behind it",
+  );
+});
+
+/** What it says OUT LOUD, which is where both numbers always are — a colour is
+ *  silence to a screen reader, and the loud face prints only one of them. */
+Then(
+  "the agenda entry says {string}",
+  async function (this: OlaiWorld, said: string) {
+    await this.expectAttribute(AGENDA_LINK, "aria-label", said, "the agenda entry");
+  },
+);
+
+/** The collapsed column: the same reading, as a dot — three rem has no room for
+ *  a number, and news that went out when the sidebar was put away would be news
+ *  nobody could act on. */
+Then("the rail's agenda icon is on fire", async function (this: OlaiWorld) {
+  await this.page
+    .locator(RAIL_AGENDA)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.expectAttribute(RAIL_AGENDA, "data-owed", "overdue", "the rail's agenda icon");
+});
 
 // ── writing into the days the fixtures cannot name ─────────────────────
 

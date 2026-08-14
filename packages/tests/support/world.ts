@@ -120,6 +120,9 @@ export const SIDEBAR_SCRIM = selector(TESTID.sidebarScrim);
 export const SIDEBAR_COLLAPSE = selector(TESTID.sidebarCollapse);
 export const SIDEBAR_EXPAND = selector(TESTID.sidebarExpand);
 export const SIDEBAR_RAIL = selector(TESTID.sidebarRail);
+/** The rail's way to the agenda — the collapsed column's face of the entry,
+ *  carrying the same `data-owed` as a dot. */
+export const RAIL_AGENDA = selector(TESTID.railAgenda);
 export const SIDEBAR_RESIZE = selector(TESTID.sidebarResize);
 /** The file tree: every outline and document under the folders they live in. */
 export const OUTLINE_LIST = selector(TESTID.outlineList);
@@ -273,6 +276,13 @@ export const AGENDA_DAY = selector(TESTID.agendaDay);
 export const AGENDA_EMPTY = selector(TESTID.agendaEmpty);
 /** The way to it from the directory column, above the month. */
 export const AGENDA_LINK = selector(TESTID.agendaLink);
+/** What that entry REPORTS, wrapped round the link: `data-owed` is the face it
+ *  wears (`overdue` / `today` / `quiet`) and `data-overdue` / `data-today` are
+ *  the two counts, whichever of them is on screen. */
+export const AGENDA_OWED = selector(TESTID.agendaOwed);
+/** The number on it. Absent when nothing is owed — a quiet entry wears no chip
+ *  rather than a zero. */
+export const AGENDA_COUNT = selector(TESTID.agendaCount);
 /** The trash: every archive the directory holds, read-only, one verb. */
 export const TRASH_PAGE = selector(TESTID.trashPage);
 /** One row of it — an archived node; `data-node-id` is which. */

@@ -150,6 +150,44 @@ export const nothingDue = (agenda: Agenda): boolean =>
   agenda.today.length === 0 &&
   agenda.upcoming.length === 0
 
+/**
+ * How much is owed, in the two numbers a mark outside the page is drawn from.
+ *
+ * UPCOMING IS NOT COUNTED, and that is the whole of the shape: this answers
+ * "is anything wrong as of today", and a task due next Tuesday is not news on
+ * a Monday — a count that included it could never fall to nothing, which is a
+ * mark nobody would read twice.
+ */
+export interface Owed {
+  /** Nodes in {@link Agenda.overdue}, across every outline it groups. */
+  readonly overdue: number
+  /** Nodes in {@link Agenda.today}, the same way — OCCURRENCES INCLUDED,
+   *  because they are rows that section draws and this counts what the page
+   *  shows. Which is why nothing that prints this number may call it *due*: a
+   *  birthday is on today and is nobody's late work. */
+  readonly today: number
+}
+
+/**
+ * The counts, taken from an agenda that has already been read.
+ *
+ * It takes the ANSWER rather than the set, which is the point of it: a second
+ * walk that counted late work its own way would be a second reading of one
+ * directory, free to disagree with the page listing it — the same argument
+ * {@link nothingDue} is spelled here for, one predicate up. So whatever marks
+ * the agenda from outside it counts the very rows the page draws.
+ *
+ * NODES rather than groups: a group is one outline's worth of them, and "3"
+ * on a mark means three things are late, not three files are.
+ */
+export const owedOf = (agenda: Agenda): Owed => ({
+  overdue: nodesIn(agenda.overdue),
+  today: nodesIn(agenda.today),
+})
+
+const nodesIn = (groups: ReadonlyArray<DayGroup>): number =>
+  groups.reduce((total, group) => total + group.nodes.length, 0)
+
 /** Every day the set has anything on, and what it has on it. */
 type Days = ReadonlyMap<string, ReadonlyArray<Dated>>
 

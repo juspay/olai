@@ -12,15 +12,18 @@
  * page, and the only difference between them is who says which day it is.
  *
  * Every arm carries exactly what its screen needs and nothing else, so no
- * component re-decides what it is looking at. The ROWS are the exception, and
- * {@link rowsFor} says why. Nothing about the format is decided here either:
+ * component re-decides what it is looking at. Two things are the exception and
+ * for opposite reasons: the ROWS, because {@link rowsFor} says why, and the
+ * AGENDA, because what is owed stopped being the agenda page's the day the
+ * directory column started marking it — it is one reading of the set at today,
+ * held where both readers can see it (`./App.tsx`), and the arm here spells only
+ * the day it is answered for. Nothing about the format is decided here either:
  * `@olai/format` says what an id resolves to, which file a node lives in, what
  * a file's tree is and what is dated a given day; this picks the arm.
  */
 
-import type { Agenda, BrokenFile, DayGroup, Derived, Row, Zoomed } from "@olai/format"
+import type { BrokenFile, DayGroup, Derived, Row, Zoomed } from "@olai/format"
 import {
-  agendaOf,
   dailyNotesOn,
   datedOn,
   isArchived,
@@ -56,11 +59,18 @@ export type Page =
      *  the reader wrote on it. */
     readonly notes: ReadonlyArray<string>
   }
-  /** What is owed: the same dates read forward, in three sections. It carries
-   *  the DAY it was answered for as well as the answer, because `/agenda`
-   *  spells no date and a page that says what is overdue owes the reader the
-   *  day it is overdue as of. */
-  | { readonly kind: "agenda"; readonly date: string; readonly agenda: Agenda }
+  /** What is owed: the same dates read forward. It carries the DAY it is
+   *  answered for, because `/agenda` spells no date and a page that says what
+   *  is overdue owes the reader the day it is overdue as of — and it carries
+   *  nothing else, which is the one arm that does not hold its own answer.
+   *
+   *  THE READING IS NOT THIS PAGE'S ANY MORE. The directory column marks the
+   *  agenda on every screen (`./Sidebar.tsx`, `./layout/Rail.tsx`), so what is
+   *  owed is a fact about the set at today rather than about the address that
+   *  happens to be open — one `agendaOf` in `./App.tsx`, read by the page that
+   *  lists it and the entry that marks it. Carrying a copy here would be the
+   *  second derivation those two are forbidden to have. */
+  | { readonly kind: "agenda"; readonly date: string }
   /** What was put away: every archive the directory holds, in path order — an
    *  EMPTY list is a real page (nothing has been archived yet), never a
    *  missing one. Read-only by design: the one verb its rows offer is the way
@@ -110,9 +120,7 @@ export const pageOf = (
       : { kind: "nothing", sought: "document", requested: route.file }
   }
 
-  if (route.kind === "agenda") {
-    return { kind: "agenda", date: today, agenda: agendaOf(derived, today) }
-  }
+  if (route.kind === "agenda") return { kind: "agenda", date: today }
 
   if (route.kind === "trash") return trashOf(found)
 

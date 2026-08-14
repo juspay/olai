@@ -170,7 +170,14 @@ back through the same `groupedOn` and `byOutline` a day page is built from, so
 the agenda and the day it links to cannot be two readings and nine days cost one
 pass rather than nine. `done` is
 filtered from all three: this question is what is OWED, and what happened is the
-day view's. TODAY IS AN ARGUMENT, never a clock: a derivation that read one
+day view's. `owedOf` counts an agenda that has already been read — how many
+NODES are in Overdue and in Today, never how many outlines they were grouped
+under — and it takes the ANSWER rather than the set for the reason `nothingDue`
+does: whatever marks the agenda from outside it (the client's directory entry
+does) counts the very rows the page draws, instead of walking the directory a
+second time and being free to disagree. Upcoming is deliberately no part of it —
+a task due next Tuesday is not news today, and a count that included it could
+never fall to nothing. TODAY IS AN ARGUMENT, never a clock: a derivation that read one
 would answer differently on the machine it ran on, and what day it is belongs to
 the reader (`web/src/client/clock.ts`).
 

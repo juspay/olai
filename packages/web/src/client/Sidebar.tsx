@@ -26,6 +26,15 @@
  * The entry that lights up is the file the open page lives in. A day page
  * lights none. An entry is marked when its file could not be read.
  *
+ * The AGENDA entry says one more thing, and it is the only news this column
+ * carries: work that has slipped puts it in the app's alarm (a filled chip
+ * counting what is late, on a washed and weighted row), work due today gives it
+ * the same chip in the quiet face a date badge wears when it is not late, and
+ * an agenda with neither is the entry it always was. What that mark is drawn
+ * from is `./agenda/owed.ts`; what it is drawn FOR arrives as a prop, because
+ * the number beside the word has to be the page's own answer and not a second
+ * walk over the same directory.
+ *
  * ## It is PINNED, for the reason the header is
  *
  * This app scrolls the DOCUMENT, so a column in normal flow is as tall as the
@@ -61,7 +70,7 @@
  * scroll position rather than parked at the foot of the page.
  */
 
-import { type BrokenFile, isArchived } from "@olai/format"
+import { type Agenda, type BrokenFile, isArchived } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
   createMemo,
@@ -72,6 +81,7 @@ import {
   Switch,
 } from "solid-js"
 
+import { lookOf } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
@@ -110,6 +120,10 @@ export function Sidebar(props: {
   readonly documents: ReadonlyArray<string>
   readonly active: string | undefined
   readonly broken: ReadonlyMap<string, BrokenFile>
+  /** What is owed as of today — the app's ONE reading of it (../App.tsx), the
+   *  same value the agenda page lists. `undefined` only while the first frame
+   *  is still arriving, and then the entry claims nothing. */
+  readonly agenda: Agenda | undefined
   readonly children?: JSX.Element
   /**
    * Mobile drawer open. Desktop always draws the column when this component
@@ -216,7 +230,7 @@ export function Sidebar(props: {
           // open several without reopening the drawer each time.
           onClick={() => props.onClose()}
         >
-          <Agenda />
+          <Agenda agenda={props.agenda} />
           {props.children}
 
           <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
@@ -238,24 +252,53 @@ export function Sidebar(props: {
   )
 }
 
-/** The way to what is owed, above the month.
+/** The way to what is owed, above the month — and, when something IS owed, the
+ *  news that it is.
  *
  *  Whether it is the page being read is asked of the ROUTE rather than passed
  *  down beside the open file: the agenda belongs to no outline — it crosses all
  *  of them — so `active` has nothing to say about it, and the router is already
- *  what every link in this column goes through. */
-function Agenda() {
+ *  what every link in this column goes through.
+ *
+ *  What it MARKS is not asked of anything: the reading arrives as a prop, from
+ *  the one `agendaOf` this client makes (../App.tsx). A count derived here
+ *  would be a second reading of the same directory, free to disagree with the
+ *  page one click away — which is the whole of why this entry takes an
+ *  `Agenda` and not a set to walk.
+ *
+ *  The facts ride a WRAPPER rather than the link, the way a calendar cell
+ *  carries its four (./calendar/Day.tsx): `<Link>` spells the `data-` it knows
+ *  about, and "how many are late" is not a fact about links. */
+function Agenda(props: { readonly agenda: Agenda | undefined }) {
   const router = useRouter()
+  // A memo: `agenda` is minted afresh on every revision the store publishes,
+  // and the look is unchanged on almost all of them.
+  const look = createMemo(() => lookOf(props.agenda))
 
   return (
-    <Link
-      route={{ kind: "agenda" }}
-      class={`${ENTRY} mb-2`}
-      testid={TESTID.agendaLink}
-      current={router.route().kind === "agenda"}
+    <div
+      class="mb-2"
+      data-testid={TESTID.agendaOwed}
+      data-owed={look().face}
+      data-overdue={String(look().owed.overdue)}
+      data-today={String(look().owed.today)}
     >
-      Agenda
-    </Link>
+      <Link
+        route={{ kind: "agenda" }}
+        class={`${ENTRY} ${look().entry}`}
+        testid={TESTID.agendaLink}
+        current={router.route().kind === "agenda"}
+        label={look().said}
+        title={look().said}
+      >
+        Agenda
+        <Show when={look().face !== "quiet"}>
+          <span class={look().chip} data-testid={TESTID.agendaCount}>
+            {look().count}
+          </span>
+        </Show>
+      </Link>
+    </div>
   )
 }
 
