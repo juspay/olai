@@ -1272,19 +1272,29 @@ clears the home-bar inset (`CLEARANCE`).
 toggles, a `>` prefix that sends the rest to the agent — plus jump-to-node
 search. Op actions belong to the separate `palette` roadmap item.
 
-## Search: one reading, two doors
+## Search: one reading, three doors
 
-`src/client/search/` holds the search itself, because the palette is not the
-only door to it:
+`src/client/search/` holds the search itself, and what every list of results is
+drawn and walked with, because the palette is not the only door to either:
 
 - `nodes.ts` — `createNodeSearch`, a `createResource` over a debounced query
   (`@solid-primitives/scheduled`). The resource drops the answer to a query
   the box has moved past, which is why there is no sequence counter here.
-- `Result.tsx` — the row both doors draw: TWO STACKED LINES, title then
+- `Result.tsx` — the row every door draws: TWO STACKED LINES, title then
   place, each `truncate`d over `min-w-0`. It was one line with the place
   inline, and a mono place refusing to shrink starved the title into
   one-word-per-line rows and pushed the palette into a sideways scroll; a
   popover never scrolls sideways.
+- `cursor.ts` — WHICH row Enter would take, and the arrows that walk it. The
+  palette and the row editor's input widgets (`complete/`) both draw a list of
+  those rows, and each had the same wrap-around modulo; what a list is walked
+  WITH is a different question from what is in it, and it has moved before (the
+  palette had no arrows until #104). It is **clamped where it is read**
+  (`min(wanted, count - 1)`) rather than corrected by an effect after the list
+  shrinks: there is then no frame in which it is out of range and no
+  reconciliation to keep in step, and what is remembered underneath is where
+  the person actually put it. What the KEYS mean stays each surface's own —
+  `Enter` runs a route in one and rewrites a line in the other.
 - `HeaderSearch.tsx` — the box in the app header, and on a phone a magnifier
   that opens the ⌘K palette instead (the bar has no room, and a phone has no
   chord — so before it, a phone had no door to search at all). Its panel

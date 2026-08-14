@@ -40,6 +40,7 @@ import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../run.ts"
 import { askQuery, filterItems, nodeItem, type PaletteItem } from "./items.ts"
+import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { Result } from "../search/Result.tsx"
 import { paletteOpen, setPaletteOpen } from "./open.ts"
@@ -63,7 +64,9 @@ export function Palette(props: {
   const undo = useUndo()
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
-  const [active, setActive] = createSignal(0)
+  // WHICH row Enter takes, and the arrows that walk it — the one cursor every
+  // shortlist in this client shares (`../search/cursor.ts`).
+  const cursor = createCursor(() => items().length)
   const [askError, setAskError] = createSignal<string | null>(null)
   let input: HTMLInputElement | undefined
   let previousFocus: HTMLElement | null = null
@@ -85,7 +88,7 @@ export function Palette(props: {
   const close = () => {
     setPaletteOpen(false)
     setQuery("")
-    setActive(0)
+    cursor.top()
     setAskError(null)
     const back = previousFocus
     previousFocus = null
@@ -105,7 +108,7 @@ export function Palette(props: {
       ? document.activeElement
       : null
     setQuery("")
-    setActive(0)
+    cursor.top()
     setAskError(null)
     // The element is not attached at the instant the signal flips.
     queueMicrotask(() => input?.focus())
@@ -161,7 +164,7 @@ export function Palette(props: {
       return
     }
     const list = items()
-    const item = list[active()] ?? list[0]
+    const item = list[cursor.at()] ?? list[0]
     if (item !== undefined) runItem(item)
   }
 
@@ -199,11 +202,6 @@ export function Palette(props: {
     onCleanup(() => window.removeEventListener("keydown", onKey))
   })
 
-  createEffect(() => {
-    const n = items().length
-    if (active() >= n) setActive(n === 0 ? 0 : n - 1)
-  })
-
   return (
     <>
     <Shortcuts open={keys()} onClose={() => setKeys(false)} />
@@ -232,18 +230,16 @@ export function Palette(props: {
             value={query()}
             onInput={(e) => {
               setQuery(e.currentTarget.value)
-              setActive(0)
+              cursor.top()
               setAskError(null)
             }}
             onKeyDown={(e) => {
               if (e.key === "ArrowDown") {
                 e.preventDefault()
-                const n = items().length
-                if (n > 0) setActive((i) => (i + 1) % n)
+                cursor.step(1)
               } else if (e.key === "ArrowUp") {
                 e.preventDefault()
-                const n = items().length
-                if (n > 0) setActive((i) => (i - 1 + n) % n)
+                cursor.step(-1)
               } else if (e.key === "Enter") {
                 e.preventDefault()
                 confirm()
@@ -303,11 +299,11 @@ export function Palette(props: {
                         label={item.label}
                         hint={item.hint}
                         place={item.place}
-                        active={index() === active()}
+                        active={index() === cursor.at()}
                         testid={TESTID.paletteItem}
                         placeTestid={TESTID.paletteItemPlace}
                         id={item.id}
-                        onHover={() => setActive(index())}
+                        onHover={() => cursor.to(index())}
                         onSelect={() => runItem(item)}
                       />
                     </li>

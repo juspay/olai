@@ -72,6 +72,7 @@ import { Completions } from "./Completions.tsx"
 import { useDerived } from "../derived.tsx"
 import { useEditor } from "../edit/editing.tsx"
 import { nodePlace } from "../palette/items.ts"
+import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { useToday } from "../today.tsx"
 import { dayLabel, naturalDays } from "../date/natural.ts"
@@ -144,7 +145,6 @@ export const createCompletion = (field: {
   const derived = useDerived()
   const today = useToday()
   const [dismissed, setDismissed] = createSignal<string | null>(null)
-  const [active, setActive] = createSignal(0)
 
   /** What the caret is inside, minus anything Escape has shut. */
   const trigger = createMemo<Trigger | null>(() => {
@@ -219,30 +219,24 @@ export const createCompletion = (field: {
     }))
   })
 
-  // A keystroke means a different list: start again at the top, which is the
-  // answer a person typing towards something wants. Keyed on the QUERY rather
-  // than on the rows, so walking the list with the arrows does not reset it and
-  // hits arriving from the server do not either.
-  createEffect(on(() => trigger()?.query ?? null, () => setActive(0)))
-  // ...and a list that got shorter while somebody was standing near the bottom
-  // of it — which only the server-fed one can do — keeps the cursor on a row
-  // that exists. The palette's own guard, one directory over.
-  createEffect(() => {
-    const many = choices().length
-    if (active() >= many) setActive(many === 0 ? 0 : many - 1)
-  })
+  // WHICH row Enter takes — the one cursor every shortlist in this client
+  // shares (`../search/cursor.ts`), so the arrows mean the same thing here and
+  // in the ⌘K palette, and so does what the bottom of a list does. It keeps a
+  // list that got shorter under somebody honest, which the `((` rows need
+  // because theirs arrive from the server.
+  const cursor = createCursor(() => choices().length)
 
-  const step = (by: 1 | -1): void => {
-    const many = choices().length
-    if (many === 0) return
-    setActive((at) => (at + by + many) % many)
-  }
+  // A keystroke means a different question: start again at the top, which is
+  // the answer a person typing towards something wants. Keyed on the QUERY
+  // rather than on the rows, so walking the list with the arrows does not reset
+  // it and hits arriving from the server do not either.
+  createEffect(on(() => trigger()?.query ?? null, cursor.top))
 
   const listing: Listing = {
     kind: () => trigger()?.kind ?? null,
     choices,
-    active,
-    hover: setActive,
+    active: cursor.at,
+    hover: cursor.to,
     failure: nodes.failure,
   }
 
@@ -263,11 +257,11 @@ export const createCompletion = (field: {
         return true
       }
       if (event.key === "ArrowDown") {
-        step(1)
+        cursor.step(1)
         return true
       }
       if (event.key === "ArrowUp") {
-        step(-1)
+        cursor.step(-1)
         return true
       }
       // A bare Enter only: `Ctrl+Enter` is the mark and `Shift+Enter` the note,
@@ -276,7 +270,7 @@ export const createCompletion = (field: {
         event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.shiftKey &&
         !event.altKey
       ) {
-        choices()[active()]?.choose()
+        choices()[cursor.at()]?.choose()
         return true
       }
       return false
