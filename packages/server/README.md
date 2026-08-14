@@ -350,11 +350,18 @@ happens and a boot that fails changes nothing — the next prompt retries it
 exactly as a crash does. What it does, in an order that is a protocol fact
 rather than a preference: `initialize` (which is what says whether this agent
 keeps conversations at all), then `session/list` for the served directory, then
-`session/load` of the most recently updated one — or `session/new` when there
-is nothing stored. The list is narrowed to the exact directory here, once:
-the Claude Code adapter scopes its answer by PREFIX, so a server started in a
-checkout is told about every agent working under it, and adopting the newest of
-that would make an orchestrator's coding session this panel's conversation.
+`session/load` of the one the panel was last in — or `session/new` when there is
+nothing stored. WHICH one that is comes from olai's own note of it (`@olai/chat`'s
+`memory.ts`, one file per served directory under the XDG state home), with the
+most recently updated conversation as the fallback for a directory this olai has
+never served or a remembered conversation that is gone. It used to be that
+fallback always, which is `chat-restore-wrong`: newest-by-timestamp answers "what
+moved last", and anything fresher — a terminal `claude` here, a `/clear` sibling —
+took the panel over on a restart. The list is narrowed to the exact directory
+here, once: the Claude Code adapter scopes its answer by PREFIX, so a server
+started in a checkout is told about every agent working under it, and adopting
+the newest of that would make an orchestrator's coding session this panel's
+conversation.
 
 The MCP server the session is handed is this process's own, on this process's
 listener, behind a bearer token minted per process. `mcp/route.ts` says why

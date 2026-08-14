@@ -486,10 +486,19 @@ reaches, so the scenario that covers it is the only place the panel's no-agent
 message is exercised.
 
 `@agent-stored` is the second knob: with it, the agent answers `session/list`
-with two stored conversations, so the server's boot ADOPTS the most recent one
-and replays it. Without it, nothing is stored and boot opens a fresh session.
-The two boot paths, chosen by a property of the machine the agent woke up on
-rather than by anything the client says.
+with two stored conversations, so boot loads one and replays it. Without it,
+nothing is stored and boot opens a fresh session. The two boot paths, chosen by
+a property of the machine the agent woke up on rather than by anything the
+client says.
+
+WHICH of the two is loaded is the thing several of those scenarios are about.
+A first boot has nothing written down, so it takes the most recently updated —
+the fallback, and once the whole rule. After a conversation has been PICKED,
+the server remembers it and a restart comes back to that one however much
+fresher its sibling is (`chat-restore-wrong`), and falls back to the newest
+again only when the remembered one has gone. A scenario takes one away with
+`.agent-forgot-<sessionId>`, a dot-file in the served directory like the
+`hold` release — the store's walk prunes those, so arming one is not an edit.
 
 The real Claude adapter is for driving the panel by hand: `just serve` resolves
 the pinned one on demand.

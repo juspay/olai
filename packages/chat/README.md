@@ -22,17 +22,30 @@ nothing here is per-connection and a second tab needs no catch-up protocol: it
 subscribes to the same collection and gets the conversation in its first frame.
 
 The session is the agent's, not ours. Boot asks `session/list` for the served
-directory and ADOPTS the most recently updated conversation, replaying it — so
-the panel comes up where you left it, and `claude --resume` in a terminal
-reaches the same conversations. Nothing is persisted on this side, because a
-second copy of the transcript would be a second thing to be wrong.
+directory, and `claude --resume` in a terminal reaches the same conversations.
+WHICH of them the panel comes up in is olai's own note rather than a guess: the
+id is written down when the panel enters a conversation (`memory.ts`) and read
+back at the next boot, so a restart replays the one you were in. Boot used to
+adopt the most recently updated conversation instead, which answers "what moved
+last" and was standing in for "which one is mine" — so a terminal `claude` in
+the same directory, a `/clear` sibling or a stale timestamp took the panel over
+(`chat-restore-wrong`). Newest-in-directory is the FALLBACK now: the remembered
+conversation is gone, or this directory has never been served.
+
+The TRANSCRIPT is still not persisted on this side, and that is the part that
+has not changed: a second copy of the conversation would be a second thing to
+be wrong. What is written down is an id and the directory it belongs to, in one
+small file under `$XDG_STATE_HOME` — never under the served directory, which is
+the outline set.
 
 ## The modules, and their separate reasons to change
 
 | file | what it owns |
 |---|---|
 | `adapter.ts` | which executable speaks ACP: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off |
-| `agent.ts` | the ACP client: one subprocess, one protocol. Nothing else in olai spells `session/prompt` |
+| `agent.ts` | the ACP client: one subprocess, one protocol. Nothing else in olai spells `session/prompt`. Also `adopt` — which stored conversation a boot opens in, pure and exported for its own test |
+| `memory.ts` | which conversation the panel was in, across a restart: one file per served directory under the XDG state home, two verbs and an id. A read or a write that fails is a row in the transcript, never a failed boot |
+| `directory.ts` | how a directory is SPELLED, decided once — read by the thing that matches a stored session's `cwd` against ours and by the thing that names this directory's memory after it, which must never come to answer differently |
 | `interpret.ts` | what the CLAUDE CODE adapter means by what it sends: which permission requests are answered without asking, `_meta.claudeCode.toolName`, the CLI `init` message it forwards, which config option is the model. Pure, so the adapter-specific VALUES are one file to read when olai is pointed at another agent |
 | `kolu.ts` | whether this host is running kolu, the stdio server to hand a session if it is — and, if it is not and should have been, the sentence saying why not |
 | `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages, and why a child never ran to have any — the two things the two subprocesses above have in common |
