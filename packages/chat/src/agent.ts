@@ -105,7 +105,7 @@ import {
   toolNameIn,
 } from "./interpret.ts"
 import * as Kolu from "./kolu.ts"
-import type { Memory } from "./memory.ts"
+import type { Memory, MemoryFailure } from "./memory.ts"
 import { streamOver, unstartable } from "./pipes.ts"
 import * as Questions from "./questions.ts"
 import { wroteIn } from "./wrote.ts"
@@ -693,47 +693,54 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         yield* fresh(at)
       })
 
-    /** The conversation this panel was last in — and `null` when the memory
-     *  could not be read, which is SAID rather than swallowed. A boot that
-     *  cannot remember still opens something (the newest, which is what this
-     *  used to do always), and the reason is a row in the transcript rather
-     *  than a fact only a log knows. */
-    const recalled: Effect.Effect<string | null> = Effect.catchTag(
-      options.memory.recall,
-      "MemoryFailure",
-      (failure) =>
+    /**
+     * A memory verb whose failure is a NOTICE rather than a refusal.
+     *
+     * The panel works without a memory — it opens the newest conversation, which
+     * is what it always used to do — so neither of these may fail a boot, and
+     * neither may be quiet about it either. One function for the rule, because
+     * it is one rule: what a memory failure COSTS is the sentence, and it is the
+     * only part that differs between the two.
+     */
+    const said = <A>(
+      what: Effect.Effect<A, MemoryFailure>,
+      instead: A,
+      cost: (why: string) => string,
+    ): Effect.Effect<A> =>
+      Effect.catchTag(what, "MemoryFailure", (failure) =>
         Effect.sync(() => {
-          trouble(
-            `the conversation this directory was last in could not be read (${failure.why}) — ` +
-              `opening the most recent one instead`,
-          )
-          return null
-        }),
+          trouble(cost(failure.why))
+          return instead
+        }))
+
+    /** The conversation this panel was last in, and `null` when nothing says. */
+    const recalled: Effect.Effect<string | null> = said(
+      options.memory.recall,
+      null,
+      (why) =>
+        `the conversation this directory was last in could not be read (${why}) — ` +
+        `opening the most recent one instead`,
     )
 
     /**
      * The panel is in this conversation now: the id the verbs act in, the row
      * the panel draws, and the fact the next boot reads back.
      *
-     * ONE function for the three, because they are one event. They were two
-     * lines repeated at the two places a session is opened, and the third
-     * thing — writing it down — is exactly the kind of step a fourth call site
-     * would forget, which is the bug this whole file's `adopt` exists to have
-     * ended.
+     * ONE function for the three, because they are one event: a session that
+     * the verbs act in but the panel was never told about, or one the panel
+     * shows and the next boot has never heard of, are both this fact half
+     * done. It was two lines repeated at the two places a session is opened,
+     * and writing it down is exactly the kind of third step a third call site
+     * remembers two of.
      */
     const entered = (id: string, title: string | null): Effect.Effect<void> =>
       Effect.gen(function*() {
         session = id
         emit({ _tag: "session", id, title })
-        yield* Effect.catchTag(
+        yield* said(
           options.memory.remember(id),
-          "MemoryFailure",
-          (failure) =>
-            Effect.sync(() => {
-              trouble(
-                `this conversation will not be restored after a restart: ${failure.why}`,
-              )
-            }),
+          undefined,
+          (why) => `this conversation will not be restored after a restart: ${why}`,
         )
       })
 

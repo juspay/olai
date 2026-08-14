@@ -84,6 +84,15 @@ export class MemoryFailure extends Data.TaggedError("MemoryFailure")<{
   }
 }
 
+/**
+ * Two verbs and an id: the socket, and everything volatile is behind it.
+ *
+ * What CHANGES back there is where the file lives, what is in it, whether it is
+ * one file or a row of an index, and whether a machine keeps this at all. What
+ * does not is the pair below — the panel enters a conversation and says so, and
+ * a boot asks which one that was. That asymmetry is the whole reason this is an
+ * interface with one implementation rather than two `fs` calls in `agent.ts`.
+ */
 export interface Memory {
   /** The conversation this directory's panel was last in, or `null` when
    *  nothing has been written down yet. */
@@ -93,12 +102,46 @@ export interface Memory {
   readonly remember: (id: string) => Effect.Effect<void, MemoryFailure>
 }
 
-/** What one of these files holds. The `cwd` is not redundant with the name: the
- *  name is a digest, and this is what makes the file say whose it is. */
+// ── what one of these files IS ─────────────────────────────────────────
+//
+// The two halves of one fact, side by side: the shape, what it looks like
+// written, and what a read makes of it. Split across the writer and the reader
+// they were two places that had to agree about two field names and a guard, by
+// nothing stronger than both being short.
+
+/** The `cwd` is not redundant with the file's name: the name is a digest, and
+ *  this is what makes the file say whose it is — to a person reading their own
+ *  state directory, and to {@link parsed}. */
 interface Remembered {
   readonly cwd: string
   readonly session: string
 }
+
+const printed = (held: Remembered): string => `${JSON.stringify(held)}\n`
+
+/** The text as what it is meant to be — or the reason it is not. A file that is
+ *  about a DIFFERENT directory is answered `null` rather than refused: it is not
+ *  damage, it is somebody else's note, and the honest answer to "what was this
+ *  panel in" is that nothing here says. */
+const parsed = (
+  at: string,
+  cwd: string,
+  text: string,
+): Effect.Effect<string | null, MemoryFailure> =>
+  Effect.flatMap(
+    Effect.try({
+      try: () => JSON.parse(text) as unknown,
+      catch: (cause) =>
+        new MemoryFailure({ why: `\`${at}\` is not readable JSON: ${reasonOf(cause)}` }),
+    }),
+    (value) => {
+      const held = value as Partial<Remembered> | null
+      if (typeof held?.session !== "string" || held.session === "") {
+        return Effect.fail(new MemoryFailure({ why: `\`${at}\` names no conversation` }))
+      }
+      return Effect.succeed(held.cwd === cwd ? held.session : null)
+    },
+  )
 
 export const forDirectory = (spelling: string): Memory => {
   // ONE spelling from here down — the name of the file, what goes in it, and
@@ -127,7 +170,7 @@ export const forDirectory = (spelling: string): Memory => {
       catch: (cause) =>
         new MemoryFailure({ why: `\`${at}\` could not be read: ${reasonOf(cause)}` }),
     }),
-    (text) => text === null ? Effect.succeed(null) : read(at, cwd, text),
+    (text) => text === null ? Effect.succeed(null) : parsed(at, cwd, text),
   )
 
   const remember = (session: string): Effect.Effect<void, MemoryFailure> =>
@@ -139,9 +182,8 @@ export const forDirectory = (spelling: string): Memory => {
         // boot would be a parse failure reported to somebody who did nothing
         // wrong. `rename` within one directory is atomic.
         const staged = `${at}.${process.pid}.tmp`
-        const held: Remembered = { cwd, session }
         try {
-          await writeFile(staged, `${JSON.stringify(held)}\n`, { mode: 0o600 })
+          await writeFile(staged, printed({ cwd, session }), { mode: 0o600 })
           await rename(staged, at)
         } catch (cause) {
           await rm(staged, { force: true })
@@ -154,33 +196,6 @@ export const forDirectory = (spelling: string): Memory => {
 
   return { recall, remember }
 }
-
-/** The text as what it is meant to be — or the reason it is not. A file that is
- *  about a DIFFERENT directory is answered `null` rather than refused: it is not
- *  damage, it is somebody else's note, and the honest answer to "what was this
- *  panel in" is that nothing here says. */
-const read = (
-  at: string,
-  cwd: string,
-  text: string,
-): Effect.Effect<string | null, MemoryFailure> =>
-  Effect.flatMap(
-    Effect.try({
-      try: () => JSON.parse(text) as unknown,
-      catch: (cause) =>
-        new MemoryFailure({ why: `\`${at}\` is not readable JSON: ${reasonOf(cause)}` }),
-    }),
-    (value) => {
-      const held = value as Partial<Remembered> | null
-      if (typeof held?.session !== "string" || held.session === "") {
-        return Effect.fail(
-          new MemoryFailure({ why: `\`${at}\` names no conversation` }),
-        )
-      }
-      if (held.cwd !== cwd) return Effect.succeed(null)
-      return Effect.succeed(held.session)
-    },
-  )
 
 /** ENOENT, whatever wrapped it. A missing file is the ordinary answer here and
  *  the one thing that must not read as a fault. */
