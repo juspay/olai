@@ -65,6 +65,7 @@ import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { HOVER_CELL, MENU_REVEAL } from "../touch.ts"
+import { SaidLine } from "../edit/SaidLine.tsx"
 import { type Said, SAID_MS } from "../edit/undoing.ts"
 
 export interface MenuAction {
@@ -296,27 +297,15 @@ export function NodeMenu(props: {
           // refusal is a sentence rather than a word — the ops layer names the
           // node and says what to do about it — and a line that never wrapped
           // would run off the right of the screen with the reason on it.
-          <span
-            class="absolute left-0 top-full z-20 mt-0.5 max-w-[24rem] w-max rounded border border-rule/70 bg-panel px-2 py-1 text-xs shadow-md"
-            classList={{
-              "text-alarm": message().tone === "alarm",
-              "text-muted": message().tone === "aside",
-            }}
-            data-testid={TESTID.nodeMenuSaid}
-            // WHICH mood, as a fact in the markup rather than as a colour: the
-            // red is a styling decision a refactor may change, and a scenario
-            // asking "was that a refusal or a remark" must not be asking about
-            // a class name.
-            data-tone={message().tone}
-            // Announced, never focus-stealing — the reader's pointer is on the
-            // row and their place in the outline is not ours to take. A
-            // refusal is an alert, a remark is not: the difference is whether
-            // it interrupts what a screen reader is already saying.
-            role={message().tone === "alarm" ? "alert" : "status"}
-            aria-live={message().tone === "alarm" ? "assertive" : "polite"}
-          >
-            {message().text}
-          </span>
+          //
+          // The MOOD is `../edit/SaidLine.tsx`'s — its colour, its `data-tone`
+          // and whether a screen reader is interrupted are one decision this
+          // app makes once. Where the line hangs is this menu's.
+          <SaidLine
+            said={message()}
+            class="absolute left-0 top-full z-20 m-0 mt-0.5 max-w-[24rem] w-max rounded border border-rule/70 bg-panel px-2 py-1 text-xs shadow-md"
+            testid={TESTID.nodeMenuSaid}
+          />
         )}
       </Show>
     </div>

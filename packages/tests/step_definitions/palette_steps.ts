@@ -24,6 +24,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { saysThat } from "../support/said.ts";
 import {
   HYDRATION_TIMEOUT,
   modKey,
@@ -216,39 +217,22 @@ Then("the palette is not asking anything", async function (this: OlaiWorld) {
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
-/** What it SAID, in the mood it said it. Two steps rather than one with a
- *  word, because a refusal and a remark are read by different scenarios for
- *  different reasons — and `data-tone` is the fact, never the colour. */
-const saidIn = async (world: OlaiWorld, tone: string, text: string) => {
-  const said = world.page.locator(PALETTE_SAID);
-  await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const line = oneLine(await said.innerText());
-  assert.ok(
-    line.includes(text),
-    `the palette said ${JSON.stringify(line)}, which does not mention ${
-      JSON.stringify(text)
-    }`,
-  );
-  // The MOOD, as a fact in the markup rather than as a colour: a client that
-  // alarmed about a nudge would pass an assertion made on the words alone.
-  assert.strictEqual(
-    await said.getAttribute("data-tone"),
-    tone,
-    `the palette said ${JSON.stringify(line)} in the wrong tone`,
-  );
-};
-
+/** What it SAID, in the mood it said it — through `../support/said.ts`, which
+ *  is where "wait for the line, read it, check `data-tone`" is spelled for
+ *  every surface in this app that says something about a write. Two steps
+ *  rather than one with a word, because a refusal and a remark are read by
+ *  different scenarios for different reasons. */
 Then(
   "the palette says {string}",
   async function (this: OlaiWorld, text: string) {
-    await saidIn(this, "alarm", text);
+    await saysThat(this, PALETTE_SAID, text, "palette line", "alarm");
   },
 );
 
 Then(
   "the palette remarks {string}",
   async function (this: OlaiWorld, text: string) {
-    await saidIn(this, "aside", text);
+    await saysThat(this, PALETTE_SAID, text, "palette line", "aside");
   },
 );
 

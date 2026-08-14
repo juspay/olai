@@ -29,6 +29,7 @@ import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Match, onCleanup, Show, Switch } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
+import { SaidLine } from "../edit/SaidLine.tsx"
 import { type Said, SAID_MS, useUndo } from "../edit/undoing.ts"
 import { NodeTitle } from "../NodeTitle.tsx"
 import { TESTID } from "../testids.ts"
@@ -154,19 +155,13 @@ function Branch(props: {
       </div>
       <Show when={said()}>
         {(line) => (
-          <p
+          // The mood is `../edit/SaidLine.tsx`'s, for every surface that says
+          // something about a write; where the line sits is this row's.
+          <SaidLine
+            said={line()}
             class="m-0 mb-1 ml-6 text-sm"
-            classList={{
-              "text-alarm": line().tone === "alarm",
-              "text-muted": line().tone === "aside",
-            }}
-            data-testid={TESTID.trashSaid}
-            data-tone={line().tone}
-            role={line().tone === "alarm" ? "alert" : "status"}
-            aria-live={line().tone === "alarm" ? "assertive" : "polite"}
-          >
-            {line().text}
-          </p>
+            testid={TESTID.trashSaid}
+          />
         )}
       </Show>
       <Show when={props.row.children.length > 0}>

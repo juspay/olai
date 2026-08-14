@@ -77,6 +77,7 @@ import { QUIET_PILL } from "../pill.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { Result } from "../search/Result.tsx"
 import { paletteOpen, setPaletteOpen } from "./open.ts"
+import { SaidLine } from "../edit/SaidLine.tsx"
 import { type Said, useUndo } from "../edit/undoing.ts"
 import { applying } from "../writes.ts"
 import { isEditingTarget, matchKey } from "../keys.ts"
@@ -493,27 +494,18 @@ export function Palette(props: {
               </div>
             )}
           </Show>
-          {/* WHAT A WRITE SAID, in the two moods it has, and in a row of its
-              own for the same reason the two above are: it is a third
-              question. The mood is a FACT in the markup rather than a colour,
-              so a scenario asking "was that a refusal or a remark" is not
-              asking about a class name — the `•••` menu's own rule. */}
+          {/* WHAT A WRITE SAID, in a row of its own for the same reason the
+              two above have theirs: it is a third question. The mood — its
+              colour, its `data-tone`, whether a screen reader is interrupted —
+              is `../edit/SaidLine.tsx`'s, once, for every surface that says
+              something about a write. */}
           <Show when={said()}>
             {(message) => (
-              <div
-                class="border-b px-4 py-2 font-mono text-xs"
-                classList={{
-                  "border-alarm/40 bg-alarm/5 text-alarm":
-                    message().tone === "alarm",
-                  "border-rule bg-pill text-muted": message().tone === "aside",
-                }}
-                data-testid={TESTID.paletteSaid}
-                data-tone={message().tone}
-                role={message().tone === "alarm" ? "alert" : "status"}
-                aria-live={message().tone === "alarm" ? "assertive" : "polite"}
-              >
-                {message().text}
-              </div>
+              <SaidLine
+                said={message()}
+                class="m-0 border-b border-rule px-4 py-2 font-mono text-xs"
+                testid={TESTID.paletteSaid}
+              />
             )}
           </Show>
           <Switch
