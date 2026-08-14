@@ -1,12 +1,12 @@
 /**
  * The named typefaces, and the three tokens they write.
  *
- * A font is a PICK WITH A NAME, the same shape as a theme (`./palettes.ts`):
- * adding one is adding a row, the build generates the `@font-face` rules and
- * the `:root[data-font="…"]` block from what is here, and the preferences
- * panel's Font row draws one option per row. Hand-written CSS would be the
- * same three `--font-*` lines copied twenty times, and one place per face for
- * a file to be forgotten.
+ * A font is a PICK WITH A NAME, the same shape as a theme
+ * (`@olai/web`'s `theme/palettes.ts`): adding one is adding a row, `./css.ts`
+ * generates the `@font-face` rules and the `:root[data-font="…"]` block from
+ * what is here, and the preferences panel's Font row draws one option per row.
+ * Hand-written CSS would be the same three `--font-*` lines copied twenty
+ * times, and one place per face for a file to be forgotten.
  *
  * Three jobs, one pick. `--font-serif` is the page (outline titles, a
  * document). `--font-sans` is the chrome (header, sidebar, notes, chat).
@@ -17,8 +17,11 @@
  * the page speaks Inter; pick Fira Code and it speaks Fira Code, chrome
  * included.
  *
- * Hosted files come from nixpkgs (`nix/fonts.nix`), converted to woff2 at
- * build time. Generics download nothing. No CDN, no font binary in the repo.
+ * What a row names is a FAMILY, never a file. The files those families need
+ * are `./hosted.ts` — from nixpkgs, converted to woff2 once by this package's
+ * own `default.nix` — and they are a table apart because nothing that draws a
+ * picker has any use for them. Generics download nothing. No CDN, no font
+ * binary in the repo.
  *
  * Bold and Light from Workflowy's list are not here: they are weights, not
  * faces, and a weight is not a typeface.
@@ -31,18 +34,6 @@ export const FONT_TOKENS = ["sans", "serif", "mono"] as const
 export type FontToken = (typeof FONT_TOKENS)[number]
 
 export type FontGroup = "olai" | "generic" | "face"
-
-/** One file this app converts and serves from `/fonts/*.woff2`. `file` is the
- *  basename `nix/fonts.nix` drops in `OLAI_FONTS_DIR`. `family` is the CSS
- *  name `@font-face` declares — chosen here, not read out of the name table —
- *  so the stacks below can quote it. */
-export interface HostedFile {
-  readonly file: string
-  readonly family: string
-  /** A single weight (`"400"`) or a variable range (`"100 900"`). */
-  readonly weight: string
-  readonly style: "normal" | "italic"
-}
 
 export interface Typeface {
   /** What a page names this face by — the `data-font` value, the option's
@@ -87,140 +78,6 @@ const monospaced = (family: string): Pick<Typeface, FontToken> => {
   const stack = withMono(family)
   return { sans: stack, serif: stack, mono: stack }
 }
-
-const face = (
-  file: string,
-  family: string,
-  weight: string,
-  style: HostedFile["style"] = "normal",
-): HostedFile => ({ file, family, weight, style })
-
-const statics = (
-  family: string,
-  files: {
-    readonly regular: string
-    readonly italic?: string
-    readonly bold?: string
-    readonly boldItalic?: string
-  },
-): ReadonlyArray<HostedFile> => [
-  face(files.regular, family, "400"),
-  ...(files.italic === undefined
-    ? []
-    : [face(files.italic, family, "400", "italic")]),
-  ...(files.bold === undefined ? [] : [face(files.bold, family, "700")]),
-  ...(files.boldItalic === undefined
-    ? []
-    : [face(files.boldItalic, family, "700", "italic")]),
-]
-
-/** Every file the build converts. Deduped by construction: a family used by
- *  two rows (Olai and Literata, Atkinson the default and Atkinson the pick)
- *  is listed once. */
-export const HOSTED_FILES: ReadonlyArray<HostedFile> = [
-  ...statics("Literata", {
-    regular: "Literata-Regular.ttf",
-    italic: "Literata-Italic.ttf",
-    bold: "Literata-Bold.ttf",
-    boldItalic: "Literata-BoldItalic.ttf",
-  }),
-  ...statics("iA Writer Quattro", {
-    regular: "iAWriterQuattroS-Regular.ttf",
-    italic: "iAWriterQuattroS-Italic.ttf",
-    bold: "iAWriterQuattroS-Bold.ttf",
-    boldItalic: "iAWriterQuattroS-BoldItalic.ttf",
-  }),
-  face("iAWriterMonoV.ttf", "iA Writer Mono", "100 900"),
-  face("iAWriterMonoV-Italic.ttf", "iA Writer Mono", "100 900", "italic"),
-  ...statics("Source Sans 3", {
-    regular: "SourceSans3-Regular.ttf",
-    italic: "SourceSans3-It.ttf",
-    bold: "SourceSans3-Bold.ttf",
-    boldItalic: "SourceSans3-BoldIt.ttf",
-  }),
-  ...statics("Source Serif 4", {
-    regular: "SourceSerif4-Regular.ttf",
-    italic: "SourceSerif4-It.ttf",
-    bold: "SourceSerif4-Bold.ttf",
-    boldItalic: "SourceSerif4-BoldIt.ttf",
-  }),
-  ...statics("Atkinson Hyperlegible Next", {
-    regular: "AtkinsonHyperlegibleNext-Regular.ttf",
-    italic: "AtkinsonHyperlegibleNext-Italic.ttf",
-    bold: "AtkinsonHyperlegibleNext-Bold.ttf",
-    boldItalic: "AtkinsonHyperlegibleNext-BoldItalic.ttf",
-  }),
-  face("et-book-roman-old-style-figures.ttf", "ET Book", "400"),
-  face("et-book-display-italic-old-style-figures.ttf", "ET Book", "400", "italic"),
-  face("et-book-bold-line-figures.ttf", "ET Book", "700"),
-  face("FiraCode-VF.ttf", "Fira Code", "300 700"),
-  ...statics("Geist Mono", {
-    regular: "GeistMono-Regular.ttf",
-    italic: "GeistMono-Italic.ttf",
-    bold: "GeistMono-Bold.ttf",
-    boldItalic: "GeistMono-BoldItalic.ttf",
-  }),
-  ...statics("IBM Plex Mono", {
-    regular: "IBMPlexMono-Regular.ttf",
-    italic: "IBMPlexMono-Italic.ttf",
-    bold: "IBMPlexMono-Bold.ttf",
-    boldItalic: "IBMPlexMono-BoldItalic.ttf",
-  }),
-  ...statics("IBM Plex Sans", {
-    regular: "IBMPlexSans-Regular.ttf",
-    italic: "IBMPlexSans-Italic.ttf",
-    bold: "IBMPlexSans-Bold.ttf",
-    boldItalic: "IBMPlexSans-BoldItalic.ttf",
-  }),
-  face("InterVariable.ttf", "Inter", "100 900"),
-  face("InterVariable-Italic.ttf", "Inter", "100 900", "italic"),
-  ...statics("JetBrains Mono", {
-    regular: "JetBrainsMono-Regular.ttf",
-    italic: "JetBrainsMono-Italic.ttf",
-    bold: "JetBrainsMono-Bold.ttf",
-    boldItalic: "JetBrainsMono-BoldItalic.ttf",
-  }),
-  ...statics("Junicode", {
-    regular: "Junicode-Regular.ttf",
-    italic: "Junicode-Italic.ttf",
-    bold: "Junicode-Bold.ttf",
-    boldItalic: "Junicode-BoldItalic.ttf",
-  }),
-  ...statics("Lexend", {
-    regular: "Lexend-Regular.ttf",
-    bold: "Lexend-Bold.ttf",
-  }),
-  ...statics("OpenDyslexic", {
-    regular: "OpenDyslexic-Regular.otf",
-    italic: "OpenDyslexic-Italic.otf",
-    bold: "OpenDyslexic-Bold.otf",
-    boldItalic: "OpenDyslexic-Bold-Italic.otf",
-  }),
-  ...statics("Open Sans", {
-    regular: "OpenSans-Regular.ttf",
-    italic: "OpenSans-Italic.ttf",
-    bold: "OpenSans-Bold.ttf",
-    boldItalic: "OpenSans-BoldItalic.ttf",
-  }),
-  ...statics("Crimson Pro", {
-    regular: "CrimsonPro-Regular.ttf",
-    italic: "CrimsonPro-Italic.ttf",
-    bold: "CrimsonPro-Bold.ttf",
-    boldItalic: "CrimsonPro-BoldItalic.ttf",
-  }),
-  ...statics("Vollkorn", {
-    regular: "Vollkorn-Regular.ttf",
-    italic: "Vollkorn-Italic.ttf",
-    bold: "Vollkorn-Bold.ttf",
-    boldItalic: "Vollkorn-BoldItalic.ttf",
-  }),
-  ...statics("Commit Mono", {
-    regular: "CommitMono-400-Regular.ttf",
-    italic: "CommitMono-400-Italic.ttf",
-    bold: "CommitMono-700-Regular.ttf",
-    boldItalic: "CommitMono-700-Italic.ttf",
-  }),
-]
 
 const SYSTEM = `system-ui, -apple-system, "Segoe UI", ${SANS_FALLBACK}`
 const INTERFACE =
@@ -480,10 +337,6 @@ export const DEFAULT_TYPEFACE: Typeface = (() => {
   }
   return face
 })()
-
-/** The woff2 basename the sheet and the build both use. */
-export const woff2Name = (file: string): string =>
-  file.replace(/\.(ttf|otf)$/i, ".woff2")
 
 /** The custom property a token is read through — Tailwind's namespace. */
 export const fontProperty = (token: FontToken): string => `--font-${token}`

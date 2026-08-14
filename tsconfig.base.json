@@ -13,6 +13,10 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "skipLibCheck": true,
+    // Bun imports a `.json` natively; without this tsc alone refuses to. The
+    // one such import today is @olai/fonts's face table, which is JSON because
+    // that package's own default.nix reads the same file.
+    "resolveJsonModule": true,
     "types": ["bun"]
   }
 }

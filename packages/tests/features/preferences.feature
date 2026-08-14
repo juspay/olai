@@ -14,7 +14,7 @@ Feature: One place to set how this browser reads
   chips. The chips are the panel's Theme row now; `theming.feature` is the whole
   of what they still promise, and it opens this panel to reach them.
 
-  The Font row is the same shape as Theme: a catalog (`theme/fonts.ts`), an
+  The Font row is the same shape as Theme: a catalog (`@olai/fonts`), an
   attribute on `<html>`, and a hint read off the choice in force. `fonts.feature`
   is the whole of what the select still promises.
 

@@ -4,9 +4,9 @@
  * step here opens that panel first (`preferences_steps.ts`).
  *
  * The typeface TABLE is imported, not read back off the page —
- * `DEFAULT_FONT`, `FONT_ATTRIBUTE` and `FONT_STORAGE_KEY` come from the
- * client that owns them, for the same reason the theme steps import
- * `theme/palettes.ts`.
+ * `DEFAULT_FONT`, `FONT_ATTRIBUTE` and `FONT_STORAGE_KEY` come from
+ * `@olai/fonts`, the package that owns them, for the same reason the theme
+ * steps import `theme/palettes.ts`.
  */
 
 import * as assert from "node:assert";
@@ -18,7 +18,7 @@ import {
   FONT_ATTRIBUTE,
   FONT_STORAGE_KEY,
   typefaceNamed,
-} from "@olai/web/src/client/theme/fonts.ts";
+} from "@olai/fonts";
 
 import { hintOf, showPreferences } from "./preferences_steps.ts";
 import { FONT_SELECT, POLL_TIMEOUT } from "../support/world.ts";

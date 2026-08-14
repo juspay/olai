@@ -19,7 +19,7 @@
 
 import { For } from "solid-js"
 
-import { FONT_GROUPS, typefaceNamed } from "./fonts.ts"
+import { FONT_GROUPS, typefaceNamed } from "@olai/fonts"
 import { currentFont, currentTypeface, pickFont } from "./fontState.ts"
 import { TESTID } from "../testids.ts"
 

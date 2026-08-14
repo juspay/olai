@@ -274,6 +274,7 @@
   };
   "@olai/acp" = copyPathToStore ./packages/acp;
   "@olai/chat" = copyPathToStore ./packages/chat;
+  "@olai/fonts" = copyPathToStore ./packages/fonts;
   "@olai/format" = copyPathToStore ./packages/format;
   "@olai/git" = copyPathToStore ./packages/git;
   "@olai/log" = copyPathToStore ./packages/log;
