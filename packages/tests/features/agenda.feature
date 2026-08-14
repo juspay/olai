@@ -10,8 +10,12 @@ Feature: The agenda — what is owed
   day passing is not a failure of a bullet.
 
   The fixtures are dated in 2019 on purpose, like the journal's: everything in
-  them is overdue on every day this suite will ever run, and the two scenarios
+  them is overdue on every day this suite will ever run, and the scenarios
   about today and the days ahead write what they need while the page is open.
+
+  The last half of this feature is the same answer read from OUTSIDE the page:
+  the directory's own entry marks what is owed, so a reader in an outline finds
+  out that something slipped without opening the page that would have said so.
 
   @corpus:agenda
   Scenario: Overdue is every slipped task, oldest first, grouped by outline
@@ -105,6 +109,100 @@ Feature: The agenda — what is owed
     # Each upcoming heading is the way to that day's own page, where the note
     # somebody wrote on it and the work already finished are read.
     And the upcoming day for tomorrow links to that day
+    And the page has not reloaded
+    And there should be no page errors
+
+  # ── The directory carries the news ────────────────────────────────────
+  #
+  # Overdue is the one answer no day page can give — and a page nobody opens
+  # cannot give it either. So the entry that leads to it says so from wherever
+  # the reader is: the app's own alarm when something has slipped (a filled
+  # chip, on a washed and weighted row), the date badge's quiet face for work
+  # that is merely on today, and the entry it always was when neither. Loud
+  # wins the row whole; the quieter number is still counted and still said.
+  #
+  # Every count here is the AGENDA'S OWN — the page's rows, counted where the
+  # page's answer is assembled — so the number beside the word can never
+  # disagree with the rows behind it.
+
+  @corpus:agenda
+  Scenario: Something slipped, and the entry to it is on fire
+    Given I open the outline "work.jsonl"
+    # Three late tasks over two outlines, counted as NODES: a mark saying "3"
+    # means three things are late, not that three files hold them.
+    Then the agenda entry is on fire with 3 late
+    And the agenda entry says "Agenda — 3 overdue"
+    # The same three the page lists, one click away.
+    When I follow the agenda link
+    Then the "overdue" section lists "visas, permit, posts"
+    And there should be no page errors
+
+  @corpus:agenda
+  Scenario: Put the column away and the alarm goes with it
+    Given I open the outline "work.jsonl"
+    When I collapse the sidebar
+    Then the sidebar rail is showing
+    # A dot rather than a count — three rem has no room for a numeral, and the
+    # number is one click away in the column this collapses.
+    And the rail's agenda icon is on fire
+
+  @corpus:agenda @phone
+  Scenario: The same news through the burger
+    Given I open the app
+    # The directory is a sheet here, and the entry inside it is the same entry.
+    # It is asked for VISIBLY: a sheet is rendered and hidden, and a mark nobody
+    # can see is not a mark.
+    When I tap the burger
+    Then the agenda entry is on fire with 3 late
+
+  @scratch:agenda
+  Scenario: Nothing owed is the quiet entry it always was
+    Given I open the app
+    And I mark the page
+    Then the agenda entry is on fire with 3 late
+    When every date is taken off "life.jsonl"
+    And every date is taken off "work.jsonl"
+    Then the agenda entry is quiet
+    # No chip at all rather than a nought: an agenda with nothing on it is a
+    # door, not news.
+    And the agenda entry wears no count
+    And the page has not reloaded
+    And there should be no page errors
+
+  @scratch:agenda
+  Scenario: Work on today is a nudge, and the entry stays quiet about it
+    Given I open the app
+    And I mark the page
+    When every date is taken off "life.jsonl"
+    And every date is taken off "work.jsonl"
+    And something is scheduled for today in "work.jsonl"
+    Then the agenda entry nudges with 1 on today
+    And the agenda entry says "Agenda — 1 on today"
+    And the page has not reloaded
+
+  @scratch:agenda
+  Scenario: Both at once — the alarm wins the row, the nudge is still spoken
+    Given I open the app
+    And I mark the page
+    When something is scheduled for today in "work.jsonl"
+    # One number on a 13px row, and it is the one that decides whether to press.
+    Then the agenda entry is on fire with 3 late
+    And the agenda entry also carries 1 on today
+    And the agenda entry says "Agenda — 3 overdue, 1 on today"
+    And the page has not reloaded
+
+  @scratch:agenda
+  Scenario: The fire goes down as the work is finished, with no reload
+    # The mark is the page's own reading, so it moves when the files do — which
+    # is the whole of "live": a task ticked off in the tree leaves Overdue, and
+    # the count beside the word in the column goes with it.
+    Given I open the outline "work.jsonl"
+    And I mark the page
+    Then the agenda entry is on fire with 3 late
+    When I click the title of "posts"
+    And I press "Control+Enter"
+    Then the node "posts" has status "done"
+    And the agenda entry is on fire with 2 late
     And the page has not reloaded
     And there should be no page errors
 

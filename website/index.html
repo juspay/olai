@@ -119,6 +119,25 @@
   .pill .occ { margin-right: 0.4em; opacity: 0.7; }
   /* a row draws at most one, and it goes at the end — as .marklbl does */
   .row .pill { margin-left: auto; }
+  /* The directory's own entry, and the two faces it wears when something is
+     owed: the alarm takes the whole row (wash, ink, weight) and fills its chip;
+     the nudge is the chip alone, in the quiet face a date badge has when it is
+     not late. */
+  .dirent {
+    display: flex; align-items: center; gap: 0.5rem; border-radius: 0.375rem;
+    padding: 0.25rem 0.5rem; font-size: 0.85rem;
+  }
+  .dirent.late { background: color-mix(in srgb, var(--alarm) 10%, transparent); color: var(--alarm); font-weight: 600; }
+  /* The count on it — the date badge's own pill shape (.pill above), filled
+     rather than outlined, and pushed to the end the way a row's pill is.
+     `.owed` and not `.chip`: the palette strip below already owns that name. */
+  .owed {
+    margin-left: auto; border-radius: 999px; padding: 0 0.5em;
+    font-family: var(--mono); font-size: 0.72rem;
+    background: color-mix(in srgb, var(--muted) 15%, transparent); color: var(--muted);
+  }
+  .owed.late { background: var(--alarm); color: var(--paper); font-weight: 600; }
+  .panel .dirent + .caption { margin: 0.15rem 0 0.6rem; }
   .note { color: var(--muted); font-size: 0.85rem; padding-left: 2.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .docref { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); padding-left: 2.8rem; margin-top: 0.1rem; }
   .mdoc h3 { font-size: 1.05rem; margin-bottom: 0.3rem; }
@@ -528,6 +547,42 @@ The corner unit is the **risky one** — see
         <p class="caption">Empty the box and the button becomes <em>Clear
         date</em> — the <strong>•••</strong> menu's own verb, and the same
         write.</p>
+      </div>
+    </div>
+    <div class="cols">
+      <div>
+        <p><strong>And the directory says so before you open it.</strong>
+        Overdue is the one answer no day page can give — and a page nobody
+        opens cannot give it either. So the <em>Agenda</em> entry in the
+        directory carries the news: work that has slipped puts it in the app's
+        alarm, with the count of what is late on it; work that is merely on
+        today wears the same chip in the quiet face a date badge takes when it
+        is <em>not</em> late. Neither, and it is the entry it always was — a
+        door, not news.</p>
+        <p>When both are true the alarm wins the row whole and prints the late
+        number alone: one claim per readout, and the number that decides
+        whether to press is that one. The other is still spoken — the entry's
+        own label reads <em>Agenda — 3 overdue, 1 on today</em> — and shown in
+        full one click away. Collapse the column and the same alarm rides the
+        rail as a dot; on a phone it is inside the same sheet, behind the same
+        burger.</p>
+        <p><strong>It is the page's own count, not a second opinion.</strong>
+        The client makes exactly one reading of what is owed and both things
+        that show it read that: the page lists the rows, the entry counts them.
+        A number beside the word can never disagree with the rows behind it,
+        and it moves with the files — tick a late task off in the tree and the
+        alarm goes down without a reload.</p>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="file">the directory</div>
+          <div class="dirent late"><span class="t">Agenda</span><span class="chip late">3</span></div>
+          <p class="caption">something has slipped</p>
+          <div class="dirent"><span class="t">Agenda</span><span class="chip">2</span></div>
+          <p class="caption">nothing late; two things are on today</p>
+          <div class="dirent"><span class="t">Agenda</span></div>
+          <p class="caption">nothing owed</p>
+        </div>
       </div>
     </div>
   </div>

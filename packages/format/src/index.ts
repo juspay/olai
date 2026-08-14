@@ -107,8 +107,8 @@ export {
   isDay,
 } from "./dates.ts"
 export type { DayEntry, DayGroup, Occasion } from "./dates.ts"
-export { agendaOf, isOverdue, nothingDue } from "./agenda.ts"
-export type { Agenda, AgendaDay } from "./agenda.ts"
+export { agendaOf, isOverdue, nothingDue, owedOf } from "./agenda.ts"
+export type { Agenda, AgendaDay, Owed } from "./agenda.ts"
 export { stampOf } from "./stamp.ts"
 
 export { biggestOf, changesOf, Field, NodeChange, Sort } from "./changes.ts"

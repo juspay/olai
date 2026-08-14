@@ -13,7 +13,7 @@
  * rows that page draws.
  */
 
-import { dailyNoteDays, datedDays } from "@olai/format"
+import { agendaOf, dailyNoteDays, datedDays } from "@olai/format"
 import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
 
 import { AgendaPage } from "./agenda/AgendaPage.tsx"
@@ -87,6 +87,30 @@ export default function App() {
       router.route(),
       today(),
     )
+  })
+
+  // ONE READING OF WHAT IS OWED, and it is not the agenda page's.
+  //
+  // Two things show it now — the page that lists it, and the directory entry
+  // that marks it (`Sidebar.tsx`, and `layout/Rail.tsx` when the column is
+  // collapsed) — so a count derived beside the entry would be a second walk
+  // over the same directory, free to say "2 overdue" over a page listing three.
+  // It sits here for the reason the route and the indexes do: this file is the
+  // composition, and a fact both a pane and the chrome beside it read belongs
+  // to neither of them.
+  //
+  // It is read on EVERY page rather than on `/agenda`, which is the honest cost
+  // of the mark and not an accident: the column is on every screen, so the
+  // answer is wanted on every screen. `agendaOf` is one bucketed walk over the
+  // dated nodes of a set the derivation has already built.
+  //
+  // And it MOVES on both of its inputs: a revision the store publishes (a task
+  // marked done clears the alarm with no reload) and `today()` rolling over at
+  // the local midnight — the same clock the calendar's ring follows, because
+  // there is only the one (`clock.ts`).
+  const agenda = createMemo(() => {
+    const indexes = outlines.derived()
+    return indexes === undefined ? undefined : agendaOf(indexes, today())
   })
 
   const dated = (month: string): ReadonlySet<string> => {
@@ -202,7 +226,7 @@ export default function App() {
                   */}
                   <div class="relative min-h-[calc(100dvh-var(--height-header))] md:grid md:grid-cols-[var(--width-sidebar)_1fr]">
                     <Show when={desktop() && !sidebarOpen()}>
-                      <Rail go={(route) => router.go(route)} />
+                      <Rail go={(route) => router.go(route)} agenda={agenda()} />
                     </Show>
                     <Show when={desktop() ? sidebarOpen() : true}>
                       <Sidebar
@@ -210,6 +234,7 @@ export default function App() {
                         documents={documents.paths()}
                         active={fileOf(open())}
                         broken={outlines.broken()}
+                        agenda={agenda()}
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
                       >
@@ -276,7 +301,17 @@ export default function App() {
                         </Match>
                         <Match when={only(open(), "agenda")}>
                           {(open) => (
-                            <AgendaPage agenda={open().agenda} today={open().date} />
+                            // The reading is the app's (above), not the arm's —
+                            // the same value the entry in the column is marked
+                            // from. `Show` because it is typed for the frame
+                            // before the first snapshot; this page is not drawn
+                            // in that frame (nothing is), so the fallback is a
+                            // promise about the code rather than a sight.
+                            <Show when={agenda()}>
+                              {(reading) => (
+                                <AgendaPage agenda={reading()} today={open().date} />
+                              )}
+                            </Show>
                           )}
                         </Match>
                         <Match when={only(open(), "trash")}>

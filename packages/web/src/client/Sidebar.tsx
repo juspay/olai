@@ -26,6 +26,15 @@
  * The entry that lights up is the file the open page lives in. A day page
  * lights none. An entry is marked when its file could not be read.
  *
+ * The AGENDA entry says one more thing, and it is the only news this column
+ * carries: work that has slipped puts it in the app's alarm (a filled chip
+ * counting what is late, on a washed and weighted row), work due today gives it
+ * the same chip in the quiet face a date badge wears when it is not late, and
+ * an agenda with neither is the entry it always was. What that mark is drawn
+ * from is `./agenda/owed.ts`; what it is drawn FOR arrives as a prop, because
+ * the number beside the word has to be the page's own answer and not a second
+ * walk over the same directory.
+ *
  * ## It is PINNED, for the reason the header is
  *
  * This app scrolls the DOCUMENT, so a column in normal flow is as tall as the
@@ -61,7 +70,7 @@
  * scroll position rather than parked at the foot of the page.
  */
 
-import { type BrokenFile, isArchived } from "@olai/format"
+import { type Agenda, type BrokenFile, isArchived } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
   createMemo,
@@ -72,6 +81,7 @@ import {
   Switch,
 } from "solid-js"
 
+import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
@@ -81,11 +91,21 @@ import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
 
-/** One file entry. Workflowy-quiet: soft hover, a wash when current. */
-const ENTRY =
+/** One entry's box, hover and current-page wash — everything about it EXCEPT
+ *  what colour the words are. The ink is split out because the agenda's entry
+ *  changes it (`./agenda/owed.ts`), and two utilities setting one property are
+ *  settled by the order Tailwind emitted its rules in rather than by the order
+ *  they were written here: appending `text-alarm` to a class that already says
+ *  `text-ink` is a coin toss, which is the trap `./calendar/Day.tsx` composes
+ *  per-property to avoid. So every user of this names an ink, and exactly one
+ *  does. */
+const ENTRY_SHAPE =
   `flex ${TARGET} items-center break-all rounded-md px-2 py-0.5 text-[0.8125rem] leading-snug ` +
-  "no-underline text-ink hover:bg-rule/50 aria-[current=page]:bg-accent/15 " +
+  "no-underline hover:bg-rule/50 aria-[current=page]:bg-accent/15 " +
   "aria-[current=page]:text-accent aria-[current=page]:font-semibold md:min-h-0"
+
+/** One file entry. Workflowy-quiet: soft hover, a wash when current. */
+const ENTRY = `${ENTRY_SHAPE} text-ink`
 
 /** A directory row: folds, does not navigate. */
 const DIR =
@@ -110,6 +130,10 @@ export function Sidebar(props: {
   readonly documents: ReadonlyArray<string>
   readonly active: string | undefined
   readonly broken: ReadonlyMap<string, BrokenFile>
+  /** What is owed as of today — the app's ONE reading of it (../App.tsx), the
+   *  same value the agenda page lists. `undefined` only while the first frame
+   *  is still arriving, and then the entry claims nothing. */
+  readonly agenda: Agenda | undefined
   readonly children?: JSX.Element
   /**
    * Mobile drawer open. Desktop always draws the column when this component
@@ -216,7 +240,7 @@ export function Sidebar(props: {
           // open several without reopening the drawer each time.
           onClick={() => props.onClose()}
         >
-          <Agenda />
+          <Agenda agenda={props.agenda} />
           {props.children}
 
           <ul class="m-0 list-none p-0" data-testid={TESTID.outlineList}>
@@ -238,24 +262,71 @@ export function Sidebar(props: {
   )
 }
 
-/** The way to what is owed, above the month.
+/** The way to what is owed, above the month — and, when something IS owed, the
+ *  news that it is.
  *
  *  Whether it is the page being read is asked of the ROUTE rather than passed
  *  down beside the open file: the agenda belongs to no outline — it crosses all
  *  of them — so `active` has nothing to say about it, and the router is already
- *  what every link in this column goes through. */
-function Agenda() {
+ *  what every link in this column goes through.
+ *
+ *  What it MARKS is not asked of anything: the reading arrives as a prop, from
+ *  the one `agendaOf` this client makes (../App.tsx). A count derived here
+ *  would be a second reading of the same directory, free to disagree with the
+ *  page one click away — which is the whole of why this entry takes an
+ *  `Agenda` and not a set to walk.
+ *
+ *  The facts ride a WRAPPER rather than the link, the way a calendar cell
+ *  carries its four (./calendar/Day.tsx): `<Link>` spells the `data-` it knows
+ *  about, and "how many are late" is not a fact about links.
+ *
+ *  ON THE AGENDA ITSELF the current-page wash wins the row and the alarm keeps
+ *  the chip, and that is the cascade doing what it should: `aria-[current=page]`
+ *  is an attribute-qualified selector and outranks a plain utility, so the entry
+ *  says "you are here" while the chip goes on saying how many. A reader standing
+ *  on the page has the OVERDUE section itself in front of them; the alarm's job
+ *  is to reach somebody who is somewhere else. */
+function Agenda(props: { readonly agenda: Agenda | undefined }) {
   const router = useRouter()
+  // A memo, and it holds its answer by the COUNTS rather than by identity:
+  // `agenda` is minted afresh on every revision the store publishes, so a mark
+  // compared by reference would rewrite this entry's class, label, title and
+  // three `data-` facts every time somebody typed a character somewhere else
+  // (`./agenda/owed.ts`'s `unchanged`).
+  const mark = createMemo(() => markOf(props.agenda), undefined, { equals: unchanged })
 
   return (
-    <Link
-      route={{ kind: "agenda" }}
-      class={`${ENTRY} mb-2`}
-      testid={TESTID.agendaLink}
-      current={router.route().kind === "agenda"}
+    <div
+      class="mb-2"
+      data-testid={TESTID.agendaOwed}
+      data-owed={mark().face}
+      data-overdue={String(mark().owed.overdue)}
+      data-today={String(mark().owed.today)}
     >
-      Agenda
-    </Link>
+      <Link
+        route={{ kind: "agenda" }}
+        // The SHAPE plus the mark's ink and ground: one utility per property,
+        // whichever face it is wearing.
+        class={`${ENTRY_SHAPE} ${mark().entry}`}
+        testid={TESTID.agendaLink}
+        current={router.route().kind === "agenda"}
+        label={mark().said}
+        title={mark().said}
+      >
+        Agenda
+        {/* Whether there is a chip at all is the table's ruling, read off the
+            paint it did or did not hand back — never a second reading of the
+            face here. `ml-auto` is this row's business, not the table's. */}
+        <Show when={mark().chip !== ""}>
+          <span
+            class={`ml-auto shrink-0 ${mark().chip}`}
+            data-testid={TESTID.agendaCount}
+          >
+            {mark().count}
+          </span>
+        </Show>
+      </Link>
+    </div>
   )
 }
 

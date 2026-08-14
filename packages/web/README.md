@@ -489,6 +489,37 @@ It writes nothing, the way a day page writes nothing: an empty agenda says
 "Nothing is due." and offers nothing to press. Rescheduling is a `date`, and the
 place to change one is the row where the node actually lives.
 
+### And the directory says so before you open it
+
+`src/client/agenda/owed.ts` is the same answer read from OUTSIDE the page: a
+READOUT, built like the two in the header (`readout.ts`, `connection/status.ts`)
+— a face, a table of how that face is drawn, and the sentence it says out loud.
+Two faces, and they are the two the date badge already has, because it is the
+same predicate they report on: work that has SLIPPED puts the entry in the app's
+alarm (a filled chip carrying the count, on a washed and weighted row), work
+merely on TODAY wears the same chip in the badge's quiet face, and an agenda
+with neither is the entry it always was. They differ by more than a colour —
+the calendar's rule for marks that share a place — and both are SAID in the
+entry's own label, since a colour is silence to a screen reader.
+
+Loud wins the row whole and the chip prints the OVERDUE count alone: two
+numerals in a 13px row is a thing a reader has to decode, and the chrome rule
+here is one claim per readout. The today count is not lost — it rides the
+sentence, it rides `data-today`, and it is shown in full one click away. The
+mark is drawn on both faces of the column (`Sidebar.tsx`, and `layout/Rail.tsx`
+as a dot, since three rem has no room for a numeral) and inside the phone's
+sheet, which is the same component.
+
+**One reading, and it is not the page's.** `agendaOf` is called exactly once in
+this client — in `App.tsx`, the composition — and the page that lists it and the
+entry that marks it both read that value; `page.ts`'s agenda arm carries only
+the day it is answered for. A count derived beside the entry would be a second
+walk over one directory, free to say "2 overdue" over a page listing three. It
+is read on every page rather than on `/agenda`, which is the honest cost of a
+mark the column carries everywhere, and it moves on both of its inputs: the
+store's next revision (a task ticked off clears the alarm with no reload) and
+the one clock rolling `today` over at the local midnight.
+
 ## Fifteen palettes, and the one you picked
 
 `src/client/theme/` is a TABLE and the things generated from it. `palettes.ts`
