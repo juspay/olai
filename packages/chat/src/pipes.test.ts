@@ -1,7 +1,7 @@
 /**
  * The half of a subprocess's lifecycle that is not a pipe: whether it ever ran.
  *
- * Both subprocesses this package starts go through {@link unstartable}, and it
+ * The ACP agent this package starts goes through {@link unstartable}, and it
  * is the kind of thing that is only ever exercised by a machine somebody else
  * has misconfigured — so it is asserted here, against real children, rather
  * than left to be discovered in the field a second time.

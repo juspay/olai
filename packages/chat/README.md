@@ -222,13 +222,15 @@ fault would be a complaint on every machine that has never heard of kolu.
 
 The `it could not be started` arm is a second door and has to be: under Bun an
 exec failure arrives as an `error` EVENT on a child `spawn` has already
-returned, so the `try` around the spawn never sees one. That axis is
-`pipes.ts`'s (`unstartable`), beside the framing, because it is the same
-question — what a Node child does to the process that spawned it — and because
-**both** subprocesses this package starts had the same two problems: an
-unhandled `error` event is an uncaught exception, and what follows an exec
-failure is our own write to a stdin that died with it, so the reason a person
-got was `Cannot call write after a stream was destroyed`.
+returned, so the `try` around the spawn never sees one. Two things hang on
+racing it rather than merely catching it — an unhandled `error` event is an
+uncaught exception, and what *follows* an exec failure is our own write to a
+stdin that died with it, so the reason a person got was `Cannot call write
+after a stream was destroyed`. Both subprocesses this package deals with had
+that problem; each now solves it where its spawn lives. The ACP agent's is
+`pipes.ts`'s (`unstartable`), beside the framing, because that is the same
+question — what a Node child does to the process that spawned it. The kolu
+probe's is `@kolu/detect`'s, because kolu starts that child now.
 
 That mattered most on the one this file is not about. `OLAI_ACP_AGENT` is a path
 a PERSON sets — a typo, a moved binary, a store path that was collected — which
@@ -238,13 +240,19 @@ failed on a destroyed stream. `agent.ts` races the same promise against its
 handshake now and refuses with `could not start the agent \`<command>\`: …`,
 which names the thing to go and fix.
 
-The probe is a JSON-RPC conversation on a subprocess's pipes, which is what the
-ACP session is too — so the framing lives in `pipes.ts` and neither of them owns
-it. What that file encapsulates is one axis, read at both ends: what a Node
-child does to the process that spawned it under Bun's node compatibility — how
-its pipes become Web streams, and how it says it never ran. `kolu.ts` writes
-three messages and reads until one of them is answered; it does not know what a
-newline is, and it does not know how an exec failure is delivered.
+**The probe itself is kolu's** (`@kolu/detect`, juspay/kolu#2168). Resolving
+`kolu` on PATH, starting it, handshaking, and reading a cell only a live daemon
+can answer is knowledge *about kolu* — including the two incidents it encodes,
+which are facts about kolu's own builds and discoverable there rather than
+here. So `kolu.ts` no longer writes a message or reads a pipe: it asks, and
+gets back which of the five ways it failed, with the failing party's own words
+where there were any. What stays is the judgement — this file still owns every
+sentence on the strip, still decides that an absence is only a fault when
+`PADI_SOCKET` says a padi was expected, and still reads `PADI_SOCKET` and
+`PATH` itself rather than letting the probe reach for them, because that
+environment is olai's fact and not kolu's to interpret. `pipes.ts` remains what
+it always was for the ACP session, which is still this package's own
+subprocess.
 
 **What is detected is the DAEMON, not kolu's web server**, which may be running
 on another machine reaching this host as a remote. `PADI_SOCKET` is forwarded

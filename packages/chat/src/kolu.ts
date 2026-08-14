@@ -7,7 +7,17 @@
  * anything — so this module answers one question, `Kolu.detect`, and
  * {@link ./agent.ts} adds what it answers to the servers a session is given.
  *
- * Three decisions are what this file is:
+ * **The probe itself is now kolu's** (`@kolu/detect`, juspay/kolu#2168). What
+ * used to live here — resolve `kolu` on PATH, start it, handshake, read a cell
+ * only a live daemon can answer, keep the absolute path that answered — was
+ * knowledge about kolu that this repo was holding on kolu's behalf, and it is
+ * the kind that goes stale silently: the two incidents it encodes
+ * (juspay/kolu#2146, a bundled build ahead on PATH answering with the same
+ * version string; juspay/kolu#2148, a `kolu mcp` that completes the handshake
+ * and lists everything with no daemon behind it) are facts about kolu's own
+ * builds, discoverable there and not here. So kolu supplies the EVIDENCE and
+ * this file keeps the JUDGEMENT, which is the division `mcp-fail-visible`
+ * needs and the reason the sentences below did not move with the probe:
  *
  *   - **What is detected is PADI, not kolu's web server.** The browser face
  *     may be running on another machine reaching this host as a remote (the
@@ -19,39 +29,43 @@
  *     already finds its own default and already says so when a host is running
  *     more than one, and a host that ambiguous is one to leave alone rather
  *     than to guess about.
- *   - **The probe is the detection.** A `kolu` on PATH is not necessarily the
- *     host's kolu — a padi-spawned terminal prepends its own bundled copy, and
- *     one of those was an older build reporting the same version string while
- *     missing most of the verbs (juspay/kolu#2146, fixed by #2147; the lesson
- *     survives the fix, because the wrong build still SPAWNS). So nothing here
- *     trusts a path, a version string or an exit code: the executable is
- *     started, handshaken with, and asked to read a resource that only the
- *     daemon can answer. An answer is the evidence, and it is evidence of both
- *     halves at once — this binary speaks the protocol, AND a padi is behind
- *     it. Anything else is a no — because a host without kolu is the ordinary
- *     case rather than a fault — but a no that SAYS WHY ({@link Detected}). It
- *     used to be one silent `false` for all four ways of failing, with the
- *     reason destroyed by a `catch` before anything could report it.
+ *   - **The probe is the detection.** Nothing here trusts a path, a version
+ *     string or an exit code — kolu starts the executable, handshakes with it,
+ *     and asks it to read a resource only the daemon can answer. An answer is
+ *     the evidence, and it is evidence of both halves at once: this binary
+ *     speaks the protocol, AND a padi is behind it. Anything else is a no —
+ *     because a host without kolu is the ordinary case rather than a fault —
+ *     but a no that SAYS WHY ({@link Detected}). It used to be one silent
+ *     `false` for all four ways of failing, with the reason destroyed by a
+ *     `catch` before anything could report it.
  *   - **The path we probe is the path we hand over.** `kolu` is resolved on
- *     PATH here, once, and the session is given that absolute path — which is
- *     also what ACP's stdio shape asks for. Handing the bare word would leave
- *     the agent free to resolve it against a different PATH and spawn a
- *     different build than the one that answered.
+ *     PATH once, and the session is given that absolute path — which is also
+ *     what ACP's stdio shape asks for. Handing the bare word would leave the
+ *     agent free to resolve it against a different PATH and spawn a different
+ *     build than the one that answered.
+ *
+ * What kolu will NOT decide for us is the last arm: whether an absence is
+ * worth reporting. `@kolu/detect` answers `notOnPath` with no reason attached,
+ * because the question "was a kolu expected here?" is answered by
+ * `PADI_SOCKET` — olai's environment, under olai's service manager — and kolu
+ * has no business asserting a fact about our PATH. That judgement, and the
+ * sentence it produces ({@link EXPECTED}), stay here.
  */
 
-import { type ChildProcess, spawn } from "node:child_process"
+import type { ChildProcess } from "node:child_process"
 
-import type { AnyMessage } from "@agentclientprotocol/sdk"
-import { reasonOf } from "@olai/log"
+import {
+  detect as detectKolu,
+  probe as probeKolu,
+  type ProbeFailure,
+} from "@kolu/detect"
 import type { MissingServer } from "@olai/surface"
 import { Effect } from "effect"
 
-import { streamOver, unstartable } from "./pipes.ts"
-
 /** The executable, its verb, and the variable that says which padi. All three
- *  are kolu's own `.mcp.json` entry, unchanged. */
+ *  are kolu's own `.mcp.json` entry, unchanged — and now kolu's own constants,
+ *  so a rename there cannot leave this file quietly spelling the old one. */
 const COMMAND = "kolu"
-const ARGS = ["mcp"] as const
 const SOCKET = "PADI_SOCKET"
 
 /**
@@ -74,20 +88,6 @@ const SOCKET = "PADI_SOCKET"
  */
 const EXPECTED = `${SOCKET} names a padi on this host, but no \`kolu\` is on the PATH `
   + `this server was started with — so there is nothing here to reach it through`
-
-/** What the probe reads. A padi's identity — the commit it is running, when it
- *  started — is the daemon's own, so an answer cannot be produced by a kolu
- *  that reached no daemon: that one fails the read with `padi transport down`.
- *  Read-only, and one round trip. */
-const IDENTITY = "surface://cells/identity"
-
-/** How long the probe gets. Generous for a process start and one round trip
- *  over a unix socket — and it is spent BEFORE the session opens, so a host
- *  whose kolu wedges pays this much per conversation and gets no kolu in it.
- *  What makes five seconds affordable is where they are spent: booting the
- *  agent is a background job with the panel already drawn (`chat.ts`'s
- *  `start`), and a `session/load` next to it is allowed two minutes. */
-const PROBE_MS = 5_000
 
 /** An MCP server to spawn, in olai's terms — {@link ./agent.ts} renders it
  *  into what ACP wants, the same way it does olai's own. */
@@ -174,14 +174,30 @@ export const detect: Effect.Effect<Detected> = Effect.gen(function*() {
   // not a failure: kolu resolves this host's padi by itself, and says so when
   // there is more than one to choose from (which the probe then reports as
   // "no", correctly — that host is ambiguous, not ours to guess about).
+  //
+  // Read HERE and passed in, rather than left for `@kolu/detect` to find: this
+  // process's environment is olai's fact, and a probe that reached for it
+  // itself would be answering a different question than the one the session
+  // will ask when it spawns the real server.
   const socket = process.env[SOCKET]
   const expected = socket !== undefined && socket !== ""
-  const env: Readonly<Record<string, string>> = expected ? { [SOCKET]: socket } : {}
 
-  const command = onPath(COMMAND)
-  if (command === null) {
+  // The LIVE PATH, for the same reason it always was: it is what a spawn would
+  // resolve against, and the point of the whole exercise is to probe the file
+  // that would actually run.
+  const found = yield* Effect.promise(() =>
+    detectKolu({
+      ...(process.env["PATH"] !== undefined ? { path: process.env["PATH"] } : {}),
+      ...(socket !== undefined ? { socket } : {}),
+    })
+  )
+
+  if (found._tag === "notOnPath") {
     // Nothing to probe — but "nothing to probe" and "nothing was expected" are
-    // two facts, and only the second is quiet. See {@link EXPECTED}.
+    // two facts, and only the second is quiet. See {@link EXPECTED}. This is the
+    // arm kolu deliberately hands back bare: it reports that nothing was found,
+    // and whether that is a fault is decided here, against olai's own
+    // environment.
     if (!expected) return { _tag: "none" }
     yield* Effect.logDebug("a padi is named here but kolu is not on this PATH").pipe(
       Effect.annotateLogs({ [SOCKET]: socket }),
@@ -189,169 +205,92 @@ export const detect: Effect.Effect<Detected> = Effect.gen(function*() {
     return { _tag: "silent", kolu: null, why: EXPECTED }
   }
 
-  const why = yield* Effect.promise(() => whyNotAnswered(command, env))
-  if (why !== null) {
+  if (found._tag === "unreachable") {
+    const why = whyOf(found.why)
     // The reason is on the line now as well as on the value. It used to say
     // only that "no padi answered", which is the one thing every way of
     // failing had in common and the one thing that never helped.
     yield* Effect.logDebug("kolu is on PATH but did not answer").pipe(
-      Effect.annotateLogs({ kolu: command, why }),
+      Effect.annotateLogs({ kolu: found.command, why }),
     )
-    return { _tag: "silent", kolu: command, why }
+    return { _tag: "silent", kolu: found.command, why }
   }
+
   yield* Effect.logInfo("kolu's terminals are on this session").pipe(
-    Effect.annotateLogs({ kolu: command }),
+    Effect.annotateLogs({ kolu: found.server.command }),
   )
-  return { _tag: "kolu", server: { name: COMMAND, command, args: ARGS, env } }
+  return {
+    _tag: "kolu",
+    server: {
+      name: COMMAND,
+      command: found.server.command,
+      args: found.server.args,
+      env: found.server.env,
+    },
+  }
 })
 
-/** The executable by that name on PATH, or `null`. The PATH is passed rather
- *  than left to the runtime's own copy, which is the one this process STARTED
- *  with — the live one is what a spawn would resolve against, and the point of
- *  this whole file is to probe the file that would actually run. */
-const onPath = (name: string): string | null => Bun.which(name, { PATH: process.env["PATH"] ?? "" })
-
-/** The id the read is sent under, so the answer to it is the only message that
- *  decides anything. Exported for `kolu.test.ts`, whose fixtures answer under
- *  it — an answer carrying a different id is not an answer, and a test that
- *  spelled the number itself could go on passing while this one moved. */
-export const PROBE_ID = 2
-
-/** The whole conversation, sent at once. A server that reads its input in order
- *  answers in order, and one that cannot is one whose answer we would not
- *  want. */
-const CONVERSATION: ReadonlyArray<AnyMessage> = [
-  {
-    jsonrpc: "2.0",
-    id: 1,
-    method: "initialize",
-    params: {
-      protocolVersion: "2024-11-05",
-      capabilities: {},
-      clientInfo: { name: "olai", version: "0" },
-    },
-  },
-  { jsonrpc: "2.0", method: "notifications/initialized" },
-  { jsonrpc: "2.0", id: PROBE_ID, method: "resources/read", params: { uri: IDENTITY } },
-]
-
 /**
- * Start it, say all that, and wait for the one answer that decides it — then
- * kill it either way. This process is a PROBE and never a client: the session
- * gets its own, spawned by the agent.
+ * The sentence for each way a `kolu` that WAS found failed to be this host's.
  *
- * `null` means it answered; anything else is the sentence saying which way it
- * did not, which is the difference between "kolu is not running here" (fine,
- * and common) and "the kolu on your PATH is a build that cannot do this" (worth
- * knowing, and — until `mcp-fail-visible` drew it — invisible).
+ * These words are the whole of what a person sees on the strip
+ * (`mcp-fail-visible`), so they stay here rather than crossing the package
+ * boundary in either direction: kolu reports which way it failed as a TAG and
+ * hands back the failing party's own words where there were any, and olai
+ * decides how to say it. A kolu that pre-worded these would make four English
+ * strings a contract between two repos — the exact coupling the division of
+ * labour exists to avoid — and one that only said "it did not work" would put
+ * the debug log line on screen, which is what the incident behind this feature
+ * was debugged around.
  *
- * Almost every way of failing arrives by one door: the pipes closing ends the
- * read, and the deadline is a KILL rather than a race, so a wedged server and a
- * server that hung up are the same `done` with a flag to tell them apart. The
- * ONE that cannot come that way is a file that would not exec, which is a
- * second door and says below why it has to be.
+ * The one that carries the most is `refused`: it is what a kolu that reached no
+ * daemon sends, so its `said` is a verdict rather than noise — a kolu answering
+ * that way is installed, running, and running against nothing.
  */
-const whyNotAnswered = async (
-  command: string,
-  env: Readonly<Record<string, string>>,
-): Promise<string | null> => {
-  let child: ChildProcess
-  try {
-    child = spawn(command, [...ARGS], {
-      stdio: ["pipe", "pipe", "ignore"],
-      env: { ...process.env, ...env },
-    })
-  } catch (cause) {
-    return couldNotStart(reasonOf(cause))
+const whyOf = (failure: ProbeFailure): string => {
+  switch (failure._tag) {
+    case "couldNotStart":
+      // Wherever the refusal reached us — Bun raises it on an event and Node
+      // may throw it for a malformed call, and a reader has no business being
+      // told which.
+      return `it could not be started: ${failure.cause}`
+    case "timedOut":
+      return `it did not answer within ${failure.deadlineMs / 1000}s`
+    case "closed":
+      return "it closed the connection without answering"
+    case "failed":
+      return `talking to it failed: ${failure.cause}`
+    case "refused":
+      return failure.said !== null
+        ? `it refused to read the daemon's identity: ${failure.said}`
+        : "it refused to read the daemon's identity, so no padi is behind it"
   }
-
-  // A `kolu` on PATH with the executable bit is not necessarily a program, and
-  // an exec that fails does so AFTER `spawn` has returned — so the `catch`
-  // above never sees one. It is raced rather than merely handled, because what
-  // FOLLOWS an exec failure is our own write to a stdin that died with it, and
-  // that is the sentence `askOver` would otherwise come back with.
-  // {@link ../pipes.ts} owns the rest of the argument, and the ACP agent races
-  // the same promise for the same reason.
-  return await Promise.race([
-    unstartable(child).then(couldNotStart),
-    askOver(child, PROBE_MS),
-  ])
 }
 
 /**
- * Say all of it, and wait for the one answer that decides it — then kill the
- * process either way ({@link whyNotAnswered} is what starts it, and says why
- * the start is a question of its own).
+ * Say it all to an already-started `kolu mcp` and answer why it is not this
+ * host's — `null` if it answered.
  *
- * The deadline is a PARAMETER and this is exported for one reason, which is the
- * same reason {@link PROBE_ID} is: a test needs it. Two of the four sentences
- * here are told apart only by the `expired` flag — a wedged server and one that
- * hung up are the same closed pipe — so the flag is exactly the sort of thing
- * that rots into the wrong sentence, and the only way to exercise it through
- * `detect` is to spend five real seconds on every run forever. A fixture that
- * reads and never answers, given a tenth of a second, says the same thing.
+ * The conversation is kolu's now ({@link probeKolu}); the WORDS are still ours,
+ * so this is {@link whyOf} over kolu's verdict and nothing else. It stays
+ * exported, and the deadline stays a parameter, for the reason it always was: a
+ * wedged server and one that hung up reach the same closed pipe, and the only
+ * thing telling them apart is which of these two sentences comes back — exactly
+ * the sort of thing that rots into the wrong one with every other test still
+ * green. Exercising it through `detect` would mean spending a real five seconds
+ * on every run forever; a fixture that reads and never answers, given a tenth
+ * of one, says the same thing.
  */
 export const askOver = async (
   child: ChildProcess,
   deadlineMs: number,
 ): Promise<string | null> => {
-  /** Whether the deadline is what ended this, so the closed pipe below is read
-   *  as the timeout it is rather than as an agent that hung up. */
-  let expired = false
-  const deadline = setTimeout(() => {
-    expired = true
-    child.kill("SIGKILL")
-  }, deadlineMs)
-  try {
-    const stream = streamOver(child)
-    const writer = stream.writable.getWriter()
-    for (const message of CONVERSATION) await writer.write(message)
-    // stdin stays OPEN: a server told its client has gone is entitled to leave
-    // before it has finished answering, and the kill below is what ends this
-    // one.
-    const reader = stream.readable.getReader()
-    while (true) {
-      const next = await reader.read()
-      if (next.done) {
-        return expired
-          ? `it did not answer within ${deadlineMs / 1000}s`
-          : "it closed the connection without answering"
-      }
-      if (!answersTheProbe(next.value)) continue
-      return refusalIn(next.value)
-    }
-  } catch (cause) {
-    return `talking to it failed: ${reasonOf(cause)}`
-  } finally {
-    clearTimeout(deadline)
-    child.kill("SIGKILL")
-  }
+  const verdict = await probeKolu(child, deadlineMs)
+  return verdict._tag === "answered" ? null : whyOf(verdict)
 }
 
-/** The one sentence for a file that would not run, wherever the refusal reached
- *  us — Bun raises it on an event and Node may throw it for a malformed call,
- *  and a reader has no business being told which. */
-const couldNotStart = (why: string): string => `it could not be started: ${why}`
-
-/** Two questions, and they were one three-valued answer: this one is "is this
- *  message ours at all", which is about the ENVELOPE and true of a refusal
- *  exactly as much as of a success. */
-const answersTheProbe = (message: AnyMessage): boolean =>
-  (message as { readonly id?: unknown }).id === PROBE_ID
-
-/** ... and this one is what our answer SAYS: `null` it answered, a sentence it
- *  refused. A refusal is what a kolu that reached no daemon sends, so it is a
- *  verdict rather than noise — and it is the one whose reason a reader most
- *  wants, since a kolu answering this way is installed, running, and running
- *  against nothing. */
-const refusalIn = (message: AnyMessage): string | null => {
-  const shape = message as {
-    readonly result?: unknown
-    readonly error?: { readonly message?: unknown }
-  }
-  if (shape.result !== undefined && shape.result !== null) return null
-  const said = shape.error?.message
-  return typeof said === "string" && said !== ""
-    ? `it refused to read the daemon's identity: ${said}`
-    : "it refused to read the daemon's identity, so no padi is behind it"
-}
+/** The id kolu sends the identity read under, re-exported because this
+ *  package's fixtures answer under it — an answer carrying a different id is
+ *  not an answer, and a fixture that spelled the number itself could go on
+ *  passing while kolu's moved. */
+export { PROBE_ID } from "@kolu/detect"
