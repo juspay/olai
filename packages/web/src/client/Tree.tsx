@@ -69,7 +69,7 @@ import { blockedIds, WAITING_DIM } from "./blocked.ts"
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
 import { ROW_KEY, useDragging } from "./drag/dragging.ts"
-import { Handle } from "./drag/Handle.tsx"
+import { HANDLE, Handle } from "./drag/Handle.tsx"
 import { useSelection } from "./select/selection.ts"
 import { DatePicker } from "./date/DatePicker.tsx"
 import { datePick } from "./date/pick.ts"
@@ -106,8 +106,14 @@ import { applying } from "./writes.ts"
 export function Tree(props: {
   readonly rows: ReadonlyArray<Row>
 }) {
+  // `data-sweep` below is `./drag/sweeping.ts`'s `SWEEP`: these lists hold rows
+  // and never words, so a press that lands on ONE — the gaps between lines, the
+  // indent rail beside a branch — is a drag-across rather than a text
+  // selection. Spelled as a literal for the reason that constant gives (a JSX
+  // spread would put every `data-` fact a row carries on Solid's runtime spread
+  // path), and held to the name by ./claims.test.ts.
   return (
-    <ul class="m-0 list-none p-0" data-testid={TESTID.outlineTree}>
+    <ul class="m-0 list-none p-0" data-sweep="" data-testid={TESTID.outlineTree}>
       {/* `<Key>`, not `<For>`, and `Row.key` is why it can be: the walk mints
           fresh rows on every frame the live store publishes, and `<For>`
           compares by reference — so one character changing in one title on
@@ -271,6 +277,11 @@ function Branch(props: {
   return (
     <li
       class="my-0.5"
+      // The item's own box is scaffolding too — the indent strip beside a
+      // child list, the margin left of a note — so a press there is a sweep
+      // (./drag/sweeping.ts). Everything WITH words in it is a descendant and
+      // wears no such mark, which is what keeps the rule an allowlist.
+      data-sweep=""
       data-testid={TESTID.node}
       data-node-id={props.row.at.node.id}
       data-status={props.row.status}
@@ -314,12 +325,23 @@ function Branch(props: {
         // only, so a mouse and a pen are untouched — and so is the page, which
         // goes on scrolling under a finger that moves (./longPress.ts).
         //
+        // ...EXCEPT ON THE BULLET, which is the handle a finger picks the row
+        // up by (./drag/Handle.tsx). Two long presses cannot both own one
+        // press, and the one that gives way is this door, because the menu has
+        // a whole row to be reached from and a handle has only itself. Asked of
+        // where the press LANDED rather than left to Solid's delegation order.
+        //
         // Named one by one rather than spread: a spread anywhere on an element
         // moves EVERY attribute of it onto Solid's runtime `spread` path,
         // where the `classList` beside them is diffed key by key on every
         // frame the store publishes — for every row in the outline. The two
         // handlers are the whole of `LongPress`.
-        onPointerDown={menu.hold.onPointerDown}
+        onPointerDown={(event) => {
+          if (event.target instanceof Element && event.target.closest(`[${HANDLE}]`) !== null) {
+            return
+          }
+          menu.hold.onPointerDown(event)
+        }}
         onContextMenu={menu.hold.onContextMenu}
         // Two ways of being THE row, drawn in one accent and told apart by
         // weight: the caret fills its row, a reference outlines the row it
@@ -549,7 +571,7 @@ function Branch(props: {
       </Show>
 
       <Show when={!collapsed() && props.row.children.length > 0}>
-        <ul class={CHILD_INDENT}>
+        <ul class={CHILD_INDENT} data-sweep="">
           <Key each={props.row.children} by="key">
             {(child) => <Branch row={child()} />}
           </Key>

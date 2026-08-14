@@ -318,6 +318,10 @@ export const DRAG_HANDLE = selector(TESTID.dragHandle);
  *  being dragged. `data-parent`, `data-after` and `data-depth` are what it
  *  PROMISES, which is a prediction right up until the pointer is released. */
 export const DROP_LINE = selector(TESTID.dropLine);
+/** The band a drag-across pulls — present only while one is being pulled.
+ *  `data-rows` is how many rows it is crossing, which is the half of the
+ *  gesture that is still a prediction while the pointer is down. */
+export const SWEEP_BAND = selector(TESTID.sweepBand);
 /** The bar a multi-selection draws. `data-rows` is the count the bulk verbs
  *  are asked of — the picked rows nothing else picked contains. */
 export const SELECTION_BAR = selector(TESTID.selectionBar);
@@ -1025,6 +1029,46 @@ export class OlaiWorld extends World {
     const at = await this.middleOf(target, "held");
     await this.finger("touchStart", at);
     await this.page.waitForTimeout(LONG_PRESS_MS + LONG_PRESS_MARGIN_MS);
+    await this.finger("touchEnd");
+    await this.waitForFrame();
+  }
+
+  /**
+   * HOLD a finger, and KEEP IT DOWN — the first half of a touch drag.
+   *
+   * {@link hold} is this plus the lift, and the two cannot be one step: a drag
+   * is what the finger does AFTER the deadline, so a scenario about one has to
+   * be able to stop between them. What the client does at that moment is lift
+   * the row (`client/drag/dragging.ts`), which is a state on the page a step
+   * can then assert before anything has moved.
+   *
+   * Answers with where the finger is, because everything after this is measured
+   * from it.
+   */
+  async holdDown(target: Locator): Promise<Point> {
+    const at = await this.middleOf(target, "held");
+    await this.finger("touchStart", at);
+    await this.page.waitForTimeout(LONG_PRESS_MS + LONG_PRESS_MARGIN_MS);
+    await this.waitForFrame();
+    return at;
+  }
+
+  /** Move the finger that is already down, in steps rather than in one jump —
+   *  a hand makes a path, and a gesture that arrived as a single event would
+   *  pass over the frames the affordance is drawn in. */
+  async dragFinger(from: Point, to: Point, steps = 10): Promise<void> {
+    for (let step = 1; step <= steps; step++) {
+      await this.finger("touchMove", {
+        x: from.x + ((to.x - from.x) * step) / steps,
+        y: from.y + ((to.y - from.y) * step) / steps,
+      });
+      await this.page.waitForTimeout(20);
+    }
+    await this.waitForFrame();
+  }
+
+  /** ...and let it go, which for a drag is the drop. */
+  async letGo(): Promise<void> {
     await this.finger("touchEnd");
     await this.waitForFrame();
   }

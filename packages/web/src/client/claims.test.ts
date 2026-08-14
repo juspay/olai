@@ -115,6 +115,22 @@ test("only layer.ts spells a z-index", () => {
   expect(filesSpelling(/(?:^|[\s"'`])z-(?:\[\d+\]|\d+|auto)(?=$|[\s"'`])/m)).toEqual(["layer.ts"])
 })
 
+// drag/sweeping.ts's claim — the outline's SCAFFOLDING is the only thing a
+// drag-across may begin on, and the mark that says so is written as a literal
+// at each site (a JSX spread there would move every `data-` fact a row carries
+// onto Solid's runtime spread path, per row, per frame). A literal cannot be
+// renamed by the type checker, so it is swept instead: exactly the module that
+// reads the attribute and the two components that wear it. A fourth file
+// spelling it is a new surface nobody argued for — and a missing one is a rail
+// that quietly stopped being pressable, which nothing else would notice.
+test("only the outline's scaffolding is marked as a sweep surface", () => {
+  expect(filesSpelling(/data-sweep/)).toEqual([
+    "Tree.tsx",
+    path.join("drag", "sweeping.ts"),
+    path.join("edit", "Editable.tsx"),
+  ])
+})
+
 // saying.ts's claim — one receptacle for how long a said-line lingers. SAID_MS
 // was pulled out beside the `Said` type because the ••• menu's dwell and the
 // Trash's "were equal only by hand-maintenance", and the constant turned out

@@ -12,13 +12,15 @@
  * reorder. Putting the pointer handler in the bullet would have made every
  * drawing of one draggable and then needed a prop to say when it is not.
  *
- * A MOUSE OR A PEN, and deliberately not a finger. A touch drag on a bullet
- * would have to claim the gesture that scrolls the page (`touch-action: none`),
- * and getting that wrong on a phone costs the reader the ability to scroll past
- * an outline. The `•••` menu is already a pointer-device affordance for the
- * same kind of reason (`../touch.ts`), and a touch gesture for reordering
- * belongs with whatever else a phone eventually gets — a long-press, most
- * likely, which is a decision rather than a line of code.
+ * ONE HANDLE, THREE DEVICES. A mouse and a pen start the drag by travelling; a
+ * finger starts it by being HELD, because the gesture it would otherwise take
+ * is the page scrolling and no reader can be asked to give that up
+ * (`./dragging.ts` and `../longPress.ts` have both halves of the argument).
+ * What the finger costs is that this cell is no longer a second door to the
+ * row's `•••` menu — a phone opens that by holding the row anywhere else, which
+ * is nearly all of it (`../menu/door.ts`), and a handle has only itself to be
+ * held by. The row's own door is told to stand down here rather than guessing:
+ * {@link HANDLE} is what it looks for.
  */
 
 import type { Row } from "@olai/format"
@@ -26,6 +28,18 @@ import type { JSX } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { useDragging } from "./dragging.ts"
+
+/**
+ * The attribute this cell wears so the row's `•••` door can tell a press that
+ * is already spoken for.
+ *
+ * A `data-` attribute rather than the testid beside it: a testid is a contract
+ * with the browser tests and reading one back as behaviour would make a rename
+ * a silent change of what the app does. Rather than a `stopPropagation`, too —
+ * that would be one gesture reaching into another's plumbing, and it would rest
+ * on the order Solid happens to walk delegated handlers in.
+ */
+export const HANDLE = "data-handle"
 
 export function Handle(props: {
   readonly row: Row
@@ -36,6 +50,7 @@ export function Handle(props: {
     <span
       class="inline-flex items-center md:cursor-grab"
       data-testid={TESTID.dragHandle}
+      data-handle=""
       // THE NATIVE DRAG HAS TO BE TURNED OFF, and this is not belt and braces:
       // a bullet is an `<a href>`, and a browser makes every link draggable for
       // free. Pressing one and moving therefore starts the platform's own
@@ -46,10 +61,12 @@ export function Handle(props: {
       // set.
       draggable={false}
       onDragStart={(event) => event.preventDefault()}
-      onPointerDown={(event) => {
-        if (event.pointerType === "touch") return
-        dragging.grab(event, props.row)
-      }}
+      onPointerDown={(event) => dragging.grab(event, props.row)}
+      // The platform's own long press, for the one that raises it as an event:
+      // prevented while this cell is holding a finger, so the text-selection
+      // callout does not come up over a row that is about to lift. A right-click
+      // with a mouse still gets the browser's menu (`../longPress.ts`).
+      onContextMenu={dragging.held.onContextMenu}
       // CAPTURE, so the link under it never sees the click at all: by the time
       // one bubbled, the browser would already be navigating to the node whose
       // bullet the reader used as a handle. Solid has no `onClickCapture`

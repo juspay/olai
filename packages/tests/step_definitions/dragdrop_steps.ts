@@ -23,7 +23,7 @@
 
 import * as assert from "node:assert";
 
-import { Then, When } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
 
 import { saysNothing, saysThat } from "../support/said.ts";
 import {
@@ -31,12 +31,14 @@ import {
   DROP_LINE,
   NODE,
   nodeSelector,
+  OUTLINE_TREE,
   POLL_TIMEOUT,
   SELECTION_BAR,
   SELECTION_CONFIRM,
   SELECTION_NOTE,
   SELECTION_SAID,
   SELECTION_TRASH,
+  SWEEP_BAND,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -189,7 +191,182 @@ Then(
   },
 );
 
+// ── the page keeping up ────────────────────────────────────────────────
+
+/** How near the bottom of the window a gesture has to be held before the page
+ *  starts moving under it. Inside the client's own zone with room to spare —
+ *  the number there is a design decision, and a scenario pinned to its exact
+ *  value would fail on a change that made the affordance better. */
+const AT_THE_EDGE = 8;
+
+/**
+ * A window with somewhere to scroll TO, which no fixture here gives a laptop
+ * on its own: the corpora are outlines a person can read inside a scenario.
+ *
+ * So the WINDOW shrinks rather than the corpus growing — which is a real shape
+ * too (a short laptop, a split screen) — and the step asserts what it has just
+ * claimed rather than trusting it, exactly as the phone's own version does.
+ */
+Given("the window is shorter than the outline", async function (this: OlaiWorld) {
+  await this.page.setViewportSize({ width: 1_100, height: 260 });
+  await this.waitForFrame();
+  const room = await this.page.evaluate(() => ({
+    page: document.documentElement.scrollHeight,
+    screen: window.innerHeight,
+    at: window.scrollY,
+  }));
+  assert.ok(
+    room.page > room.screen,
+    `the outline is ${room.page}px in a ${room.screen}px window, so there is nothing to scroll`,
+  );
+  assert.strictEqual(room.at, 0, "this scenario starts at the top of the page");
+});
+
+/** The bottom of the window, at the same x the gesture started at. Held there
+ *  long enough for the page to actually move — the scroll is a frame loop, not
+ *  a jump, which is what makes it something a hand can steer. */
+const holdAtTheEdge = async (world: OlaiWorld, x: number): Promise<void> => {
+  const view = world.page.viewportSize();
+  assert.ok(view !== null, "this scenario has no viewport size");
+  await world.page.mouse.move(x, view.height - AT_THE_EDGE, { steps: 10 });
+  await world.page.waitForTimeout(700);
+  await world.waitForFrame();
+};
+
+When(
+  "I pick up the bullet of {string} and hold it at the bottom of the window",
+  async function (this: OlaiWorld, id: string) {
+    const box = await this.box(handleOf(this, id), `the bullet of "${id}"`);
+    await this.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await this.page.mouse.down();
+    await holdAtTheEdge(this, box.x + ONE_STEP);
+  },
+);
+
 // ── picking ────────────────────────────────────────────────────────────
+
+// ── drag-across ────────────────────────────────────────────────────────
+//
+// The fifth picking gesture. Where a pull BEGINS is what decides whether it is
+// a sweep or the browser's own text selection (`client/drag/sweeping.ts`), so
+// every step here is really a statement about where it started — the rail
+// beside a branch, the page below the last row, or the words themselves.
+
+/**
+ * The empty strip beside a row: its nearest enclosing list's own padding,
+ * which is scaffolding and holds no words.
+ *
+ * Measured rather than named, because it is not a control and has no testid to
+ * find — it is the indent rail a reader sees, and what makes it pressable is
+ * that nothing else is there.
+ */
+const railBeside = async (
+  world: OlaiWorld,
+  id: string,
+): Promise<{ x: number; y: number }> => {
+  const at = await world.node(id).first().evaluate((row) => {
+    const list = row.parentElement?.closest("ul")
+    const line = row.querySelector("[data-row-key]")
+    if (list === null || list === undefined || line === null) return null
+    const box = list.getBoundingClientRect()
+    const on = line.getBoundingClientRect()
+    return { x: box.x + 4, y: on.y + on.height / 2 }
+  });
+  assert.ok(at !== null, `the row "${id}" is not inside a list with a rail beside it`);
+  return at;
+};
+
+/** The page BELOW the outline — the largest empty surface an editable page
+ *  has, and the one a short tree leaves most of. */
+const belowTheOutline = async (world: OlaiWorld): Promise<{ x: number; y: number }> => {
+  const tree = await world.box(world.page.locator(OUTLINE_TREE).first(), "the outline");
+  return { x: tree.x + ONE_STEP, y: tree.y + tree.height + 24 };
+};
+
+/** Press, travel in steps, and DO NOT let go — the sweep is only a prediction
+ *  while the pointer is down, which is when its band can be asked about. */
+const sweepFrom = async (
+  world: OlaiWorld,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): Promise<void> => {
+  await world.page.mouse.move(from.x, from.y);
+  await world.page.mouse.down();
+  await world.page.mouse.move(to.x, to.y, { steps: 12 });
+  await world.waitForFrame();
+};
+
+When(
+  "I sweep from beside {string} down to {string}",
+  async function (this: OlaiWorld, from: string, to: string) {
+    const start = await railBeside(this, from);
+    const end = await railBeside(this, to);
+    await sweepFrom(this, start, { x: start.x, y: end.y });
+  },
+);
+
+When(
+  "I sweep from below the outline up to {string}",
+  async function (this: OlaiWorld, to: string) {
+    const start = await belowTheOutline(this);
+    const end = await railBeside(this, to);
+    await sweepFrom(this, start, { x: start.x, y: end.y });
+  },
+);
+
+When(
+  "I sweep from beside {string} to the bottom of the window",
+  async function (this: OlaiWorld, from: string) {
+    const start = await railBeside(this, from);
+    await this.page.mouse.move(start.x, start.y);
+    await this.page.mouse.down();
+    await holdAtTheEdge(this, start.x);
+  },
+);
+
+/** A press on the page that never travels: not a sweep, and still the gesture
+ *  that means "nothing here is picked". */
+When("I press below the outline", async function (this: OlaiWorld) {
+  const at = await belowTheOutline(this);
+  await this.page.mouse.click(at.x, at.y);
+  await this.waitForFrame();
+});
+
+/** A pull that begins IN THE WORDS — the browser's gesture, and the whole of
+ *  what the sweep had to leave alone. Held down, because a released one lands
+ *  as a click on the title and opens the editor over it. */
+When(
+  "I select text across the title of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const box = await this.box(this.nodeTitle(id), `the title of "${id}"`);
+    await this.page.mouse.move(box.x + 4, box.y + box.height / 2);
+    await this.page.mouse.down();
+    await this.page.mouse.move(box.x + box.width - 4, box.y + box.height * 3, { steps: 12 });
+    await this.waitForFrame();
+  },
+);
+
+Then("the band is crossing {int} rows", async function (this: OlaiWorld, many: number) {
+  await this.expectAttribute(SWEEP_BAND, "data-rows", String(many), "the sweep's band");
+});
+
+Then("no band is drawn", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(SWEEP_BAND).count()) === 0,
+    "the sweep's band not to be drawn",
+  );
+});
+
+/** The browser still has its own gesture. Asked of the SELECTION rather than of
+ *  a screenshot: what a sweep would have taken away is the ability to quote a
+ *  line, and that is what `getSelection` answers. */
+Then("the words are selected", async function (this: OlaiWorld) {
+  const said = await this.page.evaluate(() => window.getSelection()?.toString() ?? "");
+  assert.ok(
+    said.trim().length > 0,
+    "the pull selected no text at all — the marquee has taken the browser's own gesture",
+  );
+});
 
 When("I pick the title of {string}", async function (this: OlaiWorld, id: string) {
   // The modifier-click: adds this row to the pick, or takes it back out.

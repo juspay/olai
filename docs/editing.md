@@ -210,14 +210,25 @@ What a drop sends is one op per row moved — the same `move_node` an agent woul
 send, naming a parent and the sibling to sit after — so a drop is refused, and
 says why, exactly as a `Tab` is. ⌘Z takes one back like any other edit.
 
-Dragging is a pointer gesture: a mouse or a pen, not a finger. A touch drag
-would have to claim the gesture that scrolls the page, and a phone's gutter is
-already narrower for the same kind of reason.
+**Hold a row near the top or bottom of the window and the page comes to you.**
+An outline is longer than a screen nearly always, so a drag that could only
+reach what happened to be visible when you pressed would be most of the gesture
+missing. The nearer the edge, the faster it moves; move away and it stops. The
+line that says where the row would land is re-read as the page goes, so it is
+always about where the pointer is *on the page*.
+
+**With a finger, hold the bullet first.** Press it, wait for the row to lift,
+and then it follows your thumb — the same drop line, the same landing. Until
+that moment nothing is claimed: a finger that moves before the row lifts is
+scrolling the page, exactly as it always was, and that is true whether it
+started on a bullet or anywhere else. The bullet is the handle on every device,
+which is why holding a finger *there* no longer opens the row's ••• menu —
+holding the row anywhere else still does.
 
 ## Picking several rows
 
-Everything above works on more than one row at a time. Four ways to pick them —
-Workflowy's, minus the fifth (dragging across rows), which is not built:
+Everything above works on more than one row at a time. All five of Workflowy's
+ways to pick them:
 
 | | |
 |---|---|
@@ -225,6 +236,23 @@ Workflowy's, minus the fifth (dragging across rows), which is not built:
 | **Shift-click** a title | pick everything between |
 | **Shift+↑ / Shift+↓** from a caret | leave the caret and start picking |
 | **⌘A / Ctrl+A** twice in a row | the line, then the row and the ones beside it — and again to widen to the page |
+| **Drag across the rows** | pick everything the pull passes over |
+
+**Where a pull begins is what decides whether it is a sweep or a text
+selection**, and that is the whole rule. Press *on the words* — a title, a note
+— and it is the browser's own gesture, unchanged: sweep a line and quote it,
+across as many rows as you like. Press on the outline's own empty space — the
+rail beside an indented branch, the strip left of a note, the page below the
+last row — and there is nothing there for the press to be about except the rows
+themselves, so it picks them. A band follows the pull and spans the rows' full
+width, because a row is a *line*: which rows a sweep crosses is a question about
+how far down it went, never about how far in they are drawn. Pressing that empty
+space without pulling puts the pick away.
+
+A sweep leaves the two ends every other picking gesture leaves, so a Shift-click
+or a Shift+arrow after one carries on from where the pull started. It replaces
+the pick rather than adding to it, and it is a pointer gesture: on a phone, a
+finger on empty space is scrolling.
 
 A pick and a caret are never both live: picking rows puts the caret away, and
 putting a caret anywhere — a title, a note, a new line — puts the pick away. That
@@ -238,6 +266,9 @@ same thing, several times.
 | **⌘Enter** / **Ctrl+Enter** | tick them off, or take that back |
 | **Drag any of their bullets** | move all of them, subtrees and all |
 | **Escape** | put the pick away |
+
+A sweep held near the bottom of the window scrolls the page too, the same way a
+drag does.
 
 **A parent and a child in the same pick are one row to a verb.** A subtree moves
 whole, so the child is already coming along; asking again would be asking about

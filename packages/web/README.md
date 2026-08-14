@@ -1634,17 +1634,65 @@ The pieces, and what each decides:
   does. A pick holding a PLACEMENT is not offered it and is told why, rather
   than being silently three-quarters archived.
 
-Dragging is a mouse-or-pen gesture. A touch drag on a bullet would have to claim
-the gesture that scrolls the page (`touch-action: none`), and getting that wrong
-costs a phone reader the ability to scroll past an outline — the `•••` menu is
-already a pointer-device affordance for the same kind of reason. A long-press is
-the obvious answer and is a decision rather than a line of code.
+- **`drag/sweeping.ts` + `drag/sweep.ts` — drag-across, and the argument it had
+  to settle.** Press-and-pull over a tree of prose already MEANS something (the
+  browser selects text), so shipping a marquee is deciding which of the two a
+  given pull is. The decision is one sentence and it has no modifier and no
+  state: **where the pull BEGINS decides.** On the words it is the browser's,
+  untouched, including a selection that runs down through three rows; on the
+  outline's own scaffolding — the indent rails, the strip left of a note, the
+  page below the last row — it is a pick, because there is nothing else there
+  for it to be about. The scaffolding says so itself (`data-sweep`, an
+  ALLOWLIST: a control added to a row tomorrow inherits "the browser keeps it",
+  which is the safe answer, where a blocklist would quietly turn it into empty
+  space). Nothing is `preventDefault`ed to win the argument — that would take
+  the FOCUS with it and leave a draft that never blurred; what suppresses the
+  text selection is the `user-select` guard `pointer.ts` already puts up for the
+  panel edges.
+- **it is a BAND, not a rubber-band box**, and that is `sweep.ts`'s one real
+  decision. A row is a LINE drawn as far in as its depth says, so a rectangle
+  down the left of the page would cross a root and miss the grandchild indented
+  past its right edge — a rule about pixels pretending to be a rule about the
+  tree. So the sweep reads Y and spans the rows' own width, and the band DRAWN
+  is exactly the shape the answer was computed from. What comes out is a
+  contiguous run with its two ends named, which is why it lands on the selection
+  as one `across` — a sweep is a range gesture, and a Shift-click after one
+  measures from where the pull started.
+- **`autoscroll.ts` — the page keeping up.** Both gestures aim at rows and an
+  outline is longer than a window nearly always, so without this the reach of
+  either is "whatever was on screen when the press landed". The pointer is read
+  in CLIENT coordinates (how near an edge it is, a question about the window)
+  and reported in DOCUMENT ones (where the gesture is, a question about the
+  page, and both callers measured their rows once in document coordinates) — so
+  a pointer held still inside a zone keeps producing new answers with no
+  `pointermove` behind them, which is exactly the behaviour and exactly what a
+  caller that re-planned only on `pointermove` would get wrong. The speed ramps
+  with how deep into the zone the pointer is: a constant one bolts the instant a
+  hand strays near the edge.
 
-Two more things a reader will look for and not find: **auto-scroll while
-dragging near the edge of the window** (the gesture works on what is on screen),
-and **a rubber-band drag across rows** — Workflowy's fifth picking gesture. The
-other four are here; that one wants a marquee over a tree that also has text
-selection in it, which is its own design.
+**A finger holds the bullet first.** The gesture a phone already owns on a row
+is the page scrolling under it, so a drag that took the first pixel of travel
+would cost a reader the ability to read. What claims a gesture honestly on a
+handset is a LONG PRESS — the call `longPress.ts` already made for the `•••`
+menu, and the same primitive is spent again here. Two details carry the whole
+claim:
+
+- **the handle is the BULLET**, which is what a mouse and a pen have always
+  dragged from: one handle on three devices rather than a fourth thing to learn.
+  What it costs is that the bullet is no longer a second door to the `•••` menu
+  — two long presses cannot both own one press, and the one that gives way is
+  the menu, because the menu has a whole row to be reached from and a handle has
+  only itself. The row's door is told to stand down by looking at where the
+  press LANDED (`drag/Handle.tsx`'s `HANDLE`) rather than by a `stopPropagation`
+  resting on Solid's delegation order.
+- **the scroll is claimed at the DEADLINE, not at the press.** A
+  `touch-action: none` on the handle would pass every scenario and leave a 28px
+  dead strip down the left of every outline; a non-passive `touchmove` listener
+  put up at the moment the row lifts claims exactly the gesture the browser has
+  already agreed is not a scroll — a finger that had drifted would have taken
+  the deadline with it, and one the browser took to scroll with would have
+  cancelled the pointer. `on_a_phone.feature` holds both halves: a flick that
+  STARTS on a bullet still scrolls.
 
 ## Three characters that open something
 

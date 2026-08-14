@@ -12,7 +12,7 @@
  * a frame nobody can reproduce.
  */
 import { readdirSync, readFileSync } from "node:fs"
-import { chromium, type Locator, type Page } from "playwright"
+import { type Browser, chromium, type Locator, type Page } from "playwright"
 
 const BASE = process.env["BASE"] ?? "http://127.0.0.1:7788"
 const OUT = process.env["SHOTS"] ?? "."
@@ -63,6 +63,21 @@ const promised = async (page: Page) => {
 
 const picked = async (page: Page) =>
   await page.locator('[data-testid="selection-bar"]').getAttribute("data-rows")
+
+/** The band a drag-across pulls, and how many rows it says it is crossing —
+ *  the half of that gesture that is still a prediction while the pointer is
+ *  down, exactly as the drop line is for a drag. */
+const SWEEP_BAND = '[data-testid="sweep-band"]'
+const band = async (page: Page) =>
+  await page.locator(SWEEP_BAND).first().getAttribute("data-rows")
+
+/** How much page there is to scroll, and how much window there is to see it in
+ *  — printed rather than assumed, because a section about the page KEEPING UP
+ *  proves nothing over a page that fits. */
+const room = async (page: Page) =>
+  await page.evaluate(() =>
+    `${document.documentElement.scrollHeight}px of page in a ${window.innerHeight}px window`
+  )
 
 const pick = async (page: Page, first: string, last?: string) => {
   await page.locator(title(first)).click({ modifiers: ["Control"] })
@@ -246,6 +261,166 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     await shot(page, "refused")
   },
 
+  // ── the three deferrals #159 named ───────────────────────────────────
+  //
+  // Drag-across, the page keeping up with a gesture, and a finger picking a row
+  // up. Each section drives ONE of them end to end and prints what the page
+  // says at the moment it is still a prediction.
+
+  "drag-across": async (page) => {
+    // The rail beside a branch: scaffolding, holding no words, so a press there
+    // is about the rows rather than about the text.
+    const rail = await page.locator(row("demo")).first().evaluate((one) => {
+      const list = one.parentElement?.closest("ul")
+      const line = one.querySelector("[data-row-key]")
+      if (!list || !line) throw new Error("no rail beside that row")
+      const box = list.getBoundingClientRect()
+      const on = line.getBoundingClientRect()
+      return { x: box.x + 4, y: on.y + on.height / 2 }
+    })
+    const to = await boxOf(page.locator(title("install")))
+    console.log(`  before: ${await picked(page) ?? "nothing picked"}`)
+    await page.mouse.move(rail.x, rail.y)
+    await page.mouse.down()
+    await page.mouse.move(rail.x, to.y + to.height / 2, { steps: 14 })
+    await page.waitForTimeout(200)
+    console.log(`  the band is crossing: ${await band(page)} rows`)
+    console.log(`  picked while pulling: ${await picked(page)}`)
+    await shot(page, "sweeping")
+    await page.mouse.up()
+    await page.waitForTimeout(400)
+    console.log(`  picked after letting go: ${await picked(page)}`)
+    await shot(page, "picked")
+
+    // The other half of the rule, and the thing that would have been LOST: a
+    // pull begun IN the words is still the browser's own text selection.
+    await page.keyboard.press("Escape")
+    const words = await boxOf(page.locator(title("order")))
+    await page.mouse.move(words.x + 4, words.y + words.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(words.x + words.width - 4, words.y + words.height * 3, { steps: 12 })
+    await page.waitForTimeout(200)
+    console.log(
+      `  a pull in the words selects: "${
+        await page.evaluate(() => window.getSelection()?.toString() ?? "")
+      }"`,
+    )
+    console.log(`  ...and draws no band: ${await page.locator(SWEEP_BAND).count()}`)
+    await shot(page, "text-not-rows")
+    await page.mouse.up()
+  },
+
+  "the-page-keeps-up": async (page) => {
+    console.log(`  room: ${await room(page)}`)
+    console.log(`  at: ${await page.evaluate(() => window.scrollY)}`)
+    await shot(page, "at-the-top")
+    const box = await boxOf(page.locator(handle("demo")))
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    const view = page.viewportSize()
+    await page.mouse.move(box.x + 40, (view?.height ?? 0) - 8, { steps: 10 })
+    await page.waitForTimeout(900)
+    console.log(`  held at the bottom edge, the page is at: ${
+      await page.evaluate(() => window.scrollY)
+    }`)
+    console.log(`  the line promises: ${await promised(page)}`)
+    await shot(page, "scrolled")
+    await page.mouse.up()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  order: ${await order(page)}`)
+    await shot(page, "dropped")
+  },
+
+  "a-sweep-keeps-up": async (page) => {
+    const rail = await page.locator(row("demo")).first().evaluate((one) => {
+      const list = one.parentElement?.closest("ul")
+      const line = one.querySelector("[data-row-key]")
+      if (!list || !line) throw new Error("no rail beside that row")
+      const box = list.getBoundingClientRect()
+      const on = line.getBoundingClientRect()
+      return { x: box.x + 4, y: on.y + on.height / 2 }
+    })
+    const view = page.viewportSize()
+    await page.mouse.move(rail.x, rail.y)
+    await page.mouse.down()
+    await page.mouse.move(rail.x, (view?.height ?? 0) - 8, { steps: 10 })
+    await page.waitForTimeout(1_000)
+    console.log(`  the page is at: ${await page.evaluate(() => window.scrollY)}`)
+    console.log(`  the band is crossing: ${await band(page)} rows`)
+    console.log(`  picked: ${await picked(page)}`)
+    await shot(page, "swept-past-the-fold")
+    await page.mouse.up()
+  },
+
+  "a-finger-picks-a-row-up": async (page) => {
+    const touch = await page.context().newCDPSession(page)
+    const finger = (type: string, at?: { x: number; y: number }) =>
+      touch.send("Input.dispatchTouchEvent" as never, {
+        type,
+        touchPoints: at === undefined ? [] : [at],
+      } as never)
+
+    // A flick FIRST, because it is the promise the rest of this rests on: the
+    // page still scrolls under a finger that starts on the handle.
+    console.log(`  room: ${await room(page)}`)
+    const bullet = await boxOf(page.locator(handle("kitchen")))
+    const from = { x: bullet.x + bullet.width / 2, y: bullet.y + bullet.height / 2 }
+    await finger("touchStart", from)
+    for (let step = 1; step <= 10; step++) {
+      await page.waitForTimeout(50)
+      await finger("touchMove", { x: from.x, y: from.y - 24 * step })
+    }
+    await finger("touchEnd")
+    await page.waitForTimeout(300)
+    console.log(`  a flick that STARTS on the bullet scrolls to: ${
+      await page.evaluate(() => window.scrollY)
+    }`)
+    console.log(`  ...and lifts nothing: ${await page.locator('[data-carried="true"]').count()}`)
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.waitForTimeout(400)
+
+    // Now the gesture itself: hold, and the row lifts where it is.
+    const knobs = await boxOf(page.locator(handle("knobs")))
+    const at = { x: knobs.x + knobs.width / 2, y: knobs.y + knobs.height / 2 }
+    await finger("touchStart", at)
+    await page.waitForTimeout(800)
+    console.log(`  after holding it: in the air ${
+      await page.locator('[data-carried="true"]').count()
+    }, menu panels ${await page.locator('[data-testid="node-menu-panel"]').count()}`)
+    await shot(page, "lifted")
+    const above = await boxOf(page.locator(title("handles")))
+    for (let step = 1; step <= 8; step++) {
+      await finger("touchMove", {
+        x: at.x + ((above.x + 4 - at.x) * step) / 8,
+        y: at.y + ((above.y - 2 - at.y) * step) / 8,
+      })
+      await page.waitForTimeout(30)
+    }
+    await page.waitForTimeout(200)
+    console.log(`  the line promises: ${await promised(page)}`)
+    await shot(page, "dragging")
+    await finger("touchEnd")
+    await page.waitForTimeout(SETTLE)
+    console.log(`  order: ${await order(page)}`)
+    console.log(`  the address is still: ${new URL(page.url()).pathname}`)
+    await shot(page, "dropped")
+
+    // And the menu still has its door: hold the ROW rather than the bullet.
+    await page.locator(`${row("kitchen")} [data-testid="node-gutter"]`).first()
+      .waitFor()
+    const line = await boxOf(
+      page.locator(`${row("kitchen")} [data-testid="node-gutter"]`).first(),
+    )
+    await finger("touchStart", { x: line.x + line.width / 2, y: line.y + line.height / 2 })
+    await page.waitForTimeout(800)
+    await finger("touchEnd")
+    await page.waitForTimeout(400)
+    console.log(`  holding the ROW still opens the menu: ${
+      await page.locator('[data-testid="node-menu-panel"]').count()
+    }`)
+    await shot(page, "the-menu-still-opens")
+  },
+
   // ── writing a node's edges, and starting an outline ──────────────────
   //
   // `editor-op-parity`'s last three children. Each section drives ONE of the
@@ -350,6 +525,24 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
   },
 }
 
+/**
+ * What SHAPE of browser a section wants, where the default is not it.
+ *
+ * Two of the gestures below are only themselves in a particular one: an
+ * auto-scroll needs a window shorter than the outline (no corpus here is taller
+ * than a laptop — they are outlines a person can read inside a scenario), and a
+ * touch drag needs a context with a touchscreen and no mouse at all.
+ */
+const SHAPES: Record<string, Parameters<Browser["newPage"]>[0]> = {
+  "the-page-keeps-up": { viewport: { width: 1100, height: 320 } },
+  "a-sweep-keeps-up": { viewport: { width: 1100, height: 320 } },
+  "a-finger-picks-a-row-up": {
+    viewport: { width: 390, height: 720 },
+    hasTouch: true,
+    isMobile: true,
+  },
+}
+
 const main = async () => {
   const section = SECTIONS[SECTION]
   if (section === undefined) {
@@ -357,7 +550,9 @@ const main = async () => {
     return
   }
   const browser = await chromium.launch()
-  const page = await browser.newPage({ viewport: { width: 1100, height: 720 } })
+  const page = await browser.newPage(
+    SHAPES[SECTION] ?? { viewport: { width: 1100, height: 720 } },
+  )
   page.on("pageerror", (error) => console.error("PAGE ERROR", error))
   await page.goto(`${BASE}/o/house.jsonl`)
   await page.locator('[data-testid="outline-tree"]').first().waitFor()

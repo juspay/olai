@@ -276,3 +276,112 @@ Feature: Dragging rows, and picking several
     When I pick the title of "kitchen-herbs"
     Then the pick does not offer the Trash
     And the pick notes "a placement is in the pick"
+
+  # ── the fifth picking gesture: drag across ───────────────────────────
+  #
+  # #159 shipped four of Workflowy's five and left this one, because a marquee
+  # over a tree that also has native text selection in it is a design rather
+  # than a feature: press-and-pull already MEANS something, and shipping a
+  # second meaning for it is deciding which of the two a given pull is.
+  #
+  # The decision is one sentence — WHERE THE PULL BEGINS decides — and the
+  # scenarios below are its halves: begun on the words it is text, begun on the
+  # outline's own scaffolding it is a pick, and where the scaffolding IS is the
+  # rail beside a branch and the page under the last row.
+
+  Scenario: Sweeping down the rail picks the rows the pull crosses
+    When I sweep from beside "demo" down to "install"
+    Then the band is crossing 3 rows
+    And 3 rows are picked
+    And the row "demo" is picked
+    And the row "order" is picked
+    And the row "install" is picked
+    When I let go
+    Then no band is drawn
+    And 3 rows are picked
+    And there should be no page errors
+
+  Scenario: A pull begun in the words is the browser's, and picks nothing
+    # The tension this gesture had to settle, held as the thing that would be
+    # LOST if it were settled the other way: a reader must still be able to
+    # sweep a title and quote it. The pull travels down past the row it started
+    # in, which is exactly the shape a marquee would have claimed.
+    When I select text across the title of "order"
+    Then the words are selected
+    And no band is drawn
+    And no rows are picked
+    When I let go
+    Then there should be no page errors
+
+  Scenario: The page below the last row is somewhere to start
+    # A short outline leaves most of the pane empty, and that is the sweep's
+    # largest surface — without it a tree with no depth would have nothing but
+    # the gaps between lines to press.
+    When I sweep from below the outline up to "install"
+    # Everything from `install` to the foot of the tree, which is what pulling
+    # up from under it crosses — and two rows to a verb, because the mirror's
+    # expanded children come along inside it.
+    Then 2 rows are picked
+    And the row "install" is picked
+    And the row "kitchen-herbs" is picked
+
+  Scenario: A sweep replaces what was picked rather than adding to it
+    When I pick the title of "handles"
+    And I sweep from beside "demo" down to "order"
+    Then 2 rows are picked
+    And the row "handles" is not picked
+    When I let go
+    Then 2 rows are picked
+
+  Scenario: Pressing the page without pulling puts the pick away
+    When I pick the title of "handles"
+    And I shift-click the title of "knobs"
+    Then 3 rows are picked
+    When I press below the outline
+    Then no rows are picked
+
+  Scenario: Which end the pull began at is the end a shift-click measures from
+    # A sweep is a range gesture like the other four, so it leaves an ANCHOR and
+    # a FOCUS rather than a bag of rows: the row it started on is what the
+    # shift-click after it extends from.
+    When I sweep from beside "install" down to "kitchen-herbs"
+    And I let go
+    And I shift-click the title of "install"
+    Then 1 rows are picked
+    And the row "install" is picked
+
+  Scenario: A parent and its child crossed by one sweep are one row to a verb
+    # The same rule the other four pickers keep, arrived at by the gesture most
+    # likely to meet it: pulling across a branch crosses everything drawn under
+    # it, and a subtree moves whole.
+    When I sweep from beside "install" down to "knobs"
+    Then the band is crossing 4 rows
+    And 1 rows are picked
+    And the row "knobs" is picked
+
+  # ── the page keeps up with a gesture ─────────────────────────────────
+  #
+  # Both gestures aim at ROWS, and an outline is longer than a window nearly
+  # always — so without this the reach of either is "whatever was on screen
+  # when the press landed". The WINDOW is what shrinks here, because the
+  # corpora in this suite are outlines a person can read inside a scenario.
+
+  Scenario: A row held at the bottom of the window takes the page with it
+    Given the window is shorter than the outline
+    When I pick up the bullet of "demo" and hold it at the bottom of the window
+    Then the outline has scrolled
+    # ...and the landing is re-read from where the pointer is ON THE PAGE, which
+    # has moved under a pointer that has not: the last row of the file is only
+    # nameable at all because the page came to it.
+    And the drop line would put it after "kitchen-herbs"
+    When I let go
+    Then the node "kitchen-herbs" comes before "demo"
+    And there should be no page errors
+
+  Scenario: A sweep held at the bottom of the window takes it too
+    Given the window is shorter than the outline
+    When I sweep from beside "demo" to the bottom of the window
+    Then the outline has scrolled
+    And the row "kitchen-herbs" is picked
+    When I let go
+    Then there should be no page errors
