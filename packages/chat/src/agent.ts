@@ -94,6 +94,7 @@ import { emitter, reasonOf } from "@olai/log"
 import type { AskAnswer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
+import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import {
   allowedWithoutAsking,
@@ -685,7 +686,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const openSession = (at: Live): Effect.Effect<void, AgentGone> =>
       Effect.gen(function*() {
         const stored = at.canLoad ? yield* storedFor(at) : []
-        const wanted = adopt(yield* recalled, stored)
+        // Nothing stored is nothing to restore, and the memory is not read at
+        // all then: an agent that keeps no conversations has no answer this
+        // could change, and a boot that could not have restored anything must
+        // not report a memory it never needed.
+        const wanted = stored.length === 0 ? undefined : adopt(yield* recalled, stored)
         if (wanted !== undefined) {
           yield* load(at, wanted.id, wanted.title)
           return
@@ -701,22 +706,24 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * neither may be quiet about it either. One function for the rule, because
      * it is one rule: what a memory failure COSTS is the sentence, and it is the
      * only part that differs between the two.
+     *
+     * A failure answers `null`, which is what a recall that found nothing
+     * answers anyway; the caller that had nothing to read in the first place
+     * discards it.
      */
     const said = <A>(
       what: Effect.Effect<A, MemoryFailure>,
-      instead: A,
       cost: (why: string) => string,
-    ): Effect.Effect<A> =>
+    ): Effect.Effect<A | null> =>
       Effect.catchTag(what, "MemoryFailure", (failure) =>
         Effect.sync(() => {
           trouble(cost(failure.why))
-          return instead
+          return null
         }))
 
     /** The conversation this panel was last in, and `null` when nothing says. */
     const recalled: Effect.Effect<string | null> = said(
       options.memory.recall,
-      null,
       (why) =>
         `the conversation this directory was last in could not be read (${why}) — ` +
         `opening the most recent one instead`,
@@ -739,7 +746,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         emit({ _tag: "session", id, title })
         yield* said(
           options.memory.remember(id),
-          undefined,
           (why) => `this conversation will not be restored after a restart: ${why}`,
         )
       })
@@ -1163,17 +1169,16 @@ const detailOf = (input: unknown, output: unknown): string | undefined => {
  * are: it is the sentence a boot turns on, and reaching it through a subprocess
  * is not how anybody should have to check it. `stored` arrives NEWEST FIRST
  * ({@link storedFor} sorts it), so the fallback is the head of the list.
+ *
+ * "Still there" is MEMBERSHIP of that list and not loadability, which is the
+ * only thing a list can answer: a session the agent lists and then refuses to
+ * replay is tried again at the next boot, exactly as the newest one used to be.
  */
 export const adopt = (
   remembered: string | null,
   stored: ReadonlyArray<Stored>,
 ): Stored | undefined =>
   stored.find((entry) => entry.id === remembered) ?? stored[0]
-
-/** Two paths naming the same directory. An agent stores the spelling it was
- *  handed, which may or may not carry a trailing slash. */
-const sameDirectory = (a: string, b: string): boolean =>
-  a.replace(/\/+$/, "") === b.replace(/\/+$/, "")
 
 /** What a session is handed, as ACP's `mcpServers`. The one place the
  *  protocol's shape for either transport is spelled: olai's own tool server is

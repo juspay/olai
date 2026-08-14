@@ -16,7 +16,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Result } from "effect"
 import { chmodSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -37,15 +37,33 @@ afterEach(() => {
   rmSync(state, { recursive: true, force: true })
 })
 
-/** The one file the directory below is remembered in, whatever it is called. */
+/** Where a memory lands, spelled once for every test that looks in it. */
+const home = (): string => join(state, "olai", "chat")
+
+/** What is in there, whatever the files are called — and nothing, before
+ *  anything has been remembered at all. */
 const files = (): ReadonlyArray<string> => {
-  const home = join(state, "olai", "chat")
   try {
-    return readdirSync(home)
+    return readdirSync(home())
   } catch {
     return []
   }
 }
+
+/** The one file that has been written, by name. Throws when there is none,
+ *  which is the honest failure for a test that is about to damage it: writing
+ *  some other file instead would pass for the wrong reason. */
+const only = (): string => {
+  const [name, ...rest] = files()
+  if (name === undefined || rest.length > 0) {
+    throw new Error(`expected exactly one memory in ${home()}, found ${files().length}`)
+  }
+  return join(home(), name)
+}
+
+/** Run one, and answer with the value or the refusal — the same shape
+ *  `attachments.test.ts` reads its own verbs through. */
+const outcome = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(Effect.result(effect))
 
 const HERE = "/tmp/olai-somewhere"
 const ELSEWHERE = "/tmp/olai-somewhere-else"
@@ -97,27 +115,35 @@ describe("the panel's own conversation, across a restart", () => {
 })
 
 describe("a memory that cannot be trusted", () => {
-  /** Whatever the one file is called, with something else in it. */
+  /** The one file that was written, with something else in it. */
   const damage = (text: string): void => {
-    const home = join(state, "olai", "chat")
-    const [name] = readdirSync(home)
-    writeFileSync(join(home, name ?? "none.json"), text)
+    writeFileSync(only(), text)
   }
 
   test("a file that is not JSON is a reason, not a shrug", async () => {
     await Effect.runPromise(forDirectory(HERE).remember("session-a"))
     damage("{ half a fi")
-    const outcome = await Effect.runPromise(Effect.result(forDirectory(HERE).recall))
-    expect(outcome._tag).toBe("Failure")
+    const answer = await outcome(forDirectory(HERE).recall)
+    expect(Result.isFailure(answer)).toBe(true)
+    if (!Result.isFailure(answer)) return
     // The path, because that is the thing somebody can go and look at.
-    if (outcome._tag === "Failure") expect(outcome.failure.why).toContain(state)
+    expect(answer.failure.why).toContain(state)
   })
 
   test("JSON that names no conversation is a reason too", async () => {
     await Effect.runPromise(forDirectory(HERE).remember("session-a"))
     damage(`{"cwd":"${HERE}"}`)
-    const outcome = await Effect.runPromise(Effect.result(forDirectory(HERE).recall))
-    expect(outcome._tag).toBe("Failure")
+    expect(Result.isFailure(await outcome(forDirectory(HERE).recall))).toBe(true)
+  })
+
+  test("a note about another directory is not this panel's memory", async () => {
+    // The `cwd` inside the file is what makes a state directory readable, and
+    // it is read back as a guard: whatever put this file here, it is not about
+    // us, so the honest answer is that nothing says — never a refusal, and
+    // never somebody else's conversation.
+    await Effect.runPromise(forDirectory(HERE).remember("session-a"))
+    damage(`{"cwd":"${ELSEWHERE}","session":"session-b"}`)
+    expect(await Effect.runPromise(forDirectory(HERE).recall)).toBe(null)
   })
 
   test("a state directory that will not take a write refuses out loud", async () => {
@@ -127,10 +153,8 @@ describe("a memory that cannot be trusted", () => {
     if (typeof process.getuid === "function" && process.getuid() === 0) return
     chmodSync(state, 0o500)
     try {
-      const outcome = await Effect.runPromise(
-        Effect.result(forDirectory(HERE).remember("session-a")),
-      )
-      expect(outcome._tag).toBe("Failure")
+      expect(Result.isFailure(await outcome(forDirectory(HERE).remember("session-a"))))
+        .toBe(true)
     } finally {
       chmodSync(state, 0o700)
     }

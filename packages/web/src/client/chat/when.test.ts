@@ -43,4 +43,10 @@ describe("when a conversation was last touched", () => {
     expect(whenOf("whenever")).toBe(null)
     expect(whenOf("")).toBe(null)
   })
+
+  test("says nothing about a session the agent never stamped", () => {
+    // `null` and not the epoch: `new Date(null)` is 1970, which is a date a
+    // picker would draw with a straight face.
+    expect(whenOf(null)).toBe(null)
+  })
 })

@@ -215,7 +215,7 @@ Feature: Talking to the agent
     When I open the session picker
     And I pick the conversation "an older conversation"
     Then the conversation is titled "an older conversation"
-    When the older conversation is gone from the agent
+    When the conversation "fake-stored-old" is gone from the agent
     And the server stops
     And the server starts again on the same port
     And I open the app

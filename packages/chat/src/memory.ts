@@ -74,6 +74,8 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 
+import { normalDirectory } from "./directory.ts"
+
 /** Remembering, or reading back, went wrong. Reported to a person and never
  *  fatal — see the header. */
 export class MemoryFailure extends Data.TaggedError("MemoryFailure")<{
@@ -145,10 +147,10 @@ const parsed = (
 
 export const forDirectory = (spelling: string): Memory => {
   // ONE spelling from here down — the name of the file, what goes in it, and
-  // what a read is checked against. Two spellings of one directory are one
-  // memory, and the two places that would otherwise decide that separately are
-  // the digest and the guard.
-  const cwd = spelling.replace(/\/+$/, "")
+  // what a read is checked against — and it is the package's own spelling
+  // ({@link ./directory.ts}), the same one a stored session's `cwd` is matched
+  // against. Two spellings of one directory would be two memories.
+  const cwd = normalDirectory(spelling)
   const at = fileFor(cwd)
   const home = dirname(at)
 

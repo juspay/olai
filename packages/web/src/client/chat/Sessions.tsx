@@ -131,7 +131,7 @@ export function Sessions(props: { readonly chat: Chat }) {
                               pair) differ in nothing else, so the one thing
                               that tells them apart may not be the thing a long
                               title pushes off the end. */}
-                          <Show when={whenIn(session)}>
+                          <Show when={whenOf(session.updatedAt)}>
                             {(at) => (
                               <span class="shrink-0 font-mono text-[0.625rem] text-muted">
                                 {at()}
@@ -151,12 +151,6 @@ export function Sessions(props: { readonly chat: Chat }) {
     </div>
   )
 }
-
-/** When a row was last touched, to the minute — `undefined` for a session the
- *  agent gave no timestamp, and for one whose timestamp is not a time. Both are
- *  a row with no stamp rather than a row with an invented one. */
-const whenIn = (session: SessionInfo): string | undefined =>
-  (session.updatedAt === null ? null : whenOf(session.updatedAt)) ?? undefined
 
 /** The sessions, when there are some — `undefined` in the states that have
  *  none, which is what `<Show>` takes. */

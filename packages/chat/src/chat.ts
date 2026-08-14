@@ -56,8 +56,8 @@ import type { Adapter } from "./adapter.ts"
 import * as AcpAgent from "./agent.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
-import * as Memory from "./memory.ts"
 import type { AgentEvent } from "./events.ts"
+import * as Memory from "./memory.ts"
 import { type Change, Transcript } from "./transcript.ts"
 
 export type { ToolServer } from "./agent.ts"
@@ -163,8 +163,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // pasted pictures land in: both are somewhere on this machine that
         // belongs to THIS conversation about THIS directory, and a composition
         // root passing either one down would be a second place that knows
-        // where olai keeps things. Keyed by the served directory, which is
-        // what makes two olai servers on one host remember two panels.
+        // where olai keeps things. Keyed by the served DIRECTORY and by
+        // nothing else, so two servers over two directories remember two
+        // panels — and two servers over ONE directory are one panel as far as
+        // this is concerned, last one in wins, which is the honest answer for
+        // a single-user app rather than a race worth a port in the key.
         memory: Memory.forDirectory(options.cwd),
         onEvent,
       })
