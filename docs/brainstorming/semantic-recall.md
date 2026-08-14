@@ -188,8 +188,10 @@ leaves, so dropping a weak true positive costs a row nobody was owed, while
 keeping a strong false positive costs the reader's trust in the `≈`.
 
 Caveat stated rather than buried: that floor is tuned on one corpus, olai's
-own roadmap. It is a constant in one file with the measurement written beside
-it.
+own roadmap. It is a constant with the measurement written beside it, and it
+lives on the **embedder** rather than on the index — a cosine scale is a fact
+about a vector space, and an index holding one number would be quietly wrong
+about the second embedder anybody puts behind the seam.
 
 ## Why this is GO
 
@@ -198,6 +200,19 @@ background indexing, and 222 KiB of cache — for a search that finds the note
 you cannot name. Nothing is fetched at run time, nothing is expected to be
 installed, and with the feature off the substring reading is unchanged byte
 for byte. The parking verdict's condition is met on its own terms.
+
+## A receptacle named, not built
+
+The graduation half of the boundary question, recorded rather than acted on
+(prove-then-extract governs *when*, not whether it is named): olai now owns
+**two** child processes it started itself — the ACP agent and this embedder —
+and each carries its own copy of the same volatility: spawn, wait for a
+readiness signal, drain the child’s stderr so an unread pipe cannot block it,
+kill it with the scope, and decide what happens to it when the parent is
+`SIGKILL`ed. Population two is not a mandate to extract; it is the moment the
+axis becomes nameable. **The volatility:** the lifetime of a process olai
+started. **The wanted home:** one receptacle beside the store, not a second
+copy in the next module that needs a child.
 
 ## Deliberately not in this pass
 

@@ -83,6 +83,10 @@ const fake = (options?: {
   readonly gate?: Effect.Effect<void>
 }): Embedder => ({
   id: options?.id ?? "fake/synonyms",
+  // The fake's own scale: its vectors are concept counts, so a paraphrase
+  // scores 1 and an unrelated node 0. The floor rides the EMBEDDER now
+  // (embedder.ts says why), which means a test space declares its own.
+  floor: 0.5,
   embed: (kind, texts) =>
     Effect.gen(function*() {
       if (options?.gate !== undefined) yield* options.gate

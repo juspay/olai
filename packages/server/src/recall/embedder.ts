@@ -65,6 +65,19 @@ export interface Embedder {
    * a cache whose embedder id differs is discarded whole, not migrated.
    */
   readonly id: string
+  /**
+   * The cosine similarity below which a neighbour is noise rather than a
+   * paraphrase.
+   *
+   * HERE and not in {@link ./recall.ts}, which is where it began, because a
+   * floor is a fact about a VECTOR SPACE and this is the only thing that knows
+   * which one is in use. Models do not share a scale: bge-small's is
+   * compressed (unrelated notes reach 0.60 against this repo's own corpus)
+   * where nomic's is not, so an index holding one number would be quietly
+   * wrong about the second embedder anybody puts behind the seam — a
+   * guarantee made by a layer that cannot see enough to make it.
+   */
+  readonly floor: number
   /** All texts in one call, in order. Vectors come back unnormalised; the
    *  index owns the geometry ({@link ./recall.ts}). */
   readonly embed: (
@@ -82,6 +95,21 @@ const pathsFromEnv = (): { server: string; model: string } | null => {
   if (model === undefined || model === "") return null
   return { server, model }
 }
+
+/**
+ * bge-small-en-v1.5's similarity floor, MEASURED rather than guessed.
+ *
+ * Against this repo's own roadmap, four deliberately off-topic queries (a
+ * bread recipe, the treaty of Westphalia, changing a tyre, APAC revenue) drew
+ * a best score of 0.599, while real rank-one hits scored 0.685-0.724. So it
+ * sits above every junk ceiling observed and below every genuine top hit —
+ * and biased conservative on purpose: semantic hits only fill the room
+ * substring leaves, so dropping a weak true positive costs a row nobody was
+ * owed, while keeping a strong false positive costs the reader's trust in the
+ * `≈`. The caveat, stated rather than buried: it is tuned on one corpus
+ * (docs/brainstorming/semantic-recall.md).
+ */
+const BGE_FLOOR = 0.62
 
 /** BGE's query-side instruction, applied by MODEL rather than
  *  unconditionally: putting a prefix in front of a model that never saw one
@@ -329,7 +357,7 @@ const packagedEmbedder = (
             new EmbedFailure({ reason: failure.reason })),
         )
 
-    return { id: idOf(model), embed }
+    return { id: idOf(model), floor: BGE_FLOOR, embed }
   })
 
 /** The vector space's name: the model file, plus a digest of its path. Two

@@ -77,24 +77,6 @@ export interface Recall extends Query.Recall {
   readonly settled: Effect.Effect<void>
 }
 
-/**
- * Similarity floor under which a neighbour is noise, not a paraphrase.
- *
- * MEASURED, not guessed, and the measurement is the reason it is not the 0.5
- * the Ollama version used: bge-small's cosine scale is compressed. Against
- * this repo's own roadmap, four deliberately off-topic queries (a bread
- * recipe, the treaty of Westphalia, changing a tyre, APAC revenue) drew a best
- * score of 0.599, while real rank-one hits scored 0.685–0.724. So the floor
- * sits above every junk ceiling observed and below every genuine top hit.
- *
- * Biased conservative on purpose: semantic hits only fill the room substring
- * leaves, so dropping a weak true positive costs a row nobody was owed, while
- * keeping a strong false positive costs the reader's trust in the `≈`. The
- * caveat, stated rather than buried: it is tuned on one corpus
- * (docs/brainstorming/semantic-recall.md).
- */
-const FLOOR = 0.62
-
 /** How many nodes go to the embedder in one call. Bounds the damage of a
  *  mid-batch failure and keeps the first full build streaming into the index
  *  rather than arriving all at once at the end. */
@@ -251,7 +233,9 @@ export const open = (
         const scored: Array<Query.Near> = []
         for (const [id, row] of rows) {
           const score = dot(query, row.vector)
-          if (score >= FLOOR) scored.push({ id, score })
+          // The floor is the EMBEDDER's, because a cosine scale is a fact about
+          // a vector space rather than about an index (embedder.ts says why).
+          if (score >= embedder.floor) scored.push({ id, score })
         }
         return scored
           .sort((a, b) => b.score - a.score)

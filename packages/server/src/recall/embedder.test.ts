@@ -97,6 +97,11 @@ test("both paths present: an embedder is returned, and NOTHING has been spawned"
     // the model's file name, plus a digest of its path so two store paths with
     // the same basename are two spaces.
     expect(found?.id).toStartWith("llama-cpp/bge-small-en-v1.5-q8_0.gguf#")
+    // And it declares the floor of that space. Pinned to the measurement
+    // rather than to "some number": the junk ceiling observed on this model
+    // was 0.599, so a floor that drifted under it would start letting a bread
+    // recipe answer a question about page loads.
+    expect(found?.floor).toBe(0.62)
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
