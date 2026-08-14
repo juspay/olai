@@ -1,26 +1,17 @@
 /**
- * What a page starts out drawing: everything, or everything that is not done.
+ * Whether this browser draws finished work.
  *
- * This is the DEFAULT for the per-view Done switch (`../view.ts`), and the
- * distinction is the whole of the design. A reading belongs to a page — zoom
- * somewhere and you are reading a new thing, so the switch starts fresh — but
- * "I do not want to look at finished work" is a claim about the READER rather
- * than about any one page, and re-pressing it on every page you open is the
- * kind of thing a preference exists to stop.
+ * A claim about the READER rather than about any one page — "I do not want to
+ * look at finished work" — so it lives here, with the other preferences, and
+ * not as a switch on the outline. Hiding a row writes nothing: the node stays
+ * marked, the file stays put, and this reading simply does not draw it.
  *
- * So a reading holds `undefined` until somebody presses the switch on that
- * page, and `undefined` reads this. Two things follow, and both are what a
- * default ought to do: changing it here moves every page nobody has pressed the
- * switch on — including the one on screen, which is the difference between a
- * preference and a thing that takes effect next time — and a page somebody HAS
- * pressed it on is left exactly as they left it.
- *
- * Nothing is written to the outlines by any of this, on either side of the
- * switch: a hidden row is a row this reading does not draw (`../view.ts`), and
- * a preference belongs to this browser (`../preference.ts`) and reaches no
- * server.
+ * The circuit is `../preference.ts`. Cross-tab follow is the same `storage`
+ * event the theme and the folds ride, started once from `main.tsx`.
  */
 
+import type { Row } from "@olai/format"
+import { withoutDone } from "@olai/format"
 import type { Accessor } from "solid-js"
 
 import { boolCodec, createPreference } from "../preference.ts"
@@ -35,15 +26,24 @@ const SHOWN = false
  *  in how it is stored. */
 const pref = createPreference(DONE_HIDDEN_KEY, boolCodec(SHOWN))
 
-/** Whether a page nobody has pressed the Done switch on hides what is done. */
-export const doneHiddenDefault: Accessor<boolean> = pref.value
+/** Whether this browser hides what is done. */
+export const doneHidden: Accessor<boolean> = pref.value
 
-export const setDoneHiddenDefault = (value: boolean): void => pref.set(value)
+/** Persist on change — `pref.set` writes `olai.done.hidden`. The write is
+ *  fenced by `preferences.feature`'s stored-key step (on master before this
+ *  PR). The reload scenario fences the boot read, not this setter. */
+export const setDoneHidden = (value: boolean): void => pref.set(value)
+
+/** The rows this reading actually draws. The preference and what it does to a
+ *  tree are one thing, so every page asks the same question rather than each
+ *  re-deciding what "hidden" means. */
+export const visible = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
+  doneHidden() ? withoutDone(rows) : rows
 
 /** Follow it for as long as this document lives — the same shape as
  *  `followStoredTheme` and `followLayout`, started once from `main.tsx`,
  *  because a preference belongs to the browser and a browser is more than one
  *  tab. */
-export const followDoneDefault = (): void => {
+export const followDoneHidden = (): void => {
   pref.follow()
 }

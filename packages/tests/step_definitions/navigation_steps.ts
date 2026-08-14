@@ -1,5 +1,5 @@
 /**
- * Zoom, permalinks, breadcrumbs and the done-visibility switch.
+ * Zoom, permalinks, breadcrumbs.
  *
  * Two things these steps are careful about. A zoomed page is asserted through
  * the heading's `data-node-id`, which is the CANONICAL node's — so "zoom a
@@ -15,13 +15,13 @@ import type { Locator } from "playwright";
 import { DESKTOP } from "../support/hooks.ts";
 import {
   BLOCKED,
-  DONE_TOGGLE,
   NODE_REF,
   NOT_FOUND,
   oneLine,
   POLL_TIMEOUT,
   SEE_REFS,
   TIP,
+  EMPTY_UNDER,
   ZOOM,
   ZOOM_TITLE,
 } from "../support/world.ts";
@@ -51,6 +51,19 @@ Then(
       "data-node-id",
       id,
       "the zoomed page",
+    );
+  },
+);
+
+Then(
+  "the page says Prefs is hiding finished work",
+  async function (this: OlaiWorld) {
+    const said = this.page.locator(EMPTY_UNDER);
+    await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      /prefs/i.test(await said.innerText()),
+      "the empty page names the state and not Prefs, so a reader whose " +
+        "finished work is hidden has no door back",
     );
   },
 );
@@ -95,37 +108,6 @@ When(
     await this.waitForFrame();
   },
 );
-
-// ── the done-visibility switch ─────────────────────────────────────────
-
-/** Put the switch where the scenario wants it, clicking only if it is not
- *  already there. Idempotent so the two sentences below can each be read as a
- *  statement of intent rather than as "press the button once". */
-const setDoneHidden = async (
-  world: OlaiWorld,
-  hidden: boolean,
-): Promise<void> => {
-  const toggle = world.page.locator(DONE_TOGGLE).first();
-  await toggle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  if ((await toggle.getAttribute("data-hidden")) !== String(hidden)) {
-    await toggle.click();
-  }
-  await world.expectAttribute(
-    DONE_TOGGLE,
-    "data-hidden",
-    String(hidden),
-    "the done switch",
-  );
-  await world.waitForFrame();
-};
-
-When("I hide the done nodes", async function (this: OlaiWorld) {
-  await setDoneHidden(this, true);
-});
-
-When("I show the done nodes", async function (this: OlaiWorld) {
-  await setDoneHidden(this, false);
-});
 
 // ── a permalink that names nothing ─────────────────────────────────────
 

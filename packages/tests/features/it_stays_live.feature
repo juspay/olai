@@ -295,7 +295,7 @@ Feature: It stays live
       """
     # Root outlines only: Daily/ stays collapsed. garden + house + shed.
     Then the outline list has 3 entries
-    And the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint, frames, glazing, sowing, slugs"
+    And the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint, frames, glazing, sowing, slugs, compost, turned, straw"
     And the node "basil" has the title "sow the basil"
     And the page has not reloaded
     And there should be no page errors

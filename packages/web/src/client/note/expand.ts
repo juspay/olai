@@ -6,7 +6,7 @@
  * Open is a click on the note itself — click again, or click away, collapses.
  * No hover. Touch is the same click.
  *
- * Component-local — not a reading cell, not keyed by place in view.ts. The
+ * Component-local — not a preference, not a stamped reading. The
  * density switch and the per-place unfold set are gone; this is the only open
  * state left, and it dies with the row that holds it.
  */

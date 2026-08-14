@@ -101,6 +101,15 @@ Feature: Zoom and navigate
     Then the node "basil" is not shown
     And the node "mint" is shown
 
+  Scenario: A zoomed page whose children are all done names Prefs
+    # THE ONLY ON-SCREEN SENTENCE ABOUT THE SETTING, now the pill is gone.
+    # `compost` has two done children and nothing unmarked, so hiding finished
+    # work empties the page — and the copy says where the switch lives.
+    Given I open the node "compost"
+    Then the node "turned" is shown
+    When I hide the done nodes
+    Then the page says Prefs is hiding finished work
+
   Scenario: A page you go to starts at the top, and the one you come back to does not
     # Two halves of one decision, and neither happens by itself: a route change
     # redraws the main pane and moves nothing else, so zooming from the bottom

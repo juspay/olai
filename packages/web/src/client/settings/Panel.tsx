@@ -12,7 +12,7 @@
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
- * theme, the typeface, and what a page does with finished work. The layout
+ * theme, the typeface, and what this browser does with finished work. The layout
  * values in `../layout/prefs.ts` are stored the same way and are deliberately
  * NOT here — a sidebar width is set by dragging the sidebar, and a panel
  * being open is set by the control that opens it. Copying them into a
@@ -30,7 +30,7 @@
  */
 
 import { type Anchor, styleOf } from "../anchor.ts"
-import { doneHiddenDefault, setDoneHiddenDefault } from "./done.ts"
+import { doneHidden, setDoneHidden } from "./done.ts"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
 import { TESTID } from "../testids.ts"
@@ -39,10 +39,8 @@ import { currentTypeface } from "../theme/fontState.ts"
 import { ThemeChips } from "../theme/Chips.tsx"
 import { currentTheme } from "../theme/state.ts"
 
-/** Done: Visible / Hidden — the same two words the per-view switch says
- *  (`../DoneToggle.tsx`), because they are the same switch with a different
- *  scope, and a preference that named the states differently would read as a
- *  different setting. */
+/** Done: Visible / Hidden — the two words the retired outline pill said, kept
+ *  because they are the same setting in the one home it now has. */
 const DONE_CHOICES = [
   { value: "visible", label: "Visible" },
   { value: "hidden", label: "Hidden" },
@@ -81,8 +79,8 @@ export function Panel(props: {
       <Row label="Done" pref="done" hint={doneHint()}>
         <Segmented
           choices={DONE_CHOICES}
-          value={doneHiddenDefault() ? "hidden" : "visible"}
-          onPick={(value) => setDoneHiddenDefault(value === "hidden")}
+          value={doneHidden() ? "hidden" : "visible"}
+          onPick={(value) => setDoneHidden(value === "hidden")}
         />
       </Row>
 
@@ -109,8 +107,7 @@ const themeHint = (): string =>
 const fontHint = (): string => currentTypeface().hint
 
 const doneHint = (): string =>
-  doneHiddenDefault()
-    ? "Pages open with finished work hidden — a row not drawn, never a node " +
-      "marked or a file written. Any page's own Done switch still overrides it."
-    : "Pages open with finished work shown. Any page's own Done switch still " +
-      "overrides it."
+  doneHidden()
+    ? "Finished work is hidden — a row not drawn, never a node marked or a " +
+      "file written."
+    : "Finished work is shown."

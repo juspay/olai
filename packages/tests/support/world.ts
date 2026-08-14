@@ -242,6 +242,8 @@ export const START_LINE = selector(TESTID.startLine);
 /** The heading of a zoomed page. Carries the CANONICAL node's id, which is
  *  what lets a scenario say "zooming a mirror lands on the node itself". */
 export const ZOOM_TITLE = selector(TESTID.zoomTitle);
+/** Said on a zoomed page with no rows — a leaf, or Prefs hiding finished work. */
+export const EMPTY_UNDER = selector(TESTID.emptyUnder);
 export const BREADCRUMBS = selector(TESTID.breadcrumbs);
 export const CRUMB = selector(TESTID.crumb);
 /** The month in the sidebar, and one day of it. A day says what it is in
@@ -290,8 +292,6 @@ export const TRASH_LINK = selector(TESTID.trashLink);
 export const DAY_NOTE = selector(TESTID.dayNote);
 /** Its heading — the way from the day to the document's own page. */
 export const DAY_NOTE_LINK = selector(TESTID.dayNoteLink);
-/** The per-view Visible/Hidden switch for nodes that are done. */
-export const DONE_TOGGLE = selector(TESTID.doneToggle);
 /** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */
 export const NOT_FOUND = selector(TESTID.notFound);
 /** Shown INSTEAD of the sidebar and the tree when a set has never validated. */

@@ -627,15 +627,11 @@ the rule is: the ones that are a CHOICE and have nowhere else to be made.
 - **Theme** — the fifteen chips (`theme/Chips.tsx`), moved in from the header
   pill. The row's hint names the theme in force, which is what the pill
   promised.
-- **Done** — `Visible` / `Hidden`, and it is the DEFAULT for the per-view switch
-  rather than a second switch (`settings/done.ts`). This switch belongs to a
-  page, so it starts fresh when you zoom; but "I do not want to look at finished
-  work" is a claim about the READER, and pressing it again on every page opened
-  is what a preference exists to stop. So `view.ts`'s reading holds `undefined`
-  there until somebody presses the switch on that page, and `undefined` reads
-  this — which means changing it moves every page nobody has pressed it on,
-  *including the one on screen*, and leaves the pages somebody has exactly as
-  they left them.
+- **Done** — `Visible` / `Hidden`, and it is THE switch (`settings/done.ts`).
+  The floating pill that sat above the outline was a second door for the same
+  preference, and it retired into this row the way the theme pill retired into
+  the Theme row. "I do not want to look at finished work" is a claim about the
+  READER, so it belongs here, applies to every page, and follows across tabs.
 
 The layout values in `layout/prefs.ts` are stored the same way and are
 deliberately not here: a sidebar width is set by dragging the sidebar, and a
@@ -1192,7 +1188,7 @@ scrolled. Two taps is still the budget for anything in the directory drawer.
 
 And what a finger aims at grows to 44px, the number both mobile platforms
 print in their guidelines: sidebar entries — outlines and documents alike —
-days of the month, the month's paging chevrons, the done switch, the crumbs,
+days of the month, the month's paging chevrons, the Done segments in Prefs, the crumbs,
 and the link on a node's `doc` reference. `touch.ts` is that decision —
 the target size once, since it is one policy, with each control's *compact*
 size spelled where that control is drawn, since that is a design per control.
@@ -1291,8 +1287,8 @@ loop a person is in, and nothing about outlines:
   The last stop is an answer rather than a gap (`format.md`: an unmarked node is
   not an unfinished one), so the walk takes a mark OFF as well as putting one
   on. `done` is not a stop on that ring, deliberately: passing through it would
-  stamp a completion instant, fire the rollup's nudge and hide the row under the
-  done toggle, all on the way somewhere else. And the walk does not smuggle a
+  stamp a completion instant, fire the rollup's nudge and hide the row under
+  Prefs' Done setting, all on the way somewhere else. And the walk does not smuggle a
   node back out of `done` — it asks for `todo` outright and meets the ops
   layer's refusal under the row, whose sentence names the key that gets through
   it. Two ops, the second one the person's, exactly as the menu asks two clicks
@@ -1577,9 +1573,8 @@ None of them goes to the server or to disk, and hiding what is done is a row
 not drawn rather than anything marked.
 
 What they differ in is HOW LONG THEY LAST, and that is what decides where each
-one lives. `view.ts` holds the one that belongs to a PAGE; the fold memory is
-its own module because it belongs to the browser, and the calendar's month is
-the calendar's.
+one lives. Folding and done-visibility belong to the browser (`fold/`,
+`settings/done.ts`); the calendar's month is the calendar's.
 
 **Folding is this browser's** (`fold/`), and it used to be the page's. The
 argument for the page was that somewhere you zoom into is a new thing to read;
@@ -1627,29 +1622,25 @@ independence that fell out of place keys is gone deliberately, and there is one
 fold vocabulary rather than two (`fold/rows.ts` is the whole of it). There is
 one CONDUIT too: a row reads `collapsedNodes` and presses `setFolded` itself
 (`Tree.tsx`, `menu/actions.ts`, `edit/Editable.tsx`), the way the theme and the
-panel widths are read wherever they are wanted — a member on the per-page
-`View` would be a second way to reach one browser-wide fact, and a per-page
-holder in front of it is what invites a copy. The sidebar's folders are the
+panel widths are read wherever they are wanted — a wrapper on a page object
+would be a second way to reach one browser-wide fact, and a holder in front
+of it is what invites a copy. The sidebar's folders are the
 same memory inverted
 (`fold/folders.ts`, `olai.sidebar.folders`): nodes start open so what is stored
 is what is shut, folders start collapsed (#105) so what is stored is what is
 open.
 
-**The done switch is the page's**, and it is the one with a preference BEHIND it
-(`settings/done.ts`): its place in the reading is `boolean | undefined`, and
-`undefined` — nobody has pressed it on this page — reads the preference. That
-rule is stated once, in the `doneHidden` memo, and pressing the switch negates
-THAT rather than the reading behind it: `!undefined` is "hidden" for a reader
-whose preference already is, which would be a switch whose first press does
-nothing.
+**Done-visibility is this browser's**, the same standing as a fold
+(`settings/done.ts`): Prefs is the one control, there is no per-page override,
+and a pick is the reading of every page. Hiding a row writes nothing — the node
+stays marked, the file stays put, and this reading simply does not draw it.
 
-It and the calendar's month are `createStamped` (`stamped.ts`): a value plus the
-thing it belongs to, read through a memo that compares them. That is what makes
-them start over at the right moment, with no effect watching a route to clear
-anything, and so no frame in which the held value and the thing it belongs to
-disagree. What they differ in is the stamp: the done switch belongs to the PAGE,
-while the month belongs to the month it is ANCHORED to, because walking from
-one outline to another is no reason to snap the calendar back to today.
+The calendar's month is the remaining stamped reading (`stamped.ts`): a value
+plus the thing it belongs to, read through a memo that compares them. That is
+what makes it start over at the right moment, with no effect watching a route
+to clear anything, and so no frame in which the held value and the thing it
+belongs to disagree. The stamp is the month it is ANCHORED to, because walking
+from one outline to another is no reason to snap the calendar back to today.
 
 ## No exports, on purpose
 

@@ -1,16 +1,17 @@
 /**
  * A value that starts over when the thing it belongs to changes.
  *
- * Two of the client's client-local switches have this shape and neither is
- * really about time: whether a page draws finished work belongs to the PAGE
- * being read (./view.ts), and which month the calendar shows belongs to the
- * month it is ANCHORED to. In both cases the held value is only meaningful
- * while the stamp it was taken under still holds, and when the stamp moves the
- * answer is a fresh value rather than a stale one.
+ * The calendar's month has this shape and it is not really about time: which
+ * month is on screen belongs to the month it is ANCHORED to. The held value is
+ * only meaningful while the stamp it was taken under still holds, and when the
+ * stamp moves the answer is a fresh value rather than a stale one.
  *
- * Folding was the third and is not one any more: a fold is a preference of this
- * browser now (./fold/memory.ts), because a reader who shuts a big tree means
- * it past the end of the page they were on.
+ * Folding and done-visibility used to share this shape. Both are preferences
+ * of this browser now (./fold/memory.ts, ./settings/done.ts), because a reader
+ * who shuts a big tree, or who does not want to look at finished work, means
+ * it past the end of the page they were on. The calendar is the one that kept
+ * a stamp, because walking from one outline to another is no reason to snap
+ * the month back to today.
  *
  * Written as a value plus a stamp, and read through a memo that compares them,
  * rather than as an effect that resets something when a route changes. The
@@ -19,10 +20,10 @@
  * disagree, and that moment is on screen. Here a value stamped with anything
  * but the current stamp is simply never the one that gets read.
  *
- * The subtle rule is `set`, and it is why this is one function rather than an
- * idiom copied twice: an edit applies to the value being READ, not to whatever
- * is held. On the first edit after the stamp moves those are different values,
- * and the held one belongs to the page the reader has already left.
+ * The subtle rule is `set`: an edit applies to the value being READ, not to
+ * whatever is held. On the first edit after the stamp moves those are
+ * different values, and the held one belongs to the month the reader has
+ * already left.
  */
 
 import { type Accessor, createMemo, createSignal } from "solid-js"
