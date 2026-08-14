@@ -5,8 +5,9 @@
  *
  * What the entries are is the caller's catalog (`./actions.ts`) over a
  * description this file never reads (`./action.ts`); what the open panel LOOKS
- * like is `./Panel.tsx`; what a verb had to say afterwards is `./saying.ts`
- * and `./Said.tsx`; the `•••` before anybody has pressed it is `./Dots.tsx`.
+ * like is `./Panel.tsx`; running one and saying what came of it is
+ * `./picking.ts` and `./Said.tsx`; the `•••` before anybody has pressed it is
+ * `./Dots.tsx`.
  * This file is the four things that are true of the menu as a MENU: what owns
  * it, where it is drawn, what it hangs off, and where the caret goes.
  *
@@ -89,8 +90,8 @@ import { DOTS, Dots } from "./Dots.tsx"
 import { swallowGhost } from "../ghost.ts"
 import { LAYER } from "../layer.ts"
 import { Panel } from "./Panel.tsx"
+import { createPicking } from "./picking.ts"
 import { Said } from "./Said.tsx"
-import { createSaying } from "./saying.ts"
 import { TESTID } from "../testids.ts"
 
 /**
@@ -126,10 +127,10 @@ export function NodeMenu(props: {
    *  not own, and the panel then hangs off that same markup (`./door.ts`). */
   readonly door: MenuDoor
 }) {
-  /** Running a verb, and what it had to say (`./saying.ts`). Created in the
+  /** Running a verb, and what it had to say (`./picking.ts`). Created in the
    *  ROW's owner rather than the panel's: the menu is closed by the time most
    *  answers arrive. */
-  const saying = createSaying()
+  const picking = createPicking()
   /** The `•••` once this row is armed — where the caret goes back to. */
   let trigger: HTMLElement | undefined
   /** What last touched this menu: the two gestures leave the caret in
@@ -290,11 +291,11 @@ export function NodeMenu(props: {
             // ...and the tap that any of it leaves behind (see above).
             onPointerUp={tappedInPanel}
           >
-            <Panel actions={props.actions} onPick={saying.pick} onGone={handBack} />
+            <Panel actions={props.actions} onPick={picking.pick} onGone={handBack} />
           </DropdownMenu.Content>
         </DropdownMenu>
       </Show>
-      <Said said={saying.said()} />
+      <Said said={picking.said()} />
     </div>
   )
 }

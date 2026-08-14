@@ -53,7 +53,7 @@ import { applying } from "../writes.ts"
  * happened and here is a remark about it" — a nudge from a write, a note from
  * the rollup — as against the `alarm` a refusal is drawn in. So the two
  * answers a clipboard verb can give are the same two moods every other verb
- * has, in the same line beside the `•••` (`./saying.ts`), and a scenario can
+ * has, in the same line beside the `•••` (`./picking.ts`), and a scenario can
  * tell them apart by `data-tone` rather than by reading a colour.
  *
  * ONE spelling for both verbs: "link copied" and "text copied" differ in the

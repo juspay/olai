@@ -1561,8 +1561,18 @@ would have sent, judged by the same planner and refused in the same words.
 | `NodeMenu.tsx` | the primitive and its wiring: what owns the menu, where it is drawn, what it hangs off on each of the two doors, and where the caret goes |
 | `Panel.tsx` | what is inside the open panel — the list, in Kobalte's `Item`s wearing this app's classes |
 | `Confirm.tsx` | the second step: the question one verb asks first, and the two ways out of it |
-| `saying.ts` | running a verb and keeping what it had to say — the ops layer's sentence verbatim, the throw worded from the label, the cause kept for the console |
+| `picking.ts` | running a verb and saying what came of it — the ops layer's sentence verbatim, the throw worded from the entry's own label, the cause kept for the console |
 | `Said.tsx` | the line that draws it, beside the `•••` |
+
+How long that line then lasts is **not** in this directory: `src/client/
+saying.ts` is the receptacle, and the Trash's `Put back` line rides on it too.
+`SAID_MS` had already been pulled out beside the `Said` type because the two
+dwells "were equal only by hand-maintenance" — and the constant turned out to
+be half the job, since both surfaces still spelled the machinery around it and
+had drifted into two shapes for the same three rules (a new sentence replaces
+the one before it *with its timer*, saying nothing clears rather than drawing
+an empty box, the timer dies with the owner). A scan in `saying.test.ts` holds
+the grip: nothing else in the client may count `SAID_MS` down.
 
 **The last six are one file split six ways, and the split is Kobalte's doing.**
 `NodeMenu.tsx` was 621 lines because a hand-rolled panel genuinely is one
@@ -1575,9 +1585,9 @@ was never the menu at all, since the menu is gone by the time most verbs
 answer. Each of those now outlives or precedes the primitive on its own terms.
 Two things fell out of it: `actions.ts` — a pure table with a unit test — no
 longer imports a `.tsx` component to learn what a row of itself looks like, and
-`saying.ts`'s four rules (nothing to say, the sentence verbatim, the throw
-worded, the line cleared before the next verb) became a unit test where they
-had been reachable only by driving a browser.
+`picking.ts`'s four rules (nothing to say, the sentence verbatim, the throw
+worded, the line cleared before the next verb runs) became a unit test where
+they had been reachable only by driving a browser.
 
 The write gate itself is `../writes.ts`, one level up: two surfaces send a
 pointer's write now (this menu and the date picker), and the four lines that
