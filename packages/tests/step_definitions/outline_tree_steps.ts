@@ -256,10 +256,9 @@ Then(
 Then(
   "the node {string} shows no date",
   async function (this: OlaiWorld, id: string) {
-    assert.strictEqual(
-      await this.node(id).locator(DATE).count(),
-      0,
-      `"${id}" has no \`date\` field, so it must show no date badge`,
+    await this.waitUntil(
+      async () => (await this.node(id).locator(DATE).count()) === 0,
+      `"${id}" to show no date badge`,
     );
   },
 );
@@ -267,13 +266,13 @@ Then(
 Then(
   "the description of {string} renders bold text {string}",
   async function (this: OlaiWorld, id: string, text: string) {
+    // The preview is also `DESC` and is already visible; "visible" is not
+    // "expanded". Wait for the markdown the expand is supposed to draw.
     const desc = this.node(id).locator(DESC).first();
-    await desc.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const bold = await desc.locator("strong, b").allInnerTexts();
-    assert.ok(
-      bold.some((value) => value.trim() === text),
-      `the description of "${id}" renders bold text ${JSON.stringify(bold)}, expected ${JSON.stringify(text)}`,
-    );
+    await this.waitUntil(async () => {
+      const bold = await desc.locator("strong, b").allInnerTexts();
+      return bold.some((value) => value.trim() === text);
+    }, `the description of "${id}" to render bold text ${JSON.stringify(text)}`);
   },
 );
 
