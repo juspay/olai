@@ -27,7 +27,8 @@ for section in $(SECTION= bun evidence.ts); do
     curl -sf -o /dev/null http://127.0.0.1:7799/ && break
     sleep 0.25
   done
-  SECTION="$section" BASE=http://127.0.0.1:7799 SHOTS="$shots" bun evidence.ts
+  SECTION="$section" BASE=http://127.0.0.1:7799 SHOTS="$shots" \
+    VAULT="$work/vault" bun evidence.ts
   kill "$server" 2>/dev/null || true
   wait "$server" 2>/dev/null || true
 done

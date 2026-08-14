@@ -29,13 +29,13 @@
  *     spellings of one list — the wire, a parallel type, a client-side
  *     dispatch and a binding each.
  *   - **This is not the ops request vocabulary re-spelled.** It is smaller (no
- *     `create`, no `see`, no `after`, no chosen ids) and, where it differs, it
- *     differs because something is resolved behind it. Where nothing is
- *     (`title`, `desc`, `date`, `archive`, `unarchive`, `unmirror`, `mirror`),
- *     it uses the ops layer's own word, so a name that differs from an op's is
- *     a name with arithmetic behind it. Ops itself learns none of this — an op
- *     does not know it is being called over a wire, which is what its own
- *     manifest says.
+ *     chosen ids, no `seed` on a created outline, no `blocks`) and, where it
+ *     differs, it differs because something is resolved behind it. Where
+ *     nothing is (`title`, `desc`, `date`, `archive`, `unarchive`, `unmirror`,
+ *     `mirror`, `see`, `after`), it uses the ops layer's own word — and its own
+ *     FIELDS — so a name that differs from an op's is a name with arithmetic
+ *     behind it. Ops itself learns none of this — an op does not know it is
+ *     being called over a wire, which is what its own manifest says.
  *
  * NOT EVERY VERB IS A KEY, and the ones that are not arrived from two
  * directions that meet in the middle of this list.
@@ -55,7 +55,17 @@
  * faces got it in the same change — the Trash view's `Put back` sends it, and
  * `unarchive_node` is the same call.
  *
- * `mirror` is the fifth of that group and the one a KEY sends after all: it is
+ * TWO MORE ARE THE POINTER'S AND CLOSE THE SAME GAP OVER THE TWO EDGE FIELDS.
+ * `see` and `after` are `set_see` and `set_after`, in the ops layer's own shape,
+ * and until they landed a person could READ both — the `see` links under a
+ * node, the dim and the `blocked by` line of a blocked row — and write neither
+ * (`parity-see`, `parity-after`). What reaches them is the `•••` menu's two
+ * `…` verbs, each opening the same node search the `((` widget uses, and the
+ * `×` on a reference already drawn. `outlineNew` is the last of the group and
+ * the one that is about a FILE rather than a node: `create_outline`, from the
+ * sidebar, beside `docNew` (`parity-create-outline`).
+ *
+ * `mirror` is the sixth of that group and the one a KEY sends after all: it is
  * `add_mirror`, and what reaches it is the `((` widget in a row's title
  * (`input-widgets`). It is filed here rather than with the keys because the
  * gap it closes is the same one — an agent could place a second copy of a node
@@ -425,6 +435,71 @@ export const Edit = Schema.Union([
    * Trash view opens it and `Put back` is on every row.
    */
   Schema.Struct({ verb: Schema.Literal("archive"), id: Id }),
+
+  // ── the two EDGES a node carries ─────────────────────────────────────
+
+  /**
+   * A node's free cross-references, changed — `set_see`, and the last field a
+   * person could READ on this face without being able to write it.
+   *
+   * The web has drawn `see` since edges-ui and could not add or drop one, which
+   * is the deviation this list keeps closing one field at a time
+   * (`parity-see`). What reaches it is the `•••` menu's `Link to a node…`,
+   * which opens the SAME node search the `((` widget and the ⌘K palette use, and
+   * the `×` on a reference already drawn.
+   *
+   * IT IS THE OP'S OWN SHAPE — two optional lists rather than one target and a
+   * direction — for the reason `date` carries the op's full `string | null`:
+   * nothing is resolved behind this verb, so it uses the ops layer's word, and a
+   * narrower spelling could not express its own inverse. A call that names
+   * neither is refused by the planner in its own words ("give `add` and/or
+   * `remove`"), which is the sentence an agent gets rather than a second rule
+   * here.
+   *
+   * A `see` is a link and no more, so nothing about it can be refused for what
+   * it MEANS — a loop of them is two notes pointing at each other, which is a
+   * thing people write on purpose. That is the whole difference between this
+   * verb and the one below it.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("see"),
+    id: Id,
+    /** Ids to add to this node's `see` list — each a node in the loaded set,
+     *  refused with the closest id that exists when it is not. */
+    add: Schema.optionalKey(Schema.Array(Id)),
+    /** Ids to drop from it. Naming one that is not there is a no-op for that
+     *  id, and a call that would change nothing at all is refused. */
+    remove: Schema.optionalKey(Schema.Array(Id)),
+  }),
+  /**
+   * What a node must come AFTER, changed — `set_after`, and {@link see}'s shape
+   * exactly, because it is the same gesture over the other kind of edge
+   * (`parity-after`).
+   *
+   * The web has drawn blockedness since edges-ui — the dimmed row, the mark
+   * column's glyph, the `blocked by` line on a node's page — and a person could
+   * not declare or lift a single dependency. What differs from `see` is what the
+   * edges MEAN: `after` is the ordering graph, so an add that would close a loop
+   * is REFUSED, naming the loop it would close, and that sentence reaches this
+   * face verbatim like every other refusal (HACKING.md). Nothing here fences it
+   * first — a rule this schema enforced would be a rule an agent's `set_after`
+   * does not have.
+   *
+   * WHAT IT WRITES IS THE NODE'S OWN `after`, never the `blocks` on somebody
+   * else's record: `a blocks b` IS `b after a`, and the ops layer writes the
+   * arrow one way so that one relation is not on disk in two spellings. So the
+   * removable edges are the ones this node declares — which is exactly what the
+   * page draws as `after`, beside the DERIVED `blocked by` it may not touch.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("after"),
+    id: Id,
+    /** Ids this node must come after. An add that would close a loop is refused
+     *  naming it. */
+    add: Schema.optionalKey(Schema.Array(Id)),
+    /** Ids to drop from its `after` list. */
+    remove: Schema.optionalKey(Schema.Array(Id)),
+  }),
   /**
    * Take a node and everything under it back OUT of the archive —
    * `unarchive_node`, from the Trash view's `Put back`, and the other half of
@@ -524,6 +599,33 @@ export const Edit = Schema.Union([
   Schema.Struct({
     verb: Schema.Literal("docDay"),
     date: Schema.String,
+  }),
+
+  // ── and the OUTLINE's one ────────────────────────────────────────────
+
+  /**
+   * A brand-new outline, named outright — `create_outline`, from the sidebar's
+   * `+ New outline`, and the last file MCP could mint that a person could not
+   * (`parity-create-outline`).
+   *
+   * {@link docNew}'s twin, spelled the same way and for the same reasons: the
+   * path is what a person types, because a file's name is its address in this
+   * app, and every rule about that path — relative, `.jsonl`, no `..`, not one
+   * the set already holds — is the OP's, surfaced verbatim rather than
+   * re-implemented in a browser that would then disagree with an agent.
+   *
+   * IT CARRIES NO SEED, and that is the one place it says less than the tool
+   * does. `create_outline` may be born holding a whole tree, which is what
+   * saves an agent a second call; a person types the first row with `Enter`
+   * ({@link Anchor}'s `first` arm, which exists for exactly this file), so the
+   * seed would be a field no affordance could fill. Nothing the web can reach is
+   * out of the agent's reach, which is the direction the consistency rule
+   * actually runs — and quick capture already sends a seeded `create` when the
+   * directory has no inbox, so the op's full shape is reachable from this face.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("outlineNew"),
+    file: Schema.String,
   }),
 
   // ── the two an undo speaks ───────────────────────────────────────────

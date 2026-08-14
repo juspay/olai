@@ -2,15 +2,18 @@
  * A labelled row of links to other nodes — what one of a node's EDGES looks
  * like when it is drawn out rather than hinted at.
  *
- * Two relations are drawn this way so far and they are one shape: the free
- * cross-references a node carries (`see`, ./SeeRefs.tsx) and what it is waiting
- * on (`after`, ./Blocked.tsx). Same reason `NodeLine` and `NodeBody` are one
- * place each — the second copy of a sequence like this is where the two start
- * disagreeing about the touch target, the wrap, or which element carries the
- * target id, with both still compiling and one browser test noticing.
+ * Three claims are drawn this way and they are one shape: the two edge FIELDS a
+ * node carries — `see` and `after`, both through ./edges/EdgeRefs.tsx — and
+ * what is DERIVED from the second of them, `blocked by` (./Blocked.tsx). Same
+ * reason `NodeLine` and `NodeBody` are one place each — the second copy of a
+ * sequence like this is where the two start disagreeing about the touch target,
+ * the wrap, or which element carries the target id, with both still compiling
+ * and one browser test noticing.
  *
- * The LABEL and the container's testid are the caller's, because which relation
- * this is is exactly what differs; everything else — a link per target, the
+ * The LABEL, the container's testid and WHETHER A TARGET CAN BE DROPPED are
+ * the caller's, because which relation this is is exactly what differs — and
+ * one of them is derived, so an `×` there would name no single edge
+ * ({@link NodeRefs.onRemove}); everything else — a link per target, the
  * target's title as its text (via {@link NodeTitle}, so markdown and tags
  * match a tree row), `data-ref` carrying the id it opens — is the same claim
  * whichever edge produced it. Titles change under a live page and ids do not,
@@ -24,6 +27,7 @@
 import { Key } from "@solid-primitives/keyed"
 import { type JSX, Show } from "solid-js"
 
+import { DropRef } from "./edges/DropRef.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { Link } from "./router.tsx"
 import { type TestId, TESTID } from "./testids.ts"
@@ -46,6 +50,20 @@ export function NodeRefs(props: {
   readonly refs: ReadonlyArray<NodeRef>
   /** What the whole row is, for the browser tests: `see-refs`, `blocked`. */
   readonly testid: TestId
+  /**
+   * Drop this target from the node's list — an `×` beside each link, and the
+   * removal half of `parity-see` / `parity-after`.
+   *
+   * ABSENT is read-only, and that is a claim about the ROW rather than about
+   * the reader: `blocked by` is DERIVED (`../Blocked.tsx`) — part of it can be
+   * a `blocks` written on somebody else's record — so there is no single edge
+   * an `×` there would name, and offering one would be an affordance that
+   * silently did nothing for half the pills in it. What a person may remove is
+   * what THIS node declares, which is what the `see` and `after` rows draw.
+   * A read-only page (a day, the agenda) passes nothing for the same reason its
+   * titles do not open an editor.
+   */
+  readonly onRemove?: (id: string) => void
 }) {
   return (
     <Show when={props.refs.length > 0}>
@@ -61,15 +79,33 @@ export function NodeRefs(props: {
             updating. Keyed by the id, which is what a ref IS. */}
         <Key each={props.refs} by="id">
           {(ref) => (
-            <NodeRefLink to={ref()} class={REF} testid={TESTID.nodeRef}>
-              {/* links=false: already inside Link — a markdown [a](url) in the
-                  title must not nest a second <a>. */}
-              <NodeTitle
-                title={ref().title}
-                from={ref().from}
-                links={false}
-              />
-            </NodeRefLink>
+            <span class="inline-flex items-baseline gap-0.5">
+              <NodeRefLink to={ref()} class={REF} testid={TESTID.nodeRef}>
+                {/* links=false: already inside Link — a markdown [a](url) in
+                    the title must not nest a second <a>. */}
+                <NodeTitle
+                  title={ref().title}
+                  from={ref().from}
+                  links={false}
+                />
+              </NodeRefLink>
+              {/* OUTSIDE the link, never inside it: a control nested in an
+                  anchor is a press that also navigates on every engine that
+                  has ever shipped, and the two mean opposite things here. What
+                  it SAYS is `./edges/DropRef.tsx`'s, shared with the panel's
+                  own × — two doors onto one op, named once. */}
+              <Show when={props.onRemove}>
+                {(remove) => (
+                  <DropRef
+                    testid={TESTID.refDrop}
+                    relation={props.label}
+                    id={ref().id}
+                    title={ref().title}
+                    onDrop={remove()}
+                  />
+                )}
+              </Show>
+            </span>
           )}
         </Key>
       </div>

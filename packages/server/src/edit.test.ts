@@ -750,7 +750,91 @@ test("what nothing would take back says so with an empty list", () => {
   expect(inverse({ verb: "unmirror", id: "echo" })).toEqual([])
 })
 
-// ── the documents' three ───────────────────────────────────────────────
+// ── the two edges ──────────────────────────────────────────────────────
+
+/** A set whose nodes already carry both kinds of edge, so the arms below are
+ *  asked about a list that exists rather than about an empty one. */
+const EDGED = [
+  `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+  `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true,"see":["demo","install"],"after":["demo"]}`,
+  `{"id":"demo","parent":"kitchen","ord":"a1","title":"demolition","todo":true}`,
+  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","todo":true}`,
+  `{"id":"echo","ord":"a1","mirror":"order"}`,
+].join("\n")
+
+const edged = (): Reading => reading(setOf({ "house.jsonl": EDGED }))
+
+test("an edge write travels as the op's own two lists, and resolves nothing", () => {
+  expect(asked({ verb: "see", id: "order", add: ["kitchen"] }, edged()))
+    .toEqual({ op: "see", id: "order", add: ["kitchen"] })
+  expect(asked({ verb: "see", id: "order", remove: ["demo"] }, edged()))
+    .toEqual({ op: "see", id: "order", remove: ["demo"] })
+  expect(asked({ verb: "after", id: "install", add: ["order"] }, edged()))
+    .toEqual({ op: "after", id: "install", add: ["order"] })
+  // Both at once is one op, and an absent list stays ABSENT rather than
+  // travelling as `undefined` — the spelling every optional field here keeps.
+  expect(
+    asked({ verb: "after", id: "order", add: ["install"], remove: ["demo"] }, edged()),
+  ).toEqual({ op: "after", id: "order", add: ["install"], remove: ["demo"] })
+})
+
+test("an edge write fences nothing here — every rule is the planner's", () => {
+  // A call that names neither list is spellable on the wire and refused by the
+  // ops layer in its own words, which is the sentence an agent gets. The
+  // resolver must not answer it first, or the two faces would refuse for
+  // different reasons.
+  expect(asked({ verb: "see", id: "order" }, edged()))
+    .toEqual({ op: "see", id: "order" })
+  // …and so is an id nothing declares, and a loop.
+  expect(asked({ verb: "see", id: "nobody", add: ["order"] }, edged()))
+    .toEqual({ op: "see", id: "nobody", add: ["order"] })
+  expect(asked({ verb: "after", id: "demo", add: ["order"] }, edged()))
+    .toEqual({ op: "after", id: "demo", add: ["order"] })
+})
+
+test("an edge write is taken back by the same verb with its lists swapped", () => {
+  expect(inverse({ verb: "see", id: "order", add: ["kitchen"] }, "order", edged()))
+    .toEqual([{ verb: "see", id: "order", remove: ["kitchen"] }])
+  expect(inverse({ verb: "see", id: "order", remove: ["demo"] }, "order", edged()))
+    .toEqual([{ verb: "see", id: "order", add: ["demo"] }])
+  expect(
+    inverse(
+      { verb: "after", id: "order", add: ["install"], remove: ["demo"] },
+      "order",
+      edged(),
+    ),
+  ).toEqual([{ verb: "after", id: "order", add: ["demo"], remove: ["install"] }])
+})
+
+test("the inverse is what the write CHANGES, read off the set and not off the call", () => {
+  // Adding a target the node already sees changes nothing for that target, so
+  // undoing it must not drop an edge that was there before the write. Spelled
+  // off the request instead, this would answer `remove: ["demo"]` and take away
+  // a reference nobody asked about.
+  expect(
+    inverse({ verb: "see", id: "order", add: ["demo", "kitchen"] }, "order", edged()),
+  ).toEqual([{ verb: "see", id: "order", remove: ["kitchen"] }])
+  // …and the same read backwards: removing one that was never there.
+  expect(
+    inverse({ verb: "see", id: "order", remove: ["kitchen", "demo"] }, "order", edged()),
+  ).toEqual([{ verb: "see", id: "order", add: ["demo"] }])
+})
+
+test("an edge write that would change nothing has nothing to take back", () => {
+  // The planner refuses it a moment later ("already sees exactly …"), so the
+  // stack must not grow an entry whose replay would be refused too.
+  expect(inverse({ verb: "see", id: "order", add: ["demo"] }, "order", edged()))
+    .toEqual([])
+  expect(inverse({ verb: "see", id: "order" }, "order", edged())).toEqual([])
+  // A MIRROR carries no edges of its own, and an id nothing declares has none
+  // to read — both are the ops layer's to refuse.
+  expect(inverse({ verb: "see", id: "echo", add: ["demo"] }, "echo", edged()))
+    .toEqual([])
+  expect(inverse({ verb: "after", id: "nobody", add: ["demo"] }, "nobody", edged()))
+    .toEqual([])
+})
+
+// ── the documents' three, and the outline's one ────────────────────────
 
 const NOTES = "# Notes\n\nwhat was here\n"
 const vault = (): Reading =>
@@ -802,4 +886,20 @@ test("nothing takes a minted document back — no face removes one", () => {
   expect(
     inverse({ verb: "docDay", date: "2026-09-01" }, "x.md", vault()),
   ).toEqual([])
+})
+
+test("a new outline names its path outright, and the op judges it", () => {
+  expect(asked({ verb: "outlineNew", file: "plans.jsonl" }))
+    .toEqual({ op: "create", file: "plans.jsonl" })
+  // Nothing about the path is checked HERE: a `..`, a `.md`, a file the set
+  // already holds are each `create_outline`'s own refusal, in its own words.
+  expect(asked({ verb: "outlineNew", file: "../escape.jsonl" }))
+    .toEqual({ op: "create", file: "../escape.jsonl" })
+  expect(asked({ verb: "outlineNew", file: "house.jsonl" }))
+    .toEqual({ op: "create", file: "house.jsonl" })
+})
+
+test("nothing takes a minted outline back either", () => {
+  expect(inverse({ verb: "outlineNew", file: "plans.jsonl" }, "plans.jsonl"))
+    .toEqual([])
 })

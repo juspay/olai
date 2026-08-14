@@ -36,6 +36,7 @@
 import type { Derived, Row } from "@olai/format"
 
 import { armNode } from "../chat/armed.ts"
+import type { Relation } from "../edges/relation.ts"
 import type { Said, Undo } from "../edit/undoing.ts"
 import { setFolded } from "../fold/memory.ts"
 import { type Fold, foldIdOf, foldOf } from "../fold/rows.ts"
@@ -98,6 +99,12 @@ export const nodeMenuActions = (args: {
    *  line opens the same one, and the panel is closed by the time either of
    *  them has been chosen. */
   readonly pickDate: () => void
+  /** Open the row's edge panel for one relation — the same arrangement
+   *  `pickDate` is, for the same reason: a target is a node somebody has to
+   *  find, and the panel belongs to the ROW (the `×` on a drawn reference
+   *  writes through it too), not to a menu that is closed by the time either is
+   *  chosen. */
+  readonly pickEdge: (relation: Relation) => void
 }): ReadonlyArray<MenuAction> => {
   const id = args.row.at.node.id
   const items: MenuAction[] = [
@@ -184,9 +191,30 @@ export const nodeMenuActions = (args: {
       // happened to evaluate to — which is how this shipped an empty box under
       // the menu for a moment (a Solid setter answers with the new value, and
       // `() => void` accepts any return, so nothing but the screen said so).
+      // A SWITCH, so the union's guarantee survives the one place that acts on
+      // it: `Does` is tagged precisely so an entry with no edit is unspellable
+      // (`./verbs.ts`), and a chain of `if`s whose last arm is a fall-through
+      // would make the date picker the silent default for a fourth arm nobody
+      // had answered here yet.
+      //
+      // The `return`-less arms are deliberate, and load-bearing: an action
+      // answers with what it has to SAY, anything but `undefined` is drawn as a
+      // sentence beside the `•••`, and opening a panel has nothing to say. An
+      // expression body would hand the panel whatever the opener evaluated to —
+      // which is how this shipped an empty box under the menu for a moment (a
+      // Solid setter answers with the new value, and `() => void` accepts any
+      // return, so nothing but the screen said so).
       run: () => {
-        if (does.kind === "edit") return applying(does.edit, args.record)
-        args.pickDate()
+        switch (does.kind) {
+          case "edit":
+            return applying(does.edit, args.record)
+          case "pick-edge":
+            args.pickEdge(does.relation)
+            return
+          case "pick-date":
+            args.pickDate()
+            return
+        }
       },
     }),
   )

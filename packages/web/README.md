@@ -86,7 +86,8 @@ the mark is toggled from the row's editor). Titles render inline-only markdown
 and inline tags (`#topic` and `@person`) as subtle pills (`NodeTitle.tsx` / `markdown/title.ts`), and the
 editor shows that markdown as the SOURCE it is while a row is being typed.
 A node's
-free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
+free cross-references and the `after` targets it declares (`edges/EdgeRefs.tsx`,
+one component over either field) each link to `/n/<id>` with the target's
 title, resolved at view time through the same indexes.
 
 The typeface is a pick, like the theme, but the catalog is not this package's:
@@ -355,6 +356,26 @@ document** path box (`document/NewDocument.tsx`, the `docNew` intent), and a
 BARE calendar day — no node, no note — whose cell mints that day's note
 (`calendar/Day.tsx`, the `docDay` intent, the path derived on the server from
 the vault's own convention).
+
+**An OUTLINE has that first door too, and did not until `parity-create-outline`**
+(`outline/NewOutline.tsx`, the `outlineNew` intent): the sidebar's **+ New
+outline**, directly above the document's. It lands on the new outline's page,
+whose `StartLine` is where the first row is typed — which is why the wire verb
+carries no seed: an agent's seed saves it a second call, and a person's first
+line has a place to be written.
+
+**Both doors are ONE box** (`file/NewFile.tsx`, with `file/making.ts` holding
+the words as values). They were two components for about a day — the second
+written by copying the first — and what they actually differ about is four
+words and where a landed write goes: the caret arriving in the box, Enter,
+Escape, the empty box that asks for nothing, the click that must not close the
+mobile drawer, and the refusal drawn verbatim underneath were the same decision
+twice. What may judge a path is NOTHING in either: `create_outline` and
+`create_document` judge it, and their sentence is what is drawn — a browser
+that pre-checked a `..` would be a second rule free to disagree with the one an
+agent meets. The testids stay per-kind rather than being derived from a `kind`,
+because a `data-testid` is a contract with a package that does not import this
+one.
 
 ## Seven routes, and what each is a property of
 
@@ -1776,7 +1797,7 @@ would have sent, judged by the same planner and refused in the same words.
 
 | file | what it owns |
 |---|---|
-| `verbs.ts` | which writes a row offers, and what each one DOES — the exact `Edit` it sends, or that it opens the row's date picker. Pure over a `Row`, so the contextual rules are a unit test |
+| `verbs.ts` | which writes a row offers, and what each one DOES — the exact `Edit` it sends, or which panel it opens (the date picker, or one of the two edge panels). Pure over a `Row`, so the contextual rules are a unit test |
 | `subtree.ts` | what hangs under a row: the count a confirm names, and the text a copy produces. Pure |
 | `actions.ts` | the catalog: the view verbs, the writes, the clipboard |
 | `action.ts` | what an ENTRY is, to the panel that draws it — the `MenuAction` shape, and whether a verb asks first. The seam: the catalog builds these knowing nothing about drawing, the panel draws these knowing nothing about routes or the write gate, and neither imports the other |
@@ -1815,9 +1836,10 @@ longer imports a `.tsx` component to learn what a row of itself looks like, and
 worded, the line cleared before the next verb runs) became a unit test where
 they had been reachable only by driving a browser.
 
-The write gate itself is `../writes.ts`, one level up: two surfaces send a
-pointer's write now (this menu and the date picker), and the four lines that
-turn a refusal or a nudge into a sentence may not have two copies.
+The write gate itself is `../writes.ts`, one level up: several surfaces send a
+pointer's write now (this menu, the date picker, the edge panel and the `×` on
+a drawn reference), and the four lines that turn a refusal or a nudge into a
+sentence may not have two copies.
 
 **The menu itself is `@kobalte/core`'s `DropdownMenu`, not ours.** Being open,
 where the panel goes, the pointer outside that shuts it, Escape, and the arrow
@@ -2089,6 +2111,66 @@ everywhere, and on an undated one through the `•••` menu's own verb — wh
 now has a door to: no `•••` is drawn below `md`, so a long press on the row
 opens the menu (`longPress.ts`). The gap this paragraph used to record, along
 with the checkbox's, is closed.
+
+
+## The edge panel
+
+`src/client/edges/` is the other half of `set_see` and `set_after`. This client
+had DRAWN both edges since edges-ui — the `see` links under a node (then
+`SeeRefs.tsx`, now the one `EdgeRefs.tsx` below), and, for `after`, the row's
+dim, the mark column's glyph and
+the `blocked by` line on a node's page (`Blocked.tsx`) — and could write
+neither: the same standing deviation the date picker closed one field along
+(`parity-see`, `parity-after`, under `editor-op-parity`).
+
+**One panel for both fields, and both directions.** The ops layer plans them
+with ONE function because they are one gesture over two fields, so this draws
+one panel and one refs row for both; what differs is a table (`relation.ts`:
+the words, and that only an `after` add can be refused for what it MEANS). The
+panel holds what the node says NOW with an `×` on each, and a search for what
+to add — so managing a node's links is one control rather than two.
+
+**Two doors per surface, four call sites, one write** — which is what
+`editing.tsx` is for. A tree row opens the panel from its `•••`; a zoomed node
+opens it from `EdgeVerbs.tsx`, because a heading has no `•••` and the palette's
+op rows deliberately stop where a verb has a question to ask (`palette/ops.ts`,
+the same case as `Set date…`). Beside each, an `×` on a reference already drawn
+sends the same op. Four copies of "send it, keep the answer, put the answer
+somewhere" is three chances to write the copy that forgets the last clause,
+which is a refusal nobody sees; the hook owns the write, the one-at-a-time
+guard, and the said line (through `saying.ts`, the client's one receptacle for
+how long a sentence lingers). Its shape is `complete/completing.tsx`'s: the
+verbs a host calls, plus ONE component to draw. What the host keeps is WHERE
+that component sits, which is the only thing the two surfaces differ about.
+
+**The search is the server's**, like every other one here (`search/nodes.ts`) —
+same procedure, same debounce, same row, same cursor. A second in-house matcher
+for this panel would break the consistency rule inside one process.
+
+**Nothing is fenced.** The node itself is in the list, and so is one that would
+close a loop: the ops layer refuses an `after` add NAMING the loop, which is
+the sentence a person needs and exactly the one an agent gets. A panel that hid
+those rows would teach a rule this app does not have.
+
+**A node's page draws the declared list beside the derived one**
+(`EdgeRefs.tsx` under `Blocked.tsx`) and only the declared one carries an `×`.
+That is not a duplicate: `blocked by` is what is in the way *now* — unfinished
+work only, with `blocks` folded in from other records and both ends resolved
+through mirrors — so half of it may live on somebody else's record and an `×`
+there would name no single edge. `after` is the field `set_after` writes.
+
+**One component draws either relation** (`EdgeRefs.tsx`, which `SeeRefs.tsx`
+moved into): read the field, resolve each id by the format's own rule, draw a
+labelled row. It was two — the second copied from the first — and what the copy
+fragmented was worse than the copy itself: the row's label and its testid are
+facts about a RELATION, they already lived in the table, and each component
+spelled its own, so a rename in the table would have left both saying the old
+word with everything still compiling.
+
+**And they are facts about the node a row SHOWS**, so an edge chosen at a
+mirror lands on its target — the standing routing rule, one field along from
+the marks and the date. `NodeRefs.tsx` grew the `×` (outside the link, never
+inside it) and nothing else about a refs row moved.
 
 
 ## What belongs to a reading, not to the file

@@ -118,7 +118,7 @@ Feature: Documents become writable
   Scenario: Creating a document that already exists is refused in the ops layer's words
     Given I open the app
     When I create the document "finishes.md" from the sidebar
-    Then the creation is refused saying "already a document"
+    Then the document creation is refused saying "already a document"
 
   # A DOCUMENT IS NOT A MOUNT, and these three are the difference. Going from
   # one document to another keeps the same page on screen — same route kind,

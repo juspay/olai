@@ -142,6 +142,49 @@ export const TESTID = {
   tip: "tip",
   /** A node's free cross-references (`see`), wherever the node is drawn. */
   seeRefs: "see-refs",
+  /** What a node itself says it comes AFTER — its own `after` list, drawn on
+   *  the node's page beside the derived `blocked` row above. The two are
+   *  different claims: this one is the field a person and an agent may WRITE
+   *  (`set_after`), and it is drawn whether or not the target is still in the
+   *  way. */
+  afterRefs: "after-refs",
+  /** The `×` on one drawn reference: drop that target from the node's `see` /
+   *  `after` list. `data-ref` is the target it would drop. */
+  refDrop: "ref-drop",
+
+  // ── the edge panel ───────────────────────────────────────────────────
+  /** One of the two edge verbs on a ZOOMED node's page — the door a heading
+   *  has instead of a `•••`. `data-relation` says which; whether its panel is
+   *  up is `aria-expanded`, which is the same fact said once. On a row the same
+   *  two verbs are menu entries. */
+  edgeVerb: "edge-verb",
+  /** The panel that writes one relation of one node — in place under the row,
+   *  or under a zoomed node's heading. `data-relation` says WHICH (`see` /
+   *  `after`); present only while it is open. `data-asked` says which query the
+   *  hits in it ANSWER — absent while they answer one the reader has moved on
+   *  from, which is what makes "wait for the rows of this search" askable. */
+  edgePanel: "edge-panel",
+  /** What the node says right now, inside that panel — one chip per target. */
+  edgeHeld: "edge-held",
+  /** The `×` on one of those chips. `data-ref` is the target. */
+  edgeDrop: "edge-drop",
+  /** The panel's search box — the server's own node search, the same one ⌘K
+   *  and the `((` widget call. */
+  edgeSearch: "edge-search",
+  /** One hit in it; `data-id` is the node it would name. */
+  edgeHit: "edge-hit",
+  /** Where that hit sits — the row's second line. */
+  edgeHitPlace: "edge-hit-place",
+  /** A refused SEARCH, in the server's words. Never the same slot as a refused
+   *  write: two unrelated async sources sharing one line is how a reader is
+   *  shown the wrong sentence about the wrong thing. */
+  edgeSearchFailed: "edge-search-failed",
+  /** What the last WRITE from this panel said — a refusal verbatim (a loop an
+   *  `after` would close, an id nothing declares), or a nudge from one that
+   *  landed. Two moods, `data-tone` apart, like every other said line. */
+  edgeSaid: "edge-said",
+  /** The way out, for a pointer. Escape is the same door. */
+  edgePanelClose: "edge-panel-close",
   /** One link from a node to another node, in any of those rows. Which
    *  RELATION it came from is the row it is in, so this name is the same for
    *  `see` and for `blocked by`; the target id rides `data-ref` on a child
@@ -183,6 +226,14 @@ export const TESTID = {
   /** Why creating one did not happen — a refusal, verbatim, drawn by the same
    *  `Refused` line `documentSaid` and `calendarSaid` are. */
   newDocumentSaid: "new-document-said",
+  /** The sidebar's way to a brand-new OUTLINE — `create_outline`'s own door,
+   *  beside the document's above (`parity-create-outline`). */
+  newOutline: "new-outline",
+  /** Its path box — a relative `.jsonl` path, committed with Enter. */
+  newOutlinePath: "new-outline-path",
+  /** Why minting one did not happen: the ops layer's own sentence about the
+   *  path, verbatim. */
+  newOutlineSaid: "new-outline-said",
   /** A document's table of contents, above its body. A `<details>`, so whether
    *  it is open is the element's own `open` property and not a second flag —
    *  and ABSENT on a document with fewer than two headings, which is what makes

@@ -25,9 +25,6 @@ import {
   DOCUMENT_SAID,
   DOCUMENT_SAVE,
   HYDRATION_TIMEOUT,
-  NEW_DOCUMENT,
-  NEW_DOCUMENT_PATH,
-  NEW_DOCUMENT_SAID,
   oneLine,
   POLL_TIMEOUT,
 } from "../support/world.ts";
@@ -155,34 +152,11 @@ Then(
 );
 
 // ── the two creation doors ─────────────────────────────────────────────
-
-When(
-  "I create the document {string} from the sidebar",
-  async function (this: OlaiWorld, file: string) {
-    await this.showSidebar();
-    const open = this.page.locator(NEW_DOCUMENT);
-    await open.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await open.click();
-    const box = this.page.locator(NEW_DOCUMENT_PATH);
-    await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await box.fill(file);
-    await box.press("Enter");
-  },
-);
-
-Then(
-  "the creation is refused saying {string}",
-  async function (this: OlaiWorld, said: string) {
-    const refusal = this.page.locator(NEW_DOCUMENT_SAID);
-    await refusal.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const text = oneLine(await refusal.innerText());
-    assert.ok(
-      text.includes(said),
-      `the refusal reads ${JSON.stringify(text)}, which does not say ` +
-        `${JSON.stringify(said)}`,
-    );
-  },
-);
+//
+// The sidebar half of them is `./new_file_steps.ts`, shared with the outline's
+// own door: one control (`file/NewFile.tsx`) drawn twice, so one pair of steps
+// over the kind. What stays here is the door that is only a DOCUMENT's — a
+// bare calendar day, which mints that day's note.
 
 When(
   "I press the bare day {string}",

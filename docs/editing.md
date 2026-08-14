@@ -287,6 +287,47 @@ The row moves the moment the file says so: a task given a day that has gone is
 in Overdue on the agenda and on that day's page, without a reload and without
 this page deciding anything for itself.
 
+## What a node points at
+
+A node carries two lists of other nodes ([format.md](format.md)): `see`, which
+is a link and nothing more, and `after`, which is what it must come after. The
+page has drawn both for a long time — the links under a node, and, for a
+blocked row, the dim, the mark column's glyph and the **blocked by** line on
+its own page. Both can be written now, from either end.
+
+**The `•••` menu has the two verbs**: *Link to a node…* and *Wait for a
+node…*. Each opens a panel under the row holding what the node says now, with
+an `×` on each of them, and a box that searches the whole directory — the
+server's own search, the same one ⌘K, the header box and `((` use, so what
+this finds and what an agent's `search_nodes` finds cannot drift. Walk the
+hits with the arrows, take one with **Enter**, leave with **Escape** or
+**Done**. Choosing one sends the same `set_see` / `set_after` an agent sends,
+and ⌘Z takes it back.
+
+**A zoomed node has the same two**, as controls under its own lines, because
+a heading has no `•••` to hang them off — the gap the ⌘K palette's op rows
+close for the verbs that need no second gesture, and cannot close for the ones
+that open something (`Set date…` is the same case).
+
+**A node's page draws the two lists apart, and only one of them is yours to
+change.** `after` is the field this node carries, so it has the `×`; **blocked
+by** is DERIVED — what is in the way *right now*, which is unfinished work
+only, and which may be a `blocks` written on somebody else's record. Those are
+different claims, and an `×` on the derived one would name no single edge.
+
+**A loop is refused, in the ops layer's own words, naming the loop.** `after`
+is the ordering graph, so `a after b after a` is a set of tasks none of which
+could ever start; asking for one is answered with *`order` after `install`
+closes a loop — `order` → `install` → `order`* under the panel, which is the
+sentence an agent's `set_after` gets. Nothing is greyed out first: the entry is
+offered on every node and the reason arrives when it is asked for, which is the
+same rule the mark verbs keep for finished work. A `see` loop is refused by
+nothing, because two notes pointing at each other is a thing people write on
+purpose.
+
+Both are facts about the node a row SHOWS, so choosing one at a mirror writes
+the node it stands for — a placement carries no edges of its own.
+
 ## Taking an edit back
 
 **⌘Z takes back the last edit you made on this outline** — and it is not a
@@ -356,19 +397,23 @@ it lights the best match; ↓ is the other way in.
 
 **The verbs of the node you have ZOOMED.** On `/n/<id>`, the palette lists what
 that node can take — `Mark todo`, `Complete`, `Clear mark`, `Clear date`, `Move
-to Trash` — the same entries the row's ••• menu offers, decided by the same
-rule (a verb that would change nothing is not drawn), naming the same ids, and
-refused in the same words. Each row says which node it is about on its second
-line, because a palette is opened from anywhere. This is the affordance the
-zoomed node never had: the ••• hangs off a row, and a zoom is a page.
+to Trash` — the entries of the row's ••• menu that need no second gesture,
+decided by the same rule (a verb that would change nothing is not drawn),
+naming the same ids, and refused in the same words. Each row says which node it
+is about on its second line, because a palette is opened from anywhere. This is
+the affordance the zoomed node never had: the ••• hangs off a row, and a zoom
+is a page.
 
 On any other page there are none of them. A command read out of context must
 not be aimed at a node you cannot see, and what the address says you are
 looking at is a fact you and the palette can both see.
 
-`Set date…` stays on the row, because it opens the row's own picker and there
-is nothing for the palette to open. `Move to Trash` asks its question in the
-palette's own box, with the same sentence and the same count the menu asks.
+**The three that ask something first stay where the asking happens** — `Set
+date…`, `Link to a node…` and `Wait for a node…`. Each opens a panel that hangs
+off a row, and a palette drawn over the page has nothing to open; a zoomed node
+reaches all three from its own controls instead (above). `Move to Trash` asks
+its question in the palette's own box, with the same sentence and the same
+count the menu asks.
 **The question takes the caret when it is raised** — so Enter answers it, Tab
 cycles its two ways out, and Escape or **Cancel** backs out. Nothing you type
 elsewhere becomes the answer.
@@ -406,6 +451,29 @@ have.
 The **Capture to the Inbox** row in the palette is the same gesture for a
 reader who has not been told about the prefix: choosing it types the `+` and
 leaves the caret after it.
+
+## Starting an outline
+
+**The sidebar's `+ New outline`** asks for a path — relative, `.jsonl`, judged
+by the same rules an agent's `create_outline` is judged by — and mints the file
+there. What comes back for a path it will not take is that op's own sentence,
+under the box: one the directory already holds, one that climbs out of it with
+`..`, one whose name does not end in `.jsonl`. Enter creates it, Escape puts the
+box away, and the page it lands on is the new outline's, with the same *write
+the first line* the empty-outline page has always offered.
+
+That first line is where this differs from the tool, deliberately.
+`create_outline` can be born holding a whole tree, which is what saves an agent
+a second call; a person types the row where it is going to live, so there is
+nothing here for a seed to be filled from. Nothing this door can reach is out of
+an agent's reach, which is the direction the consistency rule actually runs —
+and quick capture already sends a seeded create when the directory has no
+inbox.
+
+**No door on either face removes a file.** An outline minted by mistake is an
+empty one in the sidebar, which is a thing you can see and delete yourself,
+rather than a file appearing and disappearing behind a chord — so ⌘Z after this
+one says nothing to take back, exactly as it does after a new document.
 
 ## Writing a document
 

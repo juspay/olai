@@ -69,6 +69,8 @@ test("a node with no mark is offered the three, and nothing to clear", () => {
     "Mark doing",
     "Complete",
     "Set date…",
+    "Link to a node…",
+    "Wait for a node…",
     "Move to Trash",
   ])
 })
@@ -82,6 +84,8 @@ test("the mark a node already carries is not offered back to it", () => {
     "Complete",
     "Clear mark",
     "Set date…",
+    "Link to a node…",
+    "Wait for a node…",
     "Move to Trash",
   ])
 })
@@ -228,5 +232,12 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
   // one verb whose question is about the SET may not be offered with a number
   // read off something else.
   expect(writeVerbs(subjectOfRow(row("kitchen")), undefined).map((verb) => verb.label))
-    .toEqual(["Mark todo", "Complete", "Clear mark", "Set date…"])
+    .toEqual([
+      "Mark todo",
+      "Complete",
+      "Clear mark",
+      "Set date…",
+      "Link to a node…",
+      "Wait for a node…",
+    ])
 })

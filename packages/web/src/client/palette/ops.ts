@@ -24,11 +24,21 @@
  *     reader is looking at is a fact both they and this file can see — so on
  *     any other page there are simply no op rows, in the same way the menu
  *     draws no `Clear date` on a row with no date.
- *   - **the one verb that has a question to ask first is left out.** `Set
- *     date…` opens the ROW's picker, which is an element in the tree the
- *     palette is drawn over; there is nothing for it to open from here. It
- *     stays where the picker is, which is also where a date is already
- *     changed from — the pill on the row (`../date/DatePicker.tsx`).
+ *   - **the verbs that have a question to ask first are left out**, and there
+ *     are THREE of them now: `Set date…` opens the row's picker
+ *     (`../date/DatePicker.tsx`), and `Link to a node…` / `Wait for a node…`
+ *     open the row's edge panel (`../edges/EdgePanel.tsx`). Each of those is an
+ *     element in the tree the palette is drawn OVER, and there is nothing for a
+ *     modal to open from here. Each stays where its panel is, which is also
+ *     where those writes are already made from — the pill on the row, the `×`
+ *     on a drawn reference.
+ *
+ *     THE FILTER IS THE ARM, not a list: `does.kind === "edit"` is what leaves
+ *     them out, so the fourth verb that opens something is excluded by being
+ *     written rather than by somebody remembering this paragraph. What the
+ *     paragraph is for is saying WHY — and `../edges/EdgeVerbs.tsx` is the
+ *     other half of the answer, since a zoomed node still has to be able to
+ *     reach all three from somewhere.
  */
 
 import type { Derived, Situated } from "@olai/format"

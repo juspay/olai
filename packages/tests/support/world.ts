@@ -179,10 +179,11 @@ export const DOCUMENT_SAID = selector(TESTID.documentSaid);
 export const DOCUMENT_OVERWRITE = selector(TESTID.documentOverwrite);
 /** The notice, while the editor is open, that the file moved on disk. */
 export const DOCUMENT_DRIFTED = selector(TESTID.documentDrifted);
-/** The sidebar's way to a brand-new document, and the path box it opens. */
-export const NEW_DOCUMENT = selector(TESTID.newDocument);
-export const NEW_DOCUMENT_PATH = selector(TESTID.newDocumentPath);
-export const NEW_DOCUMENT_SAID = selector(TESTID.newDocumentSaid);
+/** The two sidebar path boxes — a new outline's and a new document's — are
+ *  reached through the client's own table (`file/making.ts`) rather than
+ *  through constants here: the steps that drive them are one pair over the
+ *  KIND (`step_definitions/new_file_steps.ts`), so a selector per kind spelled
+ *  in this file would be the copy that pair exists to delete. */
 /** A document's table of contents, above its body. A `<details>`: whether it is
  *  open is the element's own state. */
 export const TOC = selector(TESTID.toc);
@@ -207,6 +208,34 @@ export const BLOCKED = selector(TESTID.blocked);
 export const TIP = selector(TESTID.tip);
 /** A node's free cross-references (`see`). */
 export const SEE_REFS = selector(TESTID.seeRefs);
+/** What a node itself says it comes AFTER — its own field, drawn on its page
+ *  beside the DERIVED `blocked by` row above it. The two are different claims:
+ *  this one is what `set_after` writes, and only this one carries an `×`. */
+export const AFTER_REFS = selector(TESTID.afterRefs);
+/** The `×` on one drawn reference — drop that target. `data-ref` is which. */
+export const REF_DROP = selector(TESTID.refDrop);
+
+// ── writing a node's edges ─────────────────────────────────────────────
+/** The panel that writes one relation of one node, in place under the row or
+ *  under a zoomed node's heading. `data-relation` says which of `see` /
+ *  `after`; present only while it is open. */
+export const EDGE_PANEL = selector(TESTID.edgePanel);
+/** What the node says right now, inside that panel — one chip per target. */
+export const EDGE_HELD = selector(TESTID.edgeHeld);
+/** The `×` on one of those chips; `data-ref` is the target it drops. */
+export const EDGE_DROP = selector(TESTID.edgeDrop);
+/** Its search box — the server's own node search, the same one ⌘K, the header
+ *  box and the `((` widget call. */
+export const EDGE_SEARCH = selector(TESTID.edgeSearch);
+/** One hit in it; `data-id` is the node it would name. */
+export const EDGE_HIT = selector(TESTID.edgeHit);
+/** What the last edge WRITE said — a refusal verbatim (the loop an `after`
+ *  would close), or a nudge. `data-tone` is which mood. Never the same line as
+ *  a refused SEARCH. */
+export const EDGE_SAID = selector(TESTID.edgeSaid);
+/** One of the two edge verbs on a zoomed node's page, where a heading has no
+ *  `•••` to put them in. `data-relation` says which. */
+export const EDGE_VERB = selector(TESTID.edgeVerb);
 /** One link from a node to another node, in either of those rows. The target
  *  id rides `data-ref`, which is what a scenario picks one by. */
 export const NODE_REF = selector(TESTID.nodeRef);

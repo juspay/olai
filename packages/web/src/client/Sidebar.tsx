@@ -83,6 +83,7 @@ import {
 
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
+import { NewOutline } from "./outline/NewOutline.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { LAYER, WITHIN } from "./layer.ts"
@@ -250,8 +251,13 @@ export function Sidebar(props: {
             </Key>
           </ul>
           {/* Directly under the tree, because the tree is what it adds to: the
-              way to a document that does not exist yet
-              (../document/NewDocument.tsx). */}
+              two ways to a FILE that does not exist yet — an outline
+              (./outline/NewOutline.tsx) and a document
+              (./document/NewDocument.tsx), both drawing the one path box
+              (./file/NewFile.tsx). The outline first, because the tree
+              above it is mostly outlines and because that is the file this app
+              is about. */}
+          <NewOutline />
           <NewDocument />
 
           {/* And below both, the way OUT of the directory rather than into it:
