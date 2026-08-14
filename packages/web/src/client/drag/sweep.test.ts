@@ -8,7 +8,8 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { type Line, planSweep } from "./sweep.ts"
+import type { Line } from "./lines.ts"
+import { planSweep } from "./sweep.ts"
 
 /** Four rows down the page, the second and third indented — the shape that
  *  makes "a band is not a box" checkable: a rectangle drawn down the left of

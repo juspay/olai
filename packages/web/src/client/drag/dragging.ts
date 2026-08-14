@@ -56,7 +56,6 @@ import type { Row } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import { type Accessor, createContext, createSignal, onCleanup, useContext } from "solid-js"
 
-import { edgeScrolling } from "../autoscroll.ts"
 import { flatten } from "../edit/order.ts"
 import type { Said } from "../edit/undoing.ts"
 import { useUndo } from "../edit/undoing.ts"
@@ -64,6 +63,7 @@ import { longPressOn } from "../longPress.ts"
 import { drag as pointerDrag } from "../pointer.ts"
 import { beneath, depthOf } from "../select/range.ts"
 import { applyingAll } from "../writes.ts"
+import { measureLines } from "./lines.ts"
 import { type Landing, type Placed, planDrop } from "./plan.ts"
 
 /** How far the pointer must travel before a press becomes a drag rather than a
@@ -76,11 +76,6 @@ const THRESHOLD = 4
  *  drag. Asking for four more would be asking a person who has just felt the
  *  row lift to prove they meant it. */
 const HELD_THRESHOLD = 0
-
-/** The attribute a row's LINE carries so a drag can measure it. On the line and
- *  not on the `<li>`, because an item's box contains every row nested under it
- *  and the gap arithmetic is about the lines a reader sees. */
-export const ROW_KEY = "data-row-key"
 
 export interface Dragging {
   /** Is this place in the air — either picked up, or drawn under something
@@ -180,13 +175,13 @@ export const createDragging = (
    *
    * What may be dropped INTO is the other half, and it rides on each row
    * ({@link Placed.into}).
+   *
+   * WHERE the lines are is not asked here: that is one reading of the page
+   * (`./lines.ts`), shared with the sweep, and what is left in this file is the
+   * only part that is about a PLACEMENT.
    */
   const measure = (carried: ReadonlyArray<Row>): ReadonlyArray<Placed> => {
-    const lines = new Map<string, Element>()
-    for (const line of document.querySelectorAll(`[${ROW_KEY}]`)) {
-      const key = line.getAttribute(ROW_KEY)
-      if (key !== null) lines.set(key, line)
-    }
+    const lines = new Map(measureLines().map((line) => [line.key, line]))
     const keys = new Set(carried.map((one) => one.key))
     // The file the drag is ABOUT — the carried rows', not the page's, which is
     // what makes a mirror's children draggable among themselves. A pick that
@@ -194,26 +189,19 @@ export const createDragging = (
     // left out, and the ops layer refuses them by name on the bar, which is the
     // same way every other half-legal run ends here.
     const file = carried[0]?.at.file
-    const scrollX = window.scrollX
-    const scrollY = window.scrollY
     return flatten(page.rows(), page.collapsed()).flatMap((row): ReadonlyArray<Placed> => {
       if (row.at.file !== file || beneath(keys, row.key)) return []
       const line = lines.get(row.key)
       if (line === undefined) return []
-      const box = line.getBoundingClientRect()
       const shows = row.kind === "node" || row.kind === "mirror" ? row.shows : undefined
       return [{
-        key: row.key,
+        ...line,
         id: row.at.node.id,
         parent: row.at.node.parent ?? null,
         // A placement is not a parent; the node it SHOWS is, and only when that
         // node is in this file. Same rule, same reason, as `move in`'s.
         into: shows !== undefined && shows.file === file ? shows.node.id : null,
         depth: depthOf(row.key),
-        top: box.top + scrollY,
-        bottom: box.bottom + scrollY,
-        left: box.left + scrollX,
-        right: box.right + scrollX,
       }]
     })
   }
@@ -281,14 +269,6 @@ export const createDragging = (
       placed = measure(carried)
     }
 
-    /** The page keeps up with a gesture that has run out of screen, and the
-     *  landing is re-planned from where the pointer now is ON THE PAGE — which
-     *  moves when the page does, with no `pointermove` behind it
-     *  (`../autoscroll.ts`). Without this the reach of a drag is whatever was
-     *  visible when the press landed, which on an outline is most of the
-     *  gesture missing. */
-    const edge = edgeScrolling((x, y) => setLanding(planDrop(placed, x, y)))
-
     if (held) {
       lift()
       claimScroll()
@@ -296,10 +276,14 @@ export const createDragging = (
     inFlight = pointerDrag(from, {
       threshold: held ? HELD_THRESHOLD : THRESHOLD,
       onStart: held ? undefined : lift,
-      onMove: (move) => edge.at({ x: move.clientX, y: move.clientY }),
+      // ON THE PAGE, which is where the rows were measured — and which moves
+      // under a pointer held near an edge of the window, with no `pointermove`
+      // behind it (`../pointer.ts`, `../autoscroll.ts`). Without that the reach
+      // of a drag is whatever was visible when the press landed, which on an
+      // outline is most of the gesture missing.
+      onPage: (x, y) => setLanding(planDrop(placed, x, y)),
       onEnd: (up) => {
         inFlight = undefined
-        edge.stop()
         if (held) freeScroll()
         // A CANCELLED gesture is not a drop, and the difference is the whole
         // reason the primitive answers with `null` rather than with the last

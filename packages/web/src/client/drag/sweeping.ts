@@ -54,10 +54,9 @@
 
 import { type Accessor, createSignal, onCleanup } from "solid-js"
 
-import { edgeScrolling } from "../autoscroll.ts"
 import { drag as pointerDrag } from "../pointer.ts"
-import { ROW_KEY } from "./dragging.ts"
-import { type Line, planSweep, type Run, type Sweep } from "./sweep.ts"
+import { type Line, measureLines } from "./lines.ts"
+import { planSweep, type Run, type Sweep } from "./sweep.ts"
 
 /**
  * The attribute the outline's own scaffolding wears, saying a press that lands
@@ -108,36 +107,6 @@ export const createSweeping = (
   let inFlight: (() => void) | undefined
   onCleanup(() => inFlight?.())
 
-  /**
-   * Every drawn row, measured ONCE when the sweep begins, in document
-   * coordinates.
-   *
-   * The drag's rules about what to leave out are not this gesture's: a drop
-   * has places it cannot go, and a PICK has none — a run of rows from two files
-   * is a legal thing to have picked, and the bulk verbs refuse what they must
-   * by name on the bar (`../select/SelectionBar.tsx`) rather than by the
-   * gesture pretending those rows are not on screen.
-   *
-   * Document order is drawn order, which is what `querySelectorAll` answers in
-   * and what makes the run below contiguous without a second sort.
-   */
-  const measure = (): ReadonlyArray<Line> => {
-    const scrollX = window.scrollX
-    const scrollY = window.scrollY
-    return [...document.querySelectorAll(`[${ROW_KEY}]`)].flatMap((line): ReadonlyArray<Line> => {
-      const key = line.getAttribute(ROW_KEY)
-      if (key === null) return []
-      const box = line.getBoundingClientRect()
-      return [{
-        key,
-        top: box.top + scrollY,
-        bottom: box.bottom + scrollY,
-        left: box.left + scrollX,
-        right: box.right + scrollX,
-      }]
-    })
-  }
-
   const begin = (event: PointerEvent): void => {
     // The secondary button opens a context menu, and a finger is scrolling.
     if (event.button !== 0 || event.pointerType === "touch") return
@@ -168,23 +137,28 @@ export const createSweeping = (
       if (run === null) page.selection.clear()
       else page.selection.across(run.keys, run.from, run.to)
     }
-    const edge = edgeScrolling((_x, y) => plan(y))
-
     inFlight = pointerDrag(event, {
       threshold: THRESHOLD,
       // Measured when it BECOMES a sweep rather than at the press: a press that
       // turns out to be a click must not have walked the tree on its way past.
+      //
+      // EVERY drawn line, with none of the drag's exclusions: a drop has places
+      // it cannot go and a PICK has none — a run of rows from two files is a
+      // legal thing to have picked, and the bulk verbs refuse what they must by
+      // name on the bar (`../select/SelectionBar.tsx`) rather than by the
+      // gesture pretending those rows are not on screen.
       onStart: () => {
-        rows = measure()
+        rows = measureLines()
       },
-      onMove: (move) => edge.at({ x: move.clientX, y: move.clientY }),
+      // Y only, and ON THE PAGE — which moves under a pointer held near an edge
+      // of the window, so a sweep reaches past the fold (`../pointer.ts`).
+      onPage: (_x, y) => plan(y),
       // A cancelled sweep keeps what it picked, and that is not the drop's
       // rule turned round: a drop is a WRITE and half of one is a shape nobody
       // asked for, while a pick is a reading — the rows are still on screen,
       // still toned, and Escape is right there.
       onEnd: () => {
         inFlight = undefined
-        edge.stop()
         setBand(null)
       },
     })

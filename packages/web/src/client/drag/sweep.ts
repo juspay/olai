@@ -30,17 +30,7 @@
  * set nothing else here could describe.
  */
 
-/** One drawn row, as measured on screen — in the document coordinates the rows
- *  were measured in, so the answer survives the page scrolling under a live
- *  gesture (`../autoscroll.ts`). */
-export interface Line {
-  /** `Row.key` — the PLACE, which is what a selection names. */
-  readonly key: string
-  readonly top: number
-  readonly bottom: number
-  readonly left: number
-  readonly right: number
-}
+import type { Line } from "./lines.ts"
 
 /** The rows a band crosses, with its two ends named. */
 export interface Run {

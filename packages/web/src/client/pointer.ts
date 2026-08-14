@@ -30,13 +30,41 @@
  * `addEventListener`, and the SolidJS drag libraries in reach own a sortable
  * LIST — flat, one container, no depth — which is the shape neither consumer
  * has.
+ *
+ * THE PAGE KEEPING UP is here for the same reason the threshold is
+ * ({@link Gesture.onPage}): it is a paired obligation — feed it, and stop it on
+ * every way a gesture can end — and it was about to be wired identically by the
+ * two consumers that want it. Opt-in, because the third does not: a panel edge
+ * scrolling the outline behind it would be this used by accident.
  */
+
+import { edgeScrolling } from "./autoscroll.ts"
 
 export interface Gesture {
   /** The pointer has travelled far enough to be a drag rather than a press.
    *  Called at most once, before the first {@link onMove}. */
   readonly onStart?: (event: PointerEvent) => void
-  readonly onMove: (event: PointerEvent) => void
+  /** The pointer moved. Where it is in the WINDOW, which is what a width is
+   *  computed from; a gesture aimed at the page wants {@link onPage} instead. */
+  readonly onMove?: (event: PointerEvent) => void
+  /**
+   * Where the pointer is ON THE PAGE, in document coordinates — and, because
+   * asking that is what a gesture aimed at rows does, the page KEEPS UP: held
+   * near an edge of the window it scrolls, and this is called again on every
+   * frame it moves (`./autoscroll.ts`).
+   *
+   * It is here rather than in each caller because both gestures that want it
+   * were wiring the same two lines, and it is a PAIRED obligation — feed it on
+   * every move, and stop it on every way the gesture can end — which is exactly
+   * the kind of thing this module took over for the panel edges. Composed here,
+   * a caller cannot forget the second half, and the frame loop dies with the
+   * gesture rather than with whoever remembered.
+   *
+   * Absent means the page does not move, which is the right answer for a
+   * gesture that is not about the page at all: a panel edge scrolling the
+   * outline behind it would be this option used by accident.
+   */
+  readonly onPage?: (x: number, y: number) => void
   /** The gesture is over. `null` means it was CANCELLED — the pointer was
    *  taken away rather than released — which is a different answer from "let
    *  go here" and the one a caller must not read as a drop. */
@@ -65,6 +93,11 @@ export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
   // The press must not select the text under it while the pointer travels.
   const selection = document.body.style.userSelect
   document.body.style.userSelect = "none"
+  /** Only for a gesture that asked to follow the page. Nothing is scheduled and
+   *  nothing is listened for otherwise. */
+  const following = gesture.onPage === undefined
+    ? undefined
+    : edgeScrolling(gesture.onPage)
 
   const onMove = (event: PointerEvent) => {
     if (!started) {
@@ -72,7 +105,8 @@ export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
       started = true
       gesture.onStart?.(event)
     }
-    gesture.onMove(event)
+    gesture.onMove?.(event)
+    following?.at({ x: event.clientX, y: event.clientY })
   }
 
   const end = (event: PointerEvent | null) => {
@@ -80,6 +114,7 @@ export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
     window.removeEventListener("pointerup", onUp)
     window.removeEventListener("pointercancel", onCancel)
     document.body.style.userSelect = selection
+    following?.stop()
     gesture.onEnd(event)
   }
   const onUp = (event: PointerEvent) => end(event)

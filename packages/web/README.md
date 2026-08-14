@@ -1591,10 +1591,21 @@ The pieces, and what each decides:
   a branch inside itself" is true by construction rather than by a guard — and
   what is left is still a tree, so the walk back for an ancestor always finds
   one.
+- **`drag/lines.ts` — a drawn row's LINE, measured, said once.** Both gestures
+  begin by asking the page the same question (where are the lines, in
+  coordinates that survive a scroll) and each had its own answer, with the drag
+  owning the attribute name and the sweep importing it from there — which said
+  that measuring a row belongs to dragging one. It belongs to the ROW. The mark
+  is on the row's own line and not on its `<li>`, whose box is a subtree's; the
+  coordinates are the DOCUMENT's, so the answer survives the page moving under a
+  live gesture and the affordances can be positioned against the page. `Placed`
+  is that line PLUS the four things a placement needs, rather than a second flat
+  record that happens to share five fields.
 - **`src/client/pointer.ts` — the gesture itself, which is not the outline's.**
   Window listeners (a pointer that leaves the handle is still dragging it), a
-  teardown on every way a gesture can end, the text-selection guard, and the
-  threshold that tells a drag from a click. It was written once for the panel
+  teardown on every way a gesture can end, the text-selection guard, the
+  threshold that tells a drag from a click, and — opt-in, via `onPage` — the
+  page KEEPING UP. It was written once for the panel
   edges (`layout/resize.ts`) and was about to be written a second time, which is
   the moment it becomes a thing rather than a habit; what stayed in each caller
   is the only part that is about a width or about a placement. It holds the
@@ -1668,7 +1679,11 @@ The pieces, and what each decides:
   `pointermove` behind them, which is exactly the behaviour and exactly what a
   caller that re-planned only on `pointermove` would get wrong. The speed ramps
   with how deep into the zone the pointer is: a constant one bolts the instant a
-  hand strays near the edge.
+  hand strays near the edge. **Spent through `pointer.ts`'s `onPage`** rather
+  than wired per caller: it is a paired obligation (feed it, and stop it on
+  every way a gesture can end), which is exactly the kind of thing that module
+  took over for the panel edges — and opt-in, because a panel edge scrolling the
+  outline behind it would be this used by accident.
 
 **A finger holds the bullet first.** The gesture a phone already owns on a row
 is the page scrolling under it, so a drag that took the first pixel of travel

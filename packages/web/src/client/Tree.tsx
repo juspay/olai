@@ -68,7 +68,8 @@ import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
-import { ROW_KEY, useDragging } from "./drag/dragging.ts"
+import { useDragging } from "./drag/dragging.ts"
+import { ROW_KEY } from "./drag/lines.ts"
 import { HANDLE, Handle } from "./drag/Handle.tsx"
 import { useSelection } from "./select/selection.ts"
 import { DatePicker } from "./date/DatePicker.tsx"
@@ -361,9 +362,10 @@ function Branch(props: {
           "opacity-40": carried(),
         }}
         data-testid={TESTID.nodeGutter}
-        // What a drag measures. On the LINE and not on the item, because an
-        // item's box contains every row nested under it and the gap arithmetic
-        // is about the lines a reader sees (`./drag/dragging.ts`).
+        // What a gesture measures — a drag's gaps, a sweep's crossings. On the
+        // LINE and not on the item, because an item's box contains every row
+        // nested under it and both are about the lines a reader sees
+        // (`./drag/lines.ts`).
         {...{ [ROW_KEY]: props.row.key }}
       >
         {/* Hover strip: triangle always (phone) / hover-reveal (pointer). The
