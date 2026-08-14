@@ -42,6 +42,37 @@ export const flatten = (
   return drawn
 }
 
+/**
+ * Where a RECORD is drawn now, given where it was drawn before.
+ *
+ * The one rule that keeps a person's place across a server-authoritative
+ * redraw, and it is one rule because two things need it: the caret
+ * (`./editing.tsx`, one place) and a multi-selection (`../select/selection.ts`,
+ * a set of them). A place is a chain of ids, so `Tab` changes it — the row that
+ * was `…/install/measure` is `…/handles/measure` the moment the file says so —
+ * and anything still holding the old chain is pointing at nothing.
+ *
+ * The brainstorming note (docs/brainstorming/editing-web.md) filed this as "a
+ * primitive nobody owns", to be moved the day a second consumer appeared. It
+ * appeared.
+ *
+ * By the row's OWN record rather than by the node it shows: a mirrored node is
+ * drawn at more than one place, and what is being followed is the placement the
+ * reader was standing in. `at` is where it was drawn — passed in, and answered
+ * unchanged when that row is still there, so a caller can tell "it has not
+ * moved" from "it has" without a second scan. `null` is for a place that has
+ * never been drawn (a row an `add` has just made), which is the same question
+ * with no previous answer.
+ */
+export const refound = (
+  drawn: ReadonlyArray<Row>,
+  record: string,
+  at: string | null,
+): string | undefined => {
+  if (at !== null && drawn.some((row) => row.key === at)) return at
+  return drawn.find((row) => row.at.node.id === record)?.key
+}
+
 /** The row before or after this place, or `undefined` at either end of the
  *  page — where the caret simply stays put, because there is nowhere to go and
  *  a wrap-around would be a surprise rather than a convenience. */
