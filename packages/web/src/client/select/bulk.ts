@@ -105,18 +105,3 @@ export const bulkEdits = (
  *  rows would be the quiet kind of wrong. */
 export const archivable = (rows: ReadonlyArray<Row>): boolean =>
   rows.length > 0 && rows.every((row) => row.kind === "node")
-
-/** What the confirm asks before a bulk put-away — the `•••` menu's question at
- *  selection size. It names the ROWS THE WRITE MOVES, which is the selection
- *  plus everything under it; the count is the caller's, because how much hangs
- *  under a row is a fact about the set rather than about the tree this page
- *  happens to be drawing (`../menu/subtree.ts`). */
-export const archiveQuestion = (rows: number, moved: number): string => {
-  const one = rows === 1
-  const under = moved - rows
-  return `Move ${one ? "this row" : `these ${rows} rows`}${
-    under === 0 ? "" : ` and the ${under === 1 ? "row" : `${under} rows`} under ${
-      one ? "it" : "them"
-    }`
-  } to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back.`
-}

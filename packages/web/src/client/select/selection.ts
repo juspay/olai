@@ -44,7 +44,7 @@ import {
   useContext,
 } from "solid-js"
 
-import { flatten, neighbour } from "../edit/order.ts"
+import { flatten, neighbour, refound } from "../edit/order.ts"
 import { serial } from "../edit/queue.ts"
 import type { Said } from "../edit/undoing.ts"
 import { useUndo } from "../edit/undoing.ts"
@@ -129,27 +129,21 @@ export const createSelection = (
   }
 
   /**
-   * A picked place that is no longer drawn, found again by the RECORD it named.
+   * The picked places, found again wherever their records are drawn now.
    *
-   * The caret's rule (`../edit/editing.tsx`), for the same reason: a bulk
-   * indent redraws every row it moved under a new chain of ids, and a selection
+   * The caret's rule at set size (`../edit/order.ts`'s `refound`): a bulk
+   * indent redraws every row it moved under a new chain of ids, and a pick
    * still holding the old chain would go dark on the frame that proved it
-   * worked. By the row's own record, so a placement stays picked as the
-   * placement it is.
+   * worked.
    */
   createEffect(() => {
     const rows = drawn()
     const held = keys()
     if (held.size === 0) return
-    const places = new Set(rows.map((row) => row.key))
-    if ([...held].every((key) => places.has(key))) return
-    /** Where each record is drawn NOW — first drawing wins, which is the same
-     *  answer `follow` takes for the caret when a node is reachable through
-     *  more than one placement. */
-    const now = new Map<string, string>()
-    for (const row of rows) if (!now.has(row.at.node.id)) now.set(row.at.node.id, row.key)
-    const again = (key: string): string | undefined =>
-      places.has(key) ? key : now.get(recordOf(key))
+    const again = (key: string): string | undefined => refound(rows, recordOf(key), key)
+    // Nothing moved: the ordinary frame, and the one that must not mint a new
+    // set — every row of the tree reads this signal.
+    if ([...held].every((key) => again(key) === key)) return
 
     setKeys(new Set([...held].flatMap((key) => {
       const found = again(key)

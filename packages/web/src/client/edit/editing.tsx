@@ -75,7 +75,7 @@ import {
   slotOf,
   typed,
 } from "./draft.ts"
-import { flatten, neighbour } from "./order.ts"
+import { flatten, neighbour, refound } from "./order.ts"
 import { serial } from "./queue.ts"
 import { useUndo } from "./undoing.ts"
 
@@ -256,14 +256,14 @@ export const createEditor = (
    * A draft names a ROW, and where that row is drawn is a `Row.key` — the
    * chain of ids from the root of the page — so `Tab` changes it: the row that
    * was `…/install/measure` is `…/handles/measure` the moment the file says
-   * so. That is the honest consequence of having no optimistic UI, and this is
-   * the one line that answers it. It is also how a row that did not exist when
-   * `Enter` was pressed gets located: `landed` leaves the place `null` and the
-   * frame carrying the new row fills it in.
+   * so. That is the honest consequence of having no optimistic UI. It is also
+   * how a row that did not exist when `Enter` was pressed gets located:
+   * `landed` leaves the place `null` and the frame carrying the new row fills
+   * it in.
    *
-   * By the row's OWN record rather than the node it shows: a mirrored node is
-   * drawn at more than one place, and the caret belongs to the placement the
-   * reader was typing in.
+   * The RULE itself is `./order.ts`'s (`refound`), because a multi-selection
+   * needs the same one over a set of places — this is the effect that applies
+   * it to the one place a caret is in.
    */
   const follow = () => {
     // The PRIMITIVES, so typing does not run this: what it needs is where the
@@ -271,10 +271,8 @@ export const createEditor = (
     const at = where().place
     const held = untrack(draft)
     if (held === null || held.kind !== "row") return
-    const drawn = flatten(page.rows(), page.collapsed())
-    if (at !== null && drawn.some((row) => row.key === at)) return
-    const moved = drawn.find((row) => row.at.node.id === held.row)
-    if (moved !== undefined) setDraft({ ...held, place: moved.key })
+    const moved = refound(flatten(page.rows(), page.collapsed()), held.row, at)
+    if (moved !== undefined && moved !== at) setDraft({ ...held, place: moved })
   }
   createEffect(follow)
 

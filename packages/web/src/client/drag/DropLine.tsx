@@ -23,7 +23,7 @@ import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { TESTID } from "../testids.ts"
-import type { Landing } from "./dragging.ts"
+import type { Landing } from "./plan.ts"
 
 export function DropLine(props: { readonly landing: Landing | null }) {
   return (
@@ -38,9 +38,9 @@ export function DropLine(props: { readonly landing: Landing | null }) {
               width: `${landing().width}px`,
             }}
             data-testid={TESTID.dropLine}
-            data-parent={landing().drop.parent ?? ""}
-            data-after={landing().drop.after ?? ""}
-            data-depth={String(landing().drop.depth)}
+            data-parent={landing().parent ?? ""}
+            data-after={landing().after ?? ""}
+            data-depth={String(landing().depth)}
             aria-hidden="true"
           />
         </Portal>

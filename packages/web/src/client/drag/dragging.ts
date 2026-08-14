@@ -43,7 +43,7 @@ import { useUndo } from "../edit/undoing.ts"
 import { drag as pointerDrag } from "../pointer.ts"
 import { depthOf, inside } from "../select/range.ts"
 import { applyingAll } from "../writes.ts"
-import { type Drop, FALLBACK_INDENT, indentOf, type Placed, planDrop } from "./plan.ts"
+import { type Landing, type Placed, planDrop } from "./plan.ts"
 
 /** How far the pointer must travel before a press becomes a drag rather than a
  *  click on the bullet's link. Four pixels is the number a hand resting on a
@@ -54,15 +54,6 @@ const THRESHOLD = 4
  *  not on the `<li>`, because an item's box contains every row nested under it
  *  and the gap arithmetic is about the lines a reader sees. */
 export const ROW_KEY = "data-row-key"
-
-/** Where the indicator goes, in document coordinates, and the placement it is
- *  promising. */
-export interface Landing {
-  readonly drop: Drop
-  readonly top: number
-  readonly left: number
-  readonly width: number
-}
 
 export interface Dragging {
   /** Is this place in the air — either picked up, or drawn under something
@@ -163,25 +154,6 @@ export const createDragging = (
     })
   }
 
-  /** Where to draw the line for a landing: along the gap it names, offset to
-   *  the depth it promises. The rows either side of the gap are what says where
-   *  that is on screen — a drop at the end of the list sits under the last row,
-   *  and one at the top sits above the first. */
-  const drawn = (
-    rows: ReadonlyArray<Placed>,
-    drop: Drop,
-    indent: number,
-  ): Landing | null => {
-    const above = rows[drop.gap - 1]
-    const below = rows[drop.gap]
-    const edge = above?.bottom ?? below?.top
-    const beside = above ?? below
-    if (edge === undefined || beside === undefined) return null
-    const origin = beside.left - beside.depth * indent
-    const left = origin + drop.depth * indent
-    return { drop, top: edge, left, width: Math.max(0, beside.right - left) }
-  }
-
   const grab = (event: PointerEvent, row: Row) => {
     // The secondary button opens a context menu; a drag is the primary one's.
     if (event.button !== 0) return
@@ -192,7 +164,6 @@ export const createDragging = (
      *  cleared the selection on its way past. */
     let carried: ReadonlyArray<Row> = []
     let placed: ReadonlyArray<Placed> = []
-    let indent = 0
 
     pointerDrag(event, {
       threshold: THRESHOLD,
@@ -204,12 +175,8 @@ export const createDragging = (
         const keys = new Set(carried.map((one) => one.key))
         setMoving(keys)
         placed = measure(keys)
-        indent = indentOf(placed) ?? FALLBACK_INDENT
       },
-      onMove: (move) => {
-        const found = planDrop(placed, move.pageX, move.pageY)
-        setLanding(found === null ? null : drawn(placed, found, indent))
-      },
+      onMove: (move) => setLanding(planDrop(placed, move.pageX, move.pageY)),
       onEnd: (up) => {
         // A CANCELLED gesture is not a drop, and the difference is the whole
         // reason the primitive answers with `null` rather than with the last
@@ -218,7 +185,7 @@ export const createDragging = (
         setMoving(new Set<string>())
         setLanding(null)
         if (target === null || carried.length === 0) return
-        void drop(target.drop, carried)
+        void drop(target, carried)
       },
     })
   }
@@ -231,7 +198,7 @@ export const createDragging = (
    * which is the rule every `move` in this editor follows and the opposite of
    * the rule a mark follows.
    */
-  const drop = async (target: Drop, carried: ReadonlyArray<Row>): Promise<void> => {
+  const drop = async (target: Landing, carried: ReadonlyArray<Row>): Promise<void> => {
     let after = target.after
     const edits: Array<Edit> = []
     for (const row of carried) {

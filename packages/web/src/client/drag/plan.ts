@@ -50,11 +50,31 @@ export interface Placed {
   readonly right: number
 }
 
-/** A landing place: the `place` edit's two fields, plus what to DRAW to promise
- *  it — the gap the indicator sits at and the depth it is offset to. */
-export interface Drop {
+/**
+ * A landing place: what the drop WOULD DO, and where to draw the line that
+ * promises it.
+ *
+ * ONE value, because a caller that got the placement and then measured the line
+ * for itself would be reading the same rows twice and could disagree with this
+ * module about which gap it meant. It is also the shape that keeps the steps
+ * below private: the arithmetic is not a toolkit, it is one answer.
+ */
+export interface Landing {
   readonly parent: string | null
   /** The sibling it lands after, or `null` for first among them. */
+  readonly after: string | null
+  /** Where the indicator goes, in the coordinates the rows were measured in. */
+  readonly top: number
+  readonly left: number
+  readonly width: number
+  /** How far in the line is drawn — the answer, as a fact rather than as a
+   *  position, which is what a scenario holds this to. */
+  readonly depth: number
+}
+
+/** The placement half, before the line is measured for it. */
+interface Drop {
+  readonly parent: string | null
   readonly after: string | null
   readonly gap: number
   readonly depth: number
@@ -67,7 +87,7 @@ export interface Drop {
  * (`../touch.ts`'s `CHILD_INDENT` is `ml-3 pl-3` on a phone and `ml-4 pl-4`
  * above it), and a constant here would be right on one of them.
  */
-export const indentOf = (rows: ReadonlyArray<Placed>): number | null => {
+const indentOf = (rows: ReadonlyArray<Placed>): number | null => {
   const first = rows[0]
   if (first === undefined) return null
   for (const row of rows) {
@@ -82,7 +102,7 @@ export const indentOf = (rows: ReadonlyArray<Placed>): number | null => {
  *  desktop step, because that is the one a pointer is nearly always on; being
  *  a few pixels out only changes how far the pointer has to travel to ask for
  *  the one extra depth such a page offers. */
-export const FALLBACK_INDENT = 32
+const FALLBACK_INDENT = 32
 
 /**
  * Which gap the pointer is in: the number of rows whose middle is above it.
@@ -91,7 +111,7 @@ export const FALLBACK_INDENT = 32
  * line exactly when the pointer crosses its centre — which is what makes a
  * short drag between two adjacent rows feel like it snaps rather than sticks.
  */
-export const gapAt = (rows: ReadonlyArray<Placed>, y: number): number =>
+const gapAt = (rows: ReadonlyArray<Placed>, y: number): number =>
   rows.filter((row) => y > (row.top + row.bottom) / 2).length
 
 /**
@@ -104,7 +124,7 @@ export const gapAt = (rows: ReadonlyArray<Placed>, y: number): number =>
  * promise a shape the tree cannot hold. At the end of the list there is no row
  * below, so the top level is reachable.
  */
-export const depthsAt = (
+const depthsAt = (
   rows: ReadonlyArray<Placed>,
   gap: number,
 ): { readonly min: number; readonly max: number } => {
@@ -118,7 +138,7 @@ export const depthsAt = (
 /** The depth the pointer is asking for, clamped to what the gap can hold. The
  *  origin is read off a row rather than off the page: `left - depth × indent`
  *  is where depth 0 starts, and every row agrees about it. */
-export const depthAt = (
+const depthAt = (
   rows: ReadonlyArray<Placed>,
   gap: number,
   x: number,
@@ -145,7 +165,7 @@ export const depthAt = (
  *     contain an ancestor of the row above at every depth down to the page's
  *     roots, which is what a tree is.
  */
-export const dropAt = (
+const dropAt = (
   rows: ReadonlyArray<Placed>,
   gap: number,
   depth: number,
@@ -169,14 +189,39 @@ export const dropAt = (
   return null
 }
 
-/** The three steps, in the one order they are ever wanted — what a pointer at
- *  `(x, y)` over these rows is asking for. */
+/**
+ * What a pointer at `(x, y)` over these rows is asking for — the ONE thing this
+ * module answers.
+ *
+ * The steps above are private on purpose: a consumer that composed them would
+ * be the missing-primitive smell, and the missing primitive is exactly this
+ * composition. The indent is read once here and both halves use it — the depth
+ * the pointer is asking for, and where to draw the line that promises it — so
+ * the answer and the affordance cannot come from two readings of the page.
+ */
 export const planDrop = (
   rows: ReadonlyArray<Placed>,
   x: number,
   y: number,
-): Drop | null => {
+): Landing | null => {
   const gap = gapAt(rows, y)
   const indent = indentOf(rows) ?? FALLBACK_INDENT
-  return dropAt(rows, gap, depthAt(rows, gap, x, indent))
+  const drop = dropAt(rows, gap, depthAt(rows, gap, x, indent))
+  if (drop === null) return null
+  // Along the gap it names, offset to the depth it promises. The rows either
+  // side of that gap are what say where it is on screen: a drop at the end of
+  // the list sits under the last row, one at the top sits above the first.
+  const above = rows[drop.gap - 1]
+  const beside = above ?? rows[drop.gap]
+  const edge = above?.bottom ?? rows[drop.gap]?.top
+  if (beside === undefined || edge === undefined) return null
+  const left = beside.left - beside.depth * indent + drop.depth * indent
+  return {
+    parent: drop.parent,
+    after: drop.after,
+    depth: drop.depth,
+    top: edge,
+    left,
+    width: Math.max(0, beside.right - left),
+  }
 }

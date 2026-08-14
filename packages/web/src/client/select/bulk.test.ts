@@ -1,7 +1,7 @@
 import type { Row } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { archivable, archiveQuestion, bulkEdits } from "./bulk.ts"
+import { archivable, bulkEdits } from "./bulk.ts"
 
 /** A row, as a bulk verb sees one: the record it IS (what a move names) and the
  *  node it SHOWS (what a mark names), which for a mirror are two ids. */
@@ -61,14 +61,3 @@ test("a placement is not something this face may put away", () => {
   expect(archivable([])).toBe(false)
 })
 
-test("the confirm names the rows the write moves, not the ones that were picked", () => {
-  expect(archiveQuestion(2, 2)).toContain("these 2 rows")
-  expect(archiveQuestion(2, 2)).not.toContain("under them")
-  expect(archiveQuestion(2, 5)).toContain("the 3 rows under them")
-  expect(archiveQuestion(1, 1)).toContain("this row")
-  // One row taking three with it says "under IT", and one row taking one says
-  // "the row" — a question a person is asked to agree to has to read as
-  // English, and a count is where that most easily stops being true.
-  expect(archiveQuestion(1, 4)).toContain("the 3 rows under it")
-  expect(archiveQuestion(1, 2)).toContain("the row under it")
-})

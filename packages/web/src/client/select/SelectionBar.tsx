@@ -37,7 +37,8 @@ import { useDerived } from "../derived.tsx"
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { under } from "../menu/subtree.ts"
-import { archivable, archiveQuestion } from "./bulk.ts"
+import { archiveQuestion } from "../trash/question.ts"
+import { archivable } from "./bulk.ts"
 import { useSelection } from "./selection.ts"
 
 export function SelectionBar() {
@@ -46,16 +47,15 @@ export function SelectionBar() {
   const [asking, setAsking] = createSignal(false)
 
   const rows = () => selection.rows()
-  /** How many records the put-away would move: the picked rows and everything
-   *  filed under them. Asked of the SET rather than of the tree, for the reason
-   *  the `•••` menu's own confirm asks it there — a page hiding what is done is
-   *  drawing fewer rows than the write moves (`../menu/subtree.ts`). */
-  const moved = createMemo(() => {
+  /** How many rows hang UNDER the picked ones. Asked of the SET rather than of
+   *  the tree, for the reason the `•••` menu's own confirm asks it there — a
+   *  page hiding what is done is drawing fewer rows than the write moves
+   *  (`../menu/subtree.ts`). */
+  const beneath = createMemo(() => {
     const indexes = derived()
-    if (indexes === undefined) return rows().length
+    if (indexes === undefined) return 0
     return rows().reduce(
-      (count, row) =>
-        count + 1 + (row.kind === "node" ? under(indexes, row.shows.node.id) : 0),
+      (count, row) => count + (row.kind === "node" ? under(indexes, row.shows.node.id) : 0),
       0,
     )
   })
@@ -106,7 +106,7 @@ export function SelectionBar() {
                   }
                 >
                   <span data-testid={TESTID.selectionConfirm}>
-                    {archiveQuestion(rows().length, moved())}
+                    {archiveQuestion({ kind: "rows", count: rows().length }, beneath())}
                   </span>
                   <button
                     type="button"
