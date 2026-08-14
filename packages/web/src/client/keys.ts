@@ -129,10 +129,20 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
 
 /**
  * What a key does inside a row's editor. Workflowy's set, minus everything
- * deferred to its own roadmap item — there is no delete, no split, no merge
- * and no multi-select here, so no key spells one.
+ * deferred to its own roadmap item — there is no delete and no multi-select
+ * here, so no key spells one.
  *
  *   - `add` — `Enter`: commit what is typed and open the next row's editor.
+ *   - `split` — `Enter` again, with text on BOTH sides of the caret: the row
+ *     becomes two. One key with two readings and deliberately not a mode: what
+ *     decides is where the caret is in the sentence the person is looking at,
+ *     which is how every outliner behaves and what Workflowy trained the hands
+ *     that will press it. The caret is a fact about the FIELD rather than about
+ *     the event, so it arrives as {@link Caret} — which is also what keeps this
+ *     matcher testable with no DOM.
+ *   - `merge` — `Backspace` at offset zero with nothing selected: the row joins
+ *     the one above it. The one position where `Backspace` has nothing of its
+ *     own to delete, which is why it is safe to claim there and nowhere else.
  *   - `in` / `out` — `Tab` / `Shift+Tab`.
  *   - `up` / `down` — `Alt+Shift+↑/↓`, moving among siblings. The four names
  *     are the surface's own `move` verbs, spelled once
@@ -161,12 +171,14 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
  *     does in one press.
  *   - `selectAll` — the SECOND `⌘A` in a row: the first is the input's own
  *     select-all (the platform's, untouched), and once the whole line is
- *     already selected the chord means the row rather than its text. That
- *     "already selected" is a fact about the FIELD, so it is passed in rather
- *     than read here — this file has no DOM.
+ *     already selected the chord means the row rather than its text. Like
+ *     `split` and `merge`, it is a question about {@link Caret} — this file has
+ *     no DOM, so where the caret is arrives as a value.
  */
 export type EditAction =
   | "add"
+  | "split"
+  | "merge"
   | "in"
   | "out"
   | "up"
@@ -193,14 +205,36 @@ export type EditAction =
  */
 export type EditField = "line" | "block"
 
+/**
+ * Where the caret is in the field the key was pressed in, and what that field
+ * holds — the one thing about the DOM that two of these keys depend on.
+ *
+ * A VALUE rather than the element, so this file stays pure of the DOM beyond
+ * the event and both matchers stay unit-testable with no window. A selection is
+ * spelled by `start` and `end` differing, which is what makes "Backspace at the
+ * start of a line" and "Backspace deleting a selection that begins at the start
+ * of a line" two different answers rather than one.
+ *
+ * The TEXT rather than its length, because "is there a half here" is not "is
+ * there a character here": a half that is nothing but spaces is a title this
+ * format cannot hold, and the documented answer for a half it cannot hold is
+ * that the key is an `add`. Reading the length alone made `"  hello"` split at
+ * offset 2 into a refusal a person then had to read.
+ */
+export interface Caret {
+  readonly start: number
+  readonly end: number
+  readonly text: string
+}
+
 export const editKey = (
   event: KeyboardEvent,
   field: EditField,
-  /** Whether the field's whole value is already selected — the one thing this
-   *  matcher cannot see for itself, and the only thing that tells the second
-   *  `⌘A` from the first. `false` by default, so a caller that does not care
-   *  about the ladder gets the platform's own select-all and nothing else. */
-  whole = false,
+  /** Absent when the caller cannot say — and then the THREE caret-dependent
+   *  readings are simply not reachable, which is the safe way round: `Enter`
+   *  goes on opening the next line, `Backspace` stays the field's own, and
+   *  `⌘A` stays the platform's. */
+  at?: Caret,
 ): EditAction | null => {
   // Order matters: every branch below is a more specific reading of a key a
   // later branch also matches, and the modifiers are what tell them apart.
@@ -221,8 +255,25 @@ export const editKey = (
   if (event.key === "Enter") {
     if (event.ctrlKey || event.metaKey) return event.shiftKey ? "walk" : "toggle"
     if (event.altKey) return null
-    return "add"
+    // A TITLE ON BOTH SIDES is the whole test, and each half rules out a case
+    // this format cannot hold. Nothing before the caret would leave the row with
+    // an empty title, which is not a node the ops layer will write — so `Enter`
+    // at the head of a line goes on being the key that opens the next one, and
+    // there is no blank row to insert above. Nothing after it is the ordinary
+    // end-of-line press. A SELECTION spanning to either end reads the same way,
+    // since what a split keeps is what falls outside it. And a half that is
+    // nothing but whitespace is one of those cases rather than a split the ops
+    // layer would refuse a moment later — the decision is that a half this
+    // format cannot hold makes the key an `add`, so it is spelled here.
+    return at !== undefined && halves(at) ? "split" : "add"
   }
+  // The caret at the very start with nothing selected — the one place a
+  // `Backspace` has nothing of its own to delete, which is exactly why it is
+  // free to mean something else there and nowhere else.
+  if (
+    event.key === "Backspace" && !event.shiftKey && !event.altKey && !event.ctrlKey &&
+    !event.metaKey && at !== undefined && at.start === 0 && at.end === 0
+  ) return "merge"
   if (event.key === "Tab" && !event.ctrlKey && !event.metaKey && !event.altKey) {
     return event.shiftKey ? "out" : "in"
   }
@@ -240,15 +291,23 @@ export const editKey = (
       return down ? "next" : "prev"
     }
   }
-  // The second `⌘A`. The first one is not this layer's at all — it never gets
-  // here, because `whole` is false until the platform's own select-all has
-  // already run.
+  // The second `⌘A`. The first one is not this layer's at all: it never gets
+  // past `whole`, which is false until the platform's own select-all has
+  // already run — the same caret value the two keys above read, asked a third
+  // question.
   if (
-    whole && !event.shiftKey && !event.altKey &&
+    at !== undefined && whole(at) && !event.shiftKey && !event.altKey &&
     (event.key === "a" || event.key === "A") && (event.ctrlKey || event.metaKey)
   ) return "selectAll"
   return null
 }
+
+/** Is the whole line already selected? What tells the second `⌘A` from the
+ *  first, and the reason it is a question about the CARET rather than a flag
+ *  beside one: an empty field is not "wholly selected", so `⌘A` in a new row
+ *  does nothing rather than picking the row that has not been written yet. */
+const whole = (at: Caret): boolean =>
+  at.text.length > 0 && at.start === 0 && at.end === at.text.length
 
 // ── the selection layer ────────────────────────────────────────────────
 
@@ -305,6 +364,12 @@ export const selectKey = (event: KeyboardEvent): SelectAction | null => {
   return null
 }
 
+/** Whether cutting here leaves a TITLE on both sides — which is not the same
+ *  question as "is there a character on both sides": a node needs a title, and
+ *  a title of spaces is not one. */
+const halves = (at: Caret): boolean =>
+  at.text.slice(0, at.start).trim() !== "" && at.text.slice(at.end).trim() !== ""
+
 /**
  * The keys, written down for a PERSON.
  *
@@ -346,6 +411,12 @@ export const SHORTCUTS: ReadonlyArray<{
     keys: [
       { keys: "Click a title", what: "put the caret in it" },
       { keys: "Enter", what: "commit, and open the next line", action: "add" },
+      { keys: "Enter mid-line", what: "split the row in two there", action: "split" },
+      {
+        keys: "Backspace at the start",
+        what: "join this row onto the one above",
+        action: "merge",
+      },
       { keys: "Tab", what: "indent under the row above", action: "in" },
       { keys: "Shift+Tab", what: "outdent, after the old parent", action: "out" },
       { keys: "Alt+Shift+↑", what: "move up among its siblings", action: "up" },

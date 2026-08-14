@@ -18,6 +18,7 @@
 
 import { Show } from "solid-js"
 
+import { LAYER } from "../layer.ts"
 import { TESTID } from "../testids.ts"
 import type { Said } from "./undoing.ts"
 
@@ -27,7 +28,9 @@ export function UndoSaid(props: { readonly said: Said | null }) {
       {(said) => (
         // Pointer-events off: it sits over the page, and a line of text is not
         // a thing to click — whatever is under it stays reachable.
-        <div class="pointer-events-none fixed inset-x-0 top-[var(--height-header)] z-40 flex justify-center px-4">
+        <div
+          class={`pointer-events-none fixed inset-x-0 top-[var(--height-header)] ${LAYER.chrome} flex justify-center px-4`}
+        >
           <p
             class="mt-2 max-w-lg rounded border bg-paper px-3 py-1.5 text-[0.8125rem] leading-snug shadow-sm"
             classList={{

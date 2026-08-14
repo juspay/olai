@@ -442,12 +442,9 @@ When(
 When(
   "I click away from the note of {string}",
   async function (this: OlaiWorld, id: string) {
-    // The sidebar is outside every note control. Clicking it collapses an
-    // open note without following a navigation that would leave the page.
-    const sidebar = this.page.locator('[data-testid="sidebar"]').first();
-    await sidebar.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await sidebar.click({ position: { x: 8, y: 8 } });
-    await this.waitForFrame();
+    // `clickAway` is the suite's one press on somewhere-else (support/world);
+    // what this step adds on top is the note having actually folded.
+    await this.clickAway();
     await this.waitUntil(
       async () =>
         (await this.node(id).first().getAttribute("data-note-open"))
@@ -838,10 +835,8 @@ When(
   "I focus the collapse control of {string}",
   async function (this: OlaiWorld, id: string) {
     // Opacity-0 still receives programmatic focus; that is what fires
-    // group-focus-within without a pointer hover.
-    const toggle = this.within(id, TOGGLE);
-    await toggle.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-    await toggle.evaluate((el) => (el as HTMLElement).focus());
-    await this.waitForFrame();
+    // group-focus-within without a pointer hover, and `focusWithin` is where
+    // that reasoning lives (support/world) — the `•••` is focused the same way.
+    await this.focusWithin(id, TOGGLE);
   },
 );

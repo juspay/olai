@@ -17,6 +17,10 @@
  * Keys are pressed by NAME (`"Alt+Shift+ArrowUp"`), which is Playwright's own
  * spelling and the same one the client's keyboard map is written against — so
  * a scenario says the chord a person presses rather than a synthetic event.
+ *
+ * And every gesture here waits for the CLIENT'S own answer to it before the
+ * next one is aimed at the page. What that answer looks like, and why nothing
+ * else in the harness can stand in for it, is `support/caret.ts`.
  */
 
 import * as assert from "node:assert";
@@ -29,6 +33,12 @@ import { IDLE_COMMIT } from "@olai/web/src/client/edit/draft.ts";
 
 import type { Locator } from "playwright";
 
+import {
+  aimedAtTheLine,
+  leavingTheLine,
+  nothingIsBeingTyped,
+  pressed,
+} from "../support/caret.ts";
 import { saysNothing, saysThat } from "../support/said.ts";
 import {
   DESC_EDITOR,
@@ -81,6 +91,7 @@ When("I start the first line", async function (this: OlaiWorld) {
 // ── typing ─────────────────────────────────────────────────────────────
 
 When("I type {string}", async function (this: OlaiWorld, text: string) {
+  await aimedAtTheLine(this);
   await this.page.keyboard.type(text);
 });
 
@@ -90,29 +101,18 @@ When(
     // Select-all inside the field, which is what a person retyping a title
     // does. An empty `text` is the whole point of one scenario: the field is
     // cleared and the write is refused.
+    await aimedAtTheLine(this);
     await this.page.keyboard.press("ControlOrMeta+a");
     if (text === "") await this.page.keyboard.press("Backspace");
     else await this.page.keyboard.type(text);
   },
 );
 
+// ── the keys ───────────────────────────────────────────────────────────
+
 When("I press {string}", async function (this: OlaiWorld, key: string) {
-  const editing = (await this.page.locator(TITLE_EDITOR).count()) > 0;
-  await this.page.keyboard.press(key);
-  await this.waitForFrame();
-  if (editing && (key === "Alt+Shift+ArrowUp" || key === "Alt+Shift+ArrowDown")) {
-    // A move remounts the row. The next key (⌘Enter) is for the caret
-    // that has to come back; one frame is not that, under load.
-    //
-    // Only when there WAS a caret: the same chord over a multi-selection moves
-    // rows with no editor open at all (`features/dragdrop_multiselect.feature`),
-    // and waiting for one there would be waiting for something the gesture is
-    // defined by not having.
-    await this.page
-      .locator(TITLE_EDITOR)
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  }
+  await aimedAtTheLine(this);
+  await pressed(this, key);
 });
 
 /** The same key, with nothing waited for afterwards — which is how a person
@@ -126,10 +126,94 @@ When(
   },
 );
 
+// ── where in the line the caret is ─────────────────────────────────────
+
+/** The open title editor, waited for. Two of the keys mean different things
+ *  depending on where in it the caret sits, so these steps say that outright
+ *  rather than counting `ArrowLeft` presses — what a scenario is about is
+ *  "mid-word", not "five characters in". */
+const openEditor = async (world: OlaiWorld): Promise<Locator> => {
+  const editor = world.page.locator(TITLE_EDITOR).first();
+  await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  return editor;
+};
+
+/** A range over some text the editor holds — collapsed after it (a caret) or
+ *  spanning it (a selection). One walk, because "put the caret after X" and
+ *  "select X" are the same lookup with the same failure and differ only in
+ *  whether the range is shut. */
+const rangeOver = async (
+  world: OlaiWorld,
+  text: string,
+  collapse: boolean,
+): Promise<void> => {
+  const editor = await openEditor(world);
+  await editor.evaluate((element, [wanted, shut]) => {
+    const field = element as HTMLInputElement;
+    const at = field.value.indexOf(wanted);
+    if (at === -1) {
+      throw new Error(
+        `the editor holds ${JSON.stringify(field.value)}, which does not contain ${
+          JSON.stringify(wanted)
+        }`,
+      );
+    }
+    field.setSelectionRange(shut ? at + wanted.length : at, at + wanted.length);
+  }, [text, collapse] as [string, boolean]);
+};
+
+When(
+  "I put the caret after {string}",
+  async function (this: OlaiWorld, prefix: string) {
+    await rangeOver(this, prefix, true);
+  },
+);
+
+When("I put the caret at the start of the line", async function (this: OlaiWorld) {
+  const editor = await openEditor(this);
+  await editor.evaluate((element) => {
+    (element as HTMLInputElement).setSelectionRange(0, 0);
+  });
+});
+
+When(
+  "I select {string} in the line",
+  async function (this: OlaiWorld, text: string) {
+    await rangeOver(this, text, false);
+  },
+);
+
+/** Where the caret ENDED UP, which is the whole promise of both compound keys:
+ *  a split leaves it at the head of the half that came off, a merge at the seam
+ *  the two were joined at. A person whose caret jumped to the end of the line
+ *  has lost their place, and nothing else on screen would say so. */
+Then(
+  "the caret is at offset {int}",
+  async function (this: OlaiWorld, offset: number) {
+    const editor = await openEditor(this);
+    await this.waitUntil(
+      async () =>
+        (await editor.evaluate(
+          (element) => (element as HTMLInputElement).selectionStart,
+        )) === offset,
+      `the caret to be at offset ${offset}`,
+    );
+  },
+);
+
 When("I click away from the editor", async function (this: OlaiWorld) {
-  // Somewhere in the pane that is not a row: a blur, and nothing else.
-  await this.page.locator("main").click({ position: { x: 4, y: 4 } });
-  await this.waitForFrame();
+  // Somewhere in the pane that is not a row: a blur, and nothing else — and
+  // then the caret LEAVES, which is the same receipt the keys wait for and for
+  // the same reason: a blur commits through the same queue, so a draft still
+  // open on that line is this tab still waiting to hear.
+  await leavingTheLine(
+    this,
+    async () => {
+      await this.page.locator("main").click({ position: { x: 4, y: 4 } });
+      await this.waitForFrame();
+    },
+    "the caret to leave the line the click was away from",
+  );
 });
 
 // ── what is on screen ──────────────────────────────────────────────────
@@ -199,12 +283,10 @@ Then(
 );
 
 Then("no row is being edited", async function (this: OlaiWorld) {
-  await this.waitUntil(
-    async () =>
-      (await this.page.locator(TITLE_EDITOR).count()) === 0 &&
-      (await this.page.locator(DESC_EDITOR).count()) === 0,
-    "no editor to be open",
-  );
+  // The same question `Escape` is waited on with, asked as a promise — one
+  // spelling of "a page with no caret in a row", which is the state ⌘Z is
+  // answered from and the one these two would drift apart about.
+  await nothingIsBeingTyped(this);
 });
 
 Then("a new row is being typed", async function (this: OlaiWorld) {
@@ -269,18 +351,44 @@ Then(
   },
 );
 
+/** WHERE the row a split made is drawn — asked of the page in document order,
+ *  because the node it names has an id nobody chose and a title assertion
+ *  cannot say which line it is on. The half that came off has to be the very
+ *  next line, or the split has put it somewhere a reader would have to go
+ *  looking for it. */
+Then(
+  "the row being typed is drawn immediately after {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.waitUntil(async () => {
+      const rows = await this.page
+        .locator(NODE)
+        .evaluateAll((found) =>
+          found.map((row) => [
+            row.getAttribute("data-node-id") ?? "",
+            row.getAttribute("data-editing") === "true",
+          ] as const),
+        );
+      const at = rows.findIndex(([node]) => node === id);
+      return at !== -1 && rows[at + 1]?.[1] === true;
+    }, `the row holding the caret to be drawn immediately after "${id}"`);
+  },
+);
+
 // ── what the directory says ────────────────────────────────────────────
 
 /** Every title the file holds, off the disk this scenario is writing to.
  *  Deliberately the RECORDS rather than the page: what these scenarios claim
  *  is that a keystroke reached a file through the ops layer.
  *
- *  Through {@link recordsIn}, which is where the reason lives: `Archive.jsonl`
+ *  Through `servedNodesSoFar`, which is where the reason lives: `Archive.jsonl`
  *  is written by the write that archives the first thing, so a step polling for
- *  a node to ARRIVE in it is polling for the file too — and a helper that threw
- *  ENOENT turned that wait into an error on the first attempt. */
+ *  a node to ARRIVE in it is polling for the file too — and a reader that threw
+ *  ENOENT turned that wait into an error on the first attempt. It tolerates a
+ *  missing file and NOTHING ELSE, which is the half that matters: a blanket
+ *  catch would read a malformed outline as an empty one and pass a step that
+ *  should have failed loudly. */
 const titlesIn = (world: OlaiWorld, file: string): ReadonlyArray<string> =>
-  recordsIn(world, file).map((node) => String(node["title"] ?? ""));
+  world.servedNodesSoFar(file).map((node) => String(node["title"] ?? ""));
 
 Then(
   "{string} holds a node titled {string}",
@@ -301,7 +409,7 @@ Then(
   async function (this: OlaiWorld, file: string, title: string, parent: string) {
     await this.waitUntil(
       async () =>
-        this.servedNodes(file).some(
+        this.servedNodesSoFar(file).some(
           (node) => node["title"] === title && node["parent"] === parent,
         ),
       `${file} to hold ${JSON.stringify(title)} under ${JSON.stringify(parent)}`,
@@ -325,7 +433,7 @@ Then(
   async function (this: OlaiWorld, file: string, mark: string, title: string) {
     await this.waitUntil(
       async () =>
-        this.servedNodes(file).some(
+        this.servedNodesSoFar(file).some(
           (node) => node["title"] === title && node[mark] !== undefined,
         ),
       `${file} to hold a node titled ${JSON.stringify(title)} that is marked ${mark}`,
@@ -338,34 +446,13 @@ Then(
   async function (this: OlaiWorld, file: string, ending: string) {
     await this.waitUntil(
       async () =>
-        this.servedNodes(file).some((node) =>
+        this.servedNodesSoFar(file).some((node) =>
           String(node["desc"] ?? "").trimEnd().endsWith(ending)
         ),
       `${file} to hold a node whose note ends ${JSON.stringify(ending)}`,
     );
   },
 );
-
-/**
- * The records of a file that may not exist yet.
- *
- * `Archive.jsonl` is written by the write that archives the first thing, so a
- * scenario polling for a node to arrive in it is polling for the FILE too. A
- * missing file is "nothing there yet" for exactly that reason, and it is safe
- * to read it that way here: every step below waits, so a file that never
- * arrives fails as the assertion that was actually being made rather than as
- * an ENOENT from a helper.
- */
-const recordsIn = (
-  world: OlaiWorld,
-  file: string,
-): ReadonlyArray<Record<string, unknown>> => {
-  try {
-    return world.servedNodes(file);
-  } catch {
-    return [];
-  }
-};
 
 /** BY ID, which is the half a title cannot answer. Archiving keeps a node's
  *  id — that is what makes it a trash rather than a shredder, since a mirror
@@ -375,7 +462,7 @@ Then(
   "{string} holds the node {string}",
   async function (this: OlaiWorld, file: string, id: string) {
     await this.waitUntil(
-      async () => recordsIn(this, file).some((node) => node["id"] === id),
+      async () => this.servedNodesSoFar(file).some((node) => node["id"] === id),
       `${file} to hold the node ${JSON.stringify(id)}`,
     );
   },
@@ -385,7 +472,7 @@ Then(
   "{string} no longer holds the node {string}",
   async function (this: OlaiWorld, file: string, id: string) {
     await this.waitUntil(
-      async () => !recordsIn(this, file).some((node) => node["id"] === id),
+      async () => !this.servedNodesSoFar(file).some((node) => node["id"] === id),
       `${file} to have let go of the node ${JSON.stringify(id)}`,
     );
   },
@@ -405,7 +492,7 @@ Then(
   async function (this: OlaiWorld, file: string, id: string, date: string) {
     await this.waitUntil(
       async () =>
-        recordsIn(this, file).some(
+        this.servedNodesSoFar(file).some(
           (node) => node["id"] === id && node["date"] === date,
         ),
       `${file} to hold ${JSON.stringify(id)} with \`date\` exactly ${JSON.stringify(date)}`,
@@ -418,7 +505,7 @@ Then(
   async function (this: OlaiWorld, file: string, id: string) {
     await this.waitUntil(
       async () =>
-        recordsIn(this, file).some(
+        this.servedNodesSoFar(file).some(
           (node) => node["id"] === id && node["date"] === undefined,
         ),
       `${file} to hold ${JSON.stringify(id)} with no \`date\` field`,
@@ -440,7 +527,7 @@ Then(
   async function (this: OlaiWorld, file: string, id: string) {
     await this.waitUntil(
       async () =>
-        recordsIn(this, file).some(
+        this.servedNodesSoFar(file).some(
           (node) =>
             node["id"] === id && MARKS.every((mark) => node[mark] === undefined),
         ),
@@ -457,7 +544,7 @@ Then(
   async function (this: OlaiWorld, file: string, title: string) {
     await this.waitUntil(
       async () =>
-        this.servedNodes(file).some(
+        this.servedNodesSoFar(file).some(
           (node) => node["title"] === title && node["desc"] === undefined,
         ),
       `${file} to hold a node titled ${JSON.stringify(title)} carrying no note`,
@@ -466,17 +553,44 @@ Then(
 );
 
 /**
- * The row has GONE — waited for, which is the opposite of the step below it.
+ * A record carrying NOTHING but its placement and its title — which is what a
+ * node a split brought into being is, and the one assertion that says so about
+ * every field at once.
+ *
+ * Over the KEYS rather than over a list of fields nobody may have thought of:
+ * a tail that inherited the head's mark, date, note, `doc` or edges fails here
+ * whichever of them it was, and so would a field this format grows later.
+ */
+Then(
+  "{string} holds a bare node titled {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    await this.waitUntil(
+      async () =>
+        this.servedNodesSoFar(file).some(
+          (node) =>
+            node["title"] === title &&
+            Object.keys(node).every((field) =>
+              ["id", "parent", "ord", "title"].includes(field)
+            ),
+        ),
+      `${file} to hold ${JSON.stringify(title)} carrying nothing but its placement`,
+    );
+  },
+);
+
+/**
+ * The row has GONE — WAITED for, which is the opposite of the step below it.
  *
  * The two read almost the same and mean opposite things, and confusing them is
  * a flaky test rather than a wrong one: "nothing should have been written" has
  * to HOLD across the commit window, and "the write took it away" has to WAIT
  * for a round trip. `undo.feature` asked the holding form of ⌘Z — which passes
- * whenever the archive happens to land inside one animation frame and fails
+ * only when the archive happens to land inside one animation frame, and fails
  * whenever the machine is busy.
  *
- * BY TITLE, where the pair below it is by id: a row a keystroke created carries
- * an id nobody chose, so its title is the only thing a scenario can name it by.
+ * BY TITLE, where the pair further up is by id: a row a keystroke created
+ * carries an id nobody chose, so its title is the only thing a scenario can
+ * name it by.
  */
 Then(
   "{string} no longer holds a node titled {string}",

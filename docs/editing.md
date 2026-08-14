@@ -7,6 +7,8 @@ shortcuts** in the ⌘K palette.
 | | |
 |---|---|
 | **Enter** | commit, and open the next line |
+| **Enter, mid-line** | split the row in two, there |
+| **Backspace, at the start** | join this row onto the one above |
 | **Tab** / **Shift+Tab** | indent under the row above, or out again |
 | **Alt+Shift+↑/↓** | move a row among its siblings |
 | **⌘Enter** / **Ctrl+Enter** | tick it off, or take that back |
@@ -22,6 +24,15 @@ size, and the row you are in is toned so you can see where the caret went. What
 you type is the SOURCE — `**bold**` and `#tags` as they are written — and the
 rendering comes back the moment you leave. A note is the same trade one line
 down.
+
+**What has no key is in the row's `•••` menu**, and it has two doors. On a
+pointer device, hover a row and the `•••` appears in the gutter left of the
+collapse triangle. A phone has no hover and no room for it, so there the door
+is the row itself: **hold a finger on a row** and the same menu opens under it,
+with the same verbs. Nothing in it is a mouse's alone. A finger that MOVES is
+scrolling the page, not pressing — the menu comes up only for one that stays
+put — and the tap that lifting it would otherwise leave behind is dropped, so a
+press never also opens the row for editing or follows its bullet.
 
 ## The three marks, from the keyboard
 
@@ -65,6 +76,71 @@ leaves your text exactly where it is.
 A new row is that same idea: **Enter** opens a line where the row will go, and
 the node is written the moment it has a title. So an outline never fills up
 with blank bullets, and a key pressed by accident writes nothing at all.
+
+## One row into two, and two into one
+
+**Enter in the MIDDLE of a line cuts it there.** What is before the caret stays
+where you were; what is after it becomes the next row, and the caret goes with
+it, at its head — those are the words that moved. Everything that DESCRIBED the
+row you were in stays with it: what hangs under it, its note, its mark, its
+date, what it waits on. The line that came off is a new row, and a new row is a
+bullet — nobody has said anything about it yet, and this app does not decide
+that for you.
+
+At the END of a line the key is what it always was, because there is nothing
+after the caret to split off. At the HEAD of one it is that too, and that is a
+decision worth saying out loud: an outliner you have used would put a blank row
+above, and here there is no blank row to put — a node needs a title
+([format.md](format.md)) — so nothing is written that the write gate would have
+to refuse. Cutting where one side would be nothing but spaces is the same thing
+for the same reason, and reads the same way.
+
+**Backspace at the START of a line joins it onto the row above** — its sibling,
+the row your eye is on. The two titles run together with nothing between them,
+because that is what they were before somebody cut them; the caret lands on the
+seam. Anywhere else in the line, Backspace is the ordinary one and deletes a
+character; it means this only in the one place it has nothing of its own to do.
+
+What happens to the rest of the row is the whole of the semantics, and there
+are no silent losses in it:
+
+- **what hung under it is adopted** by the row above, in order, at the end of
+  what was already there. Nothing is orphaned by a keystroke.
+- **the notes join**, one blank line apart, and a row with no note simply takes
+  the other's.
+- **its mark, its date, the document on it and what it waits on go with its
+  record to the Trash.** A node carries at most one of each and the surviving
+  row already has its own answer, so there is nothing to merge — and the record
+  is not destroyed: it is in the Trash with its id, and **Put back** returns it.
+  What you get instead of silence is a line under the row saying what went,
+  because a `done` leaving the outline is exactly the thing nobody should have
+  to notice for themselves.
+
+The first row of a level has nothing above it to join, and a row above that is
+a mirror has no title of its own to join onto; both say so under the row, in the
+ops layer's own words. **Neither key works at a mirror**, and that is the same
+sentence read once more: a mirror is a second placement of a node that lives
+somewhere else, so cutting one in two would put the half that came off beside
+that node, in a file you do not have open — the two halves of your sentence
+would stop being neighbours. Both refuse there, naming the node to go to.
+
+**A line you have only just started counts.** Neither key needs the row to have
+been saved: what you typed is written first, exactly as walking away from it
+would have written it, and then it is cut or joined. So `Enter`, a few words,
+`Home`, `Backspace` puts them on the line above — which is what that gesture
+means everywhere else.
+
+**⌘Z takes either back.** The undo of a split is the merge that puts the two
+halves back together; the undo of a merge is longer and does the whole thing —
+the record out of the Trash, back where it sat, its children back under it, and
+the joined title cut back to what it said. Judged against the outline as it is
+now, like every other undo below, so an undo that no longer fits says so rather
+than guessing.
+
+Both keys are ONE write at the same gate everything else goes through, and an
+agent has them too — `split_node` and `merge_node` are the same two ops. That
+matters more here than anywhere else on this page: a merge moves four rows and
+puts a record away, and it either happens whole or does not happen.
 
 ## Dragging a row
 
@@ -217,7 +293,7 @@ way through for the mouse. ⌘Z after a Move to Trash puts the row back too —
 the undo knows the exact parent it sat under — and ⌘Z after a Put back is
 the archive again.
 
-Deliberately absent, each its own item: delete, and split and merge.
+Deliberately absent, and still the human’s to rule on: a delete key.
 
 ## Writing a document
 

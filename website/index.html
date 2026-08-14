@@ -597,6 +597,8 @@ The corner unit is the **risky one** — see
     <div class="cols">
       <table class="keys">
         <tr><td><kbd>Enter</kbd></td><td>commit, and open the next line</td></tr>
+        <tr><td><kbd>Enter</kbd> mid-line</td><td>split the row in two, there</td></tr>
+        <tr><td><kbd>Backspace</kbd> at the start</td><td>join this row onto the one above</td></tr>
         <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>indent, or out again</td></tr>
         <tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd></td><td>move a row among its siblings</td></tr>
         <tr><td><kbd>⌘</kbd>+<kbd>Z</kbd></td><td>take back your last edit here</td></tr>
@@ -609,6 +611,16 @@ The corner unit is the **risky one** — see
         <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Z</kbd></td><td>put that edit back</td></tr>
       </table>
     </div>
+    <p>Splitting and merging are one operation each rather than a sequence the
+    browser performs, which is what makes them safe: a merge joins two titles,
+    joins their notes, hands the row above everything that hung under the row
+    you were in, and puts that record in the Trash with its id — all of it, or
+    none of it. Whatever the merged row carried that a single node cannot carry
+    twice — its mark, its date, what it waited on — goes to the Trash with the
+    record, and a line under the row says so rather than letting you find out
+    later. Splitting is the same trade the other way: the half that comes off is
+    a new row, so it starts as a bullet, and everything that described the row
+    you were in stays with it.</p>
     <p class="lead">Undo is an inverse rather than a restore: it replays the
     edit that reverses yours, judged against the outline as it is now — so it
     never takes back what an agent or another tab did in the meantime, and one
@@ -631,7 +643,8 @@ The corner unit is the **risky one** — see
     you asked for, so an agent asked to do the same thing makes the same calls —
     and <kbd>⌘</kbd>+<kbd>Z</kbd> walks it back a row at a time.</p>
     <p>Not everything has a key. Hover a row and the <strong>•••</strong> in the
-    gutter carries the rest: the three marks and clearing one, setting,
+    gutter carries the rest — on a phone there is no room for one, so hold a
+    finger on the row and the same menu opens: the three marks and clearing one, setting,
     changing or clearing a date — the same picker the row’s own pill opens —
     retiring one placement of a mirrored node, moving a subtree to the Trash —
     it asks first, and says how many rows go with it — and copying the subtree

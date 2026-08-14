@@ -14,6 +14,7 @@
 import type { Command } from "@olai/surface"
 import { createSignal, For, onCleanup, onMount } from "solid-js"
 
+import { WITHIN } from "../layer.ts"
 import { TESTID } from "../testids.ts"
 
 export function SlashMenu(props: {
@@ -70,7 +71,7 @@ export function SlashMenu(props: {
 
   return (
     <ul
-      class="absolute bottom-full left-2 right-2 z-50 mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg"
+      class={`absolute bottom-full left-2 right-2 ${WITHIN.pop} mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
       data-testid={TESTID.chatSlashMenu}
     >
       <For each={props.commands}>

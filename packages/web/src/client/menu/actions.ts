@@ -22,20 +22,45 @@
  * tree redraws. A menu entry that also crossed the row off locally would be
  * the optimistic UI this whole editor is written against — and the row it
  * crossed off might be one the write was refused for.
+ *
+ * THE CLIPBOARD IS THE EXCEPTION, and it is one because it is not an echo:
+ * there is no file, no collection and no redraw behind it — the destination is
+ * OUTSIDE the app, so a copy that landed and a copy that never happened draw
+ * exactly the same outline. Both already say so when they FAIL (the menu words
+ * the throw), which left the two verbs saying something only in the case that
+ * goes wrong; {@link copied} is the other half. Nothing here is guessed at
+ * either: the sentence is written after `writeText` has resolved, so it is a
+ * report rather than an assumption.
  */
 
 import type { Derived, Row } from "@olai/format"
 
 import { armNode } from "../chat/armed.ts"
-import type { Undo } from "../edit/undoing.ts"
+import type { Said, Undo } from "../edit/undoing.ts"
 import { setFolded } from "../fold/memory.ts"
 import { type Fold, foldIdOf, foldOf } from "../fold/rows.ts"
 import { setChatOpen } from "../layout/prefs.ts"
 import { hrefOf, type Route } from "../routes.ts"
 import { asText } from "./subtree.ts"
-import type { MenuAction } from "./NodeMenu.tsx"
+import type { MenuAction } from "./action.ts"
 import { writeVerbs } from "./verbs.ts"
 import { applying } from "../writes.ts"
+
+/**
+ * What a copy that LANDED says, in the one place both copies say it.
+ *
+ * The `aside` tone, which is the mood this client already keeps for "something
+ * happened and here is a remark about it" — a nudge from a write, a note from
+ * the rollup — as against the `alarm` a refusal is drawn in. So the two
+ * answers a clipboard verb can give are the same two moods every other verb
+ * has, in the same line beside the `•••` (`./picking.ts`), and a scenario can
+ * tell them apart by `data-tone` rather than by reading a colour.
+ *
+ * ONE spelling for both verbs: "link copied" and "text copied" differ in the
+ * word that differs and in nothing else, which is what stops the second copy
+ * from growing a sentence of its own the day somebody edits one of them.
+ */
+const copied = (what: "link" | "text"): Said => ({ tone: "aside", text: `${what} copied` })
 
 /**
  * The verbs this row offers. `go` is the SPA navigator — never
@@ -134,11 +159,14 @@ export const nodeMenuActions = (args: {
     // is refused as a matter of course on a page served over plain http to
     // another machine — which is how olai is normally read — so a denial is
     // the ordinary path rather than an exotic one, and swallowing it made a
-    // copy that did not happen look exactly like a copy that did. The menu
-    // below is what says so; an action's job is to do the thing or not.
+    // copy that did not happen look exactly like a copy that did. The menu is
+    // what words the throw; an action's job is to do the thing or not — and
+    // then to say WHICH, since the clipboard is somewhere the page cannot
+    // show ({@link copied}).
     run: async () => {
       const url = new URL(hrefOf({ kind: "node", id }), location.href).href
       await navigator.clipboard.writeText(url)
+      return copied("link")
     },
   })
 
@@ -177,6 +205,7 @@ export const nodeMenuActions = (args: {
       label: "Copy as text",
       run: async () => {
         await navigator.clipboard.writeText(asText(args.row))
+        return copied("text")
       },
     })
   }

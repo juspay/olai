@@ -1,9 +1,9 @@
 # @olai/ops — the only writer
 
 Semantic edits over a served directory: create an outline, add a node or a
-whole subtree, mark done, doing or todo, retitle, note, schedule, move,
-archive, set see references, place and retire mirrors, wire the `after` edges a
-node waits on.
+whole subtree, mark done, doing or todo, retitle, note, schedule, move, split
+one node into two, merge one into the sibling above it, archive, set see
+references, place and retire mirrors, wire the `after` edges a node waits on.
 Everything that changes an outline goes through here, and everything an agent
 may READ of one comes out of here too.
 
@@ -160,6 +160,58 @@ delete.
   report success. It is refused by name instead, pointing at the id in
   `captured` a second call should hang the rest off.
 
+## Splitting and merging
+
+Two ops that each do several things to an outline at once, and they are ops for
+exactly that reason. A split is a retitle and a create; a merge is a retitle, a
+note, N reparentings and an archive. Assembled by a CALLER out of the verbs
+above they would be two, four or six writes at as many revisions — and a
+sequence can stop in the middle, which for a merge means an outline saying
+something nobody wrote (a title already joined with the children still hanging
+off a row that is about to go). One request is one plan, one validation and one
+all-or-none rename, which is the property `add_node`'s `children` buys one level
+up.
+
+It is also what keeps the two faces equal. The web's `Enter` mid-line and
+`Backspace` at line start are these ops and nothing else; a keyboard that
+assembled them from `set_title` + `add_node` would be doing in one keystroke
+what an agent needs four calls for, which is HACKING.md's consistency rule read
+at its plainest. So both were born here and reached both faces in the same
+change, the way `unarchive` did.
+
+**`split`** takes two TITLES — what the node keeps and what comes off it — never
+a character offset. An offset is a range into a field, which nothing in this
+table names, and an offset re-planned against a newer snapshot would cut
+somebody else's retitle in half; two strings mean the same thing against any
+revision. The tail lands immediately after the head among its siblings and is
+born a BULLET: everything that described the node — children, note, mark, date,
+edges, `doc` — stays with the head, because the new row is one nobody has said
+anything about yet.
+
+**`merge`** takes one id and reads the sibling above it off the snapshot, for
+the reason `move_node` does not take "the row above" either. What survives is
+the decision:
+
+- **the titles run together**, with nothing between them. They were one line
+  before somebody split them, and a separator invented here is text the caller
+  did not type;
+- **the notes join a blank line apart**, and a node with none takes the other's.
+  A note that vanished off the page would be a silent loss, and "it is in the
+  archive" is not an answer for a row that is still on screen;
+- **the children move**, in order, to the end of the survivor's own. Nothing may
+  be orphaned by a keystroke;
+- **the mark, the date, the attached `doc` and the edges go with the RECORD into
+  the archive.** The format allows one of each per node and the survivor already
+  has its own answer, so there is no merge of two — and nothing is destroyed,
+  because the record keeps its id in `Archive.jsonl` and `unarchive_node` brings
+  it back. What the op owes is that this is never silent, which is what the
+  reply's `nudge` is for: a `done` that has left the live outline is exactly the
+  news a person is owed, and so is the file that was attached to it.
+
+Refused when the node is first among its siblings (nothing above it), when the
+row above is a MIRROR (a placement has no title to merge into) and, like every
+text op, on a placement's own id.
+
 ## Archiving, in racket's terms
 
 `archive` moves a node's whole subtree into `Archive.jsonl` beside the outline
@@ -299,6 +351,8 @@ person already knows how to read is worth more than a better one they do not:
 | date | `date: TITLE -> 2026-08-10` (or `-> (cleared)`) |
 | archive | `archive: TITLE` |
 | move | `move: TITLE` |
+| split | `split: TITLE` — the title as it read BEFORE the cut |
+| merge | `merge: TITLE` — the joined title the survivor now carries |
 | title | `rename: TITLE` |
 | desc | `note: TITLE` |
 | see | `see: TITLE` |

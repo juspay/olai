@@ -22,6 +22,7 @@
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
+import { LAYER } from "../layer.ts"
 import { TESTID } from "../testids.ts"
 import type { Landing } from "./plan.ts"
 
@@ -31,7 +32,10 @@ export function DropLine(props: { readonly landing: Landing | null }) {
       {(landing) => (
         <Portal>
           <div
-            class="pointer-events-none absolute z-40 h-0.5 -translate-y-px rounded-full bg-accent"
+            // `LAYER.row` — it hangs off the rows, over them and under every
+            // piece of chrome, which is the same claim the `•••` panel makes
+            // and the reason both take that name (`../layer.ts`).
+            class={`pointer-events-none absolute ${LAYER.row} h-0.5 -translate-y-px rounded-full bg-accent`}
             style={{
               top: `${landing().top}px`,
               left: `${landing().left}px`,

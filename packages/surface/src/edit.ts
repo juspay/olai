@@ -89,8 +89,21 @@
  * it goes on resolving. Both are `archive_node` underneath and neither erases
  * anything. A key that erases a branch is still not spellable here, and the
  * deferral #109 recorded (human, 2026-08-11) is still the human's to close.
- * Split/merge, multi-select and drag-drop are their own items, so none of them
- * is expressible here either.
+ * Multi-select and drag-drop are their own items, so neither is expressible
+ * here.
+ *
+ * AND TWO ARE COMPOUND, WHICH IS WHY THEY ARE OPS RATHER THAN SEQUENCES.
+ * `split` and `merge` each do several things to an outline at once — a retitle
+ * and a create; a retitle, a note, N reparentings and an archive — and each is
+ * ONE request at the write gate, planned and validated and renamed together.
+ * Assembling them HERE out of the verbs above would have been the deviation
+ * HACKING.md forbids at its plainest: the web doing in one keystroke what MCP
+ * needs four calls for. So they were born in the ops layer and reached both
+ * faces in the same change (`split_node`, `merge_node` — the same two ops),
+ * which is the shape `unarchive` arrived in and for the same reason. The other
+ * half of the argument is atomicity, and it is the half a caller feels: a
+ * sequence can stop in the middle, and a merge that stopped in the middle
+ * leaves an outline saying something nobody wrote.
  */
 
 import { MARKS, OpFailure } from "@olai/format"
@@ -200,6 +213,69 @@ export const Edit = Schema.Union([
    * menu already keeps for the mouse.
    */
   Schema.Struct({ verb: Schema.Literal("walk"), id: Id }),
+  /**
+   * `Enter` WITH TEXT ON BOTH SIDES OF THE CARET: this row becomes two.
+   *
+   * The one key on this list that means two different things depending on
+   * where the caret is, and that is not a mode — it is the same sentence a
+   * person is already reading. `Enter` at the end of a line opens the next one
+   * (`add`); `Enter` in the middle of one cuts it there, which is what every
+   * outliner does and what Workflowy trained the hands that will press it.
+   *
+   * IT CARRIES THE TWO TEXTS, not the caret's index. That is the same decision
+   * `title` makes and for a stronger reason: an offset is a range into a field,
+   * which nothing on either face may name, and an offset re-planned against a
+   * newer snapshot would cut somebody else's retitle in half. Two strings mean
+   * the same thing against any revision. It is also why the split is spelled
+   * from the DRAFT rather than from the record — what a person is looking at
+   * when they press the key is the editor's text, which is the editor's own and
+   * not a reading of the set.
+   *
+   * The `id` is the ROW's own record, which is the same id a `merge` names and
+   * the opposite of what a plain text edit here names. A split is two things at
+   * once — it says what a node SAYS, and it puts a second row on the page — and
+   * the second half decides, because it is the half a reader is looking at.
+   * Named through a mirror, the tail would be minted beside the TARGET, in the
+   * file that node lives in: a mirror draws its target's children and never its
+   * siblings, so the two halves of one sentence would stop being siblings on
+   * screen and the caret would follow the tail off the page. So a placement is
+   * refused, in the ops layer's own `notANode` words, exactly as a merge at one
+   * is. Where the tail lands otherwise is the ops layer's (immediately after
+   * the head), so nothing is resolved behind this verb.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("split"),
+    id: Id,
+    /** What the row KEEPS — everything before the caret, verbatim. */
+    title: Schema.String,
+    /** What comes OFF it — everything after the caret, verbatim, as the new
+     *  sibling's whole title. */
+    rest: Schema.String,
+  }),
+  /**
+   * `Backspace` AT THE START OF A LINE: this row joins the one above it.
+   *
+   * The inverse gesture, and the inverse op — `split` read backwards. It
+   * carries no text at all, because nothing about it is a draft: the titles
+   * being joined are the two the set holds, the sibling above is a fact about
+   * the set, and both are read where the write is judged
+   * ({@link ../../ops/src/plan.ts}'s `merge`). What the browser decides is
+   * only WHEN — a caret at offset zero with nothing selected, which is the one
+   * position where `Backspace` has nothing of its own to delete.
+   *
+   * `id` is the ROW's own record, as `split`'s is: both keys change how many
+   * rows there are on the page a reader has open, so both are questions about
+   * where rows SIT rather than about what a node says. A merge asked at a
+   * mirror is refused in the ops layer's own `notANode` words, naming the node
+   * to go to, rather than quietly joining two rows in a file the reader is not
+   * looking at.
+   *
+   * It is refused, in the ops layer's own words, when the row is first among
+   * its siblings and when the row above is a mirror; and what happens to the
+   * merged row's mark, date and edges is that verb's documented answer, said
+   * out loud on the way past as a `nudge`.
+   */
+  Schema.Struct({ verb: Schema.Literal("merge"), id: Id }),
   Schema.Struct({
     verb: Schema.Literal("title"),
     id: Id,
@@ -451,6 +527,19 @@ export type Edit = typeof Edit.Type
  */
 export const Applied = Schema.Struct({
   id: Id,
+  /**
+   * What that node says NOW — the title the write left on it.
+   *
+   * It is here for the two writes that CHANGE a title without being told what
+   * it should say. Every other verb either leaves the text alone or carries it
+   * (`title` sends the words it is setting), so the editor already knows; a
+   * `merge` does not, because the joined title is the row above's plus this
+   * one's, and the row above's is a fact about the set. A browser reading it
+   * off the tree it drew would be the second reading this seam exists to
+   * avoid — and a draft left holding the OLD text would write it straight back
+   * over the join on the next idle tick.
+   */
+  title: Schema.String,
   nudge: Schema.optionalKey(Schema.String),
   /**
    * What would TAKE THIS WRITE BACK, derived from the snapshot it was judged

@@ -37,7 +37,7 @@ import { createEffect, on, Show } from "solid-js"
 
 import type { Draft } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
-import { type EditAction, type EditField, editKey } from "../keys.ts"
+import { type Caret, type EditAction, type EditField, editKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { ROW_NOTE as AS_NOTE, ROW_TITLE } from "../touch.ts"
 
@@ -51,9 +51,14 @@ export function TitleEditor(props: {
   /** A new row that does not exist yet: it says so, so an empty line in the
    *  middle of a tree is not a mystery. */
   readonly placeholder?: string
+  /** Where the caret goes when this editor OPENS, when the draft has an
+   *  opinion — which is only ever after a split or a merge, where the whole
+   *  point of the key is that the caret stays in the sentence. Absent is the
+   *  end of the text, which is what a click on a title means. */
+  readonly caret?: number
 }) {
   let element!: HTMLInputElement
-  takeCaret(() => element)
+  takeCaret(() => element, { at: () => props.caret })
 
   return (
     <input
@@ -94,7 +99,7 @@ export function DescEditor(props: {
   readonly onBlur: (left: boolean) => void
 }) {
   let element!: HTMLTextAreaElement
-  takeCaret(() => element, () => grow(element))
+  takeCaret(() => element, { then: () => grow(element) })
 
   return (
     <textarea
@@ -157,35 +162,54 @@ export function Said(props: { readonly draft: Draft }) {
   )
 }
 
-/** The key handler a row's editor wants: read the key against the map, and let
- *  the field have anything the map does not claim. Here rather than in each
- *  component because "which keys are the editor's" is one question with one
- *  answer (../keys.ts) and two copies of the `preventDefault` would be two
- *  chances to leave `Tab` moving focus out of the outline. */
+/**
+ * The key handler a row's editor wants: read the key against the map, and let
+ * the field have anything the map does not claim.
+ *
+ * Here rather than in each component because "which keys are the editor's" is
+ * one question with one answer (../keys.ts) and two copies of the
+ * `preventDefault` would be two chances to leave `Tab` moving focus out of the
+ * outline.
+ *
+ * It is also the ONE place the caret is read off the DOM, and that is the whole
+ * reason {@link Caret} is a value: two of the keys mean different things
+ * depending on where in the line they were pressed (`Enter` splits mid-text,
+ * `Backspace` merges at offset zero), and everything on either side of this
+ * function — the matcher above it, the editor below it — is testable without a
+ * browser because neither of them touches an element.
+ */
 export const keyHandler = (
   field: EditField,
-  press: (action: EditAction) => void,
+  press: (action: EditAction, at?: Caret) => void,
 ) =>
 (event: KeyboardEvent): void => {
-  const action = editKey(event, field, selectedWhole(event.currentTarget))
+  // Not in a NOTE, where the matcher answers before it would ever look
+  // (../keys.ts: a note is prose, and the keys that edit a row are the row's).
+  // Reading it anyway would materialise the whole textarea's value per
+  // keystroke to take its length — a prose block, on the one field that can be
+  // long.
+  const at = field === "line" ? caretOf(event.currentTarget) : undefined
+  const action = editKey(event, field, at)
   if (action === null) return
   event.preventDefault()
   // Stop it there: the palette listens on the window, and an outline key that
   // also reached a global handler would be one keystroke doing two things.
   event.stopPropagation()
-  press(action)
+  press(action, at)
 }
 
-/** Whether the field's whole value is already selected — the one thing the key
- *  map cannot see for itself, and what makes ⌘A a ladder rather than a chord
- *  this app took away from the platform (`../keys.ts`). An empty field is not
- *  "wholly selected": pressing ⌘A in an empty new row should do nothing, not
- *  pick the row it has not written yet. */
-const selectedWhole = (target: EventTarget | null): boolean =>
-  (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) &&
-  target.value.length > 0 &&
-  target.selectionStart === 0 &&
-  target.selectionEnd === target.value.length
+/** The selection in the field a key was pressed in, or `undefined` for
+ *  anything that is not one — which is not a case a row's editor reaches, and
+ *  is answered rather than asserted because a handler that threw would take a
+ *  keystroke down with it. */
+const caretOf = (target: EventTarget | null): Caret | undefined => {
+  if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLTextAreaElement)) {
+    return undefined
+  }
+  const { selectionStart, selectionEnd, value } = target
+  if (selectionStart === null || selectionEnd === null) return undefined
+  return { start: selectionStart, end: selectionEnd, text: value }
+}
 
 /**
  * Take the caret when the editor opens, and take it BACK whenever the editor
@@ -209,20 +233,37 @@ const selectedWhole = (target: EventTarget | null): boolean =>
  * where a person who just clicked a title wants it; a caret being taken BACK
  * goes where it already was, so `Tab` in the middle of a word does not throw
  * the reader to the end of the line.
+ *
+ * `wanted` is the third answer, and only a split or a merge ever gives one: the
+ * point of both keys is that the caret stays where the sentence was cut or
+ * joined, which is neither the end of the text nor where it was in the editor
+ * that has just gone away. It is read from the DRAFT rather than remembered
+ * here, because the draft is what survives the row being redrawn.
  */
 const takeCaret = (
   element: () => HTMLInputElement | HTMLTextAreaElement,
-  also?: () => void,
+  /** Named rather than positional, because the two callers want different ONES
+   *  of them and a positional `undefined` in the middle is a call site that
+   *  reads as a mistake. */
+  said: {
+    /** Where the caret goes when the editor OPENS, when the draft says. */
+    readonly at?: () => number | undefined
+    /** Anything else the caret arriving implies — the note's box growing to
+     *  fit what is in it. */
+    readonly then?: () => void
+  } = {},
 ): void => {
   const editor = useEditor()
   let opening = true
   createEffect(on(editor.caret, () => {
     const field = element()
-    const at = opening ? field.value.length : field.selectionStart ?? field.value.length
+    const at = opening
+      ? said.at?.() ?? field.value.length
+      : field.selectionStart ?? field.value.length
     opening = false
     field.focus()
     field.setSelectionRange(at, at)
-    also?.()
+    said.then?.()
   }))
 }
 

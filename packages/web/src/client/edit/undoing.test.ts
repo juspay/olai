@@ -48,7 +48,13 @@ const held = () => {
       waiting.push({
         edit: asked,
         landed: (undo) =>
-          settle(Result.succeed({ id: named, ...(undo === undefined ? {} : { undo }) })),
+          settle(
+            Result.succeed({
+              id: named,
+              title: named,
+              ...(undo === undefined ? {} : { undo }),
+            }),
+          ),
         refused: (reason) =>
           settle(Result.fail(new UsageFailure({ reason })) as never),
       })
