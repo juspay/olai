@@ -1,8 +1,8 @@
 /**
  * The evidence pass: drive the real app in a real browser, one gesture at a
  * time, and put a screenshot beside each. Not part of the suite — the promises
- * live in `features/dragdrop_multiselect.feature`; this is what a person looks
- * at.
+ * live in the features (`dragdrop_multiselect`, `edge_editing`, `new_outline`);
+ * this is what a person looks at.
  *
  * ONE SECTION PER RUN, against a directory the driver has just re-copied and a
  * server it has just started (`evidence.sh`). Restoring the fixture underneath
@@ -70,6 +70,47 @@ const pick = async (page: Page, first: string, last?: string) => {
 }
 
 const SETTLE = 1800
+
+// ── the edge panel, and what a record says afterwards ──────────────────
+
+const EDGE_PANEL = '[data-testid="edge-panel"]'
+const EDGE_SEARCH = '[data-testid="edge-search"]'
+const EDGE_HIT = '[data-testid="edge-hit"]'
+const EDGE_DROP = '[data-testid="edge-drop"]'
+const EDGE_SAID = '[data-testid="edge-said"]'
+const EDGE_VERB = '[data-testid="edge-verb"]'
+
+/** The `•••` of a row, revealed and pressed — the gutter is `opacity-0` until
+ *  the row is hovered, which a screenshot has to go through like anybody. */
+const openMenu = async (page: Page, id: string) => {
+  await page.locator(row(id)).first().hover()
+  await page.locator(`${row(id)} [data-testid="node-menu"] >> nth=0`).click({ force: true })
+  await page.locator('[data-testid="node-menu-panel"]').first().waitFor()
+  await page.waitForTimeout(200)
+}
+
+const textOf = async (page: Page, locator: string) =>
+  (await page.locator(locator).first().innerText()).replace(/\s+/g, " ").trim()
+
+/**
+ * What the FILE says about one node — the record, off the disk the driver is
+ * serving, because that is the whole claim a pointer's gesture makes here.
+ *
+ * `VAULT` is `evidence.sh`'s copy; without one this prints why rather than a
+ * guess, since a shot beside an invented line is worse than a shot alone.
+ */
+const recordOf = async (_page: Page, id: string): Promise<string> => {
+  const vault = process.env["VAULT"]
+  if (vault === undefined) return "(no VAULT; run through evidence.sh)"
+  const { readdirSync, readFileSync } = await import("node:fs")
+  for (const file of readdirSync(vault)) {
+    if (!file.endsWith(".jsonl")) continue
+    for (const line of readFileSync(`${vault}/${file}`, "utf8").split("\n")) {
+      if (line.includes(`"id":"${id}"`)) return `${file} — ${line}`
+    }
+  }
+  return `(no record for \`${id}\`)`
+}
 
 const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
   "drag-to-reorder": async (page) => {
@@ -203,6 +244,109 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     console.log(`  it says: ${await page.locator('[data-testid="selection-said"]').textContent()}`)
     console.log(`  order is untouched: ${await order(page)}`)
     await shot(page, "refused")
+  },
+
+  // ── writing a node's edges, and starting an outline ──────────────────
+  //
+  // `editor-op-parity`'s last three children. Each section drives ONE of the
+  // affordances end to end and prints the RECORD afterwards, because what these
+  // gestures claim is that they reached a file through the ops layer.
+
+  "see-from-the-menu": async (page) => {
+    await openMenu(page, "handles")
+    await shot(page, "menu")
+    await page.locator('[data-testid="node-menu-item"]')
+      .filter({ hasText: "Link to a node…" }).first().click()
+    await page.locator(EDGE_PANEL).first().waitFor()
+    await shot(page, "panel")
+    await page.locator(EDGE_SEARCH).fill("compost")
+    await page.locator(EDGE_HIT).first().waitFor()
+    await page.waitForTimeout(300)
+    await shot(page, "search")
+    await page.locator(EDGE_HIT).first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the record: ${await recordOf(page, "handles")}`)
+    await shot(page, "linked")
+    // …and the panel now lists it, with the `×` that takes it off again.
+    await page.locator(`${EDGE_DROP}[data-ref="compost"]`).first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  after the ×: ${await recordOf(page, "handles")}`)
+    await shot(page, "unlinked")
+  },
+
+  "after-and-the-loop": async (page) => {
+    await openMenu(page, "knobs")
+    await page.locator('[data-testid="node-menu-item"]')
+      .filter({ hasText: "Wait for a node…" }).first().click()
+    await page.locator(EDGE_PANEL).first().waitFor()
+    await page.locator(EDGE_SEARCH).fill("order the new cabinets")
+    await page.locator(EDGE_HIT).first().waitFor()
+    await page.waitForTimeout(300)
+    await shot(page, "search")
+    await page.locator(EDGE_HIT).first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the record: ${await recordOf(page, "knobs")}`)
+    console.log(
+      `  the row is blocked by: ${
+        await page.locator(row("knobs")).first().getAttribute("data-blocked")
+      }`,
+    )
+    await shot(page, "declared")
+
+    // The refusal, verbatim: `order` already comes after `install`.
+    await page.goto(`${BASE}/n/order`)
+    await page.locator('[data-testid="zoom-title"]').waitFor()
+    await page.locator(`${EDGE_VERB}[data-relation="after"]`).click()
+    await page.locator(EDGE_SEARCH).fill("install the cabinets")
+    await page.locator(EDGE_HIT).first().waitFor()
+    await page.waitForTimeout(300)
+    await page.locator(EDGE_HIT).first().click()
+    await page.locator(EDGE_SAID).waitFor()
+    console.log(`  it says: ${await page.locator(EDGE_SAID).textContent()}`)
+    console.log(`  untouched: ${await recordOf(page, "order")}`)
+    await shot(page, "loop-refused")
+  },
+
+  "edges-on-a-zoomed-node": async (page) => {
+    // `hinges` DECLARES two and is IN THE WAY of one — `handles` carries no
+    // mark, so it is not work and never blocks. Two rows, two claims, and only
+    // the declared one carries an `×`.
+    await page.goto(`${BASE}/n/hinges`)
+    await page.locator('[data-testid="zoom-title"]').waitFor()
+    await page.waitForTimeout(600)
+    console.log(`  blocked by: ${await textOf(page, '[data-testid="blocked"]')}`)
+    console.log(`  after:      ${await textOf(page, '[data-testid="after-refs"]')}`)
+    await shot(page, "declared-and-derived")
+    await page.locator('[data-testid="after-refs"] [data-testid="ref-drop"][data-ref="order"]')
+      .first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  after the ×: ${await recordOf(page, "hinges")}`)
+    await shot(page, "dropped")
+  },
+
+  "new-outline": async (page) => {
+    await page.locator('[data-testid="new-outline"]').click()
+    const box = page.locator('[data-testid="new-outline-path"]')
+    await box.waitFor()
+    await shot(page, "box")
+    await box.fill("house.jsonl")
+    await box.press("Enter")
+    await page.locator('[data-testid="new-outline-said"]').waitFor()
+    console.log(
+      `  it says: ${await page.locator('[data-testid="new-outline-said"]').textContent()}`,
+    )
+    await shot(page, "refused")
+    await box.fill("plans/next.jsonl")
+    await box.press("Enter")
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the address: ${new URL(page.url()).pathname}`)
+    await shot(page, "minted")
+    // …and the first row, typed where the empty outline offers one.
+    await page.locator('[data-testid="start-line"]').first().click()
+    await page.keyboard.type("buy the tickets")
+    await page.keyboard.press("Enter")
+    await page.waitForTimeout(SETTLE)
+    await shot(page, "first-row")
   },
 }
 
