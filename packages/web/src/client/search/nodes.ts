@@ -20,8 +20,8 @@
  * condition lands.
  *
  * The MATCHING is entirely the server's (`@olai/surface`'s search.ts says
- * why): the same reading an agent's `search_nodes` gets. This file decides
- * only WHEN to ask.
+ * why): the same reading an agent's `search_nodes` gets, semantic index
+ * included. This file decides only WHEN to ask.
  *
  * Its failure is its OWN — a refused search is not a refused `>` ask, and two
  * unrelated async sources sharing one error slot is how a reader is shown the
@@ -38,13 +38,21 @@ import { runAsync } from "../run.ts"
 import { olai } from "../wire.ts"
 
 /** How long a keystroke waits for the next one. A whole round trip sits
- *  behind this, so it is pitched just past an ordinary inter-keystroke gap
- *  rather than under it, where it would collapse nothing. */
+ *  behind this — a substring pass over the corpus and, where recall is on, an
+ *  embedding of the query — so it is pitched just past an ordinary
+ *  inter-keystroke gap rather than under it, where it would collapse nothing.
+ *
+ *  The embedding is NOT reliably inside this window and this number does not
+ *  promise that it is: measured warm at about 4 ms (p50, idle x86_64-linux),
+ *  but the first query of a serve also pays the model server starting — about
+ *  490 ms with the weights cold. The server's own 3 s budget on that call and
+ *  the fact that substring answers regardless are what make the slow case a
+ *  late paraphrase row rather than a late search. */
 const SETTLE_MS = 200
 
 /** Below this the answer is noise: two characters match half an outline by
- *  substring. The shell items still filter locally, so the palette is never
- *  blank while somebody types. */
+ *  substring and mean nothing to an embedder. The shell items still filter
+ *  locally, so the palette is never blank while somebody types. */
 const MIN_LENGTH = 3
 
 /** How many nodes the palette shows. Fewer than the tool's twelve: this is a

@@ -53,7 +53,9 @@
         let olai = import ./default.nix { inherit pkgs b2n rev; };
         in
         kolu.packages pkgs // {
-          inherit (olai) olai olai-client olai-fonts acp-agent;
+          inherit (olai)
+            olai olai-client olai-fonts acp-agent
+            olai-embed-server olai-embed-model;
           default = olai.olai;
           # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the
           # lockfile-derived nix expression (`just regenerate-bun-nix`).

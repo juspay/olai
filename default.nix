@@ -113,6 +113,11 @@ let
   # nix-built olai needs nothing ambient, and two machines run the same adapter.
   acp-agent = pkgs.callPackage ./nix/acp-agent.nix { };
 
+  # The embedder search-by-meaning asks — a `llama-server` and its weights,
+  # both from the store for exactly the reason the agent above is. See
+  # nix/embed.nix, and docs/brainstorming/semantic-recall.md for what it costs.
+  embed = import ./nix/embed.nix { inherit pkgs; };
+
   olai = pkgs.runCommand "olai"
     {
       nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -125,9 +130,16 @@ let
     makeWrapper ${pkgs.bun}/bin/bun $out/bin/olai \
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
-      --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp"
+      --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
+      --set-default OLAI_EMBED_SERVER "${embed.server}" \
+      --set-default OLAI_EMBED_MODEL "${embed.model}"
   '';
 in
 {
   inherit olai olai-client olai-fonts base acp-agent;
+  # The embedder's two halves, nameable on their own so `just serve` can hand
+  # the working tree the SAME paths the wrapper bakes in, and so the closure
+  # delta in the design doc can be weighed rather than asserted.
+  olai-embed-server = embed.llama;
+  olai-embed-model = embed.model;
 }

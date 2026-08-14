@@ -168,6 +168,32 @@ port, because the page is already pointed at it — `startOwnServer` binds the
 exact port and fails loudly if the address it got back is a different one, so a
 port stolen in between reads as itself instead of as a mysteriously dead page.
 
+## Recall, which every other scenario is served without
+
+Every server this harness spawns runs with `OLAI_RECALL=off`, so search is the
+substring reading and no model server is started. That is a resource decision:
+the suite spawns hundreds of servers and an embedder costs 30-66 MB of
+resident memory at rest (more once it has indexed anything), while none of
+those scenarios is about recall. It uses the
+PRODUCT’S OWN off switch rather than a test-only hatch — `OLAI_RECALL=off` is a
+documented knob a reader has for the same reason (`docs/running.md`).
+
+**`@recall`** leaves it on, which means that scenario’s server spawns the
+embedder from its own nix closure (a `llama-server` over `bge-small-en-v1.5`)
+and indexes its corpus. It is the ONE place in the suite where the real model
+runs — the unit tests own the seam, this owns the closure, and the claim the
+feature returned on (no dependency outside Nix) is only checkable against the
+packaged binary. Like `@kolu` and `@git:`, it needs `@scratch:<corpus>`.
+
+The index fills in behind the boot, so `features/semantic_recall.feature` asks
+AGAIN rather than once (`step_definitions/recall_steps.ts` says why): retrying
+is honest there because “eventually” is the actual contract, and a scenario that
+typed once would be pinning a race.
+
+Servers are spawned `detached`, and `killChild` kills the process GROUP for the
+same reason: `SIGKILL` runs no finalizer, so a server killed on its own would
+leave its embedder behind.
+
 ## Git, which every other scenario is served without
 
 Every server this harness spawns runs with `--no-commit`: a scratch corpus is a

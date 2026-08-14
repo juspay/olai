@@ -40,6 +40,7 @@ const HOUSE = [
 const reading = (set: OutlineSet = setOf({ "house.jsonl": HOUSE })): Reading => ({
   set,
   derived: derive(set.nodes),
+  recall: null,
 })
 
 /** The request, or a refusal quoted well enough to fix the test without a

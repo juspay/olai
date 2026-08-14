@@ -43,6 +43,7 @@ import { Effect, SubscriptionRef } from "effect"
 
 import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
+import * as Recall from "../recall/recall.ts"
 import { bind, gitWiring } from "../runtime.ts"
 import { serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
@@ -161,10 +162,15 @@ export const serveTools = (options: McpServeOptions) =>
     // meaning: a commit or a push happens without moving a served file, so
     // nothing else in this process can say that what is waiting has changed.
     const recorded = yield* SubscriptionRef.make(0)
+    // The same semantic index the web serve opens, over the same seam — a
+    // terminal agent's `search_nodes` and a palette's search must be one
+    // reading (HACKING.md), and `null` here is the same substring-only story.
+    const recall = yield* Recall.open({ root, snapshot: store.snapshot })
     const ops = makeOps({
       store,
       root,
       commits: options.commits,
+      recall,
       onRecorded: () => {
         Effect.runSync(SubscriptionRef.update(recorded, (count) => count + 1))
       },

@@ -727,6 +727,11 @@ export class OlaiWorld extends World {
    *  are handed kolu's terminals as well as olai's own tools. Carried for the
    *  same reason again: a restart has to reproduce the first boot. */
   hasKolu = false;
+  /** Whether this scenario's server indexes for search-by-meaning (`@recall`).
+   *  Every other scenario runs with the reader's own `OLAI_RECALL=off`, so an
+   *  idle model server is not spawned hundreds of times. Carried for the same
+   *  reason as the three above: a restart has to reproduce the first boot. */
+  hasRecall = false;
   /** Which git situation this scenario's server was started into (`@git:…`),
    *  or `undefined` for the `--no-commit` every other scenario runs with.
    *  Carried for the same reason as the three above: a restart mid-scenario has

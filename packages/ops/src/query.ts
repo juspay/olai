@@ -38,6 +38,7 @@ import {
   tagText,
   titleParts,
 } from "@olai/format"
+import { Effect } from "effect"
 
 /** One node, said the way every answer here says it. */
 export interface Found {
@@ -108,14 +109,30 @@ export interface Placed extends Placement {
 
 export interface Hit extends Found {
   /** Which field carried the strongest match — so a caller can say why this
-   *  came back, rather than leaving a reader to guess. */
-  readonly matched: "title" | "id" | "tag" | "desc"
+   *  came back, rather than leaving a reader to guess. `meaning` is the one
+   *  value no field carries: the node said the same thing in other words, and
+   *  a reader owed the difference between evidence and resemblance gets it
+   *  here ({@link searchWith}). */
+  readonly matched: "title" | "id" | "tag" | "desc" | "meaning"
 }
 
 export interface Search {
   readonly hits: ReadonlyArray<Hit>
-  /** How many nodes matched in all. `hits` is capped; this is not, so "twelve
-   *  of ninety" is sayable. */
+  /**
+   * How many nodes matched in all, by whichever reading answered. `hits` is
+   * capped at the limit; this is not, so "twelve of ninety" is sayable.
+   *
+   * ONE MEANING, and {@link searchWith} is careful to keep it one: the
+   * paraphrase half counts every above-floor neighbour it could have shown,
+   * not the few that fitted. A field that were uncapped for exact matches and
+   * capped for semantic ones would be two fields wearing one name.
+   *
+   * When exact matches EXCEED the limit, `hits` is a window onto them and the
+   * ones past it are absent from `hits` while still counted here — that is
+   * the shape {@link search} has always had, and it is deliberate. Note that
+   * it never coexists with a paraphrase hit: room is only left over when
+   * nothing was truncated.
+   */
   readonly total: number
 }
 
@@ -359,6 +376,116 @@ export const search = (
   const ranked = scored.slice().sort((a, b) => b.score - a.score)
   const limit = query.limit ?? DEFAULT_LIMIT
   return { hits: ranked.slice(0, limit).map((entry) => entry.hit), total: ranked.length }
+}
+
+// ── search, with the semantic reading behind it ────────────────────────
+
+/** One nearby node, as the index answers it: an id, and how close it sits.
+ *  An id and not a {@link Found} — the index is a DERIVED reading and may lag
+ *  the snapshot by a beat, so what it says is only ever resolved against the
+ *  snapshot in hand, never trusted for a title or a line. */
+export interface Near {
+  readonly id: string
+  /** Cosine similarity, larger is closer. The index owns the floor under it. */
+  readonly score: number
+}
+
+/**
+ * The semantic reading, when something is standing behind the server to give
+ * one — an embedding index over the same nodes {@link search} walks.
+ *
+ * An INTERFACE here and an implementation nowhere in this package, which is
+ * the seam the whole feature hangs on: this layer stays pure functions over a
+ * snapshot, and the thing that owns vectors, a cache file and a model server
+ * lives with the server (`@olai/server`'s `recall/`). Its absence is not an
+ * error and not even unusual — it is exactly today's substring search, which
+ * is why every consumer holds a `Recall | null` and none of them may treat
+ * the `null` as something to report.
+ *
+ * `nearest` CANNOT FAIL, by type: an embedder that is down, slow or wrong
+ * answers as an empty list (logged by whoever owns it), because recall is a
+ * reading a search falls back from — never a dependency a search waits on.
+ */
+export interface Recall {
+  /**
+   * Every neighbour the index reads as close enough to be a paraphrase,
+   * best first. UNCAPPED, and that is the point: the caller has to be able to
+   * say how many nodes resemble the query, not how many it had room to draw
+   * ({@link Search}' `total`). What bounds this is the index's own
+   * similarity floor, which is where a bound belongs — a count cut off at a
+   * display limit is not a count.
+   */
+  readonly nearest: (text: string) => Effect.Effect<ReadonlyArray<Near>>
+}
+
+/**
+ * {@link search}, with paraphrase matches filled in behind the exact ones.
+ *
+ * The ranking rule is the design (docs/brainstorming/semantic-recall.md):
+ * substring hits rank FIRST because they are evidence — the words are in the
+ * node, and a reader can check. Semantic hits only FILL what is left of the
+ * limit, because they are resemblance: the index thinks the node says the
+ * same thing in other words, and it is sometimes wrong. So a query whose
+ * exact matches already fill the answer never asks the index at all, and the
+ * two kinds are never interleaved by score — a similarity and a field weight
+ * are not commensurable, and a merge that pretended they were would move
+ * checkable hits below guessed ones.
+ *
+ * With no recall standing behind the server — none configured, no embedder in
+ * the closure — the answer IS `search`'s, byte for byte. That equality is
+ * pinned (`query.test.ts`), because it is the degradation contract: the
+ * semantic index is a derived reading, and a missing derivation must cost
+ * nothing but the paraphrase matches themselves.
+ *
+ * COUNTED HONESTLY, which is why the index is asked for every neighbour above
+ * its floor rather than for a capped few: `total` is documented as the number
+ * of nodes that MATCHED, and a paraphrase half that reported only what fitted
+ * on the screen would make one field mean two things. So every resolvable,
+ * not-already-answered neighbour is counted, and the first `room` of them are
+ * drawn.
+ *
+ * The dedup is against `exact.hits` and that is complete, not approximate:
+ * `room > 0` is only reachable when the substring pass did NOT fill the limit,
+ * and a substring pass that did not fill the limit truncated nothing — so the
+ * hits in hand ARE every exact match, and no node can be counted twice. An id
+ * the snapshot no longer declares is skipped, not resolved: the index lags the
+ * truth, never contradicts it.
+ */
+export const searchWith = (
+  at: { readonly derived: Derived; readonly recall: Recall | null },
+  query: { readonly text: string; readonly limit?: number },
+): Effect.Effect<Search> => {
+  const exact = search(at.derived, query)
+  const limit = query.limit ?? DEFAULT_LIMIT
+  const room = limit - exact.hits.length
+  if (at.recall === null || room <= 0 || query.text.trim() === "") {
+    return Effect.succeed(exact)
+  }
+  const recall = at.recall
+  return Effect.map(recall.nearest(query.text), (near) => {
+    const answered = new Set(exact.hits.map((hit) => hit.id))
+    const filled: Array<Hit> = []
+    /** Every neighbour that WOULD have been a hit — what `total` reports,
+     *  whether or not there was room to draw it. */
+    let resembling = 0
+    for (const { id } of near) {
+      if (answered.has(id)) continue
+      const located = at.derived.byId.get(id)
+      if (located === undefined || isMirror(located.node)) continue
+      resembling += 1
+      if (filled.length < room) {
+        filled.push({
+          ...foundOf(at.derived, located as LocatedRegular),
+          matched: "meaning",
+        })
+      }
+    }
+    if (resembling === 0) return exact
+    return {
+      hits: [...exact.hits, ...filled],
+      total: exact.total + resembling,
+    }
+  })
 }
 
 // ── one node, and what is under it ─────────────────────────────────────

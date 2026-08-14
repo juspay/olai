@@ -4,7 +4,8 @@
  * The MCP face's `search_nodes` and the palette must answer identically for
  * the same words (HACKING.md: MCP and Web ops must be consistent), and the
  * way that is made structural rather than aspirational is this procedure:
- * both are callers of `@olai/ops`' `Query.search`, over the same `Reading`.
+ * both are callers of `@olai/ops`' `Query.searchWith`, over the same `Reading`
+ * — semantic index included, when the closure carries an embedder.
  * The browser does hold every node (the `outlines` collection) and could grep
  * them itself; it deliberately does not, because a client-side matcher would
  * be a second implementation of ranking — and the first place the two faces of
@@ -37,7 +38,11 @@ export const SearchHit = Schema.Struct({
   path: Schema.Array(Schema.String),
   see: Schema.optionalKey(Schema.Array(Schema.String)),
   after: Schema.optionalKey(Schema.Array(Schema.String)),
-  matched: Schema.Literals(["title", "id", "tag", "desc"]),
+  /** Which field carried the match — or `meaning`, which is no field at all:
+   *  the words are NOT in this node and the index reads it as saying the same
+   *  thing. The browser draws that difference (`≈`), because a reader is owed
+   *  evidence and resemblance apart. */
+  matched: Schema.Literals(["title", "id", "tag", "desc", "meaning"]),
 })
 export type SearchHit = typeof SearchHit.Type
 

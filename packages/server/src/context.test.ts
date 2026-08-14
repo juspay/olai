@@ -32,6 +32,7 @@ const HOUSE = [
 const reading = (set: OutlineSet = setOf({ "house.jsonl": HOUSE })): Reading => ({
   set,
   derived: derive(set.nodes),
+  recall: null,
 })
 
 const resolved = (ids: ReadonlyArray<string>): ReadonlyArray<NodeContext> => {

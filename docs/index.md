@@ -6,7 +6,8 @@
   row, picking several at once, what a draft is, how ⌘Z takes an edit back, and
   writing a document.
 - [search.md](search.md) — one search, three doors: what matches, what a
-  result row shows, and where searching happens on each face.
+  result row shows, where searching happens on each face, and how a note you
+  cannot name is found by what it means.
 - [git.md](git.md) — the git integration: commit modes, the pill, and the
   audit view.
 - [chat.md](chat.md) — the chat agent: ACP and `OLAI_ACP_AGENT`, the node

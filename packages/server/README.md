@@ -83,6 +83,9 @@ register `stop` as a finalizer.
 | `media.ts` | `/media/*`: the pictures a document points at, and the only bytes that leave the served directory over HTTP without going through the store |
 | `manifest.ts` | what an installed olai is: name, description, colours, and the mark |
 | `directory.ts` | the served directory, opened: resolved, annotated onto the log, and a store over it — in the order both composition roots need and neither should have to remember |
+| `recall/recall.ts` | the SEMANTIC index behind `Query.searchWith`: one map of node id → vector, reconciled off the store’s own snapshot stream by content hash, slept into the XDG cache. A derived reading, so it may lag and may miss but can never contradict — nothing here is ever asked what a node SAYS |
+| `recall/embedder.ts` | how text becomes a vector, and how an embedder is FOUND — two store paths the nix wrapper bakes in, never a probe of the network, which is the condition the parked first attempt returned on. It owns the `llama-server` child: started lazily, spoken to over a unix socket, stopped with the scope, and swept at the next boot if a `kill -9` left one behind |
+| `recall/cache.ts` | where that index sleeps between serves, and the argument for the XDG cache dir over the served directory |
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
 | `allowedOrigins.ts` | `OLAI_ALLOWED_ORIGINS`, the one place the websocket's origin allowlist is named |
 | `main.ts` | argv, defaults, the log sink, and the top-level run |

@@ -44,7 +44,7 @@ import {
   type Status,
 } from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
-import { index } from "./query.ts"
+import { index, type Recall } from "./query.ts"
 import type { Applied, Request } from "./request.ts"
 import { sortOfWrite } from "./sorted.ts"
 import type { Reading } from "./tools.ts"
@@ -83,6 +83,14 @@ export interface Options {
   /** Told whenever git recorded or shared something — a commit by whichever
    *  door, or a push — see {@link ./pending.ts}'s `Options`. */
   readonly onRecorded?: () => void
+  /**
+   * The semantic reading, when the composition root stood one up — the index
+   * `@olai/server`'s `recall/` keeps beside the store. Optional, and `null`
+   * means exactly what absent means: search is substring only, which is not a
+   * degraded ops layer but the ordinary one. It rides every {@link Reading}
+   * so both faces of search read through the same index.
+   */
+  readonly recall?: Recall | null
 }
 
 export interface Ops {
@@ -188,7 +196,7 @@ export const make = (options: Options): Ops => {
       })
     }
     const set = snapshot.value as OutlineSet
-    return { set, derived: index(set) }
+    return { set, derived: index(set), recall: options.recall ?? null }
   })
 
   const run = (
