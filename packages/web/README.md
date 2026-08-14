@@ -1405,15 +1405,23 @@ The pieces, and what each decides:
   a branch inside itself" is true by construction rather than by a guard — and
   what is left is still a tree, so the walk back for an ancestor always finds
   one.
-- **`drag/dragging.ts` — pointer events, not HTML5 drag-and-drop**, the same
-  call `layout/resize.ts` made one control over. A `dragstart` gesture owns the
-  ghost image, keeps its data store protected until the drop and fires
-  `dragover` at whatever element is under the cursor; none of that is what an
-  outline needs. (It also has to turn the native one OFF: a bullet is an
-  `<a href>`, every link is draggable for free, and the platform's link-drag
-  fires `pointercancel` at the gesture underneath it.) Rows are measured ONCE,
-  at the press, in document coordinates — nothing is optimistic here, so nothing
-  moves while a row is in the air.
+- **`src/client/pointer.ts` — the gesture itself, which is not the outline's.**
+  Window listeners (a pointer that leaves the handle is still dragging it), a
+  teardown on every way a gesture can end, the text-selection guard, and the
+  threshold that tells a drag from a click. It was written once for the panel
+  edges (`layout/resize.ts`) and was about to be written a second time, which is
+  the moment it becomes a thing rather than a habit; what stayed in each caller
+  is the only part that is about a width or about a placement. It holds the
+  argument for **pointer events over HTML5 drag-and-drop** too: that API owns
+  the ghost image, keeps its data store protected until the drop and reports the
+  ELEMENT under the cursor, and both consumers compute their answer from
+  coordinates against boxes this app measured itself.
+- **`drag/dragging.ts`** is then what a gesture over an OUTLINE means: what it
+  is carrying, where the rows are, and the write a release makes. It also has to
+  turn the NATIVE drag off — a bullet is an `<a href>`, every link is draggable
+  for free, and the platform's link-drag fires `pointercancel` at the gesture
+  underneath it. Rows are measured ONCE, at the press, in document coordinates:
+  nothing is optimistic here, so nothing moves while a row is in the air.
 - **`select/range.ts` — place arithmetic.** A `Row.key` is the chain of ids from
   the root of the page, so containment, siblinghood and "the ancestor at this
   depth" are string questions rather than walks. Its one rule with teeth is

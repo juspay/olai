@@ -2,22 +2,17 @@
  * Dragging a row, as a gesture: what is being carried, where it would land, and
  * the one write that puts it there.
  *
- * **POINTER EVENTS, not HTML5 drag-and-drop, and it is the same call
- * `../layout/resize.ts` made one control over.** A `dragstart` gesture is the
- * browser's: it owns the ghost image, it keeps its data store protected until
- * the drop, and it fires `dragover` at whatever element is under the cursor.
- * What an outline needs is none of that — the drop target is a GAP between two
- * lines and a depth within it, computed from coordinates (`./plan.ts`), and the
- * affordance is a line this app draws. Pointer capture gives exactly that, and
- * it is what Workflowy's own gesture feels like. The other reason is a rule
- * rather than a preference: HACKING says to reach for the SolidJS ecosystem
- * rather than hand-roll, and every drag library in it owns a sortable LIST —
- * flat, one container, no depth — which is the shape an outline is not.
+ * **THE GESTURE ITSELF IS NOT HERE.** Window listeners, the teardown, the
+ * text-selection guard and the threshold that tells a drag from a click are one
+ * mechanism shared with the panel edges (`../pointer.ts`, which also holds the
+ * argument for pointer events over HTML5 drag-and-drop). What is left in this
+ * file is the only part that is about an OUTLINE: what a gesture is carrying,
+ * where the rows are, and the write a release makes.
  *
  * **A drag starts only after the pointer has moved.** The bullet is a link to
  * the node's own page, so a press that never travels must still be that
- * navigation; the threshold below is what tells the two apart, and the click
- * that follows a real drag is swallowed ({@link Dragging.dragged}).
+ * navigation; the threshold is what tells the two apart, and the click that
+ * follows a real drag is swallowed ({@link Dragging.dragged}).
  *
  * **The rows are measured ONCE, when the drag begins, in DOCUMENT
  * coordinates.** Nothing is optimistic here, so nothing on screen moves while a
@@ -45,6 +40,7 @@ import { type Accessor, createContext, createSignal, useContext } from "solid-js
 import { flatten } from "../edit/order.ts"
 import type { Said } from "../edit/undoing.ts"
 import { useUndo } from "../edit/undoing.ts"
+import { drag as pointerDrag } from "../pointer.ts"
 import { depthOf, inside } from "../select/range.ts"
 import { applyingAll } from "../writes.ts"
 import { type Drop, FALLBACK_INDENT, indentOf, type Placed, planDrop } from "./plan.ts"
@@ -115,9 +111,19 @@ export const createDragging = (
   const [moving, setMoving] = createSignal<ReadonlySet<string>>(new Set())
   const [landing, setLanding] = createSignal<Landing | null>(null)
   const undo = useUndo()
-  /** True from the moment a gesture crosses the threshold until the click it
-   *  produced has been swallowed. Not a signal: nothing DRAWS it, and the one
-   *  reader is a click handler running in the same task. */
+  /**
+   * Did the gesture that ended most recently TRAVEL? Not a signal: nothing
+   * draws it, and its one reader is a click handler.
+   *
+   * Cleared by the next PRESS rather than by the read, which is the only
+   * spelling that is true for both the click that follows a drag and the one
+   * that does not. A `click` fires on the nearest common ancestor of the press
+   * and the release, so a row dragged and dropped somewhere else produces no
+   * click on the bullet at all — and a flag cleared on read would still be set
+   * when the reader next pressed a bullet, swallowing the navigation of a
+   * gesture that never travelled. Every click on a handle is preceded by a
+   * press on that handle, so clearing there covers it exactly.
+   */
   let travelled = false
 
   /**
@@ -179,57 +185,42 @@ export const createDragging = (
   const grab = (event: PointerEvent, row: Row) => {
     // The secondary button opens a context menu; a drag is the primary one's.
     if (event.button !== 0) return
-    const originX = event.pageX
-    const originY = event.pageY
-    // The press must not select the text under it while the pointer travels.
-    const held = document.body.style.userSelect
+    // Every press clears it, and nothing else does — see the field's own note.
+    travelled = false
     /** What this gesture is carrying, decided when it becomes a drag rather
      *  than at the press: a press that turns out to be a click must not have
      *  cleared the selection on its way past. */
     let carried: ReadonlyArray<Row> = []
     let placed: ReadonlyArray<Placed> = []
     let indent = 0
-    let began = false
 
-    const begin = () => {
-      began = true
-      travelled = true
-      const picked = page.selection.keys()
-      carried = picked.has(row.key) ? page.selection.rows() : [row]
-      if (!picked.has(row.key)) page.selection.clear()
-      const keys = new Set(carried.map((one) => one.key))
-      setMoving(keys)
-      placed = measure(keys)
-      indent = indentOf(placed) ?? FALLBACK_INDENT
-    }
-
-    const onMove = (move: PointerEvent) => {
-      if (!began) {
-        if (Math.hypot(move.pageX - originX, move.pageY - originY) < THRESHOLD) return
-        begin()
-      }
-      const drop = planDrop(placed, move.pageX, move.pageY)
-      setLanding(drop === null ? null : drawn(placed, drop, indent))
-    }
-
-    const finish = (up: PointerEvent | null) => {
-      window.removeEventListener("pointermove", onMove)
-      window.removeEventListener("pointerup", onUp)
-      window.removeEventListener("pointercancel", onCancel)
-      document.body.style.userSelect = held
-      const target = up === null ? null : landing()
-      setMoving(new Set<string>())
-      setLanding(null)
-      if (target === null || carried.length === 0) return
-      void drop(target.drop, carried)
-    }
-    const onUp = (up: PointerEvent) => finish(up)
-    const onCancel = () => finish(null)
-
-    document.body.style.userSelect = "none"
-    window.addEventListener("pointermove", onMove)
-    window.addEventListener("pointerup", onUp)
-    window.addEventListener("pointercancel", onCancel)
+    pointerDrag(event, {
+      threshold: THRESHOLD,
+      onStart: () => {
+        travelled = true
+        const picked = page.selection.keys()
+        carried = picked.has(row.key) ? page.selection.rows() : [row]
+        if (!picked.has(row.key)) page.selection.clear()
+        const keys = new Set(carried.map((one) => one.key))
+        setMoving(keys)
+        placed = measure(keys)
+        indent = indentOf(placed) ?? FALLBACK_INDENT
+      },
+      onMove: (move) => {
+        const found = planDrop(placed, move.pageX, move.pageY)
+        setLanding(found === null ? null : drawn(placed, found, indent))
+      },
+      onEnd: (up) => {
+        // A CANCELLED gesture is not a drop, and the difference is the whole
+        // reason the primitive answers with `null` rather than with the last
+        // move: a pointer taken away mid-drag has not chosen anything.
+        const target = up === null ? null : landing()
+        setMoving(new Set<string>())
+        setLanding(null)
+        if (target === null || carried.length === 0) return
+        void drop(target.drop, carried)
+      },
+    })
   }
 
   /**
@@ -262,10 +253,6 @@ export const createDragging = (
     },
     landing,
     grab,
-    dragged: () => {
-      const was = travelled
-      travelled = false
-      return was
-    },
+    dragged: () => travelled,
   }
 }
