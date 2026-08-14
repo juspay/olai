@@ -22,9 +22,9 @@ Sidebar of found outlines, one tree per route, mirrors inline (marked), client-l
 
 - **Zoom URL is `/n/<id>`**: one route per node. Ids are stable and set-unique, so the permalink survives renames and moves — even across files; the outline is derivable, not part of the address. The zoomed page shows title as heading, desc, then children.
 - **Breadcrumbs are always the canonical parent chain**, regardless of whether you arrived through a mirror. Stateless: the same URL always shows the same crumbs.
-- **First navigation PR**: zoom + breadcrumbs + permalinks + done-visibility toggle. Independent of live-updates — it only needs the see-outline tree, so the two can proceed in parallel.
+- **First navigation PR**: zoom + breadcrumbs + permalinks + done-visibility toggle. Independent of live-updates — it only needs the see-outline tree, so the two can proceed in parallel. (Written when the toggle was a per-page pill; the pill retired into Prefs — #151.)
 - **Tag click lands with search**, not navigation — it is a canned filter, shipped when the filter machinery exists. Tags stay decorative until then.
-- **Done-visibility is per-view** (each zoomed view/outline its own Visible/Hidden switch), a client-local cell alongside collapse state.
+- **Done-visibility is per-view** (each zoomed view/outline its own Visible/Hidden switch), a client-local cell alongside collapse state. (Written when status was derived and `open` was the residual; both went — #86, #88 and `hide-done-scope`. The per-view pill itself retired into Prefs — #151: one browser preference, no per-page override.)
 
 ## Title markdown — resolved 2026-08-10 (title-markdown)
 

@@ -190,8 +190,14 @@ Then(
 // ── the anchors the contents is made of ────────────────────────────────
 
 Then("every heading links to itself", async function (this: OlaiWorld) {
+  // The markdown chunk is lazy. "the page is up" is not "the headings
+  // are drawn"; wait for the first one rather than proving nothing.
+  await this.waitUntil(
+    async () => (await headings(this, "document")).length > 0,
+    "the document to draw its headings",
+    HYDRATION_TIMEOUT,
+  );
   const drawn = await headings(this, "document");
-  assert.ok(drawn.length > 0, "this document has no headings, so the scenario proves nothing");
 
   const unlinked = await this.documentBody().locator(HEADINGS).evaluateAll((nodes) =>
     nodes

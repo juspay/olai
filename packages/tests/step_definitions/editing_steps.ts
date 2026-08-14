@@ -99,6 +99,14 @@ When(
 When("I press {string}", async function (this: OlaiWorld, key: string) {
   await this.page.keyboard.press(key);
   await this.waitForFrame();
+  if (key === "Alt+Shift+ArrowUp" || key === "Alt+Shift+ArrowDown") {
+    // A move remounts the row. The next key (⌘Enter) is for the caret
+    // that has to come back; one frame is not that, under load.
+    await this.page
+      .locator(TITLE_EDITOR)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  }
 });
 
 /** The same key, with nothing waited for afterwards — which is how a person

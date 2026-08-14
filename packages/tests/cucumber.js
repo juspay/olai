@@ -8,7 +8,11 @@
  * knows are flaky.
  */
 
-const parallel = parseInt(process.env.CUCUMBER_PARALLEL || "1", 10);
+import { workerCount } from "./support/parallelism.js";
+
+// Unset: derived from the machine (`os.availableParallelism() - 1`, cap 4).
+// `CUCUMBER_PARALLEL` is the override, including `=1` for a serial run.
+const parallel = workerCount();
 
 // Only set default paths when no feature file was passed on the CLI. A profile
 // that hardcodes `paths` silently wins over the positional argument, so

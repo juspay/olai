@@ -24,7 +24,6 @@ import { blockedIds } from "./blocked.ts"
 import { Blocked } from "./Blocked.tsx"
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
-import { DoneToggle } from "./DoneToggle.tsx"
 import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
 import { only } from "./narrow.ts"
@@ -32,25 +31,24 @@ import { NodeBody } from "./NodeBody.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { NotFound } from "./NotFound.tsx"
 import { ProgressBadge } from "./ProgressBadge.tsx"
+import { doneHidden } from "./settings/done.ts"
 import { TESTID } from "./testids.ts"
 import { useToday } from "./today.tsx"
 import { toneOf } from "./tone.ts"
 import { Tree } from "./Tree.tsx"
-import type { View } from "./view.ts"
 
 export function NodePage(props: {
   readonly zoomed: Zoomed
   /** The children, off the app's one row derivation — the same rows an outline
    *  draws, so a zoomed page is as live as any other. */
   readonly rows: ReadonlyArray<Row>
-  readonly view: View
 }) {
   return (
     <Show
       when={only(props.zoomed, "node")}
       fallback={<NotFound zoomed={props.zoomed} />}
     >
-      {(zoomed) => <Zoom zoomed={zoomed()} rows={props.rows} view={props.view} />}
+      {(zoomed) => <Zoom zoomed={zoomed()} rows={props.rows} />}
     </Show>
   )
 }
@@ -58,20 +56,13 @@ export function NodePage(props: {
 function Zoom(props: {
   readonly zoomed: Extract<Zoomed, { readonly kind: "node" }>
   readonly rows: ReadonlyArray<Row>
-  readonly view: View
 }) {
   const today = useToday()
 
   return (
     <Editable rows={() => props.rows}>
       <header class="mb-4">
-        <div class="flex items-baseline justify-between gap-4">
-          <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
-          <DoneToggle
-            hidden={props.view.doneHidden()}
-            onToggle={props.view.toggleDone}
-          />
-        </div>
+        <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
 
         {/* The subject is a node too — same testid a row uses — so "the
             description of X" and "the node X" mean the same record on a
@@ -127,7 +118,11 @@ function Zoom(props: {
         fallback={
           <Show
             when={props.zoomed.children.length === 0}
-            fallback={<p class="text-muted">{nothingUnder(props.zoomed, props.view)}</p>}
+            fallback={
+              <p class="text-muted" data-testid={TESTID.emptyUnder}>
+                {nothingUnder(props.zoomed)}
+              </p>
+            }
           >
             {/* Nothing under it, and nothing hidden either — so the honest
                 thing to offer is the first child, which a page with no rows
@@ -147,11 +142,10 @@ function Zoom(props: {
 
 /** An empty page has two causes and they are not the same news: a leaf has
  *  nothing under it, a subtree that is entirely done has been hidden by this
- *  reading and is one click from coming back. */
+ *  reading and is one pick in Prefs from coming back. */
 const nothingUnder = (
   zoomed: Extract<Zoomed, { readonly kind: "node" }>,
-  view: View,
 ): string =>
-  zoomed.children.length > 0 && view.doneHidden()
-    ? "Everything under this node is done, and done nodes are hidden."
+  zoomed.children.length > 0 && doneHidden()
+    ? "Everything under this node is done, and Prefs is hiding finished work."
     : "Nothing under this node."
