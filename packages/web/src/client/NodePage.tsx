@@ -24,7 +24,7 @@ import { blockedIds } from "./blocked.ts"
 import { Blocked } from "./Blocked.tsx"
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
-import { AfterRefs } from "./edges/AfterRefs.tsx"
+import { EdgeRefs } from "./edges/EdgeRefs.tsx"
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { EdgeVerbs } from "./edges/EdgeVerbs.tsx"
 import { Editable } from "./edit/Editable.tsx"
@@ -119,8 +119,9 @@ function Zoom(props: {
           {/* …and the FIELD under it: what this node itself declares it comes
               after, whether or not the target is still in the way. That is what
               `set_after` writes, so that is what carries the `×`. */}
-          <AfterRefs
+          <EdgeRefs
             node={props.zoomed.shows.node}
+            relation="after"
             onRemove={(target) => edges.drop("after", target)}
           />
 

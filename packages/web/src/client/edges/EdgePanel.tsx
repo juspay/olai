@@ -23,7 +23,7 @@
  * The `×` is here rather than only on the rendered refs row for a reason a
  * reader can see: a tree row draws its `see` links inside the note it expands,
  * so a node with references and no note has nowhere to put one. The row on a
- * node's own page has the `×` too (`../SeeRefs.tsx`, `./AfterRefs.tsx`) — two
+ * node's own page has the `×` too (`./EdgeRefs.tsx`) — two
  * doors onto one write, which is the shape `Clear date` already has.
  *
  * ## The search is the SERVER's, like every other one in this client

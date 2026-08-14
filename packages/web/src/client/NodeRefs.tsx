@@ -3,8 +3,9 @@
  * like when it is drawn out rather than hinted at.
  *
  * Two relations are drawn this way so far and they are one shape: the free
- * cross-references a node carries (`see`, ./SeeRefs.tsx) and what it is waiting
- * on (`after`, ./Blocked.tsx). Same reason `NodeLine` and `NodeBody` are one
+ * cross-references a node carries and what it is waiting on — both `see` and
+ * `after` through ./edges/EdgeRefs.tsx, and the DERIVED `blocked by`
+ * through ./Blocked.tsx. Same reason `NodeLine` and `NodeBody` are one
  * place each — the second copy of a sequence like this is where the two start
  * disagreeing about the touch target, the wrap, or which element carries the
  * target id, with both still compiling and one browser test noticing.

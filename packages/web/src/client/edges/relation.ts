@@ -21,6 +21,8 @@
 
 import type { Edit } from "@olai/surface"
 
+import { type TestId, TESTID } from "../testids.ts"
+
 /** The two fields an op may write. Deliberately NOT the format's own
  *  `after | blocks | see`: `a blocks b` IS `b after a`, and the ops layer
  *  writes that arrow one way so one relation is never on disk in two
@@ -35,10 +37,14 @@ export interface Relating {
   readonly verb: string
   /** What the panel calls itself once it is open. */
   readonly heading: string
-  /** The label on the row of links a node draws (`../NodeRefs.tsx`) — the
+  /** The label on the row of links a node draws (`./EdgeRefs.tsx`) — the
    *  format's own word for the field, because that is what the file says and
    *  what an agent's tool is named after. */
   readonly label: string
+  /** What that row is called to the browser tests. Here rather than at the two
+   *  call sites for the reason the label is: they are one contract about one
+   *  relation, and a projection spelled per caller is one that drifts. */
+  readonly refs: TestId
   /** What the empty search box suggests. */
   readonly placeholder: string
 }
@@ -55,6 +61,7 @@ const RELATING: Record<Relation, Relating> = {
     verb: "Link to a node…",
     heading: "See also",
     label: "see",
+    refs: TESTID.seeRefs,
     placeholder: "search for a node to link to",
   },
   after: {
@@ -62,6 +69,7 @@ const RELATING: Record<Relation, Relating> = {
     verb: "Wait for a node…",
     heading: "Comes after",
     label: "after",
+    refs: TESTID.afterRefs,
     placeholder: "search for a node this comes after",
   },
 }

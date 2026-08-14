@@ -2151,11 +2151,19 @@ the sentence a person needs and exactly the one an agent gets. A panel that hid
 those rows would teach a rule this app does not have.
 
 **A node's page draws the declared list beside the derived one**
-(`AfterRefs.tsx` under `Blocked.tsx`) and only the declared one carries an `×`.
+(`EdgeRefs.tsx` under `Blocked.tsx`) and only the declared one carries an `×`.
 That is not a duplicate: `blocked by` is what is in the way *now* — unfinished
 work only, with `blocks` folded in from other records and both ends resolved
 through mirrors — so half of it may live on somebody else's record and an `×`
 there would name no single edge. `after` is the field `set_after` writes.
+
+**One component draws either relation** (`EdgeRefs.tsx`, which `SeeRefs.tsx`
+moved into): read the field, resolve each id by the format's own rule, draw a
+labelled row. It was two — the second copied from the first — and what the copy
+fragmented was worse than the copy itself: the row's label and its testid are
+facts about a RELATION, they already lived in the table, and each component
+spelled its own, so a rename in the table would have left both saying the old
+word with everything still compiling.
 
 **And they are facts about the node a row SHOWS**, so an edge chosen at a
 mirror lands on its target — the standing routing rule, one field along from
