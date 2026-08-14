@@ -10,7 +10,8 @@ only one of them could be read at a time.
 | file | what it owns |
 |---|---|
 | `src/typefaces.ts` | the picks: every typeface a person can choose — name, label, group, hint, and the three stacks |
-| `src/hosted.ts` | the files those picks need, by family, weight and style |
+| `src/hosted.json` | the faces on disk: where each file comes from in nixpkgs, and the family, weight and style it carries. Read by `src/hosted.ts` AND by `default.nix` — one list, two languages |
+| `src/hosted.ts` | that list, as the table the sheet generator reads |
 | `src/css.ts` | the sheet the two become — one `@font-face` per hosted file, one `:root[data-font="…"]` block per pick |
 | `default.nix` | the faces themselves: nixpkgs sources, converted to woff2 **once, in the Nix store** |
 
@@ -37,13 +38,14 @@ Terminal, …) name only what a browser already has and download nothing.
 ## Adding a typeface
 
 1. A row in `TABLE` (`src/typefaces.ts`).
-2. If it is hosted rather than generic: its files in `HOSTED_FILES`
-   (`src/hosted.ts`), and the nixpkgs paths for those same files in
-   `default.nix`.
+2. If it is hosted rather than generic: a group in `src/hosted.json` — the
+   nixpkgs package its files come from, the directory under `share/fonts/`,
+   the family the CSS will name, and one entry per file.
 
-That is the whole of it — the picker draws one option per row, the sheet grows
-its `@font-face` and its block, and `src/derivation.test.ts` fails if step 2
-was done on only one side.
+Two edits, and the second is one place rather than two: the derivation and
+the sheet read the same JSON, so there is no way to give a face to one and
+not the other. The picker then draws one option per row, and the sheet grows
+its `@font-face` and its block.
 
 ## Converted once, in the store
 
@@ -83,4 +85,6 @@ and the default row's stacks by hand. That is the one hand-copy, and
 
 No dependencies at all — two tables and the pure functions over them. Nothing
 here fails, does IO, or knows what a browser or a build is; the one thing that
-touches a disk is the derivation, which is not JavaScript.
+touches a disk is the derivation, which is not JavaScript. The one runtime
+check is `hosted.ts`'s: a `style` the JSON spells wrong is a face that would
+silently never apply, so it is parsed at import and thrown on.

@@ -9,39 +9,27 @@
 # minute of CPU and a fresh /tmp directory each time, to produce bytes that
 # were the same bytes every time.
 #
-# The file table is `src/hosted.ts`, in this same package: every file named
-# there has to land in this directory under the same basename with `.woff2`
-# for an extension, because the build copies them out BY NAME
-# (`../web/src/build.ts`) and the generated sheet asks for them by that name
-# (`src/css.ts`). A face in that table which is not converted here fails the
-# build loudly rather than 404ing in someone's browser — and fails
-# `src/derivation.test.ts` before that. Generics (System, Sans-serif, …) download
-# nothing and are not here. One directory so `OLAI_FONTS_DIR` stays one
-# variable in shell.nix and the root default.nix.
+# WHICH faces is not spelled here. `src/hosted.json` is the one list, read by
+# this file and by `src/hosted.ts` beside it: a hosted face is where its bytes
+# come from AND what CSS identity they carry, and keeping those in two
+# languages meant two lists joined on a basename by a test. This reads the
+# `pkg`/`dir` half and ignores the rest; the sheet generator reads the other
+# half and ignores this one. Generics (System, Sans-serif, …) download nothing
+# and are not there. One directory so `OLAI_FONTS_DIR` stays one variable in
+# shell.nix and the root default.nix.
 { pkgs }:
 let
-  inherit (pkgs)
-    atkinson-hyperlegible-next
-    commit-mono
-    crimson-pro
-    et-book
-    fira-code
-    geist-font
-    ia-writer-mono
-    ia-writer-quattro
-    inter
-    jetbrains-mono
-    junicode
-    lexend
-    literata
-    open-dyslexic
-    open-sans
-    source-sans
-    source-serif
-    vollkorn
-    ;
-  ttf = pkg: file: "${pkg}/share/fonts/truetype/${file}";
-  otf = pkg: file: "${pkg}/share/fonts/opentype/${file}";
+  inherit (pkgs) lib;
+
+  sources = builtins.fromJSON (builtins.readFile ./src/hosted.json);
+
+  # `pkg` is an attribute PATH so a nested set can be named the way nixpkgs
+  # nests it (`ibm-plex.mono`). An unknown one fails eval here, by name.
+  packageAt = path: lib.getAttrFromPath (lib.splitString "." path) pkgs;
+
+  filesOf = source:
+    map (face: "${packageAt source.pkg}/share/fonts/${source.dir}/${face.file}")
+      source.faces;
 in
 pkgs.runCommand "olai-fonts"
 {
@@ -50,96 +38,7 @@ pkgs.runCommand "olai-fonts"
   # The sources, as one whitespace-separated list the builder loops over. A
   # list attribute reaches the environment that way, and every entry is a
   # store path with no space in it.
-  faces = [
-    (ttf literata "Literata-Regular.ttf")
-    (ttf literata "Literata-Italic.ttf")
-    (ttf literata "Literata-Bold.ttf")
-    (ttf literata "Literata-BoldItalic.ttf")
-
-    (ttf ia-writer-quattro "iAWriterQuattroS-Regular.ttf")
-    (ttf ia-writer-quattro "iAWriterQuattroS-Italic.ttf")
-    (ttf ia-writer-quattro "iAWriterQuattroS-Bold.ttf")
-    (ttf ia-writer-quattro "iAWriterQuattroS-BoldItalic.ttf")
-
-    (ttf ia-writer-mono "iAWriterMonoV.ttf")
-    (ttf ia-writer-mono "iAWriterMonoV-Italic.ttf")
-
-    (ttf source-sans "SourceSans3-Regular.ttf")
-    (ttf source-sans "SourceSans3-It.ttf")
-    (ttf source-sans "SourceSans3-Bold.ttf")
-    (ttf source-sans "SourceSans3-BoldIt.ttf")
-
-    (ttf source-serif "SourceSerif4-Regular.ttf")
-    (ttf source-serif "SourceSerif4-It.ttf")
-    (ttf source-serif "SourceSerif4-Bold.ttf")
-    (ttf source-serif "SourceSerif4-BoldIt.ttf")
-
-    (ttf atkinson-hyperlegible-next "AtkinsonHyperlegibleNext-Regular.ttf")
-    (ttf atkinson-hyperlegible-next "AtkinsonHyperlegibleNext-Italic.ttf")
-    (ttf atkinson-hyperlegible-next "AtkinsonHyperlegibleNext-Bold.ttf")
-    (ttf atkinson-hyperlegible-next "AtkinsonHyperlegibleNext-BoldItalic.ttf")
-
-    (ttf et-book "et-book-roman-old-style-figures.ttf")
-    (ttf et-book "et-book-display-italic-old-style-figures.ttf")
-    (ttf et-book "et-book-bold-line-figures.ttf")
-
-    (ttf fira-code "FiraCode-VF.ttf")
-
-    (ttf geist-font "GeistMono-Regular.ttf")
-    (ttf geist-font "GeistMono-Italic.ttf")
-    (ttf geist-font "GeistMono-Bold.ttf")
-    (ttf geist-font "GeistMono-BoldItalic.ttf")
-
-    (ttf pkgs.ibm-plex.mono "IBMPlexMono-Regular.ttf")
-    (ttf pkgs.ibm-plex.mono "IBMPlexMono-Italic.ttf")
-    (ttf pkgs.ibm-plex.mono "IBMPlexMono-Bold.ttf")
-    (ttf pkgs.ibm-plex.mono "IBMPlexMono-BoldItalic.ttf")
-    (ttf pkgs.ibm-plex.sans "IBMPlexSans-Regular.ttf")
-    (ttf pkgs.ibm-plex.sans "IBMPlexSans-Italic.ttf")
-    (ttf pkgs.ibm-plex.sans "IBMPlexSans-Bold.ttf")
-    (ttf pkgs.ibm-plex.sans "IBMPlexSans-BoldItalic.ttf")
-
-    (ttf inter "InterVariable.ttf")
-    (ttf inter "InterVariable-Italic.ttf")
-
-    (ttf jetbrains-mono "JetBrainsMono-Regular.ttf")
-    (ttf jetbrains-mono "JetBrainsMono-Italic.ttf")
-    (ttf jetbrains-mono "JetBrainsMono-Bold.ttf")
-    (ttf jetbrains-mono "JetBrainsMono-BoldItalic.ttf")
-
-    (ttf junicode "Junicode-Regular.ttf")
-    (ttf junicode "Junicode-Italic.ttf")
-    (ttf junicode "Junicode-Bold.ttf")
-    (ttf junicode "Junicode-BoldItalic.ttf")
-
-    "${lexend}/share/fonts/truetype/lexend/lexend/Lexend-Regular.ttf"
-    "${lexend}/share/fonts/truetype/lexend/lexend/Lexend-Bold.ttf"
-
-    (otf open-dyslexic "OpenDyslexic-Regular.otf")
-    (otf open-dyslexic "OpenDyslexic-Italic.otf")
-    (otf open-dyslexic "OpenDyslexic-Bold.otf")
-    (otf open-dyslexic "OpenDyslexic-Bold-Italic.otf")
-
-    (ttf open-sans "OpenSans-Regular.ttf")
-    (ttf open-sans "OpenSans-Italic.ttf")
-    (ttf open-sans "OpenSans-Bold.ttf")
-    (ttf open-sans "OpenSans-BoldItalic.ttf")
-
-    (ttf crimson-pro "CrimsonPro-Regular.ttf")
-    (ttf crimson-pro "CrimsonPro-Italic.ttf")
-    (ttf crimson-pro "CrimsonPro-Bold.ttf")
-    (ttf crimson-pro "CrimsonPro-BoldItalic.ttf")
-
-    (ttf vollkorn "Vollkorn-Regular.ttf")
-    (ttf vollkorn "Vollkorn-Italic.ttf")
-    (ttf vollkorn "Vollkorn-Bold.ttf")
-    (ttf vollkorn "Vollkorn-BoldItalic.ttf")
-
-    (ttf commit-mono "CommitMono-400-Regular.ttf")
-    (ttf commit-mono "CommitMono-400-Italic.ttf")
-    (ttf commit-mono "CommitMono-700-Regular.ttf")
-    (ttf commit-mono "CommitMono-700-Italic.ttf")
-  ];
+  faces = lib.concatMap filesOf sources;
 
   meta.description = "olai's hosted typefaces, as woff2";
 } ''
