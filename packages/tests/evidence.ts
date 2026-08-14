@@ -179,11 +179,31 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     // The silent-error rule, in the one place a query language invites one: a
     // filter that searched for the TEXT `is:blocked` would draw an empty page
     // and give no reason.
-    await narrow(page, "is:blocked")
-    console.log(`  the bar says:  ${await said(page, FILTER_COUNT)}`)
-    console.log(`  and refuses:   ${await said(page, FILTER_REFUSAL)}`)
-    console.log(`  rows drawn:    ${(await drawn(page)).length === 0 ? "none" : "some"}`)
-    await shot(page, "refused")
+    for (
+      const [query, why] of [
+        ["is:blocked", "a value the operator does not take"],
+        // Shape-clean and impossible — and the worst kind to swallow, since
+        // `2026-13` sorts between December and January and so reads as a
+        // window rather than as nonsense.
+        ["date:2026-13", "a date no calendar could hold"],
+        // Matched folded, quoted as typed: telling somebody who wrote
+        // `is:BLOCKED` that they wrote `is:blocked` is the refusal misquoting
+        // the reader.
+        ["is:BLOCKED", "the same refusal, quoting the reader"],
+        // A space after the colon is not "date: takes a day" — the reader
+        // wrote a day; the tokenizer split one word into two.
+        ["date: 2026", "an operator given no value at all"],
+      ] as const
+    ) {
+      await narrow(page, query)
+      console.log(`  ${query.padEnd(14)} — ${why}`)
+      console.log(`    the bar says: ${await said(page, FILTER_COUNT)}`)
+      console.log(`    and refuses:  ${await said(page, FILTER_REFUSAL)}`)
+      console.log(
+        `    rows drawn:   ${(await drawn(page)).length === 0 ? "none" : "some"}`,
+      )
+      await shot(page, `refused-${query.replace(/[^a-z0-9]+/gi, "-")}`)
+    }
   },
 
   "a-tag-is-a-filter": async (page) => {
