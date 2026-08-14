@@ -75,6 +75,20 @@ export interface MenuAction {
  *  `<button>` was, in a `role="menuitem"` this time. */
 const ITEM = "cursor-pointer px-3 py-1.5 text-left text-ink hover:bg-rule"
 
+/**
+ * Whether this verb asks before it runs.
+ *
+ * ONE reading of the confirm, because the entry below acts on it twice: the
+ * question replaces the list instead of the verb happening, AND the menu stays
+ * open to ask it (`closeOnSelect`). Spelled at both props, the two could drift
+ * into a menu that shuts on the way to a question nobody then sees.
+ *
+ * What ANSWERING the question does is the confirm's own entry, which calls
+ * `onPick` directly — so "ask, then do" stays two call sites rather than one
+ * function telling them apart by object identity.
+ */
+const asks = (action: MenuAction): boolean => action.confirm !== undefined
+
 export function NodeMenu(props: {
   readonly actions: ReadonlyArray<MenuAction>
 }) {
@@ -227,19 +241,6 @@ function MenuPanel(props: {
 }) {
   const [asking, setAsking] = createSignal<MenuAction | null>(null)
 
-  /** Choosing an entry from the LIST: the question first, for the verb that
-   *  has one — and that entry alone leaves the menu open to ask it
-   *  (`closeOnSelect`). What answering it does is the confirm's own entry,
-   *  which calls `onPick` directly, so "ask, then do" is two call sites rather
-   *  than one function telling them apart by object identity. */
-  const chose = (action: MenuAction): void => {
-    if (action.confirm !== undefined) {
-      setAsking(action)
-      return
-    }
-    void props.onPick(action)
-  }
-
   /** Backing out of the question, with the caret put back where it was asked
    *  from. The confirm takes the focus when it opens (a panel that swapped its
    *  content under an unmoved focus would leave the keyboard on an element that
@@ -273,8 +274,9 @@ function MenuPanel(props: {
                 class={ITEM}
                 data-testid={TESTID.nodeMenuItem}
                 data-action={action.id}
-                closeOnSelect={action.confirm === undefined}
-                onSelect={() => chose(action)}
+                closeOnSelect={!asks(action)}
+                onSelect={() =>
+                  asks(action) ? setAsking(action) : void props.onPick(action)}
               >
                 {action.label}
               </DropdownMenu.Item>
