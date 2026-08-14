@@ -56,6 +56,7 @@ import type { Adapter } from "./adapter.ts"
 import * as AcpAgent from "./agent.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
+import * as Memory from "./memory.ts"
 import type { AgentEvent } from "./events.ts"
 import { type Change, Transcript } from "./transcript.ts"
 
@@ -68,8 +69,10 @@ export interface Options {
    *  resolved one looks like is ours. */
   readonly adapter: Adapter
   /** Where to start it: the served directory, exactly. An agent keys its
-   *  stored sessions by the directory it was started in, and that is what
-   *  makes "the conversation you were last in" survive a restart. */
+   *  stored sessions by the directory it was started in, which is what makes
+   *  them findable at all — and it is what olai's own note of WHICH of them
+   *  the panel was in is keyed by ({@link ./memory.ts}), which is what makes
+   *  "the conversation you were last in" survive a restart. */
   readonly cwd: string
   /** The internal MCP server to hand the session, or nothing yet. A THUNK,
    *  because its address is not known until the listener has bound and the
@@ -156,6 +159,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         args: options.adapter.args,
         cwd: options.cwd,
         tools: options.tools,
+        // Built here rather than handed in, exactly like the tmp directory
+        // pasted pictures land in: both are somewhere on this machine that
+        // belongs to THIS conversation about THIS directory, and a composition
+        // root passing either one down would be a second place that knows
+        // where olai keeps things. Keyed by the served directory, which is
+        // what makes two olai servers on one host remember two panels.
+        memory: Memory.forDirectory(options.cwd),
         onEvent,
       })
 

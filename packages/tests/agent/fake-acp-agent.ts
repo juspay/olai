@@ -61,7 +61,10 @@
  * a property of the machine the agent woke up on rather than of anything the
  * client says: `OLAI_FAKE_ACP_STORED` unset means nothing is stored (so a
  * client boots with `session/new`), and set means `session/list` answers and
- * `session/load` replays.
+ * `session/load` replays. There are two of them, and the older one can be taken
+ * AWAY between boots (`.agent-forgot-old`, the way `hold` is released): a
+ * conversation the client remembers being in and can no longer open is the case
+ * its fallback exists for, and a scenario has to be able to reach it.
  *
  * Dumb and deterministic on purpose. This is test infrastructure, not a
  * simulator.
@@ -172,15 +175,21 @@ const STORED_TITLES: Record<string, string> = {
   "fake-stored-new": "the last conversation",
 }
 
+/** The file a scenario touches to make the older conversation GONE — deleted
+ *  from the agent's own store, which is the case the client's fallback exists
+ *  for. A dot-file in the served directory, like {@link RELEASE}: the store's
+ *  walk prunes those, so arming it is not an edit. */
+const FORGOTTEN = ".agent-forgot-old"
+
 /** The client's own two, NEWEST LAST — so a client that takes the first entry
  *  instead of the most recently updated one adopts the wrong conversation. */
 const storedSessions = () => [
-  {
+  ...(existsSync(`${cwd}/${FORGOTTEN}`) ? [] : [{
     sessionId: "fake-stored-old",
     cwd,
     title: STORED_TITLES["fake-stored-old"],
     updatedAt: "2026-07-01T09:00:00.000Z",
-  },
+  }]),
   {
     sessionId: "fake-stored-new",
     // The same place, spelled with a trailing slash: an agent stores the

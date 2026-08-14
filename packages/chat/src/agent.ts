@@ -14,9 +14,10 @@
  *     sequence whose order is a protocol fact: `initialize` says whether the
  *     agent even keeps sessions, `session/list` is scoped by the directory we
  *     were started in, a `session/load` replays before it answers, and the
- *     model is read off whichever result made the session. Adopting the
- *     most-recently-updated one is what makes "the conversation you were last
- *     in" survive a restart (racket's mechanism, kept).
+ *     model is read off whichever result made the session. WHICH one it comes
+ *     up in is {@link adopt}: the conversation this panel was last in, written
+ *     down when it entered one ({@link ./memory.ts}), with the
+ *     most-recently-updated one as the fallback for when that is gone.
  *   - **the questions the agent asks a person**, both kinds. An
  *     `elicitation/create` is a form; a `session/request_permission` that is not
  *     one of ours is a single-select. What is HERE is that both are the same
@@ -104,6 +105,7 @@ import {
   toolNameIn,
 } from "./interpret.ts"
 import * as Kolu from "./kolu.ts"
+import type { Memory } from "./memory.ts"
 import { streamOver, unstartable } from "./pipes.ts"
 import * as Questions from "./questions.ts"
 import { wroteIn } from "./wrote.ts"
@@ -149,6 +151,11 @@ export interface Options {
    *  know what an `McpServer` looks like on the wire, and a composition root
    *  that hand-built one would be a second place that knows. */
   readonly tools: () => ToolServer | null
+  /** Where "which conversation is the panel's" is kept between one serve of
+   *  this directory and the next ({@link ./memory.ts}). Handed in rather than
+   *  built here for the reason the tool server is: this module is the one that
+   *  speaks ACP, and where a machine keeps its state is not a protocol fact. */
+  readonly memory: Memory
   readonly onEvent: (event: AgentEvent) => void
 }
 
@@ -678,12 +685,56 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const openSession = (at: Live): Effect.Effect<void, AgentGone> =>
       Effect.gen(function*() {
         const stored = at.canLoad ? yield* storedFor(at) : []
-        const newest = stored[0]
-        if (newest !== undefined) {
-          yield* load(at, newest.id, newest.title)
+        const wanted = adopt(yield* recalled, stored)
+        if (wanted !== undefined) {
+          yield* load(at, wanted.id, wanted.title)
           return
         }
         yield* fresh(at)
+      })
+
+    /** The conversation this panel was last in — and `null` when the memory
+     *  could not be read, which is SAID rather than swallowed. A boot that
+     *  cannot remember still opens something (the newest, which is what this
+     *  used to do always), and the reason is a row in the transcript rather
+     *  than a fact only a log knows. */
+    const recalled: Effect.Effect<string | null> = Effect.catchTag(
+      options.memory.recall,
+      "MemoryFailure",
+      (failure) =>
+        Effect.sync(() => {
+          trouble(
+            `the conversation this directory was last in could not be read (${failure.why}) — ` +
+              `opening the most recent one instead`,
+          )
+          return null
+        }),
+    )
+
+    /**
+     * The panel is in this conversation now: the id the verbs act in, the row
+     * the panel draws, and the fact the next boot reads back.
+     *
+     * ONE function for the three, because they are one event. They were two
+     * lines repeated at the two places a session is opened, and the third
+     * thing — writing it down — is exactly the kind of step a fourth call site
+     * would forget, which is the bug this whole file's `adopt` exists to have
+     * ended.
+     */
+    const entered = (id: string, title: string | null): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        session = id
+        emit({ _tag: "session", id, title })
+        yield* Effect.catchTag(
+          options.memory.remember(id),
+          "MemoryFailure",
+          (failure) =>
+            Effect.sync(() => {
+              trouble(
+                `this conversation will not be restored after a restart: ${failure.why}`,
+              )
+            }),
+        )
       })
 
     /** The MCP servers this conversation gets: olai's own tool server, and
@@ -722,8 +773,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           mcpServers: [...(yield* servers)],
           _meta: NEW_SESSION_META,
         })) as NewSessionResponse
-        session = made.sessionId
-        emit({ _tag: "session", id: made.sessionId, title: null })
+        yield* entered(made.sessionId, null)
         readModel(made.configOptions)
         yield* askForBypass(at, made.sessionId)
       })
@@ -736,8 +786,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       Effect.gen(function*() {
         // Before the flag below, because a detection is not a replay.
         const mcpServers = [...(yield* servers)]
-        session = id
-        emit({ _tag: "session", id, title })
+        yield* entered(id, title)
         // Everything between these two is history. The flag is set before the
         // call because a load replays THEN answers.
         replaying = true
@@ -1084,6 +1133,35 @@ const detailOf = (input: unknown, output: unknown): string | undefined => {
   if (output !== undefined && output !== null) parts.push(JSON.stringify(output, null, 2))
   return parts.length === 0 ? undefined : parts.join("\n\n")
 }
+
+/**
+ * WHICH stored conversation the panel opens in, out of the ones this directory
+ * has and the one it remembers being in.
+ *
+ * The remembered one, when it is still there. Newest-in-directory otherwise —
+ * and `undefined` when there is nothing stored at all, which is the caller's
+ * cue to start a fresh conversation.
+ *
+ * The demotion is the whole fix. Newest-by-`updatedAt` is an answer to "what
+ * was written to last", and it was standing in for "which one is MINE": a
+ * terminal `claude` in the served directory, a `/clear` sibling that shares its
+ * predecessor's title, or an adapter that touches a timestamp for a reason of
+ * its own would each take the panel over, silently, with the panel showing a
+ * conversation somebody was in the middle of. What it is still the right answer
+ * to is the case it now covers: the remembered conversation is GONE — deleted,
+ * cleared out, or on a machine whose agent has been repointed — and something
+ * has to be opened.
+ *
+ * Pure, and exported for its own test, for the reason `interpret.ts`'s rules
+ * are: it is the sentence a boot turns on, and reaching it through a subprocess
+ * is not how anybody should have to check it. `stored` arrives NEWEST FIRST
+ * ({@link storedFor} sorts it), so the fallback is the head of the list.
+ */
+export const adopt = (
+  remembered: string | null,
+  stored: ReadonlyArray<Stored>,
+): Stored | undefined =>
+  stored.find((entry) => entry.id === remembered) ?? stored[0]
 
 /** Two paths naming the same directory. An agent stores the spelling it was
  *  handed, which may or may not carry a trailing slash. */
