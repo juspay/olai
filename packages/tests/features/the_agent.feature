@@ -169,10 +169,12 @@ Feature: Talking to the agent
     Then the chat input reads "/review "
 
   @agent-stored @scratch:chat
-  Scenario: Boot adopts the conversation this directory was last in
-    # `session/list` for this directory answers with two, and the most recently
-    # updated one is the one the panel comes up in — replayed, before anybody
-    # types.
+  Scenario: A first boot has nothing to remember, so it takes the newest
+    # `session/list` for this directory answers with two, and nothing has ever
+    # written down which of them is the panel's — so the most recently updated
+    # one is the one it comes up in, replayed, before anybody types. That is a
+    # FALLBACK now rather than the rule (see the two scenarios below), and it
+    # is still the right answer to a directory this olai has never served.
     Then the chat eventually shows "we decided to order the cabinets"
     And the conversation is titled "the last conversation"
 
@@ -184,6 +186,41 @@ Feature: Talking to the agent
     And I open the app
     And the agent panel is open
     Then the chat eventually shows "we decided to order the cabinets"
+
+  @agent-stored @scratch:chat
+  Scenario: A restart comes back in the conversation the panel was in, not the newest
+    # The bug (`chat-restore-wrong`), as the human hit it: the panel was in one
+    # conversation, something else in the directory was written to more
+    # recently — a terminal `claude`, a `/clear` sibling, an adapter touching a
+    # timestamp — and a restart adopted THAT one. Newest-by-`updatedAt` is an
+    # answer to "what moved last" standing in for "which one is mine".
+    #
+    # `an older conversation` is the older of the two by a month, so nothing
+    # about a timestamp can bring the panel back to it. Only remembering can.
+    When I open the session picker
+    And I pick the conversation "an older conversation"
+    Then the conversation is titled "an older conversation"
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the conversation is titled "an older conversation"
+
+  @agent-stored @scratch:chat
+  Scenario: A remembered conversation that is gone falls back to the newest
+    # The other half, and the reason the guess is kept rather than deleted: a
+    # session can be deleted, cleared out, or belong to an agent this server
+    # has been repointed away from. Something has to be opened, and the panel
+    # says which conversation it is in either way.
+    When I open the session picker
+    And I pick the conversation "an older conversation"
+    Then the conversation is titled "an older conversation"
+    When the conversation "fake-stored-old" is gone from the agent
+    And the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the conversation is titled "the last conversation"
 
   @no-agent @scratch:chat
   Scenario: With no agent, the panel says so rather than disappearing

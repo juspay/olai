@@ -57,6 +57,7 @@ import * as AcpAgent from "./agent.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
 import type { AgentEvent } from "./events.ts"
+import * as Memory from "./memory.ts"
 import { type Change, Transcript } from "./transcript.ts"
 
 export type { ToolServer } from "./agent.ts"
@@ -68,8 +69,10 @@ export interface Options {
    *  resolved one looks like is ours. */
   readonly adapter: Adapter
   /** Where to start it: the served directory, exactly. An agent keys its
-   *  stored sessions by the directory it was started in, and that is what
-   *  makes "the conversation you were last in" survive a restart. */
+   *  stored sessions by the directory it was started in, which is what makes
+   *  them findable at all — and it is what olai's own note of WHICH of them
+   *  the panel was in is keyed by ({@link ./memory.ts}), which is what makes
+   *  "the conversation you were last in" survive a restart. */
   readonly cwd: string
   /** The internal MCP server to hand the session, or nothing yet. A THUNK,
    *  because its address is not known until the listener has bound and the
@@ -156,6 +159,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         args: options.adapter.args,
         cwd: options.cwd,
         tools: options.tools,
+        // Built here rather than handed in, exactly like the tmp directory
+        // pasted pictures land in: both are somewhere on this machine that
+        // belongs to THIS conversation about THIS directory, and a composition
+        // root passing either one down would be a second place that knows
+        // where olai keeps things. Keyed by the served DIRECTORY and by
+        // nothing else, so two servers over two directories remember two
+        // panels — and two servers over ONE directory are one panel as far as
+        // this is concerned, last one in wins, which is the honest answer for
+        // a single-user app rather than a race worth a port in the key.
+        memory: Memory.forDirectory(options.cwd),
         onEvent,
       })
 
