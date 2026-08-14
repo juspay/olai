@@ -61,7 +61,10 @@
  * a property of the machine the agent woke up on rather than of anything the
  * client says: `OLAI_FAKE_ACP_STORED` unset means nothing is stored (so a
  * client boots with `session/new`), and set means `session/list` answers and
- * `session/load` replays.
+ * `session/load` replays. There are two of them, and either can be taken AWAY
+ * between boots (`.agent-forgot-<sessionId>`, the way `hold` is released): a
+ * conversation the client remembers being in and can no longer open is the case
+ * its fallback exists for, and a scenario has to be able to reach it.
  *
  * Dumb and deterministic on purpose. This is test infrastructure, not a
  * simulator.
@@ -172,24 +175,34 @@ const STORED_TITLES: Record<string, string> = {
   "fake-stored-new": "the last conversation",
 }
 
+/** Whether a scenario has made this conversation GONE — deleted from the
+ *  agent's own store, which is the case a client's fallback exists for. A
+ *  dot-file per session id in the served directory, like {@link RELEASE}: the
+ *  store's walk prunes those, so arming one is not an edit. Per ID rather than
+ *  one flag for the older row, so "the newest is gone" needs no second
+ *  mechanism. */
+const forgotten = (sessionId: string): boolean =>
+  existsSync(`${cwd}/.agent-forgot-${sessionId}`)
+
 /** The client's own two, NEWEST LAST — so a client that takes the first entry
  *  instead of the most recently updated one adopts the wrong conversation. */
-const storedSessions = () => [
-  {
-    sessionId: "fake-stored-old",
-    cwd,
-    title: STORED_TITLES["fake-stored-old"],
-    updatedAt: "2026-07-01T09:00:00.000Z",
-  },
-  {
-    sessionId: "fake-stored-new",
-    // The same place, spelled with a trailing slash: an agent stores the
-    // spelling it was handed, and a client comparing strings would miss it.
-    cwd: `${cwd}/`,
-    title: STORED_TITLES["fake-stored-new"],
-    updatedAt: "2026-08-01T17:30:00.000Z",
-  },
-]
+const storedSessions = () =>
+  [
+    {
+      sessionId: "fake-stored-old",
+      cwd,
+      title: STORED_TITLES["fake-stored-old"],
+      updatedAt: "2026-07-01T09:00:00.000Z",
+    },
+    {
+      sessionId: "fake-stored-new",
+      // The same place, spelled with a trailing slash: an agent stores the
+      // spelling it was handed, and a client comparing strings would miss it.
+      cwd: `${cwd}/`,
+      title: STORED_TITLES["fake-stored-new"],
+      updatedAt: "2026-08-01T17:30:00.000Z",
+    },
+  ].filter((session) => !forgotten(session.sessionId))
 
 const CONFIG_OPTIONS = [
   {

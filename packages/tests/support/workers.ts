@@ -111,12 +111,18 @@ export const releasePort = (holder: net.Server): Promise<void> =>
  *
  * Spreads the host env so PATH and the nix-built binary's own variables
  * still work, then takes back the shared stores: XDG cache (recall and
- * friends), `PADI_SOCKET`, and the git identity variables that would make
- * a scratch repo survey THIS checkout. HOME is left alone: overriding it
- * emptied the server's git/user identity and the apply inverse came back
- * empty, so ⌘Z had nothing to replay.
+ * friends), XDG state (which conversation this directory's panel was in),
+ * `PADI_SOCKET`, and the git identity variables that would make a scratch
+ * repo survey THIS checkout. HOME is left alone: overriding it emptied the
+ * server's git/user identity and the apply inverse came back empty, so ⌘Z
+ * had nothing to replay.
  *
- * `stateRoot` is the caller's to delete. The cache dir is created here.
+ * State is SHARED between a scenario's boots and private to that scenario,
+ * which is exactly what the memory under test needs: a restarted server is
+ * handed the same `stateRoot`, so it can read back what the first one wrote,
+ * and no other worker's server can see it.
+ *
+ * `stateRoot` is the caller's to delete. Both directories are created here.
  * Scratch servers put it *beside* the scratch copy (never inside — that
  * would pollute a `@git:repo` work tree); shared corpus servers put it
  * in a per-worker temp directory.
@@ -126,11 +132,14 @@ export const isolateEnv = (
   extras: NodeJS.ProcessEnv = {},
 ): NodeJS.ProcessEnv => {
   const cache = path.join(stateRoot, "cache");
+  const state = path.join(stateRoot, "state");
   fs.mkdirSync(cache, { recursive: true });
+  fs.mkdirSync(state, { recursive: true });
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     ...extras,
     XDG_CACHE_HOME: cache,
+    XDG_STATE_HOME: state,
   };
   delete env.PADI_SOCKET;
   for (const key of [

@@ -22,6 +22,34 @@ The conversation is the agent's own session for that directory: close olai,
 reopen it, and you are back in it — and (for the default agent)
 `claude --resume` in a terminal reaches the same conversations.
 
+## Which conversation you come back to
+
+**The one you were in.** Olai writes down which conversation the panel holds and
+opens that one again, so a restart puts you back where you were and nothing else
+in the directory can take the panel from you: a `claude` you ran in a terminal
+here, a `/clear` that started a fresh session beside the one it ended, an agent
+that touched a timestamp for a reason of its own. Before this, the panel came up
+in whichever session had been written to most recently, which is a different
+question with the same answer most of the time and somebody else's conversation
+the rest of it.
+
+If that conversation is GONE — you deleted it, or you have pointed olai at a
+different agent since — the most recent one in this directory is opened instead,
+which is what always used to happen. Whichever you get, the header names it.
+
+The note lives with this machine's other state (`~/.local/state/olai/`, or
+wherever `XDG_STATE_HOME` points), never in the directory being served: it is one
+id and the path it belongs to, so a directory you serve from two machines
+remembers a conversation on each. If it cannot be read or written the panel says
+so in the conversation and carries on — a restart then opens the most recent
+conversation, which is the old behaviour and a working panel either way.
+
+**chats** lists the stored conversations for this directory, and each row says
+when it was last touched, to the minute. That is deliberate rather than decorative:
+`/clear` leaves two sessions sharing one name, and the protocol carries no fact
+that says which of them replaced the other, so the time is what tells you the row
+you mean. Picking one loads it — and makes it the conversation you come back to.
+
 ## What it can touch
 
 **Olai hands the agent no filesystem.** What olai itself gives it is a closed

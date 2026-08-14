@@ -106,10 +106,14 @@ const BROKEN_GIT_DIR = path.resolve(import.meta.dirname, "..", "bin", "broken-gi
 const KOLU_TAG = "@kolu";
 
 /** `@agent-stored`: the fake agent answers `session/list` with two stored
- *  conversations, so the server's boot ADOPTS the most recent one and replays
- *  it. Unset, nothing is stored and boot opens a fresh session — the two boot
- *  paths, chosen by a property of the machine rather than by anything the
- *  client says. */
+ *  conversations, so the server's boot loads one of them and replays it. Unset,
+ *  nothing is stored and boot opens a fresh session — the two boot paths, chosen
+ *  by a property of the machine rather than by anything the client says.
+ *
+ *  WHICH of the two is what several of those scenarios are about: a first boot
+ *  has nothing written down and takes the most recent (the fallback, and once
+ *  the whole rule), while a restart after one has been PICKED comes back to the
+ *  picked one — and to the newest again only once the picked one is gone. */
 const STORED_TAG = "@agent-stored";
 
 /** `@no-agent`: this scenario's server is started with NO agent, which is the

@@ -94,6 +94,7 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
       GIT_DIR: "/home/someone/notes/.git",
       GIT_WORK_TREE: "/home/someone/notes",
       XDG_CACHE_HOME: "/tmp/host-cache",
+      XDG_STATE_HOME: "/tmp/host-state",
     });
     expect(env.PADI_SOCKET).toBeUndefined();
     expect(env.GIT_DIR).toBeUndefined();
@@ -101,6 +102,12 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
     expect(env.XDG_CACHE_HOME).toBe(path.join(root, "cache"));
     expect(env.XDG_CACHE_HOME).not.toBe("/tmp/host-cache");
     expect(fs.existsSync(env.XDG_CACHE_HOME!)).toBe(true);
+    // The same treatment for STATE, which is where the chat panel's own note
+    // of which conversation it was in lands: a scenario's server must read
+    // back what its own earlier boot wrote, and never the developer's.
+    expect(env.XDG_STATE_HOME).toBe(path.join(root, "state"));
+    expect(env.XDG_STATE_HOME).not.toBe("/tmp/host-state");
+    expect(fs.existsSync(env.XDG_STATE_HOME!)).toBe(true);
     // HOME stays the host's: overriding it emptied apply inverse.
     expect(env.HOME).toBe(process.env.HOME);
   } finally {
