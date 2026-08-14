@@ -1251,6 +1251,35 @@ export class OlaiWorld extends World {
       .map((line) => JSON.parse(line) as Record<string, unknown>);
   }
 
+  /**
+   * The same records, off a file the served set MAY NOT HOLD YET — the reader
+   * every assertion that WAITS for something to arrive in one goes through.
+   *
+   * Some writes in this app mint the file they land in: `archive` writes
+   * `Archive.jsonl` the first time anything is put away. A scenario polling
+   * for a node to ARRIVE there is polling for the FILE too, and a reader that
+   * threw would fail on the first poll — at speed it usually does not, under
+   * load it does, and what the failure then names is an ENOENT out of a helper
+   * rather than the claim that was being made. Nothing written yet is "nothing
+   * there yet", which is safe here precisely BECAUSE every caller waits: a
+   * file that never arrives still fails, as the assertion it was making.
+   *
+   * ENOENT and nothing else. A line that is not JSON, or a directory where a
+   * file should be, is a fault this suite reports rather than polls through.
+   *
+   * A step that WRITES the served directory calls {@link servedNodes} instead:
+   * there, a missing file is a scenario naming something its corpus does not
+   * hold, and it should say so the moment it is asked.
+   */
+  servedNodesSoFar(file: string): ReadonlyArray<Record<string, unknown>> {
+    try {
+      return this.servedNodes(file);
+    } catch (cause) {
+      if ((cause as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw cause;
+    }
+  }
+
   /** One more record at the end of a served outline, as another writer would
    *  leave it — a `git pull`, the agent, a second tab.
    *

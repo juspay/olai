@@ -427,6 +427,59 @@ out locally: it is `index.html`'s mount point, which the client does not own.
    not that some title eventually reads a certain way. A tree that has lost one
    node and drawn another twice still has all the right titles in it, which is
    how a broken live view stayed green through a whole feature file.
+7. Read the section below before writing a step that reads the disk or presses
+   a key. All three mistakes it names pass on an idle laptop.
+
+## Waiting, which is the whole of being honest under load
+
+This suite runs parallel, on machines that are also doing something else, so
+every assertion in it is a race unless it was written not to be. A run on a
+saturated box is the only way to find out, and there are exactly three ways to
+get it wrong. All three are green on an idle laptop.
+
+**A value read on its way to its final one.** Most assertions here WAIT: they
+poll until the page or the file says the thing, and fail saying what they were
+waiting for. The ones that cannot are the NEGATIVES, and a negative is two
+different steps that read almost the same:
+
+| the claim | the shape | example |
+|---|---|---|
+| nothing was written, and stays unwritten | HOLD: assert repeatedly across the commit window | `"house.jsonl" holds no node titled "…"` |
+| the write took it away | WAIT: poll for it to go | `"house.jsonl" no longer holds a node titled "…"` |
+
+Asking the holding form of a write passes only when the round trip happens to
+land inside one animation frame. Asking the waiting form of "nothing was
+written" passes instantly and proves nothing. Where a count is the claim, it is
+both: wait for the number, then hold it, because the second of two writes lands
+a moment after the first.
+
+**A file the write has not minted yet.** `archive` writes `Archive.jsonl` the
+first time anything is put away, so a step polling for a node to ARRIVE in one
+is polling for the FILE too. Every waiting reader goes through
+`world.servedNodesSoFar`, which answers "nothing there yet" for a file that is
+not there — and ENOENT only: a line that is not JSON is still a fault. A step
+that WRITES the served directory calls `world.servedNodes`, which throws,
+because a missing file there is a scenario naming something its corpus does not
+hold.
+
+**A key pressed before the page has answered the last one.** The one that costs
+the most to debug, because it fails four steps later on something that reads
+nothing like the cause. A write these scenarios make goes out through a DRAFT,
+and the draft is let go — closed, or moved to the line the key opened — only
+once the server has answered and the inverse it answered with is on the stack
+⌘Z spends. So the caret leaving the line it was on is this tab's own receipt,
+and it is the only one the harness has: the disk says a file was written, the
+DOM says the page was told, neither says this tab knows yet.
+
+`I press "Enter"`, `I press "Backspace"` at the head of a line, `I press
+"Escape"` with a draft open, and `I click away from the editor` therefore wait
+for the caret to leave — or for the page to say why it did not, which is the
+other way a key ends. Skip that and `Escape` closes a draft that has not opened
+yet, the draft opens behind it, and every ⌘Z after that is dead, because a
+chord belongs to the input while a draft is open.
+
+None of the three is fixed by a longer timeout, and a step that needed one was
+asking the wrong question.
 
 ## The scripted agent
 
