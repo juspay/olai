@@ -106,7 +106,7 @@ export interface Editing extends Said {
    * DRAFT has to carry — the row it names is redrawn by a frame that arrives
    * later, in an element that does not exist yet.
    */
-  readonly at?: number
+  readonly caret?: number
 }
 
 /** A row that does not exist yet: an editor standing where it will go. */

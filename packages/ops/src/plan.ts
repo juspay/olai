@@ -1220,36 +1220,25 @@ const planMerge = (
 
   const joined = merging(scope.derived, target.success)
   if (Result.isFailure(joined)) return Result.fail(joined.failure)
-  const { into, title, desc } = joined.success
+  const { into, adopted, title, desc } = joined.success
 
   const records = recordsOf(scope, file)
   const merged = withField({ ...into, title }, "desc", desc ?? null)
 
   const reparented = new Map(
-    appendedUnder(
-      [records],
-      into.id,
-      (scope.derived.children.get(node.id) ?? []).map((child) => child.node),
-    ).map((record) => [record.id, record]),
+    appendedUnder([records], into.id, adopted.map((child) => child.node))
+      .map((record) => [record.id, record]),
   )
 
-  const keeps = records.flatMap((record) =>
-    record.id === node.id
-      ? []
-      : [record.id === into.id ? merged : reparented.get(record.id) ?? record]
-  )
+  // The two questions the survivors answer, asked one after the other rather
+  // than nested: which rows this file keeps, and what each of them becomes.
+  const keeps = records
+    .filter((record) => record.id !== node.id)
+    .map((record) =>
+      record.id === into.id ? merged : reparented.get(record.id) ?? record
+    )
 
-  const existing = recordsOf(scope, archive)
-  const { scaffold, parent } = scaffoldFor(
-    scope,
-    existing,
-    ancestorsOf(scope.derived, node.id).map((crumb) => crumb.node.title),
-  )
-  const buried: Node = {
-    ...withParent(node, parent),
-    ord: appendedOrd([existing, scaffold], parent),
-  }
-
+  const { existing, scaffold, buried } = buriedIn(scope, archive, node)
   const nudge = carriedOff(scope, node)
   return Result.succeed({
     files: [
@@ -1273,6 +1262,10 @@ export interface Merging {
   readonly title: string
   /** Their notes joined, or the one of them that exists, or neither. */
   readonly desc: string | undefined
+  /** What hangs under the merged node, in the order it hangs — the rows the
+   *  survivor adopts, and the rows an undo has to put back. Placements
+   *  included: a mirror under it is a row like any other. */
+  readonly adopted: ReadonlyArray<Located>
 }
 
 /**
@@ -1280,13 +1273,14 @@ export interface Merging {
  * it and their answers may not differ.
  *
  * The planner asks it to make the write. The keystroke resolver asks it to say
- * what would TAKE THAT WRITE BACK ({@link ../../server/src/edit.ts}), which is
- * the row above put back and its two texts restored, guarded by what the merge
- * made them. Both halves are here for the same reason `@olai/server`'s `among`
- * is one spelling: "the sibling above" scanned twice is two chances for an undo
- * to name the wrong row, and the join spelled twice is a guard that silently
- * stops matching the day the separator changes. Neither would fail anywhere a
- * test without a browser could see.
+ * what would TAKE THAT WRITE BACK ({@link ../../server/src/edit.ts}) — the row
+ * above put back, the branch put back under it, and its two texts restored
+ * guarded by what the merge made them. All THREE facts are here for the same
+ * reason `@olai/server`'s `among` is one spelling: "the sibling above" scanned
+ * twice is two chances for an undo to name the wrong row, the branch read twice
+ * is two chances to put it back in a different order, and the join spelled twice
+ * is a guard that silently stops matching the day the separator changes. None of
+ * them would fail anywhere a test without a browser could see.
  *
  * The joins themselves are the semantics. The titles run together with nothing
  * between them: they were one line before somebody split them, and any
@@ -1336,6 +1330,7 @@ export const merging = (
       : at.node.desc === undefined
       ? into.desc
       : `${into.desc}\n\n${at.node.desc}`,
+    adopted: derived.children.get(at.node.id) ?? [],
   })
 }
 
@@ -1518,7 +1513,7 @@ const planArchive = (
   const { file, node } = target.success
 
   const archive = archiveBeside(file)
-  if (file === archive) {
+  if (isArchived(file)) {
     return Result.fail(
       new UsageFailure({ reason: `\`${node.title}\` is already in \`${archive}\`` }),
     )
@@ -1530,27 +1525,14 @@ const planArchive = (
   }
 
   const { keeps: source, descendants } = liftSubtree(scope, file, node.id)
-  const existing = recordsOf(scope, archive)
-
-  // The chain, outermost first, as titles. It is the DEFINING file's ancestry:
-  // the titles indented above the node in the outline it actually lives in.
-  const { scaffold, parent } = scaffoldFor(
-    scope,
-    existing,
-    ancestorsOf(scope.derived, node.id).map((crumb) => crumb.node.title),
-  )
-
   // The root is re-parented onto the scaffold; everything under it keeps the
   // `parent` it had, so the subtree arrives shaped exactly as it left.
-  const reparented: Node = {
-    ...withParent(node, parent),
-    ord: appendedOrd([existing, scaffold], parent),
-  }
+  const { existing, scaffold, buried } = buriedIn(scope, archive, node)
 
   return Result.succeed({
     files: [
       { file, nodes: source },
-      { file: archive, nodes: [...existing, ...scaffold, reparented, ...descendants] },
+      { file: archive, nodes: [...existing, ...scaffold, buried, ...descendants] },
     ],
     id: node.id,
     title: node.title,
@@ -1560,14 +1542,47 @@ const planArchive = (
 }
 
 /**
+ * A record ARRIVING in an archive: what the archive already holds, the chain of
+ * ancestor titles it has to hang off, and the record re-parented onto the end
+ * of that chain.
+ *
+ * ONE spelling, because two ops put a record into an archive: `archive` takes a
+ * subtree (and appends its descendants after this record), and `merge` puts the
+ * record it merged away there alone. Two copies would be two answers to "where
+ * does this node hang in the archive" — and the second reader is exactly the one
+ * who would not notice the first had changed.
+ *
+ * It answers the three PIECES rather than the whole file entry, because the two
+ * callers write different files after it: the subtree's descendants follow the
+ * record for `archive` and there are none for `merge`.
+ */
+const buriedIn = (
+  scope: Scope,
+  archive: string,
+  node: Node,
+): {
+  readonly existing: ReadonlyArray<Node>
+  readonly scaffold: ReadonlyArray<Node>
+  readonly buried: Node
+} => {
+  const existing = recordsOf(scope, archive)
+  // The chain, outermost first, as titles. It is the DEFINING file's ancestry:
+  // the titles indented above the node in the outline it actually lives in.
+  const { scaffold, parent } = scaffoldFor(
+    scope,
+    existing,
+    ancestorsOf(scope.derived, node.id).map((crumb) => crumb.node.title),
+  )
+  return {
+    existing,
+    scaffold,
+    buried: { ...withParent(node, parent), ord: appendedOrd([existing, scaffold], parent) },
+  }
+}
+
+/**
  * The chain of ancestor titles, as records in the archive — merged into
  * whatever chain is already there, and minted for the rest.
- *
- * ONE spelling, because two ops put a record into an archive now: `archive`
- * takes a subtree, and `merge` puts the record it merged away there. Two copies
- * of this walk would be two answers to "where does this node hang in the
- * archive", and the second reader is exactly the one who would not notice the
- * first had changed.
  *
  * Matched by exact TITLE at each level, which is what makes the scaffold merge
  * rather than accumulate — and the ids it mints are fresh rather than copies of

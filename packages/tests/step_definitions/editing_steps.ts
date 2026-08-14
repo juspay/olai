@@ -132,22 +132,34 @@ const openEditor = async (world: OlaiWorld): Promise<Locator> => {
   return editor;
 };
 
+/** A range over some text the editor holds — collapsed after it (a caret) or
+ *  spanning it (a selection). One walk, because "put the caret after X" and
+ *  "select X" are the same lookup with the same failure and differ only in
+ *  whether the range is shut. */
+const rangeOver = async (
+  world: OlaiWorld,
+  text: string,
+  collapse: boolean,
+): Promise<void> => {
+  const editor = await openEditor(world);
+  await editor.evaluate((element, [wanted, shut]) => {
+    const field = element as HTMLInputElement;
+    const at = field.value.indexOf(wanted);
+    if (at === -1) {
+      throw new Error(
+        `the editor holds ${JSON.stringify(field.value)}, which does not contain ${
+          JSON.stringify(wanted)
+        }`,
+      );
+    }
+    field.setSelectionRange(shut ? at + wanted.length : at, at + wanted.length);
+  }, [text, collapse] as [string, boolean]);
+};
+
 When(
   "I put the caret after {string}",
   async function (this: OlaiWorld, prefix: string) {
-    const editor = await openEditor(this);
-    await editor.evaluate((element, text) => {
-      const field = element as HTMLInputElement;
-      const at = field.value.indexOf(text);
-      if (at === -1) {
-        throw new Error(
-          `the editor holds ${JSON.stringify(field.value)}, which does not contain ${
-            JSON.stringify(text)
-          }`,
-        );
-      }
-      field.setSelectionRange(at + text.length, at + text.length);
-    }, prefix);
+    await rangeOver(this, prefix, true);
   },
 );
 
@@ -161,19 +173,7 @@ When("I put the caret at the start of the line", async function (this: OlaiWorld
 When(
   "I select {string} in the line",
   async function (this: OlaiWorld, text: string) {
-    const editor = await openEditor(this);
-    await editor.evaluate((element, wanted) => {
-      const field = element as HTMLInputElement;
-      const at = field.value.indexOf(wanted);
-      if (at === -1) {
-        throw new Error(
-          `the editor holds ${JSON.stringify(field.value)}, which does not contain ${
-            JSON.stringify(wanted)
-          }`,
-        );
-      }
-      field.setSelectionRange(at, at + wanted.length);
-    }, text);
+    await rangeOver(this, text, false);
   },
 );
 

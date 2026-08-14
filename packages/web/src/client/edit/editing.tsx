@@ -141,6 +141,13 @@ export interface Where {
 
 const NOWHERE: Where = { place: null, after: null, field: null }
 
+/** What a write that LANDED tells this editor: the node it turned out to be
+ *  about, what that node says now, and whatever the rollup had to say. The
+ *  surface's `Applied` minus the half only the undo stack reads — named once,
+ *  because a fourth thing a write answers with should be one edit here and not
+ *  two literal types to keep in step. */
+type Landed = { readonly id: string; readonly title: string; readonly nudge?: string }
+
 const EditorContext = createContext<Editor>()
 
 export function EditorProvider(props: {
@@ -284,10 +291,7 @@ export const createEditor = (
    * row inherits an alarm about a write it had nothing to do with. The queue
    * above makes that rare and this makes it impossible.
    */
-  const send = async (
-    edit: Edit,
-    from: Slot,
-  ): Promise<{ id: string; title: string; nudge?: string } | null> => {
+  const send = async (edit: Edit, from: Slot): Promise<Landed | null> => {
     const outcome = await runAsync(olai.procedures.edit.apply(edit))
     if (Result.isSuccess(outcome)) {
       // What would take this back, straight onto the stack ⌘Z spends — the
@@ -466,10 +470,7 @@ export const createEditor = (
    *  the node the write answered with, the text it says now, and where in that
    *  text the caret belongs. Its `place` is `null` because the row it names is
    *  a frame away from being drawn, which is what `follow` fills in. */
-  const opening = (
-    done: { readonly id: string; readonly title: string; readonly nudge?: string },
-    at: number,
-  ): Draft => ({
+  const opening = (done: Landed, caret: number): Draft => ({
     kind: "row",
     row: done.id,
     id: done.id,
@@ -477,7 +478,7 @@ export const createEditor = (
     field: "title",
     text: done.title,
     saved: done.title,
-    at,
+    caret,
     ...(done.nudge === undefined ? {} : { nudge: done.nudge }),
   })
 
@@ -527,11 +528,14 @@ export const createEditor = (
       setDraft(null)
     },
     add: () => enqueue(continued),
-    // The two COMPOUND keys. `split` is the only action here that needs to know
-    // where in the LINE it was pressed — it is what decides the cut — and an
-    // `Enter` that arrives without that answer is an `Enter` at the end of a
-    // line, which is what `add` already is.
-    split: (at) => enqueue(() => (at === undefined ? continued() : split(at))),
+    // The two COMPOUND keys. `split` is the only action that needs to know
+    // where in the LINE it was pressed — it is what decides the cut — and the
+    // matcher cannot spell one without it: an `Enter` with no caret to read is
+    // an `Enter` at the end of a line, which `editKey` answers as `add`
+    // (../keys.ts). So there is nothing here for a missing one to mean.
+    split: (at) => {
+      if (at !== undefined) enqueue(() => split(at))
+    },
     merge: () => enqueue(merge),
     note: () => enqueue(note),
     prev: () => enqueue(() => step(-1)),

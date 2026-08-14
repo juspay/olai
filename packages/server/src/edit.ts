@@ -712,34 +712,34 @@ const unarchiveOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
 const unmergeOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   const located = derived.byId.get(id)
   if (located === undefined || isMirror(located.node)) return []
-  // WHICH row it joins and WHAT the join makes are both the ops layer's — the
-  // same answer the write is about to be planned from. Read here, they would be
-  // a second scan of the sibling row and a second spelling of the join, and
-  // both would be wrong in exactly the case an undo is for.
+  // EVERY fact about the merge is the ops layer's — which row it joins, what
+  // the join makes, and which children move in what order — read off the same
+  // answer the write is about to be planned from. Re-derived here they would be
+  // a second scan of the sibling row, a second spelling of the join and a second
+  // reading of the branch, and each would be wrong in exactly the case an undo
+  // is for.
   const joined = merging(derived, located as LocatedRegular)
   if (Result.isFailure(joined)) return []
-  const { into } = joined.success
-  const parent = located.node.parent ?? null
-  const children = derived.children.get(id) ?? []
+  const { into, adopted, title, desc } = joined.success
   return [
-    { verb: "unarchive", id, ...(parent === null ? { file: located.file } : { parent }) },
-    { verb: "place", id, parent, after: into.id },
-    ...children.map((child, index): Edit => ({
+    // Where the row goes back to is `archive`'s own inverse, which already
+    // knows the parent-or-file pair and reads it off this same snapshot.
+    ...unarchiveOf(derived, id),
+    { verb: "place", id, parent: located.node.parent ?? null, after: into.id },
+    ...adopted.map((child, index): Edit => ({
       verb: "place",
       id: child.node.id,
       parent: id,
-      after: index === 0 ? null : (children[index - 1] as Located).node.id,
+      after: index === 0 ? null : (adopted[index - 1] as Located).node.id,
     })),
-    { verb: "title", id: into.id, title: into.title, was: joined.success.title },
+    // The two texts, put back the way EVERY text undo is put back — `textOf`
+    // carries the `was` convention and the "an absent note is `null`" rule, and
+    // a second copy of them here would be a second place to keep those true.
+    ...textOf(derived, { verb: "title", id: into.id, title }),
     // Only when the merge MOVED it. A row whose note is untouched — because the
     // row below had none — needs no second write, and one that said `was` for a
     // note it did not change would be refused by nothing and mean nothing.
-    ...(joined.success.desc === into.desc ? [] : [{
-      verb: "desc" as const,
-      id: into.id,
-      desc: into.desc ?? null,
-      was: joined.success.desc ?? null,
-    }]),
+    ...(desc === into.desc ? [] : textOf(derived, { verb: "desc", id: into.id, desc: desc ?? null })),
   ]
 }
 

@@ -183,7 +183,12 @@ export const keyHandler = (
   press: (action: EditAction, at?: Caret) => void,
 ) =>
 (event: KeyboardEvent): void => {
-  const at = caretOf(event.currentTarget)
+  // Not in a NOTE, where the matcher answers before it would ever look
+  // (../keys.ts: a note is prose, and the keys that edit a row are the row's).
+  // Reading it anyway would materialise the whole textarea's value per
+  // keystroke to take its length — a prose block, on the one field that can be
+  // long.
+  const at = field === "line" ? caretOf(event.currentTarget) : undefined
   const action = editKey(event, field, at)
   if (action === null) return
   event.preventDefault()

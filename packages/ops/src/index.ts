@@ -40,10 +40,11 @@ export { make, type Ops, type Options } from "./ops.ts"
  *  Exported so the keystroke resolver and the chat context resolver in
  *  `@olai/server` say what a tool call says. */
 export { notANode, notFound } from "./plan.ts"
-/** What a `merge` WOULD DO — which row it joins, and the two texts that row
- *  ends up with. The keystroke resolver needs both to say what would take a
- *  merge BACK, and one spelling is what keeps an undo from naming the row above
- *  the one it meant, or from carrying a guard that stopped matching. */
+/** What a `merge` WOULD DO — which row it joins, which branch that row adopts,
+ *  and the two texts it ends up with. The keystroke resolver needs all three to
+ *  say what would take a merge BACK, and one spelling is what keeps an undo from
+ *  naming the row above the one it meant, putting a branch back in a different
+ *  order, or carrying a guard that stopped matching. */
 export { type Merging, merging } from "./plan.ts"
 /** When writes reach git, and what git is doing for the directory they reach.
  *  The mode is passed IN and the state comes back OUT; the subprocesses between
