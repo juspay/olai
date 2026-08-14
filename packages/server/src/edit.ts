@@ -54,7 +54,9 @@
  */
 
 import {
+  dailyNotePathFor,
   type Derived,
+  isDay,
   isMirror,
   type Located,
   nodeNamed,
@@ -133,6 +135,38 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return markRequest(at.derived, edit)
     case "remove":
       return removeRequest(at.derived, edit)
+    // The documents' three. The first two resolve nothing — a file is named
+    // as the caller named it, and the ops layer's own refusals judge it — and
+    // the third is the one derivation a calendar cell cannot make for itself.
+    case "doc":
+      return Result.succeed({
+        op: "doc",
+        file: edit.file,
+        text: edit.text,
+        ...(edit.was === undefined ? {} : { was: edit.was }),
+      })
+    case "docNew":
+      return Result.succeed({ op: "create-doc", file: edit.file })
+    case "docDay": {
+      // The day's shape is checked HERE because the path it derives would
+      // otherwise be judged instead: a garbage date fed to the convention
+      // walk would refuse as "not a relative `.md` path", which teaches a
+      // reader about the wrong field.
+      if (!isDay(edit.date)) {
+        return Result.fail(
+          refusal(`\`${edit.date}\` is not a day (YYYY-MM-DD), so there is no note to mint for it`),
+        )
+      }
+      // WHERE the vault keeps its daily notes is a fact about the set — the
+      // newest existing note's own path is the convention — so it is read off
+      // the reading this write is judged against, exactly as every other
+      // placement is, and an agent makes the same two moves by hand.
+      const file = dailyNotePathFor(
+        at.set.documents.map((document) => document.file),
+        edit.date,
+      )
+      return Result.succeed({ op: "create-doc", file })
+    }
   }
 }
 
@@ -570,7 +604,33 @@ export const inverseOf = (
     // close. When that verb arrives, this arm is where it is answered.
     case "unmirror":
       return []
+    // A document commit is the text verbs' shape at file size: the inverse is
+    // the text it replaced, guarded by what this write wrote, so ⌘Z can only
+    // take back this tab's own words and somebody else's land as a refusal.
+    case "doc":
+      return documentTextOf(at, edit)
+    // Nothing takes a minted file back: there is no document removal on ANY
+    // face, which is an equal absence rather than a deviation — the shape
+    // `parity-unarchive` was in until #147 gave the archive its way out, and
+    // the same argument applies here. So the un-create cannot be spelled, and
+    // the entry says so by answering nothing rather than by leaving a ⌘Z that
+    // quietly does nothing.
+    case "docNew":
+    case "docDay":
+      return []
   }
+}
+
+/** The text a document holds, as the edit that would put it back — and nothing
+ *  for a path the reading does not hold, whose write the ops layer is about to
+ *  refuse in its own words. */
+const documentTextOf = (
+  at: Reading,
+  edit: Extract<Edit, { verb: "doc" }>,
+): ReadonlyArray<Edit> => {
+  const document = at.set.documents.find((entry) => entry.file === edit.file)
+  if (document === undefined) return []
+  return [{ verb: "doc", file: edit.file, text: document.text, was: edit.text }]
 }
 
 /** Where a row about to be archived sits, as the unarchive that would bring it

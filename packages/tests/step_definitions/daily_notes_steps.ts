@@ -185,8 +185,9 @@ Then("the day {string} is a link", async function (this: OlaiWorld, date: string
  * The `aria-label` and not the shape: a corner fold and a dot are pseudo-
  * elements with no text, so a suite that only asserted `data-noted` would stay
  * green on a calendar that announced every live day identically. Read off the
- * LINK, because the label is the link's — an inert day is a `<span>` with
- * nothing to announce but the number it already is.
+ * LINK, because the label is the link's — a bare day is a BUTTON now (the
+ * mint, `document_editing.feature`), with its own label about creating the
+ * day's note rather than about what is on it.
  */
 Then(
   "the day {string} is announced as {string}",

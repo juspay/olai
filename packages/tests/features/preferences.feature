@@ -14,6 +14,10 @@ Feature: One place to set how this browser reads
   chips. The chips are the panel's Theme row now; `theming.feature` is the whole
   of what they still promise, and it opens this panel to reach them.
 
+  The Font row is the same shape as Theme: a catalog (`theme/fonts.ts`), an
+  attribute on `<html>`, and a hint read off the choice in force. `fonts.feature`
+  is the whole of what the select still promises.
+
   The Done row is the DEFAULT for a per-view switch rather than a second switch.
   This switch belongs to a page — so it starts fresh when you zoom, unlike a
   fold, which is this browser's and is kept (`folds_are_remembered.feature`) —

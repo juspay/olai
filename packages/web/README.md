@@ -88,14 +88,18 @@ A node's
 free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
 title, resolved at view time through the same indexes.
 
-The typefaces are Source Serif 4 on the page (outline titles, a document) and
-Source Sans 3 on the chrome (header, sidebar, notes, chat): nixpkgs, composed
-by `nix/fonts.nix`, converted to woff2 at build time (`build.ts` via
-`OLAI_FONTS_DIR` / `OLAI_WOFF2_COMPRESS` from the flake shell and `default.nix`)
-and served from `/fonts/` — no CDN, no font binary in the repo. Eleven theme
-tokens paint every surface (`theme/palettes.ts`); the look follows every
-palette, dark and light. The outline sits on `paper`; the header, sidebar and
-agent dock sit on `desk`; a card or popover is `panel`; a filled chip is `pill`.
+The typeface is a pick, like the theme: `theme/fonts.ts` is the catalog, the
+build generates `@font-face` and one `:root[data-font="…"]` block per row, and
+the preferences panel's Font row draws one option per row. The default is
+Atkinson Hyperlegible — one voice on the page, the chrome, and the notes.
+The Olai row keeps three jobs distinct (Literata / iA Writer Quattro /
+iA Writer Mono). Hosted files come from nixpkgs
+(`nix/fonts.nix`), converted to woff2 at build time (`build.ts` via
+`OLAI_FONTS_DIR` / `OLAI_WOFF2_COMPRESS`) and served from `/fonts/` — no CDN,
+no font binary in the repo. Generics download nothing. Eleven theme tokens
+paint every surface (`theme/palettes.ts`); the look follows every palette,
+dark and light. The outline sits on `paper`; the header, sidebar and agent
+dock sit on `desk`; a card or popover is `panel`; a filled chip is `pill`.
 
 What a node cannot start until is answered in that same mark column (resolved
 2026-08-11, human): an `after` target that is a task and not done is in the
@@ -310,9 +314,42 @@ one, and the more honest, since those are real documents somebody wrote.
 `src/client/document/` is what a document looks like: its own page, the
 reference a `doc`-carrying node shows wherever it is drawn, and the context
 that lets a row deep in a tree find a document's text without every component
-above it declaring a prop for it. The text itself is not fetched — it arrives
-on the manifest, so a document edited on disk redraws by the mechanism that was
-already there.
+above it declaring a prop for it. The text arrives on the documents collection,
+one key at a time (`keys` + `get`, no `deltas` — `snapshot-scale`), so a
+document edited on disk redraws by the mechanism that was already there and a
+directory of thousands costs a first paint of paths rather than of bodies.
+
+The page is KEYED on its path, and that is load-bearing rather than tidy: the
+router's arm is a `<Match>` over an object, which Solid compares as a boolean,
+so `/doc/a.md` → `/doc/b.md` would otherwise keep the same page instance and
+everything it decided once — which document was just minted, and which file the
+open editor's draft and `was` belong to — would be a decision about the file
+you stopped reading.
+
+### And a document is WRITTEN here too
+
+The page's **Edit** turns the rendered body into its source
+(`document/DocEditor.tsx`): a textarea holding the file verbatim, which is the
+same trade every title and note makes — what you type is the source, and the
+rendering comes back when you leave. The mode is declared, so leaving it is
+too: **Save** commits (⌘Enter on the editor's own element, the row editors'
+rule), **Cancel** abandons (Escape), and nothing commits on blur or on a timer
+— a whole file written because a click strayed, or half a sentence published
+by an idle tick, is a write nobody asked for. The commit is one `doc` intent
+through the same `edit.apply` every key sends, carrying `was` — the text this
+editor READ — so a file that moved underneath (vim, a `git pull`, the agent)
+refuses the save in the ops layer's own words, with the draft kept and the
+drift already announced by a line that appeared the moment the served text
+stopped matching. **Overwrite what is there** is the explicit second verb
+after that refusal: the same write minus the guard. A saved edit records its
+inverse on the same ⌘Z stack a keystroke's does.
+
+Creation has two doors, both landing in the new document's editor
+(`document/minted.ts` is the one-shot hand-off): the sidebar's **+ New
+document** path box (`document/NewDocument.tsx`, the `docNew` intent), and a
+BARE calendar day — no node, no note — whose cell mints that day's note
+(`calendar/Day.tsx`, the `docDay` intent, the path derived on the server from
+the vault's own convention).
 
 ## Seven routes, and what each is a property of
 

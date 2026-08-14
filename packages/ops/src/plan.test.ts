@@ -1836,6 +1836,96 @@ describe("unmirror", () => {
  * one-line diffs that merge, and an op that quietly renumbered a row or
  * re-spelled a date would be a conflict about nothing.
  */
+describe("documents", () => {
+  const NOTES = "# Notes\n\nwhat was here before\n"
+  const vault = (): OutlineSet =>
+    setOf({ "house.jsonl": KITCHEN }, [["notes/notes.md", NOTES], "flat.md"])
+
+  test("a write replaces the text whole, and touches no outline", () => {
+    const outcome = planned(vault(), {
+      op: "doc",
+      file: "notes/notes.md",
+      text: "# Notes\n\nrewritten\n",
+    })
+    expect(outcome.files).toEqual([])
+    expect(outcome.documents).toEqual([
+      { file: "notes/notes.md", text: "# Notes\n\nrewritten\n" },
+    ])
+    // The unit is the file, so the reply names it the way an outline write
+    // names its node.
+    expect(outcome.id).toBe("notes/notes.md")
+    expect(outcome.summary).toBe("doc: notes/notes.md")
+  })
+
+  test("a `was` that matches plans; one the file has moved past is refused", () => {
+    const conditional = planned(vault(), {
+      op: "doc",
+      file: "notes/notes.md",
+      text: "new",
+      was: NOTES,
+    })
+    expect(conditional.documents).toEqual([{ file: "notes/notes.md", text: "new" }])
+
+    const failure = refused(vault(), {
+      op: "doc",
+      file: "notes/notes.md",
+      text: "new",
+      was: "# Notes\n\nwhat this editor read, before vim got there\n",
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("has changed since it was read")
+    // Deliberately NOT quoting either text: a document is not a title, and
+    // the caller re-reads the file rather than a sentence.
+    expect(failure.message).not.toContain("vim got there")
+  })
+
+  test("a path the set does not hold is refused with the closest one that exists", () => {
+    const near = refused(vault(), { op: "doc", file: "notes/notez.md", text: "x" })
+    expect(near._tag).toBe("NotFoundFailure")
+    expect(near.message).toContain("notes/notes.md")
+
+    const far = refused(vault(), { op: "doc", file: "elsewhere.md", text: "x" })
+    expect(far._tag).toBe("NotFoundFailure")
+    expect(far.message).toContain("create_document")
+  })
+
+  test("a document that could not be read is never overwritten from a set that lost it", () => {
+    const set = setOf({}, [], { "broken.md": "anything at all" })
+    const failure = refused(set, { op: "doc", file: "broken.md", text: "x" })
+    expect(failure._tag).toBe("ValidationFailure")
+    expect(failure.message).toContain("Fix the file first")
+  })
+
+  test("create mints the file, empty or holding its text", () => {
+    const empty = planned(vault(), { op: "create-doc", file: "ideas.md" })
+    expect(empty.documents).toEqual([{ file: "ideas.md", text: "" }])
+    expect(empty.summary).toBe("create: ideas.md")
+
+    const seeded = planned(vault(), {
+      op: "create-doc",
+      file: "Daily/2026/08/2026-08-13.md",
+      text: "# Today\n",
+    })
+    expect(seeded.documents).toEqual([
+      { file: "Daily/2026/08/2026-08-13.md", text: "# Today\n" },
+    ])
+  })
+
+  test("create refuses a path that exists — write is what edits one", () => {
+    const failure = refused(vault(), { op: "create-doc", file: "flat.md" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("write_document")
+  })
+
+  test("create judges the path the way every minted path is judged", () => {
+    for (const path of ["/etc/notes.md", "../up.md", "a/./b.md", "notes.txt", ""]) {
+      const failure = refused(vault(), { op: "create-doc", file: path })
+      expect(failure._tag).toBe("UsageFailure")
+      expect(failure.message).toContain("is not a relative `.md` path")
+    }
+  })
+})
+
 describe("round trip", () => {
   const LEDGER = [
     `{"id":"now","ord":"a0","title":"Now"}`,

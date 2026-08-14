@@ -12,6 +12,9 @@
   :root {
     --well:   #F1F2EA;
     --mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    /* This page has no /fonts/ pipeline. The app's default is Atkinson
+       Hyperlegible (a pick, like a theme); here the body stays the
+       platform sans and the wordmark stays mono. */
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 
@@ -324,7 +327,14 @@
     <h2>Markdown documents</h2>
     <p class="lead">Notes are Markdown. Longer content goes in <code>.md</code>
     files, referenced from the outline by the <code>doc</code> field. Each
-    document gets its own page and appears in the sidebar's file tree.</p>
+    document gets its own page and appears in the sidebar's file tree — and
+    the page edits: <em>Edit</em> turns the rendered body into its source,
+    <em>Save</em> is one operation through the same layer the agent's
+    <code>write_document</code> uses, and a file that changed on disk while
+    you were typing refuses the save in plain words instead of being silently
+    overwritten, in either direction. New documents come from the sidebar's
+    path box, or from a bare calendar day — pressing one creates that day's
+    note where your vault already keeps them.</p>
     <div class="cols">
       <div>
         <pre><code># Cabinet specs
@@ -570,11 +580,11 @@ The corner unit is the **risky one** — see
 <section id="prefs">
   <div class="wrap">
     <h2>Preferences, and fifteen palettes</h2>
-    <p class="lead">One door in the app header, and two rows behind it: the
-    theme, and what a page does with finished work. Both are this browser’s,
-    which is the panel’s own first claim about itself: two machines reading the
-    same outlines are entitled to look different, and the served directory
-    neither knows nor cares.</p>
+    <p class="lead">One door in the app header, and three rows behind it: the
+    theme, the typeface, and what a page does with finished work. All three
+    are this browser’s, which is the panel’s own first claim about itself:
+    two machines reading the same outlines are entitled to look different,
+    and the served directory neither knows nor cares.</p>
     <div class="cols">
       <div class="panel prefs">
         <div class="file">preferences</div>
@@ -599,6 +609,11 @@ The corner unit is the **risky one** — see
           </div>
           <p class="hint">chalk is in force. Every colour on the page is this
           one table, so a pick repaints all of them at once.</p>
+        </div>
+        <div class="prow">
+          <div class="lbl">Font</div>
+          <div class="field">Atkinson Hyperlegible</div>
+          <p class="hint">The page is set in Atkinson Hyperlegible Next.</p>
         </div>
         <div class="prow">
           <div class="lbl">Done</div>
@@ -660,8 +675,9 @@ The corner unit is the **risky one** — see
     <p class="lead">The chat panel connects to any agent that speaks
     <a href="https://agentclientprotocol.com">ACP</a>. Claude Code is bundled as
     the default; set <code>OLAI_ACP_AGENT</code> to use a different agent CLI.
-    Olai hands an agent no filesystem — a fixed set of tools that can only name
-    nodes — so every write it asks olai for is validated before it lands. What a
+    Olai hands an agent no filesystem — a fixed set of tools that name nodes
+    and whole documents, never bytes — so every write it asks olai for is
+    validated before it lands. What a
     coding assistant brings with it is its own: it edits files on the authority
     it already has in a terminal, and olai neither grants that nor pretends it
     away. It shows it.</p>

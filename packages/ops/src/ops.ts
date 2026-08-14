@@ -209,12 +209,18 @@ export const make = (options: Options): Ops => {
 
         const planned = plan(snapshot.value as OutlineSet, context, request)
         if (Result.isFailure(planned)) return yield* planned.failure
-        const { files, ...about } = planned.success
+        const { files, documents = [], ...about } = planned.success
 
-        const changes = files.map((file) => ({
-          path: file.file,
-          contents: serializeOutline(file.nodes),
-        }))
+        // Outlines go through the format's writer; a document IS its text, so
+        // it goes to disk verbatim — there is no serialiser for a writer to
+        // disagree with. Both ride the same all-or-none rename.
+        const changes = [
+          ...files.map((file) => ({
+            path: file.file,
+            contents: serializeOutline(file.nodes),
+          })),
+          ...documents.map((doc) => ({ path: doc.file, contents: doc.text })),
+        ]
         const paths = changes.map((change) => options.store.resolve(change.path))
 
         // The post-publish hook, which is the whole of what `--commit=auto`
@@ -273,7 +279,7 @@ export const make = (options: Options): Ops => {
         // the two readings this write is made of, which are both still in
         // hand. A reader that DRAWS a write rather than logging one needs a
         // word it can switch on, and the summary above is a commit subject.
-        const sort = sortOfWrite(snapshot.value as OutlineSet, files, about.id)
+        const sort = sortOfWrite(snapshot.value as OutlineSet, planned.success)
         return {
           ...about,
           rev: written.success,

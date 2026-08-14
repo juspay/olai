@@ -172,12 +172,16 @@ test("the tool list is reads and writes, and no file access at all", async () =>
     const { tools } = await client.listTools()
 
     // The whole surface, spelled out — because what is NOT here is the design:
-    // no file read, no file write, no shell, no grep.
+    // no file read, no raw byte write, no shell, no grep. The two document
+    // tools are the closest thing to a file write the surface has, and they
+    // are still the ops layer's: a whole `.md` through the same validate →
+    // stage → rename → commit gate, never a byte range.
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       "add_mirror",
       "add_node",
       "archive_node",
       "commit",
+      "create_document",
       "create_outline",
       "list_outlines",
       "move_node",
@@ -195,6 +199,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
       "set_title",
       "set_todo",
       "unarchive_node",
+      "write_document",
     ])
 
     // The discriminator the tool NAME already decides is not a field the agent
