@@ -44,6 +44,13 @@
  * Its own module for the reason `./said.ts` is one: this is a RITUAL rather
  * than a step, three step files could want it, and two of them waiting for the
  * client's answer two different ways is how one of them stops waiting properly.
+ *
+ * FOUR VERBS come out of it, and nothing else does — {@link aimedAtTheLine}
+ * before a gesture, {@link answering} for a key, {@link leavingTheLine} for a
+ * gesture meant to take the caret out, and {@link nothingIsBeingTyped} for the
+ * promise a scenario makes about it. The shapes above are how they are built,
+ * and a caller composing them by hand would be a caller that has to know what a
+ * receipt is.
  */
 
 import type { ElementHandle } from "playwright";
@@ -54,17 +61,17 @@ import type { OlaiWorld } from "./world.ts";
 /** The editor the caret is in — a row's title or its note, whichever is open.
  *  A page with neither has no caret in a row, which is the state ⌘Z is answered
  *  from. */
-export const CARET_EDITOR = `${TITLE_EDITOR}, ${DESC_EDITOR}`;
+const CARET_EDITOR = `${TITLE_EDITOR}, ${DESC_EDITOR}`;
 
 /** Is anything being typed at all? Every wait below is a claim about a draft,
  *  and a page with none has nothing to make it about. */
-export const somethingIsBeingTyped = async (world: OlaiWorld): Promise<boolean> =>
+const somethingIsBeingTyped = async (world: OlaiWorld): Promise<boolean> =>
   (await world.page.locator(CARET_EDITOR).count()) > 0;
 
 /** The title editor as a handle, which goes on answering after the page has
  *  taken it away — the whole question {@link letGo} asks. `null` when no row is
  *  being typed, which is every `Enter` that picks a menu item. */
-export const lineHeld = async (
+const lineHeld = async (
   world: OlaiWorld,
 ): Promise<ElementHandle<Node> | null> => {
   const editor = world.page.locator(TITLE_EDITOR).first();
@@ -78,7 +85,7 @@ export const lineHeld = async (
  *  at all, because an empty new row is not a node and there is nothing to join
  *  it to (`editing.tsx`'s `merge` stops at that guard). Both leave the caret
  *  where it was, so both have nothing to wait for. */
-export const joinsWithBackspace = async (
+const joinsWithBackspace = async (
   line: ElementHandle<Node>,
 ): Promise<boolean> =>
   await line.evaluate((element) => {
@@ -100,7 +107,7 @@ const refused = async (world: OlaiWorld): Promise<boolean> =>
  * one. That transition is downstream of the write, which is what makes it a
  * receipt either way.
  */
-export const letGo = async (
+const letGo = async (
   world: OlaiWorld,
   line: ElementHandle<Node>,
   what: string,
@@ -130,7 +137,7 @@ export const nothingIsBeingTyped = async (world: OlaiWorld): Promise<void> => {
  * row comes back as a NEW element and "the element I was holding is gone" would
  * be true with nobody having let go of anything.
  */
-export const caretPlace = async (world: OlaiWorld): Promise<string | null> =>
+const caretPlace = async (world: OlaiWorld): Promise<string | null> =>
   await world.page.evaluate(
     ([caret, newRow, node]) => {
       const editor = document.querySelector(caret);
@@ -158,7 +165,7 @@ export const caretPlace = async (world: OlaiWorld): Promise<string | null> =>
 /** The caret is somewhere other than `was` — the receipt of every gesture that
  *  takes the caret out of a line or moves the line it is in — or the page has
  *  said why it is not. */
-export const leftThePlace = async (
+const leftThePlace = async (
   world: OlaiWorld,
   was: string,
   what: string,
@@ -170,7 +177,7 @@ export const leftThePlace = async (
 };
 
 /** The line being typed HOLDS the caret. */
-export const caretIsInTheLine = async (world: OlaiWorld): Promise<void> => {
+const caretIsInTheLine = async (world: OlaiWorld): Promise<void> => {
   await world.waitUntil(
     async () =>
       await world.page.evaluate(
@@ -186,6 +193,26 @@ export const caretIsInTheLine = async (world: OlaiWorld): Promise<void> => {
 export const aimedAtTheLine = async (world: OlaiWorld): Promise<void> => {
   if (!(await somethingIsBeingTyped(world))) return;
   await caretIsInTheLine(world);
+};
+
+/**
+ * A gesture MEANT to take the caret out of the line it is in — a click
+ * somewhere that is not a row — and the wait for it to have happened.
+ *
+ * The gesture comes in as an argument because the three lines around it are
+ * this module's knowledge and not the step's: WHERE the caret was has to be
+ * read before the gesture and compared after it, and a step file spelling that
+ * out is a step file that knows what a receipt is.
+ */
+export const leavingTheLine = async (
+  world: OlaiWorld,
+  gesture: () => Promise<void>,
+  what: string,
+): Promise<void> => {
+  const was = await caretPlace(world);
+  await gesture();
+  if (was === null) return;
+  await leftThePlace(world, was, what);
 };
 
 /** The keys that put the row somewhere else — indent, outdent, and the two that

@@ -36,8 +36,8 @@ import type { Locator } from "playwright";
 import {
   aimedAtTheLine,
   answering,
-  caretPlace,
-  leftThePlace,
+  leavingTheLine,
+  nothingIsBeingTyped,
 } from "../support/caret.ts";
 import { saysNothing, saysThat } from "../support/said.ts";
 import {
@@ -205,17 +205,18 @@ Then(
 );
 
 When("I click away from the editor", async function (this: OlaiWorld) {
-  // Somewhere in the pane that is not a row: a blur, and nothing else.
-  const was = await caretPlace(this);
-  await this.page.locator("main").click({ position: { x: 4, y: 4 } });
-  await this.waitForFrame();
-  // And the caret LEAVES the line it was in, which is the same receipt the
-  // keys wait for and for the same reason: a blur commits through the same
-  // queue, so a draft still open on that line is this tab still waiting to
-  // hear.
-  if (was !== null) {
-    await leftThePlace(this, was, "the caret to leave the line the click was away from");
-  }
+  // Somewhere in the pane that is not a row: a blur, and nothing else — and
+  // then the caret LEAVES, which is the same receipt the keys wait for and for
+  // the same reason: a blur commits through the same queue, so a draft still
+  // open on that line is this tab still waiting to hear.
+  await leavingTheLine(
+    this,
+    async () => {
+      await this.page.locator("main").click({ position: { x: 4, y: 4 } });
+      await this.waitForFrame();
+    },
+    "the caret to leave the line the click was away from",
+  );
 });
 
 // ── what is on screen ──────────────────────────────────────────────────
@@ -285,12 +286,10 @@ Then(
 );
 
 Then("no row is being edited", async function (this: OlaiWorld) {
-  await this.waitUntil(
-    async () =>
-      (await this.page.locator(TITLE_EDITOR).count()) === 0 &&
-      (await this.page.locator(DESC_EDITOR).count()) === 0,
-    "no editor to be open",
-  );
+  // The same question `Escape` is waited on with, asked as a promise — one
+  // spelling of "a page with no caret in a row", which is the state ⌘Z is
+  // answered from and the one these two would drift apart about.
+  await nothingIsBeingTyped(this);
 });
 
 Then("a new row is being typed", async function (this: OlaiWorld) {
