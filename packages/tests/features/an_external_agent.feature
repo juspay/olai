@@ -210,3 +210,19 @@ Feature: An agent olai did not start
     Then the terminal agent found exactly "order, install"
     When the terminal agent searches for "cabinets" under "install"
     Then the terminal agent found exactly "install"
+
+  Scenario: An operator it gets wrong is refused with the reason, not with silence
+    # The fourth door onto the same grammar, and the one where silence is
+    # cheapest to ship: a tool that answered `is:blocked` with an empty `hits`
+    # and nothing else would leave a model to guess whether the directory is
+    # empty or the query is wrong. The refusal rides the answer.
+    When the terminal agent searches for "is:blocked"
+    Then the terminal agent found exactly ""
+    And the terminal agent was refused "is:blocked" and told "done, doing, todo, marked, archived"
+    # AS TYPED — an answer that echoed the folded token back would be quoting
+    # the caller wrongly.
+    When the terminal agent searches for "is:BLOCKED"
+    Then the terminal agent was refused "is:BLOCKED" and told "done, doing, todo, marked, archived"
+    # ...and a query it CAN read carries no refusal at all.
+    When the terminal agent searches for "cabinets"
+    Then the terminal agent was refused nothing

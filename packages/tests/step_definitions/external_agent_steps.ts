@@ -371,3 +371,40 @@ Then(
     );
   },
 );
+
+/**
+ * The refusal, over the wire an agent uses.
+ *
+ * Read from `structuredContent` like every other assertion here: the prose is
+ * what a model reads, the structure is what a caller acts on — and a refusal a
+ * caller cannot act on is a refusal that may as well be silence.
+ */
+Then(
+  "the terminal agent was refused {string} and told {string}",
+  function (this: OlaiWorld, token: string, teaching: string) {
+    const refusals = (structuredOf(this)["refusals"] ?? []) as ReadonlyArray<
+      { readonly token: string; readonly reason: string }
+    >;
+    const found = refusals.find((one) => one.token === token);
+    assert.ok(
+      found,
+      `no refusal naming \`${token}\` among ${JSON.stringify(refusals)} — an ` +
+        "empty answer with no reason is the silence this field exists to end",
+    );
+    assert.ok(
+      found.reason.includes(teaching),
+      `the refusal for \`${token}\` reads ${JSON.stringify(found.reason)}, ` +
+        `which does not say what the operator takes (${teaching})`,
+    );
+  },
+);
+
+/** The other half: a query the grammar COULD read says nothing about
+ *  refusals, so an agent cannot mistake "found nothing" for "asked wrongly". */
+Then("the terminal agent was refused nothing", function (this: OlaiWorld) {
+  assert.strictEqual(
+    structuredOf(this)["refusals"],
+    undefined,
+    "a readable query carried a refusal",
+  );
+});

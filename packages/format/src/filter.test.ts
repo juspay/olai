@@ -175,7 +175,58 @@ test("each operator says what it takes", () => {
   expect(refusalsOf("has:tags")?.[0]?.reason).toContain("desc, date, see, after, doc")
   expect(refusalsOf("date:soon")?.[0]?.reason).toContain("2026-08-10")
   expect(refusalsOf("date:..")).toHaveLength(1)
-  expect(refusalsOf("is:")).toHaveLength(1)
+})
+
+// A DAY that no month has is the reader's mistake exactly as `date:soon` is —
+// and the worse of the two to swallow, because `2026-13` sorts between December
+// and January and so reads as a window rather than as nonsense. It used to parse
+// shape-clean and select nothing, with no reason given.
+test("a date no calendar could hold is refused, not answered with an empty tree", () => {
+  for (const impossible of ["date:2026-13", "date:2026-00", "date:2026-08-32", "date:2026-01-00"]) {
+    expect(refusalsOf(impossible)).toHaveLength(1)
+    expect(selects(impossible)).toEqual([])
+  }
+  // Both ends of a range are held to it.
+  expect(refusalsOf("date:2026-13..2026-14")).toHaveLength(1)
+  expect(refusalsOf("date:..2026-99")).toHaveLength(1)
+  expect(refusalsOf("date:2026-99..")).toHaveLength(1)
+  // ...and the shapes that ARE possible still parse.
+  expect(parseFilter("date:2026-12-31").kind).toBe("asking")
+  expect(parseFilter("date:2026-01").kind).toBe("asking")
+})
+
+// The line is what is impossible in ANY month, not in the month named. Telling
+// `2026-02-30` from `2026-01-30` needs a calendar, and this grammar's whole date
+// stance is that a comparison over text answers without inventing one — so it is
+// accepted, and matches nothing.
+test("a day that only some months have is accepted, and finds nothing", () => {
+  expect(parseFilter("date:2026-02-30").kind).toBe("asking")
+  expect(selects("date:2026-02-30")).toEqual([])
+})
+
+// A space after the colon is not "date: takes a day, month or year" — the reader
+// wrote a day. It is the tokenizer splitting one word into two, and the refusal
+// says THAT.
+test("an operator given no value says what actually went wrong", () => {
+  expect(refusalsOf("is:")?.[0]?.reason).toContain("no value")
+  expect(refusalsOf("date: 2026")?.[0]).toEqual({
+    token: "date:",
+    reason:
+      "date: was given no value — a space after the colon splits it into two words",
+  })
+})
+
+// The words are matched FOLDED and the refusal is quoted AS TYPED. Telling
+// somebody who wrote `is:BLOCKED` that they wrote `is:blocked` is the refusal
+// misquoting the reader — the same defect class the refusal exists to prevent.
+test("a refusal quotes the token the way it was typed", () => {
+  expect(refusalsOf("is:BLOCKED")?.[0]?.token).toBe("is:BLOCKED")
+  expect(refusalsOf("Date:Soon")?.[0]?.token).toBe("Date:Soon")
+  expect(refusalsOf("-HAS:tags")?.[0]?.token).toBe("-HAS:tags")
+  // ...while everything that MATCHES still folds, so the two cannot be confused.
+  expect(selects("IS:DONE")).toEqual(["demo", "basil"])
+  expect(selects("#HOME")).toEqual(["kitchen", "hinges", "herbs"])
+  expect(selects("CABINETS")).toEqual(["order", "install"])
 })
 
 test("a colon after anything else is a colon in a word", () => {

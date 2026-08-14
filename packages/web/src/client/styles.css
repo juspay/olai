@@ -119,6 +119,27 @@
 /* In-place note expansion on a tree/day row. A short fade when motion is OK;
  * none under prefers-reduced-motion so the reflow is instant for readers who
  * asked for that (no rule at all in that case). */
+/* A `#tag` pill is PRESSABLE only where the press has somewhere to go.
+ *
+ * Clicking one filters the page to it, and only two routes can carry a filter
+ * (`client/routes.ts`) — so on a day page, the agenda, a document or the trash
+ * the same pill is decoration, exactly as it was before the filter existed.
+ * The pane says which it is (`data-narrowable` in `client/App.tsx`), and
+ * `client/filter/tag.ts` declines the click on the same condition: one fact,
+ * one place, drawn and answered consistently rather than looking pressable and
+ * swallowing the press.
+ *
+ * Here rather than in the pill's own class list because the pill is built as an
+ * HTML string by `client/markdown/tags.ts`, which is handed a title and knows
+ * nothing about the route. */
+[data-narrowable="true"] [data-tag] {
+  cursor: pointer;
+}
+
+[data-narrowable="true"] [data-tag]:hover {
+  background-color: color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
 /* A raised card on the desk — the month, and anything else that sits up off
  * the workbench. Ink-tinted so it follows every palette rather than a gray. */
 .olai-card {

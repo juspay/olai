@@ -1413,10 +1413,13 @@ The filter rides the ADDRESS (`routes.ts`'s `?q=`), so a narrowed page is a link
 and Back works; typing REPLACES the history entry (`router.tsx`'s `replace`)
 rather than pushing one per keystroke.
 
-## Search: one reading, three doors
+## Search: one reading, three of the four doors
 
 `src/client/search/` holds the search itself, and what every list of results is
-drawn and walked with, because the palette is not the only door to either:
+drawn and walked with, because the palette is not the only door to either. The
+FOURTH door is the section above — the filter narrows the page instead of
+listing hits, and parses the same grammar locally rather than asking; these
+three ask the server.
 
 - `nodes.ts` — `createNodeSearch`, a `createResource` over a debounced query
   (`@solid-primitives/scheduled`). The resource drops the answer to a query
@@ -1446,9 +1449,13 @@ drawn and walked with, because the palette is not the only door to either:
   chord — so before it, a phone had no door to search at all). Its panel
   portals out of the header and is placed by `anchor.ts`'s `styleOf`.
 
-The matching is entirely the server's — the same `Query.search` reading an
-agent's `search_nodes` gets — so there is deliberately no matcher in this
-client (`palette/items.ts` says why). What the answer carries besides the rows
+The matching these three doors get is entirely the server's — the same
+`Query.search` reading an agent's `search_nodes` gets — so there is deliberately
+no matcher IN THIS DIRECTORY (`palette/items.ts` says why). The client does run
+one, in `filter/`, and it is the same one: `@olai/format`'s `parseFilter` /
+`matching`, one layer below the procedure, because a filter over rows a tab
+already holds cannot make a round trip per keystroke. One function, four
+callers — never a second reading. What the answer carries besides the rows
 is `refusals`: a known operator with an unknown value, in the grammar's own
 words, drawn by both doors in a row of its own. It is a DIFFERENT slot from
 `failure` for the reason `failure` is a different slot from the palette's `>`

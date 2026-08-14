@@ -31,7 +31,7 @@ one with that sigil.
 | `has:date` | on any day at all — the unbounded `date:`, so the two cannot disagree |
 | `date:2026-08-10` `date:2026-08` `date:2026` | a day, a month, a year |
 | `date:a..b` `date:..b` `date:a..` | an inclusive span, either end optional |
-| `-anything` | takes that word or operator back out |
+| `-anything` | takes that word or operator back out — ONE leading dash. A second one is a character, not a second negation: `--force` is a word people write, so `--is:done` looks for that text and finds it wherever somebody typed it |
 
 `date:` reads the two dates a journal reads — what the node is scheduled for,
 and when it was finished. A dated `doing` or `todo` is on no day here, exactly
@@ -41,6 +41,17 @@ as on the day page ([format.md](format.md)).
 words, and the query selects nothing: `is:blocked` says which values `is:` takes
 rather than quietly searching for that text and finding none. A colon after
 anything else (`TODO:`, `http://…`) is an ordinary word — colons occur in prose.
+
+A date that no calendar could hold is refused on the same terms:
+`date:2026-13`, `date:2026-08-32`. Month 13 is the reader's mistake exactly as
+`date:soon` is, and the worse of the two to swallow — it *sorts* between
+December and January, so an empty answer reads as a window rather than as
+nonsense. The line is what is impossible in **any** month: `date:2026-02-30` is
+accepted and finds nothing, because telling that from `2026-01-30` needs a
+calendar, and nothing here parses a date into one.
+
+**A refusal quotes what you typed**, case and all: the words are matched folded,
+so `IS:DONE` works, but a refusal for `is:BLOCKED` says `is:BLOCKED`.
 
 The refusal reaches **every door**. The filter parses for itself and draws its
 own; the other three ask the server, so the answer carries `refusals` and the

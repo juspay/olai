@@ -110,6 +110,27 @@ Feature: Filtering the outline in place
     Then the filter refuses "is:blocked" and says "done, doing, todo, marked, archived"
     And the outline has 0 rows
 
+  Scenario: A date no calendar could hold is refused too
+    # `2026-13` is shape-clean and impossible, and it SORTS between December and
+    # January — so swallowing it reads as a window rather than as nonsense. It
+    # is the reader's mistake exactly as much as `date:soon` is.
+    Given I open the outline "house.jsonl"
+    When I filter the page by "date:2026-13"
+    Then the filter refuses "date:2026-13" and says "2026-08-10"
+    And the outline has 0 rows
+
+  Scenario: The refusal quotes the reader, not the folded token
+    # The words are matched case-folded; the refusal is quoted as TYPED. Telling
+    # somebody who wrote `is:BLOCKED` that they wrote `is:blocked` is the
+    # refusal misquoting the reader — the same defect class the refusal exists
+    # to prevent, and the one none of the four doors had a scenario for.
+    Given I open the outline "house.jsonl"
+    When I filter the page by "is:BLOCKED"
+    Then the filter refuses "is:BLOCKED" and says "done, doing, todo, marked, archived"
+    # ...while a query that MATCHES still folds, so the two cannot be confused.
+    When I filter the page by "IS:DONE"
+    Then the node "demo" is a match
+
   Scenario: The header's box refuses the same operator, in the same words
     # One grammar, four doors. The filter parses for itself; the header box,
     # the ⌘K palette and an agent ask the server — and a door that answered
@@ -117,6 +138,16 @@ Feature: Filtering the outline in place
     # typo looks exactly like an empty directory.
     Given I open the outline "house.jsonl"
     When I search the header for "is:blocked"
+    Then the search refuses "is:blocked" and says "done, doing, todo, marked, archived"
+
+  Scenario: The ⌘K palette refuses it too, in its own row
+    # The third door. It reads the same `createNodeSearch` primitive the header
+    # does, and draws the refusal in a row of its own — separate from the row
+    # that says the CALL failed, because a refused call and a refused query are
+    # two different pieces of news.
+    Given I open the outline "house.jsonl"
+    When I press the palette shortcut
+    And I type "is:blocked" into the palette
     Then the search refuses "is:blocked" and says "done, doing, todo, marked, archived"
 
   Scenario: Pressing a `#tag` filters the page by it
@@ -164,3 +195,21 @@ Feature: Filtering the outline in place
     # nowhere to keep.
     Given I open the day "2026-08-10"
     Then there is no filter bar
+
+  Scenario: A tag on a page that cannot be filtered is decoration, and looks it
+    # Titles are drawn on pages with no filter to fill — a day, the agenda, a
+    # document — and the pill is the same markup there. It must not look
+    # pressable and then swallow the press: the pane says whether a tag in it
+    # is live, the stylesheet draws the cursor on that, and the listener
+    # declines on the same condition.
+    #
+    # On a day page the only tag is inside an ancestry crumb, which is a link —
+    # so the press goes where the crumb goes, exactly as it did before tags
+    # were pressable anywhere. What must NOT happen is a filter: the address
+    # carries no `?q=`, here or on the page it lands on.
+    Given I open the outline "house.jsonl"
+    Then tags on this page are pressable
+    When I open the day "2026-08-10"
+    Then tags on this page are decoration
+    When I press the tag "#home"
+    Then the address is exactly "/n/kitchen"

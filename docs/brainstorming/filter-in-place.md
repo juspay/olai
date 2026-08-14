@@ -184,13 +184,35 @@ refused QUERY are two pieces of news.
 Two rules, and the split is the whole of it:
 
 - a token whose left side is one of the three operator NAMES and whose value is
-  not understood — `is:blocked`, `date:soon`, `has:tags` — is a **refusal**. It
-  is reported, the reader is shown what the operator takes, and the filter
-  matches nothing. Never silently downgraded to a substring term: a query that
-  quietly finds nothing is the silent-error the HACKING doctrine forbids;
+  not understood — `is:open` (a mark this format stopped having), `date:soon`,
+  `date:2026-13` — is a **refusal**. It is reported, the reader is shown what
+  the operator takes, and the filter matches nothing. Never silently downgraded
+  to a substring term: a query that quietly finds nothing is the silent-error
+  the HACKING doctrine forbids;
 - a token with a colon whose left side is anything else — `TODO:`, `note:x`,
   `http://example.com` — is an ordinary **substring term**. Colons occur in
   prose, and refusing them would break searching for the words people write.
+
+A refusal quotes the token **as typed**. The words and the operator values are
+compared case-folded, so `IS:DONE` works — but `is:BLOCKED` refused as "you
+typed `is:blocked`" is the refusal misquoting the reader, which is the defect it
+exists to prevent, one turn in. So the fold is per token and for matching only.
+
+An **impossible date** is refused on the same terms, and it needed saying
+because the shape regex alone accepts it: `date:2026-13` is well-formed and can
+never contain a validated day. It is also the worst kind to swallow, since it
+sorts between December and January and so reads as a window. The bound is 1–12
+and 1–31 — what is impossible in ANY month. `date:2026-02-30` is accepted and
+matches nothing, and that is the deliberate line: telling it from `2026-01-30`
+needs a calendar, and the whole date stance here (the same one that makes a
+month's upper bound `-31`) is that a comparison over text answers without
+inventing one.
+
+**One leading `-` negates; a second is a character.** `--is:done` is a term, and
+looks for that literal text. Refusing it would need a second refusal rule, and
+that rule would refuse `--force` — a word people genuinely write in notes. The
+behaviour is documented in [search.md](../search.md)'s negation row rather than
+legislated against.
 
 ## Where the filter lives: the address
 
@@ -207,8 +229,33 @@ The filter rides the URL as `?q=<text>` on the two tree pages, `/o/<file>` and
 Typing in the box **replaces** the history entry rather than pushing one — a
 filter typed one character at a time would otherwise put fourteen entries
 between the reader and the page they came from. So Back leaves the filter,
-rather than un-typing it. A tag click also replaces: it is the same act,
-performed with the mouse.
+rather than un-typing it. A tag click also replaces the entry: it is the same
+act, performed with the mouse.
+
+### A tag click REPLACES the query rather than composing with it
+
+This is a real fork and the doc owed it an argument. Pressing `#home` while the
+box holds `cabinets` leaves `#home`, not `cabinets #home`.
+
+The case for composing is good: the gesture reads as "and also narrow by this",
+the box is right there showing what you would be adding to, and it is what
+"narrow the view you are looking at" suggests.
+
+Replace wins on two counts. **A click that ANDs can produce nothing, and the
+reason is off-screen behind the pill you just pressed** — the commonest outcome
+of composing two filters is zero rows, and the reader who pressed a tag was
+asking to see that tag, not to be told the intersection is empty. And
+**composing has no gesture for its own inverse**: with replace, a tag press and
+a typed query mean the same thing and either replaces the other, so the way back
+is to type or to press `×`. With compose, replacing means clearing first — a
+second gesture to reach the commoner intent.
+
+The narrowing a composing click would give you is still available, and it is the
+one the operators are for: type `#home is:todo`. What the click is for is the
+cheap common case, and cheap means the whole query.
+
+Recorded as reversible: it is one line in `App.tsx`'s `narrow`, and the e2e that
+pins it (`Pressing a #tag filters the page by it`) would be the thing to change.
 
 `routes.ts` grows a `filter?: string` on those two arms only, and `routeOf`
 takes the address rather than the pathname, so the bijection its test holds
@@ -333,6 +380,15 @@ placement, and for the same reason, as the listener that answers a link inside
 rendered markdown (`router.tsx`'s `followed`). The row's own title click must
 therefore decline a click that landed on a pill, or one press would both filter
 the page and open an editor on the row.
+
+**Only where the press has somewhere to go.** Titles are drawn on pages that
+cannot carry a filter — a day, the agenda, a document — and the pill there is
+the same markup, because `markdown/tags.ts` is handed a string and knows nothing
+about the route. So the PANE says whether a tag in it is live
+(`data-narrowable`), the stylesheet draws the cursor and the hover from that,
+and the listener declines on the same condition: one fact, read by the thing
+that promises and by the thing that answers, rather than a pill that looks
+pressable and a press that is swallowed.
 
 ## Deferred, named
 

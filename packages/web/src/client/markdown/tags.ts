@@ -33,13 +33,16 @@ import { TESTID } from "../testids.ts"
  * A complete string literal so Tailwind's content scan still finds every
  * utility when the markup is built as HTML rather than as a Solid element.
  *
- * It is PRESSABLE now — the pointer and the hover say so — because a click on
- * one filters the page to it (`../filter/tag.ts`). That is the promise
- * title-markdown deliberately withheld while the tags were decorative, and the
- * cursor is how a reader is told it has arrived.
+ * WHETHER IT IS PRESSABLE IS NOT DECIDED HERE, and it cannot be: a title is
+ * drawn on pages that can carry a filter and on pages that cannot (a day, the
+ * agenda, a document), and this function is handed a string rather than a
+ * route. The pointer and the hover live in `../styles.css`, keyed on the pane
+ * saying it is narrowable — so a pill on a day page looks exactly as
+ * decorative as it behaves. `../filter/tag.ts` declines the click on the same
+ * condition, and the two are one fact spelled in one place (`App.tsx`).
  */
 export const TAG_CLASS =
-  "mx-0.5 inline-block max-w-full cursor-pointer rounded-sm bg-accent/15 px-1 py-px text-[0.8125rem] font-normal leading-snug text-accent hover:bg-accent/25"
+  "mx-0.5 inline-block max-w-full rounded-sm bg-accent/15 px-1 py-px text-[0.8125rem] font-normal leading-snug text-accent"
 
 /** Subtrees where a `#…` sequence is not a tag: code is code, a link's text
  *  and href are not re-parsed for tags (a URL fragment is the sharpest case). */

@@ -620,8 +620,11 @@ The corner unit is the **risky one** — see
         out.</p>
         <p><strong>An operator it does not know is refused, not guessed at.</strong>
         <code>is:blocked</code> answers with the values <code>is:</code> takes
-        rather than quietly searching for that text and finding nothing. A colon
-        anywhere else — <code>TODO:</code>, a URL — is just a word.</p>
+        rather than quietly searching for that text and finding nothing, and a
+        date no calendar could hold — <code>date:2026-13</code> — is refused on
+        the same terms rather than answered with an empty page. The refusal
+        quotes what you typed, case and all. A colon anywhere else —
+        <code>TODO:</code>, a URL — is just a word.</p>
         <p><strong>Clicking a <span class="tagchip">#tag</span> filters by
         it</strong>, and the filter lives in the address (<code>?q=</code>), so
         a narrowed page is a link you can send and the back button works.

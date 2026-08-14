@@ -49,7 +49,7 @@ import { fileOf, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
-import { filterOf, narrowedTo, samePage } from "./routes.ts"
+import { filterOf, narrowable, narrowedTo, samePage } from "./routes.ts"
 import { runAsync } from "./run.ts"
 import { visible } from "./settings/done.ts"
 import { Sidebar } from "./Sidebar.tsx"
@@ -300,6 +300,10 @@ export default function App() {
                       class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
                         !desktop() && !chatOpen() ? "pb-16" : ""
                       }`}
+                      // Whether a `#tag` in here is pressable — one fact, read
+                      // by the pill's cursor (`styles.css`) and by the listener
+                      // below, so the two cannot promise different things.
+                      data-narrowable={narrowable(router.route()) ? "true" : undefined}
                       // A link in RENDERED MARKDOWN is an anchor no component
                       // owns — it arrives through `innerHTML` — so the one
                       // that names a document of this directory is answered
@@ -317,7 +321,14 @@ export default function App() {
                       // skips anchors), so the two can never both claim one
                       // press.
                       onClick={(event) => {
-                        const tag = taggedBy(event)
+                        // ...and only where the press has somewhere to go. A
+                        // day page draws tags too and its address has nowhere
+                        // to keep a filter, so the press is left alone rather
+                        // than claimed and dropped — the same condition the
+                        // pill's own cursor is drawn on (`styles.css`).
+                        const tag = narrowable(router.route())
+                          ? taggedBy(event)
+                          : null
                         if (tag !== null) {
                           event.preventDefault()
                           narrow(tag)

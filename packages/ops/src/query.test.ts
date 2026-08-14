@@ -191,6 +191,32 @@ describe("a query is words and operators", () => {
     expect(ids({ text: "is:blocked trip" })).toEqual([])
   })
 
+  // ...AND WITH THE REASON. This layer is the only one that has both the
+  // parser's answer and a caller to hand it to, so a door that dropped it would
+  // answer `is:blocked` with an empty list and no explanation — the silent
+  // failure the refusals were written to prevent. Three of the four doors read
+  // it from here.
+  test("a refused query carries the reason to whoever asked", () => {
+    const answer = search(index(WORK()), { text: "is:blocked trip" })
+    expect(answer.refusals).toEqual([{
+      token: "is:blocked",
+      reason: "is: takes one of done, doing, todo, marked, archived",
+    }])
+    // As TYPED — an agent that echoed the folded token back to a person would
+    // be quoting them wrongly.
+    expect(search(index(WORK()), { text: "is:BLOCKED" }).refusals?.[0]?.token)
+      .toBe("is:BLOCKED")
+  })
+
+  // An empty query and a refused one both answer with no hits, and only one of
+  // them has anything to say about it: there is no question to have refused.
+  test("a query nobody typed carries no refusal", () => {
+    const answer = search(index(WORK()), { text: "  " })
+    expect(answer).toEqual({ hits: [], total: 0 })
+    expect(answer).not.toHaveProperty("refusals")
+    expect(search(index(WORK()), { text: "trip" })).not.toHaveProperty("refusals")
+  })
+
   test("the archive is out of it unless the query says so", () => {
     expect(ids({ text: "trip" })).toEqual(["trip"])
     expect(ids({ text: "trip is:archived" })).toEqual(["old"])

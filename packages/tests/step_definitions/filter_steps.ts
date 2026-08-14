@@ -175,3 +175,25 @@ Then(
 When("I press the tag {string}", async function (this: OlaiWorld, tag: string) {
   await this.press(this.page.locator(TAG).filter({ hasText: tag }).first());
 });
+
+/** Whether a `#tag` in this pane is live — the fact the cursor is drawn from
+ *  (`client/styles.css`) and the fact the listener declines on
+ *  (`client/App.tsx`). Asserted as the `data-` fact rather than as the cursor,
+ *  because which pages can be narrowed is a claim and the pointer is a
+ *  styling decision a refactor may change. The scenario presses one afterwards,
+ *  so the claim and the behaviour are held to each other. */
+Then("tags on this page are pressable", async function (this: OlaiWorld) {
+  await this.expectAttribute("main", "data-narrowable", "true", "the page");
+  assert.ok(
+    (await this.page.locator(TAG).count()) > 0,
+    "no tag is drawn, so this proves nothing",
+  );
+});
+
+Then("tags on this page are decoration", async function (this: OlaiWorld) {
+  assert.ok(
+    (await this.page.locator(TAG).count()) > 0,
+    "no tag is drawn, so this proves nothing",
+  );
+  await this.expectAttributeAbsent("main", "data-narrowable", "the page");
+});

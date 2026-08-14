@@ -151,8 +151,8 @@ interface Held {
 }
 
 /**
- * A token the grammar knows the name of and not the value — `is:blocked`,
- * `date:soon`, `has:tags`.
+ * A token the grammar knows the name of and not the value — `is:open` (a mark
+ * this format stopped having), `date:soon`, `date:2026-13`.
  *
  * Reported rather than quietly downgraded to a substring term, because a query
  * that silently finds nothing is precisely the ignored error HACKING.md
@@ -160,6 +160,10 @@ interface Held {
  * it takes.
  */
 export interface Refusal {
+  /** AS TYPED, case and all. A refusal that quoted the folded token would be
+   *  telling somebody who wrote `is:BLOCKED` that they wrote something else —
+   *  the refusal misquoting the reader, which is the defect it exists to
+   *  prevent (see {@link parseFilter}). */
   readonly token: string
   readonly reason: string
 }
@@ -208,8 +212,14 @@ export type Filter =
  * not search prose.
  *
  * Pure, and with no clock in it — which is why `date:today` is not in the
- * grammar (docs/brainstorming/filter-in-place.md names it as deferred). Case is
- * folded once, here, so nothing below has to remember to.
+ * grammar (docs/brainstorming/filter-in-place.md names it as deferred).
+ *
+ * CASE IS FOLDED FOR MATCHING AND NOT FOR QUOTING. The words and the operator
+ * values are compared folded, so `is:DONE` and `#Home` work; a REFUSAL quotes
+ * the token exactly as it was typed. Telling somebody who typed `is:BLOCKED`
+ * that they typed `is:blocked` is the refusal misquoting the reader, which is
+ * the same defect class the refusal exists to prevent — the split is why the
+ * fold happens per token here rather than to the whole string on the way in.
  */
 export const parseFilter = (text: string): Filter => {
   const terms: Array<Term> = []
@@ -217,8 +227,9 @@ export const parseFilter = (text: string): Filter => {
   const refusals: Array<Refusal> = []
   let speaksOfArchive = false
 
-  for (const raw of text.toLowerCase().split(/\s+/)) {
-    if (raw === "") continue
+  for (const written of text.split(/\s+/)) {
+    if (written === "") continue
+    const raw = written.toLowerCase()
     // A bare `-` is a character somebody typed, not a negation of nothing.
     const negated = raw.length > 1 && raw.startsWith("-")
     const token = negated ? raw.slice(1) : raw
@@ -228,9 +239,10 @@ export const parseFilter = (text: string): Filter => {
       terms.push({ word: token, negated })
       continue
     }
-    const clause = clauseOf(name, token.slice(colon + 1))
+    const value = token.slice(colon + 1)
+    const clause = clauseOf(name, value)
     if (clause === null) {
-      refusals.push({ token: raw, reason: teaching(name) })
+      refusals.push({ token: written, reason: teaching(name, value) })
       continue
     }
     if (clause.kind === "is" && clause.value === "archived") speaksOfArchive = true
@@ -270,11 +282,21 @@ const clauseOf = (name: Operator, value: string): Clause | null => {
   }
 }
 
-/** What each operator takes, said the way the refusal vocabulary says things:
- *  the values, in full, so the next thing typed can be right — read off the
- *  same tables the parser reads, so a value added to one of them teaches
- *  itself. */
-const teaching = (name: Operator): string => {
+/**
+ * What each operator takes, said the way the refusal vocabulary says things:
+ * the values, in full, so the next thing typed can be right — read off the
+ * same tables the parser reads, so a value added to one of them teaches itself.
+ *
+ * NO VALUE AT ALL gets its own sentence, because it is almost never the
+ * mistake it looks like: `date: 2026` is a space after the colon, which the
+ * tokenizer splits into an empty `date:` and a stray word. Answering that with
+ * "date: takes a day, month or year" teaches the wrong lesson — the reader
+ * wrote a day; they wrote a space.
+ */
+const teaching = (name: Operator, value: string): string => {
+  if (value === "") {
+    return `${name}: was given no value — a space after the colon splits it into two words`
+  }
   switch (name) {
     case "is":
       return `is: takes one of ${IS_VALUES.join(", ")}`
@@ -285,9 +307,42 @@ const teaching = (name: Operator): string => {
   }
 }
 
-/** A year, a month or a day — the three lengths an ISO prefix comes in. */
-const PARTIAL_DAY = /^\d{4}(-\d{2}(-\d{2})?)?$/
+/** A year, a month or a day — the three lengths an ISO prefix comes in. The
+ *  SHAPE only; {@link datePart} is what says the numbers are possible. */
+const PARTIAL_DAY = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/
 const RANGE = ".."
+
+/**
+ * One end of a `date:`, read — or `null` for a value no day could ever match.
+ *
+ * The shape is a regex and the NUMBERS are a bound check, and both are needed:
+ * `2026-13` is shape-clean and impossible, and a query that answered it with an
+ * empty tree and no reason would be the silent error this grammar's whole
+ * refusal arm exists to prevent. Month 13 is the reader's mistake exactly as
+ * much as `date:soon` is — and it is the worse of the two to swallow, because
+ * `2026-13` SORTS between December and January, so it reads as a window rather
+ * than as nonsense.
+ *
+ * The bound is 1–12 and 1–31, which is what is impossible in ANY month rather
+ * than in the month named. `2026-02-30` is accepted and matches nothing, and
+ * that boundary is deliberate: telling those apart needs a calendar, and this
+ * module's whole date stance — the same one that makes a month's upper bound
+ * `-31` — is that a comparison over text answers the question without inventing
+ * one. Named in docs/brainstorming/filter-in-place.md as the line.
+ */
+const datePart = (value: string): string | null => {
+  const shape = PARTIAL_DAY.exec(value)
+  if (shape === null) return null
+  const [, , month, day] = shape
+  if (month !== undefined && !twoDigitsIn(month, 1, 12)) return null
+  if (day !== undefined && !twoDigitsIn(day, 1, 31)) return null
+  return value
+}
+
+const twoDigitsIn = (digits: string, low: number, high: number): boolean => {
+  const value = Number(digits)
+  return value >= low && value <= high
+}
 
 /**
  * `date:` — a day, a month, a year, or a span of them.
@@ -296,7 +351,8 @@ const RANGE = ".."
  * package: dates are validated ISO and stored verbatim, so a day is a
  * ten-character prefix and a range is two string comparisons. Nothing is parsed
  * into an instant — a date-only value put through one comes back a datetime,
- * and ./dates.ts already says why this is not the place to risk it.
+ * and ./dates.ts already says why this is not the place to risk it. The one
+ * arithmetic here is {@link datePart}'s bound check, over two digits at a time.
  *
  * A month's upper bound is `-31` whether or not that month has one: as an
  * upper bound in a string comparison no real day of the month exceeds it, and
@@ -306,14 +362,15 @@ const RANGE = ".."
 const dateClause = (value: string): Clause | null => {
   const at = value.indexOf(RANGE)
   if (at === -1) {
-    if (!PARTIAL_DAY.test(value)) return null
-    return { kind: "date", from: lowOf(value), to: highOf(value) }
+    return datePart(value) === null
+      ? null
+      : { kind: "date", from: lowOf(value), to: highOf(value) }
   }
   const left = value.slice(0, at)
   const right = value.slice(at + RANGE.length)
   if (left === "" && right === "") return null
-  if (left !== "" && !PARTIAL_DAY.test(left)) return null
-  if (right !== "" && !PARTIAL_DAY.test(right)) return null
+  if (left !== "" && datePart(left) === null) return null
+  if (right !== "" && datePart(right) === null) return null
   return {
     kind: "date",
     from: left === "" ? null : lowOf(left),
