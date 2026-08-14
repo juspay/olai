@@ -13,6 +13,9 @@ packages/tests/
 ├── support/
 │   ├── world.ts             # OlaiWorld: page, locators, the UI contract
 │   ├── hooks.ts             # browser + a server per corpus (and per scratch copy)
+│   ├── caret.ts             # the client's own answer to a key, and how a step
+│                           #   waits for it (see "Waiting", below)
+│   ├── said.ts              # what the page said about a write, wherever it says it
 │   ├── mcp.ts               # an MCP client, for the agent olai did not start
 │   └── ndjson.ts            # line-delimited JSON off a pipe — one copy, shared
 │                           #   by that client and both fakes below
@@ -427,6 +430,61 @@ out locally: it is `index.html`'s mount point, which the client does not own.
    not that some title eventually reads a certain way. A tree that has lost one
    node and drawn another twice still has all the right titles in it, which is
    how a broken live view stayed green through a whole feature file.
+7. Read the section below before writing a step that reads the disk or presses
+   a key. All three mistakes it names pass on an idle laptop.
+
+## Waiting, which is the whole of being honest under load
+
+This suite runs parallel, on machines that are also doing something else, so
+every assertion in it is a race unless it was written not to be. A run on a
+saturated box is the only way to find out, and there are exactly three ways to
+get it wrong. All three are green on an idle laptop.
+
+**A value read on its way to its final one.** Most assertions here WAIT: they
+poll until the page or the file says the thing, and fail saying what they were
+waiting for. The ones that cannot are the NEGATIVES, and a negative is two
+different steps that read almost the same:
+
+| the claim | the shape | example |
+|---|---|---|
+| nothing was written, and stays unwritten | HOLD: assert repeatedly across the commit window | `"house.jsonl" holds no node titled "…"` |
+| the write took it away | WAIT: poll for it to go | `"house.jsonl" no longer holds a node titled "…"` |
+
+Asking the holding form of a write passes only when the round trip happens to
+land inside one animation frame. Asking the waiting form of "nothing was
+written" passes instantly and proves nothing. Where a count is the claim, it is
+both: wait for the number, then hold it, because the second of two writes lands
+a moment after the first.
+
+**A file the write has not minted yet** — `Archive.jsonl`, which the first
+archive creates. A waiting reader goes through `world.servedNodesSoFar`, which
+answers "nothing there yet" for a file that is not there; a step that WRITES the
+served directory goes through `world.servedNodes`, which throws. The reason
+either is right is on the method.
+
+**A key pressed before the page has answered the last one.** The one that costs
+the most to debug, because it fails four steps later on something that reads
+nothing like the cause: `Escape` closes a draft that has not opened yet and the
+draft opens behind it, so every ⌘Z after that is dead; `Tab` walks the browser's
+focus ring out of the row, so the next key finds no editor; `⌘A` selects the
+page, so the title typed after it lands beside the old one instead of replacing
+it. The receipt this suite waits on — and why nothing else it can see will do —
+is `support/caret.ts`. What that buys each step:
+
+| step | waits for |
+|---|---|
+| `I press`, `I type`, `I select all and type` | the line to hold the caret, BEFORE aiming anything at it |
+| `I press "Enter"` / `"Backspace"` at the head of a line | the caret to leave that line, and arrive in the one the key opened |
+| `I press "Tab"` / `"Shift+Tab"` / `"Alt+Shift+Arrow…"` | the row to be drawn where the key moved it |
+| `I press "Escape"` with a draft open | the draft to close |
+| `I click away from the editor` | the caret to leave the line |
+
+Every one of them will take "the page said why it did not" instead, which is
+the other way a key ends. `I press "…" without waiting` is how the two scenarios
+that MEAN the race say so.
+
+None of the three mistakes is fixed by a longer timeout, and a step that needed
+one was asking the wrong question.
 
 ## The scripted agent
 

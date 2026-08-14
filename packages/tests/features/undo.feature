@@ -175,7 +175,11 @@ Feature: Undo
     And I press "Escape"
     Then "house.jsonl" holds a node titled "a line typed by mistake"
     When I press "ControlOrMeta+z"
-    Then "house.jsonl" holds no node titled "a line typed by mistake"
+    # WAITED for, not held: the two steps read alike and mean opposite things.
+    # "holds no node" is the promise that nothing was written and has to outlast
+    # the commit window; this is a WRITE going through, and asking the holding
+    # form of it passes only when the archive lands inside one animation frame.
+    Then "house.jsonl" no longer holds a node titled "a line typed by mistake"
     And "Archive.jsonl" holds a node titled "a line typed by mistake"
     # NOTHING is said now, and that is the news. This used to be the one entry
     # that explained why it could not be redone — a `move` is same-file by the
@@ -185,7 +189,11 @@ Feature: Undo
     And nothing is said about the undo
     When I press "ControlOrMeta+Shift+z"
     Then "house.jsonl" holds a node titled "a line typed by mistake"
-    And "Archive.jsonl" holds no node titled "a line typed by mistake"
+    # Waited for, and for the second reason the pair exists: an `unarchive` is
+    # two files, and the record leaves the archive a moment after it arrives
+    # here. Held, this reads the first of the two writes and calls the second
+    # one a failure.
+    And "Archive.jsonl" no longer holds a node titled "a line typed by mistake"
     # WHERE it landed, not just that it is back: the row was a sibling of
     # `handles`, so it belongs under `install`. With the chain above it still
     # standing, both roads lead there — the scenario below is the one that
@@ -210,7 +218,7 @@ Feature: Undo
     Then the node "install" has the title "fit the cabinets"
     When I press "ControlOrMeta+Shift+z"
     Then "house.jsonl" holds a node titled "a line typed by mistake" under "install"
-    And "Archive.jsonl" holds no node titled "a line typed by mistake"
+    And "Archive.jsonl" no longer holds a node titled "a line typed by mistake"
 
   Scenario: An undo does not clobber what somebody else did meanwhile
     # The whole reason this is an inverse and not a snapshot restore. Between
