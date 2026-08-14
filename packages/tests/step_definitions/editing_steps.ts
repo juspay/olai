@@ -17,6 +17,10 @@
  * Keys are pressed by NAME (`"Alt+Shift+ArrowUp"`), which is Playwright's own
  * spelling and the same one the client's keyboard map is written against — so
  * a scenario says the chord a person presses rather than a synthetic event.
+ *
+ * And every gesture here waits for the CLIENT'S own answer to it before the
+ * next one is aimed at the page. What that answer looks like, and why nothing
+ * else in the harness can stand in for it, is `support/caret.ts`.
  */
 
 import * as assert from "node:assert";
@@ -27,8 +31,14 @@ import { MARKS } from "@olai/format";
 
 import { IDLE_COMMIT } from "@olai/web/src/client/edit/draft.ts";
 
-import type { ElementHandle, Locator } from "playwright";
+import type { Locator } from "playwright";
 
+import {
+  aimedAtTheLine,
+  answering,
+  caretPlace,
+  leftThePlace,
+} from "../support/caret.ts";
 import { saysNothing, saysThat } from "../support/said.ts";
 import {
   DESC_EDITOR,
@@ -78,151 +88,6 @@ When("I start the first line", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/**
- * THE DRAFT IS THIS TAB'S OWN RECEIPT, and the steps below wait for it.
- *
- * Every write these scenarios make with the keys goes out through a draft, and
- * the draft is let go — closed, or moved to the line the key opened — only
- * once `edit.apply` has answered AND the inverse it answered with is on the
- * stack ⌘Z spends: `editing.tsx`'s `send` calls `undo.record` before it
- * returns, and every caret move is downstream of that call. Nothing else this
- * harness can see says as much. The DISK says a file was written; the DOM says
- * the page was told; neither says THIS TAB has the way back yet, and "this tab
- * has the way back" is the precondition of every ⌘Z in the suite.
- *
- * So: the caret leaving the line it was on is the signal, and the keys that
- * end a line wait for it.
- *
- * WHAT SKIPPING IT COSTS is a failure that reads nothing like its cause.
- * `Enter` commits the row and opens the next line's editor only when the write
- * lands, so an `Escape` one frame behind it closes nothing — and then the
- * draft opens behind the Escape, and every ⌘Z after that is dead, because a
- * chord belongs to the input while a draft is open. The scenario fails four
- * steps later on a file nobody wrote. Under load that was most of
- * `undo.feature` and a third of `split_and_merge.feature`.
- *
- * THE OTHER WAY A KEY ENDS is refused: the row keeps the caret and the reason
- * is drawn under it. That is a settled page too, so it ends the wait — and the
- * reason on screen is this key's own rather than an older one, because the
- * next keystroke drops it (`draft.ts`'s `typed`).
- *
- * THE SAME RECEIPT IS A PRECONDITION, which is the other half. A structural
- * key redraws the row it was pressed in, and moving an element in the document
- * is what takes the focus off it; the client puts the caret back through
- * `editing.tsx`'s own `caret` counter, a frame or a round trip later. A key
- * aimed at the row in that gap goes to the DOCUMENT instead — `Tab` walks the
- * browser's focus ring out of the row, which closes the draft and leaves the
- * next key with no editor at all, and ⌘A selects the page, so what is typed
- * after it lands beside the title instead of replacing it. Both were seen on a
- * loaded box, both are silent, and both are read as a wrong answer four steps
- * later.
- */
-
-/** The editor the caret is in — a row's title or its note, whichever is open.
- *  A page with neither has no caret in a row, which is the state ⌘Z is
- *  answered from. */
-const CARET_EDITOR = `${TITLE_EDITOR}, ${DESC_EDITOR}`;
-
-/** The editor that is open, as a handle — which goes on answering after the
- *  page has taken it away, and that is the whole question {@link letGo} asks.
- *  `null` when nothing is being typed, which is every `Enter` that picks a
- *  menu item. `which` is the title alone for the keys the title claims. */
-const editorHeld = async (
-  world: OlaiWorld,
-  which: string,
-): Promise<ElementHandle<Node> | null> => {
-  const editor = world.page.locator(which).first();
-  return (await editor.count()) === 0 ? null : await editor.elementHandle();
-};
-
-/** Is `Backspace` the APP's key here, rather than the field's own?
- *
- *  Only at the head of a line that HAS something on it. Anywhere else in the
- *  text it deletes a character; at the head of an empty draft it does nothing
- *  at all, because an empty new row is not a node and there is nothing to join
- *  it to (`editing.tsx`'s `merge` stops at that guard). Both leave the caret
- *  where it was, so both have nothing to wait for. */
-const joinsWithBackspace = async (line: ElementHandle<Node>): Promise<boolean> =>
-  await line.evaluate((element) => {
-    const field = element as HTMLInputElement;
-    return field.selectionStart === 0 && field.selectionEnd === 0 && field.value !== "";
-  });
-
-/**
- * That editor has been LET GO — the page has taken the element away — or it
- * has said why it has not.
- *
- * The ELEMENT rather than "no editor is open", because the two differ in the
- * case that matters: a new line that commits becomes the row it just made
- * (`draft.ts`'s `landed`), so an editor is still open and it is a different
- * one. That transition is downstream of the write, which is what makes it a
- * receipt either way.
- */
-const letGo = async (
-  world: OlaiWorld,
-  editor: ElementHandle<Node>,
-  what: string,
-): Promise<void> => {
-  await world.waitUntil(
-    async () =>
-      !(await editor.evaluate((element) => element.isConnected)) ||
-      (await world.page.locator(EDIT_REFUSAL).count()) > 0,
-    `${what}, or the page to say why it did not`,
-  );
-};
-
-/** No row is being typed in at all. */
-const nothingIsBeingTyped = async (world: OlaiWorld): Promise<void> => {
-  await world.waitUntil(
-    async () => (await world.page.locator(CARET_EDITOR).count()) === 0,
-    "the draft to close",
-  );
-};
-
-/** WHERE the caret is: the row the open editor belongs to, the line that does
- *  not exist yet, or `null` for a page with nothing being typed. A NAME for
- *  the place rather than the element drawing it, so a row redrawn where the
- *  file now says it is stays the same place. */
-const caretPlace = async (world: OlaiWorld): Promise<string | null> =>
-  await world.page.evaluate(
-    ([caret, newRow, node]) => {
-      const editor = document.querySelector(caret);
-      if (editor === null) return null;
-      if (editor.closest(newRow) !== null) return "(a new line)";
-      const row = editor.closest("[data-node-id]");
-      if (row === null) return "(a line off the tree)";
-      // The chain of ids down to it AND where it sits, which together are what
-      // the client itself calls a `Row.key`: an indent changes the chain and a
-      // reorder changes only the seat, and both are the row being drawn
-      // somewhere else.
-      const chain: Array<string> = [];
-      for (let at: Element | null = row; at !== null; at = at.parentElement?.closest(node) ?? null) {
-        chain.unshift(at.getAttribute("data-node-id") ?? "?");
-      }
-      return `${chain.join("/")}@${[...document.querySelectorAll(node)].indexOf(row)}`;
-    },
-    [CARET_EDITOR, NEW_ROW, NODE] as [string, string, string],
-  );
-
-/** The line being typed HOLDS the caret. */
-const caretIsInTheLine = async (world: OlaiWorld): Promise<void> => {
-  await world.waitUntil(
-    async () =>
-      await world.page.evaluate(
-        (which) => document.activeElement?.matches(which) === true,
-        CARET_EDITOR,
-      ),
-    "the line being typed to hold the caret",
-  );
-};
-
-/** …before something is aimed at it. Nothing being typed is nothing to wait
- *  for, which is every key a page answers with no draft open. */
-const aimedAtTheLine = async (world: OlaiWorld): Promise<void> => {
-  if ((await world.page.locator(CARET_EDITOR).count()) === 0) return;
-  await caretIsInTheLine(world);
-};
-
 // ── typing ─────────────────────────────────────────────────────────────
 
 When("I type {string}", async function (this: OlaiWorld, text: string) {
@@ -244,58 +109,6 @@ When(
 );
 
 // ── the keys ───────────────────────────────────────────────────────────
-
-/** The keys that put the row somewhere else — indent, outdent, and the two
- *  that walk it past a sibling. */
-const MOVES = new Set([
-  "Tab",
-  "Shift+Tab",
-  "Alt+Shift+ArrowUp",
-  "Alt+Shift+ArrowDown",
-]);
-
-/**
- * What waiting for this key MEANS — decided BEFORE it is pressed, because the
- * answer depends on where the caret was when it was. `null` for the keys that
- * are a keystroke and a frame, which is most of them.
- */
-const answering = async (
-  world: OlaiWorld,
-  key: string,
-): Promise<(() => Promise<void>) | null> => {
-  if (MOVES.has(key)) {
-    // A MOVE, and its receipt is the row being drawn where the file now says
-    // it is — the same frame the client is waiting for to take the caret back
-    // (`editing.tsx`'s `settle`). Pressing the next thing before it arrives is
-    // what the scenarios above were doing, and the client is entitled to read
-    // a click in that window as its own: the blur is suppressed as the redraw
-    // it is still owed, and the caret is taken back over the top of it.
-    const was = await caretPlace(world);
-    if (was === null) return null;
-    return async () => {
-      await world.waitUntil(
-        async () =>
-          (await caretPlace(world)) !== was ||
-          (await world.page.locator(EDIT_REFUSAL).count()) > 0,
-        "the row the key moved to be drawn where it moved it, or the page to say why it did not",
-      );
-      await caretIsInTheLine(world);
-    };
-  }
-  if (key === "Escape") {
-    // Escape abandons the draft, always — no write, so nothing to be refused.
-    // With none open there is nothing to wait for, which is every Escape that
-    // shuts a menu, a picker or the palette instead.
-    if ((await world.page.locator(CARET_EDITOR).count()) === 0) return null;
-    return async () => await nothingIsBeingTyped(world);
-  }
-  if (key !== "Enter" && key !== "Backspace") return null;
-  const line = await editorHeld(world, TITLE_EDITOR);
-  if (line === null) return null;
-  if (key === "Backspace" && !(await joinsWithBackspace(line))) return null;
-  return async () =>
-    await letGo(world, line, "the caret to leave the line the key ended");
-};
 
 When("I press {string}", async function (this: OlaiWorld, key: string) {
   await aimedAtTheLine(this);
@@ -400,20 +213,8 @@ When("I click away from the editor", async function (this: OlaiWorld) {
   // keys wait for and for the same reason: a blur commits through the same
   // queue, so a draft still open on that line is this tab still waiting to
   // hear.
-  //
-  // WHERE rather than WHICH ELEMENT, which is the one place these two waits
-  // differ: a structural key redraws the row the caret is in, and a row that
-  // came back as a new element would satisfy "the element I was holding is
-  // gone" without anybody having let go of anything — the draft is open, on
-  // the same line, and the ⌘Z after this step is dead in it. That is what
-  // `undo.feature:255` and `:324` were still failing on.
   if (was !== null) {
-    await this.waitUntil(
-      async () =>
-        (await caretPlace(this)) !== was ||
-        (await this.page.locator(EDIT_REFUSAL).count()) > 0,
-      "the caret to leave the line the click was away from, or the page to say why it did not",
-    );
+    await leftThePlace(this, was, "the caret to leave the line the click was away from");
   }
 });
 

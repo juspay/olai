@@ -13,6 +13,9 @@ packages/tests/
 ├── support/
 │   ├── world.ts             # OlaiWorld: page, locators, the UI contract
 │   ├── hooks.ts             # browser + a server per corpus (and per scratch copy)
+│   ├── caret.ts             # the client's own answer to a key, and how a step
+│                           #   waits for it (see "Waiting", below)
+│   ├── said.ts              # what the page said about a write, wherever it says it
 │   ├── mcp.ts               # an MCP client, for the agent olai did not start
 │   └── ndjson.ts            # line-delimited JSON off a pipe — one copy, shared
 │                           #   by that client and both fakes below
