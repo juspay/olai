@@ -1367,10 +1367,59 @@ What a write SAID is one row with a `data-tone`, and the modal stays up while
 there is one — a palette that closed over a refusal would be the silent failure
 the error rule is about.
 
-## Search: one reading, three doors
+## Filtering the page: `src/client/filter/`
+
+The fourth door onto the one query language, and the only one that does not
+list results: it takes rows AWAY from the outline in front of you, keeping every
+match and the ancestors that lead to it.
+
+- `narrowing.ts` — the whole reading, derived from one string (the `?q=` on the
+  address): what was typed, the parsed query, the ids it selects, the rows the
+  page draws, and the two numbers the bar reports. The ORDER is the decision it
+  exists to hold: hiding finished work is a standing claim about the READER and
+  goes first; the filter is a question about the PAGE and reads what is left. So
+  `is:done` under a done-hiding preference draws nothing, and the count says how
+  many matches are being held back rather than leaving it a mystery.
+- `narrowed.tsx` — the one thing every ROW needs that is not the row's: whether
+  it matched (`data-match`, so context is tellable from a hit). A `Pick` of the
+  reading above rather than a second declaration of it, with a default of
+  "nothing is filtered" for a `<Tree>` drawn outside the provider.
+- **Folds are suspended while a filter is on**, and that lives in
+  `fold/reading.ts` rather than here: a fold is a claim about the tree the
+  reader was reading, and honouring one inside a filtered tree would hide the
+  match the filter was typed to find. The memory is untouched; clearing the
+  filter restores every collapse. It is one accessor because FOUR things walk
+  it — the tree draws from it, and the editor, the selection and the drag walk
+  it for where `↑`/`↓` go, what a shift-click spans and where a drop can land
+  (`edit/Editable.tsx` hands one to all three). A reading the tree suspended and
+  those three did not is a page whose arrow keys walk rows nobody can see.
+- `FilterBar.tsx` — the box, the count, the clear, and the refusal line. A known
+  operator with an unknown value is REPORTED in the grammar's own words, never
+  quietly searched for as text.
+- `tag.ts` — a `#tag` pressed. A delegated listener on the main pane, because a
+  tag pill arrives through `innerHTML` (`markdown/tags.ts`) and belongs to no
+  component — the same situation, and the same answer, as a link inside rendered
+  markdown (`router.tsx`'s `followed`). The row's own title click declines a
+  press that landed on a pill, or one press would filter the page AND open an
+  editor.
+
+**The matcher is not here either.** `@olai/format`'s `parseFilter` / `matching`
+is what decides which nodes a query selects, and it is the same function
+`Query.search` is gated by — so the filter, the palette, the header box and an
+agent's `search_nodes` cannot mean different things by `is:done`. What this
+package decides is what to do with the answer.
+
+The filter rides the ADDRESS (`routes.ts`'s `?q=`), so a narrowed page is a link
+and Back works; typing REPLACES the history entry (`router.tsx`'s `replace`)
+rather than pushing one per keystroke.
+
+## Search: one reading, three of the four doors
 
 `src/client/search/` holds the search itself, and what every list of results is
-drawn and walked with, because the palette is not the only door to either:
+drawn and walked with, because the palette is not the only door to either. The
+FOURTH door is the section above — the filter narrows the page instead of
+listing hits, and parses the same grammar locally rather than asking; these
+three ask the server.
 
 - `nodes.ts` — `createNodeSearch`, a `createResource` over a debounced query
   (`@solid-primitives/scheduled`). The resource drops the answer to a query
@@ -1400,9 +1449,18 @@ drawn and walked with, because the palette is not the only door to either:
   chord — so before it, a phone had no door to search at all). Its panel
   portals out of the header and is placed by `anchor.ts`'s `styleOf`.
 
-The matching is entirely the server's — the same `Query.search` reading an
-agent's `search_nodes` gets — so there is deliberately no matcher in this
-client (`palette/items.ts` says why).
+The matching these three doors get is entirely the server's — the same
+`Query.search` reading an agent's `search_nodes` gets — so there is deliberately
+no matcher IN THIS DIRECTORY (`palette/items.ts` says why). The client does run
+one, in `filter/`, and it is the same one: `@olai/format`'s `parseFilter` /
+`matching`, one layer below the procedure, because a filter over rows a tab
+already holds cannot make a round trip per keystroke. One function, four
+callers — never a second reading. What the answer carries besides the rows
+is `refusals`: a known operator with an unknown value, in the grammar's own
+words, drawn by both doors in a row of its own. It is a DIFFERENT slot from
+`failure` for the reason `failure` is a different slot from the palette's `>`
+ask — a refused call and a refused query are two pieces of news, and a reader
+shown one in the other's sentence has been told something untrue.
 
 ## The keyboard, in one file
 

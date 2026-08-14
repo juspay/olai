@@ -19,6 +19,14 @@
  *     its way, what is on a day, what is overdue on it, which document that
  *     day's note is, and where a `doc` or a relative link lands, computing all
  *     of it with the same code;
+ *   - what a QUERY means, `parseFilter` with `matchOf` / `matching` and the row
+ *     transform `keeping` — the grammar (`is:`, `has:`, `date:`, `-`, and the
+ *     substring terms around them), which nodes it selects, and what a tree
+ *     narrowed to them looks like with the ancestors kept. Here, and not in the
+ *     ops layer where the search procedure is, because a browser filtering rows
+ *     it already holds and an agent calling `search_nodes` must not be two
+ *     answers to one question (./filter.ts's own header, and
+ *     docs/brainstorming/filter-in-place.md);
  *   - how a set is WRITTEN back, `serializeOutline`, `ordBetween` and
  *     `stampOf` — the canonical bytes, the sibling order and the one way an
  *     instant becomes a date value, held here for the same reason the rules
@@ -105,6 +113,22 @@ export type {
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
+/** The query: `parseFilter` reads text into one, `matching` says which nodes it
+ *  selects, `keeping` and `matchedIn` are what a TREE narrowed to them looks
+ *  like and how many rows of it are hits, and `shownRecord` is the record a row
+ *  draws — the rule a fold already follows, said once. The grammar's own
+ *  vocabulary (the operator names, the field weights, the per-node predicate)
+ *  stays inside: a consumer reaching for one of them would be re-implementing
+ *  the rule this module exists to be the only copy of. */
+export {
+  keeping,
+  matchedIn,
+  matching,
+  parseFilter,
+  SEARCH_FIELDS,
+  shownRecord,
+} from "./filter.ts"
+export type { Filter, Match, Matched, Refusal, Scope, SearchField } from "./filter.ts"
 export {
   dailyNoteDays,
   dailyNotePathFor,

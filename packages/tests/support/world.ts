@@ -245,6 +245,20 @@ export const NODE = selector(TESTID.node);
 export const NODE_TITLE = selector(TESTID.nodeTitle);
 export const TAG = selector(TESTID.tag);
 export const DATE = selector(TESTID.date);
+/** The bar that narrows the page — the box, what it found, and what it
+ *  refused. On the two routes that may carry a filter and nowhere else. */
+export const FILTER_BAR = selector(TESTID.filterBar);
+export const FILTER_INPUT = selector(TESTID.filterInput);
+export const FILTER_COUNT = selector(TESTID.filterCount);
+export const FILTER_CLEAR = selector(TESTID.filterClear);
+/** A known operator with an unknown value, in the grammar's own words. The
+ *  scenario asserts on the WORDS: a query that quietly found nothing is what
+ *  this line exists to make impossible. */
+export const FILTER_REFUSAL = selector(TESTID.filterRefusal);
+/** The same refusal on the two doors that ask the SERVER for it — the ⌘K
+ *  palette and the header box. One name, because it is one sentence about one
+ *  grammar; where each door draws it is that door’s own business. */
+export const SEARCH_REFUSAL = selector(TESTID.searchRefusal);
 /** The date picker, in place under the row it was opened on — from the pill
  *  above, or from the `•••` menu's `Set date…`. Its box is a native
  *  `<input type="date">`, so what it holds is the ten characters the record
@@ -951,6 +965,16 @@ export class OlaiWorld extends World {
    *  the URL bar, without the origin the harness picked at random. */
   pathname(): string {
     return new URL(this.page.url()).pathname;
+  }
+
+  /** The path AND the query — what a reader would copy out of the bar when the
+   *  page is narrowed. Its own accessor beside {@link pathname} because the
+   *  filter is part of the address (`routes.ts`) and every other assertion in
+   *  this suite is about a path: a step asserting "/o/house.jsonl" must not
+   *  start passing for a page that is also filtered. */
+  address(): string {
+    const url = new URL(this.page.url());
+    return url.pathname + url.search;
   }
 
   /** One sidebar entry, by the relative path it stands for. */

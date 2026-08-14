@@ -1,6 +1,14 @@
 import { expect, test } from "bun:test"
 
-import { hrefOf, type Route, routeIn, routeOf } from "./routes.ts"
+import {
+  filterOf,
+  hrefOf,
+  narrowedTo,
+  type Route,
+  routeIn,
+  routeOf,
+  samePage,
+} from "./routes.ts"
 
 /** Every route the app can be at, as its own case. A link the app WRITES that
  *  it cannot READ BACK is a page that loads as something else on a reload, and
@@ -18,6 +26,13 @@ const ROUTES: ReadonlyArray<Route> = [
   { kind: "today" },
   { kind: "agenda" },
   { kind: "trash" },
+  // ...and the same two pages, narrowed. The filter is part of the address, so
+  // it is part of the round trip: a query the app writes into the bar and
+  // cannot read back is a page that loses its filter on reload.
+  { kind: "outline", file: "house.jsonl", filter: "is:done" },
+  { kind: "outline", file: null, filter: "#home -is:done" },
+  { kind: "node", id: "kitchen", filter: "date:2026-08-01..2026-08-14" },
+  { kind: "node", id: "kitchen", filter: "a query with  spaces & an ampersand" },
 ]
 
 test("every route survives being written to a URL and read back", () => {
@@ -37,6 +52,74 @@ test("the addresses are the documented ones", () => {
   expect(hrefOf({ kind: "today" })).toBe("/today")
   expect(hrefOf({ kind: "agenda" })).toBe("/agenda")
   expect(hrefOf({ kind: "trash" })).toBe("/trash")
+})
+
+// ── the filter, which is the one thing that is not a path ──────────────
+
+// An unfiltered page is exactly the address it always was: no `?`, no empty
+// query, so one page is one string in the bar and one entry in the history.
+test("a page with no filter wears no query at all", () => {
+  expect(hrefOf({ kind: "outline", file: "house.jsonl" })).toBe("/o/house.jsonl")
+  expect(hrefOf({ kind: "outline", file: "house.jsonl", filter: "" })).toBe(
+    "/o/house.jsonl",
+  )
+  expect(hrefOf({ kind: "node", id: "kitchen", filter: "   " })).toBe("/n/kitchen")
+  expect(routeOf("/o/house.jsonl?q=")).toEqual({
+    kind: "outline",
+    file: "house.jsonl",
+  })
+})
+
+test("a filtered page spells it in the query", () => {
+  expect(hrefOf({ kind: "outline", file: "house.jsonl", filter: "#home" })).toBe(
+    "/o/house.jsonl?q=%23home",
+  )
+  expect(routeOf("/n/kitchen?q=is%3Adone")).toEqual({
+    kind: "node",
+    id: "kitchen",
+    filter: "is:done",
+  })
+})
+
+// Narrowing is asked of the module that knows which routes may carry one: a
+// filter typed on a day page has nowhere to go, and spreading it on anyway
+// would mint an address `hrefOf` drops and `routeOf` never returns.
+test("only the two tree routes take a filter, and a blank one takes it off", () => {
+  expect(narrowedTo({ kind: "node", id: "kitchen" }, "#home")).toEqual({
+    kind: "node",
+    id: "kitchen",
+    filter: "#home",
+  })
+  expect(narrowedTo({ kind: "day", date: "2026-08-10" }, "#home")).toEqual({
+    kind: "day",
+    date: "2026-08-10",
+  })
+  // Cleared. What matters is the ADDRESS, which is where the one-spelling rule
+  // actually bites: two routes for the same unfiltered page are one string in
+  // the bar and one entry in the history.
+  const cleared = narrowedTo(
+    { kind: "outline", file: "house.jsonl", filter: "#home" },
+    "",
+  )
+  expect(filterOf(cleared)).toBe("")
+  expect(hrefOf(cleared)).toBe("/o/house.jsonl")
+  expect(samePage(cleared, { kind: "outline", file: "house.jsonl" })).toBe(true)
+})
+
+// What the page memo is keyed on: a query typed one character at a time must
+// not re-resolve the page under it (`App.tsx`).
+test("two addresses for one page are the same page, whatever narrows them", () => {
+  const bare: Route = { kind: "node", id: "install" }
+  expect(samePage(bare, narrowedTo(bare, "#home"))).toBe(true)
+  expect(samePage(narrowedTo(bare, "a"), narrowedTo(bare, "b"))).toBe(true)
+  expect(samePage(bare, { kind: "node", id: "hinges" })).toBe(false)
+  expect(samePage(bare, { kind: "outline", file: "house.jsonl" })).toBe(false)
+})
+
+test("what a page is narrowed by is read off the route", () => {
+  expect(filterOf({ kind: "node", id: "kitchen", filter: "#home" })).toBe("#home")
+  expect(filterOf({ kind: "node", id: "kitchen" })).toBe("")
+  expect(filterOf({ kind: "trash" })).toBe("")
 })
 
 // `/trash` spells no file for the agenda's reason: which archives exist is the

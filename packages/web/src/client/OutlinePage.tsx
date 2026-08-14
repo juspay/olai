@@ -11,6 +11,7 @@ import { Show } from "solid-js"
 
 import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
+import { useNarrowed } from "./filter/narrowed.tsx"
 import { doneHidden } from "./settings/done.ts"
 import { Tree } from "./Tree.tsx"
 
@@ -21,15 +22,17 @@ export function OutlinePage(props: {
   readonly file: string
   readonly rows: ReadonlyArray<Row>
 }) {
+  const narrowed = useNarrowed()
   return (
     <Editable rows={() => props.rows}>
       <Tree rows={props.rows} />
       {/* An outline that holds nothing still has to be startable, and a tree
           of no rows offers nowhere to press a key. Only when the file really
           is empty: rows can also be missing because this reading is hiding
-          what is done, and "write its first line" would be a lie over a tree
-          that is one click from coming back. */}
-      <Show when={props.rows.length === 0 && !doneHidden()}>
+          what is done — or because a FILTER matched nothing — and "write its
+          first line" would be a lie over a tree that is one click from coming
+          back. The filter bar says what happened in that case. */}
+      <Show when={props.rows.length === 0 && !doneHidden() && !narrowed.active()}>
         <StartLine
           at={{ kind: "first", file: props.file }}
           label="This outline is empty — write its first line."

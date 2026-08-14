@@ -5,8 +5,9 @@
 - [editing.md](editing.md) — changing an outline by hand: the keys, dragging a
   row, picking several at once, what a draft is, how ⌘Z takes an edit back, and
   writing a document.
-- [search.md](search.md) — one search, three doors: what matches, what a
-  result row shows, and where searching happens on each face.
+- [search.md](search.md) — one query language, four doors: what matches, the
+  operators (`is:`, `has:`, `date:`, `-`), what a result row shows, and the
+  filter that narrows the outline in place.
 - [git.md](git.md) — the git integration: commit modes, the pill, and the
   audit view.
 - [chat.md](chat.md) — the chat agent: ACP and `OLAI_ACP_AGENT`, the node

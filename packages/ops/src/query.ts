@@ -30,10 +30,13 @@ import {
   isMirror,
   type LocatedRegular,
   MARKS,
+  matching,
   type OutlineSet,
+  parseFilter,
   type Progress,
   progressOf,
-  mayHoldTag,
+  type Refusal,
+  type SearchField,
   type Status,
   tagText,
   titleParts,
@@ -108,8 +111,12 @@ export interface Placed extends Placement {
 
 export interface Hit extends Found {
   /** Which field carried the strongest match — so a caller can say why this
-   *  came back, rather than leaving a reader to guess. */
-  readonly matched: "title" | "id" | "tag" | "desc"
+   *  came back, rather than leaving a reader to guess.
+   *
+   *  ABSENT when the query named no words at all: `is:done` selects a node by
+   *  a field test, and no title, id, tag or note carried it. Saying one of them
+   *  did would be an answer invented to fill a slot. */
+  readonly matched?: SearchField
 }
 
 export interface Search {
@@ -117,6 +124,17 @@ export interface Search {
   /** How many nodes matched in all. `hits` is capped; this is not, so "twelve
    *  of ninety" is sayable. */
   readonly total: number
+  /** What the grammar could not read, in its own words — a known operator with
+   *  an unknown value (`is:blocked`). ABSENT for every query it could read.
+   *
+   *  It travels rather than being swallowed because this layer is the only one
+   *  that HAS it: the parser is one package down and the box a person typed
+   *  into is one package up, and a door that answered `is:blocked` with an
+   *  empty list and no reason would be exactly the silent failure the refusals
+   *  exist to prevent (HACKING.md's error rule). The filter over the tree draws
+   *  its own because it parses for itself; these are for the three doors that
+   *  ask this procedure. */
+  readonly refusals?: ReadonlyArray<Refusal>
 }
 
 /** What one node's page would say, plus the record itself. */
@@ -249,31 +267,7 @@ const edgesOf = (
   ...(node.after === undefined || node.after.length === 0 ? {} : { after: node.after }),
 })
 
-/** Every regular node of the set, in file-then-line order. Mirrors are left
- *  out of every answer here: a mirror is a second PLACEMENT of a node, and
- *  returning it would be the same node twice with two locations, one of which
- *  is not where it is defined and so not where a write would land.
- */
-const regulars = (derived: Derived): ReadonlyArray<LocatedRegular> =>
-  derived.nodes.filter((located) => !isMirror(located.node)) as ReadonlyArray<
-    LocatedRegular
-  >
-
 // ── search ─────────────────────────────────────────────────────────────
-
-/** What a field is worth when a word is found in it. The order is racket's:
- *  the closer a hit is to what a node CALLS itself, the higher it goes. */
-const FIELD_WEIGHT = { title: 1000, id: 750, tag: 500, desc: 250 } as const
-type Field = keyof typeof FIELD_WEIGHT
-
-/** Where in the field the word landed. A field that STARTS with it beats one
- *  where it starts a word inside it, which beats one where it is buried. */
-const positionBonus = (haystack: string, needle: string): number => {
-  const at = haystack.indexOf(needle)
-  if (at === -1) return -1
-  if (at === 0) return 100
-  return /[\s/_-]/.test(haystack[at - 1] as string) ? 50 : 0
-}
 
 /** A done node is demoted by about a field's worth: enough to lose a tie, not
  *  enough to disappear. The reason to look for a node you finished is usually
@@ -284,79 +278,65 @@ const DONE_PENALTY = 300
 const DEFAULT_LIMIT = 12
 
 /**
- * Case-folded substrings, no operators: a query is words, and every word has
- * to appear somewhere in the same node, in any of the four fields, in any
- * order. Anything more would be a query language nobody asked for.
+ * A query, ranked and shortened — the reading behind `search_nodes` and behind
+ * every box a person types into.
+ *
+ * WHAT MATCHES IS NOT DECIDED HERE any more, and that is the whole of the
+ * filter-in-place change: the words, the operators (`is:`, `has:`, `date:` and
+ * their negations), the archive rule and which field carried a hit all live in
+ * `@olai/format`'s `filter.ts`, because a browser narrowing rows it already
+ * holds cannot call this procedure on every keystroke and must not answer
+ * differently for having to do it itself. One matcher, four callers; that file's
+ * header names them and docs/brainstorming/filter-in-place.md argues it.
+ *
+ * What is still this layer's is everything about showing a stranger a
+ * SHORTLIST — a finished node loses ties, the list is capped, and the total is
+ * reported uncapped so "twelve of ninety" is sayable — and CARRYING THE
+ * REFUSAL, because this is the only layer that has both the parser's answer and
+ * a caller to hand it to.
  */
 export const search = (
   derived: Derived,
-  query: { readonly text: string; readonly limit?: number },
+  query: {
+    readonly text: string
+    readonly limit?: number
+    /** Which corner of the set to ask — one outline, and/or one node and
+     *  everything beneath it. What the browser's filter gets from the page it
+     *  is on, said out loud so an agent can ask the same question. */
+    readonly file?: string | undefined
+    readonly under?: string | undefined
+  },
 ): Search => {
-  const words = query.text.toLowerCase().split(/\s+/).filter((word) => word !== "")
-  if (words.length === 0) return { hits: [], total: 0 }
-
-  const scored: Array<{ readonly hit: Hit; readonly score: number }> = []
-
-  for (const located of regulars(derived)) {
-    const node = located.node
-    const fields: Record<Field, ReadonlyArray<string>> = {
-      title: [node.title.toLowerCase()],
-      id: [node.id.toLowerCase()],
-      // Guarded by the format's own cheap negative: `titleParts` runs a global
-      // regex and allocates a part per segment, and most titles hold no tag at
-      // all. The semantics are identical — it only ever yields a tag after a
-      // sigil.
-      //
-      // TWO HAYSTACKS PER TAG, the bare name and the name as written, so
-      // `alice` finds `@alice` with the full start-of-field bonus and `@alice`
-      // finds only the one with that sigil. A single written form would have
-      // demoted every bare-word tag search by a character. One fold, and the
-      // bare name is a slice of it.
-      tag: mayHoldTag(node.title)
-        ? titleParts(node.title).flatMap((part) => {
-          if (part.kind !== "tag") return []
-          const written = tagText(part).toLowerCase()
-          return [written.slice(1), written]
-        })
-        : [],
-      desc: node.desc === undefined ? [] : [node.desc.toLowerCase()],
-    }
-
-    let score = 0
-    let best: Field | null = null
-    let bestWeight = -1
-    for (const word of words) {
-      let wordScore = -1
-      for (const field of ["title", "id", "tag", "desc"] as const) {
-        for (const haystack of fields[field]) {
-          const bonus = positionBonus(haystack, word)
-          if (bonus === -1) continue
-          const value = FIELD_WEIGHT[field] + bonus
-          if (value > wordScore) wordScore = value
-          if (FIELD_WEIGHT[field] > bestWeight) {
-            bestWeight = FIELD_WEIGHT[field]
-            best = field
-          }
-        }
-      }
-      // Every word, in the same node. One miss and the node is not a hit.
-      if (wordScore === -1) {
-        score = -1
-        break
-      }
-      score += wordScore
-    }
-    if (score < 0 || best === null) continue
-
-    const found = foundOf(derived, located)
-    if (found.status === "done") score -= DONE_PENALTY
-    scored.push({ hit: { ...found, matched: best }, score })
+  const filter = parseFilter(query.text)
+  // A query the grammar could not read answers with no hits AND WITH THE
+  // REASON. An empty one answers with no hits and nothing to say — there is no
+  // question to have refused.
+  if (filter.kind === "refused") {
+    return { hits: [], total: 0, refusals: filter.refusals }
   }
+  if (filter.kind === "nothing") return { hits: [], total: 0 }
+
+  const ranked = matching(derived, filter, { file: query.file, under: query.under })
+    .map(({ at, match }) => {
+      const found = foundOf(derived, at)
+      return {
+        hit: {
+          ...found,
+          // Omitted for a query that named no words — `is:done` on its own is
+          // carried by no field, and answering "title" would be inventing a
+          // reason. The format's own rule for absence, applied to an answer.
+          ...(match.field === null ? {} : { matched: match.field }),
+        } as Hit,
+        score: found.status === "done" ? match.score - DONE_PENALTY : match.score,
+      }
+    })
 
   // Ties keep the order the outlines are written in, so an answer never moves
-  // under the cursor between two keystrokes. `scored` is already in that order
-  // and `sort` is stable.
-  const ranked = scored.slice().sort((a, b) => b.score - a.score)
+  // under the cursor between two keystrokes. The list is already in that order
+  // — `matching` walks the set in file-then-line order — and `sort` is stable.
+  // Sorted in place, because the array was minted by the `map` above and is
+  // nobody else's.
+  ranked.sort((a, b) => b.score - a.score)
   const limit = query.limit ?? DEFAULT_LIMIT
   return { hits: ranked.slice(0, limit).map((entry) => entry.hit), total: ranked.length }
 }

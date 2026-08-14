@@ -154,8 +154,13 @@ export interface Dated extends Occasioned {
  * on the SAME day: which occasion that day names ({@link datedOn}). `date`
  * first, because the checkbox has already said the work is finished and the day
  * it was scheduled for is not written anywhere else.
+ *
+ * Exported INSIDE the package, like {@link Dated} beside it and for the same
+ * reason: `date:` in the query grammar (./filter.ts) asks the same question a
+ * day page asks, and it must ask it of this walk rather than of a second one
+ * that could disagree about which fields put a node on a day.
  */
-const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
+export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
   const dates: Array<Occasioned> = []
   if (node.date !== undefined) dates.push({ occasion: "date", date: node.date })
   if (storedMarker(node) === "done" && typeof node.done === "string") {

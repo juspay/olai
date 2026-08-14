@@ -1,0 +1,12 @@
+import { chromium } from "playwright"
+const browser = await chromium.launch()
+const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+await page.goto("http://127.0.0.1:7812/d/2026-08-10")
+await page.waitForTimeout(1200)
+console.log("tags on the day page:", await page.locator('[data-testid="tag"]').count())
+console.log("texts:", await page.locator('[data-testid="tag"]').allInnerTexts())
+console.log("main narrowable:", await page.locator("main").getAttribute("data-narrowable"))
+await page.goto("http://127.0.0.1:7812/o/house.jsonl")
+await page.waitForTimeout(800)
+console.log("outline narrowable:", await page.locator("main").getAttribute("data-narrowable"))
+await browser.close()

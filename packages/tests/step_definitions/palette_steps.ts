@@ -110,11 +110,16 @@ Then("the palette shows an ask error", async function (this: OlaiWorld) {
 Then(
   "the palette box holds {string}",
   async function (this: OlaiWorld, text: string) {
-    assert.strictEqual(
-      await this.page.locator(PALETTE_INPUT).inputValue(),
-      text,
-      "the palette box",
-    );
+    // WAITED FOR, not read once. What empties this box after a capture is the
+    // write landing, which is a round trip — and the step before this one waits
+    // a frame, which on a loaded runner is not the same thing. Reading once
+    // asserted on whichever frame the poll happened to catch.
+    const box = this.page.locator(PALETTE_INPUT);
+    await this.waitUntil(
+      async () => (await box.inputValue()) === text,
+      `the palette box to hold ${JSON.stringify(text)}`,
+    ).catch(() => undefined);
+    assert.strictEqual(await box.inputValue(), text, "the palette box");
   },
 );
 
@@ -208,12 +213,29 @@ When(
  * that reads rather than polls — `the palette does not offer …` — would be
  * asking before the click had landed.
  */
+/**
+ * What the palette's box holds RIGHT NOW, or `null` when there is no box.
+ *
+ * The four conditions the wait below is made of are read one after another, so
+ * the page moves underneath them: the palette can be gone by the time the
+ * fourth is asked, and `inputValue` on a locator that matches nothing BLOCKS
+ * for the default timeout instead of answering. That is a 30-second stall
+ * inside a poll, reported as if the step itself had timed out — which is what
+ * it did twice on a loaded runner before this, in two different scenarios,
+ * while the thing it was waiting for had already happened.
+ */
+const boxHolds = async (world: OlaiWorld): Promise<string | null> => {
+  const box = world.page.locator(PALETTE_INPUT);
+  if ((await box.count()) === 0) return null;
+  return await box.inputValue().catch(() => null);
+};
+
 When(
   "I choose {string} from the palette",
   async function (this: OlaiWorld, label: string) {
     const before = {
       asking: await this.page.locator(PALETTE_CONFIRM).count(),
-      box: await this.page.locator(PALETTE_INPUT).inputValue(),
+      box: await boxHolds(this),
     };
     await this.page
       .locator(PALETTE_ITEM)
@@ -225,7 +247,7 @@ When(
         (await this.page.locator(PALETTE).count()) === 0 ||
         (await this.page.locator(PALETTE_SAID).count()) > 0 ||
         (await this.page.locator(PALETTE_CONFIRM).count()) !== before.asking ||
-        (await this.page.locator(PALETTE_INPUT).inputValue()) !== before.box,
+        (await boxHolds(this)) !== before.box,
       `the palette to answer ${JSON.stringify(label)}`,
     );
   },

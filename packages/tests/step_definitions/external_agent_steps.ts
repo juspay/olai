@@ -242,6 +242,20 @@ When(
   },
 );
 
+/** The same tool, SCOPED — the narrowing a person gets by filtering a zoomed
+ *  page, said out loud so an agent can ask the same question. Without it the
+ *  two faces would answer different questions with one grammar, which is the
+ *  deviation HACKING.md forbids. */
+When(
+  "the terminal agent searches for {string} under {string}",
+  async function (this: OlaiWorld, text: string, under: string) {
+    this.toolAnswer = await callTool(agentOf(this), "search_nodes", {
+      text,
+      under,
+    });
+  },
+);
+
 // ── documents, from a terminal ─────────────────────────────────────────
 
 When(
@@ -341,3 +355,56 @@ Then(
     );
   },
 );
+
+/** Exactly these ids, in the order they came back — the shape a scoped or
+ *  operator query is judged by, because what a narrowing does is take hits
+ *  AWAY and "contains X" cannot see that happen. */
+Then(
+  "the terminal agent found exactly {string}",
+  function (this: OlaiWorld, expected: string) {
+    const hits = (structuredOf(this)["hits"] ?? []) as ReadonlyArray<
+      { readonly id: string }
+    >;
+    assert.deepStrictEqual(
+      hits.map((hit) => hit.id),
+      expected === "" ? [] : expected.split(",").map((id) => id.trim()),
+    );
+  },
+);
+
+/**
+ * The refusal, over the wire an agent uses.
+ *
+ * Read from `structuredContent` like every other assertion here: the prose is
+ * what a model reads, the structure is what a caller acts on — and a refusal a
+ * caller cannot act on is a refusal that may as well be silence.
+ */
+Then(
+  "the terminal agent was refused {string} and told {string}",
+  function (this: OlaiWorld, token: string, teaching: string) {
+    const refusals = (structuredOf(this)["refusals"] ?? []) as ReadonlyArray<
+      { readonly token: string; readonly reason: string }
+    >;
+    const found = refusals.find((one) => one.token === token);
+    assert.ok(
+      found,
+      `no refusal naming \`${token}\` among ${JSON.stringify(refusals)} — an ` +
+        "empty answer with no reason is the silence this field exists to end",
+    );
+    assert.ok(
+      found.reason.includes(teaching),
+      `the refusal for \`${token}\` reads ${JSON.stringify(found.reason)}, ` +
+        `which does not say what the operator takes (${teaching})`,
+    );
+  },
+);
+
+/** The other half: a query the grammar COULD read says nothing about
+ *  refusals, so an agent cannot mistake "found nothing" for "asked wrongly". */
+Then("the terminal agent was refused nothing", function (this: OlaiWorld) {
+  assert.strictEqual(
+    structuredOf(this)["refusals"],
+    undefined,
+    "a readable query carried a refusal",
+  );
+});
