@@ -1045,18 +1045,24 @@ export class OlaiWorld extends World {
    * Answers with where the finger is, because everything after this is measured
    * from it.
    */
-  async holdDown(target: Locator): Promise<Point> {
-    const at = await this.middleOf(target, "held");
-    await this.finger("touchStart", at);
+  async holdDown(target: Locator): Promise<void> {
+    this.held = await this.middleOf(target, "held");
+    await this.finger("touchStart", this.held);
     await this.page.waitForTimeout(LONG_PRESS_MS + LONG_PRESS_MARGIN_MS);
     await this.waitForFrame();
-    return at;
   }
 
   /** Move the finger that is already down, in steps rather than in one jump —
    *  a hand makes a path, and a gesture that arrived as a single event would
-   *  pass over the frames the affordance is drawn in. */
-  async dragFinger(from: Point, to: Point, steps = 10): Promise<void> {
+   *  pass over the frames the affordance is drawn in.
+   *
+   *  WHERE IT STARTED IS THE WORLD'S, not a step's: a drag is three steps and
+   *  the path is measured from the press, so the alternative is a step file
+   *  keeping the point in a module-global — one per worker, outliving the
+   *  scenario that put it there. */
+  async dragFinger(to: Point, steps = 10): Promise<void> {
+    const from = this.held;
+    assert.ok(from !== undefined, "no finger is down to drag");
     for (let step = 1; step <= steps; step++) {
       await this.finger("touchMove", {
         x: from.x + ((to.x - from.x) * step) / steps,
@@ -1069,9 +1075,15 @@ export class OlaiWorld extends World {
 
   /** ...and let it go, which for a drag is the drop. */
   async letGo(): Promise<void> {
+    this.held = undefined;
     await this.finger("touchEnd");
     await this.waitForFrame();
   }
+
+  /** Where the finger that is currently down went in, for as long as it is
+   *  down. `undefined` between gestures, which is what makes "no finger is down
+   *  to drag" an assertion rather than a stale point from the last scenario. */
+  private held?: Point;
 
   /**
    * A finger that lands on something and then SCROLLS the page with it.

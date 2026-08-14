@@ -60,7 +60,7 @@ import { edgeScrolling } from "../autoscroll.ts"
 import { flatten } from "../edit/order.ts"
 import type { Said } from "../edit/undoing.ts"
 import { useUndo } from "../edit/undoing.ts"
-import { type LongPress, longPressOn } from "../longPress.ts"
+import { longPressOn } from "../longPress.ts"
 import { drag as pointerDrag } from "../pointer.ts"
 import { beneath, depthOf } from "../select/range.ts"
 import { applyingAll } from "../writes.ts"
@@ -95,10 +95,15 @@ export interface Dragging {
    *  until the pointer moves. A finger: nothing happens until it has been HELD,
    *  and then the row lifts under it. */
   readonly grab: (event: PointerEvent, row: Row) => void
-  /** The other half of the finger's door, for the platform that raises its own
-   *  menu mid-press. Wire on the handle beside {@link grab} — a right-click
-   *  with a mouse is untouched (`../longPress.ts`). */
-  readonly held: LongPress
+  /** The platform's OWN long press, answered: prevented while this gesture is
+   *  holding a finger, so the text-selection callout does not come up over a
+   *  row that is about to lift. Wire as `onContextMenu` on the handle beside
+   *  {@link grab}; a right-click with a mouse is untouched (`../longPress.ts`).
+   *
+   *  Only this half of the watcher is handed out. Its `onPointerDown` is
+   *  {@link grab}'s to call — a caller given both could arm the deadline twice
+   *  for one press, which is a shape nothing should be able to write. */
+  readonly heldMenu: (event: Event) => void
   /** Whether the gesture that just ended was a DRAG — read by the bullet, whose
    *  click would otherwise navigate away the instant a drop lands. */
   readonly dragged: () => boolean
@@ -238,15 +243,29 @@ export const createDragging = (
   onCleanup(freeScroll)
 
   /**
+   * The gesture in flight, so a page that goes away under one takes its window
+   * listeners, its frame loop and its claim on the scroll with it.
+   *
+   * A drag outlives the element it started on by design — the listeners are the
+   * window's, because a pointer that leaves the handle is still dragging it —
+   * which is exactly what makes an unmount mid-gesture a leak rather than a
+   * tidy-up: a frame loop nobody can reach would go on scrolling the next page.
+   */
+  let inFlight: (() => void) | undefined
+  onCleanup(() => inFlight?.())
+
+  /**
    * The gesture proper, once something has decided it IS one.
    *
-   * `held` is which of the two decided: a pointer's THRESHOLD (the row lifts on
-   * the fourth pixel, and a press that never travels was the bullet's own link
-   * all along) or a finger's DEADLINE (the row lifts where it is, and the page
-   * stops moving under it). Everything after that moment is identical, which is
-   * why it is one function with a flag rather than two gestures that would drift.
+   * `how` is WHICH of the two decided, and it is a name rather than a boolean
+   * because three unrelated things read it: a pointer's THRESHOLD (the row
+   * lifts on the fourth pixel, and a press that never travels was the bullet's
+   * own link all along) or a finger's DEADLINE (the row lifts where it is, and
+   * the page stops moving under it). Everything after that moment is identical,
+   * which is why this is one function rather than two that would drift.
    */
-  const gesture = (from: PointerEvent, row: Row, held: boolean) => {
+  const gesture = (from: PointerEvent, row: Row, how: "travelled" | "held") => {
+    const held = how === "held"
     /** What this gesture is carrying, decided when it becomes a drag rather
      *  than at the press: a press that turns out to be a click must not have
      *  cleared the selection on its way past. */
@@ -274,11 +293,12 @@ export const createDragging = (
       lift()
       claimScroll()
     }
-    pointerDrag(from, {
+    inFlight = pointerDrag(from, {
       threshold: held ? HELD_THRESHOLD : THRESHOLD,
       onStart: held ? undefined : lift,
       onMove: (move) => edge.at({ x: move.clientX, y: move.clientY }),
       onEnd: (up) => {
+        inFlight = undefined
         edge.stop()
         if (held) freeScroll()
         // A CANCELLED gesture is not a drop, and the difference is the whole
@@ -303,9 +323,9 @@ export const createDragging = (
    * gesture already refuses (`../longPress.ts`).
    */
   let pressed: { readonly event: PointerEvent; readonly row: Row } | null = null
-  const held = longPressOn(() => {
+  const watcher = longPressOn(() => {
     const on = pressed
-    if (on !== null) gesture(on.event, on.row, true)
+    if (on !== null) gesture(on.event, on.row, "held")
   })
 
   const grab = (event: PointerEvent, row: Row) => {
@@ -315,10 +335,10 @@ export const createDragging = (
     travelled = false
     if (event.pointerType === "touch") {
       pressed = { event, row }
-      held.onPointerDown(event)
+      watcher.onPointerDown(event)
       return
     }
-    gesture(event, row, false)
+    gesture(event, row, "travelled")
   }
 
   /**
@@ -347,7 +367,7 @@ export const createDragging = (
     carrying: (key) => moving().size > 0 && beneath(moving(), key),
     landing,
     grab,
-    held,
+    heldMenu: watcher.onContextMenu,
     dragged: () => travelled,
   }
 }

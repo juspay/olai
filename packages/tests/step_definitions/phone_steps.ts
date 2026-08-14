@@ -126,29 +126,22 @@ When("I flick the bullet of {string} up the screen", async function (this: OlaiW
 // down, held, moved — and a scenario has to be able to stop between them
 // (`client/drag/dragging.ts`, `support/world.ts`'s `holdDown`).
 
-/** Where the finger that is currently down went in. Held across steps because
- *  a drag is measured from where it started, and cucumber's `this` is the only
- *  thing that lives that long. */
-let finger: { readonly x: number; readonly y: number } | undefined;
-
 When(
   "I hold a finger on the bullet of {string} and keep it there",
   async function (this: OlaiWorld, id: string) {
-    finger = await this.holdDown(this.within(id, ZOOM));
+    await this.holdDown(this.within(id, ZOOM));
   },
 );
 
 When(
   "I drag that finger above the title of {string}",
   async function (this: OlaiWorld, id: string) {
-    assert.ok(finger !== undefined, "no finger is down to drag");
     const box = await this.box(this.nodeTitle(id), `the title of "${id}"`);
-    await this.dragFinger(finger, { x: box.x + 4, y: box.y - 2 });
+    await this.dragFinger({ x: box.x + 4, y: box.y - 2 });
   },
 );
 
 When("I let the finger go", async function (this: OlaiWorld) {
-  finger = undefined;
   await this.letGo();
 });
 

@@ -52,7 +52,7 @@
  * than half-built, and the four other pickers already reach any set it would.
  */
 
-import { type Accessor, createSignal } from "solid-js"
+import { type Accessor, createSignal, onCleanup } from "solid-js"
 
 import { edgeScrolling } from "../autoscroll.ts"
 import { drag as pointerDrag } from "../pointer.ts"
@@ -100,6 +100,13 @@ export const createSweeping = (
   },
 ): Sweeping => {
   const [band, setBand] = createSignal<Sweep | null>(null)
+  /** The sweep in flight, so a page that goes away under one takes its window
+   *  listeners and its frame loop with it. The listeners are the WINDOW's by
+   *  design — a pointer that leaves the page is still pulling — which is what
+   *  makes an unmount mid-gesture a leak rather than a tidy-up
+   *  (`./dragging.ts` holds the same line for the same reason). */
+  let inFlight: (() => void) | undefined
+  onCleanup(() => inFlight?.())
 
   /**
    * Every drawn row, measured ONCE when the sweep begins, in document
@@ -163,7 +170,7 @@ export const createSweeping = (
     }
     const edge = edgeScrolling((_x, y) => plan(y))
 
-    pointerDrag(event, {
+    inFlight = pointerDrag(event, {
       threshold: THRESHOLD,
       // Measured when it BECOMES a sweep rather than at the press: a press that
       // turns out to be a click must not have walked the tree on its way past.
@@ -176,6 +183,7 @@ export const createSweeping = (
       // asked for, while a pick is a reading — the rows are still on screen,
       // still toned, and Escape is right there.
       onEnd: () => {
+        inFlight = undefined
         edge.stop()
         setBand(null)
       },

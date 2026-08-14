@@ -66,7 +66,7 @@ export function Handle(props: {
       // prevented while this cell is holding a finger, so the text-selection
       // callout does not come up over a row that is about to lift. A right-click
       // with a mouse still gets the browser's menu (`../longPress.ts`).
-      onContextMenu={dragging.held.onContextMenu}
+      onContextMenu={dragging.heldMenu}
       // CAPTURE, so the link under it never sees the click at all: by the time
       // one bubbled, the browser would already be navigating to the node whose
       // bullet the reader used as a handle. Solid has no `onClickCapture`

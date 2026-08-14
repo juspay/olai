@@ -29,6 +29,14 @@
  * Nothing here is armed unless a gesture asks for it: the frame loop starts on
  * the first report inside a zone and stops the moment the pointer leaves one,
  * so a page nobody is dragging over schedules nothing.
+ *
+ * WHY THIS IS HAND-ROLLED, which HACKING.md's SolidJS rule makes the first
+ * question to answer: nothing in the ecosystem ships it.
+ * `@solid-primitives/scroll` reports where a page IS and
+ * `@solid-primitives/gestures` is pan, pinch, rotate, swipe and tap — neither
+ * moves a page to follow a gesture, and the drag libraries that do own the
+ * whole drag (a sortable LIST, flat, one container), which is the shape neither
+ * consumer here has (`./pointer.ts` makes the same call one layer down).
  */
 
 /** How deep the zone at each edge of the window is. About two rows' worth —
@@ -60,6 +68,10 @@ const FASTEST_PX = 14
 export const edgeSpeed = (
   y: number,
   height: number,
+  /** The two numbers above, injectable — and ONLY so the rules can be tested at
+   *  a scale a reader can check by eye (a 1000px window with 100px zones). No
+   *  caller passes them; a second policy would be a second answer to "how fast
+   *  does the page move", which is the one thing this module decides. */
   zone: number = ZONE_PX,
   fastest: number = FASTEST_PX,
 ): number => {
