@@ -36,7 +36,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import type { Agree, Identical } from "../agree.ts"
+import type { Agree, Same } from "../agree.ts"
 import { watchFault } from "../fault.ts"
 import { bind, gitWiring } from "../runtime.ts"
 import { serveFace } from "./face.ts"
@@ -491,8 +491,11 @@ test("arguments that do not fit the tool are refused before any planning", async
  */
 const PINNED_KINDS = ["usage", "not-found", "validation", "busy"] as const
 export type EveryKindIsAccountedFor = Agree<
-  Identical<typeof PINNED_KINDS[number], FailureKind> extends true ? true
-    : "@olai/format grew a refusal kind that no test here pins. Pin it, or name it unreachable like `busy`."
+  Same<
+    typeof PINNED_KINDS[number],
+    FailureKind,
+    "@olai/format grew a refusal kind that no test here pins. Pin it, or name it unreachable like `busy`."
+  >
 >
 
 /**

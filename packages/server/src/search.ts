@@ -32,7 +32,7 @@ import type { Reading } from "@olai/ops"
 import { Query } from "@olai/ops"
 import type { SearchAnswer, SearchRequest } from "@olai/surface"
 
-import type { Agree, Identical } from "./agree.ts"
+import type { Agree, Same } from "./agree.ts"
 
 /**
  * The browser's door to the one reading.
@@ -56,8 +56,11 @@ export const searchFor = (at: Reading, request: SearchRequest): SearchAnswer =>
  * palette that can narrow by tag and an agent that cannot would be born.
  */
 export type RequestsAgree = Agree<
-  Identical<SearchRequest, Query.SearchQuery> extends true ? true
-    : "@olai/ops' SearchQuery and @olai/surface's SearchRequest have drifted: the agent and the palette would ask different questions. See packages/server/src/search.ts."
+  Same<
+    SearchRequest,
+    Query.SearchQuery,
+    "@olai/ops' SearchQuery and @olai/surface's SearchRequest have drifted: the agent and the palette would ask different questions. See packages/server/src/search.ts."
+  >
 >
 
 /**
@@ -70,6 +73,9 @@ export type RequestsAgree = Agree<
  * one edit before an agent and a person start seeing different rows.
  */
 export type AnswersAgree = Agree<
-  Identical<SearchAnswer, Query.Search> extends true ? true
-    : "@olai/ops' Query.Search and @olai/surface's SearchAnswer have drifted: a field one face answers with is dropped on the other. See packages/server/src/search.ts."
+  Same<
+    SearchAnswer,
+    Query.Search,
+    "@olai/ops' Query.Search and @olai/surface's SearchAnswer have drifted: a field one face answers with is dropped on the other. See packages/server/src/search.ts."
+  >
 >

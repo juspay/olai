@@ -10,42 +10,44 @@
  * **Assignability is not the check to want.** It is what the call sites already
  * get for free, and it is exactly what lets a pair drift: a field present on
  * one side and not the other is assignable in both directions when it is
- * optional, and when it is required it only fails at whichever producer happens
- * not to supply it — which may be nowhere. So the test is type IDENTITY.
+ * optional, and when it is required it fails only at whichever producer happens
+ * not to supply it — which may be nowhere. So the test is type IDENTITY, and
+ * `Types.EqualsWith` is Effect's own, documented for exactly this ("assert type
+ * equality in conditional types or type-level tests").
  *
  * Used by {@link ./search.ts} (the palette's answer against the agent's) and by
  * `mcp/tools.test.ts` (the refusal kinds pinned there against the format's
  * closed table).
  */
 
-/**
- * Type identity, the conditional-type way.
- *
- * Two deferred conditionals are the same type only when their checked types
- * are the same type — so this sees optionality, `readonly`, and a field on one
- * side that the other has never heard of, none of which mutual assignability
- * sees. It is the standard formulation, and it is four lines here rather than a
- * dependency because it is four lines.
- */
-export type Identical<A, B> = (<T>() => T extends A ? 1 : 2) extends
-  (<T>() => T extends B ? 1 : 2) ? true : false
+import type { Types } from "effect"
 
 /**
- * A compile error when the two are not the same type, and one that SAYS SO.
+ * `true` when `A` and `B` are the same type, and otherwise the SENTENCE a
+ * reader should be shown.
  *
- * The straightforward spelling — a bare `T extends true` parameter — reports
- * "Type 'false' does not satisfy the constraint 'true'", which tells whoever
- * broke it nothing about what they broke. So a caller passes the complaint
- * through as the failing type and the sentence lands in the compiler's own
- * output, where it is read:
+ * The complaint is the whole reason this wraps `EqualsWith` rather than
+ * `Equals`. A bare equality fails as "Type 'false' does not satisfy the
+ * constraint 'true'", which tells whoever broke it nothing about what they
+ * broke; carrying the sentence as the failing type puts it in the compiler's
+ * own output, where it is read.
+ */
+export type Same<A, B, complaint extends string> = Types.EqualsWith<A, B, true, complaint>
+
+/**
+ * The constraint that does the failing. Wrap a {@link Same} in it and the pair
+ * is checked wherever the alias is declared:
  *
  * ```ts
- * export type WeAgree = Agree<
- *   Identical<A, B> extends true ? true : "A and B have drifted, and here is why that matters"
- * >
+ * export type WeAgree = Agree<Same<A, B, "A and B have drifted, and here is what that costs">>
  * ```
  *
- * The alias resolves to `never` because nothing reads it. What is load-bearing
- * is whether it INSTANTIATES.
+ * Two types rather than one because a single generic cannot do it: TypeScript
+ * checks a constraint against the UNRESOLVED conditional when the arguments are
+ * still parameters, so the equality has to be spelled where `A` and `B` are
+ * concrete — which is the call site, and is also where the sentence belongs.
+ *
+ * It resolves to `never` because nothing reads it. What is load-bearing is
+ * whether it INSTANTIATES.
  */
 export type Agree<_ extends true> = never
