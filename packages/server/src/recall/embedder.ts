@@ -86,11 +86,19 @@ export interface Embedder {
   ) => Effect.Effect<ReadonlyArray<Float32Array>, EmbedFailure>
 }
 
-/** The two paths the nix wrapper bakes in. Read here rather than in
- *  `recall.ts` so the environment is one file's business. */
+/** The two variables the nix wrapper bakes into, named rather than spelled at
+ *  each use — the shape `clientDist.ts` and `allowedOrigins.ts` already give
+ *  an env var olai reads, so a message and a test can name the symbol. */
+export const SERVER_ENV_VAR = "OLAI_EMBED_SERVER"
+export const MODEL_ENV_VAR = "OLAI_EMBED_MODEL"
+
+/** Both paths or neither, PARSED at the boundary rather than checked twice
+ *  downstream: they are one fact — where the embedder is — and half of it is
+ *  not a state anything below here should be able to hold. Read here rather
+ *  than in `recall.ts` so the environment is one file's business. */
 const pathsFromEnv = (): { server: string; model: string } | null => {
-  const server = process.env["OLAI_EMBED_SERVER"]
-  const model = process.env["OLAI_EMBED_MODEL"]
+  const server = process.env[SERVER_ENV_VAR]
+  const model = process.env[MODEL_ENV_VAR]
   if (server === undefined || server === "") return null
   if (model === undefined || model === "") return null
   return { server, model }
@@ -255,15 +263,15 @@ export const detectPackaged = (
     if (paths === null) {
       yield* Effect.logDebug(
         "recall: no embedder in this build's environment " +
-          "(OLAI_EMBED_SERVER / OLAI_EMBED_MODEL); semantic search off",
+          `(${SERVER_ENV_VAR} / ${MODEL_ENV_VAR}); semantic search off`,
       )
       return null
     }
     const fs = yield* FileSystem.FileSystem
     const path = yield* Path.Path
     for (const [name, file] of [
-      ["OLAI_EMBED_SERVER", paths.server],
-      ["OLAI_EMBED_MODEL", paths.model],
+      [SERVER_ENV_VAR, paths.server],
+      [MODEL_ENV_VAR, paths.model],
     ] as const) {
       // A stat that fails is a path that is not usable, which is the same
       // answer as a path that is not there.

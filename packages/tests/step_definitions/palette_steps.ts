@@ -169,6 +169,29 @@ Then(
 );
 
 Then(
+  "the palette lists no node at all",
+  async function (this: OlaiWorld) {
+    // Read after a frame rather than polled: the emptiness has to be true NOW,
+    // and waiting for it would pass on a palette that dropped the rows later —
+    // the same argument the sibling above makes.
+    //
+    // Beside `lists the node` rather than in the feature-specific file that
+    // first needed it: it is an assertion about THE PALETTE, and a second home
+    // for palette assertions is how two of them start disagreeing about what a
+    // node row is.
+    await this.waitForFrame();
+    const rows = await this.page
+      .locator(`${PALETTE_ITEM}[data-id^="node-"]`)
+      .allInnerTexts();
+    assert.deepStrictEqual(
+      rows.map(oneLine),
+      [],
+      `the palette listed nodes: ${rows.map(oneLine).join(" | ")}`,
+    );
+  },
+);
+
+Then(
   "the palette row {string} is about {string}",
   async function (this: OlaiWorld, label: string, place: string) {
     const row = this.page.locator(PALETTE_ITEM).filter({ hasText: label }).first();

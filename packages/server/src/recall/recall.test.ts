@@ -32,7 +32,7 @@ import * as path from "node:path"
 
 import { cacheFile } from "./cache.ts"
 import type { Embedder } from "./embedder.ts"
-import { open, type Recall } from "./recall.ts"
+import { open, RECALL_ENV_VAR, type Recall } from "./recall.ts"
 
 const HOUSE = {
   "house.jsonl": [
@@ -137,8 +137,8 @@ test("PIN (degradation): `OLAI_RECALL=off` is the same `null`, embedder or no em
   // state the absence does — not a half-on index, not a warning. Asserted with
   // an embedder standing right there, so the switch is what decides.
   const { dir, root } = scratch()
-  const before = process.env["OLAI_RECALL"]
-  process.env["OLAI_RECALL"] = "off"
+  const before = process.env[RECALL_ENV_VAR]
+  process.env[RECALL_ENV_VAR] = "off"
   try {
     const opened = await run(Effect.gen(function*() {
       const snapshot = yield* SubscriptionRef.make<Snapshot<OutlineSet> | null>(
@@ -153,8 +153,8 @@ test("PIN (degradation): `OLAI_RECALL=off` is the same `null`, embedder or no em
     }))
     expect(opened).toBeNull()
   } finally {
-    if (before === undefined) delete process.env["OLAI_RECALL"]
-    else process.env["OLAI_RECALL"] = before
+    if (before === undefined) delete process.env[RECALL_ENV_VAR]
+    else process.env[RECALL_ENV_VAR] = before
   }
   fs.rmSync(dir, { recursive: true, force: true })
 })

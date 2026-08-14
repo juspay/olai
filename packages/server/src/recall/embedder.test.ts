@@ -16,7 +16,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { detectPackaged, sweepOrphans } from "./embedder.ts"
+import { detectPackaged, MODEL_ENV_VAR, SERVER_ENV_VAR, sweepOrphans } from "./embedder.ts"
 
 const run = <A>(
   effect: Effect.Effect<A, never, Scope.Scope | FileSystem.FileSystem | Path.Path>,
@@ -48,7 +48,7 @@ const withEnv = async <A>(
 
 test("no baked paths means no embedder — `null`, which is how a source checkout runs", async () => {
   const found = await withEnv(
-    { OLAI_EMBED_SERVER: undefined, OLAI_EMBED_MODEL: undefined },
+    { [SERVER_ENV_VAR]: undefined, [MODEL_ENV_VAR]: undefined },
     () => run(detectPackaged("/tmp/served")),
   )
   expect(found).toBeNull()
@@ -59,8 +59,8 @@ test("the empty string is the deliberate off switch, on either half", async () =
   // when the variable is UNSET — so an empty value is somebody saying no, and
   // it has to mean no here too (scripts/embedder.sh argues the same rule).
   for (const env of [
-    { OLAI_EMBED_SERVER: "", OLAI_EMBED_MODEL: "/nowhere/model.gguf" },
-    { OLAI_EMBED_SERVER: "/nowhere/llama-server", OLAI_EMBED_MODEL: "" },
+    { [SERVER_ENV_VAR]: "", [MODEL_ENV_VAR]: "/nowhere/model.gguf" },
+    { [SERVER_ENV_VAR]: "/nowhere/llama-server", [MODEL_ENV_VAR]: "" },
   ]) {
     expect(await withEnv(env, () => run(detectPackaged("/tmp/served")))).toBeNull()
   }
@@ -69,8 +69,8 @@ test("the empty string is the deliberate off switch, on either half", async () =
 test("a baked path that does not exist is `null` too — said out loud, but still not an error", async () => {
   const found = await withEnv(
     {
-      OLAI_EMBED_SERVER: "/nowhere/llama-server",
-      OLAI_EMBED_MODEL: "/nowhere/model.gguf",
+      [SERVER_ENV_VAR]: "/nowhere/llama-server",
+      [MODEL_ENV_VAR]: "/nowhere/model.gguf",
     },
     () => run(detectPackaged("/tmp/served")),
   )
@@ -89,7 +89,7 @@ test("both paths present: an embedder is returned, and NOTHING has been spawned"
   fs.writeFileSync(model, "not a model")
   try {
     const found = await withEnv(
-      { OLAI_EMBED_SERVER: server, OLAI_EMBED_MODEL: model },
+      { [SERVER_ENV_VAR]: server, [MODEL_ENV_VAR]: model },
       () => run(detectPackaged(path.join(dir, "served"))),
     )
     expect(found).not.toBeNull()

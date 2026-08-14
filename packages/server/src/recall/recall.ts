@@ -77,6 +77,12 @@ export interface Recall extends Query.Recall {
   readonly settled: Effect.Effect<void>
 }
 
+/** The reader's own off switch — same shape as every other env var olai
+ *  reads (`clientDist.ts`, `allowedOrigins.ts`), and named here rather than
+ *  in `embedder.ts` because it turns off the INDEX, not the embedder: it is
+ *  answered before an embedder is even looked for. */
+export const RECALL_ENV_VAR = "OLAI_RECALL"
+
 /** How many nodes go to the embedder in one call. Bounds the damage of a
  *  mid-batch failure and keeps the first full build streaming into the index
  *  rather than arriving all at once at the end. */
@@ -128,8 +134,10 @@ export const open = (
   Scope.Scope | FileSystem.FileSystem | Path.Path
 > =>
   Effect.gen(function*() {
-    if ((process.env["OLAI_RECALL"] ?? "").toLowerCase() === "off") {
-      yield* Effect.logInfo("recall: OLAI_RECALL=off — search is substring only")
+    if ((process.env[RECALL_ENV_VAR] ?? "").toLowerCase() === "off") {
+      yield* Effect.logInfo(
+        `recall: ${RECALL_ENV_VAR}=off — search is substring only`,
+      )
       return null
     }
     const embedder = yield* (options.embedder ?? detectPackaged(options.root))

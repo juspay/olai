@@ -39,13 +39,16 @@ let
   };
 in
 {
-  # The two halves, as derivations — `default.nix` interpolates them into the
-  # wrapper and re-exports them so `nix build .#olai-embed-server` /
-  # `.#olai-embed-model` can weigh exactly what this feature adds.
+  # The two halves, as derivations — `default.nix` re-exports them so
+  # `nix build .#olai-embed-server` / `.#olai-embed-model` can weigh exactly
+  # what this feature adds to the closure.
   llama = pkgs.llama-cpp;
   inherit model;
 
-  # Where the server binary sits inside its derivation. One spelling, because
-  # the wrapper and `scripts/embedder.sh` must not be free to disagree.
-  serverBin = "bin/llama-server";
+  # The server binary, as the wrapper bakes it. `scripts/embedder.sh` spells
+  # the same `bin/llama-server` for the dev loop and cannot read this file —
+  # it is shell, and the whole point of it is to answer before nix is asked.
+  # Two spellings of an upstream package's own layout, and the `just nix`
+  # recipe fails the build if the baked one stops existing.
+  server = "${pkgs.llama-cpp}/bin/llama-server";
 }

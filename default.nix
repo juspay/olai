@@ -131,7 +131,7 @@ let
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
       --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
-      --set-default OLAI_EMBED_SERVER "${embed.llama}/${embed.serverBin}" \
+      --set-default OLAI_EMBED_SERVER "${embed.server}" \
       --set-default OLAI_EMBED_MODEL "${embed.model}"
   '';
 in

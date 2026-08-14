@@ -8,7 +8,7 @@
  * #149 parking verdict), so it is proved against the thing rather than against
  * a fake: the unit tests own the seam, this owns the closure.
  *
- * ONE STEP, and the reason it is not `I type … into the palette` is the index.
+ * ONE STEP — the retry — and the reason it is not `I type … into the palette` is the index.
  * The index is a DERIVED reading that fills in behind the boot — search
  * answers substring from the first frame and semantic hits arrive once the
  * corpus is embedded. A single keystroke's worth of typing would therefore
@@ -19,15 +19,9 @@
  * would be pinning a race rather than a promise.
  */
 
-import * as assert from "node:assert";
-import { Then, When } from "@cucumber/cucumber";
+import { When } from "@cucumber/cucumber";
 
-import {
-  oneLine,
-  PALETTE_INPUT,
-  PALETTE_ITEM,
-  POLL_TIMEOUT,
-} from "../support/world.ts";
+import { PALETTE_INPUT, PALETTE_ITEM, POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 /** How long the index has to catch up. The corpus is a handful of nodes and
@@ -63,23 +57,5 @@ When(
         if (Date.now() > deadline) throw failure;
       }
     }
-  },
-);
-
-Then(
-  "the palette lists no node at all",
-  async function (this: OlaiWorld) {
-    // Read after a frame rather than polled: the emptiness has to be true NOW.
-    // This is the "substring finds nothing" half of the demonstration — the
-    // words are not in any node, and without an index that is the whole answer.
-    await this.waitForFrame();
-    const rows = await this.page
-      .locator(`${PALETTE_ITEM}[data-id^="node-"]`)
-      .allInnerTexts();
-    assert.deepStrictEqual(
-      rows.map(oneLine),
-      [],
-      `the palette listed nodes: ${rows.map(oneLine).join(" | ")}`,
-    );
   },
 );
