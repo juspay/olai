@@ -178,12 +178,26 @@ Feature: The ⌘K palette writes
 
   Scenario: A capture mints the inbox on first use and lands the line in it
     # The directory has no inbox, so the write is a `create` seeded with this
-    # very title — ONE op, so a refused seed would leave no file behind.
+    # very title — ONE op, so a refused seed would leave no file behind. What
+    # it says afterwards NAMES THE FILE, and that name comes back on the
+    # answer: only the server knows which outline the inbox is, so a sentence
+    # the browser composed would be the one claim it may not make.
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
     Then "Inbox.jsonl" holds a node titled "buy the walnut stain"
-    And the palette remarks "captured “buy the walnut stain” to the Inbox"
+    And the palette remarks "captured “buy the walnut stain” to Inbox.jsonl"
     And there should be no page errors
+
+  Scenario: A capture of nothing is refused in the ops layer's own words
+    # No fence on this face: the resolver sends a blank title verbatim, so what
+    # comes back is the sentence an agent's `add_node` gets — and an Enter that
+    # did nothing and said nothing would be exactly the silent failure this
+    # slot exists to prevent. The line stays in the box to be fixed.
+    When I press the palette shortcut
+    And I capture "   " from the palette
+    Then the palette says "a node needs a title"
+    And the command palette is open
+    And the palette box holds "+    "
 
   Scenario: Nothing moves, and the box is ready for the next line
     # The whole promise of quick capture: the page under the palette is the
@@ -214,7 +228,7 @@ Feature: The ⌘K palette writes
     And I capture "buy the walnut stain" from the palette
     # The palette's own line rather than the disk, for the reason the op
     # scenario gives: it is said in the answer that files the inverse.
-    Then the palette remarks "captured “buy the walnut stain” to the Inbox"
+    Then the palette remarks "captured “buy the walnut stain” to Inbox.jsonl"
     And "Inbox.jsonl" holds a node titled "buy the walnut stain"
     # The palette first: ⌘Z is dead while the box has the caret, because an
     # input has the platform's own undo in it — the same rule a draft follows.

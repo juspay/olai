@@ -574,6 +574,23 @@ export const Applied = Schema.Struct({
    * over the join on the next idle tick.
    */
   title: Schema.String,
+  /**
+   * WHICH OUTLINE it landed in — for the write whose caller did not name one.
+   *
+   * Quick capture is that write: it sends a line and no file, because where
+   * the inbox is is a fact about the set. So the tab that captured cannot say
+   * where the line went unless the answer says, and a tab that guessed would
+   * be inventing a placement one door after arguing it may not compute one —
+   * "captured to the Inbox" over a directory that keeps `notes/inbox.jsonl`.
+   * It rides back for every verb rather than for that one, because the ops
+   * layer answers with it for every op already and a field present only
+   * sometimes is a field a reader has to know the verbs to use.
+   *
+   * The DOCUMENT verbs are the precedent read one door up: a minted note's
+   * path is the server's to derive and the page that opens it reads the reply
+   * ({@link ../../web/src/client/document/minted.ts}).
+   */
+  file: Schema.String,
   nudge: Schema.optionalKey(Schema.String),
   /**
    * What would TAKE THIS WRITE BACK, derived from the snapshot it was judged

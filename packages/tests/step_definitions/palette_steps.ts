@@ -27,7 +27,6 @@ import { Then, When } from "@cucumber/cucumber";
 import { saysThat } from "../support/said.ts";
 import {
   HYDRATION_TIMEOUT,
-  modKey,
   oneLine,
   PALETTE,
   PALETTE_ASK_ERROR,
@@ -43,7 +42,11 @@ import type { OlaiWorld } from "../support/world.ts";
 // ── opening it, and typing into it ─────────────────────────────────────
 
 When("I press the palette shortcut", async function (this: OlaiWorld) {
-  await this.page.keyboard.press(`${modKey()}+k`);
+  // `ControlOrMeta` is Playwright's own name for the platform modifier — Meta
+  // on Darwin, where Ctrl+K is kill-line, Control elsewhere — which is exactly
+  // the test `web/src/client/keys.ts` makes. The suite already presses chords
+  // that way (`I press "ControlOrMeta+z"`).
+  await this.page.keyboard.press("ControlOrMeta+k");
   await this.page
     .locator(PALETTE)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -117,9 +120,9 @@ Then(
 
 // ── the rows ───────────────────────────────────────────────────────────
 
-/** Every row's label, in the order they are drawn — the confirm's two buttons
- *  carry the same testid, which is what makes "offers exactly" also true while
- *  a question is up. */
+/** Every row's label, in the order they are drawn. The confirm's two buttons
+ *  carry the same testid, so while a question is up these are its two ways
+ *  out — which is what lets `I choose … from the palette` answer one. */
 const rowsOf = async (world: OlaiWorld): Promise<ReadonlyArray<string>> => {
   await world.page
     .locator(PALETTE)

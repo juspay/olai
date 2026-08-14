@@ -438,12 +438,6 @@ export const PALETTE_CAPTURE = selector(TESTID.paletteCapture);
 export const PALETTE_CONFIRM = selector(TESTID.paletteConfirm);
 export const PALETTE_SAID = selector(TESTID.paletteSaid);
 
-/** The modifier the app's own chords are bound to: Meta on Darwin, where
- *  Ctrl+K is kill-line, and Control everywhere else — the same test
- *  `../../web/src/client/keys.ts` makes. Here rather than in a step file
- *  because three chords are pressed from two of them. */
-export const modKey = (): string =>
-  process.platform === "darwin" ? "Meta" : "Control";
 export const CHAT_TITLE = selector(TESTID.chatTitle);
 export const CHAT_WORKING = selector(TESTID.chatWorking);
 export const CHAT_MODEL = selector(TESTID.chatModel);

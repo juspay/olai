@@ -18,7 +18,7 @@
  * wrong is answerable here too, without a browser to press ⌘Z in.
  */
 
-import { derive, type OpFailure, type OutlineSet } from "@olai/format"
+import { derive, INBOX, type OpFailure, type OutlineSet } from "@olai/format"
 import { setOf } from "@olai/format/testlib"
 import type { Reading, Request } from "@olai/ops"
 import type { Edit } from "@olai/surface"
@@ -102,16 +102,16 @@ test("a new row after a node nothing declares is not found", () => {
 // ── the palette's capture ──────────────────────────────────────────────
 
 test("a capture into a directory with an inbox is an `add` into that file", () => {
-  const set = setOf({ "house.jsonl": HOUSE, "Inbox.jsonl": "" })
+  const set = setOf({ "house.jsonl": HOUSE, [INBOX]: "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
-    .toEqual({ op: "add", file: "Inbox.jsonl", title: "buy milk" })
+    .toEqual({ op: "add", file: INBOX, title: "buy milk" })
 })
 
 test("a capture into a directory with NO inbox mints one holding the line", () => {
   // ONE op, so a refused seed leaves no file behind — an `add` that followed a
   // `create` could land the file and then refuse the line.
   expect(asked({ verb: "capture", title: "buy milk" }))
-    .toEqual({ op: "create", file: "Inbox.jsonl", seed: { title: "buy milk" } })
+    .toEqual({ op: "create", file: INBOX, seed: { title: "buy milk" } })
 })
 
 test("an inbox the directory already keeps somewhere else is the one used", () => {
@@ -126,24 +126,24 @@ test("an inbox the directory already keeps somewhere else is the one used", () =
 test("with two inboxes the shallower one wins, so the answer is stable", () => {
   const set = setOf({
     "deep/down/Inbox.jsonl": "",
-    "Inbox.jsonl": "",
+    [INBOX]: "",
     "house.jsonl": HOUSE,
   })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
-    .toEqual({ op: "add", file: "Inbox.jsonl", title: "buy milk" })
+    .toEqual({ op: "add", file: INBOX, title: "buy milk" })
 })
 
 test("a file merely ENDING in the name is not an inbox", () => {
   const set = setOf({ "house.jsonl": HOUSE, "not-an-Inbox.jsonl": "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
-    .toEqual({ op: "create", file: "Inbox.jsonl", seed: { title: "buy milk" } })
+    .toEqual({ op: "create", file: INBOX, seed: { title: "buy milk" } })
 })
 
 test("a blank capture is left to the ops layer, which has the words for it", () => {
   // No second rule here: `add_node` refuses an empty title in the sentence an
   // agent gets, and a fence in this resolver would be a fence one face has.
   expect(asked({ verb: "capture", title: "   " }))
-    .toEqual({ op: "create", file: "Inbox.jsonl", seed: { title: "   " } })
+    .toEqual({ op: "create", file: INBOX, seed: { title: "   " } })
 })
 
 // ── the four moves ─────────────────────────────────────────────────────
@@ -599,7 +599,7 @@ test("a capture is taken back the same way a new row is", () => {
     inverse(
       { verb: "capture", title: "buy milk" },
       "n7",
-      reading(setOf({ "house.jsonl": HOUSE, "Inbox.jsonl": "" })),
+      reading(setOf({ "house.jsonl": HOUSE, [INBOX]: "" })),
     ),
   ).toEqual([{ verb: "remove", id: "n7" }])
 })

@@ -13,6 +13,7 @@ import { derive, zoom } from "@olai/format"
 import { setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
+import { filterItems } from "./items.ts"
 import { opItems } from "./ops.ts"
 
 const HOUSE = [
@@ -57,9 +58,12 @@ test("the zoomed node's own verbs, minus the one that opens a picker", () => {
 test("every row says which node it is about, on the place line", () => {
   const rows = opItems(at("order"), derived)
   expect(rows.every((row) => row.place === "on “order the cabinets”")).toBe(true)
-  // …and the title joins the haystack, so typing what you are looking at
-  // finds what you can do to it.
-  expect(rows.every((row) => row.search.includes("order the cabinets"))).toBe(true)
+  // The title is the WHOLE haystack — the filter already matches a row's own
+  // label, so repeating it would search one word twice. What this adds is that
+  // typing what you are looking at finds what you can do to it.
+  expect(rows.every((row) => row.search === "order the cabinets")).toBe(true)
+  expect(filterItems("cabinets", rows).length).toBe(rows.length)
+  expect(filterItems("complete", rows).map((row) => row.label)).toEqual(["Complete"])
 })
 
 test("a row carries the edit it will send, and the archive carries its question", () => {

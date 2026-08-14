@@ -49,6 +49,7 @@ import {
 } from "solid-js"
 
 import type { Situated } from "@olai/format"
+import { Result as Outcome } from "effect"
 import type { Edit, OpFailure } from "@olai/surface"
 
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
@@ -73,13 +74,13 @@ import {
 } from "./items.ts"
 import { only } from "../narrow.ts"
 import { opItems } from "./ops.ts"
-import { QUIET_PILL } from "../pill.ts"
+import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { Result } from "../search/Result.tsx"
 import { paletteOpen, setPaletteOpen } from "./open.ts"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { type Said, useUndo } from "../edit/undoing.ts"
-import { applying } from "../writes.ts"
+import { applied, applying } from "../writes.ts"
 import { isEditingTarget, matchKey } from "../keys.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
 
@@ -172,6 +173,22 @@ export function Palette(props: {
     paletteOpen() && listing() ? query() : null
   )
 
+  /**
+   * The zoomed node's verbs — its OWN memo, and guarded on the palette being
+   * open, which is what keeps them from being rebuilt for nobody.
+   *
+   * Both halves of that matter. `opItems` walks the node's subtree to count
+   * what an archive would move (`../menu/subtree.ts`), and everything it reads
+   * — `props.zoomed`, the indexes — is minted afresh on every revision the
+   * store publishes, so a memo that read them beside the query would do that
+   * walk on every write to the directory with the modal shut, and again on
+   * every keystroke typed into it. Solid re-tracks per run, so while the
+   * palette is closed this depends on `paletteOpen()` and nothing else.
+   */
+  const opRows = createMemo(() =>
+    paletteOpen() ? opItems(props.zoomed, derived()) : []
+  )
+
   const items = createMemo(() => {
     if (!listing()) return [] as ReadonlyArray<PaletteItem>
     // THE OP ROWS FIRST, because they are the only rows that are about what
@@ -179,20 +196,37 @@ export function Palette(props: {
     // fold is a list nobody finds them in. What makes that safe is {@link
     // NOTHING}: an untouched palette has no row chosen, so being at the top is
     // not being one keystroke from a write.
-    const commands = [...opItems(props.zoomed, derived()), ...SHELL_ITEMS]
+    const commands = [...opRows(), ...SHELL_ITEMS]
     return [...filterItems(query(), commands), ...nodes.hits().map(nodeItem)]
   })
 
-  const close = () => {
-    setPaletteOpen(false)
-    setQuery("")
-    setActive(NOTHING)
+  /** Everything this modal is holding, put down — one spelling, because the
+   *  two moments that need it (opening, and closing) are the same list, and a
+   *  list kept at two sites is a signal somebody forgets to add to one of
+   *  them. `text` is what the box starts with: empty, or a primed prefix. */
+  const blank = (text = "") => {
+    setQuery(text)
+    setActive(startAt(text))
     setAskError(null)
     setSaid(null)
     setAsking(null)
+  }
+
+  const close = () => {
+    setPaletteOpen(false)
+    blank()
     const back = previousFocus
     previousFocus = null
     queueMicrotask(() => back?.focus())
+  }
+
+  /** The box, primed with a prefix and the caret after it — what the capture
+   *  row does, and what a capture that landed leaves behind for the next line.
+   *  Whatever was said stays: a prime is not an answer to it. */
+  const prime = (prefix: string) => {
+    setQuery(prefix)
+    setActive(startAt(prefix))
+    input?.focus()
   }
 
   /**
@@ -207,11 +241,7 @@ export function Palette(props: {
     previousFocus = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null
-    setQuery("")
-    setActive(NOTHING)
-    setAskError(null)
-    setSaid(null)
-    setAsking(null)
+    blank()
     // The element is not attached at the instant the signal flips.
     queueMicrotask(() => input?.focus())
   })
@@ -235,10 +265,8 @@ export function Palette(props: {
       return
     }
     if (action.kind === "prefix") {
-      setQuery(action.prefix)
-      setActive(NOTHING)
       setSaid(null)
-      input?.focus()
+      prime(action.prefix)
       return
     }
     if (action.kind === "route") props.go(action.route)
@@ -283,24 +311,37 @@ export function Palette(props: {
    * person does when several things arrive at once, and a modal that shut
    * after each of them would ask for the chord again every time. A REFUSAL
    * keeps the text exactly where it is — the same promise a refused title
-   * commit makes to a draft — so a blank line, or an inbox whose file will not
-   * parse, is something to fix rather than something to retype.
+   * commit makes to a draft — so an inbox whose file will not parse is
+   * something to fix rather than something to retype.
+   *
+   * A BLANK LINE IS SENT LIKE ANY OTHER, and that is deliberate: the resolver
+   * declines to fence it ("a fence there would be a fence one face has"), so
+   * the ops layer refuses it in the words an agent's `add_node` gets — *a node
+   * needs a title* — and they land in the slot below. A guard here would have
+   * been a rule only this face has AND an Enter that did nothing and said
+   * nothing, which is the failure this slot exists to prevent.
+   *
+   * WHERE IT LANDED comes off the ANSWER. The whole argument for the `capture`
+   * verb is that only the server knows which file the inbox is; a sentence
+   * naming one from here would be that argument contradicted one line later,
+   * and wrong out loud for a directory that keeps `notes/inbox.jsonl`.
    */
   const sendCapture = (text: string) => {
-    if (text.trim() === "") return
     setSaid(null)
-    void applying({ verb: "capture", title: text }, undo.record).then((answer) => {
-      if (answer?.tone === "alarm") {
-        setSaid(answer)
+    void applied({ verb: "capture", title: text }, undo.record).then((outcome) => {
+      if (Outcome.isFailure(outcome)) {
+        setSaid({ tone: "alarm", text: outcome.failure.message })
         return
       }
-      setQuery(`${CAPTURE_PREFIX} `)
-      setActive(NOTHING)
-      input?.focus()
+      prime(`${CAPTURE_PREFIX} `)
       // The op's own remark if it made one, and otherwise this app's: a write
       // whose whole point is that nothing on screen moves has to say that it
       // happened, or it is indistinguishable from a key that did nothing.
-      setSaid(answer ?? { tone: "aside", text: `captured “${text}” to the Inbox` })
+      const landed = outcome.success
+      setSaid({
+        tone: "aside",
+        text: landed.nudge ?? `captured “${landed.title}” to ${landed.file}`,
+      })
     })
   }
 
@@ -560,7 +601,7 @@ export function Palette(props: {
                   <div class="mt-2 flex gap-2">
                     <button
                       type="button"
-                      class="cursor-pointer rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10"
+                      class={`${ALARM_PILL} cursor-pointer`}
                       data-testid={TESTID.paletteItem}
                       data-id="go"
                       onClick={() => answer(question())}

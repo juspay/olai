@@ -29,7 +29,6 @@ export type PaletteAction =
   | { readonly kind: "toggle-sidebar" }
   | { readonly kind: "toggle-chat" }
   | { readonly kind: "reset-widths" }
-  | { readonly kind: "ask"; readonly text: string }
   /**
    * ONE OP, at the write gate every other write in this app goes through
    * (`../writes.ts`) — the row carries the {@link Edit} it will send, decided

@@ -22,7 +22,6 @@ import {
   CHAT_STRIP,
   CHAT_TOGGLE,
   HYDRATION_TIMEOUT,
-  modKey,
   OUTLINE_TREE,
   POLL_TIMEOUT,
   SIDEBAR,
@@ -231,12 +230,12 @@ When("I open the agent from the pill", async function (this: OlaiWorld) {
 // ── the panel chords ───────────────────────────────────────────────────
 
 When("I press the sidebar shortcut", async function (this: OlaiWorld) {
-  await this.page.keyboard.press(`${modKey()}+\\`);
+  await this.page.keyboard.press("ControlOrMeta+\\");
   await this.waitForFrame();
 });
 
 When("I press the chat shortcut", async function (this: OlaiWorld) {
-  await this.page.keyboard.press(`${modKey()}+j`);
+  await this.page.keyboard.press("ControlOrMeta+j");
   await this.waitForFrame();
 });
 

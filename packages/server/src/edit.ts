@@ -56,6 +56,8 @@
 import {
   dailyNotePathFor,
   type Derived,
+  INBOX,
+  inboxIn,
   isDay,
   isMirror,
   type Located,
@@ -232,39 +234,6 @@ const addRequest = (
 // ── the inbox ──────────────────────────────────────────────────────────
 
 /**
- * The outline a quick capture lands in when the directory has none yet.
- *
- * At the ROOT, and named the way a person would name it: an inbox nobody has
- * created is a promise the palette makes ("capture to the Inbox"), so the file
- * it mints has to be the file they would have made themselves. Exported so a
- * test names the same string this does rather than repeating it.
- */
-export const INBOX = "Inbox.jsonl"
-
-/**
- * The directory's inbox, or `undefined` when it has none.
- *
- * A CONVENTION read off the set, in the shape {@link dailyNotePathFor} reads
- * the daily-note one: the file is whichever outline is *called* `Inbox.jsonl`,
- * wherever it sits, so a directory that already keeps its inbox in `notes/`
- * captures into the file it already has rather than growing a second one at
- * the root. The name is matched case-insensitively because it is a name a
- * person typed, and `inbox.jsonl` is the same intention.
- *
- * SHALLOWEST WINS, then path order — one answer, and a stable one, for the
- * directory that somehow holds two. A rule that took "the first in path order"
- * would let a file three directories down claim the capture from the obvious
- * one beside it.
- */
-export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
-  files
-    .filter((file) => file.split("/").at(-1)?.toLowerCase() === INBOX.toLowerCase())
-    .sort((a, b) => depth(a) - depth(b) || (a < b ? -1 : a > b ? 1 : 0))
-    .at(0)
-
-const depth = (file: string): number => file.split("/").length
-
-/**
  * A captured line, as ONE op — an `add` into the inbox the directory has, or
  * the `create` that mints it holding exactly this line.
  *
@@ -275,6 +244,11 @@ const depth = (file: string): number => file.split("/").length
  * is refused for one that does not. Either way it is one plan, one validation
  * and one atomic write, so a capture that is refused leaves nothing behind —
  * not a half-filled inbox, and not an empty file.
+ *
+ * WHICH file the inbox is, though, is `@olai/format`'s ({@link inboxIn}) and
+ * not this resolver's: it is a statement about what a served file IS by its
+ * name, the same kind of thing `ARCHIVE` is, and an agent capturing by hand
+ * has to be able to read the same sentence rather than guess at the browser's.
  *
  * The title travels VERBATIM, blank and all: a capture of nothing is refused
  * by the ops layer in its own words ("a node needs a title"), which is the

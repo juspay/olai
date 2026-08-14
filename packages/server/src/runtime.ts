@@ -297,6 +297,7 @@ export const bind = (
           return {
             id: done.id,
             title: done.title,
+            file: done.file,
             ...(done.nudge === undefined ? {} : { nudge: done.nudge }),
             ...(undo.length === 0 ? {} : { undo }),
           }

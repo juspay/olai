@@ -62,7 +62,7 @@
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 
-import { QUIET_PILL } from "../pill.ts"
+import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { HOVER_CELL, MENU_REVEAL } from "../touch.ts"
 import { SaidLine } from "../edit/SaidLine.tsx"
@@ -493,7 +493,7 @@ function Confirm(props: {
       <div class="mt-2 flex gap-2">
         <DropdownMenu.Item
           ref={go}
-          class="cursor-pointer rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10 focus:outline-none"
+          class={`${ALARM_PILL} cursor-pointer focus:outline-none`}
           data-testid={TESTID.nodeMenuItem}
           data-action={props.action.id}
           onSelect={() => void props.onGo(props.action)}

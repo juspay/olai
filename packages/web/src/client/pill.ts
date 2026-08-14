@@ -25,3 +25,21 @@
  */
 export const QUIET_PILL =
   "rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink"
+
+/**
+ * Its opposite number: the verb that GOES AHEAD with the one thing a confirm
+ * is asked about.
+ *
+ * Two sites wear it, and they are the same question in two boxes — the `•••`
+ * menu's `Move to Trash` and the ⌘K palette's. It is the quiet pill's twin in
+ * every measurement and differs only in tone, which is the whole of what it
+ * says: this is the answer that does the thing, and the pill beside it (the
+ * quiet one) is the way out. So the two are declared together, because a
+ * confirm whose two buttons stopped matching is a confirm that reads as a
+ * layout accident.
+ *
+ * `bg-transparent` IS here, unlike its neighbour: the hover fill is a tint of
+ * the alarm colour, so the resting state has to say it has none.
+ */
+export const ALARM_PILL =
+  "rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10"
