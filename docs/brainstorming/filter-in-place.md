@@ -49,16 +49,20 @@ node match this query" is a derivation of exactly that kind. It becomes
 `format/src/filter.ts`:
 
 - `parseFilter(text)` — the grammar below, into a value;
-- `matchOf(derived, located, filter)` — does this node match, and which field
-  carried it;
-- `matchingIn(derived, filter, scope)` — the ids that match, as a set;
-- `keeping(rows, matched)` — the row transform, ancestors kept.
+- `matching(derived, filter, scope)` — the nodes it selects, each with which
+  field carried it and what the words scored;
+- `keeping(rows, matched)` / `matchedIn(rows, matched)` — the row transform,
+  ancestors kept, and how many rows of it are hits.
 
-`@olai/ops`' `Query.search` then calls `parseFilter` and `matchOf` as its GATE
-and keeps what was always its own: the field weights, the position bonus, the
-done penalty, the cap and the total. That line is the honest one — the format
-says *what a query means*, the ops layer says *which twelve of them to show a
-stranger first*.
+`@olai/ops`' `Query.search` then calls that as its GATE and keeps what is about
+showing a stranger a SHORTLIST: the penalty a finished node takes, the cap, the
+uncapped total, and carrying the refusal to whoever asked.
+
+The per-node score is the format's, and that is the one line worth defending
+rather than asserting: which field carried a match and how much it is worth are
+one table (a title hit outranks a note hit *because* of the weights), and
+splitting them would mean handing the ops layer a per-word hit list to re-fold.
+Everything that is about a LIST rather than a node stayed up there.
 
 What this buys, structurally rather than aspirationally: `is:done` means one
 thing to an agent calling `search_nodes`, to the ⌘K palette, to the header box
@@ -164,6 +168,17 @@ worth typing at all — `#home -is:done` is the query somebody actually wants.
   a new row in a table. Named here so the day it lands nobody is surprised —
   and not paid for in advance, because a parameter nothing reads is a knob.
 
+### Refusals reach every door
+
+The filter parses for itself, so it draws its own. The other three ask the
+server — and a refusal generated at the bottom and dropped in the middle would
+make `is:blocked` an empty list with no reason in exactly the three places a
+person is least able to guess why. So the answer carries `refusals`: through
+`Query.search`, onto the wire, and into a row of its own in the ⌘K palette and
+under the header box. That row is separate from the "the call failed" row for
+the reason that one is separate from the palette's `>` ask: a refused CALL and a
+refused QUERY are two pieces of news.
+
 ### Refusals — a colon is not always an operator
 
 Two rules, and the split is the whole of it:
@@ -239,6 +254,12 @@ produces a different tree, and honouring a collapse inside it would hide the
 match that the filter's entire purpose is to have found. Nothing is written:
 the fold memory is untouched, and clearing the filter restores every collapse
 exactly as it was.
+
+It is ONE accessor (`fold/reading.ts`) rather than a condition where the tree
+draws, because four things read the folds and only one of them draws: the
+editor for where `↑`/`↓` go, the selection for what a shift-click spans, the
+drag for where a drop can land. A tree that suspended its folds while those
+three did not is a page whose arrow keys walk rows nobody can see.
 
 ## Archived
 

@@ -86,6 +86,24 @@ test("`has:` asks what the record carries, and an empty edge list is no edge", (
   expect(selects("has:after")).toEqual(["order"])
 })
 
+// The four ways a field can hold nothing are the WRITER's list (`write.ts`'s
+// `nothing`), asked as a question rather than restated — so a note the writer
+// would drop from the line is not a note to search for. A second list here is
+// how `desc: ""` becomes a node with a note and no note at once.
+test("a field holding nothing is a field the record does not carry", () => {
+  const hollow = derive(nodesOfFiles({
+    "a.jsonl": [
+      `{"id":"blank","ord":"a0","title":"blank","desc":"","see":[],"after":[]}`,
+      `{"id":"real","ord":"a1","title":"real","desc":"something"}`,
+    ].join("\n"),
+  }))
+  const ids = (text: string) =>
+    matching(hollow, parseFilter(text)).map(({ at }) => at.node.id)
+  expect(ids("has:desc")).toEqual(["real"])
+  expect(ids("has:see")).toEqual([])
+  expect(ids("has:after")).toEqual([])
+})
+
 test("`date:` reads the two dates a journal reads — scheduled, and finished", () => {
   // `order` is scheduled for the 10th; `demo` was finished on the 3rd.
   expect(selects("date:2026-08-10")).toEqual(["order"])

@@ -31,6 +31,7 @@
  */
 
 import {
+  ancestorsOf,
   type Derived,
   mayHoldTag,
   type Row,
@@ -39,6 +40,7 @@ import {
   titleParts,
 } from "./derive.ts"
 import { datesOf, dayOf } from "./dates.ts"
+import { nothing } from "./write.ts"
 import {
   isArchived,
   isMirror,
@@ -88,6 +90,11 @@ const haystacksOf = (
   desc: node.desc === undefined ? [] : [node.desc.toLowerCase()],
 })
 
+/** What counts as the start of a word inside a field. A `const`, because this
+ *  is the innermost loop of a scan over every node of the set and a regex
+ *  literal is a fresh object every time it is evaluated. */
+const WORD_EDGE = /[\s/_-]/
+
 /** Where in the field the word landed. A field that STARTS with it beats one
  *  where it starts a word inside it, which beats one where it is buried.
  *  `-1` is "not in this field at all". */
@@ -95,7 +102,7 @@ const positionBonus = (haystack: string, needle: string): number => {
   const at = haystack.indexOf(needle)
   if (at === -1) return -1
   if (at === 0) return 100
-  return /[\s/_-]/.test(haystack[at - 1] as string) ? 50 : 0
+  return WORD_EDGE.test(haystack[at - 1] as string) ? 50 : 0
 }
 
 // ── the grammar ────────────────────────────────────────────────────────
@@ -364,6 +371,11 @@ const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
     if (holds(at, held.clause) === held.negated) return null
   }
 
+  // A query of operators alone is carried by no field, and nothing below would
+  // read the haystacks — which are four allocations and up to three case-folds
+  // of a whole note, per node of the set. `is:done` is exactly that query.
+  if (filter.terms.length === 0) return { field: null, score: 0 }
+
   const hay = haystacksOf(at.node)
   let score = 0
   let field: SearchField | null = null
@@ -377,8 +389,8 @@ const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
     // Every word, in the same node. One miss and the node is not a hit.
     if (hit === null) return null
     score += hit.score
-    if (hit.weight > weight) {
-      weight = hit.weight
+    if (FIELD_WEIGHT[hit.field] > weight) {
+      weight = FIELD_WEIGHT[hit.field]
       field = hit.field
     }
   }
@@ -390,7 +402,7 @@ const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
 const wordHit = (
   hay: Record<SearchField, ReadonlyArray<string>>,
   word: string,
-): { readonly field: SearchField; readonly weight: number; readonly score: number } | null => {
+): { readonly field: SearchField; readonly score: number } | null => {
   let score = -1
   let field: SearchField | null = null
   let weight = -1
@@ -406,7 +418,7 @@ const wordHit = (
       }
     }
   }
-  return field === null ? null : { field, weight, score }
+  return field === null ? null : { field, score }
 }
 
 const holds = (at: LocatedRegular, clause: Clause): boolean => {
@@ -435,14 +447,13 @@ const holds = (at: LocatedRegular, clause: Clause): boolean => {
   return datesOf(at.node).some(({ date }) => within(dayOf(date), clause))
 }
 
-/** Whether a record carries a field, by the format's own rule for absence: an
- *  empty edge list is not an edge (`Found`'s `see` / `after` are omitted for
- *  one, and this is the same sentence asked as a question). */
-const carries = (node: RegularNode, field: HasField): boolean => {
-  const value = node[field]
-  if (value === undefined) return false
-  return Array.isArray(value) ? value.length > 0 : true
-}
+/** Whether a record carries a field — the WRITER's own rule for absence
+ *  (./write.ts's `nothing`), asked as a question rather than restated. The four
+ *  ways a field can hold nothing (`undefined`, `null`, `[]`, `""`) all say the
+ *  same thing about the node, and a second list of them here is how `desc: ""`
+ *  becomes a note to search for and no note to write. */
+const carries = (node: RegularNode, field: HasField): boolean =>
+  !nothing(node[field])
 
 const within = (day: string, clause: Extract<Clause, { kind: "date" }>): boolean =>
   (clause.from === null || day >= clause.from) &&
@@ -473,9 +484,16 @@ export const matching = (
   return out
 }
 
-/** The scope, as one predicate. `under` walks the parent chain rather than
- *  collecting a subtree, so the whole thing stays a single pass and a node is
- *  never visited twice. */
+/**
+ * The scope, as one predicate.
+ *
+ * `under` is answered by walking UP from each node — `ancestorsOf`, which is
+ * this package's one answer to "what is above this node", cycle guard and all.
+ * A second walk written here would be a second answer: that one stops at a
+ * parent that is missing or is a mirror (a set the validator has already
+ * condemned), and one that walked straight through would put a node in a scope
+ * the `path` on its own hit says it is not in.
+ */
 const scoping = (
   derived: Derived,
   scope: Scope,
@@ -485,14 +503,10 @@ const scoping = (
   return (at) => {
     if (file !== undefined && at.file !== file) return false
     if (under === undefined) return true
-    let id: string | undefined = at.node.id
-    const seen = new Set<string>()
-    while (id !== undefined && !seen.has(id)) {
-      if (id === under) return true
-      seen.add(id)
-      id = derived.byId.get(id)?.node.parent
-    }
-    return false
+    // At OR under: "everything beneath `install`" includes `install`, which is
+    // what a reader filtering a zoomed page is looking at.
+    return at.node.id === under ||
+      ancestorsOf(derived, at.node.id).some((crumb) => crumb.node.id === under)
   }
 }
 

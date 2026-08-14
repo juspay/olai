@@ -44,10 +44,27 @@ export const SearchHit = Schema.Struct({
 })
 export type SearchHit = typeof SearchHit.Type
 
+/** A token the grammar knows the name of and not the value — `is:blocked` —
+ *  with what that operator takes. */
+export const SearchRefusal = Schema.Struct({
+  token: Schema.String,
+  reason: Schema.String,
+})
+export type SearchRefusal = typeof SearchRefusal.Type
+
 export const SearchAnswer = Schema.Struct({
   hits: Schema.Array(SearchHit),
   /** Every node that matched, uncapped — so "twelve of ninety" is sayable. */
   total: Schema.Int,
+  /** Why the answer is empty, when it is empty because the query could not be
+   *  read. Absent for every query that could.
+   *
+   *  It is on the wire because a box that answered `is:blocked` with an empty
+   *  list and no reason is the silent failure HACKING.md forbids — and because
+   *  the operators are one grammar: the filter over the tree parses for itself
+   *  and draws its own refusals, so a door that asked the server would
+   *  otherwise be the one door where a typo looks like an empty directory. */
+  refusals: Schema.optionalKey(Schema.Array(SearchRefusal)),
 })
 export type SearchAnswer = typeof SearchAnswer.Type
 

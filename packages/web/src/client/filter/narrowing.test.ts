@@ -48,6 +48,15 @@ test("an empty box is not a filter, and the page is the page", () => {
   const narrowing = page("")
   expect(narrowing.active()).toBe(false)
   expect(narrowing.rows()).toHaveLength(1)
+  // The counts are only ever drawn beside an active filter, so an unfiltered
+  // page does not walk its own tree to produce them.
+  expect(narrowing.total()).toBe(0)
+  expect(narrowing.shown()).toBe(0)
+})
+
+test("a filtered page counts the rows it draws, of the rows it holds", () => {
+  const narrowing = page("hinges")
+  expect(narrowing.shown()).toBe(1)
   expect(narrowing.total()).toBe(5)
 })
 

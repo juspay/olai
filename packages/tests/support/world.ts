@@ -255,6 +255,10 @@ export const FILTER_CLEAR = selector(TESTID.filterClear);
  *  scenario asserts on the WORDS: a query that quietly found nothing is what
  *  this line exists to make impossible. */
 export const FILTER_REFUSAL = selector(TESTID.filterRefusal);
+/** The same refusal on the two doors that ask the SERVER for it — the ⌘K
+ *  palette and the header box. One name, because it is one sentence about one
+ *  grammar; where each door draws it is that door’s own business. */
+export const SEARCH_REFUSAL = selector(TESTID.searchRefusal);
 /** The date picker, in place under the row it was opened on — from the pill
  *  above, or from the `•••` menu's `Set date…`. Its box is a native
  *  `<input type="date">`, so what it holds is the ten characters the record

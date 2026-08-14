@@ -149,14 +149,18 @@ function Zoom(props: {
         </div>
       </header>
 
+      {/* A FILTERED page says nothing here at all: the bar above it has just
+          counted what it found, and a second sentence under the heading would
+          be two readouts for one fact. What is below is about the node — a
+          leaf, or a subtree this reader is hiding. */}
       <Show
-        when={props.rows.length > 0}
+        when={props.rows.length > 0 || narrowed.active()}
         fallback={
           <Show
-            when={props.zoomed.children.length === 0 && !narrowed.active()}
+            when={props.zoomed.children.length === 0}
             fallback={
               <p class="text-muted" data-testid={TESTID.emptyUnder}>
-                {nothingUnder(props.zoomed, narrowed.active())}
+                {nothingUnder(props.zoomed)}
               </p>
             }
           >
@@ -176,17 +180,14 @@ function Zoom(props: {
   )
 }
 
-/** An empty page has three causes and they are not the same news: a leaf has
- *  nothing under it; a subtree that is entirely done has been hidden by this
- *  reading and is one pick in Prefs from coming back; and a filter can have
- *  matched nothing, which the bar above already counts — so this says which
- *  reading emptied the page rather than repeating the number. */
+/** An empty page has two causes and they are not the same news: a leaf has
+ *  nothing under it, a subtree that is entirely done has been hidden by this
+ *  reading and is one pick in Prefs from coming back. (A third — a filter that
+ *  matched nothing — never reaches here: the bar has already said so, and this
+ *  line is about the node.) */
 const nothingUnder = (
   zoomed: Extract<Zoomed, { readonly kind: "node" }>,
-  filtered: boolean,
 ): string =>
-  filtered
-    ? "Nothing under this node matches the filter."
-    : zoomed.children.length > 0 && doneHidden()
+  zoomed.children.length > 0 && doneHidden()
     ? "Everything under this node is done, and Prefs is hiding finished work."
     : "Nothing under this node."

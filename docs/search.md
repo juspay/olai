@@ -42,6 +42,12 @@ words, and the query selects nothing: `is:blocked` says which values `is:` takes
 rather than quietly searching for that text and finding none. A colon after
 anything else (`TODO:`, `http://…`) is an ordinary word — colons occur in prose.
 
+The refusal reaches **every door**. The filter parses for itself and draws its
+own; the other three ask the server, so the answer carries `refusals` and the
+palette and the header box draw them beside their rows. A door that answered
+`is:blocked` with an empty list and no reason would be the one place a typo
+looks exactly like an empty directory.
+
 **Archived nodes are out of every reading unless the query says `is:archived`.**
 What was put away should stay put away until somebody asks, and now there is a
 way to ask.

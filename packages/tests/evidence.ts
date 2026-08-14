@@ -112,7 +112,110 @@ const recordOf = (id: string): string => {
   return `(no record for \`${id}\`)`
 }
 
+// ── the filter over the page ───────────────────────────────────────────
+
+const FILTER_INPUT = '[data-testid="filter-input"]'
+const FILTER_COUNT = '[data-testid="filter-count"]'
+const FILTER_REFUSAL = '[data-testid="filter-refusal"]'
+
+/** The tree as a reader sees it: one line per row, indented by depth, with a
+ *  `*` on the rows the query actually SELECTED — the rest are the ancestry that
+ *  leads to one, which is the whole of what "filter in place" means. */
+const drawn = async (page: Page) =>
+  (await page.locator('[data-testid="outline-tree"] [data-testid="node"]')
+    .evaluateAll((rows) =>
+      rows.map((one) => {
+        let depth = 0
+        for (let up = one.parentElement; up !== null; up = up.parentElement) {
+          if (up.matches("[data-testid='node']")) depth += 1
+        }
+        const hit = one.getAttribute("data-match") === "true" ? "*" : " "
+        const title = one.querySelector("[data-testid='node-title']")?.textContent ?? ""
+        return `${hit} ${"  ".repeat(depth)}${title.trim()}`
+      })
+    )).join("\n")
+
+/** Type a query and let the tree settle. Filtering is local — no round trip and
+ *  no debounce — so this is a render rather than a fetch. */
+const narrow = async (page: Page, query: string) => {
+  await page.locator(FILTER_INPUT).fill(query)
+  await page.waitForTimeout(300)
+}
+
+const said = async (page: Page, locator: string) =>
+  (await page.locator(locator).first().textContent().catch(() => null)) ?? "(nothing)"
+
 const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
+  "filter-keeps-ancestors": async (page) => {
+    console.log(`  the whole outline:\n${await drawn(page)}`)
+    await shot(page, "unfiltered")
+    await narrow(page, "hinges")
+    console.log(`  filtered by "hinges" — * is a match, the rest is context:`)
+    console.log(await drawn(page))
+    console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
+    console.log(`  the address:  ${new URL(page.url()).pathname}${new URL(page.url()).search}`)
+    await shot(page, "with-ancestors")
+  },
+
+  "filter-operators": async (page) => {
+    for (
+      const query of [
+        "is:done",
+        "is:todo",
+        "has:desc",
+        "date:2026-08-10",
+        "date:2026-08-01..2026-08-31",
+        "cabinets -is:doing",
+      ]
+    ) {
+      await narrow(page, query)
+      console.log(`  ${query.padEnd(30)} ${await said(page, FILTER_COUNT)}`)
+      console.log((await drawn(page)).replace(/^/gm, "    "))
+      await shot(page, `op-${query.replace(/[^a-z0-9]+/gi, "-")}`)
+    }
+  },
+
+  "an-operator-it-cannot-read": async (page) => {
+    // The silent-error rule, in the one place a query language invites one: a
+    // filter that searched for the TEXT `is:blocked` would draw an empty page
+    // and give no reason.
+    await narrow(page, "is:blocked")
+    console.log(`  the bar says:  ${await said(page, FILTER_COUNT)}`)
+    console.log(`  and refuses:   ${await said(page, FILTER_REFUSAL)}`)
+    console.log(`  rows drawn:    ${(await drawn(page)).length === 0 ? "none" : "some"}`)
+    await shot(page, "refused")
+  },
+
+  "a-tag-is-a-filter": async (page) => {
+    await shot(page, "before")
+    await page.locator('[data-testid="tag"]').filter({ hasText: "#home" }).first().click()
+    await page.waitForTimeout(400)
+    console.log(`  the address:  ${new URL(page.url()).search}`)
+    console.log(`  the box holds: ${await page.locator(FILTER_INPUT).inputValue()}`)
+    console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
+    console.log(await drawn(page))
+    await shot(page, "filtered-by-the-tag")
+  },
+
+  "a-fold-does-not-hide-a-match": async (page) => {
+    // Folds are SUSPENDED while a filter is on: a collapse is a claim about the
+    // tree the reader was reading, and honouring it inside a filtered tree would
+    // hide the match the filter was typed to find. Nothing is written — clearing
+    // the filter brings the fold back.
+    await page.locator(`${row("install")} [data-testid="toggle"]`).first().click()
+    await page.waitForTimeout(400)
+    console.log(`  collapsed \`install\`:\n${await drawn(page)}`)
+    await shot(page, "collapsed")
+    await narrow(page, "hinges")
+    console.log(`  filtered by "hinges", with that fold still remembered:`)
+    console.log(await drawn(page))
+    await shot(page, "match-is-drawn")
+    await narrow(page, "")
+    console.log(`  filter cleared — the fold is exactly where it was:`)
+    console.log(await drawn(page))
+    await shot(page, "fold-came-back")
+  },
+
   "drag-to-reorder": async (page) => {
     console.log(`  before: ${await order(page)}`)
     await shot(page, "outline")

@@ -25,6 +25,11 @@ import type { Derived, Filter, Refusal, Row } from "@olai/format"
 import { keeping, matchedIn, matching, parseFilter } from "@olai/format"
 import { type Accessor, createMemo } from "solid-js"
 
+/** What an unfiltered page has selected — ONE set, shared by every reading of
+ *  it. A fresh `new Set()` per read would be a new value every frame, and every
+ *  row of the tree memoises against this one. */
+export const NOTHING_MATCHED: ReadonlySet<string> = new Set()
+
 /** What a filtered page knows about itself. */
 export interface Narrowing {
   /** What was typed, verbatim — the value in the box. */
@@ -76,15 +81,18 @@ export const createNarrowing = (source: {
 
   const matched = createMemo(() => {
     const indexes = source.derived()
-    if (indexes === undefined || !active()) return new Set<string>()
+    if (indexes === undefined || !active()) return NOTHING_MATCHED
     return new Set(matching(indexes, query()).map(({ at }) => at.node.id))
   })
 
+  // The ONE guard that is load-bearing: `keeping` over an empty set is an empty
+  // tree, and an unfiltered page draws the whole one. Every count below is
+  // honestly zero without a guard, so none of them has one.
   const rows = createMemo(() =>
     active() ? keeping(source.visible(), matched()) : source.visible()
   )
 
-  const shown = createMemo(() => (active() ? matchedIn(rows(), matched()) : 0))
+  const shown = createMemo(() => matchedIn(rows(), matched()))
 
   return {
     text: source.text,
@@ -96,13 +104,22 @@ export const createNarrowing = (source: {
     matched,
     rows,
     shown,
-    total: createMemo(() => countRows(source.visible())),
+    // Only ever READ beside the count, which is drawn only while a filter is
+    // on — so an unfiltered page does not pay a walk of its whole tree, on
+    // every revision the store publishes, for a number nobody is looking at.
+    total: createMemo(() => (active() ? countRows(source.visible()) : 0)),
     // The difference between what the query selects on this page and what
     // survived the preference. Measured over the page's own rows rather than
     // over the set, because "4 done matches are hidden" is a claim about what
     // is not on this screen.
+    //
+    // The identity check is exact rather than an optimisation that hopes: the
+    // done preference returns THE SAME ARRAY when it is hiding nothing
+    // (`../settings/done.ts`), so two identical lists cannot differ by a match.
     hiddenAsDone: createMemo(() =>
-      active() ? matchedIn(source.all(), matched()) - shown() : 0
+      source.all() === source.visible()
+        ? 0
+        : matchedIn(source.all(), matched()) - shown()
     ),
   }
 }

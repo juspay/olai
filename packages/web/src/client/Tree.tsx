@@ -61,7 +61,7 @@
  * handed here.
  */
 
-import { isOverdue, type Row } from "@olai/format"
+import { isOverdue, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 
@@ -81,7 +81,8 @@ import { onATag } from "./filter/tag.ts"
 import { useUndo } from "./edit/undoing.ts"
 import { NewRow } from "./edit/NewRow.tsx"
 import { DescEditor, keyHandler, Said, TitleEditor } from "./edit/RowEditor.tsx"
-import { collapsedNodes, setFolded } from "./fold/memory.ts"
+import { setFolded } from "./fold/memory.ts"
+import { createFoldReading } from "./fold/reading.ts"
 import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
 import { focusedNode } from "./focus.ts"
 import { createNoteExpand } from "./note/expand.ts"
@@ -127,9 +128,16 @@ export function Tree(props: {
 function Branch(props: {
   readonly row: Row
 }) {
-  // Read from the fold memory itself (./fold/memory.ts) rather than through a
-  // per-page object: what is folded belongs to this BROWSER, and a row is where
-  // it is wanted — the same way the directory's folders are read in Sidebar.tsx.
+  // WHAT THIS PAGE IS NARROWED BY (./filter/narrowed.tsx): whether this row was
+  // a match rather than an ancestor of one. A fact about the PAGE, not the row,
+  // which is why it arrives through a context rather than a thousand props.
+  const narrowed = useNarrowed()
+  // What is folded FOR THIS READING (./fold/reading.ts), not what this browser
+  // has folded. The two differ while a filter is on — a collapse inside a
+  // filtered tree would hide the match the query was typed to find — and the
+  // editor, the selection and the drag walk the SAME answer
+  // (./edit/Editable.tsx), so a second reading here would be a page whose arrow
+  // keys walked rows nobody can see.
   //
   // A memo, not a plain accessor: folding one row mints a new Set, and five
   // separate computations in this component read it. Without the memo every
@@ -137,28 +145,8 @@ function Branch(props: {
   //
   // Asked of the NODE this row folds by — its target if it is a mirror, so the
   // fold is the node's wherever the node appears (./fold/rows.ts).
-  // WHAT THIS PAGE IS NARROWED BY (./filter/narrowed.tsx): whether this row
-  // was a match rather than an ancestor of one, and whether folds are
-  // suspended. Both are the page's, not the row's, which is why they arrive
-  // through a context rather than through a thousand props.
-  const narrowed = useNarrowed()
-  // Read from the fold memory itself (./fold/memory.ts) rather than through a
-  // per-page object: what is folded belongs to this BROWSER, and a row is where
-  // it is wanted — the same way the directory's folders are read in Sidebar.tsx.
-  //
-  // While a FILTER is on, nothing is collapsed: the tree on screen is a
-  // different tree, and honouring a fold inside it would hide the match the
-  // filter was typed to find. The memory is untouched — clearing the filter
-  // brings every collapse back.
-  const collapsed = createMemo(() =>
-    !narrowed.active() && collapsedNodes().has(foldIdOf(props.row))
-  )
-  /** Did the query select THIS row, or is it here to say where a match lives?
-   *  A fact, published for the browser tests and for the tone beside them —
-   *  absent entirely when nothing is filtered. */
-  const matched = createMemo(() =>
-    narrowed.active() ? narrowed.matched().has(foldIdOf(props.row)) : undefined
-  )
+  const folded = createFoldReading()
+  const collapsed = createMemo(() => folded().has(foldIdOf(props.row)))
   // The RECORD a row shows, file and all — the file is what a note's relative
   // picture and a `doc` are relative to, and for a mirror that is the file the
   // node is DEFINED in rather than the one being read.
@@ -325,8 +313,13 @@ function Branch(props: {
       data-blocked={blockedIds(props.row.blocked)}
       // Whether the filter SELECTED this row or kept it as the context that
       // leads to one. Absent on an unfiltered page, which is the difference
-      // between "not a match" and "there is no query".
-      data-match={matched() === undefined ? undefined : String(matched())}
+      // between "not a match" and "there is no query". No memo: a JSX
+      // attribute is already its own computation, and this one has no second
+      // reader — asked of the node the row SHOWS, which is the rule a fold
+      // follows too and the format now spells once (`shownRecord`).
+      data-match={narrowed.active()
+        ? String(narrowed.matched().has(shownRecord(props.row).node.id))
+        : undefined}
     >
       {/* group/row is on the LINE, not the <li>: a parent li also contains
           every nested child, and a named group-hover on the li would reveal

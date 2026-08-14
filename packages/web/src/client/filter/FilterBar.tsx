@@ -26,6 +26,8 @@
 
 import { For, Show } from "solid-js"
 
+import { SaidLine } from "../edit/SaidLine.tsx"
+import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import type { Narrowing } from "./narrowing.ts"
@@ -38,7 +40,6 @@ export function FilterBar(props: {
   readonly narrowing: Narrowing
   readonly onType: (text: string) => void
 }) {
-  const narrowing = () => props.narrowing
   return (
     <div class="mb-3" data-testid={TESTID.filterBar}>
       <div class="flex max-w-md items-center gap-1">
@@ -53,19 +54,21 @@ export function FilterBar(props: {
           data-testid={TESTID.filterInput}
           placeholder={PLACEHOLDER}
           aria-label="filter this page"
-          value={narrowing().text()}
+          value={props.narrowing.text()}
           onInput={(event) => props.onType(event.currentTarget.value)}
-          // Escape empties it and gives the page back — the same answer the
-          // header box gives to the same key, which is the point of both being
-          // a box you type a query into.
+          // WHICH key empties it is the registry's (`../keys.ts`'s list layer,
+          // the same one the header box asks); what `dismiss` MEANS here is
+          // this bar's — the box empties and the page gets the caret back.
+          // The other three answers belong to a shortlist, and this bar has
+          // none, so they are left to the input.
           onKeyDown={(event) => {
-            if (event.key !== "Escape") return
+            if (listKey(event) !== "dismiss") return
             event.preventDefault()
             props.onType("")
             event.currentTarget.blur()
           }}
         />
-        <Show when={narrowing().active()}>
+        <Show when={props.narrowing.active()}>
           <button
             type="button"
             class={`${TARGET_BOX} inline-flex items-center justify-center rounded text-muted hover:text-ink`}
@@ -78,43 +81,45 @@ export function FilterBar(props: {
         </Show>
       </div>
 
-      <Show when={narrowing().active()}>
+      <Show when={props.narrowing.active()}>
         <p
           class="m-0 mt-1 font-mono text-xs text-muted"
           data-testid={TESTID.filterCount}
-          // A count that changes under a reader is worth announcing once it
-          // settles, not on every keystroke.
+          // A READOUT rather than something said about a write, which is why
+          // it is not a `SaidLine` (`../edit/SaidLine.tsx` owns the two MOODS a
+          // write has, and a count has neither). Announced politely for the
+          // reason a remark is: it changes under a reader who is typing, and
+          // interrupting them with each keystroke is worse than the number is
+          // worth.
           aria-live="polite"
         >
-          {narrowing().shown() === 0
+          {props.narrowing.shown() === 0
             ? "no matches"
-            : `${narrowing().shown()} of ${narrowing().total()}`}
-          <Show when={narrowing().hiddenAsDone() > 0}>
-            {` — ${narrowing().hiddenAsDone()} more ${
-              narrowing().hiddenAsDone() === 1 ? "match is" : "matches are"
+            : `${props.narrowing.shown()} of ${props.narrowing.total()}`}
+          <Show when={props.narrowing.hiddenAsDone() > 0}>
+            {` — ${props.narrowing.hiddenAsDone()} more ${
+              props.narrowing.hiddenAsDone() === 1 ? "match is" : "matches are"
             } hidden as done (Prefs)`}
           </Show>
         </p>
       </Show>
 
-      <Show when={narrowing().refusals().length > 0}>
-        <ul
-          class="m-0 mt-1 list-none p-0"
-          data-testid={TESTID.filterRefusals}
-          role="alert"
-        >
-          <For each={[...narrowing().refusals()]}>
-            {(refusal) => (
-              <li
-                class="font-mono text-xs text-alarm"
-                data-testid={TESTID.filterRefusal}
-              >
-                {refusal.token} — {refusal.reason}
-              </li>
-            )}
-          </For>
-        </ul>
-      </Show>
+      {/* The refusal IS a said-thing, and the one mood `SaidLine` calls a
+          refusal: why nothing happened, toned alarm and announced assertively,
+          because a reader who does not notice it believes the directory is
+          empty. The mood — the colour, the `data-tone` a scenario reads, the
+          `role`/`aria-live` pair — is that component's, once, for every
+          surface in this client that has to say one. Only the LAYOUT is
+          here. */}
+      <For each={[...props.narrowing.refusals()]}>
+        {(refusal) => (
+          <SaidLine
+            said={{ tone: "alarm", text: `${refusal.token} — ${refusal.reason}` }}
+            class="m-0 mt-1 font-mono text-xs"
+            testid={TESTID.filterRefusal}
+          />
+        )}
+      </For>
     </div>
   )
 }

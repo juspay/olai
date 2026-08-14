@@ -601,6 +601,21 @@ export function Palette(props: {
               </div>
             )}
           </Show>
+          {/* …and the QUERY's own, which is a fourth question: the words were
+              read and one of them is an operator with a value the grammar does
+              not take. Without this a typo in `is:` looks exactly like an empty
+              directory (`../search/nodes.ts`). */}
+          <For each={[...nodes.refusals()]}>
+            {(refusal) => (
+              <div
+                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
+                data-testid={TESTID.searchRefusal}
+                role="alert"
+              >
+                {refusal.token} — {refusal.reason}
+              </div>
+            )}
+          </For>
           {/* WHAT A WRITE SAID, in a row of its own for the same reason the
               two above have theirs: it is a third question. The mood — its
               colour, its `data-tone`, whether a screen reader is interrupted —

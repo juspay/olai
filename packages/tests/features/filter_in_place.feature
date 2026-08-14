@@ -110,6 +110,15 @@ Feature: Filtering the outline in place
     Then the filter refuses "is:blocked" and says "done, doing, todo, marked, archived"
     And the outline has 0 rows
 
+  Scenario: The header's box refuses the same operator, in the same words
+    # One grammar, four doors. The filter parses for itself; the header box,
+    # the ⌘K palette and an agent ask the server — and a door that answered
+    # `is:blocked` with an empty list and no reason would be the one place a
+    # typo looks exactly like an empty directory.
+    Given I open the outline "house.jsonl"
+    When I search the header for "is:blocked"
+    Then the search refuses "is:blocked" and says "done, doing, todo, marked, archived"
+
   Scenario: Pressing a `#tag` filters the page by it
     # The gesture the tags have been decorative for since title-markdown. It is
     # the same act as typing, so it lands in the same place: the address.
@@ -135,7 +144,7 @@ Feature: Filtering the outline in place
     When I filter the page by "cabinets"
     And I zoom into the node "install"
     Then the address is exactly "/n/install"
-    And the filter box is empty
+    And the filter box holds ""
     When I go back
     Then the address is exactly "/o/house.jsonl?q=cabinets"
 

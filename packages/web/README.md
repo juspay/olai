@@ -1380,12 +1380,19 @@ match and the ancestors that lead to it.
   goes first; the filter is a question about the PAGE and reads what is left. So
   `is:done` under a done-hiding preference draws nothing, and the count says how
   many matches are being held back rather than leaving it a mystery.
-- `narrowed.tsx` — the two things every ROW needs and neither is the row's:
-  whether it matched (`data-match`, so context is tellable from a hit), and
-  whether folds are suspended. **They are, while a filter is on** — a fold is a
-  claim about the tree the reader was reading, and honouring one inside a
-  filtered tree would hide the match the filter was typed to find. The memory is
-  untouched; clearing the filter restores every collapse.
+- `narrowed.tsx` — the one thing every ROW needs that is not the row's: whether
+  it matched (`data-match`, so context is tellable from a hit). A `Pick` of the
+  reading above rather than a second declaration of it, with a default of
+  "nothing is filtered" for a `<Tree>` drawn outside the provider.
+- **Folds are suspended while a filter is on**, and that lives in
+  `fold/reading.ts` rather than here: a fold is a claim about the tree the
+  reader was reading, and honouring one inside a filtered tree would hide the
+  match the filter was typed to find. The memory is untouched; clearing the
+  filter restores every collapse. It is one accessor because FOUR things walk
+  it — the tree draws from it, and the editor, the selection and the drag walk
+  it for where `↑`/`↓` go, what a shift-click spans and where a drop can land
+  (`edit/Editable.tsx` hands one to all three). A reading the tree suspended and
+  those three did not is a page whose arrow keys walk rows nobody can see.
 - `FilterBar.tsx` — the box, the count, the clear, and the refusal line. A known
   operator with an unknown value is REPORTED in the grammar's own words, never
   quietly searched for as text.
@@ -1441,7 +1448,12 @@ drawn and walked with, because the palette is not the only door to either:
 
 The matching is entirely the server's — the same `Query.search` reading an
 agent's `search_nodes` gets — so there is deliberately no matcher in this
-client (`palette/items.ts` says why).
+client (`palette/items.ts` says why). What the answer carries besides the rows
+is `refusals`: a known operator with an unknown value, in the grammar's own
+words, drawn by both doors in a row of its own. It is a DIFFERENT slot from
+`failure` for the reason `failure` is a different slot from the palette's `>`
+ask — a refused call and a refused query are two pieces of news, and a reader
+shown one in the other's sentence has been told something untrue.
 
 ## The keyboard, in one file
 

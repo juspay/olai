@@ -49,7 +49,7 @@ import { fileOf, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
-import { filterOf, narrowedTo } from "./routes.ts"
+import { filterOf, narrowedTo, samePage } from "./routes.ts"
 import { runAsync } from "./run.ts"
 import { visible } from "./settings/done.ts"
 import { Sidebar } from "./Sidebar.tsx"
@@ -80,6 +80,14 @@ export default function App() {
 
   const problems = () => errors.value() ?? []
 
+  // WHICH PAGE IS OPEN, and deliberately not what it is narrowed by: the
+  // filter rides the address, so a query typed one character at a time mints a
+  // fresh `Route` per keystroke — and without this every one of them would
+  // re-resolve the id, re-walk the tree and mint a row per node, for a page
+  // that has not changed. `samePage` asks that through the address bijection
+  // (`./routes.ts`).
+  const opened = createMemo(router.route, undefined, { equals: samePage })
+
   const page = createMemo(() => {
     const indexes = outlines.derived()
     return indexes === undefined ? undefined : pageOf(
@@ -89,7 +97,7 @@ export default function App() {
         documents: documents.paths(),
         broken: outlines.broken(),
       },
-      router.route(),
+      opened(),
       today(),
     )
   })
@@ -332,7 +340,7 @@ export default function App() {
                           whether it matched without being told. */}
                       <NarrowedProvider narrowed={narrowing}>
                       <Show
-                        when={only(open(), "outline") ?? only(open(), "node")}
+                        when={open().kind === "outline" || open().kind === "node"}
                       >
                         <FilterBar narrowing={narrowing} onType={narrow} />
                       </Show>

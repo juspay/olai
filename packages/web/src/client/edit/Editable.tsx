@@ -32,7 +32,7 @@
 import type { Row } from "@olai/format"
 import { type Accessor, type JSX, onCleanup, onMount } from "solid-js"
 
-import { collapsedNodes } from "../fold/memory.ts"
+import { createFoldReading } from "../fold/reading.ts"
 import { createDragging, DraggingProvider } from "../drag/dragging.ts"
 import { DropLine } from "../drag/DropLine.tsx"
 import { isEditingTarget, type SelectAction, selectKey } from "../keys.ts"
@@ -43,15 +43,20 @@ import { createEditor, EditorProvider } from "./editing.tsx"
 export function Editable(props: {
   /** What is drawn — half of where `↑`/`↓` go, of where a row that has moved
    *  is found again, and of what a drop can land beside. The other half is what
-   *  is FOLDED, which is not a prop because it is not this page's: it belongs to
-   *  the browser (`../fold/memory.ts`), and all three read it where the tree
-   *  does. */
+   *  is FOLDED, which is not a prop because it is not this page's: it belongs
+   *  half to the browser and half to the reading (`../fold/reading.ts`), and
+   *  all three read it where the tree does. */
   readonly rows: Accessor<ReadonlyArray<Row>>
   readonly children: JSX.Element
 }) {
   const page = {
     rows: () => props.rows(),
-    collapsed: collapsedNodes,
+    // What is folded FOR THIS READING rather than what this browser has folded
+    // (`../fold/reading.ts`): a filter draws its tree expanded, and three
+    // walkers that still saw the collapses would move the caret, span a pick
+    // and offer a drop among rows nobody can see. The tree reads the same
+    // accessor.
+    collapsed: createFoldReading(),
   }
   const selection = createSelection(page)
   const editor = createEditor(page, selection)

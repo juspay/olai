@@ -9,13 +9,15 @@
  *
  * WAITED FOR, never read once. Every assertion here follows a keystroke that
  * re-renders the tree, and reading a count or an attribute in the same tick
- * races the frame that produced it — so each one is a selector that only
- * matches when the page has settled on the answer.
+ * races the frame that produced it — so each one goes through the suite's own
+ * two waits: a locator where a selector can express the question, and
+ * `world.waitUntil` where it cannot ("this count has changed").
  */
 
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { saysThat } from "../support/said.ts";
 import {
   FILTER_BAR,
   FILTER_CLEAR,
@@ -26,14 +28,14 @@ import {
   nodeSelector,
   OUTLINE_TREE,
   POLL_TIMEOUT,
+  SEARCH_REFUSAL,
   TAG,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 /** Every row the tree draws — the ones a reader counts. Scoped to the tree, so
  *  a zoomed page's own heading (which is a node too, and says so) is not one. */
-const rows = (world: OlaiWorld) =>
-  world.page.locator(`${OUTLINE_TREE} ${NODE}`);
+const rows = (world: OlaiWorld) => world.page.locator(`${OUTLINE_TREE} ${NODE}`);
 
 // ── typing ─────────────────────────────────────────────────────────────
 
@@ -56,33 +58,28 @@ When("I clear the filter", async function (this: OlaiWorld) {
 Then(
   "the outline has {int} rows",
   async function (this: OlaiWorld, expected: number) {
-    // Polled through Playwright's own retrying assertion shape: a count read
-    // once is a count read in whichever frame the keystroke happened to land.
-    await this.page
-      .waitForFunction(
-        ([selector, want]) =>
-          document.querySelectorAll(selector as string).length === want,
-        [`${OUTLINE_TREE} ${NODE}`, expected] as const,
-        { timeout: POLL_TIMEOUT },
-      )
-      .catch(() => undefined);
-    assert.strictEqual(await rows(this).count(), expected);
+    await this.waitUntil(
+      async () => (await rows(this).count()) === expected,
+      `the outline has ${expected} rows`,
+    );
   },
 );
 
 Then(
   "the filter found {string}",
   async function (this: OlaiWorld, said: string) {
-    const count = this.page.locator(FILTER_COUNT);
-    await count.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await count
-      .filter({ hasText: said })
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-      .catch(() => undefined);
-    assert.ok(
-      (await count.innerText()).includes(said),
-      `the filter says "${await count.innerText()}", not "${said}"`,
-    );
+    // The count settles a frame after the query. Waited for here because a
+    // sentence that CHANGES is not a selector; read and reported by the
+    // suite's one reader (`support/said.ts`), so a failure says what the bar
+    // actually says.
+    await this.waitUntil(
+      async () =>
+        (await this.page.locator(FILTER_COUNT).innerText().catch(() => "")).includes(
+          said,
+        ),
+      `the filter says ${JSON.stringify(said)}`,
+    ).catch(() => undefined);
+    await saysThat(this, FILTER_COUNT, said, "filter count");
   },
 );
 
@@ -114,17 +111,26 @@ Then(
   },
 );
 
+/** The token AND what the operator takes — the second half is the whole point.
+ *  A refusal naming the typo without saying what would have worked is a
+ *  refusal that leaves the reader exactly where they were. The TONE is asserted
+ *  through the same `data-tone` fact every other said-line in this suite is
+ *  read by (`support/said.ts`). */
 Then(
   "the filter refuses {string} and says {string}",
   async function (this: OlaiWorld, token: string, teaching: string) {
-    const line = this.page.locator(FILTER_REFUSAL).first();
-    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const said = await line.innerText();
-    assert.ok(said.includes(token), `the refusal does not name \`${token}\`: ${said}`);
-    assert.ok(
-      said.includes(teaching),
-      `the refusal does not say what the operator takes: ${said}`,
-    );
+    await saysThat(this, FILTER_REFUSAL, token, "filter refusal", "alarm");
+    await saysThat(this, FILTER_REFUSAL, teaching, "filter refusal");
+  },
+);
+
+/** The SAME refusal, on a door that had to ask the server for it. One step for
+ *  both of those doors, because it is one sentence about one grammar. */
+Then(
+  "the search refuses {string} and says {string}",
+  async function (this: OlaiWorld, token: string, teaching: string) {
+    await saysThat(this, SEARCH_REFUSAL, token, "search refusal");
+    await saysThat(this, SEARCH_REFUSAL, teaching, "search refusal");
   },
 );
 
@@ -138,12 +144,6 @@ Then(
     assert.strictEqual(await box.inputValue(), text);
   },
 );
-
-Then("the filter box is empty", async function (this: OlaiWorld) {
-  const box = this.page.locator(FILTER_INPUT);
-  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  assert.strictEqual(await box.inputValue(), "");
-});
 
 Then("there is no filter bar", async function (this: OlaiWorld) {
   assert.strictEqual(
@@ -173,7 +173,5 @@ Then(
 // ── the tag, pressed ───────────────────────────────────────────────────
 
 When("I press the tag {string}", async function (this: OlaiWorld, tag: string) {
-  await this.press(
-    this.page.locator(TAG).filter({ hasText: tag }).first(),
-  );
+  await this.press(this.page.locator(TAG).filter({ hasText: tag }).first());
 });

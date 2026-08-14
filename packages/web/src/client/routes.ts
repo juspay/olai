@@ -197,28 +197,45 @@ export const routeOf = (address: string): Route => {
 }
 
 /**
+ * Which addresses may be narrowed — the two TREE pages, and the one place that
+ * list is written down.
+ *
+ * It was said three times before this: once in the arms that carry a `filter`,
+ * once in {@link narrowedTo}'s guard and once in {@link filterOf}'s. Three
+ * spellings of "the outline and the zoomed node" is three edits the day a day
+ * page grows one, and two of them are easy to miss because nothing fails when
+ * they disagree — the filter simply goes nowhere.
+ */
+export const narrowable = (route: Route): route is Extract<Route, { filter?: string }> =>
+  route.kind === "outline" || route.kind === "node"
+
+/**
  * The same page, narrowed — or not, when `filter` is blank.
  *
- * Here rather than at the two call sites because "which routes may carry one"
- * is this module's answer: a filter typed on a day page has nowhere to go, and
- * a caller that spread it onto the route anyway would mint an address
- * {@link hrefOf} silently drops and {@link routeOf} never returns.
+ * Here rather than at the call site because a filter typed on a day page has
+ * nowhere to go, and a caller that spread it onto the route anyway would mint
+ * an address {@link hrefOf} silently drops and {@link routeOf} never returns.
  */
 export const narrowedTo = (route: Route, filter: string): Route => {
-  if (route.kind !== "outline" && route.kind !== "node") return route
-  return filter.trim() === "" ? withoutFilter(route) : { ...route, filter }
-}
-
-/** The unfiltered spelling of a route, with no `filter` key at all — absent
- *  rather than empty, so two routes for the same unfiltered page are one
- *  string in the bar and one entry in the history. */
-const withoutFilter = (route: Extract<Route, { filter?: string }>): Route => {
-  const { filter: _dropped, ...rest } = route
-  return rest
+  if (!narrowable(route)) return route
+  return { ...route, filter: filter.trim() === "" ? undefined : filter }
 }
 
 /** What a page is narrowed BY, for the one component that draws it and the
  *  memo that parses it. Read off the route for the reason `fileNamed` is: the
  *  route is what an address decodes to, and a copy beside it could differ. */
 export const filterOf = (route: Route): string =>
-  (route.kind === "outline" || route.kind === "node" ? route.filter : undefined) ?? ""
+  (narrowable(route) ? route.filter : undefined) ?? ""
+
+/**
+ * The same PAGE, whatever it is narrowed by.
+ *
+ * What it is for is the one thing a filter must NOT do: a query typed one
+ * character at a time mints a fresh `Route` per keystroke, and everything
+ * downstream of "which page is open" — resolving the id, walking the tree,
+ * minting a row per node — would be redone for each of them. Asked through the
+ * bijection rather than field by field, so it cannot go stale against a route
+ * arm added later.
+ */
+export const samePage = (a: Route, b: Route): boolean =>
+  hrefOf(narrowedTo(a, "")) === hrefOf(narrowedTo(b, ""))

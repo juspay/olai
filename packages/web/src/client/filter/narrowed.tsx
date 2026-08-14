@@ -16,13 +16,15 @@
  * A context rather than a prop for the reason `../derived.tsx` is one: a tree
  * of a thousand rows should not thread two more arguments through every level
  * to answer what one binding on each row asks. The default is the honest
- * "nothing is filtered" — a day page draws `<Tree>` too, and it has no filter
- * to have (`../routes.ts` says which routes may carry one).
+ * "nothing is filtered", for a `<Tree>` drawn outside the provider — which no
+ * page does today (both tree pages sit inside it), so it is a promise about the
+ * component rather than a state a reader can reach. A default rather than a
+ * throw because "no filter" is a real thing to be, unlike a missing router.
  */
 
 import { createContext, type JSX, useContext } from "solid-js"
 
-import type { Narrowing } from "./narrowing.ts"
+import { NOTHING_MATCHED, type Narrowing } from "./narrowing.ts"
 
 /**
  * The two halves of the page's reading (`./narrowing.ts`) that a ROW asks for:
@@ -38,12 +40,8 @@ export type Narrowed = Pick<Narrowing, "active" | "matched">
 
 const NOTHING: Narrowed = {
   active: () => false,
-  matched: () => EMPTY,
+  matched: () => NOTHING_MATCHED,
 }
-
-/** One empty set, shared: a fresh one per read would make every row's memo
- *  re-run on every frame the store publishes. */
-const EMPTY: ReadonlySet<string> = new Set()
 
 const NarrowedContext = createContext<Narrowed>(NOTHING)
 

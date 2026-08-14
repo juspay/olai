@@ -35,6 +35,7 @@ import {
   parseFilter,
   type Progress,
   progressOf,
+  type Refusal,
   type SearchField,
   type Status,
   tagText,
@@ -123,6 +124,17 @@ export interface Search {
   /** How many nodes matched in all. `hits` is capped; this is not, so "twelve
    *  of ninety" is sayable. */
   readonly total: number
+  /** What the grammar could not read, in its own words — a known operator with
+   *  an unknown value (`is:blocked`). ABSENT for every query it could read.
+   *
+   *  It travels rather than being swallowed because this layer is the only one
+   *  that HAS it: the parser is one package down and the box a person typed
+   *  into is one package up, and a door that answered `is:blocked` with an
+   *  empty list and no reason would be exactly the silent failure the refusals
+   *  exist to prevent (HACKING.md's error rule). The filter over the tree draws
+   *  its own because it parses for itself; these are for the three doors that
+   *  ask this procedure. */
+  readonly refusals?: ReadonlyArray<Refusal>
 }
 
 /** What one node's page would say, plus the record itself. */
@@ -278,8 +290,10 @@ const DEFAULT_LIMIT = 12
  * header names them and docs/brainstorming/filter-in-place.md argues it.
  *
  * What is still this layer's is everything about showing a stranger a
- * SHORTLIST: a finished node loses ties, the list is capped, and the total is
- * reported uncapped so "twelve of ninety" is sayable.
+ * SHORTLIST — a finished node loses ties, the list is capped, and the total is
+ * reported uncapped so "twelve of ninety" is sayable — and CARRYING THE
+ * REFUSAL, because this is the only layer that has both the parser's answer and
+ * a caller to hand it to.
  */
 export const search = (
   derived: Derived,
@@ -294,13 +308,15 @@ export const search = (
   },
 ): Search => {
   const filter = parseFilter(query.text)
-  // An empty query and one the grammar refused both answer with nothing, and
-  // the difference between them is not this layer's to draw: a tool call gets
-  // no rows either way, and the reason a person needs is drawn by the box they
-  // typed into (`@olai/web`'s filter bar).
-  if (filter.kind !== "asking") return { hits: [], total: 0 }
+  // A query the grammar could not read answers with no hits AND WITH THE
+  // REASON. An empty one answers with no hits and nothing to say — there is no
+  // question to have refused.
+  if (filter.kind === "refused") {
+    return { hits: [], total: 0, refusals: filter.refusals }
+  }
+  if (filter.kind === "nothing") return { hits: [], total: 0 }
 
-  const scored = matching(derived, filter, { file: query.file, under: query.under })
+  const ranked = matching(derived, filter, { file: query.file, under: query.under })
     .map(({ at, match }) => {
       const found = foundOf(derived, at)
       return {
@@ -316,9 +332,11 @@ export const search = (
     })
 
   // Ties keep the order the outlines are written in, so an answer never moves
-  // under the cursor between two keystrokes. `scored` is already in that order
-  // and `sort` is stable.
-  const ranked = scored.slice().sort((a, b) => b.score - a.score)
+  // under the cursor between two keystrokes. The list is already in that order
+  // — `matching` walks the set in file-then-line order — and `sort` is stable.
+  // Sorted in place, because the array was minted by the `map` above and is
+  // nobody else's.
+  ranked.sort((a, b) => b.score - a.score)
   const limit = query.limit ?? DEFAULT_LIMIT
   return { hits: ranked.slice(0, limit).map((entry) => entry.hit), total: ranked.length }
 }

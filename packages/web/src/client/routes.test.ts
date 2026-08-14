@@ -1,6 +1,14 @@
 import { expect, test } from "bun:test"
 
-import { filterOf, hrefOf, narrowedTo, type Route, routeIn, routeOf } from "./routes.ts"
+import {
+  filterOf,
+  hrefOf,
+  narrowedTo,
+  type Route,
+  routeIn,
+  routeOf,
+  samePage,
+} from "./routes.ts"
 
 /** Every route the app can be at, as its own case. A link the app WRITES that
  *  it cannot READ BACK is a page that loads as something else on a reload, and
@@ -86,14 +94,26 @@ test("only the two tree routes take a filter, and a blank one takes it off", () 
     kind: "day",
     date: "2026-08-10",
   })
-  // Cleared, and the key is GONE rather than empty — an unfiltered page has
-  // one spelling.
+  // Cleared. What matters is the ADDRESS, which is where the one-spelling rule
+  // actually bites: two routes for the same unfiltered page are one string in
+  // the bar and one entry in the history.
   const cleared = narrowedTo(
     { kind: "outline", file: "house.jsonl", filter: "#home" },
     "",
   )
-  expect(cleared).toEqual({ kind: "outline", file: "house.jsonl" })
-  expect(cleared).not.toHaveProperty("filter")
+  expect(filterOf(cleared)).toBe("")
+  expect(hrefOf(cleared)).toBe("/o/house.jsonl")
+  expect(samePage(cleared, { kind: "outline", file: "house.jsonl" })).toBe(true)
+})
+
+// What the page memo is keyed on: a query typed one character at a time must
+// not re-resolve the page under it (`App.tsx`).
+test("two addresses for one page are the same page, whatever narrows them", () => {
+  const bare: Route = { kind: "node", id: "install" }
+  expect(samePage(bare, narrowedTo(bare, "#home"))).toBe(true)
+  expect(samePage(narrowedTo(bare, "a"), narrowedTo(bare, "b"))).toBe(true)
+  expect(samePage(bare, { kind: "node", id: "hinges" })).toBe(false)
+  expect(samePage(bare, { kind: "outline", file: "house.jsonl" })).toBe(false)
 })
 
 test("what a page is narrowed by is read off the route", () => {

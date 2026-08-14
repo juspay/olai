@@ -624,8 +624,11 @@ export const TESTID = {
   filterClear: "filter-clear",
   /** A known operator with an unknown value, in the grammar's own words —
    *  never a query that quietly found nothing. */
-  filterRefusals: "filter-refusals",
   filterRefusal: "filter-refusal",
+  /** The SAME refusal, on the two doors that ask the server for it — the ⌘K
+   *  palette and the header box. One name for both, because it is one sentence
+   *  about one grammar; where it is drawn is each door's own business. */
+  searchRefusal: "search-refusal",
   // ── the header's search box, the other door to the same reading ──────
   headerSearch: "header-search",
   /** The phone's door: opens the palette, which is the same modal. */
