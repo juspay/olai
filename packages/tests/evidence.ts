@@ -12,7 +12,7 @@
  * a frame nobody can reproduce.
  */
 import { readdirSync, readFileSync } from "node:fs"
-import { chromium, type Locator, type Page } from "playwright"
+import { type Browser, chromium, type Locator, type Page } from "playwright"
 
 const BASE = process.env["BASE"] ?? "http://127.0.0.1:7788"
 const OUT = process.env["SHOTS"] ?? "."
@@ -61,13 +61,79 @@ const promised = async (page: Page) => {
   } depth=${await line.getAttribute("data-depth")}`
 }
 
+const SELECTION_BAR = '[data-testid="selection-bar"]'
 const picked = async (page: Page) =>
-  await page.locator('[data-testid="selection-bar"]').getAttribute("data-rows")
+  await page.locator(SELECTION_BAR).getAttribute("data-rows")
+
+/** The band a drag-across pulls, and how many rows it says it is crossing —
+ *  the half of that gesture that is still a prediction while the pointer is
+ *  down, exactly as the drop line is for a drag. */
+const SWEEP_BAND = '[data-testid="sweep-band"]'
+const band = async (page: Page) =>
+  await page.locator(SWEEP_BAND).first().getAttribute("data-rows")
+
+/** How much page there is to scroll, and how much window there is to see it in
+ *  — printed rather than assumed, because a section about the page KEEPING UP
+ *  proves nothing over a page that fits. */
+const room = async (page: Page) =>
+  await page.evaluate(() =>
+    `${document.documentElement.scrollHeight}px of page in a ${window.innerHeight}px window`
+  )
+
+/** The empty strip beside a row — its enclosing list's own padding, which is
+ *  scaffolding and holds no words, so a press there is a sweep rather than a
+ *  text selection. Measured rather than named: it is not a control and has no
+ *  testid, and what makes it pressable is that nothing else is there. */
+const rail = async (page: Page, id: string) =>
+  await page.locator(row(id)).first().evaluate((one) => {
+    const list = one.parentElement?.closest("ul")
+    const line = one.querySelector("[data-row-key]")
+    if (!list || !line) throw new Error("no rail beside that row")
+    const box = list.getBoundingClientRect()
+    const on = line.getBoundingClientRect()
+    return { x: box.x + 4, y: on.y + on.height / 2 }
+  })
 
 const pick = async (page: Page, first: string, last?: string) => {
   await page.locator(title(first)).click({ modifiers: ["Control"] })
   if (last !== undefined) await page.locator(title(last)).click({ modifiers: ["Shift"] })
   await page.waitForTimeout(300)
+}
+
+/**
+ * A window shorter than the outline, so there is something to scroll.
+ *
+ * No corpus here is taller than a screen on its own — they are outlines a
+ * person can read inside a scenario — so the WINDOW is what shrinks, which is a
+ * real shape too (a short laptop, a handset with its keyboard up). The browser
+ * tests make their room the same way and assert it (`support/world.ts`'s
+ * `shrinkToScroll`).
+ */
+const short = async (page: Page, width: number, height: number): Promise<void> => {
+  await page.setViewportSize({ width, height })
+  await page.waitForTimeout(400)
+}
+
+/**
+ * Hold the pointer at the bottom of the window, the way a hand does: it arrives
+ * there and then keeps moving a little, because a hand at the edge of a screen
+ * is a hand pushing rather than a hand parked.
+ *
+ * The nudges are not decoration. A gesture that has run out of screen keeps
+ * reporting on its own (`client/autoscroll.ts` re-reads the pointer against a
+ * page that has moved), but a headless browser's frame clock is not a hand's,
+ * and a section that stood perfectly still for a fixed number of milliseconds
+ * would be a section about the harness's timing.
+ */
+const atTheEdge = async (page: Page, x: number): Promise<void> => {
+  const view = page.viewportSize()
+  if (view === null) throw new Error("this page has no viewport size")
+  await page.mouse.move(x, view.height - 8, { steps: 10 })
+  for (let nudge = 0; nudge < 8; nudge++) {
+    await page.waitForTimeout(120)
+    await page.mouse.move(x + (nudge % 2), view.height - 8)
+  }
+  await page.waitForTimeout(200)
 }
 
 const SETTLE = 1800
@@ -369,6 +435,166 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     await shot(page, "refused")
   },
 
+  // ── the three deferrals #159 named ───────────────────────────────────
+  //
+  // Drag-across, the page keeping up with a gesture, and a finger picking a row
+  // up. Each section drives ONE of them end to end and prints what the page
+  // says at the moment it is still a prediction.
+
+  "drag-across": async (page) => {
+    // The rail beside a branch: scaffolding, holding no words, so a press there
+    // is about the rows rather than about the text.
+    const from = await rail(page, "demo")
+    const to = await boxOf(page.locator(title("install")))
+    // The BAR, not what it says: a page with nothing picked draws none at all,
+    // so this is "how many bars" rather than "how many rows".
+    console.log(`  before: ${await page.locator(SELECTION_BAR).count()} bars drawn`)
+    await page.mouse.move(from.x, from.y)
+    await page.mouse.down()
+    await page.mouse.move(from.x, to.y + to.height / 2, { steps: 14 })
+    await page.waitForTimeout(200)
+    console.log(`  the band is crossing: ${await band(page)} rows`)
+    console.log(`  picked while pulling: ${await picked(page)}`)
+    await shot(page, "sweeping")
+    await page.mouse.up()
+    await page.waitForTimeout(400)
+    console.log(`  picked after letting go: ${await picked(page)}`)
+    await shot(page, "picked")
+
+    // The other half of the rule, and the thing that would have been LOST: a
+    // pull begun IN the words is still the browser's own text selection.
+    await page.keyboard.press("Escape")
+    const words = await boxOf(page.locator(title("order")))
+    await page.mouse.move(words.x + 4, words.y + words.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(words.x + words.width - 4, words.y + words.height * 3, { steps: 12 })
+    await page.waitForTimeout(200)
+    console.log(
+      `  a pull in the words selects: "${
+        await page.evaluate(() => window.getSelection()?.toString() ?? "")
+      }"`,
+    )
+    console.log(`  ...and draws no band: ${await page.locator(SWEEP_BAND).count()}`)
+    await shot(page, "text-not-rows")
+    await page.mouse.up()
+  },
+
+  "the-page-keeps-up": async (page) => {
+    await short(page, 1_100, 320)
+    console.log(`  room: ${await room(page)}`)
+    console.log(`  at: ${await page.evaluate(() => window.scrollY)}`)
+    await shot(page, "at-the-top")
+    const box = await boxOf(page.locator(handle("demo")))
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await atTheEdge(page, box.x + 40)
+    console.log(`  held at the bottom edge, the page is at: ${
+      await page.evaluate(() => window.scrollY)
+    }`)
+    // The last row of the file, which was below the fold when the press
+    // landed: the gesture reaches it only because the page came to it.
+    console.log(`  the line promises: ${await promised(page)}`)
+    await shot(page, "scrolled")
+    await page.mouse.up()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  order: ${await order(page)}`)
+    await shot(page, "dropped")
+  },
+
+  "a-sweep-keeps-up": async (page) => {
+    await short(page, 1_100, 320)
+    console.log(`  room: ${await room(page)}`)
+    const from = await rail(page, "demo")
+    await page.mouse.move(from.x, from.y)
+    await page.mouse.down()
+    await atTheEdge(page, from.x)
+    console.log(`  the page is at: ${await page.evaluate(() => window.scrollY)}`)
+    console.log(`  the band is crossing: ${await band(page)} rows`)
+    console.log(`  picked: ${await picked(page)}`)
+    await shot(page, "swept-past-the-fold")
+    await page.mouse.up()
+  },
+
+  "a-finger-picks-a-row-up": async (page) => {
+    const touch = await page.context().newCDPSession(page)
+    const finger = (type: string, at?: { x: number; y: number }) =>
+      touch.send("Input.dispatchTouchEvent" as never, {
+        type,
+        touchPoints: at === undefined ? [] : [at],
+      } as never)
+
+    console.log(`  room: ${await room(page)}`)
+
+    // The gesture itself: hold, and the row lifts where it is.
+    const knobs = await boxOf(page.locator(handle("knobs")))
+    const at = { x: knobs.x + knobs.width / 2, y: knobs.y + knobs.height / 2 }
+    await finger("touchStart", at)
+    await page.waitForTimeout(800)
+    console.log(`  after holding it: in the air ${
+      await page.locator('[data-carried="true"]').count()
+    }, menu panels ${await page.locator('[data-testid="node-menu-panel"]').count()}`)
+    await shot(page, "lifted")
+    const above = await boxOf(page.locator(title("handles")))
+    for (let step = 1; step <= 8; step++) {
+      await finger("touchMove", {
+        x: at.x + ((above.x + 4 - at.x) * step) / 8,
+        y: at.y + ((above.y - 2 - at.y) * step) / 8,
+      })
+      await page.waitForTimeout(30)
+    }
+    await page.waitForTimeout(200)
+    console.log(`  the line promises: ${await promised(page)}`)
+    await shot(page, "dragging")
+    await finger("touchEnd")
+    await page.waitForTimeout(SETTLE)
+    console.log(`  order: ${await order(page)}`)
+    console.log(`  the address is still: ${new URL(page.url()).pathname}`)
+    await shot(page, "dropped")
+
+    // And the menu still has its door: hold the ROW rather than the bullet.
+    await page.locator(`${row("kitchen")} [data-testid="node-gutter"]`).first()
+      .waitFor()
+    const line = await boxOf(
+      page.locator(`${row("kitchen")} [data-testid="node-gutter"]`).first(),
+    )
+    await finger("touchStart", { x: line.x + line.width / 2, y: line.y + line.height / 2 })
+    await page.waitForTimeout(800)
+    await finger("touchEnd")
+    await page.waitForTimeout(400)
+    console.log(`  holding the ROW still opens the menu: ${
+      await page.locator('[data-testid="node-menu-panel"]').count()
+    }`)
+    await shot(page, "the-menu-still-opens")
+
+    // And the promise the whole design rests on, LAST because it is the one
+    // gesture that leaves the page somewhere else: a flick that STARTS on the
+    // handle still scrolls, and lifts nothing. Claiming the cell with
+    // `touch-action: none` would have passed everything above and left a 28px
+    // dead strip down the left of every outline.
+    await page.keyboard.press("Escape")
+    // A screen with somewhere to scroll TO, which this outline does not give a
+    // 620pt handset: the same shape a phone with its keyboard up has, and the
+    // one the suite's own scroll fence uses.
+    await short(page, 390, 400)
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.waitForTimeout(400)
+    console.log(`  room for a flick: ${await room(page)}`)
+    const flick = await boxOf(page.locator(handle("kitchen")))
+    const from = { x: flick.x + flick.width / 2, y: flick.y + flick.height / 2 }
+    await finger("touchStart", from)
+    for (let step = 1; step <= 10; step++) {
+      await page.waitForTimeout(50)
+      await finger("touchMove", { x: from.x, y: from.y - 24 * step })
+    }
+    await finger("touchEnd")
+    await page.waitForTimeout(300)
+    console.log(`  a flick that STARTS on the bullet scrolls to: ${
+      await page.evaluate(() => window.scrollY)
+    }`)
+    console.log(`  ...and lifts nothing: ${await page.locator('[data-carried="true"]').count()}`)
+    await shot(page, "a-flick-still-scrolls")
+  },
+
   // ── writing a node's edges, and starting an outline ──────────────────
   //
   // `editor-op-parity`'s last three children. Each section drives ONE of the
@@ -473,14 +699,77 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
   },
 }
 
+/**
+ * What SHAPE of browser a section wants, where the default is not it.
+ *
+ * Only ONE thing is set here, and it is the thing that can only be set at
+ * creation: a context with a TOUCHSCREEN and no mouse, which is the whole point
+ * of the finger's section. The two auto-scroll sections want a short window and
+ * ask for it INSIDE the section instead ({@link short}), because setting it
+ * here does not do what it looks like — see that helper.
+ */
+/**
+ * What SHAPE of browser a section wants, where the default is not it.
+ *
+ * One entry, and it is the thing that can ONLY be set at creation: a context
+ * with a touchscreen and no mouse, which is the whole point of the finger's
+ * section.
+ *
+ * THERE IS NO SECTION FOR AUTO-SCROLL, deliberately. That gesture is only
+ * itself in a window SHORTER than the outline, and this driver cannot reliably
+ * make one: the app's panes are sized in `dvh`, and an emulated viewport — set
+ * at creation or resized after load — leaves this page reporting the new
+ * `innerHeight` while `100dvh` still resolves against the old one, so the pane
+ * stays a screen taller than the window and the gesture is measured against a
+ * page that does not exist. The browser tests do not have the problem (their
+ * own `shrinkToScroll` asserts the room it makes, and two scenarios in
+ * `dragdrop_multiselect.feature` hold the gesture end to end), which is the
+ * division this file's opening line already draws: the promises live in the
+ * features, and this is what a person looks at.
+ */
+const SHAPES: Record<string, Parameters<Browser["newContext"]>[0]> = {
+  // The browser tests' own handset, to the pixel and the scale factor
+  // (`support/hooks.ts`'s `PHONE`): an iPhone 13's 390×844, a touch screen and
+  // no mouse. `isMobile` is what makes Chromium honour the shell's viewport
+  // meta at all, and the scale factor is what makes a dispatched touch land
+  // where the CSS pixel is.
+  "a-finger-picks-a-row-up": {
+    viewport: { width: 390, height: 620 },
+    hasTouch: true,
+    isMobile: true,
+  },
+}
+
 const main = async () => {
   const section = SECTIONS[SECTION]
   if (section === undefined) {
     console.log(Object.keys(SECTIONS).join("\n"))
     return
   }
-  const browser = await chromium.launch()
-  const page = await browser.newPage({ viewport: { width: 1100, height: 720 } })
+  // The browser tests' own argv (`support/hooks.ts`), and not for their
+  // reasons: what matters here is `--headless=new`, which is a different
+  // browser from the old headless shell — the shell does not turn a dispatched
+  // touch into the pointer events a long press is made of, so a section about a
+  // finger silently held nothing. The rest are the flags that make Chromium
+  // survive a container with a small `/dev/shm`, harmless on a laptop.
+  const browser = await chromium.launch({
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--headless=new",
+    ],
+  })
+  // A CONTEXT of its own rather than `browser.newPage(options)`, which is the
+  // same thing with an implicit one — except that a touchscreen is a property
+  // of the context, and the DevTools session the finger's section opens has to
+  // be against a context that has one. The browser tests take the same route
+  // (`support/hooks.ts`).
+  const context = await browser.newContext(
+    SHAPES[SECTION] ?? { viewport: { width: 1100, height: 720 } },
+  )
+  const page = await context.newPage()
   page.on("pageerror", (error) => console.error("PAGE ERROR", error))
   await page.goto(`${BASE}/o/house.jsonl`)
   await page.locator('[data-testid="outline-tree"]').first().waitFor()

@@ -170,3 +170,21 @@ export const ROW_NOTE = "text-[0.875rem] leading-snug text-muted"
 
 /** How far a child list indents from its parent, and the vertical guide. */
 export const CHILD_INDENT = "ml-3 list-none border-l border-rule pl-3 md:ml-4 md:pl-4"
+
+/**
+ * The outline's own left RAIL: the strip a press can land on beside a row that
+ * has no list above it to indent from.
+ *
+ * A nested list gives its branch one for free — the padding half of
+ * {@link CHILD_INDENT} is scaffolding a person can press, which is what makes a
+ * drag-across startable beside any indented row (`../client/drag/sweeping.ts`).
+ * A ROOT row had none: the outline's own list is flush, so the leftmost
+ * empty-looking band on a flat inbox belonged to the row's hover controls, and
+ * the one sweep such a page could not make was a prefix of it.
+ *
+ * Taken out of the PANE's padding rather than out of the page — the negative
+ * margin and the padding are the same number — so the rail exists at depth 0
+ * and nothing moves by a pixel. The numbers are the nested list's own, because
+ * it is the same strip one level up.
+ */
+export const ROOT_RAIL = "-ml-3 pl-3 md:-ml-4 md:pl-4"

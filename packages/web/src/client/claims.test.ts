@@ -115,6 +115,53 @@ test("only layer.ts spells a z-index", () => {
   expect(filesSpelling(/(?:^|[\s"'`])z-(?:\[\d+\]|\d+|auto)(?=$|[\s"'`])/m)).toEqual(["layer.ts"])
 })
 
+// drag/sweeping.ts's claim — the outline's SCAFFOLDING is the only thing a
+// drag-across may begin on, and the mark that says so is written as a literal
+// at each site (a JSX spread there would move every `data-` fact a row carries
+// onto Solid's runtime spread path, per row, per frame). A literal cannot be
+// renamed by the type checker, so it is swept instead: exactly the module that
+// reads the attribute and the two components that wear it. A fourth file
+// spelling it is a new surface nobody argued for — and a missing one is a rail
+// that quietly stopped being pressable, which nothing else would notice.
+test("only the outline's scaffolding is marked as a sweep surface", () => {
+  expect(filesSpelling(/data-sweep/)).toEqual([
+    "Tree.tsx",
+    path.join("drag", "sweeping.ts"),
+    path.join("edit", "Editable.tsx"),
+  ])
+})
+
+// The other two attributes a row's LINE and its HANDLE wear, swept for the same
+// reason and with the same shape. Each is declared once as a constant and
+// written out once as a literal, because a JSX spread would put every attribute
+// of those elements — including the row line's `classList` — on Solid's runtime
+// spread path, per row, per frame. A literal cannot be renamed by the type
+// checker; these are what hold the two spellings together.
+test("a row's line is marked in exactly the module that reads it and the tree that draws it", () => {
+  expect(filesSpelling(/data-row-key/)).toEqual(["Tree.tsx", path.join("drag", "lines.ts")])
+})
+
+// The handle's is two rather than three, and the missing one is the point:
+// `menu/door.ts` stands down on this mark and spells it as the CONSTANT, so the
+// type checker already holds its end. Only the declaration and the cell that
+// wears it are literals, and only they need a sweep.
+test("a row's handle is marked in the gesture that owns it and the cell that wears it", () => {
+  expect(filesSpelling(/data-handle/)).toEqual([
+    path.join("drag", "Handle.tsx"),
+    path.join("drag", "dragging.ts"),
+  ])
+})
+
+// pointer.ts's claim — one file suppresses the text selection under a gesture.
+// It is swept because the file's own note LEANS on it: the save-and-put-back
+// there is not re-entrant, and what makes that survivable is that the value it
+// saves is always `""`, which is only true while nothing else writes the
+// property. A second writer turns a stray `user-select: none` until reload into
+// a wrong value put back, and this is what says so on the day it appears.
+test("only pointer.ts suppresses the page's text selection", () => {
+  expect(filesSpelling(/userSelect/)).toEqual(["pointer.ts"])
+})
+
 // saying.ts's claim — one receptacle for how long a said-line lingers. SAID_MS
 // was pulled out beside the `Said` type because the ••• menu's dwell and the
 // Trash's "were equal only by hand-maintenance", and the constant turned out

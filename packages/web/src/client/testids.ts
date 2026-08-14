@@ -352,6 +352,12 @@ export const TESTID = {
    *  first among them), and `data-depth` how far in the line is drawn — the
    *  three facts that are still a prediction until the pointer is released. */
   dropLine: "drop-line",
+  /** The band a drag-across pulls, while it is being pulled and never
+   *  otherwise. `data-rows` is how many rows it is crossing right now — the one
+   *  thing about a sweep that is still a prediction while the pointer is down.
+   *  A BAND rather than a rubber-band box, because a row is a line and the
+   *  gesture reads only Y (`drag/sweep.ts`). */
+  sweepBand: "sweep-band",
   /** The bar a multi-selection draws: how many rows are picked, the one verb
    *  that has no key, and what the last bulk write said. `data-rows` is the
    *  count the verbs are asked of — the picked rows nothing else picked

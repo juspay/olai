@@ -102,7 +102,11 @@ type Finger =
   /** Down, still, and the deadline is running. */
   | {
     readonly kind: "holding"
-    readonly from: { readonly x: number; readonly y: number }
+    /** The press that armed it — which is also WHERE it landed, read off the
+     *  event rather than copied beside it. A consumer that has to start
+     *  something from the press gets it back ({@link longPressOn}) instead of
+     *  keeping a second copy in a field this union cannot see. */
+    readonly from: PointerEvent
     readonly until: ReturnType<typeof setTimeout>
   }
   /** Down, but no longer a press: it drifted, or a second finger joined it
@@ -118,14 +122,14 @@ type Finger =
  * Call it in the owner that draws the element — a row — so a row that goes
  * away mid-press takes its timer and its transient listeners with it.
  */
-export const longPressOn = (press: () => void): LongPress => {
+export const longPressOn = (press: (from: PointerEvent) => void): LongPress => {
   let finger: Finger = { kind: "gone" }
 
   const move = (event: PointerEvent): void => {
     if (finger.kind !== "holding") return
     const drift = Math.hypot(
-      event.clientX - finger.from.x,
-      event.clientY - finger.from.y,
+      event.clientX - finger.from.clientX,
+      event.clientY - finger.from.clientY,
     )
     // Adrift, not gone: the finger is still down, and it is its LIFT that
     // takes the listeners off.
@@ -163,10 +167,15 @@ export const longPressOn = (press: () => void): LongPress => {
     if (opened) swallowGhost()
   }
 
-  /** Fire it, from whichever deadline arrived — ours or the platform's. */
+  /** Fire it, from whichever deadline arrived — ours or the platform's. The
+   *  press that armed it goes with it: neither deadline carries an event of its
+   *  own, and a consumer that starts something from the press would otherwise
+   *  have to keep a copy of it outside this union. */
   const fire = (): void => {
+    if (finger.kind !== "holding") return
+    const from = finger.from
     finger = stop({ kind: "held" })
-    press()
+    press(from)
   }
 
   onCleanup(release)
@@ -192,7 +201,7 @@ export const longPressOn = (press: () => void): LongPress => {
       window.addEventListener("pointercancel", release)
       finger = {
         kind: "holding",
-        from: { x: event.clientX, y: event.clientY },
+        from: event,
         until: setTimeout(fire, LONG_PRESS_MS),
       }
     },

@@ -68,7 +68,7 @@ import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
-import { ROW_KEY, useDragging } from "./drag/dragging.ts"
+import { useDragging } from "./drag/dragging.ts"
 import { Handle } from "./drag/Handle.tsx"
 import { useSelection } from "./select/selection.ts"
 import { DatePicker } from "./date/DatePicker.tsx"
@@ -102,6 +102,7 @@ import {
   HOVER_GUTTER,
   HOVER_REVEAL,
   PAST_CONTROLS,
+  ROOT_RAIL,
   ROW_TITLE,
 } from "./touch.ts"
 import { applying } from "./writes.ts"
@@ -109,8 +110,29 @@ import { applying } from "./writes.ts"
 export function Tree(props: {
   readonly rows: ReadonlyArray<Row>
 }) {
+  // `data-sweep` below is `./drag/sweeping.ts`'s `SWEEP`: these lists hold rows
+  // and never words, so a press that lands on ONE — the gaps between lines, the
+  // indent rail beside a branch — is a drag-across rather than a text
+  // selection. Spelled as a literal for the reason that constant gives (a JSX
+  // spread would put every `data-` fact a row carries on Solid's runtime spread
+  // path), and held to the name by ./claims.test.ts.
+  //
+  // `ROOT_RAIL` is what gives the outline's own list the strip a nested one has
+  // by having children indent into it (./touch.ts): without it the only empty
+  // space beside a ROOT row is the four pixels between two lines, and a flat
+  // inbox is a page whose first rows cannot be swept to (review, 2026-08-14).
+  // `my-0` and no `m-0`/`p-0`: the shorthands would be racing `ROOT_RAIL`'s own
+  // `-ml-*`/`pl-*` for the same two properties, and which wins is Tailwind's
+  // emission order rather than the order they are written in (./touch.ts's
+  // `MENU_CELL` is where this app learnt that). What the shorthands were for is
+  // the browser's own list defaults — a vertical margin, which `my-0` kills,
+  // and a 40px `padding-inline-start`, which the rail's own padding replaces.
   return (
-    <ul class="m-0 list-none p-0" data-testid={TESTID.outlineTree}>
+    <ul
+      class={`my-0 list-none ${ROOT_RAIL}`}
+      data-sweep=""
+      data-testid={TESTID.outlineTree}
+    >
       {/* `<Key>`, not `<For>`, and `Row.key` is why it can be: the walk mints
           fresh rows on every frame the live store publishes, and `<For>`
           compares by reference — so one character changing in one title on
@@ -287,6 +309,11 @@ function Branch(props: {
   return (
     <li
       class="my-0.5"
+      // The item's own box is scaffolding too — the indent strip beside a
+      // child list, the margin left of a note — so a press there is a sweep
+      // (./drag/sweeping.ts). Everything WITH words in it is a descendant and
+      // wears no such mark, which is what keeps the rule an allowlist.
+      data-sweep=""
       data-testid={TESTID.node}
       data-node-id={props.row.at.node.id}
       data-status={props.row.status}
@@ -339,6 +366,10 @@ function Branch(props: {
         // only, so a mouse and a pen are untouched — and so is the page, which
         // goes on scrolling under a finger that moves (./longPress.ts).
         //
+        // ...except on the BULLET, which is the handle a finger picks the row
+        // up by — and that exception is the door's own (./menu/door.ts), not
+        // this row's, so what is wired here is still one thing.
+        //
         // Named one by one rather than spread: a spread anywhere on an element
         // moves EVERY attribute of it onto Solid's runtime `spread` path,
         // where the `classList` beside them is diffed key by key on every
@@ -364,10 +395,20 @@ function Branch(props: {
           "opacity-40": carried(),
         }}
         data-testid={TESTID.nodeGutter}
-        // What a drag measures. On the LINE and not on the item, because an
-        // item's box contains every row nested under it and the gap arithmetic
-        // is about the lines a reader sees (`./drag/dragging.ts`).
-        {...{ [ROW_KEY]: props.row.key }}
+        // What a gesture measures — a drag's gaps, a sweep's crossings. On the
+        // LINE and not on the item, because an item's box contains every row
+        // nested under it and both are about the lines a reader sees
+        // (`./drag/lines.ts`, whose `ROW_KEY` this is; ./claims.test.ts holds
+        // the two files that may spell it).
+        //
+        // Written out rather than spread from that constant, which is the same
+        // rule `data-sweep` above follows and matters MOST here: this element
+        // carries the `classList` beside it, and a spread anywhere on it puts
+        // every attribute — those two toggles included — on Solid's runtime
+        // spread path, diffed key by key on every frame the store publishes,
+        // for every row in the outline. A static attribute NAME with a dynamic
+        // value is compiled to one `setAttribute` effect instead.
+        data-row-key={props.row.key}
       >
         {/* Hover strip: triangle always (phone) / hover-reveal (pointer). The
             `•••` is drawn on pointer devices only; below md its root is still
@@ -574,7 +615,7 @@ function Branch(props: {
       </Show>
 
       <Show when={!collapsed() && props.row.children.length > 0}>
-        <ul class={CHILD_INDENT}>
+        <ul class={CHILD_INDENT} data-sweep="">
           <Key each={props.row.children} by="key">
             {(child) => <Branch row={child()} />}
           </Key>

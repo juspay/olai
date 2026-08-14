@@ -35,10 +35,17 @@
  * twice: a place the write could not go is a place the pointer cannot ask for.
  */
 
-/** One row the drop can land beside, as measured on screen. */
-export interface Placed {
-  /** `Row.key` — the place, which is what a selection and the caret name. */
-  readonly key: string
+import type { Line } from "./lines.ts"
+
+/**
+ * One row the drop can land beside: a measured LINE (`./lines.ts`), plus the
+ * four things a PLACEMENT needs that a box cannot say.
+ *
+ * Built ON the line rather than beside it, because "where the row is drawn" is
+ * one fact with one reading — the sweep asks for exactly the same one, and two
+ * flat records sharing five fields is one concept written twice.
+ */
+export interface Placed extends Line {
   /** The RECORD's id: what a `place` names, so a placement moves as itself. */
   readonly id: string
   /** The record it sits under, `null` at the top level of the page. */
@@ -65,17 +72,6 @@ export interface Placed {
   readonly into: string | null
   /** How far in it is drawn, counted from the roots of this page. */
   readonly depth: number
-  readonly top: number
-  readonly bottom: number
-  /** The left edge of its line, which is what the depth of a gap is read
-   *  against. */
-  readonly left: number
-  /** The right edge of it. Nothing here reads it — a placement is decided by
-   *  the gap and the depth — but the indicator drawn to promise the answer has
-   *  to end somewhere, and this is the measurement it ends at. Carried on the
-   *  measured row rather than taken a second time, so the line and the answer
-   *  are read off one look at the page. */
-  readonly right: number
 }
 
 /**
