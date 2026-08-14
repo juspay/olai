@@ -10,10 +10,16 @@
  * be a second implementation of ranking — and the first place the two faces of
  * search quietly stopped being the same product.
  *
- * The shapes are the ops layer's own answers re-declared in schema, and the
- * two cannot drift: the procedure's implementation (`@olai/server`'s
- * `runtime.ts`) returns `Query.search`'s value where this schema's type is
- * demanded, so a field added to one side is a compile error on the other.
+ * The shapes are the ops layer's own answers re-declared in schema, because
+ * this package may not import that one — the wire spec is what a browser
+ * compiles against, and a store has no business in that bundle. What keeps the
+ * two spellings from drifting is NOT this file and not the procedure's
+ * implementation: returning `Query.search`'s value where this schema's type is
+ * demanded is mere assignability, and a hit that grew a field would satisfy it
+ * and then be dropped on the way out — an agent and a person seeing different
+ * rows, silently. The agreement is asserted where both spellings are in scope,
+ * as type IDENTITY, in `@olai/server`'s `search.ts`. That is the file a field
+ * added to one side is a compile error in.
  *
  * A PROCEDURE and not a collection or cell: a search is a question with an
  * answer, not a value the server owns — there is nothing to subscribe to, and

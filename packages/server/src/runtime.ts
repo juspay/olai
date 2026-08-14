@@ -44,7 +44,7 @@
  */
 
 import { NOTHING_PENDING } from "@olai/format"
-import { type Ops, Query, type Status } from "@olai/ops"
+import { type Ops, type Status } from "@olai/ops"
 import type {
   CommitRequest,
   CommitResult,
@@ -84,6 +84,7 @@ import {
   type Published,
   publishedOf,
 } from "./published.ts"
+import { searchFor } from "./search.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
  *  belongs to the bindings below rather than to whoever serves them. */
@@ -473,10 +474,12 @@ export const bind = (
         // The browser's search: the SAME call `search_nodes` makes for an
         // agent, over one reading of one snapshot — so the two faces answer
         // identically by construction rather than by two matchers that happen
-        // to agree (HACKING.md).
+        // to agree (HACKING.md). `./search.ts` is where that construction is
+        // asserted rather than asserted-in-prose: the wire's shapes and the ops
+        // layer's are checked identical there, because this call site alone
+        // would accept a hit that had grown a field the browser never sees.
         search: {
-          nodes: ({ input }) =>
-            Effect.map(wiring.ops.read, (at) => Query.search(at.derived, input)),
+          nodes: ({ input }) => Effect.map(wiring.ops.read, (at) => searchFor(at, input)),
         },
         git: {
           // The button's door. `writer: "web"` is decided in `serve.ts`, where

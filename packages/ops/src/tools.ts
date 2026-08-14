@@ -133,18 +133,6 @@ export type Tool =
 
 // ── reading ────────────────────────────────────────────────────────────
 
-const SearchArgs = Schema.Struct({
-  text: Schema.String.annotate({
-    description:
-      "Words to look for. Case-folded substrings, no operators: every word must appear somewhere in the same node.",
-  }),
-  limit: Schema.optionalKey(
-    Schema.Number.annotate({
-      description: "How many hits to return. Default 12; the total is reported either way.",
-    }),
-  ),
-})
-
 const NodeArgs = Schema.Struct({
   id: Schema.String.annotate({ description: "The node's `id`." }),
 })
@@ -248,8 +236,11 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "search_nodes",
     "Search nodes",
     "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by.",
-    SearchArgs,
-    (at, args: typeof SearchArgs.Type) => Query.search(at.derived, args),
+    // The schema is {@link ./query.ts}'s own — one declaration behind the
+    // tool's advertised JSON Schema and the palette's procedure alike, so the
+    // two faces cannot ask for different things.
+    Query.SearchQuery,
+    (at, args: Query.SearchQuery) => Query.search(at.derived, args),
   ),
   read(
     "read_node",

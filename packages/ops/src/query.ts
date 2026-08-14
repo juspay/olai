@@ -20,6 +20,8 @@
  * has any bearing on the answer.
  */
 
+import { Schema } from "effect"
+
 import {
   ancestorsOf,
   countedChildren,
@@ -118,6 +120,35 @@ export interface Search {
    *  of ninety" is sayable. */
   readonly total: number
 }
+
+/**
+ * What a search ASKS — declared once, here, beside the function that answers
+ * it.
+ *
+ * A schema rather than a parameter type because two faces send it and both
+ * decode against it: the agent's `search_nodes` advertises the JSON Schema this
+ * compiles to ({@link ./tools.ts}), and the palette's `search.nodes` procedure
+ * carries the same fields on the wire. It used to be spelled three times — the
+ * tool's own `SearchArgs`, this function's inline parameter, and the surface
+ * spec's `SearchRequest` — which is three chances for one question to be asked
+ * differently depending on who was asking.
+ *
+ * The field prose is here rather than at the tool because it describes THIS
+ * function's matching rule, not a wire convention: an agent reading "no
+ * operators" is being told what {@link search} below does.
+ */
+export const SearchQuery = Schema.Struct({
+  text: Schema.String.annotate({
+    description:
+      "Words to look for. Case-folded substrings, no operators: every word must appear somewhere in the same node.",
+  }),
+  limit: Schema.optionalKey(
+    Schema.Number.annotate({
+      description: "How many hits to return. Default 12; the total is reported either way.",
+    }),
+  ),
+})
+export type SearchQuery = typeof SearchQuery.Type
 
 /** What one node's page would say, plus the record itself. */
 export interface Detail extends Found, Stamps {
@@ -290,7 +321,7 @@ const DEFAULT_LIMIT = 12
  */
 export const search = (
   derived: Derived,
-  query: { readonly text: string; readonly limit?: number },
+  query: SearchQuery,
 ): Search => {
   const words = query.text.toLowerCase().split(/\s+/).filter((word) => word !== "")
   if (words.length === 0) return { hits: [], total: 0 }
