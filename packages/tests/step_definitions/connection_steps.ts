@@ -94,7 +94,7 @@ Then("the server rejected the stale tab", async function (this: OlaiWorld) {
   // process id — a different mechanism, and not the one this feature is about.
   await this.waitUntil(
     async () =>
-      findLogfmt(this.serverSaid, "stale tab rejected")?.claimed !== undefined,
+      findLogfmt(this.serverLog.text, "stale tab rejected")?.claimed !== undefined,
     "the restarted server reports having closed the stale tab at the handshake",
   );
 });

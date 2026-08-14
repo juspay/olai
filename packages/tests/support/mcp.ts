@@ -15,8 +15,10 @@
  */
 
 import { type ChildProcess, spawn } from "node:child_process";
+import * as path from "node:path";
 
 import { readMessages } from "./ndjson.ts";
+import { isolateEnv } from "./workers.ts";
 
 /** How long one call may take before it is a hang, and how long the process
  *  gets to come up. Generous by the same argument as the rest of the harness:
@@ -50,11 +52,10 @@ export const connectTerminalAgent = async (
 ): Promise<TerminalAgent> => {
   const child: ChildProcess = spawn(bin, ["mcp", directory, "--commit=off"], {
     stdio: ["pipe", "pipe", "pipe"],
-    env: {
-      ...process.env,
+    env: isolateEnv(`${directory}.xdg`, {
       // stderr diagnostics stay logfmt; do not inherit OLAI_LOG=pretty.
       OLAI_LOG: "logfmt",
-    },
+    }),
   });
 
   // stderr is where it may say anything that is not a frame, so it is where a
