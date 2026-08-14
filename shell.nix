@@ -21,9 +21,9 @@ pkgs.mkShell {
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
     # Hosted typefaces, already woff2: packages/fonts/default.nix converts the
-    # catalog beside it (packages/fonts/src/catalog.ts) once, in the store, and
-    # the client build only copies out of here. No CDN, no font binary in the
-    # repo, and no woff2_compress in this shell — the derivation brings its
+    # face list beside it (packages/fonts/src/hosted.json) once, in the store,
+    # and the client build only copies out of here. No CDN, no font binary in
+    # the repo, and no woff2_compress in this shell — the derivation brings its
     # own. The packaged build (default.nix) sets the same one variable.
     OLAI_FONTS_DIR = "${olaiFonts}";
   };

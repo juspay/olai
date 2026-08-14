@@ -44,7 +44,7 @@ import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
 import type { BunPlugin } from "bun"
 
-import { fontCss, HOSTED_WOFF2 } from "@olai/fonts/build"
+import { fontCss, FONTS_DIR, HOSTED_WOFF2 } from "@olai/fonts/build"
 import { paletteCss } from "./client/theme/css.ts"
 import { scaleCss } from "./client/theme/scale.ts"
 
@@ -148,7 +148,7 @@ const installFonts = (distDir: string): void => {
         "to packages/fonts/default.nix; run via `just serve` / `nix build`.",
     )
   }
-  const out = resolve(distDir, "fonts")
+  const out = resolve(distDir, FONTS_DIR)
   mkdirSync(out, { recursive: true })
 
   for (const name of HOSTED_WOFF2) {

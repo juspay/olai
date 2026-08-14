@@ -19,11 +19,7 @@
  * cost a few lines of CSS and no bytes on the wire.
  */
 
-import {
-  type HostedFile,
-  HOSTED_FILES,
-  woff2Name,
-} from "./hosted.ts"
+import { FONTS_DIR, type HostedFile, HOSTED_FILES, woff2Name } from "./hosted.ts"
 import {
   DEFAULT_FONT,
   FONT_ATTRIBUTE,
@@ -56,7 +52,7 @@ export const fontFaceRule = (file: HostedFile): string =>
     `  font-style: ${file.style};`,
     `  font-weight: ${file.weight};`,
     "  font-display: swap;",
-    `  src: url("/fonts/${woff2Name(file.file)}") format("woff2");`,
+    `  src: url("/${FONTS_DIR}/${woff2Name(file.file)}") format("woff2");`,
     "}",
   ].join("\n")
 

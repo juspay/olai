@@ -22,6 +22,12 @@
 
 import SOURCES from "./hosted.json"
 
+/** The one directory the faces live in — the dist subdirectory the build
+ *  fills and the URL prefix the sheet asks for, which are the same directory
+ *  seen from two sides. Spelled once, because renaming it in only one of them
+ *  would compile, pass every test, and 404 in a browser. */
+export const FONTS_DIR = "fonts"
+
 /** One face this app serves from `/fonts/*.woff2`. `file` is the SOURCE
  *  basename `../default.nix` converts; what lands in `OLAI_FONTS_DIR`, and
  *  what the sheet asks for, is `woff2Name` of it. */
@@ -57,7 +63,12 @@ export const HOSTED_FILES: ReadonlyArray<HostedFile> = SOURCES.flatMap(
     })),
 )
 
-/** The woff2 basename the sheet asks for, the derivation writes and the build
- *  copies — one rule, three readers. */
+/** The woff2 basename the sheet asks for and the build copies.
+ *
+ *  The derivation spells the same rule a second time, in shell
+ *  (`''${base%.*}.woff2` — it names the OUTPUT of `woff2_compress`, which is
+ *  not a name it is given). Two spellings of "swap the extension" is the
+ *  smallest seam left in this package, and the build's own by-name lookup is
+ *  what would fail if they ever disagreed. */
 export const woff2Name = (file: string): string =>
   file.replace(/\.(ttf|otf)$/i, ".woff2")
