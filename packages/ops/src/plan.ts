@@ -181,6 +181,10 @@ export const plan = (
       )
     case "move":
       return planMove(scope, request)
+    case "split":
+      return planSplit(scope, request)
+    case "merge":
+      return planMerge(scope, request)
     case "archive":
       return planArchive(scope, request)
     case "unarchive":
@@ -1073,6 +1077,293 @@ const containing = (scope: Scope, id: string, parent: string): string | null => 
   return path === null ? null : chainOf(path)
 }
 
+// ── split and merge ────────────────────────────────────────────────────
+
+/**
+ * One node into two: the head it keeps, and the tail as the sibling after it.
+ *
+ * ONE PLAN, and that is the reason this is an op rather than a `set_title`
+ * followed by an `add`. Those are two writes at two revisions, and both ways of
+ * half-landing are wrong — a tail written while the head still says the whole
+ * sentence duplicates it, and a head written with the tail refused loses what
+ * was typed. Planned together they are one validation and one all-or-none
+ * rename, which is exactly the argument {@link planAdd}'s `children` makes one
+ * level up.
+ *
+ * THE TAIL IS BORN A BULLET, and everything that described the node stays with
+ * the head — its children, note, mark, date and edges. That is Workflowy's
+ * split read through this format: the row you were typing in is still that row,
+ * and what came off it is a new line that has not been said anything about yet.
+ * The alternative — carrying the mark or the note across — would be this op
+ * inventing a claim about a node nobody has described.
+ */
+const planSplit = (
+  scope: Scope,
+  request: Extract<Request, { op: "split" }>,
+): Planned => {
+  const target = editable(scope, request.id)
+  if (Result.isFailure(target)) return Result.fail(target.failure)
+  const { file, node } = target.success
+
+  // Both halves are titles, so both are judged the way a title is. The
+  // sentences differ because the two mistakes are different ones: a caller that
+  // sent an empty head means "put an empty row above this", which this format
+  // cannot hold, and one that sent an empty tail asked for a split with nothing
+  // on the other side of it.
+  if (request.title.trim() === "") {
+    return Result.fail(
+      new UsageFailure({
+        reason: `a node needs a title, so \`${node.title}\` cannot keep an empty one — ` +
+          `there is no split that leaves a blank row behind`,
+      }),
+    )
+  }
+  if (request.rest.trim() === "") {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `there is nothing to split off \`${node.title}\` — the new node would have no title`,
+      }),
+    )
+  }
+
+  const id = freshId(scope, new Set())
+  const ords = placed(
+    siblingsOf(scope.derived, file, node.parent),
+    id,
+    { after: node.id },
+  )
+  if (Result.isFailure(ords)) return Result.fail(ords.failure)
+
+  const head: RegularNode = { ...node, title: request.title }
+  const tail: RegularNode = {
+    id,
+    ...(node.parent === undefined ? {} : { parent: node.parent }),
+    ord: ordFor(ords.success, id),
+    title: request.rest,
+  }
+
+  return Result.succeed({
+    files: [{
+      file,
+      nodes: withOrds(
+        [...replacing(recordsOf(scope, file), node.id, head), tail],
+        ords.success,
+      ),
+    }],
+    // The write is ABOUT the new node: it is what the caller does not yet have
+    // an id for, and it is where a caret that just split a line belongs.
+    id,
+    title: request.rest,
+    file,
+    summary: `split: ${node.title}`,
+    captured: mintedOf([tail]),
+  })
+}
+
+/**
+ * Two nodes into one: this node's title appended to the sibling above it, which
+ * adopts what hung under it — and its own record into the trash.
+ *
+ * {@link planSplit} backwards, and one plan for the same reason, with more at
+ * stake: a merge is a retitle, a note, N reparentings and an archive, and a
+ * sequence of those that stops in the middle leaves the outline saying
+ * something nobody wrote — a title merged with the children still hanging off a
+ * row that is about to go, or a row archived with its children gone into it.
+ *
+ * WHAT SURVIVES is the whole of the semantics, and every line of it is a
+ * decision:
+ *
+ *   - **the titles are concatenated, with nothing between them.** They were one
+ *     line before somebody split it; Workflowy joins them the same way, and any
+ *     separator this op invented would be text the caller did not type.
+ *   - **the notes are concatenated too**, one blank line apart, and a node with
+ *     none simply takes the other's. A note that disappeared off the page would
+ *     be the silent loss this codebase refuses — and "it is in the archive" is
+ *     not an answer, because nobody looks there for the note of a row that is
+ *     still on screen.
+ *   - **the children move**, in order, to the end of the surviving node's own.
+ *     A keystroke may not orphan work, and archiving them with their parent
+ *     would take a branch away that nobody asked about.
+ *   - **the mark, the date and the edges go WITH THE RECORD into the archive.**
+ *     The format allows one mark per node and the surviving row already has its
+ *     own answer, so there is no merge of two; nothing is destroyed, because the
+ *     record keeps its id in `Archive.jsonl` and `Put back` returns it. What
+ *     this op owes is that the loss is never SILENT, which is what the
+ *     {@link nudge} is for — a `done` that left the live outline is exactly the
+ *     news a person is owed.
+ *
+ * THE SIBLING ABOVE IS READ, never named. "The row above" is a fact about the
+ * set, so it is answered against the snapshot this write is judged on — which
+ * is what lets the write gate re-plan the request when the store moves under
+ * it, exactly as it re-plans `set_done`.
+ */
+const planMerge = (
+  scope: Scope,
+  request: Extract<Request, { op: "merge" }>,
+): Planned => {
+  const target = editable(scope, request.id)
+  if (Result.isFailure(target)) return Result.fail(target.failure)
+  const { file, node } = target.success
+
+  const archive = archiveBeside(file)
+  if (isArchived(file)) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `\`${node.title}\` is in \`${file}\` — an archive is read rather than ` +
+          `edited, so put it back first`,
+      }),
+    )
+  }
+  const mayArchive = writable(scope, archive)
+  if (Result.isFailure(mayArchive)) return Result.fail(mayArchive.failure)
+
+  const joined = merging(scope.derived, target.success)
+  if (Result.isFailure(joined)) return Result.fail(joined.failure)
+  const { into, adopted, title, desc } = joined.success
+
+  const records = recordsOf(scope, file)
+  const merged = withField({ ...into, title }, "desc", desc ?? null)
+
+  const reparented = new Map(
+    appendedUnder([records], into.id, adopted.map((child) => child.node))
+      .map((record) => [record.id, record]),
+  )
+
+  // The two questions the survivors answer, asked one after the other rather
+  // than nested: which rows this file keeps, and what each of them becomes.
+  const keeps = records
+    .filter((record) => record.id !== node.id)
+    .map((record) =>
+      record.id === into.id ? merged : reparented.get(record.id) ?? record
+    )
+
+  const { existing, scaffold, buried } = buriedIn(scope, archive, node)
+  const nudge = carriedOff(scope, node)
+  return Result.succeed({
+    files: [
+      { file, nodes: keeps },
+      { file: archive, nodes: [...existing, ...scaffold, buried] },
+    ],
+    id: into.id,
+    title,
+    file,
+    summary: `merge: ${title}`,
+    ...(nudge === undefined ? {} : { nudge }),
+  })
+}
+
+/** What merging a node would produce: the row it joins, and the two texts that
+ *  row ends up carrying. */
+export interface Merging {
+  /** The sibling above — the record that survives. */
+  readonly into: RegularNode
+  /** Its title with the merged node's run onto the end. */
+  readonly title: string
+  /** Their notes joined, or the one of them that exists, or neither. */
+  readonly desc: string | undefined
+  /** What hangs under the merged node, in the order it hangs — the rows the
+   *  survivor adopts, and the rows an undo has to put back. Placements
+   *  included: a mirror under it is a row like any other. */
+  readonly adopted: ReadonlyArray<Located>
+}
+
+/**
+ * WHAT A MERGE OF THIS NODE WOULD DO — one function, because two callers ask
+ * it and their answers may not differ.
+ *
+ * The planner asks it to make the write. The keystroke resolver asks it to say
+ * what would TAKE THAT WRITE BACK ({@link ../../server/src/edit.ts}) — the row
+ * above put back, the branch put back under it, and its two texts restored
+ * guarded by what the merge made them. All THREE facts are here for the same
+ * reason `@olai/server`'s `among` is one spelling: "the sibling above" scanned
+ * twice is two chances for an undo to name the wrong row, the branch read twice
+ * is two chances to put it back in a different order, and the join spelled twice
+ * is a guard that silently stops matching the day the separator changes. None of
+ * them would fail anywhere a test without a browser could see.
+ *
+ * The joins themselves are the semantics. The titles run together with nothing
+ * between them: they were one line before somebody split them, and any
+ * separator invented here is text the caller did not type. The notes take a
+ * blank line, because they are markdown blocks and running two paragraphs
+ * together would change what they say — and a node with no note simply takes
+ * the other's, which is the case that matters most.
+ *
+ * It takes the node already RESOLVED, so it neither repeats the caller's
+ * lookup nor answers a second time for an id that is a placement — both
+ * callers narrow before they get here, and both refuse a mirror in the ops
+ * layer's own words.
+ */
+export const merging = (
+  derived: Derived,
+  at: LocatedRegular,
+): Result.Result<Merging, OpFailure> => {
+  const row = siblingsOf(derived, at.file, at.node.parent)
+  const above = row[row.findIndex((sibling) => sibling.node.id === at.node.id) - 1]
+  if (above === undefined) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `\`${at.node.title}\` is the first of its siblings, so there is no row ` +
+          `above it to merge into`,
+      }),
+    )
+  }
+  // A placement has no title, no note and no children of its own, so there is
+  // nothing there for a merge to land in — the ops layer's own rule about
+  // mirrors, in the sentence the row above earns rather than the one the id
+  // named by the caller would get.
+  if (isMirror(above.node)) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `the row above \`${at.node.title}\` is a mirror — a second placement of ` +
+          `\`${above.node.mirror}\`, with no title of its own — so there is nothing ` +
+          `there to merge into`,
+      }),
+    )
+  }
+  const into = above.node
+  return Result.succeed({
+    into,
+    title: into.title + at.node.title,
+    desc: into.desc === undefined
+      ? at.node.desc
+      : at.node.desc === undefined
+      ? into.desc
+      : `${into.desc}\n\n${at.node.desc}`,
+    adopted: derived.children.get(at.node.id) ?? [],
+  })
+}
+
+/**
+ * What went into the trash with a merged record that is not its title or its
+ * note — as the nudge that says so, or nothing when there was nothing.
+ *
+ * A merge takes a row off the page, and the fields the surviving row cannot
+ * hold a second copy of go with it. That is the right answer (the format allows
+ * one mark, and the survivor already has one) and it is exactly the kind of
+ * answer that must not be silent: somebody who merged two lines and thereby
+ * took a `done` out of the live outline is owed the sentence. Advice on a write
+ * that LANDED, which is what a nudge is.
+ */
+const carriedOff = (scope: Scope, node: RegularNode): string | undefined => {
+  const kept: Array<string> = []
+  const mark = scope.derived.status.get(node.id)
+  if (mark !== undefined) kept.push(`its \`${mark}\` mark`)
+  if (node.date !== undefined) kept.push("its date")
+  // The ATTACHED DOCUMENT is the same class as the mark and was quiet for one
+  // review: a node carries one `doc`, so the survivor's own answer stands and
+  // this one leaves the live outline with the record. A reader who put a file
+  // on that row is owed the sentence exactly as much as one who ticked it off.
+  if (node.doc !== undefined) kept.push(`its document \`${node.doc}\``)
+  if (targetsOf(node).length > 0) kept.push("its edges")
+  if (kept.length === 0) return undefined
+  const said = kept.length === 1
+    ? kept[0]
+    : `${kept.slice(0, -1).join(", ")} and ${kept[kept.length - 1]}`
+  return `\`${node.title}\` kept ${said} — that record is in the Trash with its id, ` +
+    `and \`Put back\` returns it.`
+}
+
 // ── create ─────────────────────────────────────────────────────────────
 
 /**
@@ -1227,7 +1518,7 @@ const planArchive = (
   const { file, node } = target.success
 
   const archive = archiveBeside(file)
-  if (file === archive) {
+  if (isArchived(file)) {
     return Result.fail(
       new UsageFailure({ reason: `\`${node.title}\` is already in \`${archive}\`` }),
     )
@@ -1239,12 +1530,77 @@ const planArchive = (
   }
 
   const { keeps: source, descendants } = liftSubtree(scope, file, node.id)
-  const existing = recordsOf(scope, archive)
+  // The root is re-parented onto the scaffold; everything under it keeps the
+  // `parent` it had, so the subtree arrives shaped exactly as it left.
+  const { existing, scaffold, buried } = buriedIn(scope, archive, node)
 
+  return Result.succeed({
+    files: [
+      { file, nodes: source },
+      { file: archive, nodes: [...existing, ...scaffold, buried, ...descendants] },
+    ],
+    id: node.id,
+    title: node.title,
+    file: archive,
+    summary: `archive: ${node.title}`,
+  })
+}
+
+/**
+ * A record ARRIVING in an archive: what the archive already holds, the chain of
+ * ancestor titles it has to hang off, and the record re-parented onto the end
+ * of that chain.
+ *
+ * ONE spelling, because two ops put a record into an archive: `archive` takes a
+ * subtree (and appends its descendants after this record), and `merge` puts the
+ * record it merged away there alone. Two copies would be two answers to "where
+ * does this node hang in the archive" — and the second reader is exactly the one
+ * who would not notice the first had changed.
+ *
+ * It answers the three PIECES rather than the whole file entry, because the two
+ * callers write different files after it: the subtree's descendants follow the
+ * record for `archive` and there are none for `merge`.
+ */
+const buriedIn = (
+  scope: Scope,
+  archive: string,
+  node: Node,
+): {
+  readonly existing: ReadonlyArray<Node>
+  readonly scaffold: ReadonlyArray<Node>
+  readonly buried: Node
+} => {
+  const existing = recordsOf(scope, archive)
   // The chain, outermost first, as titles. It is the DEFINING file's ancestry:
   // the titles indented above the node in the outline it actually lives in.
-  const chain = ancestorsOf(scope.derived, node.id).map((crumb) => crumb.node.title)
+  const { scaffold, parent } = scaffoldFor(
+    scope,
+    existing,
+    ancestorsOf(scope.derived, node.id).map((crumb) => crumb.node.title),
+  )
+  return {
+    existing,
+    scaffold,
+    buried: { ...withParent(node, parent), ord: appendedOrd([existing, scaffold], parent) },
+  }
+}
 
+/**
+ * The chain of ancestor titles, as records in the archive — merged into
+ * whatever chain is already there, and minted for the rest.
+ *
+ * Matched by exact TITLE at each level, which is what makes the scaffold merge
+ * rather than accumulate — and the ids it mints are fresh rather than copies of
+ * the live ancestors', because an id is unique across the set and a copy would
+ * collide with the node it was copied from.
+ */
+const scaffoldFor = (
+  scope: Scope,
+  /** What the archive already holds. */
+  existing: ReadonlyArray<Node>,
+  /** The ancestry, outermost first, as titles. */
+  chain: ReadonlyArray<string>,
+): { readonly scaffold: ReadonlyArray<Node>; readonly parent: string | undefined } => {
   const minted = new Set<string>()
   const scaffold: Array<Node> = []
   let parent: string | undefined
@@ -1262,35 +1618,17 @@ const planArchive = (
     }
     const id = freshId(scope, minted)
     minted.add(id)
-    const ord = appendedOrd([existing, scaffold], parent)
     const record: RegularNode = {
       id,
       ...(parent === undefined ? {} : { parent }),
-      ord,
+      ord: appendedOrd([existing, scaffold], parent),
       title,
     }
     scaffold.push(record)
     parent = id
     level = []
   }
-
-  // The root is re-parented onto the scaffold; everything under it keeps the
-  // `parent` it had, so the subtree arrives shaped exactly as it left.
-  const reparented: Node = {
-    ...withParent(node, parent),
-    ord: appendedOrd([existing, scaffold], parent),
-  }
-
-  return Result.succeed({
-    files: [
-      { file, nodes: source },
-      { file: archive, nodes: [...existing, ...scaffold, reparented, ...descendants] },
-    ],
-    id: node.id,
-    title: node.title,
-    file: archive,
-    summary: `archive: ${node.title}`,
-  })
+  return { scaffold, parent }
 }
 
 /**
@@ -1339,16 +1677,20 @@ const liftSubtree = (
   }
 }
 
-/** An `ord` after everything already under `parent`.
+/** The largest `ord` already under `parent`, or `null` when nothing is.
  *
  *  One max scan rather than a filter-map-sort: `ord` is a base62 fractional
  *  index, so `>` on the string IS the comparison, and only the largest matters.
  *  `Archive.jsonl` is the one file in a set that grows without bound, and this
- *  runs once per ancestor level of every archive. */
-const appendedOrd = (
+ *  runs once per ancestor level of every archive.
+ *
+ *  Split from {@link appendedOrd} because a merge appends a WHOLE ROW of
+ *  adopted children and has to carry the key forward between them, which
+ *  "give me the next one" cannot say. */
+const lastOrd = (
   rows: ReadonlyArray<ReadonlyArray<Node>>,
   parent: string | undefined,
-): string => {
+): string | null => {
   let last: string | null = null
   for (const records of rows) {
     for (const record of records) {
@@ -1357,7 +1699,36 @@ const appendedOrd = (
       }
     }
   }
-  return nextOrd(last)
+  return last
+}
+
+/** An `ord` after everything already under `parent`. */
+const appendedOrd = (
+  rows: ReadonlyArray<ReadonlyArray<Node>>,
+  parent: string | undefined,
+): string => nextOrd(lastOrd(rows, parent))
+
+/**
+ * A whole ROW of records, moved to the end of what is already under `parent`,
+ * keeping the order they were in.
+ *
+ * {@link appendedOrd} answers for ONE arrival; a row of them has to carry the
+ * key forward between arrivals, and a caller doing that by hand is a mutable
+ * cursor in the middle of a planner. What it is for is the merge's adopted
+ * children, and "last, in order" is the same answer `unarchive` gives the
+ * subtree it brings back.
+ */
+const appendedUnder = <N extends Node>(
+  rows: ReadonlyArray<ReadonlyArray<Node>>,
+  parent: string,
+  moving: ReadonlyArray<N>,
+): ReadonlyArray<N> => {
+  let previous = lastOrd(rows, parent)
+  return moving.map((record) => {
+    const ord = nextOrd(previous)
+    previous = ord
+    return { ...withParent(record, parent), ord }
+  })
 }
 
 // ── unarchive ──────────────────────────────────────────────────────────

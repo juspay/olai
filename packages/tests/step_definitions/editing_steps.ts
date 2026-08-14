@@ -120,6 +120,81 @@ When(
   },
 );
 
+// ── where in the line the caret is ─────────────────────────────────────
+
+/** The open title editor, waited for. Two of the keys mean different things
+ *  depending on where in it the caret sits, so these steps say that outright
+ *  rather than counting `ArrowLeft` presses — what a scenario is about is
+ *  "mid-word", not "five characters in". */
+const openEditor = async (world: OlaiWorld): Promise<Locator> => {
+  const editor = world.page.locator(TITLE_EDITOR).first();
+  await editor.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  return editor;
+};
+
+/** A range over some text the editor holds — collapsed after it (a caret) or
+ *  spanning it (a selection). One walk, because "put the caret after X" and
+ *  "select X" are the same lookup with the same failure and differ only in
+ *  whether the range is shut. */
+const rangeOver = async (
+  world: OlaiWorld,
+  text: string,
+  collapse: boolean,
+): Promise<void> => {
+  const editor = await openEditor(world);
+  await editor.evaluate((element, [wanted, shut]) => {
+    const field = element as HTMLInputElement;
+    const at = field.value.indexOf(wanted);
+    if (at === -1) {
+      throw new Error(
+        `the editor holds ${JSON.stringify(field.value)}, which does not contain ${
+          JSON.stringify(wanted)
+        }`,
+      );
+    }
+    field.setSelectionRange(shut ? at + wanted.length : at, at + wanted.length);
+  }, [text, collapse] as [string, boolean]);
+};
+
+When(
+  "I put the caret after {string}",
+  async function (this: OlaiWorld, prefix: string) {
+    await rangeOver(this, prefix, true);
+  },
+);
+
+When("I put the caret at the start of the line", async function (this: OlaiWorld) {
+  const editor = await openEditor(this);
+  await editor.evaluate((element) => {
+    (element as HTMLInputElement).setSelectionRange(0, 0);
+  });
+});
+
+When(
+  "I select {string} in the line",
+  async function (this: OlaiWorld, text: string) {
+    await rangeOver(this, text, false);
+  },
+);
+
+/** Where the caret ENDED UP, which is the whole promise of both compound keys:
+ *  a split leaves it at the head of the half that came off, a merge at the seam
+ *  the two were joined at. A person whose caret jumped to the end of the line
+ *  has lost their place, and nothing else on screen would say so. */
+Then(
+  "the caret is at offset {int}",
+  async function (this: OlaiWorld, offset: number) {
+    const editor = await openEditor(this);
+    await this.waitUntil(
+      async () =>
+        (await editor.evaluate(
+          (element) => (element as HTMLInputElement).selectionStart,
+        )) === offset,
+      `the caret to be at offset ${offset}`,
+    );
+  },
+);
+
 When("I click away from the editor", async function (this: OlaiWorld) {
   // Somewhere in the pane that is not a row: a blur, and nothing else.
   await this.page.locator("main").click({ position: { x: 4, y: 4 } });
@@ -260,6 +335,29 @@ Then(
         );
       return ids.indexOf(first) !== -1 && ids.indexOf(first) < ids.indexOf(second);
     }, `"${first}" to be drawn above "${second}"`);
+  },
+);
+
+/** WHERE the row a split made is drawn — asked of the page in document order,
+ *  because the node it names has an id nobody chose and a title assertion
+ *  cannot say which line it is on. The half that came off has to be the very
+ *  next line, or the split has put it somewhere a reader would have to go
+ *  looking for it. */
+Then(
+  "the row being typed is drawn immediately after {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.waitUntil(async () => {
+      const rows = await this.page
+        .locator(NODE)
+        .evaluateAll((found) =>
+          found.map((row) => [
+            row.getAttribute("data-node-id") ?? "",
+            row.getAttribute("data-editing") === "true",
+          ] as const),
+        );
+      const at = rows.findIndex(([node]) => node === id);
+      return at !== -1 && rows[at + 1]?.[1] === true;
+    }, `the row holding the caret to be drawn immediately after "${id}"`);
   },
 );
 
@@ -450,6 +548,32 @@ Then(
           (node) => node["title"] === title && node["desc"] === undefined,
         ),
       `${file} to hold a node titled ${JSON.stringify(title)} carrying no note`,
+    );
+  },
+);
+
+/**
+ * A record carrying NOTHING but its placement and its title — which is what a
+ * node a split brought into being is, and the one assertion that says so about
+ * every field at once.
+ *
+ * Over the KEYS rather than over a list of fields nobody may have thought of:
+ * a tail that inherited the head's mark, date, note, `doc` or edges fails here
+ * whichever of them it was, and so would a field this format grows later.
+ */
+Then(
+  "{string} holds a bare node titled {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    await this.waitUntil(
+      async () =>
+        this.servedNodes(file).some(
+          (node) =>
+            node["title"] === title &&
+            Object.keys(node).every((field) =>
+              ["id", "parent", "ord", "title"].includes(field)
+            ),
+        ),
+      `${file} to hold ${JSON.stringify(title)} carrying nothing but its placement`,
     );
   },
 );

@@ -59,13 +59,14 @@ import {
   isDay,
   isMirror,
   type Located,
+  type LocatedRegular,
   nodeNamed,
   type OpFailure,
   siblingsOf,
   type Status,
   UsageFailure,
 } from "@olai/format"
-import { notFound, type Reading, type Request } from "@olai/ops"
+import { merging, notFound, type Reading, type Request } from "@olai/ops"
 import type { Edit } from "@olai/surface"
 import { Result } from "effect"
 
@@ -118,6 +119,22 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       })
     case "date":
       return Result.succeed({ op: "date", id: edit.id, date: edit.date })
+    // The two COMPOUND keys, and they resolve nothing for the same reason the
+    // five above do: everything either of them needs to work out — where the
+    // tail lands, which sibling is above, what the archive's scaffold is — the
+    // op itself reads off the snapshot it is judged against, because it is one
+    // op and that is where its arithmetic belongs. A resolver that assembled
+    // them out of `title` + `add` would be the web doing in one keystroke what
+    // MCP needs two calls for.
+    case "split":
+      return Result.succeed({
+        op: "split",
+        id: edit.id,
+        title: edit.title,
+        rest: edit.rest,
+      })
+    case "merge":
+      return Result.succeed({ op: "merge", id: edit.id })
     case "unmirror":
       return Result.succeed({ op: "unmirror", id: edit.id })
     case "archive":
@@ -581,6 +598,32 @@ export const inverseOf = (
     // overwrite — the ops layer's own `set_date` is what judges it either way.
     case "date":
       return dateOf(at.derived, edit.id)
+    // A split is taken back by MERGING the half it made back into the half it
+    // came off — one edit, and the ops layer's own inverse rather than one
+    // assembled here. `applied` is the new node, which is the only id in this
+    // whole function that did not exist when the reading was taken.
+    //
+    // IT CARRIES NO `was`, and that is a known residual rather than an
+    // oversight (reviewed twice, 2026-08-14). The alternative on the table was
+    // `remove` + a guarded `title`, and it is worse where it counts: `remove`
+    // is undone by `unarchive`, which lands LAST among its siblings, so undo
+    // then redo of a split in the middle of a row would put the tail at the end
+    // of it. Merge-as-inverse gets the placement right because the merge's own
+    // inverse carries a `place`. What is left open is the same contract every
+    // opposite-op inverse here already has (`unarchive` answers with `archive`
+    // and no guard either): a concurrent retitle of the head is concatenated
+    // rather than refused, and rows somebody hung under the tail are adopted
+    // rather than refusing. Closing it means guarding `merge` itself — on both
+    // faces, so an agent's `merge_node` gets the same field — which is a change
+    // to the op rather than to this arm.
+    case "split":
+      return [{ verb: "merge", id: applied }]
+    // A merge is the one write here whose inverse is a SEQUENCE, and it is a
+    // sequence because the write is a compound the surface has no single
+    // opposite for — `split` cannot mint a node that already exists in the
+    // trash carrying its own mark, note and edges.
+    case "merge":
+      return unmergeOf(at.derived, edit.id)
     // BOTH removals answer with the way back out of the trash, now that there
     // is one (`parity-unarchive`): `unarchive`, carrying where the row SITS as
     // this reading stands — its parent, or its file at top level — because
@@ -645,6 +688,73 @@ const unarchiveOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
     id,
     ...(parent === undefined ? { file: located.file } : { parent }),
   }]
+}
+
+/**
+ * What would take a MERGE back — the one inverse on this list that is a whole
+ * sequence, and every step of it is a verb this surface already has.
+ *
+ * The merge is about to do four things to the outline: put this row's title and
+ * note onto the row above, hand that row everything hanging under this one, and
+ * put this record into the archive. So the way back is those four undone, in the
+ * order that makes each one possible:
+ *
+ *   1. `unarchive` the record — which is where its mark, its date and its edges
+ *      have been all along, because the merge never copied them anywhere. It
+ *      lands last among its siblings, carrying the parent (or the file) this
+ *      reading says it sits in, which are ids the SERVER derived — the `place`
+ *      rule.
+ *   2. `place` it back after the row it was merged into, since "last" is not
+ *      where it was.
+ *   3. `place` each child back under it, in order — first with no neighbour,
+ *      then each after the one before, which reproduces the row exactly.
+ *   4. put the surviving row's `title` and `desc` back, GUARDED by what the
+ *      merge is about to make them ({@link merging}, the ops layer's own
+ *      answer to both "which row" and "what the join makes"). So an undo can
+ *      only overwrite what the merge wrote: retype that row in the meantime and
+ *      the undo is refused naming what is there, exactly as an undone retitle
+ *      is.
+ *
+ * Replayed in order through the same gate, each judged against the set as it is
+ * THEN, and a refusal partway stops there — which is the same contract every
+ * two-step mark undo already has, one step longer.
+ *
+ * Nothing at all for a reading that does not hold the id, for a placement, or
+ * for a row with nothing above it: those are the merge's own refusals, so there
+ * is no write to take back.
+ */
+const unmergeOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
+  const located = derived.byId.get(id)
+  if (located === undefined || isMirror(located.node)) return []
+  // EVERY fact about the merge is the ops layer's — which row it joins, what
+  // the join makes, and which children move in what order — read off the same
+  // answer the write is about to be planned from. Re-derived here they would be
+  // a second scan of the sibling row, a second spelling of the join and a second
+  // reading of the branch, and each would be wrong in exactly the case an undo
+  // is for.
+  const joined = merging(derived, located as LocatedRegular)
+  if (Result.isFailure(joined)) return []
+  const { into, adopted, title, desc } = joined.success
+  return [
+    // Where the row goes back to is `archive`'s own inverse, which already
+    // knows the parent-or-file pair and reads it off this same snapshot.
+    ...unarchiveOf(derived, id),
+    { verb: "place", id, parent: located.node.parent ?? null, after: into.id },
+    ...adopted.map((child, index): Edit => ({
+      verb: "place",
+      id: child.node.id,
+      parent: id,
+      after: index === 0 ? null : (adopted[index - 1] as Located).node.id,
+    })),
+    // The two texts, put back the way EVERY text undo is put back — `textOf`
+    // carries the `was` convention and the "an absent note is `null`" rule, and
+    // a second copy of them here would be a second place to keep those true.
+    ...textOf(derived, { verb: "title", id: into.id, title }),
+    // Only when the merge MOVED it. A row whose note is untouched — because the
+    // row below had none — needs no second write, and one that said `was` for a
+    // note it did not change would be refused by nothing and mean nothing.
+    ...(desc === into.desc ? [] : textOf(derived, { verb: "desc", id: into.id, desc: desc ?? null })),
+  ]
 }
 
 /** Where a row sits, as the one edit that would put it back there — and

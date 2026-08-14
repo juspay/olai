@@ -184,6 +184,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
       "create_document",
       "create_outline",
       "list_outlines",
+      "merge_node",
       "move_node",
       "push",
       "read_node",
@@ -198,6 +199,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
       "set_see",
       "set_title",
       "set_todo",
+      "split_node",
       "unarchive_node",
       "write_document",
     ])

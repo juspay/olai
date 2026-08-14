@@ -130,6 +130,56 @@ test("a note keeps Enter and the arrows for itself", () => {
   expect(editKey(key("Escape"), "block")).toBe("cancel")
 })
 
+// ── the two the caret decides ──────────────────────────────────────────
+
+/** The caret in a line the field holds, as the matcher takes it. */
+const at = (start: number, text: string, end = start) => ({ start, end, text })
+
+const LINE = "hello world"
+
+test("Enter splits only with text on BOTH sides of the caret", () => {
+  expect(editKey(key("Enter"), "line", at(5, LINE))).toBe("split")
+  // At the END of the line it is the key it has always been.
+  expect(editKey(key("Enter"), "line", at(11, LINE))).toBe("add")
+  // At the HEAD of it too: the head would be empty, which is not a node this
+  // format can hold, so there is no blank row to insert above.
+  expect(editKey(key("Enter"), "line", at(0, LINE))).toBe("add")
+  // A caller that cannot say where the caret is gets the old reading, which is
+  // the safe way round.
+  expect(editKey(key("Enter"), "line")).toBe("add")
+})
+
+test("a half of nothing but whitespace is an `add`, not a split the ops layer refuses", () => {
+  // A node needs a TITLE, and a title of spaces is not one — so the decision
+  // that a half this format cannot hold makes the key an `add` is spelled here
+  // rather than met as a refusal under the row a moment later.
+  expect(editKey(key("Enter"), "line", at(2, "  hello"))).toBe("add")
+  expect(editKey(key("Enter"), "line", at(5, "hello  "))).toBe("add")
+  // And the same line cut where both halves are real is still a split.
+  expect(editKey(key("Enter"), "line", at(4, "  hello"))).toBe("split")
+})
+
+test("a selection splits around what it covers, and one spanning an end does not", () => {
+  // What a split KEEPS is what falls outside the selection, so the same test
+  // reads it: text before `start`, text after `end`.
+  expect(editKey(key("Enter"), "line", at(3, LINE, 6))).toBe("split")
+  expect(editKey(key("Enter"), "line", at(0, LINE, 11))).toBe("add")
+  expect(editKey(key("Enter"), "line", at(3, LINE, 11))).toBe("add")
+})
+
+test("Backspace merges at offset zero, with nothing selected, and nowhere else", () => {
+  expect(editKey(key("Backspace"), "line", at(0, LINE))).toBe("merge")
+  // Anywhere else it is the field's own — there is a character to delete.
+  expect(editKey(key("Backspace"), "line", at(1, LINE))).toBeNull()
+  // A selection that starts at zero is a deletion, not a merge.
+  expect(editKey(key("Backspace"), "line", at(0, LINE, 4))).toBeNull()
+  expect(editKey(key("Backspace"), "line")).toBeNull()
+  // Modified Backspace is the platform's (delete-word), and a NOTE is prose:
+  // the row's keys are the row's.
+  expect(editKey(key("Backspace", { alt: true }), "line", at(0, LINE))).toBeNull()
+  expect(editKey(key("Backspace"), "block", at(0, LINE))).toBeNull()
+})
+
 test("no editing key is one of the reserved chords", () => {
   // The collision this file exists to make impossible: every chord the global
   // layer claims must be dead to the row layer, on both platforms. Over the
@@ -169,6 +219,8 @@ test("every editing key is written down for a person", () => {
   )
   const actions: ReadonlyArray<EditAction> = [
     "add",
+    "split",
+    "merge",
     "in",
     "out",
     "up",

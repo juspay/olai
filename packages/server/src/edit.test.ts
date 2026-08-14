@@ -426,6 +426,19 @@ test("a row somebody has put work under is not an undo's to take back", () => {
   expect(failure.message).toContain("under it now")
 })
 
+// ── the two compound keys ──────────────────────────────────────────────
+
+test("a split carries the two texts and resolves nothing else", () => {
+  // Both halves are the DRAFT's, and where the tail lands is the ops layer's —
+  // so this seam has no arithmetic of its own to get wrong.
+  expect(asked({ verb: "split", id: "order", title: "order ", rest: "the cabinets" }))
+    .toEqual({ op: "split", id: "order", title: "order ", rest: "the cabinets" })
+})
+
+test("a merge names the row and nothing else — the sibling above is the set's", () => {
+  expect(asked({ verb: "merge", id: "install" })).toEqual({ op: "merge", id: "install" })
+})
+
 // ── what would take a write back ───────────────────────────────────────
 
 /** The inverse of an edit over the house, with the id an `add` would have
@@ -612,6 +625,59 @@ test("an archive records the place the row is about to stop having", () => {
   // recorded fact — the same pair the op takes.
   expect(inverse({ verb: "archive", id: "loose" }))
     .toEqual([{ verb: "unarchive", id: "loose", file: "house.jsonl" }])
+})
+
+test("a split is taken back by merging the half it made", () => {
+  // One edit, and the ops layer's own opposite rather than one assembled here.
+  // `applied` is the new node, which is the only id an inverse ever names that
+  // did not exist when the reading was taken.
+  expect(inverse({ verb: "split", id: "order", title: "order ", rest: "the cabinets" }, "n1"))
+    .toEqual([{ verb: "merge", id: "n1" }])
+})
+
+test("a merge is taken back by a whole sequence, and every step is already a verb", () => {
+  // `install` merges into `order`, which is `doing`, dated, and carries a note.
+  // None of those is copied anywhere by the merge — they are on the two records
+  // — so the way back is: the record out of the trash, back into its place, its
+  // child back under it, and the survivor's two texts put back GUARDED by what
+  // the merge made them.
+  expect(inverse({ verb: "merge", id: "install" })).toEqual([
+    { verb: "unarchive", id: "install", parent: "kitchen" },
+    { verb: "place", id: "install", parent: "kitchen", after: "order" },
+    { verb: "place", id: "handles", parent: "install", after: null },
+    {
+      verb: "title",
+      id: "order",
+      title: "order the cabinets",
+      was: "order the cabinetsinstall them",
+    },
+  ])
+})
+
+test("a merge that MOVED the note puts the note back too, and one that did not says nothing", () => {
+  const notes = reading(setOf({
+    "house.jsonl": [
+      `{"id":"a","ord":"a0","title":"a","desc":"the first"}`,
+      `{"id":"b","ord":"a1","title":"b","desc":"the second"}`,
+    ].join("\n"),
+  }))
+  expect(inverse({ verb: "merge", id: "b" }, "a", notes).at(-1)).toEqual({
+    verb: "desc",
+    id: "a",
+    desc: "the first",
+    was: "the first\n\nthe second",
+  })
+  // `install` has no note of its own, so `order`'s is untouched and a second
+  // write would be one that says `was` for a field nothing changed.
+  expect(inverse({ verb: "merge", id: "install" }).some((edit) => edit.verb === "desc"))
+    .toBe(false)
+})
+
+test("a merge the op is about to refuse has nothing to take back", () => {
+  // The first of its siblings, and a placement — the two refusals `merge`
+  // answers with. There is no write, so there is no inverse.
+  expect(inverse({ verb: "merge", id: "demo" })).toEqual([])
+  expect(inverse({ verb: "merge", id: "echo" })).toEqual([])
 })
 
 test("what nothing would take back says so with an empty list", () => {
