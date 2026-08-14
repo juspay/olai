@@ -273,9 +273,14 @@ Then(
 
 /** Every title the file holds, off the disk this scenario is writing to.
  *  Deliberately the RECORDS rather than the page: what these scenarios claim
- *  is that a keystroke reached a file through the ops layer. */
+ *  is that a keystroke reached a file through the ops layer.
+ *
+ *  Through {@link recordsIn}, which is where the reason lives: `Archive.jsonl`
+ *  is written by the write that archives the first thing, so a step polling for
+ *  a node to ARRIVE in it is polling for the file too — and a helper that threw
+ *  ENOENT turned that wait into an error on the first attempt. */
 const titlesIn = (world: OlaiWorld, file: string): ReadonlyArray<string> =>
-  world.servedNodes(file).map((node) => String(node["title"] ?? ""));
+  recordsIn(world, file).map((node) => String(node["title"] ?? ""));
 
 Then(
   "{string} holds a node titled {string}",
@@ -456,6 +461,29 @@ Then(
           (node) => node["title"] === title && node["desc"] === undefined,
         ),
       `${file} to hold a node titled ${JSON.stringify(title)} carrying no note`,
+    );
+  },
+);
+
+/**
+ * The row has GONE — waited for, which is the opposite of the step below it.
+ *
+ * The two read almost the same and mean opposite things, and confusing them is
+ * a flaky test rather than a wrong one: "nothing should have been written" has
+ * to HOLD across the commit window, and "the write took it away" has to WAIT
+ * for a round trip. `undo.feature` asked the holding form of ⌘Z — which passes
+ * whenever the archive happens to land inside one animation frame and fails
+ * whenever the machine is busy.
+ *
+ * BY TITLE, where the pair below it is by id: a row a keystroke created carries
+ * an id nobody chose, so its title is the only thing a scenario can name it by.
+ */
+Then(
+  "{string} no longer holds a node titled {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    await this.waitUntil(
+      async () => !titlesIn(this, file).includes(title),
+      `${file} to have let go of the node titled ${JSON.stringify(title)}`,
     );
   },
 );

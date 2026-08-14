@@ -175,7 +175,11 @@ Feature: Undo
     And I press "Escape"
     Then "house.jsonl" holds a node titled "a line typed by mistake"
     When I press "ControlOrMeta+z"
-    Then "house.jsonl" holds no node titled "a line typed by mistake"
+    # WAITED for, not held: the two steps read alike and mean opposite things.
+    # "holds no node" is the promise that nothing was written and has to outlast
+    # the commit window; this is a WRITE going through, and asking the holding
+    # form of it passes only when the archive lands inside one animation frame.
+    Then "house.jsonl" no longer holds a node titled "a line typed by mistake"
     And "Archive.jsonl" holds a node titled "a line typed by mistake"
     # NOTHING is said now, and that is the news. This used to be the one entry
     # that explained why it could not be redone — a `move` is same-file by the
