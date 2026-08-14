@@ -11,15 +11,33 @@ machinery; this one is only about what the parent still owed.
 
 ---
 
+## Reading the receipts
+
+**A `file:line` names THIS BRANCH unless it is marked `(master)`.** The two are
+not interchangeable here and the distinction is the whole point of an audit: a
+line on this branch is a receipt for the FIX, and an audit's claim about what
+was open needs a receipt for the GAP. So every position that says "this was
+true before" cites master, at the revision this branch forked from
+(`65ba1501`), and every position that says "this is true now" cites here.
+
+Getting that backwards is the failure this document is otherwise about, one
+level up — a claim that was true, cited against a file that no longer showed
+why. Both reviewers caught it on the first pass; the numbers below are the
+corrected ones.
+
+---
+
 ## The table
 
-| # | position | verdict | receipt |
-| --- | --- | --- | --- |
-| a | the same verbs exist twice, two schemas free to drift | **CLOSED HERE** — one real instance, and it was live | `packages/format/src/searching.ts:49,111` |
-| b | the refusal contract is verified — `isError` + `structuredContent` carrying `OpFailure` | **CLOSED HERE** — one kind of four was pinned, on one face of two | `packages/server/src/mcp/tools.test.ts:506,564`, `packages/server/src/mcp/route.test.ts:180` |
-| c | the bridge shape exists — an agent attaching to a RUNNING olai's store | **DEFERRED, with a price and one upstream ask** | `packages/server/src/mcp/serve.ts:10` |
-| d | agents watch live rows, not only call tools | **ALREADY TRUE** — five subscribable resources | `packages/server/src/mcp/expose.ts:119`, `mcp/face.test.ts:232` |
-| e | `check-kolu-deps.sh` covers the package | **ALREADY TRUE** — by construction, and it always was | `nix/kolu.nix:27` |
+| # | position | verdict | the gap, on master | closed at, here |
+| --- | --- | --- | --- | --- |
+| a | the same verbs exist twice, two schemas free to drift | **CLOSED HERE** — one real instance, and it was live | `ops/src/tools.ts:136` + `ops/src/query.ts:293` + `surface/src/search.ts:29,51` — three spellings of the question, two of the answer, and `surface/src/search.ts:14` claiming they could not drift | `format/src/searching.ts:49,111` — one declaration, on the floor both stand on |
+| b | the refusal contract is verified — `isError` + `structuredContent` carrying `OpFailure` | **CLOSED HERE** — one kind of four was pinned, on one face of two | `server/src/mcp/tools.test.ts:452` (the one kind), `mcp/route.test.ts:159` (a success-path `structuredContent` assertion, and no refusal one anywhere in the file) | `mcp/tools.test.ts:506,564`, `mcp/route.test.ts:180` |
+| c | the bridge shape exists — an agent attaching to a RUNNING olai's store | **DEFERRED, with a price and one upstream ask** | — | unchanged; the argument for the second store is `server/src/mcp/serve.ts:10` |
+| d | agents watch live rows, not only call tools | **ALREADY TRUE** — five subscribable resources | — | unchanged: `server/src/mcp/expose.ts:119`, `mcp/face.test.ts:232` |
+| e | `check-kolu-deps.sh` covers the package | **ALREADY TRUE** — by construction, and it always was | — | unchanged: `nix/kolu.nix:27` |
+
+Paths are workspace-relative under `packages/` except `nix/kolu.nix`.
 
 Two of five were already true. Two were open and are closed in this PR. One is
 a decision the human owns, and the rest of this document is the case for it.
@@ -40,15 +58,18 @@ safe:
 | **search** | `search.nodes` | `search_nodes` | **nothing** |
 
 Search was the exception, and both halves of it were duplicated. The QUESTION
-was spelled three times — the tool's own `SearchArgs`, `Query.search`'s inline
-parameter type, and the wire spec's `SearchRequest`. The ANSWER was spelled
-twice — `Query.Search`/`Query.Found` as TypeScript, `SearchAnswer`/`SearchHit`
-as Effect Schema.
+was spelled three times — the tool's own `SearchArgs` (master,
+`ops/src/tools.ts:136`), `Query.search`'s inline parameter type (master,
+`ops/src/query.ts:293`), and the wire spec's `SearchRequest` (master,
+`surface/src/search.ts:51`). The ANSWER was spelled twice —
+`Query.Search`/`Query.Found` as TypeScript, `SearchAnswer`/`SearchHit` as
+Effect Schema (master, `surface/src/search.ts:29,44`).
 
-`@olai/surface`'s own header claimed this could not drift: *"the procedure's
-implementation returns `Query.search`'s value where this schema's type is
-demanded, so a field added to one side is a compile error on the other."* That
-claim was false, and the check is one experiment:
+`@olai/surface`'s own header claimed this could not drift (master,
+`surface/src/search.ts:14`): *"the procedure's implementation returns
+`Query.search`'s value where this schema's type is demanded, so a field added to
+one side is a compile error on the other."* That claim was false, and the check
+is one experiment:
 
 > Add `readonly drifted: string` to `Query.Found` and produce it in `foundOf`.
 > `just typecheck` passes on **all twelve packages.**
@@ -111,9 +132,10 @@ back as a successful call carrying `isError`, with `kindOf(failure)` and the
 raiser's own `toJSON()` as `structuredContent`. That is what juspay/kolu#2155
 was filed for, and it is correct.
 
-What fenced it was `not-found`, over an `InMemoryTransport`
-(`tools.test.ts:453`), plus two `usage` cases that arrived incidentally with
-other subjects (`tools.test.ts:817,862`). Two gaps.
+What fenced it was `not-found`, over an `InMemoryTransport` (master,
+`tools.test.ts:452`), plus two `usage` cases that arrived incidentally with
+other subjects (master, `tools.test.ts:735,780` — they are at `:858,903` here,
+moved by the insertions below and not otherwise touched). Two gaps.
 
 **The kind whose payload IS the point was not pinned.** Three of the four kinds
 carry a sentence and at most an id. `validation` carries the validator's own
@@ -134,11 +156,11 @@ one report, in one vocabulary, at one instant.**
 **And the transport olai wrote itself had no refusal test.** `mcp/route.ts` is
 a half-duplex HTTP shape with a waiter table, built because neither of the SDK's
 Streamable modes fits, and it is the pipe the chat panel's agent reads its
-refusals through. It had a success-path `structuredContent` assertion and no
-refusal one — leaving three failure modes an in-memory pair cannot have: an
-HTTP status keyed off `isError`, a JSON-RPC `error` frame instead of a result,
-or the structured half lost in the reply's serialization. Pinned
-(`route.test.ts:180`).
+refusals through. It had a success-path `structuredContent` assertion (master,
+`route.test.ts:159`) and no refusal one anywhere in the file — leaving three
+failure modes an in-memory pair cannot have: an HTTP status keyed off `isError`,
+a JSON-RPC `error` frame instead of a result, or the structured half lost in the
+reply's serialization. Pinned here (`route.test.ts:180`).
 
 **And the four kinds now DRIVE the tests** rather than being pinned by
 scattered assertions. `tools.test.ts:506` keys a table off `@olai/format`'s own
@@ -177,9 +199,12 @@ documents in a `Daily/YYYY/MM/` shape plus 20 outlines of 100 nodes each**,
 
 | | `olai web` | `olai mcp`, same directory | together |
 | --- | --- | --- | --- |
-| RSS | 209 MB | 209 MB | **418 MB** |
+| RSS (`VmRSS`) | 209 MB | 209 MB | **418 MB** |
 | open fds | 1050 | 1049 | **2099** |
-| probe + validate, per revision | ~9 ms | ~9 ms | done twice, on two clocks |
+| probe + validate, per revision | 8–11 ms | 8–11 ms | done twice, on two clocks |
+
+Method — samplers, corpus generator and the isolated watcher probe — is written
+out below, under [How it was measured](#how-it-was-measured).
 
 The fd number is the one that surprises, and it is not the bridge's fault — it
 is worth stating separately because the bridge is what would halve it:
@@ -205,6 +230,85 @@ are at different revisions between probes.** An agent reading a node through
 apart, and there is no revision either could compare to notice. Nothing breaks
 — the write gate handles it — but "the same live rows the browser draws", which
 is what this roadmap node promises, is today true only up to that skew.
+
+### How it was measured
+
+Written out because `watcher-fd-cost` will want to re-measure the same way, and
+because a number without its sampler is an anecdote. Linux, `x86_64`, nix-built
+binary (`nix build .#olai`), `ulimit -n` 524288.
+
+**The corpus** — 1000 `.md` in a daily-note shape plus 20 outlines of 100 nodes,
+1020 files, 599568 bytes:
+
+```sh
+mkdir -p corpus && cd corpus
+for i in $(seq 1 1000); do
+  d=$(printf "Daily/2026/%02d" $((i % 12 + 1))); mkdir -p "$d"
+  printf '# note %d\n\nSome body text for note %d.\n%s\n' "$i" "$i" \
+    "$(head -c 400 /dev/zero | tr '\0' 'x')" > "$d/note-$i.md"
+done
+for f in $(seq 1 20); do
+  { echo "{\"id\":\"root-$f\",\"ord\":\"a0\",\"title\":\"Outline $f\"}"
+    for n in $(seq 1 100); do
+      printf '{"id":"n-%d-%d","parent":"root-%d","ord":"a%d","title":"node %d of outline %d"}\n' \
+        "$f" "$n" "$f" "$n" "$n" "$f"
+    done
+  } > "outline-$f.jsonl"
+done
+```
+
+**The two processes**, on that one directory, with the agent off so the numbers
+are the store and the surface and nothing else:
+
+```sh
+OLAI_ACP_AGENT= olai web corpus --port 7788 --host 127.0.0.1 &   # WEB=$!
+OLAI_ACP_AGENT= olai mcp corpus < a-fifo-held-open &             # MCP=$!
+```
+
+`olai mcp` needs its stdin held open or it drains and exits — a fifo carrying
+one `initialize` frame, with the writer sleeping, is enough.
+
+**The samplers**, both `/proc`, never `ps` (which reports its own rounding):
+
+```sh
+grep VmRSS /proc/$PID/status      # RSS
+ls /proc/$PID/fd | wc -l          # open descriptors
+ls -l /proc/$PID/fd | grep -c corpus   # how many of them are served files
+```
+
+Sampled ~6 s after each process logs `serving` / `serving the outline surface
+over stdio`, then re-sampled after the run and found unchanged — which is the
+point about the descriptors: they are held, not transient. 1035 of the web
+process's 1050 resolved to files under `corpus`.
+
+**The isolated watcher finding** — the load-bearing one, and the cheapest to
+repeat. A store and nothing else, the same corpus, the flag flipped:
+
+```ts
+// run under the dev shell, from inside the workspace so @olai/* resolves
+import { NodeServices } from "@effect/platform-node"
+import { codec } from "@olai/ops"
+import * as Store from "@olai/store"
+import { Effect } from "effect"
+import * as fs from "node:fs"
+
+const fds = () => fs.readdirSync(`/proc/${process.pid}/fd`).length
+await Effect.gen(function*() {
+  console.log(`before: fds=${fds()}`)
+  yield* Store.make({ root: process.argv[2]!, codec, watch: process.argv[3] === "watch", settle: "10 millis" })
+  yield* Effect.sleep("3 seconds")
+  console.log(`watch=${process.argv[3] === "watch"}: fds=${fds()}`)
+}).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
+```
+
+`before: fds=14` both times; `watch=false: fds=14`, `watch=true: fds=1050`.
+
+**The per-probe timing** is `store.refresh` — "probe NOW, and do not return until
+the result has been published" — timed with `performance.now()` around five
+consecutive calls after the first snapshot, on a `watch: false` store so the
+watcher cannot fire one of its own: `11, 10, 8, 10, 8` ms. That is the read +
+parse + validate of the whole set that each store repeats on its own clock; it
+is not a claim about steady-state CPU.
 
 ### What the bridge needs, verb by verb
 
@@ -265,8 +369,8 @@ children, optional stamps, mirror placements.
 
 The route through that is now paved rather than hypothetical: it is what (a)
 did, and `packages/format/src/searching.ts` is the worked example beside
-`committing.ts`. **Two things about it have to be said out loud, because both
-are traps.**
+`committing.ts`. **Three things about it have to be said out loud, because all
+three are traps.**
 
 *Where they go is `@olai/format`, not `@olai/ops`.* The obvious phrasing —
 "declare them in the producing package and re-export from `@olai/surface`" — is
@@ -283,6 +387,19 @@ narrowing is the editor's design, argued at length, and no shared declaration
 can express it — the two are not one thing spelled twice. Whoever picks this up
 should expect the item to split there: `Outline`/`Detail`/`Subtree` are one
 vocabulary crossing a floor; a keyboard's answer is not.
+
+*And `Outline` is already taken, at the destination's public surface.*
+`@olai/format` exports an `Outline` of its own — one file's decoded nodes,
+`{ file, nodes: ReadonlyArray<Located> }` (`packages/format/src/set.ts:62`,
+re-exported at `index.ts:53`). The ops layer's `Outline`
+(`packages/ops/src/query.ts:161`) is the `list_outlines` SUMMARY:
+`{ file, nodes: number, roots, unreadable? }`. Two different concepts, one name,
+and the collision is the nastier kind — both carry `file` and `nodes`, so the
+shapes look compatible at a glance while `nodes` means a node list on one and a
+COUNT on the other. Moving the ops one onto the floor under its current name is
+not a rename away from a compile error; it is a rename away from a plausible
+one. Rename it at the move — `OutlineSummary` says what it is, and says it
+against the neighbour it would otherwise shadow.
 
 ### The written ask to kolu
 
@@ -327,12 +444,16 @@ argued as safe rather than as cheap.
 The parent can close as a theme once these exist as children. None of them is
 started here.
 
-1. **`reads-on-the-floor`** — `Outline`, `Detail` and `Subtree` declared as
-   Effect Schema in `@olai/format`'s `searching.ts`, beside the search shapes
-   this PR put there and for the identical reason. NOT in `@olai/ops`, and NOT
-   including `Applied` — see the two traps under (c). It is the prerequisite for
-   the three read verbs a bridge needs, and it is worth doing on its own terms:
-   they are the last query answers with no wire shape. No upstream dependency.
+1. **`reads-on-the-floor`** — the `list_outlines` summary, `Detail` and
+   `Subtree` declared as Effect Schema in `@olai/format`'s `searching.ts`,
+   beside the search shapes this PR put there and for the identical reason.
+   Three traps, all under (c): NOT in `@olai/ops` (inverts the layer), NOT
+   including `Applied` (deliberately a different type on each side), and the
+   summary must be RENAMED on the way — `@olai/format` already exports an
+   `Outline`, and it is a different thing whose shape looks compatible. It is
+   the prerequisite for the three read verbs a bridge needs, and worth doing on
+   its own terms: they are the last query answers with no wire shape. No
+   upstream dependency.
 2. **`per-face-expose` (upstream)** — the ask above. Blocks (3).
 3. **`mcp-bridge`** — `olai mcp --attach`: `serveOverUnixSocket` beside the
    listener, `unixSocketLink` in `mcp/serve.ts`, a dial failure falling through
@@ -340,7 +461,8 @@ started here.
    `ops.run`.
 4. **`watcher-fd-cost`** — one open descriptor per served file, per store, for
    the process's lifetime. Found while measuring (c); nothing to do with MCP.
-   The bridge halves it; fixing the watcher fixes it.
+   The bridge halves it; fixing the watcher fixes it. The method under (c) is
+   written out so this one re-measures the same way rather than a new way.
 
 Positions (a), (b), (d) and (e) are done and need no child.
 
@@ -366,3 +488,21 @@ for exactly this case, whose header is the argument I had just re-derived.
 they could have been one thing.** Both fences on this branch fell to that: the
 refusal-kinds one became a `Record` keyed by the format's own union, which needs
 no assertion at all.
+
+The third is the one the review round taught, and it is this section's own
+subject read back at it. Two receipts for the pre-PR state cited lines on THIS
+branch — where the fix is — rather than on master, where the gap was. The claims
+were true and both reviewers verified them independently; the receipts still
+pointed at the wrong file, which in an audit is the whole of what a receipt is
+for. A document whose method is "checked against master" has to say which
+revision each number is from, so [the convention is now
+stated](#reading-the-receipts) and the pre-PR numbers are master's.
+
+A number needs its sampler for the same reason a claim needs its revision.
+Both reviewers also landed on the measurements under (c): corpus shape and
+results were given, the commands were not, so the price of two stores was
+reproducible in design and not in practice. That is now written out — generator,
+samplers, the isolated watcher probe — because the child that inherits the fd
+finding should re-measure the same way rather than a new way, and because a
+document that says "this takes two minutes to repeat" should be right about
+which experiments do.
