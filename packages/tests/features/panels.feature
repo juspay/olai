@@ -83,8 +83,7 @@ Feature: Toggleable & resizable panels
   Scenario: The header's search box is the other door to the same reading
     # One reading, two doors: the box asks the same server procedure the
     # palette does and draws the same rows, so a result pressed here behaves
-    # exactly as one pressed there. A CI lane has no embedder, so these are
-    # substring hits — which is the degradation contract, not a gap.
+    # exactly as one pressed there.
     Given I open the outline "house.jsonl"
     When I search the header for "hinges"
     Then the header search lists the node "pick the hinges"
@@ -95,9 +94,8 @@ Feature: Toggleable & resizable panels
   @corpus:good
   Scenario: Palette search finds a node and jumps to it
     # The query goes to the server's search procedure — the same reading an
-    # agent's search_nodes gets, semantic index included when the machine has
-    # an embedder. A CI lane has none, so these hits are substring only:
-    # search degrading to exactly this is the feature's contract, not a gap.
+    # agent's search_nodes gets, so the palette and an agent cannot answer
+    # differently for the same words.
     Given I open the outline "house.jsonl"
     When I press the palette shortcut
     And I type "hinges" into the palette

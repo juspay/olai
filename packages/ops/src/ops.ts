@@ -44,10 +44,10 @@ import {
   type Status,
 } from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
-import { index, type Recall } from "./query.ts"
+import { index } from "./query.ts"
 import type { Applied, Request } from "./request.ts"
 import { sortOfWrite } from "./sorted.ts"
-import type { Searching } from "./tools.ts"
+import type { Reading } from "./tools.ts"
 
 export interface Options {
   readonly store: Store
@@ -83,14 +83,6 @@ export interface Options {
   /** Told whenever git recorded or shared something — a commit by whichever
    *  door, or a push — see {@link ./pending.ts}'s `Options`. */
   readonly onRecorded?: () => void
-  /**
-   * The semantic reading, when the composition root stood one up — the index
-   * `@olai/server`'s `recall/` keeps beside the store. Optional, and `null`
-   * means exactly what absent means: search is substring only, which is not a
-   * degraded ops layer but the ordinary one. It rides every {@link Searching}
-   * so both faces of search read through the same index.
-   */
-  readonly recall?: Recall | null
 }
 
 export interface Ops {
@@ -149,7 +141,7 @@ export interface Ops {
    * different shapes for the same condition — and so nothing above this layer
    * has to reach into the store to find out.
    */
-  readonly read: Effect.Effect<Searching, OpFailure>
+  readonly read: Effect.Effect<Reading, OpFailure>
   /**
    * What git is doing for this directory, as of now (`git-invisible`, #108) —
    * read by the header's git indicator beside what is waiting, and by an agent
@@ -186,7 +178,7 @@ export const make = (options: Options): Ops => {
     ...(options.onRecorded === undefined ? {} : { onRecorded: options.onRecorded }),
   })
 
-  const read: Effect.Effect<Searching, OpFailure> = Effect.gen(function*() {
+  const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
     const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
     if (snapshot === null) {
       const errors = yield* SubscriptionRef.get(options.store.errors)
@@ -196,7 +188,7 @@ export const make = (options: Options): Ops => {
       })
     }
     const set = snapshot.value as OutlineSet
-    return { set, derived: index(set), recall: options.recall ?? null }
+    return { set, derived: index(set) }
   })
 
   const run = (

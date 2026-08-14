@@ -37,7 +37,7 @@
  */
 
 import { kindOf, type OpFailure, type Writer } from "@olai/format"
-import { type Ops, type Searching, type Tool } from "@olai/ops"
+import { type Ops, type Reading, type Tool } from "@olai/ops"
 import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
 import { Effect, Schema } from "effect"
 
@@ -145,10 +145,7 @@ const answer = (
         tool.act(ops, args as never, writer),
         (result) => ({ ...(result as object), did: tool.name }),
       )
-      // Every read is an Effect by the table's own contract, so there is
-      // nothing to test here and nothing this file has to know about which
-      // read it is holding.
-      : Effect.flatMap(ops.read, (at: Searching) => tool.read(at, args as never)),
+      : Effect.map(ops.read, (at: Reading) => tool.read(at, args as never)),
     (failure: OpFailure) => refusal(tool.name, failure),
   )
 

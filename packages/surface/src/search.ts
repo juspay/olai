@@ -4,17 +4,16 @@
  * The MCP face's `search_nodes` and the palette must answer identically for
  * the same words (HACKING.md: MCP and Web ops must be consistent), and the
  * way that is made structural rather than aspirational is this procedure:
- * both are callers of `@olai/ops`' `Query.searchWith`, over the same
- * `Reading`, behind the same semantic index when one is standing. The browser
- * does hold every node (the `outlines` collection) and could grep them
- * itself; it deliberately does not, because a client-side matcher would be a
- * second implementation of ranking — and the first place the two faces of
+ * both are callers of `@olai/ops`' `Query.search`, over the same `Reading`.
+ * The browser does hold every node (the `outlines` collection) and could grep
+ * them itself; it deliberately does not, because a client-side matcher would
+ * be a second implementation of ranking — and the first place the two faces of
  * search quietly stopped being the same product.
  *
  * The shapes are the ops layer's own answers re-declared in schema, and the
  * two cannot drift: the procedure's implementation (`@olai/server`'s
- * `runtime.ts`) returns `Query.searchWith`'s value where this schema's type
- * is demanded, so a field added to one side is a compile error on the other.
+ * `runtime.ts`) returns `Query.search`'s value where this schema's type is
+ * demanded, so a field added to one side is a compile error on the other.
  *
  * A PROCEDURE and not a collection or cell: a search is a question with an
  * answer, not a value the server owns — there is nothing to subscribe to, and
@@ -25,10 +24,8 @@ import { Schema } from "effect"
 
 import { MARKS } from "@olai/format"
 
-/** One hit, exactly as `Query.search` situates one: the node, where it lives,
- *  and why it came back. `matched: "meaning"` is the semantic case — the
- *  node's own words do not contain the query's, so a UI owes the reader the
- *  difference between evidence and resemblance. */
+/** One hit, exactly as `Query.search` situates one: the node, where it
+ *  lives, and which field carried the match. */
 export const SearchHit = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
@@ -40,7 +37,7 @@ export const SearchHit = Schema.Struct({
   path: Schema.Array(Schema.String),
   see: Schema.optionalKey(Schema.Array(Schema.String)),
   after: Schema.optionalKey(Schema.Array(Schema.String)),
-  matched: Schema.Literals(["title", "id", "tag", "desc", "meaning"]),
+  matched: Schema.Literals(["title", "id", "tag", "desc"]),
 })
 export type SearchHit = typeof SearchHit.Type
 

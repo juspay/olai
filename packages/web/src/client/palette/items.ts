@@ -118,16 +118,11 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
  * outer crumbs follow while there is room, and a top-level node names its
  * file instead.
  *
- * A semantic hit wears `≈` in front: the query's words are NOT in this node,
- * the index reads it as saying the same thing, and a reader is owed the
- * difference between evidence and resemblance. When no embedder is present
- * such hits never arrive, and nothing says so — the absence of a feature is
- * not an error.
  */
 export const nodeItem = (hit: SearchHit): PaletteItem => ({
   id: `node-${hit.id}`,
   label: hit.title,
-  place: `${hit.matched === "meaning" ? "≈ " : ""}${placeOf(hit)}`,
+  place: placeOf(hit),
   action: { kind: "route", route: { kind: "node", id: hit.id } },
   // Never filtered locally: the server already decided these match.
   search: "",

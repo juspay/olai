@@ -45,16 +45,16 @@ test("the place reads NEAREST ancestor first, so a truncation keeps what situate
   expect(item.place).toBe("install the cabinets · kitchen remodel #home")
 })
 
-test("a semantic hit wears ≈, and a top-level one is placed by its file", () => {
-  const meaning = nodeItem({
+test("a node at the top level is placed by its file", () => {
+  const top = nodeItem({
     id: "buy",
     title: "Buy groceries",
     file: "errands.jsonl",
     line: 1,
     path: [],
-    matched: "meaning",
+    matched: "title",
   })
-  expect(meaning.place).toBe("≈ errands.jsonl")
+  expect(top.place).toBe("errands.jsonl")
 })
 
 test("askQuery strips the > prefix", () => {

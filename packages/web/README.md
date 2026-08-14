@@ -1242,12 +1242,9 @@ only door to it:
   chord — so before it, a phone had no door to search at all). Its panel
   portals out of the header and is placed by `anchor.ts`'s `styleOf`.
 
-The matching is entirely the server's — the same `Query.searchWith` reading an
-agent's `search_nodes` gets, semantic index included when the machine has an
-embedder — so there is deliberately no matcher in this client (`palette/items.ts`
-says why), and a semantic hit wears `≈` on its place line because the reader is
-owed the difference between evidence and resemblance. On a machine with no
-embedder those rows simply never arrive, and nothing here says so.
+The matching is entirely the server's — the same `Query.search` reading an
+agent's `search_nodes` gets — so there is deliberately no matcher in this
+client (`palette/items.ts` says why).
 
 ## The keyboard, in one file
 

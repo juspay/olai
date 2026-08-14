@@ -5,11 +5,9 @@
  * to the agent — and, under the shell rows, NODES: the query goes to the
  * server's search procedure as you type (debounced, latest-wins), and every
  * hit is a row that jumps to that node's page. The matching is entirely the
- * server's — the same reading an agent's `search_nodes` gets, semantic index
- * included when the machine has an embedder — so what this palette finds and
- * what an agent finds cannot drift (items.ts says why there is no local
- * matcher). A semantic hit wears `≈`; on a machine with no embedder such rows
- * simply never arrive and the palette says nothing about it.
+ * server's — the same reading an agent's `search_nodes` gets — so what this
+ * palette finds and what an agent finds cannot drift (items.ts says why there
+ * is no local matcher).
  *
  * Op actions are still the separate `palette` roadmap item.
  *

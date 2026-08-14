@@ -1,70 +1,53 @@
 # Search
 
 One search, three doors. An agent asks `search_nodes` over MCP; a person types
-into the `⌘K` palette, or into the **search box in the header** — and on a
-phone, where there is no chord and no room in the bar, taps the magnifier,
-which opens that same palette. Every one of them is a caller of the same
-function over the same snapshot (`@olai/ops`' `Query.searchWith`), so what an
-agent finds and what a person finds cannot drift: the browser holds every node
-and could grep them itself, and deliberately does not.
+into the **search box in the header**, or into the `⌘K` palette — and on a
+phone, where the bar has no room for a box, taps the magnifier, which opens
+that same palette. Every one of them is a caller of the same function over the
+same snapshot (`@olai/ops`' `Query.search`), so what an agent finds and what a
+person finds cannot drift: the browser holds every node and could grep them
+itself, and deliberately does not.
 
-A result row is two lines — the title, then where the node lives, written
-nearest-ancestor-first so a narrow window truncates the outer crumbs rather
-than the one that says which node this is.
+## What matches
 
-## Exact matches are evidence
-
-The base reading is case-folded substring over four fields — title, id,
-inline `#tags`, note — every word of the query somewhere in the same node, no
-operators. Title hits outrank id, tag, note; a field that starts with the
-word beats one that buries it; a done node loses ties. Hits carry
-`file:line`, ancestor titles, the mark if any, and the node's own `see` /
+Case-folded substring over four fields — title, id, inline `#tags`, note —
+with every word of the query somewhere in the same node, and no operators.
+Title hits outrank id, tag and note; a field that starts with the word beats
+one that buries it; a done node loses ties. Hits carry `file:line`, the
+ancestor titles, the mark if the node has one, and the node's own `see` /
 `after` edges. Mirrors are never hits — a placement is a second view of a
 node, not a node.
 
-## Paraphrase matches are resemblance
+## What a result row looks like
 
-When the machine has a local embedder, hits with `matched: "meaning"` are
-appended AFTER the exact ones: nodes whose title+note the index reads as
-saying the same thing in other words. They never outrank an exact match —
-the words being in the node is checkable, a similarity score is not — and a
-query whose exact matches already fill the limit never consults the index at
-all. In the palette a semantic hit wears `≈`.
+Two lines. The title first, on its own full-width line, cut with an ellipsis
+if it is long. Underneath, smaller and quieter, where the node lives —
+written **nearest ancestor first**, because a line that has to be shortened
+loses its end, and the nearest ancestor is the crumb that answers "which
+`pick the hinges`?". A node at the top level of its file names the file
+instead.
 
-The index is a **derived reading, never a second truth**:
+They are two lines rather than one because a place is somebody's prose. Side
+by side, the title and the place fight over one row's width: the title loses,
+wraps to a word per line, and the row ends up five lines tall — and when even
+that is not enough, the panel scrolls sideways, which a popover must never do.
 
-- embeddings per node (title + note) live in a gitignored-by-location cache —
-  `$XDG_CACHE_HOME/olai/recall/`, keyed by the served path — never inside the
-  served directory, so nothing ever shows up in your pending commits and the
-  file watcher never chases olai's own bytes;
-- it is rebuilt incrementally off the store's own snapshot stream, by content
-  hash: an unchanged node is never re-embedded, across edits and across
-  serves;
-- deleting the cache is always safe. Search answers substring immediately and
-  paraphrases again once the rebuild lands — both halves are pinned in tests;
-- nothing semantic ever touches a write. Embedding reads the words you wrote;
-  no LLM sits in any write path, and your words are never rewritten.
+## Where searching happens on each face
 
-## Turning it on (and off)
+- **Header box** — desktop and up. It sits first in the right-hand cluster and
+  is the one control there that may shrink to nothing, so the connection and
+  commit pills never lose a character to it. Type, arrow up and down, Enter to
+  open, Escape to clear.
+- **Phone** — a magnifier in the same place, opening the `⌘K` palette, which is
+  a full-width modal built for exactly this. The bar at 390pt has no room for
+  a box and a phone has no chord to press.
+- **`⌘K` palette** — the shell's commands, and node results underneath them.
+- **`search_nodes`** — the same answer for an agent, over MCP.
 
-Run [Ollama](https://ollama.com) and pull the default model:
+## Not yet: finding a note you cannot name
 
-    ollama pull nomic-embed-text
-
-That is the whole setup: the server probes Ollama at boot (`OLLAMA_HOST` is
-honoured, loopback by default) and starts indexing when it finds the model.
-`OLAI_EMBED_MODEL` names a different Ollama model; the embedder sits behind a
-seam, so a configured API embedder can slot in later without the index
-changing.
-
-No Ollama — or Ollama without the model — means search is substring-only,
-which is not an error and is reported nowhere but a boot log line. With the
-embedder absent, results are **exactly** today's substring results: that
-equality is the degradation contract, and CI (which has no Ollama) proves the
-semantic path against a fake embedder behind the seam.
-
-`OLAI_EMBED=off` turns the feature off without the server so much as probing
-for an embedder. Every test suite in this repo sets it — the unit lane in
-`scripts/bun-test-preload.ts`, the browser lane in its server spawns — so no
-test path can reach a live model, which is a stronger claim than "the probe
-usually finds nothing" and the only one a test can check.
+Searching by MEANING — "the first page load is too heavy" finding a note that
+never uses those words — is parked rather than shipped. The implementation
+that was written for it needed a model server (Ollama) running on the reader's
+machine, and olai requires no dependency outside Nix itself (HACKING.md). It
+returns when it can be nix-native.

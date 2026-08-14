@@ -387,13 +387,6 @@ const startServerChild = async (
         // The harness parses logfmt (`findLogfmt` for the serving line). A
         // developer's `OLAI_LOG=pretty` would make every boot hang on readiness.
         OLAI_LOG: "logfmt",
-        // The same isolation this block already gives the agent and git, for
-        // the embedder: a developer with `nomic-embed-text` pulled would
-        // otherwise run a different suite from CI's — live embeddings behind
-        // every palette search, and a write under their own cache dir. Every
-        // scratch scenario boots its own server, so this is also the boot
-        // probe kept off the critical path of `Given I open the app`.
-        OLAI_EMBED: "off",
       },
     });
     live.add(child);
