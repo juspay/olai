@@ -2,7 +2,7 @@
 { pkgs ? import ./nix/nixpkgs.nix { } }:
 let
   kolu = import ./nix/kolu.nix;
-  olaiFonts = import ./nix/fonts.nix { inherit pkgs; };
+  olaiFonts = import ./packages/fonts { inherit pkgs; };
 in
 pkgs.mkShell {
   name = "olai-shell";
@@ -20,12 +20,12 @@ pkgs.mkShell {
     # the tests.
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
-    # Hosted typefaces — TTFs/OTFs composed by nix/fonts.nix from the catalog
-    # in packages/web/src/client/theme/fonts.ts, converted to woff2 by the
-    # client build. No CDN, no font binary in the repo. The packaged build
-    # (default.nix) sets the same two variables.
+    # Hosted typefaces, already woff2: packages/fonts/default.nix converts the
+    # catalog beside it (packages/fonts/src/catalog.ts) once, in the store, and
+    # the client build only copies out of here. No CDN, no font binary in the
+    # repo, and no woff2_compress in this shell — the derivation brings its
+    # own. The packaged build (default.nix) sets the same one variable.
     OLAI_FONTS_DIR = "${olaiFonts}";
-    OLAI_WOFF2_COMPRESS = "${pkgs.woff2}/bin/woff2_compress";
   };
 
   packages = with pkgs; [
@@ -34,8 +34,5 @@ pkgs.mkShell {
     jq # scripts/check-kolu-deps.sh
     nixpkgs-fmt
     npins
-    source-sans
-    source-serif
-    woff2
   ];
 }

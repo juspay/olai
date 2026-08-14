@@ -28,7 +28,7 @@ import {
   FONT_STORAGE_KEY,
   type Typeface,
   typefaceNamed,
-} from "./fonts.ts"
+} from "@olai/fonts"
 import { watchPreference, writePreference } from "../preference.ts"
 
 const root = (): HTMLElement => document.documentElement

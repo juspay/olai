@@ -30,7 +30,7 @@
  * `Bun.build` takes a plugin array directly, so the build is driven from here.
  */
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, statSync } from "node:fs"
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -44,8 +44,8 @@ import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
 import type { BunPlugin } from "bun"
 
-import { fontCss } from "./client/theme/fontCss.ts"
-import { HOSTED_FILES, woff2Name } from "./client/theme/fonts.ts"
+import { HOSTED_FILES, woff2Name } from "@olai/fonts"
+import { fontCss } from "@olai/fonts/css"
 import { paletteCss } from "./client/theme/css.ts"
 import { scaleCss } from "./client/theme/scale.ts"
 
@@ -127,73 +127,49 @@ const buildStylesheet = async (): Promise<ArrayBuffer> =>
   ).arrayBuffer()
 
 /**
- * The hosted faces, served from /fonts/*.woff2.
+ * The hosted faces, served from /fonts/*.woff2 — a COPY, and nothing else.
  *
- * The catalog is `client/theme/fonts.ts`; nixpkgs files land in one directory
- * via `nix/fonts.nix` and `OLAI_FONTS_DIR` (shell.nix and default.nix). They
- * are converted to woff2 at build time — never committed — so a CDN is never
- * asked and the repo stays free of font binaries. Missing the env is a loud
- * failure in the packaged build; the dev loop gets the same env from the
- * flake shell.
+ * `OLAI_FONTS_DIR` is `@olai/fonts`'s own derivation (shell.nix and
+ * default.nix both point at it), and what it holds is already woff2: the
+ * conversion is a function of the font set, so it runs once in the Nix store
+ * rather than ~40 times per build here. Missing the env is a loud failure in
+ * the packaged build; the dev loop gets the same variable from the flake
+ * shell.
+ *
+ * The lookup stays BY NAME, one entry of the catalog at a time, rather than a
+ * copy of the whole directory: the catalog is what the generated sheet asks
+ * for, so a face it names and the derivation does not convert has to fail the
+ * build rather than 404 in a browser.
  */
-const FONT_FACES = HOSTED_FILES.map((file) => file.file)
-
-const installFonts = async (distDir: string): Promise<void> => {
+const installFonts = (distDir: string): void => {
   const fontsDir = process.env.OLAI_FONTS_DIR
   if (fontsDir === undefined || fontsDir === "") {
     throw new Error(
       "OLAI_FONTS_DIR is unset — the flake shell and default.nix both set it " +
-        "to nix/fonts.nix (the catalog in client/theme/fonts.ts); run via " +
-        "`just serve` / `nix build`.",
+        "to packages/fonts/default.nix (the catalog is that package's " +
+        "catalog.ts); run via `just serve` / `nix build`.",
     )
   }
   const out = resolve(distDir, "fonts")
   mkdirSync(out, { recursive: true })
 
-  // Loud failure if the converter is missing: the sheet names .woff2 only, so
-  // there is no TTF fallback path. Both shells set OLAI_WOFF2_COMPRESS.
-  const compress = process.env.OLAI_WOFF2_COMPRESS ?? "woff2_compress"
-  const work = mkdtempSync(join(tmpdir(), "olai-fonts-"))
-
-  for (const face of FONT_FACES) {
-    const src = join(fontsDir, face)
+  for (const face of HOSTED_FILES) {
+    const name = woff2Name(face.file)
+    const src = join(fontsDir, name)
     if (!existsSync(src)) {
-      throw new Error(`font face missing at ${src} (OLAI_FONTS_DIR=${fontsDir})`)
-    }
-    const converted = woff2Name(face)
-    const dest = join(out, converted)
-    // Skip reconvert when the woff2 is already newer than the source — `just
-    // serve` re-runs the whole client build on every keystroke, and a full
-    // convert of every hosted file is wasted when the faces have not moved.
-    if (existsSync(dest)) {
-      const srcM = statSync(src).mtimeMs
-      const destM = statSync(dest).mtimeMs
-      if (destM >= srcM) {
-        console.log(`font: ${converted} (cached)`)
-        continue
-      }
-    }
-    const tmp = join(work, face)
-    cpSync(src, tmp)
-    const result = Bun.spawn([compress, tmp], {
-      stdout: "inherit",
-      stderr: "inherit",
-    })
-    const code = await result.exited
-    if (code !== 0) {
       throw new Error(
-        `${compress} exited ${code} for ${face} — is pkgs.woff2 on PATH ` +
-          `(OLAI_WOFF2_COMPRESS)?`,
+        `font face missing at ${src} (OLAI_FONTS_DIR=${fontsDir}) — the ` +
+          `catalog names ${face.file}, so packages/fonts/default.nix has to ` +
+          `convert it`,
       )
     }
-    const produced = tmp.replace(/\.(ttf|otf)$/i, ".woff2")
-    if (!existsSync(produced)) {
-      throw new Error(`${compress} produced no ${produced}`)
-    }
-    cpSync(produced, dest)
-    console.log(`font: ${converted}`)
+    const dest = join(out, name)
+    cpSync(src, dest)
+    // The source is a store path, and its mode is read-only: copied verbatim,
+    // the next build into this same dist could not overwrite its own output.
+    chmodSync(dest, 0o644)
   }
-  await Bun.$`rm -rf ${work}`
+  console.log(`fonts: ${HOSTED_FILES.length} faces from ${fontsDir}`)
 }
 
 const buildClient = async (distDir: string): Promise<void> => {
@@ -233,7 +209,7 @@ const buildClient = async (distDir: string): Promise<void> => {
   }
   // Fonts after the surface client so a wipe of dist does not strand them,
   // and so /fonts/* is a sibling of the icons at the dist root.
-  await installFonts(distDir)
+  installFonts(distDir)
 }
 
 if (import.meta.main) {

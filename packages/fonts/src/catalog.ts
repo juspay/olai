@@ -1,12 +1,12 @@
 /**
  * The named typefaces, and the three tokens they write.
  *
- * A font is a PICK WITH A NAME, the same shape as a theme (`./palettes.ts`):
- * adding one is adding a row, the build generates the `@font-face` rules and
- * the `:root[data-font="…"]` block from what is here, and the preferences
- * panel's Font row draws one option per row. Hand-written CSS would be the
- * same three `--font-*` lines copied twenty times, and one place per face for
- * a file to be forgotten.
+ * A font is a PICK WITH A NAME, the same shape as a theme
+ * (`@olai/web`'s `theme/palettes.ts`): adding one is adding a row, `./css.ts`
+ * generates the `@font-face` rules and the `:root[data-font="…"]` block from
+ * what is here, and the preferences panel's Font row draws one option per row.
+ * Hand-written CSS would be the same three `--font-*` lines copied twenty
+ * times, and one place per face for a file to be forgotten.
  *
  * Three jobs, one pick. `--font-serif` is the page (outline titles, a
  * document). `--font-sans` is the chrome (header, sidebar, notes, chat).
@@ -17,8 +17,9 @@
  * the page speaks Inter; pick Fira Code and it speaks Fira Code, chrome
  * included.
  *
- * Hosted files come from nixpkgs (`nix/fonts.nix`), converted to woff2 at
- * build time. Generics download nothing. No CDN, no font binary in the repo.
+ * Hosted files come from nixpkgs and are converted to woff2 ONCE, by this
+ * package's own `default.nix`, in the Nix store. Generics download nothing.
+ * No CDN, no font binary in the repo.
  *
  * Bold and Light from Workflowy's list are not here: they are weights, not
  * faces, and a weight is not a typeface.
@@ -32,8 +33,9 @@ export type FontToken = (typeof FONT_TOKENS)[number]
 
 export type FontGroup = "olai" | "generic" | "face"
 
-/** One file this app converts and serves from `/fonts/*.woff2`. `file` is the
- *  basename `nix/fonts.nix` drops in `OLAI_FONTS_DIR`. `family` is the CSS
+/** One file this app serves from `/fonts/*.woff2`. `file` is the SOURCE
+ *  basename `./default.nix` converts; what lands in `OLAI_FONTS_DIR`, and what
+ *  the sheet asks for, is `woff2Name` of it. `family` is the CSS
  *  name `@font-face` declares — chosen here, not read out of the name table —
  *  so the stacks below can quote it. */
 export interface HostedFile {
@@ -114,7 +116,7 @@ const statics = (
     : [face(files.boldItalic, family, "700", "italic")]),
 ]
 
-/** Every file the build converts. Deduped by construction: a family used by
+/** Every file this app hosts. Deduped by construction: a family used by
  *  two rows (Olai and Literata, Atkinson the default and Atkinson the pick)
  *  is listed once. */
 export const HOSTED_FILES: ReadonlyArray<HostedFile> = [
@@ -481,7 +483,8 @@ export const DEFAULT_TYPEFACE: Typeface = (() => {
   return face
 })()
 
-/** The woff2 basename the sheet and the build both use. */
+/** The woff2 basename the sheet asks for, the derivation writes and the build
+ *  copies — one rule, three readers. */
 export const woff2Name = (file: string): string =>
   file.replace(/\.(ttf|otf)$/i, ".woff2")
 

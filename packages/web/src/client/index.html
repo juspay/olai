@@ -26,12 +26,12 @@
          It deliberately knows no theme or font names: the sheet carries a
          block per palette and per typeface, and the tables that generate
          them live in one place each (src/client/theme/palettes.ts,
-         src/client/theme/fonts.ts). A stored name no row offers is
+         and @olai/fonts's catalog). A stored name no row offers is
          forgotten by the app once it is up, which is the first moment
          anything knows the lists. The keys are those tables'
          THEME_STORAGE_KEY / FONT_STORAGE_KEY and the attributes are
          THEME_ATTRIBUTE / FONT_ATTRIBUTE; theme/css.test.ts and
-         theme/fontCss.test.ts hold this script to both.
+         theme/fonts.test.ts hold this script to both.
 
          `setAttribute`, not `dataset.theme`: they are the same thing today,
          and the day a pref's name has a hyphen in it they are not. -->

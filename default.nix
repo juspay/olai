@@ -15,6 +15,11 @@ let
   # of a built store path would be import-from-derivation.
   stamp = import ((import ./npins).kolu + "/packages/surface-app/nix/commit-stamp.nix") { };
 
+  # The hosted typefaces, already converted to woff2 — @olai/fonts owns both
+  # the catalog and the derivation that realises it, so this is the whole of
+  # what the client build needs to be told about fonts.
+  olai-fonts = import ./packages/fonts { inherit pkgs; };
+
   src = pkgs.lib.fileset.toSource {
     root = ./.;
     fileset = pkgs.lib.fileset.unions [
@@ -43,10 +48,10 @@ let
     inherit version src;
 
     # b2n.hook propagates its own bun; listing ours first wins on PATH, so the
-    # bun that installs and the bun the wrapper execs are one version.
-    # woff2 converts the composed catalog TTFs/OTFs to the /fonts/*.woff2
-    # the client serves.
-    nativeBuildInputs = [ pkgs.bun b2n.hook pkgs.woff2 ];
+    # bun that installs and the bun the wrapper execs are one version. No
+    # woff2 here: the faces are already woff2 when this build sees them
+    # (packages/fonts/default.nix), and its font step is a copy.
+    nativeBuildInputs = [ pkgs.bun b2n.hook ];
 
     bunDeps = b2n.fetchBunDeps { bunNix = ./bun.nix; };
 
@@ -74,8 +79,7 @@ let
       # binding at startup — even without --watch — and that binding wants
       # libstdc++, which the sandbox does not put on the loader path.
       export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:''${LD_LIBRARY_PATH:-}"
-      export OLAI_FONTS_DIR="${import ./nix/fonts.nix { inherit pkgs; }}"
-      export OLAI_WOFF2_COMPRESS="${pkgs.woff2}/bin/woff2_compress"
+      export OLAI_FONTS_DIR="${olai-fonts}"
       ${stamp.exportLine rev}
       bun packages/web/src/build.ts packages/web/dist
       runHook postBuild
@@ -125,5 +129,5 @@ let
   '';
 in
 {
-  inherit olai olai-client base acp-agent;
+  inherit olai olai-client olai-fonts base acp-agent;
 }
