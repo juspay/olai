@@ -222,6 +222,12 @@ The palette goes places and asks the agent ([search.md](search.md)); it writes
 two things as well, and both of them are the same op through the same gate as
 everything above.
 
+**An untouched palette has nothing chosen.** The rows a node can take are
+listed first, where you can see them, and that is only safe because the
+highlight is where the arrows START rather than a choice you made: press ⌘K
+and Enter and nothing happens. The first character you type is the choice, and
+it lights the best match; ↓ is the other way in.
+
 **The verbs of the node you have ZOOMED.** On `/n/<id>`, the palette lists what
 that node can take — `Mark todo`, `Complete`, `Clear mark`, `Clear date`, `Move
 to Trash` — the same entries the row's ••• menu offers, decided by the same
