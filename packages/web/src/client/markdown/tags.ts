@@ -20,7 +20,7 @@
  * holds them to each other by rendering the same titles both ways.
  */
 
-import { TAG_SIGILS, tagText, titleParts } from "@olai/format"
+import { mayHoldTag, tagText, titleParts } from "@olai/format"
 import type { Element, ElementContent, Root } from "hast"
 
 import { TESTID } from "../testids.ts"
@@ -56,25 +56,23 @@ export const styleTags = (parent: Root | Element): void => {
   parent.children = next as typeof parent.children
 }
 
-/** Whether a run of text could hold a tag at all — the cheap guard both
- *  renderings take before running the format's global regex over it, as
- *  `@olai/ops`' search index guards the same call. Most titles hold neither
- *  sigil. */
-const mayHoldATag = (text: string): boolean =>
-  TAG_SIGILS.some((sigil) => text.includes(sigil))
-
-/** One run of text, as the text and pills it turns out to be. */
-const splitTags = (text: string): ElementContent[] =>
-  titleParts(text).map((part) =>
+/** One run of text, as the text and pills it turns out to be — guarded by the
+ *  format's own cheap negative, exactly as the HTML path below and the search
+ *  index are, because a HAST walk asks this per TEXT NODE and most of them hold
+ *  no sigil at all. */
+const splitTags = (text: string): ElementContent[] => {
+  if (!mayHoldTag(text)) return [{ type: "text", value: text } as ElementContent]
+  return titleParts(text).map((part) =>
     part.kind === "tag"
       ? pill(tagText(part))
       : ({ type: "text", value: part.text } as ElementContent),
   )
+}
 
 /** The same text and the same pills, written straight to HTML — no tree, and
  *  so no stringifier to wait for. */
 export const taggedHtml = (text: string): string => {
-  if (!mayHoldATag(text)) return escapeText(text)
+  if (!mayHoldTag(text)) return escapeText(text)
   return titleParts(text)
     .map((part) =>
       part.kind === "tag"

@@ -20,6 +20,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import {
   COMPLETION_ITEM,
+  COMPLETION_ITEM_PLACE,
   COMPLETIONS,
   oneLine,
   POLL_TIMEOUT,
@@ -94,6 +95,20 @@ Then(
   },
 );
 
+/** WHERE a `((` hit sits — the second line of its row, which is what makes a
+ *  bare title mean something in a list of strangers. Its own step because it is
+ *  its own line, and only the node rows have one. */
+Then(
+  "the completion {string} sits at {string}",
+  async function (this: OlaiWorld, label: string, place: string) {
+    const row = rows(this).filter({ hasText: label }).first();
+    await this.waitUntil(async () => {
+      const line = row.locator(COMPLETION_ITEM_PLACE);
+      return (await line.count()) === 1 && oneLine(await line.innerText()) === place;
+    }, `the completion ${JSON.stringify(label)} to sit at ${JSON.stringify(place)}`);
+  },
+);
+
 /** Which row Enter would take. The arrows move it, and a scenario that only
  *  asserted the list would never notice them. */
 Then(
@@ -123,11 +138,8 @@ When(
   },
 );
 
-const labels = async (world: OlaiWorld): Promise<ReadonlyArray<string>> => {
-  if ((await panel(world).count()) === 0) return [];
-  // The first line only: a `((` row carries WHERE the node sits on a second
-  // line, and that is asked by its own step.
-  return (await rows(world).allInnerTexts()).map((text) =>
-    oneLine(text.split("\n")[0] ?? "")
-  );
-};
+/** The FIRST line of each row: a `((` row carries where the node sits on a
+ *  second line, and that is asked by its own step. A page with no panel has no
+ *  rows either, so this answers `[]` without a separate look. */
+const labels = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
+  (await rows(world).allInnerTexts()).map((text) => oneLine(text.split("\n")[0] ?? ""));

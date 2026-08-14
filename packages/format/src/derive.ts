@@ -730,6 +730,19 @@ export const tagText = (part: { readonly sigil: TagSigil; readonly tag: string }
   `${part.sigil}${part.tag}`
 
 /**
+ * Whether text could hold a tag AT ALL — a plain `indexOf` per sigil, and the
+ * guard every walk of {@link titleParts} takes first.
+ *
+ * That call runs a global regex and allocates a part per segment, and most
+ * titles hold no tag at all; the search index, the client's two renderings of a
+ * pill and its tag completion all want the same cheap negative. It was written
+ * three times before this existed, and the first two had already drifted (one
+ * asked about `#` only).
+ */
+export const mayHoldTag = (text: string): boolean =>
+  text.includes("#") || text.includes("@")
+
+/**
  * A fresh `/g` regex for an inline tag in a title.
  *
  * A sigil followed by letters, digits, `_`, `-` or `/` — the last so
@@ -746,6 +759,31 @@ export const tagText = (part: { readonly sigil: TagSigil; readonly tag: string }
  * restyle titles in sets that are already written.
  */
 export const titleTagRe = (): RegExp => /#[A-Za-z0-9_/-]+|(?<![^\s([{])@[A-Za-z0-9_/-]+/g
+
+/**
+ * Whether `text` is a tag NAME and nothing else — the alphabet above, asked as
+ * a question.
+ *
+ * It exists because a client COMPLETING a tag has to know where one stops
+ * while it is still half-typed, and this file already says the alphabet must
+ * not be re-declared elsewhere. An empty name passes: `#` on its own is a tag
+ * being started, which is exactly when a completion is wanted, and it is
+ * {@link titleTagRe}'s business that a bare sigil is not yet a tag.
+ */
+export const isTagName = (text: string): boolean => /^[A-Za-z0-9_/-]*$/.test(text)
+
+/**
+ * Whether a sigil sitting at `at` STARTS a tag rather than sitting inside a
+ * word — the beginning of the text, or after a space or an opening bracket.
+ *
+ * The rule {@link titleTagRe} applies to `@`, asked of ANY position, because a
+ * completion wants it for both sigils: offering to rewrite the middle of
+ * `issue#42` is offering to rewrite a word somebody is in the middle of
+ * typing. What the format RECOGNISES as a tag is the regex's own, wider
+ * question for `#`; this is only about where one may be started.
+ */
+export const tagOpensAt = (text: string, at: number): boolean =>
+  at === 0 || /[\s([{]/.test(text[at - 1] as string)
 
 export const titleParts = (title: string): ReadonlyArray<TitlePart> => {
   const parts: Array<TitlePart> = []

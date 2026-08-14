@@ -70,13 +70,13 @@ import {
 
 import { Completions } from "./Completions.tsx"
 import { useDerived } from "../derived.tsx"
-import { useEditor } from "../edit/editing.tsx"
-import { nodePlace } from "../palette/items.ts"
+import { nodePlace } from "../search/place.ts"
 import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { useToday } from "../today.tsx"
 import { dayLabel, naturalDays } from "../date/natural.ts"
 import { matchTags, tagsOf } from "./tags.ts"
+import { listKey } from "../keys.ts"
 import { triggerIn, type Trigger, type Written, written } from "./trigger.ts"
 
 /** One row of the popup. `choose` is the whole of what it does, so the
@@ -121,6 +121,15 @@ export interface Completion {
 
 /** What {@link Panel} reads — this module's own shape, not the consumer's. */
 export interface Listing {
+  /**
+   * WHETHER THERE IS A BOX ON SCREEN, asked once.
+   *
+   * The panel's `<Show>` and the first line of `key` are the same question —
+   * "nothing on screen takes nothing" is only true if the two agree — and they
+   * were two formulas in two files, which is how a refused `((` search came to
+   * draw a visible panel whose Escape fell straight through to the outline.
+   */
+  readonly showing: Accessor<boolean>
   /** Which widget is armed, or `null`. Drawn as a fact on the popup so a
    *  scenario can say WHICH list it is looking at. */
   readonly kind: Accessor<Trigger["kind"] | null>
@@ -140,8 +149,18 @@ export const createCompletion = (field: {
   /** Put this text in the field and the caret at that offset — the DOM half,
    *  which is the one thing this hook cannot do for itself. */
   readonly rewrite: (next: Written) => void
+  /**
+   * The two OPS a completion can cause, handed in rather than reached for.
+   *
+   * They are the same kind of thing as `rewrite`: an effect at the edge, which
+   * the caller has and this does not. Reaching for `useEditor()` here would
+   * make this module a consumer of the row editor's context — a completion in
+   * any other field would drag the outline's draft in with it — and would put
+   * one verb-shaped member on that interface per widget.
+   */
+  readonly dated: (day: string) => void
+  readonly mirrored: (target: string) => void
 }): Completion => {
-  const editor = useEditor()
   const derived = useDerived()
   const today = useToday()
   const [dismissed, setDismissed] = createSignal<string | null>(null)
@@ -157,10 +176,6 @@ export const createCompletion = (field: {
    *  further along the line is a fresh offer. */
   const tokenOf = (found: Trigger): string => `${found.kind}:${found.from}`
 
-  /** The set's tags, re-counted when the live indexes move and not per
-   *  keystroke. */
-  const tags = createMemo(() => tagsOf(derived()))
-
   // The server's search, asked only while `((` is what is armed — the same
   // primitive, the same debounce and the same minimum the palette uses.
   const nodes = createNodeSearch(() => {
@@ -174,49 +189,57 @@ export const createCompletion = (field: {
     field.rewrite(written(field.text(), found, insert, field.caret()))
   }
 
+  /** A SWITCH rather than a chain of `if`s whose last arm is a fall-through:
+   *  the three kinds and the three lists are one table the compiler checks, so
+   *  a fourth trigger could not quietly render node hits. */
   const choices = createMemo<ReadonlyArray<Choice>>(() => {
     const found = trigger()
     if (found === null) return []
-    if (found.kind === "date") {
-      return naturalDays(found.query, today()).map((named) => ({
-        id: named.day,
-        label: named.phrase,
-        hint: dayLabel(named.day),
-        choose: () => {
-          replace(found, "")
-          editor.dated(named.day)
-        },
-      }))
+    switch (found.kind) {
+      case "date":
+        return naturalDays(found.query, today()).map((named) => ({
+          id: named.day,
+          label: named.phrase,
+          hint: dayLabel(named.day),
+          choose: () => {
+            replace(found, "")
+            field.dated(named.day)
+          },
+        }))
+      case "tag":
+        // The set's tags are walked once per derivation and cached against it
+        // (`./tags.ts`), so asking here — only while a tag is being typed —
+        // costs nothing on a session that never types one.
+        return matchTags(tagsOf(derived()), found.sigil, found.query).map((tag) => ({
+          id: `${tag.sigil}${tag.name}`,
+          label: `${tag.sigil}${tag.name}`,
+          hint: `${tag.count}`,
+          // The tag AND NOTHING ELSE — no trailing space, which is what
+          // Workflowy adds and what this deliberately does not. A title is
+          // stored verbatim, so a space nobody typed is a space in somebody's
+          // git history; the caret is left right after the tag and the next
+          // character is theirs.
+          //
+          // What ends the popup instead is the DISMISSAL: the token that has
+          // just been completed is put away, so the very next Enter is the
+          // row's own ("commit and open the next line") rather than a second
+          // press of the row that has already been taken.
+          choose: () => {
+            replace(found, `${tag.sigil}${tag.name}`)
+            setDismissed(tokenOf(found))
+          },
+        }))
+      case "mirror":
+        return nodes.hits().map((hit) => ({
+          id: hit.id,
+          label: hit.title,
+          place: nodePlace(hit),
+          choose: () => {
+            replace(found, "")
+            field.mirrored(hit.id)
+          },
+        }))
     }
-    if (found.kind === "tag") {
-      return matchTags(tags(), found.sigil, found.query).map((tag) => ({
-        id: `${tag.sigil}${tag.name}`,
-        label: `${tag.sigil}${tag.name}`,
-        hint: `${tag.count}`,
-        // The tag AND NOTHING ELSE — no trailing space, which is what Workflowy
-        // adds and what this deliberately does not. A title is stored verbatim,
-        // so a space nobody typed is a space in somebody's git history; the
-        // caret is left right after the tag and the next character is theirs.
-        //
-        // What ends the popup instead is the DISMISSAL: the token that has just
-        // been completed is put away, so the very next Enter is the row's own
-        // ("commit and open the next line") rather than a second press of the
-        // row that has already been taken.
-        choose: () => {
-          replace(found, `${tag.sigil}${tag.name}`)
-          setDismissed(tokenOf(found))
-        },
-      }))
-    }
-    return nodes.hits().map((hit) => ({
-      id: hit.id,
-      label: hit.title,
-      place: nodePlace(hit),
-      choose: () => {
-        replace(found, "")
-        editor.mirrored(hit.id)
-      },
-    }))
   })
 
   // WHICH row Enter takes — the one cursor every shortlist in this client
@@ -233,6 +256,11 @@ export const createCompletion = (field: {
   createEffect(on(() => trigger()?.query ?? null, cursor.top))
 
   const listing: Listing = {
+    // A box is on screen when something is armed AND it has something to say —
+    // rows, or a refusal from the search. One rule, read by the panel and by
+    // the keys below.
+    showing: () =>
+      trigger() !== null && (choices().length > 0 || nodes.failure() !== null),
     kind: () => trigger()?.kind ?? null,
     choices,
     active: cursor.at,
@@ -250,30 +278,34 @@ export const createCompletion = (field: {
       // arrows walk the outline. Claiming keys off the armed trigger rather
       // than off the visible list made Escape in a row with a `#nomatch` in it
       // do nothing at all, which is the worst answer of the three.
-      if (found === null || choices().length === 0) return false
-      // Escape shuts the POPUP and keeps the draft — see the header.
-      if (event.key === "Escape") {
-        setDismissed(tokenOf(found))
-        return true
+      if (found === null || !listing.showing()) return false
+      // WHICH key it is, is the registry's (`../keys.ts`) — a component
+      // matching Escape and the arrows privately is exactly the silent
+      // disagreement that file exists to make impossible. What each one MEANS
+      // is this file's.
+      switch (listKey(event)) {
+        case "dismiss":
+          // Shuts the POPUP and keeps the draft — see the header.
+          setDismissed(tokenOf(found))
+          return true
+        case "next":
+          cursor.step(1)
+          return true
+        case "prev":
+          cursor.step(-1)
+          return true
+        case "take": {
+          // Nothing to take is not a key: a panel can be up saying only that
+          // the search was refused, and swallowing Enter there would be a
+          // keystroke that does nothing at all.
+          const taking = choices()[cursor.at()]
+          if (taking === undefined) return false
+          taking.choose()
+          return true
+        }
+        case null:
+          return false
       }
-      if (event.key === "ArrowDown") {
-        cursor.step(1)
-        return true
-      }
-      if (event.key === "ArrowUp") {
-        cursor.step(-1)
-        return true
-      }
-      // A bare Enter only: `Ctrl+Enter` is the mark and `Shift+Enter` the note,
-      // and neither stops being itself because a list is up.
-      if (
-        event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.shiftKey &&
-        !event.altKey
-      ) {
-        choices()[cursor.at()]?.choose()
-        return true
-      }
-      return false
     },
   }
 }

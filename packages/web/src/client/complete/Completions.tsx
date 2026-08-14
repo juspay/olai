@@ -32,19 +32,17 @@
  * defaulted-away by the row itself so a click cannot blur the line being typed.
  */
 
-import { For, Show } from "solid-js"
+import { Index, Show } from "solid-js"
 
 import { Result } from "../search/Result.tsx"
 import { TESTID } from "../testids.ts"
 import type { Listing } from "./completing.tsx"
 
 export function Completions(props: { readonly listing: Listing }) {
-  const showing = () =>
-    props.listing.kind() !== null &&
-    (props.listing.choices().length > 0 || props.listing.failure() !== null)
-
   return (
-    <Show when={showing()}>
+    // WHETHER there is a box is the listing's own answer, not a second formula
+    // here — see `Listing.showing`.
+    <Show when={props.listing.showing()}>
       <div
         class="absolute top-full left-0 z-30 mt-1 w-[min(24rem,80vw)] overflow-hidden rounded-md border border-rule/70 bg-panel shadow-lg"
         data-testid={TESTID.completions}
@@ -68,26 +66,30 @@ export function Completions(props: { readonly listing: Listing }) {
             </p>
           )}
         </Show>
-        <ul
-          class="m-0 max-h-64 list-none overflow-x-hidden overflow-y-auto p-1"
-        >
-          <For each={[...props.listing.choices()]}>
+        {/* `<Index>`, not `<For>`: the rows are POSITIONAL and there are at
+            most eight of them, and every keystroke mints a fresh `Choice` per
+            row (each carries its own `choose` closure), so a reference-keyed
+            diff would match nothing and tear down every row to build it again
+            — including while a `((` list is sitting unchanged behind its
+            debounce. Index-keying updates the props in place. */}
+        <ul class="m-0 max-h-64 list-none overflow-x-hidden overflow-y-auto p-1">
+          <Index each={props.listing.choices()}>
             {(choice, index) => (
               <li>
                 <Result
-                  label={choice.label}
-                  hint={choice.hint}
-                  place={choice.place}
-                  active={index() === props.listing.active()}
+                  label={choice().label}
+                  hint={choice().hint}
+                  place={choice().place}
+                  active={index === props.listing.active()}
                   testid={TESTID.completionItem}
                   placeTestid={TESTID.completionItemPlace}
-                  id={choice.id}
-                  onHover={() => props.listing.hover(index())}
-                  onSelect={() => choice.choose()}
+                  id={choice().id}
+                  onHover={() => props.listing.hover(index)}
+                  onSelect={() => choice().choose()}
                 />
               </li>
             )}
-          </For>
+          </Index>
         </ul>
       </div>
     </Show>

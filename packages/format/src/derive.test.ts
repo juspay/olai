@@ -10,8 +10,11 @@ import {
   rowsOf,
   situate,
   type Status,
+  isTagName,
+  mayHoldTag,
   storedMarker,
   TAG_SIGILS,
+  tagOpensAt,
   tagText,
   titleParts,
   titleTagRe,
@@ -897,6 +900,42 @@ test("TAG_SIGILS is what titleTagRe matches", () => {
   expect([...TAG_SIGILS]).toEqual(["#", "@"])
   for (const sigil of TAG_SIGILS) {
     expect(tags(`a ${sigil}thing`)).toEqual([`${sigil}thing`])
+  }
+})
+
+// The three questions a client COMPLETING a tag asks, held to the regex they
+// are about — which is the whole reason they are exported rather than written
+// again in a widget. If one of them drifts from the alphabet, this fails here
+// rather than as a popup that offers to rewrite the middle of a word.
+test("the tag predicates agree with the alphabet they are about", () => {
+  for (const name of ["home", "work/olai", "Tag-1", "tag_2", ""]) {
+    expect(isTagName(name)).toBe(true)
+    if (name !== "") expect(tags(`a #${name}`)).toEqual([`#${name}`])
+  }
+  for (const name of ["a b", "a.b", "a!", "a#b"]) expect(isTagName(name)).toBe(false)
+})
+
+test("a sigil opens a tag at a word start and nowhere else", () => {
+  // The same positions `titleTagRe`'s `@` lookbehind accepts, asked directly.
+  expect(tagOpensAt("@a", 0)).toBe(true)
+  for (const before of [" ", "(", "[", "{"]) {
+    expect(tagOpensAt(`x${before}@a`, 2)).toBe(true)
+    expect(tags(`x${before}@a`)).toEqual(["@a"])
+  }
+  expect(tagOpensAt("srid@srid", 4)).toBe(false)
+  expect(tags("srid@srid")).toEqual([])
+})
+
+// The cheap negative every walk takes first. Written three times before it was
+// exported, and two of those had already drifted.
+test("a title with no sigil in it cannot hold a tag", () => {
+  expect(mayHoldTag("order the new cabinets")).toBe(false)
+  expect(mayHoldTag("issue # 42")).toBe(true)
+  expect(mayHoldTag("srid@srid.ca")).toBe(true)
+  // The guard is allowed to be generous — it only ever saves a walk.
+  for (const title of ["a #home", "a @alice"]) {
+    expect(mayHoldTag(title)).toBe(true)
+    expect(tags(title).length).toBe(1)
   }
 })
 

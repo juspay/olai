@@ -36,7 +36,12 @@
  * rather than the first.
  */
 
-import { TAG_SIGILS, type TagSigil } from "@olai/format"
+// WHERE A TAG STARTS AND STOPS IS THE FORMAT'S, and none of it is re-declared
+// here: the sigils it recognises, the alphabet a name is made of, and the rule
+// about a sigil sitting inside a word are three exports rather than three
+// literals in a widget (`@olai/format`'s derive.ts says why, beside the regex
+// they all answer for). What is left in this file is only WHERE the caret is.
+import { isTagName, TAG_SIGILS, type TagSigil, tagOpensAt } from "@olai/format"
 
 /** What the caret is inside, if anything. `from` is the index of the opener's
  *  FIRST character, so `[from, caret)` is the span a chosen completion
@@ -58,54 +63,51 @@ const DAY_CAP = 24
 /** The same fence for `((`, and tighter: a node search is a few words. */
 const SEARCH_CAP = 48
 
-/** The characters a tag is made of — the format's own alphabet, not
- *  re-declared here beyond the class that spells it. */
-const TAG_BODY = /^[A-Za-z0-9_/-]*$/
-
-/** Where a sigil may start one: the beginning of the line, or after a space or
- *  an opening bracket. The same rule the format applies to `@`, applied here to
- *  BOTH — a completion is an affordance, and offering one inside `issue#42` is
- *  offering to rewrite the middle of a word somebody is in the middle of
- *  typing. What the format then RECOGNISES as a tag is the format's own
- *  question and a wider one; this is only about when a popup appears. */
-const opensAWord = (text: string, at: number): boolean =>
-  at === 0 || /[\s([{]/.test(text[at - 1] as string)
-
 export const triggerIn = (text: string, caret: number): Trigger | null => {
-  const before = text.slice(0, Math.max(0, Math.min(caret, text.length)))
-  const found: Array<Trigger> = []
+  const before = text.slice(0, Math.max(0, caret))
+  const brackets = bracketsIn(before)
+  const sigil = sigilIn(before)
+  // Rightmost wins: it is the one the caret is inside. Exactly two candidates,
+  // because each of the two scans below answers with at most one.
+  if (sigil === null) return brackets
+  if (brackets === null) return sigil
+  return sigil.from > brackets.from ? sigil : brackets
+}
 
-  const brackets = before.lastIndexOf("((")
-  if (brackets !== -1) {
-    const query = before.slice(brackets + 2)
-    if (query.length <= SEARCH_CAP && !query.includes(")")) {
-      found.push({ kind: "mirror", from: brackets, query })
-    }
-  }
+/** The `((` nearest the caret, if it is still open. */
+const bracketsIn = (before: string): Trigger | null => {
+  const at = before.lastIndexOf("((")
+  if (at === -1) return null
+  const query = before.slice(at + 2)
+  return query.length <= SEARCH_CAP && !query.includes(")")
+    ? { kind: "mirror", from: at, query }
+    : null
+}
 
+/**
+ * The `!`, `#` or `@` nearest the caret that opens a word, if what follows it
+ * is a query that kind will accept.
+ *
+ * It stops at the FIRST such character, live or not: an earlier `#` is behind a
+ * space by construction, and an earlier `!` would have swallowed this one's
+ * text. So there is nothing further left that could still be open.
+ */
+const sigilIn = (before: string): Trigger | null => {
   for (let at = before.length - 1; at >= 0; at--) {
     const char = before[at] as string
     if (char !== "!" && !TAG_SIGILS.includes(char as TagSigil)) continue
-    if (!opensAWord(before, at)) continue
+    if (!tagOpensAt(before, at)) continue
     const query = before.slice(at + 1)
     if (char === "!") {
-      if (query.length <= DAY_CAP && !query.startsWith(" ") && !query.includes("!")) {
-        found.push({ kind: "date", from: at, query })
-      }
-    } else if (TAG_BODY.test(query)) {
-      found.push({ kind: "tag", sigil: char as TagSigil, from: at, query })
+      return query.length <= DAY_CAP && !query.startsWith(" ") && !query.includes("!")
+        ? { kind: "date", from: at, query }
+        : null
     }
-    // The nearest opener of this kind is the only one that can be live — an
-    // earlier `#` is behind a space by construction, and an earlier `!` would
-    // have swallowed this one's text.
-    break
+    return isTagName(query)
+      ? { kind: "tag", sigil: char as TagSigil, from: at, query }
+      : null
   }
-
-  // Rightmost wins: it is the one the caret is inside.
-  return found.reduce<Trigger | null>(
-    (best, one) => (best === null || one.from > best.from ? one : best),
-    null,
-  )
+  return null
 }
 
 /** A line and where the caret sits in it — what choosing a completion answers

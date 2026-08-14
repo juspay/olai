@@ -57,6 +57,7 @@ import {
 } from "solid-js"
 import { Result } from "effect"
 
+import { datePick } from "../date/pick.ts"
 import type { Caret, EditAction } from "../keys.ts"
 import { runAsync } from "../run.ts"
 import { olai } from "../wire.ts"
@@ -382,15 +383,32 @@ export const createEditor = (
     return done
   }
 
-  /** A structural op for the row the caret is in: commit the text, then ask.
-   *  The id is read AFTER the commit, so `Tab` works on a line that did not
-   *  exist when the key was pressed — the add has landed by then and the draft
-   *  is the row it created. */
-  const structural = async (name: (draft: RowDraft) => Edit) => {
+  /**
+   * An op for the row the caret is in: commit the text, then ask.
+   *
+   * The id is read AFTER the commit, so `Tab` works on a line that did not
+   * exist when the key was pressed — the add has landed by then and the draft
+   * is the row it created.
+   *
+   * `redraws` is whether the write MOVES the row on screen, and it is a
+   * parameter rather than an assumption because not every write here does. A
+   * mark, a date and a placement leave the row where it is: the element is not
+   * moved, so no focus is lost, nothing is owed, and noting a `settling` debt
+   * that no frame will clear would go on suppressing blurs — which means the
+   * next thing typed into the row is never committed at all. Every key that
+   * DOES move it says so.
+   */
+  const structural = async (
+    name: (draft: RowDraft) => Edit,
+    redraws = true,
+  ) => {
     if (!(await commit())) return
     const held = draft()
     if (held === null || held.kind !== "row") return
-    const moved = await redrawing(name(held), slotOf(held))
+    const slot = slotOf(held)
+    const moved = redraws
+      ? await redrawing(name(held), slot)
+      : await send(name(held), slot)
     // The caret stays in the row that just moved: the draft is restored in
     // case its editor was destroyed and blurred on the way out, and the caret
     // is taken again because a row that merely moved among its siblings keeps
@@ -613,8 +631,7 @@ export const createEditor = (
    */
   const mirrored = async (target: string): Promise<void> => {
     const before = draft()
-    if (before === null) return
-    if (before.kind === "new" && before.text.trim() === "") {
+    if (before !== null && before.kind === "new" && before.text.trim() === "") {
       const done = await send({ verb: "mirror", target, at: before.at }, slotOf(before))
       if (done === null) return
       // The line the caret was standing on is a record the file holds now, and
@@ -623,23 +640,14 @@ export const createEditor = (
       setDraft(null)
       return
     }
-    // Everything else — including a draft line that DOES have words — commits
-    // first, exactly as every structural key does, and the placement lands
-    // after the row that commit produced.
-    if (!(await commit())) return
-    const held = draft()
-    if (held === null || held.kind !== "row") return
-    // NOT `redrawing`: nothing about this row moves, so no caret is owed and a
-    // `settling` debt left standing would swallow the next blur. What the write
-    // answers with is the PLACEMENT's id and the TARGET's title — neither of
-    // them this draft's — so nothing is read off it but the nudge.
-    const done = await send({
-      verb: "mirror",
-      target,
-      at: { kind: "after", id: held.row },
-    }, slotOf(held))
-    setDraft((current) => noted(current ?? held, done?.nudge))
-    setCaret((n) => n + 1)
+    // Everything else — including a draft line that DOES have words — is the
+    // ordinary commit-then-op, and it does not redraw the row: what the write
+    // answers with is the PLACEMENT's id and the TARGET's title, neither of
+    // them this draft's, and the row itself does not move.
+    await structural(
+      (held) => ({ verb: "mirror", target, at: { kind: "after", id: held.row } }),
+      false,
+    )
   }
 
   /** The arrows: the next row the eye would reach, folds and all. */
@@ -706,13 +714,14 @@ export const createEditor = (
     press: (action, at) => ACTIONS[action](at),
     // The `!` widget's write, and it is `structural`'s shape rather than a new
     // one: commit the line the day was typed into, then send ONE `date` edit —
-    // the same edit the pill's picker and the `•••` menu send, at the same
-    // gate. `held.id` is the node the row SHOWS, so a day picked at a mirror
+    // through `datePick`, which is the ONE constructor for that edit and the
+    // reason the pill's picker, the `•••` menu and this widget cannot quietly
+    // send three different things. It does not redraw the row, so no caret is
+    // owed. `held.id` is the node the row SHOWS, so a day picked at a mirror
     // lands on its target, which is the standing rule for everything a node
     // SAYS. A row that did not exist when `!` was typed is written by the
     // commit first, which is why this can name an id at all.
-    dated: (day) =>
-      enqueue(() => structural((held) => ({ verb: "date", id: held.id, date: day }))),
+    dated: (day) => enqueue(() => structural((held) => datePick(held.id, day), false)),
     mirrored: (target) => enqueue(() => mirrored(target)),
     start: (at) => {
       idle.clear()

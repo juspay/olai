@@ -32,6 +32,7 @@
 
 import { Show } from "solid-js"
 
+
 export function Result(props: {
   readonly label: string
   /** A chord or a word, inline at the right of the first line. */

@@ -31,13 +31,17 @@
  * other's sigil would be the widget inventing tags the set does not hold.
  */
 
-import { type Derived, isMirror, type TagSigil, titleParts } from "@olai/format"
+import { type Derived, isMirror, mayHoldTag, type TagSigil, titleParts } from "@olai/format"
 
 /** One tag of the set, and how much of it there is. */
 export interface Tag {
   readonly sigil: TagSigil
   /** The name, without the sigil. */
   readonly name: string
+  /** ...folded for case, once, when the set is walked. Matching happens per
+   *  keystroke over every tag of the set; folding there would be a throwaway
+   *  string per tag per character typed. */
+  readonly folded: string
   /** How many nodes carry it — what orders the list, because the tag somebody
    *  means is usually the tag they have used before. */
   readonly count: number
@@ -53,23 +57,46 @@ const LIMIT = 8
  * follows: a placement has no title of its own, so a tag counted through one
  * would be the same node's tag counted twice.
  *
- * Derived per call and memoised by the caller against the live indexes, so a
- * tag that arrives on disk is offered without a reload.
+ * ONE WALK PER DERIVATION, kept in a `WeakMap` keyed on the derivation itself.
+ * The alternative — a memo in the component — walks the whole set again every
+ * time a `TitleEditor` mounts, and one mounts per row the caret is moved to; a
+ * hundred `↑`/`↓` presses with the editor open would be a hundred walks of the
+ * corpus. Keyed on the VALUE rather than cached by time, so a frame the store
+ * publishes is walked once and the old answer is collectable with the old
+ * derivation. `undefined` (no set yet) is no tags rather than a throw.
  */
+const walked = new WeakMap<Derived, ReadonlyArray<Tag>>()
+
 export const tagsOf = (derived: Derived | undefined): ReadonlyArray<Tag> => {
   if (derived === undefined) return []
+  const seen = walked.get(derived)
+  if (seen !== undefined) return seen
+  const counted = walk(derived)
+  walked.set(derived, counted)
+  return counted
+}
+
+const walk = (derived: Derived): ReadonlyArray<Tag> => {
   const counts = new Map<string, Tag>()
   for (const located of derived.nodes) {
     if (isMirror(located.node)) continue
+    // The format's own cheap negative first: `titleParts` runs a global regex
+    // and allocates a part per segment, and most titles hold no sigil at all.
+    if (!mayHoldTag(located.node.title)) continue
     for (const part of titleParts(located.node.title)) {
       if (part.kind !== "tag") continue
       const key = `${part.sigil}${part.tag}`
-      const seen = counts.get(key)
+      const before = counts.get(key)
       counts.set(
         key,
-        seen === undefined
-          ? { sigil: part.sigil, name: part.tag, count: 1 }
-          : { ...seen, count: seen.count + 1 },
+        before === undefined
+          ? {
+            sigil: part.sigil,
+            name: part.tag,
+            folded: part.tag.toLowerCase(),
+            count: 1,
+          }
+          : { ...before, count: before.count + 1 },
       )
     }
   }
@@ -88,6 +115,11 @@ export const tagsOf = (derived: Derived | undefined): ReadonlyArray<Tag> => {
  *
  * An EMPTY query answers with the whole list (capped), which is what makes a
  * bare `#` a way of seeing what this set even uses.
+ *
+ * ONE PASS, and the two buckets are filled rather than filtered twice: the
+ * "buried" test used to be the negation of the "starts with" test written out
+ * again, which is two predicates that have to stay opposite, and this runs per
+ * keystroke over every tag the set holds.
  */
 export const matchTags = (
   tags: ReadonlyArray<Tag>,
@@ -95,11 +127,13 @@ export const matchTags = (
   query: string,
 ): ReadonlyArray<Tag> => {
   const wanted = query.toLowerCase()
-  const mine = tags.filter((tag) => tag.sigil === sigil)
-  if (wanted === "") return mine.slice(0, LIMIT)
-  const starts = mine.filter((tag) => tag.name.toLowerCase().startsWith(wanted))
-  const inside = mine.filter((tag) =>
-    !tag.name.toLowerCase().startsWith(wanted) && tag.name.toLowerCase().includes(wanted)
-  )
-  return [...starts, ...inside].slice(0, LIMIT)
+  const starts: Array<Tag> = []
+  const buried: Array<Tag> = []
+  for (const tag of tags) {
+    if (tag.sigil !== sigil) continue
+    if (wanted === "" || tag.folded.startsWith(wanted)) starts.push(tag)
+    else if (tag.folded.includes(wanted)) buried.push(tag)
+    if (starts.length >= LIMIT) break
+  }
+  return [...starts, ...buried].slice(0, LIMIT)
 }

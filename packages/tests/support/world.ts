@@ -240,8 +240,6 @@ export const COMPLETIONS = selector(TESTID.completions);
 export const COMPLETION_ITEM = selector(TESTID.completionItem);
 /** Where a `((` hit sits — the second line of its row. */
 export const COMPLETION_ITEM_PLACE = selector(TESTID.completionItemPlace);
-/** A refused node search, quoted, above the rows. */
-export const COMPLETIONS_ERROR = selector(TESTID.completionsError);
 /** What a write that LANDED had to say — the rollup's nudge, in the same
  *  place and the opposite mood. */
 export const EDIT_NUDGE = selector(TESTID.editNudge);

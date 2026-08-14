@@ -77,6 +77,10 @@ export interface Named {
  *  the further-away answers. */
 const LIMIT = 6
 
+/** How many of them a bare `!` shows. {@link phrases} is written nearest-first
+ *  precisely so this can be a count rather than a list. */
+const BARE = 3
+
 /**
  * The days `query` could mean, best first — empty when it means none, which is
  * what closes the widget rather than showing an empty box.
@@ -85,14 +89,10 @@ const LIMIT = 6
  */
 export const naturalDays = (query: string, today: string): ReadonlyArray<Named> => {
   const wanted = query.trim().toLowerCase()
-  // The bare `!`: the three answers a person reaches for without typing.
-  if (wanted === "") {
-    return [
-      { day: today, phrase: "today" },
-      { day: shiftDay(today, 1), phrase: "tomorrow" },
-      { day: shiftDay(today, 7), phrase: "next week" },
-    ]
-  }
+  // The bare `!`: the answers a person reaches for without typing, which are
+  // the first of the list below rather than a second copy of them — a copy
+  // would drift the moment somebody reordered or renamed one.
+  if (wanted === "") return phrases(today).slice(0, BARE)
   const found = [
     ...phrases(today).filter((named) => named.phrase.startsWith(wanted)),
     ...counted(wanted, today),

@@ -45,7 +45,7 @@ import { createNodeSearch } from "../search/nodes.ts"
 import { Result } from "../search/Result.tsx"
 import { paletteOpen, setPaletteOpen } from "./open.ts"
 import { useUndo } from "../edit/undoing.ts"
-import { isEditingTarget, matchKey } from "../keys.ts"
+import { isEditingTarget, listKey, matchKey } from "../keys.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
 
 export function Palette(props: {
@@ -233,20 +233,18 @@ export function Palette(props: {
               cursor.top()
               setAskError(null)
             }}
+            // WHICH key is the registry's (`../keys.ts`'s list layer, the same
+            // one the row editor's completions ask); what each answer MEANS is
+            // this dialog's — `take` runs a row, `dismiss` shuts the whole
+            // palette rather than a popup inside it.
             onKeyDown={(e) => {
-              if (e.key === "ArrowDown") {
-                e.preventDefault()
-                cursor.step(1)
-              } else if (e.key === "ArrowUp") {
-                e.preventDefault()
-                cursor.step(-1)
-              } else if (e.key === "Enter") {
-                e.preventDefault()
-                confirm()
-              } else if (e.key === "Escape") {
-                e.preventDefault()
-                close()
-              }
+              const action = listKey(e)
+              if (action === null) return
+              e.preventDefault()
+              if (action === "next") cursor.step(1)
+              if (action === "prev") cursor.step(-1)
+              if (action === "take") confirm()
+              if (action === "dismiss") close()
             }}
           />
           <Show when={askError()}>

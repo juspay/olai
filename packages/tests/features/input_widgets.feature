@@ -144,6 +144,9 @@ Feature: The three input widgets
     And I type " ((compost"
     Then the mirror completions are open
     And the completions include "the compost heap"
+    # ...and WHERE it sits, on its own line — a bare title in a list of
+    # strangers means nothing, and the node being offered lives in another file.
+    And the completion "the compost heap" sits at "garden #outdoors"
 
   Scenario: A draft line with nothing else in it BECOMES the mirror
     # Workflowy's gesture exactly: Enter, `((`, choose. An empty draft writes no

@@ -112,8 +112,17 @@ export const isoDate = (year: number, month: number, day: number): string =>
 export const shiftMonth = (month: string, delta: number): string => {
   const parsed = parseMonth(month)
   if (parsed === null) return month
-  const total = parsed.year * 12 + (parsed.month - 1) + delta
-  return monthText(Math.floor(total / 12), (total % 12) + 1)
+  const shifted = stepMonth(parsed, delta)
+  return monthText(shifted.year, shifted.month)
+}
+
+/** The month `delta` away, as parts. The ONE spelling of "December plus one is
+ *  next January": counted in months since year zero, so no branch on 12 or 1
+ *  exists anywhere and there is nothing for three copies of it to disagree
+ *  about. Everything here that crosses a month boundary goes through it. */
+const stepMonth = ({ year, month }: Month, delta: number): Month => {
+  const total = year * 12 + (month - 1) + delta
+  return { year: Math.floor(total / 12), month: (total % 12) + 1 }
 }
 
 /** "August 2026" — the heading over the grid. English, and the outline's
@@ -200,27 +209,17 @@ export const weekdayOf = (date: string): number | null => {
 export const shiftDay = (date: string, delta: number): string => {
   const parsed = parseDay(date)
   if (parsed === null) return date
-  let { year, month, day } = parsed
-  day += delta
+  let at: Month = parsed
+  let day = parsed.day + delta
   while (day < 1) {
-    month -= 1
-    if (month < 1) {
-      month = 12
-      year -= 1
-    }
-    day += daysInMonth({ year, month })
+    at = stepMonth(at, -1)
+    day += daysInMonth(at)
   }
-  for (;;) {
-    const length = daysInMonth({ year, month })
-    if (day <= length) break
-    day -= length
-    month += 1
-    if (month > 12) {
-      month = 1
-      year += 1
-    }
+  while (day > daysInMonth(at)) {
+    day -= daysInMonth(at)
+    at = stepMonth(at, 1)
   }
-  return isoDate(year, month, day)
+  return isoDate(at.year, at.month, day)
 }
 
 /**
@@ -231,8 +230,7 @@ export const shiftDay = (date: string, delta: number): string => {
 export const shiftDayByMonth = (date: string, delta: number): string => {
   const parsed = parseDay(date)
   if (parsed === null) return date
-  const shifted = parseMonth(shiftMonth(monthText(parsed.year, parsed.month), delta))
-  if (shifted === null) return date
+  const shifted = stepMonth(parsed, delta)
   return isoDate(
     shifted.year,
     shifted.month,

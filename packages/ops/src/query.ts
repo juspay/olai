@@ -33,8 +33,8 @@ import {
   type OutlineSet,
   type Progress,
   progressOf,
+  mayHoldTag,
   type Status,
-  TAG_SIGILS,
   tagText,
   titleParts,
 } from "@olai/format"
@@ -302,21 +302,22 @@ export const search = (
     const fields: Record<Field, ReadonlyArray<string>> = {
       title: [node.title.toLowerCase()],
       id: [node.id.toLowerCase()],
-      // Guarded by a plain `indexOf` per sigil: `titleParts` runs a global
+      // Guarded by the format's own cheap negative: `titleParts` runs a global
       // regex and allocates a part per segment, and most titles hold no tag at
-      // all. The semantics are identical — it only ever yields a tag after one
-      // of them.
+      // all. The semantics are identical — it only ever yields a tag after a
+      // sigil.
       //
       // TWO HAYSTACKS PER TAG, the bare name and the name as written, so
       // `alice` finds `@alice` with the full start-of-field bonus and `@alice`
       // finds only the one with that sigil. A single written form would have
-      // demoted every bare-word tag search by a character.
-      tag: TAG_SIGILS.some((sigil) => node.title.includes(sigil))
-        ? titleParts(node.title).flatMap((part) =>
-          part.kind === "tag"
-            ? [part.tag.toLowerCase(), tagText(part).toLowerCase()]
-            : []
-        )
+      // demoted every bare-word tag search by a character. One fold, and the
+      // bare name is a slice of it.
+      tag: mayHoldTag(node.title)
+        ? titleParts(node.title).flatMap((part) => {
+          if (part.kind !== "tag") return []
+          const written = tagText(part).toLowerCase()
+          return [written.slice(1), written]
+        })
         : [],
       desc: node.desc === undefined ? [] : [node.desc.toLowerCase()],
     }

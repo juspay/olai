@@ -82,7 +82,7 @@ when children are hidden), then the MARK COLUMN (`Checkbox.tsx`: CSS squares —
 checked for done, half-filled for doing, EMPTY for todo, and no box at all on a
 node carrying none of them, because a bullet is not a task; display-only —
 the mark is toggled from the row's editor). Titles render inline-only markdown
-and `#tags` as subtle pills (`NodeTitle.tsx` / `markdown/title.ts`), and the
+and inline tags (`#topic` and `@person`) as subtle pills (`NodeTitle.tsx` / `markdown/title.ts`), and the
 editor shows that markdown as the SOURCE it is while a row is being typed.
 A node's
 free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
@@ -214,7 +214,7 @@ sanitise, highlight, rewrite, stringify:
   the same thing whichever wrote the markup.
 
 - **titles are inline-only** (`renderTitle` → `renderToTree` + `inline.ts`).
-  Same pipeline, then every block is unwrapped to phrasing, then `#tags` are
+  Same pipeline, then every block is unwrapped to phrasing, then TAGS are
   styled by walking text nodes (skipping `code` and `a` so constructs stay
   whole; the alphabet is `titleTagRe` from `@olai/format` — `tags.ts`), then
   stringify.
@@ -1285,16 +1285,21 @@ drawn and walked with, because the palette is not the only door to either:
   inline, and a mono place refusing to shrink starved the title into
   one-word-per-line rows and pushed the palette into a sideways scroll; a
   popover never scrolls sideways.
-- `cursor.ts` — WHICH row Enter would take, and the arrows that walk it. The
-  palette and the row editor's input widgets (`complete/`) both draw a list of
-  those rows, and each had the same wrap-around modulo; what a list is walked
-  WITH is a different question from what is in it, and it has moved before (the
-  palette had no arrows until #104). It is **clamped where it is read**
-  (`min(wanted, count - 1)`) rather than corrected by an effect after the list
-  shrinks: there is then no frame in which it is out of range and no
-  reconciliation to keep in step, and what is remembered underneath is where
-  the person actually put it. What the KEYS mean stays each surface's own —
-  `Enter` runs a route in one and rewrites a line in the other.
+- `place.ts` — WHERE a hit sits, the second line of that row. Every door draws
+  it, so it is one sentence rather than three; its own module beside the
+  component so a pure unit test of a caller need not compile a `.tsx`.
+- `cursor.ts` — WHICH row Enter would take, and the arrows that walk it. FOUR
+  surfaces draw a shortlist — this box, the ⌘K palette, the row editor's input
+  widgets (`complete/`) and the chat composer's slash menu — and each had its
+  own wrap-around modulo, two of them with a clamp-after-the-fact and one with
+  no clamp at all. What a list is walked WITH is a different question from what
+  is in it, and it has moved before (the palette had no arrows until #104). It
+  is **clamped where it is read** (`min(wanted, count - 1)`) rather than
+  corrected by an effect after the list shrinks: there is then no frame in
+  which it is out of range and no reconciliation to keep in step, and what is
+  remembered underneath is where the person actually put it. What the KEYS mean
+  stays each surface's own — `Enter` runs a route in one, rewrites a line in
+  another and accepts a command in the third.
 - `HeaderSearch.tsx` — the box in the app header, and on a phone a magnifier
   that opens the ⌘K palette instead (the bar has no room, and a phone has no
   chord — so before it, a phone had no door to search at all). Its panel
@@ -1308,7 +1313,7 @@ client (`palette/items.ts` says why).
 
 `src/client/keys.ts` is every key this app answers, and it is one file because
 a chord and an editing key that both claim one combination disagree silently,
-in a browser, while somebody is typing. Two layers, and they never overlap:
+in a browser, while somebody is typing. Three layers, and they never overlap:
 
 - **global chords**, with a modifier, listened for on the window (one
   listener, in `palette/Palette.tsx`): **⌘K** palette, **⌘\\** sidebar, **⌘J**
@@ -1320,9 +1325,21 @@ in a browser, while somebody is typing. Two layers, and they never overlap:
   are matched on the editor's own element and nowhere else. A window listener
   claiming those would eat every keystroke in the chat composer and in the
   palette's own input.
+- **the list layer** (`listKey`), which is what `↓`, `↑`, a BARE `Enter` and
+  `Escape` mean while a SHORTLIST is up — the palette's rows, the header box's,
+  the row editor's completions, the composer's slash menu. Asked first by
+  whoever has a list, and only while one is on screen, because a key a person
+  cannot see the effect of must go on meaning what it always meant. It answers
+  with an intent (`next` / `prev` / `take` / `dismiss`) rather than doing
+  anything: `take` runs a route in one surface and rewrites a line in another,
+  and that difference is each surface's to keep. Four components matched those
+  keys privately before it existed, which is exactly the silent disagreement
+  this file is for.
 
-A unit test holds the two apart: every chord the global layer claims must be
-dead to the row layer, on both platforms.
+A unit test holds the layers apart: every chord the global layer claims must be
+dead to the row layer, on both platforms; a modified `Enter` is never the
+list's; and every action in the row and list layers must be written down in
+`SHORTCUTS`.
 
 ## Editing a row
 
@@ -1352,7 +1369,7 @@ loop a person is in, and nothing about outlines:
   across that frame is the module's real work.
 - **`RowEditor.tsx` — an `<input>`, not a `contenteditable`.** A title is one
   verbatim line of text; what the page DRAWS is a rendering of it (inline
-  markdown and `#tags`), which is the argument for an input rather than against
+  markdown and `#topic` / `@person` tags), which is the argument for an input rather than against
   it — a contenteditable would be that rendered HTML made editable, with every
   keystroke turned back into the one string the record holds. The trade is
   deliberate and visible: while you type, a title reads as its source, and the
@@ -1436,28 +1453,40 @@ with the arrows, take one with Enter:
   this feature, which is what makes it survive everything else that can happen
   to a row mid-typing (a live frame redrawing it, `Tab` moving it, a refusal
   landing under it): backspacing over the `!` shuts the list and typing it again
-  opens the same one. One scan finds all three openers and the RIGHTMOST wins,
-  because that is the one the caret is inside. Each has its own fence against
-  swallowing the rest of the line — a tag stops at the tag alphabet, a day and a
-  search may hold spaces but are capped — and a `#`/`@` is claimed only where a
-  word starts, so a popup never offers to rewrite the middle of `srid@srid.ca`.
+  opens the same one. Two scans, one each for `((` and for a sigil, and the
+  RIGHTMOST wins because that is the one the caret is inside. Each has its own
+  fence against swallowing the rest of the line — a tag stops at the tag
+  alphabet, a day and a search may hold spaces but are capped. WHERE A TAG
+  STARTS AND STOPS is not re-declared here: `isTagName` and `tagOpensAt` are
+  `@olai/format`'s, beside the regex they answer for, so a popup never offers
+  to rewrite the middle of `srid@srid.ca` and a change to the alphabet is one
+  edit rather than one plus a widget.
 - **`tags.ts` — the vocabulary, enumerated from the loaded set.** The one place
   this feature does NOT ask the server, and the file argues why: `search/nodes.ts`
   forbids a second matcher because RANKING must not drift, and this is an
   enumeration by the format's own walk (`titleParts`, the same call that draws
   the pills a row already shows) over the set this tab is holding. Two sigils,
-  two lists — `#alice` and `@alice` are different tags.
-- **`completing.tsx` — the loop, and the ONE door.** Where each list comes from, what each choice
-  writes, and the one piece of memory in the whole feature: Escape remembers the
-  TOKEN it dismissed, so putting the list away over `#ho` keeps it away while
-  that `#ho` is being typed. A key is claimed only when a list is actually on
-  screen — a trigger with no matches draws nothing, and Escape then goes back to
-  meaning "abandon the draft".
-- **`Completions.tsx` — the box**, drawing `search/Result.tsx`'s row (the third
-  door onto it). `absolute` inside the title's own cell rather than in flow, so
-  the tree below does not jump by four rows as candidates come and go on every
-  keystroke — and it scrolls with the row, so unlike a popover it needs no
-  measurement.
+  two lists — `#alice` and `@alice` are different tags. ONE WALK PER
+  DERIVATION, held in a `WeakMap` keyed on the derivation itself, because a
+  `TitleEditor` mounts per row the caret moves to and a memo in the component
+  would re-walk the corpus on every `↑`/`↓`.
+- **`completing.tsx` — the loop, and the ONE door.** Where each list comes
+  from, what each choice writes, and the one piece of memory in the whole
+  feature: Escape remembers the TOKEN it dismissed, so putting the list away
+  over `#ho` keeps it away while that `#ho` is being typed. Its consumer gets
+  exactly the two jobs a field with a completion in it has — `key` and `Panel`
+  — and hands in its effects (`rewrite`, `dated`, `mirrored`), so this
+  directory knows nothing about a draft. A key is claimed only when a list is
+  actually on SCREEN, which is one accessor read by the panel and by the key
+  handler rather than two formulas that can disagree; with nothing up, Escape
+  goes back to meaning "abandon the draft" and the arrows to walking rows.
+- **`Completions.tsx` — the box**, private to the directory, drawing
+  `search/Result.tsx`'s row (the third door onto it). `absolute` inside the
+  title's own cell rather than in flow, so the tree below does not jump by four
+  rows as candidates come and go on every keystroke — and it scrolls with the
+  row, so unlike a popover it needs no measurement. `<Index>` rather than
+  `<For>`: every keystroke mints a fresh `Choice` per row, so a reference-keyed
+  diff would rebuild every row's DOM for nothing.
 
 What each one WRITES is the split that matters. A **tag is text**: it goes into
 the draft and commits with the line, with no trailing space, because a title is

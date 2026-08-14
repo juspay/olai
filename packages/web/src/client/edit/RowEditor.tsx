@@ -90,6 +90,7 @@ export function TitleEditor(props: {
    *  field's value and its caret are set here, where the element is, and the
    *  draft is told in the same breath so the two cannot disagree about what the
    *  line says. */
+  const editor = useEditor()
   const completion = createCompletion({
     text: () => props.text,
     caret,
@@ -99,6 +100,11 @@ export function TitleEditor(props: {
       setCaret(next.caret)
       props.onInput(next.text)
     },
+    // The two OPS a completion can cause, handed DOWN rather than reached for
+    // — this is where the editor is, and `complete/` stays a primitive that
+    // knows nothing about a draft.
+    dated: (day) => editor.dated(day),
+    mirrored: (target) => editor.mirrored(target),
   })
 
   return (

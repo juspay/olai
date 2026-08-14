@@ -274,6 +274,42 @@ export const editKey = (
 const halves = (at: Caret): boolean =>
   at.text.slice(0, at.start).trim() !== "" && at.text.slice(at.end).trim() !== ""
 
+// ── the list layer ─────────────────────────────────────────────────────
+
+/**
+ * What a key does while a SHORTLIST is up under the caret — the ⌘K palette's
+ * rows, and the three input widgets a row's title opens (`complete/`).
+ *
+ * A third layer rather than a matcher inside those components, for the reason
+ * the two above are in one file: the arrows, `Enter` and `Escape` all mean
+ * something else HERE ({@link editKey}) and somewhere else again as chords, and
+ * a component matching them privately is exactly the silent disagreement this
+ * registry exists to make impossible. What is left to the surface is what each
+ * answer MEANS — `take` runs a route in the palette and rewrites a line in a
+ * completion — which is why this answers with an intent rather than doing
+ * anything.
+ *
+ * It is asked FIRST by whoever has a list up, and only while one is: a key a
+ * person cannot see the effect of must go on meaning what it always meant.
+ *
+ *   - `next` / `prev` — `↓` / `↑`, walking the rows.
+ *   - `take` — a bare `Enter`. Bare only: `⌘Enter` is still the mark and
+ *     `Shift+Enter` still the note, and neither stops being itself because a
+ *     list is up.
+ *   - `dismiss` — `Escape`, which puts the LIST away and leaves everything
+ *     under it alone.
+ */
+export type ListAction = "next" | "prev" | "take" | "dismiss"
+
+export const listKey = (event: KeyboardEvent): ListAction | null => {
+  if (event.key === "Escape") return "dismiss"
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return null
+  if (event.key === "ArrowDown") return "next"
+  if (event.key === "ArrowUp") return "prev"
+  if (event.key === "Enter") return "take"
+  return null
+}
+
 /**
  * The keys, written down for a PERSON.
  *
@@ -294,6 +330,9 @@ export interface Shortcut {
   /** The editing action it is, when it is one — what the test checks the list
    *  against. Absent for the global chords, which are not row actions. */
   readonly action?: EditAction
+  /** ...and the same for the list layer, so a key that walks a shortlist is
+   *  held to being written down exactly as a row key is. */
+  readonly list?: ListAction
 }
 
 export const SHORTCUTS: ReadonlyArray<{
@@ -348,8 +387,10 @@ export const SHORTCUTS: ReadonlyArray<{
       { keys: "!", what: "a day, in words — `tomorrow`, `next fri`, `aug 20`" },
       { keys: "# / @", what: "a tag this set already uses" },
       { keys: "((", what: "search for a node, and mirror it here" },
-      { keys: "↑ / ↓ / Enter", what: "walk the list, and take one" },
-      { keys: "Escape", what: "put the list away and keep typing" },
+      { keys: "↓", what: "the next row of the list", list: "next" },
+      { keys: "↑", what: "the row above it", list: "prev" },
+      { keys: "Enter", what: "take the row the list is on", list: "take" },
+      { keys: "Escape", what: "put the list away and keep typing", list: "dismiss" },
     ],
   },
   {
