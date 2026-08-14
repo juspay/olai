@@ -1,19 +1,19 @@
 /**
- * A said-line's three rules (`./saying.ts`), and the claim that they are kept
- * in one place.
+ * A said-line's three rules (`./saying.ts`).
  *
  * They used to be spelled once per surface — inside the `•••` menu's component
  * and again inside the Trash's row — where nothing could hold them and the two
  * had already drifted into different shapes for the same behaviour. `SAID_MS`
  * being shared was half the job; this is the test the other half earns.
+ *
+ * That no OTHER file counts `SAID_MS` down is the receptacle's grip and is a
+ * claim about every other file, so it is a sweep rather than a test here:
+ * `./claims.test.ts`, with the rest of them.
  */
 
-import { expect, test } from "bun:test"
-import { readdirSync, readFileSync } from "node:fs"
-import { join } from "node:path"
+import { expect, spyOn, test } from "bun:test"
 import { createRoot } from "solid-js"
 
-import { SAID_MS } from "./edit/undoing.ts"
 import { createSaying, type Saying } from "./saying.ts"
 
 /** An owner, because `createSaying` registers a cleanup — and disposing it is
@@ -45,48 +45,62 @@ test("saying NOTHING clears the line rather than drawing an empty one", () => {
   })
 })
 
-test("a new sentence replaces the one before it, countdown and all", async () => {
-  // Otherwise the FIRST remark's timer takes the second one away early — six
-  // seconds after the wrong verb.
-  withSaying(({ said, say }) => {
-    say({ tone: "aside", text: "first" })
-    say({ tone: "aside", text: "second" })
-    expect(said()).toEqual({ tone: "aside", text: "second" })
+/**
+ * The timers a run armed and the ones it cancelled, WATCHED rather than
+ * replaced: both spies do the real thing as well as recording it, so nothing
+ * here leaves a six-second timeout behind for whichever file `bun test` runs
+ * next. Six seconds is too long for a test to wait, so the two rules about
+ * countdowns are asserted as the cancellation itself.
+ */
+const watchingTimers = <T>(run: (seen: {
+  armed: ReadonlyArray<unknown>
+  cancelled: ReadonlyArray<unknown>
+}) => T): T => {
+  const armed: Array<unknown> = []
+  const cancelled: Array<unknown> = []
+  const realArm = globalThis.setTimeout
+  const realStop = globalThis.clearTimeout
+  const arm = spyOn(globalThis, "setTimeout").mockImplementation(((...args: never[]) => {
+    const handle = (realArm as (...a: never[]) => unknown)(...args)
+    armed.push(handle)
+    return handle
+  }) as typeof globalThis.setTimeout)
+  const stop = spyOn(globalThis, "clearTimeout").mockImplementation(((handle: never) => {
+    cancelled.push(handle)
+    ;(realStop as (h: never) => void)(handle)
+  }) as typeof globalThis.clearTimeout)
+  try {
+    return run({ armed, cancelled })
+  } finally {
+    arm.mockRestore()
+    stop.mockRestore()
+  }
+}
+
+test("a new sentence replaces the one before it, countdown and all", () => {
+  // Both halves matter and only one of them is visible: the second sentence
+  // shows, AND the first one's timer is cancelled. Left running, it would take
+  // the new sentence away six seconds after the WRONG verb.
+  watchingTimers((seen) => {
+    withSaying(({ said, say }) => {
+      say({ tone: "aside", text: "first" })
+      say({ tone: "aside", text: "second" })
+      expect(said()).toEqual({ tone: "aside", text: "second" })
+      expect(seen.cancelled).toContain(seen.armed[0])
+    })
   })
-  expect(SAID_MS).toBeGreaterThan(0)
 })
 
 test("the timer dies with the owner", () => {
   // A surface that has gone cannot be written to, and a pending write to it is
-  // a leak — and, under `bun test`, a run that does not end for six seconds.
-  // Disposal is what `createSaying`'s `onCleanup` is for, and this is the only
-  // way to notice it stopping.
-  let after: (() => unknown) | undefined
-  createRoot((dispose) => {
-    const saying = createSaying()
-    saying.say({ tone: "aside", text: "gone in a moment" })
-    dispose()
-    after = saying.said
+  // a leak: the handle the last `say` armed is the handle disposal cancels.
+  watchingTimers((seen) => {
+    createRoot((dispose) => {
+      createSaying().say({ tone: "aside", text: "gone in a moment" })
+      expect(seen.armed).toHaveLength(1)
+      expect(seen.cancelled).not.toContain(seen.armed[0])
+      dispose()
+    })
+    expect(seen.cancelled).toContain(seen.armed[0])
   })
-  // The signal itself survives disposal (it is just a value); what must not
-  // survive is the timeout, which is why this asserts the cleanup ran by
-  // asserting nothing is left pending — bun fails the file on a leaked timer.
-  expect(after?.()).toEqual({ tone: "aside", text: "gone in a moment" })
-})
-
-test("no client file outside this module keeps a said-line's timer of its own", () => {
-  // The receptacle's grip, as a fact the suite holds rather than a rule a
-  // review remembers: `SAID_MS` is the dwell, and the only thing allowed to
-  // count it down is `createSaying`. A surface that reached for the constant
-  // again would be the second copy of the three rules above — which is exactly
-  // the state this module was written out of.
-  const allowed = new Set(["saying.ts", "saying.test.ts", "edit/undoing.ts"])
-  const client = import.meta.dir
-  const offenders: Array<string> = []
-  for (const entry of readdirSync(client, { recursive: true })) {
-    const path = String(entry)
-    if (!/\.(ts|tsx)$/.test(path) || allowed.has(path)) continue
-    if (/\bSAID_MS\b/.test(readFileSync(join(client, path), "utf8"))) offenders.push(path)
-  }
-  expect(offenders).toEqual([])
 })
