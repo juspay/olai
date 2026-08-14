@@ -38,8 +38,34 @@ the keyboard-shortcut list also lives, where a zoomed node's own verbs are
 offered, and where `+ a line` captures that line to the directory's inbox
 without leaving the page ([docs/editing.md](editing.md)). Search has a box in
 the header and lives in that palette too — the same reading an agent's `search_nodes`
-gets, jump on Enter; on a phone the header's magnifier opens the palette
-([docs/search.md](search.md)). It needs nothing installed.
+gets, jump on Enter; on a phone the header's magnifier opens the palette, and a
+note you remember the sense of but not the words of is found by meaning and
+marked `≈` ([docs/search.md](search.md)). It needs nothing installed — the
+model that does the finding is in the binary's own closure.
+
+### The processes it starts
+
+`olai web` is not the only process in your process list once it is running,
+and both of the others are things it shipped rather than things it found:
+
+- **the chat agent** — the pinned Claude Code adapter, started with the server
+  and spoken to over stdio. `OLAI_ACP_AGENT` names it; the empty string is the
+  off switch, and turns the chat panel off ([chat.md](chat.md)).
+- **the embedder** — a `llama-server` from `pkgs.llama-cpp` reading
+  `bge-small-en-v1.5`, which is what makes search-by-meaning work
+  ([search.md](search.md)). It starts the FIRST TIME something needs
+  embedding, not at boot, so a serve whose index is already up to date and
+  whose reader never searches by meaning never starts one at all. It listens
+  on a unix socket in `$XDG_RUNTIME_DIR` — no TCP port, nothing the network
+  can reach — costs about 66 MB of memory while it is up, and stops when olai
+  stops. If olai is `kill -9`'d the child cannot be told to stop, so the next
+  `olai` you start sweeps it up.
+
+`OLAI_RECALL=off` turns the second one off entirely: search goes back to
+matching the letters you type, which is exactly what it did before, and
+nothing reports a missing feature. `OLAI_EMBED_SERVER` and `OLAI_EMBED_MODEL`
+name the two halves — a nix-built olai bakes both in, and setting either to
+the empty string is the same off switch by another door.
 
 ### Behind a reverse proxy
 

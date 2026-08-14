@@ -11,9 +11,10 @@
 
 import type { OutlineSet } from "@olai/format"
 import { describe, expect, test } from "bun:test"
+import { Effect } from "effect"
 
 import { setOf } from "./fixtures.testlib.ts"
-import { detail, index, search } from "./query.ts"
+import { detail, index, type Near, type Recall, search, searchWith } from "./query.ts"
 
 /** A ledger: items in their sections, and a `Now` list made of placements —
  *  including one that CHAINS through another placement, which is the case
@@ -148,5 +149,99 @@ describe("the tags a node carries", () => {
     expect(search(set, { text: "alice" }).hits.map((hit) => hit.id)).toEqual(["call"])
     expect(search(set, { text: "@alice" }).hits.map((hit) => hit.id)).toEqual(["call"])
     expect(search(set, { text: "#alice" }).hits.map((hit) => hit.id)).toEqual(["call"])
+  })
+})
+
+describe("searchWith — the semantic merge", () => {
+  /** A recall whose answers the test scripts, and which RECORDS being asked —
+   *  the seam used exactly the way the server's index implements it, with no
+   *  embedder anywhere near a unit test (kolu-ci-1). */
+  const recallOf = (
+    near: ReadonlyArray<Near>,
+    calls?: Array<string>,
+  ): Recall => ({
+    nearest: (text, limit) =>
+      Effect.sync(() => {
+        calls?.push(`${text} (${limit})`)
+        return near
+      }),
+  })
+
+  test("PIN: with no recall standing, the answer IS `search`'s, exactly", () => {
+    // The degradation contract of docs/brainstorming/semantic-recall.md: no
+    // embedder means TODAY'S substring behaviour — never an error, never a
+    // different shape, not one field moved. Deep equality over a spread of
+    // queries (a hit, a multi-word hit, a miss, a capped answer) is the pin.
+    for (const text of ["header", "two git", "purchase food", "git"]) {
+      for (const limit of [undefined, 1]) {
+        const query = limit === undefined ? { text } : { text, limit }
+        expect(Effect.runSync(searchWith({ derived: at(), recall: null }, query)))
+          .toEqual(search(at(), query))
+      }
+    }
+  })
+
+  test("semantic hits fill AFTER the exact ones, and say why they came", () => {
+    const derived = at()
+    const merged = Effect.runSync(searchWith(
+      { derived, recall: recallOf([{ id: "git", score: 0.9 }]) },
+      { text: "header" },
+    ))
+    // The exact hit leads — it is evidence — and the paraphrase follows,
+    // marked as resemblance rather than as a field match.
+    expect(merged.hits.map((hit) => [hit.id, hit.matched])).toEqual([
+      ["sticky", "title"],
+      ["git", "meaning"],
+    ])
+    expect(merged.total).toBe(2)
+  })
+
+  test("a node the exact answer already holds is not said twice", () => {
+    const derived = at()
+    const merged = Effect.runSync(searchWith(
+      { derived, recall: recallOf([{ id: "sticky", score: 0.9 }, { id: "git", score: 0.8 }]) },
+      { text: "header" },
+    ))
+    expect(merged.hits.map((hit) => hit.id)).toEqual(["sticky", "git"])
+  })
+
+  test("an id the snapshot does not declare, or that names a placement, is skipped", () => {
+    // The index is a derived reading and may lag the truth — a deleted node's
+    // vector answers for a beat. It may MISS, never contradict: nothing is
+    // resolved from the index itself, so a ghost is dropped, and a mirror is
+    // dropped for the same reason every search drops mirrors.
+    const derived = at()
+    const merged = Effect.runSync(searchWith(
+      {
+        derived,
+        recall: recallOf([
+          { id: "ghost", score: 0.9 },
+          { id: "now-sticky", score: 0.8 },
+          { id: "git", score: 0.7 },
+        ]),
+      },
+      { text: "header" },
+    ))
+    expect(merged.hits.map((hit) => hit.id)).toEqual(["sticky", "git"])
+  })
+
+  test("an answer the exact matches already fill never asks the index", () => {
+    const calls: Array<string> = []
+    const answered = Effect.runSync(searchWith(
+      { derived: at(), recall: recallOf([{ id: "sticky", score: 0.9 }], calls) },
+      { text: "git", limit: 1 },
+    ))
+    expect(answered.hits).toHaveLength(1)
+    expect(calls).toEqual([])
+  })
+
+  test("the empty query stays empty, and asks nothing", () => {
+    const calls: Array<string> = []
+    const answered = Effect.runSync(searchWith(
+      { derived: at(), recall: recallOf([{ id: "git", score: 0.9 }], calls) },
+      { text: "   " },
+    ))
+    expect(answered).toEqual({ hits: [], total: 0 })
+    expect(calls).toEqual([])
   })
 })

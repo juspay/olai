@@ -14,6 +14,12 @@
  * so the crumb that matters has to be at the front to survive a narrow panel.
  * The outer crumbs follow while there is room.
  *
+ * A SEMANTIC hit wears `≈` in front of all of it: the query's words are NOT
+ * in this node, the index reads it as saying the same thing, and a reader is
+ * owed the difference between evidence and resemblance. Where no embedder is
+ * present such hits never arrive, and nothing says so — the absence of a
+ * feature is not an error.
+ *
  * Its own module rather than an export of the component, so a pure unit test of
  * a caller does not have to compile a `.tsx` to reach it.
  */
@@ -21,4 +27,6 @@
 import type { SearchHit } from "@olai/surface"
 
 export const nodePlace = (hit: SearchHit): string =>
-  hit.path.length === 0 ? hit.file : [...hit.path].reverse().join(" · ")
+  `${hit.matched === "meaning" ? "≈ " : ""}${
+    hit.path.length === 0 ? hit.file : [...hit.path].reverse().join(" · ")
+  }`

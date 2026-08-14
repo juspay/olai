@@ -100,6 +100,11 @@ serve dir="docs" *args: build-client
     # packaged binary does — scripts/acp-agent.sh is the one place that is
     # decided, and `OLAI_ACP_AGENT` overrides it (empty disables).
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
+    # The embedder, on the same terms: scripts/embedder.sh is where that is
+    # decided for the working tree, and the packaged binary bakes the same two
+    # paths. Empty either one and search is substring only.
+    export OLAI_EMBED_SERVER="$(sh scripts/embedder.sh server)"
+    export OLAI_EMBED_MODEL="$(sh scripts/embedder.sh model)"
     # `kill 0` takes the whole process group down together: a stray bundler
     # watching a tree nobody is serving is a confusing thing to leave behind.
     trap 'kill 0' EXIT INT TERM
@@ -117,6 +122,8 @@ run *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
+    export OLAI_EMBED_SERVER="$(sh scripts/embedder.sh server)"
+    export OLAI_EMBED_MODEL="$(sh scripts/embedder.sh model)"
     OLAI_DIST_DIR={{ dist }} {{ nix_shell }} bun --watch packages/server/src/main.ts {{ args }}
 
 # Build the binary with nix, then run it. Both halves earn their place: the
@@ -155,6 +162,27 @@ nix:
       exit 1
     fi
     echo "packaged default agent: $agent"
+    # The packaged EMBEDDER, checked the same way and for the same reason.
+    # Search-by-meaning returned on one condition (the PR #149 parking
+    # verdict): the embedder and its weights are in olai's own closure, so
+    # nothing is fetched at run time and nothing ambient is expected. That
+    # condition is exactly "these two paths are baked and both exist", and it
+    # is asserted here rather than believed.
+    for var in OLAI_EMBED_SERVER OLAI_EMBED_MODEL; do
+      path=$(sed -n "s|.*$var=\${$var-'\(.*\)'}.*|\1|p" "$out/bin/olai")
+      if [ -z "$path" ]; then
+        echo "the packaged binary does not bake $var into its wrapper, so" >&2
+        echo "\`nix run\` would start with no embedder — search-by-meaning is" >&2
+        echo "supposed to come from the closure. Wrapper:" >&2
+        cat "$out/bin/olai" >&2
+        exit 1
+      fi
+      if [ ! -e "$path" ]; then
+        echo "the wrapper's baked $var does not exist: $path" >&2
+        exit 1
+      fi
+      echo "packaged $var: $path"
+    done
 
 # The home-manager module evaluates under a sample config (systemd argv on
 # Linux, launchd argv on Darwin). Cheap, no home-manager pin, no activation —

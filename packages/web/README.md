@@ -1379,9 +1379,13 @@ drawn and walked with, because the palette is not the only door to either:
   chord — so before it, a phone had no door to search at all). Its panel
   portals out of the header and is placed by `anchor.ts`'s `styleOf`.
 
-The matching is entirely the server's — the same `Query.search` reading an
-agent's `search_nodes` gets — so there is deliberately no matcher in this
-client (`palette/items.ts` says why).
+The matching is entirely the server's — the same `Query.searchWith` reading an
+agent's `search_nodes` gets, semantic index included — so there is deliberately
+no matcher in this client (`palette/items.ts` says why). A hit that arrived by
+MEANING rather than by letters wears `≈` on its place line (`search/place.ts`,
+which every door draws through), because the reader is owed the difference
+between evidence and resemblance. Where recall is off those rows simply never
+arrive, and nothing here says so.
 
 ## The keyboard, in one file
 

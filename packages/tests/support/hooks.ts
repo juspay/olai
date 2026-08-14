@@ -124,6 +124,20 @@ const STORED_TAG = "@agent-stored";
 const NO_AGENT_TAG = "@no-agent";
 
 /**
+ * `@recall`: this scenario's server runs with search-by-meaning ON, which
+ * means it spawns the embedder the nix closure carries (a `llama-server` over
+ * `bge-small-en-v1.5`) and indexes its corpus.
+ *
+ * Every OTHER scenario is started with `OLAI_RECALL=off`, and that is a
+ * resource decision rather than a hole in the harness: the suite runs hundreds
+ * of servers, an idle model server is ~66 MB of resident memory each, and none
+ * of those scenarios is about recall. `OLAI_RECALL=off` is a documented knob a
+ * reader has for the same reason (docs/running.md) — the suite is using the
+ * product's own off switch, not a test-only one.
+ */
+const RECALL_TAG = "@recall";
+
+/**
  * `@git:<repo|none|broken>`: this scenario's server COMMITS, and its directory
  * is one of the three things git can make of it — a work tree, no work tree, or
  * a git that fails when it is asked. Everything else runs with `--no-commit`
@@ -300,8 +314,25 @@ const fixtureDir = (corpus: string): string => {
   return dir;
 };
 
+/**
+ * Kill a server this harness started — and everything it started.
+ *
+ * The GROUP, not the process, and the difference is a stray model server: a
+ * `@recall` scenario's olai spawns a `llama-server` of its own, `SIGKILL` runs
+ * no finalizer, and the child would outlive the suite. Every spawn here is
+ * `detached`, so each server is its own process group and a negative pid takes
+ * the group down together — the same move `just serve` makes with `kill 0`.
+ *
+ * The plain kill stays as the fallback for the case the group is already gone
+ * (ESRCH on the group, the child not yet reaped).
+ */
 const killChild = (child: ChildProcess | undefined): void => {
-  if (child && child.exitCode === null) child.kill("SIGKILL");
+  if (!child || child.exitCode !== null) return;
+  try {
+    if (child.pid !== undefined) process.kill(-child.pid, "SIGKILL");
+  } catch {
+    child.kill("SIGKILL");
+  }
 };
 
 const shuttingDown = (label: string): string =>
@@ -351,6 +382,10 @@ interface Spawn {
    *  "this host is running kolu". Otherwise the one on PATH reaches no daemon,
    *  which detection must refuse. */
   readonly kolu?: boolean;
+  /** `true` leaves search-by-meaning ON — the packaged binary's own embedder,
+   *  indexing this server's corpus. Otherwise `OLAI_RECALL=off`, which is what
+   *  every scenario that is not about recall wants ({@link RECALL_TAG}). */
+  readonly recall?: boolean;
   /** Absent is `--no-commit`, which is what every scenario but the git ones
    *  wants. Present drops the opt-out and says which of the three git
    *  situations this server is being started into. */
@@ -390,12 +425,19 @@ const startServerChild = async (
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
+      // Its own process group, so `killChild` can take down whatever the
+      // server itself spawned — the embedder, above all. Not `unref`d: this
+      // process still waits on it and still reads its output.
+      detached: true,
       env: isolateEnv(spawnOptions.stateRoot, {
         // The EMPTY string is the explicit off switch, and it is what a person
         // turning chat off would set — so the no-agent scenario reaches that
         // state the same way rather than through a hole in the harness.
         OLAI_ACP_AGENT: spawnOptions.agent === false ? "" : FAKE_AGENT,
         ...(spawnOptions.stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
+        // Recall is OFF unless the scenario asked for it — the product's own
+        // switch, used for the product's own reason (see {@link RECALL_TAG}).
+        ...(spawnOptions.recall === true ? {} : { OLAI_RECALL: "off" }),
         // FIRST, so a real kolu on the developer's PATH does not decide a
         // scenario. Which one this is, is the tag's business — and the broken
         // git goes ahead of even that, for exactly the same reason.
@@ -560,6 +602,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       stored: world.storedSessions,
       agent: world.hasAgent,
       kolu: world.hasKolu,
+      recall: world.hasRecall,
       stateRoot: scratchState(world.scratch()),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
     },
@@ -774,6 +817,7 @@ Before(
       (tag) => tag.name === NO_AGENT_TAG,
     );
     this.hasKolu = scenario.pickle.tags.some((tag) => tag.name === KOLU_TAG);
+    this.hasRecall = scenario.pickle.tags.some((tag) => tag.name === RECALL_TAG);
     this.gitMode = scenario.pickle.tags.flatMap((tag) => {
       const asked = GIT_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] as GitMode];
@@ -798,12 +842,21 @@ Before(
           `server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
+    // Same rule, third time: a shared corpus server is running for every other
+    // scenario, and whether it indexes is not this one's to choose.
+    if (this.hasRecall && !asked.scratch) {
+      throw new Error(
+        `${RECALL_TAG} decides whether its server indexes, so the scenario must own that ` +
+          `server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
+      );
+    }
 
     if (asked.scratch) {
       const own = await scratchServerFor(asked.corpus, {
         stored: this.storedSessions,
         agent: this.hasAgent,
         kolu: this.hasKolu,
+        recall: this.hasRecall,
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
       });
       this.baseUrl = own.baseUrl;

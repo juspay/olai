@@ -162,7 +162,8 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
 /** One search hit as a palette row: choosing it jumps to the node's page. The
  *  place line — where the node SITS, because a bare title in a list of
  *  strangers means nothing — is `nodePlace`'s, beside the row every door draws
- *  (`../search/place.ts`), and it says why it is written the way it is. */
+ *  (`../search/place.ts`), and it says why it is written the way it is, `≈`
+ *  and all. */
 export const nodeItem = (hit: SearchHit): PaletteItem => ({
   id: `node-${hit.id}`,
   label: hit.title,

@@ -145,7 +145,16 @@ const answer = (
         tool.act(ops, args as never, writer),
         (result) => ({ ...(result as object), did: tool.name }),
       )
-      : Effect.map(ops.read, (at: Reading) => tool.read(at, args as never)),
+      // A reader answers with a value or an Effect of one (the table's own
+      // contract — the search's semantic half asks an embedder). Flattened
+      // HERE, once, so the table stays free to grow another awaiting read
+      // without this file changing again.
+      : Effect.flatMap(ops.read, (at: Reading) => {
+        const answered = tool.read(at, args as never)
+        return Effect.isEffect(answered)
+          ? (answered as Effect.Effect<unknown, OpFailure>)
+          : Effect.succeed(answered)
+      }),
     (failure: OpFailure) => refusal(tool.name, failure),
   )
 

@@ -4,11 +4,14 @@ One search, three doors. An agent asks `search_nodes` over MCP; a person types
 into the **search box in the header**, or into the `⌘K` palette — and on a
 phone, where the bar has no room for a box, taps the magnifier, which opens
 that same palette. Every one of them is a caller of the same function over the
-same snapshot (`@olai/ops`' `Query.search`), so what an agent finds and what a
+same snapshot (`@olai/ops`' `Query.searchWith`), so what an agent finds and what a
 person finds cannot drift: the browser holds every node and could grep them
 itself, and deliberately does not.
 
 ## What matches
+
+Two readings, and the first one is the whole of it unless a note has to be
+found by what it MEANS (below).
 
 Case-folded substring over four fields — title, id, inline tags, note — with
 every word of the query somewhere in the same node, and no operators. A tag is
@@ -50,10 +53,40 @@ that is not enough, the panel scrolls sideways, which a popover must never do.
   of the server for it.
 - **`search_nodes`** — the same answer for an agent, over MCP.
 
-## Not yet: finding a note you cannot name
+## Finding a note you cannot name
 
 Searching by MEANING — "the first page load is too heavy" finding a note that
-never uses those words — is parked rather than shipped. The implementation
-that was written for it needed a model server (Ollama) running on the reader's
-machine, and olai requires no dependency outside Nix itself (HACKING.md). It
-returns when it can be nix-native.
+never uses those words — happens too, and it is **behind** the substring hits
+rather than mixed into them.
+
+Substring hits are **evidence**: the words are in the node, and you can check.
+A semantic hit is **resemblance**: the index reads the node as saying the same
+thing, and it is sometimes wrong. So the exact matches come first, always, and
+paraphrase matches only fill what is left of the answer — a query whose exact
+matches already fill it never asks the index at all. A hit that arrived by
+meaning wears **`≈`** in front of its place line, because that difference is
+the reader's to have rather than to guess at.
+
+It runs on what olai ships and nothing else. The embedder is a `llama-server`
+from `pkgs.llama-cpp` and the model is `bge-small-en-v1.5` (33 M parameters,
+37 MB), both in the binary's own nix closure; the server is olai's child,
+started the first time something needs embedding, spoken to over a unix socket,
+and stopped when olai stops. Nothing is installed, nothing is downloaded when
+you run it, and nothing on the network is asked. That is the condition this
+feature came back on — an earlier version needed an Ollama running on your
+machine, which olai's rule forbids (HACKING.md).
+
+The index itself is a **derived reading**: your files stay the only truth. It
+lives in `$XDG_CACHE_HOME/olai/recall/`, never in the directory being served,
+it is rebuilt from the outlines whenever it is missing, and a node whose title
+and note have not changed is never embedded twice. Delete it freely.
+
+Turning it off is `OLAI_RECALL=off` ([running.md](running.md)), and off means
+what absent means: the substring reading, unchanged, with nothing anywhere
+reporting a missing feature.
+
+Two things it does not do yet. A long note is embedded by its **first 512
+tokens**, so a paragraph buried deep in one is findable by the note's opening
+rather than by itself. And the similarity floor under which a neighbour is
+noise is tuned against one corpus. Both are recorded, with the measurements,
+in [brainstorming/semantic-recall.md](brainstorming/semantic-recall.md).

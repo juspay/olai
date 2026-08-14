@@ -50,7 +50,7 @@ in the system had to arrange:
 | `sorted.ts` | what a write CHANGED, in one word — the format's own classification, derived from the two readings the write is made of rather than from the op's name |
 | `pending.ts` | what is waiting to be committed, derived from git, the one verb that commits it, and what git is doing for the directory at all — one survey, both answers |
 | `message.ts` | what a commit nobody wrote a message for says, and how olai recognises its own commits — the `olai` prefix and the `X-Olai-Writer` trailer, handed down to the plumbing rather than known by it |
-| `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
+| `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines — and the `Recall` SEAM, an interface this package declares and implements nowhere, behind which `searchWith` appends paraphrase matches after the exact ones. A `null` recall is byte-for-byte the substring search, which is the degradation contract and a test |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
 | `codec.ts` | the seam where the generic store meets the outline format |
 
