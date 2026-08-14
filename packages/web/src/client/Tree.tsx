@@ -69,8 +69,7 @@ import { blockedIds, WAITING_DIM } from "./blocked.ts"
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
 import { useDragging } from "./drag/dragging.ts"
-import { ROW_KEY } from "./drag/lines.ts"
-import { HANDLE, Handle } from "./drag/Handle.tsx"
+import { Handle } from "./drag/Handle.tsx"
 import { useSelection } from "./select/selection.ts"
 import { DatePicker } from "./date/DatePicker.tsx"
 import { datePick } from "./date/pick.ts"
@@ -326,23 +325,16 @@ function Branch(props: {
         // only, so a mouse and a pen are untouched — and so is the page, which
         // goes on scrolling under a finger that moves (./longPress.ts).
         //
-        // ...EXCEPT ON THE BULLET, which is the handle a finger picks the row
-        // up by (./drag/Handle.tsx). Two long presses cannot both own one
-        // press, and the one that gives way is this door, because the menu has
-        // a whole row to be reached from and a handle has only itself. Asked of
-        // where the press LANDED rather than left to Solid's delegation order.
+        // ...except on the BULLET, which is the handle a finger picks the row
+        // up by — and that exception is the door's own (./menu/door.ts), not
+        // this row's, so what is wired here is still one thing.
         //
         // Named one by one rather than spread: a spread anywhere on an element
         // moves EVERY attribute of it onto Solid's runtime `spread` path,
         // where the `classList` beside them is diffed key by key on every
         // frame the store publishes — for every row in the outline. The two
         // handlers are the whole of `LongPress`.
-        onPointerDown={(event) => {
-          if (event.target instanceof Element && event.target.closest(`[${HANDLE}]`) !== null) {
-            return
-          }
-          menu.hold.onPointerDown(event)
-        }}
+        onPointerDown={menu.hold.onPointerDown}
         onContextMenu={menu.hold.onContextMenu}
         // Two ways of being THE row, drawn in one accent and told apart by
         // weight: the caret fills its row, a reference outlines the row it
@@ -365,8 +357,17 @@ function Branch(props: {
         // What a gesture measures — a drag's gaps, a sweep's crossings. On the
         // LINE and not on the item, because an item's box contains every row
         // nested under it and both are about the lines a reader sees
-        // (`./drag/lines.ts`).
-        {...{ [ROW_KEY]: props.row.key }}
+        // (`./drag/lines.ts`, whose `ROW_KEY` this is; ./claims.test.ts holds
+        // the two files that may spell it).
+        //
+        // Written out rather than spread from that constant, which is the same
+        // rule `data-sweep` above follows and matters MOST here: this element
+        // carries the `classList` beside it, and a spread anywhere on it puts
+        // every attribute — those two toggles included — on Solid's runtime
+        // spread path, diffed key by key on every frame the store publishes,
+        // for every row in the outline. A static attribute NAME with a dynamic
+        // value is compiled to one `setAttribute` effect instead.
+        data-row-key={props.row.key}
       >
         {/* Hover strip: triangle always (phone) / hover-reveal (pointer). The
             `•••` is drawn on pointer devices only; below md its root is still

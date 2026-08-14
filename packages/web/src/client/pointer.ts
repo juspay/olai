@@ -38,6 +38,8 @@
  * scrolling the outline behind it would be this used by accident.
  */
 
+import { onCleanup } from "solid-js"
+
 import { edgeScrolling } from "./autoscroll.ts"
 
 export interface Gesture {
@@ -71,9 +73,23 @@ export interface Gesture {
   readonly onEnd: (event: PointerEvent | null) => void
   /** How far the pointer must travel, in pixels, before any of this counts.
    *  `0` (the default) is "immediately", which is what a handle that is only a
-   *  handle wants. */
+   *  handle wants; {@link TRAVEL_PX} is what a handle that is also something
+   *  else wants. */
   readonly threshold?: number
 }
+
+/**
+ * How far a pointer must travel before a press on a handle that is ALSO
+ * something else counts as a drag. Four pixels is what a hand resting on a
+ * trackpad produces without meaning to.
+ *
+ * Here rather than at the call sites for the reason the threshold itself is
+ * here: two gestures over the outline ask the same question of the same kind of
+ * handle — a bullet that is a link, a page that is text — and a number each of
+ * them spelled for itself is a number they could answer differently. (A panel
+ * edge is the other case, and it wants no threshold at all.)
+ */
+export const TRAVEL_PX = 4
 
 /**
  * Start listening. Answers with the teardown, for a caller that has to end the
@@ -106,7 +122,7 @@ export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
       gesture.onStart?.(event)
     }
     gesture.onMove?.(event)
-    following?.at({ x: event.clientX, y: event.clientY })
+    following?.at(event.clientX, event.clientY)
   }
 
   const end = (event: PointerEvent | null) => {
@@ -124,4 +140,45 @@ export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
   window.addEventListener("pointerup", onUp)
   window.addEventListener("pointercancel", onCancel)
   return () => end(null)
+}
+
+/**
+ * ONE GESTURE AT A TIME, belonging to whoever made this.
+ *
+ * {@link drag} answers with its teardown and leaves the caller holding it, and
+ * that turned out to be a three-part rule every consumer wrote out for itself:
+ * keep the handle, `onCleanup` it, and clear it when the gesture ends. The
+ * parts are separable — forget the third and a stale teardown cancels a gesture
+ * that already finished — and forgetting the second leaks a window listener set
+ * and, now, a frame loop past the page that made them. That is the same shape
+ * as {@link Gesture.onPage}, and it belongs in the same place.
+ *
+ * It cannot be {@link drag}'s own `onCleanup`: a drag begins in an EVENT
+ * HANDLER, which in Solid runs under no owner at all, so a cleanup registered
+ * there would be registered against nothing. So the owner is captured where
+ * there is one — call this in the component that will start the gestures — and
+ * spent at the press.
+ *
+ * A second press while one is in flight ENDS the first, as a cancellation. Two
+ * pointers over one thing is not two gestures.
+ */
+export interface Drags {
+  readonly start: (from: PointerEvent, gesture: Gesture) => void
+}
+
+export const createDrags = (): Drags => {
+  let inFlight: (() => void) | undefined
+  onCleanup(() => inFlight?.())
+  return {
+    start: (from, gesture) => {
+      inFlight?.()
+      inFlight = drag(from, {
+        ...gesture,
+        onEnd: (event) => {
+          inFlight = undefined
+          gesture.onEnd(event)
+        },
+      })
+    },
+  }
 }

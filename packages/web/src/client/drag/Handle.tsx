@@ -18,9 +18,17 @@
  * (`./dragging.ts` and `../longPress.ts` have both halves of the argument).
  * What the finger costs is that this cell is no longer a second door to the
  * row's `•••` menu — a phone opens that by holding the row anywhere else, which
- * is nearly all of it (`../menu/door.ts`), and a handle has only itself to be
- * held by. The row's own door is told to stand down here rather than guessing:
- * {@link HANDLE} is what it looks for.
+ * is nearly all of it, and a handle has only itself to be held by. That door
+ * stands down on its own (`../menu/door.ts`), by looking for the mark this cell
+ * wears: `./dragging.ts`'s `HANDLE`, which is a fact about the GESTURE rather
+ * than about this component, and is why it is declared there.
+ *
+ * The mark is a `data-` attribute rather than the testid beside it — a testid
+ * is a contract with the browser tests, and reading one back as behaviour would
+ * make a rename a silent change of what the app does. And an attribute rather
+ * than a `stopPropagation`, which would be one gesture reaching into another's
+ * plumbing and would rest on the order Solid happens to walk delegated handlers
+ * in.
  */
 
 import type { Row } from "@olai/format"
@@ -28,18 +36,6 @@ import type { JSX } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { useDragging } from "./dragging.ts"
-
-/**
- * The attribute this cell wears so the row's `•••` door can tell a press that
- * is already spoken for.
- *
- * A `data-` attribute rather than the testid beside it: a testid is a contract
- * with the browser tests and reading one back as behaviour would make a rename
- * a silent change of what the app does. Rather than a `stopPropagation`, too —
- * that would be one gesture reaching into another's plumbing, and it would rest
- * on the order Solid happens to walk delegated handlers in.
- */
-export const HANDLE = "data-handle"
 
 export function Handle(props: {
   readonly row: Row
@@ -50,6 +46,9 @@ export function Handle(props: {
     <span
       class="inline-flex items-center md:cursor-grab"
       data-testid={TESTID.dragHandle}
+      // `./dragging.ts`'s `HANDLE`, written out for the reason `../Tree.tsx`
+      // writes `data-row-key` out — and held to that name by
+      // `../claims.test.ts`, which is the only thing a literal can be held by.
       data-handle=""
       // THE NATIVE DRAG HAS TO BE TURNED OFF, and this is not belt and braces:
       // a bullet is an `<a href>`, and a browser makes every link draggable for

@@ -64,16 +64,18 @@ const FASTEST_PX = 14
  * what happens PAST the edge (a pointer dragged off the window entirely, which
  * is a real gesture and where a naive ratio goes above 1) — are a unit test
  * rather than something to try with a mouse.
+ *
+ * The zone and the speed are ARGUMENTS rather than defaults, and the one caller
+ * passes the two constants above. It is the same policy either way; what an
+ * optional pair would add is a second arity and a knob nobody asked for, while
+ * the test — which wants a 1000px window with 100px zones so every number reads
+ * as a fraction — is served by the arguments it already has to pass.
  */
 export const edgeSpeed = (
   y: number,
   height: number,
-  /** The two numbers above, injectable — and ONLY so the rules can be tested at
-   *  a scale a reader can check by eye (a 1000px window with 100px zones). No
-   *  caller passes them; a second policy would be a second answer to "how fast
-   *  does the page move", which is the one thing this module decides. */
-  zone: number = ZONE_PX,
-  fastest: number = FASTEST_PX,
+  zone: number,
+  fastest: number,
 ): number => {
   const above = zone - y
   const below = y - (height - zone)
@@ -92,7 +94,7 @@ export interface EdgeScroll {
   /** The pointer is HERE, in client coordinates. Reports it in document ones
    *  straight away, and keeps reporting — with the page moving under it — for
    *  as long as it stays near an edge. */
-  readonly at: (client: { readonly x: number; readonly y: number }) => void
+  readonly at: (x: number, y: number) => void
   /** The gesture is over. Safe to call more than once, and on a gesture that
    *  never reached an edge. */
   readonly stop: () => void
@@ -104,47 +106,60 @@ export interface EdgeScroll {
  * One of these per gesture rather than one per page — it holds where that
  * gesture's pointer is, and two live at once would be two gestures, which is
  * not a thing either caller allows.
+ *
+ * THE WINDOW'S HEIGHT IS READ ONCE, at the press. It is the one measurement
+ * here that costs anything: asking for it re-reads a layout the gesture itself
+ * has just dirtied (the drop line's style, the band's), and a gesture spends
+ * nearly all of its life in the middle of the window, where the answer is "not
+ * near an edge". Reading it per move would be a forced layout per frame to
+ * learn nothing. A window resized mid-drag is the price, and it is a gesture
+ * long — the next one measures again.
  */
 export const edgeScrolling = (report: Report): EdgeScroll => {
+  /** The LAYOUT viewport's height, which is the box the pointer's client
+   *  coordinates are in — `innerHeight` counts a horizontal scrollbar as room
+   *  the pointer can be in, and it cannot. */
+  const height = document.documentElement.clientHeight
   /** Where the pointer was last seen, in CLIENT coordinates — the frame loop
    *  re-reads it against a page that has moved, which is the whole trick. */
-  let where: { readonly x: number; readonly y: number } | null = null
+  let atX = 0
+  let atY = 0
   /** The frame in flight, or `0` for "the loop is not running". `0` is never a
    *  real handle, which is what lets one field say both things. */
   let frame = 0
 
-  const tell = (): void => {
-    if (where !== null) report(where.x + window.scrollX, where.y + window.scrollY)
-  }
+  const tell = (scrolled: number): void => report(atX + window.scrollX, atY + scrolled)
 
   const step = (): void => {
     frame = 0
-    if (where === null) return
-    // The LAYOUT viewport's height, which is the box the pointer's client
-    // coordinates are in — `innerHeight` counts a horizontal scrollbar as room
-    // the pointer can be in, and it cannot.
-    const speed = edgeSpeed(where.y, document.documentElement.clientHeight)
+    const speed = edgeSpeed(atY, height, ZONE_PX, FASTEST_PX)
     if (speed === 0) return
     const before = window.scrollY
     // `instant` whatever the page's own scroll behaviour is: this is a gesture
     // being followed, not a place being gone to (`./scroll.ts` makes the same
     // call for the same reason).
     window.scrollBy({ top: speed, behavior: "instant" })
+    const after = window.scrollY
     // Only when the page actually MOVED. At the top or the bottom there is
     // nothing left to give, and re-reporting an unchanged point would be a
     // plan recomputed every frame for an answer that cannot have changed.
-    if (window.scrollY !== before) tell()
+    if (after !== before) tell(after)
     frame = requestAnimationFrame(step)
   }
 
   return {
-    at: (client) => {
-      where = { x: client.x, y: client.y }
-      tell()
-      if (frame === 0) frame = requestAnimationFrame(step)
+    at: (x, y) => {
+      atX = x
+      atY = y
+      tell(window.scrollY)
+      // Only when there is somewhere to go. A pointer in the middle of the
+      // window is every frame of nearly every gesture, and scheduling a frame
+      // for it would be a callback per move to decide to do nothing.
+      if (frame === 0 && edgeSpeed(y, height, ZONE_PX, FASTEST_PX) !== 0) {
+        frame = requestAnimationFrame(step)
+      }
     },
     stop: () => {
-      where = null
       cancelAnimationFrame(frame)
       frame = 0
     },

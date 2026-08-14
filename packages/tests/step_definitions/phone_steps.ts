@@ -168,18 +168,7 @@ Then("no row is in the air", async function (this: OlaiWorld) {
  * leave the scenario after it passing over nothing.
  */
 Given("the screen is shorter than the outline", async function (this: OlaiWorld) {
-  await this.page.setViewportSize({ width: PHONE_WIDTH, height: SHORT_PHONE_HEIGHT });
-  await this.waitForFrame();
-  const room = await this.page.evaluate(() => ({
-    page: document.documentElement.scrollHeight,
-    screen: window.innerHeight,
-    at: window.scrollY,
-  }));
-  assert.ok(
-    room.page > room.screen,
-    `the outline is ${room.page}px on a ${room.screen}px screen, so there is nothing to scroll`,
-  );
-  assert.strictEqual(room.at, 0, "this scenario starts at the top of the page");
+  await this.shrinkToScroll(PHONE_WIDTH, SHORT_PHONE_HEIGHT);
 });
 
 /** It MOVED, which is the half that no assertion about the menu can carry: a

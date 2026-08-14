@@ -38,7 +38,9 @@ export function SweepBand(props: { readonly sweep: Sweep | null }) {
               top: `${sweep().top}px`,
               left: `${sweep().left}px`,
               width: `${sweep().width}px`,
-              height: `${Math.max(0, sweep().bottom - sweep().top)}px`,
+              // No clamp: `top` is the lesser of the pull's two ends and
+              // `bottom` the greater, so this cannot be negative.
+              height: `${sweep().bottom - sweep().top}px`,
             }}
             data-testid={TESTID.sweepBand}
             // How many rows it is crossing right now — the one fact about a

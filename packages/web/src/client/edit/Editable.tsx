@@ -68,7 +68,7 @@ export function Editable(props: {
   const selection = createSelection(page)
   const editor = createEditor(page, selection)
   const dragging = createDragging({ ...page, selection })
-  const sweeping = createSweeping({ selection })
+  const sweeping = createSweeping(selection)
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {

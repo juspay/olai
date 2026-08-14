@@ -79,6 +79,20 @@ const room = async (page: Page) =>
     `${document.documentElement.scrollHeight}px of page in a ${window.innerHeight}px window`
   )
 
+/** The empty strip beside a row — its enclosing list's own padding, which is
+ *  scaffolding and holds no words, so a press there is a sweep rather than a
+ *  text selection. Measured rather than named: it is not a control and has no
+ *  testid, and what makes it pressable is that nothing else is there. */
+const rail = async (page: Page, id: string) =>
+  await page.locator(row(id)).first().evaluate((one) => {
+    const list = one.parentElement?.closest("ul")
+    const line = one.querySelector("[data-row-key]")
+    if (!list || !line) throw new Error("no rail beside that row")
+    const box = list.getBoundingClientRect()
+    const on = line.getBoundingClientRect()
+    return { x: box.x + 4, y: on.y + on.height / 2 }
+  })
+
 const pick = async (page: Page, first: string, last?: string) => {
   await page.locator(title(first)).click({ modifiers: ["Control"] })
   if (last !== undefined) await page.locator(title(last)).click({ modifiers: ["Shift"] })
@@ -270,19 +284,12 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
   "drag-across": async (page) => {
     // The rail beside a branch: scaffolding, holding no words, so a press there
     // is about the rows rather than about the text.
-    const rail = await page.locator(row("demo")).first().evaluate((one) => {
-      const list = one.parentElement?.closest("ul")
-      const line = one.querySelector("[data-row-key]")
-      if (!list || !line) throw new Error("no rail beside that row")
-      const box = list.getBoundingClientRect()
-      const on = line.getBoundingClientRect()
-      return { x: box.x + 4, y: on.y + on.height / 2 }
-    })
+    const from = await rail(page, "demo")
     const to = await boxOf(page.locator(title("install")))
     console.log(`  before: ${await picked(page) ?? "nothing picked"}`)
-    await page.mouse.move(rail.x, rail.y)
+    await page.mouse.move(from.x, from.y)
     await page.mouse.down()
-    await page.mouse.move(rail.x, to.y + to.height / 2, { steps: 14 })
+    await page.mouse.move(from.x, to.y + to.height / 2, { steps: 14 })
     await page.waitForTimeout(200)
     console.log(`  the band is crossing: ${await band(page)} rows`)
     console.log(`  picked while pulling: ${await picked(page)}`)
@@ -332,18 +339,11 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
   },
 
   "a-sweep-keeps-up": async (page) => {
-    const rail = await page.locator(row("demo")).first().evaluate((one) => {
-      const list = one.parentElement?.closest("ul")
-      const line = one.querySelector("[data-row-key]")
-      if (!list || !line) throw new Error("no rail beside that row")
-      const box = list.getBoundingClientRect()
-      const on = line.getBoundingClientRect()
-      return { x: box.x + 4, y: on.y + on.height / 2 }
-    })
+    const from = await rail(page, "demo")
     const view = page.viewportSize()
-    await page.mouse.move(rail.x, rail.y)
+    await page.mouse.move(from.x, from.y)
     await page.mouse.down()
-    await page.mouse.move(rail.x, (view?.height ?? 0) - 8, { steps: 10 })
+    await page.mouse.move(from.x, (view?.height ?? 0) - 8, { steps: 10 })
     await page.waitForTimeout(1_000)
     console.log(`  the page is at: ${await page.evaluate(() => window.scrollY)}`)
     console.log(`  the band is crossing: ${await band(page)} rows`)

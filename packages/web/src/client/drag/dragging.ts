@@ -60,22 +60,23 @@ import { flatten } from "../edit/order.ts"
 import type { Said } from "../edit/undoing.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { longPressOn } from "../longPress.ts"
-import { drag as pointerDrag } from "../pointer.ts"
+import { createDrags, TRAVEL_PX } from "../pointer.ts"
 import { beneath, depthOf } from "../select/range.ts"
 import { applyingAll } from "../writes.ts"
 import { measureLines } from "./lines.ts"
 import { type Landing, type Placed, planDrop } from "./plan.ts"
 
-/** How far the pointer must travel before a press becomes a drag rather than a
- *  click on the bullet's link. Four pixels is the number a hand resting on a
- *  trackpad produces without meaning to. */
-const THRESHOLD = 4
-
-/** ...and none at all once a FINGER has been held: the deadline it met is what
- *  told the two gestures apart, so the first pixel after it is already the
- *  drag. Asking for four more would be asking a person who has just felt the
- *  row lift to prove they meant it. */
-const HELD_THRESHOLD = 0
+/**
+ * The attribute the row's HANDLE wears — the bullet, as something to pick a row
+ * up by (`./Handle.tsx`).
+ *
+ * Here rather than on the component because two other things read it and
+ * neither is drawing one: the row's `•••` door, which must not arm its own long
+ * press on a press this gesture has claimed (`../menu/door.ts`), and the
+ * browser tests. What it marks is a fact about this GESTURE — "a press here is
+ * the drag's" — so it belongs with the gesture.
+ */
+export const HANDLE = "data-handle"
 
 export interface Dragging {
   /** Is this place in the air — either picked up, or drawn under something
@@ -230,30 +231,21 @@ export const createDragging = (
   // recover from without a reload.
   onCleanup(freeScroll)
 
-  /**
-   * The gesture in flight, so a page that goes away under one takes its window
-   * listeners, its frame loop and its claim on the scroll with it.
-   *
-   * A drag outlives the element it started on by design — the listeners are the
-   * window's, because a pointer that leaves the handle is still dragging it —
-   * which is exactly what makes an unmount mid-gesture a leak rather than a
-   * tidy-up: a frame loop nobody can reach would go on scrolling the next page.
-   */
-  let inFlight: (() => void) | undefined
-  onCleanup(() => inFlight?.())
+  /** This page's gestures: one at a time, and whatever is in flight is ended
+   *  with the page that made it (`../pointer.ts`). */
+  const drags = createDrags()
 
   /**
    * The gesture proper, once something has decided it IS one.
    *
-   * `how` is WHICH of the two decided, and it is a name rather than a boolean
-   * because three unrelated things read it: a pointer's THRESHOLD (the row
-   * lifts on the fourth pixel, and a press that never travels was the bullet's
-   * own link all along) or a finger's DEADLINE (the row lifts where it is, and
-   * the page stops moving under it). Everything after that moment is identical,
-   * which is why this is one function rather than two that would drift.
+   * `held` is WHICH of the two decided — a finger's DEADLINE (the row is
+   * already lifted, and the page has stopped moving under it) rather than a
+   * pointer's THRESHOLD (the row lifts on the fourth pixel, and a press that
+   * never travels was the bullet's own link all along). Everything after that
+   * moment is identical, which is why this is one function rather than two that
+   * would drift.
    */
-  const gesture = (from: PointerEvent, row: Row, how: "travelled" | "held") => {
-    const held = how === "held"
+  const gesture = (from: PointerEvent, row: Row, held: boolean) => {
     /** What this gesture is carrying, decided when it becomes a drag rather
      *  than at the press: a press that turns out to be a click must not have
      *  cleared the selection on its way past. */
@@ -273,8 +265,12 @@ export const createDragging = (
       lift()
       claimScroll()
     }
-    inFlight = pointerDrag(from, {
-      threshold: held ? HELD_THRESHOLD : THRESHOLD,
+    drags.start(from, {
+      // No threshold at all once a finger has been HELD: the deadline it met is
+      // what told the two gestures apart, so the first pixel after it is
+      // already the drag. Asking for four more would be asking a person who has
+      // just felt the row lift to prove they meant it.
+      threshold: held ? 0 : TRAVEL_PX,
       onStart: held ? undefined : lift,
       // ON THE PAGE, which is where the rows were measured — and which moves
       // under a pointer held near an edge of the window, with no `pointermove`
@@ -283,7 +279,6 @@ export const createDragging = (
       // outline is most of the gesture missing.
       onPage: (x, y) => setLanding(planDrop(placed, x, y)),
       onEnd: (up) => {
-        inFlight = undefined
         if (held) freeScroll()
         // A CANCELLED gesture is not a drop, and the difference is the whole
         // reason the primitive answers with `null` rather than with the last
@@ -298,18 +293,17 @@ export const createDragging = (
   }
 
   /**
-   * What a finger is on, while it is on it — read by the deadline below, which
-   * fires with no event of its own and needs the press that armed it to start
-   * the gesture from.
+   * The finger's deadline, and the row it is being held over.
    *
    * ONE watcher for the page rather than one per row: what it is watching is
    * whatever was pressed last, and two fingers on two bullets is a pinch the
-   * gesture already refuses (`../longPress.ts`).
+   * gesture already refuses (`../longPress.ts`). The PRESS comes back with the
+   * deadline — neither the timer nor the platform's own `contextmenu` carries
+   * one — so the only thing kept beside the watcher is which row it was on.
    */
-  let pressed: { readonly event: PointerEvent; readonly row: Row } | null = null
-  const watcher = longPressOn(() => {
-    const on = pressed
-    if (on !== null) gesture(on.event, on.row, "held")
+  let over: Row | undefined
+  const watcher = longPressOn((from) => {
+    if (over !== undefined) gesture(from, over, true)
   })
 
   const grab = (event: PointerEvent, row: Row) => {
@@ -318,11 +312,11 @@ export const createDragging = (
     // Every press clears it, and nothing else does — see the field's own note.
     travelled = false
     if (event.pointerType === "touch") {
-      pressed = { event, row }
+      over = row
       watcher.onPointerDown(event)
       return
     }
-    gesture(event, row, "travelled")
+    gesture(event, row, false)
   }
 
   /**

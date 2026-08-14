@@ -131,6 +131,27 @@ test("only the outline's scaffolding is marked as a sweep surface", () => {
   ])
 })
 
+// The other two attributes a row's LINE and its HANDLE wear, swept for the same
+// reason and with the same shape. Each is declared once as a constant and
+// written out once as a literal, because a JSX spread would put every attribute
+// of those elements — including the row line's `classList` — on Solid's runtime
+// spread path, per row, per frame. A literal cannot be renamed by the type
+// checker; these are what hold the two spellings together.
+test("a row's line is marked in exactly the module that reads it and the tree that draws it", () => {
+  expect(filesSpelling(/data-row-key/)).toEqual(["Tree.tsx", path.join("drag", "lines.ts")])
+})
+
+// The handle's is two rather than three, and the missing one is the point:
+// `menu/door.ts` stands down on this mark and spells it as the CONSTANT, so the
+// type checker already holds its end. Only the declaration and the cell that
+// wears it are literals, and only they need a sweep.
+test("a row's handle is marked in the gesture that owns it and the cell that wears it", () => {
+  expect(filesSpelling(/data-handle/)).toEqual([
+    path.join("drag", "Handle.tsx"),
+    path.join("drag", "dragging.ts"),
+  ])
+})
+
 // saying.ts's claim — one receptacle for how long a said-line lingers. SAID_MS
 // was pulled out beside the `Said` type because the ••• menu's dwell and the
 // Trash's "were equal only by hand-maintenance", and the constant turned out

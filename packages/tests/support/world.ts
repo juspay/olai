@@ -1026,24 +1026,20 @@ export class OlaiWorld extends World {
    * every scenario here into a tap.
    */
   async hold(target: Locator): Promise<void> {
-    const at = await this.middleOf(target, "held");
-    await this.finger("touchStart", at);
-    await this.page.waitForTimeout(LONG_PRESS_MS + LONG_PRESS_MARGIN_MS);
-    await this.finger("touchEnd");
-    await this.waitForFrame();
+    await this.holdDown(target);
+    await this.letGo();
   }
 
   /**
-   * HOLD a finger, and KEEP IT DOWN — the first half of a touch drag.
+   * HOLD a finger, and KEEP IT DOWN — the first half of a touch drag, and the
+   * first half of {@link hold} above.
    *
-   * {@link hold} is this plus the lift, and the two cannot be one step: a drag
-   * is what the finger does AFTER the deadline, so a scenario about one has to
-   * be able to stop between them. What the client does at that moment is lift
-   * the row (`client/drag/dragging.ts`), which is a state on the page a step
-   * can then assert before anything has moved.
-   *
-   * Answers with where the finger is, because everything after this is measured
-   * from it.
+   * The two cannot be one method: a drag is what the finger does AFTER the
+   * deadline, so a scenario about one has to be able to stop between them —
+   * what the client does at that moment is lift the row
+   * (`client/drag/dragging.ts`), which is a state on the page a step can assert
+   * before anything has moved. But the deadline is one number and one wait, so
+   * the shorter gesture is written in terms of this one rather than beside it.
    */
   async holdDown(target: Locator): Promise<void> {
     this.held = await this.middleOf(target, "held");
@@ -1071,6 +1067,34 @@ export class OlaiWorld extends World {
       await this.page.waitForTimeout(20);
     }
     await this.waitForFrame();
+  }
+
+  /**
+   * Shrink the viewport until the page has somewhere to scroll TO, and say so
+   * if it has not.
+   *
+   * No fixture in this suite is taller than a screen on its own — the corpora
+   * are outlines a person can read inside a scenario — so every scenario about
+   * the page MOVING has to make its own room, and two of them do (a phone, and
+   * a short laptop). The dimensions are each caller's, because 390px would
+   * change the layout a desktop scenario is testing; the ASSERTION is not, and
+   * it is the half that gives those steps their value: a fixture that grew past
+   * one of the two heights, or a layout that stopped scrolling the document,
+   * would otherwise leave the scenario after it passing over nothing.
+   */
+  async shrinkToScroll(width: number, height: number): Promise<void> {
+    await this.page.setViewportSize({ width, height });
+    await this.waitForFrame();
+    const room = await this.page.evaluate(() => ({
+      page: document.documentElement.scrollHeight,
+      screen: window.innerHeight,
+      at: window.scrollY,
+    }));
+    assert.ok(
+      room.page > room.screen,
+      `the outline is ${room.page}px on a ${room.screen}px screen, so there is nothing to scroll`,
+    );
+    assert.strictEqual(room.at, 0, "this scenario starts at the top of the page");
   }
 
   /** ...and let it go, which for a drag is the drop. */

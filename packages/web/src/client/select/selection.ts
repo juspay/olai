@@ -192,7 +192,10 @@ export const createSelection = (
       const at = anchor() ?? key
       pick(spanning(drawn(), at, key), at, key)
     },
-    across: (keys, from, to) => pick(keys, from, to),
+    // The private verb, handed out: a sweep names the run and both its ends,
+    // which is exactly what a pick IS — where the other gestures have to derive
+    // one or both of those from the rows on screen first.
+    across: pick,
     grow: (by) => {
       const end = focus() ?? anchor()
       if (end === null) return

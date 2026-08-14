@@ -106,7 +106,9 @@ export const planSweep = (
     top,
     bottom,
     left,
-    width: Math.max(0, right - left),
+    // No clamp: `left` is the least of every row's and `right` the greatest of
+    // every row's, over the same non-empty list, so this cannot be negative.
+    width: right - left,
     run: ends === null ? null : { keys, from: ends.from, to: ends.to },
   }
 }

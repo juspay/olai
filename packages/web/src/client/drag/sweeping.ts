@@ -52,9 +52,9 @@
  * than half-built, and the four other pickers already reach any set it would.
  */
 
-import { type Accessor, createSignal, onCleanup } from "solid-js"
+import { type Accessor, createSignal } from "solid-js"
 
-import { drag as pointerDrag } from "../pointer.ts"
+import { createDrags, TRAVEL_PX } from "../pointer.ts"
 import { type Line, measureLines } from "./lines.ts"
 import { planSweep, type Run, type Sweep } from "./sweep.ts"
 
@@ -74,12 +74,6 @@ import { planSweep, type Run, type Sweep } from "./sweep.ts"
  */
 export const SWEEP = "data-sweep"
 
-/** How far the pointer must travel before a press becomes a sweep. The bullet's
- *  own number (`./dragging.ts`), and for the same reason: a press that never
- *  travels is a click on the page, and a hand resting on a trackpad produces
- *  about this much without meaning to. */
-const THRESHOLD = 4
-
 export interface Sweeping {
   /** The live band, or `null` when nothing is being swept. */
   readonly band: Accessor<Sweep | null>
@@ -88,24 +82,19 @@ export interface Sweeping {
   readonly begin: (event: PointerEvent) => void
 }
 
-export const createSweeping = (
-  page: {
-    readonly selection: {
-      /** The whole of what a sweep asks of the pick: this run, with these two
-       *  ends. */
-      readonly across: (keys: Iterable<string>, from: string, to: string) => void
-      readonly clear: () => void
-    }
-  },
-): Sweeping => {
+/** The whole of what a sweep asks of the pick: what is held, this run with its
+ *  two ends, and putting it away. */
+interface Picked {
+  readonly keys: Accessor<ReadonlySet<string>>
+  readonly across: (keys: Iterable<string>, from: string, to: string) => void
+  readonly clear: () => void
+}
+
+export const createSweeping = (selection: Picked): Sweeping => {
   const [band, setBand] = createSignal<Sweep | null>(null)
-  /** The sweep in flight, so a page that goes away under one takes its window
-   *  listeners and its frame loop with it. The listeners are the WINDOW's by
-   *  design — a pointer that leaves the page is still pulling — which is what
-   *  makes an unmount mid-gesture a leak rather than a tidy-up
-   *  (`./dragging.ts` holds the same line for the same reason). */
-  let inFlight: (() => void) | undefined
-  onCleanup(() => inFlight?.())
+  /** This page's gestures: one at a time, and whatever is in flight is ended
+   *  with the page that made it (`../pointer.ts`). */
+  const drags = createDrags()
 
   const begin = (event: PointerEvent): void => {
     // The secondary button opens a context menu, and a finger is scrolling.
@@ -115,7 +104,12 @@ export const createSweeping = (
     // A press on the page puts the pick away, whether or not it becomes a
     // sweep — which is what pressing outside a selection means everywhere, and
     // the same statement the drag makes when it starts on an unpicked row.
-    page.selection.clear()
+    //
+    // ...and only when there IS one. A press on the page is the most ordinary
+    // thing that happens on it, and clearing an empty pick still writes a fresh
+    // set into the signal every row of the tree reads — the tree flattened and
+    // re-keyed, per background click, to reach the state it was already in.
+    if (selection.keys().size > 0) selection.clear()
 
     /** Where the pull began, in the page's own coordinates — fixed while the
      *  page scrolls under it, which is what makes an auto-scrolled sweep keep
@@ -134,11 +128,11 @@ export const createSweeping = (
       const run = next?.run ?? null
       if (run?.from === told?.from && run?.to === told?.to) return
       told = run
-      if (run === null) page.selection.clear()
-      else page.selection.across(run.keys, run.from, run.to)
+      if (run === null) selection.clear()
+      else selection.across(run.keys, run.from, run.to)
     }
-    inFlight = pointerDrag(event, {
-      threshold: THRESHOLD,
+    drags.start(event, {
+      threshold: TRAVEL_PX,
       // Measured when it BECOMES a sweep rather than at the press: a press that
       // turns out to be a click must not have walked the tree on its way past.
       //
@@ -157,10 +151,7 @@ export const createSweeping = (
       // rule turned round: a drop is a WRITE and half of one is a shape nobody
       // asked for, while a pick is a reading — the rows are still on screen,
       // still toned, and Escape is right there.
-      onEnd: () => {
-        inFlight = undefined
-        setBand(null)
-      },
+      onEnd: () => setBand(null),
     })
   }
 
