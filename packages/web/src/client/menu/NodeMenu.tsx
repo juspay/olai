@@ -86,6 +86,7 @@ import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 
 import { swallowGhost } from "../ghost.ts"
+import { LAYER } from "../layer.ts"
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { MENU_CELL, MENU_REVEAL } from "../touch.ts"
@@ -347,18 +348,20 @@ export function NodeMenu(props: {
             // point at and a dangling id names nothing. The same two words the
             // `•••` carries either way.
             aria-label="node menu"
-            // `relative` so the `z-20` bites: Kobalte's positioner is the
+            // `relative` so the layer bites: Kobalte's positioner is the
             // absolute box, and a z-index on a STATIC child of it would do
             // nothing. (Kobalte's content carries `position: relative` in an
             // inline style of its own; this says so in the class list rather
-            // than depending on it.) Everything else here is the panel the
-            // hand-rolled one drew, class for class.
+            // than depending on it.) `LAYER.row` is the whole claim — over the
+            // rows it covers, under every piece of chrome (`../layer.ts`).
+            // Everything else here is the panel the hand-rolled one drew,
+            // class for class.
             // `focus:outline-none` because the caret lands on this BOX when the
             // menu opens (see the ref above) and a box is not what anybody is
             // aiming at — the ring belongs on the entry the keyboard is
             // standing on, and that is `data-[highlighted]` below. Without it,
             // Chromium rings the whole panel for a menu opened with a mouse.
-            class="relative z-20 min-w-[10.5rem] rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none"
+            class={`relative ${LAYER.row} min-w-[10.5rem] rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none`}
             onFocusOutside={(event: Event) => event.preventDefault()}
             // WHICH GESTURE is driving this menu, for the caret's way home. A
             // key anywhere in the panel (Escape, an entry chosen with Enter,
@@ -390,7 +393,7 @@ export function NodeMenu(props: {
           // node and says what to do about it — and a line that never wrapped
           // would run off the right of the screen with the reason on it.
           <span
-            class="absolute left-0 top-full z-20 mt-0.5 max-w-[24rem] w-max rounded border border-rule/70 bg-panel px-2 py-1 text-xs shadow-md"
+            class={`absolute left-0 top-full ${LAYER.row} mt-0.5 max-w-[24rem] w-max rounded border border-rule/70 bg-panel px-2 py-1 text-xs shadow-md`}
             classList={{
               "text-alarm": message().tone === "alarm",
               "text-muted": message().tone === "aside",
