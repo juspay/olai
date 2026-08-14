@@ -614,6 +614,18 @@ export const TESTID = {
   /** The question the one verb with a blast radius asks before it runs — the
    *  `•••` menu's sentence, in the palette's own box. */
   paletteConfirm: "palette-confirm",
+  // ── the filter over the page, which is not the header's box ──────────
+  /** The bar above a tree page: the box, the count, the refusals. Drawn on the
+   *  two routes that may carry a filter and nowhere else. */
+  filterBar: "filter-bar",
+  filterInput: "filter-input",
+  /** "3 of 41", plus what the done-preference is holding back. */
+  filterCount: "filter-count",
+  filterClear: "filter-clear",
+  /** A known operator with an unknown value, in the grammar's own words —
+   *  never a query that quietly found nothing. */
+  filterRefusals: "filter-refusals",
+  filterRefusal: "filter-refusal",
   // ── the header's search box, the other door to the same reading ──────
   headerSearch: "header-search",
   /** The phone's door: opens the palette, which is the same modal. */

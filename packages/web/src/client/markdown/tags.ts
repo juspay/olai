@@ -23,6 +23,7 @@
 import { mayHoldTag, tagText, titleParts } from "@olai/format"
 import type { Element, ElementContent, Root } from "hast"
 
+import { TAG_ATTRIBUTE } from "../filter/tag.ts"
 import { TESTID } from "../testids.ts"
 
 /**
@@ -31,9 +32,14 @@ import { TESTID } from "../testids.ts"
  *
  * A complete string literal so Tailwind's content scan still finds every
  * utility when the markup is built as HTML rather than as a Solid element.
+ *
+ * It is PRESSABLE now — the pointer and the hover say so — because a click on
+ * one filters the page to it (`../filter/tag.ts`). That is the promise
+ * title-markdown deliberately withheld while the tags were decorative, and the
+ * cursor is how a reader is told it has arrived.
  */
 export const TAG_CLASS =
-  "mx-0.5 inline-block max-w-full rounded-sm bg-accent/15 px-1 py-px text-[0.8125rem] font-normal leading-snug text-accent"
+  "mx-0.5 inline-block max-w-full cursor-pointer rounded-sm bg-accent/15 px-1 py-px text-[0.8125rem] font-normal leading-snug text-accent hover:bg-accent/25"
 
 /** Subtrees where a `#…` sequence is not a tag: code is code, a link's text
  *  and href are not re-parsed for tags (a URL fragment is the sharpest case). */
@@ -74,24 +80,27 @@ const splitTags = (text: string): ElementContent[] => {
 export const taggedHtml = (text: string): string => {
   if (!mayHoldTag(text)) return escapeText(text)
   return titleParts(text)
-    .map((part) =>
-      part.kind === "tag"
-        ? `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}">${
-          escapeText(tagText(part))
-        }</span>`
-        : escapeText(part.text),
-    )
+    .map((part) => {
+      if (part.kind !== "tag") return escapeText(part.text)
+      // AS WRITTEN in both places: the text a reader sees, and the value the
+      // delegated press filters by. `titleParts` restricts a tag's alphabet
+      // (`isTagName`), so the attribute cannot carry a quote — and `escapeText`
+      // is applied anyway rather than reasoned about at each call.
+      const written = escapeText(tagText(part))
+      return `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}" ${TAG_ATTRIBUTE}="${written}">${written}</span>`
+    })
     .join("")
 }
 
 /** The pill, over the tag AS WRITTEN — sigil and all, because that is what the
- *  title says and what a reader searches for. */
+ *  title says, what a reader searches for, and what a press filters by. */
 const pill = (written: string): Element => ({
   type: "element",
   tagName: "span",
   properties: {
     className: TAG_CLASS.split(" "),
     dataTestid: TESTID.tag,
+    dataTag: written,
   },
   children: [{ type: "text", value: written }],
 })

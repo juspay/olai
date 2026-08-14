@@ -60,9 +60,14 @@ Then("nothing overflows the pane", async function (this: OlaiWorld) {
  *  server, with only what this browser stored to carry anything across. Here
  *  rather than in a feature's own steps because nothing about it is any one
  *  feature's, and a second copy would make Cucumber fail the whole run on an
- *  ambiguous definition. */
+ *  ambiguous definition.
+ *
+ *  The WHOLE address, query and all: a filtered page's `?q=` is part of what a
+ *  reader would have in the bar (`client/routes.ts`), so reloading the path
+ *  alone would be this step quietly opening a different page than the one that
+ *  was open. */
 When("I reload the page", async function (this: OlaiWorld) {
-  await this.open(this.pathname());
+  await this.open(this.address());
 });
 
 Then("the page has not reloaded", async function (this: OlaiWorld) {

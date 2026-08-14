@@ -242,6 +242,20 @@ When(
   },
 );
 
+/** The same tool, SCOPED — the narrowing a person gets by filtering a zoomed
+ *  page, said out loud so an agent can ask the same question. Without it the
+ *  two faces would answer different questions with one grammar, which is the
+ *  deviation HACKING.md forbids. */
+When(
+  "the terminal agent searches for {string} under {string}",
+  async function (this: OlaiWorld, text: string, under: string) {
+    this.toolAnswer = await callTool(agentOf(this), "search_nodes", {
+      text,
+      under,
+    });
+  },
+);
+
 // ── documents, from a terminal ─────────────────────────────────────────
 
 When(
@@ -338,6 +352,22 @@ Then(
     assert.ok(
       found.line >= 1,
       `the hit for "${id}" carries no line number`,
+    );
+  },
+);
+
+/** Exactly these ids, in the order they came back — the shape a scoped or
+ *  operator query is judged by, because what a narrowing does is take hits
+ *  AWAY and "contains X" cannot see that happen. */
+Then(
+  "the terminal agent found exactly {string}",
+  function (this: OlaiWorld, expected: string) {
+    const hits = (structuredOf(this)["hits"] ?? []) as ReadonlyArray<
+      { readonly id: string }
+    >;
+    assert.deepStrictEqual(
+      hits.map((hit) => hit.id),
+      expected === "" ? [] : expected.split(",").map((id) => id.trim()),
     );
   },
 );

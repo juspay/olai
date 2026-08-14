@@ -31,6 +31,10 @@ import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
 import { createUndo, UndoContext } from "./edit/undoing.ts"
 import { UndoSaid } from "./edit/UndoSaid.tsx"
 import { Banner } from "./errors/Banner.tsx"
+import { FilterBar } from "./filter/FilterBar.tsx"
+import { NarrowedProvider } from "./filter/narrowed.tsx"
+import { createNarrowing } from "./filter/narrowing.ts"
+import { taggedBy } from "./filter/tag.ts"
 import { Broken } from "./errors/Broken.tsx"
 import { Page as ErrorPage } from "./errors/Page.tsx"
 import { publishLayoutCss } from "./layout/css.ts"
@@ -45,6 +49,7 @@ import { fileOf, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
+import { filterOf, narrowedTo } from "./routes.ts"
 import { runAsync } from "./run.ts"
 import { visible } from "./settings/done.ts"
 import { Sidebar } from "./Sidebar.tsx"
@@ -124,10 +129,31 @@ export default function App() {
   const noted = (month: string): ReadonlySet<string> =>
     dailyNoteDays(documents.paths(), month)
 
-  const rows = createMemo(() => {
+  // The page's rows at three stages, and each one is read by somebody:
+  // everything the page holds, what this READER looks at (the done
+  // preference), and what the query left of that. The order is argued in
+  // `./filter/narrowing.ts` — a preference about the reader goes before a
+  // question about the page.
+  const allRows = createMemo(() => {
     const indexes = outlines.derived()
-    return indexes === undefined ? [] : visible(rowsFor(indexes, page()))
+    return indexes === undefined ? [] : rowsFor(indexes, page())
   })
+  const shownRows = createMemo(() => visible(allRows()))
+
+  const narrowing = createNarrowing({
+    derived: outlines.derived,
+    text: () => filterOf(router.route()),
+    all: allRows,
+    visible: shownRows,
+  })
+  const rows = narrowing.rows
+
+  /** Typing in the filter box, and pressing a `#tag`, are the same act: the
+   *  address of this page changes, and the entry is REPLACED rather than
+   *  pushed (`./router.tsx`'s `replace` says why). */
+  const narrow = (text: string): void => {
+    router.replace(narrowedTo(router.route(), text))
+  }
 
   const docked = () => outlines.manifest() !== null && page() !== undefined
 
@@ -273,7 +299,22 @@ export default function App() {
                       // away (`router.tsx`'s `followed`). One listener for the
                       // pane rather than one per rendered block, and everything
                       // it does not claim behaves exactly as the browser's.
+                      //
+                      // The SAME listener answers a press on a `#tag`, and for
+                      // the same reason: a tag pill arrives through
+                      // `innerHTML` too, so it belongs to no component
+                      // (./filter/tag.ts). A tag filters this page rather than
+                      // navigating, so it is answered before a link is looked
+                      // for — a pill is never inside an `<a>` (the tag walk
+                      // skips anchors), so the two can never both claim one
+                      // press.
                       onClick={(event) => {
+                        const tag = taggedBy(event)
+                        if (tag !== null) {
+                          event.preventDefault()
+                          narrow(tag)
+                          return
+                        }
                         const route = followed(event)
                         if (route === null) return
                         event.preventDefault()
@@ -282,6 +323,18 @@ export default function App() {
                     >
                       <Show when={problems().length > 0}>
                         <Banner errors={problems()} />
+                      </Show>
+                      {/* The filter, on the two routes that may carry one
+                          (./routes.ts). Above the page rather than inside each
+                          of them, because an outline and a zoomed node are the
+                          same kind of page narrowed the same way — and the
+                          provider wraps everything below so a row can ask
+                          whether it matched without being told. */}
+                      <NarrowedProvider narrowed={narrowing}>
+                      <Show
+                        when={only(open(), "outline") ?? only(open(), "node")}
+                      >
+                        <FilterBar narrowing={narrowing} onType={narrow} />
                       </Show>
                       <Switch>
                         <Match when={only(open(), "broken")}>
@@ -340,6 +393,7 @@ export default function App() {
                           )}
                         </Match>
                       </Switch>
+                      </NarrowedProvider>
                     </main>
                   </div>
                 </DocumentsProvider>

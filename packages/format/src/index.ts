@@ -19,6 +19,14 @@
  *     its way, what is on a day, what is overdue on it, which document that
  *     day's note is, and where a `doc` or a relative link lands, computing all
  *     of it with the same code;
+ *   - what a QUERY means, `parseFilter` with `matchOf` / `matching` and the row
+ *     transform `keeping` — the grammar (`is:`, `has:`, `date:`, `-`, and the
+ *     substring terms around them), which nodes it selects, and what a tree
+ *     narrowed to them looks like with the ancestors kept. Here, and not in the
+ *     ops layer where the search procedure is, because a browser filtering rows
+ *     it already holds and an agent calling `search_nodes` must not be two
+ *     answers to one question (./filter.ts's own header, and
+ *     docs/brainstorming/filter-in-place.md);
  *   - how a set is WRITTEN back, `serializeOutline`, `ordBetween` and
  *     `stampOf` — the canonical bytes, the sibling order and the one way an
  *     instant becomes a date value, held here for the same reason the rules
@@ -105,6 +113,34 @@ export type {
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"
 export type { Zoomed } from "./zoom.ts"
+export {
+  FIELD_WEIGHT,
+  HAS_FIELDS,
+  haystacksOf,
+  IS_VALUES,
+  keeping,
+  matchedIn,
+  matching,
+  matchOf,
+  nothingAsked,
+  OPERATORS,
+  parseFilter,
+  positionBonus,
+  SEARCH_FIELDS,
+  shownRecord,
+} from "./filter.ts"
+export type {
+  Clause,
+  Filter,
+  HasField,
+  IsValue,
+  Match,
+  Matched,
+  Refusal,
+  Scope,
+  SearchField,
+  Term,
+} from "./filter.ts"
 export {
   dailyNoteDays,
   dailyNotePathFor,

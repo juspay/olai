@@ -22,7 +22,7 @@
 
 import { Schema } from "effect"
 
-import { MARKS } from "@olai/format"
+import { MARKS, SEARCH_FIELDS } from "@olai/format"
 
 /** One hit, exactly as `Query.search` situates one: the node, where it
  *  lives, and which field carried the match. */
@@ -37,7 +37,10 @@ export const SearchHit = Schema.Struct({
   path: Schema.Array(Schema.String),
   see: Schema.optionalKey(Schema.Array(Schema.String)),
   after: Schema.optionalKey(Schema.Array(Schema.String)),
-  matched: Schema.Literals(["title", "id", "tag", "desc"]),
+  /** Which field carried the words — ABSENT when the query named none, which
+   *  a query of operators alone (`is:done`) does. Optional rather than a fifth
+   *  word for "nothing", the same rule `status` above follows. */
+  matched: Schema.optionalKey(Schema.Literals(SEARCH_FIELDS)),
 })
 export type SearchHit = typeof SearchHit.Type
 
@@ -49,9 +52,17 @@ export const SearchAnswer = Schema.Struct({
 export type SearchAnswer = typeof SearchAnswer.Type
 
 export const SearchRequest = Schema.Struct({
+  /** Words and operators — one grammar, `@olai/format`'s `parseFilter`, which
+   *  is also what the tree filter in the browser parses. */
   text: Schema.String,
   /** How many hits to return. The server defaults it (12); the palette asks
    *  for fewer because a modal shows fewer. */
   limit: Schema.optionalKey(Schema.Number),
+  /** The two scopes a tree page can BE, spelled here for the reason the MCP
+   *  tool spells them: the browser's filter narrows to one outline or to one
+   *  node's subtree, and a door that could not ask for that narrowing would be
+   *  a door answering a smaller question than the other one. */
+  file: Schema.optionalKey(Schema.String),
+  under: Schema.optionalKey(Schema.String),
 })
 export type SearchRequest = typeof SearchRequest.Type

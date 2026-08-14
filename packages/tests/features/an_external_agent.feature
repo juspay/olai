@@ -197,3 +197,16 @@ Feature: An agent olai did not start
     # the file it came out of.
     When the terminal agent searches for "cabinets"
     Then the terminal agent found "order" in "house.jsonl"
+
+  Scenario: It gets the same grammar a person filters a page with
+    # HACKING.md's consistency rule, at the one seam a query language could
+    # break it: `is:done` is `@olai/format`'s one matcher, so the agent's
+    # answer and the browser's filter cannot mean different things by it — and
+    # `under` is the scoping a person gets by filtering a zoomed page, said out
+    # loud so the agent can ask the same question rather than a wider one.
+    When the terminal agent searches for "is:done"
+    Then the terminal agent found exactly "demo"
+    When the terminal agent searches for "-is:done cabinets"
+    Then the terminal agent found exactly "order, install"
+    When the terminal agent searches for "cabinets" under "install"
+    Then the terminal agent found exactly "install"

@@ -136,11 +136,28 @@ export type Tool =
 const SearchArgs = Schema.Struct({
   text: Schema.String.annotate({
     description:
-      "Words to look for. Case-folded substrings, no operators: every word must appear somewhere in the same node.",
+      "What to look for. Case-folded substring WORDS — every word must appear somewhere in the same node — composed with OPERATORS:\n" +
+      "- `is:done` / `is:doing` / `is:todo` — the mark the node stores (never a derived one). `is:marked` is any of the three; `is:archived` reaches what was put away.\n" +
+      "- `has:desc` / `has:date` / `has:see` / `has:after` / `has:doc` — a field the record carries.\n" +
+      "- `date:2026-08-10`, `date:2026-08`, `date:2026`, `date:2026-08-01..2026-08-14`, `date:..2026-08-10`, `date:2026-08-10..` — the two dates a journal reads: what the node is scheduled for, and when it was finished.\n" +
+      "- `-` before any word or operator negates it: `#home -is:done`.\n" +
+      "A `#tag` or `@mention` is an ordinary word — tags are indexed bare and as written. An unknown value for a known operator is REFUSED rather than searched for as text; a colon after anything else (`TODO:`) is just a word.\n" +
+      "ARCHIVED NODES ARE EXCLUDED unless the query says `is:archived`.",
   }),
   limit: Schema.optionalKey(
     Schema.Number.annotate({
       description: "How many hits to return. Default 12; the total is reported either way.",
+    }),
+  ),
+  file: Schema.optionalKey(
+    Schema.String.annotate({
+      description: "Only nodes in this outline, by its relative path.",
+    }),
+  ),
+  under: Schema.optionalKey(
+    Schema.String.annotate({
+      description:
+        "Only this node and everything beneath it, by id — the same scoping a person gets by filtering a zoomed page.",
     }),
   ),
 })
@@ -247,7 +264,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   read(
     "search_nodes",
     "Search nodes",
-    "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by.",
+    "Find nodes by title, id, `#tag` or note — and by what they ARE, with the operators `text` documents (`is:`, `has:`, `date:`, and `-` to negate). Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by. `matched` says which field carried the words, and is ABSENT for a query that named none (`is:done` on its own).\n\nSCOPE IT when you know where to look: `file` is one outline, `under` is a node and everything beneath it. That is the same narrowing a person gets by filtering a zoomed page, which is why it is here — the two faces answer one question.",
     SearchArgs,
     (at, args: typeof SearchArgs.Type) => Query.search(at.derived, args),
   ),

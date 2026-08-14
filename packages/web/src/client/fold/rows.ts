@@ -22,7 +22,7 @@
  * would be the same node folded twice under two names.
  */
 
-import type { Row } from "@olai/format"
+import { type Row, shownRecord } from "@olai/format"
 
 /** One node's fold: which node, and which file says so. */
 export interface Fold {
@@ -31,21 +31,21 @@ export interface Fold {
   readonly file: string
 }
 
-/** The RECORD a fold is of: what the row shows, or — for a row that shows
- *  nothing — the row's own. Said once, so the two readings below cannot come
- *  to different answers about the same row the day a fourth `kind` arrives. */
-const foldedRecord = (row: Row) =>
-  row.kind === "node" || row.kind === "mirror" ? row.shows : row.at
-
 /** The id a row folds by. Its own function because the walk that flattens a
  *  drawn page (`../edit/order.ts`) asks it of every row and wants no object
- *  for the answer. */
-export const foldIdOf = (row: Row): string => foldedRecord(row).node.id
+ *  for the answer.
+ *
+ *  WHICH RECORD that is comes from the format (`shownRecord`): what a row
+ *  shows, or — for a row that shows nothing — its own. This module had that
+ *  rule to itself until the FILTER needed the same one (a mirror of a matching
+ *  node matches, wherever it is drawn), and two spellings of it would be two
+ *  answers about the same row the day a fourth `kind` arrives. */
+export const foldIdOf = (row: Row): string => shownRecord(row).node.id
 
 /** The whole fold of a row — what a WRITE needs, which is the id and the file
  *  it is remembered under. */
 export const foldOf = (row: Row): Fold => {
-  const record = foldedRecord(row)
+  const record = shownRecord(row)
   return { id: record.node.id, file: record.file }
 }
 

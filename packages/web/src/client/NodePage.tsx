@@ -29,6 +29,7 @@ import { createEdgeEditing } from "./edges/editing.tsx"
 import { EdgeVerbs } from "./edges/EdgeVerbs.tsx"
 import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
+import { useNarrowed } from "./filter/narrowed.tsx"
 import { only } from "./narrow.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
@@ -61,6 +62,10 @@ function Zoom(props: {
   readonly rows: ReadonlyArray<Row>
 }) {
   const today = useToday()
+  /** Whether this page is narrowed — the one thing the empty state below has
+   *  to know, because "nothing under this node" and "nothing here matches" are
+   *  two different pieces of news (./filter/narrowed.tsx). */
+  const narrowed = useNarrowed()
   /** This page's edge editing — the panel, both doors' writes, and the line
    *  that says what came of them (./edges/editing.tsx). A zoom always lands on
    *  a regular node however it was addressed, so the node is never absent
@@ -148,10 +153,10 @@ function Zoom(props: {
         when={props.rows.length > 0}
         fallback={
           <Show
-            when={props.zoomed.children.length === 0}
+            when={props.zoomed.children.length === 0 && !narrowed.active()}
             fallback={
               <p class="text-muted" data-testid={TESTID.emptyUnder}>
-                {nothingUnder(props.zoomed)}
+                {nothingUnder(props.zoomed, narrowed.active())}
               </p>
             }
           >
@@ -171,12 +176,17 @@ function Zoom(props: {
   )
 }
 
-/** An empty page has two causes and they are not the same news: a leaf has
- *  nothing under it, a subtree that is entirely done has been hidden by this
- *  reading and is one pick in Prefs from coming back. */
+/** An empty page has three causes and they are not the same news: a leaf has
+ *  nothing under it; a subtree that is entirely done has been hidden by this
+ *  reading and is one pick in Prefs from coming back; and a filter can have
+ *  matched nothing, which the bar above already counts — so this says which
+ *  reading emptied the page rather than repeating the number. */
 const nothingUnder = (
   zoomed: Extract<Zoomed, { readonly kind: "node" }>,
+  filtered: boolean,
 ): string =>
-  zoomed.children.length > 0 && doneHidden()
+  filtered
+    ? "Nothing under this node matches the filter."
+    : zoomed.children.length > 0 && doneHidden()
     ? "Everything under this node is done, and Prefs is hiding finished work."
     : "Nothing under this node."

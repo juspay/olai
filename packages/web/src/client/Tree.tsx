@@ -76,6 +76,8 @@ import { datePick } from "./date/pick.ts"
 import { useDerived } from "./derived.tsx"
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
+import { useNarrowed } from "./filter/narrowed.tsx"
+import { onATag } from "./filter/tag.ts"
 import { useUndo } from "./edit/undoing.ts"
 import { NewRow } from "./edit/NewRow.tsx"
 import { DescEditor, keyHandler, Said, TitleEditor } from "./edit/RowEditor.tsx"
@@ -135,7 +137,28 @@ function Branch(props: {
   //
   // Asked of the NODE this row folds by — its target if it is a mirror, so the
   // fold is the node's wherever the node appears (./fold/rows.ts).
-  const collapsed = createMemo(() => collapsedNodes().has(foldIdOf(props.row)))
+  // WHAT THIS PAGE IS NARROWED BY (./filter/narrowed.tsx): whether this row
+  // was a match rather than an ancestor of one, and whether folds are
+  // suspended. Both are the page's, not the row's, which is why they arrive
+  // through a context rather than through a thousand props.
+  const narrowed = useNarrowed()
+  // Read from the fold memory itself (./fold/memory.ts) rather than through a
+  // per-page object: what is folded belongs to this BROWSER, and a row is where
+  // it is wanted — the same way the directory's folders are read in Sidebar.tsx.
+  //
+  // While a FILTER is on, nothing is collapsed: the tree on screen is a
+  // different tree, and honouring a fold inside it would hide the match the
+  // filter was typed to find. The memory is untouched — clearing the filter
+  // brings every collapse back.
+  const collapsed = createMemo(() =>
+    !narrowed.active() && collapsedNodes().has(foldIdOf(props.row))
+  )
+  /** Did the query select THIS row, or is it here to say where a match lives?
+   *  A fact, published for the browser tests and for the tone beside them —
+   *  absent entirely when nothing is filtered. */
+  const matched = createMemo(() =>
+    narrowed.active() ? narrowed.matched().has(foldIdOf(props.row)) : undefined
+  )
   // The RECORD a row shows, file and all — the file is what a note's relative
   // picture and a `doc` are relative to, and for a mirror that is the file the
   // node is DEFINED in rather than the one being read.
@@ -257,6 +280,11 @@ function Branch(props: {
    * note's did.
    */
   const clickTitle = (event: MouseEvent) => {
+    // A press on a `#tag` belongs to the tag: it filters the page, and it is
+    // answered one level up by the pane's delegated listener (`./filter/
+    // tag.ts`). Without this the same press would ALSO drop a caret in the
+    // line, because Solid runs a descendant's handler before an ancestor's.
+    if (onATag(event)) return
     if (event.shiftKey) {
       selection.extend(props.row.key)
       return
@@ -295,6 +323,10 @@ function Branch(props: {
       // nothing is in its way. The dim beside it is a styling decision a
       // refactor may change; this is the fact a scenario asks about.
       data-blocked={blockedIds(props.row.blocked)}
+      // Whether the filter SELECTED this row or kept it as the context that
+      // leads to one. Absent on an unfiltered page, which is the difference
+      // between "not a match" and "there is no query".
+      data-match={matched() === undefined ? undefined : String(matched())}
     >
       {/* group/row is on the LINE, not the <li>: a parent li also contains
           every nested child, and a named group-hover on the li would reveal

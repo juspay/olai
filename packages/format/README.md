@@ -71,6 +71,17 @@ consumer reaching for one would be re-implementing a rule that lives here.
 The derivations are exported for exactly this reason: the browser draws the
 tree with the same code the validator judged it with.
 
+`src/filter.ts` is the newest of them and the one whose placement is worth
+arguing: it says what a QUERY means — the words, the operators (`is:`, `has:`,
+`date:`, `-`), which nodes they select, and `keeping`, the row transform that
+narrows a tree to the matches with their ancestors, sibling of `withoutDone`.
+It is here rather than beside the search procedure in `@olai/ops` because the
+browser's filter runs on every keystroke over rows it already holds and cannot
+be a caller of that procedure — so the alternative was a client-side predicate
+written to the same paragraph, which is exactly how `is:done` comes to mean one
+thing to an agent and another to the box a person types in. One matcher, four
+callers; `Query.search` calls it as its gate and keeps the ranking.
+
 `Status` is the three `MARKS` — `done`, `doing`, `todo`, declared once in
 `node.ts` because the per-line rule, the ISO check and the index all read that
 one list — and it is OPTIONAL wherever it appears: a node nobody marked has no

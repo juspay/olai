@@ -150,3 +150,71 @@ describe("the tags a node carries", () => {
     expect(search(set, { text: "#alice" }).hits.map((hit) => hit.id)).toEqual(["call"])
   })
 })
+
+/**
+ * The operators, from THIS side of the seam.
+ *
+ * What each one selects is `@olai/format`'s (`filter.test.ts` holds the
+ * grammar); what is pinned here is that this procedure is a caller of it —
+ * that an agent typing `is:done` gets the same reading the browser's filter
+ * gets, that a scope is askable, and that the two things this layer still
+ * decides for itself (the shortlist and what it says about a hit) survive a
+ * query that named no words.
+ */
+describe("a query is words and operators", () => {
+  const WORK = (): OutlineSet =>
+    setOf({
+      "work.jsonl": [
+        `{"id":"trip","ord":"a0","title":"the trip"}`,
+        `{"id":"book","parent":"trip","ord":"a0","title":"book the flights","done":"2026-08-03"}`,
+        `{"id":"pack","parent":"trip","ord":"a1","title":"pack","todo":true,"desc":"the small case"}`,
+        `{"id":"house","ord":"a1","title":"the house"}`,
+        `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","done":"2026-08-09"}`,
+      ].join("\n"),
+      "Archive.jsonl": `{"id":"old","ord":"a0","title":"an old trip","done":"2026-01-01"}`,
+    })
+
+  const ids = (query: Parameters<typeof search>[1]): ReadonlyArray<string> =>
+    search(index(WORK()), query).hits.map((hit) => hit.id)
+
+  test("an operator gates the words, and the two compose", () => {
+    expect(ids({ text: "is:done" })).toEqual(["book", "paint"])
+    // "the" is in all five (`pack` carries it in its note); the clause is what
+    // cuts them, and the ranking is still this layer's.
+    expect(ids({ text: "the is:done" })).toEqual(["book", "paint"])
+    expect(ids({ text: "the -is:done" })).toEqual(["trip", "house", "pack"])
+    expect(ids({ text: "has:desc" })).toEqual(["pack"])
+    expect(ids({ text: "date:2026-08-09" })).toEqual(["paint"])
+  })
+
+  test("a refused operator answers with nothing rather than with half the query", () => {
+    expect(ids({ text: "is:blocked trip" })).toEqual([])
+  })
+
+  test("the archive is out of it unless the query says so", () => {
+    expect(ids({ text: "trip" })).toEqual(["trip"])
+    expect(ids({ text: "trip is:archived" })).toEqual(["old"])
+  })
+
+  test("a scope narrows to one outline, or to one node and what is beneath it", () => {
+    expect(ids({ text: "is:done", file: "work.jsonl" })).toEqual(["book", "paint"])
+    expect(ids({ text: "is:done", under: "trip" })).toEqual(["book"])
+    expect(ids({ text: "is:done", file: "Archive.jsonl", under: "trip" })).toEqual([])
+  })
+
+  test("a hit says which field carried the words — and says nothing when none did", () => {
+    expect(search(index(WORK()), { text: "flights" }).hits[0])
+      .toMatchObject({ id: "book", matched: "title" })
+    const marked = search(index(WORK()), { text: "is:todo" }).hits[0]
+    expect(marked).toMatchObject({ id: "pack" })
+    expect(marked).not.toHaveProperty("matched")
+  })
+
+  test("a finished node still loses ties, and the total is still uncapped", () => {
+    // `book` and `paint` both match on their title; `book` is written first
+    // and both are done, so order is the file's and the count is honest.
+    const answer = search(index(WORK()), { text: "is:done", limit: 1 })
+    expect(answer.hits.map((hit) => hit.id)).toEqual(["book"])
+    expect(answer.total).toBe(2)
+  })
+})

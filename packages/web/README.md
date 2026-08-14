@@ -1367,6 +1367,45 @@ What a write SAID is one row with a `data-tone`, and the modal stays up while
 there is one — a palette that closed over a refusal would be the silent failure
 the error rule is about.
 
+## Filtering the page: `src/client/filter/`
+
+The fourth door onto the one query language, and the only one that does not
+list results: it takes rows AWAY from the outline in front of you, keeping every
+match and the ancestors that lead to it.
+
+- `narrowing.ts` — the whole reading, derived from one string (the `?q=` on the
+  address): what was typed, the parsed query, the ids it selects, the rows the
+  page draws, and the two numbers the bar reports. The ORDER is the decision it
+  exists to hold: hiding finished work is a standing claim about the READER and
+  goes first; the filter is a question about the PAGE and reads what is left. So
+  `is:done` under a done-hiding preference draws nothing, and the count says how
+  many matches are being held back rather than leaving it a mystery.
+- `narrowed.tsx` — the two things every ROW needs and neither is the row's:
+  whether it matched (`data-match`, so context is tellable from a hit), and
+  whether folds are suspended. **They are, while a filter is on** — a fold is a
+  claim about the tree the reader was reading, and honouring one inside a
+  filtered tree would hide the match the filter was typed to find. The memory is
+  untouched; clearing the filter restores every collapse.
+- `FilterBar.tsx` — the box, the count, the clear, and the refusal line. A known
+  operator with an unknown value is REPORTED in the grammar's own words, never
+  quietly searched for as text.
+- `tag.ts` — a `#tag` pressed. A delegated listener on the main pane, because a
+  tag pill arrives through `innerHTML` (`markdown/tags.ts`) and belongs to no
+  component — the same situation, and the same answer, as a link inside rendered
+  markdown (`router.tsx`'s `followed`). The row's own title click declines a
+  press that landed on a pill, or one press would filter the page AND open an
+  editor.
+
+**The matcher is not here either.** `@olai/format`'s `parseFilter` / `matching`
+is what decides which nodes a query selects, and it is the same function
+`Query.search` is gated by — so the filter, the palette, the header box and an
+agent's `search_nodes` cannot mean different things by `is:done`. What this
+package decides is what to do with the answer.
+
+The filter rides the ADDRESS (`routes.ts`'s `?q=`), so a narrowed page is a link
+and Back works; typing REPLACES the history entry (`router.tsx`'s `replace`)
+rather than pushing one per keystroke.
+
 ## Search: one reading, three doors
 
 `src/client/search/` holds the search itself, and what every list of results is
