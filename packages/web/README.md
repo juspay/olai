@@ -358,14 +358,23 @@ the vault's own convention).
 
 **An OUTLINE has that first door too, and did not until `parity-create-outline`**
 (`outline/NewOutline.tsx`, the `outlineNew` intent): the sidebar's **+ New
-outline**, directly above the document's and deliberately its twin — the same
-box, the same Enter and Escape, and the same rule about what may judge a path,
-which is NOTHING here. What is typed goes to `create_outline` as typed, and a
-path that exists, climbs with `..` or is not a `.jsonl` comes back as that op's
-own sentence under the box. It lands on the new outline's page, whose
-`StartLine` is where the first row is typed — which is why the wire verb
+outline**, directly above the document's. It lands on the new outline's page,
+whose `StartLine` is where the first row is typed — which is why the wire verb
 carries no seed: an agent's seed saves it a second call, and a person's first
 line has a place to be written.
+
+**Both doors are ONE box** (`file/NewFile.tsx`, with `file/making.ts` holding
+the words as values). They were two components for about a day — the second
+written by copying the first — and what they actually differ about is four
+words and where a landed write goes: the caret arriving in the box, Enter,
+Escape, the empty box that asks for nothing, the click that must not close the
+mobile drawer, and the refusal drawn verbatim underneath were the same decision
+twice. What may judge a path is NOTHING in either: `create_outline` and
+`create_document` judge it, and their sentence is what is drawn — a browser
+that pre-checked a `..` would be a second rule free to disagree with the one an
+agent meets. The testids stay per-kind rather than being derived from a `kind`,
+because a `data-testid` is a contract with a package that does not import this
+one.
 
 ## Seven routes, and what each is a property of
 

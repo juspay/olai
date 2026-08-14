@@ -43,27 +43,38 @@ export interface Relating {
   readonly placeholder: string
 }
 
-export const RELATIONS: ReadonlyArray<Relating> = [
-  {
+/** Keyed by the relation, so {@link relating} is total BY CONSTRUCTION: a
+ *  lookup over a list would answer `undefined` for a case the type says cannot
+ *  happen, and every caller would either handle a state that does not exist or
+ *  cast the answer — which is the same "illegal state" spelled as a promise. A
+ *  third writable edge field is a row here and a compile error at every reader
+ *  that has to say something about it. */
+const RELATING: Record<Relation, Relating> = {
+  see: {
     relation: "see",
     verb: "Link to a node…",
     heading: "See also",
     label: "see",
     placeholder: "search for a node to link to",
   },
-  {
+  after: {
     relation: "after",
     verb: "Wait for a node…",
     heading: "Comes after",
     label: "after",
     placeholder: "search for a node this comes after",
   },
-]
+}
 
 /** The descriptor for one relation — total, so a caller holding a
  *  {@link Relation} never has to handle "not found". */
-export const relating = (relation: Relation): Relating =>
-  RELATIONS.find((one) => one.relation === relation) as Relating
+export const relating = (relation: Relation): Relating => RELATING[relation]
+
+/** Both of them, in the order a menu offers them: the free link first, the
+ *  ordering one after it. An ARRAY as well as the table above, because "which
+ *  relations are there, in what order" is what a list of controls asks and a
+ *  `Record` has no order to promise. */
+export const RELATIONS: ReadonlyArray<Relating> = [RELATING.see, RELATING.after]
 
 /** Name this target on the node's edge list — `set_see` / `set_after` with one
  *  id in `add`, which is what choosing a row in the panel means. */

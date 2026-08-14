@@ -253,7 +253,8 @@ export function Sidebar(props: {
           {/* Directly under the tree, because the tree is what it adds to: the
               two ways to a FILE that does not exist yet — an outline
               (./outline/NewOutline.tsx) and a document
-              (./document/NewDocument.tsx). The outline first, because the tree
+              (./document/NewDocument.tsx), both drawing the one path box
+              (./file/NewFile.tsx). The outline first, because the tree
               above it is mostly outlines and because that is the file this app
               is about. */}
           <NewOutline />

@@ -105,14 +105,23 @@ export const createEdgeEditing = (
     },
     Panel: () => (
       <>
-        <Show when={openFor() !== null ? node() : undefined}>
-          {(at) => (
-            <EdgePanel
-              node={at()}
-              relation={openFor() as Relation}
-              onWrite={write}
-              onClose={() => setOpenFor(null)}
-            />
+        {/* NESTED rather than one `<Show>` over a pair, because the panel needs
+            both and each is separately absent: a relation nobody opened, and a
+            row drawing no node. Read out of the two `<Show>`s they are values
+            rather than a `null` narrowed by hand — one condition asked and the
+            other cast is exactly the illegal state a cast promises away. */}
+        <Show when={openFor()}>
+          {(relation) => (
+            <Show when={node()}>
+              {(at) => (
+                <EdgePanel
+                  node={at()}
+                  relation={relation()}
+                  onWrite={write}
+                  onClose={() => setOpenFor(null)}
+                />
+              )}
+            </Show>
           )}
         </Show>
         <Show when={saying.said()}>
