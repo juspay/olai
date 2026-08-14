@@ -133,6 +133,52 @@ agent has them too — `split_node` and `merge_node` are the same two ops. That
 matters more here than anywhere else on this page: a merge moves four rows and
 puts a record away, and it either happens whole or does not happen.
 
+## Three characters that open something
+
+While the caret is in a title, three things you type put a short list under the
+line. Walk it with **↑** / **↓**, take one with **Enter**, put it away with
+**Escape** and keep typing.
+
+| | |
+|---|---|
+| **!** | a day, in words — `tomorrow`, `next fri`, `aug 20`, `in 3 weeks`, `2026-09-01` |
+| **#** / **@** | a tag this set already uses |
+| **((** | search the set for a node, and place a second copy of it here |
+
+Nothing here is a mode. What is open is decided by the text and where the caret
+is in it, so backspacing over the `!` shuts the list and typing it again opens
+the same one — and a trigger that matches nothing shows nothing at all, which
+also means **Escape** and the arrows go on meaning what they always meant.
+`#` and `@` need a word boundary in front of them, so `srid@srid.ca` is an
+address rather than a tag.
+
+**`!` writes the node's date, not text.** The list says the DAY beside every
+phrase — `next friday` is an argument about which Friday, and nobody should
+have to press Enter to find out — and taking one sends the same `date` edit the
+pill's picker and an agent's `set_date` send. The `!next fri` you typed comes
+back out of the line before it is committed; on a row you have only just
+started, the line is written first and then dated, which is the order every
+structural key follows.
+
+**`#` and `@` are two namespaces, and both are real.** A tag lives inline in a
+title ([format.md](format.md)), so choosing one just writes it into the line you
+are typing and it commits with the rest of it — no separate write. The list is
+every tag written in the outlines this tab has loaded, most-used first, and the
+sigil you typed is the one you get: `#alice` and `@alice` are different tags.
+Nothing is added after the tag — not even a space — because a title is stored
+verbatim and a character you did not type is a character in your git history.
+
+**`((` places a mirror.** The search is the server's own, the same one ⌘K and
+the header box use, so what this finds and what an agent's `search_nodes` finds
+cannot drift; each row says where that node sits. Choosing one sends
+`add_mirror`. WHERE it lands is the line you were on: a line you had only just
+opened and typed nothing else into BECOMES the placement, which is the gesture
+you know — Enter, `((`, choose — and a line with words in it keeps them, with
+the placement as the next row. A mirror is a whole row in this format
+(`{id, parent, ord, mirror}`, no text of its own), so it cannot sit inside a
+sentence; beside the sentence is the honest reading of the same gesture. ⌘Z
+retires the placement it made.
+
 ## Putting a node on a day
 
 A node's `date` is what it is scheduled for ([format.md](format.md)), and it is
@@ -142,7 +188,8 @@ picker, in place under the row, and two ways to open one.
 **A dated row's own pill is the control.** Press the date beside the title and
 the picker opens on it. A row with no date has no pill to press, so its way in
 is the ••• menu: **Set date…** on a row with none, **Change date…** on one that
-has one.
+has one. From the keyboard it is `!` and a day in words (above), which sends the
+same edit.
 
 What you get is your browser's own date picker, and what is written is the day
 you picked, exactly as it is written — `2026-09-01`, ten characters, never a
