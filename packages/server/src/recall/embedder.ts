@@ -228,7 +228,11 @@ export const sweepOrphans = (
       const [byPid, serverPid] = read.trim().split("\n").map(Number)
       if (byPid === undefined || serverPid === undefined) continue
       if (alive(byPid)) continue
-      if (yield* Effect.promise(() => answering(socket))) {
+      // Only ask the socket when there IS one: a leftover whose socket file is
+      // already gone has nothing listening by construction, and a probe with a
+      // timeout in front of it is the wrong way to learn that.
+      const there = yield* Effect.orElseSucceed(fs.exists(socket), () => false)
+      if (there && (yield* Effect.promise(() => answering(socket)))) {
         yield* Effect.logInfo(
           `recall: reaping an embedder (pid ${serverPid}) left behind by olai ` +
             `pid ${byPid}`,
@@ -292,7 +296,13 @@ export const detectPackaged = (
     // lazy too — a serve whose cache is already warm never embeds anything,
     // and would walk past an orphan without looking at it.
     yield* sweepOrphans(fs, path)
-    return yield* packagedEmbedder(paths.server, paths.model, root, fs, path)
+    return yield* packagedEmbedder(
+      paths.server,
+      paths.model,
+      socketPath(root),
+      fs,
+      path,
+    )
   })
 
 /**
@@ -306,12 +316,11 @@ export const detectPackaged = (
 const packagedEmbedder = (
   server: string,
   model: string,
-  root: string,
+  socket: string,
   fs: FileSystem.FileSystem,
   path: Path.Path,
 ): Effect.Effect<Embedder, never, Scope.Scope> =>
   Effect.gen(function*() {
-    const socket = socketPath(root)
     // The serve's own scope, captured HERE and handed to the start below — so
     // the child is a finalizer of the serve even though it is spawned much
     // later, on some keystroke's fiber. Without this the process would belong

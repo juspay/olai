@@ -46,6 +46,10 @@ const withEnv = async <A>(
   }
 }
 
+/** A temp directory of this test's own, thrown away at the end of it. */
+const scratch = (prefix: string): string =>
+  fs.mkdtempSync(path.join(os.tmpdir(), prefix))
+
 test("no baked paths means no embedder — `null`, which is how a source checkout runs", async () => {
   const found = await withEnv(
     { [SERVER_ENV_VAR]: undefined, [MODEL_ENV_VAR]: undefined },
@@ -82,7 +86,7 @@ test("both paths present: an embedder is returned, and NOTHING has been spawned"
   // model server — a serve whose cache is warm and whose reader never searches
   // by meaning is entitled to pay nothing — so two files that are not a
   // llama-server and not a model are enough to be found.
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-embedder-"))
+  const dir = scratch("olai-embedder-")
   const server = path.join(dir, "llama-server")
   const model = path.join(dir, "bge-small-en-v1.5-q8_0.gguf")
   fs.writeFileSync(server, "#!/bin/sh\nexit 1\n", { mode: 0o755 })
@@ -119,11 +123,10 @@ const sweepIn = (dir: string): Promise<void> =>
       }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
     ))
 
-const runtimeDir = (): string =>
-  fs.mkdtempSync(path.join(os.tmpdir(), "olai-sweep-"))
+
 
 test("a dead olai's leftovers are cleared away", async () => {
-  const dir = runtimeDir()
+  const dir = scratch("olai-sweep-")
   const socket = path.join(dir, "olai-embed-deadbeefdeadbeef.sock")
   fs.writeFileSync(socket, "")
   // A pid that cannot be alive, so the owner is unambiguously gone. Nothing is
@@ -143,7 +146,7 @@ test("a LIVING olai's embedder is never touched — a sibling serve is not a lef
   // The guard that matters: two olai processes may serve two directories at
   // once, and a sweep that reaped by socket name alone would kill the other
   // one's model server halfway through somebody's search.
-  const dir = runtimeDir()
+  const dir = scratch("olai-sweep-")
   const socket = path.join(dir, "olai-embed-0123456789abcdef.sock")
   fs.writeFileSync(socket, "")
   fs.writeFileSync(`${socket}.owner`, `${process.pid}\n${process.pid}\n`)
@@ -157,7 +160,7 @@ test("a LIVING olai's embedder is never touched — a sibling serve is not a lef
 })
 
 test("the sweep reads only its own leavings", async () => {
-  const dir = runtimeDir()
+  const dir = scratch("olai-sweep-")
   const stranger = path.join(dir, "something-else.sock")
   fs.writeFileSync(stranger, "")
   fs.writeFileSync(`${stranger}.owner`, "2147483646\n2147483645\n")
