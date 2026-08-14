@@ -1,18 +1,23 @@
 /**
- * The line beside the `•••`: what the last verb had to say (`./saying.ts`).
+ * The line beside the `•••`: what the last verb had to say (`./picking.ts`).
  *
  * Drawn by the ROW rather than by the panel, because the panel is gone by the
  * time most of these arrive — a message inside something that has gone is a
  * message nobody reads.
+ *
+ * Named for the surface it belongs to, the way `edit/UndoSaid.tsx` is: `Said`
+ * on its own is the TYPE every one of these lines carries (`edit/undoing.ts`),
+ * and a component wearing the same word made the one file where both meet
+ * import the type under an alias to tell them apart.
  */
 
 import { Show } from "solid-js"
 
-import type { Said as Message } from "../edit/undoing.ts"
+import type { Said } from "../edit/undoing.ts"
 import { LAYER } from "../layer.ts"
 import { TESTID } from "../testids.ts"
 
-export function Said(props: { readonly said: Message | null }) {
+export function MenuSaid(props: { readonly said: Said | null }) {
   return (
     <Show when={props.said}>
       {(message) => (

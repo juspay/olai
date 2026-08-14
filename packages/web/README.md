@@ -1562,7 +1562,7 @@ would have sent, judged by the same planner and refused in the same words.
 | `Panel.tsx` | what is inside the open panel — the list, in Kobalte's `Item`s wearing this app's classes |
 | `Confirm.tsx` | the second step: the question one verb asks first, and the two ways out of it |
 | `picking.ts` | running a verb and saying what came of it — the ops layer's sentence verbatim, the throw worded from the entry's own label, the cause kept for the console |
-| `Said.tsx` | the line that draws it, beside the `•••` |
+| `MenuSaid.tsx` | the line that draws it, beside the `•••` — named for its surface the way `edit/UndoSaid.tsx` is, since `Said` alone is the TYPE every such line carries |
 
 How long that line then lasts is **not** in this directory: `src/client/
 saying.ts` is the receptacle, and the Trash's `Put back` line rides on it too.

@@ -6,10 +6,10 @@
  * What the entries are is the caller's catalog (`./actions.ts`) over a
  * description this file never reads (`./action.ts`); what the open panel LOOKS
  * like is `./Panel.tsx`; running one and saying what came of it is
- * `./picking.ts` and `./Said.tsx`; the `•••` before anybody has pressed it is
- * `./Dots.tsx`.
- * This file is the four things that are true of the menu as a MENU: what owns
- * it, where it is drawn, what it hangs off, and where the caret goes.
+ * `./picking.ts` and `./MenuSaid.tsx`; the `•••` before anybody has pressed it
+ * is `./Dots.tsx`. This file is the four things that are true of the menu as a
+ * MENU: what owns it, where it is drawn, what it hangs off, and where the
+ * caret goes.
  *
  * ## Kobalte owns the menu, and that is the point of this file
  *
@@ -89,9 +89,9 @@ import type { MenuDoor } from "./door.ts"
 import { DOTS, Dots } from "./Dots.tsx"
 import { swallowGhost } from "../ghost.ts"
 import { LAYER } from "../layer.ts"
+import { MenuSaid } from "./MenuSaid.tsx"
 import { Panel } from "./Panel.tsx"
 import { createPicking } from "./picking.ts"
-import { Said } from "./Said.tsx"
 import { TESTID } from "../testids.ts"
 
 /**
@@ -295,7 +295,7 @@ export function NodeMenu(props: {
           </DropdownMenu.Content>
         </DropdownMenu>
       </Show>
-      <Said said={picking.said()} />
+      <MenuSaid said={picking.said()} />
     </div>
   )
 }
