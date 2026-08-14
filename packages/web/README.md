@@ -1268,8 +1268,9 @@ page goes on SCROLLING (nothing is prevented on the way down, and a finger that
 drifts past the slop or that the browser takes for a scroll drops the timer),
 the browser's own long press does not answer over it (`contextmenu` is
 prevented for a press this client is holding, which is what takes Android's
-text-selection callout with it, and `-webkit-touch-callout` is off on the row
-for iOS, which has the callout without the event), and the tap a lift leaves
+text-selection callout with it, and `HELD` — `touch.ts`, beside every other
+finger rule a row carries — turns the callout off for iOS, which raises it
+without the event), and the tap a lift leaves
 behind is dropped (`ghost.ts`). Touch and not pen: a pen hovers, so it has the
 `•••` already.
 
@@ -1523,7 +1524,7 @@ would have sent, judged by the same planner and refused in the same words.
 | `subtree.ts` | what hangs under a row: the count a confirm names, and the text a copy produces. Pure |
 | `actions.ts` | the catalog: the view verbs, the writes, the clipboard |
 | `NodeMenu.tsx` | the panel, its confirm step, and the line beside the `•••` |
-| `door.ts` | the two doors and the state behind them — the `•••`'s open/shut, and the long press that is the other door, handed out together so a row cannot wire one and forget the other |
+| `door.ts` | how a row's menu is reached: the state behind the `•••`, the long press that is the other door, and the `ref` for the line both are about — handed out together, so a row cannot wire one and forget another |
 
 The write gate itself is `../writes.ts`, one level up: two surfaces send a
 pointer's write now (this menu and the date picker), and the four lines that
@@ -1573,18 +1574,30 @@ hand-rolled one was:
 **Two doors, because below 48rem there is no `•••` to press.** A phone reaches
 the same menu by HOLDING a finger on the row (`longPress.ts`, and the gutter
 section above for why a gesture is the only affordance that fits). Three things
-follow and they are the whole difference: being open belongs to the ROW
-(`menu/door.ts`) rather than to a signal inside the panel's component, since
-both doors write it — and the menu is CONTROLLED rather than mounted
-`defaultOpen`, because a row asked a second time already has a primitive with
-nothing to remount; the `•••` and Kobalte's trigger are drawn only above `md`,
-where the whole ROOT used to be `hidden`, which cannot stay (the panel is
-inside it, and a `display: none` ancestor takes the panel with it), so below
-`md` the root is out of the gutter's flow instead — a zero-width absolute box
-at the row's left edge, which is what keeps `touch.ts`'s arithmetic true; and
-the panel hangs off the row line there through `getAnchorRect`, which is the
-same left edge and the same drop the `•••` gives it. One placement, two
-anchors. The gutter shots on a laptop are byte-identical across the change.
+follow and they are the whole difference:
+
+- **being open belongs to the ROW** (`menu/door.ts`) rather than to a signal
+  inside the panel's component, since both doors write it — and the menu is
+  CONTROLLED rather than mounted `defaultOpen`, because a row asked a second
+  time already has a primitive with nothing to remount. That module hands out
+  everything the row has to wire (the state, the gesture's two handlers, and
+  the `ref` for the line both are about), because a row that wired one and
+  forgot another is a row a phone cannot reach that looks exactly like a row
+  that can.
+- **the `•••` is `display: none` below `md`** — `MENU_CELL` in `touch.ts`, its
+  own constant rather than a `hidden` bolted onto `HOVER_CELL`, since those are
+  the same property and which wins is Tailwind's emission order (the phone
+  scenario caught it winning the wrong way). What cannot be hidden is the ROOT,
+  which is what it used to be: the panel is inside it, and a `display: none`
+  ancestor takes the panel with it. So below `md` the root is out of the
+  gutter's flow instead — a zero-width absolute box at the row's left edge,
+  which is what keeps `touch.ts`'s arithmetic true.
+- **the panel hangs off the row line there**, through `getAnchorRect`: the
+  `•••`'s box if it has one, the row's when it has none. A question about the
+  drawing rather than about the viewport, so there is no media query in the
+  component at all. One placement, two anchors.
+
+The gutter shots on a laptop are byte-identical across the change.
 
 **A tap is not a click, and the menu had a hole under it.** Kobalte selects an
 item on the pointer-up and `closeOnSelect` takes the panel down in the same
@@ -1592,10 +1605,13 @@ breath, so the click a touchscreen makes up for the tap is hit-tested against
 what is under the point BY THEN — the row the panel was covering. Choosing
 `Move to Trash` with a thumb navigated into a mirror three rows down. `ghost.ts`
 is the one answer to that: eat the next click, once, briefly, on `window` in the
-capture phase, for the two gestures that leave one behind (an entry chosen by
-touch, and the lift at the end of a long press). It is touch-only — a mouse's
-click goes to the ancestor of what was pressed rather than to a fresh hit-test,
-which is why a pointer has never seen this.
+capture phase, for the two gestures that leave one behind (a tap in the panel,
+and the lift at the end of a long press). It is one listener and one instant for
+the whole page rather than one per gesture, because "the click about to arrive
+was made up for a gesture that is over" is a fact about the DOCUMENT — two
+gestures overlapping is still one ghost. It is touch-only: a mouse's click goes
+to the ancestor of what was pressed rather than to a fresh hit-test, which is
+why a pointer has never seen this.
 
 **And the primitive is mounted the first time a row is asked for its menu, not
 before.** A shut `DropdownMenu` is not free: the root builds its disclosure,
