@@ -124,13 +124,12 @@ When(
       }
     }
     assert.ok(records.some((node) => node["id"] === id), `${file} holds no \`${id}\``);
-    this.writeServed(
-      file,
-      records
-        .filter((node) => !moving.has(String(node["id"])))
-        .map((node) => JSON.stringify(node))
-        .join("\n"),
-    );
+    // Archive first, then the outline. A probe that listed between the two
+    // writes used to see `install` gone and no `Archive.jsonl` — undo then
+    // answered "not a node in the loaded set" instead of naming the archive.
+    // Written this way, "the node is not shown" cannot become true until the
+    // archive is already on disk, so the next probe that drops the row also
+    // holds it.
     this.writeServed(
       "Archive.jsonl",
       records
@@ -140,6 +139,13 @@ When(
         .map((node) =>
           JSON.stringify(node["id"] === id ? { ...node, parent: undefined } : node)
         )
+        .join("\n"),
+    );
+    this.writeServed(
+      file,
+      records
+        .filter((node) => !moving.has(String(node["id"])))
+        .map((node) => JSON.stringify(node))
         .join("\n"),
     );
   },
