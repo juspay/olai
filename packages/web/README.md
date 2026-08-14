@@ -1400,7 +1400,11 @@ The pieces, and what each decides:
   needed, because a gap alone cannot tell "last child of the branch above" from
   "next sibling of that branch's parent" — on screen those are the same line.
   Pure over measured rows, so the part anybody would get wrong (which parent a
-  depth resolves to, what the ends of the list mean) is a unit test.
+  depth resolves to, what the ends of the list mean) is a unit test. ONE entry
+  point: `planDrop` answers what the drop would do *and* where the line that
+  promises it goes, because a caller that took the placement and then measured
+  the line itself would be two readings of the same rows, free to disagree about
+  which gap was meant.
 - **the rows being carried are not in the list**, which is how "you cannot drop
   a branch inside itself" is true by construction rather than by a guard — and
   what is left is still a tree, so the walk back for an ancestor always finds
@@ -1436,7 +1440,9 @@ The pieces, and what each decides:
   redraws every row it moved under a new key — a pick still holding the old ones
   would go dark on the frame that proved it worked. A picked place that stops
   being drawn is looked up again by the record it named, which is the rule the
-  caret already follows.
+  caret already followed: `refound`, in `edit/order.ts` beside the other two
+  questions about the rows on screen. It moved there when this became its second
+  consumer, which is what the brainstorming note filed it for.
 - **`select/SelectionBar.tsx`** exists for two things a pick has no other home
   for: a line for what a bulk write SAID (there is no caret to draw a refusal
   under, and `UndoSaid` is the undo stack's own line), and **Move to Trash** —

@@ -230,6 +230,16 @@ branch away — a bulk one would be that at its worst.
 - ~~**A write's `nudge` has nowhere to go on the keyboard path.**~~ **Closed in this item**: it is a dim line under the row, dismissed by the next keystroke. See above.
 - **Keeping a caret across a server-authoritative redraw is a primitive nobody owns.** The editor holds a focused element through a frame it did not cause — the write answers on one channel and the file arrives on another, in either order, and the redraw either moves the element or replaces the branch that drew it. That is not an outline problem; it is what any editor over this kind of live store has to solve, and olai has graduated this shape before (`listener.ts`'s sequence became `@kolu/surface-app`'s `serveSurfaceApp`, kolu#2137). One consumer today, so it stays where it is used (`web/src/client/edit/editing.tsx`) — recorded here so the second consumer is the moment somebody remembers, rather than the moment somebody re-derives it.
 
+  **The second consumer arrived (`dragdrop-multiselect`, 2026-08-14)**, and it
+  moved: a multi-selection is a SET of places, and a bulk indent redraws every
+  one of them under a new chain of ids. The half that is arithmetic — where the
+  record standing at this place is drawn now — is `refound` in
+  `web/src/client/edit/order.ts`, beside the other two questions about the rows
+  on screen, and both the caret and the pick are one line over it. What is still
+  nobody's, and is the half the paragraph above is really about, is holding the
+  FOCUS through that frame; that remains one consumer's (`editing.tsx`'s
+  `settling`), and the graduation note stands for it.
+
 ## The full Workflowy modification inventory — researched 2026-08-12
 
 Every way a Workflowy user changes their outline, from the official hotkey
