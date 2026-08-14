@@ -36,7 +36,6 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import type { Agree, Same } from "../agree.ts"
 import { watchFault } from "../fault.ts"
 import { bind, gitWiring } from "../runtime.ts"
 import { serveFace } from "./face.ts"
@@ -49,6 +48,12 @@ const HOUSE = [
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","doing":"2026-08-02"}`,
   "",
 ].join("\n")
+
+/** A SET-WIDE break, and it has to be one: a lone unparseable file is absorbed
+ *  — the survivors are clean, so it rides as `OutlineSet.broken` and the rest
+ *  stays live (format's error scope). What REJECTS a set is a rule that needs to
+ *  know what else exists, and a `parent` nothing declares is the plainest. */
+const ORPHAN = `{"id":"stray","parent":"kitchn","ord":"a0","title":"a lost row"}\n`
 
 interface Fixture {
   readonly client: Client
@@ -475,28 +480,69 @@ test("arguments that do not fit the tool are refused before any planning", async
 })
 
 /**
- * The four kinds are FOUR, and each is accounted for here.
+ * The four kinds are FOUR, and each one is either PROVOKED here or signed off
+ * as unreachable.
  *
  * `refusal` (`./tools.ts`) spells `kindOf(failure)` into the structured detail,
  * and `kindOf` reads `@olai/format`'s closed table — so a fifth kind is one
- * edit there and a new word arriving at an agent everywhere. This list is what
- * makes that edit stop here first: three of the four are pinned by the tests
- * around it, and the fourth is named as unreachable rather than forgotten.
+ * edit there and a new word arriving at every agent. Keyed by `FailureKind`, so
+ * that edit stops HERE: a missing key is a type error, and the only two things
+ * that satisfy one are a call that actually produces the kind or a sentence
+ * saying why no call can.
  *
- * `busy` is that fourth. Its only raiser is the write loop giving up after
- * `ROUNDS` re-plans, each overtaken by another writer — a condition a test can
- * only produce by standing up a store that rewrites itself continuously, which
- * would be a test of the retry rather than of this contract. It is reachable in
- * production and it is deliberately not provoked here.
+ * A list of the four WORDS would not have done it — a fifth kind is satisfied
+ * by typing the word in, and the fence would then demand a name rather than a
+ * test. This demands the call.
  */
-const PINNED_KINDS = ["usage", "not-found", "validation", "busy"] as const
-export type EveryKindIsAccountedFor = Agree<
-  Same<
-    typeof PINNED_KINDS[number],
-    FailureKind,
-    "@olai/format grew a refusal kind that no test here pins. Pin it, or name it unreachable like `busy`."
-  >
->
+type Provocation = {
+  /** The directory to provoke it in, because two of them need different ones. */
+  readonly files: Readonly<Record<string, string>>
+  readonly tool: string
+  readonly args: Record<string, unknown>
+}
+/** The other way to satisfy a key: say why nothing here can reach it. */
+type Unreachable = { readonly unreachable: string }
+
+const PINNED: Record<FailureKind, Provocation | Unreachable> = {
+  "not-found": {
+    files: { "house.jsonl": HOUSE },
+    tool: "set_done",
+    args: { id: "nowhere" },
+  },
+  usage: {
+    files: { "house.jsonl": HOUSE },
+    // A loop is refused NAMING the loop, and being refused for what a write
+    // MEANS rather than for what it names is what makes this kind its own.
+    tool: "set_after",
+    args: { id: "order", add: ["order"] },
+  },
+  validation: {
+    // A set-wide break: nothing loaded, so there is nothing to write against.
+    // The rows this comes back with are the subject of the test below.
+    files: { "house.jsonl": HOUSE, "orphan.jsonl": ORPHAN },
+    tool: "set_done",
+    args: { id: "order" },
+  },
+  busy: {
+    unreachable:
+      "Its only raiser is the write loop giving up after ROUNDS re-plans, each " +
+      "overtaken by another writer — a condition a test can only produce by " +
+      "standing up a store that rewrites itself continuously, which would be a " +
+      "test of the retry rather than of this contract. Reachable in production, " +
+      "and deliberately not provoked here.",
+  },
+}
+
+test("every refusal kind the format declares comes back as an isError result naming it", async () => {
+  for (const [kind, pinned] of Object.entries(PINNED)) {
+    if ("unreachable" in pinned) continue
+    await withTools(pinned.files, async ({ client }) => {
+      const answer = await call(client, pinned.tool, pinned.args)
+      expect({ kind, isError: answer.isError, said: answer.structured["kind"] })
+        .toEqual({ kind, isError: true, said: kind })
+    })
+  }
+})
 
 /**
  * A `validation` refusal, which is the kind whose payload is the whole point.
@@ -516,15 +562,7 @@ export type EveryKindIsAccountedFor = Agree<
  * looking at one report.
  */
 test("a directory that will not load refuses with the validator's own rows", async () => {
-  // A SET-WIDE break, deliberately, rather than one unparseable file: a lone
-  // bad file is absorbed (the survivors are clean, so it rides as
-  // `OutlineSet.broken` and the rest stays live — format's error scope). What
-  // rejects a set is a rule that needs to know what else exists, and a `parent`
-  // nothing declares is the plainest one.
-  await withTools({
-    "house.jsonl": HOUSE,
-    "orphan.jsonl": `{"id":"stray","parent":"kitchn","ord":"a0","title":"a lost row"}\n`,
-  }, async ({ client }) => {
+  await withTools({ "house.jsonl": HOUSE, "orphan.jsonl": ORPHAN }, async ({ client }) => {
     const read = await call(client, "search_nodes", { text: "kitchen" })
     expect(read.isError).toBe(true)
     expect(read.structured["kind"]).toBe("validation")

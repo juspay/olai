@@ -2,62 +2,39 @@
  * Search, as the wire speaks it — the browser's door to the ONE reading.
  *
  * The MCP face's `search_nodes` and the palette must answer identically for
- * the same words (HACKING.md: MCP and Web ops must be consistent), and the
- * way that is made structural rather than aspirational is this procedure:
- * both are callers of `@olai/ops`' `Query.search`, over the same `Reading`.
- * The browser does hold every node (the `outlines` collection) and could grep
- * them itself; it deliberately does not, because a client-side matcher would
- * be a second implementation of ranking — and the first place the two faces of
- * search quietly stopped being the same product.
+ * the same words (HACKING.md: MCP and Web ops must be consistent), and that is
+ * made structural rather than aspirational in two places, of which this file is
+ * the second.
  *
- * The shapes are the ops layer's own answers re-declared in schema, because
- * this package may not import that one — the wire spec is what a browser
- * compiles against, and a store has no business in that bundle. What keeps the
- * two spellings from drifting is NOT this file and not the procedure's
- * implementation: returning `Query.search`'s value where this schema's type is
- * demanded is mere assignability, and a hit that grew a field would satisfy it
- * and then be dropped on the way out — an agent and a person seeing different
- * rows, silently. The agreement is asserted where both spellings are in scope,
- * as type IDENTITY, in `@olai/server`'s `search.ts`. That is the file a field
- * added to one side is a compile error in.
+ * **One matcher.** Both are callers of `@olai/ops`' `Query.search`, over the
+ * same `Reading`. The browser does hold every node (the `outlines` collection)
+ * and could grep them itself; it deliberately does not, because a client-side
+ * matcher would be a second implementation of ranking — and the first place the
+ * two faces of search quietly stopped being the same product.
+ *
+ * **And one SHAPE, which is what this file is now.** These are `@olai/format`'s
+ * declarations, re-exported rather than re-declared, exactly as `GitState`,
+ * `Pending` and `CommitRequest` are: one vocabulary on the floor that this spec
+ * and the ops layer both stand on, so there is no second spelling to drift.
+ *
+ * They used to be re-declared here, and the header used to claim that could not
+ * drift — that returning `Query.search`'s value where this schema's type was
+ * demanded made a field added to one side a compile error on the other. That
+ * was assignability, which is precisely the check that misses it: a field added
+ * to the ops-side hit and produced type-checked clean across every package,
+ * reached an agent through `search_nodes`, and was dropped by this schema's
+ * encoder on the way to a browser. Two faces, one matcher, different rows.
  *
  * A PROCEDURE and not a collection or cell: a search is a question with an
  * answer, not a value the server owns — there is nothing to subscribe to, and
  * ten open tabs asking ten different things is exactly what a procedure is.
  */
 
-import { Schema } from "effect"
-
-import { MARKS } from "@olai/format"
-
-/** One hit, exactly as `Query.search` situates one: the node, where it
- *  lives, and which field carried the match. */
-export const SearchHit = Schema.Struct({
-  id: Schema.String,
-  title: Schema.String,
-  file: Schema.String,
-  line: Schema.Int,
-  status: Schema.optionalKey(Schema.Literals(MARKS)),
-  /** Ancestor titles, outermost first — what makes a bare title mean
-   *  something in a list of strangers. */
-  path: Schema.Array(Schema.String),
-  see: Schema.optionalKey(Schema.Array(Schema.String)),
-  after: Schema.optionalKey(Schema.Array(Schema.String)),
-  matched: Schema.Literals(["title", "id", "tag", "desc"]),
-})
-export type SearchHit = typeof SearchHit.Type
-
-export const SearchAnswer = Schema.Struct({
-  hits: Schema.Array(SearchHit),
-  /** Every node that matched, uncapped — so "twelve of ninety" is sayable. */
-  total: Schema.Int,
-})
-export type SearchAnswer = typeof SearchAnswer.Type
-
-export const SearchRequest = Schema.Struct({
-  text: Schema.String,
-  /** How many hits to return. The server defaults it (12); the palette asks
-   *  for fewer because a modal shows fewer. */
-  limit: Schema.optionalKey(Schema.Number),
-})
-export type SearchRequest = typeof SearchRequest.Type
+export {
+  /** How many hits an absent `limit` means. The palette asks for fewer,
+   *  because a modal shows fewer. */
+  DEFAULT_SEARCH_LIMIT,
+  SearchAnswer,
+  SearchHit,
+  SearchRequest,
+} from "@olai/format"

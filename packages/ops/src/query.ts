@@ -20,15 +20,15 @@
  * has any bearing on the answer.
  */
 
-import { Schema } from "effect"
-
 import {
   ancestorsOf,
   countedChildren,
+  DEFAULT_SEARCH_LIMIT,
   derive,
   type Derived,
   errorLine,
   follow,
+  type Found,
   isMirror,
   type LocatedRegular,
   MARKS,
@@ -36,39 +36,39 @@ import {
   type Progress,
   progressOf,
   mayHoldTag,
+  type SearchAnswer,
+  type SearchHit,
+  type SearchRequest,
   type Status,
   tagText,
   titleParts,
 } from "@olai/format"
 
-/** One node, said the way every answer here says it. */
-export interface Found {
-  readonly id: string
-  readonly title: string
-  /** Where a person is pointed. Relative to the served directory, 1-based. */
-  readonly file: string
-  readonly line: number
-  /** The mark the node carries — a mirror's being its target's, since that is
-   *  what it shows. ABSENT when it carries none: nobody marked it, so it is a
-   *  bullet rather than a task nobody has started. */
-  readonly status?: Status
-  /** The canonical ancestor titles, outermost first. What makes a bare title
-   *  like "order" mean something. */
-  readonly path: ReadonlyArray<string>
-  /** Free cross-references this node carries, as target ids. Absent when the
-   *  node has none — so an agent can traverse without a second read, and a
-   *  node that does not point anywhere does not pretend to. */
-  readonly see?: ReadonlyArray<string>
-  /** What this node must come AFTER, as target ids — the edges it carries
-   *  itself, exactly as they are written.
-   *
-   *  Here for the same reason `see` is, and now for a second one: `set_after`
-   *  removes a target BY ID, so a reader that could not see the list could only
-   *  change it by guessing. Not the derived blockedness — what is standing in
-   *  the way right now is a question about marks, and this is what the record
-   *  says. */
-  readonly after?: ReadonlyArray<string>
-}
+/**
+ * One node, said the way every answer here says it — and what a search asks
+ * and answers, which is the same vocabulary one level up.
+ *
+ * DECLARED IN `@olai/format` and re-exported, exactly as `RepoState` and
+ * `Pending` are. These shapes TRAVEL: `search_nodes` hands an agent
+ * {@link Search} verbatim, and the `search.nodes` procedure the ⌘K palette
+ * calls carries the identical value to a browser. A second spelling in the wire
+ * spec is a second spelling free to drift from this one — which it was, and did
+ * not merely risk: a field added here and produced by {@link foundOf}
+ * type-checked clean everywhere, reached the agent, and was dropped by the
+ * palette's encoder.
+ *
+ * What stays HERE is the matcher: which nodes match, how they are ordered, and
+ * what `matched` says about one. The shape is the floor's; the ranking is this
+ * package's.
+ */
+export { DEFAULT_SEARCH_LIMIT, type Found, type SearchRequest }
+
+/** The wire names, under the names this file's own answers have always used.
+ *  `Search` and `Hit` say what a caller of {@link search} is holding; the
+ *  floor's names say what crosses to a browser. Same type, two vocabularies,
+ *  and neither has to move for the other. */
+export type Search = SearchAnswer
+export type Hit = SearchHit
 
 /**
  * One PLACEMENT of a node: a mirror record that shows it, and where that line
@@ -107,48 +107,6 @@ export interface Placement {
 export interface Placed extends Placement {
   readonly shows: Found
 }
-
-export interface Hit extends Found {
-  /** Which field carried the strongest match — so a caller can say why this
-   *  came back, rather than leaving a reader to guess. */
-  readonly matched: "title" | "id" | "tag" | "desc"
-}
-
-export interface Search {
-  readonly hits: ReadonlyArray<Hit>
-  /** How many nodes matched in all. `hits` is capped; this is not, so "twelve
-   *  of ninety" is sayable. */
-  readonly total: number
-}
-
-/**
- * What a search ASKS — declared once, here, beside the function that answers
- * it.
- *
- * A schema rather than a parameter type because two faces send it and both
- * decode against it: the agent's `search_nodes` advertises the JSON Schema this
- * compiles to ({@link ./tools.ts}), and the palette's `search.nodes` procedure
- * carries the same fields on the wire. It used to be spelled three times — the
- * tool's own `SearchArgs`, this function's inline parameter, and the surface
- * spec's `SearchRequest` — which is three chances for one question to be asked
- * differently depending on who was asking.
- *
- * The field prose is here rather than at the tool because it describes THIS
- * function's matching rule, not a wire convention: an agent reading "no
- * operators" is being told what {@link search} below does.
- */
-export const SearchQuery = Schema.Struct({
-  text: Schema.String.annotate({
-    description:
-      "Words to look for. Case-folded substrings, no operators: every word must appear somewhere in the same node.",
-  }),
-  limit: Schema.optionalKey(
-    Schema.Number.annotate({
-      description: "How many hits to return. Default 12; the total is reported either way.",
-    }),
-  ),
-})
-export type SearchQuery = typeof SearchQuery.Type
 
 /** What one node's page would say, plus the record itself. */
 export interface Detail extends Found, Stamps {
@@ -311,9 +269,6 @@ const positionBonus = (haystack: string, needle: string): number => {
  *  that you finished it. */
 const DONE_PENALTY = 300
 
-/** How many hits an unasked-for limit means, when a caller does not say. */
-const DEFAULT_LIMIT = 12
-
 /**
  * Case-folded substrings, no operators: a query is words, and every word has
  * to appear somewhere in the same node, in any of the four fields, in any
@@ -321,7 +276,7 @@ const DEFAULT_LIMIT = 12
  */
 export const search = (
   derived: Derived,
-  query: SearchQuery,
+  query: SearchRequest,
 ): Search => {
   const words = query.text.toLowerCase().split(/\s+/).filter((word) => word !== "")
   if (words.length === 0) return { hits: [], total: 0 }
@@ -388,7 +343,7 @@ export const search = (
   // under the cursor between two keystrokes. `scored` is already in that order
   // and `sort` is stable.
   const ranked = scored.slice().sort((a, b) => b.score - a.score)
-  const limit = query.limit ?? DEFAULT_LIMIT
+  const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
   return { hits: ranked.slice(0, limit).map((entry) => entry.hit), total: ranked.length }
 }
 

@@ -39,6 +39,7 @@ import {
   type OpFailure,
   type OutlineSet,
   type PushResult,
+  SearchRequest,
   type Status,
   type Writer,
 } from "@olai/format"
@@ -236,11 +237,12 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "search_nodes",
     "Search nodes",
     "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by.",
-    // The schema is {@link ./query.ts}'s own — one declaration behind the
-    // tool's advertised JSON Schema and the palette's procedure alike, so the
-    // two faces cannot ask for different things.
-    Query.SearchQuery,
-    (at, args: Query.SearchQuery) => Query.search(at.derived, args),
+    // `@olai/format`'s, and so is what comes back — ONE declaration behind the
+    // JSON Schema this tool advertises and the wire shape the palette's
+    // `search.nodes` procedure carries, so the two faces cannot ask for
+    // different things or be told different ones.
+    SearchRequest,
+    (at, args: SearchRequest) => Query.search(at.derived, args),
   ),
   read(
     "read_node",

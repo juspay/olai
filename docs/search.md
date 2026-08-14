@@ -8,13 +8,13 @@ same snapshot (`@olai/ops`' `Query.search`), so what an agent finds and what a
 person finds cannot drift: the browser holds every node and could grep them
 itself, and deliberately does not.
 
-One matcher was never quite the whole of it, because the question and the
-answer are SPELLED twice — once as the wire spec a browser compiles against
+One matcher was never quite the whole of it, because the question and the answer
+were SPELLED twice — once as the wire spec a browser compiles against
 (`@olai/surface`), once as the reader the ops layer answers with — and neither
-package may import the other. What a hit says is now checked identical at the
-one place both spellings are in scope (`@olai/server`'s `search.ts`), so a
-field added to a hit reaches both doors or neither. It used to reach the
-agent's and be dropped on the way to the person's, silently.
+package may import the other. They are now one declaration on the floor both
+stand on (`@olai/format`'s `searching.ts`), so a field added to a hit reaches
+every door or none. It used to reach the agent's and be dropped on the way to
+the person's, silently.
 
 ## What matches
 

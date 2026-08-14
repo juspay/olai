@@ -15,8 +15,8 @@ machinery; this one is only about what the parent still owed.
 
 | # | position | verdict | receipt |
 | --- | --- | --- | --- |
-| a | the same verbs exist twice, two schemas free to drift | **CLOSED HERE** — one real instance, and it was live | `packages/ops/src/query.ts:140`, `packages/server/src/search.ts:45` |
-| b | the refusal contract is verified — `isError` + `structuredContent` carrying `OpFailure` | **CLOSED HERE** — one kind of four was pinned, on one face of two | `packages/server/src/mcp/tools.test.ts:493,515`, `packages/server/src/mcp/route.test.ts:180` |
+| a | the same verbs exist twice, two schemas free to drift | **CLOSED HERE** — one real instance, and it was live | `packages/format/src/searching.ts:49,111` |
+| b | the refusal contract is verified — `isError` + `structuredContent` carrying `OpFailure` | **CLOSED HERE** — one kind of four was pinned, on one face of two | `packages/server/src/mcp/tools.test.ts:506,564`, `packages/server/src/mcp/route.test.ts:180` |
 | c | the bridge shape exists — an agent attaching to a RUNNING olai's store | **DEFERRED, with a price and one upstream ask** | `packages/server/src/mcp/serve.ts:10` |
 | d | agents watch live rows, not only call tools | **ALREADY TRUE** — five subscribable resources | `packages/server/src/mcp/expose.ts:119`, `mcp/face.test.ts:232` |
 | e | `check-kolu-deps.sh` covers the package | **ALREADY TRUE** — by construction, and it always was | `nix/kolu.nix:27` |
@@ -60,33 +60,47 @@ has never heard of the field, so it is dropped. An agent and a person, searching
 the same words in the same directory, looking at different rows — arriving
 through the one seam nobody was watching, and silently.
 
-**Closed:**
+**Closed — and the first attempt at closing it is worth recording, because it
+was the wrong altitude.**
 
-- the question is declared ONCE, in `query.ts` beside the function that answers
-  it (`packages/ops/src/query.ts:140`), carrying the field prose that describes
-  that function's own matching rule. `tools.ts` consumes it; the inline
-  parameter is gone;
-- the pair that CANNOT be merged is checked instead. `@olai/surface` may not
-  import `@olai/ops` (a store has no business in a browser bundle) and
-  `@olai/ops` may not import `@olai/surface` (an op does not know it is being
-  called over a wire), so the two spellings are structural necessities. They are
-  now asserted **identical** at the only module that sees both —
-  `packages/server/src/search.ts`, which is also where the procedure binds;
-- as **identity**, not assignability, and that distinction is the whole fence.
-  An extra optional field is assignable in both directions. An extra required
-  one fails only at whichever producer inside `@olai/ops` happens not to supply
-  it — which, as the experiment shows, may be nowhere;
-- a test encodes a real answer through the real procedure schema
-  (`packages/server/src/search.test.ts`), because a schema is refinements as
-  well as fields — `Schema.Int` on `line` and `total`, `Schema.Literals` on
-  `status` and `matched` — and a type identity cannot see any of them.
+The obvious reading is that the two spellings are a structural necessity:
+`@olai/surface` may not import `@olai/ops` (a store has no business in a browser
+bundle) and `@olai/ops` may not import `@olai/surface` — its manifest says so
+outright, "an op does not know it is being called over a wire". On that reading
+the pair cannot be merged, only CHECKED, so the first fix was a type-identity
+assertion in `@olai/server`, the one package that sees both spellings.
 
-Verified both ways: the fence fails on the drift above, naming itself.
+That fix worked and was still wrong, because it answers a question the codebase
+had already answered. Both packages stand on `@olai/format`, and that package
+has a module whose whole purpose is this case —
+`packages/format/src/committing.ts`, whose header reads:
 
-**The general shape this leaves.** `agree.ts` is now a named place for "two
-packages that may not import each other declare one thing twice". Today it has
-two callers. It is worth knowing that the WRITE path would need it far more —
-see (c).
+> this package is the floor both the ops layer and the wire spec stand on, and a
+> vocabulary spelled in either of those would have to be spelled again in the
+> other. The ops layer PRODUCES these values, the surface CARRIES them, the
+> browser DRAWS them, and none of the three has to agree with the others by
+> memory.
+
+That is the search case word for word. So:
+
+- **one declaration**, `packages/format/src/searching.ts` — `SearchRequest`,
+  `Found`, `SearchHit`, `SearchAnswer`, and the default limit the request's
+  agent-facing prose quotes. `@olai/ops` imports it and re-exports it under the
+  names its own answers use; `@olai/surface`'s `search.ts` is now a re-export
+  and nothing else;
+- **the matcher does not move.** Which nodes match, how hits are ordered, and
+  what `matched` says stay in `@olai/ops`. The shape is the floor's; the ranking
+  is the ops layer's — the same division `committing.ts` keeps between the
+  shape of a pending commit and the survey that produces one;
+- **the fence is gone**, along with the module that held it and the module that
+  held its two type aliases. Nothing is asserted because there is nothing left
+  to assert.
+
+That last point is the difference worth having. A fence DETECTS the drift; one
+declaration makes it **unrepresentable** — verified by repeating the experiment
+against the new shape: adding a field to `Found` now fails in `@olai/ops`'
+producer and in `@olai/web`'s consumers at once, because there is no longer a
+face that could be changed on its own.
 
 ---
 
@@ -109,7 +123,7 @@ instead of re-reading a directory it cannot parse. It is also the only kind
 whose detail is an array of objects, hence the only one the schema bridge could
 plausibly flatten on the way out.
 
-Pinned now (`tools.test.ts:515`) over a set-wide break, on a READ and on a
+Pinned now (`tools.test.ts:564`) over a set-wide break, on a READ and on a
 WRITE — because the point of the kind is that a refused write and a broken file
 on disk are explained by ONE report (`packages/format/src/failure.ts:58`) — and
 the same rows are asserted to arrive on `surface://cells/errors`. That last
@@ -126,13 +140,23 @@ HTTP status keyed off `isError`, a JSON-RPC `error` frame instead of a result,
 or the structured half lost in the reply's serialization. Pinned
 (`route.test.ts:180`).
 
-**The four kinds are now closed at compile time** against `@olai/format`'s own
-table (`tools.test.ts:493`): a fifth kind fails there, naming itself, rather
-than reaching an agent as a word nothing pins. `busy` is named
-unreachable-in-test rather than quietly absent — its only raiser is the write
-loop giving up after `ROUNDS` re-plans, each overtaken by another writer, which
-a test could only produce by standing up a store that rewrites itself
-continuously.
+**And the four kinds now DRIVE the tests** rather than being pinned by
+scattered assertions. `tools.test.ts:506` keys a table off `@olai/format`'s own
+`FailureKind`, and the only two things that satisfy a key are the call that
+provokes the kind or a written sentence saying why nothing here can. A fifth
+kind is a missing key, named by the compiler.
+
+The first version of this was a list of the four WORDS, checked identical to the
+format's union — and a list of words is satisfied by typing the fifth word in.
+It demanded a name where what was wanted was a test. `busy` is the one signed
+exemption: its only raiser is the write loop giving up after `ROUNDS` re-plans,
+each overtaken by another writer, which a test could only produce by standing up
+a store that rewrites itself continuously — a test of the retry rather than of
+this contract. That sentence is in the code, beside the key it excuses.
+
+Scope note: the compile-time closure is over `tools.test.ts`'s table. The HTTP
+route's refusal test is deliberately an ENVELOPE test and pins `not-found`
+only — a second table there would be a second answer to "which kinds exist".
 
 ---
 
@@ -237,11 +261,28 @@ That is not an argument the plumbing gets to settle.
 (`packages/ops/src/request.ts:656`), as are `Outline`, `Detail` and `Subtree`
 for the three reads. Declaring each as a schema in `@olai/surface` recreates the
 search drift four more times, in shapes far larger than a search hit — nested
-children, optional stamps, mirror placements. `agree.ts` would carry them, but a
-fence is a consolation prize: the better answer is that the ops layer's ANSWER
-shapes become schemas it owns, which the wire spec re-exports the way
-`CommitRequest` and `Pending` already are. That is a real piece of work with a
-real payoff and it should be its own item.
+children, optional stamps, mirror placements.
+
+The route through that is now paved rather than hypothetical: it is what (a)
+did, and `packages/format/src/searching.ts` is the worked example beside
+`committing.ts`. **Two things about it have to be said out loud, because both
+are traps.**
+
+*Where they go is `@olai/format`, not `@olai/ops`.* The obvious phrasing —
+"declare them in the producing package and re-export from `@olai/surface`" — is
+wrong, and wrong in the load-bearing part: it makes `@olai/surface` depend on
+`@olai/ops`, which is the ban that made the duplication structural in the first
+place (`packages/ops/package.json`: "`@olai/surface` is deliberately absent").
+`CommitRequest` and `Pending` are not re-exported from their producer; they live
+on the FLOOR. So does search now.
+
+*And `Applied` is not one of them.* `@olai/surface`'s `Applied`
+(`packages/surface/src/edit.ts:705`) is a genuinely DIFFERENT type from the ops
+layer's: it adds `undo` and drops `summary`, `sort`, `captured` and `rev`. That
+narrowing is the editor's design, argued at length, and no shared declaration
+can express it — the two are not one thing spelled twice. Whoever picks this up
+should expect the item to split there: `Outline`/`Detail`/`Subtree` are one
+vocabulary crossing a floor; a keyboard's answer is not.
 
 ### The written ask to kolu
 
@@ -286,11 +327,12 @@ argued as safe rather than as cheap.
 The parent can close as a theme once these exist as children. None of them is
 started here.
 
-1. **`ops-answers-as-schemas`** — `Applied`, `Outline`, `Detail`, `Subtree`
-   declared as Effect Schema in `@olai/ops`, re-exported by `@olai/surface` the
-   way `CommitRequest` and `Pending` already are. Independently worth doing: it
-   retires the fence in `search.ts` by removing what it fences, and it is the
-   prerequisite for every remaining bridge verb. No upstream dependency.
+1. **`reads-on-the-floor`** — `Outline`, `Detail` and `Subtree` declared as
+   Effect Schema in `@olai/format`'s `searching.ts`, beside the search shapes
+   this PR put there and for the identical reason. NOT in `@olai/ops`, and NOT
+   including `Applied` — see the two traps under (c). It is the prerequisite for
+   the three read verbs a bridge needs, and it is worth doing on its own terms:
+   they are the last query answers with no wire shape. No upstream dependency.
 2. **`per-face-expose` (upstream)** — the ask above. Blocks (3).
 3. **`mcp-bridge`** — `olai mcp --attach`: `serveOverUnixSocket` beside the
    listener, `unixSocketLink` in `mcp/serve.ts`, a dial failure falling through
@@ -308,8 +350,19 @@ Positions (a), (b), (d) and (e) are done and need no child.
 
 Every "already true" above was checked against master rather than against the
 predecessor design's claims, and one of them changed answer: the viewing design
-predicted `check-kolu-deps.sh` would need no change and it did not, but the
-`search.ts` header's claim about compile errors had gone stale in the opposite
-direction — asserted, believed, and false. The experiment that settled it is in
-(a) and takes two minutes to repeat. It is worth repeating the next time a
-document in this directory says two things cannot drift.
+predicted `check-kolu-deps.sh` would need no change and it did not, but
+`@olai/surface`'s `search.ts` header claimed a compile error that did not
+exist — asserted, believed, and false. The experiment that settled it is in (a)
+and takes two minutes to repeat. It is worth repeating the next time a document
+in this directory says two things cannot drift.
+
+The second lesson is about the fix rather than the finding. The first close was
+a type-identity fence, and it was a good fence: it fired, it named itself, and
+it was wrong, because this codebase had already answered the question one floor
+down and the fence was a second answer to it. What surfaced that was a reuse
+pass over the branch's own diff, which found `committing.ts` — a module written
+for exactly this case, whose header is the argument I had just re-derived.
+**Before building a mechanism to check that two things agree, look for the place
+they could have been one thing.** Both fences on this branch fell to that: the
+refusal-kinds one became a `Record` keyed by the format's own union, which needs
+no assertion at all.

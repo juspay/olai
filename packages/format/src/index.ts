@@ -6,7 +6,7 @@
  * browsers. Everything above it — the store's codec, the server, the web
  * client — reads the format through this one surface.
  *
- * Seven things are exported, and that is the whole contract:
+ * Eight things are exported, and that is the whole contract:
  *
  *   - the codec, `parseOutline` (per file) and `validate` (per set);
  *   - what they produce, `OutlineSet` and the records inside it;
@@ -32,7 +32,13 @@
  *   - what two readings of a set DIFFER by, `changesOf` and the vocabulary a
  *     pending commit is spoken in — pure, with no git in it, because it is a
  *     statement about records and this package is the floor both the ops layer
- *     and the wire spec stand on.
+ *     and the wire spec stand on;
+ *   - and the other vocabulary that crosses that floor, for the same reason and
+ *     with the same division: what a search ASKS and what one hit SAYS
+ *     (`SearchRequest`, `Found`, `SearchHit`, `SearchAnswer`), pure, with no
+ *     matcher in it. Every field of a hit is a statement about records in the
+ *     terms above; which node matches and how hits are ordered are questions
+ *     about a query, and they stay in `@olai/ops` where the matcher is.
  *
  * Everything else in `src/` is internal. The spellings a rule happens to use —
  * the id regex, the edge-field list, the path resolver — are not contract; a
@@ -143,6 +149,19 @@ export {
   Writer,
   Wrote,
 } from "./committing.ts"
+
+/** What a search ASKS and what one hit SAYS — see `./searching.ts`, which is
+ *  `./committing.ts`'s argument applied to the other vocabulary that crosses
+ *  this floor. The ops layer produces these, the wire spec carries them, a
+ *  browser and an agent read the identical value; the matcher stays where the
+ *  matcher is. */
+export {
+  DEFAULT_SEARCH_LIMIT,
+  Found,
+  SearchAnswer,
+  SearchHit,
+  SearchRequest,
+} from "./searching.ts"
 
 /** The words a commit gets when nobody wrote any. Here rather than in the ops
  *  layer because the message is now a function of a SELECTION, and the
