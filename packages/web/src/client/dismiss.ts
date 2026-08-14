@@ -12,8 +12,16 @@
  *
  * The `•••` menu is a `@kobalte/core` `DropdownMenu` now (`menu/NodeMenu.tsx`),
  * and this is the same library's dismissal reached one layer down, so the
- * panels that are NOT primitives yet shut by exactly the code the one that is
- * shuts by. HACKING.md's SolidJS rule is the reason to reach for it rather than
+ * panels that are NOT primitives yet shut by the same code the one that is
+ * shuts by. Not the same INSTANCE of it, which is the honest version of that
+ * sentence: the menu shuts through Kobalte's own `DismissableLayer`, these two
+ * through `createInteractOutside` here, and the two are unaware of each other
+ * (the layer STACK is what this misses — a panel here neither defers to nor is
+ * deferred to by a menu over it, so an Escape with both up shuts both. Two
+ * chrome popovers and a row menu barely coexist, which is why that is a
+ * recorded cost rather than a bug).
+ *
+ * HACKING.md's SolidJS rule is the reason to reach for the library rather than
  * keep a hand-rolled listener pair that happens to be shared:
  * `createInteractOutside` is `pointerdown` in the CAPTURE phase (so a press
  * that also navigates still shuts this first, and a trigger's own click cannot
@@ -21,18 +29,21 @@
  * the panel, and it defers a TOUCH to the `click` that follows — which is the
  * one thing every copy here got wrong by never considering it.
  *
- * The import is a subpath of `@kobalte/core`, which publishes every module as
- * an entry (`"./*"` in its `exports`). That is a wider surface than the
- * documented components, so it is named in one file rather than reached for
- * from three.
+ * **Why the primitives and not `DismissableLayer` itself**, which is the same
+ * two gestures already composed: it is a COMPONENT that has to wrap the panel
+ * element, and neither caller has one to give it. `./popover.ts` is a factory
+ * that hands out refs precisely so the two panels it serves stay ordinary
+ * markup, and `./note/expand.ts` runs on every visible ROW — a layer that
+ * registers on mount, with no way to sit out while the note is shut, would put
+ * one on the stack per row of the outline. An accessor plus `isDisabled` is
+ * the shape these two need.
  *
  * What this does NOT own is what "shut" MEANS — where the focus goes, whether
  * the trigger toggles instead, whether anything is remembered. That is the
  * caller's, because it differs at every site.
  */
 
-import { createEscapeKeyDown } from "@kobalte/core/primitives/create-escape-key-down"
-import { createInteractOutside } from "@kobalte/core/primitives/create-interact-outside"
+import { createEscapeKeyDown, createInteractOutside } from "@kobalte/core"
 import type { Accessor } from "solid-js"
 
 /** Which gesture asked. Callers that put the caret back only for the one a

@@ -48,6 +48,22 @@ Feature: The ••• menu opens and shuts
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: The question takes the caret, and Cancel hands it back
+    # The panel swaps its content for the question one verb asks first, and a
+    # swap that left the caret where the list was leaves the keyboard on
+    # `<body>` — nowhere, and a walk down the whole document to get back. The
+    # question is on screen either way, so nothing else in this suite would
+    # notice; this is the step that does. Cancelling is the same rule in
+    # reverse: back to the entry that was asked from, not to the top of the
+    # list. (Nothing is written here — `menu_verbs.feature` owns what the
+    # confirm DOES.)
+    When I open the node menu of "install"
+    And I choose "Move to Trash" from the node menu
+    Then the node menu's "Move to Trash" has the caret
+    When I choose "Cancel" from the node menu
+    Then the node menu is not asking anything
+    And the node menu's "Move to Trash" has the caret
+
   Scenario: ArrowDown walks the entries in order
     # Two down from `Zoom in` is `Collapse` (`menu_verbs.feature` holds the
     # whole list, in order): a walk that stopped short or ran on would choose

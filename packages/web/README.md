@@ -686,20 +686,22 @@ Dismissal is therefore a pointer outside it, Escape, or the trigger again; the
 two a keyboard can reach put focus back on the trigger. A theme pick does NOT
 dismiss it: a palette is judged by looking at the page it paints.
 
-**The two gestures themselves are `dismiss.ts`, and they are one spelling for
-the whole client.** Every dismissable surface here had its own copy of "a
-pointer down outside it, capture phase" — these two popovers, a row's expanded
-note (`note/expand.ts`), and the `•••` menu, which had a fourth — and they
-agreed about almost everything and drifted where they did not. `dismiss.ts`
-holds what is common (which roots count as inside, and only listening while the
-panel is up) and leaves each caller what "shut" MEANS: focus back on the
-trigger here, nothing to remember there. It is built on Kobalte's own
-`createInteractOutside` / `createEscapeKeyDown` rather than on a listener pair
-of ours, so the panels that are not primitives yet shut by exactly the code the
-one that is (the `•••` menu) shuts by — and a touch, which every copy here
-handled by never considering it, defers to the `click` that follows. The note
-gained Escape by being deduped: it is the model that note already keeps, where
-expanding and editing are one state you leave at once.
+**The two gestures themselves are `dismiss.ts`, one spelling for every panel
+this client draws itself.** Each had its own copy of "a pointer down outside
+it, capture phase" — these two popovers, a row's expanded note
+(`note/expand.ts`), and the `•••` menu, which had a fourth — and they agreed
+about almost everything and drifted where they did not. `dismiss.ts` holds what
+is common (which root counts as inside, and only listening while the panel is
+up) and leaves each caller what "shut" MEANS: focus back on the trigger here,
+nothing to remember there. It is built on Kobalte's own `createInteractOutside`
+/ `createEscapeKeyDown` rather than on a listener pair of ours, so these shut by
+the same code the one real primitive (the `•••` menu) shuts by — and a touch,
+which every copy here handled by never considering it, defers to the `click`
+that follows. Not the same INSTANCE, and the file says so: the menu shuts inside
+Kobalte's own `DismissableLayer` and its layer STACK, which these two are not on,
+so an Escape with both up shuts both. The note gained Escape by being deduped:
+it is the model that note already keeps, where expanding and editing are one
+state you leave at once.
 
 **And focus has to get IN, which is the other half of the portal's price.** The
 theme popover this replaced was laid out inside its trigger's own box, so the
@@ -1503,6 +1505,21 @@ primitive bought. The panel is drawn exactly where the hand-rolled one was:
   `touch.ts`' `MENU_REVEAL`, which is steadier than the focus-within it used to
   ride on, since a menu's own list takes and drops the caret as a pointer moves
   over it.
+
+**And the primitive is mounted the first time a row is asked for its menu, not
+before.** A shut `DropdownMenu` is not free: the root builds its disclosure,
+list and popper state, and the content's body runs eagerly (only its DOM waits
+on the open state), which per row is an `IntersectionObserver`, a deferred
+autofocus timer, four locale subscriptions and a few dozen signals. On this
+app's own roadmap — 140 rows — that measured 140 `IntersectionObserver`s and 33
+MB of heap against the hand-rolled panel's none and 19 MB. So until the first
+press the `•••` is a plain `<button>` (`Dots`), the press that arms the row is
+the press that opens it (`defaultOpen`), and the row stays armed afterwards;
+the measurement is back to 0 observers and 19 MB. The keys that open a menu arm
+it too, because that button is what a Tab lands on. What the adoption does cost
+unconditionally is **bundle**: `DropdownMenu` is ~85 kB raw / ~24 kB brotli on
+the first-paint chunk, which is a code-split (`markdown/chunk.ts`'s shape) this
+has not taken.
 
 - **The reads are still first, and a rule separates them.** Above it, verbs
   that change what this tab is looking at (zoom, the four folds, copy link);

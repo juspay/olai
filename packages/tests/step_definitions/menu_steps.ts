@@ -24,6 +24,8 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
+import { TESTID } from "@olai/web/src/client/testids.ts";
+
 import {
   NODE_MENU,
   NODE_MENU_CONFIRM,
@@ -37,27 +39,39 @@ import {
 import type { OlaiWorld } from "../support/world.ts";
 import { revealGutter } from "./outline_tree_steps.ts";
 
+/** The open panel, waited for. Every step here starts from it — the panel is
+ *  the subject of all of them, and one spelling of "wait for it" is what keeps
+ *  them from waiting on it several slightly different ways. */
+const panelOf = async (world: OlaiWorld) => {
+  const panel = world.page.locator(NODE_MENU_PANEL);
+  await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  return panel;
+};
+
+/** The `•••` pressed: the row's gutter revealed first (it is `opacity-0` until
+ *  the row is hovered), then the press itself. `force` because opacity is not
+ *  something Playwright's actionability check can see through. */
+const pressDots = async (world: OlaiWorld, id: string): Promise<void> => {
+  await revealGutter(world, id);
+  await world.within(id, NODE_MENU).click({ force: true });
+  await world.waitForFrame();
+};
+
 When(
   "I open the node menu of {string}",
   async function (this: OlaiWorld, id: string) {
-    await revealGutter(this, id);
-    const menu = this.within(id, NODE_MENU);
-    await menu.click({ force: true });
-    await this.page
-      .locator(NODE_MENU_PANEL)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await pressDots(this, id);
+    await panelOf(this);
   },
 );
 
-/** The `•••` pressed, with nothing waited for afterwards — which is what a
- *  scenario asking what the SECOND press does needs. `I open the node menu of`
- *  above waits for the panel and would time out on the press that shuts it. */
+/** The same press with nothing waited for afterwards — which is what a
+ *  scenario asking what the SECOND press does needs: the step above waits for
+ *  the panel and would time out on the press that shuts it. */
 When(
   "I press the node menu of {string}",
   async function (this: OlaiWorld, id: string) {
-    await revealGutter(this, id);
-    await this.within(id, NODE_MENU).click({ force: true });
-    await this.waitForFrame();
+    await pressDots(this, id);
   },
 );
 
@@ -69,28 +83,43 @@ When(
 When(
   "I open the node menu of {string} with the keyboard",
   async function (this: OlaiWorld, id: string) {
-    const menu = this.within(id, NODE_MENU);
-    // Opacity-0 still takes programmatic focus, and taking it is what reveals
-    // the gutter — no pointer hover needed.
-    await menu.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-    await menu.evaluate((el) => (el as HTMLElement).focus());
+    await this.focusWithin(id, NODE_MENU);
     await this.page.keyboard.press("Enter");
-    await this.page
-      .locator(NODE_MENU_PANEL)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await panelOf(this);
     await this.waitForFrame();
   },
 );
 
-/** Somewhere that is not the menu: the sidebar, which is outside every row's
- *  gutter and follows no navigation — the same place `I click away from the
- *  note of` presses for the same reason. */
+/** Somewhere that is not the menu — `clickAway` is the suite's one spelling of
+ *  that gesture, and a row's note is dismissed by the same one. */
 When("I click away from the node menu", async function (this: OlaiWorld) {
-  const sidebar = this.page.locator('[data-testid="sidebar"]').first();
-  await sidebar.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await sidebar.click({ position: { x: 8, y: 8 } });
-  await this.waitForFrame();
+  await this.clickAway();
 });
+
+/**
+ * WHICH entry has the caret, by the label a person reads.
+ *
+ * The panel swaps its content for the question one verb asks, and a swap that
+ * left the caret on the entry it just removed leaves the keyboard on `<body>`
+ * — nowhere, and two Tabs from the top of the document. Nothing else in this
+ * suite would notice: the question is on screen either way.
+ */
+Then(
+  "the node menu's {string} has the caret",
+  async function (this: OlaiWorld, label: string) {
+    const caret = await this.page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      return el === null || el === document.body
+        ? null
+        : { testid: el.getAttribute("data-testid"), text: el.innerText };
+    });
+    assert.deepStrictEqual(
+      caret === null ? null : { testid: caret.testid, text: oneLine(caret.text) },
+      { testid: TESTID.nodeMenuItem, text: label },
+      `the caret is on ${JSON.stringify(caret)}, expected the node menu's ${JSON.stringify(label)}`,
+    );
+  },
+);
 
 /** GONE, not merely invisible: the panel is unmounted when the menu shuts, so
  *  a scenario that accepted `hidden` would also accept one left in the DOM
@@ -101,15 +130,6 @@ Then("the node menu is closed", async function (this: OlaiWorld) {
     "the node menu panel to be gone",
   );
 });
-
-/** The open panel, waited for. Every step below starts here — the panel is the
- *  subject of all of them, and one spelling of "wait for it" is what keeps the
- *  four from waiting on it four slightly different ways. */
-const panelOf = async (world: OlaiWorld) => {
-  const panel = world.page.locator(NODE_MENU_PANEL);
-  await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  return panel;
-};
 
 /** What it is offering, in order. Through `oneLine` like every other text this
  *  suite reads out of the DOM, so a label that wraps is still one label. */

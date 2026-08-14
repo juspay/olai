@@ -37,6 +37,12 @@
  *     `<body>` for a microtask on its way back to the entry it was asked from,
  *     and a menu that read that as "focus left" would shut on its own Cancel.
  *
+ * ONE MORE DECISION, and it is about the OUTLINE rather than the menu: a shut
+ * `DropdownMenu` is not free, and there is one per row. So the primitive is
+ * mounted the first time a row is asked for its menu and not before — see
+ * {@link Dots}, which is what the `•••` is until then and which has the
+ * measurements.
+ *
  * THE CONFIRM IS THIS PANEL'S OWN SECOND STEP, and that is a decision rather
  * than a convenience: a `window.confirm()` is browser chrome olai does not
  * own, cannot theme and cannot say a sentence of its own inside — and it
@@ -70,10 +76,12 @@ export interface MenuAction {
   readonly run: () => void | Promise<Said | void>
 }
 
-/** One entry, and the rule that may sit above it. The classes are the panel's
- *  own — Kobalte ships no styles — so this is the same box the hand-rolled
- *  `<button>` was, in a `role="menuitem"` this time. */
-const ITEM = "cursor-pointer px-3 py-1.5 text-left text-ink hover:bg-rule"
+/** The `•••` itself, in the one spelling both the dead button and Kobalte's
+ *  trigger are drawn from — they stand in for each other (see {@link Dots}),
+ *  so a class on one and not the other would be a flicker at the press. */
+const DOTS =
+  `${HOVER_CELL} ${MENU_REVEAL} cursor-pointer border-0 bg-transparent p-0 ` +
+  "text-[0.65rem] leading-none tracking-[0.05em] text-muted hover:text-ink"
 
 /**
  * Whether this verb asks before it runs.
@@ -97,9 +105,12 @@ export function NodeMenu(props: {
    *  rather than to the panel: a message inside something that has gone is a
    *  message nobody reads. */
   const [said, setSaid] = createSignal<Said | null>(null)
-  /** The open panel, for the one thing the confirm has to find in it (below).
-   *  Kobalte owns everything else about it. */
-  let panel: HTMLElement | undefined
+  /**
+   * Whether this row has ever reached for its menu — and so whether it pays
+   * for one. See {@link Dots}: until the first press, the `•••` is a plain
+   * button and Kobalte is not mounted here at all.
+   */
+  const [armed, setArmed] = createSignal(false)
   let clearing: ReturnType<typeof setTimeout> | undefined
 
   onCleanup(() => clearTimeout(clearing))
@@ -147,50 +158,64 @@ export function NodeMenu(props: {
     // Positioned root for Kobalte's positioner. Hidden entirely below md so a
     // phone spends no gutter width on the menu (triangle stays).
     <div class="relative hidden shrink-0 md:block">
-      <DropdownMenu modal={false} placement="bottom-start" gutter={2}>
-        <DropdownMenu.Trigger
-          class={`${HOVER_CELL} ${MENU_REVEAL} cursor-pointer border-0 bg-transparent p-0 text-[0.65rem] leading-none tracking-[0.05em] text-muted hover:text-ink`}
-          data-testid={TESTID.nodeMenu}
-          aria-label="node menu"
-          title="node menu"
-          // Kobalte toggles on the POINTERDOWN (and on the click for a touch
-          // pointer), so both are stopped here: opening a row's menu is not
-          // also a press on the row it belongs to.
-          onPointerDown={(event: PointerEvent) => event.stopPropagation()}
-          onClick={(event: MouseEvent) => event.stopPropagation()}
-        >
-          •••
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content
-          ref={(el: HTMLElement) => {
-            panel = el
-            // AND THE CARET GOES IN, which is the price of laying the panel
-            // out in the row instead of portalling it: Kobalte's mount focus
-            // lands only for a PORTALLED content, so a menu opened with the
-            // keyboard would otherwise leave the caret on the `•••` — and the
-            // arrow keys, which are half of what the primitive is FOR, would
-            // have nothing to walk. From the panel, `Home`/`End` and the
-            // arrows reach the entries. A menu opened with a POINTER still
-            // ends up with the caret on the button that was pressed, exactly
-            // as the panel this replaces did: the press focuses the trigger
-            // back immediately afterwards. `queueMicrotask` for the same
-            // reason `../popover.ts` uses one: the element is not attached at
-            // the instant the ref runs.
-            queueMicrotask(() => el.focus())
-          }}
-          data-testid={TESTID.nodeMenuPanel}
-          // `relative` so the `z-20` bites: Kobalte's positioner is the
-          // absolute box, and a z-index on a STATIC child of it would do
-          // nothing. (Kobalte's content carries `position: relative` in an
-          // inline style of its own; this says so in the class list rather
-          // than depending on it.) Everything else here is the panel the
-          // hand-rolled one drew, class for class.
-          class="relative z-20 min-w-[10.5rem] rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md"
-          onFocusOutside={(event: Event) => event.preventDefault()}
-        >
-          <MenuPanel actions={props.actions} onPick={pick} panel={() => panel} />
-        </DropdownMenu.Content>
-      </DropdownMenu>
+      <Show when={armed()} fallback={<Dots onArm={() => setArmed(true)} />}>
+        <DropdownMenu modal={false} placement="bottom-start" gutter={2} defaultOpen>
+          <DropdownMenu.Trigger
+            class={DOTS}
+            data-testid={TESTID.nodeMenu}
+            aria-label="node menu"
+            title="node menu"
+            // Kobalte toggles on the POINTERDOWN (and on the click for a touch
+            // pointer), so both are stopped here: opening a row's menu is not
+            // also a press on the row it belongs to.
+            onPointerDown={(event: PointerEvent) => event.stopPropagation()}
+            onClick={(event: MouseEvent) => event.stopPropagation()}
+          >
+            •••
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content
+            ref={(el: HTMLElement) => {
+              // AND THE CARET GOES IN. Kobalte's own mount focus — the
+              // `onOpenAutoFocus` hook and the focus scope behind it — is
+              // registered by an effect that runs when the CONTENT COMPONENT is
+              // created, and without a `DropdownMenu.Portal` that is when the
+              // row mounts, with the menu shut and the content's own `<Show>`
+              // holding back the element: the effect reads a ref that does not
+              // exist yet and, being a plain binding rather than a signal, is
+              // never asked again. (A portal moves that `<Show>` OUTSIDE the
+              // component, which is why the portalled path focuses and this one
+              // does not — verified both ways, and `onOpenAutoFocus` is inert
+              // here for the same reason, so it is not the fix it looks like.)
+              // Without this, a menu opened with the keyboard would leave the
+              // caret on the `•••` and the arrow keys — half of what the
+              // primitive is FOR — would have nothing to walk. From the panel,
+              // `Home`/`End` and the arrows reach the entries. A menu opened
+              // with a POINTER still ends up with the caret on the button that
+              // was pressed, exactly as the panel this replaces did: the press
+              // focuses the trigger back immediately afterwards.
+              // `queueMicrotask` for the same reason `../popover.ts` uses one:
+              // the element is not attached at the instant the ref runs.
+              queueMicrotask(() => el.focus())
+            }}
+            data-testid={TESTID.nodeMenuPanel}
+            // `relative` so the `z-20` bites: Kobalte's positioner is the
+            // absolute box, and a z-index on a STATIC child of it would do
+            // nothing. (Kobalte's content carries `position: relative` in an
+            // inline style of its own; this says so in the class list rather
+            // than depending on it.) Everything else here is the panel the
+            // hand-rolled one drew, class for class.
+            // `focus:outline-none` because the caret lands on this BOX when the
+            // menu opens (see the ref above) and a box is not what anybody is
+            // aiming at — the ring belongs on the entry the keyboard is
+            // standing on, and that is `data-[highlighted]` below. Without it,
+            // Chromium rings the whole panel for a menu opened with a mouse.
+            class="relative z-20 min-w-[10.5rem] rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none"
+            onFocusOutside={(event: Event) => event.preventDefault()}
+          >
+            <MenuPanel actions={props.actions} onPick={pick} />
+          </DropdownMenu.Content>
+        </DropdownMenu>
+      </Show>
       <Show when={said()}>
         {(message) => (
           // Absolute, like the panel: the gutter's width is shared by every row
@@ -227,6 +252,64 @@ export function NodeMenu(props: {
 }
 
 /**
+ * The `•••` before anybody has pressed it: the same three dots, drawn by a
+ * `<button>` that costs nothing.
+ *
+ * THE OUTLINE IS HUNDREDS OF ROWS, and a Kobalte `DropdownMenu` is not free
+ * while it is shut — the root builds its disclosure state, its list state and
+ * its popper, and the content's body runs eagerly (only its DOM waits on the
+ * open state), which between them is an `IntersectionObserver`, a deferred
+ * autofocus timer, four locale subscriptions and a few dozen signals PER ROW.
+ * Measured on this app's own roadmap (140 rows): 140 IntersectionObservers and
+ * 33 MB of heap where the hand-rolled panel had none and 19 MB.
+ *
+ * So a row mounts the primitive the first time somebody reaches for it, and
+ * the press that armed it is the press that opens it (`defaultOpen`). The row
+ * stays armed afterwards — the second press is Kobalte's own trigger, doing
+ * its own toggle. Only rows a person has actually touched ever pay, which on
+ * any real page is a handful.
+ *
+ * The KEYS matter as much as the pointer here: this button is what a Tab
+ * lands on, so the keys that open a menu have to arm it too, or a keyboard
+ * would press an inert button. Enter, Space and the two arrows Kobalte's own
+ * trigger opens on, and the caret lands in the panel from there (see the
+ * content's ref above).
+ */
+function Dots(props: { readonly onArm: () => void }) {
+  const arm = (event: Event): void => {
+    // The same reason Kobalte's trigger stops these: opening a row's menu is
+    // not also a press on the row it belongs to.
+    event.stopPropagation()
+    props.onArm()
+  }
+
+  return (
+    <button
+      type="button"
+      class={DOTS}
+      data-testid={TESTID.nodeMenu}
+      aria-haspopup="true"
+      aria-expanded={false}
+      aria-label="node menu"
+      title="node menu"
+      onPointerDown={arm}
+      onKeyDown={(event) => {
+        if (!["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) return
+        // Prevented HERE, unlike the press above: Space would scroll the page
+        // out from under the menu it just opened, and Enter on a button
+        // synthesises a click that would arrive at whatever took this one's
+        // place.
+        event.preventDefault()
+        arm(event)
+      }}
+      onClick={(event) => event.stopPropagation()}
+    >
+      •••
+    </button>
+  )
+}
+
+/**
  * What is inside the open panel: the list, or the question one verb asks
  * first.
  *
@@ -237,9 +320,13 @@ export function NodeMenu(props: {
 function MenuPanel(props: {
   readonly actions: ReadonlyArray<MenuAction>
   readonly onPick: (action: MenuAction) => void | Promise<void>
-  readonly panel: () => HTMLElement | undefined
 }) {
   const [asking, setAsking] = createSignal<MenuAction | null>(null)
+  /** The entries as they stand, by the verb each one is for — so cancelling
+   *  below can hand the caret back to an ELEMENT rather than look one up by a
+   *  selector. Rewritten as the list is redrawn, which is what makes it right
+   *  after the swap back from the question. */
+  const entries = new Map<string, HTMLElement>()
 
   /** Backing out of the question, with the caret put back where it was asked
    *  from. The confirm takes the focus when it opens (a panel that swapped its
@@ -250,10 +337,7 @@ function MenuPanel(props: {
    *  the list, because the entry being aimed at does not exist until then. */
   const cancel = (action: MenuAction): void => {
     setAsking(null)
-    queueMicrotask(() =>
-      props.panel()?.querySelector<HTMLElement>(`[data-action="${action.id}"]`)
-        ?.focus()
-    )
+    queueMicrotask(() => entries.get(action.id)?.focus())
   }
 
   return (
@@ -271,7 +355,16 @@ function MenuPanel(props: {
                 <DropdownMenu.Separator class="my-1 border-t border-rule" />
               </Show>
               <DropdownMenu.Item
-                class={ITEM}
+                ref={(el: HTMLElement) => entries.set(action.id, el)}
+                // The classes are the panel's own — Kobalte ships no styles —
+                // so this is the same box the hand-rolled `<button>` was, in a
+                // `role="menuitem"` this time. `data-[highlighted]` is where
+                // the entry the KEYBOARD is standing on shows, in the same
+                // band a pointer gets: the arrow keys are new here, and a
+                // walk nobody can see is not a walk. It replaces the focus
+                // ring rather than joining it (`focus:outline-none`) —
+                // Chromium draws that one for pointer opens too.
+                class="cursor-pointer px-3 py-1.5 text-left text-ink hover:bg-rule focus:outline-none data-[highlighted]:bg-rule"
                 data-testid={TESTID.nodeMenuItem}
                 data-action={action.id}
                 closeOnSelect={!asks(action)}
@@ -315,7 +408,14 @@ function Confirm(props: {
   readonly onCancel: (action: MenuAction) => void
 }) {
   let go: HTMLElement | undefined
-  onMount(() => go?.focus())
+  // A MICROTASK, and it is load-bearing rather than superstitious: `onMount`
+  // runs while this subtree is still being built into the open panel, so the
+  // element the ref just handed over is not in the document yet and focusing
+  // it does nothing at all. One tick later it is attached, the caret lands,
+  // and the list this replaced has finished going away. (Without it the
+  // question comes up with the caret on `<body>` — the keyboard is left
+  // nowhere, which is the exact thing focusing it here is for.)
+  onMount(() => queueMicrotask(() => go?.focus()))
 
   return (
     // A WIDTH rather than a maximum: the panel is as wide as its longest verb
@@ -326,10 +426,8 @@ function Confirm(props: {
       </p>
       <div class="mt-2 flex gap-2">
         <DropdownMenu.Item
-          ref={(el: HTMLElement) => {
-            go = el
-          }}
-          class="cursor-pointer rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10"
+          ref={go}
+          class="cursor-pointer rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10 focus:outline-none"
           data-testid={TESTID.nodeMenuItem}
           data-action={props.action.id}
           onSelect={() => void props.onGo(props.action)}
@@ -337,7 +435,7 @@ function Confirm(props: {
           {props.action.label}
         </DropdownMenu.Item>
         <DropdownMenu.Item
-          class={`${QUIET_PILL} cursor-pointer`}
+          class={`${QUIET_PILL} cursor-pointer focus:outline-none`}
           data-testid={TESTID.nodeMenuItem}
           data-action="cancel"
           closeOnSelect={false}

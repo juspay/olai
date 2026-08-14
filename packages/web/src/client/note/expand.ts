@@ -10,9 +10,9 @@
  * density switch and the per-place unfold set are gone; this is the only open
  * state left, and it dies with the row that holds it.
  *
- * How it SHUTS is `../dismiss.ts`, which is the client's one spelling of the
- * two gestures — so this panel gained Escape by being deduped rather than by
- * being argued about. That is the model this note already documents anyway:
+ * How it SHUTS is `../dismiss.ts`, the one spelling of the two gestures the
+ * panels this client draws itself share — so this one gained Escape by being
+ * deduped rather than by being argued about. That is the model this note already documents anyway:
  * expanding and editing are one state and you leave both at once
  * (`features/keyboard_editing.feature`), and Escape has always been how a
  * caret leaves.

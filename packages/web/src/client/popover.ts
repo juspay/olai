@@ -11,7 +11,8 @@
  * half catching up.
  *
  * WHICH GESTURES SHUT IT is `./dismiss.ts` — the pointer outside and Escape, in
- * the one spelling every dismissable surface in this client now uses. Both
+ * the one spelling the panels this client draws itself now share (the `•••`
+ * menu is a Kobalte primitive and shuts by the same library, one layer up). Both
  * roots are handed to it (see its `trigger`), which is the bug worth naming: a
  * panel here is PORTALLED out of whatever the trigger sits in, so a click-away
  * that knew only the panel shut on every press of the trigger — and since the
