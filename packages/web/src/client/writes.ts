@@ -1,9 +1,10 @@
 /**
  * A POINTER's write, at the same gate the keyboard's go through.
  *
- * Two surfaces send one now — the `•••` menu's verbs (`menu/actions.ts`) and
- * the date picker (`date/DatePicker.tsx`) — which is why this sits beside
- * `run.ts` and `wire.ts` rather than inside either of them. They are the same
+ * Several surfaces send one now — the `•••` menu's verbs (`menu/actions.ts`),
+ * the date picker (`date/DatePicker.tsx`), and the edge panel with the `×` on
+ * a drawn reference (`edges/editing.tsx`) — which is why this sits beside
+ * `run.ts` and `wire.ts` rather than inside any of them. They are the same
  * write with the same two answers, and a second copy of the four lines below
  * would be a second opinion about what happens to a refusal.
  *

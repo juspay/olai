@@ -30,6 +30,9 @@ import { TESTID } from "./testids.ts"
 export function SeeRefs(props: {
   /** The regular node being shown — for a mirror row, the node it stands for. */
   readonly node: RegularNode
+  /** Drop one of them — `set_see`'s removal half, drawn as an `×` per link
+   *  (./NodeRefs.tsx). Absent wherever the node is drawn read-only. */
+  readonly onRemove?: (id: string) => void
 }) {
   const derived = useDerived()
 
@@ -52,5 +55,12 @@ export function SeeRefs(props: {
     })
   })
 
-  return <NodeRefs label="see" refs={refs()} testid={TESTID.seeRefs} />
+  return (
+    <NodeRefs
+      label="see"
+      refs={refs()}
+      testid={TESTID.seeRefs}
+      onRemove={props.onRemove}
+    />
+  )
 }

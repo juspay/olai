@@ -3,8 +3,9 @@
  *
  * The catalog of write verbs, pure over the SUBJECT it was asked about: which
  * entries a reader is offered, and the exact {@link Edit} each one sends — or,
- * for the one whose value a person still has to choose, that it opens the
- * row's date picker ({@link Does}). No socket, no clipboard and no component —
+ * for the three whose value a person still has to choose, which panel the row
+ * opens ({@link Does}: the date picker, and the two edge panels). No socket,
+ * no clipboard and no component —
  * those are `./actions.ts`'s — so the two decisions that live here are
  * decidable in a unit test:
  *
@@ -48,6 +49,7 @@ import {
 import type { Edit } from "@olai/surface"
 
 import { datePick } from "../date/pick.ts"
+import { type Relation, RELATIONS } from "../edges/relation.ts"
 import { archiveQuestion } from "../trash/question.ts"
 import { under } from "./subtree.ts"
 
@@ -96,12 +98,13 @@ export const subjectOfZoom = (zoomed: Situated): Subject => ({
  * has a question of its own to ask first.
  *
  * Almost all of them are an edit, known the moment the menu is drawn: the mark
- * to put on, the date to take off, the placement to retire. `Set date…` is the
- * exception and it is not an exception to the SEAM — what it eventually sends
- * is the same `date` edit `Clear date` sends, through the same gate — only to
- * the timing: a date is a value somebody has to choose, and a menu entry
- * cannot carry one. So it opens the row's picker
- * ({@link ../date/DatePicker.tsx}) and the write happens a gesture later.
+ * to put on, the date to take off, the placement to retire. `Set date…` and the
+ * two edge verbs are the exceptions, and none of them is an exception to the
+ * SEAM — what each eventually sends is the same edit its other door sends,
+ * through the same gate — only to the timing: a date and a target are values
+ * somebody has to choose, and a menu entry cannot carry one. So each opens the
+ * row's own panel ({@link ../date/DatePicker.tsx},
+ * {@link ../edges/EdgePanel.tsx}) and the write happens a gesture later.
  *
  * A tagged union rather than an optional `edit`, for the reason the wire's own
  * anchors are one: "an entry with no edit" is spellable by accident, and the
@@ -110,6 +113,13 @@ export const subjectOfZoom = (zoomed: Situated): Subject => ({
 export type Does =
   | { readonly kind: "edit"; readonly edit: Edit }
   | { readonly kind: "pick-date" }
+  /** The two EDGE verbs, and they are `pick-date`'s shape for `pick-date`'s
+   *  reason: a target is a node somebody has to find, and a menu entry cannot
+   *  carry one. What eventually goes is the same `see` / `after` edit the `×`
+   *  on a drawn reference sends, through the same gate. WHICH relation the
+   *  panel is about travels with the arm, so the two entries are one code path
+   *  rather than two that could drift. */
+  | { readonly kind: "pick-edge"; readonly relation: Relation }
 
 /** The ordinary answer, at the site that gives it — so the list below reads as
  *  a list of verbs rather than a list of wrappers. */
@@ -205,6 +215,24 @@ export const writeVerbs = (
         id: "clear-date",
         label: "Clear date",
         does: sends(datePick(shown.node.id, "")),
+      })
+    }
+    // THE TWO EDGES, and they are offered on every node rather than only on one
+    // that already carries some: naming what a node points at is a thing you do
+    // to a node that says nothing yet, and the panel each opens is where both
+    // halves live — what it says now, with an `×` on each, and the search that
+    // adds one (`../edges/EdgePanel.tsx`).
+    //
+    // ALWAYS BOTH, and never narrowed by what would be refused: an `after` that
+    // would close a loop is the ops layer's sentence to say, naming the loop,
+    // which is what a person needs and exactly what an agent gets. Hiding the
+    // entry would be this menu teaching a rule the app does not have — the same
+    // argument that keeps `Mark todo` on a finished row.
+    for (const one of RELATIONS) {
+      verbs.push({
+        id: `edge-${one.relation}`,
+        label: one.verb,
+        does: { kind: "pick-edge", relation: one.relation },
       })
     }
   }

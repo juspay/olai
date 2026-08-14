@@ -24,21 +24,29 @@ Feature: The ••• menu writes
     # writing (`setting_a_date.feature`). A rule between the two halves:
     # everything above the divider changes what this tab is looking at,
     # everything below it changes the directory.
+    #
+    # The two EDGE verbs are the exception that proves the rule, and it is a
+    # deliberate one: every node can take a `see` or an `after`, so there is
+    # nothing about this row to leave them out for — and what WOULD be refused
+    # (a loop) is the ops layer's sentence to say when it is asked for, not a
+    # missing entry (`edge_editing.feature`).
     Given the node "kitchen" is expanded
     When I open the node menu of "kitchen"
     Then the node menu offers exactly:
-      | Zoom in           |
-      | Ask agent         |
-      | Collapse          |
-      | Expand all        |
-      | Collapse all      |
-      | Copy link to node |
-      | Mark todo         |
-      | Complete          |
-      | Clear mark        |
-      | Set date…         |
-      | Move to Trash     |
-      | Copy as text      |
+      | Zoom in            |
+      | Ask agent          |
+      | Collapse           |
+      | Expand all         |
+      | Collapse all       |
+      | Copy link to node  |
+      | Mark todo          |
+      | Complete           |
+      | Clear mark         |
+      | Set date…          |
+      | Link to a node…    |
+      | Wait for a node…   |
+      | Move to Trash      |
+      | Copy as text       |
 
   Scenario: A row with no mark is offered all three, and nothing to clear
     When I open the node menu of "handles"

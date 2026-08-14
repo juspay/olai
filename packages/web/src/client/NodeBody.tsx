@@ -61,6 +61,12 @@ export function NodeBody(props: {
    *  further: absent wherever a node is drawn read-only (a day page), which is
    *  the same rule `NodeLine.onEdit` follows for the title. */
   readonly onEdit?: () => void
+  /** Drop one of the node's `see` targets — the `×` beside each link
+   *  (./NodeRefs.tsx), sent by whoever owns this node's edge editing
+   *  (./edges/editing.tsx). ABSENT wherever the node is drawn read-only, which
+   *  is the rule `onEdit` above already follows: a day page and the agenda draw
+   *  a node they do not offer to change. */
+  readonly onUnsee?: (target: string) => void
 }) {
   const zoomed = () => props.zoomed === true
   const open = () => props.expanded === true
@@ -128,7 +134,7 @@ export function NodeBody(props: {
                   </div>
                 )}
               </Show>
-              <SeeRefs node={props.shows.node} />
+              <SeeRefs node={props.shows.node} onRemove={props.onUnsee} />
             </div>
           </Show>
 
@@ -150,7 +156,7 @@ export function NodeBody(props: {
           />
         )}
       </Show>
-      <SeeRefs node={props.shows.node} />
+      <SeeRefs node={props.shows.node} onRemove={props.onUnsee} />
       <Show when={docOf(props.shows)}>
         {(doc) => <DocRef file={doc()} inline />}
       </Show>

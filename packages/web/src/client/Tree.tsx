@@ -74,6 +74,7 @@ import { useSelection } from "./select/selection.ts"
 import { DatePicker } from "./date/DatePicker.tsx"
 import { datePick } from "./date/pick.ts"
 import { useDerived } from "./derived.tsx"
+import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
 import { useUndo } from "./edit/undoing.ts"
 import { NewRow } from "./edit/NewRow.tsx"
@@ -184,6 +185,14 @@ function Branch(props: {
   const openPicker = (): void => {
     setPicking(true)
   }
+
+  /** This row's edge editing — which panel is open, the writes its two doors
+   *  send, and the line that says what came of them (./edges/editing.tsx). The
+   *  same arrangement the date picker above is, and for the same reason: the
+   *  panel belongs to the ROW, and the `•••` menu that opened it is closed by
+   *  the time anything has been chosen in it. Over the node the row SHOWS,
+   *  because edges are facts about a node and a placement carries none. */
+  const edges = createEdgeEditing(() => shown()?.node)
 
   // The editor is one draft for the whole page, and this is the one question a
   // row asks of it: is the caret HERE? Asked of WHERE the caret is rather than
@@ -356,6 +365,7 @@ function Branch(props: {
               go: router.go,
               record: undo.record,
               pickDate: openPicker,
+              pickEdge: edges.open,
             })}
           />
           <Show
@@ -463,6 +473,17 @@ function Branch(props: {
         )}
       </Show>
 
+      {/* The edge panel and whatever its writes said, in the same place and on
+          the same terms as the picker above: opened from the `•••`, drawn under
+          the line it was opened on, about the node the row SHOWS — a placement
+          carries no edges of its own, so a `see` chosen at a mirror lands on its
+          target exactly as a mark does. */}
+      <Show when={edges.showing()}>
+        <div class={PAST_CONTROLS}>
+          <edges.Panel />
+        </div>
+      </Show>
+
       {/* What the last write said about this row — the reason it was refused,
           or the nudge from one that landed. Above the body rather than in it,
           because a COLLAPSED row draws no body and a refusal must be visible
@@ -495,6 +516,13 @@ function Branch(props: {
                   expanded={note.expanded()}
                   onToggle={note.toggle}
                   onEdit={() => editor.open(props.row, "desc")}
+                  // The `×` on a `see` link the expanded note draws — one op,
+                  // `set_see`'s own removal, through the row's own edge editing
+                  // so a refusal lands in the same line the panel's writes use.
+                  // Handed in beside `onEdit` and for the same reason: a body
+                  // drawn where a node is READ ONLY (a day page) passes neither
+                  // (./NodeBody.tsx).
+                  onUnsee={(target) => edges.drop("see", target)}
                 />
               }
             >

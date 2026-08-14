@@ -229,13 +229,13 @@ write:
   once: adding one is an arm here and an arm in the resolver, and every other
   site is a compile error rather than a silent hole. Five procedures was the
   first shape, and it was five spellings of one list.
-- **it is not the ops request vocabulary re-spelled.** It is smaller (no
-  `create`, no `see`, no `after`, no `mirror`, no chosen ids) and, where it
-  differs, it differs because something is resolved behind it — so the verbs
-  that resolve nothing use the ops layer's own words (`title`, `desc`, `date`,
-  `unmirror`, `archive`, `unarchive`), and a name that differs from an op's is
-  a name with arithmetic behind it. Ops itself learns none of it: an op does
-  not know it is being called over a wire.
+- **it is not the ops request vocabulary re-spelled.** It is smaller (no chosen
+  ids, no `seed` on a created outline, no `blocks`) and, where it differs, it
+  differs because something is resolved behind it — so the verbs that resolve
+  nothing use the ops layer's own words AND its own fields (`title`, `desc`,
+  `date`, `unmirror`, `archive`, `unarchive`, `see`, `after`), and a name that
+  differs from an op's is a name with arithmetic behind it. Ops itself learns
+  none of it: an op does not know it is being called over a wire.
 - **four of the verbs are the POINTER's**, and they are here to close a
   DEVIATION rather than to grow the editor: an agent could set or clear a date,
   retire a placement and archive a subtree, and a person could do none of them
@@ -255,6 +255,21 @@ write:
   op follows the recorded chain of ancestor titles; its optional `parent` /
   `file` are an undo's, carrying the place an archived row actually sat, read
   off the snapshot by the server exactly as `place`'s ids are.
+- **three more close the same deviation over the two EDGE fields and the
+  outline itself.** `see` and `after` are `set_see` and `set_after` in the ops
+  layer's own shape — two optional lists rather than one target and a direction,
+  because nothing is resolved behind them and a narrower spelling could not
+  express its own inverse (`parity-see`, `parity-after`). Until they landed a
+  person could READ both edges and write neither: the links under a node, the
+  dim and the `blocked by` line of a blocked row. What differs between the two
+  is what the edges MEAN, and that difference is entirely the planner's — an
+  `after` add that would close a loop is refused NAMING the loop, and that
+  sentence reaches the browser verbatim. `outlineNew` is `create_outline` from
+  the sidebar (`parity-create-outline`), `docNew`'s twin down to the shape; it
+  carries no `seed`, which is the one place it says less than the tool — a
+  person types the first row where it will live, so nothing this face can reach
+  is out of an agent's reach, and quick capture already sends a seeded `create`
+  when a directory has no inbox.
 - **two of the verbs are an UNDO's**, and they are the one place the list is
   not shaped like a key: `place` says where a row SAT, `remove` that a row this
   session created should go. They name absolute things because "put it back"

@@ -36,6 +36,7 @@
 import type { Derived, Row } from "@olai/format"
 
 import { armNode } from "../chat/armed.ts"
+import type { Relation } from "../edges/relation.ts"
 import type { Said, Undo } from "../edit/undoing.ts"
 import { setFolded } from "../fold/memory.ts"
 import { type Fold, foldIdOf, foldOf } from "../fold/rows.ts"
@@ -98,6 +99,12 @@ export const nodeMenuActions = (args: {
    *  line opens the same one, and the panel is closed by the time either of
    *  them has been chosen. */
   readonly pickDate: () => void
+  /** Open the row's edge panel for one relation — the same arrangement
+   *  `pickDate` is, for the same reason: a target is a node somebody has to
+   *  find, and the panel belongs to the ROW (the `×` on a drawn reference
+   *  writes through it too), not to a menu that is closed by the time either is
+   *  chosen. */
+  readonly pickEdge: (relation: Relation) => void
 }): ReadonlyArray<MenuAction> => {
   const id = args.row.at.node.id
   const items: MenuAction[] = [
@@ -185,7 +192,14 @@ export const nodeMenuActions = (args: {
       // the menu for a moment (a Solid setter answers with the new value, and
       // `() => void` accepts any return, so nothing but the screen said so).
       run: () => {
+        // A BLOCK for every arm, and each `return`-less one is deliberate: an
+        // action answers with what it has to SAY, and opening a panel has
+        // nothing to say. See the note above.
         if (does.kind === "edit") return applying(does.edit, args.record)
+        if (does.kind === "pick-edge") {
+          args.pickEdge(does.relation)
+          return
+        }
         args.pickDate()
       },
     }),

@@ -24,6 +24,9 @@ import { blockedIds } from "./blocked.ts"
 import { Blocked } from "./Blocked.tsx"
 import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
+import { AfterRefs } from "./edges/AfterRefs.tsx"
+import { createEdgeEditing } from "./edges/editing.tsx"
+import { EdgeVerbs } from "./edges/EdgeVerbs.tsx"
 import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
 import { only } from "./narrow.ts"
@@ -58,6 +61,11 @@ function Zoom(props: {
   readonly rows: ReadonlyArray<Row>
 }) {
   const today = useToday()
+  /** This page's edge editing — the panel, both doors' writes, and the line
+   *  that says what came of them (./edges/editing.tsx). A zoom always lands on
+   *  a regular node however it was addressed, so the node is never absent
+   *  here. */
+  const edges = createEdgeEditing(() => props.zoomed.shows.node)
 
   return (
     <Editable rows={() => props.rows}>
@@ -104,12 +112,34 @@ function Zoom(props: {
           {/* What the node is waiting on, named in full and above its note:
               a page whose subject cannot start yet should say so before it
               says anything else about it. This is where a row's glyph was
-              pointing. */}
+              pointing. DERIVED, and read-only for that reason — half of it can
+              be a `blocks` written on another record, and a finished blocker is
+              not in it at all (./Blocked.tsx). */}
           <Blocked blocked={props.zoomed.blocked} />
+          {/* …and the FIELD under it: what this node itself declares it comes
+              after, whether or not the target is still in the way. That is what
+              `set_after` writes, so that is what carries the `×`. */}
+          <AfterRefs
+            node={props.zoomed.shows.node}
+            onRemove={(target) => edges.drop("after", target)}
+          />
 
           {/* Zoomed, a node's note and document ARE the page under it: the node
               said the rest was here, and the subject is never densified. */}
-          <NodeBody shows={props.zoomed.shows} zoomed />
+          <NodeBody
+            shows={props.zoomed.shows}
+            zoomed
+            onUnsee={(target) => edges.drop("see", target)}
+          />
+
+          {/* THE TWO EDGE VERBS, on the page rather than in a `•••` menu — the
+              heading has none, which is the same gap the ⌘K palette's op rows
+              closed for the verbs that need no second gesture (`palette/ops.ts`
+              leaves these two out precisely because they open something, the way
+              `Set date…` does). So the door is here, where the two rows above are
+              read, and it opens the same panel a row's menu opens. */}
+          <EdgeVerbs open={edges.open} openFor={edges.openFor()} />
+          <edges.Panel />
         </div>
       </header>
 

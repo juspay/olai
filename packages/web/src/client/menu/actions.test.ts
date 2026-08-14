@@ -26,6 +26,7 @@ import { setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { armedNodes, releaseArmed } from "../chat/armed.ts"
+import type { Relation } from "../edges/relation.ts"
 import { flatten } from "../edit/order.ts"
 import { chatOpen, setChatOpen } from "../layout/prefs.ts"
 import { nodeMenuActions } from "./actions.ts"
@@ -45,9 +46,12 @@ const row = (id: string): Row => {
   return found
 }
 
-/** The catalog, over a row, with the impure half stubbed — and `pickDate`
+/** The catalog, over a row, with the impure half stubbed — and both openers
  *  answering with a value, which is what a `setPicking(true)` does. */
-const actionsFor = (id: string, pickDate: () => unknown) =>
+const actionsFor = (
+  id: string,
+  opens: (relation?: Relation) => unknown,
+) =>
   nodeMenuActions({
     row: row(id),
     derived,
@@ -57,7 +61,11 @@ const actionsFor = (id: string, pickDate: () => unknown) =>
     record: () => {},
     // The lie: a setter answers with the new value, and this is what the
     // catalog does with it.
-    pickDate: pickDate as () => void,
+    pickDate: opens as () => void,
+    // The same lie for the two edge verbs, which open the same kind of panel
+    // — `setLinking("see")` answers with `"see"`, a perfectly truthy value the
+    // panel would have drawn as a sentence.
+    pickEdge: opens as (relation: Relation) => void,
   })
 
 const entry = (id: string, label: string) => {
@@ -71,6 +79,19 @@ test("opening the picker says NOTHING, whatever the opener answers with", () => 
   // is not `undefined`, so the panel says it — and a `true` has no `.text`, so
   // what a reader gets is an empty bordered box under the `•••`.
   expect(entry("install", "Set date…").run()).toBeUndefined()
+})
+
+test("an edge verb says nothing either, and names the relation it opens", () => {
+  // The same regression one arm over: `pickEdge` is a setter too, and the arm
+  // that calls it must not hand the panel the relation it just stored.
+  expect(entry("install", "Link to a node…").run()).toBeUndefined()
+  let asked: Relation | undefined
+  const actions = actionsFor("install", (relation) => {
+    asked = relation as Relation
+    return relation
+  })
+  actions.find((one) => one.label === "Wait for a node…")?.run()
+  expect(asked).toBe("after")
 })
 
 test("...and it still opens the picker", () => {

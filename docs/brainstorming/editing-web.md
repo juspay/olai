@@ -355,10 +355,13 @@ Copy link · Move to · Format conversions · Export · Share · Expand all /
 Collapse all · Delete. olai's `•••` menu started as #102's styling with five
 READING verbs, and `menu-verbs` gave it the write half: Zoom in · Expand /
 Collapse · Expand all · Collapse all · Copy link — then a rule, and below it
-Mark todo / Mark doing / Complete / Clear mark · Clear date · Remove this
-placement · Archive (subtree, behind a confirm naming how many rows go) · Copy
-as text. Each is drawn only where it applies, so the panel is short on a leaf
-and long on a marked, dated branch.
+Mark todo / Mark doing / Complete / Clear mark · Clear date · Link to a node… ·
+Wait for a node… · Remove this placement · Archive (subtree, behind a confirm
+naming how many rows go) · Copy as text. Each is drawn only where it applies,
+so the panel is short on a leaf and long on a marked, dated branch — with the
+two edge verbs the exception that proves the rule, since every node can take an
+edge and what would be refused is the ops layer's sentence rather than a
+missing entry.
 
 What is still Workflowy's and not olai's, from that list: **Add note** (olai's
 note is one click on the row, so a menu entry would be a second door to the
@@ -389,11 +392,28 @@ and clearing one), `date`, `unmirror`, `archive` — each as an arm on the same
 intent union and a resolver arm beside it, sending the request the equivalent
 tool sends. What that left, in order of what it would take:
 
-- `set_see` / `set_after` (`parity-see`, `parity-after`): both want a node
+- ~~`set_see` / `set_after` (`parity-see`, `parity-after`): both want a node
   SEARCH to name the other end, and that widget EXISTS now (`input-widgets`'
   `((`, over `search/nodes.ts`). What is missing is the two verbs on the wire,
-  not the way to ask "which node?".
-- `create_outline` (`parity-create-outline`): the sidebar's, not a row's.
+  not the way to ask "which node?".~~ **Closed (`editor-op-parity`)**: two arms
+  on the intent union carrying the ops layer's own two lists, and ONE panel for
+  both fields — because the planner already plans them with one function. The
+  search is `search/nodes.ts` as predicted, so the widget was indeed the whole
+  of what was missing. Two doors per surface (the `•••`'s two verbs on a row,
+  two controls on a zoomed node whose heading has none) and an `×` on every
+  reference already drawn. The loop refusal reaches the page verbatim, naming
+  the loop; nothing is greyed out first, which is the mark verbs' rule read one
+  field along. What a node DECLARES is drawn beside what is IN ITS WAY on its
+  own page, and only the declared list is editable — `blocked` is derived, folds
+  in `blocks` from other records, and drops finished work, so an `×` on it would
+  name no single edge.
+- ~~`create_outline` (`parity-create-outline`): the sidebar's, not a row's.~~
+  **Closed (`editor-op-parity`)**: `+ New outline` above `+ New document`, the
+  same box and the same rule about who judges a path (the op, verbatim). It
+  sends no `seed` — the one place the verb says less than the tool, and it
+  costs nothing, because a person's first row is typed on the empty outline's
+  own page. Nothing this face reaches is out of the agent's reach, which is the
+  direction the rule runs.
 - ~~setting a date: the `!` picker, `input-widgets`.~~ **Closed** — and
   `add_mirror` went with it, which was not on this list at all because nobody
   had noticed the surface could retire a placement it had no way to make.

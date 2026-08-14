@@ -9,6 +9,9 @@ import {
   DOCUMENT_LINK,
   FILE_DIR,
   HYDRATION_TIMEOUT,
+  NEW_OUTLINE,
+  NEW_OUTLINE_PATH,
+  NEW_OUTLINE_SAID,
   oneLine,
   OUTLINE_LINK,
   OUTLINE_LIST,
@@ -234,3 +237,67 @@ Then(
     );
   },
 );
+
+// ── starting an outline that does not exist yet ────────────────────────
+//
+// The tree is what it adds to, so the steps for it are here rather than in a
+// file of their own: `+ New outline` is an entry arriving in this list, and
+// what the scenarios claim is that the entry came from a FILE the ops layer
+// minted rather than from anything a browser drew for itself.
+
+/** The box, opened and waited for. One spelling, because three steps start
+ *  from it and a second "click, then wait" is where two of them would drift. */
+const outlineBox = async (world: OlaiWorld) => {
+  await world.showSidebar();
+  const open = world.page.locator(NEW_OUTLINE);
+  if ((await world.page.locator(NEW_OUTLINE_PATH).count()) === 0) {
+    await open.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await open.click();
+  }
+  const box = world.page.locator(NEW_OUTLINE_PATH);
+  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  return box;
+};
+
+When("I open the new outline box", async function (this: OlaiWorld) {
+  await outlineBox(this);
+});
+
+/** Typed but NOT sent — for the scenario about backing out, whose whole claim
+ *  is that a path in the box is not a write. */
+When(
+  "I fill the new outline box with {string}",
+  async function (this: OlaiWorld, file: string) {
+    await (await outlineBox(this)).fill(file);
+  },
+);
+
+When(
+  "I create the outline {string} from the sidebar",
+  async function (this: OlaiWorld, file: string) {
+    const box = await outlineBox(this);
+    await box.fill(file);
+    await box.press("Enter");
+  },
+);
+
+Then(
+  "the outline creation is refused saying {string}",
+  async function (this: OlaiWorld, said: string) {
+    const refusal = this.page.locator(NEW_OUTLINE_SAID);
+    await refusal.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const text = oneLine(await refusal.innerText());
+    assert.ok(
+      text.includes(said),
+      `the refusal reads ${JSON.stringify(text)}, which does not say ` +
+        `${JSON.stringify(said)}`,
+    );
+  },
+);
+
+Then("the new outline box is gone", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(NEW_OUTLINE_PATH).count()) === 0,
+    "the new outline box to be put away",
+  );
+});

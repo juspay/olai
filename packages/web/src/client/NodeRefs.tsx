@@ -9,8 +9,10 @@
  * disagreeing about the touch target, the wrap, or which element carries the
  * target id, with both still compiling and one browser test noticing.
  *
- * The LABEL and the container's testid are the caller's, because which relation
- * this is is exactly what differs; everything else — a link per target, the
+ * The LABEL, the container's testid and WHETHER A TARGET CAN BE DROPPED are
+ * the caller's, because which relation this is is exactly what differs — and
+ * one of them is derived, so an `×` there would name no single edge
+ * ({@link NodeRefs.onRemove}); everything else — a link per target, the
  * target's title as its text (via {@link NodeTitle}, so markdown and tags
  * match a tree row), `data-ref` carrying the id it opens — is the same claim
  * whichever edge produced it. Titles change under a live page and ids do not,
@@ -46,6 +48,20 @@ export function NodeRefs(props: {
   readonly refs: ReadonlyArray<NodeRef>
   /** What the whole row is, for the browser tests: `see-refs`, `blocked`. */
   readonly testid: TestId
+  /**
+   * Drop this target from the node's list — an `×` beside each link, and the
+   * removal half of `parity-see` / `parity-after`.
+   *
+   * ABSENT is read-only, and that is a claim about the ROW rather than about
+   * the reader: `blocked by` is DERIVED (`../Blocked.tsx`) — part of it can be
+   * a `blocks` written on somebody else's record — so there is no single edge
+   * an `×` there would name, and offering one would be an affordance that
+   * silently did nothing for half the pills in it. What a person may remove is
+   * what THIS node declares, which is what the `see` and `after` rows draw.
+   * A read-only page (a day, the agenda) passes nothing for the same reason its
+   * titles do not open an editor.
+   */
+  readonly onRemove?: (id: string) => void
 }) {
   return (
     <Show when={props.refs.length > 0}>
@@ -61,15 +77,41 @@ export function NodeRefs(props: {
             updating. Keyed by the id, which is what a ref IS. */}
         <Key each={props.refs} by="id">
           {(ref) => (
-            <NodeRefLink to={ref()} class={REF} testid={TESTID.nodeRef}>
-              {/* links=false: already inside Link — a markdown [a](url) in the
-                  title must not nest a second <a>. */}
-              <NodeTitle
-                title={ref().title}
-                from={ref().from}
-                links={false}
-              />
-            </NodeRefLink>
+            <span class="inline-flex items-baseline gap-0.5">
+              <NodeRefLink to={ref()} class={REF} testid={TESTID.nodeRef}>
+                {/* links=false: already inside Link — a markdown [a](url) in
+                    the title must not nest a second <a>. */}
+                <NodeTitle
+                  title={ref().title}
+                  from={ref().from}
+                  links={false}
+                />
+              </NodeRefLink>
+              {/* OUTSIDE the link, never inside it: a control nested in an
+                  anchor is a press that also navigates on every engine that
+                  has ever shipped, and the two mean opposite things here. */}
+              <Show when={props.onRemove}>
+                {(remove) => (
+                  <button
+                    type="button"
+                    class="cursor-pointer border-0 bg-transparent p-0 text-xs leading-none text-muted hover:text-alarm"
+                    data-testid={TESTID.refDrop}
+                    data-ref={ref().id}
+                    aria-label={`stop this node's \`${props.label}\` naming ${ref().title}`}
+                    title={`remove ${ref().title}`}
+                    onClick={(event) => {
+                      // The row it hangs off is a link and, in a tree, a row
+                      // that opens an editor on a click. This press is neither.
+                      event.preventDefault()
+                      event.stopPropagation()
+                      remove()(ref().id)
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </Show>
+            </span>
           )}
         </Key>
       </div>
