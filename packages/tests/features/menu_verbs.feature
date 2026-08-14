@@ -220,3 +220,25 @@ Feature: The ••• menu writes
     When I open the node menu of "kitchen"
     And I choose "Copy as text" from the node menu
     Then the node menu of "kitchen" says "couldn't copy as text"
+
+  Scenario: A copy that LANDED says so too
+    # The other half of the scenario above, and the reason it is worth a
+    # scenario of its own: the clipboard is the one destination outside this
+    # app, so a copy that worked and a copy that never happened draw exactly
+    # the same outline. Saying only when it FAILS leaves the ordinary case
+    # indistinguishable from a click that missed the entry — the menu shuts
+    # either way. The `aside` tone is asserted by the step, which is what keeps
+    # a remark from arriving dressed as a refusal.
+    Given this browser's clipboard records what is copied
+    When I open the node menu of "kitchen"
+    And I choose "Copy link to node" from the node menu
+    Then the node menu of "kitchen" remarks "link copied"
+
+  Scenario: ...and so does the other copy, in the same words
+    # Two clipboard verbs, one sentence shape (`actions.ts`'s `copied`): a
+    # second one that stayed silent would be the inconsistency the first was
+    # fixed for.
+    Given this browser's clipboard records what is copied
+    When I open the node menu of "install"
+    And I choose "Copy as text" from the node menu
+    Then the node menu of "install" remarks "text copied"
