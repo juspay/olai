@@ -25,6 +25,14 @@
  * makes that true by construction rather than by a guard: what is left is still
  * a tree (removing whole subtrees from a drawn tree leaves one), so the walk
  * back for an ancestor below always finds one.
+ *
+ * AND THE DRAWN TREE IS NOT THE PLACEMENT TREE, which is the other half and the
+ * one that is easy to miss: a mirror is drawn with children that are not its
+ * own, and its own record may not be a parent at all. That is not a fence bolted
+ * on here — it is {@link Placed.into} on each row, decided where the rows are
+ * measured, so the indicator cannot promise a landing the release would be
+ * refused. An excluded row and an unreachable depth are the same statement made
+ * twice: a place the write could not go is a place the pointer cannot ask for.
  */
 
 /** One row the drop can land beside, as measured on screen. */
@@ -35,6 +43,26 @@ export interface Placed {
   readonly id: string
   /** The record it sits under, `null` at the top level of the page. */
   readonly parent: string | null
+  /**
+   * The node to name as the PARENT when a drop goes inside this row — and
+   * `null` when nothing may hang under it here, which is the whole of what
+   * this field exists for.
+   *
+   * THE DRAWN TREE IS NOT THE PLACEMENT TREE, and a mirror is where the two
+   * come apart. A placement has no children of its own: what hangs under it on
+   * screen belongs to the node it shows, so naming the mirror's own record as a
+   * parent is a request the ops layer always refuses (the format's
+   * `parent-not-a-node`). The keyboard has always known this — `move in`
+   * resolves the row above through `nodeNamed` and emits the SHOWN node
+   * (`server/src/edit.ts`) — and this is that same rule, read one step earlier
+   * so the indicator never promises a landing the release would be refused.
+   *
+   * It is `null` rather than the shown node whenever that node is in another
+   * FILE (a parent is same-file by the format) or the row draws no node at all
+   * (a chain that died, one that closed a loop). A mirror of a node in this
+   * same file is a legal parent and says so.
+   */
+  readonly into: string | null
   /** How far in it is drawn, counted from the roots of this page. */
   readonly depth: number
   readonly top: number
@@ -119,10 +147,15 @@ const gapAt = (rows: ReadonlyArray<Placed>, y: number): number =>
  *
  * The deepest is one INSIDE the row above — a drop there is "become its first
  * child", which is the only way a pointer can reach a branch that is empty or
- * collapsed. The shallowest is the depth of the row BELOW, because anything
- * shallower would draw a line above rows that are already deeper than it and
- * promise a shape the tree cannot hold. At the end of the list there is no row
- * below, so the top level is reachable.
+ * collapsed. UNLESS nothing may hang under that row here ({@link Placed.into}),
+ * and then the deepest is its own level: a mirror is a line you may drop
+ * BESIDE, never a line you may drop INTO, and the pointer simply cannot ask for
+ * the depth that would say otherwise.
+ *
+ * The shallowest is the depth of the row BELOW, because anything shallower
+ * would draw a line above rows that are already deeper than it and promise a
+ * shape the tree cannot hold. At the end of the list there is no row below, so
+ * the top level is reachable.
  */
 const depthsAt = (
   rows: ReadonlyArray<Placed>,
@@ -130,7 +163,9 @@ const depthsAt = (
 ): { readonly min: number; readonly max: number } => {
   const above = rows[gap - 1]
   const below = rows[gap]
-  const max = above === undefined ? below?.depth ?? 0 : above.depth + 1
+  const max = above === undefined
+    ? below?.depth ?? 0
+    : above.depth + (above.into === null ? 0 : 1)
   const min = below?.depth ?? 0
   return { min: Math.min(min, max), max }
 }
@@ -177,8 +212,12 @@ const dropAt = (
       ? null
       : { parent: below.parent, after: null, gap, depth: below.depth }
   }
-  if (depth > above.depth) {
-    return { parent: above.id, after: null, gap, depth: above.depth + 1 }
+  // The NODE it goes under, which for a mirror of a same-file node is the node
+  // rather than the placement — the rule `move in` follows. `into` is `null`
+  // exactly where the depth above is unreachable, so this is the same condition
+  // read twice rather than a second policy.
+  if (depth > above.depth && above.into !== null) {
+    return { parent: above.into, after: null, gap, depth: above.depth + 1 }
   }
   for (let at = gap - 1; at >= 0; at--) {
     const row = rows[at]

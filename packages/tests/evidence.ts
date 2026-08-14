@@ -37,7 +37,8 @@ const parentOf = async (page: Page, id: string) =>
     el.parentElement?.closest("[data-node-id]")?.getAttribute("data-node-id") ?? "(top)"
   )
 
-const at = async (locator: Locator) => {
+/** The box of something on screen, or a throw naming that it is not laid out. */
+const boxOf = async (locator: Locator) => {
   const box = await locator.boundingBox()
   if (box === null) throw new Error("nothing to aim at")
   return box
@@ -45,7 +46,7 @@ const at = async (locator: Locator) => {
 
 /** Press the bullet and travel to a point, without letting go. */
 const carry = async (page: Page, from: string, x: number, y: number) => {
-  const box = await at(page.locator(from))
+  const box = await boxOf(page.locator(from))
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
   await page.mouse.down()
   await page.mouse.move(x, y, { steps: 12 })
@@ -74,7 +75,7 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
   "drag-to-reorder": async (page) => {
     console.log(`  before: ${await order(page)}`)
     await shot(page, "outline")
-    const above = await at(page.locator(title("handles")))
+    const above = await boxOf(page.locator(title("handles")))
     await carry(page, handle("knobs"), above.x + 4, above.y - 2)
     console.log(`  the line promises: ${await promised(page)}`)
     await shot(page, "dragging")
@@ -85,7 +86,7 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
   },
 
   "drag-into-a-branch": async (page) => {
-    const under = await at(page.locator(title("order")))
+    const under = await boxOf(page.locator(title("order")))
     await carry(page, handle("install"), under.x + 40, under.y + under.height + 2)
     console.log(`  the line promises: ${await promised(page)}`)
     await shot(page, "dragging")
@@ -94,6 +95,19 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     console.log(`  install sits under ${await parentOf(page, "install")}, and took its children:`)
     console.log(`    handles under ${await parentOf(page, "handles")}`)
     await shot(page, "reparented")
+  },
+
+  "a-mirror-is-not-a-parent": async (page) => {
+    // The drawn tree is not the placement tree: a placement has no children of
+    // its own, so it is a line to drop BESIDE and never one to drop INTO.
+    const box = await boxOf(page.locator(title("kitchen-herbs")))
+    await carry(page, handle("knobs"), box.x + box.width, box.y + box.height + 2)
+    console.log(`  held as far in as it goes: ${await promised(page)}`)
+    await shot(page, "far-inside-a-mirror")
+    await page.mouse.up()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  knobs sits under ${await parentOf(page, "knobs")}`)
+    await shot(page, "beside-it")
   },
 
   "pick-a-run": async (page) => {
@@ -137,7 +151,7 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
   "drag-a-pick": async (page) => {
     await pick(page, "hinges", "knobs")
     console.log(`  picked: ${await picked(page)}`)
-    const front = await at(page.locator(title("handles")))
+    const front = await boxOf(page.locator(title("handles")))
     await carry(page, handle("knobs"), front.x + 4, front.y - 2)
     console.log(`  in the air: ${await page.locator('[data-carried="true"]').count()}`)
     console.log(`  the line promises: ${await promised(page)}`)

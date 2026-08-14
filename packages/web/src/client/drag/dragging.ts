@@ -118,31 +118,59 @@ export const createDragging = (
   let travelled = false
 
   /**
-   * Every row a drop may land beside, measured — which is every drawn row
-   * except the ones being carried and everything under them.
+   * Every row a drop may land beside, measured.
    *
-   * Leaving those out is what makes "you cannot drop a branch inside itself"
-   * true by construction rather than by a guard, and it leaves a tree behind:
-   * removing whole subtrees from a drawn tree leaves one, so the planner's walk
-   * back for an ancestor always finds a row.
+   * TWO THINGS ARE LEFT OUT, and they are the same kind of fact: a place the
+   * write could not go.
+   *
+   *   - **The rows being carried, and everything under them.** What makes "you
+   *     cannot drop a branch inside itself" true by construction rather than by
+   *     a guard — and it leaves a tree behind, since removing whole subtrees
+   *     from a drawn tree leaves one, so the planner's walk back for an ancestor
+   *     always finds a row.
+   *   - **Every row of another FILE.** An outline is an independent tree and a
+   *     parent is same-file by the format, so a row from `house.jsonl` has no
+   *     landing among the rows a mirror of `garden.jsonl` expands — they are
+   *     drawn in this tree and they are records of that one. Dropping between
+   *     two of them would name a parent in the wrong file and be refused after
+   *     the line had promised it (review, 2026-08-14).
+   *
+   * Read the second one the other way round and it is a FEATURE rather than a
+   * fence: dragging one of a mirror's expanded children measures the rows of
+   * ITS file, which are exactly its real siblings — so reordering a node inside
+   * a mirror works, and lands in the file that node lives in.
+   *
+   * What may be dropped INTO is the other half, and it rides on each row
+   * ({@link Placed.into}).
    */
-  const measure = (carried: ReadonlySet<string>): ReadonlyArray<Placed> => {
+  const measure = (carried: ReadonlyArray<Row>): ReadonlyArray<Placed> => {
     const lines = new Map<string, Element>()
     for (const line of document.querySelectorAll(`[${ROW_KEY}]`)) {
       const key = line.getAttribute(ROW_KEY)
       if (key !== null) lines.set(key, line)
     }
+    const keys = new Set(carried.map((one) => one.key))
+    // The file the drag is ABOUT — the carried rows', not the page's, which is
+    // what makes a mirror's children draggable among themselves. A pick that
+    // spans two files has no one answer; the rows of the other file are then
+    // left out, and the ops layer refuses them by name on the bar, which is the
+    // same way every other half-legal run ends here.
+    const file = carried[0]?.at.file
     const scrollX = window.scrollX
     const scrollY = window.scrollY
     return flatten(page.rows(), page.collapsed()).flatMap((row): ReadonlyArray<Placed> => {
-      if (beneath(carried, row.key)) return []
+      if (row.at.file !== file || beneath(keys, row.key)) return []
       const line = lines.get(row.key)
       if (line === undefined) return []
       const box = line.getBoundingClientRect()
+      const shows = row.kind === "node" || row.kind === "mirror" ? row.shows : undefined
       return [{
         key: row.key,
         id: row.at.node.id,
         parent: row.at.node.parent ?? null,
+        // A placement is not a parent; the node it SHOWS is, and only when that
+        // node is in this file. Same rule, same reason, as `move in`'s.
+        into: shows !== undefined && shows.file === file ? shows.node.id : null,
         depth: depthOf(row.key),
         top: box.top + scrollY,
         bottom: box.bottom + scrollY,
@@ -170,9 +198,8 @@ export const createDragging = (
         const picked = page.selection.keys()
         carried = picked.has(row.key) ? page.selection.rows() : [row]
         if (!picked.has(row.key)) page.selection.clear()
-        const keys = new Set(carried.map((one) => one.key))
-        setMoving(keys)
-        placed = measure(keys)
+        setMoving(new Set(carried.map((one) => one.key)))
+        placed = measure(carried)
       },
       onMove: (move) => setLanding(planDrop(placed, move.pageX, move.pageY)),
       onEnd: (up) => {

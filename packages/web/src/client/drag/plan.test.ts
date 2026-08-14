@@ -11,16 +11,24 @@ const placed = (
   parent: string | null,
   depth: number,
   at: number,
-): Placed => ({
-  key,
-  id: key.slice(key.lastIndexOf("/") + 1),
-  parent,
-  depth,
-  top: at * 20,
-  bottom: at * 20 + 20,
-  left: 100 + depth * 32,
-  right: 600,
-})
+  /** What a drop INSIDE this row names — the row's own id for an ordinary node
+   *  (the default), the node it shows for a same-file mirror, and `null` for a
+   *  row nothing may hang under here. */
+  into?: string | null,
+): Placed => {
+  const id = key.slice(key.lastIndexOf("/") + 1)
+  return {
+    key,
+    id,
+    parent,
+    into: into === undefined ? id : into,
+    depth,
+    top: at * 20,
+    bottom: at * 20 + 20,
+    left: 100 + depth * 32,
+    right: 600,
+  }
+}
 
 //   a          y 0–20    x 100
 //   ├ a1        20–40      132
@@ -84,6 +92,38 @@ test("the line is drawn along the gap and offset to the depth it promises", () =
   // The same gap, asked at the top level (which that gap does not offer) —
   // proving the line follows the ANSWER rather than the pointer.
   expect(planDrop(rows, 0, 95)).toMatchObject({ top: 100, left: 100 })
+})
+
+test("a row nothing may hang under is a line to drop BESIDE, never INTO", () => {
+  // A mirror: the drawn tree says it has children, the placement tree says it
+  // has none of its own — so naming it as a parent is a request the ops layer
+  // always refuses. The pointer cannot ask for it: the depth that would say so
+  // is not in the gap's range, however far right it goes.
+  //
+  //   a
+  //   m   ← a mirror of something in another file
+  //   b
+  const withMirror: ReadonlyArray<Placed> = [
+    placed("/a", null, 0, 0),
+    placed("/m", null, 0, 1, null),
+    placed("/b", null, 0, 2),
+  ]
+  expect(asked(900, 45, withMirror)).toBe("under (top) after m at depth 0")
+  // ...where an ordinary row in the same place offers exactly that depth.
+  expect(asked(900, 45, [placed("/a", null, 0, 0), placed("/m", null, 0, 1), placed("/b", null, 0, 2)]))
+    .toBe("under m after (first) at depth 1")
+})
+
+test("a mirror of a node in THIS file is a parent, and it is the node that is named", () => {
+  // The rule `move in` follows: the row above is a placement, the parent an
+  // agent would name is the node it shows. Same file, so it is legal — and the
+  // id that crosses is `herbs`, never the placement's own.
+  const sameFile: ReadonlyArray<Placed> = [
+    placed("/a", null, 0, 0),
+    placed("/kitchen-herbs", null, 0, 1, "herbs"),
+    placed("/b", null, 0, 2),
+  ]
+  expect(asked(900, 45, sameFile)).toBe("under herbs after (first) at depth 1")
 })
 
 test("the indent is read off the rows, and falls back when the page has one depth", () => {

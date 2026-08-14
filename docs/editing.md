@@ -94,20 +94,20 @@ already narrower for the same kind of reason.
 
 ## Picking several rows
 
-Everything above works on more than one row at a time. Five ways to pick them,
-which are Workflowy's:
+Everything above works on more than one row at a time. Four ways to pick them —
+Workflowy's, minus the fifth (dragging across rows), which is not built:
 
 | | |
 |---|---|
 | **⌘-click** / **Ctrl-click** a title | add a row to the pick, or take it out |
 | **Shift-click** a title | pick everything between |
 | **Shift+↑ / Shift+↓** from a caret | leave the caret and start picking |
-| **⌘A / Ctrl+A** twice in a row | the line, then the row and the ones beside it |
-| **⌘A / Ctrl+A** again | widen to the whole page |
+| **⌘A / Ctrl+A** twice in a row | the line, then the row and the ones beside it — and again to widen to the page |
 
 A pick and a caret are never both live: picking rows puts the caret away, and
-clicking into a title puts the pick away. That is what lets the keys stay the
-keys you already know — over a pick they mean the same thing, several times:
+putting a caret anywhere — a title, a note, a new line — puts the pick away. That
+is what lets the keys stay the keys you already know: over a pick they mean the
+same thing, several times.
 
 | | |
 |---|---|

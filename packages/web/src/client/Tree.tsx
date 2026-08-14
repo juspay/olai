@@ -224,10 +224,14 @@ function Branch(props: {
    * A click on the title: the caret, or the pick.
    *
    * Workflowy's modifiers, and the split is the whole of what a modifier means
-   * here — a plain click is about the TEXT in this row (so it puts the caret in
-   * it and puts any pick away), and a modified one is about the ROW as a thing
-   * to do something to. Shift extends from where the pick was started; ⌘ / Ctrl
-   * adds this row or takes it back out.
+   * here — a plain click is about the TEXT in this row, and a modified one is
+   * about the ROW as a thing to do something to. Shift extends from where the
+   * pick was started; ⌘ / Ctrl adds this row or takes it back out.
+   *
+   * The plain click just OPENS. Putting the pick away is the editor's, in the
+   * one place every caret comes from (`./edit/editing.tsx`'s `open`), because a
+   * rule spelled at the call sites is a rule the next door forgets — and the
+   * note's did.
    */
   const clickTitle = (event: MouseEvent) => {
     if (event.shiftKey) {
@@ -238,7 +242,6 @@ function Branch(props: {
       selection.toggle(props.row.key)
       return
     }
-    selection.clear()
     editor.open(props.row, "title")
   }
 

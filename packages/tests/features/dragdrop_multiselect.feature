@@ -47,6 +47,35 @@ Feature: Dragging rows, and picking several
     And the node "handles" is a child of "install"
     And the node "knobs" is a child of "install"
 
+  Scenario: A mirror is a line to drop BESIDE, never one to drop INTO
+    # The drawn tree is not the placement tree. A placement has no children of
+    # its own — what hangs under it belongs to the node it shows — so naming its
+    # record as a parent is a request the ops layer always refuses. The pointer
+    # cannot ask for it: held as far right as it goes, the line still promises
+    # the level the mirror is drawn at, and the drop lands beside it.
+    When I pick up the bullet of "knobs" and hold it far inside the title of "kitchen-herbs"
+    Then the drop line would put it under "kitchen"
+    And the drop line would put it after "kitchen-herbs"
+    When I let go
+    Then the node "knobs" is a child of "kitchen"
+    And nothing is said about the pick
+    And there should be no page errors
+
+  Scenario: A mirror's own children are not places for THIS file's rows
+    # Those rows are records of another outline, drawn here because a mirror
+    # expands. A parent is same-file by the format, so there is no landing for a
+    # `house.jsonl` row among them — they are not candidates at all, so a
+    # pointer held over one lands beside the MIRROR, in this file, where the
+    # write can actually go.
+    When I pick up the bullet of "knobs" and hold it above the title of "mint"
+    Then the drop line would put it under "kitchen"
+    And the drop line would put it after "kitchen-herbs"
+    When I let go
+    Then the node "knobs" is a child of "kitchen"
+    And "house.jsonl" holds the node "knobs"
+    And nothing is said about the pick
+    And there should be no page errors
+
   Scenario: A branch is never offered a place inside itself
     # Not a guard but a construction: the rows being carried are left out of the
     # ones a drop can land beside, so there is no gesture that asks the ops
@@ -110,6 +139,17 @@ Feature: Dragging rows, and picking several
     And I press "Escape"
     Then no rows are picked
 
+  Scenario: Clicking a NOTE puts the pick away too
+    # The invariant is "a caret or a pick, never both", and it is what lets the
+    # bulk keys be the row keys. The title honoured it and the note did not, so
+    # a caret could sit in a textarea — where `Tab` is the field's — while the
+    # bar still claimed rows were picked.
+    When I pick the title of "handles"
+    And I click the note of "order"
+    And I click the note of "order"
+    Then the note of "order" is being typed
+    And no rows are picked
+
   # ── what a pick answers to ───────────────────────────────────────────
 
   Scenario: Ctrl+Enter ticks off every row in the pick
@@ -161,6 +201,40 @@ Feature: Dragging rows, and picking several
     Then the pick says "no row above it"
     And the node "handles" is a child of "install"
 
+  # ── taking one back ──────────────────────────────────────────────────
+
+  Scenario: One gesture, N inverses — ⌘Z walks a bulk indent back a row at a time
+    # A bulk verb is the single-row op repeated, so what it leaves on the undo
+    # stack is N entries rather than one. That is the same thing MCP leaves
+    # behind for the same work, and it is the honest consequence of "exactly as
+    # if the key had been pressed once per row" — including that ONE ⌘Z leaves
+    # the half-indent the refusal path refuses to leave. Pinned rather than
+    # described, because a reader will otherwise expect one press to undo one
+    # gesture.
+    When I pick the title of "hinges"
+    And I shift-click the title of "knobs"
+    And I press "Tab"
+    Then the node "hinges" is a child of "handles"
+    And the node "knobs" is a child of "handles"
+    When I press "ControlOrMeta+z"
+    Then the node "knobs" is a child of "install"
+    And the node "hinges" is a child of "handles"
+    When I press "ControlOrMeta+z"
+    Then the node "hinges" is a child of "install"
+    And the node "hinges" comes before "knobs"
+
+  Scenario: …and back a row at a time after a drop of two
+    When I pick the title of "hinges"
+    And I shift-click the title of "knobs"
+    And I drag the bullet of "knobs" above the title of "handles"
+    Then the node "hinges" comes before "handles"
+    And the node "knobs" comes before "handles"
+    When I press "ControlOrMeta+z"
+    And I press "ControlOrMeta+z"
+    Then the node "handles" comes before "hinges"
+    And the node "hinges" comes before "knobs"
+    And there should be no page errors
+
   # ── the one verb with no key ─────────────────────────────────────────
 
   Scenario: Move to Trash asks first, and names how much goes
@@ -172,6 +246,28 @@ Feature: Dragging rows, and picking several
     Then the node "install" is not shown
     And "Archive.jsonl" holds the node "install"
     And "Archive.jsonl" holds the node "knobs"
+
+  Scenario: The question does not outlive the rows it is about
+    # `asking` is a signal on a bar that is always mounted, so putting the pick
+    # away used to leave the confirm armed: the next pick opened already asking,
+    # and a second press of the button that OPENED the question last time
+    # archived instead.
+    When I pick the title of "install"
+    And I press the Trash
+    Then the question names "3 rows under it"
+    When I press "Escape"
+    And I pick the title of "install"
+    Then the pick offers the Trash
+    And the pick is not asking anything
+    # ...and changing the pick while it IS asking resets it too, because that is
+    # a different question about a different subtree.
+    When I press "Escape"
+    And I pick the title of "handles"
+    And I press the Trash
+    Then the question names "this row"
+    When I shift-click the title of "knobs"
+    Then the pick is not asking anything
+    And 3 rows are picked
 
   Scenario: A placement in the pick is said out loud rather than skipped
     # The node a mirror shows lives in another file, so this face will not put

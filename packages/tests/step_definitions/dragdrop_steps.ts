@@ -25,7 +25,7 @@ import * as assert from "node:assert";
 
 import { Then, When } from "@cucumber/cucumber";
 
-import { saysThat } from "../support/said.ts";
+import { saysNothing, saysThat } from "../support/said.ts";
 import {
   DRAG_HANDLE,
   DROP_LINE,
@@ -81,6 +81,14 @@ const insideTitle = async (world: OlaiWorld, id: string) => {
   return { x: box.x + ONE_STEP, y: box.y + box.height + 2 };
 };
 
+/** The same gap, asked for as far in as the pointer can reach. What the client
+ *  answers is then the deepest the gap ALLOWS, which is the assertion for a row
+ *  nothing may hang under. */
+const farInside = async (world: OlaiWorld, id: string) => {
+  const box = await world.box(world.nodeTitle(id), `the title of "${id}"`);
+  return { x: box.x + box.width, y: box.y + box.height + 2 };
+};
+
 // ── dragging ───────────────────────────────────────────────────────────
 
 When(
@@ -95,6 +103,14 @@ When(
   "I pick up the bullet of {string} and hold it one step in under the title of {string}",
   async function (this: OlaiWorld, id: string, under: string) {
     const at = await insideTitle(this, under);
+    await carry(this, id, at.x, at.y);
+  },
+);
+
+When(
+  "I pick up the bullet of {string} and hold it far inside the title of {string}",
+  async function (this: OlaiWorld, id: string, under: string) {
+    const at = await farInside(this, under);
     await carry(this, id, at.x, at.y);
   },
 );
@@ -132,6 +148,13 @@ Then(
   "the drop line would put it under {string}",
   async function (this: OlaiWorld, parent: string) {
     await this.expectAttribute(DROP_LINE, "data-parent", parent, "the drop line");
+  },
+);
+
+Then(
+  "the drop line would put it after {string}",
+  async function (this: OlaiWorld, sibling: string) {
+    await this.expectAttribute(DROP_LINE, "data-after", sibling, "the drop line");
   },
 );
 
@@ -218,6 +241,23 @@ Then("the pick says {string}", async function (this: OlaiWorld, said: string) {
 
 Then("the pick notes {string}", async function (this: OlaiWorld, said: string) {
   await saysThat(this, SELECTION_NOTE, said, "pick");
+});
+
+Then("nothing is said about the pick", async function (this: OlaiWorld) {
+  await saysNothing(
+    this,
+    [SELECTION_SAID],
+    "the pick to have nothing said about it",
+  );
+});
+
+Then("the pick is not asking anything", async function (this: OlaiWorld) {
+  // The confirm is about the rows it was opened over, so it must not outlive
+  // them — the bar is always mounted, and only its `Show` goes away.
+  await this.waitUntil(
+    async () => (await this.page.locator(SELECTION_CONFIRM).count()) === 0,
+    "the Trash question to have been put away with its rows",
+  );
 });
 
 // ── the Trash ──────────────────────────────────────────────────────────

@@ -169,12 +169,21 @@ export const createEditor = (
     readonly rows: Accessor<ReadonlyArray<Row>>
     readonly collapsed: Accessor<ReadonlySet<string>>
   },
-  /** The page's multi-selection, for the three keys that LEAVE the caret and
-   *  pick rows instead (`../select/selection.ts`). Handed in rather than read
-   *  from a context, because the two are created together by the same page and
-   *  the order between them is what makes "a caret or a pick, never both" a
-   *  fact about this file rather than a habit. */
-  selection: Pick<Selection, "start" | "grow" | "widen">,
+  /**
+   * The page's multi-selection (`../select/selection.ts`). Handed in rather
+   * than read from a context, because the two are created together by the same
+   * page and the order between them is what makes "a caret or a pick, never
+   * both" a fact about this file rather than a habit.
+   *
+   * FOUR VERBS, and `clear` is the load-bearing one: every way a caret OPENS
+   * goes through {@link Editor.open} or {@link Editor.start}, so putting the
+   * pick away there is the whole of the invariant — where doing it at the call
+   * sites is a rule each new one has to remember. It was a rule, and the note
+   * forgot it (review, 2026-08-14): clicking a note opened a caret with the
+   * pick still live, which left `Tab` claimed by the field while the bar said
+   * rows were picked.
+   */
+  selection: Pick<Selection, "start" | "grow" | "widen" | "clear">,
 ): Editor => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [caret, setCaret] = createSignal(0)
@@ -508,6 +517,12 @@ export const createEditor = (
     open: (at, field) => {
       const next = opened(at, field)
       if (next === null) return
+      // A caret arriving puts the pick away, and it happens HERE rather than at
+      // the click that asked, so no later door can forget it. Synchronously,
+      // ahead of the queue: the bar and the window key listener are the pick's,
+      // and leaving them up while a commit is in flight would be exactly the
+      // state this invariant exists to make unreachable.
+      selection.clear()
       enqueue(async () => {
         // Whatever was being typed is committed on the way out, and a REFUSAL
         // stops the move: the row that would not save is the row to stay in,
@@ -557,6 +572,7 @@ export const createEditor = (
     },
     press: (action) => ACTIONS[action](),
     start: (at) => {
+      selection.clear()
       idle.clear()
       setDraft({ kind: "new", at, text: "" })
     },
