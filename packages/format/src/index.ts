@@ -81,6 +81,8 @@ export {
   rowsUnder,
   siblingsOf,
   storedMarker,
+  TAG_SIGILS,
+  tagText,
   titleParts,
   titleTagRe,
   unfinishedUnder,
@@ -93,6 +95,7 @@ export type {
   Row,
   Situated,
   Status,
+  TagSigil,
   TitlePart,
 } from "./derive.ts"
 export { zoom } from "./zoom.ts"

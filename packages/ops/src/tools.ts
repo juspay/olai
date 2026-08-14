@@ -254,7 +254,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   read(
     "read_node",
     "Read a node",
-    "One node in full: its record, its `#tags`, its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more. Its edges come too when it has them — `see` and `after`, the ids `set_see` / `set_after` take.\n\nTHIS IS ALSO WHERE MIRRORS ARE FOUND, and it is the only place: a placement is not a node, so a search never returns one and `children` never lists one. Ask the node instead. `mirrors` is every placement OF this node — where else it is drawn, chains followed — and each entry's `id` is what `remove_mirror` takes, so a Now entry is retired by reading the ITEM that finished. `placed` is the other half: the placements UNDER this node, each with the node it shows — which is how you read a curated list (\"what is on Now?\") without knowing in advance what is on it.",
+    "One node in full: its record, its tags (`#topic` and `@person`, reported as written), its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more. Its edges come too when it has them — `see` and `after`, the ids `set_see` / `set_after` take.\n\nTHIS IS ALSO WHERE MIRRORS ARE FOUND, and it is the only place: a placement is not a node, so a search never returns one and `children` never lists one. Ask the node instead. `mirrors` is every placement OF this node — where else it is drawn, chains followed — and each entry's `id` is what `remove_mirror` takes, so a Now entry is retired by reading the ITEM that finished. `placed` is the other half: the placements UNDER this node, each with the node it shows — which is how you read a curated list (\"what is on Now?\") without knowing in advance what is on it.",
     NodeArgs,
     (at, args: typeof NodeArgs.Type) =>
       Query.detail(at.derived, args.id) ?? { missing: args.id },
@@ -290,7 +290,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "set_title",
     "Retitle a node",
-    "Replace a node's title. Inline `#tags` live in the title, so this is also how a tag is added or removed.",
+    "Replace a node's title. Inline tags live in the title — `#topic` and `@person` — so this is also how a tag is added or removed.",
     TitleRequest,
     { op: "title" },
   ),

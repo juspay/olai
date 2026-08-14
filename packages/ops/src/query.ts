@@ -34,6 +34,8 @@ import {
   type Progress,
   progressOf,
   type Status,
+  TAG_SIGILS,
+  tagText,
   titleParts,
 } from "@olai/format"
 
@@ -300,12 +302,20 @@ export const search = (
     const fields: Record<Field, ReadonlyArray<string>> = {
       title: [node.title.toLowerCase()],
       id: [node.id.toLowerCase()],
-      // Guarded by a plain `indexOf`: `titleParts` runs a global regex and
-      // allocates a part per segment, and most titles hold no tag at all. The
-      // semantics are identical — it only ever yields a tag after a `#`.
-      tag: node.title.includes("#")
+      // Guarded by a plain `indexOf` per sigil: `titleParts` runs a global
+      // regex and allocates a part per segment, and most titles hold no tag at
+      // all. The semantics are identical — it only ever yields a tag after one
+      // of them.
+      //
+      // TWO HAYSTACKS PER TAG, the bare name and the name as written, so
+      // `alice` finds `@alice` with the full start-of-field bonus and `@alice`
+      // finds only the one with that sigil. A single written form would have
+      // demoted every bare-word tag search by a character.
+      tag: TAG_SIGILS.some((sigil) => node.title.includes(sigil))
         ? titleParts(node.title).flatMap((part) =>
-          part.kind === "tag" ? [part.tag.toLowerCase()] : []
+          part.kind === "tag"
+            ? [part.tag.toLowerCase(), tagText(part).toLowerCase()]
+            : []
         )
         : [],
       desc: node.desc === undefined ? [] : [node.desc.toLowerCase()],
@@ -373,8 +383,11 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     ...(node.date === undefined ? {} : { date: node.date }),
     ...(node.desc === undefined ? {} : { desc: node.desc }),
     ...stampsOf(node),
+    // AS WRITTEN, sigil and all: `#alice` and `@alice` are two tags, so a list
+    // that dropped the character that started them could not tell a reader
+    // which one this node carries.
     tags: titleParts(node.title).flatMap((part) =>
-      part.kind === "tag" ? [part.tag] : []
+      part.kind === "tag" ? [tagText(part)] : []
     ),
     ...(progress === undefined ? {} : { progress }),
     children: countedChildren(derived, id).map((child) => foundOf(derived, child)),

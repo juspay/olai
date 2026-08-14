@@ -11,6 +11,8 @@ import {
   situate,
   type Status,
   storedMarker,
+  TAG_SIGILS,
+  tagText,
   titleParts,
   titleTagRe,
   unfinishedUnder,
@@ -804,10 +806,12 @@ test("hiding leaves the rows it was given alone", () => {
 
 // ── titles ─────────────────────────────────────────────────────────────
 
-/** The tags of a title, in reading order — what a filter runs on, assembled
- *  from the parts because the format stores no tag list. */
+/** The tags of a title AS WRITTEN, in reading order — what a filter runs on,
+ *  assembled from the parts because the format stores no tag list. The sigil
+ *  comes with them: `#alice` and `@alice` are two tags, so a list that dropped
+ *  it would be a list that cannot tell them apart. */
 const tags = (title: string): ReadonlyArray<string> =>
-  titleParts(title).flatMap((part) => (part.kind === "tag" ? [part.tag] : []))
+  titleParts(title).flatMap((part) => (part.kind === "tag" ? [tagText(part)] : []))
 
 // Tags live inline in the title verbatim — the format stores no tag list — so
 // the split is what the view renders, and it has to keep the text intact.
@@ -815,29 +819,63 @@ test("a title splits into text and tags, and rejoins to itself", () => {
   const parts = titleParts("call #alice about #work/olai now")
   expect(parts).toEqual([
     { kind: "text", text: "call " },
-    { kind: "tag", tag: "alice" },
+    { kind: "tag", sigil: "#", tag: "alice" },
     { kind: "text", text: " about " },
     // A `/` is part of the tag, so `#work/olai` is one tag and not two.
-    { kind: "tag", tag: "work/olai" },
+    { kind: "tag", sigil: "#", tag: "work/olai" },
     { kind: "text", text: " now" },
   ])
   expect(
-    parts.map((part) => (part.kind === "tag" ? `#${part.tag}` : part.text)).join(""),
+    parts.map((part) => (part.kind === "tag" ? tagText(part) : part.text)).join(""),
   ).toBe("call #alice about #work/olai now")
 })
 
-// A bare `#` is punctuation people write ("issue #, see below"); treating it as
-// an empty tag would style the rest of the line as one.
-test("a bare hash is text", () => {
+// The second sigil, and it rejoins to itself for the same reason: what a part
+// list is FOR is drawing the title back, so the character that started a tag
+// travels with it rather than being assumed to be a `#`.
+test("an @tag is a tag, and the sigil comes back out with it", () => {
+  const parts = titleParts("ask @alice about #work")
+  expect(parts).toEqual([
+    { kind: "text", text: "ask " },
+    { kind: "tag", sigil: "@", tag: "alice" },
+    { kind: "text", text: " about " },
+    { kind: "tag", sigil: "#", tag: "work" },
+  ])
+  expect(
+    parts.map((part) => (part.kind === "tag" ? tagText(part) : part.text)).join(""),
+  ).toBe("ask @alice about #work")
+})
+
+// The two are different tags, not two spellings of one — which is the point of
+// having both, and what the editor's two triggers complete over separately.
+test("the sigils are two namespaces", () => {
+  expect(tags("@alice and #alice")).toEqual(["@alice", "#alice"])
+})
+
+// `@` mid-word is an email address or a handle quoted inside a word, and both
+// are things people put in titles. `#` keeps the alphabet it has always had.
+test("an @ inside a word is text, and a # inside one is still a tag", () => {
+  expect(tags("mail srid@srid.ca about it")).toEqual([])
+  expect(tags("(@alice) and [@bob]")).toEqual(["@alice", "@bob"])
+  expect(tags("@carol first")).toEqual(["@carol"])
+  // Unchanged from the day the format shipped: narrowing `#` would restyle
+  // titles in sets that are already written.
+  expect(tags("issue#42")).toEqual(["#42"])
+})
+
+// A bare sigil is punctuation people write ("issue #, see below"); treating it
+// as an empty tag would style the rest of the line as one.
+test("a bare sigil is text", () => {
   expect(titleParts("issue # 42")).toEqual([{ kind: "text", text: "issue # 42" }])
   expect(tags("issue # 42")).toEqual([])
+  expect(tags("reply @ noon")).toEqual([])
 })
 
 // The tags come out in reading order, over the same alphabet ids use plus `/`,
 // so a filter reading them off the parts sees the title as written.
 test("tags come out in reading order, over the tag alphabet", () => {
-  expect(tags("#b then #a then #b again")).toEqual(["b", "a", "b"])
-  expect(tags("#Tag-1 #tag_2")).toEqual(["Tag-1", "tag_2"])
+  expect(tags("#b then #a then #b again")).toEqual(["#b", "#a", "#b"])
+  expect(tags("#Tag-1 #tag_2")).toEqual(["#Tag-1", "#tag_2"])
 })
 
 // The web client styles tags with the same alphabet; it must not re-declare it.
@@ -847,10 +885,19 @@ test("titleTagRe is the alphabet titleParts uses, fresh each call", () => {
   const other = titleTagRe()
   expect(one).not.toBe(other)
   expect(one.source).toBe(other.source)
-  expect([..."#work/olai mid #a-b".matchAll(one)].map((m) => m[0])).toEqual([
+  expect([..."#work/olai mid @a-b".matchAll(one)].map((m) => m[0])).toEqual([
     "#work/olai",
-    "#a-b",
+    "@a-b",
   ])
+})
+
+// The list the editor's triggers are built from, so a third sigil is one edit
+// in the format rather than one in the format and one in a widget.
+test("TAG_SIGILS is what titleTagRe matches", () => {
+  expect([...TAG_SIGILS]).toEqual(["#", "@"])
+  for (const sigil of TAG_SIGILS) {
+    expect(tags(`a ${sigil}thing`)).toEqual([`${sigil}thing`])
+  }
 })
 
 // ── loops ──────────────────────────────────────────────────────────────

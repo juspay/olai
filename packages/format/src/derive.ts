@@ -695,22 +695,57 @@ export const nodeNamed = (
 
 // ── titles ─────────────────────────────────────────────────────────────
 
+/**
+ * The two characters that start a tag.
+ *
+ * `#` is what this format has always had; `@` joined it with the editor's tag
+ * autocomplete (`input-widgets`), because Workflowy trains both hands and a
+ * trigger that inserted the OTHER character would be an affordance writing text
+ * the set does not recognise as a tag. They are two NAMESPACES rather than two
+ * spellings of one: `#alice` and `@alice` are different tags, which is the
+ * whole reason a person reaches for one rather than the other (`@` for who,
+ * `#` for what).
+ */
+export const TAG_SIGILS = ["#", "@"] as const
+export type TagSigil = (typeof TAG_SIGILS)[number]
+
 /** A title, split into what to print and what to style. Tags live inline in
  *  the title verbatim — the format stores no tag list — so the split happens
  *  at view time, every time. */
 export type TitlePart =
   | { readonly kind: "text"; readonly text: string }
-  | { readonly kind: "tag"; readonly tag: string }
+  | {
+    readonly kind: "tag"
+    /** Which character started it — carried rather than assumed, so a part
+     *  list rejoins to the title it came from. */
+    readonly sigil: TagSigil
+    /** The name, without the sigil. */
+    readonly tag: string
+  }
+
+/** The written form of a tag part — the characters the title actually holds.
+ *  One spelling, because every consumer that draws a tag or indexes one needs
+ *  it and three of them re-assembling it is three chances to drop the `@`. */
+export const tagText = (part: { readonly sigil: TagSigil; readonly tag: string }): string =>
+  `${part.sigil}${part.tag}`
 
 /**
- * A fresh `/g` regex for an inline `#tag` in a title.
+ * A fresh `/g` regex for an inline tag in a title.
  *
- * `#` followed by letters, digits, `_`, `-` or `/` — the last so `#work/olai`
- * is one tag. A bare `#` is text. Returned new each call so `/g` state is never
- * shared across walks (the client styles tags by walking HAST text nodes with
- * the same alphabet, and must not re-declare it).
+ * A sigil followed by letters, digits, `_`, `-` or `/` — the last so
+ * `#work/olai` is one tag. A bare sigil is text. Returned new each call so `/g`
+ * state is never shared across walks (the client styles tags by walking HAST
+ * text nodes with the same alphabet, and must not re-declare it).
+ *
+ * THE TWO SIGILS ARE NOT MATCHED THE SAME WAY, and the asymmetry is about what
+ * people write rather than about tidiness: `@` sits inside ordinary words all
+ * the time (`srid@srid.ca`, a handle quoted mid-sentence) and `#` essentially
+ * does not, so `@` is claimed only where a word STARTS — the beginning of the
+ * title, or after a space or an opening bracket. `#` keeps the alphabet it has
+ * had since the format's first day, unchanged, because narrowing it would
+ * restyle titles in sets that are already written.
  */
-export const titleTagRe = (): RegExp => /#[A-Za-z0-9_/-]+/g
+export const titleTagRe = (): RegExp => /#[A-Za-z0-9_/-]+|(?<![^\s([{])@[A-Za-z0-9_/-]+/g
 
 export const titleParts = (title: string): ReadonlyArray<TitlePart> => {
   const parts: Array<TitlePart> = []
@@ -718,7 +753,11 @@ export const titleParts = (title: string): ReadonlyArray<TitlePart> => {
   for (const match of title.matchAll(titleTagRe())) {
     const start = match.index
     if (start > at) parts.push({ kind: "text", text: title.slice(at, start) })
-    parts.push({ kind: "tag", tag: match[0].slice(1) })
+    parts.push({
+      kind: "tag",
+      sigil: match[0][0] as TagSigil,
+      tag: match[0].slice(1),
+    })
     at = start + match[0].length
   }
   if (at < title.length) parts.push({ kind: "text", text: title.slice(at) })
