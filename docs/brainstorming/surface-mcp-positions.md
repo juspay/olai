@@ -2,8 +2,10 @@
 
 Audit of the `surface-mcp` roadmap node, 2026-08-14. The node says its adoption
 LARGELY LANDED and that it now holds "the remaining design positions". This
-checks that claim against master, closes what turned out to be open, and names
-what the node should shrink to.
+checks that claim against master, closes what turned out to be open, and carries
+the reasoning behind the four children the node shrank to — which exist in the
+ledger, written through the ops layer, and are listed [at the
+end](#what-the-node-shrank-to).
 
 The predecessor is [surface-mcp-viewing.md](./surface-mcp-viewing.md), which
 designed and shipped the adoption itself (PR #94). Read that one for the
@@ -216,10 +218,10 @@ is worth stating separately because the bridge is what would halve it:
 So a store's fd cost is O(corpus), and a second store doubles it. At 1020 files
 that is 2099 descriptors, which nothing on a modern Linux notices. At the tens
 of thousands of files a real vault reaches it is the number that meets `ulimit
--n` first, and it meets it twice as fast with two stores. **This deserves its
-own roadmap item and is not scoped here** — it is `@olai/store`'s watcher and
-the effect/platform `fs.watch(root, { recursive: true })` under it, not
-anything about MCP.
+-n` first, and it meets it twice as fast with two stores. **This has its own
+roadmap item (`watcher-fd-cost`) and is not scoped here** — it is
+`@olai/store`'s watcher and the effect/platform `fs.watch(root, { recursive:
+true })` under it, not anything about MCP.
 
 The per-revision work is the quieter cost: each store re-reads and re-validates
 the whole set on every trigger and on its own 60-second backstop, so a
@@ -439,32 +441,49 @@ argued as safe rather than as cheap.
 
 ---
 
-## What the node should shrink to
+## What the node shrank to
 
-The parent can close as a theme once these exist as children. None of them is
-started here.
+**These are roadmap nodes, not a wishlist.** All four exist under `surface-mcp`
+as of 2026-08-14, marked `todo`, written through the ops layer when this audit's
+first debrief landed — which is the only door the ledger has, and deliberately
+not this branch's. The parent is `doing`.
 
-1. **`reads-on-the-floor`** — the `list_outlines` summary, `Detail` and
-   `Subtree` declared as Effect Schema in `@olai/format`'s `searching.ts`,
-   beside the search shapes this PR put there and for the identical reason.
-   Three traps, all under (c): NOT in `@olai/ops` (inverts the layer), NOT
-   including `Applied` (deliberately a different type on each side), and the
-   summary must be RENAMED on the way — `@olai/format` already exports an
-   `Outline`, and it is a different thing whose shape looks compatible. It is
-   the prerequisite for the three read verbs a bridge needs, and worth doing on
-   its own terms: they are the last query answers with no wire shape. No
-   upstream dependency.
-2. **`per-face-expose` (upstream)** — the ask above. Blocks (3).
+What follows is the REASONING, which is what a design doc is for and what a
+node's `desc` has no room to carry. The ledger says what is open; this says why
+each one is a thing rather than a paragraph.
+
+1. **`reads-on-the-floor`** — "Query-shaped reads move to the format floor": the
+   `list_outlines` summary, `Detail` and `Subtree` declared as Effect Schema in
+   `@olai/format`'s `searching.ts`, beside the search shapes this PR put there
+   and for the identical reason. Three traps, all argued under (c): NOT in
+   `@olai/ops` (inverts the layer), NOT including `Applied` (deliberately a
+   different type on each side), and the summary must be RENAMED on the way —
+   `@olai/format` already exports an `Outline`, and it is a different thing
+   whose shape looks compatible. The third is grok's catch from the review
+   round. Prerequisite for the three read verbs a bridge needs, and worth doing
+   on its own terms: they are the last query answers with no wire shape. No
+   upstream dependency. Awaits the human's scope ruling with the parent.
+2. **`per-face-expose`** — the upstream ask, `#upstream #human`. **Nothing is
+   filed on kolu**; the ask is prose on this PR and in (c) above, and it awaits
+   the human's ratification before it becomes anyone's issue. It is what the
+   write-unification question turns on.
 3. **`mcp-bridge`** — `olai mcp --attach`: `serveOverUnixSocket` beside the
    listener, `unixSocketLink` in `mcp/serve.ts`, a dial failure falling through
-   to serve-fresh. Blocked on (1) and (2), and on the human's ruling about
-   `ops.run`.
-4. **`watcher-fd-cost`** — one open descriptor per served file, per store, for
-   the process's lifetime. Found while measuring (c); nothing to do with MCP.
-   The bridge halves it; fixing the watcher fixes it. The method under (c) is
-   written out so this one re-measures the same way rather than a new way.
+   to serve-fresh. The machinery is all present at the pin; what blocks it is
+   the write-unification question above, and the human's ruling about `ops.run`.
+   Priced under (c) rather than shrugged at.
+4. **`watcher-fd-cost`** — `#techdebt`, and the one that is not about MCP at
+   all: one open descriptor per served file, per store, for the process's
+   lifetime. Found while measuring (c). The bridge halves it; fixing the watcher
+   fixes it. The method under (c) is written out so this one re-measures the
+   same way rather than a new way.
 
-Positions (a), (b), (d) and (e) are done and need no child.
+The ledger declares no `after` edges between them, and this document should not
+invent any: 2 gating 3 is an argument made here, not an ordering anybody has
+committed to. 1 and 4 are genuinely independent of both.
+
+Positions (a), (b), (d) and (e) are done and have no child, which is the other
+half of what "shrank to" means.
 
 ---
 
