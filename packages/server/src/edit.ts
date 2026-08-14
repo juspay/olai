@@ -137,6 +137,8 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return Result.succeed({ op: "merge", id: edit.id })
     case "unmirror":
       return Result.succeed({ op: "unmirror", id: edit.id })
+    case "mirror":
+      return mirrorRequest(at, edit)
     case "archive":
       return Result.succeed({ op: "archive", id: edit.id })
     case "unarchive":
@@ -189,28 +191,38 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
 
 // ── a new row ──────────────────────────────────────────────────────────
 
-const addRequest = (
+/**
+ * WHERE an anchor puts a row, in the two or three fields an op takes for it —
+ * a parent or a file, and the neighbour to sit after when there is one.
+ *
+ * Shared by the two verbs that create a row, and shared rather than written
+ * twice because it is one question: `add` mints a node there and `mirror`
+ * places a second copy of one there, and the day the answer for one of them
+ * changed while the other stayed put would be the day `Enter` and `((` started
+ * disagreeing about what "after this row" means. What differs between the two
+ * is only what is BEING placed, which each caller spreads its own fields for.
+ */
+type Landing =
+  | { readonly parent: string; readonly after?: string }
+  | { readonly file: string; readonly after?: string }
+
+const landingFor = (
   at: Reading,
-  edit: Extract<Edit, { verb: "add" }>,
-): Resolved => {
-  const anchor = edit.at
+  anchor: Extract<Edit, { verb: "add" }>["at"],
+): Result.Result<Landing, OpFailure> => {
   // A brand-new outline's first row: the only place the browser names a FILE,
-  // and `add` is what refuses one the set does not hold.
-  if (anchor.kind === "first") {
-    return Result.succeed({ op: "add", file: anchor.file, title: edit.title })
-  }
+  // and the op is what refuses one the set does not hold.
+  if (anchor.kind === "first") return Result.succeed({ file: anchor.file })
   const target = at.derived.byId.get(anchor.id)
   if (target === undefined) return Result.fail(notFound(at.derived, anchor.id))
   // Under a node: last among its children, which is where the first child of
   // an empty branch goes and where every later one would go anyway. A MIRROR
   // has no children of its own — what hangs under it belongs to the node it
   // shows — so this one is the ops layer's to refuse, in its own words.
-  if (anchor.kind === "under") {
-    return Result.succeed({ op: "add", parent: anchor.id, title: edit.title })
-  }
+  if (anchor.kind === "under") return Result.succeed({ parent: anchor.id })
   // After a row: the same parent as the row it follows, placed immediately
   // after it. A row at top level has no parent, and then the FILE is what says
-  // where it goes — the pair `add` takes.
+  // where it goes — the pair both ops take.
   //
   // The anchor may be a MIRROR, and that is the point rather than an oversight:
   // a placement occupies a line among siblings, so `Enter` on one makes a
@@ -220,11 +232,32 @@ const addRequest = (
   // record carries like any other.
   const parent = target.node.parent
   return Result.succeed({
-    op: "add",
     ...(parent === undefined ? { file: target.file } : { parent }),
     after: anchor.id,
-    title: edit.title,
   })
+}
+
+const addRequest = (
+  at: Reading,
+  edit: Extract<Edit, { verb: "add" }>,
+): Resolved => {
+  const landing = landingFor(at, edit.at)
+  if (Result.isFailure(landing)) return Result.fail(landing.failure)
+  return Result.succeed({ op: "add", ...landing.success, title: edit.title })
+}
+
+/** A second placement of a node that already exists, where the anchor says —
+ *  `add_mirror`, with the target travelling as the caller named it. Whether
+ *  that id is a node at all, and whether a mirror of it may sit there (a
+ *  placement inside the subtree it shows expands forever), is the ops layer's
+ *  to judge, in its own words, exactly as it judges an agent's `add_mirror`. */
+const mirrorRequest = (
+  at: Reading,
+  edit: Extract<Edit, { verb: "mirror" }>,
+): Resolved => {
+  const landing = landingFor(at, edit.at)
+  if (Result.isFailure(landing)) return Result.fail(landing.failure)
+  return Result.succeed({ op: "mirror", ...landing.success, target: edit.target })
 }
 
 // ── the four moves ─────────────────────────────────────────────────────
@@ -544,10 +577,10 @@ const removeRequest = (
  * already knows what each op destroys, and it would answer for every request
  * rather than for the six a keyboard can send. It is here because undo is the
  * BROWSER's (the roadmap scopes it to "ops THIS client performed"), and
- * because six arms beside the resolver they mirror is a smaller thing than an
- * inverse for `create`, `mirror`, `see`, `after` and `archive` that nothing
- * would call. Recorded rather than done: the second consumer is the moment to
- * move it.
+ * because the arms beside the resolver they mirror are a smaller thing than an
+ * inverse for `create`, `see`, `after` and every other op that nothing would
+ * call. Recorded rather than done: the second consumer is the moment to move
+ * it.
  */
 export const inverseOf = (
   at: Reading,
@@ -640,11 +673,23 @@ export const inverseOf = (
     // same scaffold rebuilt, so ⌘Z after a `Put back` puts it back IN.
     case "unarchive":
       return [{ verb: "archive", id: edit.id }]
-    // An `unmirror` COULD be undone in principle, by placing the mirror back
-    // where it was; this surface has no verb for creating one (mirror creation
-    // is `input-widgets`' `((`), and inventing a browser-only placement verb to
-    // serve an undo would be exactly the deviation the menu's verbs exist to
-    // close. When that verb arrives, this arm is where it is answered.
+    // A placement is taken back by retiring it, and `applied` is the placement
+    // the write minted — never the target, which this write did not touch. One
+    // edit, exact, and its own inverse is refused by the ops layer for the same
+    // reason any `remove_mirror` is when something still names the row.
+    case "mirror":
+      return [{ verb: "unmirror", id: applied }]
+    // An `unmirror` still answers with NOTHING, and the reason narrowed rather
+    // than went away when `mirror` above arrived. A placement can now be
+    // created from this surface — but not AT A GIVEN SLOT with a GIVEN ID, and
+    // an undo needs both: {@link Anchor}'s arms mean "after this row" and "last
+    // under this node", so a placement that was first among its siblings has no
+    // anchor that names where it sat, and the id the replay would mint is not
+    // the id the row had. Spelling it as `mirror` + `place` does not work
+    // either — the second edit would have to name an id the first one has not
+    // minted yet, and an undo entry is a list of edits, not a program. So this
+    // stays the one write here that cannot be taken back, said by answering
+    // nothing rather than by leaving a ⌘Z that quietly does the wrong thing.
     case "unmirror":
       return []
     // A document commit is the text verbs' shape at file size: the inverse is
