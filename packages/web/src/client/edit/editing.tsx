@@ -113,6 +113,13 @@ export interface Editor {
    *  is comes in, because two of the keys cut the text at that point and this
    *  module reads no elements. */
   readonly press: (action: EditAction, at?: Caret) => void
+  /** The `!` widget chose a day: commit the line and put that date on the node
+   *  this row shows. The ten characters as picked — a date is text
+   *  ({@link ../date/DatePicker.tsx}), and nothing between here and the
+   *  validator parses one. */
+  readonly dated: (day: string) => void
+  /** The `((` widget chose a node: draw a second copy of it here. */
+  readonly mirrored: (target: string) => void
   /** Open an editor for a row a page has nowhere else to offer — the first row
    *  of an empty outline, the first child of an empty branch. */
   readonly start: (at: Anchor) => void
@@ -583,6 +590,58 @@ export const createEditor = (
       enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "down" }))),
   }
 
+  /**
+   * `((` chose a node: a second placement of it, drawn as a row.
+   *
+   * TWO PLACES IT CAN GO, and which one is a fact about the line the widget was
+   * typed in rather than a setting:
+   *
+   *   - a line that is still a DRAFT and holds nothing else becomes the mirror.
+   *     That is the Workflowy gesture exactly — `Enter`, `((`, choose — and it
+   *     falls out of what a draft already is: an empty one writes no node
+   *     ({@link ./draft.ts}), so the row that was going to be minted there
+   *     simply is the placement instead, at the same anchor.
+   *   - anywhere else, the mirror is the NEXT row: the line keeps its words
+   *     (committed first, like every structural key) and the placement lands
+   *     immediately after it. A mirror is a whole row in this format — exactly
+   *     `{id, parent, ord, mirror}`, with no text of its own — so it cannot be
+   *     put INSIDE a sentence the way Workflowy's inline reference is. Beside
+   *     the sentence is the honest reading of the same gesture.
+   *
+   * The anchor names the ROW rather than what it shows, which is `Enter`'s own
+   * rule: the placement appears where the reader is looking.
+   */
+  const mirrored = async (target: string): Promise<void> => {
+    const before = draft()
+    if (before === null) return
+    if (before.kind === "new" && before.text.trim() === "") {
+      const done = await send({ verb: "mirror", target, at: before.at }, slotOf(before))
+      if (done === null) return
+      // The line the caret was standing on is a record the file holds now, and
+      // it is not one this editor can type in — so the draft is spent rather
+      // than followed.
+      setDraft(null)
+      return
+    }
+    // Everything else — including a draft line that DOES have words — commits
+    // first, exactly as every structural key does, and the placement lands
+    // after the row that commit produced.
+    if (!(await commit())) return
+    const held = draft()
+    if (held === null || held.kind !== "row") return
+    // NOT `redrawing`: nothing about this row moves, so no caret is owed and a
+    // `settling` debt left standing would swallow the next blur. What the write
+    // answers with is the PLACEMENT's id and the TARGET's title — neither of
+    // them this draft's — so nothing is read off it but the nudge.
+    const done = await send({
+      verb: "mirror",
+      target,
+      at: { kind: "after", id: held.row },
+    }, slotOf(held))
+    setDraft((current) => noted(current ?? held, done?.nudge))
+    setCaret((n) => n + 1)
+  }
+
   /** The arrows: the next row the eye would reach, folds and all. */
   const step = async (by: 1 | -1): Promise<void> => {
     const held = draft()
@@ -645,6 +704,16 @@ export const createEditor = (
       })
     },
     press: (action, at) => ACTIONS[action](at),
+    // The `!` widget's write, and it is `structural`'s shape rather than a new
+    // one: commit the line the day was typed into, then send ONE `date` edit —
+    // the same edit the pill's picker and the `•••` menu send, at the same
+    // gate. `held.id` is the node the row SHOWS, so a day picked at a mirror
+    // lands on its target, which is the standing rule for everything a node
+    // SAYS. A row that did not exist when `!` was typed is written by the
+    // commit first, which is why this can name an id at all.
+    dated: (day) =>
+      enqueue(() => structural((held) => ({ verb: "date", id: held.id, date: day }))),
+    mirrored: (target) => enqueue(() => mirrored(target)),
     start: (at) => {
       idle.clear()
       setDraft({ kind: "new", at, text: "" })

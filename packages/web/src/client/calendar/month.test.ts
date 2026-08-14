@@ -2,10 +2,14 @@ import { expect, test } from "bun:test"
 
 import {
   dayNumber,
+  isRealDay,
   monthGrid,
   monthLabel,
   monthOfDay,
+  shiftDay,
+  shiftDayByMonth,
   shiftMonth,
+  weekdayOf,
   WEEKDAYS,
 } from "./month.ts"
 
@@ -116,4 +120,50 @@ test("the heading over a month names it in words", () => {
   expect(monthLabel("2026-01")).toBe("January 2026")
   expect(monthLabel("2026-12")).toBe("December 2026")
   expect(monthLabel("hello")).toBe("hello")
+})
+
+// ── one day at a time ──────────────────────────────────────────────────
+
+// The arithmetic the `!` widget is built on, and it lives here because this is
+// the one place in the client that does date arithmetic at all — never leaving
+// integers, so no reader west of Greenwich gets yesterday for "today".
+
+test("a day is real when its month has one", () => {
+  expect(isRealDay("2026-08-31")).toBe(true)
+  expect(isRealDay("2026-02-29")).toBe(false)
+  expect(isRealDay("2028-02-29")).toBe(true)
+  expect(isRealDay("2026-13-01")).toBe(false)
+  expect(isRealDay("2026-08-1")).toBe(false)
+  expect(isRealDay("tomorrow")).toBe(false)
+})
+
+test("which weekday a day falls on, counted from Monday", () => {
+  expect(weekdayOf("2026-08-14")).toBe(4) // a Friday
+  expect(weekdayOf("2026-08-17")).toBe(0) // the Monday after
+  expect(weekdayOf("nonsense")).toBeNull()
+})
+
+test("shifting a day crosses months and years", () => {
+  expect(shiftDay("2026-08-14", 1)).toBe("2026-08-15")
+  expect(shiftDay("2026-08-31", 1)).toBe("2026-09-01")
+  expect(shiftDay("2026-12-31", 1)).toBe("2027-01-01")
+  expect(shiftDay("2026-01-01", -1)).toBe("2025-12-31")
+  expect(shiftDay("2026-03-01", -1)).toBe("2026-02-28")
+  expect(shiftDay("2028-03-01", -1)).toBe("2028-02-29")
+  expect(shiftDay("2026-08-14", 0)).toBe("2026-08-14")
+  expect(shiftDay("2026-01-01", 400)).toBe("2027-02-05")
+})
+
+test("shifting text that names no day gives it back unchanged", () => {
+  // The rule `shiftMonth` already follows: looking around is never a way to end
+  // up somewhere that is not a date.
+  expect(shiftDay("hello", 1)).toBe("hello")
+  expect(shiftDayByMonth("hello", 1)).toBe("hello")
+})
+
+test("a month step keeps the day, or the last one the month has", () => {
+  expect(shiftDayByMonth("2026-08-14", 1)).toBe("2026-09-14")
+  expect(shiftDayByMonth("2026-01-31", 1)).toBe("2026-02-28")
+  expect(shiftDayByMonth("2026-12-15", 1)).toBe("2027-01-15")
+  expect(shiftDayByMonth("2026-01-15", -1)).toBe("2025-12-15")
 })

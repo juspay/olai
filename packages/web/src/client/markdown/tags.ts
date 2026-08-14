@@ -20,7 +20,7 @@
  * holds them to each other by rendering the same titles both ways.
  */
 
-import { titleParts } from "@olai/format"
+import { TAG_SIGILS, tagText, titleParts } from "@olai/format"
 import type { Element, ElementContent, Root } from "hast"
 
 import { TESTID } from "../testids.ts"
@@ -56,38 +56,46 @@ export const styleTags = (parent: Root | Element): void => {
   parent.children = next as typeof parent.children
 }
 
+/** Whether a run of text could hold a tag at all — the cheap guard both
+ *  renderings take before running the format's global regex over it, as
+ *  `@olai/ops`' search index guards the same call. Most titles hold neither
+ *  sigil. */
+const mayHoldATag = (text: string): boolean =>
+  TAG_SIGILS.some((sigil) => text.includes(sigil))
+
 /** One run of text, as the text and pills it turns out to be. */
 const splitTags = (text: string): ElementContent[] =>
   titleParts(text).map((part) =>
     part.kind === "tag"
-      ? pill(part.tag)
+      ? pill(tagText(part))
       : ({ type: "text", value: part.text } as ElementContent),
   )
 
 /** The same text and the same pills, written straight to HTML — no tree, and
  *  so no stringifier to wait for. */
 export const taggedHtml = (text: string): string => {
-  // Guarded by a plain `indexOf`, as `@olai/ops`'s search index guards the
-  // same call: `titleParts` runs a global regex and allocates a part per
-  // segment, and most titles hold no tag at all.
-  if (!text.includes("#")) return escapeText(text)
+  if (!mayHoldATag(text)) return escapeText(text)
   return titleParts(text)
     .map((part) =>
       part.kind === "tag"
-        ? `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}">${escapeText(`#${part.tag}`)}</span>`
+        ? `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}">${
+          escapeText(tagText(part))
+        }</span>`
         : escapeText(part.text),
     )
     .join("")
 }
 
-const pill = (name: string): Element => ({
+/** The pill, over the tag AS WRITTEN — sigil and all, because that is what the
+ *  title says and what a reader searches for. */
+const pill = (written: string): Element => ({
   type: "element",
   tagName: "span",
   properties: {
     className: TAG_CLASS.split(" "),
     dataTestid: TESTID.tag,
   },
-  children: [{ type: "text", value: `#${name}` }],
+  children: [{ type: "text", value: written }],
 })
 
 /**

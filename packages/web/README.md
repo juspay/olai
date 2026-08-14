@@ -1415,6 +1415,60 @@ drag-drop: each is its own roadmap item. Putting a node AWAY is not among them
 — that is `Archive` in the `•••` menu below, which is the ops layer's own
 put-away rather than an erase.
 
+## Three characters that open something
+
+`src/client/complete/` is Workflowy's input widgets, and it is ONE loop for all
+three because they are one gesture — type a character, see a shortlist, walk it
+with the arrows, take one with Enter:
+
+- **`trigger.ts` — what is armed, as a function of (text, caret).** `!` a day,
+  `#`/`@` a tag, `((` a node. There is no "the picker is open" flag anywhere in
+  this feature, which is what makes it survive everything else that can happen
+  to a row mid-typing (a live frame redrawing it, `Tab` moving it, a refusal
+  landing under it): backspacing over the `!` shuts the list and typing it again
+  opens the same one. One scan finds all three openers and the RIGHTMOST wins,
+  because that is the one the caret is inside. Each has its own fence against
+  swallowing the rest of the line — a tag stops at the tag alphabet, a day and a
+  search may hold spaces but are capped — and a `#`/`@` is claimed only where a
+  word starts, so a popup never offers to rewrite the middle of `srid@srid.ca`.
+- **`tags.ts` — the vocabulary, enumerated from the loaded set.** The one place
+  this feature does NOT ask the server, and the file argues why: `search/nodes.ts`
+  forbids a second matcher because RANKING must not drift, and this is an
+  enumeration by the format's own walk (`titleParts`, the same call that draws
+  the pills a row already shows) over the set this tab is holding. Two sigils,
+  two lists — `#alice` and `@alice` are different tags.
+- **`completing.ts` — the loop.** Where each list comes from, what each choice
+  writes, and the one piece of memory in the whole feature: Escape remembers the
+  TOKEN it dismissed, so putting the list away over `#ho` keeps it away while
+  that `#ho` is being typed. A key is claimed only when a list is actually on
+  screen — a trigger with no matches draws nothing, and Escape then goes back to
+  meaning "abandon the draft".
+- **`Completions.tsx` — the box**, drawing `search/Result.tsx`'s row (the third
+  door onto it). `absolute` inside the title's own cell rather than in flow, so
+  the tree below does not jump by four rows as candidates come and go on every
+  keystroke — and it scrolls with the row, so unlike a popover it needs no
+  measurement.
+
+What each one WRITES is the split that matters. A **tag is text**: it goes into
+the draft and commits with the line, with no trailing space, because a title is
+stored verbatim and a character nobody typed is a character in somebody's git
+history. A **day** and a **placement** are OPS — `date` and `mirror` on the same
+intent union every key sends (`Editor.dated` / `Editor.mirrored`), resolving to
+`set_date` and `add_mirror` — and both take their trigger's text back out of the
+line first. `((` on a line that is still an empty draft makes that line the
+placement (an empty draft writes no node, so the row it was going to mint simply
+is the mirror); on a line with words it commits the words and the placement is
+the next row, because a mirror is a whole row in this format and cannot sit
+inside a sentence.
+
+The natural-language half is `date/natural.ts`, a pure function of the phrase
+and today: a VOCABULARY filtered by prefix (so `tom` offers `tomorrow` and
+`next f` offers `next friday` with no rule about abbreviations anywhere) plus
+three regexes for the forms with a number in them. The arithmetic is
+`calendar/month.ts`'s, which is the one place in this client that does date
+arithmetic at all — integers only, never a `Date`, so nobody west of Greenwich
+gets yesterday for "today".
+
 ## Undo, which is a write
 
 `undo.ts` is the stack, `undoing.tsx` holds it, `UndoSaid.tsx` is what it has

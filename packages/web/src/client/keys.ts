@@ -337,6 +337,22 @@ export const SHORTCUTS: ReadonlyArray<{
     ],
   },
   {
+    // The three input widgets (`complete/`). They are CHARACTERS rather than
+    // chords — nothing in `editKey` matches them, and nothing should: what
+    // arms one is where the caret is in the line, which is a question about
+    // text and is answered in `complete/trigger.ts`. They are listed here
+    // because this table is what a person reads to learn what the editor does,
+    // and a widget nobody can discover is a widget nobody uses.
+    group: "While typing a title",
+    keys: [
+      { keys: "!", what: "a day, in words — `tomorrow`, `next fri`, `aug 20`" },
+      { keys: "# / @", what: "a tag this set already uses" },
+      { keys: "((", what: "search for a node, and mirror it here" },
+      { keys: "↑ / ↓ / Enter", what: "walk the list, and take one" },
+      { keys: "Escape", what: "put the list away and keep typing" },
+    ],
+  },
+  {
     group: "In a note",
     keys: [
       { keys: "Click a note", what: "put the caret in it" },

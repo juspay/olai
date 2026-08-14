@@ -33,8 +33,10 @@
  * parent is folded — are places the tree draws no body under.
  */
 
-import { createEffect, on, Show } from "solid-js"
+import { createEffect, createSignal, on, Show } from "solid-js"
 
+import { Completions } from "../complete/Completions.tsx"
+import { createCompletion } from "../complete/completing.ts"
 import type { Draft } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { type Caret, type EditAction, type EditField, editKey } from "../keys.ts"
@@ -60,20 +62,76 @@ export function TitleEditor(props: {
   let element!: HTMLInputElement
   takeCaret(() => element, { at: () => props.caret })
 
+  /**
+   * WHERE the caret is, as a signal — the one fact the input widgets need that
+   * a draft does not carry.
+   *
+   * It is read off the element rather than tracked alongside it, because the
+   * caret moves for reasons no handler here sees: a click in the middle of a
+   * word, `Home`, a drag-selection, an IME. So every event that could have
+   * moved it re-reads it, and the value is the element's own answer rather than
+   * this component's arithmetic about what the last key should have done.
+   */
+  const [caret, setCaret] = createSignal(0)
+  const readCaret = (): void => {
+    setCaret(element.selectionStart ?? 0)
+  }
+
+  /** The three widgets, as one loop ({@link ../complete/completing.ts}). The
+   *  rewrite is the DOM half: the field's value and its caret are set here,
+   *  where the element is, and the draft is told in the same breath so the two
+   *  cannot disagree about what the line says. */
+  const completion = createCompletion({
+    text: () => props.text,
+    caret,
+    rewrite: (next) => {
+      element.value = next.text
+      element.setSelectionRange(next.caret, next.caret)
+      setCaret(next.caret)
+      props.onInput(next.text)
+    },
+  })
+
   return (
-    <input
-      ref={element}
-      type="text"
-      class={`w-full flex-1 border-0 bg-transparent p-0 text-ink outline-none ${ROW_TITLE}`}
-      data-testid={TESTID.titleEditor}
-      value={props.text}
-      placeholder={props.placeholder}
-      autocomplete="off"
-      spellcheck={false}
-      onInput={(event) => props.onInput(event.currentTarget.value)}
-      onKeyDown={(event) => props.onKey(event)}
-      onBlur={() => props.onBlur(element.isConnected)}
-    />
+    // `relative`, and the input keeps the cell it always had: the popup hangs
+    // off this box, out of flow, so the row's own geometry is untouched
+    // (../complete/Completions.tsx says why it is not in flow).
+    <span class="relative flex min-w-0 flex-1">
+      <input
+        ref={element}
+        type="text"
+        class={`w-full flex-1 border-0 bg-transparent p-0 text-ink outline-none ${ROW_TITLE}`}
+        data-testid={TESTID.titleEditor}
+        value={props.text}
+        placeholder={props.placeholder}
+        autocomplete="off"
+        spellcheck={false}
+        onInput={(event) => {
+          readCaret()
+          props.onInput(event.currentTarget.value)
+        }}
+        onKeyDown={(event) => {
+          // The widget gets first refusal, and only over the keys it has an
+          // answer for — see `Completion.key`. What it takes, it takes whole:
+          // an arrow that walked the list must not also walk the outline.
+          if (completion.key(event)) {
+            event.preventDefault()
+            event.stopPropagation()
+            return
+          }
+          props.onKey(event)
+          // AFTER the row's own handler, so a key that moved the caret has
+          // moved it: `queueMicrotask` is one turn later, which is when the
+          // field's selection reflects the press.
+          queueMicrotask(readCaret)
+        }}
+        onClick={readCaret}
+        onSelect={readCaret}
+        onFocus={readCaret}
+        onBlur={() => props.onBlur(element.isConnected)}
+      />
+      <Completions completion={completion} />
+    </span>
   )
 }
 

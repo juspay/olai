@@ -122,14 +122,19 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
 export const nodeItem = (hit: SearchHit): PaletteItem => ({
   id: `node-${hit.id}`,
   label: hit.title,
-  place: placeOf(hit),
+  place: nodePlace(hit),
   action: { kind: "route", route: { kind: "node", id: hit.id } },
   // Never filtered locally: the server already decided these match.
   search: "",
 })
 
-/** The ancestry, innermost first, or the file for a node at top level. */
-const placeOf = (hit: SearchHit): string =>
+/** The ancestry, innermost first, or the file for a node at top level.
+ *
+ *  Exported because the THIRD door onto the same search draws it too — the
+ *  `((` widget in a row's title (`../complete/`) — and where a node sits is one
+ *  sentence: two spellings of it would be two answers to "which `install
+ *  them`?" in two places that are looking at the same set. */
+export const nodePlace = (hit: SearchHit): string =>
   hit.path.length === 0 ? hit.file : [...hit.path].reverse().join(" · ")
 
 /** Filter shell items by a free-text query (no `>` prefix). */
