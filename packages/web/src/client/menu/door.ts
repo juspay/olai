@@ -1,8 +1,9 @@
 /**
  * The doors to a row's `•••` menu: how it is opened, and whether it is open.
  *
- * The `•••` is the pointer's door and it lives in the panel's own component
- * (`./NodeMenu.tsx`). A phone has no `•••` — a 390px screen has no room for a
+ * The `•••` is the pointer's door and it is drawn beside the panel
+ * (`./Dots.tsx`, and `./NodeMenu.tsx`'s trigger once a row is armed). A phone
+ * has no `•••` at all — a 390px screen has no room for a
  * second always-on cell before the title (`../touch.ts`) — so its door is a
  * LONG PRESS on the row line (`../longPress.ts`), which is markup the menu
  * does not own. Something both of them can hold has to exist somewhere, and
@@ -26,7 +27,7 @@
  * for the whole outline.
  *
  * A row's menu is in one of THREE states, and they are three rather than two
- * because of the lazy mount `NodeMenu`'s `Dots` exists for:
+ * because of the lazy mount `./Dots.tsx` exists for:
  *
  *   - **unasked** — nobody has reached for this row's menu, so Kobalte is not
  *     mounted on the row at all. Measured at 140 `IntersectionObserver`s and

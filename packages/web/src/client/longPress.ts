@@ -44,7 +44,7 @@
  * not a gesture. The one real implementation is Kobalte's `ContextMenu`, and it
  * could not be the answer here for a reason that has nothing to do with the
  * gesture: its long press is welded to a menu ROOT, and one of those per row is
- * exactly the cost `menu/NodeMenu.tsx`'s lazy `Dots` exists to refuse (140 rows
+ * exactly the cost `menu/Dots.tsx`'s lazy `Dots` exists to refuse (140 rows
  * measured at 140 `IntersectionObserver`s and 33 MB of heap). So the gesture is
  * ours and the MENU is still the library's — and what is taken from that
  * implementation is its rules: a timer armed on pointer-down, dropped on move,

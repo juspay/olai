@@ -42,7 +42,7 @@ import { type Fold, foldIdOf, foldOf } from "../fold/rows.ts"
 import { setChatOpen } from "../layout/prefs.ts"
 import { hrefOf, type Route } from "../routes.ts"
 import { asText } from "./subtree.ts"
-import type { MenuAction } from "./NodeMenu.tsx"
+import type { MenuAction } from "./action.ts"
 import { writeVerbs } from "./verbs.ts"
 import { applying } from "../writes.ts"
 
