@@ -6,9 +6,10 @@
  * keys of its own. One registry rather than two matchers in two components is
  * the whole point: a chord and an editing key that both claim `Ctrl+Enter`
  * disagree silently, in a browser, at the moment somebody is typing — and the
- * only place that disagreement is visible is a file that declares both.
+ * only place that disagreement is visible is a file that declares them all.
  *
- * Two LAYERS, and they never overlap, which is what makes them safe together:
+ * THREE LAYERS, and they never overlap, which is what makes them safe
+ * together:
  *
  *   - {@link matchKey} is the GLOBAL layer — chords with a modifier, listened
  *     for on the window (`palette/Palette.tsx` owns the one listener), and
@@ -18,9 +19,13 @@
  *     `Tab`, the arrows), so a global listener claiming them would eat every
  *     keystroke in the chat composer and in the palette's own input. An
  *     editor's keys belong to the editor.
+ *   - {@link listKey} is the LIST layer — what those same bare keys mean while
+ *     a SHORTLIST is up over whatever has the caret, asked first by whoever has
+ *     one and only while one is on screen. Four surfaces have one, and each
+ *     matched these keys privately before this existed.
  *
- * Pure of the DOM beyond the event itself, so both layers are unit-testable
- * with no window: pass `platform` to pin Apple vs not.
+ * Pure of the DOM beyond the event itself, so all three layers are
+ * unit-testable with no window: pass `platform` to pin Apple vs not.
  */
 
 export type KeyAction = "palette" | "sidebar" | "chat" | "undo" | "redo"

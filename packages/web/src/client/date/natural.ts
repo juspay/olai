@@ -186,14 +186,36 @@ const monthDay = (wanted: string, today: string): ReadonlyArray<Named> => {
   const day = Number(number)
   const named = (on: number): string =>
     `${on}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+  // A year said out loud is taken as said — including a `feb 29 2027`, which is
+  // not a day and is answered with nothing rather than with a nearby one.
+  if (year !== undefined) {
+    const said = named(Number(year))
+    return isRealDay(said) ? [found(said, month, day)] : []
+  }
   const thisYear = Number(today.slice(0, 4))
-  const candidate = named(year === undefined ? thisYear : Number(year))
-  if (!isRealDay(candidate)) return []
-  const chosen = year === undefined && candidate < today ? named(thisYear + 1) : candidate
-  return isRealDay(chosen)
-    ? [{ day: chosen, phrase: `${MONTH_NAMES[month]} ${day}, ${chosen.slice(0, 4)}` }]
-    : []
+  // "The next time that day comes round", walked rather than assumed to be
+  // this year or the next. `feb 29` is the case that needs the walk: two years
+  // in three it is not a day at all, and answering nothing there would be the
+  // rule this comment states quietly not applying to the one date people mean
+  // it about. Four years is enough for the Gregorian leap rule, and the bound
+  // is what makes this a walk rather than a search.
+  for (let ahead = 0; ahead <= LEAP_CYCLE; ahead++) {
+    const candidate = named(thisYear + ahead)
+    if (isRealDay(candidate) && candidate >= today) return [found(candidate, month, day)]
+  }
+  return []
 }
+
+/** How far forward a bare month-and-day is looked for. One Gregorian leap
+ *  cycle: the only day that is missing from some years is the 29th of
+ *  February, and it comes round inside four — except across a skipped century,
+ *  which is why this is eight rather than four. */
+const LEAP_CYCLE = 8
+
+const found = (day: string, month: number, number: number): Named => ({
+  day,
+  phrase: `${MONTH_NAMES[month]} ${number}, ${day.slice(0, 4)}`,
+})
 
 /** The ten characters themselves, typed out. The one form where the phrase and
  *  the day are the same string — a person who knows the date does not need it

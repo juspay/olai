@@ -24,7 +24,8 @@ const Id = Schema.String.annotate({
 })
 
 const Title = Schema.String.annotate({
-  description: "The node's title, verbatim. Inline `#tags` live here.",
+  description:
+    "The node's title, verbatim. Inline tags live here — `#topic` and `@person`, two namespaces over the same alphabet.",
 })
 
 /**

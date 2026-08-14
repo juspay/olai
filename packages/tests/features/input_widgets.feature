@@ -76,13 +76,35 @@ Feature: The three input widgets
 
   Scenario: A row that does not exist yet is written first, then dated
     # There is no node to put a date on until the `add` has landed, so the
-    # commit comes first — the same order every structural key follows.
+    # commit comes first — the same order every structural key follows. Both
+    # halves are asserted: without the date one, this would stay green if
+    # `dated` quietly did nothing once the add had gone through, and this is the
+    # only scenario of that path.
     When I click the title of "knobs"
     And I press "Enter"
     And I type "ring the joiner !2026-09-01"
     And I press "Enter"
     Then "house.jsonl" holds a node titled "ring the joiner"
+    And "house.jsonl" holds a node titled "ring the joiner" dated "2026-09-01"
     And the row being typed holds "ring the joiner"
+    And there should be no page errors
+
+  Scenario: The caret carries on in the row a day was picked in
+    # A widget's write is not the end of the line. Neither of the two OP widgets
+    # can MOVE the row it was typed in — a day changes what other pages list,
+    # never this one's order — so neither may claim a redraw is owed
+    # (`edit/editing.tsx`'s `structural`): the editor drops a blur while it is
+    # waiting for a frame that moves the row, and a blur dropped is a line
+    # neither committed nor closed. Nothing else in the suite types MORE text
+    # after a widget has written and then leaves the row.
+    When I click the title of "handles"
+    And I type " !2026-09-01"
+    And I press "Enter"
+    Then "house.jsonl" holds the node "handles" dated "2026-09-01"
+    When I type " and the hinges"
+    And I click away from the editor
+    Then "house.jsonl" holds a node titled "choose the handles and the hinges"
+    And no row is being edited
     And there should be no page errors
 
   # ── `#` and `@` — the tags the set already uses ─────────────────────
@@ -176,6 +198,13 @@ Feature: The three input widgets
     And "house.jsonl" holds a mirror of "compost" under "install"
     And the row being typed holds "pick the knobs"
     And there should be no page errors
+    # ...and the caret carries on in it, exactly as it does after a day: the
+    # placement is a new sibling AFTER this row, so this row has not moved and
+    # no redraw is owed for it.
+    When I type " and the hinges"
+    And I click away from the editor
+    Then "house.jsonl" holds a node titled "pick the knobs and the hinges"
+    And no row is being edited
 
   Scenario: The placement is drawn, and ⌘Z retires it
     # A pointer's write and a keystroke's file onto one stack, so the chord does

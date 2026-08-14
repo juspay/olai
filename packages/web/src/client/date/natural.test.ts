@@ -108,13 +108,26 @@ test("a year said out loud is taken as said, past or not", () => {
   expect(days("aug 20 2019")).toEqual(["August 20, 2019 = 2019-08-20"])
 })
 
-test("a day that month does not have is not a day", () => {
+test("a day no month ever has is not a day", () => {
   expect(days("feb 30")).toEqual([])
   expect(days("sep 31")).toEqual([])
 })
 
-test("february 29 is offered in the year that has one", () => {
+// The 29th of February is the one day that is missing from most years, so it is
+// where "the next time it comes round" has to be a WALK rather than this year
+// or the next. Typed in 2026 it is 2028's, not nothing.
+test("february 29 walks forward to the year that has one", () => {
+  expect(days("feb 29", "2026-08-14")).toEqual(["February 29, 2028 = 2028-02-29"])
   expect(days("feb 29", "2028-01-01")).toEqual(["February 29, 2028 = 2028-02-29"])
+  // ...and once this year's has gone, the next one.
+  expect(days("feb 29", "2028-06-01")).toEqual(["February 29, 2032 = 2032-02-29"])
+})
+
+test("a year said out loud is taken as said, even when it is not a day", () => {
+  // `feb 29 2027` names a day that does not exist. The walk is for a bare
+  // month-and-day; a year the person typed is not this function's to move.
+  expect(days("feb 29 2027")).toEqual([])
+  expect(days("feb 29 2028")).toEqual(["February 29, 2028 = 2028-02-29"])
 })
 
 // ── the date itself ────────────────────────────────────────────────────

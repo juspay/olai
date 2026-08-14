@@ -77,6 +77,7 @@ import {
 } from "./draft.ts"
 import { flatten, neighbour } from "./order.ts"
 import { serial } from "./queue.ts"
+import { redraws } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
 
 export interface Editor {
@@ -390,25 +391,23 @@ export const createEditor = (
    * exist when the key was pressed — the add has landed by then and the draft
    * is the row it created.
    *
-   * `redraws` is whether the write MOVES the row on screen, and it is a
-   * parameter rather than an assumption because not every write here does. A
-   * mark, a date and a placement leave the row where it is: the element is not
-   * moved, so no focus is lost, nothing is owed, and noting a `settling` debt
-   * that no frame will clear would go on suppressing blurs — which means the
-   * next thing typed into the row is never committed at all. Every key that
-   * DOES move it says so.
+   * WHETHER A REDRAW IS OWED is asked of the EDIT ({@link ./redraws.ts}) rather
+   * than passed in by the caller: not every write here can move the row, the
+   * answer is a fact about the verb, and a per-call-site flag is something the
+   * next caller can get wrong in a way nothing notices. That file holds the
+   * list, the argument for each side of it, and the measurement of what being
+   * wrong actually costs — which is narrower than it sounds and was overstated
+   * once.
    */
-  const structural = async (
-    name: (draft: RowDraft) => Edit,
-    redraws = true,
-  ) => {
+  const structural = async (name: (draft: RowDraft) => Edit) => {
     if (!(await commit())) return
     const held = draft()
     if (held === null || held.kind !== "row") return
     const slot = slotOf(held)
-    const moved = redraws
-      ? await redrawing(name(held), slot)
-      : await send(name(held), slot)
+    const edit = name(held)
+    const moved = redraws(edit)
+      ? await redrawing(edit, slot)
+      : await send(edit, slot)
     // The caret stays in the row that just moved: the draft is restored in
     // case its editor was destroyed and blurred on the way out, and the caret
     // is taken again because a row that merely moved among its siblings keeps
@@ -644,10 +643,11 @@ export const createEditor = (
     // ordinary commit-then-op, and it does not redraw the row: what the write
     // answers with is the PLACEMENT's id and the TARGET's title, neither of
     // them this draft's, and the row itself does not move.
-    await structural(
-      (held) => ({ verb: "mirror", target, at: { kind: "after", id: held.row } }),
-      false,
-    )
+    await structural((held) => ({
+      verb: "mirror",
+      target,
+      at: { kind: "after", id: held.row },
+    }))
   }
 
   /** The arrows: the next row the eye would reach, folds and all. */
@@ -721,7 +721,7 @@ export const createEditor = (
     // lands on its target, which is the standing rule for everything a node
     // SAYS. A row that did not exist when `!` was typed is written by the
     // commit first, which is why this can name an id at all.
-    dated: (day) => enqueue(() => structural((held) => datePick(held.id, day), false)),
+    dated: (day) => enqueue(() => structural((held) => datePick(held.id, day))),
     mirrored: (target) => enqueue(() => mirrored(target)),
     start: (at) => {
       idle.clear()

@@ -536,6 +536,21 @@ Then(
   },
 );
 
+/** The same field, on a node named by its TITLE — which is the only way to
+ *  name a row a keystroke has just minted, since the id is the set's. */
+Then(
+  "{string} holds a node titled {string} dated {string}",
+  async function (this: OlaiWorld, file: string, title: string, date: string) {
+    await this.waitUntil(
+      async () =>
+        recordsIn(this, file).some(
+          (node) => node["title"] === title && node["date"] === date,
+        ),
+      `${file} to hold ${JSON.stringify(title)} dated ${JSON.stringify(date)}`,
+    );
+  },
+);
+
 /**
  * The same field, against a day only the CLOCK can name — the `!` widget's
  * natural-language half, end to end.

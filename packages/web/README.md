@@ -1434,6 +1434,18 @@ loop a person is in, and nothing about outlines:
   by `palette/Shortcuts.tsx`, opened from ⌘K). Beside the matchers rather than
   in a document, so what a key does and what it is said to do are one fact; a
   unit test holds the list to covering every editing action.
+- **`redraws.ts`** — which writes can take the row they were made in off the
+  line it is on. The editor suppresses a blur while it waits for the frame that
+  redraws a row it moved, and takes the caret back when that frame lands; both
+  are owed only by a write that can actually MOVE the row. It is a table over
+  the surface's verbs rather than a flag at each call site, because the answer
+  is a fact about the verb and a flag is something the next caller gets wrong
+  in a way nothing notices — a unit test fails the moment `date` or `mirror`
+  changes sides. The MARKS are on the moving side and that is deliberate: with
+  done rows hidden, `Ctrl+Enter` takes the row off the page. The file also
+  records what being wrong actually costs, measured rather than asserted: the
+  debt is cleared by the frame every landed write publishes, so it is a race
+  WINDOW (a blur dropped whole, and the caret pulled back) and not a leak.
 - **`order.ts`** flattens the drawn tree so `↑`/`↓` step through what is on
   screen, folds and all.
 

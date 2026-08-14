@@ -51,7 +51,8 @@ const Placement = {
 
 export const RegularNode = Schema.Struct({
   ...Placement,
-  /** Verbatim. Inline `#tags` live here and are extracted at view time. */
+  /** Verbatim. Inline tags live here and are extracted at view time — `#topic`
+   *  and `@person`, two namespaces rather than two spellings of one. */
   title: Schema.String,
   done: Schema.optionalKey(Marker),
   doing: Schema.optionalKey(Marker),
