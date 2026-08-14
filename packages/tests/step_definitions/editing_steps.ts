@@ -179,6 +179,31 @@ const nothingIsBeingTyped = async (world: OlaiWorld): Promise<void> => {
   );
 };
 
+/** WHERE the caret is: the row the open editor belongs to, the line that does
+ *  not exist yet, or `null` for a page with nothing being typed. A NAME for
+ *  the place rather than the element drawing it, so a row redrawn where the
+ *  file now says it is stays the same place. */
+const caretPlace = async (world: OlaiWorld): Promise<string | null> =>
+  await world.page.evaluate(
+    ([caret, newRow, node]) => {
+      const editor = document.querySelector(caret);
+      if (editor === null) return null;
+      if (editor.closest(newRow) !== null) return "(a new line)";
+      const row = editor.closest("[data-node-id]");
+      if (row === null) return "(a line off the tree)";
+      // The chain of ids down to it AND where it sits, which together are what
+      // the client itself calls a `Row.key`: an indent changes the chain and a
+      // reorder changes only the seat, and both are the row being drawn
+      // somewhere else.
+      const chain: Array<string> = [];
+      for (let at: Element | null = row; at !== null; at = at.parentElement?.closest(node) ?? null) {
+        chain.unshift(at.getAttribute("data-node-id") ?? "?");
+      }
+      return `${chain.join("/")}@${[...document.querySelectorAll(node)].indexOf(row)}`;
+    },
+    [CARET_EDITOR, NEW_ROW, NODE] as [string, string, string],
+  );
+
 /** The line being typed HOLDS the caret. */
 const caretIsInTheLine = async (world: OlaiWorld): Promise<void> => {
   await world.waitUntil(
@@ -220,6 +245,15 @@ When(
 
 // ── the keys ───────────────────────────────────────────────────────────
 
+/** The keys that put the row somewhere else — indent, outdent, and the two
+ *  that walk it past a sibling. */
+const MOVES = new Set([
+  "Tab",
+  "Shift+Tab",
+  "Alt+Shift+ArrowUp",
+  "Alt+Shift+ArrowDown",
+]);
+
 /**
  * What waiting for this key MEANS — decided BEFORE it is pressed, because the
  * answer depends on where the caret was when it was. `null` for the keys that
@@ -229,11 +263,24 @@ const answering = async (
   world: OlaiWorld,
   key: string,
 ): Promise<(() => Promise<void>) | null> => {
-  if (key === "Alt+Shift+ArrowUp" || key === "Alt+Shift+ArrowDown") {
-    // A move redraws the row where the file now says it is. The caret has to
-    // come back before anything else is asked of that line; one frame is not
-    // that, under load.
-    return async () => await caretIsInTheLine(world);
+  if (MOVES.has(key)) {
+    // A MOVE, and its receipt is the row being drawn where the file now says
+    // it is — the same frame the client is waiting for to take the caret back
+    // (`editing.tsx`'s `settle`). Pressing the next thing before it arrives is
+    // what the scenarios above were doing, and the client is entitled to read
+    // a click in that window as its own: the blur is suppressed as the redraw
+    // it is still owed, and the caret is taken back over the top of it.
+    const was = await caretPlace(world);
+    if (was === null) return null;
+    return async () => {
+      await world.waitUntil(
+        async () =>
+          (await caretPlace(world)) !== was ||
+          (await world.page.locator(EDIT_REFUSAL).count()) > 0,
+        "the row the key moved to be drawn where it moved it, or the page to say why it did not",
+      );
+      await caretIsInTheLine(world);
+    };
   }
   if (key === "Escape") {
     // Escape abandons the draft, always — no write, so nothing to be refused.
@@ -346,15 +393,27 @@ Then(
 
 When("I click away from the editor", async function (this: OlaiWorld) {
   // Somewhere in the pane that is not a row: a blur, and nothing else.
-  const editor = await editorHeld(this, CARET_EDITOR);
+  const was = await caretPlace(this);
   await this.page.locator("main").click({ position: { x: 4, y: 4 } });
   await this.waitForFrame();
-  // And the editor that was open is LET GO, which is the same receipt the keys
-  // above wait for and for the same reason: a blur commits through the same
-  // queue, so the draft it was on outliving the click is this tab still
-  // waiting to hear.
-  if (editor !== null) {
-    await letGo(this, editor, "the editor the click was away from to be let go");
+  // And the caret LEAVES the line it was in, which is the same receipt the
+  // keys wait for and for the same reason: a blur commits through the same
+  // queue, so a draft still open on that line is this tab still waiting to
+  // hear.
+  //
+  // WHERE rather than WHICH ELEMENT, which is the one place these two waits
+  // differ: a structural key redraws the row the caret is in, and a row that
+  // came back as a new element would satisfy "the element I was holding is
+  // gone" without anybody having let go of anything — the draft is open, on
+  // the same line, and the ⌘Z after this step is dead in it. That is what
+  // `undo.feature:255` and `:324` were still failing on.
+  if (was !== null) {
+    await this.waitUntil(
+      async () =>
+        (await caretPlace(this)) !== was ||
+        (await this.page.locator(EDIT_REFUSAL).count()) > 0,
+      "the caret to leave the line the click was away from, or the page to say why it did not",
+    );
   }
 });
 

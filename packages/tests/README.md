@@ -471,15 +471,27 @@ once the server has answered and the inverse it answered with is on the stack
 and it is the only one the harness has: the disk says a file was written, the
 DOM says the page was told, neither says this tab knows yet.
 
-`I press "Enter"`, `I press "Backspace"` at the head of a line, `I press
-"Escape"` with a draft open, and `I click away from the editor` therefore wait
-for the caret to leave — or for the page to say why it did not, which is the
-other way a key ends. Skip that and `Escape` closes a draft that has not opened
-yet, the draft opens behind it, and every ⌘Z after that is dead, because a
-chord belongs to the input while a draft is open.
+So the keys that end a line — `Enter`, `Backspace` at the head of one, `Escape`
+with a draft open — and `I click away from the editor` wait for the caret to
+leave; the keys that MOVE a row (`Tab`, `Shift+Tab`, and the two that walk it
+past a sibling) wait for it to be drawn where they put it; and every one of
+them will take "the page said why it did not" instead, which is the other way a
+key ends. `I press`, `I type` and `I select all and type` also wait for the
+line to hold the caret BEFORE they aim anything at it, because a redrawn row
+takes the focus with it and the client puts the caret back a round trip later.
 
-None of the three is fixed by a longer timeout, and a step that needed one was
-asking the wrong question.
+Skip any of that and: `Escape` closes a draft that has not opened yet and the
+draft opens behind it, so every ⌘Z after that is dead (a chord belongs to the
+input while a draft is open); `Tab` walks the browser's focus ring out of the
+row, so the next key finds no editor; `⌘A` selects the page, so the title typed
+after it lands beside the old one instead of replacing it. All three are silent
+until an assertion several steps later.
+
+`I press "…" without waiting` is the way to mean the race deliberately, and two
+scenarios do.
+
+None of the three mistakes is fixed by a longer timeout, and a step that needed
+one was asking the wrong question.
 
 ## The scripted agent
 
