@@ -94,6 +94,19 @@ export interface Editing extends Said {
    *  landed. The comparison that keeps an idle timer from writing a file that
    *  already says this. */
   readonly saved: string
+  /**
+   * Where the caret goes when this draft's editor OPENS — absent everywhere
+   * but after a split or a merge.
+   *
+   * Those two keys are the only ones whose whole point is that the caret stays
+   * in the sentence: a split leaves it at the head of the half that came off,
+   * a merge at the seam the two halves were joined at. Neither is the end of
+   * the text (a click's answer) and neither is where the caret was in the
+   * editor that has just gone away (a move's answer), so it is a fact the
+   * DRAFT has to carry — the row it names is redrawn by a frame that arrives
+   * later, in an element that does not exist yet.
+   */
+  readonly at?: number
 }
 
 /** A row that does not exist yet: an editor standing where it will go. */

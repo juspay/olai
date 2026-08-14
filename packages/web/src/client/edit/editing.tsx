@@ -57,7 +57,10 @@ import {
 } from "solid-js"
 import { Result } from "effect"
 
-import type { EditAction } from "../keys.ts"
+/** The caret's offsets IN THE LINE, renamed on the way in: this module already
+ *  has a `Caret`, and it answers the other question — which row the caret is in
+ *  rather than where in the text it sits. */
+import type { Caret as Offsets, EditAction } from "../keys.ts"
 import { runAsync } from "../run.ts"
 import { olai } from "../wire.ts"
 import {
@@ -109,8 +112,10 @@ export interface Editor {
    *  lose focus to a person. */
   readonly blur: (from: Slot, left: boolean) => void
   /** One of the editing keys. Which row it was pressed in is the draft's to
-   *  say — there is one caret, and it knows where it is. */
-  readonly press: (action: EditAction) => void
+   *  say — there is one caret, and it knows where it is; WHERE IN THE LINE it
+   *  is comes in, because two of the keys cut the text at that point and this
+   *  module reads no elements. */
+  readonly press: (action: EditAction, at?: Offsets) => void
   /** Open an editor for a row a page has nowhere else to offer — the first row
    *  of an empty outline, the first child of an empty branch. */
   readonly start: (at: Anchor) => void
@@ -285,7 +290,7 @@ export const createEditor = (
   const send = async (
     edit: Edit,
     from: Slot,
-  ): Promise<{ id: string; nudge?: string } | null> => {
+  ): Promise<{ id: string; title: string; nudge?: string } | null> => {
     const outcome = await runAsync(olai.procedures.edit.apply(edit))
     if (Result.isSuccess(outcome)) {
       // What would take this back, straight onto the stack ⌘Z spends — the
@@ -390,6 +395,91 @@ export const createEditor = (
     setDraft({ kind: "new", at: after(held), text: "" })
   }
 
+  /**
+   * `Enter` WITH TEXT ON BOTH SIDES OF THE CARET: this row becomes two.
+   *
+   * ONE WRITE, and the two halves are the draft's own text — so what is typed
+   * and the cut it is being given land together rather than as a commit
+   * followed by a split. That is not an optimisation: a commit and then a
+   * write derived from it are two revisions, and the one thing a person may
+   * never lose is the half of a sentence they had just typed.
+   *
+   * A row that does NOT EXIST YET is the one case that needs the commit first,
+   * for the reason every structural key needs it: there is no node to split
+   * until the `add` its draft becomes has landed. `commit()` writes the whole
+   * line — nothing is lost even if the split that follows is refused — and the
+   * draft it leaves is the row it made.
+   *
+   * The caret follows the TAIL, at its head, which is where the eye is: the
+   * words after the cut are the ones that moved.
+   */
+  const split = async (at: Offsets) => {
+    if (draft()?.kind === "new" && !(await commit())) return
+    const held = draft()
+    if (held === null || held.kind !== "row" || held.field !== "title") return
+    const title = held.text.slice(0, at.start)
+    const rest = held.text.slice(at.end)
+    idle.clear()
+    settling = true
+    const done = await send({ verb: "split", id: held.id, title, rest }, slotOf(held))
+    if (done === null) {
+      settling = false
+      return
+    }
+    setDraft(opening(done, 0))
+    setCaret((n) => n + 1)
+  }
+
+  /**
+   * `Backspace` AT THE START OF A LINE: this row joins the one above it.
+   *
+   * The commit comes FIRST here where a split needs none, and the asymmetry is
+   * the ops layer's: a merge joins the two titles THE SET HOLDS — it carries no
+   * text at all — so a half-typed line has to be on disk before it can be
+   * joined onto anything. Which is the same order every other structural key
+   * follows, and for the same reason.
+   *
+   * The caret lands on the SEAM, which is the length of the joined title minus
+   * the length of what was joined onto it. Both numbers come from the write:
+   * the row's own text is what this tab was typing in, and what the row above
+   * says now is the answer's ({@link ../../../../surface/src/edit.ts}'s
+   * `Applied.title`) — never this tab's reading of a tree it drew.
+   */
+  const merge = async () => {
+    const before = draft()
+    if (before === null || before.kind !== "row" || before.field !== "title") return
+    if (!(await commit())) return
+    const held = draft()
+    if (held === null || held.kind !== "row") return
+    settling = true
+    const done = await send({ verb: "merge", id: held.row }, slotOf(held))
+    if (done === null) {
+      settling = false
+      return
+    }
+    setDraft(opening(done, done.title.length - held.text.length))
+    setCaret((n) => n + 1)
+  }
+
+  /** The row a compound key left the caret in, as the draft that edits it —
+   *  the node the write answered with, the text it says now, and where in that
+   *  text the caret belongs. Its `place` is `null` because the row it names is
+   *  a frame away from being drawn, which is what `follow` fills in. */
+  const opening = (
+    done: { readonly id: string; readonly title: string; readonly nudge?: string },
+    at: number,
+  ): Draft => ({
+    kind: "row",
+    row: done.id,
+    id: done.id,
+    place: null,
+    field: "title",
+    text: done.title,
+    saved: done.title,
+    at,
+    ...(done.nudge === undefined ? {} : { nudge: done.nudge }),
+  })
+
   /** `Shift+Enter`: open the note under this row, or close the one that is
    *  open and go back to the title. A note is committed by closing it, the
    *  same way a title is. */
@@ -427,7 +517,7 @@ export const createEditor = (
    * actions and the set of behaviours are one list the compiler checks: an
    * action added to {@link EditAction} and not answered here does not compile.
    */
-  const ACTIONS: Record<EditAction, () => void> = {
+  const ACTIONS: Record<EditAction, (at?: Offsets) => void> = {
     // NOT queued: abandoning is the one key that must not wait for a write it
     // is abandoning. A commit already in flight still answers — to the slot it
     // was sent for, which is no longer open, so nothing lands anywhere.
@@ -436,6 +526,12 @@ export const createEditor = (
       setDraft(null)
     },
     add: () => enqueue(continued),
+    // The two COMPOUND keys. `split` is the only action here that needs to know
+    // where in the LINE it was pressed — it is what decides the cut — and an
+    // `Enter` that arrives without that answer is an `Enter` at the end of a
+    // line, which is what `add` already is.
+    split: (at) => enqueue(() => (at === undefined ? continued() : split(at))),
+    merge: () => enqueue(merge),
     note: () => enqueue(note),
     prev: () => enqueue(() => step(-1)),
     next: () => enqueue(() => step(1)),
@@ -518,7 +614,7 @@ export const createEditor = (
         )
       })
     },
-    press: (action) => ACTIONS[action](),
+    press: (action, at) => ACTIONS[action](at),
     start: (at) => {
       idle.clear()
       setDraft({ kind: "new", at, text: "" })

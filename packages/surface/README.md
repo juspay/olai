@@ -273,6 +273,24 @@ write:
   typing overwrites whatever is there (which is what `set_title` does for an
   agent); an undo may only overwrite what IT wrote, so a row somebody else has
   retyped is refused rather than written over.
+- **two of the verbs are COMPOUND, and they are ops rather than sequences.**
+  `split` (`Enter` with text on both sides of the caret) and `merge`
+  (`Backspace` at offset zero) each change an outline in several ways at once,
+  and each is ONE request at the write gate — `split_node` and `merge_node`,
+  the same two ops an agent calls. Assembling them here out of the verbs above
+  would have been the deviation at its plainest: the web doing in one keystroke
+  what MCP needs four calls for. The other half of the argument is atomicity —
+  a sequence can stop in the middle, and a half-landed merge leaves an outline
+  saying something nobody wrote. `split` is the one verb that carries text it
+  did not read off the set (the two halves are the DRAFT's, which is the
+  editor's own and not a reading of the outline) and it carries them as two
+  TITLES rather than a caret index, for the reason no verb on either face names
+  a range into a field. `merge` carries nothing but an id: which sibling is
+  above is a fact about the set. Their ids differ, and the difference is the
+  editor's own rule — `split` names the node the row SHOWS, because a split is
+  what a node SAYS; `merge` names the ROW's own record, because a merge takes a
+  row off the page, so one asked at a mirror is refused in the ops layer's
+  `notANode` words rather than joining two rows in a file nobody is looking at.
 - **neither removal here is a delete.** `remove` is the inverse of an `add`: no
   key sends it, the only row it can take back is a row that was just made, and
   what it resolves to is `archive` — narrowed to a node with nothing under it.
@@ -285,7 +303,9 @@ write:
 It declares `OpFailure` as its error channel, which is what the editor is built
 on: a refused write comes back as the validator's own rows, so the draft it
 came from is kept and the reason shown beside it. What it ANSWERS with is the
-node the write was about, the ops layer's own `nudge` — advice on a success
+node the write was about AND WHAT IT SAYS NOW (which only a `merge` cannot know
+in advance — the joined title is the row above's plus this one's), the ops
+layer's own `nudge` — advice on a success
 (the last task under a parent going done), which an agent already receives in
 its tool result and the person who pressed the key is exactly who it is for —
 and the inverse above, which is absent only for the one write nothing would

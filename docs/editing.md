@@ -7,6 +7,8 @@ shortcuts** in the ⌘K palette.
 | | |
 |---|---|
 | **Enter** | commit, and open the next line |
+| **Enter, mid-line** | split the row in two, there |
+| **Backspace, at the start** | join this row onto the one above |
 | **Tab** / **Shift+Tab** | indent under the row above, or out again |
 | **Alt+Shift+↑/↓** | move a row among its siblings |
 | **⌘Enter** / **Ctrl+Enter** | tick it off, or take that back |
@@ -65,6 +67,59 @@ leaves your text exactly where it is.
 A new row is that same idea: **Enter** opens a line where the row will go, and
 the node is written the moment it has a title. So an outline never fills up
 with blank bullets, and a key pressed by accident writes nothing at all.
+
+## One row into two, and two into one
+
+**Enter in the MIDDLE of a line cuts it there.** What is before the caret stays
+where you were; what is after it becomes the next row, and the caret goes with
+it, at its head — those are the words that moved. Everything that DESCRIBED the
+row you were in stays with it: what hangs under it, its note, its mark, its
+date, what it waits on. The line that came off is a new row, and a new row is a
+bullet — nobody has said anything about it yet, and this app does not decide
+that for you.
+
+At the END of a line the key is what it always was, because there is nothing
+after the caret to split off. At the HEAD of one it is that too, and that is a
+decision worth saying out loud: an outliner you have used would put a blank row
+above, and here there is no blank row to put — a node needs a title
+([format.md](format.md)) — so nothing is written that the write gate would have
+to refuse.
+
+**Backspace at the START of a line joins it onto the row above** — its sibling,
+the row your eye is on. The two titles run together with nothing between them,
+because that is what they were before somebody cut them; the caret lands on the
+seam. Anywhere else in the line, Backspace is the ordinary one and deletes a
+character; it means this only in the one place it has nothing of its own to do.
+
+What happens to the rest of the row is the whole of the semantics, and there
+are no silent losses in it:
+
+- **what hung under it is adopted** by the row above, in order, at the end of
+  what was already there. Nothing is orphaned by a keystroke.
+- **the notes join**, one blank line apart, and a row with no note simply takes
+  the other's.
+- **its mark, its date and what it waits on go with its record to the Trash.**
+  A node carries at most one mark and the surviving row already has its own
+  answer, so there is nothing to merge — and the record is not destroyed: it is
+  in the Trash with its id, and **Put back** returns it. What you get instead of
+  silence is a line under the row saying what went, because a `done` leaving the
+  outline is exactly the thing nobody should have to notice for themselves.
+
+The first row of a level has nothing above it to join, and a row above that is
+a mirror has no title of its own to join onto; both say so under the row, in the
+ops layer's own words.
+
+**⌘Z takes either back.** The undo of a split is the merge that puts the two
+halves back together; the undo of a merge is longer and does the whole thing —
+the record out of the Trash, back where it sat, its children back under it, and
+the joined title cut back to what it said. Judged against the outline as it is
+now, like every other undo below, so an undo that no longer fits says so rather
+than guessing.
+
+Both keys are ONE write at the same gate everything else goes through, and an
+agent has them too — `split_node` and `merge_node` are the same two ops. That
+matters more here than anywhere else on this page: a merge moves four rows and
+puts a record away, and it either happens whole or does not happen.
 
 ## Putting a node on a day
 
@@ -146,8 +201,8 @@ way through for the mouse. ⌘Z after a Move to Trash puts the row back too —
 the undo knows the exact parent it sat under — and ⌘Z after a Put back is
 the archive again.
 
-Deliberately absent, each its own item: delete, split and merge, multi-select,
-and drag-and-drop.
+Deliberately absent, each its own item: delete, multi-select, and
+drag-and-drop.
 
 ## Writing a document
 

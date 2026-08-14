@@ -40,6 +40,10 @@ export { make, type Ops, type Options } from "./ops.ts"
  *  Exported so the keystroke resolver and the chat context resolver in
  *  `@olai/server` say what a tool call says. */
 export { notANode, notFound } from "./plan.ts"
+/** What a `merge` joins — the two texts the surviving node ends up with. The
+ *  keystroke resolver needs it to say what would take a merge BACK, guarded by
+ *  what the merge made true, and one spelling is what keeps that guard honest. */
+export { mergedText } from "./plan.ts"
 /** When writes reach git, and what git is doing for the directory they reach.
  *  The mode is passed IN and the state comes back OUT; the subprocesses between
  *  them are this layer's business. */

@@ -303,6 +303,81 @@ export const MoveRequest = Schema.Struct({
   ...Anchor,
 })
 
+/**
+ * One node, into two — the head it keeps and the tail that becomes the sibling
+ * after it.
+ *
+ * IT IS ONE OP AND NOT TWO, and that is the whole reason it exists. Retitling
+ * the node and adding the sibling are two writes at two revisions: the pair can
+ * half-land, and both halves of the half are wrong — a tail written with the
+ * head still saying the whole sentence duplicates it, and a head written with
+ * the tail refused loses what was typed. One request is one plan, one
+ * validation and one all-or-none rename, which is the property `add`'s
+ * `children` was built for one level up.
+ *
+ * WHAT IT TAKES IS TWO TITLES, never an offset. A caller that named a character
+ * position would be naming a range into a field — the one thing this whole
+ * table refuses — and a position re-planned against a newer snapshot would cut
+ * somebody else's retitle in half. Two texts mean the same thing against any
+ * revision, exactly as `set_title`'s one does.
+ *
+ * EVERYTHING ELSE STAYS WITH THE HEAD — children, note, mark, date, edges — and
+ * the tail is born a bare bullet, which is what `add` mints. That is Workflowy's
+ * split read through this format: the row you were in is still that row, and
+ * what came off it is a new line under nothing.
+ */
+export const SplitRequest = Schema.Struct({
+  op: Schema.Literal("split"),
+  id: Id,
+  title: Schema.String.annotate({
+    description:
+      "What the node KEEPS — the first half of its title, verbatim. It goes on carrying its children, note, mark, date and edges.",
+  }),
+  rest: Schema.String.annotate({
+    description:
+      "What comes OFF it — the second half, verbatim, written as a brand-new node placed immediately after this one among its siblings. It is born a bullet: no mark, no note, no date, nothing under it.",
+  }),
+})
+
+/**
+ * Two nodes, into one — this node's title appended to the sibling above it,
+ * which then adopts everything that hung under this one.
+ *
+ * `split` read backwards, and one op for the same reason: the merge is a
+ * retitle, a note, N reparentings and an archive, and a sequence of those can
+ * stop in the middle with the outline saying something nobody wrote. One plan,
+ * one validation, one rename.
+ *
+ * THE SIBLING ABOVE IS NOT A FIELD, for the reason `move_node`'s `parent` is
+ * one and this is not: "the row above" is a fact about the set, so it is read
+ * off the snapshot this write is judged against — which is also what makes the
+ * request re-plannable when the store moves under it. A node that is first
+ * among its siblings has nothing above it and the call is refused saying so.
+ *
+ * WHAT SURVIVES, and it is the whole of the semantics:
+ *
+ *   - the TITLES are concatenated, in reading order, with nothing put between
+ *     them (Workflowy's own join — the two halves were one line);
+ *   - the NOTES are concatenated too, one blank line apart, and a node with
+ *     none simply takes the other's. A note that vanished from the page would
+ *     be the silent loss this codebase refuses, and the archive is not where
+ *     anybody looks for it;
+ *   - the CHILDREN move, in order, to the end of the sibling's own — nothing
+ *     may be orphaned by a keystroke;
+ *   - the MARK, the DATE and the EDGES of the node being merged go WITH ITS
+ *     RECORD into `Archive.jsonl`, because the format allows one mark per node
+ *     and the surviving row already has its own answer. Nothing is destroyed —
+ *     the record is in the trash with its ids intact — and the answer's `nudge`
+ *     says what went, so a `done` never disappears silently.
+ */
+export const MergeRequest = Schema.Struct({
+  op: Schema.Literal("merge"),
+  id: Schema.String.annotate({
+    description:
+      "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `Archive.jsonl`, keeping its id, mark, date and edges.",
+  }),
+})
+
 export const ArchiveRequest = Schema.Struct({
   op: Schema.Literal("archive"),
   id: Id,
@@ -548,6 +623,8 @@ export const Request = Schema.Union([
   DescRequest,
   DateRequest,
   MoveRequest,
+  SplitRequest,
+  MergeRequest,
   ArchiveRequest,
   UnarchiveRequest,
   CreateRequest,

@@ -1004,6 +1004,212 @@ describe("create", () => {
   })
 })
 
+// ── split ──────────────────────────────────────────────────────────────
+
+describe("split", () => {
+  test("the head keeps the row and the tail follows it as a sibling", () => {
+    const result = planned(house(), {
+      op: "split",
+      id: "order",
+      title: "order ",
+      rest: "the cabinets",
+    })
+    const nodes = fileOf(result, "house.jsonl")
+    expect(record(nodes, "order").title).toBe("order ")
+    expect(record(nodes, "n1").title).toBe("the cabinets")
+    expect(childOrder(nodes, "kitchen")).toEqual(["demo", "order", "n1", "install"])
+    // The write is ABOUT the node that did not exist a moment ago, which is
+    // what lets a caret follow the half that came off.
+    expect(result.id).toBe("n1")
+    expect(result.title).toBe("the cabinets")
+    expect(result.captured).toEqual([{ id: "n1", title: "the cabinets" }])
+    expect(result.summary).toBe("split: order the cabinets")
+  })
+
+  test("everything that DESCRIBED the node stays with the head", () => {
+    const set = setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order it","done":"2026-08-01","date":"2026-09-01","desc":"walnut","see":["kitchen"]}`,
+        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote"}`,
+      ].join("\n"),
+    })
+    const nodes = fileOf(
+      planned(set, { op: "split", id: "order", title: "order", rest: " it" }),
+      "house.jsonl",
+    )
+    const head = record(nodes, "order")
+    expect(head).toMatchObject({
+      done: "2026-08-01",
+      date: "2026-09-01",
+      desc: "walnut",
+      see: ["kitchen"],
+    })
+    expect(record(nodes, "quote").parent).toBe("order")
+    // And the tail is a BULLET: a node with no mark is not an unstarted task,
+    // so a split may not invent one.
+    expect(record(nodes, "n1")).toEqual({
+      id: "n1",
+      parent: "kitchen",
+      ord: record(nodes, "n1").ord,
+      title: " it",
+    })
+  })
+
+  test("a top-level node splits into a top-level sibling", () => {
+    const nodes = fileOf(
+      planned(house(), { op: "split", id: "loose", title: "a node", rest: " with no children" }),
+      "house.jsonl",
+    )
+    expect(record(nodes, "n1").parent).toBeUndefined()
+    expect(
+      nodes.filter((node) => node.parent === undefined).map((node) => node.id),
+    ).toEqual(["kitchen", "loose", "n1"])
+  })
+
+  test("neither half may be empty — a node is its title", () => {
+    expect(
+      refused(house(), { op: "split", id: "order", title: "  ", rest: "everything" }).message,
+    ).toContain("a node needs a title")
+    expect(
+      refused(house(), { op: "split", id: "order", title: "everything", rest: "" }).message,
+    ).toContain("nothing to split off")
+  })
+
+  test("a placement has no title of its own, so it cannot be split", () => {
+    const set = setOf({
+      "house.jsonl": KITCHEN,
+      "week.jsonl": `{"id":"m","ord":"a0","mirror":"order"}`,
+    })
+    expect(refused(set, { op: "split", id: "m", title: "a", rest: "b" }).message)
+      .toContain("is a mirror")
+  })
+})
+
+// ── merge ──────────────────────────────────────────────────────────────
+
+describe("merge", () => {
+  const merged = (set: OutlineSet, id: string) => {
+    const result = planned(set, { op: "merge", id })
+    return {
+      result,
+      source: fileOf(result, "house.jsonl"),
+      archive: fileOf(result, "Archive.jsonl"),
+    }
+  }
+
+  test("the titles run together and the record goes to the archive", () => {
+    const { archive, result, source } = merged(house(), "install")
+
+    expect(record(source, "order").title).toBe("order the cabinetsinstall them")
+    expect(source.map((node) => node.id)).toEqual(["kitchen", "demo", "order", "loose"])
+    expect(record(archive, "install").title).toBe("install them")
+    // The write is about the row that SURVIVED, which is where the caret goes.
+    expect(result.id).toBe("order")
+    expect(result.title).toBe("order the cabinetsinstall them")
+    expect(result.summary).toBe("merge: order the cabinetsinstall them")
+    // Nothing was carried off, so there is nothing to say about it.
+    expect(result.nudge).toBeUndefined()
+  })
+
+  test("the children move, in order, to the end of the survivor's own", () => {
+    const set = setOf({
+      "house.jsonl": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order"}`,
+        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote"}`,
+        `{"id":"install","parent":"kitchen","ord":"a1","title":" them"}`,
+        `{"id":"fit","parent":"install","ord":"a0","title":"fit the doors"}`,
+        `{"id":"level","parent":"install","ord":"a1","title":"level them"}`,
+      ].join("\n"),
+    })
+    const { source } = merged(set, "install")
+    expect(childOrder(source, "order")).toEqual(["quote", "fit", "level"])
+    // A mirror under the merged row is a placement and moves like any child.
+    expect(record(source, "fit").parent).toBe("order")
+  })
+
+  test("the notes join a blank line apart, and one note alone simply moves", () => {
+    const both = setOf({
+      "house.jsonl": [
+        `{"id":"a","ord":"a0","title":"a","desc":"the first"}`,
+        `{"id":"b","ord":"a1","title":"b","desc":"the second"}`,
+      ].join("\n"),
+    })
+    expect(record(fileOf(planned(both, { op: "merge", id: "b" }), "house.jsonl"), "a").desc)
+      .toBe("the first\n\nthe second")
+
+    const only = setOf({
+      "house.jsonl": [
+        `{"id":"a","ord":"a0","title":"a"}`,
+        `{"id":"b","ord":"a1","title":"b","desc":"the second"}`,
+      ].join("\n"),
+    })
+    expect(record(fileOf(planned(only, { op: "merge", id: "b" }), "house.jsonl"), "a").desc)
+      .toBe("the second")
+  })
+
+  test("a mark, a date or an edge goes with the record — and is said out loud", () => {
+    const set = setOf({
+      "house.jsonl": [
+        `{"id":"a","ord":"a0","title":"a"}`,
+        `{"id":"b","ord":"a1","title":"b","done":"2026-08-01","date":"2026-09-01","see":["a"]}`,
+      ].join("\n"),
+    })
+    const result = planned(set, { op: "merge", id: "b" })
+    expect(record(fileOf(result, "Archive.jsonl"), "b")).toMatchObject({
+      done: "2026-08-01",
+      date: "2026-09-01",
+      see: ["a"],
+    })
+    expect(record(fileOf(result, "house.jsonl"), "a").done).toBeUndefined()
+    expect(result.nudge).toContain("`done` mark")
+    expect(result.nudge).toContain("its date")
+    expect(result.nudge).toContain("its edges")
+  })
+
+  test("the first of its siblings has nothing above it", () => {
+    expect(refused(house(), { op: "merge", id: "demo" }).message)
+      .toContain("no row above it to merge into")
+  })
+
+  test("a mirror above has no title to merge into", () => {
+    const set = setOf({
+      "house.jsonl": [
+        `{"id":"a","ord":"a0","title":"a"}`,
+        `{"id":"m","ord":"a1","mirror":"a"}`,
+        `{"id":"b","ord":"a2","title":"b"}`,
+      ].join("\n"),
+    })
+    expect(refused(set, { op: "merge", id: "b" }).message).toContain("is a mirror")
+  })
+
+  test("a placement cannot be merged either", () => {
+    const set = setOf({
+      "house.jsonl": KITCHEN,
+      "week.jsonl": [
+        `{"id":"first","ord":"a0","title":"first"}`,
+        `{"id":"m","ord":"a1","mirror":"order"}`,
+      ].join("\n"),
+    })
+    expect(refused(set, { op: "merge", id: "m" }).message).toContain("is a mirror")
+  })
+
+  test("a split and a merge are each other's inverse, on disk", () => {
+    const before = house()
+    const split = planned(before, {
+      op: "split",
+      id: "order",
+      title: "order ",
+      rest: "the cabinets",
+    })
+    const after = setOf({ "house.jsonl": serializeOutline(fileOf(split, "house.jsonl")) })
+    const back = planned(after, { op: "merge", id: "n1" })
+    expect(serializeOutline(fileOf(back, "house.jsonl")))
+      .toBe(serializeOutline(nodesOf(before.nodes, "house.jsonl").map((at) => at.node)))
+  })
+})
+
 // ── archive ────────────────────────────────────────────────────────────
 
 describe("archive", () => {

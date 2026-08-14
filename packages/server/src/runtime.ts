@@ -296,6 +296,7 @@ export const bind = (
           const undo = inverseOf(at, edit, request.success, done.id)
           return {
             id: done.id,
+            title: done.title,
             ...(done.nudge === undefined ? {} : { nudge: done.nudge }),
             ...(undo.length === 0 ? {} : { undo }),
           }
