@@ -205,9 +205,8 @@ const isMissing = (cause: unknown): boolean =>
   (cause as { readonly code?: unknown } | null)?.code === "ENOENT"
 
 /** Where this directory's memory lives — a digest of the path it is about, for
- *  the reason the header gives. Takes the normalised spelling: the trailing
- *  slash was stripped by {@link forDirectory}, for the reason
- *  {@link ./agent.ts}'s `sameDirectory` exists. */
+ *  the reason the header gives. Takes the spelling {@link ./directory.ts}
+ *  settled on, never a raw one. */
 const fileFor = (cwd: string): string => {
   const digest = createHash("sha256").update(cwd).digest("hex")
   return join(stateHome(), "olai", "chat", `${digest.slice(0, 16)}.json`)
