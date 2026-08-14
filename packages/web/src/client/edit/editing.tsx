@@ -57,10 +57,7 @@ import {
 } from "solid-js"
 import { Result } from "effect"
 
-/** The caret's offsets IN THE LINE, renamed on the way in: this module already
- *  has a `Caret`, and it answers the other question — which row the caret is in
- *  rather than where in the text it sits. */
-import type { Caret as Offsets, EditAction } from "../keys.ts"
+import type { Caret, EditAction } from "../keys.ts"
 import { runAsync } from "../run.ts"
 import { olai } from "../wire.ts"
 import {
@@ -95,7 +92,7 @@ export interface Editor {
    *  `Row.key` of the row being edited, the id of the row a new line is being
    *  drawn after, and which field. Three primitives, so they answer the same
    *  value while a person types and a row's match stops propagating. */
-  readonly where: Accessor<Caret>
+  readonly where: Accessor<Where>
   /** A counter the open editor watches: every bump means "take the caret
    *  back". It is bumped after the ops that redraw the row the key was pressed
    *  in, because moving an element in the document is what takes focus off it
@@ -115,7 +112,7 @@ export interface Editor {
    *  say — there is one caret, and it knows where it is; WHERE IN THE LINE it
    *  is comes in, because two of the keys cut the text at that point and this
    *  module reads no elements. */
-  readonly press: (action: EditAction, at?: Offsets) => void
+  readonly press: (action: EditAction, at?: Caret) => void
   /** Open an editor for a row a page has nowhere else to offer — the first row
    *  of an empty outline, the first child of an empty branch. */
   readonly start: (at: Anchor) => void
@@ -132,7 +129,7 @@ export interface Editor {
  * for its text. Before this, one character typed re-ran a memo in every row of
  * the tree.
  */
-export interface Caret {
+export interface Where {
   /** The `Row.key` being edited, or `null` — no row draft, or one whose row
    *  is not drawn yet. */
   readonly place: string | null
@@ -142,7 +139,7 @@ export interface Caret {
   readonly field: "title" | "desc" | null
 }
 
-const NOWHERE: Caret = { place: null, after: null, field: null }
+const NOWHERE: Where = { place: null, after: null, field: null }
 
 const EditorContext = createContext<Editor>()
 
@@ -204,7 +201,7 @@ export const createEditor = (
   const enqueue = serial()
 
   /** The caret's own three facts, memoised so typing does not move them. */
-  const where = createMemo<Caret>(() => {
+  const where = createMemo<Where>(() => {
     const held = draft()
     if (held === null) return NOWHERE
     if (held.kind === "new") {
@@ -425,7 +422,7 @@ export const createEditor = (
    * The caret follows the TAIL, at its head, which is where the eye is: the
    * words after the cut are the ones that moved.
    */
-  const split = async (at: Offsets) => {
+  const split = async (at: Caret) => {
     if (draft()?.kind === "new" && !(await commit())) return
     const held = draft()
     if (held === null || held.kind !== "row" || held.field !== "title") return
@@ -521,7 +518,7 @@ export const createEditor = (
    * actions and the set of behaviours are one list the compiler checks: an
    * action added to {@link EditAction} and not answered here does not compile.
    */
-  const ACTIONS: Record<EditAction, (at?: Offsets) => void> = {
+  const ACTIONS: Record<EditAction, (at?: Caret) => void> = {
     // NOT queued: abandoning is the one key that must not wait for a write it
     // is abandoning. A commit already in flight still answers — to the slot it
     // was sent for, which is no longer open, so nothing lands anywhere.

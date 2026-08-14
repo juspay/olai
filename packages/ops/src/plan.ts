@@ -1225,16 +1225,13 @@ const planMerge = (
   const records = recordsOf(scope, file)
   const merged = withField({ ...into, title }, "desc", desc ?? null)
 
-  // Last among their new siblings, in the order they were in — which is where
-  // an adopted branch reads correctly and what `unarchive` already does for the
-  // subtree it brings back.
-  let previous = lastOrd([records], into.id)
-  const adopted = (scope.derived.children.get(node.id) ?? []).map((child) => {
-    const ord = nextOrd(previous)
-    previous = ord
-    return { ...withParent(child.node, into.id), ord }
-  })
-  const reparented = new Map(adopted.map((record) => [record.id, record]))
+  const reparented = new Map(
+    appendedUnder(
+      [records],
+      into.id,
+      (scope.derived.children.get(node.id) ?? []).map((child) => child.node),
+    ).map((record) => [record.id, record]),
+  )
 
   const keeps = records.flatMap((record) =>
     record.id === node.id
@@ -1690,6 +1687,29 @@ const appendedOrd = (
   rows: ReadonlyArray<ReadonlyArray<Node>>,
   parent: string | undefined,
 ): string => nextOrd(lastOrd(rows, parent))
+
+/**
+ * A whole ROW of records, moved to the end of what is already under `parent`,
+ * keeping the order they were in.
+ *
+ * {@link appendedOrd} answers for ONE arrival; a row of them has to carry the
+ * key forward between arrivals, and a caller doing that by hand is a mutable
+ * cursor in the middle of a planner. What it is for is the merge's adopted
+ * children, and "last, in order" is the same answer `unarchive` gives the
+ * subtree it brings back.
+ */
+const appendedUnder = <N extends Node>(
+  rows: ReadonlyArray<ReadonlyArray<Node>>,
+  parent: string,
+  moving: ReadonlyArray<N>,
+): ReadonlyArray<N> => {
+  let previous = lastOrd(rows, parent)
+  return moving.map((record) => {
+    const ord = nextOrd(previous)
+    previous = ord
+    return { ...withParent(record, parent), ord }
+  })
+}
 
 // ── unarchive ──────────────────────────────────────────────────────────
 

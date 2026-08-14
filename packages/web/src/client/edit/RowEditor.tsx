@@ -58,7 +58,7 @@ export function TitleEditor(props: {
   readonly caret?: number
 }) {
   let element!: HTMLInputElement
-  takeCaret(() => element, undefined, () => props.caret)
+  takeCaret(() => element, { at: () => props.caret })
 
   return (
     <input
@@ -99,7 +99,7 @@ export function DescEditor(props: {
   readonly onBlur: (left: boolean) => void
 }) {
   let element!: HTMLTextAreaElement
-  takeCaret(() => element, () => grow(element))
+  takeCaret(() => element, { then: () => grow(element) })
 
   return (
     <textarea
@@ -237,20 +237,28 @@ const caretOf = (target: EventTarget | null): Caret | undefined => {
  */
 const takeCaret = (
   element: () => HTMLInputElement | HTMLTextAreaElement,
-  also?: () => void,
-  wanted?: () => number | undefined,
+  /** Named rather than positional, because the two callers want different ONES
+   *  of them and a positional `undefined` in the middle is a call site that
+   *  reads as a mistake. */
+  said: {
+    /** Where the caret goes when the editor OPENS, when the draft says. */
+    readonly at?: () => number | undefined
+    /** Anything else the caret arriving implies — the note's box growing to
+     *  fit what is in it. */
+    readonly then?: () => void
+  } = {},
 ): void => {
   const editor = useEditor()
   let opening = true
   createEffect(on(editor.caret, () => {
     const field = element()
     const at = opening
-      ? wanted?.() ?? field.value.length
+      ? said.at?.() ?? field.value.length
       : field.selectionStart ?? field.value.length
     opening = false
     field.focus()
     field.setSelectionRange(at, at)
-    also?.()
+    said.then?.()
   }))
 }
 
