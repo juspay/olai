@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { askQuery, captureQuery, filterItems, nodeItem, SHELL_ITEMS } from "./items.ts"
+import { filterItems, modeOf, nodeItem, SHELL_ITEMS } from "./items.ts"
 
 test("empty query returns every shell item", () => {
   expect(filterItems("").length).toBe(SHELL_ITEMS.length)
@@ -57,26 +57,41 @@ test("a node at the top level is placed by its file", () => {
   expect(top.place).toBe("errands.jsonl")
 })
 
-test("askQuery strips the > prefix", () => {
-  expect(askQuery("> mark kitchen done")).toBe("mark kitchen done")
-  expect(askQuery("  >  hello")).toBe("hello")
-  expect(askQuery(">")).toBe("")
-  expect(askQuery("toggle")).toBeNull()
-  expect(askQuery("not > this")).toBeNull()
+test("a `>` line is a message to the agent", () => {
+  expect(modeOf("> mark kitchen done")).toEqual({
+    kind: "ask",
+    text: "mark kitchen done",
+  })
+  expect(modeOf("  >  hello")).toEqual({ kind: "ask", text: "hello" })
+  expect(modeOf(">")).toEqual({ kind: "ask", text: "" })
 })
 
-test("captureQuery strips the + prefix, and the two prefixes never overlap", () => {
-  expect(captureQuery("+ buy milk")).toBe("buy milk")
-  expect(captureQuery("+buy milk")).toBe("buy milk")
-  expect(captureQuery("  +  buy milk")).toBe("buy milk")
-  expect(captureQuery("+")).toBe("")
-  expect(captureQuery("buy milk")).toBeNull()
-  // A `+` inside the line is not a prefix — only the first character is.
-  expect(captureQuery("2 + 2")).toBeNull()
-  // Neither prefix claims the other's queries, which is what lets one box
-  // carry both without a mode.
-  expect(askQuery("+ buy milk")).toBeNull()
-  expect(captureQuery("> what is a garden")).toBeNull()
+test("a `+` line is a capture", () => {
+  expect(modeOf("+ buy milk")).toEqual({ kind: "capture", text: "buy milk" })
+  expect(modeOf("+buy milk")).toEqual({ kind: "capture", text: "buy milk" })
+  expect(modeOf("  +  buy milk")).toEqual({ kind: "capture", text: "buy milk" })
+  expect(modeOf("+")).toEqual({ kind: "capture", text: "" })
+})
+
+test("anything else filters the list, and a prefix is only ever the first character", () => {
+  expect(modeOf("toggle")).toEqual({ kind: "filter" })
+  expect(modeOf("")).toEqual({ kind: "filter" })
+  // A `>` or a `+` INSIDE the line is text, not a mode.
+  expect(modeOf("not > this")).toEqual({ kind: "filter" })
+  expect(modeOf("2 + 2")).toEqual({ kind: "filter" })
+})
+
+test("the box is doing exactly one of the three, and `>` is read first", () => {
+  // One value rather than one nullable string per prefix, so "asking AND
+  // capturing" is not a state anything downstream has to not be in.
+  expect(modeOf("> plus a + in it")).toEqual({
+    kind: "ask",
+    text: "plus a + in it",
+  })
+  expect(modeOf("+ and a > in it")).toEqual({
+    kind: "capture",
+    text: "and a > in it",
+  })
 })
 
 test("the capture row primes the prefix rather than doing anything", () => {

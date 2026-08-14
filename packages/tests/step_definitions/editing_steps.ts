@@ -363,11 +363,36 @@ Then(
 
 // ── what the directory says ────────────────────────────────────────────
 
+/**
+ * The records of a file that MAY NOT EXIST YET — the one reader every
+ * disk assertion below goes through.
+ *
+ * Two writes in this app mint the file they land in: `archive` writes
+ * `Archive.jsonl` the first time anything is put away, and the palette's
+ * capture writes `Inbox.jsonl` the first time anybody captures. A scenario
+ * polling for a node to arrive in either is polling for the FILE too, and a
+ * reader that threw would fail on the first poll — at speed it usually
+ * doesn't, under load it does, and the failure names an ENOENT rather than
+ * the assertion being made. A missing file is "nothing there yet", which is
+ * safe here precisely because every step below WAITS: a file that never
+ * arrives still fails, as the claim it was making.
+ */
+const recordsIn = (
+  world: OlaiWorld,
+  file: string,
+): ReadonlyArray<Record<string, unknown>> => {
+  try {
+    return world.servedNodes(file);
+  } catch {
+    return [];
+  }
+};
+
 /** Every title the file holds, off the disk this scenario is writing to.
  *  Deliberately the RECORDS rather than the page: what these scenarios claim
  *  is that a keystroke reached a file through the ops layer. */
 const titlesIn = (world: OlaiWorld, file: string): ReadonlyArray<string> =>
-  world.servedNodes(file).map((node) => String(node["title"] ?? ""));
+  recordsIn(world, file).map((node) => String(node["title"] ?? ""));
 
 Then(
   "{string} holds a node titled {string}",
@@ -388,7 +413,7 @@ Then(
   async function (this: OlaiWorld, file: string, title: string, parent: string) {
     await this.waitUntil(
       async () =>
-        this.servedNodes(file).some(
+        recordsIn(this, file).some(
           (node) => node["title"] === title && node["parent"] === parent,
         ),
       `${file} to hold ${JSON.stringify(title)} under ${JSON.stringify(parent)}`,
@@ -412,7 +437,7 @@ Then(
   async function (this: OlaiWorld, file: string, mark: string, title: string) {
     await this.waitUntil(
       async () =>
-        this.servedNodes(file).some(
+        recordsIn(this, file).some(
           (node) => node["title"] === title && node[mark] !== undefined,
         ),
       `${file} to hold a node titled ${JSON.stringify(title)} that is marked ${mark}`,
@@ -425,34 +450,13 @@ Then(
   async function (this: OlaiWorld, file: string, ending: string) {
     await this.waitUntil(
       async () =>
-        this.servedNodes(file).some((node) =>
+        recordsIn(this, file).some((node) =>
           String(node["desc"] ?? "").trimEnd().endsWith(ending)
         ),
       `${file} to hold a node whose note ends ${JSON.stringify(ending)}`,
     );
   },
 );
-
-/**
- * The records of a file that may not exist yet.
- *
- * `Archive.jsonl` is written by the write that archives the first thing, so a
- * scenario polling for a node to arrive in it is polling for the FILE too. A
- * missing file is "nothing there yet" for exactly that reason, and it is safe
- * to read it that way here: every step below waits, so a file that never
- * arrives fails as the assertion that was actually being made rather than as
- * an ENOENT from a helper.
- */
-const recordsIn = (
-  world: OlaiWorld,
-  file: string,
-): ReadonlyArray<Record<string, unknown>> => {
-  try {
-    return world.servedNodes(file);
-  } catch {
-    return [];
-  }
-};
 
 /** BY ID, which is the half a title cannot answer. Archiving keeps a node's
  *  id — that is what makes it a trash rather than a shredder, since a mirror
@@ -558,7 +562,7 @@ Then(
   async function (this: OlaiWorld, file: string, title: string) {
     await this.waitUntil(
       async () =>
-        this.servedNodes(file).some(
+        recordsIn(this, file).some(
           (node) => node["title"] === title && node["desc"] === undefined,
         ),
       `${file} to hold a node titled ${JSON.stringify(title)} carrying no note`,
@@ -580,7 +584,7 @@ Then(
   async function (this: OlaiWorld, file: string, title: string) {
     await this.waitUntil(
       async () =>
-        this.servedNodes(file).some(
+        recordsIn(this, file).some(
           (node) =>
             node["title"] === title &&
             Object.keys(node).every((field) =>

@@ -49,7 +49,7 @@ import {
 } from "solid-js"
 
 import type { Situated } from "@olai/format"
-import type { OpFailure } from "@olai/surface"
+import type { Edit, OpFailure } from "@olai/surface"
 
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
@@ -64,15 +64,14 @@ import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../run.ts"
 import {
-  askQuery,
   CAPTURE_PREFIX,
-  captureQuery,
   filterItems,
+  modeOf,
   nodeItem,
-  type PaletteAction,
   type PaletteItem,
   SHELL_ITEMS,
 } from "./items.ts"
+import { only } from "../narrow.ts"
 import { opItems } from "./ops.ts"
 import { QUIET_PILL } from "../pill.ts"
 import { createNodeSearch } from "../search/nodes.ts"
@@ -100,12 +99,24 @@ const NOTHING = -1
  *  and on the best match the moment it is not. */
 const startAt = (query: string): number => (query.trim() === "" ? NOTHING : 0)
 
-/** The question a row asks, for the one row that asks one — read off the
- *  action rather than carried a second time on the item, so a row that is up
- *  for confirmation and the row that put it there cannot disagree. Empty for
- *  anything else, which is a shape the confirm arm is never entered with. */
-const confirmOf = (item: PaletteItem): string =>
-  item.action.kind === "edit" ? item.action.confirm ?? "" : ""
+/**
+ * A QUESTION THAT IS UP, and everything answering it needs — its words, the
+ * verb's name for the button that goes ahead, and the edit that goes.
+ *
+ * Resolved at the ONE site that knows the row is a write with a question to
+ * ask, rather than kept as the row itself. A row is a wider thing than this
+ * panel can use: most of them are navigation, none of those has a question,
+ * and holding one here would mean the panel asking `action.kind === "edit"`
+ * again and needing an answer for the case it is never in. So the narrowing
+ * happens once, where it is true, and the arm below cannot be entered with a
+ * row that has nothing to confirm.
+ */
+interface Asking {
+  /** The verb's own words, on the button that goes ahead. */
+  readonly label: string
+  readonly question: string
+  readonly edit: Edit
+}
 
 export function Palette(props: {
   readonly go: (route: Route) => void
@@ -138,17 +149,18 @@ export function Palette(props: {
   /** What the last write had to say — a refusal in the ops layer's own words,
    *  or a remark about one that landed. */
   const [said, setSaid] = createSignal<Said | null>(null)
-  /** The row whose question is up, for the one verb that asks one. It replaces
-   *  the list in the same box, exactly as the `•••` menu's confirm does rather
-   *  than as browser chrome olai does not own. */
-  const [asking, setAsking] = createSignal<PaletteItem | null>(null)
+  /** The question that is up, RESOLVED — its words and the edit answering it
+   *  sends, taken off the row when it was raised. It replaces the list in the
+   *  same box, exactly as the `•••` menu's confirm does rather than as browser
+   *  chrome olai does not own. */
+  const [asking, setAsking] = createSignal<Asking | null>(null)
   let input: HTMLInputElement | undefined
   let previousFocus: HTMLElement | null = null
 
-  const ask = createMemo(() => askQuery(query()))
-  const capture = createMemo(() => captureQuery(query()))
-  /** Whether the box has been taken away from the list by either prefix. */
-  const typing = createMemo(() => ask() !== null || capture() !== null)
+  /** What the box is doing — one value, so "showing the list" and "composing a
+   *  line" cannot disagree ({@link ./items.ts}'s `Mode`). */
+  const mode = createMemo(() => modeOf(query()))
+  const listing = () => mode().kind === "filter"
 
   // The nodes, from the server — one primitive, its own failure, and no
   // request bookkeeping in this component ({@link ./search.ts}). It is asked
@@ -156,11 +168,11 @@ export function Palette(props: {
   // neither `>` nor `+` is a search, and asking for one would spend a round
   // trip per keystroke on a sentence nobody is looking things up with.
   const nodes = createNodeSearch(() =>
-    paletteOpen() && !typing() ? query() : null
+    paletteOpen() && listing() ? query() : null
   )
 
   const items = createMemo(() => {
-    if (typing()) return [] as ReadonlyArray<PaletteItem>
+    if (!listing()) return [] as ReadonlyArray<PaletteItem>
     // THE OP ROWS FIRST, because they are the only rows that are about what
     // the reader is looking at — a list whose contextual half is below the
     // fold is a list nobody finds them in. What makes that safe is {@link
@@ -209,13 +221,16 @@ export function Palette(props: {
     // prefix has not been typed yet, so neither of them reaches the `close()`
     // at the bottom.
     if (action.kind === "edit") {
-      if (action.confirm !== undefined && asking()?.id !== item.id) {
-        setSaid(null)
-        setAsking(item)
+      if (action.confirm === undefined) {
+        sendEdit(action.edit)
         return
       }
-      setAsking(null)
-      sendEdit(action)
+      // ASKING is all this does. What ANSWERING it does is `answer`, called
+      // from the question's own button and from Enter — the `•••` menu's rule
+      // word for word: "ask, then do" stays two call sites rather than one
+      // function telling them apart by which row it was handed.
+      setSaid(null)
+      setAsking({ label: item.label, question: action.confirm, edit: action.edit })
       return
     }
     if (action.kind === "prefix") {
@@ -243,15 +258,21 @@ export function Palette(props: {
    * entry record on, so ⌘Z does not mean something different depending on
    * which surface made the edit.
    */
-  const sendEdit = (action: Extract<PaletteAction, { kind: "edit" }>) => {
+  const sendEdit = (edit: Edit) => {
     setSaid(null)
-    void applying(action.edit, undo.record).then((answer) => {
-      if (answer === undefined) {
+    void applying(edit, undo.record).then((said) => {
+      if (said === undefined) {
         close()
         return
       }
-      setSaid(answer)
+      setSaid(said)
     })
+  }
+
+  /** The question answered: it goes, and the verb behind it does. */
+  const answer = (question: Asking) => {
+    setAsking(null)
+    sendEdit(question.edit)
   }
 
   /**
@@ -316,14 +337,13 @@ export function Palette(props: {
   }
 
   const confirm = () => {
-    const message = ask()
-    if (message !== null) {
-      sendAsk(message)
+    const box = mode()
+    if (box.kind === "ask") {
+      sendAsk(box.text)
       return
     }
-    const line = capture()
-    if (line !== null) {
-      sendCapture(line)
+    if (box.kind === "capture") {
+      sendCapture(box.text)
       return
     }
     // The question, if one is up: Enter is the second press that answers it,
@@ -331,7 +351,7 @@ export function Palette(props: {
     // agent makes.
     const question = asking()
     if (question !== null) {
-      runItem(question)
+      answer(question)
       return
     }
     // Nothing lit is nothing chosen — see {@link NOTHING}. No `?? list[0]`
@@ -537,23 +557,23 @@ export function Palette(props: {
                 somebody chose the verb that asks it, and nothing they type
                 next may quietly become the answer. */}
             <Match when={asking()}>
-              {(item) => (
-                <div class="px-4 py-3" role="group" aria-label={confirmOf(item())}>
+              {(question) => (
+                <div class="px-4 py-3" role="group" aria-label={question().question}>
                   <p
                     class="m-0 text-xs leading-snug text-ink"
                     data-testid={TESTID.paletteConfirm}
                   >
-                    {confirmOf(item())}
+                    {question().question}
                   </p>
                   <div class="mt-2 flex gap-2">
                     <button
                       type="button"
                       class="cursor-pointer rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10"
                       data-testid={TESTID.paletteItem}
-                      data-id={item().id}
-                      onClick={() => runItem(item())}
+                      data-id="go"
+                      onClick={() => answer(question())}
                     >
-                      {item().label}
+                      {question().label}
                     </button>
                     <button
                       type="button"
@@ -571,47 +591,63 @@ export function Palette(props: {
                 </div>
               )}
             </Match>
-            <Match when={ask() !== null}>
-              <div
-                class="px-4 py-3 font-mono text-xs text-muted"
-                data-testid={TESTID.paletteAsk}
-              >
-                <Show
-                  when={(ask() ?? "").trim() !== ""}
-                  fallback={
-                    <span>type a message after &gt; to send to the agent</span>
-                  }
-                >
-                  <span>
-                    send to agent: <span class="text-ink">{ask()}</span>
-                  </span>
-                </Show>
-              </div>
+            {/* Both prefixes preview the SAME way, because they are the same
+                promise: these are the words Enter is about to send, and Enter
+                is never a guess. Two arms rather than one because the two
+                sentences and the two testids are all that differ, and the
+                slot a scenario waits on has to say which prefix it is. */}
+            <Match when={only(mode(), "ask")}>
+              {(box) => (
+                <Composing
+                  text={box().text}
+                  lead="send to agent"
+                  empty="type a message after > to send to the agent"
+                  testid={TESTID.paletteAsk}
+                />
+              )}
             </Match>
-            {/* The capture, previewed the way the ask is — the words that are
-                about to become a node, so Enter is never a guess. */}
-            <Match when={capture() !== null}>
-              <div
-                class="px-4 py-3 font-mono text-xs text-muted"
-                data-testid={TESTID.paletteCapture}
-              >
-                <Show
-                  when={(capture() ?? "").trim() !== ""}
-                  fallback={
-                    <span>type a line after + to capture it to the Inbox</span>
-                  }
-                >
-                  <span>
-                    capture to the Inbox:{" "}
-                    <span class="text-ink">{capture()}</span>
-                  </span>
-                </Show>
-              </div>
+            <Match when={only(mode(), "capture")}>
+              {(box) => (
+                <Composing
+                  text={box().text}
+                  lead="capture to the Inbox"
+                  empty="type a line after + to capture it to the Inbox"
+                  testid={TESTID.paletteCapture}
+                />
+              )}
             </Match>
           </Switch>
         </div>
       </div>
     </Show>
     </>
+  )
+}
+
+/**
+ * What a prefix is ABOUT to send, in the slot the list would be in.
+ *
+ * One component for both prefixes: an ask and a capture make the same promise
+ * to the reader — these are the words, verbatim, that Enter will send — and
+ * two spellings of that promise would be two chances for one of them to stop
+ * showing what it is going to do.
+ */
+function Composing(props: {
+  /** The line as it stands, after the prefix. */
+  readonly text: string
+  /** What the words are FOR, said before them. */
+  readonly lead: string
+  /** What to say while there is nothing to send yet. */
+  readonly empty: string
+  readonly testid: string
+}) {
+  return (
+    <div class="px-4 py-3 font-mono text-xs text-muted" data-testid={props.testid}>
+      <Show when={props.text.trim() !== ""} fallback={<span>{props.empty}</span>}>
+        <span>
+          {props.lead}: <span class="text-ink">{props.text}</span>
+        </span>
+      </Show>
+    </div>
   )
 }
