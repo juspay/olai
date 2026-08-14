@@ -1,7 +1,7 @@
 /**
  * The typefaces, as the CSS that puts one in force.
  *
- * Generated from `./catalog.ts` and appended to the built stylesheet by
+ * Generated from `./typefaces.ts` and appended to the built stylesheet by
  * `@olai/web`'s `src/build.ts`, which is why nothing here is in that package's
  * `styles.css`: the table is the source, and a sheet with twenty hand-copied
  * `@font-face` blocks in it would be twenty chances for a file to be
@@ -20,16 +20,18 @@
  */
 
 import {
+  type HostedFile,
+  HOSTED_FILES,
+  woff2Name,
+} from "./hosted.ts"
+import {
   DEFAULT_FONT,
   FONT_ATTRIBUTE,
   FONT_TOKENS,
-  type HostedFile,
-  HOSTED_FILES,
   type Typeface,
   TYPEFACES,
-  woff2Name,
   fontProperty,
-} from "./catalog.ts"
+} from "./typefaces.ts"
 
 /** The selector a page in this typeface matches. The default matches TWO: its
  *  own name, and the page that has picked nothing at all.
@@ -61,7 +63,7 @@ export const fontFaceRule = (file: HostedFile): string =>
 /** Every `@font-face`, then every pick's block, in table order. */
 export const fontCss = (): string =>
   [
-    "/* The named typefaces — GENERATED from packages/fonts/src/catalog.ts",
+    "/* The named typefaces — GENERATED from packages/fonts/src/typefaces.ts",
     " * by its own css.ts. Do not edit: edit the table. */",
     ...HOSTED_FILES.map(fontFaceRule),
     ...TYPEFACES.map(typefaceBlock),

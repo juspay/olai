@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test"
 
 import { fontCss, fontFaceRule, selectorFor, typefaceBlock } from "./css.ts"
+import { HOSTED_FILES } from "./hosted.ts"
 import {
   DEFAULT_FONT,
   FONT_ATTRIBUTE,
   FONT_TOKENS,
-  HOSTED_FILES,
   TYPEFACES,
   fontProperty,
-} from "./catalog.ts"
+} from "./typefaces.ts"
 
 const css = fontCss()
 

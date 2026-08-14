@@ -44,8 +44,7 @@ import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
 import type { BunPlugin } from "bun"
 
-import { HOSTED_FILES, woff2Name } from "@olai/fonts"
-import { fontCss } from "@olai/fonts/css"
+import { fontCss, HOSTED_WOFF2 } from "@olai/fonts/build"
 import { paletteCss } from "./client/theme/css.ts"
 import { scaleCss } from "./client/theme/scale.ts"
 
@@ -136,31 +135,28 @@ const buildStylesheet = async (): Promise<ArrayBuffer> =>
  * the packaged build; the dev loop gets the same variable from the flake
  * shell.
  *
- * The lookup stays BY NAME, one entry of the catalog at a time, rather than a
- * copy of the whole directory: the catalog is what the generated sheet asks
- * for, so a face it names and the derivation does not convert has to fail the
- * build rather than 404 in a browser.
+ * The lookup stays BY NAME, one file of `HOSTED_WOFF2` at a time, rather than
+ * a copy of the whole directory: that list is exactly what the sheet appended
+ * above asks for, so a face it names and the derivation does not convert has
+ * to fail the build rather than 404 in a browser.
  */
 const installFonts = (distDir: string): void => {
   const fontsDir = process.env.OLAI_FONTS_DIR
   if (fontsDir === undefined || fontsDir === "") {
     throw new Error(
       "OLAI_FONTS_DIR is unset — the flake shell and default.nix both set it " +
-        "to packages/fonts/default.nix (the catalog is that package's " +
-        "catalog.ts); run via `just serve` / `nix build`.",
+        "to packages/fonts/default.nix; run via `just serve` / `nix build`.",
     )
   }
   const out = resolve(distDir, "fonts")
   mkdirSync(out, { recursive: true })
 
-  for (const face of HOSTED_FILES) {
-    const name = woff2Name(face.file)
+  for (const name of HOSTED_WOFF2) {
     const src = join(fontsDir, name)
     if (!existsSync(src)) {
       throw new Error(
-        `font face missing at ${src} (OLAI_FONTS_DIR=${fontsDir}) — the ` +
-          `catalog names ${face.file}, so packages/fonts/default.nix has to ` +
-          `convert it`,
+        `font face missing at ${src} (OLAI_FONTS_DIR=${fontsDir}) — the sheet ` +
+          `asks for it, so packages/fonts/default.nix has to convert it`,
       )
     }
     const dest = join(out, name)
@@ -169,7 +165,7 @@ const installFonts = (distDir: string): void => {
     // the next build into this same dist could not overwrite its own output.
     chmodSync(dest, 0o644)
   }
-  console.log(`fonts: ${HOSTED_FILES.length} faces from ${fontsDir}`)
+  console.log(`fonts: ${HOSTED_WOFF2.length} faces from ${fontsDir}`)
 }
 
 const buildClient = async (distDir: string): Promise<void> => {

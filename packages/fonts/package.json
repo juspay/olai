@@ -5,10 +5,10 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "Two entries, and the split is the one this package exists to make. `.` is the CATALOG — the table a page reads: the typefaces, the tokens they write, the attribute and storage key a pick lives under, the hosted files. `./css` is the GENERATOR that turns that table into `@font-face` rules and `:root[data-font=\"…\"]` blocks, and it runs in the client BUILD only. Separate subpaths rather than one barrel because the browser has no use for a stylesheet emitter, and a bundler should not have to prove that by tree-shaking. The third product is not a JavaScript export at all: `default.nix` beside them, which converts the faces the catalog names to woff2 in the Nix store.",
+  "//exports": "Two entries, one per READER, which is the split this package exists to make. `.` is what a PAGE reads: the typefaces, the tokens they write, the attribute and storage key a pick lives under — and nothing else, because a browser that draws a picker has no use for a filename. `./build` is what a client BUILD takes: the generated `@font-face` / `:root[data-font=\"…\"]` sheet, and the list of woff2 files that sheet's `src: url(…)` needs under `/fonts/`. One entry rather than two because they are one obligation — a build that takes the sheet and not the files ships a page whose every face 404s. The third product is not a JavaScript export at all: `default.nix` beside them, which converts those files in the Nix store.",
   "exports": {
     ".": "./src/index.ts",
-    "./css": "./src/css.ts"
+    "./build": "./src/build.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

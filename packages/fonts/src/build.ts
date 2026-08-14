@@ -1,0 +1,20 @@
+/**
+ * What a client build takes from this package — and it is exactly two things.
+ *
+ * `fontCss()` is the block appended to the built stylesheet. `HOSTED_WOFF2` is
+ * what has to sit under `/fonts/` for that block's `src: url(…)` to resolve:
+ * the same list, in the same order, named the way the derivation writes them.
+ * They are one entry point because they are one obligation — a build that
+ * takes the sheet and not the files ships a page whose every face 404s — and
+ * because neither belongs on the entry a browser imports.
+ */
+
+import { HOSTED_FILES, woff2Name } from "./hosted.ts"
+
+export { fontCss } from "./css.ts"
+
+/** Every file the build copies out of `OLAI_FONTS_DIR`, by the name it has
+ *  there and under `/fonts/`. */
+export const HOSTED_WOFF2: ReadonlyArray<string> = HOSTED_FILES.map((file) =>
+  woff2Name(file.file),
+)

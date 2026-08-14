@@ -9,12 +9,13 @@
 # minute of CPU and a fresh /tmp directory each time, to produce bytes that
 # were the same bytes every time.
 #
-# The catalog is `src/catalog.ts`, in this same package: every file named there
-# has to land in this directory under the same basename with `.woff2` for an
-# extension, because the build copies them out BY NAME (`../web/src/build.ts`)
-# and the generated sheet asks for them by that name (`src/css.ts`). A face in
-# the catalog that is not converted here fails the build loudly rather than
-# 404ing in someone's browser. Generics (System, Sans-serif, …) download
+# The file table is `src/hosted.ts`, in this same package: every file named
+# there has to land in this directory under the same basename with `.woff2`
+# for an extension, because the build copies them out BY NAME
+# (`../web/src/build.ts`) and the generated sheet asks for them by that name
+# (`src/css.ts`). A face in that table which is not converted here fails the
+# build loudly rather than 404ing in someone's browser — and fails
+# `src/derivation.test.ts` before that. Generics (System, Sans-serif, …) download
 # nothing and are not here. One directory so `OLAI_FONTS_DIR` stays one
 # variable in shell.nix and the root default.nix.
 { pkgs }:

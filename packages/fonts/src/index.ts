@@ -1,9 +1,10 @@
 /**
- * The catalog, which is what a page reads.
+ * The typefaces — what a page reads.
  *
- * `./css` is the other half — the generator that writes the stylesheet out of
- * this table — and it is a separate subpath because a browser has no use for
- * it (see this package's `package.json`).
+ * The picks, the three tokens they write, and the attribute and storage key
+ * one lives under. That is the whole of this entry, and the whole of what the
+ * browser is given: the files behind a family and the sheet that names them
+ * are `./build`, which only the client build imports.
  */
 
-export * from "./catalog.ts"
+export * from "./typefaces.ts"
