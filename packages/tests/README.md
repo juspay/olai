@@ -475,7 +475,7 @@ is `support/caret.ts`. What that buys each step:
 |---|---|
 | `I press`, `I type`, `I select all and type` | the line to hold the caret, BEFORE aiming anything at it |
 | `I press "Enter"` / `"Backspace"` at the head of a line | the caret to leave that line, and arrive in the one the key opened |
-| `I press "Tab"` / `"Shift+Tab"` / `"Alt+Shift+Arrow…"` | the row to be drawn where the key put it |
+| `I press "Tab"` / `"Shift+Tab"` / `"Alt+Shift+Arrow…"` | the row to be drawn where the key moved it |
 | `I press "Escape"` with a draft open | the draft to close |
 | `I click away from the editor` | the caret to leave the line |
 

@@ -209,16 +209,23 @@ export const leavingTheLine = async (
   await leftThePlace(world, was, what);
 };
 
-/** The keys that leave the line the caret is on — the two that END it, and the
- *  four that put the row somewhere else. What they have in common is the only
- *  thing this module can see: afterwards the caret is not where it was. */
-const LEAVES = new Set([
-  "Enter",
-  "Backspace",
-  "Tab",
-  "Shift+Tab",
-  "Alt+Shift+ArrowUp",
-  "Alt+Shift+ArrowDown",
+/**
+ * The keys that leave the line the caret is on, and WHAT each is waited on as.
+ *
+ * Two kinds — the two that END a line, and the four that put the row somewhere
+ * else — and one predicate, because the only thing this module can see is the
+ * same for both: afterwards the caret is not where it was. The SENTENCE is per
+ * key all the same, because it is the one a red run reads, and a `Tab` that did
+ * nothing timing out as "the caret to leave the line the key ended" sends the
+ * reader looking for a line nobody was leaving.
+ */
+const LEAVES: ReadonlyMap<string, string> = new Map([
+  ["Enter", "the caret to leave the line the key ended"],
+  ["Backspace", "the caret to leave the line the key joined onto the row above"],
+  ["Tab", "the row to be drawn where the key moved it"],
+  ["Shift+Tab", "the row to be drawn where the key moved it"],
+  ["Alt+Shift+ArrowUp", "the row to be drawn where the key moved it"],
+  ["Alt+Shift+ArrowDown", "the row to be drawn where the key moved it"],
 ]);
 
 /**
@@ -238,12 +245,13 @@ const answering = async (
     if (!(await somethingIsBeingTyped(world))) return nothing;
     return async () => await nothingIsBeingTyped(world);
   }
-  if (!LEAVES.has(key)) return nothing;
+  const leaves = LEAVES.get(key);
+  if (leaves === undefined) return nothing;
   if (key === "Backspace" && !(await joinsWithBackspace(world))) return nothing;
   const was = await caretPlace(world);
   if (was === null) return nothing;
   return async () => {
-    await leftThePlace(world, was, "the caret to leave the line the key ended");
+    await leftThePlace(world, was, leaves);
     // And to arrive in the one the key opened. A move redraws the row where
     // the file now says it is, which takes the focus off it, and the client
     // takes it back a frame later (`editing.tsx`'s `settle`).
