@@ -31,7 +31,6 @@ import {
   type LocatedRegular,
   MARKS,
   matching,
-  nothingAsked,
   type OutlineSet,
   parseFilter,
   type Progress,
@@ -295,7 +294,11 @@ export const search = (
   },
 ): Search => {
   const filter = parseFilter(query.text)
-  if (nothingAsked(filter)) return { hits: [], total: 0 }
+  // An empty query and one the grammar refused both answer with nothing, and
+  // the difference between them is not this layer's to draw: a tool call gets
+  // no rows either way, and the reason a person needs is drawn by the box they
+  // typed into (`@olai/web`'s filter bar).
+  if (filter.kind !== "asking") return { hits: [], total: 0 }
 
   const scored = matching(derived, filter, { file: query.file, under: query.under })
     .map(({ at, match }) => {

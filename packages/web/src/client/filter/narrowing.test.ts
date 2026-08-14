@@ -88,7 +88,7 @@ test("a refused operator empties the page and carries its reason", () => {
   const narrowing = page("is:blocked")
   expect(narrowing.active()).toBe(true)
   expect(narrowing.rows()).toEqual([])
-  expect(narrowing.query().refusals.map((one) => one.token)).toEqual(["is:blocked"])
+  expect(narrowing.refusals().map((one) => one.token)).toEqual(["is:blocked"])
 })
 
 const flat = (rows: ReadonlyArray<Row>): ReadonlyArray<string> =>

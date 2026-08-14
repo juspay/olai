@@ -97,13 +97,13 @@ export function FilterBar(props: {
         </p>
       </Show>
 
-      <Show when={narrowing().query().refusals.length > 0}>
+      <Show when={narrowing().refusals().length > 0}>
         <ul
           class="m-0 mt-1 list-none p-0"
           data-testid={TESTID.filterRefusals}
           role="alert"
         >
-          <For each={[...narrowing().query().refusals]}>
+          <For each={[...narrowing().refusals()]}>
             {(refusal) => (
               <li
                 class="font-mono text-xs text-alarm"

@@ -22,12 +22,19 @@
 
 import { createContext, type JSX, useContext } from "solid-js"
 
-export interface Narrowed {
-  /** Is a filter on at all? */
-  readonly active: () => boolean
-  /** The node ids the query selected. Empty when nothing is filtered. */
-  readonly matched: () => ReadonlySet<string>
-}
+import type { Narrowing } from "./narrowing.ts"
+
+/**
+ * The two halves of the page's reading (`./narrowing.ts`) that a ROW asks for:
+ * whether a filter is on, and which nodes it selected.
+ *
+ * A VIEW of that one value rather than a second declaration of the same two
+ * fields — the page has exactly one narrowing, and a parallel interface saying
+ * the same thing is a second place for the two to drift. What it adds is a
+ * DEFAULT (below), which is the whole reason a row asks a context instead of
+ * the page.
+ */
+export type Narrowed = Pick<Narrowing, "active" | "matched">
 
 const NOTHING: Narrowed = {
   active: () => false,

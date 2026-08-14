@@ -21,8 +21,8 @@
  * would make the preference mean two things depending on what else was typed.
  */
 
-import type { Derived, Filter, Row } from "@olai/format"
-import { keeping, matchedIn, matching, nothingAsked, parseFilter } from "@olai/format"
+import type { Derived, Filter, Refusal, Row } from "@olai/format"
+import { keeping, matchedIn, matching, parseFilter } from "@olai/format"
 import { type Accessor, createMemo } from "solid-js"
 
 /** What a filtered page knows about itself. */
@@ -32,8 +32,11 @@ export interface Narrowing {
   /** Is there a filter at all? An empty box is not a filter; a box holding a
    *  query the grammar refused IS one, and it selects nothing. */
   readonly active: Accessor<boolean>
-  /** The parsed query, for the one thing that draws its refusals. */
-  readonly query: Accessor<Filter>
+  /** What the grammar could not read, in its own words — empty for every query
+   *  it could. Lifted off the parsed value rather than handed out with it: the
+   *  bar wants the sentences, and nothing in this client has any business
+   *  reading a query's terms apart from the matcher that owns them. */
+  readonly refusals: Accessor<ReadonlyArray<Refusal>>
   /** The node ids the query selects, across the whole set. Tested against the
    *  rows the page draws, which is what scopes it to the page. */
   readonly matched: Accessor<ReadonlySet<string>>
@@ -69,7 +72,7 @@ export const createNarrowing = (source: {
   readonly visible: Accessor<ReadonlyArray<Row>>
 }): Narrowing => {
   const query = createMemo(() => parseFilter(source.text()))
-  const active = createMemo(() => !nothingAsked(query()))
+  const active = createMemo(() => query().kind !== "nothing")
 
   const matched = createMemo(() => {
     const indexes = source.derived()
@@ -86,7 +89,10 @@ export const createNarrowing = (source: {
   return {
     text: source.text,
     active,
-    query,
+    refusals: createMemo(() => {
+      const asked = query()
+      return asked.kind === "refused" ? asked.refusals : []
+    }),
     matched,
     rows,
     shown,

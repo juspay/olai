@@ -49,7 +49,9 @@ import {
 
 // ── the four fields a word is looked for in ────────────────────────────
 
-/** Where a word may be found, in the order a tie is broken. */
+/** Where a word may be found, in the order a tie is broken. The one thing in
+ *  this file the wire spells for itself (`@olai/surface`'s `SearchHit.matched`),
+ *  which is why it is public where the table below is not. */
 export const SEARCH_FIELDS = ["title", "id", "tag", "desc"] as const
 export type SearchField = (typeof SEARCH_FIELDS)[number]
 
@@ -60,7 +62,7 @@ export type SearchField = (typeof SEARCH_FIELDS)[number]
  *  answer WHICH field carried a match, and "which" and "how much" are one
  *  table. What the ops layer keeps is everything about presenting a shortlist:
  *  the penalty a finished node takes, the cap, the total. */
-export const FIELD_WEIGHT = { title: 1000, id: 750, tag: 500, desc: 250 } as const
+const FIELD_WEIGHT = { title: 1000, id: 750, tag: 500, desc: 250 } as const
 
 /** The case-folded text of one node, per field — what a word is looked for in.
  *
@@ -68,7 +70,7 @@ export const FIELD_WEIGHT = { title: 1000, id: 750, tag: 500, desc: 250 } as con
  *  the full start-of-field bonus and `@alice` finds only the one with that
  *  sigil. A single written form would have demoted every bare-word tag search
  *  by a character. One fold, and the bare name is a slice of it. */
-export const haystacksOf = (
+const haystacksOf = (
   node: RegularNode,
 ): Record<SearchField, ReadonlyArray<string>> => ({
   title: [node.title.toLowerCase()],
@@ -89,7 +91,7 @@ export const haystacksOf = (
 /** Where in the field the word landed. A field that STARTS with it beats one
  *  where it starts a word inside it, which beats one where it is buried.
  *  `-1` is "not in this field at all". */
-export const positionBonus = (haystack: string, needle: string): number => {
+const positionBonus = (haystack: string, needle: string): number => {
   const at = haystack.indexOf(needle)
   if (at === -1) return -1
   if (at === 0) return 100
@@ -101,22 +103,22 @@ export const positionBonus = (haystack: string, needle: string): number => {
 /** The marks `is:` selects on, plus the two questions that are not a mark:
  *  `marked` (any of the three — what makes `is:marked -is:done` sayable) and
  *  `archived` (below). */
-export const IS_VALUES = ["done", "doing", "todo", "marked", "archived"] as const
-export type IsValue = (typeof IS_VALUES)[number]
+const IS_VALUES = ["done", "doing", "todo", "marked", "archived"] as const
+type IsValue = (typeof IS_VALUES)[number]
 
 /** The optional fields of a record `has:` asks about. One row per field a
  *  reader might select on; `has:children` and `has:mirror` are deliberately
  *  absent, being questions about the SET rather than about the record.
  *
  *  `date` is the one row that is not a plain field test — see {@link holds}. */
-export const HAS_FIELDS = ["desc", "date", "see", "after", "doc"] as const
-export type HasField = (typeof HAS_FIELDS)[number]
+const HAS_FIELDS = ["desc", "date", "see", "after", "doc"] as const
+type HasField = (typeof HAS_FIELDS)[number]
 
 /** The three operator names. A colon after anything else is a colon in a word
  *  — see {@link parseFilter}. */
-export const OPERATORS = ["is", "has", "date"] as const
+const OPERATORS = ["is", "has", "date"] as const
 
-export type Clause =
+type Clause =
   | { readonly kind: "is"; readonly value: IsValue }
   | { readonly kind: "has"; readonly field: HasField }
   /** An inclusive span of DAYS, as text. `null` on either side is "unbounded
@@ -124,13 +126,13 @@ export type Clause =
   | { readonly kind: "date"; readonly from: string | null; readonly to: string | null }
 
 /** One word to find, and whether the query wants it ABSENT. */
-export interface Term {
+interface Term {
   readonly word: string
   readonly negated: boolean
 }
 
 /** One clause, and the same question about it. */
-export interface Held {
+interface Held {
   readonly clause: Clause
   readonly negated: boolean
 }
@@ -149,22 +151,38 @@ export interface Refusal {
   readonly reason: string
 }
 
-export interface Filter {
-  readonly terms: ReadonlyArray<Term>
-  readonly clauses: ReadonlyArray<Held>
-  readonly refusals: ReadonlyArray<Refusal>
-  /** True when the query names the archive at all, in either polarity. The
-   *  archive is out of every reading unless it is ASKED for (docs/search.md),
-   *  and this is the flag that says it was — so `is:archived` reaches what was
-   *  put away and `-is:archived` says out loud what is otherwise the default. */
-  readonly speaksOfArchive: boolean
-}
-
-/** Nothing was typed — not the same thing as "typed, and matches nothing".
- *  A filter with only refusals in it is ACTIVE and selects no node. */
-export const nothingAsked = (filter: Filter): boolean =>
-  filter.terms.length === 0 && filter.clauses.length === 0 &&
-  filter.refusals.length === 0
+/**
+ * A query, in one of the three states it can be in — and a UNION rather than a
+ * product of terms, clauses and refusals, because the third makes the other two
+ * ungroundable.
+ *
+ * The product version read honestly field by field and lied in the joint: a
+ * refused query still carried whatever half of it parsed, and "check
+ * `refusals` before you read `terms`" was an arm-order convention every reader
+ * had to know. Here there is nothing to know — a `refused` filter HAS no terms
+ * to be tempted by, and `speaksOfArchive` exists only on the arm where an
+ * archive rule means anything.
+ *
+ * The three are three different things to DO, which is why none of them
+ * collapses into another: `nothing` is an empty box and draws the page whole;
+ * `refused` is a query the reader typed and the grammar could not read, so it
+ * selects nothing and the refusals are shown; `asking` is a query.
+ */
+export type Filter =
+  /** Nothing was typed. Not the same thing as "typed, and matches nothing". */
+  | { readonly kind: "nothing" }
+  | { readonly kind: "refused"; readonly refusals: ReadonlyArray<Refusal> }
+  | {
+    readonly kind: "asking"
+    readonly terms: ReadonlyArray<Term>
+    readonly clauses: ReadonlyArray<Held>
+    /** True when the query names the archive at all, in either polarity. The
+     *  archive is out of every reading unless it is ASKED for
+     *  (docs/search.md), and this is the flag that says it was — so
+     *  `is:archived` reaches what was put away and `-is:archived` says out
+     *  loud what is otherwise the default. */
+    readonly speaksOfArchive: boolean
+  }
 
 /**
  * Text into a query.
@@ -206,7 +224,12 @@ export const parseFilter = (text: string): Filter => {
     clauses.push({ clause, negated })
   }
 
-  return { terms, clauses, refusals, speaksOfArchive }
+  // One refusal decides the whole query. The alternative — answering with the
+  // half that parsed — is a list that looks like an answer to a question
+  // nobody asked, which is the silent error the refusals exist to prevent.
+  if (refusals.length > 0) return { kind: "refused", refusals }
+  if (terms.length === 0 && clauses.length === 0) return { kind: "nothing" }
+  return { kind: "asking", terms, clauses, speaksOfArchive }
 }
 
 const clauseOf = (name: string, value: string): Clause | null => {
@@ -303,16 +326,15 @@ export interface Scope {
 /**
  * Does this node match, and why — or `null`.
  *
- * The order of the gates is the order of their cost: a refused query and an
- * empty one decide before anything is read, the archive is a filename, the
+ * The order of the gates is the order of their cost: a query that is not
+ * ASKING decides before anything is read, the archive is a filename, the
  * clauses are field tests, and the words are the only thing that scans text.
  */
-export const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
-  // A query the grammar could not read selects nothing. The reader is shown
-  // the refusal; they are not shown a list computed from half of what they
-  // typed.
-  if (filter.refusals.length > 0) return null
-  if (nothingAsked(filter)) return null
+const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
+  // Neither an empty box nor a query the grammar could not read selects
+  // anything — and neither of them HAS terms to be tempted by, which is what
+  // the union above is for.
+  if (filter.kind !== "asking") return null
   if (!filter.speaksOfArchive && isArchived(at.file)) return null
 
   for (const held of filter.clauses) {

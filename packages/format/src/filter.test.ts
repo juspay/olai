@@ -5,8 +5,8 @@ import {
   keeping,
   matchedIn,
   matching,
-  nothingAsked,
   parseFilter,
+  type Refusal,
   shownRecord,
 } from "./filter.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
@@ -40,14 +40,13 @@ const selects = (text: string): ReadonlyArray<string> =>
 
 // ── the grammar ────────────────────────────────────────────────────────
 
-test("nothing typed is not a query", () => {
-  expect(nothingAsked(parseFilter(""))).toBe(true)
-  expect(nothingAsked(parseFilter("   "))).toBe(true)
-  expect(nothingAsked(parseFilter("is:done"))).toBe(false)
-  // A query the grammar could not read is ACTIVE and selects nothing — which
-  // is a different thing from an empty box, and the reason the two are told
-  // apart at all.
-  expect(nothingAsked(parseFilter("is:blocked"))).toBe(false)
+// The three states a query can be in, and they are three different things to
+// DO: draw the page whole, draw nothing and say why, or ask.
+test("nothing typed, refused, and asking are told apart", () => {
+  expect(parseFilter("").kind).toBe("nothing")
+  expect(parseFilter("   ").kind).toBe("nothing")
+  expect(parseFilter("is:done").kind).toBe("asking")
+  expect(parseFilter("is:blocked").kind).toBe("refused")
   expect(selects("is:blocked")).toEqual([])
 })
 
@@ -121,8 +120,10 @@ test("`-` negates whichever kind of token it is in front of", () => {
   expect(selects("#home -is:done")).toEqual(["kitchen", "hinges", "herbs"])
   expect(selects("cabinets -is:doing")).toEqual(["install"])
   expect(selects("is:done -basil")).toEqual(["demo"])
-  // A bare `-` is a character somebody typed, not a negation of nothing.
-  expect(parseFilter("-").terms).toEqual([{ word: "-", negated: false }])
+  // A bare `-` is a character somebody typed, not a negation of nothing — so
+  // it is a word to look for, and nothing in this corpus holds one.
+  expect(parseFilter("-").kind).toBe("asking")
+  expect(selects("-")).toEqual([])
 })
 
 test("clauses and words compose", () => {
@@ -132,26 +133,38 @@ test("clauses and words compose", () => {
 
 // ── refusals ───────────────────────────────────────────────────────────
 
+/** What a refused query says, or `null` when it was not refused. Written as a
+ *  narrowing rather than a field read, which is the union's own point: the
+ *  refusals exist only on the arm that has them. */
+const refusalsOf = (text: string): ReadonlyArray<Refusal> | null => {
+  const filter = parseFilter(text)
+  return filter.kind === "refused" ? filter.refusals : null
+}
+
 test("a known operator with an unknown value is refused, and teaches", () => {
-  const filter = parseFilter("is:blocked")
-  expect(filter.refusals.map((one) => one.token)).toEqual(["is:blocked"])
-  expect(filter.refusals[0]?.reason).toContain("done, doing, todo, marked, archived")
+  const refused = refusalsOf("is:blocked")
+  expect(refused?.map((one) => one.token)).toEqual(["is:blocked"])
+  expect(refused?.[0]?.reason).toContain("done, doing, todo, marked, archived")
   // Refused means it selects NOTHING — never "the half of the query I could
-  // read", which is the silent error that would look like an answer.
+  // read", which is the silent error that would look like an answer. The union
+  // is what makes that structural: a refused filter HAS no terms to fall back
+  // on.
+  expect(refusalsOf("is:blocked kitchen")).toHaveLength(1)
   expect(selects("is:blocked kitchen")).toEqual([])
 })
 
 test("each operator says what it takes", () => {
-  expect(parseFilter("has:tags").refusals[0]?.reason).toContain("desc, date, see, after, doc")
-  expect(parseFilter("date:soon").refusals[0]?.reason).toContain("2026-08-10")
-  expect(parseFilter("date:..").refusals).toHaveLength(1)
-  expect(parseFilter("is:").refusals).toHaveLength(1)
+  expect(refusalsOf("has:tags")?.[0]?.reason).toContain("desc, date, see, after, doc")
+  expect(refusalsOf("date:soon")?.[0]?.reason).toContain("2026-08-10")
+  expect(refusalsOf("date:..")).toHaveLength(1)
+  expect(refusalsOf("is:")).toHaveLength(1)
 })
 
 test("a colon after anything else is a colon in a word", () => {
-  const filter = parseFilter("todo: http://example.com")
-  expect(filter.refusals).toEqual([])
-  expect(filter.terms.map((term) => term.word)).toEqual(["todo:", "http://example.com"])
+  // Not refused, and not a clause: three tokens the matcher looks for as text.
+  expect(refusalsOf("todo: http://example.com")).toBe(null)
+  expect(selects("todo:")).toEqual([])
+  expect(selects("order:")).toEqual([])
 })
 
 // ── the archive ────────────────────────────────────────────────────────
