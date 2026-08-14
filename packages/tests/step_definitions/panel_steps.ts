@@ -34,6 +34,8 @@ import type { OlaiWorld } from "../support/world.ts";
 
 const PALETTE_INPUT = `[data-testid="palette-input"]`;
 const PALETTE_ASK_ERROR = `[data-testid="palette-ask-error"]`;
+const HEADER_SEARCH = `[data-testid="header-search"]`;
+const HEADER_SEARCH_ITEM = `[data-testid="header-search-item"]`;
 const CHAT_PILL_TEXT = `[data-testid="chat-pill-text"]`;
 
 // ── desktop sidebar ────────────────────────────────────────────────────
@@ -263,12 +265,19 @@ When(
   },
 );
 
+/** Type into the palette box, waiting for it first — the one spelling both
+ *  the ask step and the search step are written in terms of. */
+const fillPalette = async (world: OlaiWorld, text: string) => {
+  const input = world.page.locator(PALETTE_INPUT);
+  await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await input.fill(text);
+  return input;
+};
+
 When(
   "I ask the palette {string}",
   async function (this: OlaiWorld, text: string) {
-    const input = this.page.locator(PALETTE_INPUT);
-    await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await input.fill(text);
+    const input = await fillPalette(this, text);
     await input.press("Enter");
     await this.waitForFrame();
   },
@@ -279,6 +288,65 @@ Then("the palette shows an ask error", async function (this: OlaiWorld) {
     .locator(PALETTE_ASK_ERROR)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
+
+/** Fill without Enter — search runs as you type; Enter would pick a row. */
+When(
+  "I type {string} into the palette",
+  async function (this: OlaiWorld, text: string) {
+    await fillPalette(this, text);
+  },
+);
+
+// ── the header's search box ────────────────────────────────────────────
+
+When(
+  "I search the header for {string}",
+  async function (this: OlaiWorld, text: string) {
+    const box = this.page.locator(HEADER_SEARCH);
+    await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    // Focus is what puts the results up, so this types rather than fills:
+    // `fill` sets the value without the box ever holding the caret.
+    await box.click();
+    await box.type(text);
+  },
+);
+
+Then(
+  "the header search lists the node {string}",
+  async function (this: OlaiWorld, title: string) {
+    await this.page
+      .locator(HEADER_SEARCH_ITEM)
+      .filter({ hasText: title })
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "I press the header search result {string}",
+  async function (this: OlaiWorld, title: string) {
+    await this.page
+      .locator(HEADER_SEARCH_ITEM)
+      .filter({ hasText: title })
+      .first()
+      .click();
+    await this.waitForFrame();
+  },
+);
+
+Then(
+  "the palette lists the node {string}",
+  async function (this: OlaiWorld, title: string) {
+    // A debounce and one server round trip sit between the keystroke and the
+    // row, so this waits rather than reads. `data-id^="node-"` tells a node
+    // hit from a shell item that happens to share a word.
+    await this.page
+      .locator(`${PALETTE_ITEM}[data-id^="node-"]`)
+      .filter({ hasText: title })
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
 
 // ── mobile drawer + sheet geometry ─────────────────────────────────────
 

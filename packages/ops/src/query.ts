@@ -250,7 +250,8 @@ const edgesOf = (
 /** Every regular node of the set, in file-then-line order. Mirrors are left
  *  out of every answer here: a mirror is a second PLACEMENT of a node, and
  *  returning it would be the same node twice with two locations, one of which
- *  is not where it is defined and so not where a write would land. */
+ *  is not where it is defined and so not where a write would land.
+ */
 const regulars = (derived: Derived): ReadonlyArray<LocatedRegular> =>
   derived.nodes.filter((located) => !isMirror(located.node)) as ReadonlyArray<
     LocatedRegular
@@ -276,6 +277,9 @@ const positionBonus = (haystack: string, needle: string): number => {
  *  enough to disappear. The reason to look for a node you finished is usually
  *  that you finished it. */
 const DONE_PENALTY = 300
+
+/** How many hits an unasked-for limit means, when a caller does not say. */
+const DEFAULT_LIMIT = 12
 
 /**
  * Case-folded substrings, no operators: a query is words, and every word has
@@ -342,7 +346,7 @@ export const search = (
   // under the cursor between two keystrokes. `scored` is already in that order
   // and `sort` is stable.
   const ranked = scored.slice().sort((a, b) => b.score - a.score)
-  const limit = query.limit ?? 12
+  const limit = query.limit ?? DEFAULT_LIMIT
   return { hits: ranked.slice(0, limit).map((entry) => entry.hit), total: ranked.length }
 }
 

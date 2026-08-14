@@ -27,6 +27,13 @@
  * up spending its last pixels on a label nobody came for while `live` dies at
  * `l…` — which is what it did:
  *
+ *   0. The SEARCH BOX, first and completely: it is `md:` and up only, and on a
+ *      phone the same door is a 44px magnifier that opens the ⌘K palette
+ *      (`search/HeaderSearch.tsx` argues both halves). An input narrowed to a
+ *      slot is still an input, so on desktop it is also the one control here
+ *      that may shrink to nothing before any pill loses a character — which is
+ *      what its `min-w-0` and its cap are for.
+ *
  *   1. The last commit's AGE goes first (`commit/Commit.tsx`'s `· 3m ago`,
  *      `sm` and up only). It is the only piece of any label a reader can lose
  *      and still be told what they came for, and the panel has the exact
@@ -102,6 +109,8 @@ import { Show } from "solid-js"
 import { Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
+import type { Route } from "./routes.ts"
+import { HeaderSearch } from "./search/HeaderSearch.tsx"
 import { connectionReadout } from "./wire.ts"
 import { Preferences } from "./settings/Preferences.tsx"
 import { TESTID } from "./testids.ts"
@@ -118,6 +127,13 @@ export function AppHeader(props: {
   /** Whether a directory column is present. The e2e settle probe keys on this
    *  (`data-layout="docked"`) so a phone can settle without opening the sheet. */
   readonly docked?: boolean
+  /**
+   * How to go where a search result points. Absent on the screens with no
+   * router under them — the error report and the waiting page — where the bar
+   * still draws its pills and simply has no search box: a door that could not
+   * open anywhere is worse than no door.
+   */
+  readonly go?: (route: Route) => void
 }) {
   return (
     <header
@@ -191,6 +207,14 @@ export function AppHeader(props: {
         class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 sm:gap-2"
         data-testid={TESTID.appChrome}
       >
+        {/* FIRST in the cluster, and the one control here that may shrink to
+            nothing: it takes what is left after the pills have their floors,
+            so nothing a reader came for gives way to it. On a phone it is the
+            magnifier instead, which opens the palette — see
+            `search/HeaderSearch.tsx` for both arguments. */}
+        <Show when={props.go}>
+          {(go) => <HeaderSearch go={go()} />}
+        </Show>
         <Indicator readout={connectionReadout()} />
         <Commit />
         <ChatToggle />

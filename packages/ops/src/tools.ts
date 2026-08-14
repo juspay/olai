@@ -28,7 +28,7 @@
  * it. One declaration, several uses, no second list to keep in step.
  */
 
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 
 import {
   type CommitRequest,
@@ -36,12 +36,12 @@ import {
   type CommitResult,
   type Derived,
   MARKS,
+  type OpFailure,
   type OutlineSet,
   type PushResult,
   type Status,
   type Writer,
 } from "@olai/format"
-import type { Effect } from "effect"
 
 import * as Query from "./query.ts"
 import {
@@ -64,7 +64,11 @@ import {
 
 /** The set as a reader sees it: the files that were found, and the derivations
  *  every answer is computed from. One value, so a run of queries walks the tree
- *  once ({@link ./query.ts}). */
+ *  once ({@link ./query.ts}).
+ *
+ *  TWO FIELDS, and both are pure functions of one snapshot — which is what
+ *  lets `@olai/server`'s `edit.ts` and `context.ts` advertise themselves as
+ *  pure over a Reading. */
 export interface Reading {
   readonly set: OutlineSet
   readonly derived: Derived

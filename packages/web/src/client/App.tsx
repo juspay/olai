@@ -187,6 +187,7 @@ export default function App() {
       <div class="flex min-h-dvh flex-col">
         <AppHeader
           docked={docked()}
+          go={(route) => router.go(route)}
           menu={
             docked()
               ? {

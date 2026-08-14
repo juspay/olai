@@ -44,7 +44,7 @@
  */
 
 import { NOTHING_PENDING } from "@olai/format"
-import type { Ops, Status } from "@olai/ops"
+import { type Ops, Query, type Status } from "@olai/ops"
 import type {
   CommitRequest,
   CommitResult,
@@ -468,6 +468,14 @@ export const bind = (
         // binding here to forget. What the answer NARROWS the ops layer's to
         // is `applyEdit`'s decision, above, rather than a second one made here.
         edit: { apply: ({ input }) => applyEdit(input) },
+        // The browser's search: the SAME call `search_nodes` makes for an
+        // agent, over one reading of one snapshot — so the two faces answer
+        // identically by construction rather than by two matchers that happen
+        // to agree (HACKING.md).
+        search: {
+          nodes: ({ input }) =>
+            Effect.map(wiring.ops.read, (at) => Query.search(at.derived, input)),
+        },
         git: {
           // The button's door. `writer: "web"` is decided in `serve.ts`, where
           // the ops layer is built — a procedure is a transport, and which

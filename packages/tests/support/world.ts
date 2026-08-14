@@ -340,6 +340,14 @@ export const APP_CHROME = selector(TESTID.appChrome);
  *  again: a preference with a door of its own, beside the door to the
  *  preferences. */
 export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
+  // The search box, and beside it the magnifier a phone gets instead (the bar
+  // has no room for a box at 390pt, and a phone has no ⌘K). Added here as the
+  // deliberate edit this list exists to demand: the row gained a DOOR, not a
+  // second answer about git — the Commit pill is still the only control in it
+  // that reports on the repository, which is the whole of what the fence
+  // below guards.
+  TESTID.headerSearch,
+  TESTID.headerSearchOpen,
   TESTID.connection,
   TESTID.commitPill,
   TESTID.chatToggle,
