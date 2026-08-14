@@ -36,10 +36,13 @@
  *
  * ## The order, and what each step is holding
  *
- * `layer.test.ts` holds three claims about the table: the page band climbs in
- * the order it is written, the two bands do not overlap, and NO other client
- * file spells a `z-*` utility of its own. That last one is what keeps this
- * from becoming a nineteenth place to look.
+ * Three claims are held about the table, in the two places each belongs.
+ * `layer.test.ts` holds the two that are about the table itself: the page band
+ * climbs in the order it is written, and the two bands do not overlap. The
+ * third is about every OTHER file — NO client file outside this one spells a
+ * `z-*` utility — which makes it a sweep rather than a test, so it lives with
+ * the rest of them in `claims.test.ts`. That one is what keeps this from
+ * becoming a nineteenth place to look.
  */
 
 /**

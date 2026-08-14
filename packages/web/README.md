@@ -656,11 +656,13 @@ syntax — and the band a number is in is which question it answers:
 | `LAYER.over` | over the bar too: the two full-screen modals, and the three panels portalled out of the header |
 | `WITHIN.*` | **single digits**, sealed inside one box's own stacking context, saying nothing about the page: `raised` (a resize handle, a modal's card over its backdrop), `cover` (an overlay across the whole box — the chat drop target), `pop` (a small list opening inside it — the slash menu, the sessions dropdown) |
 
-`layer.test.ts` holds three claims: the page band climbs in the order the table
-is written, the two bands cannot overlap, and **no other client file spells a
-`z-*` utility of its own** — a scan, because that last one is what keeps this
-from becoming the twenty-first place to look. The emitted stylesheet carries
-exactly the eight rules the table names.
+Three claims are held about the table, each where it belongs. `layer.test.ts`
+holds the two that are about the table itself: the page band climbs in the
+order the table is written, and the two bands cannot overlap. The third —
+**no other client file spells a `z-*` utility of its own** — is a claim about
+every other file, so it is a sweep and lives in `claims.test.ts` with the rest
+of them. That one is what keeps this from becoming the twenty-first place to
+look. The emitted stylesheet carries exactly the eight rules the table names.
 
 ## The preferences, in one place
 
@@ -1571,8 +1573,10 @@ dwells "were equal only by hand-maintenance" — and the constant turned out to
 be half the job, since both surfaces still spelled the machinery around it and
 had drifted into two shapes for the same three rules (a new sentence replaces
 the one before it *with its timer*, saying nothing clears rather than drawing
-an empty box, the timer dies with the owner). A scan in `saying.test.ts` holds
-the grip: nothing else in the client may count `SAID_MS` down.
+an empty box, the timer dies with the owner). `saying.test.ts` holds those
+three; the receptacle's GRIP is a claim about every other file, so it is a
+sweep in `claims.test.ts`: nothing outside `saying.ts` may count `SAID_MS`
+down.
 
 **The last six are one file split six ways, and the split is Kobalte's doing.**
 `NodeMenu.tsx` was 621 lines because a hand-rolled panel genuinely is one
