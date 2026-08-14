@@ -25,9 +25,15 @@
  *
  * On a pointer device the menu and triangle appear only on row hover / focus;
  * on a phone the triangle stays visible (there is no hover) and the `•••` is
- * hidden — a phone has no room for two always-on cells before the title
- * (see packages/web/README.md). The permanent widths are still reserved so a
- * title never shifts under the pointer when the controls fade in.
+ * not drawn at all — a phone has no room for two always-on cells before the
+ * title (see packages/web/README.md). What a phone reaches the MENU with
+ * instead is a long press on the row, which costs no width at all
+ * (../client/longPress.ts); the menu's root is still in the markup below 48rem
+ * to hold the panel that opens, and is taken out of the strip's flow
+ * (`absolute`) so the arithmetic below stays true — a strip with no `•••` in
+ * it is exactly as wide as its triangle. The permanent widths are still
+ * reserved so a title never shifts under the pointer when the controls fade
+ * in.
  *
  * EVERY gap in the row is `GUTTER_GAP`. The note indents (`PAST_*`) are the
  * arithmetic of those widths + gaps; change a control width or the gap and
@@ -79,15 +85,39 @@ export const CONTROL_SPACER = "w-7 shrink-0 md:w-4"
 
 /**
  * The hover strip: collapse triangle always; `•••` menu on pointer devices
- * only (the menu is `hidden md:…` at its site). Width matches content so a
- * fixed `w-*` cannot drift from the cells it holds.
+ * only (below md the menu's root is out of this flow at its own site, so it
+ * takes neither a cell nor a gap). Width matches content so a fixed `w-*`
+ * cannot drift from the cells it holds.
  */
 export const HOVER_GUTTER =
   `inline-flex h-11 shrink-0 items-center justify-end ${GUTTER_GAP} md:h-5`
 
-/** One cell inside the hover strip (menu trigger or triangle). */
+/** One cell inside the hover strip (the triangle, and the `•••` above md). */
 export const HOVER_CELL =
   "inline-flex h-11 w-7 shrink-0 items-center justify-center md:h-5 md:w-4"
+
+/**
+ * The `•••` cell: the same box, drawn only where there is room for it.
+ *
+ * Its own constant rather than `${HOVER_CELL} hidden md:inline-flex`, because
+ * that reads as a rule and is not one: `hidden` and `inline-flex` are the same
+ * property, so which of them wins below md is Tailwind's emission order and not
+ * the order they are written in. Spelled here, the display is stated once per
+ * breakpoint and cannot be undone by the cell it is built from.
+ */
+export const MENU_CELL =
+  "hidden h-11 w-7 shrink-0 items-center justify-center md:inline-flex md:h-5 md:w-4"
+
+/**
+ * A surface a finger may be HELD on (`../client/longPress.ts`).
+ *
+ * iOS raises its own callout for a long press and does not send the
+ * `contextmenu` that would let it be prevented, so it is turned off wherever
+ * this client claims the gesture. (Android's arrives as that event and is
+ * answered there instead — one platform each, and the halves are named where
+ * they are done.)
+ */
+export const HELD = "[-webkit-touch-callout:none]"
 
 /**
  * Reveal policy for hover-only gutter controls (triangle; menu on md+).
@@ -99,8 +129,9 @@ export const HOVER_REVEAL =
   "opacity-100 md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100"
 
 /**
- * Reveal for the `•••` menu button — only reached when its parent is shown
- * (the menu root is `hidden md:block`). Hover/focus-only; no phone branch.
+ * Reveal for the `•••` menu button — hover/focus-only, and no phone branch,
+ * because the button it is on is not drawn below md at all ({@link MENU_CELL}).
+ * An opacity there would be an opacity on a `display: none` box.
  *
  * `data-[expanded]` is the third arm and it is not optional: an OPEN menu
  * whose `•••` had faded out would be a panel hanging off nothing. Kobalte puts

@@ -162,6 +162,15 @@ const PHONE = {
   isMobile: true,
   hasTouch: true,
 } as const;
+
+/** The handset's own two numbers, for the one scenario that needs LESS room
+ *  than the whole screen: a page taller than the viewport, which no fixture
+ *  here is at 844 points. The width is the same phone; the height is what a
+ *  handset with its keyboard up has left, and a scenario that shrinks to it
+ *  says so and checks it (`phone_steps.ts`). Exported rather than re-spelled,
+ *  so the two sizes cannot drift into being two different phones. */
+export const PHONE_WIDTH = PHONE.viewport.width;
+export const SHORT_PHONE_HEIGHT = 400;
 /** Everything else: a laptop, with a pointer. */
 export const DESKTOP = { viewport: { width: 1440, height: 900 } } as const;
 

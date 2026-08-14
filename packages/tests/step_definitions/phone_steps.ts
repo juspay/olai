@@ -15,7 +15,9 @@
  */
 
 import * as assert from "node:assert";
-import { Then, When } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
+
+import { PHONE_WIDTH, SHORT_PHONE_HEIGHT } from "../support/hooks.ts";
 
 import {
   APP_CHROME,
@@ -30,6 +32,7 @@ import {
   CALENDAR_NEXT,
   CALENDAR_PREV,
   FILE_DIR_TOGGLE,
+  NODE_GUTTER,
   NODE_TITLE,
   OUTLINE_LINK,
   OUTLINE_LIST,
@@ -94,6 +97,52 @@ When("I tap the bullet of {string}", async function (this: OlaiWorld, id: string
 
 When("I tap the toggle of {string}", async function (this: OlaiWorld, id: string) {
   await this.press(this.within(id, TOGGLE), "tap");
+});
+
+/**
+ * A finger that lands on a row and then takes the page with it.
+ *
+ * The gesture every touch affordance on a row has to survive: a thumb on its
+ * way down a long outline starts on SOMETHING, and what it starts on must not
+ * answer for it. It is a real drag — down, moving past the press deadline, up
+ * — because that is the only version of it that could fail.
+ */
+When("I flick the node {string} up the screen", async function (this: OlaiWorld, id: string) {
+  await this.flick(this.within(id, NODE_GUTTER));
+});
+
+/**
+ * A page with somewhere to scroll TO, which no fixture in this suite gives a
+ * handset on its own: the corpora are outlines a person can read inside a
+ * scenario, and the shortest phone here is 844 points tall.
+ *
+ * So the screen shrinks instead of the corpus growing — a real handset shape,
+ * since that is what a phone with its keyboard up is — and the step asserts
+ * what it just claimed rather than trusting it: a fixture that grew past this
+ * height, or a layout that stopped scrolling the document, would otherwise
+ * leave the scenario after it passing over nothing.
+ */
+Given("the screen is shorter than the outline", async function (this: OlaiWorld) {
+  await this.page.setViewportSize({ width: PHONE_WIDTH, height: SHORT_PHONE_HEIGHT });
+  await this.waitForFrame();
+  const room = await this.page.evaluate(() => ({
+    page: document.documentElement.scrollHeight,
+    screen: window.innerHeight,
+    at: window.scrollY,
+  }));
+  assert.ok(
+    room.page > room.screen,
+    `the outline is ${room.page}px on a ${room.screen}px screen, so there is nothing to scroll`,
+  );
+  assert.strictEqual(room.at, 0, "this scenario starts at the top of the page");
+});
+
+/** It MOVED, which is the half that no assertion about the menu can carry: a
+ *  press that claimed the gesture would leave the menu shut and the page
+ *  exactly here. */
+Then("the outline has scrolled", async function (this: OlaiWorld) {
+  const at = await this.page.evaluate(() => window.scrollY);
+  assert.ok(at > 0, `the page is still at the top (scrollY ${at}) — the flick took nothing with it`);
 });
 
 When("I tap the outline {string}", async function (this: OlaiWorld, file: string) {
