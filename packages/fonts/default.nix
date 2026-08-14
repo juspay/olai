@@ -4,7 +4,7 @@
 # directory it outputs holds .woff2 and nothing else. That is the whole point:
 # the conversion is a function of the font set, so it belongs where a function
 # of its inputs is computed once and cached forever. It used to run in
-# `../web/src/build.ts`, which meant ~40 identical compressions on every
+# `../web/src/build.ts`, which meant 70 identical compressions on every
 # `just build-client`, every `nix build`, every dev-shell rebuild — half a
 # minute of CPU and a fresh /tmp directory each time, to produce bytes that
 # were the same bytes every time.

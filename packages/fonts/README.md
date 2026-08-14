@@ -50,7 +50,7 @@ its `@font-face` and its block.
 ## Converted once, in the store
 
 `default.nix` runs `woff2_compress` and outputs `.woff2`. It used to output
-raw TTFs and the client build converted them, which meant ~40 identical
+raw TTFs and the client build converted them, which meant 70 identical
 compressions — half a minute of CPU and a fresh `/tmp` directory — on every
 `just build-client`, every `nix build` and every dev-shell rebuild, for bytes
 that were the same bytes every time. The conversion is a function of the font

@@ -131,7 +131,7 @@ const buildStylesheet = async (): Promise<ArrayBuffer> =>
  * `OLAI_FONTS_DIR` is `@olai/fonts`'s own derivation (shell.nix and
  * default.nix both point at it), and what it holds is already woff2: the
  * conversion is a function of the font set, so it runs once in the Nix store
- * rather than ~40 times per build here. Missing the env is a loud failure in
+ * rather than 70 times per build here. Missing the env is a loud failure in
  * the packaged build; the dev loop gets the same variable from the flake
  * shell.
  *
