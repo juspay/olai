@@ -31,15 +31,36 @@
  * rule is about.
  */
 
-import { createMemo, createSignal, Show } from "solid-js"
+import { createMemo, createSignal, type JSX, Match, Show, Switch } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { under } from "../menu/subtree.ts"
+import type { TestId } from "../testids.ts"
 import { archiveQuestion } from "../trash/question.ts"
 import { archivable } from "./bulk.ts"
 import { useSelection } from "./selection.ts"
+
+/** One of the bar's verbs. The quiet pill every small action in this app wears
+ *  (`../pill.ts`), spelled once here because three of them sit side by side and
+ *  three copies of the same four attributes is three chances for one to drift. */
+function Pill(props: {
+  readonly testid: TestId
+  readonly onPress: () => void
+  readonly children: JSX.Element
+}) {
+  return (
+    <button
+      type="button"
+      class={`${QUIET_PILL} cursor-pointer`}
+      data-testid={props.testid}
+      onClick={() => props.onPress()}
+    >
+      {props.children}
+    </button>
+  )
+}
 
 export function SelectionBar() {
   const selection = useSelection()
@@ -51,7 +72,7 @@ export function SelectionBar() {
    *  the tree, for the reason the `•••` menu's own confirm asks it there — a
    *  page hiding what is done is drawing fewer rows than the write moves
    *  (`../menu/subtree.ts`). */
-  const beneath = createMemo(() => {
+  const hanging = createMemo(() => {
     const indexes = derived()
     if (indexes === undefined) return 0
     return rows().reduce(
@@ -84,48 +105,31 @@ export function SelectionBar() {
               <span class="text-muted" data-testid={TESTID.selectionCount}>
                 {rows().length === 1 ? "1 row picked" : `${rows().length} rows picked`}
               </span>
-              <Show
-                when={archivable(rows())}
-                fallback={
+              {/* Three states of one verb, side by side rather than nested:
+                  not offered, offered, asking. */}
+              <Switch>
+                <Match when={!archivable(rows())}>
                   <span class="text-muted" data-testid={TESTID.selectionNote}>
                     a placement is in the pick — retire it from its own ••• menu
                   </span>
-                }
-              >
-                <Show
-                  when={asking()}
-                  fallback={
-                    <button
-                      type="button"
-                      class={`${QUIET_PILL} cursor-pointer`}
-                      data-testid={TESTID.selectionTrash}
-                      onClick={() => setAsking(true)}
-                    >
-                      Move to Trash
-                    </button>
-                  }
-                >
+                </Match>
+                <Match when={asking()}>
                   <span data-testid={TESTID.selectionConfirm}>
-                    {archiveQuestion({ kind: "rows", count: rows().length }, beneath())}
+                    {archiveQuestion({ kind: "rows", count: rows().length }, hanging())}
                   </span>
-                  <button
-                    type="button"
-                    class={`${QUIET_PILL} cursor-pointer`}
-                    data-testid={TESTID.selectionTrash}
-                    onClick={trash}
-                  >
+                  <Pill testid={TESTID.selectionTrash} onPress={trash}>
                     Move to Trash
-                  </button>
-                  <button
-                    type="button"
-                    class={`${QUIET_PILL} cursor-pointer`}
-                    data-testid={TESTID.selectionCancel}
-                    onClick={() => setAsking(false)}
-                  >
+                  </Pill>
+                  <Pill testid={TESTID.selectionCancel} onPress={() => setAsking(false)}>
                     Cancel
-                  </button>
-                </Show>
-              </Show>
+                  </Pill>
+                </Match>
+                <Match when={true}>
+                  <Pill testid={TESTID.selectionTrash} onPress={() => setAsking(true)}>
+                    Move to Trash
+                  </Pill>
+                </Match>
+              </Switch>
               <span class="text-muted">Escape clears</span>
             </div>
           </Show>

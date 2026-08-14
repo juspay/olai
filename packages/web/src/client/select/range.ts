@@ -46,6 +46,14 @@ export const depthOf = (key: string): number => key.split("/").length - 2
 export const inside = (ancestor: string, key: string): boolean =>
   key.startsWith(`${ancestor}/`)
 
+/** Is this place one of `these`, or drawn under one of them? The other reading
+ *  of {@link inside} — the one a SUBTREE gesture wants, where a branch and
+ *  everything filed beneath it are the same answer. A drag asks it twice, of
+ *  the rows it fades and of the rows it may not land beside, and those two must
+ *  agree or the affordance would offer a place it then moved away from. */
+export const beneath = (these: ReadonlySet<string>, key: string): boolean =>
+  these.has(key) || [...these].some((one) => inside(one, key))
+
 /**
  * Every place between two, inclusive, in the order they are drawn.
  *

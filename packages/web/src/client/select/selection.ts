@@ -140,11 +140,14 @@ export const createSelection = (
     const rows = drawn()
     const held = keys()
     if (held.size === 0) return
-    const again = (key: string): string | undefined => refound(rows, recordOf(key), key)
-    // Nothing moved: the ordinary frame, and the one that must not mint a new
-    // set — every row of the tree reads this signal.
-    if ([...held].every((key) => again(key) === key)) return
+    // THE ORDINARY FRAME IS THE FAST ONE, and it has to be: this runs on every
+    // revision the store publishes, and `refound` scans the drawn rows — asking
+    // it per picked row per frame would be the pick times the tree for an answer
+    // that is almost always "nothing moved". One Set, one pass.
+    const places = new Set(rows.map((row) => row.key))
+    if ([...held].every((key) => places.has(key))) return
 
+    const again = (key: string): string | undefined => refound(rows, recordOf(key), key)
     setKeys(new Set([...held].flatMap((key) => {
       const found = again(key)
       return found === undefined ? [] : [found]

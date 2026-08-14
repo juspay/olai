@@ -41,7 +41,7 @@ import { flatten } from "../edit/order.ts"
 import type { Said } from "../edit/undoing.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { drag as pointerDrag } from "../pointer.ts"
-import { depthOf, inside } from "../select/range.ts"
+import { beneath, depthOf } from "../select/range.ts"
 import { applyingAll } from "../writes.ts"
 import { type Landing, type Placed, planDrop } from "./plan.ts"
 
@@ -132,12 +132,10 @@ export const createDragging = (
       const key = line.getAttribute(ROW_KEY)
       if (key !== null) lines.set(key, line)
     }
-    const away = (key: string): boolean =>
-      [...carried].some((held) => key === held || key.startsWith(`${held}/`))
     const scrollX = window.scrollX
     const scrollY = window.scrollY
     return flatten(page.rows(), page.collapsed()).flatMap((row): ReadonlyArray<Placed> => {
-      if (away(row.key)) return []
+      if (beneath(carried, row.key)) return []
       const line = lines.get(row.key)
       if (line === undefined) return []
       const box = line.getBoundingClientRect()
@@ -213,11 +211,7 @@ export const createDragging = (
     // once per row on every frame the store publishes, and nothing is being
     // dragged in nearly all of them — without it, every row of the tree
     // allocates a copy of an empty set to walk.
-    carrying: (key) => {
-      const held = moving()
-      if (held.size === 0) return false
-      return held.has(key) || [...held].some((one) => inside(one, key))
-    },
+    carrying: (key) => moving().size > 0 && beneath(moving(), key),
     landing,
     grab,
     dragged: () => travelled,
