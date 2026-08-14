@@ -30,6 +30,7 @@ import {
   CALENDAR_NEXT,
   CALENDAR_PREV,
   FILE_DIR_TOGGLE,
+  NODE_GUTTER,
   NODE_TITLE,
   OUTLINE_LINK,
   OUTLINE_LIST,
@@ -94,6 +95,18 @@ When("I tap the bullet of {string}", async function (this: OlaiWorld, id: string
 
 When("I tap the toggle of {string}", async function (this: OlaiWorld, id: string) {
   await this.press(this.within(id, TOGGLE), "tap");
+});
+
+/**
+ * A finger that lands on a row and then takes the page with it.
+ *
+ * The gesture every touch affordance on a row has to survive: a thumb on its
+ * way down a long outline starts on SOMETHING, and what it starts on must not
+ * answer for it. It is a real drag — down, moving past the press deadline, up
+ * — because that is the only version of it that could fail.
+ */
+When("I flick the node {string} up the screen", async function (this: OlaiWorld, id: string) {
+  await this.flick(this.within(id, NODE_GUTTER));
 });
 
 When("I tap the outline {string}", async function (this: OlaiWorld, file: string) {

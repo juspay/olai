@@ -23,7 +23,9 @@ Feature: On a phone
   390px screen no room for the title they are in front of. So those two take
   the full 44px in HEIGHT — the axis where a miss lands on the wrong node —
   and 28px across, which is what the racket original used for the same control
-  on the same screen.
+  on the same screen. The `•••` is not drawn there at all for the same reason,
+  which is why a row's menu has a second door here: hold a finger on the row.
+  A GESTURE costs no width, and it is the only affordance that does.
 
   The last scenario is a laptop, on purpose: this is a rule about the pointer,
   not about the app, and a control that grew everywhere would be a regression
@@ -107,12 +109,95 @@ Feature: On a phone
     And the children of "kitchen" are shown
 
   @corpus:good @phone
-  Scenario: The collapse triangle is always on, the menu is not
+  Scenario: The collapse triangle is always on, the ••• is not drawn
     # Touch has no hover: the triangle stays as the fold affordance; the
-    # ••• menu is desktop-only so a 390px title still has room.
+    # ••• is not drawn at all, so a 390px title still has room. What a phone
+    # reaches the MENU with instead is the next scenario.
     Given I open the outline "house.jsonl"
     Then the collapse control of "kitchen" is revealed
     And the node menu of "kitchen" is not on the row
+
+  # ── the menu, without a ••• to press ──────────────────────────────────
+  #
+  # A phone had no way at all to reach a row's verbs: the `•••` is the door on
+  # a pointer device and it is not drawn here, so zooming, folding, the marks,
+  # the date, the trash and the clipboard were all a mouse away. The gesture
+  # that costs no width is HOLDING a finger on the row — Workflowy's own on a
+  # handset — and it opens the same menu, in the same place, with the same
+  # catalog: a door, not a smaller menu.
+  #
+  # The three scenarios after the first are all one worry. A row is already
+  # covered in things a finger means — the title opens the editor, the bullet
+  # zooms, the page scrolls — and a press that answered for any of them would
+  # have traded one unreachable menu for a tree that cannot be read.
+
+  @corpus:good @phone
+  Scenario: Holding a finger on a row opens its ••• menu
+    Given I open the outline "house.jsonl"
+    And I mark the page
+    When I hold a finger on the node "kitchen"
+    Then the node menu is open
+    # The pointer's catalog, both halves of it: what changes the reading, and
+    # what changes the directory.
+    And the node menu offers "Zoom in"
+    And the node menu offers "Complete"
+    And the page has not reloaded
+    And there should be no page errors
+
+  @corpus:good @phone
+  Scenario: A verb chosen with a thumb does what it says
+    Given I open the outline "house.jsonl"
+    And the node "kitchen" is expanded
+    When I hold a finger on the node "kitchen"
+    Then the node menu is open
+    When I tap "Collapse" in the node menu
+    Then the node "kitchen" is collapsed
+    And the children of "kitchen" are hidden
+    And the node menu is closed
+
+  @corpus:good @phone
+  Scenario: A verb chosen with a thumb does not also press the row under it
+    # The panel lies over rows, and a touchscreen makes up the click that
+    # stands in for a tap AFTER the entry it was aimed at is gone — so the
+    # browser hit-tests the point again and finds whatever the panel was
+    # covering. This is the scenario for `client/ghost.ts`: without it,
+    # choosing `Move to Trash` here opened the mirror three rows down, on a
+    # question nobody had answered yet.
+    Given I open the outline "house.jsonl"
+    And I mark the page
+    When I hold a finger on the node "kitchen"
+    Then the node menu is open
+    When I tap "Move to Trash" in the node menu
+    Then the node menu asks "Move “kitchen remodel #home” and the 7 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
+    And the address is "/o/house.jsonl"
+    And the page has not reloaded
+
+  @corpus:good @phone
+  Scenario: A finger that scrolls the page is not a finger that pressed
+    # Nothing is prevented on the way down, so the browser keeps the gesture
+    # and the page goes on scrolling under it; what the row does is drop its
+    # own timer the moment the finger moves. (That the page SCROLLS is not
+    # asserted here for want of a fixture taller than a handset — every corpus
+    # in this suite fits on one screen at 390×844.)
+    Given I open the outline "house.jsonl"
+    When I flick the node "kitchen" up the screen
+    Then the node menu is closed
+    And no row is being edited
+
+  @corpus:good @phone
+  Scenario: The press does not also press the row it landed on
+    # A finger lifting after a long press still produces a click, and under it
+    # is a link: the bullet zooms. So the press that opened the menu eats that
+    # one tap — and only that one, which is what the last two steps are for.
+    Given I open the outline "house.jsonl"
+    When I hold a finger on the bullet of "kitchen"
+    Then the node menu is open
+    And the address is "/o/house.jsonl"
+    And no row is being edited
+    When I tap away from the node menu
+    Then the node menu is closed
+    When I tap the bullet of "kitchen"
+    Then the zoomed node is "kitchen"
 
   @corpus:good @phone
   Scenario: A tap on an outline entry opens that outline

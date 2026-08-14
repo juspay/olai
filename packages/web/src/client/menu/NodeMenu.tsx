@@ -51,6 +51,28 @@
  * {@link Dots}, which is what the `•••` is until then and which has the
  * measurements.
  *
+ * ## TWO DOORS, because below 48rem there is no `•••` to press
+ *
+ * A phone spends no gutter width on the menu (`../touch.ts`), so what opens it
+ * there is a LONG PRESS on the row's line (`../longPress.ts`) — markup this
+ * component does not own. Three things follow, and they are the whole of the
+ * difference:
+ *
+ *   - **being open is the ROW's** (`./door.ts`), not a signal in here, since
+ *     both doors have to write it — and the menu is CONTROLLED rather than
+ *     `defaultOpen` for the same reason: a row asked a second time has a
+ *     primitive already mounted with nothing to remount.
+ *   - **the `•••` and its trigger are drawn only above md.** Not `hidden`,
+ *     which is what the whole root used to be: the panel is inside it, and a
+ *     `display: none` ancestor takes the panel with it (and would leave the
+ *     positioner measuring a box that is 0×0 at the top-left of the window).
+ *     The root is out of flow below md instead — a zero-width absolute box at
+ *     the row's left edge — so the phone's gutter is exactly the triangle it
+ *     always was.
+ *   - **the panel hangs off the row line there**, through `getAnchorRect`,
+ *     which is the same left edge and the same drop the `•••` gives it above
+ *     md. One placement, two anchors.
+ *
  * THE CONFIRM IS THIS PANEL'S OWN SECOND STEP, and that is a decision rather
  * than a convenience: a `window.confirm()` is browser chrome olai does not
  * own, cannot theme and cannot say a sentence of its own inside — and it
@@ -62,10 +84,13 @@
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 
+import { swallowGhost } from "../ghost.ts"
+import { desktop } from "../layout/media.ts"
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { HOVER_CELL, MENU_REVEAL } from "../touch.ts"
 import { type Said, SAID_MS } from "../edit/undoing.ts"
+import type { MenuDoor } from "./door.ts"
 
 export interface MenuAction {
   readonly id: string
@@ -105,20 +130,45 @@ const DOTS =
  */
 const asks = (action: MenuAction): boolean => action.confirm !== undefined
 
+/**
+ * An entry chosen with a THUMB, and the click that is about to arrive for a
+ * gesture that is over.
+ *
+ * Kobalte selects an item on the pointer-up, and `closeOnSelect` takes the
+ * panel down in the same breath — so by the time a touchscreen makes up the
+ * click that stands in for the tap, the entry is gone and the browser aims it
+ * at whatever is now under the point, which is the ROW the panel was covering.
+ * Choosing `Move to Trash` navigated into a mirror three rows down, and every
+ * other entry had the same hole under it.
+ *
+ * So the ghost is eaten (`../ghost.ts`). Touch only: a mouse's click is
+ * dispatched to the ancestor of what was pressed rather than to a fresh
+ * hit-test, which is why a pointer has never seen this.
+ *
+ * On every item rather than only on the ones that close: the confirm's own
+ * two entries close as well, and an entry that stayed open leaves the ghost
+ * landing on the panel it belongs to, which is nothing happening.
+ */
+const chosenByThumb = (event: PointerEvent): void => {
+  if (event.pointerType === "touch") swallowGhost()
+}
+
 export function NodeMenu(props: {
   readonly actions: ReadonlyArray<MenuAction>
+  /** Who is allowed to open it, and whether it is open — the ROW's, because
+   *  below `md` the door is a long press on markup this component does not
+   *  own (`./door.ts`). */
+  readonly door: MenuDoor
+  /** The box the panel hangs off below `md`, where there is no `•••` to hang
+   *  it off: the row's own line. Above `md` this is not read at all — the
+   *  trigger is the anchor, as it is for any dropdown. */
+  readonly row: () => HTMLElement | undefined
 }) {
   /** What the last action had to say, or `null`. The menu is CLOSED by the
    *  time an action answers, so this belongs to the root beside the `•••`
    *  rather than to the panel: a message inside something that has gone is a
    *  message nobody reads. */
   const [said, setSaid] = createSignal<Said | null>(null)
-  /**
-   * Whether this row has ever reached for its menu — and so whether it pays
-   * for one. See {@link Dots}: until the first press, the `•••` is a plain
-   * button and Kobalte is not mounted here at all.
-   */
-  const [armed, setArmed] = createSignal(false)
   let clearing: ReturnType<typeof setTimeout> | undefined
   /** The `•••` once this row is armed — where the caret goes back to. */
   let trigger: HTMLElement | undefined
@@ -205,30 +255,57 @@ export function NodeMenu(props: {
   }
 
   return (
-    // Positioned root for Kobalte's positioner. Hidden entirely below md so a
-    // phone spends no gutter width on the menu (triangle stays).
-    <div class="relative hidden shrink-0 md:block">
-      <Show when={armed()} fallback={<Dots onArm={() => setArmed(true)} />}>
-        <DropdownMenu modal={false} placement="bottom-start" gutter={2} defaultOpen>
-          <DropdownMenu.Trigger
-            ref={trigger}
-            class={DOTS}
-            data-testid={TESTID.nodeMenu}
-            aria-label="node menu"
-            title="node menu"
-            // Kobalte toggles on the POINTERDOWN (and on the click for a touch
-            // pointer), so both are stopped here: opening a row's menu is not
-            // also a press on the row it belongs to. It is also a gesture the
-            // caret's way home has to know about (`handBack`): pressing the
-            // `•••` to shut a menu the KEYBOARD opened is still a press.
-            onPointerDown={(event: PointerEvent) => {
-              lastGesture = "pointer"
-              event.stopPropagation()
-            }}
-            onClick={(event: MouseEvent) => event.stopPropagation()}
-          >
-            •••
-          </DropdownMenu.Trigger>
+    // Positioned root for Kobalte's positioner — in the gutter's flow on a
+    // pointer device, where it holds the `•••`, and OUT of it below md, where
+    // it holds nothing: a zero-width absolute box at the row's left edge, so
+    // the phone's strip is the triangle and the gap arithmetic in `touch.ts`
+    // stays what it says it is. It cannot simply be `hidden` there, the way it
+    // was before a phone had any door at all — the panel is inside it.
+    <div class="absolute inset-y-0 left-0 w-0 shrink-0 md:relative md:w-auto">
+      <Show
+        when={props.door.armed()}
+        fallback={
+          <Show when={desktop()}>
+            <Dots onArm={props.door.show} />
+          </Show>
+        }
+      >
+        <DropdownMenu
+          modal={false}
+          placement="bottom-start"
+          gutter={2}
+          open={props.door.open()}
+          onOpenChange={props.door.setOpen}
+          // The trigger if this row has one, and the row's own LINE if it does
+          // not: below md the menu is opened by a long press on that line
+          // (`../longPress.ts`) and there is no `•••` for the panel to hang
+          // off, so the line is what it hangs off instead — same left edge,
+          // same drop below the row, one placement for both doors.
+          getAnchorRect={(anchor?: HTMLElement) =>
+            (anchor ?? props.row())?.getBoundingClientRect()}
+        >
+          <Show when={desktop()}>
+            <DropdownMenu.Trigger
+              ref={trigger}
+              class={DOTS}
+              data-testid={TESTID.nodeMenu}
+              aria-label="node menu"
+              title="node menu"
+              // Kobalte toggles on the POINTERDOWN (and on the click for a
+              // touch pointer), so both are stopped here: opening a row's menu
+              // is not also a press on the row it belongs to. It is also a
+              // gesture the caret's way home has to know about (`handBack`):
+              // pressing the `•••` to shut a menu the KEYBOARD opened is still
+              // a press.
+              onPointerDown={(event: PointerEvent) => {
+                lastGesture = "pointer"
+                event.stopPropagation()
+              }}
+              onClick={(event: MouseEvent) => event.stopPropagation()}
+            >
+              •••
+            </DropdownMenu.Trigger>
+          </Show>
           <DropdownMenu.Content
             ref={(el: HTMLElement) => {
               // AND THE CARET GOES IN — on the SECOND open and every one after
@@ -240,7 +317,8 @@ export function NodeMenu(props: {
               // so it lands once and is never asked again. Without a
               // `DropdownMenu.Portal` the panel is a `<Show>` INSIDE that
               // component: the first open creates the component while already
-              // open (`Dots` arms with `defaultOpen`), so that one focuses
+              // open (arming a row opens it in the same breath — `./door.ts`),
+              // so that one focuses
               // itself — and every REOPEN swaps the `<Show>` back in under a
               // component that never re-runs, leaving the caret on the `•••`
               // with the arrow keys, half of what the primitive is FOR, with
@@ -256,6 +334,11 @@ export function NodeMenu(props: {
               queueMicrotask(() => el.focus())
             }}
             data-testid={TESTID.nodeMenuPanel}
+            // NAMED here rather than by the trigger Kobalte would point at
+            // (`aria-labelledby`), because below md there is no trigger to
+            // point at and a dangling id names nothing. The same two words the
+            // `•••` carries either way.
+            aria-label="node menu"
             // `relative` so the `z-20` bites: Kobalte's positioner is the
             // absolute box, and a z-index on a STATIC child of it would do
             // nothing. (Kobalte's content carries `position: relative` in an
@@ -336,10 +419,12 @@ export function NodeMenu(props: {
  * 33 MB of heap where the hand-rolled panel had none and 19 MB.
  *
  * So a row mounts the primitive the first time somebody reaches for it, and
- * the press that armed it is the press that opens it (`defaultOpen`). The row
- * stays armed afterwards — the second press is Kobalte's own trigger, doing
- * its own toggle. Only rows a person has actually touched ever pay, which on
- * any real page is a handful.
+ * the press that armed it is the press that opens it (`./door.ts` does both in
+ * one verb). The row stays armed afterwards — the second press is Kobalte's own
+ * trigger, doing its own toggle. Only rows a person has actually touched ever
+ * pay, which on any real page is a handful. A phone's long press arms a row the
+ * same way, through the same door, and is the reason that door is a value
+ * rather than a signal in here.
  *
  * The KEYS matter as much as the pointer here: this button is what a Tab
  * lands on, so the keys that open a menu have to arm it too, or a keyboard
@@ -444,6 +529,7 @@ function MenuPanel(props: {
                 class="cursor-pointer px-3 py-1.5 text-left text-ink hover:bg-rule focus:outline-none data-[highlighted]:bg-rule"
                 data-testid={TESTID.nodeMenuItem}
                 data-action={action.id}
+                onPointerUp={chosenByThumb}
                 closeOnSelect={!asks(action)}
                 onSelect={() =>
                   asks(action) ? setAsking(action) : void props.onPick(action)}
@@ -507,6 +593,7 @@ function Confirm(props: {
           class="cursor-pointer rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10 focus:outline-none"
           data-testid={TESTID.nodeMenuItem}
           data-action={props.action.id}
+          onPointerUp={chosenByThumb}
           onSelect={() => void props.onGo(props.action)}
         >
           {props.action.label}
@@ -516,6 +603,7 @@ function Confirm(props: {
           data-testid={TESTID.nodeMenuItem}
           data-action="cancel"
           closeOnSelect={false}
+          onPointerUp={chosenByThumb}
           onSelect={() => props.onCancel(props.action)}
         >
           Cancel

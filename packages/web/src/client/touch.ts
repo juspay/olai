@@ -25,9 +25,15 @@
  *
  * On a pointer device the menu and triangle appear only on row hover / focus;
  * on a phone the triangle stays visible (there is no hover) and the `•••` is
- * hidden — a phone has no room for two always-on cells before the title
- * (see packages/web/README.md). The permanent widths are still reserved so a
- * title never shifts under the pointer when the controls fade in.
+ * not drawn at all — a phone has no room for two always-on cells before the
+ * title (see packages/web/README.md). What a phone reaches the MENU with
+ * instead is a long press on the row, which costs no width at all
+ * (../client/longPress.ts); the menu's root is still in the markup below 48rem
+ * to hold the panel that opens, and is taken out of the strip's flow
+ * (`absolute`) so the arithmetic below stays true — a strip with no `•••` in
+ * it is exactly as wide as its triangle. The permanent widths are still
+ * reserved so a title never shifts under the pointer when the controls fade
+ * in.
  *
  * EVERY gap in the row is `GUTTER_GAP`. The note indents (`PAST_*`) are the
  * arithmetic of those widths + gaps; change a control width or the gap and
@@ -79,8 +85,9 @@ export const CONTROL_SPACER = "w-7 shrink-0 md:w-4"
 
 /**
  * The hover strip: collapse triangle always; `•••` menu on pointer devices
- * only (the menu is `hidden md:…` at its site). Width matches content so a
- * fixed `w-*` cannot drift from the cells it holds.
+ * only (below md the menu's root is out of this flow at its own site, so it
+ * takes neither a cell nor a gap). Width matches content so a fixed `w-*`
+ * cannot drift from the cells it holds.
  */
 export const HOVER_GUTTER =
   `inline-flex h-11 shrink-0 items-center justify-end ${GUTTER_GAP} md:h-5`

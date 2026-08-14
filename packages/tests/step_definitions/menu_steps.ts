@@ -27,6 +27,7 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import { TESTID } from "@olai/web/src/client/testids.ts";
 
 import {
+  NODE_GUTTER,
   NODE_MENU,
   NODE_MENU_CONFIRM,
   NODE_MENU_ITEM,
@@ -35,6 +36,7 @@ import {
   nodeSelector,
   oneLine,
   POLL_TIMEOUT,
+  ZOOM,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 import { revealGutter } from "./outline_tree_steps.ts";
@@ -90,10 +92,63 @@ When(
   },
 );
 
+/**
+ * The menu opened the way a PHONE opens it: there is no `•••` drawn below
+ * 48rem, so a finger is HELD on the row itself (`client/longPress.ts`).
+ *
+ * A fourth gesture beside the three above, and the reason it is not simply a
+ * `tap` with a longer timeout is in `world.hold`: it goes in through the
+ * DevTools protocol so Chromium's own long press happens too, which is half of
+ * what this affordance has to coexist with.
+ *
+ * It does not wait for the panel. The scenario that says a SCROLL is not a
+ * press needs the same gesture without one, and an opener that waited would be
+ * two steps that could drift about what "held" means.
+ */
+When(
+  "I hold a finger on the node {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.hold(this.within(id, NODE_GUTTER));
+  },
+);
+
+/** The same, on the row's BULLET — which is a link, so a press that leaked
+ *  through as a tap would navigate. */
+When(
+  "I hold a finger on the bullet of {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.hold(this.within(id, ZOOM));
+  },
+);
+
+/** UP, and the panel is really on screen: `visible`, not merely mounted. */
+Then("the node menu is open", async function (this: OlaiWorld) {
+  await panelOf(this);
+});
+
+/** An entry chosen with a THUMB. The step above it clicks, which is the same
+ *  thing to the app and not the same thing to a phone scenario — the whole
+ *  point of one is that no mouse was involved anywhere in it. */
+When(
+  "I tap {string} in the node menu",
+  async function (this: OlaiWorld, label: string) {
+    const panel = await panelOf(this);
+    await panel.locator(NODE_MENU_ITEM).filter({ hasText: label }).first().tap();
+    await this.waitForFrame();
+  },
+);
+
 /** Somewhere that is not the menu — `clickAway` is the suite's one spelling of
  *  that gesture, and a row's note is dismissed by the same one. */
 When("I click away from the node menu", async function (this: OlaiWorld) {
   await this.clickAway();
+});
+
+/** The same, with a finger: `clickAway` presses the sidebar, which on a phone
+ *  is a drawer that is not out — so the page below the tree is the nothing
+ *  this one presses (`world.tapAway`). */
+When("I tap away from the node menu", async function (this: OlaiWorld) {
+  await this.tapAway();
 });
 
 /**

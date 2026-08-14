@@ -181,7 +181,16 @@ scenarios are about what the browser calls itself.
 Those scenarios do two things nothing else in the suite does. They **tap**
 (`locator.tap()`, a real `touchstart`/`touchend` pair) rather than click, which
 is the only way to find out that a control a pointer can reach is reachable
-without one. And they **measure**: "big enough for a finger" is a size, and no
+without one — and, for the row menu a phone opens by HOLDING a finger, they
+**hold** and **flick** (`world.hold()` / `world.flick()`), which Playwright has
+no verb for: those go in through `Input.dispatchTouchEvent` on a CDP session,
+so Chromium's own gesture recogniser sees the press. That is the point of the
+extra machinery rather than a synthetic `pointerdown` — the client's answer to
+a long press is only half of what happens, and the browser's own half (the
+`contextmenu` it raises mid-gesture, the text-selection callout with it, the
+click it makes up when the finger lifts) is exactly what that affordance has to
+coexist with. The hold is the client's `LONG_PRESS_MS` plus a margin, imported
+from the client for the reason every selector here is. And they **measure**: "big enough for a finger" is a size, and no
 attribute can carry it — it is the sum of a font, a padding and a breakpoint —
 so `world.box()` / `world.boxes()` read what the browser laid out (the plural
 takes every match in one pass, because a rule that held for the first row and
@@ -346,8 +355,8 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="desc"]` | a node's note — one clamped plain line under the title when closed (`data-preview="true"`, `data-open="false"`), full markdown when open (`data-open="true"`); always full on a zoomed page |
 | `[data-testid="node"][data-note-open]` | note expansion: `true` while click/tap-opened |
 | `[data-testid="toggle"]` | the collapse/expand control on an outline node (hover-reveal on a pointer device; always drawn on a phone) |
-| `[data-testid="node-menu"]` | the `•••` menu trigger left of the triangle — pointer devices only (not laid out on a phone) |
-| `[data-testid="node-menu-panel"]` | the open menu panel (`absolute` under the trigger) |
+| `[data-testid="node-menu"]` | the `•••` menu trigger left of the triangle — pointer devices only (not laid out on a phone, where a long press on the row opens the same menu) |
+| `[data-testid="node-menu-panel"]` | the open menu panel (`absolute` under the trigger, or under the row itself on a phone) |
 | `[data-testid="node-menu-item"][data-action]` | one verb in that panel: the reads (zoom, expand/collapse, expand/collapse all, copy link), then the writes it applies to (the marks, clear date, remove placement, archive) and `Copy as text`. The two buttons of a confirm are items too (`data-action="cancel"` is the way out) |
 | `[data-testid="node-menu-confirm"]` | the question that panel asks before `Archive`, naming the row and how many rows go with it — present only while it is asking |
 | `[data-testid="node-menu-said"][data-tone]` | what the last verb said, beside the `•••`: `alarm` for a refusal (the ops layer's own words, or a clipboard the browser refused), `aside` for a nudge from a write that landed |
