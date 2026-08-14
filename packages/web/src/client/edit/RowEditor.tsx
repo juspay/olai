@@ -167,7 +167,7 @@ export const keyHandler = (
   press: (action: EditAction) => void,
 ) =>
 (event: KeyboardEvent): void => {
-  const action = editKey(event, field)
+  const action = editKey(event, field, selectedWhole(event.currentTarget))
   if (action === null) return
   event.preventDefault()
   // Stop it there: the palette listens on the window, and an outline key that
@@ -175,6 +175,17 @@ export const keyHandler = (
   event.stopPropagation()
   press(action)
 }
+
+/** Whether the field's whole value is already selected — the one thing the key
+ *  map cannot see for itself, and what makes ⌘A a ladder rather than a chord
+ *  this app took away from the platform (`../keys.ts`). An empty field is not
+ *  "wholly selected": pressing ⌘A in an empty new row should do nothing, not
+ *  pick the row it has not written yet. */
+const selectedWhole = (target: EventTarget | null): boolean =>
+  (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) &&
+  target.value.length > 0 &&
+  target.selectionStart === 0 &&
+  target.selectionEnd === target.value.length
 
 /**
  * Take the caret when the editor opens, and take it BACK whenever the editor

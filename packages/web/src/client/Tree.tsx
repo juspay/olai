@@ -63,6 +63,9 @@ import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
+import { ROW_KEY, useDragging } from "./drag/dragging.ts"
+import { Handle } from "./drag/Handle.tsx"
+import { useSelection } from "./select/selection.ts"
 import { DatePicker } from "./date/DatePicker.tsx"
 import { datePick } from "./date/pick.ts"
 import { useDerived } from "./derived.tsx"
@@ -207,6 +210,38 @@ function Branch(props: {
    *  row of the tree. */
   const focused = createMemo(() => focusedNode() === foldIdOf(props.row))
 
+  /** Is this row PICKED, and is it in the air? Two facts about the same row and
+   *  neither is the caret's: a pick is a set of places
+   *  (`./select/selection.ts`), and a row being carried is one the drop is not
+   *  offered beside (`./drag/dragging.ts`). Both are read here and drawn as
+   *  `data-` facts on the item, which is where `data-editing` already is. */
+  const selection = useSelection()
+  const dragging = useDragging()
+  const picked = () => selection.keys().has(props.row.key)
+  const carried = () => dragging.carrying(props.row.key)
+
+  /**
+   * A click on the title: the caret, or the pick.
+   *
+   * Workflowy's modifiers, and the split is the whole of what a modifier means
+   * here — a plain click is about the TEXT in this row (so it puts the caret in
+   * it and puts any pick away), and a modified one is about the ROW as a thing
+   * to do something to. Shift extends from where the pick was started; ⌘ / Ctrl
+   * adds this row or takes it back out.
+   */
+  const clickTitle = (event: MouseEvent) => {
+    if (event.shiftKey) {
+      selection.extend(props.row.key)
+      return
+    }
+    if (event.metaKey || event.ctrlKey) {
+      selection.toggle(props.row.key)
+      return
+    }
+    selection.clear()
+    editor.open(props.row, "title")
+  }
+
   return (
     <li
       class="my-0.5"
@@ -219,6 +254,11 @@ function Branch(props: {
       data-line={props.row.at.line}
       data-note-open={note.expanded() ? "true" : "false"}
       data-editing={editing() ? "true" : undefined}
+      // Picked, and in the air — the two facts a multi-select and a drag put on
+      // a row, said the way `data-editing` beside them is said: as facts, never
+      // as the tone they are painted.
+      data-picked={picked() ? "true" : undefined}
+      data-carried={carried() ? "true" : undefined}
       // Which row the panel is pointing at, as a fact rather than as a colour
       // — the same treatment `data-editing` beside it gets. It is also what
       // ./focus.ts aims its scroll at, which is why the row that wears it is
@@ -245,8 +285,19 @@ function Branch(props: {
         classList={{
           "rounded-sm bg-accent/10": editing(),
           "rounded-sm ring-1 ring-accent/50": focused(),
+          // A PICKED row wears the same accent wash the caret's row does —
+          // "this is one of the ones" is the same thing to say, and a caret and
+          // a pick are never on screen together. A row in the air fades, so the
+          // eye follows the line that says where it is going rather than the
+          // rows it left.
+          "rounded-sm bg-accent/15": picked(),
+          "opacity-40": carried(),
         }}
         data-testid={TESTID.nodeGutter}
+        // What a drag measures. On the LINE and not on the item, because an
+        // item's box contains every row nested under it and the gap arithmetic
+        // is about the lines a reader sees (`./drag/dragging.ts`).
+        {...{ [ROW_KEY]: props.row.key }}
       >
         {/* Hover strip: triangle always (phone) / hover-reveal (pointer);
             ••• menu only on pointer devices (hidden below md). */}
@@ -292,11 +343,17 @@ function Branch(props: {
           </Show>
         </div>
 
-        <Bullet
-          id={props.row.at.node.id}
-          collapsed={hasChildren() && collapsed()}
-          holding={editing()}
-        />
+        {/* The bullet is the handle, which is Workflowy's own gesture — and it
+            is a WRAPPER rather than a prop on the bullet, because the same
+            bullet is drawn on a day page where there is nothing to reorder
+            (`./drag/Handle.tsx`). */}
+        <Handle row={props.row}>
+          <Bullet
+            id={props.row.at.node.id}
+            collapsed={hasChildren() && collapsed()}
+            holding={editing()}
+          />
+        </Handle>
         <Checkbox
           status={props.row.status}
           blocked={props.row.blocked}
@@ -334,7 +391,7 @@ function Branch(props: {
                 progress={props.row.progress}
                 date={shows().node.date}
                 overdue={isOverdue(shows().node, today())}
-                onEdit={() => editor.open(props.row, "title")}
+                onEdit={clickTitle}
                 onPickDate={openPicker}
               >
                 <Show when={props.row.kind !== "node"}>

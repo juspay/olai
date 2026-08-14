@@ -1,4 +1,4 @@
-# Editing with the keyboard
+# Editing: the keyboard, and the pointer
 
 Click a title and the caret is in it. From there it is the outliner's loop on
 the keys you already know, and the whole list is in the app, under **Keyboard
@@ -65,6 +65,77 @@ leaves your text exactly where it is.
 A new row is that same idea: **Enter** opens a line where the row will go, and
 the node is written the moment it has a title. So an outline never fills up
 with blank bullets, and a key pressed by accident writes nothing at all.
+
+## Dragging a row
+
+**Drag a bullet and the row goes with everything under it.** The bullet is the
+handle, the way it is in Workflowy — press it and travel, and a line appears
+where the row would land. Press it without travelling and it is still the link
+it always was, into that node's own page.
+
+That line answers two questions at once, because the gesture asks two: **which
+gap** it sits in, and **how far in** it starts. Those are different placements
+that look the same on screen — the last child of the branch above and the next
+sibling of that branch's parent sit on the same line — so the line moves
+sideways as you do, and where it starts is the depth you are asking for. Let go
+and that is where the row is.
+
+**A branch is never offered a place inside itself.** The rows being carried are
+simply not among the ones a drop can land beside, so there is no gesture that
+asks for a loop.
+
+What a drop sends is one op per row moved — the same `move_node` an agent would
+send, naming a parent and the sibling to sit after — so a drop is refused, and
+says why, exactly as a `Tab` is. ⌘Z takes one back like any other edit.
+
+Dragging is a pointer gesture: a mouse or a pen, not a finger. A touch drag
+would have to claim the gesture that scrolls the page, and a phone's gutter is
+already narrower for the same kind of reason.
+
+## Picking several rows
+
+Everything above works on more than one row at a time. Five ways to pick them,
+which are Workflowy's:
+
+| | |
+|---|---|
+| **⌘-click** / **Ctrl-click** a title | add a row to the pick, or take it out |
+| **Shift-click** a title | pick everything between |
+| **Shift+↑ / Shift+↓** from a caret | leave the caret and start picking |
+| **⌘A / Ctrl+A** twice in a row | the line, then the row and the ones beside it |
+| **⌘A / Ctrl+A** again | widen to the whole page |
+
+A pick and a caret are never both live: picking rows puts the caret away, and
+clicking into a title puts the pick away. That is what lets the keys stay the
+keys you already know — over a pick they mean the same thing, several times:
+
+| | |
+|---|---|
+| **Tab** / **Shift+Tab** | indent them, or take them out again |
+| **Alt+Shift+↑/↓** | move them among their siblings |
+| **⌘Enter** / **Ctrl+Enter** | tick them off, or take that back |
+| **Drag any of their bullets** | move all of them, subtrees and all |
+| **Escape** | put the pick away |
+
+**A parent and a child in the same pick are one row to a verb.** A subtree moves
+whole, so the child is already coming along; asking again would be asking about
+a row that has already gone.
+
+**And a bulk gesture is several writes, not one.** It is the op the single-row
+key sends, once per row, in the order that produces the shape you asked for —
+which is exactly what the agent does when you tell it to indent three things,
+and is why nothing here can do something the agent cannot. One that is refused
+stops the run and says why, in the ops layer's own words, on the bar at the foot
+of the page; what already landed stays landed.
+
+**Move to Trash** is on that bar, and it is the one bulk verb with no key —
+because there is still no delete key in this app, and a chord that takes several
+branches away would be that decision at its worst. It asks first, naming how
+many rows go, and it is the same put-away the ••• menu's own entry is: the ids
+come along, the Trash in the sidebar is where they are, and **Put back** is
+there. A pick holding a *placement* is not offered it at all: the node a mirror
+shows lives in another file, and the bar says so rather than quietly doing the
+rest.
 
 ## Putting a node on a day
 
@@ -146,8 +217,7 @@ way through for the mouse. ⌘Z after a Move to Trash puts the row back too —
 the undo knows the exact parent it sat under — and ⌘Z after a Put back is
 the archive again.
 
-Deliberately absent, each its own item: delete, split and merge, multi-select,
-and drag-and-drop.
+Deliberately absent, each its own item: delete, and split and merge.
 
 ## Writing a document
 

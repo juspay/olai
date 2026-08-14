@@ -61,8 +61,13 @@ export function NodeLine(props: {
   /** Clicking the title starts editing it. Absent wherever a node is drawn
    *  READ-ONLY — a day page lists nodes from all over the set, and a keyboard
    *  loop that started in one of them would be typing into a page whose rows
-   *  are a query rather than a tree. */
-  readonly onEdit?: () => void
+   *  are a query rather than a tree.
+   *
+   *  The EVENT is handed over because what a click means depends on what is
+   *  held: a plain one is about this row's text, a modified one is about the
+   *  row as a thing to pick (`./Tree.tsx`, where that split is made). This file
+   *  draws a line and decides none of it. */
+  readonly onEdit?: (event: MouseEvent) => void
   /** Clicking the DATE opens the picker on it — the same split as `onEdit`,
    *  one field along, and absent in the same places for the same reason. */
   readonly onPickDate?: () => void
@@ -73,7 +78,7 @@ export function NodeLine(props: {
         class={`flex-1 ${ROW_TITLE} ${toneOf(props.status)}`}
         classList={{ "cursor-text": props.onEdit !== undefined }}
         data-testid={TESTID.nodeTitle}
-        onClick={() => props.onEdit?.()}
+        onClick={(event) => props.onEdit?.(event)}
       >
         {props.children}
         <NodeTitle title={props.title} from={props.from} />

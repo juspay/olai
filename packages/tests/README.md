@@ -98,6 +98,32 @@ A failing scenario writes `reports/screenshots/<worker>-<scenario-name>.png`
 whether or not you were watching. The worker prefix keeps parallel
 screenshots from colliding.
 
+## Showing it to a person
+
+```bash
+just build-client
+nix develop .#e2e -c bash
+cd packages/tests
+SHOTS=/tmp/shots bash evidence.sh
+```
+
+`evidence.ts` / `evidence.sh` are NOT part of the suite — nothing imports them
+and `just e2e` never runs them. They drive the real app through one gesture at
+a time and leave a screenshot beside each, which is what a pull request shows a
+reviewer that a passing `✔` cannot: what the drop indicator looks like while a
+row is in the air, what a pick looks like, what the Trash asks before it takes
+a branch.
+
+One section per run, against a directory the driver has just re-copied and a
+server it has just started. Restoring the fixture underneath a running server
+is not the same thing — the store holds the snapshot it last wrote, and a file
+put back with the same length is a change its watcher is entitled not to
+notice, so a gesture made after one would be a gesture over a frame nobody can
+reproduce.
+
+`SECTION=` on its own lists the sections; `SECTION=<name>` runs one against a
+server you are already running (`BASE` says where).
+
 ## Fixture corpora
 
 Scenarios do not build their own outlines: they name a directory. A feature (or

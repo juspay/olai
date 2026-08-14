@@ -6,6 +6,7 @@ import {
   editKey,
   isApplePlatform,
   matchKey,
+  selectKey,
   SHORTCUTS,
 } from "./keys.ts"
 
@@ -116,8 +117,28 @@ test("neither mark key is a note's", () => {
 test("the bare arrows move between rows; modified ones do not", () => {
   expect(editKey(key("ArrowUp"), "line")).toBe("prev")
   expect(editKey(key("ArrowDown"), "line")).toBe("next")
-  expect(editKey(key("ArrowDown", { shift: true }), "line")).toBeNull()
   expect(editKey(key("ArrowDown", { ctrl: true }), "line")).toBeNull()
+})
+
+test("one arrow, three readings, told apart by what is held", () => {
+  // The whole grammar of the row layer in one key: bare is the caret, Shift
+  // leaves it and picks rows, Alt+Shift moves the row itself.
+  expect(editKey(key("ArrowUp"), "line")).toBe("prev")
+  expect(editKey(key("ArrowUp", { shift: true }), "line")).toBe("selectUp")
+  expect(editKey(key("ArrowDown", { shift: true }), "line")).toBe("selectDown")
+  expect(editKey(key("ArrowUp", { alt: true, shift: true }), "line")).toBe("up")
+})
+
+test("the SECOND ⌘A is the row's; the first is the input's own", () => {
+  // Nothing here claims the platform's select-all — until the line is already
+  // selected, which is a fact about the field and so an argument rather than a
+  // reading.
+  expect(editKey(key("a", { meta: true }), "line")).toBeNull()
+  expect(editKey(key("a", { ctrl: true }), "line")).toBeNull()
+  expect(editKey(key("a", { meta: true }), "line", true)).toBe("selectAll")
+  expect(editKey(key("A", { ctrl: true }), "line", true)).toBe("selectAll")
+  // ...and never in a note, where ⌘A is the textarea's like every other key.
+  expect(editKey(key("a", { meta: true }), "block", true)).toBeNull()
 })
 
 test("a note keeps Enter and the arrows for itself", () => {
@@ -145,6 +166,46 @@ test("no editing key is one of the reserved chords", () => {
       }
     }
   }
+})
+
+// ── the selection layer ────────────────────────────────────────────────
+
+test("the picked rows answer the same keys one row does", () => {
+  expect(selectKey(key("Tab"))).toBe("in")
+  expect(selectKey(key("Tab", { shift: true }))).toBe("out")
+  expect(selectKey(key("ArrowUp", { alt: true, shift: true }))).toBe("up")
+  expect(selectKey(key("ArrowDown", { alt: true, shift: true }))).toBe("down")
+  expect(selectKey(key("Enter", { ctrl: true }))).toBe("complete")
+  expect(selectKey(key("Enter", { meta: true }))).toBe("complete")
+  expect(selectKey(key("Escape"))).toBe("clear")
+})
+
+test("...plus the three that are about the pick itself", () => {
+  expect(selectKey(key("ArrowUp", { shift: true }))).toBe("growUp")
+  expect(selectKey(key("ArrowDown", { shift: true }))).toBe("growDown")
+  expect(selectKey(key("a", { meta: true }))).toBe("all")
+})
+
+test("no key of the selection layer is one of the reserved chords", () => {
+  // The same collision check the row layer gets, for the same reason and over
+  // the same table: ⌘Z with rows picked has to reach the undo stack.
+  for (const platform of ["MacIntel", "Linux x86_64"]) {
+    for (const chord of CHORDS) {
+      for (const mods of [{ meta: true }, { ctrl: true }]) {
+        const event = key(chord.key, { ...mods, shift: chord.shift === true })
+        if (matchKey(event, platform) === null) continue
+        expect(selectKey(event)).toBeNull()
+      }
+    }
+  }
+})
+
+test("a bare letter is nobody's key", () => {
+  // The pick is live over the whole page, so anything this claimed would be a
+  // keystroke a reader could not get back.
+  expect(selectKey(key("a"))).toBeNull()
+  expect(selectKey(key("Enter"))).toBeNull()
+  expect(selectKey(key("ArrowDown"))).toBeNull()
 })
 
 test("every chord in the table is reachable", () => {
@@ -179,12 +240,21 @@ test("every editing key is written down for a person", () => {
     "prev",
     "next",
     "cancel",
+    "selectUp",
+    "selectDown",
+    "selectAll",
   ]
-  // `next` shares its line with `prev` (one row about the arrows), so it is
-  // the pair that has to be covered rather than each name.
-  const covered = actions.filter((action) =>
-    said.has(action) || (action === "next" && said.has("prev"))
-  )
+  // Two pairs share a line, because each pair is one row about one key: the
+  // bare arrows, and the shifted ones. So it is the pair that has to be
+  // covered rather than each name.
+  const pairs: Partial<Record<EditAction, EditAction>> = {
+    next: "prev",
+    selectDown: "selectUp",
+  }
+  const covered = actions.filter((action) => {
+    const twin = pairs[action]
+    return said.has(action) || (twin !== undefined && said.has(twin))
+  })
   expect(covered).toEqual([...actions])
 })
 

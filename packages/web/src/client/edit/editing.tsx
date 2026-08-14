@@ -59,6 +59,7 @@ import { Result } from "effect"
 
 import type { EditAction } from "../keys.ts"
 import { runAsync } from "../run.ts"
+import type { Selection } from "../select/selection.ts"
 import { olai } from "../wire.ts"
 import {
   after,
@@ -168,6 +169,12 @@ export const createEditor = (
     readonly rows: Accessor<ReadonlyArray<Row>>
     readonly collapsed: Accessor<ReadonlySet<string>>
   },
+  /** The page's multi-selection, for the three keys that LEAVE the caret and
+   *  pick rows instead (`../select/selection.ts`). Handed in rather than read
+   *  from a context, because the two are created together by the same page and
+   *  the order between them is what makes "a caret or a pick, never both" a
+   *  fact about this file rather than a habit. */
+  selection: Pick<Selection, "start" | "grow" | "widen">,
 ): Editor => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [caret, setCaret] = createSignal(0)
@@ -450,11 +457,43 @@ export const createEditor = (
     walk: () => enqueue(() => structural((held) => ({ verb: "walk", id: held.id }))),
     // A MOVE is about the row itself, so a mirror moves as the placement it is
     // and the node it stands for stays where it lives.
+    // The three that LEAVE the caret. Each commits what is being typed first —
+    // a pick is not a way to abandon a draft, Escape is — and then closes it,
+    // because a caret and a pick are never both live (`../keys.ts` says why
+    // that is what lets the two layers share a key).
+    selectUp: () => enqueue(() => picking((from) => {
+      selection.start(from)
+      selection.grow(-1)
+    })),
+    selectDown: () => enqueue(() => picking((from) => {
+      selection.start(from)
+      selection.grow(1)
+    })),
+    selectAll: () => enqueue(() => picking((from) => selection.widen(from))),
     in: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "in" }))),
     out: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "out" }))),
     up: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "up" }))),
     down: () =>
       enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "down" }))),
+  }
+
+  /**
+   * Leave the caret, and start picking rows from the one it was in.
+   *
+   * The draft is COMMITTED first, and a refusal stops it — the row that would
+   * not save is the row to stay in, which is the rule the arrows and a click on
+   * another title already follow. Then the draft is closed, because a caret and
+   * a pick are never live together: that is what lets `Tab` mean one thing at
+   * any moment rather than needing a second grammar for bulk.
+   */
+  const picking = async (pick: (from: string) => void): Promise<void> => {
+    const held = draft()
+    if (held === null || held.kind !== "row" || held.place === null) return
+    const from = held.place
+    if (!(await commit())) return
+    idle.clear()
+    setDraft(null)
+    pick(from)
   }
 
   /** The arrows: the next row the eye would reach, folds and all. */

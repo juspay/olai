@@ -97,11 +97,17 @@ When(
 );
 
 When("I press {string}", async function (this: OlaiWorld, key: string) {
+  const editing = (await this.page.locator(TITLE_EDITOR).count()) > 0;
   await this.page.keyboard.press(key);
   await this.waitForFrame();
-  if (key === "Alt+Shift+ArrowUp" || key === "Alt+Shift+ArrowDown") {
+  if (editing && (key === "Alt+Shift+ArrowUp" || key === "Alt+Shift+ArrowDown")) {
     // A move remounts the row. The next key (⌘Enter) is for the caret
     // that has to come back; one frame is not that, under load.
+    //
+    // Only when there WAS a caret: the same chord over a multi-selection moves
+    // rows with no editor open at all (`features/dragdrop_multiselect.feature`),
+    // and waiting for one there would be waiting for something the gesture is
+    // defined by not having.
     await this.page
       .locator(TITLE_EDITOR)
       .first()

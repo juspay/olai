@@ -1281,7 +1281,8 @@ client (`palette/items.ts` says why).
 
 `src/client/keys.ts` is every key this app answers, and it is one file because
 a chord and an editing key that both claim one combination disagree silently,
-in a browser, while somebody is typing. Two layers, and they never overlap:
+in a browser, while somebody is typing. Three layers, and no two of them are
+ever live at once:
 
 - **global chords**, with a modifier, listened for on the window (one
   listener, in `palette/Palette.tsx`): **⌘K** palette, **⌘\\** sidebar, **⌘J**
@@ -1293,9 +1294,16 @@ in a browser, while somebody is typing. Two layers, and they never overlap:
   are matched on the editor's own element and nowhere else. A window listener
   claiming those would eat every keystroke in the chat composer and in the
   palette's own input.
+- **the selection's keys**, which are the SAME bare keys meaning the same
+  things over the rows a multi-select has picked (`select/selection.ts`; its
+  one window listener is `edit/Editable.tsx`'s, because a pick has no focused
+  element to hang a handler on — that is what makes it a pick). It is live only
+  while something is picked, and picking rows puts the caret away, so `Tab` has
+  exactly one meaning at any moment. That is the whole reason the two layers
+  can share a key rather than needing a second grammar for bulk.
 
-A unit test holds the two apart: every chord the global layer claims must be
-dead to the row layer, on both platforms.
+A unit test holds them apart: every chord the global layer claims must be dead
+to the other two, on both platforms.
 
 ## Editing a row
 
@@ -1363,10 +1371,84 @@ loop a person is in, and nothing about outlines:
 - **`order.ts`** flattens the drawn tree so `↑`/`↓` step through what is on
   screen, folds and all.
 
-There is deliberately no delete, no split/merge, no multi-select and no
-drag-drop: each is its own roadmap item. Putting a node AWAY is not among them
-— that is `Archive` in the `•••` menu below, which is the ops layer's own
-put-away rather than an erase.
+There is deliberately no delete and no split/merge: each is its own roadmap
+item. Putting a node AWAY is not among them — that is `Move to Trash` in the
+`•••` menu below, which is the ops layer's own put-away rather than an erase.
+
+## Dragging a row, and picking several
+
+`src/client/drag/` and `src/client/select/` are the pointer's half of the same
+loop, created beside the caret and living for the same page
+(`edit/Editable.tsx` makes all three, in that order, which is the only
+dependency between them: the editor hands the caret over to the selection for
+the three keys that leave a row, and the drag reads the selection to find out
+whether it is carrying one row or all of them).
+
+**Neither is a new kind of write, and that is the headline.** A drop sends
+`place` — a parent and the sibling to sit after — which is the surface verb an
+undo already used and resolves to the `move_node` an agent would send. A bulk
+verb sends the edit the single-row key already sends, once per row. Nothing was
+added to the wire and nothing was added to the ops layer, so there is no
+gesture here that MCP cannot make (HACKING.md's consistency rule) — it is N
+calls, which is what an agent told to indent three rows does.
+
+The pieces, and what each decides:
+
+- **`drag/plan.ts` — where a drop lands, as arithmetic.** Workflowy's gesture is
+  a caret for the tree rather than a drop onto a row: the pointer's Y picks a
+  GAP between two drawn lines and its X picks a DEPTH within it. Both halves are
+  needed, because a gap alone cannot tell "last child of the branch above" from
+  "next sibling of that branch's parent" — on screen those are the same line.
+  Pure over measured rows, so the part anybody would get wrong (which parent a
+  depth resolves to, what the ends of the list mean) is a unit test.
+- **the rows being carried are not in the list**, which is how "you cannot drop
+  a branch inside itself" is true by construction rather than by a guard — and
+  what is left is still a tree, so the walk back for an ancestor always finds
+  one.
+- **`drag/dragging.ts` — pointer events, not HTML5 drag-and-drop**, the same
+  call `layout/resize.ts` made one control over. A `dragstart` gesture owns the
+  ghost image, keeps its data store protected until the drop and fires
+  `dragover` at whatever element is under the cursor; none of that is what an
+  outline needs. (It also has to turn the native one OFF: a bullet is an
+  `<a href>`, every link is draggable for free, and the platform's link-drag
+  fires `pointercancel` at the gesture underneath it.) Rows are measured ONCE,
+  at the press, in document coordinates — nothing is optimistic here, so nothing
+  moves while a row is in the air.
+- **`select/range.ts` — place arithmetic.** A `Row.key` is the chain of ids from
+  the root of the page, so containment, siblinghood and "the ancestor at this
+  depth" are string questions rather than walks. Its one rule with teeth is
+  `topmost`: a verb is asked of the picked rows nothing else picked contains,
+  because a subtree moves whole and an op for the child as well would be an op
+  about a row that has already moved with its parent.
+- **`select/bulk.ts` — the ORDER, which is the only arithmetic in it.** Each
+  edit is judged against what the one before it did, so `in`/`up` go in drawn
+  order and `out`/`down` go in reverse: outdenting a run downwards lands each
+  row immediately after the old parent, and the run comes out backwards.
+- **the keys follow the rows.** A place is a chain of ids, so a bulk indent
+  redraws every row it moved under a new key — a pick still holding the old ones
+  would go dark on the frame that proved it worked. A picked place that stops
+  being drawn is looked up again by the record it named, which is the rule the
+  caret already follows.
+- **`select/SelectionBar.tsx`** exists for two things a pick has no other home
+  for: a line for what a bulk write SAID (there is no caret to draw a refusal
+  under, and `UndoSaid` is the undo stack's own line), and **Move to Trash** —
+  the only bulk verb with no key, because the human's ruling that this app has
+  no delete key is exactly a ruling about a chord that takes a branch away. It
+  asks first, naming the blast radius, the way the `•••` menu's own archive
+  does. A pick holding a PLACEMENT is not offered it and is told why, rather
+  than being silently three-quarters archived.
+
+Dragging is a mouse-or-pen gesture. A touch drag on a bullet would have to claim
+the gesture that scrolls the page (`touch-action: none`), and getting that wrong
+costs a phone reader the ability to scroll past an outline — the `•••` menu is
+already a pointer-device affordance for the same kind of reason. A long-press is
+the obvious answer and is a decision rather than a line of code.
+
+Two more things a reader will look for and not find: **auto-scroll while
+dragging near the edge of the window** (the gesture works on what is on screen),
+and **a rubber-band drag across rows** — Workflowy's fifth picking gesture. The
+other four are here; that one wants a marquee over a tree that also has text
+selection in it, which is its own design.
 
 ## Undo, which is a write
 
