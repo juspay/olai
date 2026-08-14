@@ -87,8 +87,13 @@ const ORDER = [
  * That is not tidiness. Two files that mean the same thing must not differ
  * byte-for-byte, because the format's whole bet is that a line-based git merge
  * is safe — and `{"after":[]}` versus no `after` is a conflict about nothing.
+ *
+ * Exported INSIDE the package because `has:` in the query grammar
+ * (./filter.ts) asks the same question from the other end — "does this record
+ * carry a note at all" — and a second answer to it would let a `desc` of `""`
+ * be a note to search for and no note to write.
  */
-const nothing = (value: unknown): boolean =>
+export const nothing = (value: unknown): boolean =>
   value === undefined || value === null ||
   (Array.isArray(value) && value.length === 0) || value === ""
 

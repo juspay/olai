@@ -245,6 +245,20 @@ export const NODE = selector(TESTID.node);
 export const NODE_TITLE = selector(TESTID.nodeTitle);
 export const TAG = selector(TESTID.tag);
 export const DATE = selector(TESTID.date);
+/** The bar that narrows the page — the box, what it found, and what it
+ *  refused. On the two routes that may carry a filter and nowhere else. */
+export const FILTER_BAR = selector(TESTID.filterBar);
+export const FILTER_INPUT = selector(TESTID.filterInput);
+export const FILTER_COUNT = selector(TESTID.filterCount);
+export const FILTER_CLEAR = selector(TESTID.filterClear);
+/** A known operator with an unknown value, in the grammar's own words. The
+ *  scenario asserts on the WORDS: a query that quietly found nothing is what
+ *  this line exists to make impossible. */
+export const FILTER_REFUSAL = selector(TESTID.filterRefusal);
+/** The same refusal on the two doors that ask the SERVER for it — the ⌘K
+ *  palette and the header box. One name, because it is one sentence about one
+ *  grammar; where each door draws it is that door’s own business. */
+export const SEARCH_REFUSAL = selector(TESTID.searchRefusal);
 /** The date picker, in place under the row it was opened on — from the pill
  *  above, or from the `•••` menu's `Set date…`. Its box is a native
  *  `<input type="date">`, so what it holds is the ten characters the record
@@ -318,6 +332,10 @@ export const DRAG_HANDLE = selector(TESTID.dragHandle);
  *  being dragged. `data-parent`, `data-after` and `data-depth` are what it
  *  PROMISES, which is a prediction right up until the pointer is released. */
 export const DROP_LINE = selector(TESTID.dropLine);
+/** The band a drag-across pulls — present only while one is being pulled.
+ *  `data-rows` is how many rows it is crossing, which is the half of the
+ *  gesture that is still a prediction while the pointer is down. */
+export const SWEEP_BAND = selector(TESTID.sweepBand);
 /** The bar a multi-selection draws. `data-rows` is the count the bulk verbs
  *  are asked of — the picked rows nothing else picked contains. */
 export const SELECTION_BAR = selector(TESTID.selectionBar);
@@ -953,6 +971,16 @@ export class OlaiWorld extends World {
     return new URL(this.page.url()).pathname;
   }
 
+  /** The path AND the query — what a reader would copy out of the bar when the
+   *  page is narrowed. Its own accessor beside {@link pathname} because the
+   *  filter is part of the address (`routes.ts`) and every other assertion in
+   *  this suite is about a path: a step asserting "/o/house.jsonl" must not
+   *  start passing for a page that is also filtered. */
+  address(): string {
+    const url = new URL(this.page.url());
+    return url.pathname + url.search;
+  }
+
   /** One sidebar entry, by the relative path it stands for. */
   outlineLink(file: string): Locator {
     return this.page.locator(`${OUTLINE_LINK}[data-file="${file}"]`);
@@ -1022,12 +1050,88 @@ export class OlaiWorld extends World {
    * every scenario here into a tap.
    */
   async hold(target: Locator): Promise<void> {
-    const at = await this.middleOf(target, "held");
-    await this.finger("touchStart", at);
+    await this.holdDown(target);
+    await this.letGo();
+  }
+
+  /**
+   * HOLD a finger, and KEEP IT DOWN — the first half of a touch drag, and the
+   * first half of {@link hold} above.
+   *
+   * The two cannot be one method: a drag is what the finger does AFTER the
+   * deadline, so a scenario about one has to be able to stop between them —
+   * what the client does at that moment is lift the row
+   * (`client/drag/dragging.ts`), which is a state on the page a step can assert
+   * before anything has moved. But the deadline is one number and one wait, so
+   * the shorter gesture is written in terms of this one rather than beside it.
+   */
+  async holdDown(target: Locator): Promise<void> {
+    this.held = await this.middleOf(target, "held");
+    await this.finger("touchStart", this.held);
     await this.page.waitForTimeout(LONG_PRESS_MS + LONG_PRESS_MARGIN_MS);
+    await this.waitForFrame();
+  }
+
+  /** Move the finger that is already down, in steps rather than in one jump —
+   *  a hand makes a path, and a gesture that arrived as a single event would
+   *  pass over the frames the affordance is drawn in.
+   *
+   *  WHERE IT STARTED IS THE WORLD'S, not a step's: a drag is three steps and
+   *  the path is measured from the press, so the alternative is a step file
+   *  keeping the point in a module-global — one per worker, outliving the
+   *  scenario that put it there. */
+  async dragFinger(to: Point, steps = 10): Promise<void> {
+    const from = this.held;
+    assert.ok(from !== undefined, "no finger is down to drag");
+    for (let step = 1; step <= steps; step++) {
+      await this.finger("touchMove", {
+        x: from.x + ((to.x - from.x) * step) / steps,
+        y: from.y + ((to.y - from.y) * step) / steps,
+      });
+      await this.page.waitForTimeout(20);
+    }
+    await this.waitForFrame();
+  }
+
+  /**
+   * Shrink the viewport until the page has somewhere to scroll TO, and say so
+   * if it has not.
+   *
+   * No fixture in this suite is taller than a screen on its own — the corpora
+   * are outlines a person can read inside a scenario — so every scenario about
+   * the page MOVING has to make its own room, and two of them do (a phone, and
+   * a short laptop). The dimensions are each caller's, because 390px would
+   * change the layout a desktop scenario is testing; the ASSERTION is not, and
+   * it is the half that gives those steps their value: a fixture that grew past
+   * one of the two heights, or a layout that stopped scrolling the document,
+   * would otherwise leave the scenario after it passing over nothing.
+   */
+  async shrinkToScroll(width: number, height: number): Promise<void> {
+    await this.page.setViewportSize({ width, height });
+    await this.waitForFrame();
+    const room = await this.page.evaluate(() => ({
+      page: document.documentElement.scrollHeight,
+      screen: window.innerHeight,
+      at: window.scrollY,
+    }));
+    assert.ok(
+      room.page > room.screen,
+      `the outline is ${room.page}px on a ${room.screen}px screen, so there is nothing to scroll`,
+    );
+    assert.strictEqual(room.at, 0, "this scenario starts at the top of the page");
+  }
+
+  /** ...and let it go, which for a drag is the drop. */
+  async letGo(): Promise<void> {
+    this.held = undefined;
     await this.finger("touchEnd");
     await this.waitForFrame();
   }
+
+  /** Where the finger that is currently down went in, for as long as it is
+   *  down. `undefined` between gestures, which is what makes "no finger is down
+   *  to drag" an assertion rather than a stale point from the last scenario. */
+  private held?: Point;
 
   /**
    * A finger that lands on something and then SCROLLS the page with it.

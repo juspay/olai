@@ -352,6 +352,12 @@ export const TESTID = {
    *  first among them), and `data-depth` how far in the line is drawn — the
    *  three facts that are still a prediction until the pointer is released. */
   dropLine: "drop-line",
+  /** The band a drag-across pulls, while it is being pulled and never
+   *  otherwise. `data-rows` is how many rows it is crossing right now — the one
+   *  thing about a sweep that is still a prediction while the pointer is down.
+   *  A BAND rather than a rubber-band box, because a row is a line and the
+   *  gesture reads only Y (`drag/sweep.ts`). */
+  sweepBand: "sweep-band",
   /** The bar a multi-selection draws: how many rows are picked, the one verb
    *  that has no key, and what the last bulk write said. `data-rows` is the
    *  count the verbs are asked of — the picked rows nothing else picked
@@ -614,6 +620,21 @@ export const TESTID = {
   /** The question the one verb with a blast radius asks before it runs — the
    *  `•••` menu's sentence, in the palette's own box. */
   paletteConfirm: "palette-confirm",
+  // ── the filter over the page, which is not the header's box ──────────
+  /** The bar above a tree page: the box, the count, the refusals. Drawn on the
+   *  two routes that may carry a filter and nowhere else. */
+  filterBar: "filter-bar",
+  filterInput: "filter-input",
+  /** "3 of 41", plus what the done-preference is holding back. */
+  filterCount: "filter-count",
+  filterClear: "filter-clear",
+  /** A known operator with an unknown value, in the grammar's own words —
+   *  never a query that quietly found nothing. */
+  filterRefusal: "filter-refusal",
+  /** The SAME refusal, on the two doors that ask the server for it — the ⌘K
+   *  palette and the header box. One name for both, because it is one sentence
+   *  about one grammar; where it is drawn is each door's own business. */
+  searchRefusal: "search-refusal",
   // ── the header's search box, the other door to the same reading ──────
   headerSearch: "header-search",
   /** The phone's door: opens the palette, which is the same modal. */

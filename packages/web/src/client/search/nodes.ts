@@ -32,7 +32,7 @@ import { type Accessor, createEffect, createResource, createSignal } from "solid
 import { debounce } from "@solid-primitives/scheduled"
 import { Result } from "effect"
 
-import type { SearchHit } from "@olai/surface"
+import type { Refusal, SearchHit } from "@olai/surface"
 
 import { runAsync } from "../run.ts"
 import { olai } from "../wire.ts"
@@ -56,6 +56,19 @@ export interface NodeSearch {
   /** A refusal from the server, in its own words — `null` when there is none.
    *  Never silently dropped (`../run.ts` forbids a silent handler). */
   readonly failure: Accessor<string | null>
+  /**
+   * What the QUERY LANGUAGE could not read — a known operator with an unknown
+   * value (`is:blocked`), with what that operator takes. Empty for every query
+   * it could read.
+   *
+   * A different thing from {@link failure}, and so a different slot, which is
+   * this file's own rule one turn further on: a refused CALL is the server
+   * saying it could not answer, and a refused QUERY is an answer — the words
+   * were read and one of them is not a word. Without it a typo in an operator
+   * looks exactly like an empty directory, which is the silent failure the
+   * refusals were written to prevent.
+   */
+  readonly refusals: Accessor<ReadonlyArray<Refusal>>
   /**
    * WHICH QUERY the rows on screen answer — `null` while they answer a question
    * the reader has already moved on from.
@@ -107,26 +120,27 @@ export const createNodeSearch = (text: Accessor<string | null>): NodeSearch => {
     setFailure(null)
   })
 
-  const [hits] = createResource(asked, async (query: string) => {
+  const [answer] = createResource(asked, async (query: string) => {
     const outcome = await runAsync(
       olai.procedures.search.nodes({ text: query, limit: LIMIT }),
     )
     if (Result.isFailure(outcome)) {
       setFailure(outcome.failure.message)
-      return []
+      return null
     }
     setFailure(null)
-    return outcome.success.hits
+    return outcome.success
   })
 
   // `undefined` is the resource's "nothing asked for yet"; a palette shows no
   // rows in that state, which is the same thing an empty answer shows.
   return {
-    hits: () => hits() ?? [],
+    hits: () => answer()?.hits ?? [],
     failure,
+    refusals: () => answer()?.refusals ?? [],
     // While a fetch is in flight the rows on screen are the LAST query's, so
     // they answer nothing anybody is asking — and during the debounce, before
     // `asked` moves, they still answer the query they were fetched for.
-    answering: () => (hits.loading ? null : asked()),
+    answering: () => (answer.loading ? null : asked()),
   }
 }

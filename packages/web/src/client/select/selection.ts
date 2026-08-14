@@ -66,6 +66,13 @@ export interface Selection {
   readonly toggle: (key: string) => void
   /** Shift-click: everything between the anchor and this row. */
   readonly extend: (key: string) => void
+  /** Drag-across: exactly this run, with the two ends the sweep gave it — where
+   *  the pull began is the anchor a later shift-click measures from, and where
+   *  it ended is the focus an arrow moves (`../drag/sweeping.ts`). It takes the
+   *  KEYS rather than the two ends alone because the sweep has already walked
+   *  the rows it crossed, and asking `spanning` for them again would be that
+   *  walk a second time, per frame. */
+  readonly across: (keys: Iterable<string>, from: string, to: string) => void
   /** Shift+arrow: one row further, in the direction pressed. */
   readonly grow: (by: 1 | -1) => void
   /** The ⌘A ladder: this row's siblings first, then every row on the page.
@@ -185,6 +192,10 @@ export const createSelection = (
       const at = anchor() ?? key
       pick(spanning(drawn(), at, key), at, key)
     },
+    // The private verb, handed out: a sweep names the run and both its ends,
+    // which is exactly what a pick IS — where the other gestures have to derive
+    // one or both of those from the rows on screen first.
+    across: pick,
     grow: (by) => {
       const end = focus() ?? anchor()
       if (end === null) return

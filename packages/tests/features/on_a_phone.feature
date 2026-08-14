@@ -200,20 +200,65 @@ Feature: On a phone
     And the node menu is closed
     And no row is being edited
 
+  # ── the bullet is the handle, on a finger as on a mouse ───────────────
+  #
+  # A row can be picked up with a finger now, and the gesture is the same long
+  # press — WATCHED, never claimed, until a deadline the browser has already
+  # agreed is not a scroll. What it is held ON is the BULLET, which is what a
+  # mouse and a pen have always dragged from, so it is one handle on three
+  # devices rather than a fourth thing to learn.
+  #
+  # That costs the bullet its old job as a second door to the `•••` menu (this
+  # scenario used to hold a finger there and assert the panel), and the trade
+  # is deliberate: two long presses cannot both own one press, the menu has a
+  # whole row to be reached from, and a handle has only itself. What the
+  # scenario was really holding — that a finger lifting after a press does not
+  # ALSO follow the link under it — is held here still, by the drag.
+
   @corpus:good @phone
-  Scenario: The press does not also press the row it landed on
-    # A finger lifting after a long press still produces a click, and under it
-    # is a link: the bullet zooms. So the press that opened the menu eats that
-    # one tap — and only that one, which is what the last two steps are for.
+  Scenario: A finger held on the bullet picks the row up, and does not follow its link
     Given I open the outline "house.jsonl"
-    When I hold a finger on the bullet of "kitchen"
-    Then the node menu is open
-    And the address is "/o/house.jsonl"
+    And I mark the page
+    When I hold a finger on the bullet of "kitchen" and keep it there
+    Then the row "kitchen" is in the air
+    And the node menu is closed
     And no row is being edited
-    When I tap away from the node menu
-    Then the node menu is closed
+    When I let the finger go
+    Then no row is in the air
+    # The click a lift synthesises, eaten: under this finger is an `<a href>`.
+    And the address is "/o/house.jsonl"
+    And the page has not reloaded
+    # ...and only that one. A plain tap is still the navigation it always was.
     When I tap the bullet of "kitchen"
     Then the zoomed node is "kitchen"
+
+  @scratch:good @phone
+  Scenario: A held row follows the finger and lands where it is let go
+    Given I open the outline "house.jsonl"
+    And I mark the page
+    When I hold a finger on the bullet of "knobs" and keep it there
+    And I drag that finger above the title of "handles"
+    Then the drop line would put it under "install"
+    And the drop line would put it first
+    When I let the finger go
+    Then the node "knobs" comes before "handles"
+    And the address is "/o/house.jsonl"
+    And there should be no page errors
+
+  @corpus:good @phone
+  Scenario: A flick that STARTS on the bullet still scrolls the page
+    # The cost this design refused to pay. Claiming the handle with
+    # `touch-action: none` would have passed every scenario above and left a
+    # 28px dead strip down the left of every outline — so the claim is a
+    # non-passive `touchmove` put up at the DEADLINE instead, and a finger that
+    # moved before it never reaches one. Sister of the row's own fence below,
+    # aimed at the one cell that could have broken it.
+    Given I open the outline "house.jsonl"
+    And the screen is shorter than the outline
+    When I flick the bullet of "kitchen" up the screen
+    Then the outline has scrolled
+    And no row is in the air
+    And the node menu is closed
 
   @corpus:good @phone
   Scenario: A tap on an outline entry opens that outline

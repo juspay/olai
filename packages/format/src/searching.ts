@@ -35,6 +35,7 @@
 
 import { Schema } from "effect"
 
+import { Refusal, SEARCH_FIELDS } from "./filter.ts"
 import { MARKS } from "./node.ts"
 
 /**
@@ -81,7 +82,14 @@ export type Found = typeof Found.Type
  *  guess. */
 export const SearchHit = Schema.Struct({
   ...Found.fields,
-  matched: Schema.Literals(["title", "id", "tag", "desc"]),
+  /** ABSENT when the query named no words at all: `is:done` selects a node by a
+   *  field test, and no title, id, tag or note carried it. Saying one of them
+   *  did would be an answer invented to fill a slot — the same rule `status`
+   *  above follows, rather than a fifth word meaning "nothing".
+   *
+   *  The four are `./filter.ts`'s own list, because which fields a word is
+   *  looked for in is the matcher's fact and this is only where it is reported. */
+  matched: Schema.optionalKey(Schema.Literals(SEARCH_FIELDS)),
 })
 export type SearchHit = typeof SearchHit.Type
 
@@ -90,6 +98,15 @@ export const SearchAnswer = Schema.Struct({
   /** How many nodes matched in all. `hits` is capped; this is not, so "twelve
    *  of ninety" is sayable. */
   total: Schema.Int,
+  /** What the grammar could not read, in its own words — a known operator with
+   *  an unknown value (`is:blocked`). ABSENT for every query it could read.
+   *
+   *  It travels rather than being swallowed because a door that answered
+   *  `is:blocked` with an empty list and no reason is the silent failure
+   *  HACKING.md forbids: the reader typed an operator, and the honest answer is
+   *  which values it takes. The filter over the tree draws its own because it
+   *  parses for itself; these are for the three doors that ask the server. */
+  refusals: Schema.optionalKey(Schema.Array(Refusal)),
 })
 export type SearchAnswer = typeof SearchAnswer.Type
 
@@ -106,17 +123,43 @@ export const DEFAULT_SEARCH_LIMIT = 12
  * The field prose is agent-facing — it becomes the JSON Schema `search_nodes`
  * advertises — and it describes the matcher's own rule rather than a wire
  * convention, which is why it can be written once for a caller that is a model
- * and a caller that is a text box.
+ * and a caller that is a text box. `text` is the whole GRAMMAR
+ * ({@link parseFilter}), so the sentence documenting it is the one place the
+ * operators are spelled out for a reader who is not looking at the parser.
  */
 export const SearchRequest = Schema.Struct({
   text: Schema.String.annotate({
     description:
-      "Words to look for. Case-folded substrings, no operators: every word must appear somewhere in the same node.",
+      "What to look for. Case-folded substring WORDS — every word must appear somewhere in the same node — composed with OPERATORS:\n" +
+      "- `is:done` / `is:doing` / `is:todo` — the mark the node stores (never a derived one). `is:marked` is any of the three; `is:archived` reaches what was put away.\n" +
+      "- `has:desc` / `has:date` / `has:see` / `has:after` / `has:doc` — a field the record carries.\n" +
+      "- `date:2026-08-10`, `date:2026-08`, `date:2026`, `date:2026-08-01..2026-08-14`, `date:..2026-08-10`, `date:2026-08-10..` — the two dates a journal reads: what the node is scheduled for, and when it was finished.\n" +
+      "- `-` before any word or operator negates it: `#home -is:done`.\n" +
+      "A `#tag` or `@mention` is an ordinary word — tags are indexed bare and as written. An unknown value for a known operator is REFUSED rather than searched for as text; a colon after anything else (`TODO:`) is just a word.\n" +
+      "ARCHIVED NODES ARE EXCLUDED unless the query says `is:archived`.",
   }),
   limit: Schema.optionalKey(
     Schema.Number.annotate({
       description:
         `How many hits to return. Default ${DEFAULT_SEARCH_LIMIT}; the total is reported either way.`,
+    }),
+  ),
+  /**
+   * The two scopes a tree page can BE, and they are on the REQUEST rather than
+   * on any one caller for the reason this whole module exists: the browser's
+   * filter narrows to one outline or to one node's subtree, so a door that
+   * could not ask for that narrowing would be answering a smaller question than
+   * the other one.
+   */
+  file: Schema.optionalKey(
+    Schema.String.annotate({
+      description: "Only nodes in this outline, by its relative path.",
+    }),
+  ),
+  under: Schema.optionalKey(
+    Schema.String.annotate({
+      description:
+        "Only this node and everything beneath it, by id — the same scoping a person gets by filtering a zoomed page.",
     }),
   ),
 })

@@ -49,6 +49,7 @@
 
 import { type Accessor, createSignal } from "solid-js"
 
+import { HANDLE } from "../drag/dragging.ts"
 import { type LongPress, longPressOn } from "../longPress.ts"
 
 /** All of what a row's menu is. */
@@ -56,7 +57,8 @@ type Door = "unasked" | "shut" | "open"
 
 export interface MenuDoor {
   /** The phone's door, as the two handlers that make it. Put them on the row's
-   *  own line, which is what a finger is held on. */
+   *  own line, which is what a finger is held on — everywhere but the handle,
+   *  and that exception is answered in here rather than by the row. */
   readonly hold: LongPress
   /** Wire as `ref` on that same line. It is the same element twice for a
    *  reason: what a finger is held ON is what the panel then hangs OFF, since
@@ -79,6 +81,29 @@ export interface MenuDoor {
   readonly setOpen: (open: boolean) => void
 }
 
+/**
+ * ...EXCEPT ON THE ROW'S HANDLE, and this is the door's answer rather than the
+ * row's.
+ *
+ * A phone picks a row up by HOLDING its bullet (`../drag/dragging.ts`), which
+ * is the same gesture on the same row — and two long presses cannot both own
+ * one press. The one that gives way is this door, because the menu has a whole
+ * row to be reached from and a handle has only itself. It is answered HERE for
+ * the reason everything else about this door is: "how this menu is reached" is
+ * this module's question, and a rule spelled at the row is a rule the next row
+ * forgets.
+ *
+ * TOUCH ONLY, which is not belt and braces: below the deadline this watcher
+ * still has bookkeeping to do for a mouse or a pen (`../longPress.ts` resets
+ * itself on one), and skipping it wholesale would leave that state stale — as
+ * well as walking the ancestors of every press on every device to answer a
+ * question only a finger can ask.
+ */
+const onTheHandle = (event: PointerEvent): boolean =>
+  event.pointerType === "touch" &&
+  event.target instanceof Element &&
+  event.target.closest(`[${HANDLE}]`) !== null
+
 /** Call it in the row's own owner: the gesture's timer and its listeners are
  *  disposed with the row that was being pressed. */
 export const createMenuDoor = (): MenuDoor => {
@@ -86,12 +111,19 @@ export const createMenuDoor = (): MenuDoor => {
   const show = (): void => {
     setDoor("open")
   }
+  const press = longPressOn(show)
   /** Not a signal: it is read when the panel is placed, which is after the row
    *  has been drawn, and nothing re-runs when it arrives. */
   let line: HTMLElement | undefined
 
   return {
-    hold: longPressOn(show),
+    hold: {
+      onPointerDown: (event) => {
+        if (onTheHandle(event)) return
+        press.onPointerDown(event)
+      },
+      onContextMenu: press.onContextMenu,
+    },
     line: (el) => {
       line = el
     },

@@ -31,29 +31,52 @@
  *
  * **Several rows land as several writes**, each after the one before it, which
  * is what keeps the run in the order it was picked up in (`../writes.ts`).
+ *
+ * **A FINGER HOLDS THE BULLET FIRST**, and that is the whole of what touch
+ * added. The gesture a phone already owns on a row is the page scrolling under
+ * it, so a drag that took the first pixel of travel would cost a reader the
+ * ability to read; what claims a gesture honestly on a handset is a LONG PRESS,
+ * which is the call `../longPress.ts` already made for the `•••` menu and the
+ * same primitive is spent again here. Until the deadline nothing is claimed —
+ * the browser keeps the press, a finger that drifts is a scroll and takes the
+ * deadline with it — and only a finger that is still there at 500ms lifts the
+ * row and stops the page moving under it.
+ *
+ * THE BULLET, AND NOT THE ROW, is what a finger holds for this, and that is the
+ * decision the touch half is: the bullet is already the handle for a mouse and
+ * a pen, so it is one handle on three devices rather than a fourth thing to
+ * learn. What it costs is that a phone no longer opens the `•••` menu by
+ * holding the BULLET specifically — holding anywhere else on the row still
+ * does, which is nearly all of it — and that is the trade taken, because two
+ * gestures cannot both own one press and the menu has a row to be reached from
+ * while a handle has only itself.
  */
 
 import type { Row } from "@olai/format"
 import type { Edit } from "@olai/surface"
-import { type Accessor, createContext, createSignal, useContext } from "solid-js"
+import { type Accessor, createContext, createSignal, onCleanup, useContext } from "solid-js"
 
 import { flatten } from "../edit/order.ts"
 import type { Said } from "../edit/undoing.ts"
 import { useUndo } from "../edit/undoing.ts"
-import { drag as pointerDrag } from "../pointer.ts"
+import { longPressOn } from "../longPress.ts"
+import { createDrags, TRAVEL_PX } from "../pointer.ts"
 import { beneath, depthOf } from "../select/range.ts"
 import { applyingAll } from "../writes.ts"
+import { measureLines } from "./lines.ts"
 import { type Landing, type Placed, planDrop } from "./plan.ts"
 
-/** How far the pointer must travel before a press becomes a drag rather than a
- *  click on the bullet's link. Four pixels is the number a hand resting on a
- *  trackpad produces without meaning to. */
-const THRESHOLD = 4
-
-/** The attribute a row's LINE carries so a drag can measure it. On the line and
- *  not on the `<li>`, because an item's box contains every row nested under it
- *  and the gap arithmetic is about the lines a reader sees. */
-export const ROW_KEY = "data-row-key"
+/**
+ * The attribute the row's HANDLE wears — the bullet, as something to pick a row
+ * up by (`./Handle.tsx`).
+ *
+ * Here rather than on the component because two other things read it and
+ * neither is drawing one: the row's `•••` door, which must not arm its own long
+ * press on a press this gesture has claimed (`../menu/door.ts`), and the
+ * browser tests. What it marks is a fact about this GESTURE — "a press here is
+ * the drag's" — so it belongs with the gesture.
+ */
+export const HANDLE = "data-handle"
 
 export interface Dragging {
   /** Is this place in the air — either picked up, or drawn under something
@@ -64,8 +87,19 @@ export interface Dragging {
   /** Where they would land right now, or `null` before the threshold is
    *  crossed and after the drop. */
   readonly landing: Accessor<Landing | null>
-  /** Begin a gesture on this row. Nothing happens until the pointer moves. */
+  /** Begin a gesture on this row's handle. A mouse or a pen: nothing happens
+   *  until the pointer moves. A finger: nothing happens until it has been HELD,
+   *  and then the row lifts under it. */
   readonly grab: (event: PointerEvent, row: Row) => void
+  /** The platform's OWN long press, answered: prevented while this gesture is
+   *  holding a finger, so the text-selection callout does not come up over a
+   *  row that is about to lift. Wire as `onContextMenu` on the handle beside
+   *  {@link grab}; a right-click with a mouse is untouched (`../longPress.ts`).
+   *
+   *  Only this half of the watcher is handed out. Its `onPointerDown` is
+   *  {@link grab}'s to call — a caller given both could arm the deadline twice
+   *  for one press, which is a shape nothing should be able to write. */
+  readonly heldMenu: (event: Event) => void
   /** Whether the gesture that just ended was a DRAG — read by the bullet, whose
    *  click would otherwise navigate away the instant a drop lands. */
   readonly dragged: () => boolean
@@ -142,13 +176,13 @@ export const createDragging = (
    *
    * What may be dropped INTO is the other half, and it rides on each row
    * ({@link Placed.into}).
+   *
+   * WHERE the lines are is not asked here: that is one reading of the page
+   * (`./lines.ts`), shared with the sweep, and what is left in this file is the
+   * only part that is about a PLACEMENT.
    */
   const measure = (carried: ReadonlyArray<Row>): ReadonlyArray<Placed> => {
-    const lines = new Map<string, Element>()
-    for (const line of document.querySelectorAll(`[${ROW_KEY}]`)) {
-      const key = line.getAttribute(ROW_KEY)
-      if (key !== null) lines.set(key, line)
-    }
+    const lines = new Map(measureLines().map((line) => [line.key, line]))
     const keys = new Set(carried.map((one) => one.key))
     // The file the drag is ABOUT — the carried rows', not the page's, which is
     // what makes a mirror's children draggable among themselves. A pick that
@@ -156,53 +190,96 @@ export const createDragging = (
     // left out, and the ops layer refuses them by name on the bar, which is the
     // same way every other half-legal run ends here.
     const file = carried[0]?.at.file
-    const scrollX = window.scrollX
-    const scrollY = window.scrollY
     return flatten(page.rows(), page.collapsed()).flatMap((row): ReadonlyArray<Placed> => {
       if (row.at.file !== file || beneath(keys, row.key)) return []
       const line = lines.get(row.key)
       if (line === undefined) return []
-      const box = line.getBoundingClientRect()
       const shows = row.kind === "node" || row.kind === "mirror" ? row.shows : undefined
       return [{
-        key: row.key,
+        ...line,
         id: row.at.node.id,
         parent: row.at.node.parent ?? null,
         // A placement is not a parent; the node it SHOWS is, and only when that
         // node is in this file. Same rule, same reason, as `move in`'s.
         into: shows !== undefined && shows.file === file ? shows.node.id : null,
         depth: depthOf(row.key),
-        top: box.top + scrollY,
-        bottom: box.bottom + scrollY,
-        left: box.left + scrollX,
-        right: box.right + scrollX,
       }]
     })
   }
 
-  const grab = (event: PointerEvent, row: Row) => {
-    // The secondary button opens a context menu; a drag is the primary one's.
-    if (event.button !== 0) return
-    // Every press clears it, and nothing else does — see the field's own note.
-    travelled = false
+  /**
+   * The page STOPS SCROLLING under a finger that has been held, and starts
+   * again the moment the row is put down.
+   *
+   * Claimed here rather than as `touch-action: none` on the handle, and the
+   * difference is the whole of what makes this honest: a style is in force from
+   * the instant a finger lands, so a thumb that happened to start its flick on
+   * a bullet could not scroll the page at all — a 28px-wide dead strip running
+   * down the left of every outline. A non-passive `touchmove` listener is in
+   * force from the DEADLINE, which is a moment the browser has already agreed
+   * is not a scroll (a finger that had drifted would have taken the deadline
+   * with it, and one the browser took to scroll with would have cancelled the
+   * pointer). So the page keeps every gesture it had, and this claims exactly
+   * the one that is left.
+   */
+  const stopScrolling = (event: TouchEvent): void => event.preventDefault()
+  const claimScroll = (): void =>
+    window.addEventListener("touchmove", stopScrolling, { passive: false })
+  const freeScroll = (): void => window.removeEventListener("touchmove", stopScrolling)
+  // A row dragged off the page mid-gesture would otherwise leave the whole
+  // document unable to scroll, which is the one failure here nobody could
+  // recover from without a reload.
+  onCleanup(freeScroll)
+
+  /** This page's gestures: one at a time, and whatever is in flight is ended
+   *  with the page that made it (`../pointer.ts`). */
+  const drags = createDrags()
+
+  /**
+   * The gesture proper, once something has decided it IS one.
+   *
+   * `held` is WHICH of the two decided — a finger's DEADLINE (the row is
+   * already lifted, and the page has stopped moving under it) rather than a
+   * pointer's THRESHOLD (the row lifts on the fourth pixel, and a press that
+   * never travels was the bullet's own link all along). Everything after that
+   * moment is identical, which is why this is one function rather than two that
+   * would drift.
+   */
+  const gesture = (from: PointerEvent, row: Row, held: boolean) => {
     /** What this gesture is carrying, decided when it becomes a drag rather
      *  than at the press: a press that turns out to be a click must not have
      *  cleared the selection on its way past. */
     let carried: ReadonlyArray<Row> = []
     let placed: ReadonlyArray<Placed> = []
 
-    pointerDrag(event, {
-      threshold: THRESHOLD,
-      onStart: () => {
-        travelled = true
-        const picked = page.selection.keys()
-        carried = picked.has(row.key) ? page.selection.rows() : [row]
-        if (!picked.has(row.key)) page.selection.clear()
-        setMoving(new Set(carried.map((one) => one.key)))
-        placed = measure(carried)
-      },
-      onMove: (move) => setLanding(planDrop(placed, move.pageX, move.pageY)),
+    const lift = () => {
+      travelled = true
+      const picked = page.selection.keys()
+      carried = picked.has(row.key) ? page.selection.rows() : [row]
+      if (!picked.has(row.key)) page.selection.clear()
+      setMoving(new Set(carried.map((one) => one.key)))
+      placed = measure(carried)
+    }
+
+    if (held) {
+      lift()
+      claimScroll()
+    }
+    drags.start(from, {
+      // No threshold at all once a finger has been HELD: the deadline it met is
+      // what told the two gestures apart, so the first pixel after it is
+      // already the drag. Asking for four more would be asking a person who has
+      // just felt the row lift to prove they meant it.
+      threshold: held ? 0 : TRAVEL_PX,
+      onStart: held ? undefined : lift,
+      // ON THE PAGE, which is where the rows were measured — and which moves
+      // under a pointer held near an edge of the window, with no `pointermove`
+      // behind it (`../pointer.ts`, `../autoscroll.ts`). Without that the reach
+      // of a drag is whatever was visible when the press landed, which on an
+      // outline is most of the gesture missing.
+      onPage: (x, y) => setLanding(planDrop(placed, x, y)),
       onEnd: (up) => {
+        if (held) freeScroll()
         // A CANCELLED gesture is not a drop, and the difference is the whole
         // reason the primitive answers with `null` rather than with the last
         // move: a pointer taken away mid-drag has not chosen anything.
@@ -213,6 +290,33 @@ export const createDragging = (
         void drop(target, carried)
       },
     })
+  }
+
+  /**
+   * The finger's deadline, and the row it is being held over.
+   *
+   * ONE watcher for the page rather than one per row: what it is watching is
+   * whatever was pressed last, and two fingers on two bullets is a pinch the
+   * gesture already refuses (`../longPress.ts`). The PRESS comes back with the
+   * deadline — neither the timer nor the platform's own `contextmenu` carries
+   * one — so the only thing kept beside the watcher is which row it was on.
+   */
+  let over: Row | undefined
+  const watcher = longPressOn((from) => {
+    if (over !== undefined) gesture(from, over, true)
+  })
+
+  const grab = (event: PointerEvent, row: Row) => {
+    // The secondary button opens a context menu; a drag is the primary one's.
+    if (event.button !== 0) return
+    // Every press clears it, and nothing else does — see the field's own note.
+    travelled = false
+    if (event.pointerType === "touch") {
+      over = row
+      watcher.onPointerDown(event)
+      return
+    }
+    gesture(event, row, false)
   }
 
   /**
@@ -241,6 +345,7 @@ export const createDragging = (
     carrying: (key) => moving().size > 0 && beneath(moving(), key),
     landing,
     grab,
+    heldMenu: watcher.onContextMenu,
     dragged: () => travelled,
   }
 }

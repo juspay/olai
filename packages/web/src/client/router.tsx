@@ -20,19 +20,35 @@
  *
  * A link this app DRAWS is a `<Link>`; a link a reader WROTE — in a note, in a
  * document — is an anchor no component owns, and {@link followed} is the same
- * decision for those. Two shapes, one rule about what a click means ({@link
- * ours}), because the difference between them is who wrote the markup and not
- * what the reader meant by pressing it.
+ * decision for those. Two shapes, one rule about what a click means
+ * (`./press.ts`'s `ours`, which is where that rule moved when a third place —
+ * a `#tag` pill — started asking it), because the difference between them is
+ * who wrote the markup and not what the reader meant by pressing it.
  */
 
 import { createContext, createSignal, type JSX, onCleanup, useContext } from "solid-js"
 
+import { ours } from "./press.ts"
 import { fileNamed, hrefOf, type Route, routeIn, routeOf } from "./routes.ts"
 import { createScrollMemory } from "./scroll.ts"
 
 export interface Router {
   readonly route: () => Route
   readonly go: (route: Route) => void
+  /**
+   * The same page, at a different address — history REPLACED rather than
+   * pushed, and the scroll left where it is.
+   *
+   * What it is for is the filter (`./filter/`), which is part of the address
+   * (`./routes.ts`) and is typed one character at a time. Pushing an entry per
+   * keystroke would put fourteen of them between the reader and the page they
+   * came from; replacing means Back leaves the filter rather than un-typing it,
+   * which is the behaviour a reader who pressed it wanted.
+   *
+   * NOT a general navigation: it does not move the page, because the row you
+   * were looking at is still the row you are looking at.
+   */
+  readonly replace: (route: Route) => void
 }
 
 /** What this app keeps on a history entry, which is a NAME for it and nothing
@@ -71,8 +87,13 @@ const nameHere = (): string => {
   return key
 }
 
+/** The whole address this app reads — path AND query, because the filter rides
+ *  in the query (`./routes.ts`). Said once, so the boot read and the back
+ *  button cannot read different halves of the same bar. */
+const here = (): string => location.pathname + location.search
+
 export const createRouter = (): Router => {
-  const [route, setRoute] = createSignal<Route>(routeOf(location.pathname))
+  const [route, setRoute] = createSignal<Route>(routeOf(here()))
 
   // The entry the reader landed on is named before anything can move, so
   // leaving it and coming back is a restore rather than a guess.
@@ -82,7 +103,7 @@ export const createRouter = (): Router => {
   // The back button is a first-class way to navigate, not an edge case: the
   // whole point of a route is that the browser's own history works.
   const onPopState = () => {
-    setRoute(routeOf(location.pathname))
+    setRoute(routeOf(here()))
     // AFTER the route, and it has to be: Solid draws the page the new route
     // names while `setRoute` is still running, and a page that has not been
     // drawn is a document with nowhere to scroll to.
@@ -99,6 +120,12 @@ export const createRouter = (): Router => {
       // A page you asked for, so: the top. Zooming out of the bottom of a long
       // outline used to land mid-page, at a line nobody chose.
       scroll.toTop()
+    },
+    replace: (next) => {
+      // The entry KEEPS its key: it is the same entry, so the scroll position
+      // remembered against it is still the position of this page.
+      history.replaceState({ key: nameHere() } as Entry, "", hrefOf(next))
+      setRoute(next)
     },
   }
 }
@@ -142,23 +169,6 @@ export interface LinkProps {
   readonly halo?: boolean
   readonly children?: JSX.Element
 }
-
-/**
- * Is this click one this app may answer in place?
- *
- * A plain left click nobody has answered yet. A MODIFIED click is a reader
- * asking for the browser's behaviour — a new tab, a download — and is never
- * ours; a click something deeper already answered has been answered, which is
- * how a `<Link>` inside a pane with its own listener keeps its own route.
- *
- * One spelling, because there are two places a click becomes a route ({@link
- * Link} and {@link followed}) and a rule about what a reader meant by a
- * keypress is not a rule to keep in two heads.
- */
-const ours = (event: MouseEvent): boolean =>
-  !event.defaultPrevented &&
-  event.button === 0 &&
-  !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
 
 /**
  * The page a click on a link inside RENDERED MARKDOWN is asking for, or `null`

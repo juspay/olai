@@ -111,6 +111,51 @@ When("I flick the node {string} up the screen", async function (this: OlaiWorld,
   await this.flick(this.within(id, NODE_GUTTER));
 });
 
+/** The same gesture aimed at the BULLET — the cell a finger picks a row up by
+ *  (`client/drag/Handle.tsx`), and therefore the one place a claimed gesture
+ *  could have cost a reader the page. A flick that starts here must still
+ *  scroll, which is what makes the claim a long press rather than a style. */
+When("I flick the bullet of {string} up the screen", async function (this: OlaiWorld, id: string) {
+  await this.flick(this.within(id, ZOOM));
+});
+
+// ── picking a row up with a finger ─────────────────────────────────────
+//
+// The touch half of drag-and-drop. A press is WATCHED until the deadline and
+// only then claimed, so every one of these is a real gesture in three parts —
+// down, held, moved — and a scenario has to be able to stop between them
+// (`client/drag/dragging.ts`, `support/world.ts`'s `holdDown`).
+
+When(
+  "I hold a finger on the bullet of {string} and keep it there",
+  async function (this: OlaiWorld, id: string) {
+    await this.holdDown(this.within(id, ZOOM));
+  },
+);
+
+When(
+  "I drag that finger above the title of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const box = await this.box(this.nodeTitle(id), `the title of "${id}"`);
+    await this.dragFinger({ x: box.x + 4, y: box.y - 2 });
+  },
+);
+
+When("I let the finger go", async function (this: OlaiWorld) {
+  await this.letGo();
+});
+
+Then("the row {string} is in the air", async function (this: OlaiWorld, id: string) {
+  await this.expectNodeAttribute(id, "data-carried", "true");
+});
+
+Then("no row is in the air", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator('[data-carried="true"]').count()) === 0,
+    "every row to be back on the page",
+  );
+});
+
 /**
  * A page with somewhere to scroll TO, which no fixture in this suite gives a
  * handset on its own: the corpora are outlines a person can read inside a
@@ -123,18 +168,7 @@ When("I flick the node {string} up the screen", async function (this: OlaiWorld,
  * leave the scenario after it passing over nothing.
  */
 Given("the screen is shorter than the outline", async function (this: OlaiWorld) {
-  await this.page.setViewportSize({ width: PHONE_WIDTH, height: SHORT_PHONE_HEIGHT });
-  await this.waitForFrame();
-  const room = await this.page.evaluate(() => ({
-    page: document.documentElement.scrollHeight,
-    screen: window.innerHeight,
-    at: window.scrollY,
-  }));
-  assert.ok(
-    room.page > room.screen,
-    `the outline is ${room.page}px on a ${room.screen}px screen, so there is nothing to scroll`,
-  );
-  assert.strictEqual(room.at, 0, "this scenario starts at the top of the page");
+  await this.shrinkToScroll(PHONE_WIDTH, SHORT_PHONE_HEIGHT);
 });
 
 /** It MOVED, which is the half that no assertion about the menu can carry: a

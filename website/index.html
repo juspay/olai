@@ -98,6 +98,7 @@
   .row { display: flex; align-items: baseline; gap: 0.55rem; padding: 0.18rem 0; }
   .bullet { color: var(--muted); font-size: 0.7rem; position: relative; top: -0.1em; }
   .d1 { padding-left: 1.4rem; }
+  .d2 { padding-left: 2.8rem; }
   .box { width: 0.85rem; height: 0.85rem; border-radius: 3px; flex: none; border: 1.5px solid var(--muted); position: relative; top: 0.13rem; }
   .box.done { border-color: var(--done); background: var(--done); }
   .box.done::after { content: "✓"; color: var(--paper); font-size: 0.65rem; line-height: 0.85rem; display: block; text-align: center; }
@@ -333,7 +334,7 @@
           <tr><td>Sync</td><td>Their cloud</td><td>git, or anything that moves files</td></tr>
           <tr><td>History</td><td>In-app version history</td><td><code>git log</code>; every edit is a reviewable commit</td></tr>
           <tr><td>Concurrent edits</td><td>Resolved by their server</td><td>Line-based git merges</td></tr>
-          <tr><td>Search</td><td>Keyword, in their app</td><td>The same search everywhere — a box in the header, the ⌘K palette, and an agent's own tools — over files you can also grep yourself</td></tr>
+          <tr><td>Search</td><td>Keyword, in their app</td><td>The same query language everywhere — a box in the header, the ⌘K palette, a filter that narrows the outline in place, and an agent's own tools — with <code>is:done</code>, <code>has:desc</code>, <code>date:</code> and <code>-not</code> meaning one thing in all four, over files you can also grep yourself</td></tr>
           <tr><td>Programmatic access</td><td>Vendor API, where one exists</td><td>Any agent over ACP or MCP; any text tool</td></tr>
           <tr><td>Source</td><td>Proprietary</td><td><a href="https://github.com/juspay/olai">Open source</a> (AGPL-3.0)</td></tr>
         </tbody>
@@ -588,6 +589,57 @@ The corner unit is the **risky one** — see
   </div>
 </section>
 
+<section id="find">
+  <div class="wrap">
+    <h2>Finding, and filtering in place</h2>
+    <p class="lead">One query language, four doors: the box in the header, the
+    ⌘K palette, an agent’s <code>search_nodes</code>, and the filter that
+    narrows the outline in front of you. The first three list what they found;
+    the fourth takes rows away and leaves the rest standing where they live.</p>
+    <div class="cols">
+      <div class="panel">
+        <div class="file">/o/house.jsonl?q=%23home+-is%3Adone</div>
+        <div class="row"><span class="bullet">●</span><span class="t"><strong>kitchen remodel</strong> <span class="tagchip">#home</span></span></div>
+        <div class="row d1"><span class="bullet">●</span><span class="t">install the cabinets</span></div>
+        <div class="row d2"><span class="box"></span><span class="t">pick the hinges <span class="tagchip">#home</span></span></div>
+        <p class="caption">A match is drawn with the ancestors that lead to it,
+        so a bare title still says what it is about. Everything else goes; the
+        collapse you left on <em>install</em> is suspended while the filter is
+        on, and comes back when it clears.</p>
+      </div>
+      <div>
+        <p><strong>Words are substrings; operators say what a node
+        <em>is</em>.</strong> <code>is:done</code> / <code>is:doing</code> /
+        <code>is:todo</code> read the mark a node <em>stores</em> — a parent
+        whose children are all ticked is not <code>is:done</code> unless
+        somebody ticked it. <code>has:desc</code>, <code>has:date</code>,
+        <code>has:see</code> ask what the record carries.
+        <code>date:2026-08</code> takes a day, a month, a year or a range
+        (<code>date:2026-08-01..2026-08-14</code>), reading the same two dates
+        the journal reads. <code>-</code> in front of any of them takes it back
+        out.</p>
+        <p><strong>An operator it does not know is refused, not guessed at.</strong>
+        <code>is:blocked</code> answers with the values <code>is:</code> takes
+        rather than quietly searching for that text and finding nothing, and a
+        date no calendar could hold — <code>date:2026-13</code> — is refused on
+        the same terms rather than answered with an empty page. The refusal
+        quotes what you typed, case and all. A colon anywhere else —
+        <code>TODO:</code>, a URL — is just a word.</p>
+        <p><strong>Clicking a <span class="tagchip">#tag</span> filters by
+        it</strong>, and the filter lives in the address (<code>?q=</code>), so
+        a narrowed page is a link you can send and the back button works.
+        Archived nodes stay out of every reading until a query says
+        <code>is:archived</code>.</p>
+        <p>The same words reach an agent unchanged, with a scope a person gets
+        from the page they are on: <code>search_nodes</code> takes
+        <code>under</code> (a node and everything beneath it) and
+        <code>file</code>. One matcher, four callers — so
+        <code>is:done</code> cannot come to mean two things.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="type">
   <div class="wrap">
     <h2>Keyboard editing</h2>
@@ -629,11 +681,19 @@ The corner unit is the **risky one** — see
     everything under it. A line shows where it would land before you let go —
     and it moves sideways as well as up and down, because a gap between two rows
     reads the same whether you are joining that level or becoming the last child
-    of the row above it. Where the line starts is the answer.</p>
+    of the row above it. Where the line starts is the answer. Hold a row near
+    the top or bottom of the window and the page comes to you; with a finger,
+    hold the bullet until the row lifts and then it follows your thumb — until
+    that moment nothing is claimed, so a flick still scrolls the page.</p>
     <p>Everything works on <strong>more than one row</strong> too:
     <kbd>⌘</kbd>-click a title to add it to the pick, <kbd>Shift</kbd>-click to
     take everything between, <kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> to start
-    picking from a caret, <kbd>⌘</kbd>+<kbd>A</kbd> to widen. Then the keys are
+    picking from a caret, <kbd>⌘</kbd>+<kbd>A</kbd> to widen, or drag across the
+    rows. That last one has a rule worth knowing, because press-and-pull already
+    means something: <strong>where the pull begins decides</strong>. Start on the
+    words and it is the browser’s own text selection, unchanged. Start on the
+    outline’s empty space — the rail beside an indented branch, the page below
+    the last row — and it picks every row it passes over. Then the keys are
     the keys you already know, several times over — <kbd>Tab</kbd>,
     <kbd>Shift</kbd>+<kbd>Tab</kbd>,
     <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd>,
@@ -655,7 +715,8 @@ The corner unit is the **risky one** — see
     text, because a tag lives in the title.</p>
     <p>Not everything has a key. Hover a row and the <strong>•••</strong> in the
     gutter carries the rest — on a phone there is no room for one, so hold a
-    finger on the row and the same menu opens: the three marks and clearing one, setting,
+    finger on the row (anywhere but the bullet, which is the handle) and the
+    same menu opens: the three marks and clearing one, setting,
     changing or clearing a date — the same picker the row’s own pill opens —
     retiring one placement of a mirrored node, moving a subtree to the Trash —
     it asks first, and says how many rows go with it — and copying the subtree

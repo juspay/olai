@@ -236,11 +236,13 @@ export const TOOLS: ReadonlyArray<Tool> = [
   read(
     "search_nodes",
     "Search nodes",
-    "Find nodes by title, id, `#tag` or note. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by.",
+    "Find nodes by title, id, `#tag` or note — and by what they ARE, with the operators `text` documents (`is:`, `has:`, `date:`, and `-` to negate). Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by. `matched` says which field carried the words, and is ABSENT for a query that named none (`is:done` on its own).\n\nSCOPE IT when you know where to look: `file` is one outline, `under` is a node and everything beneath it. That is the same narrowing a person gets by filtering a zoomed page, which is why it is here — the two faces answer one question.",
     // `@olai/format`'s, and so is what comes back — ONE declaration behind the
     // JSON Schema this tool advertises and the wire shape the palette's
     // `search.nodes` procedure carries, so the two faces cannot ask for
-    // different things or be told different ones.
+    // different things or be told different ones. The operator prose above and
+    // the per-field prose in that schema are the same grammar described from
+    // the two ends a caller reads it from.
     SearchRequest,
     (at, args: SearchRequest) => Query.search(at.derived, args),
   ),

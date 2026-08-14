@@ -50,7 +50,7 @@ in the system had to arrange:
 | `sorted.ts` | what a write CHANGED, in one word — the format's own classification, derived from the two readings the write is made of rather than from the op's name |
 | `pending.ts` | what is waiting to be committed, derived from git, the one verb that commits it, and what git is doing for the directory at all — one survey, both answers |
 | `message.ts` | what a commit nobody wrote a message for says, and how olai recognises its own commits — the `olai` prefix and the `X-Olai-Writer` trailer, handed down to the plumbing rather than known by it |
-| `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines |
+| `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines. WHAT matches is `@olai/format`'s one matcher (`parseFilter` / `matching` — the words, the operators, the archive rule), because the browser filters rows it already holds and a second implementation of the grammar is how `is:done` comes to mean two things; what is here is the SHORTLIST — the field weights, the done penalty, the cap, and the total that is not capped |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
 | `codec.ts` | the seam where the generic store meets the outline format |
 

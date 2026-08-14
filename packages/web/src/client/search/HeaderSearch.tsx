@@ -76,7 +76,13 @@ export function HeaderSearch(props: {
 
   const nodes = createNodeSearch(() => (caret() ? query() : null))
   const items = createMemo(() => nodes.hits().map(nodeItem))
-  const showing = () => caret() && (items().length > 0 || nodes.failure() !== null)
+  // The panel is up when there is anything to say — rows, a refused call, or a
+  // query the grammar could not read. That last one is why a typo in an
+  // operator opens the panel at all rather than looking like an empty
+  // directory (`./nodes.ts` says why the two refusals are separate slots).
+  const showing = () =>
+    caret() &&
+    (items().length > 0 || nodes.failure() !== null || nodes.refusals().length > 0)
 
   /** Where the panel goes. Re-measured while it is up, because the bar is
    *  sticky over a document that scrolls under it. */
@@ -189,6 +195,21 @@ export function HeaderSearch(props: {
                   </div>
                 )}
               </Show>
+              {/* …and the OTHER refusal: an operator the grammar knows the
+                  name of and not the value. Its own row rather than the one
+                  above, for the reason that one has its own: a refused call
+                  and a refused query are two different pieces of news. */}
+              <For each={[...nodes.refusals()]}>
+                {(refusal) => (
+                  <div
+                    class="border-b border-alarm/40 bg-alarm/5 px-3 py-2 font-mono text-xs text-alarm"
+                    data-testid={TESTID.searchRefusal}
+                    role="alert"
+                  >
+                    {refusal.token} — {refusal.reason}
+                  </div>
+                )}
+              </For>
               {/* Down, never sideways — the rows are built not to overflow
                   and this is what keeps that a property of the container. */}
               <ul class="m-0 max-h-72 list-none overflow-x-hidden overflow-y-auto p-1">

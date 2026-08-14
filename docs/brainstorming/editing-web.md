@@ -192,12 +192,50 @@ the build decided:
   thing in this feature that a reader would have to re-derive.
 
 Two things it deliberately did not do. **Drag-across** — Workflowy's fifth
-picking gesture — is not built: it wants a marquee over a tree that also has
+picking gesture — was not built: it wants a marquee over a tree that also has
 native text selection in it, and the other four gestures reach every pick it
 would. And **there is still no delete key**: the bulk put-away is a button on
 the selection bar, behind the same confirm the `•••` menu asks, because the
 human's 2026-08-11 ruling is precisely a ruling about a chord that takes a
 branch away — a bulk one would be that at its worst.
+
+## The three deferrals it named, as they shipped (2026-08-14)
+
+`multiselect-completion` closed the first three of those (the delete key is
+still the human's). What each one turned out to BE, rather than what it looked
+like from the outside:
+
+- **Drag-across was one sentence, not a marquee.** The tension is real —
+  press-and-pull already means "select text" — and the way out is not a modifier
+  or a mode but **where the pull BEGINS**. On the words the browser keeps it,
+  unchanged; on the outline's own scaffolding (the indent rails, the strip left
+  of a note, the page below the last row) there is nothing else for the press to
+  be about, so it picks rows. An ALLOWLIST, marked on the scaffolding itself, so
+  a control added to a row tomorrow inherits the safe answer. And the obvious
+  implementation is wrong: `preventDefault` on the press takes the FOCUS with
+  it and leaves a draft that never blurred, while the `user-select` guard the
+  shared gesture primitive already puts up for the panel edges suppresses the
+  selection and nothing else.
+- **It is a BAND, not a box.** A rectangle asks about two axes and the second
+  one has no meaning here: a row is a LINE drawn as far in as its depth says, so
+  a box down the left of the page would cross a root and miss its indented
+  grandchild. Reading only Y is not a simplification — it is the correct
+  question, and what is drawn is the shape the answer came from.
+- **The touch drag's real content was WHICH CELL, not the timer.** A long press
+  was the obvious answer and it is; what it cost was that the `•••` menu already
+  had one on the row line. Two long presses cannot own one press, so the handle
+  is the BULLET — which is what a mouse and a pen have always dragged from — and
+  the menu keeps the rest of the row. The second half is that claiming the
+  scroll with `touch-action: none` would have passed every scenario and left a
+  28px dead strip down every outline; the claim is a non-passive `touchmove`
+  listener put up at the DEADLINE, a moment the browser has already agreed is
+  not a scroll.
+- **Auto-scroll is a coordinate-space split.** Whether to move is a question
+  about the WINDOW (client coordinates); where the gesture now is is a question
+  about the PAGE (document coordinates, which is how both gestures measured
+  their rows). A pointer held still inside an edge zone therefore keeps
+  producing new answers with no `pointermove` behind it, which a caller that
+  re-planned only on `pointermove` would miss entirely.
 
 ## The three input widgets, as they shipped (2026-08-14)
 
@@ -305,8 +343,8 @@ Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
 | Indent / outdent | `Tab` / `Shift+Tab` (also `Alt+Shift+→/←`) | shipped (#109) |
 | Move among siblings | `Alt/Ctrl+Shift+↑↓` | shipped (#109) |
 | Split at caret / merge into previous | `Enter` mid-text / `Backspace` at line start | filed `split-merge` |
-| Drag-drop subtree | drag the bullet | **shipped** (`dragdrop-multiselect`) — pointer events, not HTML5 DnD; the drop is a GAP plus a DEPTH, sent as the surface's existing `place` verb |
-| Multi-select + bulk complete/move/indent/delete | five gestures | **shipped** (`dragdrop-multiselect`), four of the five: modifier-click, shift-click, shift-arrows, double `⌘A`. DRAG-ACROSS is not built — it wants a marquee over a tree that also has text selection in it. Bulk complete / move / indent / drag are the single-row op repeated; "delete" is the Trash, on the bar, behind the same confirm the `•••` menu asks |
+| Drag-drop subtree | drag the bullet | **shipped** (`dragdrop-multiselect`) — pointer events, not HTML5 DnD; the drop is a GAP plus a DEPTH, sent as the surface's existing `place` verb. `multiselect-completion` added the two halves that make it reach: the page auto-scrolls near an edge, and a FINGER drags after holding the bullet (the claim goes up at the deadline, so a flick still scrolls) |
+| Multi-select + bulk complete/move/indent/delete | five gestures | **shipped**, all five: modifier-click, shift-click, shift-arrows, double `⌘A` (`dragdrop-multiselect`) and DRAG-ACROSS (`multiselect-completion`) — where a pull BEGINS decides whether it is a sweep or the browser's own text selection, and what it pulls is a band rather than a box, because a row is a line. Bulk complete / move / indent / drag are the single-row op repeated; "delete" is the Trash, on the bar, behind the same confirm the `•••` menu asks |
 | **Duplicate** (subtree; result auto-tagged `#copy`; also `Alt+Drag` clone) | `Alt/⌘+Shift+D`, menu | **MISSING** |
 | **Move to** (search dialog; moves subtree anywhere, across lists) | slash command, menu | **MISSING** — olai's version is the harder cross-OUTLINE move: `parent` is same-file by the format, so this is an op design (move vs re-create vs mirror), not just a dialog |
 | **Delete** (recoverable from Trash) + **Trash restore** | `Ctrl/⌘+Shift+Backspace`, menu | ruled 2026-08-11: still no delete affordance. olai's trash is `Archive.jsonl`, and ARCHIVE has one — the `•••` menu's `Move to Trash` (né `Archive`), subtree with a confirm naming the blast radius (human, 2026-08-12), closing `parity-archive`. **Trash restore shipped too** (`trash-parity`, 2026-08-13, closing `parity-unarchive`): the sidebar's Trash draws every archive read-only, `Put back` sends the `unarchive` op both faces got together, and the confirm now promises the bin it implies |

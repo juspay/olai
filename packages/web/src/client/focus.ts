@@ -29,11 +29,13 @@
  * that MOVES the page stays here and the one that changes the ADDRESS stays
  * with the router.
  *
- * The scroll is the third statement in this client that moves the page, and the
- * other two are `./scroll.ts`'s — which says so in its own header. It is
+ * The scroll is one of four statements in this client that move the page. Two
+ * are `./scroll.ts`'s — which says so in its own header — and it is
  * deliberately not one of them: those two are what a NAVIGATION does, and this
  * is a page staying exactly where it is except for the row somebody asked to
- * see.
+ * see. The fourth is `./autoscroll.ts`'s, which is neither: a page keeping up
+ * with a gesture that has run out of screen, moving for as long as a hand holds
+ * it near an edge.
  */
 
 import { type Accessor, createSignal } from "solid-js"

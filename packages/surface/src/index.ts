@@ -507,7 +507,7 @@ export { type Applied, Anchor, Edit } from "./edit.ts"
 export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
 
 /** What a search asks and answers on the wire — see {@link ./search.ts}. */
-export { SearchAnswer, SearchHit, SearchRequest } from "./search.ts"
+export { Refusal, SearchAnswer, SearchHit, SearchRequest } from "./search.ts"
 
 /** What an attachment may BE — the policy the browser gates on before encoding
  *  and the server gates on before writing. One module, for the same reason the

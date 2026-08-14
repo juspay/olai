@@ -34,6 +34,12 @@
  * outline path), and what such an address opens is the trash view, because an
  * archive is not a place you edit (`page.ts` decides that, not this parser).
  *
+ * One of them carries a QUERY as well as a path, and only one thing rides in
+ * it: `?q=<filter>` on `/o/<file>` and `/n/<id>`, which is what those two pages
+ * are narrowed by. That is an address rather than a signal for the same reason
+ * the pages are — a filtered outline is a link somebody can send, and Back is
+ * the browser's own history. See {@link FILTER_KEY}.
+ *
  * Pure, and parsing and printing live beside each other on purpose: they are
  * one bijection, and the test that says so (`routes.test.ts`) is the only
  * thing standing between a link the app writes and a link it cannot read back.
@@ -41,10 +47,10 @@
 
 export type Route =
   /** One outline. `null` is "whichever was found first" — the bare `/`. */
-  | { readonly kind: "outline"; readonly file: string | null }
+  | { readonly kind: "outline"; readonly file: string | null; readonly filter?: string }
   /** One document, by its path. */
   | { readonly kind: "document"; readonly file: string }
-  | { readonly kind: "node"; readonly id: string }
+  | { readonly kind: "node"; readonly id: string; readonly filter?: string }
   /** One day of the journal, by its ISO date. */
   | { readonly kind: "day"; readonly date: string }
   /** Whichever day it is when this is read. */
@@ -65,16 +71,52 @@ const TODAY = "/today"
 const AGENDA = "/agenda"
 const TRASH = "/trash"
 
+/**
+ * The query key the FILTER rides in — the one thing in an address here that is
+ * not a path.
+ *
+ * It is in the address for the reason everything else is: a narrowed outline is
+ * a link somebody can send, and the back button is the browser's history rather
+ * than something this app keeps. A signal beside the route would be a second
+ * answer to "what is on screen", free to disagree with the URL the moment a
+ * `popstate` lands.
+ *
+ * On the two TREE routes only. A document is prose, `/trash` is read-only, and
+ * `/agenda` / `/d/` / `/today` are date questions whose filter would be a
+ * second date question — named as a real gap in
+ * docs/brainstorming/filter-in-place.md rather than quietly skipped.
+ */
+const FILTER_KEY = "q"
+
 /** Encoded per segment, so a path with a directory in it stays readable in the
  *  URL bar rather than turning into a run of `%2F`. */
 export const hrefOf = (route: Route): string => {
-  if (route.kind === "node") return NODE_PREFIX + encodeURIComponent(route.id)
+  if (route.kind === "node") {
+    return NODE_PREFIX + encodeURIComponent(route.id) + narrowing(route.filter)
+  }
   if (route.kind === "day") return DAY_PREFIX + encodeURIComponent(route.date)
   if (route.kind === "today") return TODAY
   if (route.kind === "agenda") return AGENDA
   if (route.kind === "trash") return TRASH
   if (route.kind === "document") return DOCUMENT_PREFIX + spell(route.file)
-  return route.file === null ? "/" : OUTLINE_PREFIX + spell(route.file)
+  const path = route.file === null ? "/" : OUTLINE_PREFIX + spell(route.file)
+  return path + narrowing(route.filter)
+}
+
+/** The `?q=…` a filtered page wears — and nothing at all for an unfiltered
+ *  one, so the ordinary address is exactly the address it always was. Whitespace
+ *  becomes `+` through `URLSearchParams`, which reads better in the bar than
+ *  `%20` and decodes back identically. */
+const narrowing = (filter: string | undefined): string =>
+  filter === undefined || filter.trim() === ""
+    ? ""
+    : `?${new URLSearchParams({ [FILTER_KEY]: filter }).toString()}`
+
+/** The filter an address carries, or `undefined` — one reading, so the parser
+ *  below and anything that later wants it cannot disagree about a blank one. */
+const filterIn = (search: string): string | undefined => {
+  const value = new URLSearchParams(search).get(FILTER_KEY)
+  return value === null || value.trim() === "" ? undefined : value
 }
 
 const spell = (file: string): string =>
@@ -112,11 +154,26 @@ export const fileNamed = (route: Route): string | undefined =>
 export const routeIn = (href: string): Route | null =>
   href.startsWith(DOCUMENT_PREFIX) && !href.includes("#") ? routeOf(href) : null
 
-/** Anything this does not recognise is the default outline: an unknown path is
- *  a reader who typed something, and the app they wanted is the one at `/`. */
-export const routeOf = (pathname: string): Route =>
-  pathname.startsWith(NODE_PREFIX)
-    ? { kind: "node", id: decodeURIComponent(pathname.slice(NODE_PREFIX.length)) }
+/**
+ * Anything this does not recognise is the default outline: an unknown path is
+ * a reader who typed something, and the app they wanted is the one at `/`.
+ *
+ * It takes the whole ADDRESS — path and query — rather than the pathname,
+ * because the filter is part of what a URL means here and a parser handed half
+ * of one could only ever answer half. Callers pass `location.pathname +
+ * location.search`; a bare path parses exactly as it did before.
+ */
+export const routeOf = (address: string): Route => {
+  const cut = address.indexOf("?")
+  const pathname = cut === -1 ? address : address.slice(0, cut)
+  const filter = cut === -1 ? undefined : filterIn(address.slice(cut + 1))
+  const narrowed = filter === undefined ? {} : { filter }
+  return pathname.startsWith(NODE_PREFIX)
+    ? {
+      kind: "node",
+      id: decodeURIComponent(pathname.slice(NODE_PREFIX.length)),
+      ...narrowed,
+    }
     : pathname.startsWith(DOCUMENT_PREFIX)
     ? {
       kind: "document",
@@ -131,5 +188,54 @@ export const routeOf = (pathname: string): Route =>
     : pathname === TRASH
     ? { kind: "trash" }
     : pathname.startsWith(OUTLINE_PREFIX)
-    ? { kind: "outline", file: decodeURIComponent(pathname.slice(OUTLINE_PREFIX.length)) }
-    : { kind: "outline", file: null }
+    ? {
+      kind: "outline",
+      file: decodeURIComponent(pathname.slice(OUTLINE_PREFIX.length)),
+      ...narrowed,
+    }
+    : { kind: "outline", file: null, ...narrowed }
+}
+
+/**
+ * Which addresses may be narrowed — the two TREE pages, and the one place that
+ * list is written down.
+ *
+ * It was said three times before this: once in the arms that carry a `filter`,
+ * once in {@link narrowedTo}'s guard and once in {@link filterOf}'s. Three
+ * spellings of "the outline and the zoomed node" is three edits the day a day
+ * page grows one, and two of them are easy to miss because nothing fails when
+ * they disagree — the filter simply goes nowhere.
+ */
+export const narrowable = (route: Route): route is Extract<Route, { filter?: string }> =>
+  route.kind === "outline" || route.kind === "node"
+
+/**
+ * The same page, narrowed — or not, when `filter` is blank.
+ *
+ * Here rather than at the call site because a filter typed on a day page has
+ * nowhere to go, and a caller that spread it onto the route anyway would mint
+ * an address {@link hrefOf} silently drops and {@link routeOf} never returns.
+ */
+export const narrowedTo = (route: Route, filter: string): Route => {
+  if (!narrowable(route)) return route
+  return { ...route, filter: filter.trim() === "" ? undefined : filter }
+}
+
+/** What a page is narrowed BY, for the one component that draws it and the
+ *  memo that parses it. Read off the route for the reason `fileNamed` is: the
+ *  route is what an address decodes to, and a copy beside it could differ. */
+export const filterOf = (route: Route): string =>
+  (narrowable(route) ? route.filter : undefined) ?? ""
+
+/**
+ * The same PAGE, whatever it is narrowed by.
+ *
+ * What it is for is the one thing a filter must NOT do: a query typed one
+ * character at a time mints a fresh `Route` per keystroke, and everything
+ * downstream of "which page is open" — resolving the id, walking the tree,
+ * minting a row per node — would be redone for each of them. Asked through the
+ * bijection rather than field by field, so it cannot go stale against a route
+ * arm added later.
+ */
+export const samePage = (a: Route, b: Route): boolean =>
+  hrefOf(narrowedTo(a, "")) === hrefOf(narrowedTo(b, ""))

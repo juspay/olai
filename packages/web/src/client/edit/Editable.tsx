@@ -16,10 +16,20 @@
  * are two: an outline and a zoomed node. A day lists nodes from all over the
  * set and a document is not an outline at all, so neither draws one.
  *
- * THE ORDER THE THREE ARE MADE IN IS THE DEPENDENCY between them, and it is
+ * THE ORDER THE FOUR ARE MADE IN IS THE DEPENDENCY between them, and it is
  * one way: the selection knows nothing about the caret, the editor hands the
- * caret over to it for the three keys that leave a row, and the drag reads the
- * selection to find out whether it is carrying one row or all of them.
+ * caret over to it for the three keys that leave a row, the drag reads the
+ * selection to find out whether it is carrying one row or all of them, and the
+ * sweep writes a run into it.
+ *
+ * THE PAGE'S BOX IS THE SWEEP'S SURFACE, and that is the one piece of markup
+ * this component owns. A drag-across begins where the outline is NOT
+ * (`../drag/sweeping.ts` decides what that means and why), so it needs a box
+ * that reaches the bottom of the pane rather than stopping at the last row —
+ * otherwise the only empty space on a short outline is a two-pixel gap between
+ * lines. One `pointerdown` listener for the whole page rather than one per
+ * surface: every scaffolding element bubbles to here, and the gesture answers
+ * only for the presses that landed on one.
  *
  * The SELECTION LAYER'S ONE WINDOW LISTENER is here for the reason the editor's
  * keys are on the editor's own element: a pick has no focused element to hang a
@@ -32,9 +42,11 @@
 import type { Row } from "@olai/format"
 import { type Accessor, type JSX, onCleanup, onMount } from "solid-js"
 
-import { collapsedNodes } from "../fold/memory.ts"
+import { createFoldReading } from "../fold/reading.ts"
 import { createDragging, DraggingProvider } from "../drag/dragging.ts"
 import { DropLine } from "../drag/DropLine.tsx"
+import { SweepBand } from "../drag/Sweep.tsx"
+import { createSweeping } from "../drag/sweeping.ts"
 import { isEditingTarget, type SelectAction, selectKey } from "../keys.ts"
 import { createSelection, type Selection, SelectionProvider } from "../select/selection.ts"
 import { SelectionBar } from "../select/SelectionBar.tsx"
@@ -43,19 +55,25 @@ import { createEditor, EditorProvider } from "./editing.tsx"
 export function Editable(props: {
   /** What is drawn — half of where `↑`/`↓` go, of where a row that has moved
    *  is found again, and of what a drop can land beside. The other half is what
-   *  is FOLDED, which is not a prop because it is not this page's: it belongs to
-   *  the browser (`../fold/memory.ts`), and all three read it where the tree
-   *  does. */
+   *  is FOLDED, which is not a prop because it is not this page's: it belongs
+   *  half to the browser and half to the reading (`../fold/reading.ts`), and
+   *  all three read it where the tree does. */
   readonly rows: Accessor<ReadonlyArray<Row>>
   readonly children: JSX.Element
 }) {
   const page = {
     rows: () => props.rows(),
-    collapsed: collapsedNodes,
+    // What is folded FOR THIS READING rather than what this browser has folded
+    // (`../fold/reading.ts`): a filter draws its tree expanded, and three
+    // walkers that still saw the collapses would move the caret, span a pick
+    // and offer a drop among rows nobody can see. The tree reads the same
+    // accessor.
+    collapsed: createFoldReading(),
   }
   const selection = createSelection(page)
   const editor = createEditor(page, selection)
   const dragging = createDragging({ ...page, selection })
+  const sweeping = createSweeping(selection)
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -79,8 +97,18 @@ export function Editable(props: {
     <SelectionProvider value={selection}>
       <DraggingProvider value={dragging}>
         <EditorProvider editor={editor}>
-          {props.children}
+          {/* `min-h-full` so the box reaches the foot of the pane: the page
+              below a short outline is the sweep's largest surface, and a
+              wrapper that stopped at the last row would leave a reader nothing
+              to press. `data-sweep` is `../drag/sweeping.ts`'s `SWEEP`, spelled
+              as a literal for the reason that constant gives (a JSX spread
+              would put every attribute of this box on Solid's runtime spread
+              path) and held to that name by `../claims.test.ts`. */}
+          <div class="min-h-full" data-sweep="" onPointerDown={sweeping.begin}>
+            {props.children}
+          </div>
           <DropLine landing={dragging.landing()} />
+          <SweepBand sweep={sweeping.band()} />
           <SelectionBar />
         </EditorProvider>
       </DraggingProvider>

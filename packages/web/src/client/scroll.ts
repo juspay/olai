@@ -9,9 +9,10 @@
  * one. This is the decision: a page you go TO starts at the top, a page you go
  * BACK to is where you left it, and every statement a NAVIGATION makes about
  * where the page is is in here — including telling the browser to stop moving
- * it itself. (The one statement outside it is ./focus.ts's, which moves a page
- * that is not navigating anywhere: a row somebody asked to be shown, brought
- * into view where they are.) ./router.tsx
+ * it itself. (The two statements outside it move a page that is not navigating
+ * anywhere: ./focus.ts's, a row somebody asked to be shown brought into view
+ * where they are; and ./autoscroll.ts's, a page keeping up with a gesture that
+ * has run out of screen.) ./router.tsx
  * says WHICH of the two a navigation gets, because a push and a pop are the one
  * thing it knows that this module does not.
  *
