@@ -13,10 +13,22 @@
  * this package just finished fixing.
  */
 
-/** One spelling of a directory path: no trailing slash. Not a resolve and not
- *  a realpath — both of those touch the disk, and both of the callers are
- *  comparing strings somebody else minted, possibly on another day. */
-export const normalDirectory = (path: string): string => path.replace(/\/+$/, "")
+/**
+ * One spelling of a directory path: no trailing slash. Not a resolve and not a
+ * realpath — both of those touch the disk, and both of the callers are
+ * comparing strings somebody else minted, possibly on another day.
+ *
+ * Counted rather than `replace(/\/+$/, "")`, which is what this was: the
+ * regex is a polynomial-backtracking one on a string of many slashes, and the
+ * string here comes off the wire from an agent (`js/polynomial-redos`, raised
+ * by CodeQL on the PR that added this file). A trailing-slash trim needs no
+ * engine, and this one is linear by construction.
+ */
+export const normalDirectory = (path: string): string => {
+  let end = path.length
+  while (end > 0 && path.charAt(end - 1) === "/") end -= 1
+  return path.slice(0, end)
+}
 
 /** Two paths naming the same directory. */
 export const sameDirectory = (a: string, b: string): boolean =>
