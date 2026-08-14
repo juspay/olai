@@ -12,6 +12,7 @@
 
 import { onCleanup } from "solid-js"
 
+import { WITHIN } from "../layer.ts"
 import { TESTID, type TestId } from "../testids.ts"
 import {
   CHAT_MAX_PX,
@@ -79,7 +80,7 @@ function ResizeHandle(props: {
       data-testid={props.testid}
       data-edge={props.edge}
       class={
-        "group absolute top-0 z-10 h-full w-1.5 cursor-col-resize touch-none " +
+        `group absolute top-0 ${WITHIN.raised} h-full w-1.5 cursor-col-resize touch-none ` +
         (props.edge === "right" ? "right-0" : "left-0")
       }
       onPointerDown={(event) => {

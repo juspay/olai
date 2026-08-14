@@ -85,6 +85,7 @@ import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
+import { LAYER, WITHIN } from "./layer.ts"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
 import { Link, useRouter } from "./router.tsx"
@@ -185,7 +186,7 @@ export function Sidebar(props: {
       <Show when={props.open}>
         <button
           type="button"
-          class="fixed inset-x-0 bottom-0 top-[var(--height-header,3rem)] z-30 bg-ink/40 md:hidden"
+          class={`fixed inset-x-0 bottom-0 top-[var(--height-header,3rem)] ${LAYER.page} bg-ink/40 md:hidden`}
           data-testid={TESTID.sidebarScrim}
           aria-label="close the directory"
           onClick={() => props.onClose()}
@@ -200,7 +201,7 @@ export function Sidebar(props: {
           // the drawer into flow offsets). Desktop: a STICKY column, pinned
           // under the header (see the note above).
           (props.open ? "flex " : "hidden ") +
-          "z-40 flex-col border-r border-rule/70 bg-desk " +
+          `${LAYER.chrome} flex-col border-r border-rule/70 bg-desk ` +
           // Wide enough that the month's 7 day cells still hit 44×44.
           "fixed bottom-0 left-0 top-[var(--height-header,3rem)] w-[min(22rem,92vw)] " +
           // `top-` above is BOTH positions' offset — the drawer's inset and
@@ -218,7 +219,7 @@ export function Sidebar(props: {
             cover the calendar's month-step chevrons (top-right of the body). */}
         <button
           type="button"
-          class={`absolute bottom-2 right-2 z-10 hidden ${TARGET_BOX} items-center justify-center rounded border border-rule/70 bg-panel text-muted hover:bg-rule/60 hover:text-ink md:inline-flex md:min-h-8 md:min-w-8`}
+          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded border border-rule/70 bg-panel text-muted hover:bg-rule/60 hover:text-ink md:inline-flex md:min-h-8 md:min-w-8`}
           data-testid={TESTID.sidebarCollapse}
           aria-label="collapse the sidebar to the icon rail"
           title="collapse sidebar"

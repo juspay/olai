@@ -93,12 +93,15 @@
  * silently stops sticking; the shell above it (`./App.tsx`) is two plain flex
  * boxes for that reason.
  *
- * THE LAYER is `z-[45]`, and the number is the whole point: above the panels
- * (the chat dock, the drawer, its scrim, the minimized pill — 30 and 40), which
- * is what stops a page scrolling UNDER the bar from painting over it, and below
- * the modals (the command palette and the restarted card, 50), which cover the
- * whole viewport and must cover this too. A positioned bar with a z-index is a
- * stacking context, which is why NOTHING in the bar opens inside it any more:
+ * THE LAYER is `LAYER.header` (`./layer.ts`), and its place in that table is
+ * the whole point: above the panels (the chat dock, the drawer, its scrim, the
+ * minimized pill), which is what stops a page scrolling UNDER the bar from
+ * painting over it, and below what covers the whole viewport — the command
+ * palette, the restarted card, and the panels this bar's own pills portal out
+ * of it — which must cover this too. It is the one layer whose number is not a
+ * round ten, because it is defined by the two it sits between. A positioned bar
+ * with a z-index is a stacking context, which is why NOTHING in the bar opens
+ * inside it any more:
  * the theme popover used to, and rode at 45 with it, and its replacement
  * (`settings/`) portals to the body the way the commit panel and a tip already
  * did. A 3rem box is not somewhere a panel can hang out of.
@@ -109,6 +112,7 @@ import { Show } from "solid-js"
 import { Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
+import { LAYER } from "./layer.ts"
 import type { Route } from "./routes.ts"
 import { HeaderSearch } from "./search/HeaderSearch.tsx"
 import { connectionReadout } from "./wire.ts"
@@ -137,7 +141,7 @@ export function AppHeader(props: {
 }) {
   return (
     <header
-      class="sticky top-0 z-[45] flex h-12 shrink-0 items-center gap-2 border-b border-rule/70 bg-desk px-3 font-sans md:px-4"
+      class={`sticky top-0 ${LAYER.header} flex h-12 shrink-0 items-center gap-2 border-b border-rule/70 bg-desk px-3 font-sans md:px-4`}
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >

@@ -76,7 +76,7 @@ The client computes nothing about the format on its own. `@olai/format` derives
 status, sibling order, mirror expansion, a node's ancestry and the guard that
 stops a mirror inside its own subtree, and hands back rows; `Tree.tsx` turns a
 row into markup and nothing else. The gutter is Workflowy-shaped: a hover-reveal
-strip (`NodeMenu.tsx` `•••` + the collapse triangle; the triangle is always
+strip (`menu/Dots.tsx` `•••` + the collapse triangle; the triangle is always
 visible on a phone and the `•••` is not drawn there at all, where a long press
 on the row opens the same menu — see `touch.ts`) left of a filled-circle bullet (`Bullet.tsx`, with a gray halo
 when children are hidden), then the MARK COLUMN (`Checkbox.tsx`: CSS squares —
@@ -608,7 +608,7 @@ used to need. The sole exception is the fault card: `main.tsx`'s
 `SurfaceFaultBoundary` sits above `App`, so a thrown render never reaches the
 header (a broken client has no chrome to trust).
 
-The bar **sticks** (`sticky top-0`, layer `z-[45]`): this app scrolls the
+The bar **sticks** (`sticky top-0`, layer `LAYER.header`): this app scrolls the
 document, so a bar in normal flow took the connection dot, the commit pill and
 the agent toggle off the screen the moment anyone read past the fold — and
 those are permanent answers about the app, which is the argument for the bar
@@ -616,9 +616,12 @@ existing at all. It is also what keeps the seam below it true: the mobile
 drawer, its scrim and both faces of the chat panel are `fixed` at
 `top: var(--height-header)`, a viewport coordinate that only means "under the
 header" while the header is at the top of the viewport. The layer sits above
-the panels (30–40) so a page scrolling under the bar cannot paint over it, and
-below the full-screen modals (50) — the command palette, the restarted card —
-which must cover it. `sticky` and not `fixed`, so the bar keeps its own 3rem in
+the panels so a page scrolling under the bar cannot paint over it, and below
+what covers the whole viewport — the command palette, the restarted card, and
+the panels its own pills portal out of it — which must cover it. It is the one
+layer in the table whose number is not a round ten, because it is defined by
+the two it sits between (**What covers what**, below). `sticky` and not
+`fixed`, so the bar keeps its own 3rem in
 flow and nothing below has to pad for it; no ancestor may take an `overflow`
 other than `visible` or it silently stops sticking. Because the top
 `--height-header` of the viewport is no longer free space, `styles.css` gives
@@ -629,6 +632,37 @@ The chat dock sits **under** the header, not over it (`chat/Panel.tsx`
 subtracts `--height-header`): the bar stays reachable while the agent is open.
 Layout widths, open/minimized state and the mobile chat snap live in
 `layout/prefs.ts` (client-local, never sent).
+
+## What covers what
+
+`src/client/layer.ts` is every `z-index` this client draws, as one table. It
+was twenty-odd bare numbers spread over twenty-odd files before, each of which
+could only be read by going and looking at the other nineteen — and two of them
+meant something entirely different from what they looked like: `chat/
+Sessions.tsx` drew its dropdown at `z-50`, the utility the command palette
+covers the whole app with, while being sealed inside a panel riding at 30. The
+numbers were not wrong. They were unreadable.
+
+A `z-index` compares with nothing outside its own STACKING CONTEXT, and this
+app makes those on purpose, so there are two different questions with the same
+syntax — and the band a number is in is which question it answers:
+
+| name | what it covers |
+|---|---|
+| `LAYER.row` | hangs off an outline row (the `•••` panel, the line beside it): over the rows, under every piece of chrome |
+| `LAYER.page` | over the page, under the chrome that covers it — the docked chat column, the drawer's scrim, a tip. These leave the app's frame reachable, which is the scrim's whole job (#101) |
+| `LAYER.chrome` | covers the page: the mobile drawer, the chat sheet, the minimized agent, the line ⌘Z draws |
+| `LAYER.header` | the bar (above) |
+| `LAYER.over` | over the bar too: the two full-screen modals, and the three panels portalled out of the header |
+| `WITHIN.*` | **single digits**, sealed inside one box's own stacking context, saying nothing about the page: `raised` (a resize handle, a modal's card over its backdrop), `cover` (an overlay across the whole box — the chat drop target), `pop` (a small list opening inside it — the slash menu, the sessions dropdown) |
+
+Three claims are held about the table, each where it belongs. `layer.test.ts`
+holds the two that are about the table itself: the page band climbs in the
+order the table is written, and the two bands cannot overlap. The third —
+**no other client file spells a `z-*` utility of its own** — is a claim about
+every other file, so it is a sweep and lives in `claims.test.ts` with the rest
+of them. That one is what keeps this from becoming the twenty-first place to
+look. The emitted stylesheet carries exactly the eight rules the table names.
 
 ## The preferences, in one place
 
@@ -1523,8 +1557,41 @@ would have sent, judged by the same planner and refused in the same words.
 | `verbs.ts` | which writes a row offers, and what each one DOES — the exact `Edit` it sends, or that it opens the row's date picker. Pure over a `Row`, so the contextual rules are a unit test |
 | `subtree.ts` | what hangs under a row: the count a confirm names, and the text a copy produces. Pure |
 | `actions.ts` | the catalog: the view verbs, the writes, the clipboard |
-| `NodeMenu.tsx` | the panel, its confirm step, and the line beside the `•••` |
+| `action.ts` | what an ENTRY is, to the panel that draws it — the `MenuAction` shape, and whether a verb asks first. The seam: the catalog builds these knowing nothing about drawing, the panel draws these knowing nothing about routes or the write gate, and neither imports the other |
 | `door.ts` | how a row's menu is reached: the state behind the `•••`, the long press that is the other door, and the `ref` for the line both are about — handed out together, so a row cannot wire one and forget another |
+| `Dots.tsx` | the `•••` itself: the class both spellings of it wear, and the plain `<button>` it is before this row has ever been asked for its menu |
+| `NodeMenu.tsx` | the primitive and its wiring: what owns the menu, where it is drawn, what it hangs off on each of the two doors, and where the caret goes |
+| `Panel.tsx` | what is inside the open panel — the list, in Kobalte's `Item`s wearing this app's classes |
+| `Confirm.tsx` | the second step: the question one verb asks first, and the two ways out of it |
+| `picking.ts` | running a verb and saying what came of it — the ops layer's sentence verbatim, the throw worded from the entry's own label, the cause kept for the console |
+| `MenuSaid.tsx` | the line that draws it, beside the `•••` — named for its surface the way `edit/UndoSaid.tsx` is, since `Said` alone is the TYPE every such line carries |
+
+How long that line then lasts is **not** in this directory: `src/client/
+saying.ts` is the receptacle, and the Trash's `Put back` line rides on it too.
+`SAID_MS` had already been pulled out beside the `Said` type because the two
+dwells "were equal only by hand-maintenance" — and the constant turned out to
+be half the job, since both surfaces still spelled the machinery around it and
+had drifted into two shapes for the same three rules (a new sentence replaces
+the one before it *with its timer*, saying nothing clears rather than drawing
+an empty box, the timer dies with the owner). `saying.test.ts` holds those
+three; the receptacle's GRIP is a claim about every other file, so it is a
+sweep in `claims.test.ts`: nothing outside `saying.ts` may count `SAID_MS`
+down.
+
+**The last six are one file split six ways, and the split is Kobalte's doing.**
+`NodeMenu.tsx` was 621 lines because a hand-rolled panel genuinely is one
+thing: being open, the list, the question, the dismissals and the message were
+all the same forty lines of state. Adopting the primitive took the behaviour
+out and left the seams showing — the lazy `Dots` is a COST decision that exists
+only because a `DropdownMenu` is not free per row; the panel's contents became
+markup with no state left in them but `asking`; and the line beside the `•••`
+was never the menu at all, since the menu is gone by the time most verbs
+answer. Each of those now outlives or precedes the primitive on its own terms.
+Two things fell out of it: `actions.ts` — a pure table with a unit test — no
+longer imports a `.tsx` component to learn what a row of itself looks like, and
+`picking.ts`'s four rules (nothing to say, the sentence verbatim, the throw
+worded, the line cleared before the next verb runs) became a unit test where
+they had been reachable only by driving a browser.
 
 The write gate itself is `../writes.ts`, one level up: two surfaces send a
 pointer's write now (this menu and the date picker), and the four lines that
@@ -1681,6 +1748,17 @@ has not taken.
   The archive confirm's count is the opposite and asks the SET, because that
   one is about the write rather than about the picture (`subtree.ts` holds both
   answers and says which is which).
+- **A copy that LANDED says so, in the words a refusal already had.** The
+  clipboard is the one destination outside this app: nothing on the page
+  changes when a copy works, so both clipboard verbs were silent in exactly the
+  case that goes right and spoke only when the browser refused — and a reader
+  who missed the entry saw what a reader whose copy landed saw, the menu
+  shutting. Both answer with a `Said` now, on the same line and in the same six
+  seconds as every other verb's, in the `aside` mood rather than `alarm`
+  because it is news and not a reason nothing happened. The remark is written
+  after `writeText` has RESOLVED, so it is a report: `actions.test.ts` makes
+  the clipboard reject and holds `run` to throwing rather than resolving with
+  "link copied".
 
 Not here: `see` / `after` edge editing and mirror creation (they want a node
 search — `parity-see`, `parity-after`, `input-widgets`), move-to, and

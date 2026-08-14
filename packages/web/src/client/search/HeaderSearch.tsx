@@ -49,6 +49,7 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "so
 import { Portal } from "solid-js/web"
 
 import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
+import { LAYER } from "../layer.ts"
 import { nodeItem } from "../palette/items.ts"
 import { setPaletteOpen } from "../palette/open.ts"
 import type { Route } from "../routes.ts"
@@ -166,7 +167,7 @@ export function HeaderSearch(props: {
         {(box_) => (
           <Portal>
             <div
-              class="fixed z-50 overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg"
+              class={`fixed ${LAYER.over} overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg`}
               data-testid={TESTID.headerSearchResults}
               // `styleOf` rather than a style object of this file's own: a
               // COMPUTED key (`[at.side]`) compiles away silently in Solid and
