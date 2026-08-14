@@ -29,6 +29,8 @@ import { Then, When } from "@cucumber/cucumber";
 
 import { MARKS } from "@olai/format";
 
+import { shiftDay } from "@olai/web/src/client/calendar/month.ts";
+import { isoDayOf } from "@olai/web/src/client/clock.ts";
 import { IDLE_COMMIT } from "@olai/web/src/client/edit/draft.ts";
 
 import type { Locator } from "playwright";
@@ -479,6 +481,40 @@ Then(
 );
 
 /**
+ * A PLACEMENT the file holds, named by what it shows and where it sits.
+ *
+ * Not by its own id, which is the whole point: `add_mirror` mints one, this
+ * surface names no ids (`@olai/surface`'s edit.ts), and a scenario that asked
+ * for a chosen id would be asking for a thing the `((` widget cannot send. So
+ * the assertion is the record's SHAPE — a `mirror` of that target, under that
+ * parent — which is also exactly what the format says a placement is.
+ */
+Then(
+  "{string} holds a mirror of {string} under {string}",
+  async function (this: OlaiWorld, file: string, target: string, parent: string) {
+    await this.waitUntil(
+      async () =>
+        this.servedNodesSoFar(file).some(
+          (node) => node["mirror"] === target && node["parent"] === parent,
+        ),
+      `${file} to hold a mirror of ${JSON.stringify(target)} under ${
+        JSON.stringify(parent)
+      }`,
+    );
+  },
+);
+
+Then(
+  "{string} holds no mirror of {string}",
+  async function (this: OlaiWorld, file: string, target: string) {
+    await this.waitUntil(
+      async () => !this.servedNodesSoFar(file).some((node) => node["mirror"] === target),
+      `${file} to hold no placement of ${JSON.stringify(target)}`,
+    );
+  },
+);
+
+/**
  * The `date` field, as the EXACT string on disk — the pair to the step below,
  * and beside it for that reason.
  *
@@ -496,6 +532,45 @@ Then(
           (node) => node["id"] === id && node["date"] === date,
         ),
       `${file} to hold ${JSON.stringify(id)} with \`date\` exactly ${JSON.stringify(date)}`,
+    );
+  },
+);
+
+/** The same field, on a node named by its TITLE — which is the only way to
+ *  name a row a keystroke has just minted, since the id is the set's. */
+Then(
+  "{string} holds a node titled {string} dated {string}",
+  async function (this: OlaiWorld, file: string, title: string, date: string) {
+    await this.waitUntil(
+      async () =>
+        this.servedNodesSoFar(file).some(
+          (node) => node["title"] === title && node["date"] === date,
+        ),
+      `${file} to hold ${JSON.stringify(title)} dated ${JSON.stringify(date)}`,
+    );
+  },
+);
+
+/**
+ * The same field, against a day only the CLOCK can name — the `!` widget's
+ * natural-language half, end to end.
+ *
+ * `tomorrow` cannot be written into a feature file, so the suite works it out
+ * the way the client does: today from `@olai/web`'s own clock, one day on with
+ * `@olai/web`'s own day arithmetic. Two spellings of "the day after today"
+ * would be a scenario that passes on 364 days of the year — which is exactly
+ * the class of bug this arithmetic exists to make impossible.
+ */
+Then(
+  "{string} holds the node {string} dated tomorrow",
+  async function (this: OlaiWorld, file: string, id: string) {
+    const wanted = shiftDay(isoDayOf(new Date()), 1);
+    await this.waitUntil(
+      async () =>
+        this.servedNodesSoFar(file).some(
+          (node) => node["id"] === id && node["date"] === wanted,
+        ),
+      `${file} to hold ${JSON.stringify(id)} dated ${JSON.stringify(wanted)}`,
     );
   },
 );

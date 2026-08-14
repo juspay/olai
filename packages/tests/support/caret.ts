@@ -56,15 +56,23 @@
  * than a step, three step files could want it, and two of them waiting for the
  * client's answer two different ways is how one of them stops waiting properly.
  *
- * FOUR VERBS come out of it, and nothing else does — {@link aimedAtTheLine}
+ * FIVE VERBS come out of it, and nothing else does — {@link aimedAtTheLine}
  * before a gesture, {@link pressed} for a key, {@link leavingTheLine} for a
- * gesture meant to take the caret out, and {@link nothingIsBeingTyped} for the
- * promise a scenario makes about it. The shapes above are how they are built,
+ * gesture meant to take the caret out, {@link nothingIsBeingTyped} for the
+ * promise a scenario makes about it, and {@link theListIsGone} for the one
+ * key layer above the row's ({@link aListIsUp} says why it needs its own). The shapes above are how they are built,
  * and a caller composing them by hand would be a caller that has to know what a
  * receipt is.
  */
 
-import { CARET_EDITOR, EDIT_REFUSAL, NEW_ROW, NODE, TITLE_EDITOR } from "./world.ts";
+import {
+  CARET_EDITOR,
+  COMPLETIONS,
+  EDIT_REFUSAL,
+  NEW_ROW,
+  NODE,
+  TITLE_EDITOR,
+} from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 
 /** Is anything being typed at all? Every wait below is a claim about a draft,
@@ -95,6 +103,32 @@ const joinsWithBackspace = async (world: OlaiWorld): Promise<boolean> => {
 /** Anything the page could be saying about why a key did nothing. */
 const refused = async (world: OlaiWorld): Promise<boolean> =>
   (await world.page.locator(EDIT_REFUSAL).count()) > 0;
+
+/**
+ * Is a SHORTLIST up over the line — the `!`, `#`/`@` or `((` widget's
+ * (`client/complete/`)?
+ *
+ * It has to be asked before the two shapes below, because while one is on
+ * screen the client's LIST layer takes those keys first (`client/keys.ts`'s
+ * `listKey`): `Enter` takes the row the list is on rather than ending the
+ * line, and `Escape` puts the list away rather than the draft. Both of those
+ * leave the caret exactly where it was, so a wait built on it never comes —
+ * which is the same class of mistake this module exists for, one key layer
+ * further along.
+ */
+const aListIsUp = async (world: OlaiWorld): Promise<boolean> =>
+  (await world.page.locator(COMPLETIONS).count()) > 0;
+
+/** The list gone, which is what BOTH of its keys answer with: a completion
+ *  taken removes the trigger it was typed after, and a dismissal puts the
+ *  token away. What the choice then WROTE is the scenario's own assertion, and
+ *  those poll. */
+export const theListIsGone = async (world: OlaiWorld): Promise<void> => {
+  await world.waitUntil(
+    async () => !(await aListIsUp(world)),
+    "the completion list to go",
+  );
+};
 
 /** No row is being typed in at all — what `Escape` means, and it cannot be
  *  refused, because it writes nothing. */
@@ -238,6 +272,15 @@ const answering = async (
   key: string,
 ): Promise<() => Promise<void>> => {
   const nothing = async () => {};
+  // A SHORTLIST over the line answers first, because the client's list layer
+  // does (`client/keys.ts`). `Enter` takes a row and `Escape` puts the list
+  // away; the arrows walk it and settle nothing. None of them moves the caret,
+  // so none of the shapes below applies to any of them.
+  if (await aListIsUp(world)) {
+    return key === "Enter" || key === "Escape"
+      ? async () => await theListIsGone(world)
+      : nothing;
+  }
   if (key === "Escape") {
     // Escape abandons the draft, always. With none open there is nothing to
     // wait for, which is every Escape that shuts a menu, a picker or the

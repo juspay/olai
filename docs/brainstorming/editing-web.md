@@ -40,7 +40,7 @@ Two more things the build settled, both of which started as the obvious shape an
 - **Split/merge deferred** to its own editor-growth item: in the first PR, Enter always adds a sibling and Backspace only edits text.
 - ~~**Undo deferred** out of the first PR~~ **SHIPPED as `undo`**, and the leading candidate is what it turned out to be: client-side op inverses, "undo *my* last op", concurrent-editor-safe. See below.
 - **Desc editing**: `Shift+Enter` opens a plain textarea under the node; rendered markdown returns on blur. Desc is one verbatim string — a textarea is honest, and the draft-cell model applies unchanged.
-- **First-PR keybinding set**: Enter (add sibling), Tab/Shift+Tab (indent/outdent), Alt+Shift+↑↓ (move), Ctrl+Enter (toggle done), Shift+Enter (desc), delete. Multi-select, drag-drop, `((` mirror creation, `!` date picker, `#` autocomplete: editor growth. ~~Multi-select and drag-drop~~ **shipped 2026-08-13** — see the section on them below.
+- **First-PR keybinding set**: Enter (add sibling), Tab/Shift+Tab (indent/outdent), Alt+Shift+↑↓ (move), Ctrl+Enter (toggle done), Shift+Enter (desc), delete. Multi-select, drag-drop, `((` mirror creation, `!` date picker, `#` autocomplete: editor growth. ~~Multi-select and drag-drop~~ **shipped 2026-08-13**, and ~~`((` mirror creation, `!` date picker, `#` autocomplete~~ **shipped 2026-08-14** — see the sections on them below.
 
 ## Revised after the human drove it (2026-08-11)
 
@@ -199,6 +199,50 @@ the selection bar, behind the same confirm the `•••` menu asks, because th
 human's 2026-08-11 ruling is precisely a ruling about a chord that takes a
 branch away — a bulk one would be that at its worst.
 
+## The three input widgets, as they shipped (2026-08-14)
+
+`!`, `#`/`@` and `((` in a row's title. What the build decided, in the order a
+reader of this page would otherwise have to rediscover it:
+
+- **`@` became a TAG in the format, not a trigger character with a costume.**
+  The item's own scope says the completion is "over tags that exist in the
+  loaded set", and a widget whose `@` inserted text the set does not recognise
+  would be writing decoration. So `titleTagRe` matches both sigils and
+  `TitlePart` carries which one — two NAMESPACES, `#alice` and `@alice` being
+  different tags, which is the whole reason a person reaches for one rather
+  than the other. The asymmetry that came with it is deliberate: `@` is claimed
+  only where a WORD STARTS, because `srid@srid.ca` is an address, while `#`
+  keeps the alphabet it has had since the format's first day (narrowing it
+  would restyle titles in sets already written). Agent-visible consequence:
+  `read_node`'s `tags` reports them AS WRITTEN.
+- **A `((` mirror cannot go inside a sentence, so it goes beside it.** In
+  Workflowy a mirror is an inline reference; here a mirror is a whole ROW —
+  exactly `{id, parent, ord, mirror}`, with no text of its own — and the line
+  you typed in decides which of the two readings you get. A line that is still
+  a DRAFT with nothing else in it BECOMES the placement, which is Workflowy's
+  gesture exactly (Enter, `((`, choose) and falls out of what a draft already
+  is: an empty one writes no node, so the row that was going to be minted there
+  simply is the mirror. A line with WORDS keeps them, committed first like
+  every structural key, and the placement is the next row.
+- **Nothing is added after a chosen tag — not even a space.** Workflowy adds
+  one; a title here is stored verbatim, so a character nobody typed is a
+  character in somebody's git history. What ends the list instead is the
+  completion being taken.
+- **The `!` list is the natural-language half only.** The browser's own
+  calendar is still reached from the date pill and the `•••` menu. A vocabulary
+  filtered by PREFIX (so `tom` offers `tomorrow` with no rule about
+  abbreviations anywhere) plus three regexes for the forms with a number in
+  them, and every row prints the day it means, because `next friday` is an
+  argument about which Friday.
+
+Three things came out of the build that are not about widgets at all, and are
+recorded here because the next editor item will meet them: `keys.ts` grew a
+THIRD matcher layer (`listKey`, what the bare keys mean while a shortlist is
+up), `search/cursor.ts` is now the one cursor four shortlists are walked with,
+and `edit/redraws.ts` says which writes can move the row they were made in —
+which is the difference between suppressing a blur for good reason and for
+none.
+
 ## Open
 
 - **Is an archived node FROZEN?** Raised by the review of `trash-parity`
@@ -290,11 +334,11 @@ Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
 
 | Op | Workflowy trigger | olai |
 |---|---|---|
-| Mirror creation | `((` search, `Alt/⌘+Shift+M`, menu | filed `input-widgets` |
+| Mirror creation | `((` search, `Alt/⌘+Shift+M`, menu | **shipped** (`input-widgets`): `((` in a title searches the set through the palette's own procedure and places the node you pick. No chord — `Alt+Shift+M` would need a node named already, and the widget IS the naming |
 | **Mirror detach (back to copy) / remove placement** | menu | remove placement shipped (`menu-verbs`): `Remove this placement`, drawn on any row whose RECORD is a placement (asked of the record, so the degenerate rows need no case — though a set holding a mirror of nothing is refused by the validator, so such a row is not on screen anyway) — and refused in the op's own words when something still names the placement. DETACH (turn a mirror back into a copy) is not olai's gesture and is not filed: it would mint a new node, which is a duplicate rather than a removal |
 | **Copy link to node** (internal link others can paste) | `Alt/⌘+Shift+L`, menu | partial — the `•••` menu HAS "Copy link to node" (corrected 2026-08-12; the first pass of this table missed it); no keybinding, and nothing autocompletes an internal link in a title |
-| Tag autocomplete | `#` / `@` | filed `input-widgets` |
-| Date insert | `!` natural-language picker | filed `input-widgets`; CLEARING a stored date shipped (`menu-verbs`) — `Clear date`, drawn only on a dated row — so what is left for that item is putting one ON, which is a thing you type rather than a thing you choose from a list |
+| Tag autocomplete | `#` / `@` | **shipped** (`input-widgets`), and it took a FORMAT change with it: `@` is a tag sigil now, its own namespace beside `#`, claimed only where a word starts so an email address is not one |
+| Date insert | `!` natural-language picker | **shipped** (`input-widgets`): `!` and a phrase, over a vocabulary filtered by prefix plus three numbered forms — every row prints the day it means. The CALENDAR is still the pill's and the menu's; CLEARING a stored date shipped (`menu-verbs`) — `Clear date`, drawn only on a dated row — so what is left for that item is putting one ON, which is a thing you type rather than a thing you choose from a list |
 
 ### Clipboard and interchange
 
@@ -346,10 +390,15 @@ intent union and a resolver arm beside it, sending the request the equivalent
 tool sends. What that left, in order of what it would take:
 
 - `set_see` / `set_after` (`parity-see`, `parity-after`): both want a node
-  SEARCH to name the other end, which is the same widget `input-widgets` is
-  building for `((`. A menu entry cannot ask "which node?".
+  SEARCH to name the other end, and that widget EXISTS now (`input-widgets`'
+  `((`, over `search/nodes.ts`). What is missing is the two verbs on the wire,
+  not the way to ask "which node?".
 - `create_outline` (`parity-create-outline`): the sidebar's, not a row's.
-- setting a date: the `!` picker, `input-widgets`.
+- ~~setting a date: the `!` picker, `input-widgets`.~~ **Closed** — and
+  `add_mirror` went with it, which was not on this list at all because nobody
+  had noticed the surface could retire a placement it had no way to make.
+  Both are arms on the same intent union: `date` was already there for the
+  menu's `Clear date`, and `mirror` is new beside `unmirror`.
 - ~~UNARCHIVE (`parity-unarchive`): still no op on either face, and the one
   entry here that is an equal absence rather than a deviation.~~ **Closed
   2026-08-13 (`trash-parity`)**: the op was born in the ops layer and both

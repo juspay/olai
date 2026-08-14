@@ -113,3 +113,40 @@ describe("placements", () => {
       .not.toContain("now-git")
   })
 })
+
+describe("the tags a node carries", () => {
+  /** A set with both sigils, including the same NAME under each — which is the
+   *  whole reason the sigil is reported. */
+  const TAGGED = (): OutlineSet =>
+    setOf({
+      "work.jsonl": [
+        `{"id":"call","ord":"a0","title":"call @alice about #alice/onboarding"}`,
+        `{"id":"plain","ord":"a1","title":"nothing to see here"}`,
+      ].join("\n"),
+    })
+
+  // AS WRITTEN, sigil and all. `#alice` and `@alice` are two different tags
+  // (`@olai/format`'s TAG_SIGILS), so a list of bare names could not say which
+  // of them a node carries — and this is the shape an agent reads off
+  // `read_node`, which nothing on the wire side would notice losing.
+  test("a node read reports its tags as they are written", () => {
+    expect(detail(index(TAGGED()), "call")?.tags).toEqual([
+      "@alice",
+      "#alice/onboarding",
+    ])
+  })
+
+  test("a node with none reports an empty list rather than nothing", () => {
+    expect(detail(index(TAGGED()), "plain")?.tags).toEqual([])
+  })
+
+  // The index's own half of the same contract: a tag is searchable BARE and as
+  // written, so a bare word still finds it and a sigil narrows to one
+  // namespace.
+  test("a tag is found by its name and by its written form", () => {
+    const set = index(TAGGED())
+    expect(search(set, { text: "alice" }).hits.map((hit) => hit.id)).toEqual(["call"])
+    expect(search(set, { text: "@alice" }).hits.map((hit) => hit.id)).toEqual(["call"])
+    expect(search(set, { text: "#alice" }).hits.map((hit) => hit.id)).toEqual(["call"])
+  })
+})

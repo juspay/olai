@@ -265,6 +265,13 @@ export const CARET_EDITOR = `${TITLE_EDITOR}, ${DESC_EDITOR}`;
 /** A row that does not exist yet — an editor standing where `Enter` will put
  *  one. Finding one is finding a DRAFT, never a write. */
 export const NEW_ROW = selector(TESTID.newRow);
+/** The shortlist under a caret — the `!` day picker, the `#`/`@` tag list, the
+ *  `((` node search. `data-kind` says which of the three, so a scenario names
+ *  the widget rather than inferring it from the rows. */
+export const COMPLETIONS = selector(TESTID.completions);
+export const COMPLETION_ITEM = selector(TESTID.completionItem);
+/** Where a `((` hit sits — the second line of its row. */
+export const COMPLETION_ITEM_PLACE = selector(TESTID.completionItemPlace);
 /** What a write that LANDED had to say — the rollup's nudge, in the same
  *  place and the opposite mood. */
 export const EDIT_NUDGE = selector(TESTID.editNudge);

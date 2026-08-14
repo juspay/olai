@@ -6,10 +6,10 @@
  * keys of its own. One registry rather than two matchers in two components is
  * the whole point: a chord and an editing key that both claim `Ctrl+Enter`
  * disagree silently, in a browser, at the moment somebody is typing — and the
- * only place that disagreement is visible is a file that declares both.
+ * only place that disagreement is visible is a file that declares them all.
  *
- * THREE LAYERS, and no two of them are ever live at once, which is what makes
- * them safe together:
+ * FOUR LAYERS, and no two of them are ever live over the same keystroke,
+ * which is what makes them safe together:
  *
  *   - {@link matchKey} is the GLOBAL layer — chords with a modifier, listened
  *     for on the window (`palette/Palette.tsx` owns the one listener), and
@@ -26,9 +26,14 @@
  *     rows puts the caret away — so `Tab` has exactly one meaning at any
  *     moment, which is the reason the two layers can share a key rather than
  *     needing a second grammar for bulk.
+ *   - {@link listKey} is the LIST layer — what those same bare keys mean while
+ *     a SHORTLIST is up over whatever has the caret. Asked FIRST by whoever has
+ *     one and only while one is on screen, so a key a person cannot see the
+ *     effect of goes on meaning what it always meant. Four surfaces have one,
+ *     and each matched these keys privately before this existed.
  *
- * Pure of the DOM beyond the event itself, so all three layers are unit-testable
- * with no window: pass `platform` to pin Apple vs not.
+ * Pure of the DOM beyond the event itself, so all four layers are
+ * unit-testable with no window: pass `platform` to pin Apple vs not.
  */
 
 export type KeyAction = "palette" | "sidebar" | "chat" | "undo" | "redo"
@@ -370,6 +375,42 @@ export const selectKey = (event: KeyboardEvent): SelectAction | null => {
 const halves = (at: Caret): boolean =>
   at.text.slice(0, at.start).trim() !== "" && at.text.slice(at.end).trim() !== ""
 
+// ── the list layer ─────────────────────────────────────────────────────
+
+/**
+ * What a key does while a SHORTLIST is up under the caret — the ⌘K palette's
+ * rows, and the three input widgets a row's title opens (`complete/`).
+ *
+ * A third layer rather than a matcher inside those components, for the reason
+ * the two above are in one file: the arrows, `Enter` and `Escape` all mean
+ * something else HERE ({@link editKey}) and somewhere else again as chords, and
+ * a component matching them privately is exactly the silent disagreement this
+ * registry exists to make impossible. What is left to the surface is what each
+ * answer MEANS — `take` runs a route in the palette and rewrites a line in a
+ * completion — which is why this answers with an intent rather than doing
+ * anything.
+ *
+ * It is asked FIRST by whoever has a list up, and only while one is: a key a
+ * person cannot see the effect of must go on meaning what it always meant.
+ *
+ *   - `next` / `prev` — `↓` / `↑`, walking the rows.
+ *   - `take` — a bare `Enter`. Bare only: `⌘Enter` is still the mark and
+ *     `Shift+Enter` still the note, and neither stops being itself because a
+ *     list is up.
+ *   - `dismiss` — `Escape`, which puts the LIST away and leaves everything
+ *     under it alone.
+ */
+export type ListAction = "next" | "prev" | "take" | "dismiss"
+
+export const listKey = (event: KeyboardEvent): ListAction | null => {
+  if (event.key === "Escape") return "dismiss"
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return null
+  if (event.key === "ArrowDown") return "next"
+  if (event.key === "ArrowUp") return "prev"
+  if (event.key === "Enter") return "take"
+  return null
+}
+
 /**
  * The keys, written down for a PERSON.
  *
@@ -390,6 +431,9 @@ export interface Shortcut {
   /** The editing action it is, when it is one — what the test checks the list
    *  against. Absent for the global chords, which are not row actions. */
   readonly action?: EditAction
+  /** ...and the same for the list layer, so a key that walks a shortlist is
+   *  held to being written down exactly as a row key is. */
+  readonly list?: ListAction
 }
 
 export const SHORTCUTS: ReadonlyArray<{
@@ -440,6 +484,24 @@ export const SHORTCUTS: ReadonlyArray<{
         action: "selectAll",
       },
       { keys: "Escape", what: "drop what you were typing", action: "cancel" },
+    ],
+  },
+  {
+    // The three input widgets (`complete/`). They are CHARACTERS rather than
+    // chords — nothing in `editKey` matches them, and nothing should: what
+    // arms one is where the caret is in the line, which is a question about
+    // text and is answered in `complete/trigger.ts`. They are listed here
+    // because this table is what a person reads to learn what the editor does,
+    // and a widget nobody can discover is a widget nobody uses.
+    group: "While typing a title",
+    keys: [
+      { keys: "!", what: "a day, in words — `tomorrow`, `next fri`, `aug 20`" },
+      { keys: "# / @", what: "a tag this set already uses" },
+      { keys: "((", what: "search for a node, and mirror it here" },
+      { keys: "↓", what: "the next row of the list", list: "next" },
+      { keys: "↑", what: "the row above it", list: "prev" },
+      { keys: "Enter", what: "take the row the list is on", list: "take" },
+      { keys: "Escape", what: "put the list away and keep typing", list: "dismiss" },
     ],
   },
   {

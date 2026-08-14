@@ -5,6 +5,8 @@ import {
   type EditAction,
   editKey,
   isApplePlatform,
+  type ListAction,
+  listKey,
   matchKey,
   selectKey,
   SHORTCUTS,
@@ -317,4 +319,49 @@ test("every editing key is written down for a person", () => {
 test("the reference names the same chords the matcher answers", () => {
   const anywhere = SHORTCUTS.find((group) => group.group === "Anywhere")
   expect(anywhere?.keys.length).toBe(CHORDS.length)
+})
+
+// ── the list layer ─────────────────────────────────────────────────────
+
+// The keys a shortlist takes while one is up — the ⌘K palette's rows, the
+// header box's, and the row editor's three input widgets. A third layer rather
+// than a matcher in each of those components, for the reason the two above are
+// in one file: all four of these keys mean something else in a row and
+// something else again as a chord.
+test("a list takes the four keys it has answers for", () => {
+  expect(listKey(key("ArrowDown"))).toBe("next")
+  expect(listKey(key("ArrowUp"))).toBe("prev")
+  expect(listKey(key("Enter"))).toBe("take")
+  expect(listKey(key("Escape"))).toBe("dismiss")
+})
+
+test("everything else goes straight through to the surface under it", () => {
+  for (const other of ["Tab", "Backspace", "a", "Home", "ArrowLeft"]) {
+    expect(listKey(key(other))).toBeNull()
+  }
+})
+
+// A BARE Enter only. `⌘Enter` is still the mark and `Shift+Enter` still the
+// note; a list being up must not swallow either, which is the one way this
+// layer could quietly break the row layer under it.
+test("a modified Enter is never the list's", () => {
+  expect(listKey(key("Enter", { ctrl: true }))).toBeNull()
+  expect(listKey(key("Enter", { meta: true }))).toBeNull()
+  expect(listKey(key("Enter", { shift: true }))).toBeNull()
+  expect(listKey(key("Enter", { alt: true }))).toBeNull()
+  expect(listKey(key("ArrowDown", { alt: true, shift: true }))).toBeNull()
+})
+
+// ...and Escape is the exception, deliberately: it dismisses however it is
+// pressed, because a person reaching for it wants the panel gone.
+test("Escape dismisses whatever else is held", () => {
+  expect(listKey(key("Escape", { shift: true }))).toBe("dismiss")
+})
+
+test("every list key is written down for a person too", () => {
+  const said = new Set(
+    SHORTCUTS.flatMap((group) => group.keys.flatMap((key) => key.list ?? [])),
+  )
+  const actions: ReadonlyArray<ListAction> = ["next", "prev", "take", "dismiss"]
+  expect(actions.filter((action) => said.has(action))).toEqual([...actions])
 })

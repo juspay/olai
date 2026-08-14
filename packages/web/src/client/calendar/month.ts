@@ -23,7 +23,27 @@ export const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] as const
 
 const WEEK = WEEKDAYS.length
 
-const MONTH_NAMES = [
+/**
+ * The weekdays in full, in the order {@link weekdayOf} counts them — Monday
+ * first, exactly as {@link WEEKDAYS} abbreviates them.
+ *
+ * English, and the outline's rather than the locale's, for the reason
+ * {@link monthLabel} gives: these words sit beside ISO dates written by hand,
+ * so they are words rather than something that moves with a machine's
+ * settings. Exported because the editor's `!` widget both reads them ("next
+ * friday") and prints them, and a second list would be a second Monday.
+ */
+export const WEEKDAY_NAMES = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+] as const
+
+export const MONTH_NAMES = [
   "January",
   "February",
   "March",
@@ -92,8 +112,17 @@ export const isoDate = (year: number, month: number, day: number): string =>
 export const shiftMonth = (month: string, delta: number): string => {
   const parsed = parseMonth(month)
   if (parsed === null) return month
-  const total = parsed.year * 12 + (parsed.month - 1) + delta
-  return monthText(Math.floor(total / 12), (total % 12) + 1)
+  const shifted = stepMonth(parsed, delta)
+  return monthText(shifted.year, shifted.month)
+}
+
+/** The month `delta` away, as parts. The ONE spelling of "December plus one is
+ *  next January": counted in months since year zero, so no branch on 12 or 1
+ *  exists anywhere and there is nothing for three copies of it to disagree
+ *  about. Everything here that crosses a month boundary goes through it. */
+const stepMonth = ({ year, month }: Month, delta: number): Month => {
+  const total = year * 12 + (month - 1) + delta
+  return { year: Math.floor(total / 12), month: (total % 12) + 1 }
 }
 
 /** "August 2026" — the heading over the grid. English, and the outline's
@@ -128,6 +157,86 @@ const daysInMonth = ({ year, month }: Month): number =>
  * avoids by never leaving integers.
  */
 const OFFSETS = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4] as const
+
+/** A day, taken apart — or `null` for text that does not name one. The grid's
+ *  own `parseMonth` plus the day number, checked against the month's length so
+ *  `2026-02-30` is not a day. */
+interface Day extends Month {
+  readonly day: number
+}
+
+const DAY_SHAPE = /^(\d{4})-(\d{2})-(\d{2})$/
+
+const parseDay = (date: string): Day | null => {
+  const match = DAY_SHAPE.exec(date)
+  if (match === null) return null
+  const [, year, month, day] = match as unknown as [string, string, string, string]
+  const parsed = parseMonth(`${year}-${month}`)
+  if (parsed === null) return null
+  const numbered = Number(day)
+  return numbered >= 1 && numbered <= daysInMonth(parsed)
+    ? { ...parsed, day: numbered }
+    : null
+}
+
+/** Whether text names a real calendar day — the check `@olai/format`'s `isDay`
+ *  makes about SHAPE, plus the month's own length. */
+export const isRealDay = (date: string): boolean => parseDay(date) !== null
+
+/**
+ * Which weekday a date falls on, 0 = Monday, or `null` for text that names no
+ * day.
+ *
+ * Public because the editor's `!` widget answers "the coming Friday" with it,
+ * and that is the same question the grid asks to know which column the 1st
+ * goes in. Two of these would be two chances to get Sakamoto's table wrong.
+ */
+export const weekdayOf = (date: string): number | null => {
+  const parsed = parseDay(date)
+  return parsed === null ? null : weekday(parsed, parsed.day)
+}
+
+/**
+ * The day `delta` days away, as ISO text — or the text unchanged when it names
+ * no day, which is the rule {@link shiftMonth} already follows: shifting is a
+ * way to look around, never a way to end up somewhere that is not a date.
+ *
+ * Counted by walking whole months rather than by adding milliseconds to an
+ * instant, for the reason the header gives: `new Date("2026-08-01")` is
+ * midnight UTC, and "tomorrow" for a reader west of Greenwich would come back
+ * as today. Never leaving integers is what keeps that impossible.
+ */
+export const shiftDay = (date: string, delta: number): string => {
+  const parsed = parseDay(date)
+  if (parsed === null) return date
+  let at: Month = parsed
+  let day = parsed.day + delta
+  while (day < 1) {
+    at = stepMonth(at, -1)
+    day += daysInMonth(at)
+  }
+  while (day > daysInMonth(at)) {
+    day -= daysInMonth(at)
+    at = stepMonth(at, 1)
+  }
+  return isoDate(at.year, at.month, day)
+}
+
+/**
+ * The same day `delta` MONTHS away, clamped to the end of the month it lands
+ * in — "next month" from the 31st of January is the 28th of February, because
+ * the 31st of February is not a day and refusing to answer would be worse.
+ */
+export const shiftDayByMonth = (date: string, delta: number): string => {
+  const parsed = parseDay(date)
+  if (parsed === null) return date
+  const shifted = stepMonth(parsed, delta)
+  return isoDate(
+    shifted.year,
+    shifted.month,
+    Math.min(parsed.day, daysInMonth(shifted)),
+  )
+}
 
 const weekday = ({ year, month }: Month, day: number): number => {
   const shifted = month < 3 ? year - 1 : year

@@ -695,22 +695,95 @@ export const nodeNamed = (
 
 // ── titles ─────────────────────────────────────────────────────────────
 
+/**
+ * The two characters that start a tag.
+ *
+ * `#` is what this format has always had; `@` joined it with the editor's tag
+ * autocomplete (`input-widgets`), because Workflowy trains both hands and a
+ * trigger that inserted the OTHER character would be an affordance writing text
+ * the set does not recognise as a tag. They are two NAMESPACES rather than two
+ * spellings of one: `#alice` and `@alice` are different tags, which is the
+ * whole reason a person reaches for one rather than the other (`@` for who,
+ * `#` for what).
+ */
+export const TAG_SIGILS = ["#", "@"] as const
+export type TagSigil = (typeof TAG_SIGILS)[number]
+
 /** A title, split into what to print and what to style. Tags live inline in
  *  the title verbatim — the format stores no tag list — so the split happens
  *  at view time, every time. */
 export type TitlePart =
   | { readonly kind: "text"; readonly text: string }
-  | { readonly kind: "tag"; readonly tag: string }
+  | {
+    readonly kind: "tag"
+    /** Which character started it — carried rather than assumed, so a part
+     *  list rejoins to the title it came from. */
+    readonly sigil: TagSigil
+    /** The name, without the sigil. */
+    readonly tag: string
+  }
+
+/** The written form of a tag part — the characters the title actually holds.
+ *  One spelling, because every consumer that draws a tag or indexes one needs
+ *  it and three of them re-assembling it is three chances to drop the `@`. */
+export const tagText = (part: { readonly sigil: TagSigil; readonly tag: string }): string =>
+  `${part.sigil}${part.tag}`
 
 /**
- * A fresh `/g` regex for an inline `#tag` in a title.
+ * Whether text could hold a tag AT ALL — a plain `indexOf` per sigil, and the
+ * guard every walk of {@link titleParts} takes first.
  *
- * `#` followed by letters, digits, `_`, `-` or `/` — the last so `#work/olai`
- * is one tag. A bare `#` is text. Returned new each call so `/g` state is never
- * shared across walks (the client styles tags by walking HAST text nodes with
- * the same alphabet, and must not re-declare it).
+ * That call runs a global regex and allocates a part per segment, and most
+ * titles hold no tag at all; the search index, the client's two renderings of a
+ * pill and its tag completion all want the same cheap negative. It was written
+ * three times before this existed, and the first two had already drifted (one
+ * asked about `#` only).
  */
-export const titleTagRe = (): RegExp => /#[A-Za-z0-9_/-]+/g
+export const mayHoldTag = (text: string): boolean =>
+  text.includes("#") || text.includes("@")
+
+/**
+ * A fresh `/g` regex for an inline tag in a title.
+ *
+ * A sigil followed by letters, digits, `_`, `-` or `/` — the last so
+ * `#work/olai` is one tag. A bare sigil is text. Returned new each call so `/g`
+ * state is never shared across walks (the client styles tags by walking HAST
+ * text nodes with the same alphabet, and must not re-declare it).
+ *
+ * THE TWO SIGILS ARE NOT MATCHED THE SAME WAY, and the asymmetry is about what
+ * people write rather than about tidiness: `@` sits inside ordinary words all
+ * the time (`srid@srid.ca`, a handle quoted mid-sentence) and `#` essentially
+ * does not, so `@` is claimed only where a word STARTS — the beginning of the
+ * title, or after a space or an opening bracket. `#` keeps the alphabet it has
+ * had since the format's first day, unchanged, because narrowing it would
+ * restyle titles in sets that are already written.
+ */
+export const titleTagRe = (): RegExp => /#[A-Za-z0-9_/-]+|(?<![^\s([{])@[A-Za-z0-9_/-]+/g
+
+/**
+ * Whether `text` is a tag NAME and nothing else — the alphabet above, asked as
+ * a question.
+ *
+ * It exists because a client COMPLETING a tag has to know where one stops
+ * while it is still half-typed, and this file already says the alphabet must
+ * not be re-declared elsewhere. An empty name passes: `#` on its own is a tag
+ * being started, which is exactly when a completion is wanted, and it is
+ * {@link titleTagRe}'s business that a bare sigil is not yet a tag.
+ */
+export const isTagName = (text: string): boolean => /^[A-Za-z0-9_/-]*$/.test(text)
+
+/**
+ * Whether a sigil sitting at `at` STARTS a tag rather than sitting inside a
+ * word — the beginning of the text, or after a space or an opening bracket.
+ *
+ * The rule {@link titleTagRe} applies to `@`, asked of ANY position, because a
+ * completion wants it for both sigils: offering to rewrite the middle of
+ * `issue#42` is offering to rewrite a word somebody is in the middle of
+ * typing. What the format RECOGNISES as a tag is the regex's own, wider
+ * question for `#`; this is only about where one may be started.
+ */
+export const tagOpensAt = (text: string, at: number): boolean =>
+  at === 0 || /[\s([{]/.test(text[at - 1] as string)
 
 export const titleParts = (title: string): ReadonlyArray<TitlePart> => {
   const parts: Array<TitlePart> = []
@@ -718,7 +791,11 @@ export const titleParts = (title: string): ReadonlyArray<TitlePart> => {
   for (const match of title.matchAll(titleTagRe())) {
     const start = match.index
     if (start > at) parts.push({ kind: "text", text: title.slice(at, start) })
-    parts.push({ kind: "tag", tag: match[0].slice(1) })
+    parts.push({
+      kind: "tag",
+      sigil: match[0][0] as TagSigil,
+      tag: match[0].slice(1),
+    })
     at = start + match[0].length
   }
   if (at < title.length) parts.push({ kind: "text", text: title.slice(at) })

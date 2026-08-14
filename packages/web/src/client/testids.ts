@@ -257,6 +257,20 @@ export const TESTID = {
    *  put one. It becomes a node when it has a title and is committed, so a
    *  scenario that finds one has found a DRAFT and not a write. */
   newRow: "new-row",
+  /** The shortlist under a caret: the `!` day picker, the `#`/`@` tag list, the
+   *  `((` node search. `data-kind` says which of the three — `date`, `tag` or
+   *  `mirror` — so a scenario names the widget rather than guessing from what
+   *  is in it. Absent whenever nothing is armed, which includes a trigger whose
+   *  query matches nothing at all. */
+  completions: "completions",
+  /** One row of it. `data-id` is the day, the tag as written, or the node's id;
+   *  `data-active` is which one Enter would take. */
+  completionItem: "completion-item",
+  /** Where a `((` hit SITS — the second line of its row, nearest ancestor
+   *  first, exactly as the palette writes one. */
+  completionItemPlace: "completion-item-place",
+  /** A refused node search, quoted, in its own slot above the rows. */
+  completionsError: "completions-error",
   /** What the last commit was refused with, under the row it was typed in.
    *  `data-kind` is the refusal's own tag. Its presence is the promise that a
    *  refused write is visible; the draft beside it is the promise that nothing
