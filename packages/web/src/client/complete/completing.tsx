@@ -43,10 +43,32 @@
  * gate (`../edit/editing.tsx`) — and both take their trigger's text back OUT of
  * the line first, because `!next fri` is not something anybody wants left in a
  * title.
+ *
+ * ## Why not Kobalte's `Combobox`, which is the ecosystem's answer
+ *
+ * Asked, because HACKING.md's SolidJS rule says to ask and because the `•••`
+ * menu is that library's now. A `Combobox` OWNS ITS INPUT: it renders the
+ * field, holds the value, decides when the list is open, and reads the whole
+ * box as the query. Every one of those is already somebody else's here — the
+ * field is the title editor, the value is the DRAFT, and the query is a SPAN
+ * inside the line rather than the line. Adopting it would mean replacing the
+ * row's `<input>` with a control whose value model is not the draft's, to get a
+ * listbox and four keydowns; what it would cost is the one thing this editor is
+ * built around (`../edit/RowEditor.tsx`'s first paragraph). The rows, the row
+ * component and the search behind the `((` list are all shared with the
+ * palette, which is the reuse that was actually available.
  */
 
-import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
+import {
+  type Accessor,
+  createEffect,
+  createMemo,
+  createSignal,
+  type JSX,
+  on,
+} from "solid-js"
 
+import { Completions } from "./Completions.tsx"
 import { useDerived } from "../derived.tsx"
 import { useEditor } from "../edit/editing.tsx"
 import { nodePlace } from "../palette/items.ts"
@@ -70,16 +92,17 @@ export interface Choice {
   readonly choose: () => void
 }
 
+/**
+ * What the CONSUMER gets: two things, and it needs both of them.
+ *
+ * A field with a completion in it has to do exactly two jobs — offer its keys
+ * to the list before answering them itself, and draw the list somewhere. So
+ * this hands back one of each, and nothing else. It used to hand back the six
+ * accessors {@link Panel} reads, and the editor then had to import a second
+ * component and wire it to them: a consumer composing several exports by hand
+ * is the missing primitive saying so.
+ */
 export interface Completion {
-  /** Which widget is armed, or `null`. Drawn as a fact on the popup so a
-   *  scenario can say WHICH list it is looking at. */
-  readonly kind: Accessor<Trigger["kind"] | null>
-  readonly choices: Accessor<ReadonlyArray<Choice>>
-  readonly active: Accessor<number>
-  readonly hover: (at: number) => void
-  /** A refusal from the node search, in its own words — never dropped
-   *  (`../run.ts` forbids a silent handler). */
-  readonly failure: Accessor<string | null>
   /**
    * Offer this keydown to the widget FIRST, and say whether it was taken.
    *
@@ -91,6 +114,21 @@ export interface Completion {
    * has no answer for.
    */
   readonly key: (event: KeyboardEvent) => boolean
+  /** The box, drawn where the field puts it. */
+  readonly Panel: () => JSX.Element
+}
+
+/** What {@link Panel} reads — this module's own shape, not the consumer's. */
+export interface Listing {
+  /** Which widget is armed, or `null`. Drawn as a fact on the popup so a
+   *  scenario can say WHICH list it is looking at. */
+  readonly kind: Accessor<Trigger["kind"] | null>
+  readonly choices: Accessor<ReadonlyArray<Choice>>
+  readonly active: Accessor<number>
+  readonly hover: (at: number) => void
+  /** A refusal from the node search, in its own words — never dropped
+   *  (`../run.ts` forbids a silent handler). */
+  readonly failure: Accessor<string | null>
 }
 
 export const createCompletion = (field: {
@@ -200,12 +238,16 @@ export const createCompletion = (field: {
     setActive((at) => (at + by + many) % many)
   }
 
-  return {
+  const listing: Listing = {
     kind: () => trigger()?.kind ?? null,
     choices,
     active,
     hover: setActive,
     failure: nodes.failure,
+  }
+
+  return {
+    Panel: () => <Completions listing={listing} />,
     key: (event) => {
       const found = trigger()
       // NOTHING ON SCREEN TAKES NOTHING. A trigger with no matches draws no

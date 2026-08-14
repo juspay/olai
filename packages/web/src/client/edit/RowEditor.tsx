@@ -35,8 +35,7 @@
 
 import { createEffect, createSignal, on, Show } from "solid-js"
 
-import { Completions } from "../complete/Completions.tsx"
-import { createCompletion } from "../complete/completing.ts"
+import { createCompletion } from "../complete/completing.tsx"
 import type { Draft } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { type Caret, type EditAction, type EditField, editKey } from "../keys.ts"
@@ -60,7 +59,6 @@ export function TitleEditor(props: {
   readonly caret?: number
 }) {
   let element!: HTMLInputElement
-  takeCaret(() => element, { at: () => props.caret })
 
   /**
    * WHERE the caret is, as a signal — the one fact the input widgets need that
@@ -71,16 +69,27 @@ export function TitleEditor(props: {
    * word, `Home`, a drag-selection, an IME. So every event that could have
    * moved it re-reads it, and the value is the element's own answer rather than
    * this component's arithmetic about what the last key should have done.
+   *
+   * WHICH MAKES THE ELEMENT THE ONE AUTHORITY, and everything that moves the
+   * caret has to tell this — including the two things in this file that move it
+   * themselves: {@link takeCaret}, which puts the caret back after a write
+   * redrew the row (hence the `then` below), and the completion's `rewrite`. A
+   * signal that only tracked EVENTS would go stale exactly when a widget was
+   * about to be armed from it.
    */
   const [caret, setCaret] = createSignal(0)
   const readCaret = (): void => {
     setCaret(element.selectionStart ?? 0)
   }
 
-  /** The three widgets, as one loop ({@link ../complete/completing.ts}). The
-   *  rewrite is the DOM half: the field's value and its caret are set here,
-   *  where the element is, and the draft is told in the same breath so the two
-   *  cannot disagree about what the line says. */
+  takeCaret(() => element, { at: () => props.caret, then: readCaret })
+
+  /** The three widgets, as one loop ({@link ../complete/completing.tsx}) — one
+   *  hook, whose two members are the two jobs a field with a completion in it
+   *  has: offer it the keys, and draw it. The rewrite is the DOM half: the
+   *  field's value and its caret are set here, where the element is, and the
+   *  draft is told in the same breath so the two cannot disagree about what the
+   *  line says. */
   const completion = createCompletion({
     text: () => props.text,
     caret,
@@ -130,7 +139,7 @@ export function TitleEditor(props: {
         onFocus={readCaret}
         onBlur={() => props.onBlur(element.isConnected)}
       />
-      <Completions completion={completion} />
+      <completion.Panel />
     </span>
   )
 }
@@ -306,8 +315,10 @@ const takeCaret = (
   said: {
     /** Where the caret goes when the editor OPENS, when the draft says. */
     readonly at?: () => number | undefined
-    /** Anything else the caret arriving implies — the note's box growing to
-     *  fit what is in it. */
+    /** Anything else the caret arriving implies: the note's box growing to fit
+     *  what is in it, and the title's own reading of WHERE the caret now is —
+     *  this function moved it, so anything tracking it has to be told rather
+     *  than left waiting for an event that will not come. */
     readonly then?: () => void
   } = {},
 ): void => {

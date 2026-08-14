@@ -1437,7 +1437,7 @@ with the arrows, take one with Enter:
   enumeration by the format's own walk (`titleParts`, the same call that draws
   the pills a row already shows) over the set this tab is holding. Two sigils,
   two lists — `#alice` and `@alice` are different tags.
-- **`completing.ts` — the loop.** Where each list comes from, what each choice
+- **`completing.tsx` — the loop, and the ONE door.** Where each list comes from, what each choice
   writes, and the one piece of memory in the whole feature: Escape remembers the
   TOKEN it dismissed, so putting the list away over `#ho` keeps it away while
   that `#ho` is being typed. A key is claimed only when a list is actually on

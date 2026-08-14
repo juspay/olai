@@ -32,7 +32,7 @@
  *
  * The caps are what keep a stray `!` in the middle of a sentence from arming a
  * widget for the rest of the paragraph. A query that matches nothing draws
- * nothing anyway ({@link ./completing.ts}), so the caps are the second fence
+ * nothing anyway ({@link ./completing.tsx}), so the caps are the second fence
  * rather than the first.
  */
 

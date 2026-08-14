@@ -24,6 +24,25 @@
  * list, so an unbounded family of phrases costs three rules rather than an
  * unbounded list.
  *
+ * ## Why this is not `chrono-node`
+ *
+ * A hand-rolled date reader where a focused library exists is a smell, and it
+ * was asked. Two things answer it, and the second is the one that decides.
+ *
+ * A parser turns text into a DATE; what a completion needs is the other
+ * direction — every phrase the person might be typing TOWARDS, so `next f`
+ * offers `next friday` before it is a date at all. A library that answers
+ * "this string means the 28th" cannot enumerate the strings, so the vocabulary
+ * would have to exist anyway and the library would only cover the three
+ * numbered forms below.
+ *
+ * And every such library speaks `Date`. This client deliberately does not
+ * (`../calendar/month.ts`: `new Date("2026-08-01")` is midnight UTC, which is
+ * the 31st of July in half the world), so an instant would have to be
+ * converted back to a local day at exactly the seam this whole feature is
+ * about — a day is TEXT in this format, and the ten characters that reach the
+ * record are supposed to be the ten that were meant.
+ *
  * ## What the phrases mean, decided rather than inherited
  *
  * A bare WEEKDAY is the COMING one, strictly after today: typing `friday` on a

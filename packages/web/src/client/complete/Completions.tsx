@@ -1,6 +1,10 @@
 /**
  * The shortlist under a caret — one box for all three widgets.
  *
+ * PRIVATE to this directory: `./completing.tsx` hands its consumer a `Panel`
+ * that draws this, so a field with a completion in it wires one thing rather
+ * than a hook and a component that have to agree about a shape.
+ *
  * It draws {@link ../search/Result.tsx}'s row, which is the row the ⌘K palette
  * and the header's search box already draw, for the reason that file gives:
  * three spellings of a result row are three rows, and the day one of them
@@ -24,7 +28,7 @@
  * the gesture it exists to serve.
  *
  * The caret never leaves the input, so nothing here takes focus: the rows are
- * chosen by the arrows and Enter (`./completing.ts`), and a pointer press is
+ * chosen by the arrows and Enter (`./completing.tsx`), and a pointer press is
  * defaulted-away by the row itself so a click cannot blur the line being typed.
  */
 
@@ -32,12 +36,12 @@ import { For, Show } from "solid-js"
 
 import { Result } from "../search/Result.tsx"
 import { TESTID } from "../testids.ts"
-import type { Completion } from "./completing.ts"
+import type { Listing } from "./completing.tsx"
 
-export function Completions(props: { readonly completion: Completion }) {
+export function Completions(props: { readonly listing: Listing }) {
   const showing = () =>
-    props.completion.kind() !== null &&
-    (props.completion.choices().length > 0 || props.completion.failure() !== null)
+    props.listing.kind() !== null &&
+    (props.listing.choices().length > 0 || props.listing.failure() !== null)
 
   return (
     <Show when={showing()}>
@@ -47,13 +51,13 @@ export function Completions(props: { readonly completion: Completion }) {
         // WHICH widget this is, as a fact in the markup rather than as a guess
         // from what is in it — the same contract every other panel in this
         // client keeps about its own mood.
-        data-kind={props.completion.kind() ?? undefined}
+        data-kind={props.listing.kind() ?? undefined}
         role="listbox"
         aria-label="completions"
       >
         {/* The search's own refusal, in its own words and in its own slot —
             never dropped, and never overwriting a list somebody is reading. */}
-        <Show when={props.completion.failure()}>
+        <Show when={props.listing.failure()}>
           {(failure) => (
             <p
               class="m-0 border-b border-alarm/40 bg-alarm/5 px-3 py-2 font-mono text-xs text-alarm"
@@ -67,18 +71,18 @@ export function Completions(props: { readonly completion: Completion }) {
         <ul
           class="m-0 max-h-64 list-none overflow-x-hidden overflow-y-auto p-1"
         >
-          <For each={[...props.completion.choices()]}>
+          <For each={[...props.listing.choices()]}>
             {(choice, index) => (
               <li>
                 <Result
                   label={choice.label}
                   hint={choice.hint}
                   place={choice.place}
-                  active={index() === props.completion.active()}
+                  active={index() === props.listing.active()}
                   testid={TESTID.completionItem}
                   placeTestid={TESTID.completionItemPlace}
                   id={choice.id}
-                  onHover={() => props.completion.hover(index())}
+                  onHover={() => props.listing.hover(index())}
                   onSelect={() => choice.choose()}
                 />
               </li>
