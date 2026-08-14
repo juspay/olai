@@ -70,8 +70,16 @@ export const LONG_PRESS_MS = 500
  *  About Chromium's own touch slop; under it, a hand is holding still. */
 const SLOP_PX = 10
 
-/** What to put on the element the press is made on. Spread onto it: both are
- *  events Solid delegates, so this costs a row no listener of its own. */
+/**
+ * What to put on the element the press is made on.
+ *
+ * Bound one by one at the call site (`onPointerDown={…}`, `onContextMenu={…}`)
+ * and NOT spread: a JSX spread anywhere on an element folds every attribute of
+ * it onto Solid's runtime spread path, where the `classList` beside these is
+ * diffed key by key on every frame — and the element these go on is a row of
+ * the outline. Both are events Solid DELEGATES, so bound by name they cost a
+ * row no listener of its own.
+ */
 export interface LongPress {
   readonly onPointerDown: (event: PointerEvent) => void
   readonly onContextMenu: (event: Event) => void

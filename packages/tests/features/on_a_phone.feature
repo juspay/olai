@@ -141,6 +141,11 @@ Feature: On a phone
     # what changes the directory.
     And the node menu offers "Zoom in"
     And the node menu offers "Complete"
+    # The middle of a row is its TITLE, and a tap there opens the editor. This
+    # is that collision, on the gesture most likely to meet it — the same
+    # `swallowGhost()` the bullet scenario below locks the link half of, and
+    # the half a person would hit first, since a thumb lands on the words.
+    And no row is being edited
     And the page has not reloaded
     And there should be no page errors
 
@@ -174,14 +179,25 @@ Feature: On a phone
 
   @corpus:good @phone
   Scenario: A finger that scrolls the page is not a finger that pressed
-    # Nothing is prevented on the way down, so the browser keeps the gesture
-    # and the page goes on scrolling under it; what the row does is drop its
-    # own timer the moment the finger moves. (That the page SCROLLS is not
-    # asserted here for want of a fixture taller than a handset — every corpus
-    # in this suite fits on one screen at 390×844.)
+    # BOTH halves, and the second is the one that would go quietly: a row that
+    # CLAIMED the gesture — `touch-action: none` on the line, a captured
+    # pointer, a prevented `touchmove` — leaves every step about the menu
+    # staying shut passing, and the page nailed to the top. So the page has to
+    # be taller than the screen and has to MOVE. (Checked by making it: adding
+    # `touch-none` to the row's own class fails this scenario here, on
+    # `scrollY 0`, and nowhere else in the suite. A `preventDefault` on
+    # `pointerdown` is NOT that mutation — it does not cancel a scroll, which
+    # is why this module never needed to avoid one.)
+    #
+    # No corpus in this suite is taller than 390×844 — they are outlines a
+    # person can read inside a scenario — so the screen is what shrinks, which
+    # is a real handset too (one with its keyboard up), and the step checks its
+    # own premise rather than trusting it.
     Given I open the outline "house.jsonl"
+    And the screen is shorter than the outline
     When I flick the node "kitchen" up the screen
-    Then the node menu is closed
+    Then the outline has scrolled
+    And the node menu is closed
     And no row is being edited
 
   @corpus:good @phone

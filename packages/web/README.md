@@ -1620,10 +1620,12 @@ on the open state), which per row is an `IntersectionObserver`, a deferred
 autofocus timer, four locale subscriptions and a few dozen signals. On this
 app's own roadmap — 140 rows — that measured 140 `IntersectionObserver`s and 33
 MB of heap against the hand-rolled panel's none and 19 MB. So until the first
-press the `•••` is a plain `<button>` (`Dots`), the press that arms the row is
-the press that opens it (`defaultOpen`), and the row stays armed afterwards;
-the measurement is back to 0 observers and 19 MB. The keys that open a menu arm
-it too, because that button is what a Tab lands on. What the adoption does cost
+ask the `•••` is a plain `<button>` (`Dots`), the ask that arms the row is the
+ask that opens it — one verb writes both, since the row's own state is one
+signal over three (`menu/door.ts`) — and the row stays armed afterwards; the
+measurement is back to 0 observers and 19 MB. The keys that open a menu arm it
+too, because that button is what a Tab lands on, and so does a phone's long
+press, which is the other door onto the same verb. What the adoption does cost
 unconditionally is **bundle**: `DropdownMenu` is ~85 kB raw / ~24 kB brotli on
 the first-paint chunk, which is a code-split (`markdown/chunk.ts`'s shape) this
 has not taken.

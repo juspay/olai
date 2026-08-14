@@ -129,8 +129,9 @@ export const HOVER_REVEAL =
   "opacity-100 md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100"
 
 /**
- * Reveal for the `•••` menu button — only reached when its parent is shown
- * (the menu root is `hidden md:block`). Hover/focus-only; no phone branch.
+ * Reveal for the `•••` menu button — hover/focus-only, and no phone branch,
+ * because the button it is on is not drawn below md at all ({@link MENU_CELL}).
+ * An opacity there would be an opacity on a `display: none` box.
  *
  * `data-[expanded]` is the third arm and it is not optional: an OPEN menu
  * whose `•••` had faded out would be a panel hanging off nothing. Kobalte puts
