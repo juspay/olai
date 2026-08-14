@@ -369,7 +369,9 @@ Then(
   },
 );
 
-/** The other mood: a write that LANDED and had something to add. A substring,
+/** The other mood: news about something that HAPPENED — a write that landed and
+ *  had something to add, or a copy confirming it reached the clipboard, which
+ *  is the one verb whose success the page cannot otherwise show. A substring,
  *  because a nudge is a paragraph the rollup wrote and what matters is that it
  *  arrived at all — and that it did not arrive as an alarm. */
 Then(

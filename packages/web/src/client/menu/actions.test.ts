@@ -13,6 +13,12 @@
  * The lie this file tells is the point: `pickDate` is handed back a value, the
  * way a setter would. Everything else here is a stub, because the only thing
  * under test is what comes back out.
+ *
+ * The two CLIPBOARD verbs are here for the same question asked the other way
+ * round: they are the entries that must NOT answer with nothing, since their
+ * destination is outside the app and a copy leaves no trace on the page. What
+ * they say is a fact about `run`, so it is held here rather than only in the
+ * browser — `features/menu_verbs.feature` walks the same two verbs end to end.
  */
 
 import { derive, rowsOf, type Row } from "@olai/format"
@@ -89,6 +95,67 @@ test("a verb that WRITES still answers with a promise the panel can read", () =>
   // and an unhandled rejection from a write nobody awaited is noise in every
   // other file's run.
   void (answer as Promise<unknown>).catch(() => {})
+})
+
+/** The catalog run against a clipboard of the test's own. Node has none at
+ *  all, and the two copy verbs are the only thing in here that reaches for
+ *  one — restored afterwards, because a global left patched is a failure in
+ *  whichever file `bun test` happens to run next. */
+const withClipboard = async <T>(
+  clipboard: { readonly writeText: (text: string) => Promise<void> },
+  run: () => Promise<T>,
+): Promise<T> => {
+  const had = Object.getOwnPropertyDescriptor(globalThis, "navigator")
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard } })
+  try {
+    return await run()
+  } finally {
+    if (had === undefined) delete (globalThis as { navigator?: unknown }).navigator
+    else Object.defineProperty(globalThis, "navigator", had)
+  }
+}
+
+test("a copy that LANDED answers with a remark, so the ordinary case is not silent", async () => {
+  // The clipboard is the one destination OUTSIDE this app: nothing in the
+  // outline changes, so a copy that worked and one that never happened draw
+  // the same page. The refusal already spoke; this is the other half, and it
+  // is `aside` rather than `alarm` because it is news rather than a reason
+  // nothing happened.
+  const written: string[] = []
+  const answers = await withClipboard(
+    { writeText: (text) => (written.push(text), Promise.resolve()) },
+    async () => ({
+      link: await entry("install", "Copy link to node").run(),
+      text: await entry("install", "Copy as text").run(),
+    }),
+  )
+  expect(answers.link).toEqual({ tone: "aside", text: "link copied" })
+  expect(answers.text).toEqual({ tone: "aside", text: "text copied" })
+  // ...and each sentence is a report rather than an assumption: both reached
+  // the clipboard before either of them said anything.
+  expect(written).toHaveLength(2)
+})
+
+test("a copy the browser REFUSED answers with no remark at all — it throws", async () => {
+  // The rule `actions.ts` is written to: nothing there catches a clipboard
+  // denial, so a `run` that resolved with the remark anyway would be exactly
+  // the swallowed failure this seam was fixed for — and the remark being added
+  // beside it is when that could regress.
+  const thrown = await withClipboard(
+    { writeText: () => Promise.reject(new Error("denied")) },
+    async () => {
+      try {
+        await entry("install", "Copy link to node").run()
+        return null
+      } catch (cause) {
+        return cause as Error
+      }
+    },
+  )
+  // `null` would be the regression, and it is the one worth naming: a `run`
+  // that RESOLVED here resolved with the remark, and the menu would draw
+  // "link copied" over a clipboard that had refused.
+  expect(thrown?.message).toBe("denied")
 })
 
 test("`Ask agent` arms the composer with the node the row SHOWS", () => {

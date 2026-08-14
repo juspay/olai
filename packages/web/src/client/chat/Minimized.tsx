@@ -11,6 +11,7 @@ import { Show } from "solid-js"
 
 import { chatOpen, setChatOpen } from "../layout/prefs.ts"
 import { desktop } from "../layout/media.ts"
+import { LAYER } from "../layer.ts"
 import { TESTID } from "../testids.ts"
 import { lastAgentPreview, previewText } from "./last.ts"
 import { createChatState } from "./state.ts"
@@ -35,7 +36,7 @@ export function Minimized() {
         fallback={
           <button
             type="button"
-            class={`fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t bg-paper px-4 py-3 text-left font-mono text-xs ${
+            class={`fixed inset-x-0 bottom-0 ${LAYER.chrome} flex items-center gap-2 border-t bg-paper px-4 py-3 text-left font-mono text-xs ${
               working()
                 ? "animate-pulse border-doing text-doing"
                 : "border-rule text-muted"
@@ -58,7 +59,7 @@ export function Minimized() {
       >
         <button
           type="button"
-          class={`fixed bottom-4 right-4 z-40 flex max-w-[min(24rem,calc(100vw-2rem))] items-center gap-2 rounded-full border bg-paper px-3 py-2 text-left font-mono text-xs shadow-sm ${
+          class={`fixed bottom-4 right-4 ${LAYER.chrome} flex max-w-[min(24rem,calc(100vw-2rem))] items-center gap-2 rounded-full border bg-paper px-3 py-2 text-left font-mono text-xs shadow-sm ${
             working()
               ? "animate-pulse border-doing text-doing"
               : "border-rule text-muted hover:border-accent hover:text-ink"

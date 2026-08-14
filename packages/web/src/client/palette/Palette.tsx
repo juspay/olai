@@ -35,6 +35,7 @@ import {
   setChatOpen,
   toggleChat,
 } from "../layout/prefs.ts"
+import { LAYER, WITHIN } from "../layer.ts"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
@@ -207,7 +208,7 @@ export function Palette(props: {
     <Shortcuts open={keys()} onClose={() => setKeys(false)} />
     <Show when={paletteOpen()}>
       <div
-        class="fixed inset-0 z-50 flex items-start justify-center bg-ink/40 px-4 pt-[min(20vh,8rem)]"
+        class={`fixed inset-0 ${LAYER.over} flex items-start justify-center bg-ink/40 px-4 pt-[min(20vh,8rem)]`}
         data-testid={TESTID.palette}
         role="dialog"
         aria-modal="true"
@@ -220,7 +221,9 @@ export function Palette(props: {
           data-testid={TESTID.paletteScrim}
           onClick={close}
         />
-        <div class="relative z-10 w-full max-w-lg overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg">
+        <div
+          class={`relative ${WITHIN.raised} w-full max-w-lg overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg`}
+        >
           <input
             ref={input}
             type="text"

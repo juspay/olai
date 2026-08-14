@@ -90,3 +90,29 @@ test("only pill.ts spells the quiet pill button", () => {
   const spelling = /rounded border border-rule px-2 py-1 text-xs text-muted hover:text-ink/
   expect(filesSpelling(spelling)).toEqual(["pill.ts"])
 })
+
+// layer.ts's claim — every `z-index` in this client comes from its table. The
+// numbers were never wrong before that module existed; they were spread over
+// twenty call sites, where two of them meant something entirely different from
+// what they looked like (`chat/Sessions.tsx` drew at the palette's own `z-50`
+// while sealed inside a panel riding three layers down). What stops that
+// coming back is not the table but this: a bare utility anywhere else fails
+// here, and picking a NAME is the question a bare number lets a person skip.
+// ONE file, its own test included: `layer.test.ts` reads the utilities back
+// out of the table rather than quoting any, which is what lets this list be a
+// single name.
+test("only layer.ts spells a z-index", () => {
+  expect(filesSpelling(/(?:^|[\s"'`])z-(?:\[\d+\]|\d+|auto)(?=$|[\s"'`])/m)).toEqual(["layer.ts"])
+})
+
+// saying.ts's claim — one receptacle for how long a said-line lingers. SAID_MS
+// was pulled out beside the `Said` type because the ••• menu's dwell and the
+// Trash's "were equal only by hand-maintenance", and the constant turned out
+// to be half the job: both surfaces still spelled the machinery around it and
+// had drifted into two shapes for the same three rules. Reaching for the
+// constant again is what writing the third copy looks like from here. Two
+// names: `edit/undoing.ts` declares the number beside the type it belongs to,
+// and `saying.ts` is the only thing that counts it down.
+test("only saying.ts counts SAID_MS down", () => {
+  expect(filesSpelling(/\bSAID_MS\b/)).toEqual([path.join("edit", "undoing.ts"), "saying.ts"])
+})

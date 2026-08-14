@@ -258,6 +258,10 @@ export const CHECKBOX = selector(TESTID.checkbox);
 export const TITLE_EDITOR = selector(TESTID.titleEditor);
 /** The note as text, under the row, while it is being written. */
 export const DESC_EDITOR = selector(TESTID.descEditor);
+/** Either of them: the editor the caret is in, whichever field it is. A page
+ *  matching neither has no caret in a row, which is the state ⌘Z is answered
+ *  from — and is what `support/caret.ts` is written around. */
+export const CARET_EDITOR = `${TITLE_EDITOR}, ${DESC_EDITOR}`;
 /** A row that does not exist yet — an editor standing where `Enter` will put
  *  one. Finding one is finding a DRAFT, never a write. */
 export const NEW_ROW = selector(TESTID.newRow);
@@ -278,6 +282,23 @@ export const EDIT_REFUSAL = selector(TESTID.editRefusal);
 export const UNDO_SAID = selector(TESTID.undoSaid);
 /** The way in on a page with no rows at all. */
 export const START_LINE = selector(TESTID.startLine);
+/** The bullet, as something to pick a row up by. Present on every editable
+ *  row; a press that never travels is still the bullet's own link. */
+export const DRAG_HANDLE = selector(TESTID.dragHandle);
+/** The line drawn where a dragged row would land — present only while one is
+ *  being dragged. `data-parent`, `data-after` and `data-depth` are what it
+ *  PROMISES, which is a prediction right up until the pointer is released. */
+export const DROP_LINE = selector(TESTID.dropLine);
+/** The bar a multi-selection draws. `data-rows` is the count the bulk verbs
+ *  are asked of — the picked rows nothing else picked contains. */
+export const SELECTION_BAR = selector(TESTID.selectionBar);
+export const SELECTION_TRASH = selector(TESTID.selectionTrash);
+export const SELECTION_CONFIRM = selector(TESTID.selectionConfirm);
+/** Said in the Trash button's place when the pick holds a placement. */
+export const SELECTION_NOTE = selector(TESTID.selectionNote);
+/** What the last bulk gesture — a key over the pick, or a drop — had to say.
+ *  `data-tone` is which of the two moods it is in. */
+export const SELECTION_SAID = selector(TESTID.selectionSaid);
 /** The heading of a zoomed page. Carries the CANONICAL node's id, which is
  *  what lets a scenario say "zooming a mirror lands on the node itself". */
 export const ZOOM_TITLE = selector(TESTID.zoomTitle);
@@ -1256,6 +1277,35 @@ export class OlaiWorld extends World {
       .split("\n")
       .filter((line) => line.trim() !== "")
       .map((line) => JSON.parse(line) as Record<string, unknown>);
+  }
+
+  /**
+   * The same records, off a file the served set MAY NOT HOLD YET — the reader
+   * every assertion that WAITS for something to arrive in one goes through.
+   *
+   * Some writes in this app mint the file they land in: `archive` writes
+   * `Archive.jsonl` the first time anything is put away. A scenario polling
+   * for a node to ARRIVE there is polling for the FILE too, and a reader that
+   * threw would fail on the first poll — at speed it usually does not, under
+   * load it does, and what the failure then names is an ENOENT out of a helper
+   * rather than the claim that was being made. Nothing written yet is "nothing
+   * there yet", which is safe here precisely BECAUSE every caller waits: a
+   * file that never arrives still fails, as the assertion it was making.
+   *
+   * ENOENT and nothing else. A line that is not JSON, or a directory where a
+   * file should be, is a fault this suite reports rather than polls through.
+   *
+   * A step that WRITES the served directory calls {@link servedNodes} instead:
+   * there, a missing file is a scenario naming something its corpus does not
+   * hold, and it should say so the moment it is asked.
+   */
+  servedNodesSoFar(file: string): ReadonlyArray<Record<string, unknown>> {
+    try {
+      return this.servedNodes(file);
+    } catch (cause) {
+      if ((cause as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw cause;
+    }
   }
 
   /** One more record at the end of a served outline, as another writer would

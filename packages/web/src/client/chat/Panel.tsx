@@ -38,6 +38,7 @@ import {
   setChatSnap,
   type ChatSnap,
 } from "../layout/prefs.ts"
+import { LAYER, WITHIN } from "../layer.ts"
 import { TESTID } from "../testids.ts"
 import { ICON_BUTTON } from "../readout.ts"
 import { Composer } from "./Composer.tsx"
@@ -178,14 +179,14 @@ function DesktopDock() {
 
   return (
     <aside
-      class="fixed right-0 top-[var(--height-header,3rem)] z-30 flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] max-w-full flex-col border-l border-rule/70 bg-desk"
+      class={`fixed right-0 top-[var(--height-header,3rem)] ${LAYER.page} flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] max-w-full flex-col border-l border-rule/70 bg-desk`}
       style={{ width: `${chatWidth()}px` }}
       data-testid={TESTID.chatPanel}
       data-status={chat.state().status}
       data-layout="dock"
       aria-label="agent"
     >
-      <div class="absolute inset-y-0 left-0 z-10">
+      <div class={`absolute inset-y-0 left-0 ${WITHIN.raised}`}>
         <ChatHandle />
       </div>
       <Face chat={chat} />
@@ -248,7 +249,7 @@ function MobileSheet() {
 
   return (
     <div
-      class="fixed inset-x-0 bottom-0 top-[var(--height-header,3rem)] z-40 md:hidden"
+      class={`fixed inset-x-0 bottom-0 top-[var(--height-header,3rem)] ${LAYER.chrome} md:hidden`}
       data-testid={TESTID.chatSheet}
     >
       <button

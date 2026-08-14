@@ -25,6 +25,7 @@ import {
   oneLine,
   POLL_TIMEOUT,
 } from "../support/world.ts";
+import { theListIsGone } from "../support/caret.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const panel = (world: OlaiWorld) => world.page.locator(COMPLETIONS);
@@ -45,12 +46,11 @@ Then(
 );
 
 /** Nothing armed, or nothing matched — which are the same thing on screen and
- *  deliberately so: a widget with nothing to offer draws no box. */
+ *  deliberately so: a widget with nothing to offer draws no box. The same verb
+ *  the key ritual waits on, asked as a promise, so the two cannot drift about
+ *  what "no list" means. */
 Then("no completions are open", async function (this: OlaiWorld) {
-  await this.waitUntil(
-    async () => (await panel(this).count()) === 0,
-    "the completion list to be gone from the page",
-  );
+  await theListIsGone(this);
 });
 
 // ── what is in it ──────────────────────────────────────────────────────
@@ -134,7 +134,11 @@ When(
     const row = rows(this).filter({ hasText: label }).first();
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await row.click();
-    await this.waitForFrame();
+    // The same receipt Enter is waited on with (`../support/caret.ts`): a
+    // completion taken removes the trigger it was typed after, so the list
+    // going IS the client saying it took one. Without it the next step reads a
+    // line the pointer has not finished rewriting.
+    await theListIsGone(this);
   },
 );
 

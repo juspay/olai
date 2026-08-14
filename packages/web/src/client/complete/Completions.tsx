@@ -34,6 +34,7 @@
 
 import { Index, Show } from "solid-js"
 
+import { LAYER } from "../layer.ts"
 import { Result } from "../search/Result.tsx"
 import { TESTID } from "../testids.ts"
 import type { Listing } from "./completing.tsx"
@@ -44,7 +45,13 @@ export function Completions(props: { readonly listing: Listing }) {
     // here — see `Listing.showing`.
     <Show when={props.listing.showing()}>
       <div
-        class="absolute top-full left-0 z-30 mt-1 w-[min(24rem,80vw)] overflow-hidden rounded-md border border-rule/70 bg-panel shadow-lg"
+        // `LAYER.row` is the whole stacking claim, and it is the `•••` menu's
+        // (`../layer.ts`): this hangs off a ROW, in the outline's own flow, so
+        // it covers the rows under it and gives way to every piece of chrome —
+        // a list opened under the header or beside the chat dock is the one
+        // that goes. A bare number here would be the twentieth call site that
+        // could only be read by looking at the other nineteen.
+        class={`absolute top-full left-0 ${LAYER.row} mt-1 w-[min(24rem,80vw)] overflow-hidden rounded-md border border-rule/70 bg-panel shadow-lg`}
         data-testid={TESTID.completions}
         // WHICH widget this is, as a fact in the markup rather than as a guess
         // from what is in it — the same contract every other panel in this

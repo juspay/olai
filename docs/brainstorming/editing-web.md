@@ -40,7 +40,7 @@ Two more things the build settled, both of which started as the obvious shape an
 - **Split/merge deferred** to its own editor-growth item: in the first PR, Enter always adds a sibling and Backspace only edits text.
 - ~~**Undo deferred** out of the first PR~~ **SHIPPED as `undo`**, and the leading candidate is what it turned out to be: client-side op inverses, "undo *my* last op", concurrent-editor-safe. See below.
 - **Desc editing**: `Shift+Enter` opens a plain textarea under the node; rendered markdown returns on blur. Desc is one verbatim string — a textarea is honest, and the draft-cell model applies unchanged.
-- **First-PR keybinding set**: Enter (add sibling), Tab/Shift+Tab (indent/outdent), Alt+Shift+↑↓ (move), Ctrl+Enter (toggle done), Shift+Enter (desc), delete. Multi-select, drag-drop, `((` mirror creation, `!` date picker, `#` autocomplete: editor growth.
+- **First-PR keybinding set**: Enter (add sibling), Tab/Shift+Tab (indent/outdent), Alt+Shift+↑↓ (move), Ctrl+Enter (toggle done), Shift+Enter (desc), delete. Multi-select, drag-drop, `((` mirror creation, `!` date picker, `#` autocomplete: editor growth. ~~Multi-select and drag-drop~~ **shipped 2026-08-13**, and ~~`((` mirror creation, `!` date picker, `#` autocomplete~~ **shipped 2026-08-14** — see the sections on them below.
 
 ## Revised after the human drove it (2026-08-11)
 
@@ -148,6 +148,101 @@ it are all consequences of one choice: an undo is a WRITE.
 What it is NOT: a snapshot restore, persisted, cross-tab, or aware of the
 agent's writes. ⌘Z takes back what THIS tab did, on THIS outline, this session.
 
+## Drag-drop and multi-select, as they shipped (2026-08-13)
+
+The item this file's inventory filed twice, and the whole of what it needed
+from the layers below was **nothing**. No wire verb, no op, no change to the
+planner. That is worth stating first because it is the result rather than the
+approach: a drop is "this row goes under that parent, after that sibling",
+which is `place` — the verb minted for an undo, and the one placement `Anchor`
+cannot spell — and a bulk gesture is the single-row edit repeated. Five things
+the build decided:
+
+- **A drop is a GAP plus a DEPTH, not a target row.** Workflowy's gesture is a
+  caret for the tree. A gap alone cannot tell "last child of the branch above"
+  from "next sibling of that branch's parent" — those are the same line on
+  screen — so the pointer's X is read as well, and the indicator moves sideways
+  to say which was meant. That is the one piece of real arithmetic here and it
+  is pure over measured rows (`web/src/client/drag/plan.ts`).
+- **Pointer events, not HTML5 drag-and-drop**, which is the call
+  `layout/resize.ts` already made for the panel edges and for the same reason:
+  the browser's gesture owns a ghost image, a protected data store and an
+  element-based `dragover`, none of which is what a gap-and-depth drop wants.
+  The half nobody predicts is that the native one must be turned OFF — a bullet
+  is an `<a href>`, every link is draggable for free, and the platform's
+  link-drag fires `pointercancel` at the gesture underneath it. That was the
+  whole of "the indicator appears for one frame and vanishes".
+- **The rows being carried are left OUT of the ones a drop can land beside.**
+  Which makes "you cannot drop a branch inside itself" true by construction
+  rather than by a guard — and leaves a tree behind, so the walk back for an
+  ancestor always finds one. The ops layer's loop refusal is still there; it is
+  simply unreachable by this gesture.
+- **A pick and a caret are never both live, and that is what lets the keys be
+  the same keys.** `Tab` over a pick indents the pick; `Tab` in a row indents
+  the row. Picking rows closes the draft (committing it first — a pick is not a
+  way to abandon what was typed), and clicking a title puts the pick away. A
+  third key layer that had to coexist with the row layer would have needed a
+  second grammar for bulk, which is a thing to learn rather than a thing to
+  already know.
+- **The ORDER a bulk run goes out in IS the shape it produces.** Each edit is
+  judged against what the one before it did, so indenting a run goes downwards
+  (`B` under `A`, then `C`'s row above is `A` again, so it follows `B` under it)
+  and outdenting goes upwards (downwards, each row lands immediately after the
+  old parent and the run comes out backwards). Two lines of table, and the only
+  thing in this feature that a reader would have to re-derive.
+
+Two things it deliberately did not do. **Drag-across** — Workflowy's fifth
+picking gesture — is not built: it wants a marquee over a tree that also has
+native text selection in it, and the other four gestures reach every pick it
+would. And **there is still no delete key**: the bulk put-away is a button on
+the selection bar, behind the same confirm the `•••` menu asks, because the
+human's 2026-08-11 ruling is precisely a ruling about a chord that takes a
+branch away — a bulk one would be that at its worst.
+
+## The three input widgets, as they shipped (2026-08-14)
+
+`!`, `#`/`@` and `((` in a row's title. What the build decided, in the order a
+reader of this page would otherwise have to rediscover it:
+
+- **`@` became a TAG in the format, not a trigger character with a costume.**
+  The item's own scope says the completion is "over tags that exist in the
+  loaded set", and a widget whose `@` inserted text the set does not recognise
+  would be writing decoration. So `titleTagRe` matches both sigils and
+  `TitlePart` carries which one — two NAMESPACES, `#alice` and `@alice` being
+  different tags, which is the whole reason a person reaches for one rather
+  than the other. The asymmetry that came with it is deliberate: `@` is claimed
+  only where a WORD STARTS, because `srid@srid.ca` is an address, while `#`
+  keeps the alphabet it has had since the format's first day (narrowing it
+  would restyle titles in sets already written). Agent-visible consequence:
+  `read_node`'s `tags` reports them AS WRITTEN.
+- **A `((` mirror cannot go inside a sentence, so it goes beside it.** In
+  Workflowy a mirror is an inline reference; here a mirror is a whole ROW —
+  exactly `{id, parent, ord, mirror}`, with no text of its own — and the line
+  you typed in decides which of the two readings you get. A line that is still
+  a DRAFT with nothing else in it BECOMES the placement, which is Workflowy's
+  gesture exactly (Enter, `((`, choose) and falls out of what a draft already
+  is: an empty one writes no node, so the row that was going to be minted there
+  simply is the mirror. A line with WORDS keeps them, committed first like
+  every structural key, and the placement is the next row.
+- **Nothing is added after a chosen tag — not even a space.** Workflowy adds
+  one; a title here is stored verbatim, so a character nobody typed is a
+  character in somebody's git history. What ends the list instead is the
+  completion being taken.
+- **The `!` list is the natural-language half only.** The browser's own
+  calendar is still reached from the date pill and the `•••` menu. A vocabulary
+  filtered by PREFIX (so `tom` offers `tomorrow` with no rule about
+  abbreviations anywhere) plus three regexes for the forms with a number in
+  them, and every row prints the day it means, because `next friday` is an
+  argument about which Friday.
+
+Three things came out of the build that are not about widgets at all, and are
+recorded here because the next editor item will meet them: `keys.ts` grew a
+THIRD matcher layer (`listKey`, what the bare keys mean while a shortlist is
+up), `search/cursor.ts` is now the one cursor four shortlists are walked with,
+and `edit/redraws.ts` says which writes can move the row they were made in —
+which is the difference between suppressing a blur for good reason and for
+none.
+
 ## Open
 
 - **Is an archived node FROZEN?** Raised by the review of `trash-parity`
@@ -179,6 +274,16 @@ agent's writes. ⌘Z takes back what THIS tab did, on THIS outline, this session
 - ~~**A write's `nudge` has nowhere to go on the keyboard path.**~~ **Closed in this item**: it is a dim line under the row, dismissed by the next keystroke. See above.
 - **Keeping a caret across a server-authoritative redraw is a primitive nobody owns.** The editor holds a focused element through a frame it did not cause — the write answers on one channel and the file arrives on another, in either order, and the redraw either moves the element or replaces the branch that drew it. That is not an outline problem; it is what any editor over this kind of live store has to solve, and olai has graduated this shape before (`listener.ts`'s sequence became `@kolu/surface-app`'s `serveSurfaceApp`, kolu#2137). One consumer today, so it stays where it is used (`web/src/client/edit/editing.tsx`) — recorded here so the second consumer is the moment somebody remembers, rather than the moment somebody re-derives it.
 
+  **The second consumer arrived (`dragdrop-multiselect`, 2026-08-14)**, and it
+  moved: a multi-selection is a SET of places, and a bulk indent redraws every
+  one of them under a new chain of ids. The half that is arithmetic — where the
+  record standing at this place is drawn now — is `refound` in
+  `web/src/client/edit/order.ts`, beside the other two questions about the rows
+  on screen, and both the caret and the pick are one line over it. What is still
+  nobody's, and is the half the paragraph above is really about, is holding the
+  FOCUS through that frame; that remains one consumer's (`editing.tsx`'s
+  `settling`), and the graduation note stands for it.
+
 ## The full Workflowy modification inventory — researched 2026-08-12
 
 Every way a Workflowy user changes their outline, from the official hotkey
@@ -200,8 +305,8 @@ Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
 | Indent / outdent | `Tab` / `Shift+Tab` (also `Alt+Shift+→/←`) | shipped (#109) |
 | Move among siblings | `Alt/Ctrl+Shift+↑↓` | shipped (#109) |
 | Split at caret / merge into previous | `Enter` mid-text / `Backspace` at line start | filed `split-merge` |
-| Drag-drop subtree | drag the bullet | filed `dragdrop-multiselect` |
-| Multi-select + bulk complete/move/indent/delete | five gestures | filed `dragdrop-multiselect` |
+| Drag-drop subtree | drag the bullet | **shipped** (`dragdrop-multiselect`) — pointer events, not HTML5 DnD; the drop is a GAP plus a DEPTH, sent as the surface's existing `place` verb |
+| Multi-select + bulk complete/move/indent/delete | five gestures | **shipped** (`dragdrop-multiselect`), four of the five: modifier-click, shift-click, shift-arrows, double `⌘A`. DRAG-ACROSS is not built — it wants a marquee over a tree that also has text selection in it. Bulk complete / move / indent / drag are the single-row op repeated; "delete" is the Trash, on the bar, behind the same confirm the `•••` menu asks |
 | **Duplicate** (subtree; result auto-tagged `#copy`; also `Alt+Drag` clone) | `Alt/⌘+Shift+D`, menu | **MISSING** |
 | **Move to** (search dialog; moves subtree anywhere, across lists) | slash command, menu | **MISSING** — olai's version is the harder cross-OUTLINE move: `parent` is same-file by the format, so this is an op design (move vs re-create vs mirror), not just a dialog |
 | **Delete** (recoverable from Trash) + **Trash restore** | `Ctrl/⌘+Shift+Backspace`, menu | ruled 2026-08-11: still no delete affordance. olai's trash is `Archive.jsonl`, and ARCHIVE has one — the `•••` menu's `Move to Trash` (né `Archive`), subtree with a confirm naming the blast radius (human, 2026-08-12), closing `parity-archive`. **Trash restore shipped too** (`trash-parity`, 2026-08-13, closing `parity-unarchive`): the sidebar's Trash draws every archive read-only, `Put back` sends the `unarchive` op both faces got together, and the confirm now promises the bin it implies |
@@ -229,11 +334,11 @@ Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
 
 | Op | Workflowy trigger | olai |
 |---|---|---|
-| Mirror creation | `((` search, `Alt/⌘+Shift+M`, menu | filed `input-widgets` |
+| Mirror creation | `((` search, `Alt/⌘+Shift+M`, menu | **shipped** (`input-widgets`): `((` in a title searches the set through the palette's own procedure and places the node you pick. No chord — `Alt+Shift+M` would need a node named already, and the widget IS the naming |
 | **Mirror detach (back to copy) / remove placement** | menu | remove placement shipped (`menu-verbs`): `Remove this placement`, drawn on any row whose RECORD is a placement (asked of the record, so the degenerate rows need no case — though a set holding a mirror of nothing is refused by the validator, so such a row is not on screen anyway) — and refused in the op's own words when something still names the placement. DETACH (turn a mirror back into a copy) is not olai's gesture and is not filed: it would mint a new node, which is a duplicate rather than a removal |
 | **Copy link to node** (internal link others can paste) | `Alt/⌘+Shift+L`, menu | partial — the `•••` menu HAS "Copy link to node" (corrected 2026-08-12; the first pass of this table missed it); no keybinding, and nothing autocompletes an internal link in a title |
-| Tag autocomplete | `#` / `@` | filed `input-widgets` |
-| Date insert | `!` natural-language picker | filed `input-widgets`; CLEARING a stored date shipped (`menu-verbs`) — `Clear date`, drawn only on a dated row — so what is left for that item is putting one ON, which is a thing you type rather than a thing you choose from a list |
+| Tag autocomplete | `#` / `@` | **shipped** (`input-widgets`), and it took a FORMAT change with it: `@` is a tag sigil now, its own namespace beside `#`, claimed only where a word starts so an email address is not one |
+| Date insert | `!` natural-language picker | **shipped** (`input-widgets`): `!` and a phrase, over a vocabulary filtered by prefix plus three numbered forms — every row prints the day it means. The CALENDAR is still the pill's and the menu's; CLEARING a stored date shipped (`menu-verbs`) — `Clear date`, drawn only on a dated row — so what is left for that item is putting one ON, which is a thing you type rather than a thing you choose from a list |
 
 ### Clipboard and interchange
 
@@ -285,10 +390,15 @@ intent union and a resolver arm beside it, sending the request the equivalent
 tool sends. What that left, in order of what it would take:
 
 - `set_see` / `set_after` (`parity-see`, `parity-after`): both want a node
-  SEARCH to name the other end, which is the same widget `input-widgets` is
-  building for `((`. A menu entry cannot ask "which node?".
+  SEARCH to name the other end, and that widget EXISTS now (`input-widgets`'
+  `((`, over `search/nodes.ts`). What is missing is the two verbs on the wire,
+  not the way to ask "which node?".
 - `create_outline` (`parity-create-outline`): the sidebar's, not a row's.
-- setting a date: the `!` picker, `input-widgets`.
+- ~~setting a date: the `!` picker, `input-widgets`.~~ **Closed** — and
+  `add_mirror` went with it, which was not on this list at all because nobody
+  had noticed the surface could retire a placement it had no way to make.
+  Both are arms on the same intent union: `date` was already there for the
+  menu's `Clear date`, and `mirror` is new beside `unmirror`.
 - ~~UNARCHIVE (`parity-unarchive`): still no op on either face, and the one
   entry here that is an equal absence rather than a deviation.~~ **Closed
   2026-08-13 (`trash-parity`)**: the op was born in the ops layer and both
