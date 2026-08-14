@@ -21,9 +21,17 @@ import { Effect } from "effect"
 
 import { adopt, make } from "./agent.ts"
 import type { Stored } from "./events.ts"
-import { nothing } from "./memory.ts"
+import type { Memory } from "./memory.ts"
 
 const NOWHERE = "/nonexistent/olai-test/acp-agent"
+
+/** A boot that never reaches a session has nothing to remember, so it is given
+ *  a memory that keeps nothing. Here rather than beside the real one
+ *  ({@link ./memory.ts}), which no caller would have a use for. */
+const REMEMBERS_NOTHING: Memory = {
+  recall: Effect.succeed(null),
+  remember: () => Effect.void,
+}
 
 /** The list as {@link storedFor} hands it over: newest first. */
 const NEWEST: Stored = { id: "b", title: "somebody else's", updatedAt: "2026-08-13T10:00:00Z" }
@@ -64,8 +72,7 @@ describe("an agent that will not start", () => {
         args: [],
         cwd: process.cwd(),
         tools: () => null,
-        // Nothing to remember: this boot never reaches a session.
-        memory: nothing,
+        memory: REMEMBERS_NOTHING,
         onEvent: () => {},
       }),
     )

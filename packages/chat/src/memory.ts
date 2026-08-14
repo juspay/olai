@@ -47,6 +47,24 @@
  *
  * A missing file is NOT a failure. It is the answer on the first serve of a
  * directory, and the answer after the state directory has been cleaned out.
+ *
+ * ## Two things this deliberately is not
+ *
+ * **Not `FileSystem` from `effect`**, which is what `@olai/store` reads a
+ * directory through and would otherwise be the house answer: asking for that
+ * service puts it in the REQUIREMENTS of every effect that touches it, and this
+ * one is reached from `agent.ts`, whose verbs are `Effect<A, AgentGone>` with
+ * nothing to provide them — so adopting it here means threading a layer through
+ * the chat package, the composition root and back, to write eighty bytes.
+ * `attachments.ts`, the sibling that owns this conversation's other directory
+ * on disk, reaches for `node:fs/promises` for the same reason.
+ *
+ * **Not a receptacle for "where this machine keeps olai's state"**, though that
+ * is what it would be at population two: the state home resolved once, and the
+ * files under it named in one place, rather than a second module doing this
+ * again for a semantic index's cache or a window's last size. Population is ONE
+ * — recorded here rather than extracted, which is the rule (prove, then
+ * extract), and named so the second one is a move rather than a rediscovery.
  */
 
 import { reasonOf } from "@olai/log"
@@ -73,14 +91,6 @@ export interface Memory {
   /** ... and writing one down. Called whenever the panel enters a
    *  conversation, which is the only moment the answer changes. */
   readonly remember: (id: string) => Effect.Effect<void, MemoryFailure>
-}
-
-/** A memory that keeps nothing: every boot is a first boot. For a caller with
- *  no session to remember — the unit tests that only ever fail to spawn — and
- *  for anywhere a state directory would be the wrong thing to write into. */
-export const nothing: Memory = {
-  recall: Effect.succeed(null),
-  remember: () => Effect.void,
 }
 
 /** What one of these files holds. The `cwd` is not redundant with the name: the

@@ -21,7 +21,7 @@ import { chmodSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { forDirectory, nothing } from "./memory.ts"
+import { forDirectory } from "./memory.ts"
 
 let state = ""
 const was = process.env["XDG_STATE_HOME"]
@@ -134,13 +134,5 @@ describe("a memory that cannot be trusted", () => {
     } finally {
       chmodSync(state, 0o700)
     }
-  })
-})
-
-describe("a memory that keeps nothing", () => {
-  test("recalls nothing and writes nothing", async () => {
-    await Effect.runPromise(nothing.remember("session-a"))
-    expect(await Effect.runPromise(nothing.recall)).toBe(null)
-    expect(files()).toEqual([])
   })
 })
