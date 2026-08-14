@@ -10,13 +10,15 @@
  * of the geometry was already shared (`./anchor.ts`), and this is the stateful
  * half catching up.
  *
- * TWO ROOTS, and that is the bug worth naming. A panel here is PORTALLED out of
- * whatever the trigger sits in, so the trigger is not its ancestor and neither
- * of them can speak for the other: a click-away that knew only the panel shut
- * on every press of the trigger — and since the trigger's own click then
- * reopened it, pressing it a second time did nothing at all. Both are consulted
- * here, so the trigger toggles and a press inside the panel is a press inside
- * the panel.
+ * WHICH GESTURES SHUT IT is `./dismiss.ts` — the pointer outside and Escape, in
+ * the one spelling every dismissable surface in this client now uses. Both
+ * roots are handed to it (see its `trigger`), which is the bug worth naming: a
+ * panel here is PORTALLED out of whatever the trigger sits in, so a click-away
+ * that knew only the panel shut on every press of the trigger — and since the
+ * trigger's own click then reopened it, pressing it a second time did nothing
+ * at all. What is left in this file is what shutting MEANS here: the caret goes
+ * back to the trigger when a keyboard asked, and stays where the pointer put it
+ * otherwise.
  *
  * FOCUS goes back to the trigger when the dismissal came from a key, and is
  * left where the pointer put it otherwise. Somebody who opened a panel, tabbed
@@ -58,6 +60,7 @@
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
 
 import { type Anchor, anchoredTo } from "./anchor.ts"
+import { dismissOn } from "./dismiss.ts"
 
 export interface Popover {
   readonly open: Accessor<boolean>
@@ -128,23 +131,21 @@ export const createPopover = (): Popover => {
     }))
   }
 
-  // Scoped to the open state, so a shut panel is not four document listeners
+  // A pointer outside it and Escape, in this client's one spelling of them —
+  // and only the one a keyboard can make puts the caret back on the trigger.
+  dismissOn({
+    open,
+    panel: () => panel,
+    trigger: () => trigger,
+    dismiss: (how) => close(how === "escape"),
+  })
+
+  // Scoped to the open state, so a shut panel is not three document listeners
   // for nothing; disposed with the effect when it closes or the owner unmounts.
   createEffect(() => {
     if (!open()) return
     measure()
-    const onPointer = (event: PointerEvent) => {
-      const target = event.target
-      if (!(target instanceof Node)) return
-      if (trigger?.contains(target) || panel?.contains(target)) return
-      close()
-    }
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault()
-        close(true)
-        return
-      }
       if (event.key !== "Tab") return
       // The cycle, in tab order: the control that opened it, then what is
       // inside it. Read fresh on every press, because a panel's controls come
@@ -170,17 +171,12 @@ export const createPopover = (): Popover => {
       const step = event.shiftKey ? -1 : 1
       cycle[(at + step + cycle.length) % cycle.length]?.focus()
     }
-    // Capture, so a press that also navigates still shuts this first — and so
-    // the trigger's own click can toggle without racing a bubble-phase
-    // listener.
-    document.addEventListener("pointerdown", onPointer, true)
     document.addEventListener("keydown", onKey)
     window.addEventListener("resize", measure)
-    // Capture for `scroll` as well: what moves under a panel may be a column
-    // rather than the document, and a scroll event does not bubble.
+    // Capture for `scroll`: what moves under a panel may be a column rather
+    // than the document, and a scroll event does not bubble.
     document.addEventListener("scroll", measure, true)
     onCleanup(() => {
-      document.removeEventListener("pointerdown", onPointer, true)
       document.removeEventListener("keydown", onKey)
       window.removeEventListener("resize", measure)
       document.removeEventListener("scroll", measure, true)

@@ -686,6 +686,21 @@ Dismissal is therefore a pointer outside it, Escape, or the trigger again; the
 two a keyboard can reach put focus back on the trigger. A theme pick does NOT
 dismiss it: a palette is judged by looking at the page it paints.
 
+**The two gestures themselves are `dismiss.ts`, and they are one spelling for
+the whole client.** Every dismissable surface here had its own copy of "a
+pointer down outside it, capture phase" — these two popovers, a row's expanded
+note (`note/expand.ts`), and the `•••` menu, which had a fourth — and they
+agreed about almost everything and drifted where they did not. `dismiss.ts`
+holds what is common (which roots count as inside, and only listening while the
+panel is up) and leaves each caller what "shut" MEANS: focus back on the
+trigger here, nothing to remember there. It is built on Kobalte's own
+`createInteractOutside` / `createEscapeKeyDown` rather than on a listener pair
+of ours, so the panels that are not primitives yet shut by exactly the code the
+one that is (the `•••` menu) shuts by — and a touch, which every copy here
+handled by never considering it, defers to the `click` that follows. The note
+gained Escape by being deduped: it is the model that note already keeps, where
+expanding and editing are one state you leave at once.
+
 **And focus has to get IN, which is the other half of the portal's price.** The
 theme popover this replaced was laid out inside its trigger's own box, so the
 chips were next in document order and Tab reached them; a panel appended to
@@ -1331,8 +1346,9 @@ loop a person is in, and nothing about outlines:
   the clamped line, the rendered note and the editor cannot disagree about size
   or tone), and clicking one puts the caret in it — expanding and editing are
   one gesture, because a clamped line is not something anybody can type into.
-  Click away and it folds back, exactly as it did before; the full RENDERED
-  note is the node's own page, where a note has always been the body.
+  Click away — or press Escape, since it shuts by the client's one dismissal
+  (`dismiss.ts`, above) — and it folds back, exactly as it did before; the full
+  RENDERED note is the node's own page, where a note has always been the body.
 - **Two keys write the three marks, and they are one modifier apart.** `Enter`
   is the row's key and what is held says which kind of change it is:
   `Ctrl+Enter` finishes something (and takes that back), `Ctrl+Shift+Enter`
@@ -1457,6 +1473,36 @@ would have sent, judged by the same planner and refused in the same words.
 The write gate itself is `../writes.ts`, one level up: two surfaces send a
 pointer's write now (this menu and the date picker), and the four lines that
 turn a refusal or a nudge into a sentence may not have two copies.
+
+**The menu itself is `@kobalte/core`'s `DropdownMenu`, not ours.** Being open,
+where the panel goes, the pointer outside that shuts it, Escape, the focus that
+returns to the `•••` afterwards, and the arrow keys that walk the list are the
+SolidJS ecosystem's accessible primitive doing them (HACKING.md — "make full
+use of the ecosystem of libraries in SolidJS instead of hard-rolling"). What
+this file had instead was a fourth copy of the same forty lines, with
+`role=menu` and the keyboard that role promises deliberately left out *because
+the copy did not implement them*; the list is a real menu now, and
+`features/menu_panel.feature` holds both halves — the three dismissals, which
+were true before and untested, and the keyboard, which is what adopting the
+primitive bought. The panel is drawn exactly where the hand-rolled one was:
+
+- **`placement="bottom-start"`, `gutter={2}`** is what `absolute left-0 top-full
+  mt-0.5` was, and the content is NOT portalled — Kobalte's positioner is an
+  absolute box in the row's own positioned root, so the panel still scrolls with
+  its anchor and the open menu is still inside `group/row`. Floating-ui flips it
+  above the row near the bottom of the window, which the hand-rolled one could
+  not do.
+- **`modal={false}`**: a row menu is not the only thing on the page, and the
+  panel this replaces locked no scroll, disabled no outside pointer and trapped
+  no focus.
+- **the caret is put into the panel on open** (`queueMicrotask`, the same one
+  `popover.ts` uses), because Kobalte's own mount focus lands only for a
+  portalled content — without it a menu opened with the keyboard would leave the
+  caret on the `•••` and the arrow keys would have nothing to walk.
+- **the `•••` stays lit while its menu is open** — `data-[expanded]` in
+  `touch.ts`' `MENU_REVEAL`, which is steadier than the focus-within it used to
+  ride on, since a menu's own list takes and drops the caret as a pointer moves
+  over it.
 
 - **The reads are still first, and a rule separates them.** Above it, verbs
   that change what this tab is looking at (zoom, the four folds, copy link);

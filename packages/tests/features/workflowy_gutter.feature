@@ -2,8 +2,9 @@
 Feature: Workflowy gutter
   The outline gutter matches Workflowy: a filled bullet, a gray halo when
   children are hidden, a hover-reveal `•••` menu and collapse triangle left of
-  the bullet. What that menu can DO to a node is `menu_verbs.feature`; this is
-  the gutter it hangs in, and the reading verbs it has always had.
+  the bullet. What that menu can DO to a node is `menu_verbs.feature` and how
+  its panel opens and shuts is `menu_panel.feature`; this is the gutter it
+  hangs in, and the reading verbs it has always had.
 
   Background:
     Given I open the outline "house.jsonl"

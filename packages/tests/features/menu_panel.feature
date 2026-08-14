@@ -1,0 +1,62 @@
+@corpus:good
+Feature: The ••• menu opens and shuts
+  The panel itself, rather than what its verbs do (`menu_verbs.feature`) or the
+  gutter it hangs in (`workflowy_gutter.feature`): the ways a person puts it
+  away, and the keyboard that walks it.
+
+  It is a `@kobalte/core` DropdownMenu — the SolidJS ecosystem's accessible
+  primitive — where it used to be this client's fourth hand-rolled dismissable
+  panel. Everything below was true of the hand-rolled one and untested (the
+  three dismissals), or is what adopting the primitive BOUGHT (the arrow keys,
+  which the hand-rolled list deliberately did not implement and said so). Both
+  halves belong here: a swap nothing holds to the old behaviour is a swap that
+  can quietly change it.
+
+  Background:
+    Given I open the outline "house.jsonl"
+
+  Scenario: Escape puts the menu away
+    When I open the node menu of "kitchen"
+    And I press "Escape"
+    Then the node menu is closed
+
+  Scenario: A pointer outside puts the menu away
+    When I open the node menu of "kitchen"
+    And I click away from the node menu
+    Then the node menu is closed
+
+  Scenario: The ••• again puts it away
+    # The two-roots bug, from the other side: a dismissal that read the press
+    # of an open menu's own trigger as a press outside would shut the panel and
+    # then have the trigger's own click reopen it, so the second press would do
+    # nothing at all. Kobalte excludes the trigger; this is what says so.
+    When I open the node menu of "kitchen"
+    And I press the node menu of "kitchen"
+    Then the node menu is closed
+
+  Scenario: The keyboard opens it, reaches an entry, and chooses
+    # What the primitive brought. The panel this replaced was a plain list of
+    # buttons — "not role=menu: we do not implement roving focus / arrow keys",
+    # in its own words — so a keyboard could only Tab through them one at a
+    # time. Enter on the `•••` opens the menu with the caret inside it, Home
+    # goes to the first entry (`Zoom in`) and Enter chooses it.
+    Given I mark the page
+    When I open the node menu of "kitchen" with the keyboard
+    And I press "Home"
+    And I press "Enter"
+    Then the zoomed node is "kitchen"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: ArrowDown walks the entries in order
+    # Two down from `Zoom in` is `Collapse` (`menu_verbs.feature` holds the
+    # whole list, in order): a walk that stopped short or ran on would choose
+    # something else, and every entry around it does something visible.
+    Given the node "kitchen" is expanded
+    When I open the node menu of "kitchen" with the keyboard
+    And I press "Home"
+    And I press "ArrowDown"
+    And I press "ArrowDown"
+    And I press "Enter"
+    Then the node "kitchen" is collapsed
+    And the children of "kitchen" are hidden

@@ -8,6 +8,13 @@
  * phone lays one out at all. That is a fact about the row; everything here is
  * about the panel.
  *
+ * TWO features are served from here, which is the exception to one-file-per-
+ * feature and the reason worth writing down: `menu_verbs.feature` is what the
+ * menu DOES to a node and `menu_panel.feature` is how the panel opens and
+ * shuts, and both drive it through the same three gestures. A second copy of
+ * "open it, then wait for the panel" is exactly the drift this suite spends
+ * its selectors avoiding.
+ *
  * The one thing this file is careful about is TONE. What a verb said is drawn
  * in one place in two moods — a refusal, in the ops layer's own words, and a
  * remark from a write that landed — and a scenario that could not tell them
@@ -41,6 +48,59 @@ When(
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
+
+/** The `•••` pressed, with nothing waited for afterwards — which is what a
+ *  scenario asking what the SECOND press does needs. `I open the node menu of`
+ *  above waits for the panel and would time out on the press that shuts it. */
+When(
+  "I press the node menu of {string}",
+  async function (this: OlaiWorld, id: string) {
+    await revealGutter(this, id);
+    await this.within(id, NODE_MENU).click({ force: true });
+    await this.waitForFrame();
+  },
+);
+
+/** The `•••` opened the way a keyboard opens it: the caret on the trigger,
+ *  then Enter. Distinct from the pointer step above because that is what the
+ *  scenario about walking the entries is ABOUT — a menu opened by a click
+ *  leaves the caret on the button the pointer pressed, exactly as the panel
+ *  this replaced did, and one opened by a key puts it in the panel. */
+When(
+  "I open the node menu of {string} with the keyboard",
+  async function (this: OlaiWorld, id: string) {
+    const menu = this.within(id, NODE_MENU);
+    // Opacity-0 still takes programmatic focus, and taking it is what reveals
+    // the gutter — no pointer hover needed.
+    await menu.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    await menu.evaluate((el) => (el as HTMLElement).focus());
+    await this.page.keyboard.press("Enter");
+    await this.page
+      .locator(NODE_MENU_PANEL)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitForFrame();
+  },
+);
+
+/** Somewhere that is not the menu: the sidebar, which is outside every row's
+ *  gutter and follows no navigation — the same place `I click away from the
+ *  note of` presses for the same reason. */
+When("I click away from the node menu", async function (this: OlaiWorld) {
+  const sidebar = this.page.locator('[data-testid="sidebar"]').first();
+  await sidebar.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await sidebar.click({ position: { x: 8, y: 8 } });
+  await this.waitForFrame();
+});
+
+/** GONE, not merely invisible: the panel is unmounted when the menu shuts, so
+ *  a scenario that accepted `hidden` would also accept one left in the DOM
+ *  under a row nobody is pointing at. */
+Then("the node menu is closed", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(NODE_MENU_PANEL).count()) === 0,
+    "the node menu panel to be gone",
+  );
+});
 
 /** The open panel, waited for. Every step below starts here — the panel is the
  *  subject of all of them, and one spelling of "wait for it" is what keeps the

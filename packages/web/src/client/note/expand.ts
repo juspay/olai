@@ -9,14 +9,18 @@
  * Component-local — not a preference, not a stamped reading. The
  * density switch and the per-place unfold set are gone; this is the only open
  * state left, and it dies with the row that holds it.
+ *
+ * How it SHUTS is `../dismiss.ts`, which is the client's one spelling of the
+ * two gestures — so this panel gained Escape by being deduped rather than by
+ * being argued about. That is the model this note already documents anyway:
+ * expanding and editing are one state and you leave both at once
+ * (`features/keyboard_editing.feature`), and Escape has always been how a
+ * caret leaves.
  */
 
-import {
-  createEffect,
-  createSignal,
-  onCleanup,
-  type Accessor,
-} from "solid-js"
+import { createSignal, type Accessor } from "solid-js"
+
+import { dismissOn } from "../dismiss.ts"
 
 export interface NoteExpand {
   readonly expanded: Accessor<boolean>
@@ -30,19 +34,12 @@ export const createNoteExpand = (): NoteExpand => {
   const [open, setOpen] = createSignal(false)
   let root: HTMLElement | undefined
 
-  // While open, a pointerdown outside the note control collapses it. Capture
-  // phase so a click that starts a navigation still closes the note first, and
-  // so the note's own click can toggle without racing a bubble-phase listener.
-  createEffect(() => {
-    if (!open()) return
-    const onDown = (event: PointerEvent) => {
-      const target = event.target
-      if (!(target instanceof Node)) return
-      if (root !== undefined && root.contains(target)) return
-      setOpen(false)
-    }
-    document.addEventListener("pointerdown", onDown, true)
-    onCleanup(() => document.removeEventListener("pointerdown", onDown, true))
+  // ONE root: the note is laid out inside the control that opens it, so there
+  // is no portalled trigger to consult as well.
+  dismissOn({
+    open,
+    panel: () => root,
+    dismiss: () => setOpen(false),
   })
 
   return {
