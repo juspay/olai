@@ -20,10 +20,33 @@ Feature: The ••• menu opens and shuts
     And I press "Escape"
     Then the node menu is closed
 
+  Scenario: Escape hands the caret back to the •••
+    # A menu opened with the keyboard HOLDS the caret, so the dismissal has to
+    # give it back or the reader is on `<body>` — nowhere, and the whole
+    # document to walk down again. The primitive's own way of doing that
+    # (`onCloseAutoFocus`) never fires for a row whose menu is laid out in
+    # place rather than portalled: the hook is a focus scope's unmount half,
+    # and the component that owns it outlives every open and close. So this
+    # step is the only thing standing between a keyboard and nowhere.
+    When I open the node menu of "kitchen" with the keyboard
+    And I press "Escape"
+    Then the node menu is closed
+    And the node menu of "kitchen" has the caret
+
   Scenario: A pointer outside puts the menu away
     When I open the node menu of "kitchen"
     And I click away from the node menu
     Then the node menu is closed
+
+  Scenario: A pointer outside is NOT handed the caret back
+    # The other half of the rule above, and the reason it is a rule: a press
+    # that landed somewhere is where the reader now is, and a menu that took
+    # the caret back off it would be pulling them out of what they just
+    # pressed. Kobalte's own content keeps this distinction; so does ours.
+    When I open the node menu of "kitchen" with the keyboard
+    And I click away from the node menu
+    Then the node menu is closed
+    And the caret is nowhere
 
   Scenario: The ••• again puts it away
     # The two-roots bug, from the other side: a dismissal that read the press
@@ -76,3 +99,20 @@ Feature: The ••• menu opens and shuts
     And I press "Enter"
     Then the node "kitchen" is collapsed
     And the children of "kitchen" are hidden
+
+  Scenario: A row opened a SECOND time still puts the caret in the panel
+    # The row is armed after the first press (`Dots`), and that is the case the
+    # panel's own focus line exists for: the first open creates the primitive
+    # while it is already open, so it focuses itself, while every reopen swaps
+    # the panel back in under a component that does not run again. Without the
+    # line this scenario walks nothing — the caret stays on the `•••` and the
+    # arrows go to a button that is not a menu.
+    Given I mark the page
+    When I open the node menu of "kitchen" with the keyboard
+    And I press "Escape"
+    And I open the node menu of "kitchen" with the keyboard
+    And I press "Home"
+    And I press "Enter"
+    Then the zoomed node is "kitchen"
+    And the page has not reloaded
+    And there should be no page errors

@@ -97,29 +97,76 @@ When("I click away from the node menu", async function (this: OlaiWorld) {
 });
 
 /**
+ * WHERE the caret is, as this suite talks about elements: the test id it
+ * carries, the row it is in, and the words on it. `null` for `<body>`, which is
+ * NOWHERE and is the failure every step below exists to catch — a keyboard left
+ * there is a walk down the whole document to get back.
+ */
+const caretOn = async (
+  world: OlaiWorld,
+): Promise<{ testid: string | null; node: string | null; text: string } | null> => {
+  const caret = await world.page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    return el === null || el === document.body ? null : {
+      testid: el.getAttribute("data-testid"),
+      node: el.closest("[data-node-id]")?.getAttribute("data-node-id") ?? null,
+      text: el.innerText,
+    };
+  });
+  return caret === null ? null : { ...caret, text: oneLine(caret.text) };
+};
+
+/**
  * WHICH entry has the caret, by the label a person reads.
  *
  * The panel swaps its content for the question one verb asks, and a swap that
- * left the caret on the entry it just removed leaves the keyboard on `<body>`
- * — nowhere, and two Tabs from the top of the document. Nothing else in this
- * suite would notice: the question is on screen either way.
+ * left the caret on the entry it just removed leaves the keyboard nowhere.
+ * Nothing else in this suite would notice: the question is on screen either
+ * way.
  */
 Then(
   "the node menu's {string} has the caret",
   async function (this: OlaiWorld, label: string) {
-    const caret = await this.page.evaluate(() => {
-      const el = document.activeElement as HTMLElement | null;
-      return el === null || el === document.body
-        ? null
-        : { testid: el.getAttribute("data-testid"), text: el.innerText };
-    });
+    const caret = await caretOn(this);
     assert.deepStrictEqual(
-      caret === null ? null : { testid: caret.testid, text: oneLine(caret.text) },
+      caret === null ? null : { testid: caret.testid, text: caret.text },
       { testid: TESTID.nodeMenuItem, text: label },
       `the caret is on ${JSON.stringify(caret)}, expected the node menu's ${JSON.stringify(label)}`,
     );
   },
 );
+
+/**
+ * The caret back on the `•••` a menu was opened from.
+ *
+ * A panel that took the caret has to give it back when it goes, and the
+ * primitive's own way of doing that never fires here (`menu/NodeMenu.tsx`'s
+ * `handBack` says why), so this is the step that would notice it stopping.
+ * The ROW is asserted as well as the control: handing the caret to some other
+ * row's `•••` would be its own kind of lost.
+ */
+Then(
+  "the node menu of {string} has the caret",
+  async function (this: OlaiWorld, id: string) {
+    const caret = await caretOn(this);
+    assert.deepStrictEqual(
+      caret === null ? null : { testid: caret.testid, node: caret.node },
+      { testid: TESTID.nodeMenu, node: id },
+      `the caret is on ${JSON.stringify(caret)}, expected the "${id}" row's •••`,
+    );
+  },
+);
+
+/** NOWHERE, and on purpose: a press that landed outside the menu is where the
+ *  reader now is, and the menu does not get to take the caret back off it. */
+Then("the caret is nowhere", async function (this: OlaiWorld) {
+  const caret = await caretOn(this);
+  assert.strictEqual(
+    caret,
+    null,
+    `the caret is on ${JSON.stringify(caret)}, and this step says a press outside leaves it where it fell`,
+  );
+});
 
 /** GONE, not merely invisible: the panel is unmounted when the menu shuts, so
  *  a scenario that accepted `hidden` would also accept one left in the DOM

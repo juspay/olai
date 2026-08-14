@@ -9,14 +9,22 @@
  * ## Kobalte owns the menu, and that is the point of this file
  *
  * Being open, where the panel goes, the pointer outside that shuts it, Escape,
- * the focus that returns to the `•••` afterwards, and the arrow keys that walk
- * the list are `@kobalte/core`'s `DropdownMenu` — the SolidJS ecosystem's
- * accessible primitive, and HACKING.md's rule ("make full use of the ecosystem
- * of libraries in SolidJS instead of hard-rolling"). What this file hand-rolled
- * instead was a fourth copy of the same forty lines, with `role=menu` and the
- * keyboard that role promises deliberately left out because the copy did not
- * implement them. The primitive brings them, so the list is a menu now rather
- * than a labelled group of buttons that reads like one.
+ * and the arrow keys that walk the list are `@kobalte/core`'s `DropdownMenu` —
+ * the SolidJS ecosystem's accessible primitive, and HACKING.md's rule ("make
+ * full use of the ecosystem of libraries in SolidJS instead of hard-rolling").
+ * What this file hand-rolled instead was a fourth copy of the same forty lines,
+ * with `role=menu` and the keyboard that role promises deliberately left out
+ * because the copy did not implement them. The primitive brings them, so the
+ * list is a menu now rather than a labelled group of buttons that reads like
+ * one.
+ *
+ * WHAT IS STILL THIS FILE'S is the caret, both ways: in when the panel opens
+ * and back on the `•••` when it goes. Kobalte has both, and neither fires for a
+ * menu laid out in the row rather than portalled — each is registered by an
+ * effect owned by a component that outlives every open and close. The two are
+ * named where they are done (the content's `ref`, and `handBack`), and
+ * `features/menu_panel.feature` holds both ends so a Kobalte bump that fixes
+ * them upstream shows up as a passing suite rather than as a surprise.
  *
  * Three decisions keep it drawn exactly where the hand-rolled panel was:
  *
@@ -112,8 +120,50 @@ export function NodeMenu(props: {
    */
   const [armed, setArmed] = createSignal(false)
   let clearing: ReturnType<typeof setTimeout> | undefined
+  /** The `•••` once this row is armed — where the caret goes back to. */
+  let trigger: HTMLElement | undefined
+  /** What last touched this menu: the two gestures leave the caret in
+   *  different places, and only one of them wants it back (see `handBack`). */
+  let lastGesture: "key" | "pointer" = "pointer"
 
   onCleanup(() => clearTimeout(clearing))
+
+  /**
+   * THE CARET COMES BACK when the panel that had it goes.
+   *
+   * Kobalte has this — `onCloseAutoFocus` puts the caret on the trigger — and
+   * here it never fires: the hook is the focus scope's UNMOUNT half, registered
+   * by an effect owned by the content COMPONENT, and that component outlives
+   * every open/close of an armed row (the panel is a `<Show>` inside it). So
+   * the cleanup that would restore the caret is never reached, and Escape out
+   * of a menu opened with the keyboard leaves it on `<body>` — the whole page
+   * to walk down again, which is the same failure the confirm's own focus is
+   * written down to prevent. Called from the panel's own disposal, which is a
+   * place that does run.
+   *
+   * Two guards, and each is a decision rather than a nicety:
+   *
+   *   - only a KEY gets the caret back, which is `./popover.ts`'s rule for the
+   *     header's panels word for word: a pointer put the caret where it landed
+   *     and that is where the reader is now, so a menu that took it back would
+   *     be pulling them out of whatever they just pressed. It is also what
+   *     keeps a menu opened and dismissed with the mouse drawing exactly what
+   *     the hand-rolled panel drew — Chromium rings a control it is handed the
+   *     caret programmatically, and a ring nobody's keyboard asked for is a
+   *     ring in the wrong place.
+   *   - the caret is only taken back from NOWHERE (`<body>`). Anything else has
+   *     it on purpose — a verb that moved the page, a control the press went
+   *     on to — and this menu does not get to overrule that.
+   */
+  const handBack = (): void => {
+    if (lastGesture !== "key") return
+    // After the frame that removes the panel: until then the caret is still on
+    // an element that is on its way out, and `<body>` is what it becomes.
+    queueMicrotask(() => {
+      const caret = document.activeElement
+      if (caret === null || caret === document.body) trigger?.focus()
+    })
+  }
 
   /**
    * Run it, and SAY SO — whether it happened or not.
@@ -161,38 +211,46 @@ export function NodeMenu(props: {
       <Show when={armed()} fallback={<Dots onArm={() => setArmed(true)} />}>
         <DropdownMenu modal={false} placement="bottom-start" gutter={2} defaultOpen>
           <DropdownMenu.Trigger
+            ref={trigger}
             class={DOTS}
             data-testid={TESTID.nodeMenu}
             aria-label="node menu"
             title="node menu"
             // Kobalte toggles on the POINTERDOWN (and on the click for a touch
             // pointer), so both are stopped here: opening a row's menu is not
-            // also a press on the row it belongs to.
-            onPointerDown={(event: PointerEvent) => event.stopPropagation()}
+            // also a press on the row it belongs to. It is also a gesture the
+            // caret's way home has to know about (`handBack`): pressing the
+            // `•••` to shut a menu the KEYBOARD opened is still a press.
+            onPointerDown={(event: PointerEvent) => {
+              lastGesture = "pointer"
+              event.stopPropagation()
+            }}
             onClick={(event: MouseEvent) => event.stopPropagation()}
           >
             •••
           </DropdownMenu.Trigger>
           <DropdownMenu.Content
             ref={(el: HTMLElement) => {
-              // AND THE CARET GOES IN. Kobalte's own mount focus — the
-              // `onOpenAutoFocus` hook and the focus scope behind it — is
-              // registered by an effect that runs when the CONTENT COMPONENT is
-              // created, and without a `DropdownMenu.Portal` that is when the
-              // row mounts, with the menu shut and the content's own `<Show>`
-              // holding back the element: the effect reads a ref that does not
-              // exist yet and, being a plain binding rather than a signal, is
-              // never asked again. (A portal moves that `<Show>` OUTSIDE the
-              // component, which is why the portalled path focuses and this one
-              // does not — verified both ways, and `onOpenAutoFocus` is inert
-              // here for the same reason, so it is not the fix it looks like.)
-              // Without this, a menu opened with the keyboard would leave the
-              // caret on the `•••` and the arrow keys — half of what the
-              // primitive is FOR — would have nothing to walk. From the panel,
-              // `Home`/`End` and the arrows reach the entries. A menu opened
-              // with a POINTER still ends up with the caret on the button that
-              // was pressed, exactly as the panel this replaces did: the press
-              // focuses the trigger back immediately afterwards.
+              // AND THE CARET GOES IN — on the SECOND open and every one after
+              // it, which is the case this exists for.
+              //
+              // Kobalte's own mount focus (`onOpenAutoFocus`, and the focus
+              // scope behind it) is registered by an effect that reads the
+              // content's element through a plain binding rather than a signal,
+              // so it lands once and is never asked again. Without a
+              // `DropdownMenu.Portal` the panel is a `<Show>` INSIDE that
+              // component: the first open creates the component while already
+              // open (`Dots` arms with `defaultOpen`), so that one focuses
+              // itself — and every REOPEN swaps the `<Show>` back in under a
+              // component that never re-runs, leaving the caret on the `•••`
+              // with the arrow keys, half of what the primitive is FOR, with
+              // nothing to walk. Both halves verified by driving the browser
+              // with this line and without it. From the panel, `Home`/`End` and
+              // the arrows reach the entries.
+              //
+              // A menu opened with a POINTER still ends up with the caret on
+              // the button that was pressed, exactly as the panel this replaces
+              // did: the press focuses the trigger back immediately afterwards.
               // `queueMicrotask` for the same reason `../popover.ts` uses one:
               // the element is not attached at the instant the ref runs.
               queueMicrotask(() => el.focus())
@@ -211,8 +269,22 @@ export function NodeMenu(props: {
             // Chromium rings the whole panel for a menu opened with a mouse.
             class="relative z-20 min-w-[10.5rem] rounded border border-rule/70 bg-panel py-1 text-sm text-ink shadow-md focus:outline-none"
             onFocusOutside={(event: Event) => event.preventDefault()}
+            // WHICH GESTURE is driving this menu, for the caret's way home. A
+            // key anywhere in the panel (Escape, an entry chosen with Enter,
+            // the arrows) is the one that gets it back; a press inside or
+            // outside is not. Kobalte keeps the same distinction for its own
+            // close-focus — it just cannot act on it here (see `handBack`).
+            onKeyDown={() => {
+              lastGesture = "key"
+            }}
+            onPointerDown={() => {
+              lastGesture = "pointer"
+            }}
+            onPointerDownOutside={() => {
+              lastGesture = "pointer"
+            }}
           >
-            <MenuPanel actions={props.actions} onPick={pick} />
+            <MenuPanel actions={props.actions} onPick={pick} onGone={handBack} />
           </DropdownMenu.Content>
         </DropdownMenu>
       </Show>
@@ -315,13 +387,18 @@ function Dots(props: { readonly onArm: () => void }) {
  *
  * It lives in `DropdownMenu.Content`, which Kobalte unmounts when the menu
  * shuts — so `asking` dies with the panel, and a menu closed on Escape and
- * reopened is a menu that is not still asking.
+ * reopened is a menu that is not still asking. That disposal is also the one
+ * event in the whole primitive that fires on every close, which is why the
+ * caret's way home hangs off it (`onGone`, and {@link NodeMenu}'s `handBack`
+ * for why Kobalte's own hook cannot be the one to do it).
  */
 function MenuPanel(props: {
   readonly actions: ReadonlyArray<MenuAction>
   readonly onPick: (action: MenuAction) => void | Promise<void>
+  readonly onGone: () => void
 }) {
   const [asking, setAsking] = createSignal<MenuAction | null>(null)
+  onCleanup(() => props.onGone())
   /** The entries as they stand, by the verb each one is for — so cancelling
    *  below can hand the caret back to an ELEMENT rather than look one up by a
    *  selector. Rewritten as the list is redrawn, which is what makes it right

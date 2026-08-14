@@ -1481,16 +1481,18 @@ pointer's write now (this menu and the date picker), and the four lines that
 turn a refusal or a nudge into a sentence may not have two copies.
 
 **The menu itself is `@kobalte/core`'s `DropdownMenu`, not ours.** Being open,
-where the panel goes, the pointer outside that shuts it, Escape, the focus that
-returns to the `•••` afterwards, and the arrow keys that walk the list are the
+where the panel goes, the pointer outside that shuts it, Escape, and the arrow
+keys that walk the list are the
 SolidJS ecosystem's accessible primitive doing them (HACKING.md — "make full
 use of the ecosystem of libraries in SolidJS instead of hard-rolling"). What
 this file had instead was a fourth copy of the same forty lines, with
 `role=menu` and the keyboard that role promises deliberately left out *because
 the copy did not implement them*; the list is a real menu now, and
-`features/menu_panel.feature` holds both halves — the three dismissals, which
-were true before and untested, and the keyboard, which is what adopting the
-primitive bought. The panel is drawn exactly where the hand-rolled one was:
+`features/menu_panel.feature` holds three halves — the dismissals, which were
+true before and untested; the keyboard, which is what adopting the primitive
+bought; and where the caret is after each of them, which is the part the
+primitive does NOT do here (below). The panel is drawn exactly where the
+hand-rolled one was:
 
 - **`placement="bottom-start"`, `gutter={2}`** is what `absolute left-0 top-full
   mt-0.5` was, and the content is NOT portalled — Kobalte's positioner is an
@@ -1501,10 +1503,19 @@ primitive bought. The panel is drawn exactly where the hand-rolled one was:
 - **`modal={false}`**: a row menu is not the only thing on the page, and the
   panel this replaces locked no scroll, disabled no outside pointer and trapped
   no focus.
-- **the caret is put into the panel on open** (`queueMicrotask`, the same one
-  `popover.ts` uses), because Kobalte's own mount focus lands only for a
-  portalled content — without it a menu opened with the keyboard would leave the
-  caret on the `•••` and the arrow keys would have nothing to walk.
+- **the caret is this file's own, both ways, and that is the one place the
+  primitive does not carry its weight here.** Kobalte puts the caret in the
+  panel when a menu opens and back on the trigger when it shuts; both hooks are
+  registered by effects owned by the content COMPONENT, and a menu laid out in
+  the row rather than portalled keeps that component alive across every open
+  and close (the panel is a `<Show>` inside it), so neither runs again. In it
+  is a `queueMicrotask` in the content's ref — load-bearing on the second open
+  and every one after, since the first creates the component while already open
+  and so focuses itself. Back out is `handBack`, hung off the panel's own
+  disposal, which is the one thing that fires on every close; without it Escape
+  out of a keyboard-opened menu leaves the caret on `<body>`. A press OUTSIDE is
+  left alone — it landed somewhere, and that is where the reader is.
+  `features/menu_panel.feature` holds all of it.
 - **the `•••` stays lit while its menu is open** — `data-[expanded]` in
   `touch.ts`' `MENU_REVEAL`, which is steadier than the focus-within it used to
   ride on, since a menu's own list takes and drops the caret as a pointer moves
