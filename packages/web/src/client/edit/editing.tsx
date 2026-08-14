@@ -354,6 +354,26 @@ export const createEditor = (
     setDraft(next)
   }
 
+  /**
+   * A write that REDRAWS the row it was pressed in — every structural key, and
+   * both of the compound ones.
+   *
+   * ONE place owns the `settling` debt, because the two halves of it are a rule
+   * rather than a step: it is noted BEFORE the write (the frame that redraws
+   * the row can arrive while the call is still in flight) and cleared when the
+   * write is REFUSED (no write means no frame, so nothing is owed — and a debt
+   * left standing goes on suppressing blurs, which means the next thing typed
+   * into this row is never committed at all; `Tab` on the first of its siblings
+   * is the ordinary way to reach that). Three callers each remembering both
+   * halves is the rule kept in memory rather than in code.
+   */
+  const redrawing = async (edit: Edit, from: Slot) => {
+    settling = true
+    const done = await send(edit, from)
+    if (done === null) settling = false
+    return done
+  }
+
   /** A structural op for the row the caret is in: commit the text, then ask.
    *  The id is read AFTER the commit, so `Tab` works on a line that did not
    *  exist when the key was pressed — the add has landed by then and the draft
@@ -362,15 +382,7 @@ export const createEditor = (
     if (!(await commit())) return
     const held = draft()
     if (held === null || held.kind !== "row") return
-    // Noted BEFORE the write: the frame that redraws the row can arrive while
-    // it is still in flight.
-    settling = true
-    const moved = await send(name(held), slotOf(held))
-    // REFUSED: no write, so no frame, so nothing is owed — and a debt left
-    // standing would go on suppressing blurs, which would mean the next thing
-    // typed into this row never got committed at all. `Tab` on the first of
-    // its siblings is the ordinary way to reach this.
-    if (moved === null) settling = false
+    const moved = await redrawing(name(held), slotOf(held))
     // The caret stays in the row that just moved: the draft is restored in
     // case its editor was destroyed and blurred on the way out, and the caret
     // is taken again because a row that merely moved among its siblings keeps
@@ -420,12 +432,8 @@ export const createEditor = (
     const title = held.text.slice(0, at.start)
     const rest = held.text.slice(at.end)
     idle.clear()
-    settling = true
-    const done = await send({ verb: "split", id: held.id, title, rest }, slotOf(held))
-    if (done === null) {
-      settling = false
-      return
-    }
+    const done = await redrawing({ verb: "split", id: held.id, title, rest }, slotOf(held))
+    if (done === null) return
     setDraft(opening(done, 0))
     setCaret((n) => n + 1)
   }
@@ -451,12 +459,8 @@ export const createEditor = (
     if (!(await commit())) return
     const held = draft()
     if (held === null || held.kind !== "row") return
-    settling = true
-    const done = await send({ verb: "merge", id: held.row }, slotOf(held))
-    if (done === null) {
-      settling = false
-      return
-    }
+    const done = await redrawing({ verb: "merge", id: held.row }, slotOf(held))
+    if (done === null) return
     setDraft(opening(done, done.title.length - held.text.length))
     setCaret((n) => n + 1)
   }

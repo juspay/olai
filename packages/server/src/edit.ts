@@ -59,13 +59,14 @@ import {
   isDay,
   isMirror,
   type Located,
+  type LocatedRegular,
   nodeNamed,
   type OpFailure,
   siblingsOf,
   type Status,
   UsageFailure,
 } from "@olai/format"
-import { mergedText, notFound, type Reading, type Request } from "@olai/ops"
+import { merging, notFound, type Reading, type Request } from "@olai/ops"
 import type { Edit } from "@olai/surface"
 import { Result } from "effect"
 
@@ -694,10 +695,11 @@ const unarchiveOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
  *   3. `place` each child back under it, in order — first with no neighbour,
  *      then each after the one before, which reproduces the row exactly.
  *   4. put the surviving row's `title` and `desc` back, GUARDED by what the
- *      merge is about to make them ({@link mergedText}, the ops layer's own
- *      join). So an undo can only overwrite what the merge wrote: retype that
- *      row in the meantime and the undo is refused naming what is there,
- *      exactly as an undone retitle is.
+ *      merge is about to make them ({@link merging}, the ops layer's own
+ *      answer to both "which row" and "what the join makes"). So an undo can
+ *      only overwrite what the merge wrote: retype that row in the meantime and
+ *      the undo is refused naming what is there, exactly as an undone retitle
+ *      is.
  *
  * Replayed in order through the same gate, each judged against the set as it is
  * THEN, and a refusal partway stops there — which is the same contract every
@@ -710,14 +712,15 @@ const unarchiveOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
 const unmergeOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   const located = derived.byId.get(id)
   if (located === undefined || isMirror(located.node)) return []
-  const { row, at } = among(derived, located)
-  const above = row[at - 1]
-  if (above === undefined || isMirror(above.node)) return []
-  const node = located.node
-  const into = above.node
-  const parent = node.parent ?? null
+  // WHICH row it joins and WHAT the join makes are both the ops layer's — the
+  // same answer the write is about to be planned from. Read here, they would be
+  // a second scan of the sibling row and a second spelling of the join, and
+  // both would be wrong in exactly the case an undo is for.
+  const joined = merging(derived, located as LocatedRegular)
+  if (Result.isFailure(joined)) return []
+  const { into } = joined.success
+  const parent = located.node.parent ?? null
   const children = derived.children.get(id) ?? []
-  const joined = mergedText(into, node)
   return [
     { verb: "unarchive", id, ...(parent === null ? { file: located.file } : { parent }) },
     { verb: "place", id, parent, after: into.id },
@@ -727,15 +730,15 @@ const unmergeOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
       parent: id,
       after: index === 0 ? null : (children[index - 1] as Located).node.id,
     })),
-    { verb: "title", id: into.id, title: into.title, was: joined.title },
+    { verb: "title", id: into.id, title: into.title, was: joined.success.title },
     // Only when the merge MOVED it. A row whose note is untouched — because the
     // row below had none — needs no second write, and one that said `was` for a
     // note it did not change would be refused by nothing and mean nothing.
-    ...(joined.desc === into.desc ? [] : [{
+    ...(joined.success.desc === into.desc ? [] : [{
       verb: "desc" as const,
       id: into.id,
       desc: into.desc ?? null,
-      was: joined.desc ?? null,
+      was: joined.success.desc ?? null,
     }]),
   ]
 }

@@ -1218,38 +1218,12 @@ const planMerge = (
   const mayArchive = writable(scope, archive)
   if (Result.isFailure(mayArchive)) return Result.fail(mayArchive.failure)
 
-  const row = siblingsOf(scope.derived, file, node.parent)
-  const above = row[row.findIndex((sibling) => sibling.node.id === node.id) - 1]
-  if (above === undefined) {
-    return Result.fail(
-      new UsageFailure({
-        reason: `\`${node.title}\` is the first of its siblings, so there is no row ` +
-          `above it to merge into`,
-      }),
-    )
-  }
-  // A placement has no title, no note and no children of its own, so there is
-  // nothing there for a merge to land in — the ops layer's own rule about
-  // mirrors, in the sentence the row above earns rather than the one the id
-  // named by the caller would get.
-  if (isMirror(above.node)) {
-    return Result.fail(
-      new UsageFailure({
-        reason: `the row above \`${node.title}\` is a mirror — a second placement of ` +
-          `\`${above.node.mirror}\`, with no title of its own — so there is nothing ` +
-          `there to merge into`,
-      }),
-    )
-  }
-  const into = above.node
+  const joined = merging(scope.derived, target.success)
+  if (Result.isFailure(joined)) return Result.fail(joined.failure)
+  const { into, title, desc } = joined.success
 
   const records = recordsOf(scope, file)
-  const joined = mergedText(into, node)
-  const merged = withField(
-    { ...into, title: joined.title },
-    "desc",
-    joined.desc ?? null,
-  )
+  const merged = withField({ ...into, title }, "desc", desc ?? null)
 
   // Last among their new siblings, in the order they were in — which is where
   // an adopted branch reads correctly and what `unarchive` already does for the
@@ -1279,47 +1253,94 @@ const planMerge = (
     ord: appendedOrd([existing, scaffold], parent),
   }
 
+  const nudge = carriedOff(scope, node)
   return Result.succeed({
     files: [
       { file, nodes: keeps },
       { file: archive, nodes: [...existing, ...scaffold, buried] },
     ],
     id: into.id,
-    title: joined.title,
+    title,
     file,
-    summary: `merge: ${joined.title}`,
-    ...(carriedOff(scope, node) ?? {}),
+    summary: `merge: ${title}`,
+    ...(nudge === undefined ? {} : { nudge }),
   })
 }
 
+/** What merging a node would produce: the row it joins, and the two texts that
+ *  row ends up carrying. */
+export interface Merging {
+  /** The sibling above — the record that survives. */
+  readonly into: RegularNode
+  /** Its title with the merged node's run onto the end. */
+  readonly title: string
+  /** Their notes joined, or the one of them that exists, or neither. */
+  readonly desc: string | undefined
+}
+
 /**
- * What a merge JOINS: the two texts the surviving node ends up carrying.
+ * WHAT A MERGE OF THIS NODE WOULD DO — one function, because two callers ask
+ * it and their answers may not differ.
  *
- * EXPORTED, and that is the one thing about it worth explaining. What would
- * take a merge back is a `title` and a `desc` put back CONDITIONALLY — guarded
- * by what the merge made true, so an undo can only overwrite what the merge
- * wrote — and that guard is derived where every other inverse is
- * ({@link ../../server/src/edit.ts}). Two spellings of the join would be an
- * undo that silently stopped matching the day the separator changed, which is
- * the kind of drift nothing but a browser would ever notice.
+ * The planner asks it to make the write. The keystroke resolver asks it to say
+ * what would TAKE THAT WRITE BACK ({@link ../../server/src/edit.ts}), which is
+ * the row above put back and its two texts restored, guarded by what the merge
+ * made them. Both halves are here for the same reason `@olai/server`'s `among`
+ * is one spelling: "the sibling above" scanned twice is two chances for an undo
+ * to name the wrong row, and the join spelled twice is a guard that silently
+ * stops matching the day the separator changes. Neither would fail anywhere a
+ * test without a browser could see.
  *
- * The titles run together with nothing between them: they were one line before
- * somebody split them, and any separator invented here is text the caller did
- * not type. The notes take a blank line, because they are markdown blocks and
- * running two paragraphs together would change what they say — and a node with
- * no note simply takes the other's, which is the case that matters most.
+ * The joins themselves are the semantics. The titles run together with nothing
+ * between them: they were one line before somebody split them, and any
+ * separator invented here is text the caller did not type. The notes take a
+ * blank line, because they are markdown blocks and running two paragraphs
+ * together would change what they say — and a node with no note simply takes
+ * the other's, which is the case that matters most.
+ *
+ * It takes the node already RESOLVED, so it neither repeats the caller's
+ * lookup nor answers a second time for an id that is a placement — both
+ * callers narrow before they get here, and both refuse a mirror in the ops
+ * layer's own words.
  */
-export const mergedText = (
-  above: { readonly title: string; readonly desc?: string | undefined },
-  below: { readonly title: string; readonly desc?: string | undefined },
-): { readonly title: string; readonly desc: string | undefined } => ({
-  title: above.title + below.title,
-  desc: above.desc === undefined
-    ? below.desc
-    : below.desc === undefined
-    ? above.desc
-    : `${above.desc}\n\n${below.desc}`,
-})
+export const merging = (
+  derived: Derived,
+  at: LocatedRegular,
+): Result.Result<Merging, OpFailure> => {
+  const row = siblingsOf(derived, at.file, at.node.parent)
+  const above = row[row.findIndex((sibling) => sibling.node.id === at.node.id) - 1]
+  if (above === undefined) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `\`${at.node.title}\` is the first of its siblings, so there is no row ` +
+          `above it to merge into`,
+      }),
+    )
+  }
+  // A placement has no title, no note and no children of its own, so there is
+  // nothing there for a merge to land in — the ops layer's own rule about
+  // mirrors, in the sentence the row above earns rather than the one the id
+  // named by the caller would get.
+  if (isMirror(above.node)) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `the row above \`${at.node.title}\` is a mirror — a second placement of ` +
+          `\`${above.node.mirror}\`, with no title of its own — so there is nothing ` +
+          `there to merge into`,
+      }),
+    )
+  }
+  const into = above.node
+  return Result.succeed({
+    into,
+    title: into.title + at.node.title,
+    desc: into.desc === undefined
+      ? at.node.desc
+      : at.node.desc === undefined
+      ? into.desc
+      : `${into.desc}\n\n${at.node.desc}`,
+  })
+}
 
 /**
  * What went into the trash with a merged record that is not its title or its
@@ -1332,23 +1353,18 @@ export const mergedText = (
  * took a `done` out of the live outline is owed the sentence. Advice on a write
  * that LANDED, which is what a nudge is.
  */
-const carriedOff = (
-  scope: Scope,
-  node: RegularNode,
-): { readonly nudge: string } | undefined => {
+const carriedOff = (scope: Scope, node: RegularNode): string | undefined => {
   const kept: Array<string> = []
   const mark = scope.derived.status.get(node.id)
   if (mark !== undefined) kept.push(`its \`${mark}\` mark`)
-  if (node.date !== undefined) kept.push(`its date`)
+  if (node.date !== undefined) kept.push("its date")
   if (targetsOf(node).length > 0) kept.push("its edges")
   if (kept.length === 0) return undefined
   const said = kept.length === 1
     ? kept[0]
     : `${kept.slice(0, -1).join(", ")} and ${kept[kept.length - 1]}`
-  return {
-    nudge: `\`${node.title}\` kept ${said} — that record is in the Trash with its id, ` +
-      `and \`Put back\` returns it.`,
-  }
+  return `\`${node.title}\` kept ${said} — that record is in the Trash with its id, ` +
+    `and \`Put back\` returns it.`
 }
 
 // ── create ─────────────────────────────────────────────────────────────
