@@ -397,19 +397,23 @@ it lights the best match; ↓ is the other way in.
 
 **The verbs of the node you have ZOOMED.** On `/n/<id>`, the palette lists what
 that node can take — `Mark todo`, `Complete`, `Clear mark`, `Clear date`, `Move
-to Trash` — the same entries the row's ••• menu offers, decided by the same
-rule (a verb that would change nothing is not drawn), naming the same ids, and
-refused in the same words. Each row says which node it is about on its second
-line, because a palette is opened from anywhere. This is the affordance the
-zoomed node never had: the ••• hangs off a row, and a zoom is a page.
+to Trash` — the entries of the row's ••• menu that need no second gesture,
+decided by the same rule (a verb that would change nothing is not drawn),
+naming the same ids, and refused in the same words. Each row says which node it
+is about on its second line, because a palette is opened from anywhere. This is
+the affordance the zoomed node never had: the ••• hangs off a row, and a zoom
+is a page.
 
 On any other page there are none of them. A command read out of context must
 not be aimed at a node you cannot see, and what the address says you are
 looking at is a fact you and the palette can both see.
 
-`Set date…` stays on the row, because it opens the row's own picker and there
-is nothing for the palette to open. `Move to Trash` asks its question in the
-palette's own box, with the same sentence and the same count the menu asks.
+**The three that ask something first stay where the asking happens** — `Set
+date…`, `Link to a node…` and `Wait for a node…`. Each opens a panel that hangs
+off a row, and a palette drawn over the page has nothing to open; a zoomed node
+reaches all three from its own controls instead (above). `Move to Trash` asks
+its question in the palette's own box, with the same sentence and the same
+count the menu asks.
 **The question takes the caret when it is raised** — so Enter answers it, Tab
 cycles its two ways out, and Escape or **Cancel** backs out. Nothing you type
 elsewhere becomes the answer.

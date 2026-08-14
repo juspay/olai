@@ -56,6 +56,30 @@ export interface NodeSearch {
   /** A refusal from the server, in its own words — `null` when there is none.
    *  Never silently dropped (`../run.ts` forbids a silent handler). */
   readonly failure: Accessor<string | null>
+  /**
+   * WHICH QUERY the rows on screen answer — `null` while they answer a question
+   * the reader has already moved on from.
+   *
+   * A search is a round trip behind a debounce, so there are two moments when
+   * what is drawn is not what was asked: the settle, and the flight. This file
+   * already refuses one of them outright — a query backspaced below the minimum
+   * clears AT ONCE, "because a list left standing behind a query the reader has
+   * already backspaced away from is a list that is lying for as long as it
+   * stands" — and this is the same fact for the other, said rather than acted
+   * on: a longer second query keeps the first one's rows until its own arrive,
+   * which is the right thing to DRAW and the wrong thing to leave unlabelled.
+   *
+   * DERIVED, never stored: the resource drops the answer to a source that has
+   * moved, so "settled, and this is what was asked" is the whole of it. A second
+   * signal would be a second answer to the same question, wrong exactly while a
+   * fetch is in flight.
+   *
+   * What it is FOR is anything that has to tell one answer from the next — a
+   * scenario waiting for the rows of the query it just typed rather than for
+   * any rows at all (`edges/EdgePanel.tsx` puts it in the markup), and whatever
+   * eventually wants to draw the difference.
+   */
+  readonly answering: Accessor<string | null>
 }
 
 /**
@@ -97,5 +121,12 @@ export const createNodeSearch = (text: Accessor<string | null>): NodeSearch => {
 
   // `undefined` is the resource's "nothing asked for yet"; a palette shows no
   // rows in that state, which is the same thing an empty answer shows.
-  return { hits: () => hits() ?? [], failure }
+  return {
+    hits: () => hits() ?? [],
+    failure,
+    // While a fetch is in flight the rows on screen are the LAST query's, so
+    // they answer nothing anybody is asking — and during the debounce, before
+    // `asked` moves, they still answer the query they were fetched for.
+    answering: () => (hits.loading ? null : asked()),
+  }
 }

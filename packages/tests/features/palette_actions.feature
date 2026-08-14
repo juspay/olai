@@ -33,8 +33,7 @@ Feature: The ⌘K palette writes
   Scenario: Zoomed, the palette offers what that node can take
     # `kitchen` is doing, has no date, and is a node rather than a placement —
     # so no `Mark doing` (it carries one), no `Clear date`, no `Remove this
-    # placement`. `Set date…` is absent for a different reason: it opens the
-    # ROW's picker, and the palette is drawn over the tree rather than in it.
+    # placement`.
     Given I open the node "kitchen"
     When I press the palette shortcut
     Then the palette offers "Mark todo"
@@ -43,7 +42,20 @@ Feature: The ⌘K palette writes
     And the palette offers "Move to Trash"
     And the palette does not offer "Mark doing"
     And the palette does not offer "Clear date"
-    And the palette does not offer "Set date…"
+
+  Scenario: The verbs that ask something first are not in it — all three of them
+    # A different reason for an absence, and it is one reason rather than three:
+    # each of these opens a PANEL that hangs off a row, and the palette is drawn
+    # OVER the tree rather than in it. `Set date…` was the only one when the op
+    # rows landed; the two edge verbs joined it, and a scenario that pinned the
+    # first alone would go on passing the day a fourth arrived unexcluded.
+    # A zoomed node reaches all three from its own controls instead
+    # (`edge_editing.feature`, `setting_a_date.feature`).
+    Given I open the node "kitchen"
+    When I press the palette shortcut
+    Then the palette does not offer "Set date…"
+    And the palette does not offer "Link to a node…"
+    And the palette does not offer "Wait for a node…"
 
   Scenario: An untouched palette has nothing chosen, so Enter writes nothing
     # What lets the op rows sit FIRST — where a reader can see them — without a

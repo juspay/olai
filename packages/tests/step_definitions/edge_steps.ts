@@ -111,9 +111,21 @@ When(
   async function (this: OlaiWorld, text: string) {
     const box = (await panelOf(this)).locator(EDGE_SEARCH);
     await box.fill(text);
-    // The search is the SERVER's, so the rows arrive a round trip and a
-    // debounce later — a step that chose immediately would be choosing from
-    // the list before it.
+    // The search is the SERVER's, so the rows arrive a debounce and a round
+    // trip later — and what has to be waited for is the rows of THIS query,
+    // not any rows at all. The panel keeps the previous query's list standing
+    // while the next is in flight (which is the right thing to draw), so a
+    // wait for a visible hit is a wait the FIRST search in a scenario satisfies
+    // for the second — it passes today only because no scenario searches
+    // twice, which is not a property a step should depend on.
+    //
+    // `data-asked` is the panel's own answer to "which query are these rows
+    // for" (`client/search/nodes.ts`), so this waits for exactly that, and
+    // then for the list under it. Trimmed, because the query the search is
+    // asked is the trimmed one.
+    await this.page
+      .locator(`${EDGE_PANEL}[data-asked="${text.trim()}"]`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.page
       .locator(EDGE_HIT)
       .first()
@@ -231,9 +243,11 @@ Then(
   },
 );
 
-/** The whole list, in order, because an edge write is INCREMENTAL: "after
- *  demo" would be satisfied by a write that added three more, and the thing
- *  under test is that exactly one target moved. */
+/** The whole list, IN ORDER, because an edge write is incremental twice over:
+ *  "after demo" would be satisfied by a write that added three more, and where
+ *  a re-added target LANDS is the documented residual of undoing a removal —
+ *  an add appends, so a scenario that only asked about membership could not
+ *  tell the residual from its absence. */
 Then(
   "{string} holds the node {string} after {string}",
   async function (this: OlaiWorld, file: string, id: string, targets: string) {
@@ -241,6 +255,16 @@ Then(
     await this.waitUntil(
       async () => edgeIn(this, file, id, "after").join(",") === wanted.join(","),
       `${file} to hold ${JSON.stringify(id)} after ${JSON.stringify(targets)}`,
+    );
+  },
+);
+
+Then(
+  "{string} holds the node {string} after nothing",
+  async function (this: OlaiWorld, file: string, id: string) {
+    await this.waitUntil(
+      async () => edgeIn(this, file, id, "after").length === 0,
+      `${file} to hold ${JSON.stringify(id)} with no \`after\` at all`,
     );
   },
 );

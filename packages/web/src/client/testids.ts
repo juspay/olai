@@ -160,7 +160,9 @@ export const TESTID = {
   edgeVerb: "edge-verb",
   /** The panel that writes one relation of one node — in place under the row,
    *  or under a zoomed node's heading. `data-relation` says WHICH (`see` /
-   *  `after`); present only while it is open. */
+   *  `after`); present only while it is open. `data-asked` says which query the
+   *  hits in it ANSWER — absent while they answer one the reader has moved on
+   *  from, which is what makes "wait for the rows of this search" askable. */
   edgePanel: "edge-panel",
   /** What the node says right now, inside that panel — one chip per target. */
   edgeHeld: "edge-held",

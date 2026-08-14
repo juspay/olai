@@ -86,7 +86,8 @@ the mark is toggled from the row's editor). Titles render inline-only markdown
 and inline tags (`#topic` and `@person`) as subtle pills (`NodeTitle.tsx` / `markdown/title.ts`), and the
 editor shows that markdown as the SOURCE it is while a row is being typed.
 A node's
-free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
+free cross-references and the `after` targets it declares (`edges/EdgeRefs.tsx`,
+one component over either field) each link to `/n/<id>` with the target's
 title, resolved at view time through the same indexes.
 
 The typeface is a pick, like the theme, but the catalog is not this package's:
@@ -2115,8 +2116,9 @@ with the checkbox's, is closed.
 ## The edge panel
 
 `src/client/edges/` is the other half of `set_see` and `set_after`. This client
-had DRAWN both edges since edges-ui — the `see` links under a node
-(`SeeRefs.tsx`), and, for `after`, the row's dim, the mark column's glyph and
+had DRAWN both edges since edges-ui — the `see` links under a node (then
+`SeeRefs.tsx`, now the one `EdgeRefs.tsx` below), and, for `after`, the row's
+dim, the mark column's glyph and
 the `blocked by` line on a node's page (`Blocked.tsx`) — and could write
 neither: the same standing deviation the date picker closed one field along
 (`parity-see`, `parity-after`, under `editor-op-parity`).

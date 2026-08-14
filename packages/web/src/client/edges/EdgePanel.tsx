@@ -64,14 +64,14 @@ import { createMemo, createSignal, For, Index, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { listKey } from "../keys.ts"
-import { DropRef } from "./DropRef.tsx"
-import { namedBy } from "./named.ts"
 import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { nodePlace } from "../search/place.ts"
 import { Result } from "../search/Result.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
+import { DropRef } from "./DropRef.tsx"
+import { namedBy } from "./named.ts"
 import { linking, type Relation, relating, unlinking } from "./relation.ts"
 
 export function EdgePanel(props: {
@@ -114,6 +114,13 @@ export function EdgePanel(props: {
       class="my-1 w-[min(28rem,90vw)] rounded border border-rule/70 bg-panel p-2"
       data-testid={TESTID.edgePanel}
       data-relation={props.relation}
+      // WHICH QUERY the rows below answer (`../search/nodes.ts`), as a fact in
+      // the markup rather than something a reader has to infer from what is in
+      // them. It is the same kind of claim `data-relation` beside it is, and it
+      // is what lets a scenario wait for the rows of the query it just typed —
+      // a wait for "any rows" is a wait a second search in one scenario would
+      // satisfy with the first one's list.
+      data-asked={found.answering() ?? undefined}
     >
       <p class="m-0 mb-1 text-xs text-muted">{words().heading}</p>
 

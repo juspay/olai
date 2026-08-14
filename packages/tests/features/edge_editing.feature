@@ -97,6 +97,41 @@ Feature: Writing a node's edges — `see` and `after`
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: ⌘Z takes a dependency back, and the row stops waiting
+    # The other relation's undo, which is the same arm read the other way: the
+    # inverse of `after add` is `after remove`, narrowed on the server to what
+    # the write actually changed. And the row is the proof it reached the FILE
+    # — blockedness is derived, so a dim that lifts is the set answering.
+    When I open the node menu of "knobs"
+    And I choose "Wait for a node…" from the node menu
+    And I search the edge panel for "order the new cabinets"
+    And I choose "order the new cabinets" from the edge panel
+    Then "house.jsonl" holds the node "knobs" after "order"
+    And the node "knobs" is blocked by "order"
+    When I press "Escape"
+    And I press "ControlOrMeta+z"
+    Then "house.jsonl" holds the node "knobs" after nothing
+    And the node "knobs" is not blocked
+    And there should be no page errors
+
+  Scenario: ⌘Z after a × puts the target back — at the END of the list
+    # THE DOCUMENTED RESIDUAL, pinned as behaviour rather than left as prose.
+    # `hinges` declares `handles` then `order`; dropping the FIRST and taking
+    # that back re-adds it, and `set_see`/`set_after` are incremental — an add
+    # APPENDS — so it comes back last. The relation is the same set either way,
+    # which is why this is a residual and not a bug; closing it would mean a
+    # whole-array write on both faces, a change to the op rather than to an
+    # undo. A scenario asserting only membership could not tell the two apart,
+    # so this one asserts the order.
+    When I open the node "hinges"
+    Then the node "hinges" comes after "choose the handles, order the new cabinets"
+    When I drop "handles" from the drawn "after" of "hinges"
+    Then "house.jsonl" holds the node "hinges" after "order"
+    When I press "ControlOrMeta+z"
+    Then "house.jsonl" holds the node "hinges" after "order, handles"
+    And the node "hinges" comes after "order the new cabinets, choose the handles"
+    And there should be no page errors
+
   Scenario: A loop is refused in the ops layer's own words, naming the loop
     # `install` already comes after `order`. Asking for `order` after `install`
     # would close `order → install → order`, and what a person reads is the
