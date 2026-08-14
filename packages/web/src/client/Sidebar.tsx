@@ -81,7 +81,7 @@ import {
   Switch,
 } from "solid-js"
 
-import { lookOf } from "./agenda/owed.ts"
+import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
@@ -91,11 +91,21 @@ import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET, TARGET_BOX } from "./touch.ts"
 
-/** One file entry. Workflowy-quiet: soft hover, a wash when current. */
-const ENTRY =
+/** One entry's box, hover and current-page wash — everything about it EXCEPT
+ *  what colour the words are. The ink is split out because the agenda's entry
+ *  changes it (`./agenda/owed.ts`), and two utilities setting one property are
+ *  settled by the order Tailwind emitted its rules in rather than by the order
+ *  they were written here: appending `text-alarm` to a class that already says
+ *  `text-ink` is a coin toss, which is the trap `./calendar/Day.tsx` composes
+ *  per-property to avoid. So every user of this names an ink, and exactly one
+ *  does. */
+const ENTRY_SHAPE =
   `flex ${TARGET} items-center break-all rounded-md px-2 py-0.5 text-[0.8125rem] leading-snug ` +
-  "no-underline text-ink hover:bg-rule/50 aria-[current=page]:bg-accent/15 " +
+  "no-underline hover:bg-rule/50 aria-[current=page]:bg-accent/15 " +
   "aria-[current=page]:text-accent aria-[current=page]:font-semibold md:min-h-0"
+
+/** One file entry. Workflowy-quiet: soft hover, a wash when current. */
+const ENTRY = `${ENTRY_SHAPE} text-ink`
 
 /** A directory row: folds, does not navigate. */
 const DIR =
@@ -268,33 +278,51 @@ export function Sidebar(props: {
  *
  *  The facts ride a WRAPPER rather than the link, the way a calendar cell
  *  carries its four (./calendar/Day.tsx): `<Link>` spells the `data-` it knows
- *  about, and "how many are late" is not a fact about links. */
+ *  about, and "how many are late" is not a fact about links.
+ *
+ *  ON THE AGENDA ITSELF the current-page wash wins the row and the alarm keeps
+ *  the chip, and that is the cascade doing what it should: `aria-[current=page]`
+ *  is an attribute-qualified selector and outranks a plain utility, so the entry
+ *  says "you are here" while the chip goes on saying how many. A reader standing
+ *  on the page has the OVERDUE section itself in front of them; the alarm's job
+ *  is to reach somebody who is somewhere else. */
 function Agenda(props: { readonly agenda: Agenda | undefined }) {
   const router = useRouter()
-  // A memo: `agenda` is minted afresh on every revision the store publishes,
-  // and the look is unchanged on almost all of them.
-  const look = createMemo(() => lookOf(props.agenda))
+  // A memo, and it holds its answer by the COUNTS rather than by identity:
+  // `agenda` is minted afresh on every revision the store publishes, so a mark
+  // compared by reference would rewrite this entry's class, label, title and
+  // three `data-` facts every time somebody typed a character somewhere else
+  // (`./agenda/owed.ts`'s `unchanged`).
+  const mark = createMemo(() => markOf(props.agenda), undefined, { equals: unchanged })
 
   return (
     <div
       class="mb-2"
       data-testid={TESTID.agendaOwed}
-      data-owed={look().face}
-      data-overdue={String(look().owed.overdue)}
-      data-today={String(look().owed.today)}
+      data-owed={mark().face}
+      data-overdue={String(mark().owed.overdue)}
+      data-today={String(mark().owed.today)}
     >
       <Link
         route={{ kind: "agenda" }}
-        class={`${ENTRY} ${look().entry}`}
+        // The SHAPE plus the mark's ink and ground: one utility per property,
+        // whichever face it is wearing.
+        class={`${ENTRY_SHAPE} ${mark().entry}`}
         testid={TESTID.agendaLink}
         current={router.route().kind === "agenda"}
-        label={look().said}
-        title={look().said}
+        label={mark().said}
+        title={mark().said}
       >
         Agenda
-        <Show when={look().face !== "quiet"}>
-          <span class={look().chip} data-testid={TESTID.agendaCount}>
-            {look().count}
+        {/* Whether there is a chip at all is the table's ruling, read off the
+            paint it did or did not hand back — never a second reading of the
+            face here. `ml-auto` is this row's business, not the table's. */}
+        <Show when={mark().chip !== ""}>
+          <span
+            class={`ml-auto shrink-0 ${mark().chip}`}
+            data-testid={TESTID.agendaCount}
+          >
+            {mark().count}
           </span>
         </Show>
       </Link>

@@ -252,18 +252,28 @@ const expectMark = async (
   );
 };
 
+/** One of the two counts the entry carries, drawn or not — the half of this
+ *  that says the mark is the agenda's own arithmetic. */
+const expectCount = async (
+  world: OlaiWorld,
+  which: "overdue" | "today",
+  count: number,
+): Promise<void> => {
+  await world.expectAttribute(
+    AGENDA_OWED,
+    `data-${which}`,
+    String(count),
+    "the agenda entry",
+  );
+};
+
 /** Something has slipped: the app's alarm, and the number on it is the LATE
  *  one — whatever else the same reading holds. */
 Then(
   "the agenda entry is on fire with {int} late",
   async function (this: OlaiWorld, late: number) {
     await expectMark(this, "overdue", late);
-    await this.expectAttribute(
-      AGENDA_OWED,
-      "data-overdue",
-      String(late),
-      "the agenda entry",
-    );
+    await expectCount(this, "overdue", late);
   },
 );
 
@@ -273,12 +283,7 @@ Then(
   "the agenda entry nudges with {int} on today",
   async function (this: OlaiWorld, count: number) {
     await expectMark(this, "today", count);
-    await this.expectAttribute(
-      AGENDA_OWED,
-      "data-today",
-      String(count),
-      "the agenda entry",
-    );
+    await expectCount(this, "today", count);
   },
 );
 
@@ -287,12 +292,7 @@ Then(
 Then(
   "the agenda entry also carries {int} on today",
   async function (this: OlaiWorld, count: number) {
-    await this.expectAttribute(
-      AGENDA_OWED,
-      "data-today",
-      String(count),
-      "the agenda entry",
-    );
+    await expectCount(this, "today", count);
   },
 );
 

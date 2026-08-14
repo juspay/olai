@@ -309,8 +309,8 @@ export default function App() {
                             // in that frame (nothing is), so the fallback is a
                             // promise about the code rather than a sight.
                             <Show when={agenda()}>
-                              {(owed) => (
-                                <AgendaPage agenda={owed()} today={open().date} />
+                              {(reading) => (
+                                <AgendaPage agenda={reading()} today={open().date} />
                               )}
                             </Show>
                           )}

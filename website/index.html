@@ -128,12 +128,15 @@
     padding: 0.25rem 0.5rem; font-size: 0.85rem;
   }
   .dirent.late { background: color-mix(in srgb, var(--alarm) 10%, transparent); color: var(--alarm); font-weight: 600; }
-  .chip {
+  /* The count on it — the date badge's own pill shape (.pill above), filled
+     rather than outlined, and pushed to the end the way a row's pill is.
+     `.owed` and not `.chip`: the palette strip below already owns that name. */
+  .owed {
     margin-left: auto; border-radius: 999px; padding: 0 0.5em;
     font-family: var(--mono); font-size: 0.72rem;
     background: color-mix(in srgb, var(--muted) 15%, transparent); color: var(--muted);
   }
-  .chip.late { background: var(--alarm); color: var(--paper); font-weight: 600; }
+  .owed.late { background: var(--alarm); color: var(--paper); font-weight: 600; }
   .panel .dirent + .caption { margin: 0.15rem 0 0.6rem; }
   .note { color: var(--muted); font-size: 0.85rem; padding-left: 2.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .docref { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); padding-left: 2.8rem; margin-top: 0.1rem; }

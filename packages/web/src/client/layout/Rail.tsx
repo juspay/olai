@@ -8,8 +8,10 @@
  *
  * Which is why the agenda's mark is here too: the column's entry says what is
  * late (`../Sidebar.tsx`), and news that went out when somebody collapsed the
- * column would be news they could not act on. Same two faces, same reading,
- * one dot instead of a count — three rem has no room for a numeral.
+ * column would be news they could not act on. Same two faces, same reading, a
+ * mark instead of a count — three rem has no room for a numeral. The alarm is a
+ * FILLED dot and the nudge a RING, because they share one corner and marks that
+ * share a place have to differ by more than a colour (`../calendar/Day.tsx`).
  *
  * Which is why it is PINNED on the same terms the open column is
  * (`../Sidebar.tsx`): `sticky` under the header, as tall as what is left of the
@@ -23,7 +25,7 @@
 import type { Agenda } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
-import { lookOf } from "../agenda/owed.ts"
+import { type Face, markOf, unchanged } from "../agenda/owed.ts"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
@@ -38,7 +40,9 @@ export function Rail(props: {
    *  out when the sidebar was put away would be an alarm nobody could trust. */
   readonly agenda: Agenda | undefined
 }) {
-  const look = createMemo(() => lookOf(props.agenda))
+  // Held by the counts rather than by identity, for the reason the column's own
+  // entry holds it that way (../agenda/owed.ts's `unchanged`).
+  const mark = createMemo(() => markOf(props.agenda), undefined, { equals: unchanged })
 
   return (
     <div
@@ -77,9 +81,9 @@ export function Rail(props: {
           reader who cannot see either colour is told. */}
       <RailButton
         testid={TESTID.railAgenda}
-        label={look().said ?? "open the agenda"}
-        title={look().said ?? "agenda"}
-        owed={look().face}
+        label={mark().said ?? "open the agenda"}
+        title={mark().said ?? "agenda"}
+        owed={mark().face}
         onClick={() => props.go({ kind: "agenda" })}
       >
         {/* A checklist: two ticked lines, which is what is owed rather than
@@ -87,9 +91,12 @@ export function Rail(props: {
         <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
           <path d="M6.25 3.5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zM4.78 2.22a.75.75 0 0 1 0 1.06l-1.5 1.5a.75.75 0 0 1-1.06 0l-.75-.75a.75.75 0 0 1 1.06-1.06l.22.22 .97-.97a.75.75 0 0 1 1.06 0zm0 5a.75.75 0 0 1 0 1.06l-1.5 1.5a.75.75 0 0 1-1.06 0l-.75-.75a.75.75 0 1 1 1.06-1.06l.22.22.97-.97a.75.75 0 0 1 1.06 0z" />
         </svg>
-        <Show when={look().face !== "quiet"}>
+        {/* Drawn exactly where the table handed back a paint for it — the
+            filled alarm dot, or the nudge's ring, which is a different SHAPE
+            and not a second shade of the same one. */}
+        <Show when={mark().dot !== ""}>
           <span
-            class={`absolute right-1 top-1 size-2 rounded-full ${look().dot}`}
+            class={`absolute right-1 top-1 size-2 rounded-full ${mark().dot}`}
             aria-hidden="true"
           />
         </Show>
@@ -129,8 +136,9 @@ function RailButton(props: {
   readonly title: string
   /** What this button has to report, where it reports anything — a `data-`
    *  fact for the browser tests rather than the colour it painted, exactly as
-   *  the column's own entry carries it. */
-  readonly owed?: string
+   *  the column's own entry carries it. The FACE type and not a string: a
+   *  misspelling here is an attribute no scenario would ever match. */
+  readonly owed?: Face
   readonly onClick: () => void
   readonly children: import("solid-js").JSX.Element
 }) {
