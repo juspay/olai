@@ -20,13 +20,15 @@
  *
  * A link this app DRAWS is a `<Link>`; a link a reader WROTE — in a note, in a
  * document — is an anchor no component owns, and {@link followed} is the same
- * decision for those. Two shapes, one rule about what a click means ({@link
- * ours}), because the difference between them is who wrote the markup and not
- * what the reader meant by pressing it.
+ * decision for those. Two shapes, one rule about what a click means
+ * (`./press.ts`'s `ours`, which is where that rule moved when a third place —
+ * a `#tag` pill — started asking it), because the difference between them is
+ * who wrote the markup and not what the reader meant by pressing it.
  */
 
 import { createContext, createSignal, type JSX, onCleanup, useContext } from "solid-js"
 
+import { ours } from "./press.ts"
 import { fileNamed, hrefOf, type Route, routeIn, routeOf } from "./routes.ts"
 import { createScrollMemory } from "./scroll.ts"
 
@@ -167,23 +169,6 @@ export interface LinkProps {
   readonly halo?: boolean
   readonly children?: JSX.Element
 }
-
-/**
- * Is this click one this app may answer in place?
- *
- * A plain left click nobody has answered yet. A MODIFIED click is a reader
- * asking for the browser's behaviour — a new tab, a download — and is never
- * ours; a click something deeper already answered has been answered, which is
- * how a `<Link>` inside a pane with its own listener keeps its own route.
- *
- * One spelling, because there are two places a click becomes a route ({@link
- * Link} and {@link followed}) and a rule about what a reader meant by a
- * keypress is not a rule to keep in two heads.
- */
-const ours = (event: MouseEvent): boolean =>
-  !event.defaultPrevented &&
-  event.button === 0 &&
-  !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
 
 /**
  * The page a click on a link inside RENDERED MARKDOWN is asking for, or `null`

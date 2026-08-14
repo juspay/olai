@@ -117,6 +117,12 @@ type HasField = (typeof HAS_FIELDS)[number]
 /** The three operator names. A colon after anything else is a colon in a word
  *  — see {@link parseFilter}. */
 const OPERATORS = ["is", "has", "date"] as const
+type Operator = (typeof OPERATORS)[number]
+
+/** Is this word before a colon one of them? A type guard, so what follows is a
+ *  switch the compiler can check rather than a chain of string comparisons. */
+const isOperator = (name: string): name is Operator =>
+  (OPERATORS as ReadonlyArray<string>).includes(name)
 
 type Clause =
   | { readonly kind: "is"; readonly value: IsValue }
@@ -211,7 +217,7 @@ export const parseFilter = (text: string): Filter => {
     const token = negated ? raw.slice(1) : raw
     const colon = token.indexOf(":")
     const name = colon === -1 ? "" : token.slice(0, colon)
-    if (!(OPERATORS as ReadonlyArray<string>).includes(name)) {
+    if (!isOperator(name)) {
       terms.push({ word: token, negated })
       continue
     }
@@ -232,28 +238,45 @@ export const parseFilter = (text: string): Filter => {
   return { kind: "asking", terms, clauses, speaksOfArchive }
 }
 
-const clauseOf = (name: string, value: string): Clause | null => {
-  if (name === "is") {
-    return (IS_VALUES as ReadonlyArray<string>).includes(value)
-      ? { kind: "is", value: value as IsValue }
-      : null
+/**
+ * The value an operator takes, read — or `null` for one it does not.
+ *
+ * A SWITCH over the operator's own type rather than a chain of `if`s ending in
+ * a fallthrough, and the difference is what happens the day a fourth operator
+ * is added to {@link OPERATORS}: the fallthrough parsed it as a `date:` and
+ * refused every value it was given, silently and in the wrong words. Now it is
+ * a compile error here and in {@link teaching}, which are the two places an
+ * operator has to say something.
+ */
+const clauseOf = (name: Operator, value: string): Clause | null => {
+  switch (name) {
+    case "is":
+      return (IS_VALUES as ReadonlyArray<string>).includes(value)
+        ? { kind: "is", value: value as IsValue }
+        : null
+    case "has":
+      return (HAS_FIELDS as ReadonlyArray<string>).includes(value)
+        ? { kind: "has", field: value as HasField }
+        : null
+    case "date":
+      return dateClause(value)
   }
-  if (name === "has") {
-    return (HAS_FIELDS as ReadonlyArray<string>).includes(value)
-      ? { kind: "has", field: value as HasField }
-      : null
-  }
-  return dateClause(value)
 }
 
 /** What each operator takes, said the way the refusal vocabulary says things:
- *  the values, in full, so the next thing typed can be right. */
-const teaching = (name: string): string =>
-  name === "is"
-    ? `is: takes one of ${IS_VALUES.join(", ")}`
-    : name === "has"
-    ? `has: takes one of ${HAS_FIELDS.join(", ")}`
-    : "date: takes a day, month or year (2026-08-10, 2026-08, 2026) or a range (2026-08-01..2026-08-14, ..2026-08-10, 2026-08-10..)"
+ *  the values, in full, so the next thing typed can be right — read off the
+ *  same tables the parser reads, so a value added to one of them teaches
+ *  itself. */
+const teaching = (name: Operator): string => {
+  switch (name) {
+    case "is":
+      return `is: takes one of ${IS_VALUES.join(", ")}`
+    case "has":
+      return `has: takes one of ${HAS_FIELDS.join(", ")}`
+    case "date":
+      return "date: takes a day, month or year (2026-08-10, 2026-08, 2026) or a range (2026-08-01..2026-08-14, ..2026-08-10, 2026-08-10..)"
+  }
+}
 
 /** A year, a month or a day — the three lengths an ISO prefix comes in. */
 const PARTIAL_DAY = /^\d{4}(-\d{2}(-\d{2})?)?$/

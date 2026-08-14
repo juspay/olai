@@ -157,7 +157,12 @@ worth typing at all — `#home -is:done` is the query somebody actually wants.
   palette reads a leading `>` as an ask rather than a lookup.
 - **`is:blocked`** — deferred. Blockedness is DERIVED (`blockersOf`), which
   makes it a different kind of operator from every other one here, and
-  `edges-ui`'s blocked-derivation is the item that owns it.
+  `edges-ui`'s blocked-derivation is the item that owns it. The deferral has a
+  stated cost: every clause today is a test of the RECORD, so the predicate
+  takes a located node and nothing else. A derived-fact operator is the first
+  one that would need the whole set, and that is a signature change rather than
+  a new row in a table. Named here so the day it lands nobody is surprised —
+  and not paid for in advance, because a parameter nothing reads is a knob.
 
 ### Refusals — a colon is not always an operator
 

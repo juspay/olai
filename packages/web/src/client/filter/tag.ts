@@ -20,19 +20,21 @@
  * press into both namespaces plus every ordinary word that spells it.
  */
 
+import { ours } from "../press.ts"
+
 /** The attribute the pill publishes. A `data-` fact rather than a class, the
  *  same treatment every other machine-read fact on a row gets. */
 export const TAG_ATTRIBUTE = "data-tag"
 
 /** The tag a click landed on, or `null` for a click that landed anywhere else.
  *
- *  A MODIFIED click is left alone: `⌘`-click and shift-click on a row are the
- *  multi-select gestures (`../Tree.tsx`), and a tag inside that row must not
- *  quietly answer them with something else. */
+ *  Which presses are this app's at all is `../press.ts`'s one answer, not a
+ *  third spelling of it: a modified click is the browser's (⌘-click and
+ *  shift-click on a row are also the multi-select gestures, `../Tree.tsx`), and
+ *  one something deeper already answered — a tag inside a breadcrumb, where the
+ *  `<Link>` has run first — goes where the link says. */
 export const taggedBy = (event: MouseEvent): string | null => {
-  if (event.defaultPrevented) return null
-  if (event.button !== 0) return null
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null
+  if (!ours(event)) return null
   const target = event.target
   if (!(target instanceof Element)) return null
   // `closest`, because a pill can hold an element the markdown put there.
