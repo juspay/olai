@@ -40,7 +40,9 @@ export function EdgeVerbs(props: {
             class={`${TARGET} md:min-h-0 cursor-pointer rounded border-0 bg-transparent px-1.5 py-0.5 text-xs text-muted hover:bg-rule/50 hover:text-ink`}
             data-testid={TESTID.edgeVerb}
             data-relation={one.relation}
-            data-open={props.openFor === one.relation ? "true" : "false"}
+            // `aria-expanded` and nothing beside it: whether this panel is up
+            // is ONE fact, and the `data-` twin it had was a second spelling
+            // of it that nothing read.
             aria-expanded={props.openFor === one.relation}
             onClick={() => props.open(one.relation)}
           >

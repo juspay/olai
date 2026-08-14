@@ -15,11 +15,9 @@
  * So the relation arrives as a value and the words come out of the one table.
  * A third writable edge field would be a row there and nothing here.
  *
- * WHAT IS RESOLVED AT VIEW TIME, and why: nothing about a target is stored on
- * the source, so a retitle on the target is free and a link cannot disagree with
- * the page it opens. A set under the stale banner can hold a dangling id the
- * validator would refuse; the link is still drawn, with the id as its text
- * rather than a blank, so the page says what the file says.
+ * WHAT THE FIELD NAMES is `./named.ts`'s, shared with the panel that writes the
+ * same field: two readings of one thing had already disagreed about the frame
+ * before the indexes arrive, which is the drift this directory keeps collapsing.
  *
  * ## Where each relation is drawn, which is not the same place
  *
@@ -40,11 +38,12 @@
  * exactly as written, which is precisely what `set_after` writes.
  */
 
-import { nodeNamed, type RegularNode } from "@olai/format"
+import type { RegularNode } from "@olai/format"
 import { createMemo } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { NodeRefs } from "../NodeRefs.tsx"
+import { namedBy } from "./named.ts"
 import { type Relation, relating } from "./relation.ts"
 
 export function EdgeRefs(props: {
@@ -59,25 +58,10 @@ export function EdgeRefs(props: {
   readonly onRemove?: (id: string) => void
 }) {
   const derived = useDerived()
-
-  const refs = createMemo(() => {
-    // BEFORE the indexes are read, so a node carrying nothing on this field —
-    // almost every node — never subscribes to the whole set and never re-runs
-    // on a frame that cannot concern it.
-    const named = props.node[props.relation]
-    if (named === undefined || named.length === 0) return []
-    const indexes = derived()
-    if (indexes === undefined) return []
-    return named.map((id) => {
-      const at = nodeNamed(indexes, id)
-      return {
-        id,
-        title: at?.node.title ?? id,
-        // from "" when dangling: the title is the id, not outline prose.
-        from: at?.file ?? "",
-      }
-    })
-  })
+  /** The field, resolved — one reading, shared with the panel that writes it
+   *  (`./named.ts`), which is also where the rule about reading the cheap field
+   *  before the whole set lives. */
+  const refs = createMemo(() => namedBy(props.node, props.relation, derived))
 
   return (
     <NodeRefs

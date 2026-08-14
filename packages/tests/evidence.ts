@@ -11,6 +11,7 @@
  * entitled not to notice — so a gesture made after one would be a gesture over
  * a frame nobody can reproduce.
  */
+import { readdirSync, readFileSync } from "node:fs"
 import { chromium, type Locator, type Page } from "playwright"
 
 const BASE = process.env["BASE"] ?? "http://127.0.0.1:7788"
@@ -99,10 +100,9 @@ const textOf = async (page: Page, locator: string) =>
  * `VAULT` is `evidence.sh`'s copy; without one this prints why rather than a
  * guess, since a shot beside an invented line is worse than a shot alone.
  */
-const recordOf = async (_page: Page, id: string): Promise<string> => {
+const recordOf = (id: string): string => {
   const vault = process.env["VAULT"]
   if (vault === undefined) return "(no VAULT; run through evidence.sh)"
-  const { readdirSync, readFileSync } = await import("node:fs")
   for (const file of readdirSync(vault)) {
     if (!file.endsWith(".jsonl")) continue
     for (const line of readFileSync(`${vault}/${file}`, "utf8").split("\n")) {
@@ -265,12 +265,12 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     await shot(page, "search")
     await page.locator(EDGE_HIT).first().click()
     await page.waitForTimeout(SETTLE)
-    console.log(`  the record: ${await recordOf(page, "handles")}`)
+    console.log(`  the record: ${recordOf("handles")}`)
     await shot(page, "linked")
     // …and the panel now lists it, with the `×` that takes it off again.
     await page.locator(`${EDGE_DROP}[data-ref="compost"]`).first().click()
     await page.waitForTimeout(SETTLE)
-    console.log(`  after the ×: ${await recordOf(page, "handles")}`)
+    console.log(`  after the ×: ${recordOf("handles")}`)
     await shot(page, "unlinked")
   },
 
@@ -285,7 +285,7 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     await shot(page, "search")
     await page.locator(EDGE_HIT).first().click()
     await page.waitForTimeout(SETTLE)
-    console.log(`  the record: ${await recordOf(page, "knobs")}`)
+    console.log(`  the record: ${recordOf("knobs")}`)
     console.log(
       `  the row is blocked by: ${
         await page.locator(row("knobs")).first().getAttribute("data-blocked")
@@ -303,7 +303,7 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     await page.locator(EDGE_HIT).first().click()
     await page.locator(EDGE_SAID).waitFor()
     console.log(`  it says: ${await page.locator(EDGE_SAID).textContent()}`)
-    console.log(`  untouched: ${await recordOf(page, "order")}`)
+    console.log(`  untouched: ${recordOf("order")}`)
     await shot(page, "loop-refused")
   },
 
@@ -320,7 +320,7 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     await page.locator('[data-testid="after-refs"] [data-testid="ref-drop"][data-ref="order"]')
       .first().click()
     await page.waitForTimeout(SETTLE)
-    console.log(`  after the ×: ${await recordOf(page, "hinges")}`)
+    console.log(`  after the ×: ${recordOf("hinges")}`)
     await shot(page, "dropped")
   },
 

@@ -179,15 +179,11 @@ export const DOCUMENT_SAID = selector(TESTID.documentSaid);
 export const DOCUMENT_OVERWRITE = selector(TESTID.documentOverwrite);
 /** The notice, while the editor is open, that the file moved on disk. */
 export const DOCUMENT_DRIFTED = selector(TESTID.documentDrifted);
-/** The sidebar's way to a brand-new document, and the path box it opens. */
-export const NEW_DOCUMENT = selector(TESTID.newDocument);
-export const NEW_DOCUMENT_PATH = selector(TESTID.newDocumentPath);
-export const NEW_DOCUMENT_SAID = selector(TESTID.newDocumentSaid);
-/** The sidebar's way to a brand-new OUTLINE, beside the document's — the
- *  affordance, its path box, and the ops layer's own refusal about a path. */
-export const NEW_OUTLINE = selector(TESTID.newOutline);
-export const NEW_OUTLINE_PATH = selector(TESTID.newOutlinePath);
-export const NEW_OUTLINE_SAID = selector(TESTID.newOutlineSaid);
+/** The two sidebar path boxes — a new outline's and a new document's — are
+ *  reached through the client's own table (`file/making.ts`) rather than
+ *  through constants here: the steps that drive them are one pair over the
+ *  KIND (`step_definitions/new_file_steps.ts`), so a selector per kind spelled
+ *  in this file would be the copy that pair exists to delete. */
 /** A document's table of contents, above its body. A `<details>`: whether it is
  *  open is the element's own state. */
 export const TOC = selector(TESTID.toc);

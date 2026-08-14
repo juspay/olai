@@ -154,8 +154,9 @@ export const TESTID = {
 
   // ── the edge panel ───────────────────────────────────────────────────
   /** One of the two edge verbs on a ZOOMED node's page — the door a heading
-   *  has instead of a `•••`. `data-relation` says which, `data-open` whether
-   *  its panel is up. On a row the same two verbs are menu entries. */
+   *  has instead of a `•••`. `data-relation` says which; whether its panel is
+   *  up is `aria-expanded`, which is the same fact said once. On a row the same
+   *  two verbs are menu entries. */
   edgeVerb: "edge-verb",
   /** The panel that writes one relation of one node — in place under the row,
    *  or under a zoomed node's heading. `data-relation` says WHICH (`see` /

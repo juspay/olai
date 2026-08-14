@@ -191,16 +191,30 @@ export const nodeMenuActions = (args: {
       // happened to evaluate to — which is how this shipped an empty box under
       // the menu for a moment (a Solid setter answers with the new value, and
       // `() => void` accepts any return, so nothing but the screen said so).
+      // A SWITCH, so the union's guarantee survives the one place that acts on
+      // it: `Does` is tagged precisely so an entry with no edit is unspellable
+      // (`./verbs.ts`), and a chain of `if`s whose last arm is a fall-through
+      // would make the date picker the silent default for a fourth arm nobody
+      // had answered here yet.
+      //
+      // The `return`-less arms are deliberate, and load-bearing: an action
+      // answers with what it has to SAY, anything but `undefined` is drawn as a
+      // sentence beside the `•••`, and opening a panel has nothing to say. An
+      // expression body would hand the panel whatever the opener evaluated to —
+      // which is how this shipped an empty box under the menu for a moment (a
+      // Solid setter answers with the new value, and `() => void` accepts any
+      // return, so nothing but the screen said so).
       run: () => {
-        // A BLOCK for every arm, and each `return`-less one is deliberate: an
-        // action answers with what it has to SAY, and opening a panel has
-        // nothing to say. See the note above.
-        if (does.kind === "edit") return applying(does.edit, args.record)
-        if (does.kind === "pick-edge") {
-          args.pickEdge(does.relation)
-          return
+        switch (does.kind) {
+          case "edit":
+            return applying(does.edit, args.record)
+          case "pick-edge":
+            args.pickEdge(does.relation)
+            return
+          case "pick-date":
+            args.pickDate()
+            return
         }
-        args.pickDate()
       },
     }),
   )

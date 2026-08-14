@@ -2,13 +2,13 @@
  * A labelled row of links to other nodes — what one of a node's EDGES looks
  * like when it is drawn out rather than hinted at.
  *
- * Two relations are drawn this way so far and they are one shape: the free
- * cross-references a node carries and what it is waiting on — both `see` and
- * `after` through ./edges/EdgeRefs.tsx, and the DERIVED `blocked by`
- * through ./Blocked.tsx. Same reason `NodeLine` and `NodeBody` are one
- * place each — the second copy of a sequence like this is where the two start
- * disagreeing about the touch target, the wrap, or which element carries the
- * target id, with both still compiling and one browser test noticing.
+ * Three claims are drawn this way and they are one shape: the two edge FIELDS a
+ * node carries — `see` and `after`, both through ./edges/EdgeRefs.tsx — and
+ * what is DERIVED from the second of them, `blocked by` (./Blocked.tsx). Same
+ * reason `NodeLine` and `NodeBody` are one place each — the second copy of a
+ * sequence like this is where the two start disagreeing about the touch target,
+ * the wrap, or which element carries the target id, with both still compiling
+ * and one browser test noticing.
  *
  * The LABEL, the container's testid and WHETHER A TARGET CAN BE DROPPED are
  * the caller's, because which relation this is is exactly what differs — and
@@ -27,6 +27,7 @@
 import { Key } from "@solid-primitives/keyed"
 import { type JSX, Show } from "solid-js"
 
+import { DropRef } from "./edges/DropRef.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { Link } from "./router.tsx"
 import { type TestId, TESTID } from "./testids.ts"
@@ -90,26 +91,18 @@ export function NodeRefs(props: {
               </NodeRefLink>
               {/* OUTSIDE the link, never inside it: a control nested in an
                   anchor is a press that also navigates on every engine that
-                  has ever shipped, and the two mean opposite things here. */}
+                  has ever shipped, and the two mean opposite things here. What
+                  it SAYS is `./edges/DropRef.tsx`'s, shared with the panel's
+                  own × — two doors onto one op, named once. */}
               <Show when={props.onRemove}>
                 {(remove) => (
-                  <button
-                    type="button"
-                    class="cursor-pointer border-0 bg-transparent p-0 text-xs leading-none text-muted hover:text-alarm"
-                    data-testid={TESTID.refDrop}
-                    data-ref={ref().id}
-                    aria-label={`stop this node's \`${props.label}\` naming ${ref().title}`}
-                    title={`remove ${ref().title}`}
-                    onClick={(event) => {
-                      // The row it hangs off is a link and, in a tree, a row
-                      // that opens an editor on a click. This press is neither.
-                      event.preventDefault()
-                      event.stopPropagation()
-                      remove()(ref().id)
-                    }}
-                  >
-                    ×
-                  </button>
+                  <DropRef
+                    testid={TESTID.refDrop}
+                    relation={props.label}
+                    id={ref().id}
+                    title={ref().title}
+                    onDrop={remove()}
+                  />
                 )}
               </Show>
             </span>

@@ -159,16 +159,15 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     // would change nothing, an `after` that would close a loop. Each of those
     // sentences reaches the browser exactly as it reaches an agent's `set_see`
     // and `set_after`.
+    //
+    // ONE arm for both, because the verb IS the op — the same discriminant
+    // trick `toggle` above uses for the marks, and the same pairing `inverseOf`
+    // already makes for these two. A third writable edge field is a name in the
+    // union and nothing here.
     case "see":
-      return Result.succeed({
-        op: "see",
-        id: edit.id,
-        ...(edit.add === undefined ? {} : { add: edit.add }),
-        ...(edit.remove === undefined ? {} : { remove: edit.remove }),
-      })
     case "after":
       return Result.succeed({
-        op: "after",
+        op: edit.verb,
         id: edit.id,
         ...(edit.add === undefined ? {} : { add: edit.add }),
         ...(edit.remove === undefined ? {} : { remove: edit.remove }),
@@ -817,6 +816,18 @@ export const inverseOf = (
  * at the end. The relation is the same set either way — blockedness is a set,
  * and `see` is a list of links — and closing it would mean a whole-array write
  * on both faces, which is a change to `set_see` rather than to an undo.
+ *
+ * AND THE COUPLING WORTH NAMING, because it is the first of its kind here:
+ * every other inverse in this file reads a FACT the op is about to destroy
+ * (where a row sat, which mark it carried), and this one reproduces the op's
+ * own incremental add/remove ARITHMETIC. Nothing in the type system ties the
+ * two, so a `set_see` that became a whole-array replace would leave this
+ * silently wrong — and the append-order residual above is the same split read
+ * from the other end. That is exactly the move this function's own header
+ * records as deferred: down, into `@olai/ops`' planner, beside the op whose
+ * effect it reverses, where a plan could carry the field's previous value
+ * instead. The second consumer is still the moment to move it; this arm is the
+ * first argument FOR moving it.
  *
  * A MIRROR carries no edges of its own (the format's rule, and `derive`'s), so
  * there is nothing to take back; the write is the ops layer's to refuse.

@@ -58,12 +58,14 @@
  * the file being unable to say it.
  */
 
-import { nodeNamed, type RegularNode } from "@olai/format"
+import type { RegularNode } from "@olai/format"
 import type { Edit } from "@olai/surface"
 import { createMemo, createSignal, For, Index, Show } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { listKey } from "../keys.ts"
+import { DropRef } from "./DropRef.tsx"
+import { namedBy } from "./named.ts"
 import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { nodePlace } from "../search/place.ts"
@@ -85,21 +87,15 @@ export function EdgePanel(props: {
   readonly onClose: () => void
 }) {
   const derived = useDerived()
-  const words = createMemo(() => relating(props.relation))
+  /** A table index, not a computation: a memo here would cost a reactive node
+   *  to cache a property read whose key cannot change under it. */
+  const words = () => relating(props.relation)
   const [query, setQuery] = createSignal("")
 
-  /** What the node says NOW, resolved to titles the way every other reading of
-   *  an edge is (`@olai/format`'s `nodeNamed`, which follows a mirror to the
-   *  node standing at it). A dangling id keeps the id as its text, so the panel
-   *  says what the file says. */
-  const held = createMemo(() => {
-    const ids = props.node[props.relation] ?? []
-    const indexes = derived()
-    return ids.map((id) => ({
-      id,
-      title: indexes === undefined ? id : nodeNamed(indexes, id)?.node.title ?? id,
-    }))
-  })
+  /** What the node says NOW — the same reading the row of links draws
+   *  (`./named.ts`), so the panel and the page cannot disagree about what an id
+   *  names or about the frame before the indexes arrive. */
+  const held = createMemo(() => namedBy(props.node, props.relation, derived))
 
   const found = createNodeSearch(() => query())
   const cursor = createCursor(() => found.hits().length)
@@ -134,18 +130,16 @@ export function EdgePanel(props: {
             {(one) => (
               <li class="flex items-center gap-1 rounded border border-rule/70 px-1.5 py-0.5 text-sm text-ink">
                 <span data-ref={one.id}>{one.title}</span>
-                <button
-                  type="button"
-                  class="cursor-pointer border-0 bg-transparent p-0 text-muted hover:text-alarm"
-                  data-testid={TESTID.edgeDrop}
-                  data-ref={one.id}
-                  aria-label={`stop this node's \`${props.relation}\` naming ${one.title}`}
-                  title={`remove ${one.title}`}
-                  onClick={() =>
-                    props.onWrite(unlinking(props.node.id, props.relation, one.id))}
-                >
-                  ×
-                </button>
+                {/* The same × the drawn row carries, saying the same sentence
+                    (`./DropRef.tsx`) — two doors onto one op, named once. */}
+                <DropRef
+                  testid={TESTID.edgeDrop}
+                  relation={props.relation}
+                  id={one.id}
+                  title={one.title}
+                  onDrop={(target) =>
+                    props.onWrite(unlinking(props.node.id, props.relation, target))}
+                />
               </li>
             )}
           </For>
