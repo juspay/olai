@@ -134,6 +134,17 @@ When("the agent is released", async function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), ".agent-release"), "");
 });
 
+/** Take a stored conversation out of the agent's store, the way a deleted
+ *  session or a cleaned-out store would. The next boot's `session/list` no
+ *  longer offers it, so a panel that remembers being in it has to fall back.
+ *  The same dot-file idiom the release above uses, and not an edit either. */
+When(
+  "the conversation {string} is gone from the agent",
+  function (this: OlaiWorld, id: string) {
+    fs.writeFileSync(path.join(this.scratch(), `.agent-forgot-${id}`), "");
+  },
+);
+
 When("I cancel the turn", async function (this: OlaiWorld) {
   const cancel = this.page.locator(CHAT_CANCEL);
   await cancel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

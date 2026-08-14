@@ -9,6 +9,13 @@
  * The one this server is in is marked, and clicking it does nothing: loading
  * the session you are already in would throw away a transcript to replace it
  * with the same one.
+ *
+ * Every row says WHEN it was last touched, to the minute ({@link ./when.ts}),
+ * and that is the whole of what this list can honestly say about two rows that
+ * look identical. `/clear` ends one conversation and starts another under the
+ * same name, and ACP has no field for "this one supersedes that one" — so what
+ * is drawn is the fact the protocol does carry, for every agent, rather than a
+ * relationship guessed from two rows that happen to share a title.
  */
 
 import { createSignal, For, Match, Show, Switch } from "solid-js"
@@ -17,6 +24,7 @@ import { Refusal } from "./Refusal.tsx"
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import type { Chat, Sessions as Answer } from "./state.ts"
+import { whenOf } from "./when.ts"
 import type { OpFailure, SessionInfo } from "@olai/surface"
 
 /**
@@ -101,7 +109,7 @@ export function Sessions(props: { readonly chat: Chat }) {
                       <li>
                         <button
                           type="button"
-                          class="block w-full truncate rounded px-2 py-1 text-left text-xs hover:bg-rule"
+                          class="flex w-full items-baseline gap-2 rounded px-2 py-1 text-left text-xs hover:bg-rule"
                           data-testid={TESTID.chatSession}
                           data-session-id={session.id}
                           data-current={session.id === current()}
@@ -111,13 +119,22 @@ export function Sessions(props: { readonly chat: Chat }) {
                             props.chat.loadSession(session.id)
                           }}
                         >
-                          <span class={session.id === current() ? "text-accent" : ""}>
+                          <span
+                            class={`min-w-0 flex-1 truncate ${
+                              session.id === current() ? "text-accent" : ""
+                            }`}
+                          >
                             {session.title ?? session.id}
                           </span>
-                          <Show when={session.updatedAt}>
+                          {/* The stamp does not shrink and the title does:
+                              two rows that share a title (a `/clear` leaves a
+                              pair) differ in nothing else, so the one thing
+                              that tells them apart may not be the thing a long
+                              title pushes off the end. */}
+                          <Show when={whenOf(session.updatedAt)}>
                             {(at) => (
-                              <span class="ml-2 font-mono text-[0.625rem] text-muted">
-                                {at().slice(0, 10)}
+                              <span class="shrink-0 font-mono text-[0.625rem] text-muted">
+                                {at()}
                               </span>
                             )}
                           </Show>

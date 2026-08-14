@@ -88,15 +88,19 @@ A node's
 free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
 title, resolved at view time through the same indexes.
 
-The typeface is a pick, like the theme: `theme/fonts.ts` is the catalog, the
-build generates `@font-face` and one `:root[data-font="…"]` block per row, and
-the preferences panel's Font row draws one option per row. The default is
-Atkinson Hyperlegible — one voice on the page, the chrome, and the notes.
+The typeface is a pick, like the theme, but the catalog is not this package's:
+[`@olai/fonts`](../fonts/README.md) owns the table, the sheet generated from it
+and the derivation that produces the faces. What is here is the PICK — the
+`data-font` attribute this browser is in (`theme/fontState.ts`), the select
+that changes it (`theme/FontSelect.tsx`), and the two places a name is spelled
+by hand and held to the catalog by `theme/fonts.test.ts` (the shell's boot
+script, and the `@theme` block Tailwind reads `--font-*` out of). The default
+is Atkinson Hyperlegible — one voice on the page, the chrome, and the notes.
 The Olai row keeps three jobs distinct (Literata / iA Writer Quattro /
-iA Writer Mono). Hosted files come from nixpkgs
-(`nix/fonts.nix`), converted to woff2 at build time (`build.ts` via
-`OLAI_FONTS_DIR` / `OLAI_WOFF2_COMPRESS`) and served from `/fonts/` — no CDN,
-no font binary in the repo. Generics download nothing. Eleven theme tokens
+iA Writer Mono). Hosted files are woff2 by the time this build sees them
+(`OLAI_FONTS_DIR`, converted once in the Nix store), and `build.ts` copies
+them to `/fonts/` by name — no CDN, no font binary in the repo, and no
+conversion per build. Generics download nothing. Eleven theme tokens
 paint every surface (`theme/palettes.ts`); the look follows every palette,
 dark and light. The outline sits on `paper`; the header, sidebar and agent
 dock sit on `desk`; a card or popover is `panel`; a filled chip is `pill`.

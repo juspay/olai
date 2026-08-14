@@ -1,12 +1,13 @@
 /**
  * The typefaces, as the CSS that puts one in force.
  *
- * Generated from `./fonts.ts` and appended to the built stylesheet by
- * `src/build.ts`, which is why nothing here is in `styles.css`: the table is
- * the source, and a sheet with twenty hand-copied `@font-face` blocks in it
- * would be twenty chances for a file to be forgotten. What `styles.css` still
- * spells is the TOKEN NAMES and the default row's stacks — Tailwind can only
- * generate `font-sans` for a `--font-sans` it has seen in `@theme`.
+ * Generated from `./typefaces.ts` and appended to the built stylesheet by
+ * `@olai/web`'s `src/build.ts`, which is why nothing here is in that package's
+ * `styles.css`: the table is the source, and a sheet with twenty hand-copied
+ * `@font-face` blocks in it would be twenty chances for a file to be
+ * forgotten. What `styles.css` still spells is the TOKEN NAMES and the default
+ * row's stacks — Tailwind can only generate `font-sans` for a `--font-sans` it
+ * has seen in `@theme`.
  *
  * Every block is UNLAYERED, which is how it beats the `@layer theme` Tailwind
  * puts its own `:root` in. The default's block also lands on a bare `:root`,
@@ -18,17 +19,15 @@
  * cost a few lines of CSS and no bytes on the wire.
  */
 
+import { FONTS_DIR, type HostedFile, HOSTED_FILES, woff2Name } from "./hosted.ts"
 import {
   DEFAULT_FONT,
   FONT_ATTRIBUTE,
   FONT_TOKENS,
-  type HostedFile,
-  HOSTED_FILES,
   type Typeface,
   TYPEFACES,
-  woff2Name,
   fontProperty,
-} from "./fonts.ts"
+} from "./typefaces.ts"
 
 /** The selector a page in this typeface matches. The default matches TWO: its
  *  own name, and the page that has picked nothing at all.
@@ -53,16 +52,15 @@ export const fontFaceRule = (file: HostedFile): string =>
     `  font-style: ${file.style};`,
     `  font-weight: ${file.weight};`,
     "  font-display: swap;",
-    `  src: url("/fonts/${woff2Name(file.file)}") format("woff2");`,
+    `  src: url("/${FONTS_DIR}/${woff2Name(file.file)}") format("woff2");`,
     "}",
   ].join("\n")
 
 /** Every `@font-face`, then every pick's block, in table order. */
 export const fontCss = (): string =>
   [
-    "/* The named typefaces — GENERATED from",
-    " * packages/web/src/client/theme/fonts.ts by that directory's fontCss.ts.",
-    " * Do not edit: edit the table. */",
+    "/* The named typefaces — GENERATED from packages/fonts/src/typefaces.ts",
+    " * by its own css.ts. Do not edit: edit the table. */",
     ...HOSTED_FILES.map(fontFaceRule),
     ...TYPEFACES.map(typefaceBlock),
     "",

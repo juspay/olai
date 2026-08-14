@@ -1,0 +1,212 @@
+[
+  {
+    "pkg": "literata",
+    "dir": "truetype",
+    "family": "Literata",
+    "faces": [
+      { "file": "Literata-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "Literata-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "Literata-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "Literata-BoldItalic.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "ia-writer-quattro",
+    "dir": "truetype",
+    "family": "iA Writer Quattro",
+    "faces": [
+      { "file": "iAWriterQuattroS-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "iAWriterQuattroS-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "iAWriterQuattroS-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "iAWriterQuattroS-BoldItalic.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "ia-writer-mono",
+    "dir": "truetype",
+    "family": "iA Writer Mono",
+    "faces": [
+      { "file": "iAWriterMonoV.ttf", "weight": "100 900", "style": "normal" },
+      { "file": "iAWriterMonoV-Italic.ttf", "weight": "100 900", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "source-sans",
+    "dir": "truetype",
+    "family": "Source Sans 3",
+    "faces": [
+      { "file": "SourceSans3-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "SourceSans3-It.ttf", "weight": "400", "style": "italic" },
+      { "file": "SourceSans3-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "SourceSans3-BoldIt.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "source-serif",
+    "dir": "truetype",
+    "family": "Source Serif 4",
+    "faces": [
+      { "file": "SourceSerif4-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "SourceSerif4-It.ttf", "weight": "400", "style": "italic" },
+      { "file": "SourceSerif4-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "SourceSerif4-BoldIt.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "atkinson-hyperlegible-next",
+    "dir": "truetype",
+    "family": "Atkinson Hyperlegible Next",
+    "faces": [
+      { "file": "AtkinsonHyperlegibleNext-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "AtkinsonHyperlegibleNext-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "AtkinsonHyperlegibleNext-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "AtkinsonHyperlegibleNext-BoldItalic.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "et-book",
+    "dir": "truetype",
+    "family": "ET Book",
+    "faces": [
+      { "file": "et-book-roman-old-style-figures.ttf", "weight": "400", "style": "normal" },
+      { "file": "et-book-display-italic-old-style-figures.ttf", "weight": "400", "style": "italic" },
+      { "file": "et-book-bold-line-figures.ttf", "weight": "700", "style": "normal" }
+    ]
+  },
+  {
+    "pkg": "fira-code",
+    "dir": "truetype",
+    "family": "Fira Code",
+    "faces": [
+      { "file": "FiraCode-VF.ttf", "weight": "300 700", "style": "normal" }
+    ]
+  },
+  {
+    "pkg": "geist-font",
+    "dir": "truetype",
+    "family": "Geist Mono",
+    "faces": [
+      { "file": "GeistMono-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "GeistMono-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "GeistMono-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "GeistMono-BoldItalic.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "ibm-plex.mono",
+    "dir": "truetype",
+    "family": "IBM Plex Mono",
+    "faces": [
+      { "file": "IBMPlexMono-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "IBMPlexMono-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "IBMPlexMono-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "IBMPlexMono-BoldItalic.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "ibm-plex.sans",
+    "dir": "truetype",
+    "family": "IBM Plex Sans",
+    "faces": [
+      { "file": "IBMPlexSans-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "IBMPlexSans-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "IBMPlexSans-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "IBMPlexSans-BoldItalic.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "inter",
+    "dir": "truetype",
+    "family": "Inter",
+    "faces": [
+      { "file": "InterVariable.ttf", "weight": "100 900", "style": "normal" },
+      { "file": "InterVariable-Italic.ttf", "weight": "100 900", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "jetbrains-mono",
+    "dir": "truetype",
+    "family": "JetBrains Mono",
+    "faces": [
+      { "file": "JetBrainsMono-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "JetBrainsMono-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "JetBrainsMono-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "JetBrainsMono-BoldItalic.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "junicode",
+    "dir": "truetype",
+    "family": "Junicode",
+    "faces": [
+      { "file": "Junicode-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "Junicode-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "Junicode-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "Junicode-BoldItalic.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "lexend",
+    "dir": "truetype/lexend/lexend",
+    "family": "Lexend",
+    "faces": [
+      { "file": "Lexend-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "Lexend-Bold.ttf", "weight": "700", "style": "normal" }
+    ]
+  },
+  {
+    "pkg": "open-dyslexic",
+    "dir": "opentype",
+    "family": "OpenDyslexic",
+    "faces": [
+      { "file": "OpenDyslexic-Regular.otf", "weight": "400", "style": "normal" },
+      { "file": "OpenDyslexic-Italic.otf", "weight": "400", "style": "italic" },
+      { "file": "OpenDyslexic-Bold.otf", "weight": "700", "style": "normal" },
+      { "file": "OpenDyslexic-Bold-Italic.otf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "open-sans",
+    "dir": "truetype",
+    "family": "Open Sans",
+    "faces": [
+      { "file": "OpenSans-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "OpenSans-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "OpenSans-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "OpenSans-BoldItalic.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "crimson-pro",
+    "dir": "truetype",
+    "family": "Crimson Pro",
+    "faces": [
+      { "file": "CrimsonPro-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "CrimsonPro-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "CrimsonPro-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "CrimsonPro-BoldItalic.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "vollkorn",
+    "dir": "truetype",
+    "family": "Vollkorn",
+    "faces": [
+      { "file": "Vollkorn-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "Vollkorn-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "Vollkorn-Bold.ttf", "weight": "700", "style": "normal" },
+      { "file": "Vollkorn-BoldItalic.ttf", "weight": "700", "style": "italic" }
+    ]
+  },
+  {
+    "pkg": "commit-mono",
+    "dir": "truetype",
+    "family": "Commit Mono",
+    "faces": [
+      { "file": "CommitMono-400-Regular.ttf", "weight": "400", "style": "normal" },
+      { "file": "CommitMono-400-Italic.ttf", "weight": "400", "style": "italic" },
+      { "file": "CommitMono-700-Regular.ttf", "weight": "700", "style": "normal" },
+      { "file": "CommitMono-700-Italic.ttf", "weight": "700", "style": "italic" }
+    ]
+  }
+]

@@ -24,10 +24,10 @@
 @source "./";
 
 /* The typefaces themselves — `@font-face` and every `:root[data-font]`
- * block — are generated from `theme/fonts.ts` and appended by the build.
- * What stays here is the TOKEN NAMES and the default row's stacks, so
+ * block — are generated from `@olai/fonts`'s catalog and appended by the
+ * build. What stays here is the TOKEN NAMES and the default row's stacks, so
  * Tailwind emits `font-sans` / `font-serif` / `font-mono`. The values must
- * match the default row; `theme/fontCss.test.ts` holds them. */
+ * match the default row; `theme/fonts.test.ts` holds them. */
 
 @theme {
   --font-sans: "Atkinson Hyperlegible Next", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;

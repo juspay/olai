@@ -1,0 +1,17 @@
+{
+  "name": "@olai/fonts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//exports": "Two entries, one per READER, which is the split this package exists to make. `.` is what a PAGE reads: the typefaces, the tokens they write, the attribute and storage key a pick lives under — and nothing else, because a browser that draws a picker has no use for a filename. `./build` is what a client BUILD takes: the generated `@font-face` / `:root[data-font=\"…\"]` sheet, and the list of woff2 files that sheet's `src: url(…)` needs under `/fonts/`. One entry rather than two because they are one obligation — a build that takes the sheet and not the files ships a page whose every face 404s. The third product is not a JavaScript export at all: `default.nix` beside them, which converts those files in the Nix store.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./build": "./src/build.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "None, and that is the shape rather than an accident: this package is a table and two pure functions over it. It has no `effect` because it never fails and never does IO — the one thing that touches the disk is the Nix derivation, which is not JavaScript. A dependency here would be carried into the browser bundle by a client that only wanted to know what a typeface is called."
+}

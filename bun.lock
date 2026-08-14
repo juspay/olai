@@ -45,6 +45,10 @@
         "@types/node": "^22.0.0",
       },
     },
+    "packages/fonts": {
+      "name": "@olai/fonts",
+      "version": "0.1.0",
+    },
     "packages/format": {
       "name": "@olai/format",
       "version": "0.1.0",
@@ -127,6 +131,7 @@
       "name": "@olai/tests",
       "version": "0.1.0",
       "dependencies": {
+        "@olai/fonts": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/web": "workspace:*",
       },
@@ -141,6 +146,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@kobalte/core": "^0.13.13",
+        "@olai/fonts": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/surface": "workspace:*",
         "@solid-primitives/keyed": "^1.5.3",
@@ -313,6 +319,8 @@
     "@olai/acp": ["@olai/acp@workspace:packages/acp"],
 
     "@olai/chat": ["@olai/chat@workspace:packages/chat"],
+
+    "@olai/fonts": ["@olai/fonts@workspace:packages/fonts"],
 
     "@olai/format": ["@olai/format@workspace:packages/format"],
 
