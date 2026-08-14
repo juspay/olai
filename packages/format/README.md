@@ -263,19 +263,34 @@ the SHAPE, because that shape travels four ways at once — an agent reads it of
 `search_nodes`, the `search.nodes` procedure carries it, the ⌘K palette draws it,
 and the header's search box draws it again.
 
-It was spelled twice before, once in each of the two packages that stand on this
-floor, and `@olai/surface`'s header claimed the two could not drift. They could:
-a field added to the ops-side hit and produced type-checked clean across every
-package, reached the agent, and was dropped by the wire schema's encoder on the
-way to a browser. One declaration is why that is now unrepresentable rather than
-merely detected — see
+It was spelled twice before — three times counting `Query.search`'s own
+parameter — once in each of the two packages that stand on this floor, and
+`@olai/surface`'s header claimed the two could not drift. They could: a field
+added to the ops-side hit and produced type-checked clean across every package,
+reached the agent, and was dropped by the wire schema's encoder on the way to a
+browser. One declaration is why that is now unrepresentable rather than merely
+detected — see
 [docs/brainstorming/surface-mcp-positions.md](../../docs/brainstorming/surface-mcp-positions.md).
 
 Every field of a hit is a statement about records in this package's own terms:
 an id, a title, a `file:line`, a mark, the ancestor titles `ancestorsOf` walks,
-the edge lists a record carries. The one field that is not — `matched`, which
-says which field carried the match — is a fact about a QUERY, and it sits on the
-hit rather than on `Found` for exactly that reason.
+the edge lists a record carries. The two that are not — `matched`, which field
+carried the words, and the `refusals` an unreadable query answers with — are
+facts about a QUERY, and they sit on the hit and the answer rather than on
+`Found` for exactly that reason. `Refusal` itself is declared next door in
+`src/filter.ts`, beside the `parseFilter` that produces it, and is a Schema
+rather than an interface because it does not stay there: the filter over the
+tree draws its own, and the three doors that ask the server get theirs on the
+answer.
+
+**The filter grammar is what the single declaration was for, and it proved it
+one day later.** #168 extended search with `file`, `under`, an optional
+`matched` and `refusals` — four fields the previous arrangement would have
+needed spelled twice and kept in step by hand, in two packages that cannot
+import each other. Seated here instead, they are spelled once: removing
+`refusals` from this file fails in `@olai/ops` (which produces them),
+`@olai/web` (which draws them) and `@olai/server` at the same moment, where
+before it would have failed on one side and compiled on the other.
 
 ## Layering
 

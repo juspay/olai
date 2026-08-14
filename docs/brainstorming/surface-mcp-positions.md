@@ -125,6 +125,36 @@ against the new shape: adding a field to `Found` now fails in `@olai/ops`'
 producer and in `@olai/web`'s consumers at once, because there is no longer a
 face that could be changed on its own.
 
+### The property, exercised on somebody else's work
+
+Written down because it stopped being an argument the day after it was made.
+`filter-in-place` (#168) landed while this PR was in review and extended search
+with four fields — `file` and `under` on the request, an optional `matched`, and
+a `refusals` list on the answer — plus a `SearchRefusal` re-declaring what
+`filter.ts` already produced as `Refusal`. Branching from before this PR, it had
+no choice: it edited all four spellings, which is exactly the labour the single
+declaration removes.
+
+Resolving that conflict meant seating every one of those extensions onto
+`searching.ts`, and then the property could be tested on fields nobody wrote to
+prove a point with:
+
+| experiment | what fails |
+| --- | --- |
+| drop `under` from `SearchRequest` | `@olai/ops`' matcher call and its tests, and `@olai/server` |
+| drop `refusals` from `SearchAnswer` | `@olai/ops` (produces them), `@olai/web`'s `search/nodes.ts:140` (draws them), and `@olai/server` — all at once |
+
+The second is the whole argument. Under the arrangement #168 branched from,
+`refusals` was declared twice; removing it from one side left the other
+compiling, and the field would have half-landed in silence. There is now no side
+to remove it from.
+
+It also settled a question the original close left open by luck rather than by
+design: #168 made `matched` optional on BOTH spellings, correctly, by hand. That
+it got it right is a credit to whoever wrote it and not a property of the code —
+which is the difference between a codebase that is careful and one that is
+correct.
+
 ---
 
 ## (b) The refusal contract: pinned for one kind, on one face
