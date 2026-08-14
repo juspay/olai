@@ -17,3 +17,5 @@
   - Make full use of the ecosystem of libraries in SolidJS instead of hard-rolling.
 - Error handling
   - Never silently ignore errors. Most errors should surface to the user at some level in the UX level.
+- Dependencies
+  - Olai continues to require **NO** dependencies *outside* of Nix itself
