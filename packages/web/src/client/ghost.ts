@@ -23,7 +23,8 @@
  * the CAPTURE phase — everything else in this client listens on the document
  * (Solid's delegation, Kobalte's dismissal), and there is no earlier place —
  * and once, because the ghost is the FIRST click after the gesture and
- * anything after that belongs to whoever it landed on.
+ * anything after that belongs to whoever it landed on. One listener and one
+ * instant, for the whole page (below).
  *
  * The window is short and it is a real cost, spelled out rather than hidden:
  * if the browser produced no ghost at all, a deliberate tap inside
@@ -46,22 +47,35 @@
 export const GHOST_MS = 300
 
 /**
- * Eat the next click, if one comes soon.
+ * Until when a click is a ghost. `0` — and every instant in the past — is "the
+ * next click is somebody's".
  *
- * Returns the way to call it off, for a caller that is disposed first.
+ * MODULE state, and one listener, because the fact is the DOCUMENT's rather
+ * than any caller's: "the click about to arrive was made up for a gesture that
+ * is over" is true of the page, and two gestures overlapping (a press that
+ * opened a menu, then the thumb choosing an entry inside it) would otherwise
+ * be two listeners each spending themselves on one click. It also settles the
+ * lifetime question the other way round: a row that goes away mid-window does
+ * not take the arming with it, and the ghost its own gesture left is still not
+ * a click anybody aimed.
  */
-export const swallowGhost = (): (() => void) => {
-  let give: ReturnType<typeof setTimeout> | undefined
-  const swallow = (event: Event): void => {
+let ghostly = 0
+let listening = false
+
+/** Eat the next click, if one comes soon. */
+export const swallowGhost = (): void => {
+  ghostly = performance.now() + GHOST_MS
+  if (listening) return
+  listening = true
+  // Attached on the first gesture that needs it and never taken off: a page
+  // read with a mouse arms this never and pays nothing, and a page read with a
+  // finger would only take it off to put it back.
+  window.addEventListener("click", (event: Event) => {
+    if (performance.now() > ghostly) return
+    // Spent: the ghost is the FIRST click after the gesture, and anything
+    // after it belongs to whoever it landed on.
+    ghostly = 0
     event.preventDefault()
     event.stopPropagation()
-    done()
-  }
-  const done = (): void => {
-    clearTimeout(give)
-    window.removeEventListener("click", swallow, true)
-  }
-  window.addEventListener("click", swallow, true)
-  give = setTimeout(done, GHOST_MS)
-  return done
+  }, true)
 }

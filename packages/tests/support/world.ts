@@ -55,6 +55,18 @@ export const POLL_TIMEOUT = 15_000;
  *  small enough that a scenario holding one is not a scenario waiting. */
 const LONG_PRESS_MARGIN_MS = 300;
 
+/** How far a flick travels, and in how many steps. Far enough to be a scroll
+ *  rather than a jitter (the client drops a press past 10px), spread over the
+ *  press deadline so the finger is still down while it passes. */
+const FLICK_PX = 150;
+const FLICK_STEPS = 10;
+
+/** Where a finger is, in CSS pixels of the viewport. */
+interface Point {
+  readonly x: number;
+  readonly y: number;
+}
+
 /** Per-step budget for HYDRATION polls: the first paint after `goto`, which
  *  waits on the bundle, the WebSocket handshake and the first full snapshot.
  *  A separate axis from interaction on purpose — the first frame can take
@@ -948,17 +960,10 @@ export class OlaiWorld extends World {
    * every scenario here into a tap.
    */
   async hold(target: Locator): Promise<void> {
-    await target.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const box = await target.boundingBox();
-    assert.ok(box !== null, "nothing to hold: the target has no box");
-    const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-    const touch = await this.touchscreen();
-    await touch.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [at],
-    });
+    const at = await this.middleOf(target, "held");
+    await this.finger("touchStart", at);
     await this.page.waitForTimeout(LONG_PRESS_MS + LONG_PRESS_MARGIN_MS);
-    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await this.finger("touchEnd");
     await this.waitForFrame();
   }
 
@@ -971,27 +976,20 @@ export class OlaiWorld extends World {
    * it does not has to be a real drag — down, moving, up — rather than a tap
    * with a comment.
    */
-  async flick(target: Locator, by = 150): Promise<void> {
-    await target.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const box = await target.boundingBox();
-    assert.ok(box !== null, "nothing to flick: the target has no box");
-    const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-    const touch = await this.touchscreen();
-    await touch.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [at],
-    });
+  async flick(target: Locator): Promise<void> {
+    const at = await this.middleOf(target, "flicked");
+    await this.finger("touchStart", at);
     // Ten steps over the same span the deadline covers, so the finger is still
     // down when it passes: a drag that finished before the press could fire
     // would prove nothing about the press being dropped.
-    for (let step = 1; step <= 10; step++) {
-      await this.page.waitForTimeout(LONG_PRESS_MS / 10);
-      await touch.send("Input.dispatchTouchEvent", {
-        type: "touchMove",
-        touchPoints: [{ x: at.x, y: at.y - (by * step) / 10 }],
+    for (let step = 1; step <= FLICK_STEPS; step++) {
+      await this.page.waitForTimeout(LONG_PRESS_MS / FLICK_STEPS);
+      await this.finger("touchMove", {
+        x: at.x,
+        y: at.y - (FLICK_PX * step) / FLICK_STEPS,
       });
     }
-    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await this.finger("touchEnd");
     await this.waitForFrame();
   }
 
@@ -1000,19 +998,19 @@ export class OlaiWorld extends World {
    * sidebar it presses is a drawer there, and putting it up first would be
    * pressing something rather than pressing nothing.
    *
-   * The page below the tree is that nothing — no control, no navigation — and
-   * the point is checked against whatever panel is open, because a "tap
-   * outside" that landed inside would pass by dismissing nothing.
+   * The page below the tree is that nothing — no control, no navigation. The
+   * point is checked against the menu panel because that is the one thing a
+   * phone scenario has open over the page, and a "tap outside" that landed
+   * inside it would pass by dismissing nothing.
    */
   async tapAway(): Promise<void> {
-    const tree = await this.page.locator(OUTLINE_TREE).first().boundingBox();
-    assert.ok(tree !== null, "no outline tree to tap below");
+    const tree = await this.box(this.page.locator(OUTLINE_TREE).first(), "the outline tree");
     const view = this.page.viewportSize();
-    assert.ok(view !== null, "no viewport");
+    assert.ok(view !== null, "this scenario has no viewport size");
     // Clear of the bottom of the screen, where a phone keeps the agent's strip.
     const at = { x: view.width - 12, y: Math.min(tree.y + tree.height + 24, view.height - 80) };
-    const panel = await this.page.locator(NODE_MENU_PANEL).first().boundingBox()
-      .catch(() => null);
+    const panels = this.page.locator(NODE_MENU_PANEL);
+    const panel = (await panels.count()) > 0 ? await panels.first().boundingBox() : null;
     if (panel !== null) {
       assert.ok(
         at.x < panel.x || at.x > panel.x + panel.width || at.y < panel.y ||
@@ -1022,21 +1020,31 @@ export class OlaiWorld extends World {
         })`,
       );
     }
-    const touch = await this.touchscreen();
-    await touch.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [at],
-    });
-    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    // Playwright's own, since this one is an ordinary tap: what the two
+    // gestures above need the protocol for is a finger that STAYS down.
+    await this.page.touchscreen.tap(at.x, at.y);
     await this.waitForFrame();
   }
 
-  /** The protocol session the two gestures above go in through, opened once
-   *  per scenario: a session per press is a round trip per press, and they are
-   *  attached to the page rather than to anything a step owns. */
-  private async touchscreen(): Promise<CDPSession> {
+  /** The middle of something, waited for and measured — where a finger that
+   *  means to land on it goes. */
+  private async middleOf(target: Locator, what: string): Promise<Point> {
+    const box = await this.box(target, `the target being ${what}`);
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  }
+
+  /** One touch event, through the DevTools protocol. The session is opened
+   *  once per scenario: a session per press is a round trip per press, and it
+   *  is attached to the page rather than to anything a step owns. */
+  private async finger(
+    type: "touchStart" | "touchMove" | "touchEnd",
+    at?: Point,
+  ): Promise<void> {
     this.touching ??= await this.context.newCDPSession(this.page);
-    return this.touching;
+    await this.touching.send("Input.dispatchTouchEvent", {
+      type,
+      touchPoints: at === undefined ? [] : [at],
+    });
   }
   private touching?: CDPSession;
 

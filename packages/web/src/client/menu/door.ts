@@ -6,16 +6,17 @@
  * second always-on cell before the title (`../touch.ts`) — so its door is a
  * LONG PRESS on the row line (`../longPress.ts`), which is markup the menu
  * does not own. Something both of them can hold has to exist somewhere, and
- * this is it: one state, the verb that opens it, and the handlers the second
- * door is made of.
+ * this is it: one state, the verb that opens it, the handlers the second door
+ * is made of, and the element both of those are about.
  *
- * **Both doors from one call**, rather than a state here and a
- * `longPressOn(door.show)` the caller is trusted to remember: a row that
- * created one and forgot the other would be a row a phone cannot reach,
- * looking exactly like a row that can. What "who may open this" MEANS is this
- * module's question, and the answer is two things, so it hands back two things.
- * The gesture itself stays general — `../longPress.ts` knows nothing about
- * menus — and this is where it is spent.
+ * **Everything the row has to wire, from one call**, rather than a state here
+ * and a `longPressOn(door.show)` and a ref the caller is trusted to point at
+ * the same element: a row that wired one and forgot another would be a row a
+ * phone cannot reach, or a panel hanging off nothing — and both look exactly
+ * like a row that works. What "how this menu is reached" MEANS is this
+ * module's question, and the answer is several things, so it hands back
+ * several things. The gesture itself stays general — `../longPress.ts` knows
+ * nothing about menus — and this is where it is spent.
  *
  * The shape is the one this client already uses for "who opens this surface"
  * (`../palette/open.ts`, `../chat/open.ts`): the state lives outside the
@@ -53,9 +54,17 @@ import { type LongPress, longPressOn } from "../longPress.ts"
 type Door = "unasked" | "shut" | "open"
 
 export interface MenuDoor {
-  /** The phone's door, as the handlers that make it: spread onto the row's
+  /** The phone's door, as the two handlers that make it. Put them on the row's
    *  own line, which is what a finger is held on. */
   readonly hold: LongPress
+  /** Wire as `ref` on that same line. It is the same element twice for a
+   *  reason: what a finger is held ON is what the panel then hangs OFF, since
+   *  below `md` there is no `•••` in the gutter to hang it off — so the door
+   *  hands out both rather than leaving a row to keep two things pointing at
+   *  one element by hand. */
+  readonly line: (el: HTMLElement) => void
+  /** ...and what that caught, for the panel's placement. */
+  readonly at: () => HTMLElement | undefined
   /** Has this row ever been asked for its menu? Nothing of the primitive is
    *  mounted until it has. */
   readonly armed: Accessor<boolean>
@@ -76,9 +85,16 @@ export const createMenuDoor = (): MenuDoor => {
   const show = (): void => {
     setDoor("open")
   }
+  /** Not a signal: it is read when the panel is placed, which is after the row
+   *  has been drawn, and nothing re-runs when it arrives. */
+  let line: HTMLElement | undefined
 
   return {
     hold: longPressOn(show),
+    line: (el) => {
+      line = el
+    },
+    at: () => line,
     show,
     armed: () => door() !== "unasked",
     open: () => door() === "open",

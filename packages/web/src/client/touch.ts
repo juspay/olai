@@ -92,9 +92,32 @@ export const CONTROL_SPACER = "w-7 shrink-0 md:w-4"
 export const HOVER_GUTTER =
   `inline-flex h-11 shrink-0 items-center justify-end ${GUTTER_GAP} md:h-5`
 
-/** One cell inside the hover strip (menu trigger or triangle). */
+/** One cell inside the hover strip (the triangle, and the `•••` above md). */
 export const HOVER_CELL =
   "inline-flex h-11 w-7 shrink-0 items-center justify-center md:h-5 md:w-4"
+
+/**
+ * The `•••` cell: the same box, drawn only where there is room for it.
+ *
+ * Its own constant rather than `${HOVER_CELL} hidden md:inline-flex`, because
+ * that reads as a rule and is not one: `hidden` and `inline-flex` are the same
+ * property, so which of them wins below md is Tailwind's emission order and not
+ * the order they are written in. Spelled here, the display is stated once per
+ * breakpoint and cannot be undone by the cell it is built from.
+ */
+export const MENU_CELL =
+  "hidden h-11 w-7 shrink-0 items-center justify-center md:inline-flex md:h-5 md:w-4"
+
+/**
+ * A surface a finger may be HELD on (`../client/longPress.ts`).
+ *
+ * iOS raises its own callout for a long press and does not send the
+ * `contextmenu` that would let it be prevented, so it is turned off wherever
+ * this client claims the gesture. (Android's arrives as that event and is
+ * answered there instead — one platform each, and the halves are named where
+ * they are done.)
+ */
+export const HELD = "[-webkit-touch-callout:none]"
 
 /**
  * Reveal policy for hover-only gutter controls (triangle; menu on md+).

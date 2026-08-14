@@ -112,8 +112,6 @@ type Finger =
  */
 export const longPressOn = (press: () => void): LongPress => {
   let finger: Finger = { kind: "gone" }
-  /** Call off the ghost-eating listener, if one is out. */
-  let stopSwallowing: (() => void) | undefined
 
   const move = (event: PointerEvent): void => {
     if (finger.kind !== "holding") return
@@ -154,7 +152,7 @@ export const longPressOn = (press: () => void): LongPress => {
   const lifted = (): void => {
     const opened = finger.kind === "held"
     release()
-    if (opened) stopSwallowing = swallowGhost()
+    if (opened) swallowGhost()
   }
 
   /** Fire it, from whichever deadline arrived — ours or the platform's. */
@@ -163,10 +161,7 @@ export const longPressOn = (press: () => void): LongPress => {
     press()
   }
 
-  onCleanup(() => {
-    release()
-    stopSwallowing?.()
-  })
+  onCleanup(release)
 
   return {
     onPointerDown: (event: PointerEvent) => {

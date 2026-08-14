@@ -90,6 +90,7 @@ import { useToday } from "./today.tsx"
 import {
   CHILD_INDENT,
   GUTTER_GAP,
+  HELD,
   HOVER_CELL,
   HOVER_GUTTER,
   HOVER_REVEAL,
@@ -164,14 +165,12 @@ function Branch(props: {
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
 
-  /** Both doors to this row's `•••` menu, and whether it is open: the one in
-   *  the gutter, and — where that is not drawn, which is every screen under
-   *  48rem — a long press on the line below (./menu/door.ts). Called here, in
-   *  the row's own owner, so a press in flight is disposed with the row. */
+  /** Both doors to this row's `•••` menu, whether it is open, and the line all
+   *  of that is about: the `•••` in the gutter, and — where that is not drawn,
+   *  which is every screen under 48rem — a long press on the row, which is
+   *  then also what the panel hangs off (./menu/door.ts). Called here, in the
+   *  row's own owner, so a press in flight is disposed with the row. */
   const menu = createMenuDoor()
-  /** The line itself, which is the phone's menu anchor: with no `•••` to hang
-   *  the panel off, it hangs off the row. */
-  let line: HTMLDivElement | undefined
 
   /** Is this row's date picker open? Local to the ROW rather than to either of
    *  the two things that open it — the pill on the line, and the `•••` menu's
@@ -250,20 +249,26 @@ function Branch(props: {
           every descendant's menu and triangle at once. Gap is GUTTER_GAP —
           the same number PAST_CONTROLS is arithmetic over (./touch.ts). */}
       <div
-        ref={line}
+        ref={menu.line}
         // `relative` for the phone's menu root, which is out of the gutter's
         // flow so that a strip with no `•••` in it stays exactly as wide as
-        // its triangle (./touch.ts's arithmetic); the touch callout is off for
-        // the same reason the long press below prevents `contextmenu` — iOS
-        // has that callout without the event, and a press that raised it would
-        // be the browser's gesture answering over this one's.
-        class={`group/row relative flex items-center [-webkit-touch-callout:none] ${GUTTER_GAP} ${
+        // its triangle (./touch.ts's arithmetic). `HELD` is the other half of
+        // what the long press below does about the browser's own gesture, for
+        // the platform that raises it without an event to prevent.
+        class={`group/row relative flex items-center ${HELD} ${GUTTER_GAP} ${
           WAITING_DIM(props.row.blocked)
         }`}
-        // The phone's door to the `•••` menu: hold a finger on the row.
-        // Touch only, so a mouse and a pen are untouched — and so is the page,
-        // which goes on scrolling under a finger that moves (./longPress.ts).
-        {...menu.hold}
+        // The phone's door to the `•••` menu: hold a finger on the row. Touch
+        // only, so a mouse and a pen are untouched — and so is the page, which
+        // goes on scrolling under a finger that moves (./longPress.ts).
+        //
+        // Named one by one rather than spread: a spread anywhere on an element
+        // moves EVERY attribute of it onto Solid's runtime `spread` path,
+        // where the `classList` beside them is diffed key by key on every
+        // frame the store publishes — for every row in the outline. The two
+        // handlers are the whole of `LongPress`.
+        onPointerDown={menu.hold.onPointerDown}
+        onContextMenu={menu.hold.onContextMenu}
         // Two ways of being THE row, drawn in one accent and told apart by
         // weight: the caret fills its row, a reference outlines the row it
         // points at. One vocabulary, because "this is the one" is one thing to
@@ -289,7 +294,6 @@ function Branch(props: {
               per row per frame would be the tree squared. */}
           <NodeMenu
             door={menu}
-            row={() => line}
             actions={nodeMenuActions({
               row: props.row,
               derived: derived(),

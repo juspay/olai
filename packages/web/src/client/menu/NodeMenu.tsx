@@ -62,16 +62,17 @@
  *     both doors have to write it — and the menu is CONTROLLED rather than
  *     `defaultOpen` for the same reason: a row asked a second time has a
  *     primitive already mounted with nothing to remount.
- *   - **the `•••` and its trigger are drawn only above md.** Not `hidden`,
- *     which is what the whole root used to be: the panel is inside it, and a
- *     `display: none` ancestor takes the panel with it (and would leave the
- *     positioner measuring a box that is 0×0 at the top-left of the window).
- *     The root is out of flow below md instead — a zero-width absolute box at
- *     the row's left edge — so the phone's gutter is exactly the triangle it
- *     always was.
+ *   - **the `•••` is not drawn below md** — `MENU_CELL` is `display: none`
+ *     there, which is where that decision belongs and all it costs. What
+ *     cannot be `hidden` is the ROOT, the way it used to be before a phone had
+ *     any door at all: the panel is inside it, and a `display: none` ancestor
+ *     takes the panel with it. So the root is out of the gutter's flow instead
+ *     — a zero-width absolute box at the row's left edge — and the phone's
+ *     strip is exactly the triangle it always was.
  *   - **the panel hangs off the row line there**, through `getAnchorRect`,
- *     which is the same left edge and the same drop the `•••` gives it above
- *     md. One placement, two anchors.
+ *     which asks the `•••` for its box and takes the row's when there is none
+ *     to have. Same left edge, same drop, one placement for both doors — and
+ *     no media query in this file at all.
  *
  * THE CONFIRM IS THIS PANEL'S OWN SECOND STEP, and that is a decision rather
  * than a convenience: a `window.confirm()` is browser chrome olai does not
@@ -85,10 +86,9 @@ import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js"
 
 import { swallowGhost } from "../ghost.ts"
-import { desktop } from "../layout/media.ts"
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
-import { HOVER_CELL, MENU_REVEAL } from "../touch.ts"
+import { MENU_CELL, MENU_REVEAL } from "../touch.ts"
 import { type Said, SAID_MS } from "../edit/undoing.ts"
 import type { MenuDoor } from "./door.ts"
 
@@ -109,11 +109,21 @@ export interface MenuAction {
   readonly run: () => void | Promise<Said | void>
 }
 
-/** The `•••` itself, in the one spelling both the dead button and Kobalte's
- *  trigger are drawn from — they stand in for each other (see {@link Dots}),
- *  so a class on one and not the other would be a flicker at the press. */
+/**
+ * The `•••` itself, in the one spelling both the dead button and Kobalte's
+ * trigger are drawn from — they stand in for each other (see {@link Dots}), so
+ * a class on one and not the other would be a flicker at the press.
+ *
+ * `MENU_CELL` is the box, and it is `display: none` below md: a 390px screen
+ * has no room for a second always-on cell before the title (`../touch.ts`), so
+ * the `•••` is not drawn there — not focusable, not announced, not a gutter
+ * cell. What a phone opens the menu with instead is a long press on the row
+ * (`./door.ts`); the trigger stays in the MARKUP because it is what holds the
+ * primitive's state, and the panel hangs off the row's own line while it has
+ * no box (see `getAnchorRect`).
+ */
 const DOTS =
-  `${HOVER_CELL} ${MENU_REVEAL} cursor-pointer border-0 bg-transparent p-0 ` +
+  `${MENU_CELL} ${MENU_REVEAL} cursor-pointer border-0 bg-transparent p-0 ` +
   "text-[0.65rem] leading-none tracking-[0.05em] text-muted hover:text-ink"
 
 /**
@@ -131,8 +141,8 @@ const DOTS =
 const asks = (action: MenuAction): boolean => action.confirm !== undefined
 
 /**
- * An entry chosen with a THUMB, and the click that is about to arrive for a
- * gesture that is over.
+ * A tap in the PANEL, and the click that is about to arrive for a gesture that
+ * is over.
  *
  * Kobalte selects an item on the pointer-up, and `closeOnSelect` takes the
  * panel down in the same breath — so by the time a touchscreen makes up the
@@ -145,24 +155,23 @@ const asks = (action: MenuAction): boolean => action.confirm !== undefined
  * dispatched to the ancestor of what was pressed rather than to a fresh
  * hit-test, which is why a pointer has never seen this.
  *
- * On every item rather than only on the ones that close: the confirm's own
- * two entries close as well, and an entry that stayed open leaves the ghost
- * landing on the panel it belongs to, which is nothing happening.
+ * On the PANEL rather than on each entry, which is where it started: a rule
+ * spelled per entry is a rule the next entry has to remember, and forgetting
+ * it reproduces exactly the bug above. `pointerup` bubbles, so one handler
+ * covers the list, the confirm's two buttons, and whatever the catalog grows.
+ * A tap that chose nothing arms it too, and that costs nothing: the ghost then
+ * lands on the panel it belongs to, which is nothing happening.
  */
-const chosenByThumb = (event: PointerEvent): void => {
+const tappedInPanel = (event: PointerEvent): void => {
   if (event.pointerType === "touch") swallowGhost()
 }
 
 export function NodeMenu(props: {
   readonly actions: ReadonlyArray<MenuAction>
-  /** Who is allowed to open it, and whether it is open — the ROW's, because
-   *  below `md` the door is a long press on markup this component does not
-   *  own (`./door.ts`). */
+  /** How this row's menu is reached, and whether it is open — the ROW's,
+   *  because below `md` the door is a long press on markup this component does
+   *  not own, and the panel then hangs off that same markup (`./door.ts`). */
   readonly door: MenuDoor
-  /** The box the panel hangs off below `md`, where there is no `•••` to hang
-   *  it off: the row's own line. Above `md` this is not read at all — the
-   *  trigger is the anchor, as it is for any dropdown. */
-  readonly row: () => HTMLElement | undefined
 }) {
   /** What the last action had to say, or `null`. The menu is CLOSED by the
    *  time an action answers, so this belongs to the root beside the `•••`
@@ -262,50 +271,49 @@ export function NodeMenu(props: {
     // stays what it says it is. It cannot simply be `hidden` there, the way it
     // was before a phone had any door at all — the panel is inside it.
     <div class="absolute inset-y-0 left-0 w-0 shrink-0 md:relative md:w-auto">
-      <Show
-        when={props.door.armed()}
-        fallback={
-          <Show when={desktop()}>
-            <Dots onArm={props.door.show} />
-          </Show>
-        }
-      >
+      <Show when={props.door.armed()} fallback={<Dots onArm={props.door.show} />}>
         <DropdownMenu
           modal={false}
           placement="bottom-start"
           gutter={2}
           open={props.door.open()}
           onOpenChange={props.door.setOpen}
-          // The trigger if this row has one, and the row's own LINE if it does
-          // not: below md the menu is opened by a long press on that line
-          // (`../longPress.ts`) and there is no `•••` for the panel to hang
-          // off, so the line is what it hangs off instead — same left edge,
-          // same drop below the row, one placement for both doors.
-          getAnchorRect={(anchor?: HTMLElement) =>
-            (anchor ?? props.row())?.getBoundingClientRect()}
+          // WHAT THE PANEL HANGS OFF: the `•••` where one is DRAWN, and the
+          // row's own line where it is not. Below md the `•••` is `hidden` —
+          // it is still in the markup, because Kobalte's trigger is what holds
+          // the menu's state, and a `display: none` box measures 0×0 at the
+          // corner of the window, which is where the panel would be placed.
+          // So the anchor is a question about the drawing rather than about
+          // the viewport, asked of the box itself: no width, no anchor, and
+          // the line the finger was held on takes over (`./door.ts`). Same
+          // left edge, same drop below the row, one placement for both doors —
+          // and no media query in here at all.
+          getAnchorRect={(anchor?: HTMLElement) => {
+            const dots = anchor?.getBoundingClientRect()
+            return dots !== undefined && dots.width > 0
+              ? dots
+              : props.door.at()?.getBoundingClientRect()
+          }}
         >
-          <Show when={desktop()}>
-            <DropdownMenu.Trigger
-              ref={trigger}
-              class={DOTS}
-              data-testid={TESTID.nodeMenu}
-              aria-label="node menu"
-              title="node menu"
-              // Kobalte toggles on the POINTERDOWN (and on the click for a
-              // touch pointer), so both are stopped here: opening a row's menu
-              // is not also a press on the row it belongs to. It is also a
-              // gesture the caret's way home has to know about (`handBack`):
-              // pressing the `•••` to shut a menu the KEYBOARD opened is still
-              // a press.
-              onPointerDown={(event: PointerEvent) => {
-                lastGesture = "pointer"
-                event.stopPropagation()
-              }}
-              onClick={(event: MouseEvent) => event.stopPropagation()}
-            >
-              •••
-            </DropdownMenu.Trigger>
-          </Show>
+          <DropdownMenu.Trigger
+            ref={trigger}
+            class={DOTS}
+            data-testid={TESTID.nodeMenu}
+            aria-label="node menu"
+            title="node menu"
+            // Kobalte toggles on the POINTERDOWN (and on the click for a touch
+            // pointer), so both are stopped here: opening a row's menu is not
+            // also a press on the row it belongs to. It is also a gesture the
+            // caret's way home has to know about (`handBack`): pressing the
+            // `•••` to shut a menu the KEYBOARD opened is still a press.
+            onPointerDown={(event: PointerEvent) => {
+              lastGesture = "pointer"
+              event.stopPropagation()
+            }}
+            onClick={(event: MouseEvent) => event.stopPropagation()}
+          >
+            •••
+          </DropdownMenu.Trigger>
           <DropdownMenu.Content
             ref={(el: HTMLElement) => {
               // AND THE CARET GOES IN — on the SECOND open and every one after
@@ -366,6 +374,8 @@ export function NodeMenu(props: {
             onPointerDownOutside={() => {
               lastGesture = "pointer"
             }}
+            // ...and the tap that any of it leaves behind (see above).
+            onPointerUp={tappedInPanel}
           >
             <MenuPanel actions={props.actions} onPick={pick} onGone={handBack} />
           </DropdownMenu.Content>
@@ -529,7 +539,6 @@ function MenuPanel(props: {
                 class="cursor-pointer px-3 py-1.5 text-left text-ink hover:bg-rule focus:outline-none data-[highlighted]:bg-rule"
                 data-testid={TESTID.nodeMenuItem}
                 data-action={action.id}
-                onPointerUp={chosenByThumb}
                 closeOnSelect={!asks(action)}
                 onSelect={() =>
                   asks(action) ? setAsking(action) : void props.onPick(action)}
@@ -593,7 +602,6 @@ function Confirm(props: {
           class="cursor-pointer rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10 focus:outline-none"
           data-testid={TESTID.nodeMenuItem}
           data-action={props.action.id}
-          onPointerUp={chosenByThumb}
           onSelect={() => void props.onGo(props.action)}
         >
           {props.action.label}
@@ -603,7 +611,6 @@ function Confirm(props: {
           data-testid={TESTID.nodeMenuItem}
           data-action="cancel"
           closeOnSelect={false}
-          onPointerUp={chosenByThumb}
           onSelect={() => props.onCancel(props.action)}
         >
           Cancel

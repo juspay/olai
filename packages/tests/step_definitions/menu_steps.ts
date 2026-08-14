@@ -50,6 +50,11 @@ const panelOf = async (world: OlaiWorld) => {
   return panel;
 };
 
+/** ONE entry of it, by the label a person reads off it. `.first()` because one
+ *  word can match two — the list's `Collapse`, and its `Collapse all`. */
+const entry = async (world: OlaiWorld, label: string) =>
+  (await panelOf(world)).locator(NODE_MENU_ITEM).filter({ hasText: label }).first();
+
 /** The `•••` pressed: the row's gutter revealed first (it is `opacity-0` until
  *  the row is hovered), then the press itself. `force` because opacity is not
  *  something Playwright's actionability check can see through. */
@@ -126,15 +131,14 @@ Then("the node menu is open", async function (this: OlaiWorld) {
   await panelOf(this);
 });
 
-/** An entry chosen with a THUMB. The step above it clicks, which is the same
- *  thing to the app and not the same thing to a phone scenario — the whole
- *  point of one is that no mouse was involved anywhere in it. */
+/** The same entry, pressed the way a phone presses it. `world.press` takes the
+ *  gesture as a parameter for exactly this reason, and a tap is not a click:
+ *  the whole point of a phone scenario is that no mouse was involved anywhere
+ *  in it. */
 When(
   "I tap {string} in the node menu",
   async function (this: OlaiWorld, label: string) {
-    const panel = await panelOf(this);
-    await panel.locator(NODE_MENU_ITEM).filter({ hasText: label }).first().tap();
-    await this.waitForFrame();
+    await this.press(await entry(this, label), "tap");
   },
 );
 
@@ -278,9 +282,7 @@ Then(
 When(
   "I choose {string} from the node menu",
   async function (this: OlaiWorld, label: string) {
-    const panel = await panelOf(this);
-    await panel.locator(NODE_MENU_ITEM).filter({ hasText: label }).first().click();
-    await this.waitForFrame();
+    await this.press(await entry(this, label));
   },
 );
 
