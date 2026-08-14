@@ -48,6 +48,7 @@ import {
 import type { Edit } from "@olai/surface"
 
 import { datePick } from "../date/pick.ts"
+import { archiveQuestion } from "../trash/question.ts"
 import { under } from "./subtree.ts"
 
 /**
@@ -239,31 +240,17 @@ export const writeVerbs = (
       does: sends({ verb: "archive", id: shown.node.id }),
       // Counted over the SET rather than over this row's children: what the
       // write moves is not what the page happens to be drawing (`./subtree.ts`).
-      confirm: archiveQuestion(shown.node.title, under(derived, shown.node.id)),
+      //
+      // The SENTENCE is the Trash's own (`../trash/question.ts`) rather than
+      // this file's: the human's 2026-08-12 ruling is about the ARCHIVE, and a
+      // multi-selection's Move to Trash makes the same promise about the same
+      // op. Two spellings of it could only ever drift.
+      confirm: archiveQuestion(
+        { kind: "row", title: shown.node.title },
+        under(derived, shown.node.id),
+      ),
     })
   }
 
   return verbs
 }
-
-/**
- * What the menu asks before it moves a subtree to the Trash — the human's
- * ruling (2026-08-12), in two halves that both matter.
- *
- * The BLAST RADIUS, because this is the one menu verb whose reach is bigger
- * than the line it was chosen on, and a count is the only honest way to say so
- * on a row whose children may be collapsed.
- *
- * And THE WAY BACK, because "Trash" invites a reader to assume a bin they can
- * open — and now there is one (`parity-unarchive`): the sidebar's Trash shows
- * what was put away, and `Put back` on a row restores it. When the confirm
- * first shipped there was no unarchive on any face, so it named the file as
- * the restore path; the promise it makes moved with the feature.
- */
-const archiveQuestion = (title: string, rows: number): string =>
-  rows === 0
-    ? `Move “${title}” to the Trash? It keeps its id, and the Trash in the ` +
-      `sidebar is where to put it back.`
-    : `Move “${title}” and the ${rows === 1 ? "row" : `${rows} rows`} under it ` +
-      `to the Trash? They keep their ids, and the Trash in the sidebar is ` +
-      `where to put them back.`

@@ -18,13 +18,14 @@
  * scrollable while the reader finishes what they were doing; the card does not.
  */
 
+import { LAYER } from "../layer.ts"
 import { Reload } from "../Reload.tsx"
 import { TESTID } from "../testids.ts"
 
 export function Restarted(props: { readonly onReload: () => void }) {
   return (
     <div
-      class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+      class={`pointer-events-none fixed inset-0 ${LAYER.over} flex items-center justify-center bg-black/60 p-6`}
       data-testid={TESTID.restarted}
     >
       <div class="pointer-events-auto max-w-sm rounded-lg border border-rule/70 bg-panel px-6 py-5 shadow-lg">

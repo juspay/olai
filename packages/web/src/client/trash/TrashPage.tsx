@@ -26,12 +26,13 @@
 
 import { isMirror, type Row, rowsOf } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, createSignal, Match, onCleanup, Show, Switch } from "solid-js"
+import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { useDerived } from "../derived.tsx"
 import { SaidLine } from "../edit/SaidLine.tsx"
-import { type Said, SAID_MS, useUndo } from "../edit/undoing.ts"
+import { useUndo } from "../edit/undoing.ts"
 import { NodeTitle } from "../NodeTitle.tsx"
+import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
 
@@ -104,9 +105,10 @@ function Branch(props: {
   readonly row: Row
 }) {
   const undo = useUndo()
-  const [said, setSaid] = createSignal<Said | undefined>()
-  let clearing: ReturnType<typeof setTimeout> | undefined
-  onCleanup(() => clearTimeout(clearing))
+  /** The line under this row, and the six seconds it lasts — the same
+   *  receptacle the `•••` menu's line rides on (`../saying.ts`), which is
+   *  where the three rules around it live now that two surfaces keep them. */
+  const { said, say } = createSaying()
 
   // The id the verb names is the ROW's own record — for the one row that
   // offers it, a regular node, so it is the id `unarchive_node` takes. A
@@ -119,12 +121,10 @@ function Branch(props: {
     )
     // A landed put-back removes this row on the next frame, so what lingers
     // here is the half worth reading in place: the refusal, verbatim, or a
-    // nudge from a write that happened.
-    setSaid(answer)
-    clearTimeout(clearing)
-    if (answer !== undefined) {
-      clearing = setTimeout(() => setSaid(undefined), SAID_MS)
-    }
+    // nudge from a write that happened. Handed straight through — an answer
+    // of `undefined` is "nothing to say", which `say` reads as clearing the
+    // line rather than as a sentence.
+    say(answer)
   }
 
   return (

@@ -257,6 +257,20 @@ export const TESTID = {
    *  put one. It becomes a node when it has a title and is committed, so a
    *  scenario that finds one has found a DRAFT and not a write. */
   newRow: "new-row",
+  /** The shortlist under a caret: the `!` day picker, the `#`/`@` tag list, the
+   *  `((` node search. `data-kind` says which of the three — `date`, `tag` or
+   *  `mirror` — so a scenario names the widget rather than guessing from what
+   *  is in it. Absent whenever nothing is armed, which includes a trigger whose
+   *  query matches nothing at all. */
+  completions: "completions",
+  /** One row of it. `data-id` is the day, the tag as written, or the node's id;
+   *  `data-active` is which one Enter would take. */
+  completionItem: "completion-item",
+  /** Where a `((` hit SITS — the second line of its row, nearest ancestor
+   *  first, exactly as the palette writes one. */
+  completionItemPlace: "completion-item-place",
+  /** A refused node search, quoted, in its own slot above the rows. */
+  completionsError: "completions-error",
   /** What the last commit was refused with, under the row it was typed in.
    *  `data-kind` is the refusal's own tag. Its presence is the promise that a
    *  refused write is visible; the draft beside it is the promise that nothing
@@ -275,6 +289,41 @@ export const TESTID = {
   /** The way in on a page with no rows: an outline that holds nothing, a
    *  zoomed node with nothing under it. */
   startLine: "start-line",
+  // ── picking rows, and moving them ────────────────────────────────────
+  /** The bullet, wrapped as something to pick a row up by. Present on every
+   *  editable row; a press that never travels is still the bullet's own link
+   *  (`drag/Handle.tsx`). */
+  dragHandle: "drag-handle",
+  /** The line drawn where a dragged row would land, while it is being dragged
+   *  and never otherwise. What it PROMISES rides as data rather than as a
+   *  shape: `data-parent` is the record it would go under (`""` for the top
+   *  level of the file), `data-after` the sibling it would follow (`""` for
+   *  first among them), and `data-depth` how far in the line is drawn — the
+   *  three facts that are still a prediction until the pointer is released. */
+  dropLine: "drop-line",
+  /** The bar a multi-selection draws: how many rows are picked, the one verb
+   *  that has no key, and what the last bulk write said. `data-rows` is the
+   *  count the verbs are asked of — the picked rows nothing else picked
+   *  contains — so a scenario can hold "a parent and its child are one row to a
+   *  verb" without reading the sentence. */
+  selectionBar: "selection-bar",
+  selectionCount: "selection-count",
+  /** Move the picked rows to the Trash. Pressed once it asks; pressed again in
+   *  the question below, it goes. */
+  selectionTrash: "selection-trash",
+  /** That question, naming how many rows the write moves — the `•••` menu's own
+   *  confirm at selection size. */
+  selectionConfirm: "selection-confirm",
+  selectionCancel: "selection-cancel",
+  /** Said in the button's place when the pick holds a PLACEMENT: the node a
+   *  mirror shows lives somewhere else, so this face will not put it away from
+   *  here. A sentence rather than a silently smaller write. */
+  selectionNote: "selection-note",
+  /** What the last bulk gesture — a key over the pick, or a drop — had to say.
+   *  `data-tone` is the two moods every write surface here has: `alarm` for the
+   *  ops layer's refusal verbatim, `aside` for a remark on one that landed. */
+  selectionSaid: "selection-said",
+
   /** The keyboard reference, opened from the palette: what every key this app
    *  answers does, drawn from the same table the matchers live beside. */
   shortcuts: "shortcuts",

@@ -24,6 +24,11 @@
  * halo when children are hidden); then the status checkbox. The hover strip
  * is always visible on a phone (no hover there) — see ./touch.ts.
  *
+ * The `•••` itself is not drawn below 48rem, where there is no room for it,
+ * so a phone reaches the same menu by HOLDING a finger on the row instead
+ * (./longPress.ts, ./menu/door.ts). Both doors open one menu with one catalog;
+ * neither device gets a verb the other does not.
+ *
  * A row that cannot start yet says so twice and quietly: the mark column draws
  * the waiting glyph instead of the box (./Checkbox.tsx), and the row's own
  * line and body dim. The dim is on those two rather than on the `<li>`,
@@ -63,6 +68,9 @@ import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
 import { Bullet } from "./Bullet.tsx"
 import { Checkbox } from "./Checkbox.tsx"
+import { ROW_KEY, useDragging } from "./drag/dragging.ts"
+import { Handle } from "./drag/Handle.tsx"
+import { useSelection } from "./select/selection.ts"
 import { DatePicker } from "./date/DatePicker.tsx"
 import { datePick } from "./date/pick.ts"
 import { useDerived } from "./derived.tsx"
@@ -77,6 +85,7 @@ import { createNoteExpand } from "./note/expand.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { nodeMenuActions } from "./menu/actions.ts"
+import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
 import { useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
@@ -84,6 +93,7 @@ import { useToday } from "./today.tsx"
 import {
   CHILD_INDENT,
   GUTTER_GAP,
+  HELD,
   HOVER_CELL,
   HOVER_GUTTER,
   HOVER_REVEAL,
@@ -158,6 +168,13 @@ function Branch(props: {
   // Click/tap expand — local to this place, not a reading cell. No hover.
   const note = createNoteExpand()
 
+  /** Both doors to this row's `•••` menu, whether it is open, and the line all
+   *  of that is about: the `•••` in the gutter, and — where that is not drawn,
+   *  which is every screen under 48rem — a long press on the row, which is
+   *  then also what the panel hangs off (./menu/door.ts). Called here, in the
+   *  row's own owner, so a press in flight is disposed with the row. */
+  const menu = createMenuDoor()
+
   /** Is this row's date picker open? Local to the ROW rather than to either of
    *  the two things that open it — the pill on the line, and the `•••` menu's
    *  `Set date…` — because it is one picker and the menu panel is closed by the
@@ -207,6 +224,41 @@ function Branch(props: {
    *  row of the tree. */
   const focused = createMemo(() => focusedNode() === foldIdOf(props.row))
 
+  /** Is this row PICKED, and is it in the air? Two facts about the same row and
+   *  neither is the caret's: a pick is a set of places
+   *  (`./select/selection.ts`), and a row being carried is one the drop is not
+   *  offered beside (`./drag/dragging.ts`). Both are read here and drawn as
+   *  `data-` facts on the item, which is where `data-editing` already is. */
+  const selection = useSelection()
+  const dragging = useDragging()
+  const picked = () => selection.keys().has(props.row.key)
+  const carried = () => dragging.carrying(props.row.key)
+
+  /**
+   * A click on the title: the caret, or the pick.
+   *
+   * Workflowy's modifiers, and the split is the whole of what a modifier means
+   * here — a plain click is about the TEXT in this row, and a modified one is
+   * about the ROW as a thing to do something to. Shift extends from where the
+   * pick was started; ⌘ / Ctrl adds this row or takes it back out.
+   *
+   * The plain click just OPENS. Putting the pick away is the editor's, in the
+   * one place every caret comes from (`./edit/editing.tsx`'s `open`), because a
+   * rule spelled at the call sites is a rule the next door forgets — and the
+   * note's did.
+   */
+  const clickTitle = (event: MouseEvent) => {
+    if (event.shiftKey) {
+      selection.extend(props.row.key)
+      return
+    }
+    if (event.metaKey || event.ctrlKey) {
+      selection.toggle(props.row.key)
+      return
+    }
+    editor.open(props.row, "title")
+  }
+
   return (
     <li
       class="my-0.5"
@@ -219,6 +271,11 @@ function Branch(props: {
       data-line={props.row.at.line}
       data-note-open={note.expanded() ? "true" : "false"}
       data-editing={editing() ? "true" : undefined}
+      // Picked, and in the air — the two facts a multi-select and a drag put on
+      // a row, said the way `data-editing` beside them is said: as facts, never
+      // as the tone they are painted.
+      data-picked={picked() ? "true" : undefined}
+      data-carried={carried() ? "true" : undefined}
       // Which row the panel is pointing at, as a fact rather than as a colour
       // — the same treatment `data-editing` beside it gets. It is also what
       // ./focus.ts aims its scroll at, which is why the row that wears it is
@@ -235,7 +292,26 @@ function Branch(props: {
           every descendant's menu and triangle at once. Gap is GUTTER_GAP —
           the same number PAST_CONTROLS is arithmetic over (./touch.ts). */}
       <div
-        class={`group/row flex items-center ${GUTTER_GAP} ${WAITING_DIM(props.row.blocked)}`}
+        ref={menu.line}
+        // `relative` for the phone's menu root, which is out of the gutter's
+        // flow so that a strip with no `•••` in it stays exactly as wide as
+        // its triangle (./touch.ts's arithmetic). `HELD` is the other half of
+        // what the long press below does about the browser's own gesture, for
+        // the platform that raises it without an event to prevent.
+        class={`group/row relative flex items-center ${HELD} ${GUTTER_GAP} ${
+          WAITING_DIM(props.row.blocked)
+        }`}
+        // The phone's door to the `•••` menu: hold a finger on the row. Touch
+        // only, so a mouse and a pen are untouched — and so is the page, which
+        // goes on scrolling under a finger that moves (./longPress.ts).
+        //
+        // Named one by one rather than spread: a spread anywhere on an element
+        // moves EVERY attribute of it onto Solid's runtime `spread` path,
+        // where the `classList` beside them is diffed key by key on every
+        // frame the store publishes — for every row in the outline. The two
+        // handlers are the whole of `LongPress`.
+        onPointerDown={menu.hold.onPointerDown}
+        onContextMenu={menu.hold.onContextMenu}
         // Two ways of being THE row, drawn in one accent and told apart by
         // weight: the caret fills its row, a reference outlines the row it
         // points at. One vocabulary, because "this is the one" is one thing to
@@ -245,11 +321,24 @@ function Branch(props: {
         classList={{
           "rounded-sm bg-accent/10": editing(),
           "rounded-sm ring-1 ring-accent/50": focused(),
+          // A PICKED row wears the same accent wash the caret's row does —
+          // "this is one of the ones" is the same thing to say, and a caret and
+          // a pick are never on screen together. A row in the air fades, so the
+          // eye follows the line that says where it is going rather than the
+          // rows it left.
+          "rounded-sm bg-accent/15": picked(),
+          "opacity-40": carried(),
         }}
         data-testid={TESTID.nodeGutter}
+        // What a drag measures. On the LINE and not on the item, because an
+        // item's box contains every row nested under it and the gap arithmetic
+        // is about the lines a reader sees (`./drag/dragging.ts`).
+        {...{ [ROW_KEY]: props.row.key }}
       >
-        {/* Hover strip: triangle always (phone) / hover-reveal (pointer);
-            ••• menu only on pointer devices (hidden below md). */}
+        {/* Hover strip: triangle always (phone) / hover-reveal (pointer). The
+            `•••` is drawn on pointer devices only; below md its root is still
+            here but out of the strip's flow, holding the panel a long press
+            opens (./menu/NodeMenu.tsx). */}
         <div class={HOVER_GUTTER}>
           {/* The catalog is built where it is READ, which is inside the open
               panel: Solid compiles a dynamic component prop to a getter, so
@@ -258,6 +347,7 @@ function Branch(props: {
               counts the rows under this one (`menu/subtree.ts`), and a walk
               per row per frame would be the tree squared. */}
           <NodeMenu
+            door={menu}
             actions={nodeMenuActions({
               row: props.row,
               derived: derived(),
@@ -292,11 +382,17 @@ function Branch(props: {
           </Show>
         </div>
 
-        <Bullet
-          id={props.row.at.node.id}
-          collapsed={hasChildren() && collapsed()}
-          holding={editing()}
-        />
+        {/* The bullet is the handle, which is Workflowy's own gesture — and it
+            is a WRAPPER rather than a prop on the bullet, because the same
+            bullet is drawn on a day page where there is nothing to reorder
+            (`./drag/Handle.tsx`). */}
+        <Handle row={props.row}>
+          <Bullet
+            id={props.row.at.node.id}
+            collapsed={hasChildren() && collapsed()}
+            holding={editing()}
+          />
+        </Handle>
         <Checkbox
           status={props.row.status}
           blocked={props.row.blocked}
@@ -335,7 +431,7 @@ function Branch(props: {
                 progress={props.row.progress}
                 date={shows().node.date}
                 overdue={isOverdue(shows().node, today())}
-                onEdit={() => editor.open(props.row, "title")}
+                onEdit={clickTitle}
                 onPickDate={openPicker}
               >
                 <Show when={props.row.kind !== "node"}>

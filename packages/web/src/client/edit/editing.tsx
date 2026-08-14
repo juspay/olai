@@ -57,8 +57,10 @@ import {
 } from "solid-js"
 import { Result } from "effect"
 
+import { datePick } from "../date/pick.ts"
 import type { Caret, EditAction } from "../keys.ts"
 import { runAsync } from "../run.ts"
+import type { Selection } from "../select/selection.ts"
 import { olai } from "../wire.ts"
 import {
   after,
@@ -74,8 +76,9 @@ import {
   slotOf,
   typed,
 } from "./draft.ts"
-import { flatten, neighbour } from "./order.ts"
+import { flatten, neighbour, refound } from "./order.ts"
 import { serial } from "./queue.ts"
+import { redraws } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
 
 export interface Editor {
@@ -113,6 +116,13 @@ export interface Editor {
    *  is comes in, because two of the keys cut the text at that point and this
    *  module reads no elements. */
   readonly press: (action: EditAction, at?: Caret) => void
+  /** The `!` widget chose a day: commit the line and put that date on the node
+   *  this row shows. The ten characters as picked — a date is text
+   *  ({@link ../date/DatePicker.tsx}), and nothing between here and the
+   *  validator parses one. */
+  readonly dated: (day: string) => void
+  /** The `((` widget chose a node: draw a second copy of it here. */
+  readonly mirrored: (target: string) => void
   /** Open an editor for a row a page has nowhere else to offer — the first row
    *  of an empty outline, the first child of an empty branch. */
   readonly start: (at: Anchor) => void
@@ -177,6 +187,21 @@ export const createEditor = (
     readonly rows: Accessor<ReadonlyArray<Row>>
     readonly collapsed: Accessor<ReadonlySet<string>>
   },
+  /**
+   * The page's multi-selection (`../select/selection.ts`). Handed in rather
+   * than read from a context, because the two are created together by the same
+   * page and the order between them is what makes "a caret or a pick, never
+   * both" a fact about this file rather than a habit.
+   *
+   * FOUR VERBS, and `clear` is the load-bearing one: every way a caret OPENS
+   * goes through {@link Editor.open} or {@link Editor.start}, so putting the
+   * pick away there is the whole of the invariant — where doing it at the call
+   * sites is a rule each new one has to remember. It was a rule, and the note
+   * forgot it (review, 2026-08-14): clicking a note opened a caret with the
+   * pick still live, which left `Tab` claimed by the field while the bar said
+   * rows were picked.
+   */
+  selection: Pick<Selection, "start" | "grow" | "widen" | "clear">,
 ): Editor => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [caret, setCaret] = createSignal(0)
@@ -258,14 +283,14 @@ export const createEditor = (
    * A draft names a ROW, and where that row is drawn is a `Row.key` — the
    * chain of ids from the root of the page — so `Tab` changes it: the row that
    * was `…/install/measure` is `…/handles/measure` the moment the file says
-   * so. That is the honest consequence of having no optimistic UI, and this is
-   * the one line that answers it. It is also how a row that did not exist when
-   * `Enter` was pressed gets located: `landed` leaves the place `null` and the
-   * frame carrying the new row fills it in.
+   * so. That is the honest consequence of having no optimistic UI. It is also
+   * how a row that did not exist when `Enter` was pressed gets located:
+   * `landed` leaves the place `null` and the frame carrying the new row fills
+   * it in.
    *
-   * By the row's OWN record rather than the node it shows: a mirrored node is
-   * drawn at more than one place, and the caret belongs to the placement the
-   * reader was typing in.
+   * The RULE itself is `./order.ts`'s (`refound`), because a multi-selection
+   * needs the same one over a set of places — this is the effect that applies
+   * it to the one place a caret is in.
    */
   const follow = () => {
     // The PRIMITIVES, so typing does not run this: what it needs is where the
@@ -273,10 +298,8 @@ export const createEditor = (
     const at = where().place
     const held = untrack(draft)
     if (held === null || held.kind !== "row") return
-    const drawn = flatten(page.rows(), page.collapsed())
-    if (at !== null && drawn.some((row) => row.key === at)) return
-    const moved = drawn.find((row) => row.at.node.id === held.row)
-    if (moved !== undefined) setDraft({ ...held, place: moved.key })
+    const moved = refound(flatten(page.rows(), page.collapsed()), held.row, at)
+    if (moved !== undefined && moved !== at) setDraft({ ...held, place: moved })
   }
   createEffect(follow)
 
@@ -375,15 +398,30 @@ export const createEditor = (
     return done
   }
 
-  /** A structural op for the row the caret is in: commit the text, then ask.
-   *  The id is read AFTER the commit, so `Tab` works on a line that did not
-   *  exist when the key was pressed — the add has landed by then and the draft
-   *  is the row it created. */
+  /**
+   * An op for the row the caret is in: commit the text, then ask.
+   *
+   * The id is read AFTER the commit, so `Tab` works on a line that did not
+   * exist when the key was pressed — the add has landed by then and the draft
+   * is the row it created.
+   *
+   * WHETHER A REDRAW IS OWED is asked of the EDIT ({@link ./redraws.ts}) rather
+   * than passed in by the caller: not every write here can move the row, the
+   * answer is a fact about the verb, and a per-call-site flag is something the
+   * next caller can get wrong in a way nothing notices. That file holds the
+   * list, the argument for each side of it, and the measurement of what being
+   * wrong actually costs — which is narrower than it sounds and was overstated
+   * once.
+   */
   const structural = async (name: (draft: RowDraft) => Edit) => {
     if (!(await commit())) return
     const held = draft()
     if (held === null || held.kind !== "row") return
-    const moved = await redrawing(name(held), slotOf(held))
+    const slot = slotOf(held)
+    const edit = name(held)
+    const moved = redraws(edit)
+      ? await redrawing(edit, slot)
+      : await send(edit, slot)
     // The caret stays in the row that just moved: the draft is restored in
     // case its editor was destroyed and blurred on the way out, and the caret
     // is taken again because a row that merely moved among its siblings keeps
@@ -576,11 +614,86 @@ export const createEditor = (
     walk: () => enqueue(() => structural((held) => ({ verb: "walk", id: held.id }))),
     // A MOVE is about the row itself, so a mirror moves as the placement it is
     // and the node it stands for stays where it lives.
+    // The three that LEAVE the caret. Each commits what is being typed first —
+    // a pick is not a way to abandon a draft, Escape is — and then closes it,
+    // because a caret and a pick are never both live (`../keys.ts` says why
+    // that is what lets the two layers share a key).
+    selectUp: () => enqueue(() => picking((from) => {
+      selection.start(from)
+      selection.grow(-1)
+    })),
+    selectDown: () => enqueue(() => picking((from) => {
+      selection.start(from)
+      selection.grow(1)
+    })),
+    selectAll: () => enqueue(() => picking((from) => selection.widen(from))),
     in: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "in" }))),
     out: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "out" }))),
     up: () => enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "up" }))),
     down: () =>
       enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "down" }))),
+  }
+
+  /**
+   * `((` chose a node: a second placement of it, drawn as a row.
+   *
+   * TWO PLACES IT CAN GO, and which one is a fact about the line the widget was
+   * typed in rather than a setting:
+   *
+   *   - a line that is still a DRAFT and holds nothing else becomes the mirror.
+   *     That is the Workflowy gesture exactly — `Enter`, `((`, choose — and it
+   *     falls out of what a draft already is: an empty one writes no node
+   *     ({@link ./draft.ts}), so the row that was going to be minted there
+   *     simply is the placement instead, at the same anchor.
+   *   - anywhere else, the mirror is the NEXT row: the line keeps its words
+   *     (committed first, like every structural key) and the placement lands
+   *     immediately after it. A mirror is a whole row in this format — exactly
+   *     `{id, parent, ord, mirror}`, with no text of its own — so it cannot be
+   *     put INSIDE a sentence the way Workflowy's inline reference is. Beside
+   *     the sentence is the honest reading of the same gesture.
+   *
+   * The anchor names the ROW rather than what it shows, which is `Enter`'s own
+   * rule: the placement appears where the reader is looking.
+   */
+  const mirrored = async (target: string): Promise<void> => {
+    const before = draft()
+    if (before !== null && before.kind === "new" && before.text.trim() === "") {
+      const done = await send({ verb: "mirror", target, at: before.at }, slotOf(before))
+      if (done === null) return
+      // The line the caret was standing on is a record the file holds now, and
+      // it is not one this editor can type in — so the draft is spent rather
+      // than followed.
+      setDraft(null)
+      return
+    }
+    // Everything else — including a draft line that DOES have words — is the
+    // ordinary commit-then-op, and it does not redraw the row: what the write
+    // answers with is the PLACEMENT's id and the TARGET's title, neither of
+    // them this draft's, and the row itself does not move.
+    await structural((held) => ({
+      verb: "mirror",
+      target,
+      at: { kind: "after", id: held.row },
+    }))
+  }
+
+  /**
+   * Leave the caret, and start picking rows from the one it was in.
+   *
+   * The draft is COMMITTED first, and a refusal stops it — the row that would
+   * not save is the row to stay in, which is the rule the arrows and a click on
+   * another title already follow. Then the draft is closed, because a caret and
+   * a pick are never live together: that is what lets `Tab` mean one thing at
+   * any moment rather than needing a second grammar for bulk.
+   */
+  const picking = async (pick: (from: string) => void): Promise<void> => {
+    const held = draft()
+    if (held === null || held.kind !== "row" || held.place === null) return
+    const from = held.place
+    if (!(await commit())) return
+    idle.clear()
+    setDraft(null)
+    pick(from)
   }
 
   /** The arrows: the next row the eye would reach, folds and all. */
@@ -597,6 +710,12 @@ export const createEditor = (
     open: (at, field) => {
       const next = opened(at, field)
       if (next === null) return
+      // A caret arriving puts the pick away, and it happens HERE rather than at
+      // the click that asked, so no later door can forget it. Synchronously,
+      // ahead of the queue: the bar and the window key listener are the pick's,
+      // and leaving them up while a commit is in flight would be exactly the
+      // state this invariant exists to make unreachable.
+      selection.clear()
       enqueue(async () => {
         // Whatever was being typed is committed on the way out, and a REFUSAL
         // stops the move: the row that would not save is the row to stay in,
@@ -645,7 +764,19 @@ export const createEditor = (
       })
     },
     press: (action, at) => ACTIONS[action](at),
+    // The `!` widget's write, and it is `structural`'s shape rather than a new
+    // one: commit the line the day was typed into, then send ONE `date` edit —
+    // through `datePick`, which is the ONE constructor for that edit and the
+    // reason the pill's picker, the `•••` menu and this widget cannot quietly
+    // send three different things. It does not redraw the row, so no caret is
+    // owed. `held.id` is the node the row SHOWS, so a day picked at a mirror
+    // lands on its target, which is the standing rule for everything a node
+    // SAYS. A row that did not exist when `!` was typed is written by the
+    // commit first, which is why this can name an id at all.
+    dated: (day) => enqueue(() => structural((held) => datePick(held.id, day))),
+    mirrored: (target) => enqueue(() => mirrored(target)),
     start: (at) => {
+      selection.clear()
       idle.clear()
       setDraft({ kind: "new", at, text: "" })
     },

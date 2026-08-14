@@ -49,11 +49,14 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "so
 import { Portal } from "solid-js/web"
 
 import { type Anchor, anchoredTo, styleOf } from "../anchor.ts"
+import { LAYER } from "../layer.ts"
 import { nodeItem } from "../palette/items.ts"
 import { setPaletteOpen } from "../palette/open.ts"
 import type { Route } from "../routes.ts"
+import { listKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
+import { createCursor } from "./cursor.ts"
 import { createNodeSearch } from "./nodes.ts"
 import { Result } from "./Result.tsx"
 
@@ -62,7 +65,12 @@ export function HeaderSearch(props: {
 }) {
   const [query, setQuery] = createSignal("")
   const [caret, setCaret] = createSignal(false)
-  const [active, setActive] = createSignal(0)
+  // WHICH row Enter takes — the one cursor every shortlist in this client
+  // shares (`./cursor.ts`), so the arrows here, in the ⌘K palette and in the
+  // row editor's completions cannot disagree about what the bottom of a list
+  // does. It also keeps a list the SERVER shortened under somebody honest,
+  // which is what the clamp-after-the-fact here used to be for.
+  const cursor = createCursor(() => items().length)
   const [at, setAt] = createSignal<Anchor | null>(null)
   let box: HTMLInputElement | undefined
 
@@ -89,11 +97,6 @@ export function HeaderSearch(props: {
       window.removeEventListener("scroll", measure, true)
       window.removeEventListener("resize", measure)
     })
-  })
-
-  createEffect(() => {
-    const n = items().length
-    if (active() >= n) setActive(n === 0 ? 0 : n - 1)
   })
 
   const open = (index: number) => {
@@ -123,26 +126,25 @@ export function HeaderSearch(props: {
           value={query()}
           onInput={(event) => {
             setQuery(event.currentTarget.value)
-            setActive(0)
+            cursor.top()
           }}
           onFocus={() => {
             setCaret(true)
             measure()
           }}
           onBlur={() => setCaret(false)}
+          // WHICH key is the registry's (`../keys.ts`'s list layer, the same
+          // one the palette and the row editor's completions ask); what each
+          // answer MEANS is this box's — `dismiss` empties it and gives the
+          // caret back to the page.
           onKeyDown={(event) => {
-            const n = items().length
-            if (event.key === "ArrowDown" && n > 0) {
-              event.preventDefault()
-              setActive((index) => (index + 1) % n)
-            } else if (event.key === "ArrowUp" && n > 0) {
-              event.preventDefault()
-              setActive((index) => (index - 1 + n) % n)
-            } else if (event.key === "Enter") {
-              event.preventDefault()
-              open(active())
-            } else if (event.key === "Escape") {
-              event.preventDefault()
+            const action = listKey(event)
+            if (action === null) return
+            event.preventDefault()
+            if (action === "next") cursor.step(1)
+            if (action === "prev") cursor.step(-1)
+            if (action === "take") open(cursor.at())
+            if (action === "dismiss") {
               setQuery("")
               box?.blur()
             }
@@ -166,7 +168,7 @@ export function HeaderSearch(props: {
         {(box_) => (
           <Portal>
             <div
-              class="fixed z-50 overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg"
+              class={`fixed ${LAYER.over} overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg`}
               data-testid={TESTID.headerSearchResults}
               // `styleOf` rather than a style object of this file's own: a
               // COMPUTED key (`[at.side]`) compiles away silently in Solid and
@@ -196,11 +198,11 @@ export function HeaderSearch(props: {
                       <Result
                         label={item.label}
                         place={item.place}
-                        active={index() === active()}
+                        active={index() === cursor.at()}
                         testid={TESTID.headerSearchItem}
                         placeTestid={TESTID.headerSearchItemPlace}
                         id={item.id}
-                        onHover={() => setActive(index())}
+                        onHover={() => cursor.to(index())}
                         onSelect={() => open(index())}
                       />
                     </li>

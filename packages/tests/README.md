@@ -13,6 +13,9 @@ packages/tests/
 ├── support/
 │   ├── world.ts             # OlaiWorld: page, locators, the UI contract
 │   ├── hooks.ts             # browser + a server per corpus (and per scratch copy)
+│   ├── caret.ts             # the client's own answer to a key, and how a step
+│                           #   waits for it (see "Waiting", below)
+│   ├── said.ts              # what the page said about a write, wherever it says it
 │   ├── mcp.ts               # an MCP client, for the agent olai did not start
 │   └── ndjson.ts            # line-delimited JSON off a pipe — one copy, shared
 │                           #   by that client and both fakes below
@@ -98,6 +101,32 @@ A failing scenario writes `reports/screenshots/<worker>-<scenario-name>.png`
 whether or not you were watching. The worker prefix keeps parallel
 screenshots from colliding.
 
+## Showing it to a person
+
+```bash
+just build-client
+nix develop .#e2e -c bash
+cd packages/tests
+SHOTS=/tmp/shots bash evidence.sh
+```
+
+`evidence.ts` / `evidence.sh` are NOT part of the suite — nothing imports them
+and `just e2e` never runs them. They drive the real app through one gesture at
+a time and leave a screenshot beside each, which is what a pull request shows a
+reviewer that a passing `✔` cannot: what the drop indicator looks like while a
+row is in the air, what a pick looks like, what the Trash asks before it takes
+a branch.
+
+One section per run, against a directory the driver has just re-copied and a
+server it has just started. Restoring the fixture underneath a running server
+is not the same thing — the store holds the snapshot it last wrote, and a file
+put back with the same length is a change its watcher is entitled not to
+notice, so a gesture made after one would be a gesture over a frame nobody can
+reproduce.
+
+`SECTION=` on its own lists the sections; `SECTION=<name>` runs one against a
+server you are already running (`BASE` says where).
+
 ## Fixture corpora
 
 Scenarios do not build their own outlines: they name a directory. A feature (or
@@ -181,7 +210,16 @@ scenarios are about what the browser calls itself.
 Those scenarios do two things nothing else in the suite does. They **tap**
 (`locator.tap()`, a real `touchstart`/`touchend` pair) rather than click, which
 is the only way to find out that a control a pointer can reach is reachable
-without one. And they **measure**: "big enough for a finger" is a size, and no
+without one — and, for the row menu a phone opens by HOLDING a finger, they
+**hold** and **flick** (`world.hold()` / `world.flick()`), which Playwright has
+no verb for: those go in through `Input.dispatchTouchEvent` on a CDP session,
+so Chromium's own gesture recogniser sees the press. That is the point of the
+extra machinery rather than a synthetic `pointerdown` — the client's answer to
+a long press is only half of what happens, and the browser's own half (the
+`contextmenu` it raises mid-gesture, the text-selection callout with it, the
+click it makes up when the finger lifts) is exactly what that affordance has to
+coexist with. The hold is the client's `LONG_PRESS_MS` plus a margin, imported
+from the client for the reason every selector here is. And they **measure**: "big enough for a finger" is a size, and no
 attribute can carry it — it is the sum of a font, a padding and a breakpoint —
 so `world.box()` / `world.boxes()` read what the browser laid out (the plural
 takes every match in one pass, because a rule that held for the first row and
@@ -346,11 +384,11 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="desc"]` | a node's note — one clamped plain line under the title when closed (`data-preview="true"`, `data-open="false"`), full markdown when open (`data-open="true"`); always full on a zoomed page |
 | `[data-testid="node"][data-note-open]` | note expansion: `true` while click/tap-opened |
 | `[data-testid="toggle"]` | the collapse/expand control on an outline node (hover-reveal on a pointer device; always drawn on a phone) |
-| `[data-testid="node-menu"]` | the `•••` menu trigger left of the triangle — pointer devices only (not laid out on a phone) |
-| `[data-testid="node-menu-panel"]` | the open menu panel (`absolute` under the trigger) |
+| `[data-testid="node-menu"]` | the `•••` menu trigger left of the triangle — pointer devices only (not laid out on a phone, where a long press on the row opens the same menu) |
+| `[data-testid="node-menu-panel"]` | the open menu panel (`absolute` under the trigger, or under the row itself on a phone) |
 | `[data-testid="node-menu-item"][data-action]` | one verb in that panel: the reads (zoom, expand/collapse, expand/collapse all, copy link), then the writes it applies to (the marks, clear date, remove placement, archive) and `Copy as text`. The two buttons of a confirm are items too (`data-action="cancel"` is the way out) |
 | `[data-testid="node-menu-confirm"]` | the question that panel asks before `Archive`, naming the row and how many rows go with it — present only while it is asking |
-| `[data-testid="node-menu-said"][data-tone]` | what the last verb said, beside the `•••`: `alarm` for a refusal (the ops layer's own words, or a clipboard the browser refused), `aside` for a nudge from a write that landed |
+| `[data-testid="node-menu-said"][data-tone]` | what the last verb said, beside the `•••`: `alarm` for a refusal (the ops layer's own words, or a clipboard the browser refused), `aside` for news about something that happened — a nudge from a write that landed, or a copy confirming it reached the clipboard (`link copied` / `text copied`), which is the one case where the page itself shows nothing |
 | `[data-testid="file-dir"][data-path]` | one folder in the sidebar file tree; `data-collapsed` says whether its children are hidden |
 | `[data-testid="file-dir-toggle"]` | the fold control on that folder |
 | `[data-testid="document-link"][data-file]` | one document entry in the file tree |
@@ -418,6 +456,61 @@ out locally: it is `index.html`'s mount point, which the client does not own.
    not that some title eventually reads a certain way. A tree that has lost one
    node and drawn another twice still has all the right titles in it, which is
    how a broken live view stayed green through a whole feature file.
+7. Read the section below before writing a step that reads the disk or presses
+   a key. All three mistakes it names pass on an idle laptop.
+
+## Waiting, which is the whole of being honest under load
+
+This suite runs parallel, on machines that are also doing something else, so
+every assertion in it is a race unless it was written not to be. A run on a
+saturated box is the only way to find out, and there are exactly three ways to
+get it wrong. All three are green on an idle laptop.
+
+**A value read on its way to its final one.** Most assertions here WAIT: they
+poll until the page or the file says the thing, and fail saying what they were
+waiting for. The ones that cannot are the NEGATIVES, and a negative is two
+different steps that read almost the same:
+
+| the claim | the shape | example |
+|---|---|---|
+| nothing was written, and stays unwritten | HOLD: assert repeatedly across the commit window | `"house.jsonl" holds no node titled "…"` |
+| the write took it away | WAIT: poll for it to go | `"house.jsonl" no longer holds a node titled "…"` |
+
+Asking the holding form of a write passes only when the round trip happens to
+land inside one animation frame. Asking the waiting form of "nothing was
+written" passes instantly and proves nothing. Where a count is the claim, it is
+both: wait for the number, then hold it, because the second of two writes lands
+a moment after the first.
+
+**A file the write has not minted yet** — `Archive.jsonl`, which the first
+archive creates. A waiting reader goes through `world.servedNodesSoFar`, which
+answers "nothing there yet" for a file that is not there; a step that WRITES the
+served directory goes through `world.servedNodes`, which throws. The reason
+either is right is on the method.
+
+**A key pressed before the page has answered the last one.** The one that costs
+the most to debug, because it fails four steps later on something that reads
+nothing like the cause: `Escape` closes a draft that has not opened yet and the
+draft opens behind it, so every ⌘Z after that is dead; `Tab` walks the browser's
+focus ring out of the row, so the next key finds no editor; `⌘A` selects the
+page, so the title typed after it lands beside the old one instead of replacing
+it. The receipt this suite waits on — and why nothing else it can see will do —
+is `support/caret.ts`. What that buys each step:
+
+| step | waits for |
+|---|---|
+| `I press`, `I type`, `I select all and type` | the line to hold the caret, BEFORE aiming anything at it |
+| `I press "Enter"` / `"Backspace"` at the head of a line | the caret to leave that line, and arrive in the one the key opened |
+| `I press "Tab"` / `"Shift+Tab"` / `"Alt+Shift+Arrow…"` | the row to be drawn where the key moved it |
+| `I press "Escape"` with a draft open | the draft to close |
+| `I click away from the editor` | the caret to leave the line |
+
+Every one of them will take "the page said why it did not" instead, which is
+the other way a key ends. `I press "…" without waiting` is how the two scenarios
+that MEAN the race say so.
+
+None of the three mistakes is fixed by a longer timeout, and a step that needed
+one was asking the wrong question.
 
 ## The scripted agent
 

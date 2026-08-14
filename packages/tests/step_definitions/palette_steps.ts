@@ -190,16 +190,44 @@ When(
   },
 );
 
-/** A row that WRITES, and may leave the palette up with something to say. */
+/**
+ * A row that WRITES, and the click's own RECEIPT.
+ *
+ * A frame is not an answer — `support/caret.ts`'s whole argument, one key
+ * layer down — so this waits for the thing the palette DOES about the row
+ * rather than for a repaint. There are exactly four, and every row this step
+ * is pointed at produces one of them:
+ *
+ *   - the palette GOES — a write that landed with nothing to add;
+ *   - it SAYS something — a refusal in the ops layer's own words, or a nudge;
+ *   - it ASKS, or stops asking — the one verb with a question, and `Cancel`;
+ *   - the BOX changes — the capture row, whose whole answer is the primed
+ *     prefix and a caret after it.
+ *
+ * Without this the step after it is the first thing that waits, and the one
+ * that reads rather than polls — `the palette does not offer …` — would be
+ * asking before the click had landed.
+ */
 When(
   "I choose {string} from the palette",
   async function (this: OlaiWorld, label: string) {
+    const before = {
+      asking: await this.page.locator(PALETTE_CONFIRM).count(),
+      box: await this.page.locator(PALETTE_INPUT).inputValue(),
+    };
     await this.page
       .locator(PALETTE_ITEM)
       .filter({ hasText: label })
       .first()
       .click();
-    await this.waitForFrame();
+    await this.waitUntil(
+      async () =>
+        (await this.page.locator(PALETTE).count()) === 0 ||
+        (await this.page.locator(PALETTE_SAID).count()) > 0 ||
+        (await this.page.locator(PALETTE_CONFIRM).count()) !== before.asking ||
+        (await this.page.locator(PALETTE_INPUT).inputValue()) !== before.box,
+      `the palette to answer ${JSON.stringify(label)}`,
+    );
   },
 );
 

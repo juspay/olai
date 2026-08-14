@@ -29,9 +29,9 @@
  *     spellings of one list — the wire, a parallel type, a client-side
  *     dispatch and a binding each.
  *   - **This is not the ops request vocabulary re-spelled.** It is smaller (no
- *     `create`, no `see`, no `after`, no `mirror`, no chosen ids) and, where it
- *     differs, it differs because something is resolved behind it. Where
- *     nothing is (`title`, `desc`, `date`, `archive`, `unarchive`, `unmirror`),
+ *     `create`, no `see`, no `after`, no chosen ids) and, where it differs, it
+ *     differs because something is resolved behind it. Where nothing is
+ *     (`title`, `desc`, `date`, `archive`, `unarchive`, `unmirror`, `mirror`),
  *     it uses the ops layer's own word, so a name that differs from an op's is
  *     a name with arithmetic behind it. Ops itself learns none of this — an op
  *     does not know it is being called over a wire, which is what its own
@@ -54,6 +54,13 @@
  * had it (`parity-unarchive`), so the op was born in the ops layer and both
  * faces got it in the same change — the Trash view's `Put back` sends it, and
  * `unarchive_node` is the same call.
+ *
+ * `mirror` is the fifth of that group and the one a KEY sends after all: it is
+ * `add_mirror`, and what reaches it is the `((` widget in a row's title
+ * (`input-widgets`). It is filed here rather than with the keys because the
+ * gap it closes is the same one — an agent could place a second copy of a node
+ * and a person could only retire one — and because `unmirror` had been sitting
+ * one line above it since #124 with nothing to answer it.
  *
  * TWO ARE AN UNDO'S, and they are the one place this list is not shaped like a
  * key at all. `place` and `remove` say where a row SAT and that a row this
@@ -367,6 +374,40 @@ export const Edit = Schema.Union([
    * words, exactly as it refuses `remove_mirror`.
    */
   Schema.Struct({ verb: Schema.Literal("unmirror"), id: Id }),
+  /**
+   * Place a SECOND copy of a node that already exists — `add_mirror`, and the
+   * other half of the placement pair this surface has been carrying one end of
+   * since `menu-verbs`.
+   *
+   * It is the `((` widget's verb (`input-widgets`): a person types two brackets
+   * in a row's title, searches the loaded set through the SAME procedure the ⌘K
+   * palette searches it with, and the node they choose is drawn as a row here.
+   * Nothing about the target changes — a mirror is exactly `{id, parent, ord,
+   * mirror}` — so there is no title, mark or note to send, and a schema that
+   * could spell one would be a schema the planner has to refuse.
+   *
+   * `at` is an {@link Anchor}, which is the same field an `add` carries and the
+   * same reason: WHERE a row goes is the one thing a browser knows and the
+   * server cannot guess, and the arithmetic behind it — which file, which
+   * parent, which `ord` among the siblings there — is the server's, off the
+   * snapshot the write is judged against. So `((` on an existing row places the
+   * mirror after that row, and `((` in a line that is still a draft places it
+   * exactly where that line was going to be.
+   *
+   * The PLACEMENT's own id is not spellable here, deliberately: this surface
+   * names no ids of its own (the header's first paragraph), so the set mints
+   * one and the answer's `id` says what it minted — which is also what makes
+   * this verb's inverse a plain `unmirror` of that id.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("mirror"),
+    /** The node the new row SHOWS. Any node in the loaded set, in any outline;
+     *  a target that is itself a placement is followed to the node at the end
+     *  of the chain, and one the set does not hold is refused in the ops
+     *  layer's own words. */
+    target: Id,
+    at: Anchor,
+  }),
   /**
    * Put a node and everything under it away — `archive_node`, from the menu.
    *

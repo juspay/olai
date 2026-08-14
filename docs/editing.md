@@ -1,4 +1,4 @@
-# Editing with the keyboard
+# Editing: the keyboard, and the pointer
 
 Click a title and the caret is in it. From there it is the outliner's loop on
 the keys you already know, and the whole list is in the app, under **Keyboard
@@ -24,6 +24,15 @@ size, and the row you are in is toned so you can see where the caret went. What
 you type is the SOURCE — `**bold**` and `#tags` as they are written — and the
 rendering comes back the moment you leave. A note is the same trade one line
 down.
+
+**What has no key is in the row's `•••` menu**, and it has two doors. On a
+pointer device, hover a row and the `•••` appears in the gutter left of the
+collapse triangle. A phone has no hover and no room for it, so there the door
+is the row itself: **hold a finger on a row** and the same menu opens under it,
+with the same verbs. Nothing in it is a mouse's alone. A finger that MOVES is
+scrolling the page, not pressing — the menu comes up only for one that stays
+put — and the tap that lifting it would otherwise leave behind is dropped, so a
+press never also opens the row for editing or follows its bullet.
 
 ## The three marks, from the keyboard
 
@@ -133,6 +142,123 @@ agent has them too — `split_node` and `merge_node` are the same two ops. That
 matters more here than anywhere else on this page: a merge moves four rows and
 puts a record away, and it either happens whole or does not happen.
 
+## Three characters that open something
+
+While the caret is in a title, three things you type put a short list under the
+line. Walk it with **↑** / **↓**, take one with **Enter**, put it away with
+**Escape** and keep typing.
+
+| | |
+|---|---|
+| **!** | a day, in words — `tomorrow`, `next fri`, `aug 20`, `in 3 weeks`, `2026-09-01` |
+| **#** / **@** | a tag this set already uses |
+| **((** | search the set for a node, and place a second copy of it here |
+
+Nothing here is a mode. What is open is decided by the text and where the caret
+is in it, so backspacing over the `!` shuts the list and typing it again opens
+the same one — and a trigger that matches nothing shows nothing at all, which
+also means **Escape** and the arrows go on meaning what they always meant.
+`#` and `@` need a word boundary in front of them, so `srid@srid.ca` is an
+address rather than a tag.
+
+**`!` writes the node's date, not text.** The list says the DAY beside every
+phrase — `next friday` is an argument about which Friday, and nobody should
+have to press Enter to find out — and taking one sends the same `date` edit the
+pill's picker and an agent's `set_date` send. The `!next fri` you typed comes
+back out of the line before it is committed; on a row you have only just
+started, the line is written first and then dated, which is the order every
+structural key follows.
+
+**`#` and `@` are two namespaces, and both are real.** A tag lives inline in a
+title ([format.md](format.md)), so choosing one just writes it into the line you
+are typing and it commits with the rest of it — no separate write. The list is
+every tag written in the outlines this tab has loaded, most-used first, and the
+sigil you typed is the one you get: `#alice` and `@alice` are different tags.
+Nothing is added after the tag — not even a space — because a title is stored
+verbatim and a character you did not type is a character in your git history.
+
+**`((` places a mirror.** The search is the server's own, the same one ⌘K and
+the header box use, so what this finds and what an agent's `search_nodes` finds
+cannot drift; each row says where that node sits. Choosing one sends
+`add_mirror`. WHERE it lands is the line you were on: a line you had only just
+opened and typed nothing else into BECOMES the placement, which is the gesture
+you know — Enter, `((`, choose — and a line with words in it keeps them, with
+the placement as the next row. A mirror is a whole row in this format
+(`{id, parent, ord, mirror}`, no text of its own), so it cannot sit inside a
+sentence; beside the sentence is the honest reading of the same gesture. ⌘Z
+retires the placement it made.
+
+## Dragging a row
+
+**Drag a bullet and the row goes with everything under it.** The bullet is the
+handle, the way it is in Workflowy — press it and travel, and a line appears
+where the row would land. Press it without travelling and it is still the link
+it always was, into that node's own page.
+
+That line answers two questions at once, because the gesture asks two: **which
+gap** it sits in, and **how far in** it starts. Those are different placements
+that look the same on screen — the last child of the branch above and the next
+sibling of that branch's parent sit on the same line — so the line moves
+sideways as you do, and where it starts is the depth you are asking for. Let go
+and that is where the row is.
+
+**A branch is never offered a place inside itself.** The rows being carried are
+simply not among the ones a drop can land beside, so there is no gesture that
+asks for a loop.
+
+What a drop sends is one op per row moved — the same `move_node` an agent would
+send, naming a parent and the sibling to sit after — so a drop is refused, and
+says why, exactly as a `Tab` is. ⌘Z takes one back like any other edit.
+
+Dragging is a pointer gesture: a mouse or a pen, not a finger. A touch drag
+would have to claim the gesture that scrolls the page, and a phone's gutter is
+already narrower for the same kind of reason.
+
+## Picking several rows
+
+Everything above works on more than one row at a time. Four ways to pick them —
+Workflowy's, minus the fifth (dragging across rows), which is not built:
+
+| | |
+|---|---|
+| **⌘-click** / **Ctrl-click** a title | add a row to the pick, or take it out |
+| **Shift-click** a title | pick everything between |
+| **Shift+↑ / Shift+↓** from a caret | leave the caret and start picking |
+| **⌘A / Ctrl+A** twice in a row | the line, then the row and the ones beside it — and again to widen to the page |
+
+A pick and a caret are never both live: picking rows puts the caret away, and
+putting a caret anywhere — a title, a note, a new line — puts the pick away. That
+is what lets the keys stay the keys you already know: over a pick they mean the
+same thing, several times.
+
+| | |
+|---|---|
+| **Tab** / **Shift+Tab** | indent them, or take them out again |
+| **Alt+Shift+↑/↓** | move them among their siblings |
+| **⌘Enter** / **Ctrl+Enter** | tick them off, or take that back |
+| **Drag any of their bullets** | move all of them, subtrees and all |
+| **Escape** | put the pick away |
+
+**A parent and a child in the same pick are one row to a verb.** A subtree moves
+whole, so the child is already coming along; asking again would be asking about
+a row that has already gone.
+
+**And a bulk gesture is several writes, not one.** It is the op the single-row
+key sends, once per row, in the order that produces the shape you asked for —
+which is exactly what the agent does when you tell it to indent three things,
+and is why nothing here can do something the agent cannot. One that is refused
+stops the run and says why, in the ops layer's own words, on the bar at the foot
+of the page; what already landed stays landed.
+
+**Move to Trash** is on that bar, and it is the one bulk verb with no key —
+because there is still no delete key in this app, and a chord that takes several
+branches away would be that decision at its worst. It asks first, naming how
+many rows go, and it is the same put-away the ••• menu's own entry is: the ids
+come along, the Trash in the sidebar is where they are, and **Put back** is
+there. A pick holding a *placement* is not offered it at all: the node a mirror
+shows lives in another file, and the bar says so rather than quietly doing the
+rest.
+
 ## Putting a node on a day
 
 A node's `date` is what it is scheduled for ([format.md](format.md)), and it is
@@ -142,7 +268,8 @@ picker, in place under the row, and two ways to open one.
 **A dated row's own pill is the control.** Press the date beside the title and
 the picker opens on it. A row with no date has no pill to press, so its way in
 is the ••• menu: **Set date…** on a row with none, **Change date…** on one that
-has one.
+has one. From the keyboard it is `!` and a day in words (above), which sends the
+same edit.
 
 What you get is your browser's own date picker, and what is written is the day
 you picked, exactly as it is written — `2026-09-01`, ten characters, never a
@@ -213,8 +340,7 @@ way through for the mouse. ⌘Z after a Move to Trash puts the row back too —
 the undo knows the exact parent it sat under — and ⌘Z after a Put back is
 the archive again.
 
-Deliberately absent, each its own item: delete, multi-select, and
-drag-and-drop.
+Deliberately absent, and still the human’s to rule on: a delete key.
 
 ## From the ⌘K palette
 

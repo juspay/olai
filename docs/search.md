@@ -10,8 +10,10 @@ itself, and deliberately does not.
 
 ## What matches
 
-Case-folded substring over four fields — title, id, inline `#tags`, note —
-with every word of the query somewhere in the same node, and no operators.
+Case-folded substring over four fields — title, id, inline tags, note — with
+every word of the query somewhere in the same node, and no operators. A tag is
+indexed twice, bare and as written, so `alice` finds `@alice` and `@alice` finds
+only the one with that sigil.
 Title hits outrank id, tag and note; a field that starts with the word beats
 one that buries it; a done node loses ties. Hits carry `file:line`, the
 ancestor titles, the mark if the node has one, and the node's own `see` /

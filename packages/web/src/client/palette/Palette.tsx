@@ -49,17 +49,21 @@ import {
 } from "solid-js"
 
 import type { Situated } from "@olai/format"
-import { Result as Outcome } from "effect"
 import type { Edit, OpFailure } from "@olai/surface"
+import { Result as Outcome } from "effect"
 
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
 import { useDerived } from "../derived.tsx"
+import { SaidLine } from "../edit/SaidLine.tsx"
 import {
   resetPanelWidths,
   setChatOpen,
   toggleChat,
 } from "../layout/prefs.ts"
+import { LAYER, WITHIN } from "../layer.ts"
+import { only } from "../narrow.ts"
+import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
@@ -72,34 +76,15 @@ import {
   type PaletteItem,
   SHELL_ITEMS,
 } from "./items.ts"
-import { only } from "../narrow.ts"
 import { opItems } from "./ops.ts"
-import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
+import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { Result } from "../search/Result.tsx"
 import { paletteOpen, setPaletteOpen } from "./open.ts"
-import { SaidLine } from "../edit/SaidLine.tsx"
 import { type Said, useUndo } from "../edit/undoing.ts"
 import { applied, applying } from "../writes.ts"
-import { isEditingTarget, matchKey } from "../keys.ts"
+import { isEditingTarget, listKey, matchKey } from "../keys.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
-
-/**
- * NO ROW CHOSEN — what an untouched palette is standing on, and the reason the
- * op rows are allowed to be first.
- *
- * A highlight is a place the arrows start from, not a selection somebody made.
- * With an empty box nobody has said anything yet, so nothing is lit and Enter
- * does nothing at all: the palette can lead with the rows that are about the
- * open page without a stray keypress meaning `Mark todo`. The first character
- * typed is the choice, and it puts the highlight on the best match, which is
- * what a type-ahead is.
- */
-const NOTHING = -1
-
-/** Where the highlight goes when the box changes: nowhere while it is empty,
- *  and on the best match the moment it is not. */
-const startAt = (query: string): number => (query.trim() === "" ? NOTHING : 0)
 
 /**
  * A QUESTION THAT IS UP, and everything answering it needs — its words, the
@@ -146,7 +131,27 @@ export function Palette(props: {
   const derived = useDerived()
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
-  const [active, setActive] = createSignal(NOTHING)
+  // WHICH row Enter takes, and the arrows that walk it — the one cursor every
+  // shortlist in this client shares (`../search/cursor.ts`).
+  const cursor = createCursor(() => items().length)
+  /**
+   * WHETHER THE HIGHLIGHT IS A CHOICE, and the reason the op rows are allowed
+   * to be first.
+   *
+   * The cursor answers "which row is the walk on"; this answers a different
+   * question it deliberately does not — "has anybody chosen anything yet?" An
+   * untouched palette has not: nothing is lit, and Enter does nothing at all,
+   * so the list can LEAD with the rows that write the directory without a
+   * stray ⌘K-then-Enter meaning `Mark todo`. The first character typed is the
+   * choice, and so is the first arrow or hover.
+   *
+   * It is the palette's own rather than a state on the shared cursor because
+   * the other two surfaces that walk a list want the opposite: a completion
+   * popup and the header's results open with their best match already lit,
+   * which is what a type-ahead is. This modal opens with an EMPTY box, which
+   * is what makes it the one list nobody has asked a question of yet.
+   */
+  const [chosen, setChosen] = createSignal(false)
   const [askError, setAskError] = createSignal<string | null>(null)
   /** What the last write had to say — a refusal in the ops layer's own words,
    *  or a remark about one that landed. */
@@ -182,8 +187,8 @@ export function Palette(props: {
   const [sending, setSending] = createSignal(false)
   let input: HTMLInputElement | undefined
   let previousFocus: HTMLElement | null = null
-  /** The confirm's own GO button while a question is up — where the caret
-   *  goes when the question is raised, and half of what Tab cycles between. */
+  /** The confirm's own buttons while a question is up — where the caret goes
+   *  when the question is raised, and what Tab cycles between. */
   let go: HTMLButtonElement | undefined
   let cancel: HTMLButtonElement | undefined
 
@@ -221,9 +226,9 @@ export function Palette(props: {
     if (!listing()) return [] as ReadonlyArray<PaletteItem>
     // THE OP ROWS FIRST, because they are the only rows that are about what
     // the reader is looking at — a list whose contextual half is below the
-    // fold is a list nobody finds them in. What makes that safe is {@link
-    // NOTHING}: an untouched palette has no row chosen, so being at the top is
-    // not being one keystroke from a write.
+    // fold is a list nobody finds them in. What makes that safe is
+    // {@link chosen}: an untouched palette has no row chosen, so being at the
+    // top is not being one keystroke from a write.
     const commands = [...opRows(), ...SHELL_ITEMS]
     return [...filterItems(query(), commands), ...nodes.hits().map(nodeItem)]
   })
@@ -234,7 +239,8 @@ export function Palette(props: {
    *  them. `text` is what the box starts with: empty, or a primed prefix. */
   const blank = (text = "") => {
     setQuery(text)
-    setActive(startAt(text))
+    cursor.top()
+    setChosen(false)
     setAskError(null)
     setSaid(null)
     setAsking(null)
@@ -253,7 +259,8 @@ export function Palette(props: {
    *  Whatever was said stays: a prime is not an answer to it. */
   const prime = (prefix: string) => {
     setQuery(prefix)
-    setActive(startAt(prefix))
+    cursor.top()
+    setChosen(false)
     input?.focus()
   }
 
@@ -319,13 +326,13 @@ export function Palette(props: {
     if (sending()) return
     setSending(true)
     setSaid(null)
-    void applying(edit, undo.record).then((said) => {
+    void applying(edit, undo.record).then((line) => {
       setSending(false)
-      if (said === undefined) {
+      if (line === undefined) {
         close()
         return
       }
-      setSaid(said)
+      setSaid(line)
     })
   }
 
@@ -438,11 +445,31 @@ export function Palette(props: {
       sendCapture(box.text)
       return
     }
-    // Nothing lit is nothing chosen — see {@link NOTHING}. No `?? list[0]`
+    // Nothing lit is nothing chosen — see {@link chosen}. No `?? list[0]`
     // fallback: that is exactly the keystroke this palette must not turn into
     // a write nobody aimed.
-    const item = items()[active()]
+    if (!chosen()) return
+    const item = items()[cursor.at()]
     if (item !== undefined) runItem(item)
+  }
+
+  /**
+   * The arrows, and the way IN to a list nobody has chosen from yet.
+   *
+   * From nowhere, down lands on the FIRST row and up on the LAST — which is
+   * what a keyboard walking an unchosen list expects, and what `cursor.step`
+   * cannot express on its own: it wraps from wherever it is standing, and
+   * where it is standing before anybody has chosen is the top.
+   */
+  const walk = (by: 1 | -1) => {
+    const many = items().length
+    if (many === 0) return
+    if (!chosen()) {
+      setChosen(true)
+      cursor.to(by === 1 ? 0 : many - 1)
+      return
+    }
+    cursor.step(by)
   }
 
   /** Escape backs out of the question first and closes the palette second —
@@ -498,21 +525,12 @@ export function Palette(props: {
     onCleanup(() => window.removeEventListener("keydown", onKey))
   })
 
-  // The list shrank under the highlight — a hit that stopped matching, a verb
-  // the write it just made took away. It walks back to the last row rather
-  // than off the end, and to NOTHING when there are no rows left, which is
-  // where an unchosen palette already stands.
-  createEffect(() => {
-    const n = items().length
-    if (active() >= n) setActive(n - 1)
-  })
-
   return (
     <>
     <Shortcuts open={keys()} onClose={() => setKeys(false)} />
     <Show when={paletteOpen()}>
       <div
-        class="fixed inset-0 z-50 flex items-start justify-center bg-ink/40 px-4 pt-[min(20vh,8rem)]"
+        class={`fixed inset-0 ${LAYER.over} flex items-start justify-center bg-ink/40 px-4 pt-[min(20vh,8rem)]`}
         data-testid={TESTID.palette}
         role="dialog"
         aria-modal="true"
@@ -525,7 +543,9 @@ export function Palette(props: {
           data-testid={TESTID.paletteScrim}
           onClick={close}
         />
-        <div class="relative z-10 w-full max-w-lg overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg">
+        <div
+          class={`relative ${WITHIN.raised} w-full max-w-lg overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg`}
+        >
           <input
             ref={input}
             type="text"
@@ -535,28 +555,25 @@ export function Palette(props: {
             value={query()}
             onInput={(e) => {
               setQuery(e.currentTarget.value)
-              setActive(startAt(e.currentTarget.value))
+              cursor.top()
+              // The first character typed IS the choice — it lights the best
+              // match, which is what a type-ahead is. An emptied box goes back
+              // to having chosen nothing.
+              setChosen(e.currentTarget.value.trim() !== "")
               setAskError(null)
             }}
+            // WHICH key is the registry's (`../keys.ts`'s list layer, the same
+            // one the row editor's completions ask); what each answer MEANS is
+            // this dialog's — `take` runs a row, `dismiss` backs out of the
+            // question if one is up and shuts the whole palette otherwise.
             onKeyDown={(e) => {
-              // The arrows are the other way IN to the list: from nowhere,
-              // down lands on the first row and up on the last, which is what
-              // a keyboard walking an unchosen list expects.
-              if (e.key === "ArrowDown") {
-                e.preventDefault()
-                const n = items().length
-                if (n > 0) setActive((i) => (i + 1) % n)
-              } else if (e.key === "ArrowUp") {
-                e.preventDefault()
-                const n = items().length
-                if (n > 0) setActive((i) => (i <= NOTHING ? n : i) - 1)
-              } else if (e.key === "Enter") {
-                e.preventDefault()
-                confirm()
-              } else if (e.key === "Escape") {
-                e.preventDefault()
-                escape()
-              }
+              const action = listKey(e)
+              if (action === null) return
+              e.preventDefault()
+              if (action === "next") walk(1)
+              if (action === "prev") walk(-1)
+              if (action === "take") confirm()
+              if (action === "dismiss") escape()
             }}
           />
           <Show when={askError()}>
@@ -622,11 +639,14 @@ export function Palette(props: {
                         label={item.label}
                         hint={item.hint}
                         place={item.place}
-                        active={index() === active()}
+                        active={chosen() && index() === cursor.at()}
                         testid={TESTID.paletteItem}
                         placeTestid={TESTID.paletteItemPlace}
                         id={item.id}
-                        onHover={() => setActive(index())}
+                        onHover={() => {
+                          setChosen(true)
+                          cursor.to(index())
+                        }}
                         onSelect={() => runItem(item)}
                       />
                     </li>
@@ -663,7 +683,7 @@ export function Palette(props: {
                     <button
                       type="button"
                       // AND THE CARET COMES IN, which is the `•••` menu's own
-                      // confirm rule (`../menu/NodeMenu.tsx`): a question
+                      // confirm rule (`../menu/Confirm.tsx`): a question
                       // nobody's keyboard can reach is a question only a mouse
                       // may answer, and the Tab trap above made that literal.
                       // A microtask because the element is not in the document

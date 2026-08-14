@@ -76,13 +76,14 @@ The client computes nothing about the format on its own. `@olai/format` derives
 status, sibling order, mirror expansion, a node's ancestry and the guard that
 stops a mirror inside its own subtree, and hands back rows; `Tree.tsx` turns a
 row into markup and nothing else. The gutter is Workflowy-shaped: a hover-reveal
-strip (`NodeMenu.tsx` `•••` + the collapse triangle, always visible on a phone —
-see `touch.ts`) left of a filled-circle bullet (`Bullet.tsx`, with a gray halo
+strip (`menu/Dots.tsx` `•••` + the collapse triangle; the triangle is always
+visible on a phone and the `•••` is not drawn there at all, where a long press
+on the row opens the same menu — see `touch.ts`) left of a filled-circle bullet (`Bullet.tsx`, with a gray halo
 when children are hidden), then the MARK COLUMN (`Checkbox.tsx`: CSS squares —
 checked for done, half-filled for doing, EMPTY for todo, and no box at all on a
 node carrying none of them, because a bullet is not a task; display-only —
 the mark is toggled from the row's editor). Titles render inline-only markdown
-and `#tags` as subtle pills (`NodeTitle.tsx` / `markdown/title.ts`), and the
+and inline tags (`#topic` and `@person`) as subtle pills (`NodeTitle.tsx` / `markdown/title.ts`), and the
 editor shows that markdown as the SOURCE it is while a row is being typed.
 A node's
 free cross-references (`SeeRefs.tsx`) each link to `/n/<id>` with the target's
@@ -214,7 +215,7 @@ sanitise, highlight, rewrite, stringify:
   the same thing whichever wrote the markup.
 
 - **titles are inline-only** (`renderTitle` → `renderToTree` + `inline.ts`).
-  Same pipeline, then every block is unwrapped to phrasing, then `#tags` are
+  Same pipeline, then every block is unwrapped to phrasing, then TAGS are
   styled by walking text nodes (skipping `code` and `a` so constructs stay
   whole; the alphabet is `titleTagRe` from `@olai/format` — `tags.ts`), then
   stringify.
@@ -607,7 +608,7 @@ used to need. The sole exception is the fault card: `main.tsx`'s
 `SurfaceFaultBoundary` sits above `App`, so a thrown render never reaches the
 header (a broken client has no chrome to trust).
 
-The bar **sticks** (`sticky top-0`, layer `z-[45]`): this app scrolls the
+The bar **sticks** (`sticky top-0`, layer `LAYER.header`): this app scrolls the
 document, so a bar in normal flow took the connection dot, the commit pill and
 the agent toggle off the screen the moment anyone read past the fold — and
 those are permanent answers about the app, which is the argument for the bar
@@ -615,9 +616,12 @@ existing at all. It is also what keeps the seam below it true: the mobile
 drawer, its scrim and both faces of the chat panel are `fixed` at
 `top: var(--height-header)`, a viewport coordinate that only means "under the
 header" while the header is at the top of the viewport. The layer sits above
-the panels (30–40) so a page scrolling under the bar cannot paint over it, and
-below the full-screen modals (50) — the command palette, the restarted card —
-which must cover it. `sticky` and not `fixed`, so the bar keeps its own 3rem in
+the panels so a page scrolling under the bar cannot paint over it, and below
+what covers the whole viewport — the command palette, the restarted card, and
+the panels its own pills portal out of it — which must cover it. It is the one
+layer in the table whose number is not a round ten, because it is defined by
+the two it sits between (**What covers what**, below). `sticky` and not
+`fixed`, so the bar keeps its own 3rem in
 flow and nothing below has to pad for it; no ancestor may take an `overflow`
 other than `visible` or it silently stops sticking. Because the top
 `--height-header` of the viewport is no longer free space, `styles.css` gives
@@ -628,6 +632,37 @@ The chat dock sits **under** the header, not over it (`chat/Panel.tsx`
 subtracts `--height-header`): the bar stays reachable while the agent is open.
 Layout widths, open/minimized state and the mobile chat snap live in
 `layout/prefs.ts` (client-local, never sent).
+
+## What covers what
+
+`src/client/layer.ts` is every `z-index` this client draws, as one table. It
+was twenty-odd bare numbers spread over twenty-odd files before, each of which
+could only be read by going and looking at the other nineteen — and two of them
+meant something entirely different from what they looked like: `chat/
+Sessions.tsx` drew its dropdown at `z-50`, the utility the command palette
+covers the whole app with, while being sealed inside a panel riding at 30. The
+numbers were not wrong. They were unreadable.
+
+A `z-index` compares with nothing outside its own STACKING CONTEXT, and this
+app makes those on purpose, so there are two different questions with the same
+syntax — and the band a number is in is which question it answers:
+
+| name | what it covers |
+|---|---|
+| `LAYER.row` | hangs off an outline row (the `•••` panel, the line beside it): over the rows, under every piece of chrome |
+| `LAYER.page` | over the page, under the chrome that covers it — the docked chat column, the drawer's scrim, a tip. These leave the app's frame reachable, which is the scrim's whole job (#101) |
+| `LAYER.chrome` | covers the page: the mobile drawer, the chat sheet, the minimized agent, the line ⌘Z draws |
+| `LAYER.header` | the bar (above) |
+| `LAYER.over` | over the bar too: the two full-screen modals, and the three panels portalled out of the header |
+| `WITHIN.*` | **single digits**, sealed inside one box's own stacking context, saying nothing about the page: `raised` (a resize handle, a modal's card over its backdrop), `cover` (an overlay across the whole box — the chat drop target), `pop` (a small list opening inside it — the slash menu, the sessions dropdown) |
+
+Three claims are held about the table, each where it belongs. `layer.test.ts`
+holds the two that are about the table itself: the page band climbs in the
+order the table is written, and the two bands cannot overlap. The third —
+**no other client file spells a `z-*` utility of its own** — is a claim about
+every other file, so it is a sweep and lives in `claims.test.ts` with the rest
+of them. That one is what keeps this from becoming the twenty-first place to
+look. The emitted stylesheet carries exactly the eight rules the table names.
 
 ## The preferences, in one place
 
@@ -1254,6 +1289,25 @@ pointer). The note indents (`PAST_*`) are arithmetic over those widths and the
 one shared `GUTTER_GAP`, because when any of them moves the note has to stay
 under the title.
 
+**The `•••` is the one control that gave way entirely, and a GESTURE is what
+replaced it.** It is not drawn below 48rem — a second always-on cell before the
+title is what the paragraph above says there is no room for — so what a phone
+holds a finger on is the ROW (`longPress.ts`), and the same menu opens off the
+row's own left edge with the same catalog. A gesture is the only affordance
+that costs no width, which is the whole argument for it; the price is that
+nothing on screen advertises it, which is the price Workflowy's own handset
+gesture pays too. What the press is careful about is everything else a finger
+on a row already means, and each half is written down where it is done: the
+page goes on SCROLLING (nothing is prevented on the way down, and a finger that
+drifts past the slop or that the browser takes for a scroll drops the timer),
+the browser's own long press does not answer over it (`contextmenu` is
+prevented for a press this client is holding, which is what takes Android's
+text-selection callout with it, and `HELD` — `touch.ts`, beside every other
+finger rule a row carries — turns the callout off for iOS, which raises it
+without the event), and the tap a lift leaves
+behind is dropped (`ghost.ts`). Touch and not pen: a pen hovers, so it has the
+`•••` already.
+
 The line is `md` (48rem) rather than `pointer: coarse` so the layout and the
 targets are one decision: the sidebar stops being a column at exactly that
 width, which is where the racket original put both.
@@ -1292,19 +1346,34 @@ What a write SAID is one row with a `data-tone`, and the modal stays up while
 there is one — a palette that closed over a refusal would be the silent failure
 the error rule is about.
 
-## Search: one reading, two doors
+## Search: one reading, three doors
 
-`src/client/search/` holds the search itself, because the palette is not the
-only door to it:
+`src/client/search/` holds the search itself, and what every list of results is
+drawn and walked with, because the palette is not the only door to either:
 
 - `nodes.ts` — `createNodeSearch`, a `createResource` over a debounced query
   (`@solid-primitives/scheduled`). The resource drops the answer to a query
   the box has moved past, which is why there is no sequence counter here.
-- `Result.tsx` — the row both doors draw: TWO STACKED LINES, title then
+- `Result.tsx` — the row every door draws: TWO STACKED LINES, title then
   place, each `truncate`d over `min-w-0`. It was one line with the place
   inline, and a mono place refusing to shrink starved the title into
   one-word-per-line rows and pushed the palette into a sideways scroll; a
   popover never scrolls sideways.
+- `place.ts` — WHERE a hit sits, the second line of that row. Every door draws
+  it, so it is one sentence rather than three; its own module beside the
+  component so a pure unit test of a caller need not compile a `.tsx`.
+- `cursor.ts` — WHICH row Enter would take, and the arrows that walk it. FOUR
+  surfaces draw a shortlist — this box, the ⌘K palette, the row editor's input
+  widgets (`complete/`) and the chat composer's slash menu — and each had its
+  own wrap-around modulo, two of them with a clamp-after-the-fact and one with
+  no clamp at all. What a list is walked WITH is a different question from what
+  is in it, and it has moved before (the palette had no arrows until #104). It
+  is **clamped where it is read** (`min(wanted, count - 1)`) rather than
+  corrected by an effect after the list shrinks: there is then no frame in
+  which it is out of range and no reconciliation to keep in step, and what is
+  remembered underneath is where the person actually put it. What the KEYS mean
+  stays each surface's own — `Enter` runs a route in one, rewrites a line in
+  another and accepts a command in the third.
 - `HeaderSearch.tsx` — the box in the app header, and on a phone a magnifier
   that opens the ⌘K palette instead (the bar has no room, and a phone has no
   chord — so before it, a phone had no door to search at all). Its panel
@@ -1318,7 +1387,8 @@ client (`palette/items.ts` says why).
 
 `src/client/keys.ts` is every key this app answers, and it is one file because
 a chord and an editing key that both claim one combination disagree silently,
-in a browser, while somebody is typing. Two layers, and they never overlap:
+in a browser, while somebody is typing. Four layers, and no two of them are
+ever live over the same keystroke:
 
 - **global chords**, with a modifier, listened for on the window (one
   listener, in `palette/Palette.tsx`): **⌘K** palette, **⌘\\** sidebar, **⌘J**
@@ -1330,9 +1400,28 @@ in a browser, while somebody is typing. Two layers, and they never overlap:
   are matched on the editor's own element and nowhere else. A window listener
   claiming those would eat every keystroke in the chat composer and in the
   palette's own input.
+- **the selection's keys**, which are the SAME bare keys meaning the same
+  things over the rows a multi-select has picked (`select/selection.ts`; its
+  one window listener is `edit/Editable.tsx`'s, because a pick has no focused
+  element to hang a handler on — that is what makes it a pick). It is live only
+  while something is picked, and picking rows puts the caret away, so `Tab` has
+  exactly one meaning at any moment. That is the whole reason the two layers
+  can share a key rather than needing a second grammar for bulk.
+- **the list layer** (`listKey`), which is what `↓`, `↑`, a BARE `Enter` and
+  `Escape` mean while a SHORTLIST is up — the palette's rows, the header box's,
+  the row editor's completions, the composer's slash menu. Asked first by
+  whoever has a list, and only while one is on screen, because a key a person
+  cannot see the effect of must go on meaning what it always meant. It answers
+  with an intent (`next` / `prev` / `take` / `dismiss`) rather than doing
+  anything: `take` runs a route in one surface and rewrites a line in another,
+  and that difference is each surface's to keep. Four components matched those
+  keys privately before it existed, which is exactly the silent disagreement
+  this file is for.
 
-A unit test holds the two apart: every chord the global layer claims must be
-dead to the row layer, on both platforms.
+A unit test holds the layers apart: every chord the global layer claims must be
+dead to the others, on both platforms; a modified `Enter` is never the list's;
+and every action in the row and list layers must be written down in
+`SHORTCUTS`.
 
 ## Editing a row
 
@@ -1362,7 +1451,7 @@ loop a person is in, and nothing about outlines:
   across that frame is the module's real work.
 - **`RowEditor.tsx` — an `<input>`, not a `contenteditable`.** A title is one
   verbatim line of text; what the page DRAWS is a rendering of it (inline
-  markdown and `#tags`), which is the argument for an input rather than against
+  markdown and `#topic` / `@person` tags), which is the argument for an input rather than against
   it — a contenteditable would be that rendered HTML made editable, with every
   keystroke turned back into the one string the record holds. The trade is
   deliberate and visible: while you type, a title reads as its source, and the
@@ -1427,13 +1516,180 @@ loop a person is in, and nothing about outlines:
   by `palette/Shortcuts.tsx`, opened from ⌘K). Beside the matchers rather than
   in a document, so what a key does and what it is said to do are one fact; a
   unit test holds the list to covering every editing action.
+- **`redraws.ts`** — which writes can take the row they were made in off the
+  line it is on. The editor suppresses a blur while it waits for the frame that
+  redraws a row it moved, and takes the caret back when that frame lands; both
+  are owed only by a write that can actually MOVE the row. It is a table over
+  the surface's verbs rather than a flag at each call site, because the answer
+  is a fact about the verb and a flag is something the next caller gets wrong
+  in a way nothing notices — a unit test fails the moment `date` or `mirror`
+  changes sides. The MARKS are on the moving side and that is deliberate: with
+  done rows hidden, `Ctrl+Enter` takes the row off the page. The file also
+  records what being wrong actually costs, measured rather than asserted: the
+  debt is cleared by the frame every landed write publishes, so it is a race
+  WINDOW (a blur dropped whole, and the caret pulled back) and not a leak.
 - **`order.ts`** flattens the drawn tree so `↑`/`↓` step through what is on
   screen, folds and all.
 
-There is deliberately no delete, no multi-select and no
-drag-drop: each is its own roadmap item. Putting a node AWAY is not among them
-— that is `Archive` in the `•••` menu below, which is the ops layer's own
-put-away rather than an erase.
+There is deliberately no delete: it is its own roadmap item, and still the
+human's to rule on. Putting a node AWAY is not it — that is `Move to Trash` in
+the `•••` menu below, which is the ops layer's own put-away rather than an
+erase.
+
+## Dragging a row, and picking several
+
+`src/client/drag/` and `src/client/select/` are the pointer's half of the same
+loop, created beside the caret and living for the same page
+(`edit/Editable.tsx` makes all three, in that order, which is the only
+dependency between them: the editor hands the caret over to the selection for
+the three keys that leave a row, and the drag reads the selection to find out
+whether it is carrying one row or all of them).
+
+**Neither is a new kind of write, and that is the headline.** A drop sends
+`place` — a parent and the sibling to sit after — which is the surface verb an
+undo already used and resolves to the `move_node` an agent would send. A bulk
+verb sends the edit the single-row key already sends, once per row. Nothing was
+added to the wire and nothing was added to the ops layer, so there is no
+gesture here that MCP cannot make (HACKING.md's consistency rule) — it is N
+calls, which is what an agent told to indent three rows does.
+
+The pieces, and what each decides:
+
+- **`drag/plan.ts` — where a drop lands, as arithmetic.** Workflowy's gesture is
+  a caret for the tree rather than a drop onto a row: the pointer's Y picks a
+  GAP between two drawn lines and its X picks a DEPTH within it. Both halves are
+  needed, because a gap alone cannot tell "last child of the branch above" from
+  "next sibling of that branch's parent" — on screen those are the same line.
+  Pure over measured rows, so the part anybody would get wrong (which parent a
+  depth resolves to, what the ends of the list mean) is a unit test. ONE entry
+  point: `planDrop` answers what the drop would do *and* where the line that
+  promises it goes, because a caller that took the placement and then measured
+  the line itself would be two readings of the same rows, free to disagree about
+  which gap was meant.
+- **the rows being carried are not in the list**, which is how "you cannot drop
+  a branch inside itself" is true by construction rather than by a guard — and
+  what is left is still a tree, so the walk back for an ancestor always finds
+  one.
+- **`src/client/pointer.ts` — the gesture itself, which is not the outline's.**
+  Window listeners (a pointer that leaves the handle is still dragging it), a
+  teardown on every way a gesture can end, the text-selection guard, and the
+  threshold that tells a drag from a click. It was written once for the panel
+  edges (`layout/resize.ts`) and was about to be written a second time, which is
+  the moment it becomes a thing rather than a habit; what stayed in each caller
+  is the only part that is about a width or about a placement. It holds the
+  argument for **pointer events over HTML5 drag-and-drop** too: that API owns
+  the ghost image, keeps its data store protected until the drop and reports the
+  ELEMENT under the cursor, and both consumers compute their answer from
+  coordinates against boxes this app measured itself.
+- **`drag/dragging.ts`** is then what a gesture over an OUTLINE means: what it
+  is carrying, where the rows are, and the write a release makes. It also has to
+  turn the NATIVE drag off — a bullet is an `<a href>`, every link is draggable
+  for free, and the platform's link-drag fires `pointercancel` at the gesture
+  underneath it. Rows are measured ONCE, at the press, in document coordinates:
+  nothing is optimistic here, so nothing moves while a row is in the air.
+- **`select/range.ts` — place arithmetic.** A `Row.key` is the chain of ids from
+  the root of the page, so containment, siblinghood and "the ancestor at this
+  depth" are string questions rather than walks. Its one rule with teeth is
+  `topmost`: a verb is asked of the picked rows nothing else picked contains,
+  because a subtree moves whole and an op for the child as well would be an op
+  about a row that has already moved with its parent.
+- **`select/bulk.ts` — the ORDER, which is the only arithmetic in it.** Each
+  edit is judged against what the one before it did, so `in`/`up` go in drawn
+  order and `out`/`down` go in reverse: outdenting a run downwards lands each
+  row immediately after the old parent, and the run comes out backwards.
+- **the keys follow the rows.** A place is a chain of ids, so a bulk indent
+  redraws every row it moved under a new key — a pick still holding the old ones
+  would go dark on the frame that proved it worked. A picked place that stops
+  being drawn is looked up again by the record it named, which is the rule the
+  caret already followed: `refound`, in `edit/order.ts` beside the other two
+  questions about the rows on screen. It moved there when this became its second
+  consumer, which is what the brainstorming note filed it for.
+- **`select/SelectionBar.tsx`** exists for two things a pick has no other home
+  for: a line for what a bulk write SAID (there is no caret to draw a refusal
+  under, and `UndoSaid` is the undo stack's own line), and **Move to Trash** —
+  the only bulk verb with no key, because the human's ruling that this app has
+  no delete key is exactly a ruling about a chord that takes a branch away. It
+  asks first, naming the blast radius, the way the `•••` menu's own archive
+  does. A pick holding a PLACEMENT is not offered it and is told why, rather
+  than being silently three-quarters archived.
+
+Dragging is a mouse-or-pen gesture. A touch drag on a bullet would have to claim
+the gesture that scrolls the page (`touch-action: none`), and getting that wrong
+costs a phone reader the ability to scroll past an outline — the `•••` menu is
+already a pointer-device affordance for the same kind of reason. A long-press is
+the obvious answer and is a decision rather than a line of code.
+
+Two more things a reader will look for and not find: **auto-scroll while
+dragging near the edge of the window** (the gesture works on what is on screen),
+and **a rubber-band drag across rows** — Workflowy's fifth picking gesture. The
+other four are here; that one wants a marquee over a tree that also has text
+selection in it, which is its own design.
+
+## Three characters that open something
+
+`src/client/complete/` is Workflowy's input widgets, and it is ONE loop for all
+three because they are one gesture — type a character, see a shortlist, walk it
+with the arrows, take one with Enter:
+
+- **`trigger.ts` — what is armed, as a function of (text, caret).** `!` a day,
+  `#`/`@` a tag, `((` a node. There is no "the picker is open" flag anywhere in
+  this feature, which is what makes it survive everything else that can happen
+  to a row mid-typing (a live frame redrawing it, `Tab` moving it, a refusal
+  landing under it): backspacing over the `!` shuts the list and typing it again
+  opens the same one. Two scans, one each for `((` and for a sigil, and the
+  RIGHTMOST wins because that is the one the caret is inside. Each has its own
+  fence against swallowing the rest of the line — a tag stops at the tag
+  alphabet, a day and a search may hold spaces but are capped. WHERE A TAG
+  STARTS AND STOPS is not re-declared here: `isTagName` and `tagOpensAt` are
+  `@olai/format`'s, beside the regex they answer for, so a popup never offers
+  to rewrite the middle of `srid@srid.ca` and a change to the alphabet is one
+  edit rather than one plus a widget.
+- **`tags.ts` — the vocabulary, enumerated from the loaded set.** The one place
+  this feature does NOT ask the server, and the file argues why: `search/nodes.ts`
+  forbids a second matcher because RANKING must not drift, and this is an
+  enumeration by the format's own walk (`titleParts`, the same call that draws
+  the pills a row already shows) over the set this tab is holding. Two sigils,
+  two lists — `#alice` and `@alice` are different tags. ONE WALK PER
+  DERIVATION, held in a `WeakMap` keyed on the derivation itself, because a
+  `TitleEditor` mounts per row the caret moves to and a memo in the component
+  would re-walk the corpus on every `↑`/`↓`.
+- **`completing.tsx` — the loop, and the ONE door.** Where each list comes
+  from, what each choice writes, and the one piece of memory in the whole
+  feature: Escape remembers the TOKEN it dismissed, so putting the list away
+  over `#ho` keeps it away while that `#ho` is being typed. Its consumer gets
+  exactly the two jobs a field with a completion in it has — `key` and `Panel`
+  — and hands in its effects (`rewrite`, `dated`, `mirrored`), so this
+  directory knows nothing about a draft. A key is claimed only when a list is
+  actually on SCREEN, which is one accessor read by the panel and by the key
+  handler rather than two formulas that can disagree; with nothing up, Escape
+  goes back to meaning "abandon the draft" and the arrows to walking rows.
+- **`Completions.tsx` — the box**, private to the directory, drawing
+  `search/Result.tsx`'s row (the third door onto it). `absolute` inside the
+  title's own cell rather than in flow, so the tree below does not jump by four
+  rows as candidates come and go on every keystroke — and it scrolls with the
+  row, so unlike a popover it needs no measurement. `<Index>` rather than
+  `<For>`: every keystroke mints a fresh `Choice` per row, so a reference-keyed
+  diff would rebuild every row's DOM for nothing.
+
+What each one WRITES is the split that matters. A **tag is text**: it goes into
+the draft and commits with the line, with no trailing space, because a title is
+stored verbatim and a character nobody typed is a character in somebody's git
+history. A **day** and a **placement** are OPS — `date` and `mirror` on the same
+intent union every key sends (`Editor.dated` / `Editor.mirrored`), resolving to
+`set_date` and `add_mirror` — and both take their trigger's text back out of the
+line first. `((` on a line that is still an empty draft makes that line the
+placement (an empty draft writes no node, so the row it was going to mint simply
+is the mirror); on a line with words it commits the words and the placement is
+the next row, because a mirror is a whole row in this format and cannot sit
+inside a sentence.
+
+The natural-language half is `date/natural.ts`, a pure function of the phrase
+and today: a VOCABULARY filtered by prefix (so `tom` offers `tomorrow` and
+`next f` offers `next friday` with no rule about abbreviations anywhere) plus
+three regexes for the forms with a number in them. The arithmetic is
+`calendar/month.ts`'s, which is the one place in this client that does date
+arithmetic at all — integers only, never a `Date`, so nobody west of Greenwich
+gets yesterday for "today".
 
 ## Undo, which is a write
 
@@ -1502,10 +1758,10 @@ Two more shapes this leaves, named because a reader will look for them:
 - **the checkbox is display-only.** `Ctrl+Enter` in a row's editor ticks a node
   off, `Ctrl+Shift+Enter` walks its mark on, and the `•••` menu writes any of
   the three; the box itself stays a
-  reading (`Checkbox.tsx` says why). The menu is a pointer-device affordance
-  (hidden below `md`), so a phone can open a title by tapping it and still
-  cannot tick it — desktop-first for this item, and a touch affordance belongs
-  with the widgets that follow it.
+  reading (`Checkbox.tsx` says why). The `•••` is not drawn below `md`, which
+  used to mean a phone could open a title by tapping it and could not tick it
+  at all; holding a finger on the row opens that menu now, so the marks are a
+  thumb's as well.
 
 ## The ••• menu
 
@@ -1523,7 +1779,41 @@ would have sent, judged by the same planner and refused in the same words.
 | `verbs.ts` | which writes a row offers, and what each one DOES — the exact `Edit` it sends, or that it opens the row's date picker. Pure over a `Row`, so the contextual rules are a unit test |
 | `subtree.ts` | what hangs under a row: the count a confirm names, and the text a copy produces. Pure |
 | `actions.ts` | the catalog: the view verbs, the writes, the clipboard |
-| `NodeMenu.tsx` | the panel, its confirm step, and the line beside the `•••` |
+| `action.ts` | what an ENTRY is, to the panel that draws it — the `MenuAction` shape, and whether a verb asks first. The seam: the catalog builds these knowing nothing about drawing, the panel draws these knowing nothing about routes or the write gate, and neither imports the other |
+| `door.ts` | how a row's menu is reached: the state behind the `•••`, the long press that is the other door, and the `ref` for the line both are about — handed out together, so a row cannot wire one and forget another |
+| `Dots.tsx` | the `•••` itself: the class both spellings of it wear, and the plain `<button>` it is before this row has ever been asked for its menu |
+| `NodeMenu.tsx` | the primitive and its wiring: what owns the menu, where it is drawn, what it hangs off on each of the two doors, and where the caret goes |
+| `Panel.tsx` | what is inside the open panel — the list, in Kobalte's `Item`s wearing this app's classes |
+| `Confirm.tsx` | the second step: the question one verb asks first, and the two ways out of it |
+| `picking.ts` | running a verb and saying what came of it — the ops layer's sentence verbatim, the throw worded from the entry's own label, the cause kept for the console |
+| `MenuSaid.tsx` | the line that draws it, beside the `•••` — named for its surface the way `edit/UndoSaid.tsx` is, since `Said` alone is the TYPE every such line carries |
+
+How long that line then lasts is **not** in this directory: `src/client/
+saying.ts` is the receptacle, and the Trash's `Put back` line rides on it too.
+`SAID_MS` had already been pulled out beside the `Said` type because the two
+dwells "were equal only by hand-maintenance" — and the constant turned out to
+be half the job, since both surfaces still spelled the machinery around it and
+had drifted into two shapes for the same three rules (a new sentence replaces
+the one before it *with its timer*, saying nothing clears rather than drawing
+an empty box, the timer dies with the owner). `saying.test.ts` holds those
+three; the receptacle's GRIP is a claim about every other file, so it is a
+sweep in `claims.test.ts`: nothing outside `saying.ts` may count `SAID_MS`
+down.
+
+**The last six are one file split six ways, and the split is Kobalte's doing.**
+`NodeMenu.tsx` was 621 lines because a hand-rolled panel genuinely is one
+thing: being open, the list, the question, the dismissals and the message were
+all the same forty lines of state. Adopting the primitive took the behaviour
+out and left the seams showing — the lazy `Dots` is a COST decision that exists
+only because a `DropdownMenu` is not free per row; the panel's contents became
+markup with no state left in them but `asking`; and the line beside the `•••`
+was never the menu at all, since the menu is gone by the time most verbs
+answer. Each of those now outlives or precedes the primitive on its own terms.
+Two things fell out of it: `actions.ts` — a pure table with a unit test — no
+longer imports a `.tsx` component to learn what a row of itself looks like, and
+`picking.ts`'s four rules (nothing to say, the sentence verbatim, the throw
+worded, the line cleared before the next verb runs) became a unit test where
+they had been reachable only by driving a browser.
 
 The write gate itself is `../writes.ts`, one level up: two surfaces send a
 pointer's write now (this menu and the date picker), and the four lines that
@@ -1570,6 +1860,48 @@ hand-rolled one was:
   ride on, since a menu's own list takes and drops the caret as a pointer moves
   over it.
 
+**Two doors, because below 48rem there is no `•••` to press.** A phone reaches
+the same menu by HOLDING a finger on the row (`longPress.ts`, and the gutter
+section above for why a gesture is the only affordance that fits). Three things
+follow and they are the whole difference:
+
+- **being open belongs to the ROW** (`menu/door.ts`) rather than to a signal
+  inside the panel's component, since both doors write it — and the menu is
+  CONTROLLED rather than mounted `defaultOpen`, because a row asked a second
+  time already has a primitive with nothing to remount. That module hands out
+  everything the row has to wire (the state, the gesture's two handlers, and
+  the `ref` for the line both are about), because a row that wired one and
+  forgot another is a row a phone cannot reach that looks exactly like a row
+  that can.
+- **the `•••` is `display: none` below `md`** — `MENU_CELL` in `touch.ts`, its
+  own constant rather than a `hidden` bolted onto `HOVER_CELL`, since those are
+  the same property and which wins is Tailwind's emission order (the phone
+  scenario caught it winning the wrong way). What cannot be hidden is the ROOT,
+  which is what it used to be: the panel is inside it, and a `display: none`
+  ancestor takes the panel with it. So below `md` the root is out of the
+  gutter's flow instead — a zero-width absolute box at the row's left edge,
+  which is what keeps `touch.ts`'s arithmetic true.
+- **the panel hangs off the row line there**, through `getAnchorRect`: the
+  `•••`'s box if it has one, the row's when it has none. A question about the
+  drawing rather than about the viewport, so there is no media query in the
+  component at all. One placement, two anchors.
+
+The gutter shots on a laptop are byte-identical across the change.
+
+**A tap is not a click, and the menu had a hole under it.** Kobalte selects an
+item on the pointer-up and `closeOnSelect` takes the panel down in the same
+breath, so the click a touchscreen makes up for the tap is hit-tested against
+what is under the point BY THEN — the row the panel was covering. Choosing
+`Move to Trash` with a thumb navigated into a mirror three rows down. `ghost.ts`
+is the one answer to that: eat the next click, once, briefly, on `window` in the
+capture phase, for the two gestures that leave one behind (a tap in the panel,
+and the lift at the end of a long press). It is one listener and one instant for
+the whole page rather than one per gesture, because "the click about to arrive
+was made up for a gesture that is over" is a fact about the DOCUMENT — two
+gestures overlapping is still one ghost. It is touch-only: a mouse's click goes
+to the ancestor of what was pressed rather than to a fresh hit-test, which is
+why a pointer has never seen this.
+
 **And the primitive is mounted the first time a row is asked for its menu, not
 before.** A shut `DropdownMenu` is not free: the root builds its disclosure,
 list and popper state, and the content's body runs eagerly (only its DOM waits
@@ -1577,10 +1909,12 @@ on the open state), which per row is an `IntersectionObserver`, a deferred
 autofocus timer, four locale subscriptions and a few dozen signals. On this
 app's own roadmap — 140 rows — that measured 140 `IntersectionObserver`s and 33
 MB of heap against the hand-rolled panel's none and 19 MB. So until the first
-press the `•••` is a plain `<button>` (`Dots`), the press that arms the row is
-the press that opens it (`defaultOpen`), and the row stays armed afterwards;
-the measurement is back to 0 observers and 19 MB. The keys that open a menu arm
-it too, because that button is what a Tab lands on. What the adoption does cost
+ask the `•••` is a plain `<button>` (`Dots`), the ask that arms the row is the
+ask that opens it — one verb writes both, since the row's own state is one
+signal over three (`menu/door.ts`) — and the row stays armed afterwards; the
+measurement is back to 0 observers and 19 MB. The keys that open a menu arm it
+too, because that button is what a Tab lands on, and so does a phone's long
+press, which is the other door onto the same verb. What the adoption does cost
 unconditionally is **bundle**: `DropdownMenu` is ~85 kB raw / ~24 kB brotli on
 the first-paint chunk, which is a code-split (`markdown/chunk.ts`'s shape) this
 has not taken.
@@ -1636,6 +1970,17 @@ has not taken.
   The archive confirm's count is the opposite and asks the SET, because that
   one is about the write rather than about the picture (`subtree.ts` holds both
   answers and says which is which).
+- **A copy that LANDED says so, in the words a refusal already had.** The
+  clipboard is the one destination outside this app: nothing on the page
+  changes when a copy works, so both clipboard verbs were silent in exactly the
+  case that goes right and spoke only when the browser refused — and a reader
+  who missed the entry saw what a reader whose copy landed saw, the menu
+  shutting. Both answer with a `Said` now, on the same line and in the same six
+  seconds as every other verb's, in the `aside` mood rather than `alarm`
+  because it is news and not a reason nothing happened. The remark is written
+  after `writeText` has RESOLVED, so it is a report: `actions.test.ts` makes
+  the clipboard reject and holds `run` to throwing rather than resolving with
+  "link copied".
 
 Not here: `see` / `after` edge editing and mirror creation (they want a node
 search — `parity-see`, `parity-after`, `input-widgets`), move-to, and
@@ -1739,10 +2084,11 @@ What it is:
   the file says they should, and ⌘Z takes the pick back off the same stack a
   keystroke files on.
 
-A phone reaches this on a dated row (the pill is drawn everywhere) and not on
-an undated one, since the `•••` menu is a pointer affordance below `md` — the
-same gap the checkbox has, and it closes with the touch affordances that item
-is waiting on rather than here.
+A phone reaches this on a dated row through the pill, which is drawn
+everywhere, and on an undated one through the `•••` menu's own verb — which it
+now has a door to: no `•••` is drawn below `md`, so a long press on the row
+opens the menu (`longPress.ts`). The gap this paragraph used to record, along
+with the checkbox's, is closed.
 
 
 ## What belongs to a reading, not to the file

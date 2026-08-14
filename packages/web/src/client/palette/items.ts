@@ -22,6 +22,7 @@
 import type { Edit, SearchHit } from "@olai/surface"
 
 import type { Route } from "../routes.ts"
+import { nodePlace } from "../search/place.ts"
 
 export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
@@ -158,31 +159,18 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
   },
 ]
 
-/**
- * One search hit as a palette row: choosing it jumps to the node's page.
- *
- * The place line is where the node SITS — a bare title in a list of strangers
- * means nothing — and it is written NEAREST ANCESTOR FIRST, which is not the
- * order the path is stored in. Two reasons, and they are the same reason
- * twice: the nearest ancestor is what actually situates a node ("which
- * `install them`?"), and a line that must be ellipsized loses its END, so the
- * crumb that matters has to be at the front to survive a narrow palette. The
- * outer crumbs follow while there is room, and a top-level node names its
- * file instead.
- *
- */
+/** One search hit as a palette row: choosing it jumps to the node's page. The
+ *  place line — where the node SITS, because a bare title in a list of
+ *  strangers means nothing — is `nodePlace`'s, beside the row every door draws
+ *  (`../search/place.ts`), and it says why it is written the way it is. */
 export const nodeItem = (hit: SearchHit): PaletteItem => ({
   id: `node-${hit.id}`,
   label: hit.title,
-  place: placeOf(hit),
+  place: nodePlace(hit),
   action: { kind: "route", route: { kind: "node", id: hit.id } },
   // Never filtered locally: the server already decided these match.
   search: "",
 })
-
-/** The ancestry, innermost first, or the file for a node at top level. */
-const placeOf = (hit: SearchHit): string =>
-  hit.path.length === 0 ? hit.file : [...hit.path].reverse().join(" · ")
 
 /** Filter the command rows by a free-text query — never reached while the
  *  box carries a prefix, which takes it out of the list entirely. */

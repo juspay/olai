@@ -18,6 +18,7 @@
 
 import { Show } from "solid-js"
 
+import { LAYER } from "../layer.ts"
 import { TESTID } from "../testids.ts"
 import { SaidLine } from "./SaidLine.tsx"
 import type { Said } from "./undoing.ts"
@@ -28,7 +29,9 @@ export function UndoSaid(props: { readonly said: Said | null }) {
       {(said) => (
         // Pointer-events off: it sits over the page, and a line of text is not
         // a thing to click — whatever is under it stays reachable.
-        <div class="pointer-events-none fixed inset-x-0 top-[var(--height-header)] z-40 flex justify-center px-4">
+        <div
+          class={`pointer-events-none fixed inset-x-0 top-[var(--height-header)] ${LAYER.chrome} flex justify-center px-4`}
+        >
           {/* The BORDER is toned here rather than in the line, and it is the
               one thing this surface adds: it is the only one of the five that
               draws a BOX over the page, so the mood has an edge to colour.

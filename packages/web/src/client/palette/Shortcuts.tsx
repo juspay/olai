@@ -15,6 +15,7 @@
 import { For, Show } from "solid-js"
 
 import { SHORTCUTS } from "../keys.ts"
+import { LAYER, WITHIN } from "../layer.ts"
 import { TESTID } from "../testids.ts"
 
 export function Shortcuts(props: {
@@ -24,7 +25,7 @@ export function Shortcuts(props: {
   return (
     <Show when={props.open}>
       <div
-        class="fixed inset-0 z-50 flex items-start justify-center bg-ink/40 px-4 pt-[min(14vh,6rem)]"
+        class={`fixed inset-0 ${LAYER.over} flex items-start justify-center bg-ink/40 px-4 pt-[min(14vh,6rem)]`}
         data-testid={TESTID.shortcuts}
         role="dialog"
         aria-modal="true"
@@ -36,7 +37,9 @@ export function Shortcuts(props: {
           aria-label="close the shortcuts"
           onClick={() => props.onClose()}
         />
-        <div class="relative z-10 max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-lg border border-rule/70 bg-panel p-4 shadow-lg">
+        <div
+          class={`relative ${WITHIN.raised} max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-lg border border-rule/70 bg-panel p-4 shadow-lg`}
+        >
           <For each={[...SHORTCUTS]}>
             {(group) => (
               <section class="mb-4 last:mb-0">

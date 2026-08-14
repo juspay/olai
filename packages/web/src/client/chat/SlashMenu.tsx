@@ -12,8 +12,11 @@
  */
 
 import type { Command } from "@olai/surface"
-import { createSignal, For, onCleanup, onMount } from "solid-js"
+import { For, onCleanup, onMount } from "solid-js"
 
+import { listKey } from "../keys.ts"
+import { WITHIN } from "../layer.ts"
+import { createCursor } from "../search/cursor.ts"
 import { TESTID } from "../testids.ts"
 
 export function SlashMenu(props: {
@@ -21,7 +24,12 @@ export function SlashMenu(props: {
   readonly onAccept: (name: string) => void
   readonly onDismiss: () => void
 }) {
-  const [at, setAt] = createSignal(0)
+  // WHICH row Enter takes — the one cursor every shortlist in this client
+  // shares (`../search/cursor.ts`), so the arrows mean the same thing here, in
+  // the ⌘K palette, in the header's box and in the row editor's completions.
+  // It also keeps the cursor on a row that EXISTS when the agent's command list
+  // changes underneath, which this menu had no answer for at all.
+  const cursor = createCursor(() => props.commands.length)
 
   /**
    * Bound on the document, in the CAPTURE phase, because the input owns Enter
@@ -38,26 +46,34 @@ export function SlashMenu(props: {
     event.stopPropagation()
   }
 
+  const accept = (event: KeyboardEvent) => {
+    const chosen = props.commands[cursor.at()]
+    if (chosen === undefined) return
+    take(event)
+    props.onAccept(chosen.name)
+  }
+
+  // WHICH key is the registry's (`../keys.ts`'s list layer); what each answer
+  // MEANS is this menu's. TAB is this surface's own extra — it accepts here and
+  // means nothing to the other lists, so it stays a case of this handler rather
+  // than an arm of the shared matcher.
   const onKey = (event: KeyboardEvent) => {
-    const last = props.commands.length - 1
-    if (event.key === "ArrowDown") {
-      take(event)
-      setAt(at() >= last ? 0 : at() + 1)
+    if (event.key === "Tab") {
+      accept(event)
       return
     }
-    if (event.key === "ArrowUp") {
+    const action = listKey(event)
+    if (action === null) return
+    if (action === "next") {
       take(event)
-      setAt(at() <= 0 ? last : at() - 1)
-      return
+      cursor.step(1)
     }
-    if (event.key === "Enter" || event.key === "Tab") {
-      const chosen = props.commands[at()]
-      if (chosen === undefined) return
+    if (action === "prev") {
       take(event)
-      props.onAccept(chosen.name)
-      return
+      cursor.step(-1)
     }
-    if (event.key === "Escape") {
+    if (action === "take") accept(event)
+    if (action === "dismiss") {
       take(event)
       props.onDismiss()
     }
@@ -70,7 +86,7 @@ export function SlashMenu(props: {
 
   return (
     <ul
-      class="absolute bottom-full left-2 right-2 z-50 mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg"
+      class={`absolute bottom-full left-2 right-2 ${WITHIN.pop} mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
       data-testid={TESTID.chatSlashMenu}
     >
       <For each={props.commands}>
@@ -79,11 +95,11 @@ export function SlashMenu(props: {
             <button
               type="button"
               class={`block w-full truncate rounded px-2 py-1 text-left text-xs ${
-                index() === at() ? "bg-rule" : ""
+                index() === cursor.at() ? "bg-rule" : ""
               }`}
               data-testid={TESTID.chatSlashCommand}
               data-command={command.name}
-              data-active={index() === at()}
+              data-active={index() === cursor.at()}
               onClick={() => props.onAccept(command.name)}
             >
               <span class="font-mono">/{command.name}</span>

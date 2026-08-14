@@ -1,0 +1,250 @@
+@scratch:good
+Feature: The three input widgets
+  Workflowy's three trigger characters, in a row's title: `!` a day in words,
+  `#` / `@` a tag the set already uses, `((` a node to place a second copy of.
+
+  One rule underneath all three: what is armed is a function of the TEXT and
+  the CARET, so backspacing over the trigger shuts the list and typing it again
+  opens the same one. There is no "the picker is open" mode to get out of step
+  with the line.
+
+  And one rule about what they WRITE: a tag is text, so it goes into the draft
+  and commits with it — but a day and a placement are OPS, sent through the
+  same `edit` gate the keys and the agent's tools go through (`set_date`,
+  `add_mirror`). Nothing is echoed: the pill appears and the row appears when
+  the file says they did.
+
+  `@scratch:` because these write the directory they are served — each scenario
+  gets a private copy of it.
+
+  Background:
+    Given I open the outline "house.jsonl"
+    And I mark the page
+
+  # ── `!` — a day, in words ───────────────────────────────────────────
+
+  Scenario: A `!` in a title opens the day list, and every row says its day
+    # The date out loud beside the phrase is the one thing this widget may not
+    # leave out: `next friday` is an argument about which Friday, and nobody
+    # should have to press Enter to find out which one they are getting.
+    When I click the title of "handles"
+    And I type " !2026-09-01"
+    Then the date completions are open
+    And the completions list "2026-09-01"
+    And the completion "2026-09-01" says "Tue 1 Sep 2026"
+
+  Scenario: A bare `!` offers the three days a person reaches for
+    When I click the title of "handles"
+    And I type " !"
+    Then the date completions are open
+    And the completions list "today, tomorrow, next week"
+    And the active completion is "today"
+    When I press "ArrowDown"
+    Then the active completion is "tomorrow"
+
+  Scenario: Choosing a day sets the date and takes the words back out
+    # ONE `date` edit, at the gate `set_date` goes through — and the `!2026-09-01`
+    # is not something anybody wants left in a title, so it comes out of the line
+    # before the line is committed.
+    When I click the title of "handles"
+    And I type " !2026-09-01"
+    And I press "Enter"
+    Then the row being typed holds "choose the handles"
+    And "house.jsonl" holds the node "handles" dated "2026-09-01"
+    And "house.jsonl" holds a node titled "choose the handles"
+    And no completions are open
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: The natural-language half, against the clock
+    # `tomorrow` is the reader's own tomorrow, so the assertion works it out the
+    # way the client does rather than naming a date this file cannot know.
+    When I click the title of "handles"
+    And I type " !tomorrow"
+    And I press "Enter"
+    Then "house.jsonl" holds the node "handles" dated tomorrow
+    And there should be no page errors
+
+  Scenario: A day chosen at a mirror lands on the node it shows
+    # The standing routing rule for everything a node SAYS — a placement's own
+    # record cannot carry a date at all.
+    When I click the title of "kitchen-herbs"
+    And I type " !2026-09-01"
+    And I press "Enter"
+    Then "garden.jsonl" holds the node "herbs" dated "2026-09-01"
+    And "house.jsonl" holds the node "kitchen-herbs" with no date
+
+  Scenario: A row that does not exist yet is written first, then dated
+    # There is no node to put a date on until the `add` has landed, so the
+    # commit comes first — the same order every structural key follows. Both
+    # halves are asserted: without the date one, this would stay green if
+    # `dated` quietly did nothing once the add had gone through, and this is the
+    # only scenario of that path.
+    When I click the title of "knobs"
+    And I press "Enter"
+    And I type "ring the joiner !2026-09-01"
+    And I press "Enter"
+    Then "house.jsonl" holds a node titled "ring the joiner"
+    And "house.jsonl" holds a node titled "ring the joiner" dated "2026-09-01"
+    And the row being typed holds "ring the joiner"
+    And there should be no page errors
+
+  Scenario: The caret carries on in the row a day was picked in
+    # A widget's write is not the end of the line. Neither of the two OP widgets
+    # can MOVE the row it was typed in — a day changes what other pages list,
+    # never this one's order — so neither may claim a redraw is owed
+    # (`edit/editing.tsx`'s `structural`): the editor drops a blur while it is
+    # waiting for a frame that moves the row, and a blur dropped is a line
+    # neither committed nor closed. Nothing else in the suite types MORE text
+    # after a widget has written and then leaves the row.
+    When I click the title of "handles"
+    And I type " !2026-09-01"
+    And I press "Enter"
+    Then "house.jsonl" holds the node "handles" dated "2026-09-01"
+    When I type " and the hinges"
+    And I click away from the editor
+    Then "house.jsonl" holds a node titled "choose the handles and the hinges"
+    And no row is being edited
+    And there should be no page errors
+
+  # ── `#` and `@` — the tags the set already uses ─────────────────────
+
+  Scenario: A bare `#` shows what this set uses, most used first
+    When I click the title of "knobs"
+    And I type " #"
+    Then the tag completions are open
+    And the completions list "#home, #outdoors"
+
+  Scenario: Typing narrows it, and choosing writes the tag verbatim
+    # No trailing space: a title is stored verbatim, so a character nobody
+    # typed is a character in somebody's git history. What ends the list is the
+    # completion being taken, not a space nobody asked for.
+    When I click the title of "knobs"
+    And I type " #ho"
+    Then the completions list "#home"
+    When I press "Enter"
+    Then the row being typed holds "pick the knobs #home"
+    And no completions are open
+    When I click away from the editor
+    Then "house.jsonl" holds a node titled "pick the knobs #home"
+    And there should be no page errors
+
+  Scenario: A tag is a whole word, so a space ends it
+    When I click the title of "knobs"
+    And I type " #home now"
+    Then no completions are open
+
+  Scenario: `@` is the other namespace, and it offers only its own
+    # `#alice` and `@alice` are different tags. A widget that offered one under
+    # the other's sigil would be inventing tags the set does not hold.
+    When I rewrite "house.jsonl" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"ask","parent":"kitchen","ord":"a1","title":"ask @alice about the alcove"}
+      {"id":"knobs","parent":"kitchen","ord":"a2","title":"pick the knobs"}
+      """
+    Then the node "handles" is not shown
+    When I click the title of "knobs"
+    And I type " @a"
+    Then the tag completions are open
+    And the completions list "@alice"
+    When I select all and type "pick the knobs #h"
+    Then the completions list "#home"
+
+  Scenario: An `@` inside a word is an email address
+    When I click the title of "knobs"
+    And I type " srid@srid"
+    Then no completions are open
+
+  # ── `((` — a node to mirror ─────────────────────────────────────────
+
+  Scenario: `((` searches the set, and says where each hit sits
+    # The SERVER's search — the same procedure the ⌘K palette and the header box
+    # call — so what this finds and what an agent's `search_nodes` finds cannot
+    # drift.
+    When I click the title of "knobs"
+    And I type " ((compost"
+    Then the mirror completions are open
+    And the completions include "the compost heap"
+    # ...and WHERE it sits, on its own line — a bare title in a list of
+    # strangers means nothing, and the node being offered lives in another file.
+    And the completion "the compost heap" sits at "garden #outdoors"
+
+  Scenario: A draft line with nothing else in it BECOMES the mirror
+    # Workflowy's gesture exactly: Enter, `((`, choose. An empty draft writes no
+    # node, so the row that was going to be minted there is the placement
+    # instead — at the same anchor, which is where the reader was looking.
+    When I click the title of "knobs"
+    And I press "Enter"
+    And I type "((compost"
+    # The search is the SERVER's, so the list arrives a round trip later — a
+    # scenario that pressed Enter into an empty list would be pressing the row's
+    # own `Enter` and writing a node titled `((compost`.
+    And the mirror completions are open
+    And I press "Enter"
+    Then "house.jsonl" holds a mirror of "compost" under "install"
+    And "house.jsonl" holds no node titled "((compost"
+    And there should be no page errors
+
+  Scenario: A line that has words keeps them, and the mirror is the next row
+    # A mirror is a whole row in this format — `{id, parent, ord, mirror}`, with
+    # no text of its own — so it cannot go inside a sentence. Beside it is the
+    # honest reading of the same gesture.
+    When I click the title of "knobs"
+    And I type " ((compost"
+    And the mirror completions are open
+    And I press "Enter"
+    Then "house.jsonl" holds a node titled "pick the knobs"
+    And "house.jsonl" holds a mirror of "compost" under "install"
+    And the row being typed holds "pick the knobs"
+    And there should be no page errors
+    # ...and the caret carries on in it, exactly as it does after a day: the
+    # placement is a new sibling AFTER this row, so this row has not moved and
+    # no redraw is owed for it.
+    When I type " and the hinges"
+    And I click away from the editor
+    Then "house.jsonl" holds a node titled "pick the knobs and the hinges"
+    And no row is being edited
+
+  Scenario: The placement is drawn, and ⌘Z retires it
+    # A pointer's write and a keystroke's file onto one stack, so the chord does
+    # not mean two things depending on which hand made the edit. The inverse of
+    # `add_mirror` is `remove_mirror`, named by the placement the write minted.
+    When I click the title of "knobs"
+    And I type " ((compost"
+    And the mirror completions are open
+    And I press "Enter"
+    Then "house.jsonl" holds a mirror of "compost" under "install"
+    When I press "Escape"
+    And I press "ControlOrMeta+z"
+    Then "house.jsonl" holds no mirror of "compost"
+    And there should be no page errors
+
+  # ── the keys, and what happens when nothing matches ──────────────────
+
+  Scenario: Escape puts the list away and keeps what was typed
+    When I click the title of "handles"
+    And I type " !tom"
+    Then the date completions are open
+    When I press "Escape"
+    Then no completions are open
+    And the row being typed holds "choose the handles !tom"
+
+  Scenario: With no list up, the keys are the row's own again
+    # A trigger that matches nothing draws nothing — and a key a person cannot
+    # see the effect of must go on meaning what it has always meant.
+    When I click the title of "knobs"
+    And I type " #zzz"
+    Then no completions are open
+    When I press "Escape"
+    Then no row is being edited
+    And "house.jsonl" holds a node titled "pick the knobs"
+
+  Scenario: A pointer takes a row without losing the caret
+    # The row prevents the default on mousedown, so choosing with the mouse must
+    # not blur the line being typed.
+    When I click the title of "knobs"
+    And I type " #"
+    And I choose "#outdoors" from the completions
+    Then the row being typed holds "pick the knobs #outdoors"
+    And there should be no page errors

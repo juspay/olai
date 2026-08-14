@@ -75,6 +75,40 @@ export const applying = async (
 }
 
 /**
+ * A GESTURE that is several writes: each one sent in turn, stopping at the
+ * first refusal, answering with whatever the run has to say.
+ *
+ * Two surfaces make one — a bulk verb over a multi-selection, and a drop that
+ * lands several rows (`./select/bulk.ts`, `./drag/dragging.ts`) — and both are
+ * N ops rather than one, deliberately: a gesture the browser could send as a
+ * single op would be a thing this face can do and MCP cannot, and what an agent
+ * does when it is told to indent three rows is call the tool three times.
+ *
+ * IN TURN rather than together, for the reason the editor's own queue exists:
+ * each edit is judged against what the one before it did — "indent this" means
+ * something different once the row above has moved — so two in flight are two
+ * writes derived from a state neither of them can see.
+ *
+ * AND IT STOPS AT THE FIRST REFUSAL. Half an indent is a shape nobody asked
+ * for, and carrying on would pile refusals up until only the last one could be
+ * shown. What already landed stays landed, exactly as it would have if a person
+ * had pressed the key once per row and stopped when it would not go.
+ */
+export const applyingAll = async (
+  edits: ReadonlyArray<Edit>,
+  record: Undo["record"],
+): Promise<Said | undefined> => {
+  let last: Said | undefined
+  for (const edit of edits) {
+    const said = await applying(edit, record)
+    if (said === undefined) continue
+    last = said
+    if (said.tone === "alarm") return said
+  }
+  return last
+}
+
+/**
  * The same write, answering with WHAT LANDED rather than only what there is to
  * say about it — for the caller that needs the answer's `id` to go somewhere:
  * a minted document's PATH is the server's to derive (a bare calendar day

@@ -33,6 +33,7 @@
 import { createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
+import { LAYER } from "./layer.ts"
 import { TESTID } from "./testids.ts"
 import { clampedLeft, hideTip, showTip, takeTip, tipShowing } from "./tip.ts"
 
@@ -98,7 +99,7 @@ export function Tip(props: {
     return (
       <div
         ref={tip}
-        class="pointer-events-none fixed z-30 max-w-[min(24rem,calc(100vw-1rem))] rounded-sm border border-rule/70 bg-panel px-2 py-1 text-xs text-ink shadow-sm"
+        class={`pointer-events-none fixed ${LAYER.page} max-w-[min(24rem,calc(100vw-1rem))] rounded-sm border border-rule/70 bg-panel px-2 py-1 text-xs text-ink shadow-sm`}
         style={{ left: `${drawn.at.left}px`, top: `${drawn.at.top}px` }}
         data-testid={TESTID.tip}
         role="presentation"
