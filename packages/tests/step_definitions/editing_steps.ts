@@ -478,6 +478,20 @@ Then(
   },
 );
 
+/** BY TITLE, for the rows nobody named: a captured line is minted with an id
+ *  the write chose, so what a scenario can point at afterwards is the words it
+ *  typed. The twin of the step above, and the pair to
+ *  `holds a node titled`. */
+Then(
+  "{string} no longer holds a node titled {string}",
+  async function (this: OlaiWorld, file: string, title: string) {
+    await this.waitUntil(
+      async () => !recordsIn(this, file).some((node) => node["title"] === title),
+      `${file} to have let go of a node titled ${JSON.stringify(title)}`,
+    );
+  },
+);
+
 /**
  * The `date` field, as the EXACT string on disk — the pair to the step below,
  * and beside it for that reason.

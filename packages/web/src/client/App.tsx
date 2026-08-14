@@ -131,6 +131,19 @@ export default function App() {
 
   const docked = () => outlines.manifest() !== null && page() !== undefined
 
+  // WHICH NODE THE PALETTE MAY WRITE ABOUT, and it is the open page's answer
+  // rather than a second one: the zoom is already resolved here, so the op
+  // rows are about the node whose heading the reader is looking at, and there
+  // are none of them on any other page (`palette/ops.ts`). `undefined` also
+  // covers an id that names no page — a mirror chain that died, a node
+  // nothing declares — because there is no subject to write about then either.
+  const zoomed = createMemo(() => {
+    const open = page()
+    if (open === undefined) return undefined
+    const node = only(open, "node")
+    return node === undefined ? undefined : only(node.zoomed, "node")
+  })
+
   // Undo is the OUTLINE's, and it is held HERE rather than beside the editor
   // (`edit/Editable.tsx`, where a draft lives for the reason its own header
   // gives) because its two keys are global chords, and the one window listener
@@ -175,6 +188,7 @@ export default function App() {
       <Connection readout={connectionReadout()} />
       <ChatPanel />
       <Palette
+        zoomed={zoomed()}
         go={(route) => router.go(route)}
         toggleDirectory={() => {
           // Desktop: open/rail preference. Phone: ephemeral drawer — do not

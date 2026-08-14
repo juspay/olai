@@ -2,16 +2,22 @@
  * The palette SHELL's catalogue: navigation, panel toggles, ask-the-agent —
  * and the shape a NODE takes when search answers with one.
  *
- * Op actions belong to the separate `palette` roadmap item — not here. A `>`
- * prefix on the query sends the rest to the agent rather than filtering this
- * list. Node hits arrive from the server's search procedure (Palette.tsx asks
- * it as you type) rather than from a matcher of this file's own: the browser
- * holds every node and could grep them, and deliberately does not, because the
- * palette and an agent's `search_nodes` must be one reading
- * (`@olai/surface`'s search.ts has the argument).
+ * The OP rows are next door (`./ops.ts`), because what a verb is and which of
+ * them apply is the `•••` menu's answer and not a second list. Node hits
+ * arrive from the server's search procedure (Palette.tsx asks it as you type)
+ * rather than from a matcher of this file's own: the browser holds every node
+ * and could grep them, and deliberately does not, because the palette and an
+ * agent's `search_nodes` must be one reading (`@olai/surface`'s search.ts has
+ * the argument).
+ *
+ * TWO PREFIXES take the box away from the list, and they are the same idea
+ * twice: `>` sends the rest to the agent, `+` captures the rest as a node.
+ * Both are a LINE OF TEXT rather than a row to choose, which is what a prefix
+ * is for — a row can only carry what it was built holding, and neither of
+ * these knows what it is going to say until somebody types it.
  */
 
-import type { SearchHit } from "@olai/surface"
+import type { Edit, SearchHit } from "@olai/surface"
 
 import type { Route } from "../routes.ts"
 
@@ -22,6 +28,32 @@ export type PaletteAction =
   | { readonly kind: "toggle-chat" }
   | { readonly kind: "reset-widths" }
   | { readonly kind: "ask"; readonly text: string }
+  /**
+   * ONE OP, at the write gate every other write in this app goes through
+   * (`../writes.ts`) — the row carries the {@link Edit} it will send, decided
+   * when the list was built, exactly as a `•••` entry does.
+   *
+   * `confirm` is the question the palette puts in its own box first, for the
+   * one verb whose reach is bigger than the line it was chosen on. It is the
+   * MENU's sentence verbatim (`../menu/verbs.ts`) — the same words, naming the
+   * same count — because a reader who has agreed to one of them in the menu
+   * has agreed to this.
+   */
+  | {
+    readonly kind: "edit"
+    readonly edit: Edit
+    readonly confirm?: string
+  }
+  /**
+   * Put this text in the box and stay open — the one action that does not
+   * finish anything.
+   *
+   * It exists for exactly one row: quick capture is a PREFIX (`+ …`), and a
+   * prefix nobody has been told about is a feature nobody finds. So the
+   * palette lists it like any other command, and choosing it types the `+` for
+   * you and leaves the caret after it.
+   */
+  | { readonly kind: "prefix"; readonly prefix: string }
 
 export interface PaletteItem {
   readonly id: string
@@ -46,6 +78,14 @@ export interface PaletteItem {
   /** Lowercase haystack for simple substring filter. */
   readonly search: string
 }
+
+/** The character that turns the box into an agent message. */
+const ASK_PREFIX = ">"
+
+/** The character that turns the box into a capture. `+` because that is what
+ *  the gesture is — one more line — and because it is a character a title does
+ *  not start with often enough to matter, which is the same bet `>` makes. */
+export const CAPTURE_PREFIX = "+"
 
 export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
   {
@@ -91,6 +131,17 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     search: "toggle agent panel chat",
   },
   {
+    // Racket's `olai add`, as a line in a box: the whole promise is that the
+    // page under the palette does not move, so this row does not navigate,
+    // does not open an editor and does not choose a place — it primes the
+    // prefix, and what gets typed after it lands in the inbox.
+    id: "capture",
+    label: "Capture to the Inbox",
+    hint: "+ a line",
+    action: { kind: "prefix", prefix: `${CAPTURE_PREFIX} ` },
+    search: "capture inbox add quick note new node jot",
+  },
+  {
     id: "shortcuts",
     label: "Keyboard shortcuts",
     hint: "every key",
@@ -132,7 +183,8 @@ export const nodeItem = (hit: SearchHit): PaletteItem => ({
 const placeOf = (hit: SearchHit): string =>
   hit.path.length === 0 ? hit.file : [...hit.path].reverse().join(" · ")
 
-/** Filter shell items by a free-text query (no `>` prefix). */
+/** Filter the command rows by a free-text query — never reached while the
+ *  box carries a prefix, which takes it out of the list entirely. */
 export const filterItems = (
   query: string,
   items: ReadonlyArray<PaletteItem> = SHELL_ITEMS,
@@ -145,9 +197,29 @@ export const filterItems = (
   )
 }
 
-/** A query that begins with `>` (after optional space) is an ask-the-agent. */
-export const askQuery = (raw: string): string | null => {
+/**
+ * What is left of the query after `prefix`, or `null` when it does not carry
+ * one.
+ *
+ * ONE function for both prefixes, because they are one rule read twice: the
+ * leading space is forgiving (a palette opened with a stray space in it is not
+ * a different mode), the prefix goes, and the space after it goes too — so `>
+ * hello` and `>hello` are the same message and `+ buy milk` and `+buy milk`
+ * are the same capture. What comes back is otherwise VERBATIM, including the
+ * trailing space somebody left, because it is on its way to a node's title and
+ * this is not the layer that judges one.
+ */
+const afterPrefix = (raw: string, prefix: string): string | null => {
   const trimmed = raw.trimStart()
-  if (!trimmed.startsWith(">")) return null
-  return trimmed.slice(1).trimStart()
+  if (!trimmed.startsWith(prefix)) return null
+  return trimmed.slice(prefix.length).trimStart()
 }
+
+/** A query that begins with `>` (after optional space) is an ask-the-agent. */
+export const askQuery = (raw: string): string | null => afterPrefix(raw, ASK_PREFIX)
+
+/** A query that begins with `+` (after optional space) is a quick capture:
+ *  the rest of the line becomes a node in the inbox, and the page the reader
+ *  is on does not move. */
+export const captureQuery = (raw: string): string | null =>
+  afterPrefix(raw, CAPTURE_PREFIX)

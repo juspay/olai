@@ -1,6 +1,11 @@
 /**
- * Panel rework: rail, resize-by-effect, pill content, palette `>`, drawer
- * geometry, sheet under header.
+ * Panel rework: rail, resize-by-effect, pill content, drawer geometry, sheet
+ * under header — and the two chords that toggle the panels.
+ *
+ * The PALETTE moved out (`./palette_steps.ts`) when it stopped being a shell:
+ * it writes now, so it has a question before one of its verbs, two moods to
+ * say things in and a capture line — the same split, for the same reason, that
+ * `./menu_steps.ts` is next to `./outline_tree_steps.ts`.
  */
 
 import * as assert from "node:assert";
@@ -17,9 +22,8 @@ import {
   CHAT_STRIP,
   CHAT_TOGGLE,
   HYDRATION_TIMEOUT,
+  modKey,
   OUTLINE_TREE,
-  PALETTE,
-  PALETTE_ITEM,
   POLL_TIMEOUT,
   SIDEBAR,
   SIDEBAR_BODY,
@@ -32,8 +36,6 @@ import {
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-const PALETTE_INPUT = `[data-testid="palette-input"]`;
-const PALETTE_ASK_ERROR = `[data-testid="palette-ask-error"]`;
 const HEADER_SEARCH = `[data-testid="header-search"]`;
 const HEADER_SEARCH_ITEM = `[data-testid="header-search-item"]`;
 const CHAT_PILL_TEXT = `[data-testid="chat-pill-text"]`;
@@ -226,17 +228,7 @@ When("I open the agent from the pill", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-// ── palette + keyboard ─────────────────────────────────────────────────
-
-/** Meta on Darwin (where Ctrl+K is kill-line), Control elsewhere — matches keys.ts. */
-const modKey = (): string => (process.platform === "darwin" ? "Meta" : "Control");
-
-When("I press the palette shortcut", async function (this: OlaiWorld) {
-  await this.page.keyboard.press(`${modKey()}+k`);
-  await this.page
-    .locator(PALETTE)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-});
+// ── the panel chords ───────────────────────────────────────────────────
 
 When("I press the sidebar shortcut", async function (this: OlaiWorld) {
   await this.page.keyboard.press(`${modKey()}+\\`);
@@ -247,55 +239,6 @@ When("I press the chat shortcut", async function (this: OlaiWorld) {
   await this.page.keyboard.press(`${modKey()}+j`);
   await this.waitForFrame();
 });
-
-Then("the command palette is open", async function (this: OlaiWorld) {
-  await this.page
-    .locator(PALETTE)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-});
-
-When(
-  "I pick the palette item {string}",
-  async function (this: OlaiWorld, label: string) {
-    const item = this.page.locator(PALETTE_ITEM).filter({ hasText: label });
-    await item.click();
-    await this.page
-      .locator(PALETTE)
-      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
-  },
-);
-
-/** Type into the palette box, waiting for it first — the one spelling both
- *  the ask step and the search step are written in terms of. */
-const fillPalette = async (world: OlaiWorld, text: string) => {
-  const input = world.page.locator(PALETTE_INPUT);
-  await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await input.fill(text);
-  return input;
-};
-
-When(
-  "I ask the palette {string}",
-  async function (this: OlaiWorld, text: string) {
-    const input = await fillPalette(this, text);
-    await input.press("Enter");
-    await this.waitForFrame();
-  },
-);
-
-Then("the palette shows an ask error", async function (this: OlaiWorld) {
-  await this.page
-    .locator(PALETTE_ASK_ERROR)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-});
-
-/** Fill without Enter — search runs as you type; Enter would pick a row. */
-When(
-  "I type {string} into the palette",
-  async function (this: OlaiWorld, text: string) {
-    await fillPalette(this, text);
-  },
-);
 
 // ── the header's search box ────────────────────────────────────────────
 
@@ -331,20 +274,6 @@ When(
       .first()
       .click();
     await this.waitForFrame();
-  },
-);
-
-Then(
-  "the palette lists the node {string}",
-  async function (this: OlaiWorld, title: string) {
-    // A debounce and one server round trip sit between the keystroke and the
-    // row, so this waits rather than reads. `data-id^="node-"` tells a node
-    // hit from a shell item that happens to share a word.
-    await this.page
-      .locator(`${PALETTE_ITEM}[data-id^="node-"]`)
-      .filter({ hasText: title })
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
 

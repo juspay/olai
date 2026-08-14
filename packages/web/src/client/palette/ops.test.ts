@@ -1,0 +1,91 @@
+/**
+ * What the palette may write, and about which node.
+ *
+ * The rows are the `•••` menu's own verbs (`../menu/verbs.ts` has that
+ * suite), so what is checked here is the three decisions this file makes on
+ * top of them: that a page which is not a zoom offers nothing, that every row
+ * names the node the reader is looking at, and that the one verb with a
+ * question of its own to ask carries it rather than sending on the first
+ * press.
+ */
+
+import { derive, zoom } from "@olai/format"
+import { setOf } from "@olai/format/testlib"
+import { expect, test } from "bun:test"
+
+import { opItems } from "./ops.ts"
+
+const HOUSE = [
+  `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":true}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","date":"2026-08-10"}`,
+  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
+].join("\n")
+
+const derived = derive(setOf({ "house.jsonl": HOUSE }).nodes)
+
+/** The zoomed page for an id, narrowed to the arm that IS a node — which is
+ *  the only arm App hands the palette. */
+const at = (id: string) => {
+  const zoomed = zoom(derived, id)
+  if (zoomed.kind !== "node") throw new Error(`\`${id}\` is not a node page`)
+  return zoomed
+}
+
+const labels = (id: string): ReadonlyArray<string> =>
+  opItems(at(id), derived).map((item) => item.label)
+
+test("a page that is not a zoom offers no op rows at all", () => {
+  // An outline, a day, the agenda, the trash — and the frame before the first
+  // snapshot. A command aimed at a node the reader cannot see is a command
+  // nobody can predict.
+  expect(opItems(undefined, derived)).toEqual([])
+})
+
+test("the zoomed node's own verbs, minus the one that opens a picker", () => {
+  // `kitchen` is doing and carries no date, so: no `Mark doing`, no `Clear
+  // date`. `Set date…` is absent for a different reason — it opens the ROW's
+  // picker, and the palette is drawn over the tree rather than in it.
+  expect(labels("kitchen")).toEqual([
+    "Mark todo",
+    "Complete",
+    "Clear mark",
+    "Move to Trash",
+  ])
+  expect(labels("order")).toContain("Clear date")
+})
+
+test("every row says which node it is about, on the place line", () => {
+  const rows = opItems(at("order"), derived)
+  expect(rows.every((row) => row.place === "on “order the cabinets”")).toBe(true)
+  // …and the title joins the haystack, so typing what you are looking at
+  // finds what you can do to it.
+  expect(rows.every((row) => row.search.includes("order the cabinets"))).toBe(true)
+})
+
+test("a row carries the edit it will send, and the archive carries its question", () => {
+  const rows = opItems(at("install"), derived)
+  const complete = rows.find((row) => row.label === "Complete")
+  expect(complete?.action).toEqual({
+    kind: "edit",
+    edit: { verb: "mark", id: "install", mark: "done" },
+  })
+  const trash = rows.find((row) => row.label === "Move to Trash")
+  expect(trash?.action).toMatchObject({
+    kind: "edit",
+    edit: { verb: "archive", id: "install" },
+  })
+  // The MENU's sentence, verbatim — not a second wording of the same warning.
+  expect(
+    trash?.action.kind === "edit" ? trash.action.confirm : undefined,
+  ).toContain("Move “install them” to the Trash?")
+})
+
+test("the ids are namespaced, so a shell row and an op row cannot collide", () => {
+  expect(opItems(at("kitchen"), derived).map((row) => row.id))
+    .toEqual(["op-mark-todo", "op-mark-done", "op-clear-mark", "op-archive"])
+})
+
+test("with no indexes yet the archive is not offered, rather than uncounted", () => {
+  expect(opItems(at("kitchen"), undefined).map((row) => row.label))
+    .toEqual(["Mark todo", "Complete", "Clear mark"])
+})

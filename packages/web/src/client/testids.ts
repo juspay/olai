@@ -503,8 +503,17 @@ export const TESTID = {
   paletteList: "palette-list",
   paletteItem: "palette-item",
   paletteAsk: "palette-ask",
+  /** The `+` prefix's preview: the line that is about to become a node. */
+  paletteCapture: "palette-capture",
   /** The second line of a result row: where the node lives. */
   paletteItemPlace: "palette-item-place",
+  /** What a write the palette made had to say — a refusal in the ops layer's
+   *  own words, or a remark about one that landed. `data-tone` says which,
+   *  because the mood is a fact and the colour is a styling decision. */
+  paletteSaid: "palette-said",
+  /** The question the one verb with a blast radius asks before it runs — the
+   *  `•••` menu's sentence, in the palette's own box. */
+  paletteConfirm: "palette-confirm",
   // ── the header's search box, the other door to the same reading ──────
   headerSearch: "header-search",
   /** The phone's door: opens the palette, which is the same modal. */

@@ -263,6 +263,13 @@ write:
   against, and rides them back on the answer (`Applied.undo`) for the browser to
   replay. Nothing restores a snapshot: an undo is one more op at the write gate,
   judged against the set as it is now.
+- **one verb is the PALETTE's.** `capture` carries a title and nothing else —
+  no anchor, no file, no id — because quick capture is the one write whose
+  whole promise is that the page it was made from does not move. Where the
+  inbox is is read on the server, the shape `docDay`'s path already has, and it
+  is still ONE op: an `add` into the inbox the directory has, or the `create`
+  that mints it holding exactly this line, so a refused capture leaves no file
+  behind. An agent makes the same two moves by hand.
 - **and one verb is BOTH theirs.** `mark` names the mark a node should carry —
   what a menu entry means ("this is doing now") and what an undo means ("it
   carried `todo` before I ticked it off"). Two callers, one arm; a second would

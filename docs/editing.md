@@ -216,6 +216,59 @@ the archive again.
 Deliberately absent, each its own item: delete, multi-select, and
 drag-and-drop.
 
+## From the ⌘K palette
+
+The palette goes places and asks the agent ([search.md](search.md)); it writes
+two things as well, and both of them are the same op through the same gate as
+everything above.
+
+**The verbs of the node you have ZOOMED.** On `/n/<id>`, the palette lists what
+that node can take — `Mark todo`, `Complete`, `Clear mark`, `Clear date`, `Move
+to Trash` — the same entries the row's ••• menu offers, decided by the same
+rule (a verb that would change nothing is not drawn), naming the same ids, and
+refused in the same words. Each row says which node it is about on its second
+line, because a palette is opened from anywhere. This is the affordance the
+zoomed node never had: the ••• hangs off a row, and a zoom is a page.
+
+On any other page there are none of them. A command read out of context must
+not be aimed at a node you cannot see, and what the address says you are
+looking at is a fact you and the palette can both see.
+
+`Set date…` stays on the row, because it opens the row's own picker and there
+is nothing for the palette to open. `Move to Trash` asks its question in the
+palette's own box, with the same sentence and the same count the menu asks —
+Escape or **Cancel** backs out, choosing it again goes ahead.
+
+A refusal, or a nudge from a write that landed, is drawn in the palette and
+the palette stays up: a modal that closed on top of the reason would be
+exactly the silent failure this app is written against. A write that landed
+with nothing to add closes it, which is what choosing a command means. Either
+way ⌘Z takes it back — one undo stack, whichever hand made the edit.
+
+## Quick capture
+
+**`⌘K`, `+`, the line, Enter** — and nothing moves. The page you were reading,
+your scroll and the address stay exactly where they were; the line becomes a
+node; the box empties for the next one, so several thoughts arriving at once
+cost one chord.
+
+It lands at the top level of the directory's **inbox** — the outline called
+`Inbox.jsonl`, wherever the directory already keeps one, and a new
+`Inbox.jsonl` at the root when it has none. Minting it is part of the same
+single operation as the line, so a capture that is refused leaves no file
+behind. Which file that is is decided on the server, against the same reading
+the write is judged on, exactly as a daily note's path is.
+
+The palette says so afterwards — a write whose whole point is that nothing on
+screen moves has to say it happened — and ⌘Z takes a capture back like any
+other write. An agent makes the same two moves by hand (read the outlines, then
+`add_node` or `create_outline`), so nothing here is a reach the tools do not
+have.
+
+The **Capture to the Inbox** row in the palette is the same gesture for a
+reader who has not been told about the prefix: choosing it types the `+` and
+leaves the caret after it.
+
 ## Writing a document
 
 A `.md` under the served directory has always had a page; the page can be

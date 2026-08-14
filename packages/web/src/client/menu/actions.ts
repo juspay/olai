@@ -34,7 +34,7 @@ import { setChatOpen } from "../layout/prefs.ts"
 import { hrefOf, type Route } from "../routes.ts"
 import { asText } from "./subtree.ts"
 import type { MenuAction } from "./NodeMenu.tsx"
-import { writeVerbs } from "./verbs.ts"
+import { subjectOfRow, writeVerbs } from "./verbs.ts"
 import { applying } from "../writes.ts"
 
 /**
@@ -146,7 +146,7 @@ export const nodeMenuActions = (args: {
   // — turned into the running of it. Spread rather than copied field by field:
   // a hand-written list of names here is the list that goes stale the day a
   // verb grows a field, silently, because both shapes still compile.
-  const writes: MenuAction[] = writeVerbs(args.row, args.derived).map(
+  const writes: MenuAction[] = writeVerbs(subjectOfRow(args.row), args.derived).map(
     ({ does, ...verb }) => ({
       ...verb,
       // A BLOCK, and the `return` under it is load-bearing: an action answers

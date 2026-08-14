@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { askQuery, filterItems, nodeItem, SHELL_ITEMS } from "./items.ts"
+import { askQuery, captureQuery, filterItems, nodeItem, SHELL_ITEMS } from "./items.ts"
 
 test("empty query returns every shell item", () => {
   expect(filterItems("").length).toBe(SHELL_ITEMS.length)
@@ -63,4 +63,26 @@ test("askQuery strips the > prefix", () => {
   expect(askQuery(">")).toBe("")
   expect(askQuery("toggle")).toBeNull()
   expect(askQuery("not > this")).toBeNull()
+})
+
+test("captureQuery strips the + prefix, and the two prefixes never overlap", () => {
+  expect(captureQuery("+ buy milk")).toBe("buy milk")
+  expect(captureQuery("+buy milk")).toBe("buy milk")
+  expect(captureQuery("  +  buy milk")).toBe("buy milk")
+  expect(captureQuery("+")).toBe("")
+  expect(captureQuery("buy milk")).toBeNull()
+  // A `+` inside the line is not a prefix — only the first character is.
+  expect(captureQuery("2 + 2")).toBeNull()
+  // Neither prefix claims the other's queries, which is what lets one box
+  // carry both without a mode.
+  expect(askQuery("+ buy milk")).toBeNull()
+  expect(captureQuery("> what is a garden")).toBeNull()
+})
+
+test("the capture row primes the prefix rather than doing anything", () => {
+  // It writes nothing and closes nothing: the point of quick capture is that
+  // the page under the palette does not move, and this row has no line yet.
+  const capture = SHELL_ITEMS.find((item) => item.id === "capture")
+  expect(capture?.action).toEqual({ kind: "prefix", prefix: "+ " })
+  expect(filterItems("inbox").map((item) => item.id)).toEqual(["capture"])
 })

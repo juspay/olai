@@ -67,6 +67,12 @@
  * is one more op at the write gate, refused like any other when the set has
  * moved somewhere the inverse cannot go.
  *
+ * ONE IS THE PALETTE'S. `capture` says "put this line in the inbox" — no
+ * anchor, no file, no id — because quick capture is the one write whose whole
+ * promise is that the page it was made from does not move. Where the inbox is
+ * is read on the server like `docDay`'s path, and it is still ONE op at the
+ * gate.
+ *
  * AND ONE IS BOTH THEIRS. `mark` names the mark a node should carry, which is
  * what a menu entry means ("this is doing now") and what an undo means ("it
  * carried `todo` before I ticked it off"). Two callers, one arm — a second
@@ -403,6 +409,34 @@ export const Edit = Schema.Union([
      *  Ignored when `parent` is present. */
     file: Schema.optionalKey(Schema.String),
   }),
+
+  // ── the palette's one ────────────────────────────────────────────────
+
+  /**
+   * A LINE, CAPTURED — the ⌘K palette's quick capture, and racket's `olai add`
+   * read into a browser.
+   *
+   * It carries a title and NOTHING ELSE, which is the whole of the gesture: a
+   * thought arrives while somebody is reading something unrelated, and the
+   * point is that it lands somewhere they will look later without their page,
+   * their scroll or their caret moving at all. A verb that took an anchor
+   * would be `add` under another name, and `add` is already how a person puts
+   * a row where they are standing (`Enter`).
+   *
+   * WHERE IT LANDS IS THE SERVER'S, exactly as `docDay`'s path is and for the
+   * same argument: the inbox is a fact about the SET — the outline named
+   * `Inbox.jsonl`, if the directory has one — so it is read against the
+   * reading the write is judged on rather than in a tab holding a file list
+   * some frames old. That is also what makes this ONE op rather than a
+   * sequence: an existing inbox takes an `add`, a directory with none takes a
+   * `create` seeded with this very title, and a seed that is refused leaves no
+   * file behind ({@link ../../server/src/edit.ts}).
+   *
+   * An agent makes the same two moves by hand — read the outlines, then
+   * `add_node` or `create_outline` — so nothing here is a reach the tools do
+   * not have. What the browser is spared is the READING, not an op.
+   */
+  Schema.Struct({ verb: Schema.Literal("capture"), title: Schema.String }),
 
   // ── the documents' three ─────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 /**
- * What the `•••` menu may WRITE on a given row, as values.
+ * What a surface may WRITE about one node, as values.
  *
- * The catalog of write verbs, pure over the row the menu was opened on: which
+ * The catalog of write verbs, pure over the SUBJECT it was asked about: which
  * entries a reader is offered, and the exact {@link Edit} each one sends — or,
  * for the one whose value a person still has to choose, that it opens the
  * row's date picker ({@link Does}). No socket, no clipboard and no component —
@@ -23,13 +23,72 @@
  * finished" — which is the sentence a person needs, and the two clicks it asks
  * for are the two calls an agent makes (HACKING.md's consistency rule). A menu
  * that greyed that entry out would be teaching a rule this app does not have.
+ *
+ * IT IS ASKED ABOUT A {@link Subject} RATHER THAN ABOUT A ROW, because two
+ * surfaces ask it now and only one of them has a row. The `•••` menu asks
+ * about the line it hangs off; the ⌘K palette asks about the node the reader
+ * has ZOOMED (`../palette/ops.ts`), which is a page rather than a row and used
+ * to be the one node in this app no pointer could mark, date or put away at
+ * all — the heading has no `•••`. A subject is the two facts every verb here
+ * actually reads (the record it was chosen at, and the node that record
+ * shows), so both callers construct one and neither has to pretend to be the
+ * other.
  */
 
-import { type Derived, isMirror, MARKS, type Row, type Status } from "@olai/format"
+import {
+  type Derived,
+  isMirror,
+  MARKS,
+  type Node,
+  type LocatedRegular,
+  type Row,
+  type Situated,
+  type Status,
+} from "@olai/format"
 import type { Edit } from "@olai/surface"
 
 import { datePick } from "../date/pick.ts"
 import { under } from "./subtree.ts"
+
+/**
+ * What a write verb is ABOUT: one record, and whatever it shows.
+ *
+ * The distinction is the rule the whole editor is built on, and it is exactly
+ * why this is two fields rather than one id. A mark and a date are facts about
+ * the node a row SHOWS, so a mirror marks its target; retiring a placement is
+ * about the row's OWN record, which is what a placement is. Anything that
+ * draws a node can answer both.
+ */
+export interface Subject {
+  /** The record the verb was chosen at — a row's own, or a zoomed node
+   *  itself. `unmirror` is the one verb that names this. */
+  readonly record: Node
+  /** The regular node at the end of the chain, or `undefined` for a placement
+   *  that draws nothing (a chain that died, one that closed a loop). */
+  readonly shows: LocatedRegular | undefined
+  readonly status: Status | undefined
+}
+
+/** The subject a ROW is — what the `•••` menu asks about. */
+export const subjectOfRow = (row: Row): Subject => ({
+  record: row.at.node,
+  shows: row.kind === "node" || row.kind === "mirror" ? row.shows : undefined,
+  status: row.status,
+})
+
+/**
+ * The subject a ZOOMED PAGE is — what the palette asks about.
+ *
+ * A zoom always lands on a regular node however it was addressed
+ * (`@olai/format`'s `zoom` follows the chain), so the record and what it shows
+ * are the same node here, and the placement verb is correctly never offered:
+ * the reader is looking at the node, not at a line standing for it.
+ */
+export const subjectOfZoom = (zoomed: Situated): Subject => ({
+  record: zoomed.shows.node,
+  shows: zoomed.shows,
+  status: zoomed.status,
+})
 
 /**
  * What choosing a verb DOES — two answers rather than one, because one entry
@@ -81,19 +140,19 @@ const MARK_LABEL: ReadonlyArray<readonly [Status, string]> = [
 ]
 
 export const writeVerbs = (
-  row: Row,
-  /** The set's own indexes, for the one question a ROW cannot answer: how much
-   *  an archive would move. `undefined` only while the first frame is still
-   *  arriving, which is a moment no row is drawn in — and the one verb that
-   *  asks is then not offered rather than offered with a number nobody
+  subject: Subject,
+  /** The set's own indexes, for the one question a SUBJECT cannot answer: how
+   *  much an archive would move. `undefined` only while the first frame is
+   *  still arriving, which is a moment no row is drawn in — and the one verb
+   *  that asks is then not offered rather than offered with a number nobody
    *  checked. */
   derived: Derived | undefined,
 ): ReadonlyArray<Verb> => {
   const verbs: Array<Verb> = []
-  // A row drawing a node: the mark it carries, the date it has. A placement
-  // that shows nothing (a chain that died, one that closed a loop) has neither
-  // — but it is still a record, so the placement verb below applies to it.
-  const shown = row.kind === "node" || row.kind === "mirror" ? row.shows : undefined
+  // The node this subject draws: the mark it carries, the date it has. A
+  // placement that shows nothing has neither — but it is still a record, so
+  // the placement verb below applies to it.
+  const shown = subject.shows
 
   if (shown !== undefined) {
     // The mark it already carries is not offered again: putting it back is the
@@ -103,14 +162,14 @@ export const writeVerbs = (
     // leaving it out — the row's own checkbox and tone are three pixels away,
     // and they are where every other reading of it comes from.
     for (const [mark, label] of MARK_LABEL) {
-      if (row.status === mark) continue
+      if (subject.status === mark) continue
       verbs.push({
         id: `mark-${mark}`,
         label,
         does: sends({ verb: "mark", id: shown.node.id, mark }),
       })
     }
-    if (row.status !== undefined) {
+    if (subject.status !== undefined) {
       verbs.push({
         id: "clear-mark",
         label: "Clear mark",
@@ -158,11 +217,11 @@ export const writeVerbs = (
   // does guarantee is that the day such a row IS drawable, the verb for it is
   // already the right one — and that nothing here has to ask a placement what
   // it shows in order to offer to remove it.
-  if (isMirror(row.at.node)) {
+  if (isMirror(subject.record)) {
     verbs.push({
       id: "remove-placement",
       label: "Remove this placement",
-      does: sends({ verb: "unmirror", id: row.at.node.id }),
+      does: sends({ verb: "unmirror", id: subject.record.id }),
     })
   } else if (shown !== undefined && derived !== undefined) {
     // The put-away is drawn on a node's own row and not on a mirror of it,

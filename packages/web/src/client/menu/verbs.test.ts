@@ -14,7 +14,7 @@ import { expect, test } from "bun:test"
 
 import { datePick } from "../date/pick.ts"
 import { flatten } from "../edit/order.ts"
-import { writeVerbs } from "./verbs.ts"
+import { subjectOfRow, writeVerbs } from "./verbs.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":true}`,
@@ -41,10 +41,10 @@ const row = (id: string): Row => {
 }
 
 const labels = (id: string): ReadonlyArray<string> =>
-  writeVerbs(row(id), derived).map((verb) => verb.label)
+  writeVerbs(subjectOfRow(row(id)), derived).map((verb) => verb.label)
 
 const verb = (id: string, label: string) => {
-  const found = writeVerbs(row(id), derived).find((one) => one.label === label)
+  const found = writeVerbs(subjectOfRow(row(id)), derived).find((one) => one.label === label)
   if (found === undefined) {
     throw new Error(`\`${id}\` offers no ${JSON.stringify(label)}: ${labels(id).join(", ")}`)
   }
@@ -218,7 +218,7 @@ test("a childless row is asked about on its own", () => {
 
 test("nothing but the put-away asks a question first", () => {
   expect(
-    writeVerbs(row("kitchen"), derived).filter((verb) => verb.confirm !== undefined)
+    writeVerbs(subjectOfRow(row("kitchen")), derived).filter((verb) => verb.confirm !== undefined)
       .map((verb) => verb.label),
   ).toEqual(["Move to Trash"])
 })
@@ -227,6 +227,6 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
   // A moment no row is drawn in — the first frame has not arrived — but the
   // one verb whose question is about the SET may not be offered with a number
   // read off something else.
-  expect(writeVerbs(row("kitchen"), undefined).map((verb) => verb.label))
+  expect(writeVerbs(subjectOfRow(row("kitchen")), undefined).map((verb) => verb.label))
     .toEqual(["Mark todo", "Complete", "Clear mark", "Set date…"])
 })

@@ -1,0 +1,274 @@
+/**
+ * The ⌘K palette: opening it, what it lists, what it writes, what it asks and
+ * what it said.
+ *
+ * Its own file because the palette is no longer a shell — the same move
+ * `./menu_steps.ts` made away from `./outline_tree_steps.ts`, for the same
+ * reason. It has op rows that write the directory, a question before the one
+ * verb with a blast radius, a capture line that keeps the modal up on purpose,
+ * and two moods to say things in.
+ *
+ * TONE is the thing these steps are careful about, exactly as the menu's are:
+ * a refusal in the ops layer's own words and a remark from a write that landed
+ * are drawn in one slot, and a scenario that could not tell them apart would
+ * pass against a client that alarmed about a nudge. So `data-tone` is asserted
+ * rather than a colour.
+ *
+ * The other care is that CHOOSING an op row must not assume the palette
+ * closes: a write with something to say leaves it up, which is the whole of
+ * the silent-errors promise here. `I pick the palette item` (which waits for
+ * the modal to go) is kept for the rows that navigate; the writes use
+ * `I choose … from the palette`.
+ */
+
+import * as assert from "node:assert";
+import { Then, When } from "@cucumber/cucumber";
+
+import {
+  HYDRATION_TIMEOUT,
+  modKey,
+  oneLine,
+  PALETTE,
+  PALETTE_ASK_ERROR,
+  PALETTE_CAPTURE,
+  PALETTE_CONFIRM,
+  PALETTE_INPUT,
+  PALETTE_ITEM,
+  PALETTE_SAID,
+  POLL_TIMEOUT,
+} from "../support/world.ts";
+import type { OlaiWorld } from "../support/world.ts";
+
+// ── opening it, and typing into it ─────────────────────────────────────
+
+When("I press the palette shortcut", async function (this: OlaiWorld) {
+  await this.page.keyboard.press(`${modKey()}+k`);
+  await this.page
+    .locator(PALETTE)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the command palette is open", async function (this: OlaiWorld) {
+  await this.page
+    .locator(PALETTE)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+Then("the command palette is closed", async function (this: OlaiWorld) {
+  await this.page
+    .locator(PALETTE)
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+/** Escape rather than the chord: a scenario that has just captured is holding
+ *  a palette whose box has the caret, and ⌘K there would toggle it shut and
+ *  make the step below it read as a race. This is also the gesture a person
+ *  makes when they are done capturing. */
+When("I close the palette", async function (this: OlaiWorld) {
+  await this.page.keyboard.press("Escape");
+  await this.page
+    .locator(PALETTE)
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+/** Type into the palette box, waiting for it first — the one spelling every
+ *  step that puts words in it is written in terms of. */
+const fillPalette = async (world: OlaiWorld, text: string) => {
+  const input = world.page.locator(PALETTE_INPUT);
+  await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await input.fill(text);
+  return input;
+};
+
+/** Fill without Enter — search runs as you type; Enter would pick a row. */
+When(
+  "I type {string} into the palette",
+  async function (this: OlaiWorld, text: string) {
+    await fillPalette(this, text);
+  },
+);
+
+When(
+  "I ask the palette {string}",
+  async function (this: OlaiWorld, text: string) {
+    const input = await fillPalette(this, text);
+    await input.press("Enter");
+    await this.waitForFrame();
+  },
+);
+
+Then("the palette shows an ask error", async function (this: OlaiWorld) {
+  await this.page
+    .locator(PALETTE_ASK_ERROR)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then(
+  "the palette box holds {string}",
+  async function (this: OlaiWorld, text: string) {
+    assert.strictEqual(
+      await this.page.locator(PALETTE_INPUT).inputValue(),
+      text,
+      "the palette box",
+    );
+  },
+);
+
+// ── the rows ───────────────────────────────────────────────────────────
+
+/** Every row's label, in the order they are drawn — the confirm's two buttons
+ *  carry the same testid, which is what makes "offers exactly" also true while
+ *  a question is up. */
+const rowsOf = async (world: OlaiWorld): Promise<ReadonlyArray<string>> => {
+  await world.page
+    .locator(PALETTE)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  return (await world.page.locator(PALETTE_ITEM).allInnerTexts()).map(oneLine);
+};
+
+Then(
+  "the palette offers {string}",
+  async function (this: OlaiWorld, label: string) {
+    await this.waitUntil(
+      async () => (await rowsOf(this)).some((row) => row.includes(label)),
+      `the palette to offer ${JSON.stringify(label)}`,
+    );
+  },
+);
+
+Then(
+  "the palette does not offer {string}",
+  async function (this: OlaiWorld, label: string) {
+    // Read after a frame rather than polled: the absence has to be true NOW,
+    // and waiting for it would pass on a palette that dropped the row later.
+    await this.waitForFrame();
+    const rows = await rowsOf(this);
+    assert.ok(
+      !rows.some((row) => row.includes(label)),
+      `the palette offers ${JSON.stringify(label)}: ${rows.join(" | ")}`,
+    );
+  },
+);
+
+Then(
+  "the palette lists the node {string}",
+  async function (this: OlaiWorld, title: string) {
+    // A debounce and one server round trip sit between the keystroke and the
+    // row, so this waits rather than reads. `data-id^="node-"` tells a node
+    // hit from a shell item that happens to share a word.
+    await this.page
+      .locator(`${PALETTE_ITEM}[data-id^="node-"]`)
+      .filter({ hasText: title })
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the palette row {string} is about {string}",
+  async function (this: OlaiWorld, label: string, place: string) {
+    const row = this.page.locator(PALETTE_ITEM).filter({ hasText: label }).first();
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await row.innerText()).includes(place), true, place);
+  },
+);
+
+/** A row that NAVIGATES: it closes the palette, and waiting for that is what
+ *  keeps the next step from racing the frame. */
+When(
+  "I pick the palette item {string}",
+  async function (this: OlaiWorld, label: string) {
+    const item = this.page.locator(PALETTE_ITEM).filter({ hasText: label });
+    await item.click();
+    await this.page
+      .locator(PALETTE)
+      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  },
+);
+
+/** A row that WRITES, and may leave the palette up with something to say. */
+When(
+  "I choose {string} from the palette",
+  async function (this: OlaiWorld, label: string) {
+    await this.page
+      .locator(PALETTE_ITEM)
+      .filter({ hasText: label })
+      .first()
+      .click();
+    await this.waitForFrame();
+  },
+);
+
+// ── the question, and what it said ─────────────────────────────────────
+
+Then(
+  "the palette asks {string}",
+  async function (this: OlaiWorld, question: string) {
+    const asking = this.page.locator(PALETTE_CONFIRM);
+    await asking.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await asking.innerText()), question);
+  },
+);
+
+Then("the palette is not asking anything", async function (this: OlaiWorld) {
+  await this.page
+    .locator(PALETTE_CONFIRM)
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+/** What it SAID, in the mood it said it. Two steps rather than one with a
+ *  word, because a refusal and a remark are read by different scenarios for
+ *  different reasons — and `data-tone` is the fact, never the colour. */
+const saidIn = async (world: OlaiWorld, tone: string, text: string) => {
+  const said = world.page.locator(PALETTE_SAID);
+  await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const line = oneLine(await said.innerText());
+  assert.ok(
+    line.includes(text),
+    `the palette said ${JSON.stringify(line)}, which does not mention ${
+      JSON.stringify(text)
+    }`,
+  );
+  // The MOOD, as a fact in the markup rather than as a colour: a client that
+  // alarmed about a nudge would pass an assertion made on the words alone.
+  assert.strictEqual(
+    await said.getAttribute("data-tone"),
+    tone,
+    `the palette said ${JSON.stringify(line)} in the wrong tone`,
+  );
+};
+
+Then(
+  "the palette says {string}",
+  async function (this: OlaiWorld, text: string) {
+    await saidIn(this, "alarm", text);
+  },
+);
+
+Then(
+  "the palette remarks {string}",
+  async function (this: OlaiWorld, text: string) {
+    await saidIn(this, "aside", text);
+  },
+);
+
+// ── quick capture ──────────────────────────────────────────────────────
+
+/** The whole gesture, as a person makes it: the `+` prefix, the line, Enter. */
+When(
+  "I capture {string} from the palette",
+  async function (this: OlaiWorld, line: string) {
+    const input = await fillPalette(this, `+ ${line}`);
+    await input.press("Enter");
+    await this.waitForFrame();
+  },
+);
+
+Then(
+  "the palette previews the capture {string}",
+  async function (this: OlaiWorld, text: string) {
+    const preview = this.page.locator(PALETTE_CAPTURE);
+    await preview.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await preview.innerText()), text);
+  },
+);

@@ -80,6 +80,8 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
   switch (edit.verb) {
     case "add":
       return addRequest(at, edit)
+    case "capture":
+      return captureRequest(at, edit)
     case "move":
       return moveRequest(at.derived, edit)
     case "toggle": {
@@ -225,6 +227,69 @@ const addRequest = (
     after: anchor.id,
     title: edit.title,
   })
+}
+
+// ── the inbox ──────────────────────────────────────────────────────────
+
+/**
+ * The outline a quick capture lands in when the directory has none yet.
+ *
+ * At the ROOT, and named the way a person would name it: an inbox nobody has
+ * created is a promise the palette makes ("capture to the Inbox"), so the file
+ * it mints has to be the file they would have made themselves. Exported so a
+ * test names the same string this does rather than repeating it.
+ */
+export const INBOX = "Inbox.jsonl"
+
+/**
+ * The directory's inbox, or `undefined` when it has none.
+ *
+ * A CONVENTION read off the set, in the shape {@link dailyNotePathFor} reads
+ * the daily-note one: the file is whichever outline is *called* `Inbox.jsonl`,
+ * wherever it sits, so a directory that already keeps its inbox in `notes/`
+ * captures into the file it already has rather than growing a second one at
+ * the root. The name is matched case-insensitively because it is a name a
+ * person typed, and `inbox.jsonl` is the same intention.
+ *
+ * SHALLOWEST WINS, then path order — one answer, and a stable one, for the
+ * directory that somehow holds two. A rule that took "the first in path order"
+ * would let a file three directories down claim the capture from the obvious
+ * one beside it.
+ */
+export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
+  files
+    .filter((file) => file.split("/").at(-1)?.toLowerCase() === INBOX.toLowerCase())
+    .sort((a, b) => depth(a) - depth(b) || (a < b ? -1 : a > b ? 1 : 0))
+    .at(0)
+
+const depth = (file: string): number => file.split("/").length
+
+/**
+ * A captured line, as ONE op — an `add` into the inbox the directory has, or
+ * the `create` that mints it holding exactly this line.
+ *
+ * The choice is made HERE, against the reading the write is judged on, for the
+ * reason every placement in this file is: a browser choosing between them
+ * would be choosing off a file list some frames old, and the two answers are
+ * not interchangeable — `create` is refused for a file that exists, and `add`
+ * is refused for one that does not. Either way it is one plan, one validation
+ * and one atomic write, so a capture that is refused leaves nothing behind —
+ * not a half-filled inbox, and not an empty file.
+ *
+ * The title travels VERBATIM, blank and all: a capture of nothing is refused
+ * by the ops layer in its own words ("a node needs a title"), which is the
+ * same sentence an agent's `add_node` gets, rather than by a second rule here.
+ */
+const captureRequest = (
+  at: Reading,
+  edit: Extract<Edit, { verb: "capture" }>,
+): Resolved => {
+  const inbox = inboxIn(at.set.files)
+  return Result.succeed(
+    inbox === undefined
+      ? { op: "create", file: INBOX, seed: { title: edit.title } }
+      : { op: "add", file: inbox, title: edit.title },
+  )
 }
 
 // ── the four moves ─────────────────────────────────────────────────────
@@ -564,6 +629,13 @@ export const inverseOf = (
 ): ReadonlyArray<Edit> => {
   switch (edit.verb) {
     case "add":
+    // A capture is an `add` a person did not choose the place for, so it is
+    // taken back the same way — the row goes, by the same narrowed un-create.
+    // What a ⌘Z does NOT do is unmint an inbox this capture created: no face
+    // removes a file (`docNew` below says the same), so what is left is an
+    // empty outline in the sidebar, which is a thing a reader can see and
+    // delete rather than a file quietly appearing and disappearing.
+    case "capture":
       return [{ verb: "remove", id: applied }]
     // Both are the same question — where does this row sit right now — asked
     // before the write that moves it. A `place` being undone is a `place`

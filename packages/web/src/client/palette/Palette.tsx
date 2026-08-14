@@ -1,19 +1,39 @@
 /**
- * ⌘K command palette — the shell, plus jump-to-node search.
+ * ⌘K command palette — the shell, jump-to-node search, and what it can WRITE.
  *
- * Navigation, panel toggles, reset widths, a `>` prefix that sends the rest
- * to the agent — and, under the shell rows, NODES: the query goes to the
- * server's search procedure as you type (debounced, latest-wins), and every
- * hit is a row that jumps to that node's page. The matching is entirely the
- * server's — the same reading an agent's `search_nodes` gets — so what this
- * palette finds and what an agent finds cannot drift (items.ts says why there
- * is no local matcher).
+ * Navigation, panel toggles, reset widths, a `>` prefix that sends the rest to
+ * the agent — and, under the shell rows, NODES: the query goes to the server's
+ * search procedure as you type (debounced, latest-wins), and every hit is a
+ * row that jumps to that node's page. The matching is entirely the server's —
+ * the same reading an agent's `search_nodes` gets — so what this palette finds
+ * and what an agent finds cannot drift (items.ts says why there is no local
+ * matcher).
  *
- * Op actions are still the separate `palette` roadmap item.
+ * ## The two things it writes
  *
- * `>` ask and the search both use `run` with a real failure handler: a
- * refusal is shown in the palette rather than dropped (run.ts forbids a
- * silent handler).
+ * **OP ROWS**, about the node the reader has ZOOMED (`./ops.ts`): the same
+ * verbs the `•••` menu offers, from the same pure catalog, through the same
+ * write gate (`../writes.ts`) — so `Complete` chosen here and `Complete`
+ * chosen there are one op, one refusal and one undo entry. There are none of
+ * them on a page that is not one node, because a command list read out of
+ * context must never be aimed at a node the reader cannot see.
+ *
+ * **QUICK CAPTURE**, on a `+` prefix — racket's `olai add`, and the one write
+ * in this app whose whole promise is that nothing moves: the page, the scroll
+ * and the caret stay where they are, the line goes to the directory's inbox,
+ * and the box empties for the next one. Where the inbox IS is the server's
+ * (`../../../../server/src/edit.ts`), for the same reason every placement is.
+ *
+ * ## What it says afterwards
+ *
+ * ONE line, in the two moods a write has (`../edit/undoing.ts`'s `Said`), and
+ * the palette STAYS OPEN whenever there is one: a refusal is why nothing
+ * happened, and a modal that closed on top of it would be the silent failure
+ * HACKING.md's error rule is about. A write that landed with nothing to add
+ * closes the palette, which is what choosing a command means.
+ *
+ * `>` ask and the search both use `run` with a real failure handler for the
+ * same reason (run.ts forbids a silent handler).
  */
 
 import {
@@ -21,15 +41,19 @@ import {
   createMemo,
   createSignal,
   For,
+  Match,
   onCleanup,
   onMount,
   Show,
+  Switch,
 } from "solid-js"
 
+import type { Situated } from "@olai/format"
 import type { OpFailure } from "@olai/surface"
 
 import { releaseArmed, restoreArmed } from "../chat/armed.ts"
 
+import { useDerived } from "../derived.tsx"
 import {
   resetPanelWidths,
   setChatOpen,
@@ -39,13 +63,49 @@ import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../run.ts"
-import { askQuery, filterItems, nodeItem, type PaletteItem } from "./items.ts"
+import {
+  askQuery,
+  CAPTURE_PREFIX,
+  captureQuery,
+  filterItems,
+  nodeItem,
+  type PaletteAction,
+  type PaletteItem,
+  SHELL_ITEMS,
+} from "./items.ts"
+import { opItems } from "./ops.ts"
+import { QUIET_PILL } from "../pill.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { Result } from "../search/Result.tsx"
 import { paletteOpen, setPaletteOpen } from "./open.ts"
-import { useUndo } from "../edit/undoing.ts"
+import { type Said, useUndo } from "../edit/undoing.ts"
+import { applying } from "../writes.ts"
 import { isEditingTarget, matchKey } from "../keys.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
+
+/**
+ * NO ROW CHOSEN — what an untouched palette is standing on, and the reason the
+ * op rows are allowed to be first.
+ *
+ * A highlight is a place the arrows start from, not a selection somebody made.
+ * With an empty box nobody has said anything yet, so nothing is lit and Enter
+ * does nothing at all: the palette can lead with the rows that are about the
+ * open page without a stray keypress meaning `Mark todo`. The first character
+ * typed is the choice, and it puts the highlight on the best match, which is
+ * what a type-ahead is.
+ */
+const NOTHING = -1
+
+/** Where the highlight goes when the box changes: nowhere while it is empty,
+ *  and on the best match the moment it is not. */
+const startAt = (query: string): number => (query.trim() === "" ? NOTHING : 0)
+
+/** The question a row asks, for the one row that asks one — read off the
+ *  action rather than carried a second time on the item, so a row that is up
+ *  for confirmation and the row that put it there cannot disagree. Empty for
+ *  anything else, which is a shape the confirm arm is never entered with. */
+const confirmOf = (item: PaletteItem): string =>
+  item.action.kind === "edit" ? item.action.confirm ?? "" : ""
 
 export function Palette(props: {
   readonly go: (route: Route) => void
@@ -54,6 +114,15 @@ export function Palette(props: {
    * or the mobile drawer. Owned by App because the mobile state is ephemeral.
    */
   readonly toggleDirectory: () => void
+  /**
+   * The node this tab has ZOOMED, and the whole of what the op rows are about
+   * — `undefined` on every other page, which is what makes them absent there.
+   *
+   * Handed down rather than zoomed again from the route: `App.tsx` has already
+   * resolved the address into a page, and a second `zoom()` here would be a
+   * second answer to "what is open" that could differ from the one on screen.
+   */
+  readonly zoomed: Situated | undefined
 }) {
   // ⌘Z / ⌘⇧Z belong to the outline's undo stack; what this file owns is the
   // ONE window listener the global layer has (../keys.ts), and a second one
@@ -61,32 +130,53 @@ export function Palette(props: {
   // to make impossible. Reached the way the row editor reaches it rather than
   // handed down as two props — same object, one access path.
   const undo = useUndo()
+  const derived = useDerived()
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
-  const [active, setActive] = createSignal(0)
+  const [active, setActive] = createSignal(NOTHING)
   const [askError, setAskError] = createSignal<string | null>(null)
+  /** What the last write had to say — a refusal in the ops layer's own words,
+   *  or a remark about one that landed. */
+  const [said, setSaid] = createSignal<Said | null>(null)
+  /** The row whose question is up, for the one verb that asks one. It replaces
+   *  the list in the same box, exactly as the `•••` menu's confirm does rather
+   *  than as browser chrome olai does not own. */
+  const [asking, setAsking] = createSignal<PaletteItem | null>(null)
   let input: HTMLInputElement | undefined
   let previousFocus: HTMLElement | null = null
 
   const ask = createMemo(() => askQuery(query()))
+  const capture = createMemo(() => captureQuery(query()))
+  /** Whether the box has been taken away from the list by either prefix. */
+  const typing = createMemo(() => ask() !== null || capture() !== null)
 
   // The nodes, from the server — one primitive, its own failure, and no
   // request bookkeeping in this component ({@link ./search.ts}). It is asked
-  // only while the palette is open and the query is not an `>` ask.
+  // only while the palette is open and the box is not carrying a prefix:
+  // neither `>` nor `+` is a search, and asking for one would spend a round
+  // trip per keystroke on a sentence nobody is looking things up with.
   const nodes = createNodeSearch(() =>
-    paletteOpen() && ask() === null ? query() : null
+    paletteOpen() && !typing() ? query() : null
   )
 
   const items = createMemo(() => {
-    if (ask() !== null) return [] as ReadonlyArray<PaletteItem>
-    return [...filterItems(query()), ...nodes.hits().map(nodeItem)]
+    if (typing()) return [] as ReadonlyArray<PaletteItem>
+    // THE OP ROWS FIRST, because they are the only rows that are about what
+    // the reader is looking at — a list whose contextual half is below the
+    // fold is a list nobody finds them in. What makes that safe is {@link
+    // NOTHING}: an untouched palette has no row chosen, so being at the top is
+    // not being one keystroke from a write.
+    const commands = [...opItems(props.zoomed, derived()), ...SHELL_ITEMS]
+    return [...filterItems(query(), commands), ...nodes.hits().map(nodeItem)]
   })
 
   const close = () => {
     setPaletteOpen(false)
     setQuery("")
-    setActive(0)
+    setActive(NOTHING)
     setAskError(null)
+    setSaid(null)
+    setAsking(null)
     const back = previousFocus
     previousFocus = null
     queueMicrotask(() => back?.focus())
@@ -105,20 +195,91 @@ export function Palette(props: {
       ? document.activeElement
       : null
     setQuery("")
-    setActive(0)
+    setActive(NOTHING)
     setAskError(null)
+    setSaid(null)
+    setAsking(null)
     // The element is not attached at the instant the signal flips.
     queueMicrotask(() => input?.focus())
   })
 
   const runItem = (item: PaletteItem) => {
     const action = item.action
+    // The two that do not finish: a write may have something to say and a
+    // prefix has not been typed yet, so neither of them reaches the `close()`
+    // at the bottom.
+    if (action.kind === "edit") {
+      if (action.confirm !== undefined && asking()?.id !== item.id) {
+        setSaid(null)
+        setAsking(item)
+        return
+      }
+      setAsking(null)
+      sendEdit(action)
+      return
+    }
+    if (action.kind === "prefix") {
+      setQuery(action.prefix)
+      setActive(NOTHING)
+      setSaid(null)
+      input?.focus()
+      return
+    }
     if (action.kind === "route") props.go(action.route)
     else if (action.kind === "shortcuts") setKeys(true)
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
     else if (action.kind === "toggle-chat") toggleChat()
     else if (action.kind === "reset-widths") resetPanelWidths()
     close()
+  }
+
+  /**
+   * One op, at the write gate — and the palette stays up if there is anything
+   * to say about it.
+   *
+   * `applying` is the pointer's own write (`../writes.ts`), so a refusal comes
+   * back in the ops layer's own words and a nudge from a write that landed
+   * comes back too. It records on the SAME undo stack a keystroke and a `•••`
+   * entry record on, so ⌘Z does not mean something different depending on
+   * which surface made the edit.
+   */
+  const sendEdit = (action: Extract<PaletteAction, { kind: "edit" }>) => {
+    setSaid(null)
+    void applying(action.edit, undo.record).then((answer) => {
+      if (answer === undefined) {
+        close()
+        return
+      }
+      setSaid(answer)
+    })
+  }
+
+  /**
+   * The captured line, and then the box empties for the next one.
+   *
+   * STAYING OPEN is the gesture rather than a convenience: capture is what a
+   * person does when several things arrive at once, and a modal that shut
+   * after each of them would ask for the chord again every time. A REFUSAL
+   * keeps the text exactly where it is — the same promise a refused title
+   * commit makes to a draft — so a blank line, or an inbox whose file will not
+   * parse, is something to fix rather than something to retype.
+   */
+  const sendCapture = (text: string) => {
+    if (text.trim() === "") return
+    setSaid(null)
+    void applying({ verb: "capture", title: text }, undo.record).then((answer) => {
+      if (answer?.tone === "alarm") {
+        setSaid(answer)
+        return
+      }
+      setQuery(`${CAPTURE_PREFIX} `)
+      setActive(NOTHING)
+      input?.focus()
+      // The op's own remark if it made one, and otherwise this app's: a write
+      // whose whole point is that nothing on screen moves has to say that it
+      // happened, or it is indistinguishable from a key that did nothing.
+      setSaid(answer ?? { tone: "aside", text: `captured “${text}” to the Inbox` })
+    })
   }
 
   /**
@@ -155,14 +316,41 @@ export function Palette(props: {
   }
 
   const confirm = () => {
-    const text = ask()
-    if (text !== null) {
-      sendAsk(text)
+    const message = ask()
+    if (message !== null) {
+      sendAsk(message)
       return
     }
-    const list = items()
-    const item = list[active()] ?? list[0]
+    const line = capture()
+    if (line !== null) {
+      sendCapture(line)
+      return
+    }
+    // The question, if one is up: Enter is the second press that answers it,
+    // which is the two-step the `•••` menu asks for and the same two calls an
+    // agent makes.
+    const question = asking()
+    if (question !== null) {
+      runItem(question)
+      return
+    }
+    // Nothing lit is nothing chosen — see {@link NOTHING}. No `?? list[0]`
+    // fallback: that is exactly the keystroke this palette must not turn into
+    // a write nobody aimed.
+    const item = items()[active()]
     if (item !== undefined) runItem(item)
+  }
+
+  /** Escape backs out of the question first and closes the palette second —
+   *  one key, the nearest thing it can dismiss, which is what it means
+   *  everywhere else in this app. */
+  const escape = () => {
+    if (asking() !== null) {
+      setAsking(null)
+      input?.focus()
+      return
+    }
+    close()
   }
 
   onMount(() => {
@@ -171,7 +359,7 @@ export function Palette(props: {
       if (match === null) {
         if (paletteOpen() && event.key === "Escape") {
           event.preventDefault()
-          close()
+          escape()
         }
         // Simple focus trap: keep Tab inside the dialog while open.
         if (paletteOpen() && event.key === "Tab" && input) {
@@ -199,9 +387,13 @@ export function Palette(props: {
     onCleanup(() => window.removeEventListener("keydown", onKey))
   })
 
+  // The list shrank under the highlight — a hit that stopped matching, a verb
+  // the write it just made took away. It walks back to the last row rather
+  // than off the end, and to NOTHING when there are no rows left, which is
+  // where an unchosen palette already stands.
   createEffect(() => {
     const n = items().length
-    if (active() >= n) setActive(n === 0 ? 0 : n - 1)
+    if (active() >= n) setActive(n - 1)
   })
 
   return (
@@ -228,14 +420,17 @@ export function Palette(props: {
             type="text"
             class="w-full border-b border-rule bg-transparent px-4 py-3 font-mono text-sm text-ink outline-none placeholder:text-muted"
             data-testid={TESTID.paletteInput}
-            placeholder="Jump, toggle, or > ask the agent…"
+            placeholder="Jump, toggle, > ask the agent, + capture a line…"
             value={query()}
             onInput={(e) => {
               setQuery(e.currentTarget.value)
-              setActive(0)
+              setActive(startAt(e.currentTarget.value))
               setAskError(null)
             }}
             onKeyDown={(e) => {
+              // The arrows are the other way IN to the list: from nowhere,
+              // down lands on the first row and up on the last, which is what
+              // a keyboard walking an unchosen list expects.
               if (e.key === "ArrowDown") {
                 e.preventDefault()
                 const n = items().length
@@ -243,13 +438,13 @@ export function Palette(props: {
               } else if (e.key === "ArrowUp") {
                 e.preventDefault()
                 const n = items().length
-                if (n > 0) setActive((i) => (i - 1 + n) % n)
+                if (n > 0) setActive((i) => (i <= NOTHING ? n : i) - 1)
               } else if (e.key === "Enter") {
                 e.preventDefault()
                 confirm()
               } else if (e.key === "Escape") {
                 e.preventDefault()
-                close()
+                escape()
               }
             }}
           />
@@ -278,8 +473,30 @@ export function Palette(props: {
               </div>
             )}
           </Show>
-          <Show
-            when={ask() !== null}
+          {/* WHAT A WRITE SAID, in the two moods it has, and in a row of its
+              own for the same reason the two above are: it is a third
+              question. The mood is a FACT in the markup rather than a colour,
+              so a scenario asking "was that a refusal or a remark" is not
+              asking about a class name — the `•••` menu's own rule. */}
+          <Show when={said()}>
+            {(message) => (
+              <div
+                class="border-b px-4 py-2 font-mono text-xs"
+                classList={{
+                  "border-alarm/40 bg-alarm/5 text-alarm":
+                    message().tone === "alarm",
+                  "border-rule bg-pill text-muted": message().tone === "aside",
+                }}
+                data-testid={TESTID.paletteSaid}
+                data-tone={message().tone}
+                role={message().tone === "alarm" ? "alert" : "status"}
+                aria-live={message().tone === "alarm" ? "assertive" : "polite"}
+              >
+                {message().text}
+              </div>
+            )}
+          </Show>
+          <Switch
             fallback={
               // `overflow-x-hidden` is the doctrine, not a defence: a popover
               // scrolls down, never sideways. The rows are already built not
@@ -316,22 +533,82 @@ export function Palette(props: {
               </ul>
             }
           >
-            <div
-              class="px-4 py-3 font-mono text-xs text-muted"
-              data-testid={TESTID.paletteAsk}
-            >
-              <Show
-                when={(ask() ?? "").trim() !== ""}
-                fallback={
-                  <span>type a message after &gt; to send to the agent</span>
-                }
+            {/* THE QUESTION FIRST, above both prefixes: it is up because
+                somebody chose the verb that asks it, and nothing they type
+                next may quietly become the answer. */}
+            <Match when={asking()}>
+              {(item) => (
+                <div class="px-4 py-3" role="group" aria-label={confirmOf(item())}>
+                  <p
+                    class="m-0 text-xs leading-snug text-ink"
+                    data-testid={TESTID.paletteConfirm}
+                  >
+                    {confirmOf(item())}
+                  </p>
+                  <div class="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      class="cursor-pointer rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm/10"
+                      data-testid={TESTID.paletteItem}
+                      data-id={item().id}
+                      onClick={() => runItem(item())}
+                    >
+                      {item().label}
+                    </button>
+                    <button
+                      type="button"
+                      class={`${QUIET_PILL} cursor-pointer`}
+                      data-testid={TESTID.paletteItem}
+                      data-id="cancel"
+                      onClick={() => {
+                        setAsking(null)
+                        input?.focus()
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </Match>
+            <Match when={ask() !== null}>
+              <div
+                class="px-4 py-3 font-mono text-xs text-muted"
+                data-testid={TESTID.paletteAsk}
               >
-                <span>
-                  send to agent: <span class="text-ink">{ask()}</span>
-                </span>
-              </Show>
-            </div>
-          </Show>
+                <Show
+                  when={(ask() ?? "").trim() !== ""}
+                  fallback={
+                    <span>type a message after &gt; to send to the agent</span>
+                  }
+                >
+                  <span>
+                    send to agent: <span class="text-ink">{ask()}</span>
+                  </span>
+                </Show>
+              </div>
+            </Match>
+            {/* The capture, previewed the way the ask is — the words that are
+                about to become a node, so Enter is never a guess. */}
+            <Match when={capture() !== null}>
+              <div
+                class="px-4 py-3 font-mono text-xs text-muted"
+                data-testid={TESTID.paletteCapture}
+              >
+                <Show
+                  when={(capture() ?? "").trim() !== ""}
+                  fallback={
+                    <span>type a line after + to capture it to the Inbox</span>
+                  }
+                >
+                  <span>
+                    capture to the Inbox:{" "}
+                    <span class="text-ink">{capture()}</span>
+                  </span>
+                </Show>
+              </div>
+            </Match>
+          </Switch>
         </div>
       </div>
     </Show>

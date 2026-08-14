@@ -99,6 +99,53 @@ test("a new row after a node nothing declares is not found", () => {
     .toBe("NotFoundFailure")
 })
 
+// ── the palette's capture ──────────────────────────────────────────────
+
+test("a capture into a directory with an inbox is an `add` into that file", () => {
+  const set = setOf({ "house.jsonl": HOUSE, "Inbox.jsonl": "" })
+  expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
+    .toEqual({ op: "add", file: "Inbox.jsonl", title: "buy milk" })
+})
+
+test("a capture into a directory with NO inbox mints one holding the line", () => {
+  // ONE op, so a refused seed leaves no file behind — an `add` that followed a
+  // `create` could land the file and then refuse the line.
+  expect(asked({ verb: "capture", title: "buy milk" }))
+    .toEqual({ op: "create", file: "Inbox.jsonl", seed: { title: "buy milk" } })
+})
+
+test("an inbox the directory already keeps somewhere else is the one used", () => {
+  // The convention is the NAME, not the place: a directory that files its
+  // inbox under `notes/` captures into the file it has rather than growing a
+  // second one at the root.
+  const set = setOf({ "house.jsonl": HOUSE, "notes/inbox.jsonl": "" })
+  expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
+    .toEqual({ op: "add", file: "notes/inbox.jsonl", title: "buy milk" })
+})
+
+test("with two inboxes the shallower one wins, so the answer is stable", () => {
+  const set = setOf({
+    "deep/down/Inbox.jsonl": "",
+    "Inbox.jsonl": "",
+    "house.jsonl": HOUSE,
+  })
+  expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
+    .toEqual({ op: "add", file: "Inbox.jsonl", title: "buy milk" })
+})
+
+test("a file merely ENDING in the name is not an inbox", () => {
+  const set = setOf({ "house.jsonl": HOUSE, "not-an-Inbox.jsonl": "" })
+  expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
+    .toEqual({ op: "create", file: "Inbox.jsonl", seed: { title: "buy milk" } })
+})
+
+test("a blank capture is left to the ops layer, which has the words for it", () => {
+  // No second rule here: `add_node` refuses an empty title in the sentence an
+  // agent gets, and a fence in this resolver would be a fence one face has.
+  expect(asked({ verb: "capture", title: "   " }))
+    .toEqual({ op: "create", file: "Inbox.jsonl", seed: { title: "   " } })
+})
+
 // ── the four moves ─────────────────────────────────────────────────────
 
 test("Tab goes under the sibling above, last among its children", () => {
@@ -540,6 +587,21 @@ test("a mark chosen outright says for itself whether the way back is two", () =>
 test("a new row is taken back by the id the write minted, not one read before it", () => {
   expect(inverse({ verb: "add", at: { kind: "after", id: "order" }, title: "measure" }, "n7"))
     .toEqual([{ verb: "remove", id: "n7" }])
+})
+
+test("a capture is taken back the same way a new row is", () => {
+  // Both cases: the row goes whether the write landed in an inbox that existed
+  // or in one it minted. What ⌘Z does NOT do is unmint the file — no face
+  // removes one.
+  expect(inverse({ verb: "capture", title: "buy milk" }, "n7"))
+    .toEqual([{ verb: "remove", id: "n7" }])
+  expect(
+    inverse(
+      { verb: "capture", title: "buy milk" },
+      "n7",
+      reading(setOf({ "house.jsonl": HOUSE, "Inbox.jsonl": "" })),
+    ),
+  ).toEqual([{ verb: "remove", id: "n7" }])
 })
 
 test("a title records the title it replaced, and what it is replacing it with", () => {
