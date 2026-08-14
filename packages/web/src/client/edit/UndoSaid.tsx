@@ -20,6 +20,7 @@ import { Show } from "solid-js"
 
 import { LAYER } from "../layer.ts"
 import { TESTID } from "../testids.ts"
+import { SaidLine } from "./SaidLine.tsx"
 import type { Said } from "./undoing.ts"
 
 export function UndoSaid(props: { readonly said: Said | null }) {
@@ -31,18 +32,18 @@ export function UndoSaid(props: { readonly said: Said | null }) {
         <div
           class={`pointer-events-none fixed inset-x-0 top-[var(--height-header)] ${LAYER.chrome} flex justify-center px-4`}
         >
-          <p
-            class="mt-2 max-w-lg rounded border bg-paper px-3 py-1.5 text-[0.8125rem] leading-snug shadow-sm"
-            classList={{
-              "border-alarm text-alarm": said().tone === "alarm",
-              "border-rule text-muted": said().tone === "aside",
-            }}
-            data-testid={TESTID.undoSaid}
-            data-tone={said().tone}
-            role={said().tone === "alarm" ? "alert" : "status"}
-          >
-            {said().text}
-          </p>
+          {/* The BORDER is toned here rather than in the line, and it is the
+              one thing this surface adds: it is the only one of the five that
+              draws a BOX over the page, so the mood has an edge to colour.
+              What the mood MEANS — the words' colour, the announcement — is
+              `./SaidLine.tsx`'s, once, for all five. */}
+          <SaidLine
+            said={said()}
+            class={`mt-2 max-w-lg rounded border bg-paper px-3 py-1.5 text-[0.8125rem] leading-snug shadow-sm ${
+              said().tone === "alarm" ? "border-alarm" : "border-rule"
+            }`}
+            testid={TESTID.undoSaid}
+          />
         </div>
       )}
     </Show>

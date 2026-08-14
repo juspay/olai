@@ -56,6 +56,8 @@ export {
 export {
   ARCHIVE,
   archiveBeside,
+  INBOX,
+  inboxIn,
   isArchived,
   isMirror,
   Located,

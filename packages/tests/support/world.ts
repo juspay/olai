@@ -489,6 +489,11 @@ export const CHAT_SHEET_HANDLE = selector(TESTID.chatSheetHandle);
 export const PALETTE = selector(TESTID.palette);
 export const PALETTE_ITEM = selector(TESTID.paletteItem);
 export const PALETTE_ASK_ERROR = selector(TESTID.paletteAskError);
+export const PALETTE_INPUT = selector(TESTID.paletteInput);
+export const PALETTE_CAPTURE = selector(TESTID.paletteCapture);
+export const PALETTE_CONFIRM = selector(TESTID.paletteConfirm);
+export const PALETTE_SAID = selector(TESTID.paletteSaid);
+
 export const CHAT_TITLE = selector(TESTID.chatTitle);
 export const CHAT_WORKING = selector(TESTID.chatWorking);
 export const CHAT_MODEL = selector(TESTID.chatModel);

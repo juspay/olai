@@ -9,10 +9,16 @@
  * on its own is the TYPE every one of these lines carries (`edit/undoing.ts`),
  * and a component wearing the same word made the one file where both meet
  * import the type under an alias to tell them apart.
+ *
+ * WHAT IT OWNS IS WHERE THE LINE HANGS, and nothing else. The mood — its
+ * colour, its `data-tone`, and whether a screen reader is interrupted — is
+ * `../edit/SaidLine.tsx`'s, once, for every surface in this client that says
+ * something about a write.
  */
 
 import { Show } from "solid-js"
 
+import { SaidLine } from "../edit/SaidLine.tsx"
 import type { Said } from "../edit/undoing.ts"
 import { LAYER } from "../layer.ts"
 import { TESTID } from "../testids.ts"
@@ -27,27 +33,11 @@ export function MenuSaid(props: { readonly said: Said | null }) {
         // refusal is a sentence rather than a word — the ops layer names the
         // node and says what to do about it — and a line that never wrapped
         // would run off the right of the screen with the reason on it.
-        <span
-          class={`absolute left-0 top-full ${LAYER.row} mt-0.5 max-w-[24rem] w-max rounded border border-rule/70 bg-panel px-2 py-1 text-xs shadow-md`}
-          classList={{
-            "text-alarm": message().tone === "alarm",
-            "text-muted": message().tone === "aside",
-          }}
-          data-testid={TESTID.nodeMenuSaid}
-          // WHICH mood, as a fact in the markup rather than as a colour: the
-          // red is a styling decision a refactor may change, and a scenario
-          // asking "was that a refusal or a remark" must not be asking about a
-          // class name.
-          data-tone={message().tone}
-          // Announced, never focus-stealing — the reader's pointer is on the
-          // row and their place in the outline is not ours to take. A refusal
-          // is an alert, a remark is not: the difference is whether it
-          // interrupts what a screen reader is already saying.
-          role={message().tone === "alarm" ? "alert" : "status"}
-          aria-live={message().tone === "alarm" ? "assertive" : "polite"}
-        >
-          {message().text}
-        </span>
+        <SaidLine
+          said={message()}
+          class={`absolute left-0 top-full ${LAYER.row} m-0 mt-0.5 max-w-[24rem] w-max rounded border border-rule/70 bg-panel px-2 py-1 text-xs shadow-md`}
+          testid={TESTID.nodeMenuSaid}
+        />
       )}
     </Show>
   )

@@ -1320,11 +1320,31 @@ by `--visible-h` minus the header strip, which is what keeps its composer on
 screen while the keyboard that is being typed into is up. The main column still
 clears the home-bar inset (`CLEARANCE`).
 
-## Command palette shell
+## Command palette
 
-`src/client/palette/` is the ⌘K shell — navigation (home, today), panel
-toggles, a `>` prefix that sends the rest to the agent — plus jump-to-node
-search. Op actions belong to the separate `palette` roadmap item.
+`src/client/palette/` is the ⌘K modal: navigation (home, today), panel toggles,
+jump-to-node search, and two prefixes that take the box away from the list —
+`>` sends the rest to the agent, `+` captures the rest as a node.
+
+It WRITES two things, and both are one op at the same gate as a keystroke
+(`../writes.ts`):
+
+- **op rows** (`ops.ts`) — the `•••` menu's own write verbs, asked of the node
+  the reader has ZOOMED. `menu/verbs.ts` is a pure function over a
+  `Subject` rather than over a Row for exactly this reason: two surfaces
+  ask it now, and only one of them has a row. There are no op rows on any other
+  page, because a command list is read out of context; and `Set date…` is left
+  out because it opens the ROW's picker, which this modal is drawn over rather
+  than in. The archive's confirm is asked in the palette's own box, in the
+  menu's own sentence.
+- **quick capture** — `{verb: "capture", title}`, which names no file: where
+  the inbox is is read on the server against the reading the write is judged on
+  (`@olai/server`'s `edit.ts`, the shape `docDay` already had). It stays open
+  and empties the box, so several thoughts cost one chord.
+
+What a write SAID is one row with a `data-tone`, and the modal stays up while
+there is one — a palette that closed over a refusal would be the silent failure
+the error rule is about.
 
 ## Search: one reading, three doors
 

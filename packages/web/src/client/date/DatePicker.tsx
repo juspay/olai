@@ -51,6 +51,7 @@
 
 import { createSignal, Show } from "solid-js"
 
+import { SaidLine } from "../edit/SaidLine.tsx"
 import type { Said } from "../edit/undoing.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
@@ -173,26 +174,15 @@ export function DatePicker(props: {
 
       <Show when={said()}>
         {(message) => (
-          <p
+          // The mood — its colour, its `data-tone`, and whether it interrupts
+          // a screen reader — is `../edit/SaidLine.tsx`'s for every surface
+          // that says something about a write. What is this picker's is where
+          // the line sits: under the box, in the panel it opened.
+          <SaidLine
+            said={message()}
             class="mt-1 mb-0 text-[0.8125rem] leading-snug"
-            classList={{
-              "text-alarm": message().tone === "alarm",
-              "text-muted": message().tone === "aside",
-            }}
-            data-testid={TESTID.datePickerSaid}
-            // WHICH mood, as a fact in the markup rather than as a colour —
-            // the same contract the `•••` menu's line and the row editor's
-            // keep.
-            data-tone={message().tone}
-            // Announced, never focus-stealing — the caret is in the box, and
-            // the reader's place is not ours to take. A refusal interrupts what
-            // a screen reader is saying and a remark does not, which is the
-            // pair the `•••` menu's line already keeps.
-            role={message().tone === "alarm" ? "alert" : "status"}
-            aria-live={message().tone === "alarm" ? "assertive" : "polite"}
-          >
-            {message().text}
-          </p>
+            testid={TESTID.datePickerSaid}
+          />
         )}
       </Show>
     </div>

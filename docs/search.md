@@ -43,7 +43,11 @@ that is not enough, the panel scrolls sideways, which a popover must never do.
 - **Phone** — a magnifier in the same place, opening the `⌘K` palette, which is
   a full-width modal built for exactly this. The bar at 390pt has no room for
   a box and a phone has no chord to press.
-- **`⌘K` palette** — the shell's commands, and node results underneath them.
+- **`⌘K` palette** — the shell's commands, node results underneath them, and
+  the two things it WRITES: the zoomed node's own verbs, and quick capture on a
+  `+` prefix ([editing.md](editing.md)). Neither is a search — a query carrying
+  `>` or `+` is a line being typed rather than a lookup, and nothing is asked
+  of the server for it.
 - **`search_nodes`** — the same answer for an agent, over MCP.
 
 ## Not yet: finding a note you cannot name

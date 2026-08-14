@@ -176,3 +176,40 @@ export const archiveBeside = (file: string): string => {
   const cut = file.lastIndexOf("/")
   return cut === -1 ? ARCHIVE : `${file.slice(0, cut + 1)}${ARCHIVE}`
 }
+
+/** The outline a quick capture lands in when a directory has none yet — at the
+ *  ROOT, and named the way a person would name it, because an inbox nobody has
+ *  created is a promise a surface makes ("capture to the Inbox") and the file
+ *  it mints has to be the file they would have made themselves. Beside
+ *  {@link ARCHIVE} because it is the same kind of statement: what a served
+ *  file IS, by its name. */
+export const INBOX = "Inbox.jsonl"
+
+/**
+ * The directory's inbox, or `undefined` when it has none.
+ *
+ * A CONVENTION read off the files, in the shape {@link dailyNotePathFor} reads
+ * the daily-note one — and HERE rather than in whichever face happens to ask,
+ * for the reason `ARCHIVE` is here: a rule about what a file is, spelled in
+ * two places, is two answers about the same directory. The web's quick capture
+ * resolves through it (`@olai/server`'s `edit.ts`), and an agent capturing by
+ * hand reads the same sentence rather than guessing at the browser's.
+ *
+ * The file is whichever outline is CALLED `Inbox.jsonl`, wherever it sits, so
+ * a directory that already keeps its inbox under `notes/` captures into the
+ * file it has rather than growing a second one at the root. Case-insensitively,
+ * because it is a name a person typed and `inbox.jsonl` is the same intention.
+ *
+ * SHALLOWEST WINS, then path order — one answer, and a stable one, for the
+ * directory that somehow holds two. "First in path order" would let a file
+ * three directories down claim the capture from the obvious one beside it.
+ */
+export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
+  files
+    .filter((file) => basenameOf(file).toLowerCase() === INBOX.toLowerCase())
+    .sort((a, b) => depthOf(a) - depthOf(b) || (a < b ? -1 : a > b ? 1 : 0))
+    .at(0)
+
+const basenameOf = (file: string): string => file.slice(file.lastIndexOf("/") + 1)
+
+const depthOf = (file: string): number => file.split("/").length

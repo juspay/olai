@@ -33,9 +33,11 @@ and the page says so and offers a reload. It reads on a phone and installs as
 one (there is no offline mode, on purpose — a cached copy of an outline is a
 copy that has stopped being true). A ⚙ in the header opens the preferences —
 one of the fifteen named palettes, and whether pages open with finished work
-shown — stored in the browser and sent nowhere; `⌘K` opens a command palette,
-where the keyboard-shortcut list also lives. Search has a box in the header
-and lives in that palette too — the same reading an agent's `search_nodes`
+shown — stored in the browser and sent nowhere; `⌘K` opens a command palette, where
+the keyboard-shortcut list also lives, where a zoomed node's own verbs are
+offered, and where `+ a line` captures that line to the directory's inbox
+without leaving the page ([docs/editing.md](editing.md)). Search has a box in
+the header and lives in that palette too — the same reading an agent's `search_nodes`
 gets, jump on Enter; on a phone the header's magnifier opens the palette
 ([docs/search.md](search.md)). It needs nothing installed.
 

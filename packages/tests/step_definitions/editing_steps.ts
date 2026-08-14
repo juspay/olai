@@ -402,6 +402,33 @@ Then(
   },
 );
 
+/**
+ * HOW MANY of them — the half presence cannot answer either, and the half a
+ * race is about.
+ *
+ * It waits for the count and then HOLDS it, because the failure this exists
+ * for arrives late: a second write in flight behind the first lands a moment
+ * after the first one has, so a count read once would see the right number on
+ * its way to the wrong one. The window is the same fraction of the idle commit
+ * the "nothing was written" step uses, for the same reason.
+ */
+Then(
+  "{string} holds exactly {int} node(s) titled {string}",
+  async function (this: OlaiWorld, file: string, many: number, title: string) {
+    const counted = () => titlesIn(this, file).filter((one) => one === title).length;
+    await this.waitUntil(
+      async () => counted() === many,
+      `${file} to hold exactly ${many} × ${JSON.stringify(title)}`,
+    );
+    await this.page.waitForTimeout(HELD);
+    assert.strictEqual(
+      counted(),
+      many,
+      `${file} held ${many} × ${JSON.stringify(title)} and then did not`,
+    );
+  },
+);
+
 /** The same, plus WHERE — the half presence cannot answer, asked by TITLE
  *  because a row a keystroke created carries an id nobody chose. A restore
  *  that put every id back at the top level would satisfy the step above and

@@ -91,6 +91,16 @@ test("only pill.ts spells the quiet pill button", () => {
   expect(filesSpelling(spelling)).toEqual(["pill.ts"])
 })
 
+// Its twin, swept the same way and for a sharper reason: the two buttons of a
+// confirm are the same question's two answers, so the day one is respelled
+// and the other is not, the panel reads as a layout accident. Two surfaces
+// ask a confirm now — the `•••` menu's and the ⌘K palette's.
+test("only pill.ts spells the alarm pill button", () => {
+  const spelling =
+    /rounded border border-alarm bg-transparent px-2 py-1 text-xs text-alarm hover:bg-alarm\/10/
+  expect(filesSpelling(spelling)).toEqual(["pill.ts"])
+})
+
 // layer.ts's claim — every `z-index` in this client comes from its table. The
 // numbers were never wrong before that module existed; they were spread over
 // twenty call sites, where two of them meant something entirely different from

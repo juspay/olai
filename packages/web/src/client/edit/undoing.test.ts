@@ -52,6 +52,7 @@ const held = () => {
             Result.succeed({
               id: named,
               title: named,
+              file: "house.jsonl",
               ...(undo === undefined ? {} : { undo }),
             }),
           ),

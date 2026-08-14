@@ -1,7 +1,16 @@
 import { expect, test } from "bun:test"
 
 import { nodesOf } from "./fixtures.testlib.ts"
-import { fileKind, ID_SHAPE, isMirror, MirrorNode, type Node, RegularNode } from "./node.ts"
+import {
+  fileKind,
+  ID_SHAPE,
+  INBOX,
+  inboxIn,
+  isMirror,
+  MirrorNode,
+  type Node,
+  RegularNode,
+} from "./node.ts"
 
 /** The records of a JSONL fixture, in file order. */
 const parsed = (contents: string): ReadonlyArray<Node> =>
@@ -64,4 +73,24 @@ test("a served file is an outline, a document, or none of the set's business", (
   for (const path of ["README", "plan.json", "notes.md.txt", "jsonl", ".md.bak", "a.JSONL"]) {
     expect({ path, kind: fileKind(path) }).toEqual({ path, kind: null })
   }
+})
+
+// The inbox is the other named file this format knows, and it is read the same
+// way the archive is: by NAME, wherever it sits. Both faces resolve a capture
+// through this — the web's `+` and an agent capturing by hand — so one
+// spelling of the rule is what keeps them landing in the same file.
+test("a directory's inbox is whichever outline is called that, wherever it sits", () => {
+  expect(inboxIn(["house.jsonl", "Inbox.jsonl"])).toBe("Inbox.jsonl")
+  // A name a person typed, so the case they typed it in does not decide.
+  expect(inboxIn(["house.jsonl", "notes/inbox.jsonl"])).toBe("notes/inbox.jsonl")
+  // A file merely ENDING in the name is a different file.
+  expect(inboxIn(["not-an-Inbox.jsonl"])).toBeUndefined()
+  expect(inboxIn([])).toBeUndefined()
+})
+
+test("with two inboxes the shallower one wins, so the answer is stable", () => {
+  // "First in path order" would let a file three directories down claim the
+  // capture from the obvious one beside it.
+  expect(inboxIn(["deep/down/Inbox.jsonl", INBOX, "a/Inbox.jsonl"])).toBe(INBOX)
+  expect(inboxIn(["z/Inbox.jsonl", "a/Inbox.jsonl"])).toBe("a/Inbox.jsonl")
 })

@@ -56,6 +56,8 @@
 import {
   dailyNotePathFor,
   type Derived,
+  INBOX,
+  inboxIn,
   isDay,
   isMirror,
   type Located,
@@ -80,6 +82,8 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
   switch (edit.verb) {
     case "add":
       return addRequest(at, edit)
+    case "capture":
+      return captureRequest(at, edit)
     case "move":
       return moveRequest(at.derived, edit)
     case "toggle": {
@@ -258,6 +262,46 @@ const mirrorRequest = (
   const landing = landingFor(at, edit.at)
   if (Result.isFailure(landing)) return Result.fail(landing.failure)
   return Result.succeed({ op: "mirror", ...landing.success, target: edit.target })
+}
+
+// ── the inbox ──────────────────────────────────────────────────────────
+
+/**
+ * A captured line, as ONE op — an `add` into the inbox the directory has, or
+ * the `create` that mints it holding exactly this line.
+ *
+ * It names no {@link Landing}, and that is the difference between it and the
+ * two above rather than an omission: they place a row where a reader is
+ * standing, and this one is the write whose whole promise is that the reader
+ * does not move. There is no anchor to resolve — only a FILE to find.
+ *
+ * The choice is made HERE, against the reading the write is judged on, for the
+ * reason every placement in this file is: a browser choosing between them
+ * would be choosing off a file list some frames old, and the two answers are
+ * not interchangeable — `create` is refused for a file that exists, and `add`
+ * is refused for one that does not. Either way it is one plan, one validation
+ * and one atomic write, so a capture that is refused leaves nothing behind —
+ * not a half-filled inbox, and not an empty file.
+ *
+ * WHICH file the inbox is, though, is `@olai/format`'s ({@link inboxIn}) and
+ * not this resolver's: it is a statement about what a served file IS by its
+ * name, the same kind of thing `ARCHIVE` is, and an agent capturing by hand
+ * has to be able to read the same sentence rather than guess at the browser's.
+ *
+ * The title travels VERBATIM, blank and all: a capture of nothing is refused
+ * by the ops layer in its own words ("a node needs a title"), which is the
+ * same sentence an agent's `add_node` gets, rather than by a second rule here.
+ */
+const captureRequest = (
+  at: Reading,
+  edit: Extract<Edit, { verb: "capture" }>,
+): Resolved => {
+  const inbox = inboxIn(at.set.files)
+  return Result.succeed(
+    inbox === undefined
+      ? { op: "create", file: INBOX, seed: { title: edit.title } }
+      : { op: "add", file: inbox, title: edit.title },
+  )
 }
 
 // ── the four moves ─────────────────────────────────────────────────────
@@ -597,6 +641,13 @@ export const inverseOf = (
 ): ReadonlyArray<Edit> => {
   switch (edit.verb) {
     case "add":
+    // A capture is an `add` a person did not choose the place for, so it is
+    // taken back the same way — the row goes, by the same narrowed un-create.
+    // What a ⌘Z does NOT do is unmint an inbox this capture created: no face
+    // removes a file (`docNew` below says the same), so what is left is an
+    // empty outline in the sidebar, which is a thing a reader can see and
+    // delete rather than a file quietly appearing and disappearing.
+    case "capture":
       return [{ verb: "remove", id: applied }]
     // Both are the same question — where does this row sit right now — asked
     // before the write that moves it. A `place` being undone is a `place`
