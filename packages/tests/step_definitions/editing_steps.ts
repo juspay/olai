@@ -35,9 +35,9 @@ import type { Locator } from "playwright";
 
 import {
   aimedAtTheLine,
-  answering,
   leavingTheLine,
   nothingIsBeingTyped,
+  pressed,
 } from "../support/caret.ts";
 import { saysNothing, saysThat } from "../support/said.ts";
 import {
@@ -112,10 +112,7 @@ When(
 
 When("I press {string}", async function (this: OlaiWorld, key: string) {
   await aimedAtTheLine(this);
-  const answered = await answering(this, key);
-  await this.page.keyboard.press(key);
-  await this.waitForFrame();
-  if (answered !== null) await answered();
+  await pressed(this, key);
 });
 
 /** The same key, with nothing waited for afterwards — which is how a person

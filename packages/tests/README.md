@@ -456,42 +456,32 @@ written" passes instantly and proves nothing. Where a count is the claim, it is
 both: wait for the number, then hold it, because the second of two writes lands
 a moment after the first.
 
-**A file the write has not minted yet.** `archive` writes `Archive.jsonl` the
-first time anything is put away, so a step polling for a node to ARRIVE in one
-is polling for the FILE too. Every waiting reader goes through
-`world.servedNodesSoFar`, which answers "nothing there yet" for a file that is
-not there — and ENOENT only: a line that is not JSON is still a fault. A step
-that WRITES the served directory calls `world.servedNodes`, which throws,
-because a missing file there is a scenario naming something its corpus does not
-hold.
+**A file the write has not minted yet** — `Archive.jsonl`, which the first
+archive creates. A waiting reader goes through `world.servedNodesSoFar`, which
+answers "nothing there yet" for a file that is not there; a step that WRITES the
+served directory goes through `world.servedNodes`, which throws. The reason
+either is right is on the method.
 
 **A key pressed before the page has answered the last one.** The one that costs
 the most to debug, because it fails four steps later on something that reads
-nothing like the cause. A write these scenarios make goes out through a DRAFT,
-and the draft is let go — closed, or moved to the line the key opened — only
-once the server has answered and the inverse it answered with is on the stack
-⌘Z spends. So the caret leaving the line it was on is this tab's own receipt,
-and it is the only one the harness has: the disk says a file was written, the
-DOM says the page was told, neither says this tab knows yet.
+nothing like the cause: `Escape` closes a draft that has not opened yet and the
+draft opens behind it, so every ⌘Z after that is dead; `Tab` walks the browser's
+focus ring out of the row, so the next key finds no editor; `⌘A` selects the
+page, so the title typed after it lands beside the old one instead of replacing
+it. The receipt this suite waits on — and why nothing else it can see will do —
+is `support/caret.ts`. What that buys each step:
 
-So the keys that end a line — `Enter`, `Backspace` at the head of one, `Escape`
-with a draft open — and `I click away from the editor` wait for the caret to
-leave; the keys that MOVE a row (`Tab`, `Shift+Tab`, and the two that walk it
-past a sibling) wait for it to be drawn where they put it; and every one of
-them will take "the page said why it did not" instead, which is the other way a
-key ends. `I press`, `I type` and `I select all and type` also wait for the
-line to hold the caret BEFORE they aim anything at it, because a redrawn row
-takes the focus with it and the client puts the caret back a round trip later.
+| step | waits for |
+|---|---|
+| `I press`, `I type`, `I select all and type` | the line to hold the caret, BEFORE aiming anything at it |
+| `I press "Enter"` / `"Backspace"` at the head of a line | the caret to leave that line, and arrive in the one the key opened |
+| `I press "Tab"` / `"Shift+Tab"` / `"Alt+Shift+Arrow…"` | the row to be drawn where the key put it |
+| `I press "Escape"` with a draft open | the draft to close |
+| `I click away from the editor` | the caret to leave the line |
 
-Skip any of that and: `Escape` closes a draft that has not opened yet and the
-draft opens behind it, so every ⌘Z after that is dead (a chord belongs to the
-input while a draft is open); `Tab` walks the browser's focus ring out of the
-row, so the next key finds no editor; `⌘A` selects the page, so the title typed
-after it lands beside the old one instead of replacing it. All three are silent
-until an assertion several steps later.
-
-`I press "…" without waiting` is the way to mean the race deliberately, and two
-scenarios do.
+Every one of them will take "the page said why it did not" instead, which is
+the other way a key ends. `I press "…" without waiting` is how the two scenarios
+that MEAN the race say so.
 
 None of the three mistakes is fixed by a longer timeout, and a step that needed
 one was asking the wrong question.

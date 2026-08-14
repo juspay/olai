@@ -138,8 +138,6 @@ Feature: Splitting and merging a row
     When I press "Escape"
     And I press "ControlOrMeta+z"
     Then the node "handles" has the title "choose the handles"
-    # Waited for, not held: the ⌘Z is a WRITE taking the tail away, and the
-    # holding form of the step is the promise that nothing was written at all.
     And "house.jsonl" no longer holds a node titled " the handles"
     When I press "ControlOrMeta+Shift+z"
     Then the node "handles" has the title "choose"
