@@ -313,6 +313,23 @@ Feature: Dragging rows, and picking several
     When I let go
     Then there should be no page errors
 
+  Scenario: A ROOT row has a rail beside it too
+    # A nested list gives its branch one for free — the padding a child list
+    # indents by is scaffolding a person can press. The outline's own list was
+    # flush, so beside a root row the only empty space was the four pixels
+    # between two lines: on a flat inbox, the one sweep the gesture could not
+    # make was a prefix of it, which is the first thing a Workflowy hand tries
+    # (review, 2026-08-14). The rail is taken out of the pane's own padding, so
+    # it exists at depth 0 and nothing moved.
+    When I sweep from beside "kitchen" down to "order"
+    Then the band is crossing 3 rows
+    # One row to a verb: `order` and `demo` are drawn under `kitchen`, and a
+    # subtree moves whole.
+    And 1 rows are picked
+    And the row "kitchen" is picked
+    When I let go
+    Then there should be no page errors
+
   Scenario: The page below the last row is somewhere to start
     # A short outline leaves most of the pane empty, and that is the sweep's
     # largest surface — without it a tree with no depth would have nothing but

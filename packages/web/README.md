@@ -1660,6 +1660,19 @@ The pieces, and what each decides:
   the FOCUS with it and leave a draft that never blurred; what suppresses the
   text selection is the `user-select` guard `pointer.ts` already puts up for the
   panel edges.
+- **the allowlist is read TWICE, not doubled.** A press on the scaffolding also
+  puts the pick away, and a press on anything else is about that thing: a caret
+  clears the pick where every caret comes from (`edit/editing.tsx`'s `open`),
+  and a control — a checkbox, a triangle, the `•••` — is aimed at the row rather
+  than at nothing, so it keeps it.
+- **the outline needs a rail at depth 0** (`touch.ts`'s `ROOT_RAIL`), which is
+  the one place review found the allowlist short. A nested list gives its branch
+  a pressable strip for free — the padding it indents by — but the outline's own
+  list was flush, so beside a ROOT row the only empty space was the four pixels
+  between two lines: on a flat inbox the one sweep the gesture could not make
+  was a prefix of it, which is the first thing a Workflowy hand tries. The rail
+  comes out of the PANE's padding (the negative margin and the padding are the
+  same number), so it exists at depth 0 and nothing moved by a pixel.
 - **it is a BAND, not a rubber-band box**, and that is `sweep.ts`'s one real
   decision. A row is a LINE drawn as far in as its depth says, so a rectangle
   down the left of the page would cross a root and miss the grandchild indented

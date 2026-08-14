@@ -101,12 +101,22 @@ export const createSweeping = (selection: Picked): Sweeping => {
     if (event.button !== 0 || event.pointerType === "touch") return
     const on = event.target
     if (!(on instanceof Element) || !on.hasAttribute(SWEEP)) return
-    // A press on the page puts the pick away, whether or not it becomes a
-    // sweep — which is what pressing outside a selection means everywhere, and
-    // the same statement the drag makes when it starts on an unpicked row.
+    // A press on the SCAFFOLDING puts the pick away, whether or not it becomes
+    // a sweep — which is what pressing outside a selection means everywhere,
+    // and the same statement the drag makes when it starts on an unpicked row.
     //
-    // ...and only when there IS one. A press on the page is the most ordinary
-    // thing that happens on it, and clearing an empty pick still writes a fresh
+    // ON THE SCAFFOLDING, and not on every press that looks like empty space,
+    // which is a boundary worth stating because it is the same allowlist read
+    // twice rather than two rules. A press that lands on SOMETHING is about
+    // that thing, and the two answers between them cover it: anything that
+    // opens a caret puts the pick away where every caret comes from
+    // (`../edit/editing.tsx`'s `open`), and anything else — a checkbox, a
+    // triangle, a badge, the `•••` — is aimed at the row rather than at
+    // nothing, so keeping the pick is the honest reading of it (review,
+    // 2026-08-14).
+    //
+    // ...and only when there IS one. A press here is the most ordinary thing
+    // that happens on a page, and clearing an empty pick still writes a fresh
     // set into the signal every row of the tree reads — the tree flattened and
     // re-keyed, per background click, to reach the state it was already in.
     if (selection.keys().size > 0) selection.clear()

@@ -241,13 +241,20 @@ ways to pick them:
 **Where a pull begins is what decides whether it is a sweep or a text
 selection**, and that is the whole rule. Press *on the words* — a title, a note
 — and it is the browser's own gesture, unchanged: sweep a line and quote it,
-across as many rows as you like. Press on the outline's own empty space — the
-rail beside an indented branch, the strip left of a note, the page below the
-last row — and there is nothing there for the press to be about except the rows
-themselves, so it picks them. A band follows the pull and spans the rows' full
-width, because a row is a *line*: which rows a sweep crosses is a question about
-how far down it went, never about how far in they are drawn. Pressing that empty
-space without pulling puts the pick away.
+across as many rows as you like. Press on the outline's own empty space and
+there is nothing there for the press to be about except the rows themselves, so
+it picks them. That empty space is the **rail down the left of the outline**
+(beside every row, however far in it is drawn), the strip left of a note, the
+gaps between rows, and the page below the last one. A band follows the pull and
+spans the rows' full width, because a row is a *line*: which rows a sweep
+crosses is a question about how far down it went, never about how far in they
+are drawn.
+
+What is *not* empty space is a row's own gutter, even before its controls fade
+in: the collapse triangle and the ••• live there, and a press in that column is
+theirs. Pressing one of the sweep's own surfaces without pulling puts the pick
+away; pressing a control does not, because it is aimed at the row rather than at
+nothing — and anything that puts a caret in a row puts the pick away by itself.
 
 A sweep leaves the two ends every other picking gesture leaves, so a Shift-click
 or a Shift+arrow after one carries on from where the pull started. It replaces

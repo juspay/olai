@@ -106,7 +106,29 @@ export const drag = (from: PointerEvent, gesture: Gesture): (() => void) => {
   const originY = from.pageY
   const threshold = gesture.threshold ?? 0
   let started = false
-  // The press must not select the text under it while the pointer travels.
+  /**
+   * The press must not select the text under it while the pointer travels.
+   *
+   * SAVED AND PUT BACK PER GESTURE, WHICH IS NOT RE-ENTRANT, and that is
+   * recorded rather than fixed. Two gestures live at once from different owners
+   * — a pen holding a panel edge while a mouse begins a sweep, which is two
+   * hands — would nest their save and restore: the inner one saves `none`, the
+   * outer one puts back `""` while the inner is still travelling, and the inner
+   * one then puts `none` back on the body for good. One gesture per owner is
+   * already serialised ({@link createDrags} ends whatever was in flight), so
+   * the reachable case is that pair of hands.
+   *
+   * A counter here would close it, and it is not one line: it is module state,
+   * a token per gesture and a release that must be idempotent — machinery no
+   * test in this repo can exercise, guarding a case no hand can reach by
+   * accident. What makes the leak survivable meanwhile is that this is the only
+   * file in the client that touches `body.style.userSelect` (`claims.test.ts`
+   * neighbours sweep exactly this kind of monopoly), so the saved value is
+   * always `""`: the failure is a stray `user-select: none` until the next
+   * reload, never a wrong value put back. Reachable by a real hand, or a second
+   * writer of this property, is when it becomes a counter. (Review, 2026-08-14,
+   * carrying a shape #159 shipped.)
+   */
   const selection = document.body.style.userSelect
   document.body.style.userSelect = "none"
   /** Only for a gesture that asked to follow the page. Nothing is scheduled and

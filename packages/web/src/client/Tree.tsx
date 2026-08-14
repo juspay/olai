@@ -99,6 +99,7 @@ import {
   HOVER_GUTTER,
   HOVER_REVEAL,
   PAST_CONTROLS,
+  ROOT_RAIL,
   ROW_TITLE,
 } from "./touch.ts"
 import { applying } from "./writes.ts"
@@ -112,8 +113,23 @@ export function Tree(props: {
   // selection. Spelled as a literal for the reason that constant gives (a JSX
   // spread would put every `data-` fact a row carries on Solid's runtime spread
   // path), and held to the name by ./claims.test.ts.
+  //
+  // `ROOT_RAIL` is what gives the outline's own list the strip a nested one has
+  // by having children indent into it (./touch.ts): without it the only empty
+  // space beside a ROOT row is the four pixels between two lines, and a flat
+  // inbox is a page whose first rows cannot be swept to (review, 2026-08-14).
+  // `my-0` and no `m-0`/`p-0`: the shorthands would be racing `ROOT_RAIL`'s own
+  // `-ml-*`/`pl-*` for the same two properties, and which wins is Tailwind's
+  // emission order rather than the order they are written in (./touch.ts's
+  // `MENU_CELL` is where this app learnt that). What the shorthands were for is
+  // the browser's own list defaults — a vertical margin, which `my-0` kills,
+  // and a 40px `padding-inline-start`, which the rail's own padding replaces.
   return (
-    <ul class="m-0 list-none p-0" data-sweep="" data-testid={TESTID.outlineTree}>
+    <ul
+      class={`my-0 list-none ${ROOT_RAIL}`}
+      data-sweep=""
+      data-testid={TESTID.outlineTree}
+    >
       {/* `<Key>`, not `<For>`, and `Row.key` is why it can be: the walk mints
           fresh rows on every frame the live store publishes, and `<For>`
           compares by reference — so one character changing in one title on

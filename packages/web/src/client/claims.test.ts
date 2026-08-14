@@ -152,6 +152,16 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
   ])
 })
 
+// pointer.ts's claim — one file suppresses the text selection under a gesture.
+// It is swept because the file's own note LEANS on it: the save-and-put-back
+// there is not re-entrant, and what makes that survivable is that the value it
+// saves is always `""`, which is only true while nothing else writes the
+// property. A second writer turns a stray `user-select: none` until reload into
+// a wrong value put back, and this is what says so on the day it appears.
+test("only pointer.ts suppresses the page's text selection", () => {
+  expect(filesSpelling(/userSelect/)).toEqual(["pointer.ts"])
+})
+
 // saying.ts's claim — one receptacle for how long a said-line lingers. SAID_MS
 // was pulled out beside the `Said` type because the ••• menu's dwell and the
 // Trash's "were equal only by hand-maintenance", and the constant turned out

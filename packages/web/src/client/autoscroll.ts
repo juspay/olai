@@ -21,6 +21,17 @@
  * the behaviour, and exactly what a caller that only re-planned on
  * `pointermove` would get wrong.
  *
+ * ONCE IT HAS SEEN THE POINTER AT ALL, which is the one exception and is worth
+ * saying rather than leaving to be discovered. {@link EdgeScroll.at} is fed
+ * from a gesture's `pointermove` (`./pointer.ts`), so a gesture that has not
+ * had one yet has nothing to be still ABOUT — and there is exactly one such
+ * gesture: a row lifted by a finger's long press, which begins where the finger
+ * already is (`./drag/dragging.ts`). Held at the edge and never moved, it does
+ * not scroll; its first pixel arms this and everything after that is the rule
+ * above. That is the same line "the first pixel after the deadline is already
+ * the drag" draws, read from the other side — a press is not a drag until it
+ * has moved once, and a gesture that has not moved has not asked for anything.
+ *
  * VERTICAL ONLY. The document is what scrolls in this app (`./scroll.ts`), and
  * an outline is a column: the horizontal overflow that exists at all is
  * `main`'s, for a long title, and nudging that sideways during a drag would

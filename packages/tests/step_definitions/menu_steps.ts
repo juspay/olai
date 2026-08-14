@@ -117,14 +117,11 @@ When(
   },
 );
 
-/** The same, on the row's BULLET — which is a link, so a press that leaked
- *  through as a tap would navigate. */
-When(
-  "I hold a finger on the bullet of {string}",
-  async function (this: OlaiWorld, id: string) {
-    await this.hold(this.within(id, ZOOM));
-  },
-);
+// There is no "hold a finger on the BULLET" step here any more, and its absence
+// is the ruling: the bullet is the handle a finger picks a row up by
+// (`client/drag/dragging.ts`), so holding it opens no menu. What that gesture
+// does now is `phone_steps.ts`'s — "…and keep it there", because a drag is what
+// the finger does after the deadline.
 
 /** UP, and the panel is really on screen: `visible`, not merely mounted. */
 Then("the node menu is open", async function (this: OlaiWorld) {
