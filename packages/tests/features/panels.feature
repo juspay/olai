@@ -80,6 +80,31 @@ Feature: Toggleable & resizable panels
     Then the sidebar rail is showing
 
   @corpus:good
+  Scenario: The header's search box is the other door to the same reading
+    # One reading, two doors: the box asks the same server procedure the
+    # palette does and draws the same rows, so a result pressed here behaves
+    # exactly as one pressed there.
+    Given I open the outline "house.jsonl"
+    When I search the header for "hinges"
+    Then the header search lists the node "pick the hinges"
+    When I press the header search result "pick the hinges"
+    Then the address is "/n/hinges"
+    And the zoomed node is "hinges"
+
+  @corpus:good
+  Scenario: Palette search finds a node and jumps to it
+    # The query goes to the server's search procedure — the same reading an
+    # agent's search_nodes gets, so the palette and an agent cannot answer
+    # differently for the same words.
+    Given I open the outline "house.jsonl"
+    When I press the palette shortcut
+    And I type "hinges" into the palette
+    Then the palette lists the node "pick the hinges"
+    When I pick the palette item "pick the hinges"
+    Then the address is "/n/hinges"
+    And the zoomed node is "hinges"
+
+  @corpus:good
   Scenario: Keyboard toggles the sidebar and the chat
     Given I open the outline "house.jsonl"
     When I press the sidebar shortcut

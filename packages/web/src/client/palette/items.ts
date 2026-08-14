@@ -1,10 +1,17 @@
 /**
- * The palette SHELL's catalogue: navigation, panel toggles, ask-the-agent.
+ * The palette SHELL's catalogue: navigation, panel toggles, ask-the-agent —
+ * and the shape a NODE takes when search answers with one.
  *
- * Jump-to-node type-ahead and op actions belong to the separate `palette`
- * roadmap item — not here. A `>` prefix on the query sends the rest to the
- * agent rather than filtering this list.
+ * Op actions belong to the separate `palette` roadmap item — not here. A `>`
+ * prefix on the query sends the rest to the agent rather than filtering this
+ * list. Node hits arrive from the server's search procedure (Palette.tsx asks
+ * it as you type) rather than from a matcher of this file's own: the browser
+ * holds every node and could grep them, and deliberately does not, because the
+ * palette and an agent's `search_nodes` must be one reading
+ * (`@olai/surface`'s search.ts has the argument).
  */
+
+import type { SearchHit } from "@olai/surface"
 
 import type { Route } from "../routes.ts"
 
@@ -19,7 +26,22 @@ export type PaletteAction =
 export interface PaletteItem {
   readonly id: string
   readonly label: string
+  /** A short word about the row, drawn INLINE at the right: a chord, a
+   *  reminder. Only a command has one — it is a few characters by
+   *  construction, which is why it may sit beside the label without ever
+   *  starving it. */
   readonly hint?: string
+  /**
+   * WHERE this row's node lives, drawn on a SECOND line under the title.
+   *
+   * A place is somebody's prose — an ancestor title can be a whole sentence —
+   * so it cannot share a line with the title: side by side, the two fight for
+   * one row's width, the title loses (it is the flexible one) and wraps to a
+   * word per line, while the mono place refuses to shrink and pushes the
+   * palette into a sideways scroll. A popover never scrolls sideways, so the
+   * place gets a line of its own and both are ellipsized.
+   */
+  readonly place?: string
   readonly action: PaletteAction
   /** Lowercase haystack for simple substring filter. */
   readonly search: string
@@ -83,6 +105,32 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     search: "reset panel widths sidebar chat default size",
   },
 ]
+
+/**
+ * One search hit as a palette row: choosing it jumps to the node's page.
+ *
+ * The place line is where the node SITS — a bare title in a list of strangers
+ * means nothing — and it is written NEAREST ANCESTOR FIRST, which is not the
+ * order the path is stored in. Two reasons, and they are the same reason
+ * twice: the nearest ancestor is what actually situates a node ("which
+ * `install them`?"), and a line that must be ellipsized loses its END, so the
+ * crumb that matters has to be at the front to survive a narrow palette. The
+ * outer crumbs follow while there is room, and a top-level node names its
+ * file instead.
+ *
+ */
+export const nodeItem = (hit: SearchHit): PaletteItem => ({
+  id: `node-${hit.id}`,
+  label: hit.title,
+  place: placeOf(hit),
+  action: { kind: "route", route: { kind: "node", id: hit.id } },
+  // Never filtered locally: the server already decided these match.
+  search: "",
+})
+
+/** The ancestry, innermost first, or the file for a node at top level. */
+const placeOf = (hit: SearchHit): string =>
+  hit.path.length === 0 ? hit.file : [...hit.path].reverse().join(" · ")
 
 /** Filter shell items by a free-text query (no `>` prefix). */
 export const filterItems = (

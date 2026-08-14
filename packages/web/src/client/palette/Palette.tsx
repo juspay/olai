@@ -1,12 +1,19 @@
 /**
- * ⌘K command palette — the SHELL only.
+ * ⌘K command palette — the shell, plus jump-to-node search.
  *
- * Navigation, panel toggles, reset widths, and a `>` prefix that sends the
- * rest to the agent. Jump-to-node type-ahead and op actions are the separate
- * `palette` roadmap item.
+ * Navigation, panel toggles, reset widths, a `>` prefix that sends the rest
+ * to the agent — and, under the shell rows, NODES: the query goes to the
+ * server's search procedure as you type (debounced, latest-wins), and every
+ * hit is a row that jumps to that node's page. The matching is entirely the
+ * server's — the same reading an agent's `search_nodes` gets — so what this
+ * palette finds and what an agent finds cannot drift (items.ts says why there
+ * is no local matcher).
  *
- * `>` ask uses `run` with a real failure handler: a refusal is shown in the
- * palette rather than dropped (run.ts forbids a silent handler).
+ * Op actions are still the separate `palette` roadmap item.
+ *
+ * `>` ask and the search both use `run` with a real failure handler: a
+ * refusal is shown in the palette rather than dropped (run.ts forbids a
+ * silent handler).
  */
 
 import {
@@ -32,7 +39,10 @@ import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { run } from "../run.ts"
-import { askQuery, filterItems, type PaletteItem } from "./items.ts"
+import { askQuery, filterItems, nodeItem, type PaletteItem } from "./items.ts"
+import { createNodeSearch } from "../search/nodes.ts"
+import { Result } from "../search/Result.tsx"
+import { paletteOpen, setPaletteOpen } from "./open.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { isEditingTarget, matchKey } from "../keys.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
@@ -51,7 +61,6 @@ export function Palette(props: {
   // to make impossible. Reached the way the row editor reaches it rather than
   // handed down as two props — same object, one access path.
   const undo = useUndo()
-  const [open, setOpen] = createSignal(false)
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
   const [active, setActive] = createSignal(0)
@@ -60,13 +69,21 @@ export function Palette(props: {
   let previousFocus: HTMLElement | null = null
 
   const ask = createMemo(() => askQuery(query()))
+
+  // The nodes, from the server — one primitive, its own failure, and no
+  // request bookkeeping in this component ({@link ./search.ts}). It is asked
+  // only while the palette is open and the query is not an `>` ask.
+  const nodes = createNodeSearch(() =>
+    paletteOpen() && ask() === null ? query() : null
+  )
+
   const items = createMemo(() => {
     if (ask() !== null) return [] as ReadonlyArray<PaletteItem>
-    return filterItems(query())
+    return [...filterItems(query()), ...nodes.hits().map(nodeItem)]
   })
 
   const close = () => {
-    setOpen(false)
+    setPaletteOpen(false)
     setQuery("")
     setActive(0)
     setAskError(null)
@@ -75,17 +92,24 @@ export function Palette(props: {
     queueMicrotask(() => back?.focus())
   }
 
-  const openPalette = () => {
-    previousFocus =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null
-    setOpen(true)
+  /**
+   * Opening is an EFFECT of the signal rather than something a door does, so
+   * every door opens the same palette: the chord below, and the header's
+   * magnifier on a phone, which sets the signal and knows nothing about a
+   * caret or a remembered focus. Whoever opens it, the box is empty and the
+   * caret is in it.
+   */
+  createEffect(() => {
+    if (!paletteOpen()) return
+    previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
     setQuery("")
     setActive(0)
     setAskError(null)
+    // The element is not attached at the instant the signal flips.
     queueMicrotask(() => input?.focus())
-  }
+  })
 
   const runItem = (item: PaletteItem) => {
     const action = item.action
@@ -145,12 +169,12 @@ export function Palette(props: {
     const onKey = (event: KeyboardEvent) => {
       const match = matchKey(event)
       if (match === null) {
-        if (open() && event.key === "Escape") {
+        if (paletteOpen() && event.key === "Escape") {
           event.preventDefault()
           close()
         }
         // Simple focus trap: keep Tab inside the dialog while open.
-        if (open() && event.key === "Tab" && input) {
+        if (paletteOpen() && event.key === "Tab" && input) {
           event.preventDefault()
           input.focus()
         }
@@ -159,8 +183,8 @@ export function Palette(props: {
       if (!match.whileEditing && isEditingTarget(event.target)) return
       event.preventDefault()
       if (match.action === "palette") {
-        if (open()) close()
-        else openPalette()
+        if (paletteOpen()) close()
+        else setPaletteOpen(true)
         return
       }
       if (match.action === "sidebar") props.toggleDirectory()
@@ -183,7 +207,7 @@ export function Palette(props: {
   return (
     <>
     <Shortcuts open={keys()} onClose={() => setKeys(false)} />
-    <Show when={open()}>
+    <Show when={paletteOpen()}>
       <div
         class="fixed inset-0 z-50 flex items-start justify-center bg-ink/40 px-4 pt-[min(20vh,8rem)]"
         data-testid={TESTID.palette}
@@ -240,11 +264,29 @@ export function Palette(props: {
               </div>
             )}
           </Show>
+          {/* The SEARCH's own refusal, in its own row: it is a different
+              question from the `>` ask, so it gets a different answer slot
+              rather than overwriting one the reader may still be reading. */}
+          <Show when={nodes.failure()}>
+            {(err) => (
+              <div
+                class="border-b border-alarm/40 bg-alarm/5 px-4 py-2 font-mono text-xs text-alarm"
+                data-testid={TESTID.paletteSearchError}
+                role="alert"
+              >
+                {err()}
+              </div>
+            )}
+          </Show>
           <Show
             when={ask() !== null}
             fallback={
+              // `overflow-x-hidden` is the doctrine, not a defence: a popover
+              // scrolls down, never sideways. The rows are already built not
+              // to overflow; this makes that a property of the container
+              // rather than of every future row.
               <ul
-                class="m-0 max-h-72 list-none overflow-y-auto p-1"
+                class="m-0 max-h-72 list-none overflow-x-hidden overflow-y-auto p-1"
                 data-testid={TESTID.paletteList}
               >
                 <For
@@ -257,28 +299,17 @@ export function Palette(props: {
                 >
                   {(item, index) => (
                     <li>
-                      <button
-                        type="button"
-                        class={`flex w-full items-baseline justify-between gap-3 rounded px-3 py-2 text-left text-sm ${
-                          index() === active()
-                            ? "bg-rule text-ink"
-                            : "text-ink hover:bg-rule/60"
-                        }`}
-                        data-testid={TESTID.paletteItem}
-                        data-id={item.id}
-                        data-active={index() === active() ? "true" : "false"}
-                        onMouseEnter={() => setActive(index())}
-                        onClick={() => runItem(item)}
-                      >
-                        <span>{item.label}</span>
-                        <Show when={item.hint}>
-                          {(hint) => (
-                            <span class="shrink-0 font-mono text-[0.6875rem] text-muted">
-                              {hint()}
-                            </span>
-                          )}
-                        </Show>
-                      </button>
+                      <Result
+                        label={item.label}
+                        hint={item.hint}
+                        place={item.place}
+                        active={index() === active()}
+                        testid={TESTID.paletteItem}
+                        placeTestid={TESTID.paletteItemPlace}
+                        id={item.id}
+                        onHover={() => setActive(index())}
+                        onSelect={() => runItem(item)}
+                      />
                     </li>
                   )}
                 </For>

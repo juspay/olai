@@ -22,3 +22,4 @@ if (typeof globalThis.location === "undefined") {
   // is a stand-in for tests, not a `Location`.
   globalThis.location = new URL("http://olai.invalid") as unknown as Location
 }
+

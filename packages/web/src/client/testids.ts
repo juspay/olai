@@ -487,8 +487,22 @@ export const TESTID = {
   paletteList: "palette-list",
   paletteItem: "palette-item",
   paletteAsk: "palette-ask",
+  /** The second line of a result row: where the node lives. */
+  paletteItemPlace: "palette-item-place",
+  // ── the header's search box, the other door to the same reading ──────
+  headerSearch: "header-search",
+  /** The phone's door: opens the palette, which is the same modal. */
+  headerSearchOpen: "header-search-open",
+  headerSearchResults: "header-search-results",
+  headerSearchItem: "header-search-item",
+  headerSearchItemPlace: "header-search-item-place",
+  headerSearchError: "header-search-error",
   /** Refusal from a `>` ask that the palette surfaces instead of swallowing. */
   paletteAskError: "palette-ask-error",
+  /** Refusal from the NODE SEARCH — a different question from the ask, so a
+   *  different row: two async sources sharing one slot would show a reader
+   *  the wrong sentence about the wrong thing. */
+  paletteSearchError: "palette-search-error",
   chatTitle: "chat-title",
   chatModel: "chat-model",
   chatNew: "chat-new",
