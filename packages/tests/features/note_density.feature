@@ -38,6 +38,18 @@ Feature: Notes under the title
     When I click away from the note of "order"
     Then the description of "order" is a preview of "Two ways to go:"
 
+  Scenario: Escape collapses the open note
+    # The note shuts by the client's one dismissal (`client/dismiss.ts`), which
+    # is a pointer outside it AND Escape — this panel had only the first, for
+    # no reason anybody wrote down. It is the model this note already keeps:
+    # expanding and editing are one state and you leave both at once
+    # (`keyboard_editing.feature`), and Escape has always been how a caret
+    # leaves.
+    When I click the note of "order"
+    Then the description of "order" renders bold text "walnut"
+    When I press "Escape"
+    Then the description of "order" is a preview of "Two ways to go:"
+
   Scenario: A zoomed page always shows the subject's note in full
     When I open the node "order"
     Then the zoomed node is "order"

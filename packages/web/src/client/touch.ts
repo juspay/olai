@@ -101,9 +101,16 @@ export const HOVER_REVEAL =
 /**
  * Reveal for the `•••` menu button — only reached when its parent is shown
  * (the menu root is `hidden md:block`). Hover/focus-only; no phone branch.
+ *
+ * `data-[expanded]` is the third arm and it is not optional: an OPEN menu
+ * whose `•••` had faded out would be a panel hanging off nothing. Kobalte puts
+ * that attribute on the trigger for exactly this (`menu/NodeMenu.tsx`), which
+ * is steadier than the focus it used to ride on — a menu's own list can take
+ * and drop the caret as a pointer moves over it.
  */
 export const MENU_REVEAL =
-  "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"
+  "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 " +
+  "data-[expanded]:opacity-100"
 
 /** Past the bullet AND the checkbox — where a day's row puts its note. */
 export const PAST_BULLET = "ml-16 md:ml-10"

@@ -913,6 +913,38 @@ export class OlaiWorld extends World {
     await this.press(this.within(id, control));
   }
 
+  /**
+   * Press SOMEWHERE ELSE — which is a gesture in its own right, because three
+   * things in this app shut when it happens (a row's note, the `•••` menu, the
+   * header's popovers).
+   *
+   * The sidebar is that somewhere: it is outside every row's gutter and every
+   * panel, and pressing its top-left corner follows no navigation, so what a
+   * scenario is left holding afterwards is the dismissal and nothing else.
+   */
+  async clickAway(): Promise<void> {
+    const sidebar = this.page.locator(SIDEBAR).first();
+    await sidebar.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await sidebar.click({ position: { x: 8, y: 8 } });
+    await this.waitForFrame();
+  }
+
+  /**
+   * Put the caret on a node's own control WITHOUT a pointer.
+   *
+   * `attached` rather than `visible`, and `evaluate` rather than Playwright's
+   * own `focus()`: the gutter's controls are `opacity-0` until the row is
+   * hovered or something in it is focused, and taking the focus is exactly
+   * what a scenario is doing here — waiting for them to be visible first would
+   * be waiting for the thing the gesture causes.
+   */
+  async focusWithin(id: string, control: string): Promise<void> {
+    const target = this.within(id, control);
+    await target.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    await target.evaluate((el) => (el as HTMLElement).focus());
+    await this.waitForFrame();
+  }
+
   /** A node's OWN title. Nodes nest, so a descendant's title also matches
    *  inside the scope — `.first()` is the node's own because the title is
    *  rendered before the children. */

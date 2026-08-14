@@ -8,6 +8,13 @@
  * phone lays one out at all. That is a fact about the row; everything here is
  * about the panel.
  *
+ * TWO features are served from here, which is the exception to one-file-per-
+ * feature and the reason worth writing down: `menu_verbs.feature` is what the
+ * menu DOES to a node and `menu_panel.feature` is how the panel opens and
+ * shuts, and both drive it through the same three gestures. A second copy of
+ * "open it, then wait for the panel" is exactly the drift this suite spends
+ * its selectors avoiding.
+ *
  * The one thing this file is careful about is TONE. What a verb said is drawn
  * in one place in two moods — a refusal, in the ops layer's own words, and a
  * remark from a write that landed — and a scenario that could not tell them
@@ -16,6 +23,8 @@
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
+
+import { TESTID } from "@olai/web/src/client/testids.ts";
 
 import {
   NODE_MENU,
@@ -30,26 +39,144 @@ import {
 import type { OlaiWorld } from "../support/world.ts";
 import { revealGutter } from "./outline_tree_steps.ts";
 
-When(
-  "I open the node menu of {string}",
-  async function (this: OlaiWorld, id: string) {
-    await revealGutter(this, id);
-    const menu = this.within(id, NODE_MENU);
-    await menu.click({ force: true });
-    await this.page
-      .locator(NODE_MENU_PANEL)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  },
-);
-
-/** The open panel, waited for. Every step below starts here — the panel is the
- *  subject of all of them, and one spelling of "wait for it" is what keeps the
- *  four from waiting on it four slightly different ways. */
+/** The open panel, waited for. Every step here starts from it — the panel is
+ *  the subject of all of them, and one spelling of "wait for it" is what keeps
+ *  them from waiting on it several slightly different ways. */
 const panelOf = async (world: OlaiWorld) => {
   const panel = world.page.locator(NODE_MENU_PANEL);
   await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   return panel;
 };
+
+/** The `•••` pressed: the row's gutter revealed first (it is `opacity-0` until
+ *  the row is hovered), then the press itself. `force` because opacity is not
+ *  something Playwright's actionability check can see through. */
+const pressDots = async (world: OlaiWorld, id: string): Promise<void> => {
+  await revealGutter(world, id);
+  await world.within(id, NODE_MENU).click({ force: true });
+  await world.waitForFrame();
+};
+
+When(
+  "I open the node menu of {string}",
+  async function (this: OlaiWorld, id: string) {
+    await pressDots(this, id);
+    await panelOf(this);
+  },
+);
+
+/** The same press with nothing waited for afterwards — which is what a
+ *  scenario asking what the SECOND press does needs: the step above waits for
+ *  the panel and would time out on the press that shuts it. */
+When(
+  "I press the node menu of {string}",
+  async function (this: OlaiWorld, id: string) {
+    await pressDots(this, id);
+  },
+);
+
+/** The `•••` opened the way a keyboard opens it: the caret on the trigger,
+ *  then Enter. Distinct from the pointer step above because that is what the
+ *  scenario about walking the entries is ABOUT — a menu opened by a click
+ *  leaves the caret on the button the pointer pressed, exactly as the panel
+ *  this replaced did, and one opened by a key puts it in the panel. */
+When(
+  "I open the node menu of {string} with the keyboard",
+  async function (this: OlaiWorld, id: string) {
+    await this.focusWithin(id, NODE_MENU);
+    await this.page.keyboard.press("Enter");
+    await panelOf(this);
+    await this.waitForFrame();
+  },
+);
+
+/** Somewhere that is not the menu — `clickAway` is the suite's one spelling of
+ *  that gesture, and a row's note is dismissed by the same one. */
+When("I click away from the node menu", async function (this: OlaiWorld) {
+  await this.clickAway();
+});
+
+/**
+ * WHERE the caret is, as this suite talks about elements: the test id it
+ * carries, the row it is in, and the words on it. `null` for `<body>`, which is
+ * NOWHERE and is the failure every step below exists to catch — a keyboard left
+ * there is a walk down the whole document to get back.
+ */
+const caretOn = async (
+  world: OlaiWorld,
+): Promise<{ testid: string | null; node: string | null; text: string } | null> => {
+  const caret = await world.page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    return el === null || el === document.body ? null : {
+      testid: el.getAttribute("data-testid"),
+      node: el.closest("[data-node-id]")?.getAttribute("data-node-id") ?? null,
+      text: el.innerText,
+    };
+  });
+  return caret === null ? null : { ...caret, text: oneLine(caret.text) };
+};
+
+/**
+ * WHICH entry has the caret, by the label a person reads.
+ *
+ * The panel swaps its content for the question one verb asks, and a swap that
+ * left the caret on the entry it just removed leaves the keyboard nowhere.
+ * Nothing else in this suite would notice: the question is on screen either
+ * way.
+ */
+Then(
+  "the node menu's {string} has the caret",
+  async function (this: OlaiWorld, label: string) {
+    const caret = await caretOn(this);
+    assert.deepStrictEqual(
+      caret === null ? null : { testid: caret.testid, text: caret.text },
+      { testid: TESTID.nodeMenuItem, text: label },
+      `the caret is on ${JSON.stringify(caret)}, expected the node menu's ${JSON.stringify(label)}`,
+    );
+  },
+);
+
+/**
+ * The caret back on the `•••` a menu was opened from.
+ *
+ * A panel that took the caret has to give it back when it goes, and the
+ * primitive's own way of doing that never fires here (`menu/NodeMenu.tsx`'s
+ * `handBack` says why), so this is the step that would notice it stopping.
+ * The ROW is asserted as well as the control: handing the caret to some other
+ * row's `•••` would be its own kind of lost.
+ */
+Then(
+  "the node menu of {string} has the caret",
+  async function (this: OlaiWorld, id: string) {
+    const caret = await caretOn(this);
+    assert.deepStrictEqual(
+      caret === null ? null : { testid: caret.testid, node: caret.node },
+      { testid: TESTID.nodeMenu, node: id },
+      `the caret is on ${JSON.stringify(caret)}, expected the "${id}" row's •••`,
+    );
+  },
+);
+
+/** NOWHERE, and on purpose: a press that landed outside the menu is where the
+ *  reader now is, and the menu does not get to take the caret back off it. */
+Then("the caret is nowhere", async function (this: OlaiWorld) {
+  const caret = await caretOn(this);
+  assert.strictEqual(
+    caret,
+    null,
+    `the caret is on ${JSON.stringify(caret)}, and this step says a press outside leaves it where it fell`,
+  );
+});
+
+/** GONE, not merely invisible: the panel is unmounted when the menu shuts, so
+ *  a scenario that accepted `hidden` would also accept one left in the DOM
+ *  under a row nobody is pointing at. */
+Then("the node menu is closed", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(NODE_MENU_PANEL).count()) === 0,
+    "the node menu panel to be gone",
+  );
+});
 
 /** What it is offering, in order. Through `oneLine` like every other text this
  *  suite reads out of the DOM, so a label that wraps is still one label. */
