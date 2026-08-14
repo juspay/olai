@@ -34,14 +34,21 @@
  *
  * `pointerType === "touch"` and not pen: a pen hovers, so it has the `•••`
  * already, and a drag that claims the pen must not find a menu opening under
- * it. Kobalte's `ContextMenu` — the ecosystem's own spelling of this gesture,
- * and the first thing to reach for under HACKING.md's SolidJS rule — could not
- * be the answer for a different reason: its long press is welded to a menu
- * ROOT, and one of those per row is exactly the cost `menu/NodeMenu.tsx`'s
- * lazy `Dots` exists to refuse (140 rows measured at 140
- * `IntersectionObserver`s and 33 MB of heap). So the gesture is ours and the
- * MENU is still the library's. What is taken from that implementation is its
- * rules: a timer armed on pointer-down, dropped on move, cancel and up.
+ * it.
+ *
+ * ## Why this is hand-rolled, which HACKING.md's SolidJS rule makes the first
+ * question to answer
+ *
+ * Nothing in the ecosystem ships this gesture. `@solid-primitives/gestures` is
+ * pan, pinch, rotate, swipe and tap; `@solid-primitives/pointer` is listeners,
+ * not a gesture. The one real implementation is Kobalte's `ContextMenu`, and it
+ * could not be the answer here for a reason that has nothing to do with the
+ * gesture: its long press is welded to a menu ROOT, and one of those per row is
+ * exactly the cost `menu/NodeMenu.tsx`'s lazy `Dots` exists to refuse (140 rows
+ * measured at 140 `IntersectionObserver`s and 33 MB of heap). So the gesture is
+ * ours and the MENU is still the library's — and what is taken from that
+ * implementation is its rules: a timer armed on pointer-down, dropped on move,
+ * cancel and up.
  */
 
 import { onCleanup } from "solid-js"
@@ -71,43 +78,64 @@ export interface LongPress {
 }
 
 /**
+ * WHAT THE FINGER IS DOING, as one value with four names.
+ *
+ * Every question this module asks is a question about which of these it is —
+ * may the `contextmenu` be prevented (any of the three that are down), is
+ * there still a deadline to meet (`holding`), does this lift leave a click
+ * worth eating (`held`) — and asking them of separate booleans is how they
+ * come to disagree: a `fired` that is true while a timer is still armed, a
+ * `landed` point belonging to a finger that is gone. None of those can be
+ * written down here.
+ */
+type Finger =
+  /** Nothing is down. */
+  | { readonly kind: "gone" }
+  /** Down, still, and the deadline is running. */
+  | {
+    readonly kind: "holding"
+    readonly from: { readonly x: number; readonly y: number }
+    readonly until: ReturnType<typeof setTimeout>
+  }
+  /** Down, but no longer a press: it drifted, or a second finger joined it
+   *  and made the gesture a pinch. Nothing is waiting; the lift is still
+   *  expected, because that is what takes the listeners off. */
+  | { readonly kind: "adrift" }
+  /** Down, and the press has already fired. */
+  | { readonly kind: "held" }
+
+/**
  * Watch an element for a long press by a finger, and say when there is one.
  *
  * Call it in the owner that draws the element — a row — so a row that goes
  * away mid-press takes its timer and its transient listeners with it.
  */
 export const longPressOn = (press: () => void): LongPress => {
-  /** The timer, while a finger is down and has not moved. */
-  let waiting: ReturnType<typeof setTimeout> | undefined
-  /** Where it landed, to measure the drift from. */
-  let landed: { readonly x: number; readonly y: number } | undefined
-  /** Is a FINGER what is down? What tells the browser's own long press from a
-   *  right-click with a mouse, since `contextmenu` itself cannot say. */
-  let finger = false
-  /** Has this press already fired? What the LIFT then has to answer for. */
-  let fired = false
+  let finger: Finger = { kind: "gone" }
   /** Call off the ghost-eating listener, if one is out. */
   let stopSwallowing: (() => void) | undefined
 
   const move = (event: PointerEvent): void => {
-    if (waiting === undefined || landed === undefined) return
-    const drift = Math.hypot(event.clientX - landed.x, event.clientY - landed.y)
-    if (drift > SLOP_PX) disarm()
+    if (finger.kind !== "holding") return
+    const drift = Math.hypot(
+      event.clientX - finger.from.x,
+      event.clientY - finger.from.y,
+    )
+    // Adrift, not gone: the finger is still down, and it is its LIFT that
+    // takes the listeners off.
+    if (drift > SLOP_PX) finger = stop({ kind: "adrift" })
   }
 
-  /** Drop the timer, and nothing else: the finger is still down, and the lift
-   *  is what ends the gesture. */
-  const disarm = (): void => {
-    clearTimeout(waiting)
-    waiting = undefined
+  /** Leave whatever state this is for another, with the deadline dropped on
+   *  the way out — the one thing every departure from `holding` has to do. */
+  const stop = (next: Finger): Finger => {
+    if (finger.kind === "holding") clearTimeout(finger.until)
+    return next
   }
 
   /** The finger is gone. Nothing is left armed or listened for. */
   const release = (): void => {
-    disarm()
-    landed = undefined
-    finger = false
-    fired = false
+    finger = stop({ kind: "gone" })
     window.removeEventListener("pointermove", move)
     window.removeEventListener("pointerup", lifted)
     window.removeEventListener("pointercancel", release)
@@ -124,15 +152,14 @@ export const longPressOn = (press: () => void): LongPress => {
    * that ending is `release` alone and eats nothing.
    */
   const lifted = (): void => {
-    const opened = fired
+    const opened = finger.kind === "held"
     release()
     if (opened) stopSwallowing = swallowGhost()
   }
 
-  /** Fire it, once, from whichever deadline arrived — ours or the platform's. */
+  /** Fire it, from whichever deadline arrived — ours or the platform's. */
   const fire = (): void => {
-    disarm()
-    fired = true
+    finger = stop({ kind: "held" })
     press()
   }
 
@@ -143,19 +170,16 @@ export const longPressOn = (press: () => void): LongPress => {
 
   return {
     onPointerDown: (event: PointerEvent) => {
-      if (event.pointerType !== "touch") {
-        finger = false
-        return
-      }
+      // Not a finger at all: a mouse or a pen, and whatever this module
+      // thought was in flight is not what is happening now.
+      if (event.pointerType !== "touch") return release()
       // A SECOND finger is a pinch or a two-finger scroll, and neither is a
-      // press: the one in flight ends and nothing new is armed.
-      if (finger) {
-        release()
+      // press. The gesture goes adrift rather than ending, because the first
+      // finger's lift is still what this is listening for.
+      if (finger.kind !== "gone") {
+        finger = stop({ kind: "adrift" })
         return
       }
-      release()
-      finger = true
-      landed = { x: event.clientX, y: event.clientY }
       // On `window` rather than on the element: a finger that slides off the
       // row it landed on is still the same gesture, and the row would stop
       // hearing about it. (Capturing the pointer would fix that and would take
@@ -163,19 +187,23 @@ export const longPressOn = (press: () => void): LongPress => {
       window.addEventListener("pointermove", move)
       window.addEventListener("pointerup", lifted)
       window.addEventListener("pointercancel", release)
-      waiting = setTimeout(fire, LONG_PRESS_MS)
+      finger = {
+        kind: "holding",
+        from: { x: event.clientX, y: event.clientY },
+        until: setTimeout(fire, LONG_PRESS_MS),
+      }
     },
     onContextMenu: (event: Event) => {
-      // Only for a press this module is holding. A right-click with a mouse is
-      // the browser's own, and taking its menu away would be this file
-      // regressing a device it has nothing to say about.
-      if (!finger) return
+      // Only while a finger is down. A right-click with a mouse is the
+      // browser's own, and taking its menu away would be this file regressing
+      // a device it has nothing to say about.
+      if (finger.kind === "gone") return
       // Prevented, so the text-selection callout Android raises with it goes
       // too — and the press is fired from here rather than waited out, since
       // the platform's deadline and ours are the same number and whichever
       // arrives first is the gesture.
       event.preventDefault()
-      if (waiting !== undefined) fire()
+      if (finger.kind === "holding") fire()
     },
   }
 }
