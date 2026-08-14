@@ -32,7 +32,7 @@ import { type Accessor, createEffect, createResource, createSignal } from "solid
 import { debounce } from "@solid-primitives/scheduled"
 import { Result } from "effect"
 
-import type { SearchHit, SearchRefusal } from "@olai/surface"
+import type { Refusal, SearchHit } from "@olai/surface"
 
 import { runAsync } from "../run.ts"
 import { olai } from "../wire.ts"
@@ -68,7 +68,7 @@ export interface NodeSearch {
    * looks exactly like an empty directory, which is the silent failure the
    * refusals were written to prevent.
    */
-  readonly refusals: Accessor<ReadonlyArray<SearchRefusal>>
+  readonly refusals: Accessor<ReadonlyArray<Refusal>>
   /**
    * WHICH QUERY the rows on screen answer — `null` while they answer a question
    * the reader has already moved on from.

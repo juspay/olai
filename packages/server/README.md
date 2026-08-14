@@ -70,7 +70,7 @@ register `stop` as a finalizer.
 | `fault.ts` | which runtime failures are news, and how the one that is stops the server — a typed failure the scope unwinds through, never `process.exit` |
 | `mcp/face.ts` | THE MCP face: the surface re-exposed through `@kolu/surface-mcp` — cells and collections as subscribable resources, the ops table beside them as tools |
 | `mcp/expose.ts` | which of those members an agent may see. Default-deny, and written against a rule about wire COST: a cell is exposable iff it is O(1)-ish |
-| `mcp/tools.ts` | `@olai/ops`' table projected onto that face — the fixed field subtracted, a refusal carried as data |
+| `mcp/tools.ts` | `@olai/ops`' table projected onto that face — the fixed field subtracted, a refusal carried as data: `isError` WITH `structuredContent`, the kind spelled in and the raiser's own detail beside it, so "these rows are wrong" is something an agent acts on rather than a sentence it parses. The four kinds are the format's closed table, and `tools.test.ts` keys a table off it: every kind carries either the CALL that provokes it or a written sentence saying why nothing here can, so a fifth kind is a missing key rather than a word nobody pinned |
 | `mcp/route.ts` | that face for the agent olai STARTED: mounted on this listener, behind a per-process bearer token, over a half-duplex transport of its own |
 | `mcp/serve.ts` | that face for an agent that started US: `olai mcp`'s own, much smaller, composition root, over stdio |
 | `commits.ts` | `--commit`, for whichever face is asking: one mode table, one default, one override, and the flag PAIR as one thing — the per-face clause it interpolates is `@olai/ops`' `commitDoors`, sibling to the `commitDoor` the sentence a waiting write carries back is built from |

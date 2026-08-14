@@ -23,10 +23,12 @@
 import {
   ancestorsOf,
   countedChildren,
+  DEFAULT_SEARCH_LIMIT,
   derive,
   type Derived,
   errorLine,
   follow,
+  type Found,
   isMirror,
   type LocatedRegular,
   MARKS,
@@ -35,41 +37,39 @@ import {
   parseFilter,
   type Progress,
   progressOf,
-  type Refusal,
-  type SearchField,
+  type SearchAnswer,
+  type SearchHit,
+  type SearchRequest,
   type Status,
   tagText,
   titleParts,
 } from "@olai/format"
 
-/** One node, said the way every answer here says it. */
-export interface Found {
-  readonly id: string
-  readonly title: string
-  /** Where a person is pointed. Relative to the served directory, 1-based. */
-  readonly file: string
-  readonly line: number
-  /** The mark the node carries — a mirror's being its target's, since that is
-   *  what it shows. ABSENT when it carries none: nobody marked it, so it is a
-   *  bullet rather than a task nobody has started. */
-  readonly status?: Status
-  /** The canonical ancestor titles, outermost first. What makes a bare title
-   *  like "order" mean something. */
-  readonly path: ReadonlyArray<string>
-  /** Free cross-references this node carries, as target ids. Absent when the
-   *  node has none — so an agent can traverse without a second read, and a
-   *  node that does not point anywhere does not pretend to. */
-  readonly see?: ReadonlyArray<string>
-  /** What this node must come AFTER, as target ids — the edges it carries
-   *  itself, exactly as they are written.
-   *
-   *  Here for the same reason `see` is, and now for a second one: `set_after`
-   *  removes a target BY ID, so a reader that could not see the list could only
-   *  change it by guessing. Not the derived blockedness — what is standing in
-   *  the way right now is a question about marks, and this is what the record
-   *  says. */
-  readonly after?: ReadonlyArray<string>
-}
+/**
+ * One node, said the way every answer here says it — and what a search asks
+ * and answers, which is the same vocabulary one level up.
+ *
+ * DECLARED IN `@olai/format` and re-exported, exactly as `RepoState` and
+ * `Pending` are. These shapes TRAVEL: `search_nodes` hands an agent
+ * {@link Search} verbatim, and the `search.nodes` procedure the ⌘K palette
+ * calls carries the identical value to a browser. A second spelling in the wire
+ * spec is a second spelling free to drift from this one — which it was, and did
+ * not merely risk: a field added here and produced by {@link foundOf}
+ * type-checked clean everywhere, reached the agent, and was dropped by the
+ * palette's encoder.
+ *
+ * What stays HERE is the matcher: which nodes match, how they are ordered, and
+ * what `matched` says about one. The shape is the floor's; the ranking is this
+ * package's.
+ */
+export { DEFAULT_SEARCH_LIMIT, type Found, type SearchRequest }
+
+/** The wire names, under the names this file's own answers have always used.
+ *  `Search` and `Hit` say what a caller of {@link search} is holding; the
+ *  floor's names say what crosses to a browser. Same type, two vocabularies,
+ *  and neither has to move for the other. */
+export type Search = SearchAnswer
+export type Hit = SearchHit
 
 /**
  * One PLACEMENT of a node: a mirror record that shows it, and where that line
@@ -107,34 +107,6 @@ export interface Placement {
  */
 export interface Placed extends Placement {
   readonly shows: Found
-}
-
-export interface Hit extends Found {
-  /** Which field carried the strongest match — so a caller can say why this
-   *  came back, rather than leaving a reader to guess.
-   *
-   *  ABSENT when the query named no words at all: `is:done` selects a node by
-   *  a field test, and no title, id, tag or note carried it. Saying one of them
-   *  did would be an answer invented to fill a slot. */
-  readonly matched?: SearchField
-}
-
-export interface Search {
-  readonly hits: ReadonlyArray<Hit>
-  /** How many nodes matched in all. `hits` is capped; this is not, so "twelve
-   *  of ninety" is sayable. */
-  readonly total: number
-  /** What the grammar could not read, in its own words — a known operator with
-   *  an unknown value (`is:blocked`). ABSENT for every query it could read.
-   *
-   *  It travels rather than being swallowed because this layer is the only one
-   *  that HAS it: the parser is one package down and the box a person typed
-   *  into is one package up, and a door that answered `is:blocked` with an
-   *  empty list and no reason would be exactly the silent failure the refusals
-   *  exist to prevent (HACKING.md's error rule). The filter over the tree draws
-   *  its own because it parses for itself; these are for the three doors that
-   *  ask this procedure. */
-  readonly refusals?: ReadonlyArray<Refusal>
 }
 
 /** What one node's page would say, plus the record itself. */
@@ -274,9 +246,6 @@ const edgesOf = (
  *  that you finished it. */
 const DONE_PENALTY = 300
 
-/** How many hits an unasked-for limit means, when a caller does not say. */
-const DEFAULT_LIMIT = 12
-
 /**
  * A query, ranked and shortened — the reading behind `search_nodes` and behind
  * every box a person types into.
@@ -297,15 +266,7 @@ const DEFAULT_LIMIT = 12
  */
 export const search = (
   derived: Derived,
-  query: {
-    readonly text: string
-    readonly limit?: number
-    /** Which corner of the set to ask — one outline, and/or one node and
-     *  everything beneath it. What the browser's filter gets from the page it
-     *  is on, said out loud so an agent can ask the same question. */
-    readonly file?: string | undefined
-    readonly under?: string | undefined
-  },
+  query: SearchRequest,
 ): Search => {
   const filter = parseFilter(query.text)
   // A query the grammar could not read answers with no hits AND WITH THE
@@ -337,7 +298,7 @@ export const search = (
   // Sorted in place, because the array was minted by the `map` above and is
   // nobody else's.
   ranked.sort((a, b) => b.score - a.score)
-  const limit = query.limit ?? DEFAULT_LIMIT
+  const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
   return { hits: ranked.slice(0, limit).map((entry) => entry.hit), total: ranked.length }
 }
 

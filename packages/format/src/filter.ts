@@ -30,6 +30,8 @@
  * docs/brainstorming/filter-in-place.md.
  */
 
+import { Schema } from "effect"
+
 import {
   ancestorsOf,
   type Derived,
@@ -158,15 +160,22 @@ interface Held {
  * that silently finds nothing is precisely the ignored error HACKING.md
  * forbids: the reader typed an operator, and the honest answer is which values
  * it takes.
+ *
+ * A SCHEMA and not an interface, because it does not stay here: the filter over
+ * the tree parses for itself and draws these, and the other three doors ask the
+ * server — so a refusal rides `SearchAnswer.refusals` to a browser and to an
+ * agent. One declaration, for the reason `./searching.ts` gives about the hit
+ * it travels beside.
  */
-export interface Refusal {
+export const Refusal = Schema.Struct({
   /** AS TYPED, case and all. A refusal that quoted the folded token would be
    *  telling somebody who wrote `is:BLOCKED` that they wrote something else —
    *  the refusal misquoting the reader, which is the defect it exists to
    *  prevent (see {@link parseFilter}). */
-  readonly token: string
-  readonly reason: string
-}
+  token: Schema.String,
+  reason: Schema.String,
+})
+export type Refusal = typeof Refusal.Type
 
 /**
  * A query, in one of the three states it can be in — and a UNION rather than a

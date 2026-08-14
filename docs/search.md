@@ -13,6 +13,15 @@ The first three are callers of one function over one snapshot (`@olai/ops`'
 cannot drift, and `is:done` means one thing everywhere. The browser holds every
 node and could grep them itself; it deliberately does not.
 
+One matcher was never quite the whole of it, because the question and the answer
+were SPELLED twice — once as the wire spec a browser compiles against
+(`@olai/surface`), once as the reader the ops layer answers with — and neither
+package may import the other. They are now one declaration on the floor both
+stand on (`@olai/format`'s `searching.ts`), so a field reaches every door or
+none. It used to reach the agent's and be dropped on the way to the person's,
+silently — which is why `file`, `under`, `matched` and `refusals` are declared
+once here rather than four times across two packages.
+
 ## What matches
 
 **Words** are case-folded substrings over four fields — title, id, inline tags,

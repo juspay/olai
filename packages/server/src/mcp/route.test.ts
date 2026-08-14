@@ -10,7 +10,11 @@
  *
  * So the assertions here are deliberately about the envelope rather than about
  * the tools: one POST, one JSON reply, the token enforced, and the SSE half
- * refused. What is inside the reply is `tools.test.ts`'s subject.
+ * refused. What is inside the reply is `tools.test.ts`'s subject — with one
+ * exception, and it earns it: a REFUSAL is an envelope claim as much as a
+ * payload one, because getting it wrong here means a 500, or a JSON-RPC error
+ * frame, or a structured half that never made it into the reply. This is the
+ * pipe the chat panel's agent reads its refusals through.
  */
 
 import { codec, make as makeOps, TOOLS } from "@olai/ops"
@@ -157,6 +161,45 @@ test("a tool call goes through and comes back as one reply", async () => {
       result?: { structuredContent?: { total?: number } }
     }
     expect(body.result?.structuredContent?.total).toBe(1)
+  })
+})
+
+/**
+ * A refusal is an ANSWER on this transport too.
+ *
+ * `tools.test.ts` pins the contract — `isError` with the structured detail
+ * beside the prose — over an `InMemoryTransport`, where a result is handed
+ * across in one call. This face is the one transport olai wrote itself: a
+ * half-duplex HTTP shape with a waiter table, built because neither of the
+ * SDK's Streamable modes fits (`docs/brainstorming/surface-mcp-viewing.md`).
+ * It has three ways to get a refusal wrong that an in-memory pair cannot have
+ * — an HTTP status keyed off `isError`, a JSON-RPC `error` frame instead of a
+ * result, or the structured half dropped in the reply's serialization — and
+ * the panel's agent reads its refusals through exactly this pipe.
+ */
+test("a refused write crosses as a 200 result carrying its structured detail", async () => {
+  await withRoute(async ({ post }) => {
+    await post(initialize)
+    await post({ jsonrpc: "2.0", method: "notifications/initialized" })
+
+    const response = await post({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: { name: "set_done", arguments: { id: "nowhere" } },
+    })
+
+    // 200 and a RESULT: a refused write is something the server answered, not
+    // something that went wrong in it.
+    expect(response.status).toBe(200)
+    const body = await response.json() as {
+      error?: unknown
+      result?: { isError?: boolean; structuredContent?: Record<string, unknown> }
+    }
+    expect(body.error).toBeUndefined()
+    expect(body.result?.isError).toBe(true)
+    expect(body.result?.structuredContent)
+      .toMatchObject({ kind: "not-found", named: "nowhere" })
   })
 })
 
