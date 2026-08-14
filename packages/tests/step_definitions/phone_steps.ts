@@ -29,12 +29,13 @@ import {
   DOCUMENT_LINK,
   CALENDAR_NEXT,
   CALENDAR_PREV,
-  DONE_TOGGLE,
   FILE_DIR_TOGGLE,
   NODE_TITLE,
   OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
+  PREFS_CHOICE,
+  PREFS_ROW,
   PREFS_TRIGGER,
   SIDEBAR,
   SIDEBAR_BODY,
@@ -56,7 +57,7 @@ const TARGETS: Record<string, string> = {
   "folder toggle": FILE_DIR_TOGGLE,
   "collapse toggle": TOGGLE,
   "zoom bullet": ZOOM,
-  "done switch": DONE_TOGGLE,
+  "done choice": `${PREFS_ROW}[data-pref="done"] ${PREFS_CHOICE}`,
   // A day with nothing on it is inert and goes nowhere, so it is not a
   // target; the link inside a day that HAS something is.
   "calendar day": `${CALENDAR_DAY}[data-dated="true"] a`,

@@ -314,7 +314,7 @@ export const setFolded = (
 }
 
 /** Follow it for as long as this document lives — the same shape as
- *  `followDoneDefault` and `followLayout`, started once from `main.tsx`,
+ *  `followDoneHidden` and `followLayout`, started once from `main.tsx`,
  *  because a preference belongs to the browser and a browser is more than one
  *  tab. A fold made in another tab lands here without a reload. */
 export const followFolds = (): void => {

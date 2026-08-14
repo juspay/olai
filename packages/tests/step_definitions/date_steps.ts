@@ -113,6 +113,9 @@ Then("the date picker's button is dead", async function (this: OlaiWorld) {
 When("I pick the date {string}", async function (this: OlaiWorld, day: string) {
   await box(this).fill(day);
   await this.press(button(this));
+  // The write is done when the picker is gone. ⌘Z after this is the app's
+  // undo, not a keystroke into a date input that is still focused.
+  await panel(this).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
 When("I empty the date picker", async function (this: OlaiWorld) {

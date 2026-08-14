@@ -24,7 +24,6 @@
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import type { EventEmitter } from "node:events";
 import * as fs from "node:fs";
-import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 
@@ -36,6 +35,14 @@ import type { Browser } from "playwright";
 import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
 import type { GitMode } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
+import {
+  freePortIn,
+  holdPort,
+  isolateEnv,
+  portRange,
+  releasePort,
+  workerId,
+} from "./workers.ts";
 
 /** Chromium under Nix, in a container, on a CI runner with no display and a
  *  64 MB `/dev/shm`. Every flag is load-bearing there and harmless locally, so
@@ -159,6 +166,10 @@ let browser: Browser | undefined;
 interface RunningServer {
   readonly baseUrl: string;
   readonly child?: ChildProcess;
+  /** Everything this child has printed, for the life of the process.
+   *  A box rather than a string so the restart assertion can watch the
+   *  same buffer the boot wait already filled — no gap, no second listener. */
+  readonly said: { text: string };
 }
 
 /** corpus → its server, from the moment the start BEGINS.
@@ -180,6 +191,21 @@ const live = new Set<ChildProcess>();
 /** Set by the teardown, so a spawn still in flight gives up instead of
  *  retrying its way onto a fresh port after the run is over. */
 let stopped = false;
+
+/** Per-worker XDG root for shared corpus servers. Scratch servers keep
+ *  theirs beside the scratch copy; `After` deletes the sibling. */
+let workerState: string | undefined;
+
+const workerStateRoot = (): string =>
+  (workerState ??= fs.mkdtempSync(
+    path.join(os.tmpdir(), `olai-e2e-w${workerId()}-`),
+  ));
+
+/** Beside the scratch copy, never inside it. A `@git:repo` scratch is a
+ *  real work tree; XDG/HOME written under it would show up as uncommitted
+ *  files and flip the Commit pill from `never` to `waiting`. `After`
+ *  deletes the sibling with the tree. */
+const scratchState = (root: string): string => `${root}.xdg`;
 
 // ── the server under test ──────────────────────────────────────────────
 
@@ -246,27 +272,6 @@ export const olaiBin = (): string => {
  *  function and its callers' wrappers is the whole migration. */
 const events = (source: object): EventEmitter =>
   source as unknown as EventEmitter;
-
-/** A port nothing is listening on right now. Racy by construction — the
- *  kernel can hand the same port to something else between the close and the
- *  spawn — so `startServerChild` retries on a fresh one rather than trusting
- *  this. */
-const freePort = (): Promise<number> =>
-  new Promise((resolve, reject) => {
-    const probe = net.createServer();
-    probe.unref();
-    events(probe).on("error", reject);
-    probe.listen(0, "127.0.0.1", () => {
-      const address = probe.address();
-      if (address === null || typeof address === "string") {
-        probe.close();
-        reject(new Error("could not read a port from the probe socket"));
-        return;
-      }
-      const { port } = address;
-      probe.close(() => resolve(port));
-    });
-  });
 
 const fixtureDir = (corpus: string): string => {
   const dir = path.join(FIXTURES, corpus);
@@ -337,13 +342,17 @@ interface Spawn {
    *  wants. Present drops the opt-out and says which of the three git
    *  situations this server is being started into. */
   readonly git?: GitMode;
+  /** Private XDG cache root this child may write to. Required: a spawn
+   *  that inherited the host's would share a cache (and a padi) with every
+   *  other worker. HOME is not overridden — see `isolateEnv`. */
+  readonly stateRoot: string;
 }
 
 const startServerChild = async (
   bin: string,
   dir: string,
   label: string,
-  spawnOptions: Spawn = {},
+  spawnOptions: Spawn,
 ): Promise<RunningServer> => {
   const fixedPort = spawnOptions.port;
   let lastFailure = "";
@@ -351,7 +360,7 @@ const startServerChild = async (
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
-    const port = fixedPort ?? (await freePort());
+    const port = fixedPort ?? (await freePortIn(portRange(workerId())));
     // `--no-commit` unless the scenario is ABOUT git: a scratch directory is a
     // temp copy, and committing to whatever repository happens to contain the
     // temp dir is not the suite's business. A `@git:` scenario is the exception
@@ -368,8 +377,7 @@ const startServerChild = async (
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
-      env: {
-        ...process.env,
+      env: isolateEnv(spawnOptions.stateRoot, {
         // The EMPTY string is the explicit off switch, and it is what a person
         // turning chat off would set — so the no-agent scenario reaches that
         // state the same way rather than through a hole in the harness.
@@ -387,20 +395,21 @@ const startServerChild = async (
         // The harness parses logfmt (`findLogfmt` for the serving line). A
         // developer's `OLAI_LOG=pretty` would make every boot hang on readiness.
         OLAI_LOG: "logfmt",
-      },
+      }),
     });
     live.add(child);
     events(child).once("exit", () => live.delete(child));
 
-    // Buffer both streams whole. stdout because the listening line can arrive
-    // split across chunks; stderr because it is the only thing worth printing
-    // when the wait times out, and a server that dies at boot says why THERE.
-    let out = "";
+    // Buffer both streams for the LIFE of the child. Detaching after
+    // "serving" dropped the stale-tab line when it arrived in the gap
+    // before startOwnServer attached its own listener — the restart flake
+    // under load. Verbose still streams; the box is what assertions read.
+    const said = { text: "" };
     let err = "";
     child.stdout?.setEncoding("utf8");
     child.stderr?.setEncoding("utf8");
     child.stdout?.on("data", (chunk: string) => {
-      out += chunk;
+      said.text += chunk;
       if (process.env.OLAI_TEST_VERBOSE) process.stdout.write(chunk);
     });
     child.stderr?.on("data", (chunk: string) => {
@@ -417,7 +426,7 @@ const startServerChild = async (
         clearTimeout(timer);
         resolve(url);
       };
-      const served = (): string | null => servingUrl(out);
+      const served = (): string | null => servingUrl(said.text);
       const poll = setInterval(() => {
         const url = served();
         if (url !== null) finish(url);
@@ -447,11 +456,7 @@ const startServerChild = async (
         killChild(child);
         throw new Error(shuttingDown(label));
       }
-      child.stdout?.removeAllListeners("data");
-      child.stderr?.removeAllListeners("data");
-      child.stdout?.resume();
-      child.stderr?.resume();
-      return { baseUrl: listening, child };
+      return { baseUrl: listening, child, said };
     }
 
     killChild(child);
@@ -463,7 +468,7 @@ const startServerChild = async (
     // a crash-on-load all look identical from out here otherwise.
     lastFailure +=
       `\n  argv: ${bin} ${argv.join(" ")}` +
-      `\n  stdout: ${out.trim() || "(empty)"}` +
+      `\n  stdout: ${said.text.trim() || "(empty)"}` +
       `\n  stderr: ${err.trim() || "(empty)"}`;
   }
 
@@ -495,6 +500,7 @@ const startServerChild = async (
  */
 export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
   const child = ownServerOf(world);
+  const port = Number(new URL(world.baseUrl).port);
   await new Promise<void>((resolve) => {
     if (child.exitCode !== null || child.signalCode !== null) {
       resolve();
@@ -505,6 +511,10 @@ export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
   });
   live.delete(child);
   world.ownServer = undefined;
+  // Bind the port ourselves until startOwnServer releases it. Without this,
+  // another worker's `freePortIn` (or a `listen(0)` elsewhere) can steal
+  // the address the page is still pointed at.
+  world.portHold = await holdPort(port);
 };
 
 export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
@@ -521,6 +531,10 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
     );
   }
   const port = Number(new URL(world.baseUrl).port);
+  if (world.portHold !== undefined) {
+    await releasePort(world.portHold);
+    world.portHold = undefined;
+  }
   const started = await startServerChild(
     active.bin,
     world.scratch(),
@@ -533,6 +547,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       stored: world.storedSessions,
       agent: world.hasAgent,
       kolu: world.hasKolu,
+      stateRoot: scratchState(world.scratch()),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
     },
   );
@@ -545,13 +560,10 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
     );
   }
   world.ownServer = started.child;
-  // Keep what it says from here on. A scenario asserts on the rejection line
-  // (`message="stale tab rejected" … claimed=…`), which is the server's own record
-  // that the stale-tab gate fired — the half of the handshake a browser cannot
-  // see. The startup listeners are detached by then, so this attaches its own.
-  started.child?.stdout?.on("data", (chunk: string) => {
-    world.serverSaid += chunk;
-  });
+  // The same box the boot wait already filled. A second listener used to
+  // attach here, after the first was torn off — and that is the gap the
+  // stale-tab line fell through under load.
+  world.serverLog = started.said;
 };
 
 /** The server this scenario owns, or the diagnostic for a scenario that has
@@ -586,7 +598,7 @@ const reusedServer = async (
         `server per corpus.`,
     );
   }
-  return { baseUrl };
+  return { baseUrl, said: { text: "" } };
 };
 
 /** The server serving `corpus`, started on first ask and kept for the run. */
@@ -598,7 +610,9 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
   const started =
     active.kind === "reuse"
       ? reusedServer(active.baseUrl, corpus)
-      : startServerChild(active.bin, fixtureDir(corpus), `corpus "${corpus}"`, {});
+      : startServerChild(active.bin, fixtureDir(corpus), `corpus "${corpus}"`, {
+          stateRoot: path.join(workerStateRoot(), corpus),
+        });
 
   // A FAILED start is not kept: the next scenario asking for this corpus
   // deserves a real attempt rather than a replay of the same rejection.
@@ -615,7 +629,7 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
  *  goes away with the scenario rather than with the run. */
 const scratchServerFor = async (
   corpus: string,
-  spawnOptions: Spawn,
+  spawnOptions: Omit<Spawn, "stateRoot">,
 ): Promise<RunningServer & { readonly root: string }> => {
   const active = modeOf();
   if (active.kind === "reuse") {
@@ -634,7 +648,7 @@ const scratchServerFor = async (
       active.bin,
       root,
       `scratch copy of corpus "${corpus}"`,
-      spawnOptions,
+      { ...spawnOptions, stateRoot: scratchState(root) },
     );
     return { ...server, root };
   } catch (cause) {
@@ -707,6 +721,10 @@ BeforeAll(async () => {
 AfterAll(async () => {
   if (browser) await browser.close();
   await killAll();
+  if (workerState !== undefined) {
+    fs.rmSync(workerState, { recursive: true, force: true });
+    workerState = undefined;
+  }
 });
 
 /** Which corpus a scenario asked for, and whether it wants its own copy. */
@@ -818,8 +836,12 @@ After(async function (this: OlaiWorld, scenario) {
         .replace(/^-|-$/g, "") || "scenario";
     const dir = path.join(REPORTS, "screenshots");
     fs.mkdirSync(dir, { recursive: true });
+    const worker = process.env.CUCUMBER_WORKER_ID ?? "0";
     await this.page
-      .screenshot({ path: path.join(dir, `${name}.png`), fullPage: true })
+      .screenshot({
+        path: path.join(dir, `${worker}-${name}.png`),
+        fullPage: true,
+      })
       .catch((cause: unknown) => {
         console.error("could not capture a failure screenshot:", cause);
       });
@@ -828,6 +850,11 @@ After(async function (this: OlaiWorld, scenario) {
   // cookies and any in-flight WebSocket go with it, so the next scenario's
   // first frame is a genuine cold load.
   if (this.context) await this.context.close();
+
+  if (this.portHold !== undefined) {
+    await releasePort(this.portHold);
+    this.portHold = undefined;
+  }
 
   // A terminal agent is a second process watching the same directory, and it
   // goes first for the same reason the server goes before the directory: it is
@@ -841,5 +868,8 @@ After(async function (this: OlaiWorld, scenario) {
     killChild(this.ownServer);
     live.delete(this.ownServer);
   }
-  if (this.served) fs.rmSync(this.served, { recursive: true, force: true });
+  if (this.served) {
+    fs.rmSync(this.served, { recursive: true, force: true });
+    fs.rmSync(scratchState(this.served), { recursive: true, force: true });
+  }
 });

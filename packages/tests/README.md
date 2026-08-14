@@ -28,8 +28,9 @@ packages/tests/
 just e2e                      # the whole suite against the nix-built binary
 ```
 
-That is the leg `just check` runs. To iterate faster, run the suite yourself
-inside the e2e dev shell (which is the default shell plus Playwright's
+That is the leg `just check` runs. It is parallel by default, sized to the
+machine — see `CUCUMBER_PARALLEL` below. To iterate faster, run the suite
+yourself inside the e2e dev shell (which is the default shell plus Playwright's
 browsers):
 
 ```bash
@@ -72,7 +73,7 @@ them; setting both, or neither, fails at `BeforeAll` and says which to pick.
 | `HEADLESS` | `false` opens a visible browser. Anything else (or unset) is headless. |
 | `OLAI_TEST_VERBOSE` | Stream the server child's stdout/stderr into the test output. |
 | `CUCUMBER_TAGS` | Replaces the default tag filter (`not @skip`). `CUCUMBER_TAGS='@corpus:tangled'` runs only the tangled-corpus scenarios. |
-| `CUCUMBER_PARALLEL` | Worker count. Default 1. |
+| `CUCUMBER_PARALLEL` | Worker count. Unset, the suite sizes itself to the machine (`os.availableParallelism() - 1`, floored at 1, capped at 4) so a laptop and a CI box both run parallel by default without a flag. Set it to override, including `=1` for a serial run. |
 | `CUCUMBER_RETRY` | Scenario retry budget. Default 0 — a local run should show a real failure the first time. |
 
 Playwright's browsers come from the Nix store via `PLAYWRIGHT_BROWSERS_PATH`,
@@ -93,8 +94,9 @@ the one scenario starting at that line, so the window is not a blur of forty
 others. For a step-through, add `PWDEBUG=1` — Playwright's inspector pauses
 before every action.
 
-A failing scenario writes `reports/screenshots/<scenario-name>.png` whether or
-not you were watching.
+A failing scenario writes `reports/screenshots/<worker>-<scenario-name>.png`
+whether or not you were watching. The worker prefix keeps parallel
+screenshots from colliding.
 
 ## Fixture corpora
 
@@ -284,10 +286,14 @@ Theme row's hint now. Mutation-tested both times — hard-coding the name to
 
 `features/preferences.feature` carries the same second-tab scenario for the
 OTHER preference, and it is worth its own sentence because a reload cannot ask
-the question: deleting `followDoneDefault()` outright passes every other Done
-scenario in the file, and fails this one. It also holds the two ends of the
-panel's TAB CYCLE — Shift+Tab out to the trigger, Tab back in to the first
-control — which is the promise a portalled panel cannot get from document order.
+the question: deleting `followDoneHidden()` outright passes every other Done
+scenario in the file, and fails this one. The reload scenario is the boot
+read, not the write: applying the default at module load
+(`pref.set(SHOWN, { persist: false })` after the factory) reddens only
+`It is remembered`. The write is the stored-key step on the hide scenario,
+which master already shipped. It also holds the two ends of the panel's
+TAB CYCLE — Shift+Tab out to the trigger, Tab back in to the first control —
+which is the promise a portalled panel cannot get from document order.
 Both were sabotage-checked against the fix they are the fence for.
 
 ## Breaking the client on purpose
@@ -366,7 +372,7 @@ out locally: it is `index.html`'s mount point, which the client does not own.
 | `[data-testid="node-ref"]` | one link from a node to another node inside either of those rows; the target id rides `data-ref` on a span inside it |
 | `[data-testid="zoom-title"][data-node-id]` | the heading of a zoomed page — the CANONICAL node's id |
 | `[data-testid="breadcrumbs"]` / `[data-testid="crumb"]` | the ancestry above a zoomed node, and one link in it |
-| `[data-testid="done-toggle"][data-hidden]` | the per-view Visible/Hidden switch for done nodes |
+| `[data-testid="empty-under"]` | said on a zoomed page with no rows: a leaf, or a subtree Prefs has hidden |
 | `[data-testid="not-found"][data-reason]` | shown when `/n/<id>` names no node |
 | `[data-testid="error-view"]` | shown INSTEAD of sidebar + tree when nothing has ever validated |
 | `[data-testid="error-file-group"][data-file]` | one group per file with errors |

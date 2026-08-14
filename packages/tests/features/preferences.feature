@@ -18,13 +18,12 @@ Feature: One place to set how this browser reads
   attribute on `<html>`, and a hint read off the choice in force. `fonts.feature`
   is the whole of what the select still promises.
 
-  The Done row is the DEFAULT for a per-view switch rather than a second switch.
-  This switch belongs to a page — so it starts fresh when you zoom, unlike a
-  fold, which is this browser's and is kept (`folds_are_remembered.feature`) —
-  but "I do not want to look at finished work" is a claim about the reader, and
-  pressing it again on every page opened is what a preference exists to stop.
-  Two scenarios below are that distinction: changing it moves the page you are
-  on, and it leaves alone a page whose own switch has been pressed.
+  The Done row is the one switch. The floating pill that sat above the outline
+  was a second door for the same preference — the same redundancy the theme
+  pill used to be, and the same one `one-git-indicator` closed for the two git
+  chips. Prefs is the home; there is no per-page override. A pick moves the
+  page you are on, follows you onto a page you have not opened, and reaches
+  every other tab of this browser.
 
   Scenario: The preferences open from the header, and say whose they are
     When I open the app
@@ -118,39 +117,50 @@ Feature: One place to set how this browser reads
     When I set Done to "visible"
     Then the Done row explains that finished work is "shown"
 
-  Scenario: A page whose own switch has been pressed is left where it was put
-    # The per-view switch is not overridden by the preference behind it: it is
-    # what the preference is a DEFAULT for, so a page somebody has already
-    # spoken about stays as they left it.
+  Scenario: There is one switch, and it moves the page you are on
+    # THE FENCE FOR A REINTRODUCED OVERRIDE. The pill used to leave a page
+    # somebody had already spoken about; this ends with demo SHOWN after Prefs
+    # says visible, which is the inverse of the old pin. Hide/show-and-come-back
+    # in zoom_and_navigate is the tree filter; this one is that Prefs is the
+    # only circuit.
     Given I open the outline "house.jsonl"
     When I hide the done nodes
     Then the node "demo" is not shown
     When I set Done to "visible"
-    Then the node "demo" is not shown
+    Then the node "demo" is shown
 
-  Scenario: A page you go to starts on the default again
-    # The other half of the one above: what a page's own switch overrides is
-    # that page's reading, and a page you have never read has no reading to
-    # override with.
+  Scenario: The preference follows you onto a page you have not opened
+    # A pick is the reading of every page, including one you zoom into next.
+    # `Hiding done nodes works on a zoomed page too` is the same filter on a
+    # page you opened first; this one is that zooming does not start a new
+    # reading.
     Given I open the outline "house.jsonl"
     When I set Done to "hidden"
-    # The panel stays open on a press (a palette is judged by the page it
-    # paints), and the page's own switch is behind it.
     And I press Escape on the preferences
-    And I show the done nodes
-    Then the node "demo" is shown
+    Then the node "demo" is not shown
     When I zoom into the node "kitchen"
     Then the node "demo" is not shown
 
   Scenario: It is remembered, and it is this browser's
-    When I open the app
-    And I set Done to "hidden"
-    And I reload the page
-    Then the Done row explains that finished work is "hidden"
+    # THE PIN FOR THE BOOT READ. Prefs writes olai.done.hidden on
+    # createPreference; the write itself is already fenced by
+    # "this browser has stored" on the hide scenario above (a line master
+    # shipped). This one is that the first read after a reload honours that
+    # key. Sabotage: apply the default at module load and leave the write
+    # and the follow alone (`pref.set(SHOWN, { persist: false })` after the
+    # factory). That reddens this scenario and nothing else.
+    Given I open the outline "house.jsonl"
+    Then the node "demo" is shown
+    When I set Done to "hidden"
+    Then the node "demo" is not shown
+    When I reload the page
+    Then this browser has stored that done nodes are "hidden"
+    And the Done row explains that finished work is "hidden"
+    And the node "demo" is not shown
 
   Scenario: A preference set in another tab lands in this one
     # A preference belongs to the BROWSER, and a browser is more than one tab —
-    # which is what `followDoneDefault` is for, and what a reload scenario
+    # which is what `followDoneHidden` is for, and what a reload scenario
     # cannot ask: deleting that line entirely would pass every other Done
     # scenario here. The theme has had this fence since it was written; this is
     # the same one for the second preference, through the same `storage` event.

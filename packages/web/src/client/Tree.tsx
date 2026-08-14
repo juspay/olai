@@ -51,8 +51,9 @@
  * links; click again or click away collapses (./note/expand.ts). The date
  * badge stays on the title line. Notes are not a switch — the only two this
  * tree answers to are what is FOLDED, which belongs to the browser
- * (./fold/memory.ts), and whether done rows are drawn, which belongs to the
- * page and has already been applied to the rows handed here (./view.ts).
+ * (./fold/memory.ts), and whether done rows are drawn, which also belongs to
+ * the browser (./settings/done.ts) and has already been applied to the rows
+ * handed here.
  */
 
 import { isOverdue, type Row } from "@olai/format"

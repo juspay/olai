@@ -15,7 +15,7 @@
  *
  * That split is not a nicety. The rows a page hands the tree are a READING:
  * with done hidden, `withoutDone` has already dropped every finished branch
- * from them (`view.ts`), so a count taken from the rows would have said "and
+ * from them (`settings/done.ts`), so a count taken from the rows would have said "and
  * the 3 rows under it" over a branch of nine and archived all nine. The
  * sentence the confirm exists to be honest about was the one thing that could
  * not be read off the picture.

@@ -17,6 +17,7 @@
 import * as assert from "node:assert";
 import { execFileSync, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
+import type { Server } from "node:net";
 import * as path from "node:path";
 import * as os from "node:os";
 
@@ -245,6 +246,8 @@ export const START_LINE = selector(TESTID.startLine);
 /** The heading of a zoomed page. Carries the CANONICAL node's id, which is
  *  what lets a scenario say "zooming a mirror lands on the node itself". */
 export const ZOOM_TITLE = selector(TESTID.zoomTitle);
+/** Said on a zoomed page with no rows — a leaf, or Prefs hiding finished work. */
+export const EMPTY_UNDER = selector(TESTID.emptyUnder);
 export const BREADCRUMBS = selector(TESTID.breadcrumbs);
 export const CRUMB = selector(TESTID.crumb);
 /** The month in the sidebar, and one day of it. A day says what it is in
@@ -300,8 +303,6 @@ export const TRASH_LINK = selector(TESTID.trashLink);
 export const DAY_NOTE = selector(TESTID.dayNote);
 /** Its heading — the way from the day to the document's own page. */
 export const DAY_NOTE_LINK = selector(TESTID.dayNoteLink);
-/** The per-view Visible/Hidden switch for nodes that are done. */
-export const DONE_TOGGLE = selector(TESTID.doneToggle);
 /** Shown in the main pane when `/n/<id>` names no node. The sidebar stays. */
 export const NOT_FOUND = selector(TESTID.notFound);
 /** Shown INSTEAD of the sidebar and the tree when a set has never validated. */
@@ -677,6 +678,10 @@ export class OlaiWorld extends World {
   remote?: string;
   /** The server process a `@scratch:` scenario owns, killed in `After`. */
   ownServer?: ChildProcess;
+  /** A listen on this scenario's port, held between stop and restart so
+   *  another worker cannot steal it. Released by `startOwnServer`, or by
+   *  `After` if the scenario never came back. */
+  portHold?: Server;
   /** A coding agent in a terminal, for the scenarios about the tool surface
    *  olai does not own the client of: `olai mcp` over the same directory the
    *  page is watching. Killed in `After` beside the server. */
@@ -687,15 +692,11 @@ export class OlaiWorld extends World {
    *  them would share them across scenarios. */
   toolsOffered: string[] = [];
   toolAnswer?: Record<string, unknown>;
-  /** What that server has printed since a scenario RESTARTED it (`support/hooks.ts`).
-   *
-   *  The one thing a scenario cannot see from the browser is what the server
-   *  decided about a connection it refused: the stale-tab gate closes the socket
-   *  at the handshake and says so on stdout, and nothing about that reaches the
-   *  page except the absence of a connection. Asserting on the line is what
-   *  makes "the gate fired" a fact rather than an inference from a UI state that
-   *  could have been reached another way. */
-  serverSaid = "";
+  /** What that server has printed, as a box the spawn listener appends to
+   *  for the life of the child. A string field that was assigned after boot
+   *  dropped the stale-tab line when it arrived in the gap between "serving"
+   *  and the new listener — the restart flake under load. */
+  serverLog: { text: string } = { text: "" };
 
   /** Wait for a double `requestAnimationFrame`.
    *

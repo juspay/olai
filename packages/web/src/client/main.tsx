@@ -12,7 +12,7 @@ import { followFolders } from "./fold/folders.ts"
 import { followFolds } from "./fold/memory.ts"
 import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
-import { followDoneDefault } from "./settings/done.ts"
+import { followDoneHidden } from "./settings/done.ts"
 import { followStoredFont } from "./theme/fontState.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
@@ -43,7 +43,7 @@ followStoredFont()
 // the directory — and the phone/desktop media query — document-lifetime, like
 // the theme.
 followLayout()
-followDoneDefault()
+followDoneHidden()
 followFolds()
 followFolders()
 trackDesktop()

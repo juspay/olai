@@ -2,7 +2,10 @@
   // Per-package `tsc --noEmit` anchor. Shared options live in
   // ../../tsconfig.base.json; this member points tsc at the two directories
   // that hold TypeScript. `features/` is Gherkin and `cucumber.js` is plain
-  // JS read by the runner, so neither is compiled.
+  // JS read by the runner, so neither is compiled. `allowJs` is for
+  // `support/parallelism.js` — the count has to be JS because cucumber-js
+  // loads it with Node, and the TypeScript side re-exports it.
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "allowJs": true, "checkJs": false },
   "include": ["agent", "support", "step_definitions"]
 }
