@@ -438,12 +438,20 @@ Feature: Talking to the agent
     # number and quite different amounts of work left.
     When I ask the agent "hello"
     Then the panel header says the context is "13k/200k"
-    When I ask the agent "window 1000000"
+    # HELD between the turn's two usage frames, so the mid-stream state is
+    # looked at rather than inferred from where the turn ended. Inferring it
+    # would pin nothing about the ORDER: an agent that moved the window before
+    # both frames ends in the same place.
+    When I ask the agent "window 1000000 hold"
+    Then the agent is working
+    # Mid-turn: the window the conversation began on, and this turn's first
+    # count of what it has spent.
+    And the panel header says the context is "25k/200k"
+    When the agent is released
     Then the agent is idle
-    # The window moves BETWEEN that turn's two frames, where the adapter moves
-    # it — so this asserts both halves at once. A panel that kept the turn's
-    # first report would say "25k/200k": the old window, and the turn's own
-    # first count of what it had spent.
+    # ... and the correction lands on the turn's last frame, which is where the
+    # adapter puts it. A panel that kept the turn's FIRST report would still be
+    # showing the line above.
     And the panel header says the context is "26k/1M"
 
   @scratch:chat

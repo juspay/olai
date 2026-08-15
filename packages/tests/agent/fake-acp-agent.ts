@@ -36,8 +36,10 @@
  *                say silently, and not observably until the NEXT turn
  *   reconfig     re-announce the session's config options unchanged, the way
  *                the adapter does when anything else in that set moves
- *   window <n>   move the context WINDOW, the way the adapter does when it
- *                corrects a seeded guess at the end of a turn
+ *   window <n> [hold]   move the context WINDOW, the way the adapter does when
+ *                it corrects a seeded guess at the end of a turn. `hold` stops
+ *                between the turn's two usage frames, so a scenario can look at
+ *                the mid-stream window rather than infer it
  *   ask          ask a structured question and report the answer
  *   askstrict    ask one with a REQUIRED, typed field, the way an MCP server does
  *   plan         ask to leave plan mode, the way the adapter does
@@ -519,7 +521,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   //
   // `window`, NOT `context`: that verb is taken, by the scenarios that prove an
   // armed node reaches the prompt as an id the ops tools accept.
-  const moving = verb === "window" ? Number(argument) : null
+  //
+  // `window <n> hold` stops BETWEEN the turn's two frames, which is the only
+  // way a scenario can look at the mid-stream state rather than infer it from
+  // where the turn ended — and inferring it is not enough here, because a
+  // version of this file that moved the window before both frames would end in
+  // the same place and pin nothing.
+  const moving = verb === "window" ? Number(rest[0]) : null
+  const holding = verb === "window" && rest[1] === "hold"
 
   // What a turn spends, reported the way a real turn reports it: MORE THAN ONE
   // frame, with BOTH numbers moving between them, and the cost riding the last.
@@ -535,6 +544,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // `used` and not for `size`, which is half a claim.
   used += 12_000
   usageUpdate(false)
+  if (holding) await released()
   if (moving !== null) size = moving
   used += 900
   usageUpdate(true)
