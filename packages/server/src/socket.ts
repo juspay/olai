@@ -102,7 +102,7 @@ const canonical = (root: string): string => {
 export const serveAgentSocket = (options: {
   readonly root: string
   readonly bound: Pick<Bound, "group" | "handlers">
-}): Effect.Effect<string, never, Scope.Scope> =>
+}): Effect.Effect<void, never, Scope.Scope> =>
   Effect.gen(function*() {
     const socketPath = socketFor(options.root)
     // Everything this listener says about itself, it says from a Node callback
@@ -123,7 +123,6 @@ export const serveAgentSocket = (options: {
     )
     yield* Effect.addFinalizer(() => Effect.sync(() => listener.close()))
     yield* said(listener.outcome, socketPath)
-    return socketPath
   })
 
 /** What each verdict MEANS for olai, in olai's words. The transport owns the

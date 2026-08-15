@@ -252,9 +252,11 @@ const fresh = (options: McpServeOptions) =>
     // for the procedure's door, because here there is no button and no panel:
     // the only caller is the agent this process was launched by.
     //
-    // The ops layer is the same one the tools get: the edit procedures it backs
-    // are unexposed on this face (`../faces.ts` is default-deny, and an agent
-    // has the tools), so what they cost here is a binding nobody can reach.
+    // The ops layer is what the tools reach too, one seam further along: they
+    // go through the SURFACE (`./tools.ts`), over a direct dispatch at these
+    // same handlers, gated by the same map the socket face is. So the keyboard's
+    // `edit.apply` is bound here and unreachable — an agent has the tools — and
+    // what it costs is a binding nobody can call.
     const wired = yield* bind({
       store,
       chat: null,

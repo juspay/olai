@@ -175,13 +175,30 @@ const DECLARED = (): ReadonlyArray<string> => [
   ),
 ]
 
-test("the browser's face is every member a page uses, and the ops door is not one", () => {
-  // Exact, in both directions. A member added to the surface and forgotten here
-  // is a page that cannot call it; a member added here by reflex is the widening
-  // this map exists to prevent. `ops.*` is the whole reason the map exists.
-  expect([...Object.keys(BROWSER)].sort()).toEqual(
-    DECLARED().filter((member) => !member.startsWith("ops.")).sort(),
-  )
+test("every member the surface declares is DECIDED by one of the faces", () => {
+  // Not "the browser has everything but `ops.*`", which would make the only way
+  // to pass adding a new member to the browser's map — the exact reflex a
+  // default-deny gate exists to interrupt. What is asserted is that somebody
+  // decided: a member no face names is served to nobody, which is either a
+  // mistake or a deliberate omission, and both deserve to be noticed once.
+  expect([...new Set([...Object.keys(BROWSER), ...Object.keys(AGENT)])].sort())
+    .toEqual([...DECLARED()].sort())
+})
+
+test("no browser may reach the ops door, and only the socket may", () => {
+  // The one rule this whole arrangement exists for, as a rule rather than as a
+  // list: whatever `ops.*` grows to, a tab gets none of it.
+  const ops = DECLARED().filter((member) => member.startsWith("ops."))
+  expect(ops.length).toBeGreaterThan(0)
+  expect(ops.filter((member) => member in BROWSER)).toEqual([])
+  expect(ops.filter((member) => !(member in AGENT))).toEqual([])
+})
+
+test("the browser's face names nothing the surface does not declare", () => {
+  // `exposeFace` would refuse a stray key at boot; this says so at the moment
+  // somebody types one, and names it.
+  expect(Object.keys(BROWSER).filter((member) => !DECLARED().includes(member)))
+    .toEqual([])
 })
 
 test("the agent's face is what it can SEE plus the doors its tools land through", () => {

@@ -1,26 +1,25 @@
 /**
- * The surface, spoken as MCP — serve-fresh.
+ * The surface, spoken as MCP — over whichever surface it is handed.
  *
  * `@kolu/surface-mcp` adapts a declared surface into an MCP server: the cells
  * and collections named in {@link ../faces.ts} become readable and SUBSCRIBABLE
  * resources, so an agent watches the same rows the browser draws instead of
  * polling a second projection of them. This module is the composition — the
- * surface runtime, an in-process dispatch over it, and the adapter in front.
+ * adapter, its expose map, and the typed client the tools and the resources
+ * both read through.
  *
- * **Serve-fresh** is the shape here: the MCP server IS the backend, in one
- * process, which is what `olai mcp <dir>` needs when nothing else is running —
- * the ordinary case, somebody in a terminal in their notes directory. The other
- * shape the adapter supports, BRIDGE (dial a surface something else is already
- * serving, over a unix socket), is deliberately not here: it only retires the
- * second store if writes cross it too, and until writes are surface procedures
- * that means carrying the running server's token in a file. That trade belongs
- * to the parent roadmap item, with the argument in
- * docs/brainstorming/surface-mcp-viewing.md.
+ * **Both of the adapter's shapes go through this one function**, and the caller
+ * decides which by what it passes as `client`: a direct dispatch at a runtime
+ * this process built (serve-fresh), or a dialled unix socket into an `olai web`
+ * that already holds the store (attached, `../socket.ts`). Nothing else differs
+ * — same expose map, same tools, same instructions — which is the property
+ * `mcp-bridge` was built to have and the reason an agent's tool list cannot
+ * depend on whether a browser happens to be open.
  *
- * There is no wire under the dispatch and that is the point of `directDispatch`:
- * the same consumer code that would run against a socket-served surface runs
- * against an in-process one, so what an agent reads here and what it would read
- * bridged are the same values by construction rather than by two
+ * There is no wire under the direct dispatch and that is the point of it: the
+ * same consumer code that runs against a socket-served surface runs against an
+ * in-process one, so what an agent reads and writes here and what it reads and
+ * writes attached are the same values by construction rather than by two
  * implementations agreeing.
  *
  * **The tools ride here too**, as bespoke tools projected from `@olai/ops`'
