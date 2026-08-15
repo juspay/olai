@@ -32,6 +32,13 @@ import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import { setSidebarOpen } from "./prefs.ts"
 
+/** How big an icon on this rail is. Spelled once because five buttons draw one
+ *  — three inline here and two that are the directory's own glyphs
+ *  (`../file/icons.tsx`, which takes its size from whoever draws it) — and a
+ *  rail whose icons are not all one size is the only thing a reader would
+ *  notice about the number. */
+const ICON = "size-4"
+
 export function Rail(props: {
   /** Navigate without a full Link tree — the rail is outside the router
    *  provider on some screens, so it takes a callback the shell already has. */
@@ -58,7 +65,7 @@ export function Rail(props: {
         onClick={() => setSidebarOpen(true)}
       >
         {/* chevron-right */}
-        <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
+        <svg viewBox="0 0 16 16" class={ICON} aria-hidden="true" fill="currentColor">
           <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4 4a.75.75 0 0 1 0 1.06l-4 4a.75.75 0 1 1-1.06-1.06L9.44 8 6.22 4.28a.75.75 0 0 1 0-1.06z" />
         </svg>
       </RailButton>
@@ -69,7 +76,7 @@ export function Rail(props: {
         title="today"
         onClick={() => props.go({ kind: "today" })}
       >
-        <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
+        <svg viewBox="0 0 16 16" class={ICON} aria-hidden="true" fill="currentColor">
           <path d="M3.5 2A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 12.5 2h-1V1a.75.75 0 0 0-1.5 0v1h-4V1A.75.75 0 0 0 4.5 1v1h-1zM3.5 6h9v6.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5V6z" />
         </svg>
       </RailButton>
@@ -89,7 +96,7 @@ export function Rail(props: {
       >
         {/* A checklist: two ticked lines, which is what is owed rather than
             what day it is — the calendar above answers that. */}
-        <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
+        <svg viewBox="0 0 16 16" class={ICON} aria-hidden="true" fill="currentColor">
           <path d="M6.25 3.5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zM4.78 2.22a.75.75 0 0 1 0 1.06l-1.5 1.5a.75.75 0 0 1-1.06 0l-.75-.75a.75.75 0 0 1 1.06-1.06l.22.22 .97-.97a.75.75 0 0 1 1.06 0zm0 5a.75.75 0 0 1 0 1.06l-1.5 1.5a.75.75 0 0 1-1.06 0l-.75-.75a.75.75 0 1 1 1.06-1.06l.22.22.97-.97a.75.75 0 0 1 1.06 0z" />
         </svg>
         {/* Drawn exactly where the table handed back a paint for it — the
@@ -116,7 +123,7 @@ export function Rail(props: {
             size. Both faces of this column already agree about what is OWED;
             they agree about what an OUTLINE is for the same reason — a reader
             who collapses the column has not gone somewhere else. */}
-        <Glyph of="outline" size="size-4" />
+        <Glyph of="outline" size={ICON} />
       </RailButton>
 
       <RailButton
@@ -126,7 +133,7 @@ export function Rail(props: {
         onClick={() => setSidebarOpen(true)}
       >
         {/* And the tree's document glyph, for the same reason. */}
-        <Glyph of="document" size="size-4" />
+        <Glyph of="document" size={ICON} />
       </RailButton>
     </div>
   )

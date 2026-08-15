@@ -877,6 +877,16 @@ avoid. `data-glyph` is the fact a scenario reads
 (`features/serve_a_directory.feature`); the shape is what a reader reads, and
 neither is the ink.
 
+**Both faces draw from it.** `layout/Rail.tsx` — this same column collapsed —
+had inline SVGs of its own for two of the three kinds, a generic three-line
+list and a generic page-with-a-corner, and after the tree started glyphing them
+the app had two answers to "what does an outline look like". It draws
+`<Glyph>` now, at the rail's size rather than the tree's (the size is the
+site's; the drawing is the directory's). This is the same argument that puts
+the agenda's mark on both faces one section up: a reader who collapses the
+column has not gone somewhere else. Changing a path in `file/icons.tsx` moves
+pixels in two components, deliberately.
+
 ### Why not `@pierre/trees`
 
 The same company publishes the tree itself, and adopting it was the ruling this

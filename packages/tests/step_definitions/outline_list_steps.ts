@@ -17,7 +17,6 @@ import {
   POLL_TIMEOUT,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
-import type { Locator } from "playwright";
 
 /** One folder in the file tree, as a selector string `expectAttribute` takes. */
 const folderSelector = (path: string): string =>
@@ -246,29 +245,27 @@ Then(
 // deliberately not the assertion either: `.jsonl` in the label is the thing
 // that was carrying this on its own and the reason the mark was filed.
 
-/** `row` is the clickable thing itself — a link, or a folder's own toggle
- *  (`folderToggle`, already scoped to the direct child) — never its `<li>`:
- *  nested folders nest their `li`s, so a glyph found under one of those could
- *  be a child's. */
-const expectGlyph = async (
-  row: Locator,
-  kind: string,
-  said: string,
-): Promise<void> => {
-  const glyph = row.locator(FILE_GLYPH);
-  await glyph.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  assert.strictEqual(
-    await glyph.getAttribute("data-glyph"),
-    kind,
-    `${said} is not drawn as a ${kind}`,
-  );
-};
+// Through `expectAttribute`, like every other `data-` fact in this file. The
+// compound selector is what makes the wait RETRY across the frame that paints
+// the tree, and the failure says what the glyph carries INSTEAD — which is the
+// difference between "the wrong kind" and "no glyph at all".
+//
+// Scoped to the clickable thing — a link, or a folder's own `:scope > button`,
+// the same scoping `folderToggle` gives — and never to a folder's `<li>`:
+// nested folders nest their `li`s, so a glyph found under one of those could be
+// a child's.
 
 Then(
   "the outline link {string} is drawn as an outline",
   async function (this: OlaiWorld, file: string) {
     await this.showSidebar();
-    await expectGlyph(this.outlineLink(file), "outline", `the outline "${file}"`);
+    await this.expectAttribute(
+      `${OUTLINE_LINK}[data-file="${file}"] ${FILE_GLYPH}`,
+      "data-glyph",
+      "outline",
+      `the outline "${file}"`,
+      HYDRATION_TIMEOUT,
+    );
   },
 );
 
@@ -276,10 +273,12 @@ Then(
   "the document link {string} is drawn as a document",
   async function (this: OlaiWorld, file: string) {
     await this.showSidebar();
-    await expectGlyph(
-      this.documentLink(file),
+    await this.expectAttribute(
+      `${DOCUMENT_LINK}[data-file="${file}"] ${FILE_GLYPH}`,
+      "data-glyph",
       "document",
       `the document "${file}"`,
+      HYDRATION_TIMEOUT,
     );
   },
 );
@@ -288,10 +287,12 @@ Then(
   "the folder {string} is drawn as a folder",
   async function (this: OlaiWorld, path: string) {
     await this.showSidebar();
-    await expectGlyph(
-      folderToggle(this, path),
+    await this.expectAttribute(
+      `${folderSelector(path)} > button ${FILE_GLYPH}`,
+      "data-glyph",
       "folder",
       `the folder "${path}"`,
+      HYDRATION_TIMEOUT,
     );
   },
 );

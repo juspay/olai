@@ -1,5 +1,5 @@
 /**
- * What KIND each row of the directory is, said in a glyph.
+ * What KIND of thing in the directory this is, said in a glyph.
  *
  * The complaint this answers was filed from a screenshot: the sidebar's tree
  * drew `garden.jsonl`, `finishes.md` and `notes` in the same ink at the same
@@ -13,8 +13,8 @@
  * ## A file of its own, where every other icon in this client is inline
  *
  * The house pattern for an icon is an `<svg>` written where it is drawn, with
- * a comment naming it (`../layout/Rail.tsx` has five, `../Sidebar.tsx`'s
- * collapse chevron is a sixth). Two things make these three not that, and both
+ * a comment naming it (`../layout/Rail.tsx` still has three, `../Sidebar.tsx`'s
+ * collapse chevron is a fourth). Two things make these three not that, and both
  * are about the SET rather than about any one of them.
  *
  * They have to agree: three drawings in one column, at one weight, in one
@@ -27,6 +27,14 @@
  * obligation, which is a fact about specific bytes; one file holding all of
  * them, with the notice at the top, is the only arrangement where that notice
  * cannot drift away from what it is a notice FOR.
+ *
+ * Two surfaces draw from here, and that is the third reason: `../Sidebar.tsx`
+ * puts a glyph on every row of the tree, and `../layout/Rail.tsx` — the same
+ * column COLLAPSED — puts two of them on the buttons that stand for outlines
+ * and for documents. Both faces of this column already agree about what is
+ * owed (`../agenda/owed.ts`, drawn on each); they agree about what an outline
+ * looks like for the same reason, and a reader who collapses the column has
+ * not gone somewhere else.
  *
  * ## Where they come from
  *
@@ -62,15 +70,18 @@
  */
 
 import type { JSX } from "solid-js"
-import { Dynamic } from "solid-js/web"
 
 import { type FileOf } from "../fileTree.ts"
 import { TESTID } from "../testids.ts"
 
-/** The three kinds of row the directory draws — the two kinds of FILE, plus
- *  the folders they sit under. Not exported: the one consumer passes a
- *  `FileRow`'s own `of`, or the literal `"folder"`. */
-type RowOf = FileOf | "folder"
+/** The three kinds of thing this directory is made of — the two kinds of FILE,
+ *  plus the folders they sit under.
+ *
+ *  Named for the DIRECTORY and not for a row of the tree, because the tree is
+ *  not the only place they are drawn: the rail draws two of them while the
+ *  column is collapsed, and neither of those is a row. Not exported — the tree
+ *  passes a `FileRow`'s own `of`, the rail passes the literal it means. */
+type DirectoryKind = FileOf | "folder"
 
 /** One kind, drawn: the box it is drawn in and the shape drawn in it, in one
  *  place because they are one drawing. Held apart — a `viewBox` chosen by one
@@ -89,7 +100,7 @@ interface Drawn {
  *  `Record` over the union for the reason `Checkbox.tsx` spells out beside its
  *  own: a fourth kind is then a compile error here rather than a row that
  *  quietly draws whatever the last arm of a chain of ternaries was. */
-const GLYPHS: Record<RowOf, Drawn> = {
+const GLYPHS: Record<DirectoryKind, Drawn> = {
   // Wider than tall, as a folder is; the square box would letterbox it.
   folder: { box: "0 0 18 16", shape: FolderPaths },
   document: { box: "0 0 16 16", shape: DocumentPaths },
@@ -104,7 +115,7 @@ const GLYPHS: Record<RowOf, Drawn> = {
  *  type, and a rail button is 1rem of glyph beside four other 1rem buttons.
  *  Same drawing, two rooms. The default is the tree's, because that is where
  *  three of the four are drawn. */
-export function Glyph(props: { readonly of: RowOf; readonly size?: string }) {
+export function Glyph(props: { readonly of: DirectoryKind; readonly size?: string }) {
   const glyph = (): Drawn => GLYPHS[props.of]
 
   return (
@@ -116,7 +127,12 @@ export function Glyph(props: { readonly of: RowOf; readonly size?: string }) {
       data-testid={TESTID.fileGlyph}
       data-glyph={props.of}
     >
-      <Dynamic component={glyph().shape} />
+      {/* Called, not handed to `<Dynamic>`: that primitive is for a component
+          that arrives at RUNTIME (`../menu/NodeMenu.tsx` says so beside its
+          own), and these three are module-level functions over a closed union.
+          Solid compiles this to the one insert `Dynamic` would have wrapped in
+          two memos and a `splitProps`. */}
+      {glyph().shape()}
     </svg>
   )
 }
