@@ -10,18 +10,50 @@
  * It draws `SHORTCUTS` and nothing of its own. The list is beside the matchers
  * it describes, and a unit test holds it to covering every editing action, so
  * this component cannot go stale without something failing first.
+ *
+ * ## AND IT ANSWERS ESCAPE, which it did not
+ *
+ * A scrim was the only way out of it — reported twice in review, and the one
+ * dialog on this page that ignored the key a reader reaches for. On the
+ * KEYBOARD-shortcuts dialog, which is the version of that gap worth fixing
+ * rather than recording: somebody who opened it to learn the keys pressed the
+ * most universal one and nothing happened.
+ *
+ * It is on the client's one dismissal stack (`../topmost.ts`) like every other
+ * panel, and answers on the WINDOW like the palette that opens it — the rule
+ * being that a layer answers a dismissal from the document or later, never
+ * from its own box. Nothing stands over it today (the palette closes on its
+ * way through, and this covers the page), so the ticket buys nothing yet; it
+ * costs a line and it means the next thing drawn over a modal does not have to
+ * remember this one.
  */
 
-import { For, Show } from "solid-js"
+import { For, onCleanup, onMount, Show } from "solid-js"
 
 import { SHORTCUTS } from "../keys.ts"
 import { LAYER, WITHIN } from "../layer.ts"
 import { TESTID } from "../testids.ts"
+import { topmostWhileOpen } from "../topmost.ts"
 
 export function Shortcuts(props: {
   readonly open: boolean
   readonly onClose: () => void
 }) {
+  const topmost = topmostWhileOpen(() => props.open)
+
+  // On the window, and registered once for the component's life rather than
+  // per open: this component is always mounted (the palette draws it beside
+  // itself), and being open is a prop it reads. Same shape as the palette's.
+  onMount(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!props.open || !topmost() || event.key !== "Escape") return
+      event.preventDefault()
+      props.onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    onCleanup(() => window.removeEventListener("keydown", onKey))
+  })
+
   return (
     <Show when={props.open}>
       <div

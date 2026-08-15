@@ -540,11 +540,14 @@ export const PALETTE_INPUT = selector(TESTID.paletteInput);
 export const PALETTE_CAPTURE = selector(TESTID.paletteCapture);
 export const PALETTE_CONFIRM = selector(TESTID.paletteConfirm);
 export const PALETTE_SAID = selector(TESTID.paletteSaid);
+export const PALETTE_SCRIM = selector(TESTID.paletteScrim);
+export const SHORTCUTS = selector(TESTID.shortcuts);
 
 export const CHAT_TITLE = selector(TESTID.chatTitle);
 export const CHAT_WORKING = selector(TESTID.chatWorking);
 export const CHAT_MODEL = selector(TESTID.chatModel);
 export const CHAT_SESSIONS = selector(TESTID.chatSessions);
+export const CHAT_SESSION_LIST = selector(TESTID.chatSessionList);
 export const CHAT_SESSIONS_REFUSED = selector(TESTID.chatSessionsRefused);
 export const CHAT_SESSION = selector(TESTID.chatSession);
 export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
