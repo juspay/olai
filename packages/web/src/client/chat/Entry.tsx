@@ -117,7 +117,7 @@ export function Entry(props: {
 
   return (
     <div
-      class="mb-2"
+      class="mb-2 min-w-0"
       data-testid={TESTID.chatEntry}
       data-kind={props.entry.kind}
       data-entry-id={props.entry.id}

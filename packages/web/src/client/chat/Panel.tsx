@@ -179,7 +179,7 @@ function DesktopDock() {
 
   return (
     <aside
-      class={`fixed right-0 top-[var(--height-header,3rem)] ${LAYER.page} flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] max-w-full flex-col border-l border-rule/70 bg-desk`}
+      class={`fixed right-0 top-[var(--height-header,3rem)] ${LAYER.page} flex h-[calc(var(--visible-h,100dvh)-var(--height-header,3rem))] max-w-full min-w-0 flex-col border-l border-rule/70 bg-desk`}
       style={{ width: `${chatWidth()}px` }}
       data-testid={TESTID.chatPanel}
       data-status={chat.state().status}
@@ -260,7 +260,7 @@ function MobileSheet() {
         onClick={() => setChatOpen(false)}
       />
       <aside
-        class="absolute inset-x-0 bottom-0 flex flex-col rounded-t-xl border-t border-rule/70 bg-desk shadow-lg"
+        class="absolute inset-x-0 bottom-0 flex min-w-0 flex-col rounded-t-xl border-t border-rule/70 bg-desk shadow-lg"
         style={{
           height: `${heightPct()}%`,
           "max-height": "100%",

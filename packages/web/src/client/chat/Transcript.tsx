@@ -90,7 +90,7 @@ export function Transcript(props: { readonly chat: Chat }) {
 
   return (
     <div
-      class="flex-1 overflow-y-auto px-3 py-2"
+      class="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2"
       data-testid={TESTID.chatTranscript}
       ref={pane}
       onScroll={() => {
@@ -112,7 +112,7 @@ export function Transcript(props: { readonly chat: Chat }) {
       {/* A wrapper with no styling of its own, purely so there is something
           whose HEIGHT can be observed: the pane's own size never changes, and
           it is the content inside it that grows. */}
-      <div ref={content}>
+      <div class="min-w-0" ref={content}>
         <For each={props.chat.rows()}>
           {(key) => {
             const entry = props.chat.entry(key)
