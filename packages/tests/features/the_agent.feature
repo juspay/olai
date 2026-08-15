@@ -438,7 +438,7 @@ Feature: Talking to the agent
     # number and quite different amounts of work left.
     When I ask the agent "hello"
     Then the panel header says the context is "13k/200k"
-    When I ask the agent "context 1000000"
+    When I ask the agent "window 1000000"
     Then the agent is idle
     And the panel header says the context is "26k/1M"
 

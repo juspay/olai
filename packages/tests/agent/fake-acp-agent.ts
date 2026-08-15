@@ -36,7 +36,7 @@
  *                say silently, and not observably until the NEXT turn
  *   reconfig     re-announce the session's config options unchanged, the way
  *                the adapter does when anything else in that set moves
- *   context <n>  move the context WINDOW, the way the adapter does when it
+ *   window <n>   move the context WINDOW, the way the adapter does when it
  *                corrects a seeded guess at the end of a turn
  *   ask          ask a structured question and report the answer
  *   askstrict    ask one with a REQUIRED, typed field, the way an MCP server does
@@ -519,7 +519,10 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // real adapter does on the first turn after a `/model`, where it seeds the
   // previous model's window and corrects it when the turn ends. Read before the
   // frames below so the change lands on the turn that asked for it.
-  if (verb === "context") size = Number(argument)
+  //
+  // `window`, NOT `context`: that verb is taken, by the scenarios that prove an
+  // armed node reaches the prompt as an id the ops tools accept.
+  if (verb === "window") size = Number(argument)
 
   // What a turn spends, reported the way a real turn reports it: MORE THAN ONE
   // frame, with the number moving between them, and the cost riding the last.
@@ -530,7 +533,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   used += 900
   usageUpdate(true)
 
-  if (verb === "context") {
+  if (verb === "window") {
     say(`the context window is ${size} now.`)
     respond(id, { stopReason: "end_turn" })
     return
