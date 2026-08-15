@@ -334,10 +334,9 @@ export const outlines = (
   const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
   return set.files.map((file): OutlineSummary => {
     const errors = broken.get(file)
-    // The whole of what can be said about it, and nothing more: a count and a
-    // root list are what a PARSE produces, so a file that did not parse has
-    // neither rather than having them filled in with a zero and an empty list.
-    // The floor's own arm, and the reason it has two.
+    // The floor's second arm — a count and a root list are what a PARSE
+    // produces, so a file that did not parse has neither. {@link OutlineSummary}
+    // argues it.
     if (errors !== undefined) return { file, unreadable: errors.map(errorLine) }
     const own = derived.nodes.filter((located) => located.file === file)
     return {

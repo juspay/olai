@@ -1,11 +1,18 @@
 /**
  * What a READ of the set asks, and what it says back.
  *
- * Data, and nothing but: there is no index in this file and no walk reachable
- * from it. It is here for the reason `./committing.ts` and `./searching.ts`
- * are, and the argument is those files' word for word — this package is the
- * floor both the ops layer and the wire spec stand on, and a vocabulary spelled
- * in either of those would have to be spelled again in the other.
+ * Data, and nothing but: there is no index in this file and nothing here walks
+ * anything. It DOES reach `./derive.ts` and `./node.ts`, for three shapes each
+ * of them declares beside the thing that produces it — {@link Progress},
+ * {@link Status}, and the record's own mark fields — which is the same
+ * borrowing `./committing.ts` does from `@olai/git/state`: the shape travels,
+ * so it is declared once at its source rather than copied to the module that
+ * carries it.
+ *
+ * It is here for the reason `./committing.ts` and `./searching.ts` are, and the
+ * argument is those files' word for word — this package is the floor both the
+ * ops layer and the wire spec stand on, and a vocabulary spelled in either of
+ * those would have to be spelled again in the other.
  *
  * `./searching.ts` moved ONE of the four reads down here and argued it from a
  * drift that was live. These are the other three — the directory
@@ -46,13 +53,20 @@
  * why it is done here and not left to whoever meets it.
  *
  * **What stays in `@olai/ops`** is the same division `./committing.ts` and
- * `./searching.ts` keep. Every field below is a statement about records in this
- * package's own vocabulary — an id, a `file:line`, a {@link Status}, the
- * ancestor titles `ancestorsOf` walks, the mark a record stores. WHICH node a
- * read is about, which mirrors resolve to it, how far a walk descends and what
- * a broken file leaves sayable are questions about the SET, and they stay with
- * the derivations that answer them. The shape is the floor's; the walk is the
- * ops layer's.
+ * `./searching.ts` keep. Nearly every field below is a statement about records
+ * in this package's own vocabulary — an id, a `file:line`, a {@link Status},
+ * the ancestor titles `ancestorsOf` walks, the mark a record stores. WHICH node
+ * a read is about, which mirrors resolve to it, how far a walk descends and
+ * what a broken file leaves sayable are questions about the SET, and they stay
+ * with the derivations that answer them. The shape is the floor's; the walk is
+ * the ops layer's.
+ *
+ * `truncated` on {@link Subtree} is the one exception and is named as one, the
+ * way `./searching.ts` names `matched`: it is a fact about the WALK rather than
+ * about the record — that it stopped where it was told to. It belongs here
+ * anyway, because it is a field of an ANSWER and the answers are the floor's;
+ * what it must not become is a licence to read the sentence above loosely for
+ * the next field somebody proposes.
  */
 
 import { Schema } from "effect"
@@ -130,9 +144,9 @@ export type Found = typeof Found.Type
  *
  * So the dependent facts exist only on the arm that grounds them. It is also
  * the shape this module's own neighbour already uses for the same kind of news
- * — {@link Missing} is how a read of an id the set does not hold answers — and
- * a listing spelling it as an optional field was the asymmetry saying which of
- * the two was thought through.
+ * — {@link NodeAnswer}'s second arm is how a read of an id the set does not
+ * hold answers — and a listing spelling the same news as an optional field was
+ * the asymmetry saying which of the two had been thought through.
  */
 export const OutlineSummary = Schema.Union([
   Schema.Struct({
@@ -187,11 +201,6 @@ export type NodeRequest = typeof NodeRequest.Type
  * placements of it are answered. A search never returns one: a mirror is a
  * second location of a node, and a hit for it would be the same node twice,
  * once at a place no write lands.
- *
- * (`./node.ts` has a private fields object of the same name, for the `id`,
- * `parent` and `ord` a RECORD carries. Different thing, one namespace apart:
- * that one is where a record sits among its siblings, this one is where a line
- * that shows a node was found. Said out loud rather than left to be noticed.)
  */
 export const Placement = Schema.Struct({
   id: Schema.String,
@@ -343,9 +352,13 @@ export const Subtree = Schema.Struct({
  * data an agent can branch on rather than as an error it has to parse. The id
  * is echoed because the answer is otherwise indistinguishable from an empty
  * one — "which id did you not find" is the whole of what there is to say.
+ *
+ * Not on the package's surface, and it is the only shape in this file that is
+ * not: a consumer holding a {@link NodeAnswer} narrows it with `"missing" in`,
+ * which needs no name. It is exported the day something wants to say the arm
+ * out loud.
  */
-export const Missing = Schema.Struct({ missing: Schema.String })
-export type Missing = typeof Missing.Type
+const Missing = Schema.Struct({ missing: Schema.String })
 
 /** What `read_node` says: the node, or the id it does not hold. */
 export const NodeAnswer = Schema.Union([Detail, Missing])

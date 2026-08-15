@@ -273,8 +273,8 @@ It arrived from the ops layer flat, with an optional `unreadable` beside a
 outline is about nothing, on the one file where neither could be known. Every
 field read honestly alone; the untruth was in the combination, held apart by a
 convention a reader had to know. The dependent facts now exist only on the arm
-that grounds them, which is also what the neighbouring `Missing` already does
-for a `read_node` of an id the set does not hold.
+that grounds them, which is also what `NodeAnswer`'s second arm already does for
+a `read_node` of an id the set does not hold.
 
 Plus what each one ASKS — `NodeRequest`, `SubtreeRequest`, `SearchRequest` —
 and the two numbers an omitted field MEANS, `DEFAULT_SEARCH_LIMIT` and

@@ -193,7 +193,6 @@ export {
   DEFAULT_SUBTREE_DEPTH,
   Detail,
   Found,
-  Missing,
   NodeAnswer,
   NodeRequest,
   OutlineAnswer,

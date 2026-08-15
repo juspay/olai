@@ -97,10 +97,14 @@ export type Ask = typeof Ask.Type
  * that disagrees with the file, and a node archived between arming and sending
  * refuses the send rather than naming something that has moved.
  *
- * The fields are the ones {@link ../../ops/src/query.ts}'s `Found` leads with,
- * and for its reasons: the id is the handle every olai tool takes, `file:line`
- * is where a person is pointed, and `path` — the canonical ancestor titles,
- * outermost first — is what makes a bare title like "order" mean something.
+ * The fields are the ones `@olai/format`'s `Found` leads with (`reading.ts`,
+ * the floor both this spec and the ops layer stand on), and for its reasons:
+ * the id is the handle every olai tool takes, `file:line` is where a person is
+ * pointed, and `path` — the canonical ancestor titles, outermost first — is
+ * what makes a bare title like "order" mean something. A NARROWING of it and
+ * not a copy of it: what a prompt is handed is deliberately less than what a
+ * read answers with, which is the same kind of thing `./edit.ts`'s `Applied`
+ * is to the ops layer's, and the reason neither is a shared declaration.
  * What is deliberately NOT here is the node's CONTENT: a subtree pasted into a
  * prompt is a copy that stops being true the moment anything writes, and the
  * agent has `read_node` / `read_subtree` for the live one. That is the same
