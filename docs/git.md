@@ -80,6 +80,13 @@ says happened to it: `modified`, `added`, `deleted`, `renamed`, `untracked`.
 Those are git's words rather than yours, so a `mv` you have not staged is a
 `deleted` and an `untracked` — `renamed` appears once both halves are staged.
 
+A `renamed` row names BOTH halves (`old/name.md → name.olai`) and is one row
+with one tick: a rename is one thing that happened, and committing the arriving
+side on its own would land it in two pieces — an add here, a deletion still
+staged and waiting to be swept into whatever you commit next. That goes for an
+outline too: rename one and its nodes read as having MOVED, because the
+committed side olai compares against is HEAD's copy of the file it came from.
+
 ## Committing some of it
 
 Every row has a tick and they all start ticked, so the ordinary sweep is still
@@ -92,7 +99,9 @@ ticked, naming each one, so anything you staged by hand is exactly as you left
 it afterwards — and a commit git REFUSES (a signature it cannot make, a hook,
 an identity nobody set) puts the index back bit-identical rather than leaving
 its own staging behind for your next commit to sweep up. Nothing here ever runs
-a bare `git add`.
+a bare `git add`, and nothing is staged for a path that has already left the
+working tree — that is what a `git mv` you staged yourself looks like, and it
+is recorded rather than refused.
 
 The agent has the same thing: its `commit` tool takes an optional `paths`, the
 repository-root-relative names the pending list publishes. A path nothing is

@@ -305,13 +305,13 @@ describe("what is committed, and what is not", () => {
         // The outline still has its node-level detail...
         expect(pending.changes).toHaveLength(1)
         expect(pending.outlines).toEqual([
-          { file: "house.olai", path: "house.olai", how: "modified" },
+          { file: "house.olai", path: "house.olai", how: "modified", from: null },
         ])
         // ... and the other two are rows, with what happened to each.
         expect([...pending.others].sort((a, b) => a.path.localeCompare(b.path)))
           .toEqual([
-            { path: "notes.md", how: "untracked" },
-            { path: "script.sh", how: "untracked" },
+            { path: "notes.md", how: "untracked", from: null },
+            { path: "script.sh", how: "untracked", from: null },
           ])
         // Which the composed message names, so the log says what the commit did.
         expect(pending.message).toContain("· 2 other files")
@@ -400,17 +400,18 @@ describe("what is committed, and what is not", () => {
  * A rename somebody staged by hand, which is the one shape of hand-staged work
  * both faces of this feature got wrong at once.
  *
- * The reproduction is the human's own vault, the morning after the `.olai`
- * migration: `git mv Kept.md Kept.olai`, then open the panel. It read
- * `Kept.md deleted` — a departure with nothing joining it to the file
- * that now holds those notes — and pressing Commit answered
- * `fatal: pathspec '/home/srid/Vault/Kept.md' did not match any files`,
- * git's raw words with olai's name on them. The `commit` tool answered the same
- * fatal from a terminal.
+ * The reproduction is the human's own vault, the morning after the outline
+ * extension changed: two files `git mv`-ed into the new spelling, then open the
+ * panel. It read `<the old name> deleted` for each — a departure with nothing
+ * joining it to the file that now holds those notes, and the new files nowhere
+ * on screen — and pressing Commit answered
+ * `fatal: pathspec '/home/srid/Vault/<the old name>' did not match any files`,
+ * git's raw words wearing olai's name. The `commit` tool answered the same
+ * fatal from a terminal, over a rename staged the same way.
  *
  * Both faces, one cause: the machinery read the working tree against HEAD and
- * never read the INDEX, so a rename arrived as two unrelated rows and the
- * `add` behind a commit was handed a path that exists only in HEAD.
+ * never read the INDEX, so a rename arrived as two unrelated rows and the `add`
+ * behind a commit was handed a path that exists only in HEAD.
  */
 describe("a rename staged by hand", () => {
   /** The old side's content, so a rename between two SERVED outlines has nodes
@@ -420,9 +421,10 @@ describe("a rename staged by hand", () => {
     "",
   ].join("\n")
 
-  /** The WEB face. a document is not an outline, so the arriving side is
-   *  the only outline in this rename — which is exactly the migration the human
-   *  was doing when this was filed. */
+  /** The WEB face. A document is not an outline, so the ARRIVING side is the
+   *  only outline in this rename — which is the shape of the migration the
+   *  human was doing when this was filed: a file olai did not serve becoming
+   *  one it does. */
   test("reads as a rename in the panel, not as a deletion", () =>
     withRepo({ "house.olai": HOUSE, "Kept.md": KEPT }, (fixture) =>
       Effect.gen(function*() {
@@ -444,9 +446,25 @@ describe("a rename staged by hand", () => {
         // to be deleted, it is half of the rename above, and a tick of its own
         // would be a commit that lands the rename in two pieces.
         expect(pending.others).toEqual([])
-        // The composed message says the same thing the panel does.
-        expect(pending.message).toContain("Kept.md → Kept.olai")
+        // And the log does not say a file was deleted either.
         expect(pending.message).not.toContain("deleted: Kept.md")
+      })))
+
+  /** The same rename between two files olai does NOT serve, where the row is
+   *  path-level and the composed message is the only place it can be read.
+   *  `renamed: notes.md` would be the word that refuses to say the interesting
+   *  half, so the body names both. */
+  test("names both halves in the log, for a file that is not an outline", () =>
+    withRepo({ "house.olai": HOUSE, "notes.md": "a document\n" }, (fixture) =>
+      Effect.gen(function*() {
+        fixture.git("mv", "notes.md", "later.md")
+        yield* fixture.refresh
+
+        const pending = yield* fixture.ops.pending
+        expect(pending.others).toEqual([
+          { path: "later.md", how: "renamed", from: "notes.md" },
+        ])
+        expect(pending.message).toContain("renamed: notes.md → later.md")
       })))
 
   /** The MCP face, and the fatal it leaked. */
@@ -492,9 +510,12 @@ describe("a rename staged by hand", () => {
 
   /**
    * Between two SERVED outlines, where the node-level answer is available and
-   * has to be the right one: the same nodes, in a different file. Read against
-   * HEAD's copy of the file it came from — read against HEAD's copy of the file
-   * it is in NOW, which HEAD has never had, every node in it reads as created.
+   * has to be the right one: the same nodes, in a different file.
+   *
+   * The committed side is HEAD's copy of the file it CAME FROM. Read against
+   * HEAD's copy of the name it has now — which HEAD has never had — every node
+   * in it reads as created, and a person is shown a screenful of arrivals for a
+   * file nothing happened inside.
    */
   test("between two served outlines, the nodes read as moved rather than reborn", () =>
     withRepo({ "house.olai": HOUSE, "keep.olai": KEPT }, (fixture) =>
@@ -565,7 +586,7 @@ describe("a served subdirectory reports on the whole repository", () => {
           // The served outline, in BOTH spellings: the store's key and the
           // repository's own name for it.
           expect(pending.outlines).toEqual([
-            { file: "house.olai", path: "docs/house.olai", how: "modified" },
+            { file: "house.olai", path: "docs/house.olai", how: "modified", from: null },
           ])
           expect([...pending.others].map((one) => one.path).sort())
             .toEqual(["README.md", "elsewhere.olai"])
@@ -597,7 +618,7 @@ describe("a served subdirectory reports on the whole repository", () => {
             .toBe("house.olai")
           // The served one is untouched and still waiting.
           expect((yield* fixture.ops.pending).outlines)
-            .toEqual([{ file: "house.olai", path: "docs/house.olai", how: "modified" }])
+            .toEqual([{ file: "house.olai", path: "docs/house.olai", how: "modified", from: null }])
         }),
       { serve: "docs" },
     ))

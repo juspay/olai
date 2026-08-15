@@ -15,13 +15,18 @@
  * changes, and that is what makes a dirty outline with NO node changes visible:
  * a reformat, a reordered line, a file somebody touched and saved. It is dirty,
  * it is committable, and grouping the changes would have drawn nothing at all.
+ *
+ * A RENAME is one group with both names on it ({@link Moved}), never a group
+ * beside a departure in the other list: it is one thing that happened, one
+ * tick, and one commit that carries both halves.
  */
 
 import type { DirtyOutline, NodeChange } from "@olai/format"
 import { For, Show } from "solid-js"
 
 import { GLYPH, SAID } from "../changes.ts"
-import { HOW, HOW_TONE } from "./said.ts"
+import { Moved } from "./Moved.tsx"
+import { HOW, HOW_TONE, localOf } from "./said.ts"
 import type { Selection } from "./selection.ts"
 import { TESTID } from "../testids.ts"
 import { Tick } from "./Tick.tsx"
@@ -29,6 +34,10 @@ import { Tick } from "./Tick.tsx"
 export function Outlines(props: {
   readonly outlines: ReadonlyArray<DirtyOutline>
   readonly changes: ReadonlyArray<NodeChange>
+  /** Where olai serves from, inside the repository — what turns the
+   *  repo-relative name a rename came from into this list's own spelling
+   *  (`localOf`). */
+  readonly served: string
   readonly selection: Selection
 }) {
   const changesIn = (file: string): ReadonlyArray<NodeChange> =>
@@ -41,6 +50,7 @@ export function Outlines(props: {
           data-testid={TESTID.commitGroup}
           data-file={outline.file}
           data-path={outline.path}
+          data-from={outline.from ?? undefined}
           // Unticked is DIMMED rather than hidden: what a person left out is
           // still waiting, and a row that vanished when it was unticked would
           // read as one that had been dealt with.
@@ -53,6 +63,7 @@ export function Outlines(props: {
               toggle={() => props.selection.toggle(outline.path)}
               label={`commit ${outline.path}`}
             />
+            <Moved from={localOf(outline.from, props.served)} />
             <span class="min-w-0 truncate font-mono text-xs text-muted">
               {outline.file}
             </span>

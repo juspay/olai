@@ -316,6 +316,13 @@ by hand is undisturbed and what is left out stays waiting for its own commit and
 its own message. A path nothing is waiting on is refused by name rather than
 quietly dropped.
 
+Undisturbed reads both ways, which is what `commit-op-staged-rename` corrected.
+A rename somebody staged themselves is ONE row naming both halves and one tick;
+the commit carries the departing half with the arriving one, so it lands as a
+rename rather than as an add beside a deletion left staged. For an outline, the
+committed side is HEAD's copy of the file it CAME FROM — read against the name
+it has now, which HEAD has never had, every node in it reported as created.
+
 `Ops.push` is the verb beside it: the current branch to the upstream it already
 tracks, no arguments, and a refusal carrying git's own words. What is ahead of
 that upstream comes off the `--branch` header the status call is already

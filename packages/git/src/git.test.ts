@@ -122,6 +122,7 @@ test("a dirty file answers in all three spellings, from a served subdirectory", 
       served: "b.olai",
       at: path.join(served, "b.olai"),
       how: "untracked",
+      from: null,
     },
   ])
   expect(await asked(served, (git) => Effect.succeed(git.served))).toBe("notes/")
@@ -175,22 +176,21 @@ test("dirty keeps how each file moved", async () => {
   expect(how.get("gone.olai")).toBe("deleted")
   expect(how.get("fresh.md")).toBe("untracked")
   expect(how.get("staged.md")).toBe("added")
-  // A rename names both sides, and both are kept: the new one as what it is,
-  // the old one as a file that has left — a commit of this rename has to carry
-  // both halves or it lands as an unrelated add.
+  // A rename is ONE entry that names both sides — see the test below. The side
+  // it came from is not an entry of its own: it is not a file waiting to be
+  // deleted, it is half of the one above.
   expect(how.get("landed.md")).toBe("renamed")
-  expect(how.get("moved.md")).toBe("deleted")
+  expect(how.has("moved.md")).toBe(false)
 })
 
 /**
  * A rename is ONE thing that happened, and the survey has to say so.
  *
  * Two entries — a `renamed` arrival and a `deleted` departure with nothing
- * joining them — is what left a person's commit panel reading
- * `Kept.md deleted` after a `git mv Kept.md Kept.olai`, with
- * the file that actually holds their notes nowhere near it. Git knows both
- * halves and prints them on one line; the entry keeps them together, in the
- * same three spellings the arriving side has.
+ * joining them — is what left a person's commit panel reading `Kept.md deleted`
+ * after a `git mv Kept.md Kept.olai`, with the file that actually holds their
+ * notes nowhere near it. Git knows both halves and prints them on one line; the
+ * entry keeps them together, in the same three spellings the arriving side has.
  */
 test("a staged rename is ONE entry naming both sides", async () => {
   const { root } = repo()

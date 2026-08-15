@@ -320,6 +320,12 @@ interface Served {
   /** Absolute: what `git.commit` takes. */
   readonly at: string
   readonly how: How
+  /** Where a RENAMED outline came from, in the same three spellings — `null`
+   *  for every other row. Both halves are wanted: the commit has to name the
+   *  departing side or the rename lands in two pieces, and the COMMITTED side
+   *  of a rename is HEAD's copy of the file it came from rather than of a file
+   *  HEAD has never had. */
+  readonly from: Git.Spelled | null
 }
 
 /** Everything one round of questions asked of git. */
@@ -456,6 +462,13 @@ export const make = (options: Options): Committing => {
     // made here rather than handed to the plumbing as a callback. An outline
     // olai SERVES has a working-side parse to compare against; an outline
     // outside the served root does not, so it is another file like any other.
+    //
+    // A rename is judged by the side it ARRIVED at, because that is the side
+    // that has a working copy: `README.md` renamed to `notes.olai` is an
+    // outline row now, and `notes.olai` renamed to `README.md` is not one any
+    // more. The row names both halves either way, so nothing is lost to the
+    // reader — what the arriving side decides is whether there are NODES to
+    // compare, and there are only ever nodes where there is a file to parse.
     const outlines: Array<Served> = []
     const others: Array<Git.Dirty> = []
     for (const entry of dirt.files) {
@@ -465,6 +478,7 @@ export const make = (options: Options): Committing => {
           path: entry.path,
           at: entry.at,
           how: entry.how,
+          from: entry.from,
         })
       } else {
         others.push(entry)
@@ -514,9 +528,9 @@ export const make = (options: Options): Committing => {
       // as created, or every node in it as gone — a screen of alarming changes
       // with one real cause, which is that somebody's file does not parse.
       const unreadable = new Set<string>()
-      const readable = survey.outlines.map((one) => one.file).filter((file) => {
-        if (set === null || broken.has(file)) {
-          unreadable.add(file)
+      const readable = survey.outlines.filter((one) => {
+        if (set === null || broken.has(one.file)) {
+          unreadable.add(one.file)
           return false
         }
         return true
@@ -525,28 +539,39 @@ export const make = (options: Options): Committing => {
       // CONCURRENTLY: each is its own subprocess, and they do not depend on
       // each other. Bounded, because a `git pull` can make a hundred outlines
       // dirty at once and a hundred simultaneous processes is its own problem.
-      const heads = yield* Effect.all(readable.map((file) => git.show(file)), {
+      const heads = yield* Effect.all(readable.map((one) => git.show(was(one))), {
         concurrency: 8,
       })
 
       const before = new Map<string, ReadonlyArray<Node>>()
       const after = new Map<string, ReadonlyArray<Node>>()
-      readable.forEach((file, at) => {
+      readable.forEach((one, at) => {
         const head = heads[at]
+        // HEAD's copy is keyed by the name HEAD HAD IT UNDER, which for a
+        // rename is the side it came from. `changesOf` matches by id across
+        // files, so a node in both maps under two names reads as one node that
+        // moved — where reading a renamed outline against its own new name
+        // (which HEAD has never had) reported every node in it as created.
+        const committed = was(one)
         if (head !== undefined && head !== null) {
-          const parsed = parseOutline(file, head)
+          const parsed = parseOutline(committed, head)
           if (Result.isFailure(parsed)) {
             // The COMMITTED copy does not parse. Rare, and not this working
             // tree's doing — but nothing can be said about what changed in it.
-            unreadable.add(file)
+            //
+            // Unless it was never an outline at all: a rename INTO the format
+            // — a `.md` becoming a `.olai`, which is the migration this was
+            // filed during — has no committed outline to compare against, and
+            // that is an absence rather than a fault to report.
+            if (fileKind(committed) === "outline") unreadable.add(one.file)
             return
           }
-          before.set(file, parsed.success.nodes.map((located) => located.node))
+          before.set(committed, parsed.success.nodes.map((located) => located.node))
         }
         // A dirty file the set does not list has left the disk, and an absent
         // `after` side is exactly how that reads: every node in it is gone.
-        if (known.has(file)) {
-          after.set(file, (served.get(file) ?? []).map((located) => located.node))
+        if (known.has(one.file)) {
+          after.set(one.file, (served.get(one.file) ?? []).map((located) => located.node))
         }
       })
 
@@ -576,7 +601,12 @@ export const make = (options: Options): Committing => {
       pending: {
         repo: looked.repo,
         changes,
-        outlines: looked.outlines.map(({ file, path, how }) => ({ file, path, how })),
+        outlines: looked.outlines.map(({ file, path, how, from }) => ({
+          file,
+          path,
+          how,
+          from: from?.path ?? null,
+        })),
         others,
         unreadable,
         served: looked.served,
@@ -630,10 +660,15 @@ export const make = (options: Options): Committing => {
         // for a second reason: these are the files somebody TICKED. A served
         // directory is a working tree with other work in it, olai never stages,
         // and what is left out stays waiting.
-        paths: [
-          ...picked.outlines.map((one) => one.at),
-          ...picked.others.map((one) => one.at),
-        ],
+        //
+        // BOTH HALVES of a rename, and it is one tick that carries them: the
+        // row a person ticked names the side that arrived, and a commit of that
+        // side alone lands the rename in two pieces — an add here and a
+        // deletion still staged, waiting to be swept into somebody's next
+        // commit as an unrelated one.
+        paths: [...picked.outlines, ...picked.others].flatMap((one) =>
+          one.from === null ? [one.at] : [one.from.at, one.at]
+        ),
         message: signed(request.message ?? composed(changes, others), writer),
       })
       if (done._tag === "Failed") {
@@ -848,8 +883,24 @@ export const make = (options: Options): Committing => {
 
 /** One dirty file that is not a served outline, as the wire carries it. The
  *  REPO-relative path is its name, because that is the one name it has that
- *  cannot collide with a served one. */
-const otherOf = (entry: Git.Dirty): Other => ({ path: entry.path, how: entry.how })
+ *  cannot collide with a served one — and that is the spelling a rename names
+ *  its other half in too. */
+const otherOf = (entry: Git.Dirty): Other => ({
+  path: entry.path,
+  how: entry.how,
+  from: entry.from?.path ?? null,
+})
+
+/**
+ * What HEAD calls one dirty outline.
+ *
+ * Its own name, unless it is a rename — in which case HEAD has never heard of
+ * that name, and the committed side is the file it came from. `null` served
+ * spelling falls back the same way: a rename out of a directory olai does not
+ * serve has no committed copy this layer can ask for, and every node in it
+ * arriving is then the honest reading.
+ */
+const was = (one: Served): string => one.from?.served ?? one.file
 
 /** What a commit is going to name, out of what is waiting. */
 interface Picked {
