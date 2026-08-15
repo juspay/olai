@@ -253,6 +253,19 @@ export const Detail = Schema.Struct({
 })
 export type Detail = typeof Detail.Type
 
+/**
+ * The stamps alone, for a reading that produces them before it has an answer to
+ * put them on.
+ *
+ * DERIVED from {@link Detail} rather than declared beside it, which is the
+ * whole of why it exists: `@olai/ops`' `stampsOf` spelled
+ * `Partial<Record<Status, string | true>>` for itself, and that is this shape
+ * written a second time — same fields, same rule, nothing holding the two
+ * together but whoever remembers to change both. A `Pick` cannot disagree with
+ * what it picks from.
+ */
+export type Stamps = Pick<Detail, Status>
+
 // ── a node and everything under it ─────────────────────────────────────
 
 /** How deep an unasked-for walk goes. Here rather than beside the walk for the

@@ -44,7 +44,7 @@ import {
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
-  type Status,
+  type Stamps,
   type Subtree,
   tagText,
   titleParts,
@@ -231,12 +231,10 @@ export const search = (
 
 /** Whichever marks the record carries, from the format's list — at most one
  *  by the format's own rule, but read as a set so this cannot be the place a
- *  new mark is missing from. The SHAPE of what comes back is the floor's
- *  ({@link Detail}'s stamps, keyed there by the same list); this is the reading
- *  of one record against it. */
-const stampsOf = (
-  node: LocatedRegular["node"],
-): Partial<Record<Status, string | true>> =>
+ *  new mark is missing from. The SHAPE of what comes back is the floor's, taken
+ *  off {@link Detail} itself rather than re-spelled here; this is the reading of
+ *  one record against it. */
+const stampsOf = (node: LocatedRegular["node"]): Stamps =>
   Object.fromEntries(
     MARKS.flatMap((mark) => node[mark] === undefined ? [] : [[mark, node[mark]]]),
   )

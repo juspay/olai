@@ -197,6 +197,7 @@ export {
   OutlineSummary,
   Placed,
   Placement,
+  type Stamps,
   Subtree,
   SubtreeAnswer,
   SubtreeRequest,
