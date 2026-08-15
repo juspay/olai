@@ -211,6 +211,13 @@ export const refused = (draft: Draft, failure: OpFailure): Draft => ({
  * abandoned draft back. That is how Escape after a completion bounced the
  * editor open (`input_widgets.feature:209`): the placement had landed on
  * disk, Escape closed the line, and the in-flight `setDraft` resurrected it.
+ *
+ * Three arguments because the question is about TWO drafts — the one the
+ * write left, and the one that is open now — plus what the write said.
+ * {@link typed} and {@link refused} rewrite one draft; this one decides
+ * whether to keep it. Slot forwarding (`was` / {@link stillAt}) is
+ * {@link landed}'s, and a caller that needs both composes them. There is
+ * no overload.
  */
 export const kept = (
   current: Draft | null,

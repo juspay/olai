@@ -292,15 +292,25 @@ const answering = async (
     // the row appears is the reply). Without that wait, Escape+⌘Z after a
     // completion spent a stack that did not yet hold the placement.
     const kind = await world.page.locator(COMPLETIONS).getAttribute("data-kind");
-    const mirrors = await world.page.locator(`${NODE}[data-kind="mirror"]`).count();
+    // Two counts, not one poll: this is the floor, taken before the key.
+    const mirrorsBefore = await world.page
+      .locator(`${NODE}[data-kind="mirror"]`)
+      .count();
     return async () => {
       await theListIsGone(world);
       if (kind !== "mirror") return;
+      // …and this is the one `waitUntil` retries, until a new placement is
+      // on the page.
       await world.waitUntil(
         async () =>
-          (await world.page.locator(`${NODE}[data-kind="mirror"]`).count()) > mirrors,
+          (await world.page.locator(`${NODE}[data-kind="mirror"]`).count()) >
+          mirrorsBefore,
         "the placement to be drawn",
       );
+      // The frame after the row was drawn — the snapshot painted it; the
+      // apply reply is the next message on the same wire, and `undo.record`
+      // has run by then. Not the generic double-rAF flush `pressed` already
+      // waited for above the key.
       await world.waitForFrame();
     };
   }
