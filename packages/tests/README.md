@@ -9,7 +9,7 @@ packages/tests/
 ├── step_definitions/        # one file per feature
 ├── support/
 │   ├── world.ts             # OlaiWorld: page, locators, the UI contract
-│   ├── hooks.ts             # browser + a server per corpus (and per scratch copy)
+│   ├── hooks.ts             # browser + a server per corpus copy (and per scratch copy)
 │   ├── caret.ts             # the client's own answer to a key, and how a step
 │                           #   waits for it (see "Waiting", below)
 │   ├── said.ts              # what the page said about a write, wherever it says it
@@ -57,7 +57,7 @@ Which server the suite drives is two decisions, not one — **who owns the proce
 
 | variable | meaning |
 |---|---|
-| `OLAI_BIN` | Path to the `olai` executable. The harness **spawns** one server per corpus as `<bin> web <dir> --port <port> --host 127.0.0.1` and waits for the `url=` field of its `serving` line on stdout, decoded with `@olai/log`'s own `findLogfmt` rather than a regex of ours. This is what `just e2e` sets. |
+| `OLAI_BIN` | Path to the `olai` executable. The harness **spawns** one server per corpus as `<bin> web <dir> --port <port> --host 127.0.0.1` — pointed at this worker's own copy of that corpus, see below — and waits for the `url=` field of its `serving` line on stdout, decoded with `@olai/log`'s own `findLogfmt` rather than a regex of ours. This is what `just e2e` sets. |
 | `OLAI_URL` | Base URL of a server you are **already running**, reused as it is. No spawning, so no per-corpus servers — see `OLAI_CORPUS`. |
 | `OLAI_CORPUS` | Only read with `OLAI_URL`: which fixture corpus that one server is serving (default `good`). A scenario needing a different one fails immediately, with the command to run instead — better than quietly asserting against the wrong outlines. |
 | `HEADLESS` | `false` opens a visible browser. Anything else (or unset) is headless. |
@@ -97,9 +97,11 @@ One section per run, against a directory the driver has just re-copied and a ser
 
 ## Fixture corpora
 
-Scenarios do not build their own outlines: they name a directory. A feature (or a scenario) carries a `@corpus:<name>` tag naming a directory under `fixtures/`, and `hooks.ts` starts a server on it the first time some scenario asks — then keeps it for the rest of the run. Untagged scenarios get `@corpus:good`.
+Scenarios do not build their own outlines: they name a directory. A feature (or a scenario) carries a `@corpus:<name>` tag naming a directory under `fixtures/`, and `hooks.ts` starts a server on a copy of it the first time some scenario asks — then keeps it for the rest of the run. Untagged scenarios get `@corpus:good`.
 
 That is why a server-per-corpus exists rather than a server-per-scenario: a server that has loaded a broken set cannot also serve a good one, and spawning one process per scenario would cost more than the assertions do. See `fixtures/README.md` for what each corpus contains and why.
+
+A COPY, and one per worker, because `--parallel` is one process per worker: four workers asking for `good` are four olai, and olai enforces one per directory (`packages/server/src/lock.ts` — a second one over the same files refuses to boot, naming the first). So each worker serves `<its temp root>/<corpus>/served`, made on first ask and thrown away with the worker. Nothing about a scenario changes: the corpus is still shared by every scenario THAT worker runs, which is why writing to it still needs `@scratch:`.
 
 **`@scratch:<name>`** is the exception, and the live store is what asks for it. Those scenarios EDIT the served files while the server is watching them, so they get a private temp copy of the named corpus and a server of their own, both thrown away with the scenario. A shared corpus could not survive it (the next scenario would inherit the edit) and neither could the repository (the fixtures are tracked). `world.writeServed` refuses to write anywhere else, so "a scenario scribbled on the fixtures" is not a thing that can happen quietly.
 
