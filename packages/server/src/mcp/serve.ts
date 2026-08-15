@@ -53,7 +53,6 @@
 
 import { toStderr } from "@olai/log"
 import { type CommitMode, make as makeOps, TOOLS } from "@olai/ops"
-import type { OwnedSurfaceConnection } from "@kolu/surface-mcp"
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
@@ -62,9 +61,9 @@ import { resolve } from "node:path"
 
 import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
-import { bind, gitWiring } from "../runtime.ts"
-import { attaching, attachTo, socketFor } from "../socket.ts"
-import { clientOver, serveFace } from "./face.ts"
+import { bind, gitWiring, writerAt } from "../runtime.ts"
+import { type Attached, attaching, socketFor } from "../socket.ts"
+import { clientOver, type FaceOptions, serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
 /**
@@ -181,11 +180,26 @@ export interface McpServeOptions {
 export const serveTools = (options: McpServeOptions) =>
   Effect.gen(function*() {
     const socketPath = socketFor(options.root)
-    const attached = yield* Effect.promise(() => attachTo(socketPath))
+    const attached = yield* Effect.promise(() => attaching(socketPath))
+    // ONE transport and ONE tool table whichever shape answers, built here so
+    // that is a fact a reader can see rather than infer from two branches:
+    // `stdio()` installs process-global listeners, and there is exactly one
+    // process.
+    const face = {
+      tools: bespokeFrom(TOOLS),
+      transport: options.transport ?? stdio(),
+    }
     return yield* attached === null
-      ? fresh(options)
-      : bridged(options, attached, socketPath)
+      ? fresh(options, face)
+      : bridged(options, attached, socketPath, face)
   }).pipe(Effect.provide(toStderr), Effect.withLogSpan("mcp"))
+
+/** What both shapes serve, and the whole of what they share. No writer and no
+ *  client: the first is the FACE's (`../runtime.ts`'s `writerAt`, or the
+ *  serving process's when attached) and the second is the only thing the two
+ *  shapes differ by. */
+type Face = Pick<FaceOptions, "tools" | "transport">
+
 
 /**
  * ATTACHED: the MCP face over somebody else's surface, and nothing else in the
@@ -203,8 +217,9 @@ export const serveTools = (options: McpServeOptions) =>
  */
 const bridged = (
   options: McpServeOptions,
-  first: OwnedSurfaceConnection,
+  attached: Attached,
   socketPath: string,
+  face: Face,
 ) =>
   Effect.gen(function*() {
     yield* Effect.annotateLogsScoped({ root: resolve(options.root), socket: socketPath })
@@ -214,18 +229,20 @@ const bridged = (
           "running server's setting, not this session's",
       )
     }
-    const server = yield* serveFace({
-      client: attaching(first, socketPath),
-      tools: bespokeFrom(TOOLS, "mcp"),
-      transport: options.transport ?? stdio(),
-    })
+    // The probe's own connection, on the scope — see {@link Attached}.
+    yield* Effect.addFinalizer(() => Effect.sync(() => attached.first.dispose()))
+    // No writer anywhere in this shape, and nothing to pass one to: the socket
+    // face this dials was composed by the SERVING process, which bound `mcp`
+    // onto it because an owner-only socket is what an attached `olai mcp`
+    // arrives on.
+    const server = yield* serveFace({ ...face, client: attached.client })
     yield* Effect.logInfo("attached to the olai already serving this directory")
     yield* untilClosed(server)
   })
 
 /** FRESH: a store of our own, which is what `olai mcp` has always been and
  *  still is whenever nothing else is serving the directory. */
-const fresh = (options: McpServeOptions) =>
+const fresh = (options: McpServeOptions, face: Face) =>
   Effect.gen(function*() {
     const { root, store } = yield* openDirectory(options.root)
 
@@ -271,14 +288,13 @@ const fresh = (options: McpServeOptions) =>
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
-    const server = yield* serveFace({
-      client: () => clientOver(wired.bound.handlers),
-      // `mcp`, not `chat-agent`: the client here is somebody's own coding agent,
-      // launched from their terminal, and the commit trailer is the only place
-      // that difference is ever recorded.
-      tools: bespokeFrom(TOOLS, "mcp"),
-      transport: options.transport ?? stdio(),
-    })
+    // `mcp`, not `chat-agent`: the client here is somebody's own coding agent,
+    // launched from their terminal, and the commit trailer is the only place
+    // that difference is ever recorded — so it is bound onto the face this
+    // dispatch serves, exactly as the socket binds it in `../serve.ts`. Built
+    // once: an in-process dispatch has nothing to re-dial.
+    const local = clientOver(writerAt(wired.bound, ops, "mcp"))
+    const server = yield* serveFace({ ...face, client: () => local })
     yield* Effect.addFinalizer(() => runtime.stopped)
 
     // After the store AND the face, so the line means READY: a directory that

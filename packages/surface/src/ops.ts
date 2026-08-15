@@ -36,50 +36,43 @@
  * face gets what is a deployment decision and this package only declares what
  * exists.
  *
- * ## `writer` travels with the call, and that is deliberate
+ * ## Nothing here names WHO is writing, and that is the rule rather than an
+ * omission
  *
  * `Ops.run(request, writer)` takes who is writing, because git records the
- * repository's own identity whoever asked and the trailer is the only thing
- * that can tell one agent's edits from another's. Every other door has that
- * decided by the process it lives in — `web` for the button, and `bind` takes
- * it once. This one cannot: the SERVING process is an `olai web` and the CALLER
- * may be somebody's own `olai mcp` two terminals over, so a writer decided here
- * would record every bridged agent's work as the browser's.
+ * repository's own identity whoever asked and the `X-Olai-Writer` trailer is
+ * the only thing that can tell one agent's edits from another's. It is NOT a
+ * field on any of these procedures: a transport that could name itself could
+ * name another, and every caller of this namespace is already identified by the
+ * FACE it arrived on — an owner-only socket is an attached `olai mcp`, an
+ * in-process dispatch is whichever agent the composition root built it for.
  *
- * So the caller says, and the caller's own composition root is what decides it
- * (`mcp/serve.ts` passes `mcp`, the panel's route passes `chat-agent`) — which
- * is the same rule as before, applied at the process that actually knows the
- * answer. What makes it safe to take on trust is the face gate above rather
- * than the field: this namespace is reachable only from an owner-only socket
- * and from in-process dispatch, so everything that can spell a `writer` is
- * already the user. It is provenance, not authorization, and the two are not
- * confused here.
+ * So the writer is bound where the face is composed, by rebinding these
+ * handlers for it (`@olai/server`'s `runtime.ts`, `writerAt`) — the same place
+ * and the same kind of transformation as the allowlist above. It is one fact in
+ * one place either way; what this arrangement removes is the one spelling of it
+ * a caller could have lied about.
  *
  * ## What is NOT here, and why
  *
- * `push` and `search.nodes` are not, and their absence is the rule rather than
- * an oversight: a member belongs here only when the agent's version of it
- * DIFFERS from the browser's. A push takes no writer at all — it makes no
- * commit, and the trailers on what it sends were written when those commits
- * were — so `git.push` is one verb both doors call. A search asks and answers
- * the same thing whoever asks, which is the whole argument of `./search.ts`.
- * Twins of either would be a second spelling with nothing to say for itself.
+ * `git.commit`, `git.push` and `search.nodes` are not, and their absence is
+ * that rule paying off: a member belongs here only when the agent's version of
+ * it DIFFERS from the browser's. Once the writer stops travelling, none of the
+ * three does — a commit is the same act with the same request and the same
+ * answer, and only the trailer differs, which the face now decides. Twins of
+ * any of them would be a second spelling with nothing left to say for itself.
  */
 
 import {
-  CommitRequest,
-  CommitResult,
   NodeAnswer,
   NodeRequest,
   OpFailure,
   OutlineAnswer,
   SubtreeAnswer,
   SubtreeRequest,
-  Writer,
   WriteRequest,
   WriteResult,
 } from "@olai/format"
-import { Schema } from "effect"
 
 export const opsProcedures = {
   /**
@@ -100,28 +93,7 @@ export const opsProcedures = {
    * drift is a compile error rather than an agent and a person looking at
    * different rows.
    */
-  run: {
-    input: Schema.Struct({ request: WriteRequest, writer: Writer }),
-    output: WriteResult,
-    error: OpFailure,
-  },
-  /**
-   * Record what is waiting, as the caller rather than as this process.
-   *
-   * The one member here that has a browser twin — `git.commit` — and the only
-   * thing that differs is the writer, for the reason above. It is not a second
-   * spelling: both are one call onto `Ops.commit`, over `@olai/format`'s own
-   * `CommitRequest` / `CommitResult`.
-   *
-   * No error channel, because a commit has none to declare: every way it can
-   * go wrong is a VALUE the caller is entitled to see (`CommitResult` carries
-   * git's own words on a refusal). `git.commit` declares an `OpFailure` arm it
-   * never uses; this one says what is true.
-   */
-  commit: {
-    input: Schema.Struct({ request: CommitRequest, writer: Writer }),
-    output: CommitResult,
-  },
+  run: { input: WriteRequest, output: WriteResult, error: OpFailure },
   /** Every outline under the served directory — what `list_outlines` answers.
    *  No input: the question has no parameters, and a `Schema.Struct({})` would
    *  be an empty object a caller has to spell. */

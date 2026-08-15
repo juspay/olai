@@ -33,6 +33,8 @@ import {
   stampOf,
   ValidationFailure,
   type Writer,
+  type WriteRequest as Request,
+  type WriteResult as Applied,
 } from "@olai/format"
 import { Effect, Result, SubscriptionRef } from "effect"
 
@@ -45,9 +47,8 @@ import {
 } from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
 import { index } from "./query.ts"
-import type { Applied, Request } from "./request.ts"
 import { sortOfWrite } from "./sorted.ts"
-import { type Acting, asking, type Asking, type Reading, type Running } from "./tools.ts"
+import { asking, type Asking, type Reading } from "./tools.ts"
 
 export interface Options {
   readonly store: Store
@@ -86,16 +87,17 @@ export interface Options {
 }
 
 /**
- * Everything this layer can be asked, and the three doors it is asked through.
+ * Everything this layer can be asked.
  *
- * `Running`, `Asking` and `Acting` are `./tools.ts`'s, declared there because
- * the tool table is what names them — one interface per arm — and satisfied
- * here by the real layer. A tool is answerable by anything that satisfies them,
- * which since `mcp-bridge` includes a surface client with no store behind it at
- * all; that is the whole of what made the bridge possible, and it is why these
- * three are interfaces rather than methods this file happens to have.
+ * It SATISFIES `./tools.ts`'s read door outright ({@link Asking}, which asks no
+ * questions about who is asking) and it is one partial application away from
+ * the other two: `Running` and `Acting` are the same verbs with the writer
+ * already bound, because a tool has no business naming one. That is what makes
+ * the tool table answerable by something which is not this layer at all — since
+ * `mcp-bridge`, a surface client with no store behind it — and it is why those
+ * two are interfaces rather than methods this file happens to have.
  */
-export interface Ops extends Running, Asking, Acting {
+export interface Ops extends Asking {
   /** Perform one op. Fails only with an {@link OpFailure} — every internal
    *  failure mode (a stale base, a file system error) is either retried or
    *  translated, because a caller of this interface is a tool call or a

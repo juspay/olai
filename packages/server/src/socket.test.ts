@@ -15,7 +15,7 @@
  * boundary.
  */
 
-import { collector, findSaid } from "@olai/log/testlib"
+import { findSaid } from "@olai/log/testlib"
 import { surface } from "@olai/surface"
 import { unixSocketLink } from "@kolu/surface/links/unix-socket"
 import { expect, test } from "bun:test"
@@ -24,13 +24,8 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { serve } from "./serve.ts"
-import { served, SERVER_LAYERS } from "./serve.testlib.ts"
+import { served, withServe } from "./serve.testlib.ts"
 import { socketFor } from "./socket.ts"
-
-/** How long a dial or a call may take before it is a hang rather than a slow
- *  answer. Generous: what is told apart is "refused" from "never". */
-const BOUND_MS = 10_000
 
 /**
  * A real `olai web` on a temp directory, and a real dial at the socket it
@@ -50,46 +45,29 @@ const withAgentSocket = (
     },
   ) => Promise<void>,
 ): Promise<void> => {
-  const { layer, said } = collector()
   const root = served()
-
-  return Effect.gen(function*() {
-    yield* serve({
-      root,
-      port: 0,
-      host: "127.0.0.1",
-      clientDist: served(),
-      allowedOrigins: [],
-      commits: "off",
-    })
+  return withServe({ root }, async (said) => {
     // The server says so before it announces a port, which is the ordering
     // `serve.ts` keeps deliberately: an agent that races the log line finds a
     // surface rather than an ENOENT.
     expect(findSaid(said, "agents can attach to this server")).toBeDefined()
 
-    const link = yield* Effect.promise(() =>
-      unixSocketLink({ group: surface.group, socketPath: socketFor(root) })
-    )
-    yield* Effect.promise(() => body(root, link.dispatch)).pipe(
-      Effect.ensuring(Effect.promise(() => link.dispose())),
-    )
-  }).pipe(
-    Effect.scoped,
-    Effect.provide(SERVER_LAYERS),
-    Effect.provide(layer),
-    Effect.timeout(BOUND_MS),
-    Effect.orDie,
-    Effect.runPromise,
-  )
+    const link = await unixSocketLink({
+      group: surface.group,
+      socketPath: socketFor(root),
+    })
+    try {
+      await body(root, link.dispatch)
+    } finally {
+      await link.dispose()
+    }
+  })
 }
 
 test("a write over the socket lands in the running server's directory", async () => {
   await withAgentSocket(async (root, dispatch) => {
     const applied = await Effect.runPromise(
-      dispatch.unary("surface/ops/run", {
-        request: { op: "title", id: "a", title: "renamed over the socket" },
-        writer: "mcp",
-      }) as Effect.Effect<{ title: string; file: string; rev: number }>,
+      dispatch.unary("surface/ops/run", { op: "title", id: "a", title: "renamed over the socket" }) as Effect.Effect<{ title: string; file: string; rev: number }>,
     )
     expect(applied.title).toBe("renamed over the socket")
     expect(applied.file).toBe("a.jsonl")
@@ -108,10 +86,7 @@ test("the same verb the browser is refused is ANSWERED here", async () => {
   // a server exactly like this one and is told the member is not exposed.
   await withAgentSocket(async (_root, dispatch) => {
     const exit = await Effect.runPromise(
-      Effect.exit(dispatch.unary("surface/ops/run", {
-        request: { op: "title", id: "a", title: "answered" },
-        writer: "mcp",
-      })),
+      Effect.exit(dispatch.unary("surface/ops/run", { op: "title", id: "a", title: "answered" })),
     )
     expect(Exit.isSuccess(exit)).toBe(true)
   })

@@ -28,17 +28,16 @@
 
 import { createSurfaceSocket } from "@kolu/surface-app/connect"
 import { resolveExpose } from "@kolu/surface-mcp"
-import { collector, findSaid } from "@olai/log/testlib"
+import { findSaid } from "@olai/log/testlib"
 import { surface } from "@olai/surface"
 import { expect, test } from "bun:test"
 import { Cause, Effect, Exit } from "effect"
 import { WebSocket as WsClient } from "ws"
 
-import { AGENT, BROWSER, EXPOSE } from "./faces.ts"
-import { serve } from "./serve.ts"
-import { served, SERVER_LAYERS } from "./serve.testlib.ts"
+import { AGENT, BROWSER, MCP } from "./faces.ts"
+import { served, withServe } from "./serve.testlib.ts"
 
-const resolved = () => resolveExpose(surface.spec, EXPOSE)
+const resolved = () => resolveExpose(surface.spec, MCP)
 
 test("the outlines collection is a key-set resource plus an item template", () => {
   const { resources, resourceTemplates } = resolved()
@@ -143,7 +142,7 @@ test("the manifest cell is not exposed, and never was", () => {
   // — exposing it would have shipped every document body on every read — and
   // `snapshot-scale` has since cut those out into the collection above, leaving
   // a fact with no fields. It was never exposed and now has nothing to expose.
-  expect(Object.keys(EXPOSE)).not.toContain("manifest")
+  expect(Object.keys(MCP)).not.toContain("manifest")
   expect(resolved().resources.map((r) => r.key)).not.toContain("manifest")
 })
 
@@ -202,37 +201,36 @@ test("the browser's face names nothing the surface does not declare", () => {
 })
 
 test("the agent's face is what it can SEE plus the doors its tools land through", () => {
-  // Derived from EXPOSE in the module, so this asserts the derivation rather
+  // Derived from MCP in the module, so this asserts the derivation rather
   // than restating a list: what a bridged `olai mcp` may call is exactly what
   // it serves as resources, plus the members `@olai/ops`' three tool arms reach.
   expect([...Object.keys(AGENT)].sort()).toEqual(
     [
-      ...Object.keys(EXPOSE),
+      ...Object.keys(MCP),
       "ops.run",
-      "ops.commit",
       "ops.outlines",
       "ops.node",
       "ops.subtree",
       "search.nodes",
+      "git.commit",
       "git.push",
     ].sort(),
   )
-  // The keyboard's door is the browser's, and the agent has its own spelling of
-  // both of these. Named rather than implied by the set above, so removing one
-  // trips a failure that says which and why.
+  // `git.commit` and `search.nodes` are SHARED with the browser and not twinned:
+  // once the writer stopped travelling with a call, an agent's commit and a
+  // person's are the same act through the same member, and only the face they
+  // arrive on decides the trailer.
+  expect(Object.keys(BROWSER)).toContain("git.commit")
+  // The keyboard's door, though, is the browser's alone — an agent sending
+  // intents about a screen it cannot see would be the one thing this whole
+  // split exists to prevent.
   expect(Object.keys(AGENT)).not.toContain("edit.apply")
-  expect(Object.keys(AGENT)).not.toContain("git.commit")
   // And the human's session is the human's, on this face as on the MCP one.
   expect(Object.keys(AGENT)).not.toContain("chat")
   expect(Object.keys(AGENT)).not.toContain("transcript")
 })
 
 // ── The property, over a real browser socket ────────────────────────────
-
-/** How long a dial or a call may take before it is a hang rather than a slow
- *  answer. Generous on purpose: what is being told apart is "refused" from
- *  "never". */
-const BOUND_MS = 10_000
 
 /** Where the listener serves the surface — its own copy, deliberately, exactly
  *  as `listener.test.ts` keeps one: a test that imported the path would agree
@@ -252,39 +250,21 @@ const withBrowserSocket = (
   body: (dispatch: {
     unary: (tag: string, payload: unknown) => Effect.Effect<unknown, unknown>
   }) => Promise<void>,
-): Promise<void> => {
-  const { layer, said } = collector()
-
-  return Effect.gen(function*() {
-    yield* serve({
-      root: served(),
-      port: 0,
-      host: "127.0.0.1",
-      clientDist: served(),
-      allowedOrigins: [],
-      commits: "off",
-    })
+): Promise<void> =>
+  withServe({ root: served() }, async (said) => {
     const url = String(findSaid(said, "serving")?.annotations.url)
-    const socket = yield* Effect.promise(() =>
-      createSurfaceSocket({
-        group: surface.group,
-        url: `${url.replace("http://", "ws://")}${WS_PATH}`,
-        retired: () => {},
-        connect: (target) => new WsClient(target) as unknown as WebSocket,
-      })
-    )
-    yield* Effect.promise(() => body(socket.link.dispatch)).pipe(
-      Effect.ensuring(Effect.promise(() => socket.dispose())),
-    )
-  }).pipe(
-    Effect.scoped,
-    Effect.provide(SERVER_LAYERS),
-    Effect.provide(layer),
-    Effect.timeout(BOUND_MS),
-    Effect.orDie,
-    Effect.runPromise,
-  )
-}
+    const socket = await createSurfaceSocket({
+      group: surface.group,
+      url: `${url.replace("http://", "ws://")}${WS_PATH}`,
+      retired: () => {},
+      connect: (target) => new WsClient(target) as unknown as WebSocket,
+    })
+    try {
+      await body(socket.link.dispatch)
+    } finally {
+      await socket.dispose()
+    }
+  })
 
 test("a browser calling a write verb is refused, and the same socket keeps serving", async () => {
   await withBrowserSocket(async (dispatch) => {
@@ -293,10 +273,7 @@ test("a browser calling a write verb is refused, and the same socket keeps servi
     // not a transport-level "no such method" it could not tell from a server
     // that is simply older than it is.
     const refused = await Effect.runPromise(
-      Effect.exit(dispatch.unary("surface/ops/run", {
-        request: { op: "title", id: "a", title: "renamed by a tab" },
-        writer: "web",
-      })),
+      Effect.exit(dispatch.unary("surface/ops/run", { op: "title", id: "a", title: "renamed by a tab" })),
     )
     expect(Exit.isFailure(refused)).toBe(true)
     if (Exit.isFailure(refused)) {

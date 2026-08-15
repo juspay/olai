@@ -32,7 +32,8 @@
  * security gate that silently never took effect is worse than a boot crash.
  */
 
-import { emitter } from "@olai/log"
+import { codeOf, emitter, prettyCause } from "@olai/log"
+import type { Ops } from "@olai/ops"
 import { surface } from "@olai/surface"
 import type { Logger } from "@kolu/log"
 import { unixSocketLink } from "@kolu/surface/links/unix-socket"
@@ -49,7 +50,7 @@ import { resolve } from "node:path"
 
 import { AGENT_FACE } from "./faces.ts"
 import { clientOn } from "./mcp/face.ts"
-import type { Bound } from "./runtime.ts"
+import { type Bound, writerAt } from "./runtime.ts"
 
 /**
  * Where the two processes meet, for one directory.
@@ -102,6 +103,11 @@ const canonical = (root: string): string => {
 export const serveAgentSocket = (options: {
   readonly root: string
   readonly bound: Pick<Bound, "group" | "handlers">
+  /** The layer the writer-carrying members are rebound over for THIS face —
+   *  see {@link writerAt}. Everything that reaches this socket is an attached
+   *  `olai mcp`, so what it writes is recorded as `mcp` rather than as the
+   *  browser this runtime was otherwise composed for. */
+  readonly ops: Ops
 }): Effect.Effect<void, never, Scope.Scope> =>
   Effect.gen(function*() {
     const socketPath = socketFor(options.root)
@@ -113,7 +119,7 @@ export const serveAgentSocket = (options: {
       serveOverUnixSocket({
         socketPath,
         group: options.bound.group,
-        handlers: options.bound.handlers,
+        handlers: writerAt(options.bound, options.ops, "mcp"),
         // What an attached `olai mcp` may call. NOT omitted: an absent expose
         // serves the whole surface, and this face must never reach the human's
         // conversation.
@@ -174,7 +180,7 @@ const said = (
     case "bind-failed":
       return Effect.annotateLogs(
         Effect.logWarning("the agent socket could not be bound — " + also),
-        { socket: socketPath, err: String(outcome.err) },
+        { socket: socketPath, err: prettyCause(outcome.err) },
       )
   }
 }
@@ -195,7 +201,7 @@ const said = (
  * a server IS holding is the outcome this node exists to stop, and it must not
  * be reachable by accident.
  */
-export const attachTo = async (
+const dial = async (
   socketPath: string,
 ): Promise<OwnedSurfaceConnection | null> => {
   try {
@@ -213,23 +219,24 @@ export const attachTo = async (
   }
 }
 
-const nobodyHome = (error: unknown): boolean => {
-  const code = (error as { readonly code?: unknown } | null)?.code
-  return code === "ECONNREFUSED" || code === "ENOENT"
-}
+const nobodyHome = (error: unknown): boolean =>
+  codeOf(error) === "ECONNREFUSED" || codeOf(error) === "ENOENT"
 
 /**
- * The adapter's client factory for a session that has already attached: hand
- * over the connection the probe opened, then dial a fresh one for every later
- * ask.
+ * Attach to whatever is serving `socketPath`, or answer `null` when nothing
+ * is.
  *
- * TWO CALLERS want a connection — the reads-and-tools slot and the resource
- * pusher — and the adapter re-invokes this after a drop, so it cannot be a
- * single value. The probe's own connection is handed to the FIRST asker rather
- * than disposed and re-dialled, which is worth the six lines: disposing it
- * would open a window in which the server could stop between "there is one" and
- * "connect to it", and a session that decided to attach would then have nothing
- * to attach to.
+ * ONE step, because there is no useful moment between the two halves: the probe
+ * IS the first connection, and what a caller wants back is not a socket but the
+ * adapter's client factory over it. So the answer is that factory — or `null`,
+ * which is `olai mcp`'s whole decision.
+ *
+ * TWO CALLERS want a connection from it — the reads-and-tools slot and the
+ * resource pusher — and the adapter re-invokes it after a drop, so it cannot be
+ * a single value. The probe's own connection is handed to the FIRST asker
+ * rather than disposed and re-dialled: disposing it would open a window in
+ * which the server could stop between "there is one" and "connect to it", and a
+ * session that had decided to attach would then have nothing to attach to.
  *
  * A later dial that finds nobody home FAILS rather than falling back to opening
  * a store. Falling back would mean a session whose tools silently changed which
@@ -237,23 +244,38 @@ const nobodyHome = (error: unknown): boolean => {
  * agent's earlier reads describing a store that no longer exists. The honest
  * answer is that the server this session attached to is gone.
  */
-export const attaching = (
-  first: OwnedSurfaceConnection,
+export const attaching = async (
   socketPath: string,
-): () => Promise<OwnedSurfaceConnection> => {
-  let held: OwnedSurfaceConnection | null = first
-  return async () => {
-    const ready = held
-    held = null
-    if (ready !== null) return ready
-    const again = await attachTo(socketPath)
-    if (again === null) {
-      throw new Error(
-        `the olai server this session attached to has stopped serving ${socketPath}`,
-      )
-    }
-    return again
+): Promise<Attached | null> => {
+  let held = await dial(socketPath)
+  if (held === null) return null
+  const first = held
+  return {
+    first,
+    client: async () => {
+      const ready = held
+      held = null
+      if (ready !== null) return ready
+      const again = await dial(socketPath)
+      if (again === null) {
+        throw new Error(
+          `the olai server this session attached to has stopped serving ${socketPath}`,
+        )
+      }
+      return again
+    },
   }
+}
+
+/** A session that attached: the adapter's client factory, plus the connection
+ *  the probe opened. The second is handed back only so the composition root can
+ *  put its disposal on a scope — the adapter disposes every connection IT
+ *  opened, and this one it was HANDED, so nothing else would ever close it if
+ *  the serve failed before asking. `dispose` is idempotent, so the ordinary
+ *  path is unaffected. */
+export interface Attached {
+  readonly first: OwnedSurfaceConnection
+  readonly client: () => Promise<OwnedSurfaceConnection>
 }
 
 /** kolu's structured logger, spoken as olai's. Four levels onto Effect's four,

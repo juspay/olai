@@ -46,7 +46,7 @@
  */
 
 import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
-import { type Emit, emitter } from "@olai/log"
+import { codeOf, type Emit, emitter } from "@olai/log"
 import { Effect, Layer, type Scope } from "effect"
 
 import { BROWSER_FACE } from "./faces.ts"
@@ -157,7 +157,3 @@ const IN_USE = "EADDRINUSE"
 /** Ask the OS for a port. Not a magic number: `0` IS the request. */
 const ANY_PORT = 0
 
-const codeOf = (cause: unknown): string | undefined =>
-  typeof cause === "object" && cause !== null && "code" in cause
-    ? String((cause as { readonly code: unknown }).code)
-    : undefined

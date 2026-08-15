@@ -343,10 +343,10 @@ produced.
 ## And one group NO browser may reach
 
 `src/ops.ts` is the AGENT's door — `ops.run` over `@olai/format`'s
-`WriteRequest` union, `ops.commit`, and the three query answers that had no
-procedure. It is the other half of the sentence above: a keyboard sends intents
-and an agent names ops, deliberately different vocabularies over one write gate,
-and `edit.apply` is untouched by any of it.
+`WriteRequest` union, and the three query answers that had no procedure. It is
+the other half of the sentence above: a keyboard sends intents and an agent
+names ops, deliberately different vocabularies over one write gate, and
+`edit.apply` is untouched by any of it.
 
 Two things about it are worth reading before the file:
 
@@ -360,16 +360,21 @@ Two things about it are worth reading before the file:
   calls one anyway is refused per request with `SurfaceMemberNotExposed` naming
   the tag, rather than finding a member missing. Which face gets what is
   `@olai/server`'s (`src/faces.ts`); this package only declares what exists.
-- **Why the writer travels with the call**, when every other door has it decided
-  by the process it lives in. The serving process is an `olai web`; the CALLER
-  may be somebody's own `olai mcp` two terminals over, so a writer decided by
-  the server would record every attached agent's work as the browser's. It is
-  still decided by a composition root — the caller's, which is the one that
-  knows. It is provenance rather than authorization, and the gate is the face.
+- **Why nothing here names WHO is writing.** The `X-Olai-Writer` trailer is the
+  only thing that can tell one agent's edits from a person's, and it is not a
+  field on any of these: a transport that could name itself could name another.
+  Every caller of this namespace is identified by the FACE it arrived on — an
+  owner-only socket is an attached `olai mcp`, an in-process dispatch is
+  whichever agent the composition root built it for — so the writer is bound
+  where the face is composed, by rebinding these handlers for it
+  (`@olai/server`'s `runtime.ts`, `writerAt`). One fact in one place either way;
+  what it removes is the spelling of it a caller could have lied about.
 
-`push` and `search.nodes` are deliberately NOT twinned there: a member belongs
-to the agent's door only when the agent's version DIFFERS. A push takes no
-writer at all, and a search asks and answers the same thing whoever asks.
+`git.commit`, `git.push` and `search.nodes` are deliberately NOT twinned there,
+and that is the rule paying off: a member belongs to the agent's door only when
+the agent's version DIFFERS. Once the writer stops travelling, none of the three
+does — a commit is the same act with the same request and the same answer, and
+only the trailer differs, which the face decides.
 
 Who is on the other end is deliberately NOT a member here. It is a real
 question — a page bound to a server that has been replaced must know, and both

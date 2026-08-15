@@ -297,7 +297,7 @@ export interface Status {
 }
 
 /** What one write's own commit attempt came to — the two fields an op reports
- *  ({@link ../request.ts}'s `Applied`), so the reason never has to be inferred
+ *  (`@olai/format`'s `writing.ts`, as `WriteResult`), so the reason never has to be inferred
  *  from the boolean. */
 export interface Outcome {
   readonly committed: boolean

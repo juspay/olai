@@ -33,11 +33,14 @@ The face is a `CommitFace` — `Writer` minus the writer that is not a subcomman
 so there is still one name for who is asking, not two to keep in step.
 
 This package decides one more thing about committing, and it is not the mode —
-it is WHO each transport is: the internal MCP route is handed to the session
-olai spawns, so it says `chat-agent`; `olai mcp` is somebody's own coding agent,
-so it says `mcp`; the surface procedure is `web`. That word is the commit's
-`X-Olai-Writer` trailer, and a transport that claimed it about itself would be
-a transport that could claim to be another. Everything else about a commit is
+it is WHO each FACE is: the internal MCP route is handed to the session olai
+spawns, so it says `chat-agent`; an owner-only unix socket is somebody's own
+`olai mcp`, so it says `mcp`; the browser's websocket says `web`. That word is
+the commit's `X-Olai-Writer` trailer, and a transport that claimed it about
+itself would be a transport that could claim to be another — which is why it is
+bound where the face is composed (`src/runtime.ts`'s `writerAt`, which serves
+one runtime to several faces under several writers) and is a field on no
+procedure anywhere. Everything else about a commit is
 the same on both faces, down to the bytes: `@olai/ops`' `pending.test.ts`
 commits one identical pending set as each and asserts the trees and the messages
 match, with the trailer as the only difference.

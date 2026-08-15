@@ -35,7 +35,7 @@ import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
-import { bind, gitWiring, type Publishers } from "./runtime.ts"
+import { bind, gitWiring, type Publishers, writerAt } from "./runtime.ts"
 import { serveAgentSocket } from "./socket.ts"
 
 export interface ServeOptions {
@@ -178,9 +178,12 @@ export const serve = (options: ServeOptions) =>
     // which is the whole point of the surface-mcp adoption, and the reason the
     // hand-rolled dispatch this replaced is gone.
     const transport = mcpTransport()
+    // Built ONCE and handed back on every ask: this face has no transport to
+    // drop, so re-dialling would only re-run the gate over the same handlers.
+    const panel = clientOver(writerAt(wired.bound, ops, "chat-agent"))
     yield* serveFace({
-      client: () => clientOver(wired.bound.handlers),
-      tools: bespokeFrom(TOOLS, "chat-agent"),
+      client: () => panel,
+      tools: bespokeFrom(TOOLS),
       transport,
     })
 
@@ -194,7 +197,7 @@ export const serve = (options: ServeOptions) =>
     // BEFORE the listener, so the socket is up by the time a port is announced
     // and an agent that races the log line finds a surface rather than an
     // ENOENT. Its teardown is on this scope like everything else's.
-    yield* serveAgentSocket({ root, bound: wired.bound })
+    yield* serveAgentSocket({ root, bound: wired.bound, ops })
 
     const url = yield* Effect.onError(
       listen({ ...options, bound: wired.bound, mcp: { transport, token } }),

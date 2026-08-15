@@ -29,7 +29,7 @@ import * as path from "node:path"
 import { watchFault } from "../fault.ts"
 import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
-import { bind, gitWiring } from "../runtime.ts"
+import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { MCP_PATH, mcpTransport } from "./route.ts"
 import { bespokeFrom } from "./tools.ts"
@@ -71,8 +71,8 @@ const withRoute = <A>(use: (served: Served) => Promise<A>): Promise<A> => {
 
     const transport = mcpTransport()
     yield* serveFace({
-      client: () => clientOver(wired.bound.handlers),
-      tools: bespokeFrom(TOOLS, "mcp"),
+      client: () => clientOver(writerAt(wired.bound, ops, "mcp")),
+      tools: bespokeFrom(TOOLS),
       transport,
     })
     yield* Effect.addFinalizer(() => runtime.stopped)

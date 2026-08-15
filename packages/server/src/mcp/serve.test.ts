@@ -39,11 +39,8 @@ import * as path from "node:path"
 import type { Pending } from "@olai/format"
 import { gitIn, repoAt, subjectsIn, writerOf } from "@olai/ops/testlib"
 
-import { Effect, Logger } from "effect"
-
 import { stoppedWithin } from "../child.testlib.ts"
-import { serve } from "../serve.ts"
-import { SERVER_LAYERS } from "../serve.testlib.ts"
+import { withServe } from "../serve.testlib.ts"
 
 const MAIN = path.join(import.meta.dirname, "..", "main.ts")
 
@@ -685,23 +682,14 @@ test("--commit=auto --no-commit is off, through the real binary", async () => {
  * test that could not prove the socket was up before the child dialled would be
  * a flake generator, and `serve` returning IS that proof.
  */
-const withWeb = <A>(root: string, body: () => Promise<A>): Promise<A> =>
-  Effect.gen(function*() {
-    yield* serve({
-      root,
-      port: 0,
-      host: "127.0.0.1",
-      clientDist: served(),
-      allowedOrigins: [],
-      commits: "off",
-    })
-    return yield* Effect.promise(body)
-  }).pipe(
-    Effect.scoped,
-    Effect.provide(SERVER_LAYERS),
-    Effect.provide(Logger.layer([])),
-    Effect.runPromise,
-  )
+const withWeb = <A>(
+  root: string,
+  body: () => Promise<A>,
+  /** The SERVING process's commit mode, which is the only one that counts
+   *  while a session is attached — `off` unless a test is about committing,
+   *  for the reason `converse`'s default is. */
+  commits: "off" | "manual" = "off",
+): Promise<A> => withServe({ root, commits }, body)
 
 test("`olai mcp` on a served directory attaches instead of opening a second store", async () => {
   const root = fs.realpathSync(served())
@@ -748,4 +736,23 @@ test("with nothing serving the directory, it opens its own store exactly as befo
   expect(answerTo(said, 2).result?.isError).toBeUndefined()
   expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8"))
     .toContain("order the cabinets, fresh")
+}, BOUND_MS * 3)
+
+test("an attached session's commits are recorded as the AGENT, not as the server", async () => {
+  // The one claim the writer-in-the-call design has to earn. The serving
+  // process is an `olai web` whose own door is `web`; the caller is somebody's
+  // `olai mcp`. If the writer were decided where the store is, every attached
+  // agent's work would go into the log under the browser's name — which is the
+  // one thing the `X-Olai-Writer` trailer exists to tell apart.
+  const root = servedRepo()
+
+  await withWeb(root, () =>
+    withServer(root, async (client) => {
+      await called(client, "set_done", { id: "order" })
+      const recorded = await called(client, "commit", { message: "attached and recorded" })
+      expect(recorded["isError"]).toBeUndefined()
+    }), "manual")
+
+  expect(subjectsIn(root)).toEqual(["olai: attached and recorded", FIXTURE_COMMIT])
+  expect(writerOf(root)).toBe("mcp")
 }, BOUND_MS * 3)

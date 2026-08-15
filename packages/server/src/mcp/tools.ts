@@ -65,20 +65,18 @@ type Door = Running & Asking & Acting
  * socket in the process that attached to one. One path, and it is the SAME path
  * — not a bridged variant kept beside a local one that could answer differently.
  *
- * `writer` is which FACE this projection is: `chat-agent` for the panel's agent
- * reaching the web server's route, `mcp` for somebody's own agent talking to
- * `olai mcp`. It is decided by the composition root and passed in, never claimed
- * by a tool about itself — and it is the only thing that can tell one agent's
- * edits from another's, since git records the repository's own name and email
- * whoever asked. It rides every commit as `X-Olai-Writer`, and it now rides the
- * CALL as well, because the process that answers may not be the process that
- * knows ({@link @olai/surface}'s `ops.ts`).
+ * **And it takes no writer either.** It used to: `chat-agent` for the panel's
+ * agent, `mcp` for somebody's own. That is still exactly the distinction the
+ * `X-Olai-Writer` trailer records, and it is still decided by a composition
+ * root — but by the one that composes the FACE these tools reach through
+ * (`../runtime.ts`'s `writerAt`), which is where every other fact about a face
+ * is decided. A tool that could name a writer could name the wrong one, and
+ * this projection now has no way to name any.
  */
 export const bespokeFrom = (
   tools: ReadonlyArray<Tool>,
-  writer: Writer,
 ): Record<string, BespokeTool> =>
-  Object.fromEntries(tools.map((tool) => [tool.name, bespoke(tool, writer)]))
+  Object.fromEntries(tools.map((tool) => [tool.name, bespoke(tool)]))
 
 /**
  * The surface, as the three doors `@olai/ops`' arms are declared against.
@@ -88,16 +86,36 @@ export const bespokeFrom = (
  * interfaces and this one answer the same questions, so a tool cannot behave
  * differently for being reached over a socket.
  *
- * `push` and `search` are the SHARED members (`git.push`, `search.nodes`); the
- * rest are the agent's own `ops.*`, which is where the writer travels.
+ * `commit`, `push` and `search` are the members BOTH doors call (`git.*`,
+ * `search.nodes`); the rest are the agent's own `ops.*`. Which writer a landing
+ * write is recorded as is neither's business — the FACE this client dispatches
+ * at decided it (`../runtime.ts`'s `writerAt`).
+ *
+ * ONE PER CLIENT, not one per call. Two of the seven lines are Effect VALUES
+ * rather than thunks (`push`, `outlines` — that is the shape the interfaces
+ * declare, because a question with no argument is a value), so building a door
+ * per tool call would decode `git.push`'s empty input on every `set_done` as
+ * well. The adapter hands back the same client object for a connection's whole
+ * life, so the key is the connection in everything but name — and an Effect is
+ * an immutable description, so reuse across calls is what it is for.
  */
+const doorFor = (client: OlaiSurfaceClient): Door => {
+  const held = DOORS.get(client)
+  if (held !== undefined) return held
+  const door = doorOver(client)
+  DOORS.set(client, door)
+  return door
+}
+
+const DOORS = new WeakMap<OlaiSurfaceClient, Door>()
+
 const doorOver = (client: OlaiSurfaceClient): Door => ({
-  run: (request, writer) => landed(client.surface.ops.run({ request, writer })),
+  run: (request) => landed(client.surface.ops.run(request)),
   // The act arm has NO failure channel and says so by type: every way a commit
   // or a push can go wrong is a value the caller is entitled to see, carried on
   // the answer. So the only thing left for these two to fail with is the
   // transport, and `orDie` is {@link landed}'s rule with nothing to spare.
-  commit: (request, writer) => Effect.orDie(client.surface.ops.commit({ request, writer })),
+  commit: (request) => Effect.orDie(client.surface.git.commit(request)),
   push: Effect.orDie(client.surface.git.push({})),
   outlines: landed(client.surface.ops.outlines(undefined)),
   node: (request) => landed(client.surface.ops.node(request)),
@@ -123,23 +141,28 @@ const landed = <A>(call: Effect.Effect<A, unknown>): Effect.Effect<A, OpFailure>
     (failure) => isOpFailure(failure) ? Effect.fail(failure) : Effect.die(failure),
   )
 
-const bespoke = (tool: Tool, writer: Writer): BespokeTool => ({
-  // Omitted rather than passed as `undefined` when the tool takes nothing —
-  // see {@link argsOf}. An absent `input` is what the adapter reads as "no
-  // arguments"; a present-but-empty schema is a different claim.
-  ...(argsOf(tool) === undefined ? {} : { input: argsOf(tool) }),
-  title: tool.title,
-  description: tool.description,
-  // Conservative where it matters and honest where it does not: only the four
-  // query tools are read-only, and `readOnlyHint` is what can let a host run a
-  // call unconfirmed. Everything else is left mutating.
-  mutates: tool.kind !== "read",
-  // The client the ADAPTER holds, not one this projection closed over — so a
-  // socket that dropped and was re-dialled is answered by the fresh one, and
-  // the tool surface never has to be rebuilt. Typed at this one seam, where
-  // `./face.ts` already keeps the framework-forced structural cast.
-  handler: (args, client) => answer(tool, doorOver(client as OlaiSurfaceClient), args, writer),
-})
+const bespoke = (tool: Tool): BespokeTool => {
+  // Built ONCE — it compiles a `Schema.Struct` — and read twice below, which is
+  // what the test for it is asking about.
+  const input = argsOf(tool)
+  return {
+    // Omitted rather than passed as `undefined` when the tool takes nothing —
+    // see {@link argsOf}. An absent `input` is what the adapter reads as "no
+    // arguments"; a present-but-empty schema is a different claim.
+    ...(input === undefined ? {} : { input }),
+    title: tool.title,
+    description: tool.description,
+    // Conservative where it matters and honest where it does not: only the four
+    // query tools are read-only, and `readOnlyHint` is what can let a host run a
+    // call unconfirmed. Everything else is left mutating.
+    mutates: tool.kind !== "read",
+    // The client the ADAPTER holds, not one this projection closed over — so a
+    // socket that dropped and was re-dialled is answered by the fresh one, and
+    // the tool surface never has to be rebuilt. Typed at this one seam, where
+    // `./face.ts` already keeps the framework-forced structural cast.
+    handler: (args, client) => answer(tool, doorFor(client as OlaiSurfaceClient), args),
+  }
+}
 
 /**
  * What an agent fills in: the request schema minus the fields the tool's NAME
@@ -192,7 +215,6 @@ const answer = (
   tool: Tool,
   door: Door,
   args: unknown,
-  writer: Writer,
 ): Effect.Effect<unknown, ToolFailure> =>
   Effect.mapError(
     tool.kind === "write"
@@ -200,12 +222,12 @@ const answer = (
       // decoded by the adapter against the schema this tool advertised, so
       // there is nothing left to validate.
       ? Effect.map(
-        door.run({ ...(args as object), ...tool.fixed } as Request, writer),
+        door.run({ ...(args as object), ...tool.fixed } as Request),
         (applied) => ({ ...applied, did: tool.name }),
       )
       : tool.kind === "act"
       ? Effect.map(
-        tool.act(door, args as never, writer),
+        tool.act(door, args as never),
         (result) => ({ ...(result as object), did: tool.name }),
       )
       : tool.ask(door, args as never),

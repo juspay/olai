@@ -49,8 +49,7 @@ import type { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import { Effect, type Scope } from "effect"
 
-import { AGENT_FACE, EXPOSE } from "../faces.ts"
-
+import { AGENT_FACE, MCP } from "../faces.ts"
 
 // ── The client, typed ────────────────────────────────────────────────────
 
@@ -81,38 +80,6 @@ type SurfaceCollectionsReadFace<S extends SurfaceSpec> = {
   }
 }
 
-/** One procedure's three schemas, as the client's call signature. Read off the
- *  SPEC rather than restated, so the day a procedure's input or answer changes
- *  is the day this stops compiling — which is the whole reason the leaves below
- *  are derived and not hand-written. An absent `input` is `undefined` (the
- *  framework's payload for a no-argument member) and an absent `error` is
- *  `never`, exactly as `defineSurface` reads them. */
-type Called<P> = (
-  input: P extends { readonly input: { readonly Type: infer I } } ? I : undefined,
-) => Effect.Effect<
-  P extends { readonly output: { readonly Type: infer O } } ? O : void,
-  P extends { readonly error: { readonly Type: infer E } } ? E : never
->
-
-/** The declared procedures, at the shape the spec holds them. */
-type Procedures = NonNullable<typeof surface.spec["procedures"]>
-
-/**
- * The CALL half of the face — the members `@olai/ops`' tool table lands
- * through, and exactly those.
- *
- * The same list `AGENT`'s map grants (`../faces.ts`), which is not a
- * coincidence and is not enforced either: one says what a bridged process MAY
- * call and this says what it DOES call, and the pair is what `tools.ts` turns
- * into the three ops-layer doors. A member here that the map omits is a refusal
- * at the first tool call; the map's own test is what keeps them together.
- */
-type SurfaceCallFace = {
-  readonly ops: { [V in keyof Procedures["ops"]]: Called<Procedures["ops"][V]> }
-  readonly search: { readonly nodes: Called<Procedures["search"]["nodes"]> }
-  readonly git: { readonly push: Called<Procedures["git"]["push"]> }
-}
-
 /**
  * olai's surface as a CLIENT sees it — spec-derived, so a schema edit is a
  * compile error here rather than a runtime surprise.
@@ -126,17 +93,19 @@ type SurfaceCallFace = {
  * `PadiSurfaceClient`, and the framework-forced structural cast lives in ONE
  * named place — {@link clientOver} — instead of at every call site.
  *
- * It carries the CALL half now as well as the read half, because the tools go
- * through it: `@olai/ops`' table is projected over this client rather than over
- * a local `Ops` ({@link ./tools.ts}), which is what makes an attached process
- * possible and what makes the attached answer and the fresh one the same
- * statement rather than two implementations that agree.
+ * The PROCEDURES need nothing added, which is worth saying because the tools
+ * call them now ({@link ./tools.ts} projects `@olai/ops`' table over this
+ * client rather than over a local `Ops`). {@link SurfaceReadFace}'s name
+ * undersells it: its last mapped block is over `S["procedures"]`, with the
+ * four-arm input/output ladder and the declared error union. A local re-spelling
+ * of that was written here first and deleted — it type-checked, so it looked
+ * harmless, and it had already drifted on the side that matters: the framework
+ * mints a procedure on the ENCODED input and the copy took the decoded one.
  */
 export type OlaiSurfaceClient = {
   readonly surface:
     & SurfaceReadFace<typeof surface.spec>
     & SurfaceCollectionsReadFace<typeof surface.spec>
-    & SurfaceCallFace
 }
 
 /** Build the typed face over any dispatch — an in-process one here, a unix
@@ -231,7 +200,7 @@ export const serveFace = (
       serveSurfaceAsMcp({
         surface,
         client: options.client,
-        expose: EXPOSE,
+        expose: MCP,
         serverInfo: SERVER_INFO,
         instructions: INSTRUCTIONS,
         ...(options.tools === undefined ? {} : { tools: options.tools }),

@@ -130,7 +130,7 @@ import { type ExposeMap, exposeFace, type FaceExposure } from "@kolu/surface/exp
  * conversation. An agent that is not ours has no business watching either, and
  * the internal one watching its own state is a feedback loop.
  */
-export const EXPOSE: ExposeMap<typeof surface.spec> = {
+export const MCP: ExposeMap<typeof surface.spec> = {
   outlines: "resource",
   documents: "resource",
   errors: "resource",
@@ -162,7 +162,7 @@ export const EXPOSE: ExposeMap<typeof surface.spec> = {
  * Two things are deliberately not narrowed. `chat` and `transcript` ARE the
  * human's session and conversation, and the browser is the human — this is the
  * face they belong to, and the one place they are exposed. `manifest` is here
- * for the same reason it is absent from {@link EXPOSE}, inverted: a render-
+ * for the same reason it is absent from {@link MCP}, inverted: a render-
  * shaped consumer genuinely needs the "has this directory ever loaded" bit that
  * a request-shaped one gets for free by blocking on the first frame.
  */
@@ -192,19 +192,22 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
 /**
  * THE UNIX SOCKET's face — what a bridged `olai mcp` may reach.
  *
- * DERIVED from {@link EXPOSE} rather than written beside it, and that is the
+ * DERIVED from {@link MCP} rather than written beside it, and that is the
  * load-bearing line in this module. The socket exists to serve one client: a
  * second olai process running the MCP adapter over this store instead of its
- * own. What that process serves is `EXPOSE`'s resources plus `@olai/ops`' tool
- * table — so what it must be able to CALL is exactly `EXPOSE` plus the members
+ * own. What that process serves is `MCP`'s resources plus `@olai/ops`' tool
+ * table — so what it must be able to CALL is exactly `MCP` plus the members
  * those tools land through. Spelled as a second literal, the day somebody
  * exposed a sixth resource would be the day a bridged agent could read it
  * fresh and not attached.
  *
  * The procedures added on top are the tool table's three arms, and nothing
- * else: `ops.*` (the eighteen writes, the three reads and the agent's commit),
- * `search.nodes` (one question, both doors) and `git.push` (which takes no
- * writer, so there is nothing for an agent's version of it to differ by).
+ * else: `ops.*` (the eighteen writes and the three reads that had no procedure),
+ * plus `search.nodes`, `git.commit` and `git.push` — the three members BOTH
+ * doors call, because none of them has an agent-specific version. What a commit
+ * is RECORDED AS does differ, and it is not a member's business: this face is
+ * served under the `mcp` writer (`./runtime.ts`'s `writerAt`), which is where
+ * every other fact about a face is decided too.
  *
  * `"tool"` is the plain spelling throughout, and the `{ tool: { mutates } }`
  * hint is deliberately not used: a wire face reads MEMBERSHIP only, and
@@ -213,16 +216,15 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
  * `bespokeFrom` turns into `readOnlyHint` — and a second, unread copy of it
  * here would be a second place to keep it right.
  *
- * WHAT IS ABSENT is the same list as `EXPOSE`'s, for the same reasons, plus
- * `edit.apply` and `git.commit`: those are the BROWSER's doors onto verbs this
- * face already has its own spelling of, and an agent reaching the keyboard's
- * narrowed vocabulary would be an agent sending intents about a screen it
- * cannot see.
+ * WHAT IS ABSENT is the same list as `MCP`'s, for the same reasons, plus
+ * `edit.apply`: that one is the KEYBOARD's, deliberately narrower than the ops
+ * request vocabulary, and an agent reaching it would be an agent sending
+ * intents about a screen it cannot see.
  */
 export const AGENT: ExposeMap<typeof surface.spec> = {
-  ...EXPOSE,
+  ...MCP,
   "ops.run": "tool",
-  "ops.commit": "tool",
+  "git.commit": "tool",
   "ops.outlines": "tool",
   "ops.node": "tool",
   "ops.subtree": "tool",

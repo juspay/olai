@@ -31,11 +31,22 @@
 import { Effect, Schema } from "effect"
 
 import {
+  AddRequest,
+  AfterRequest,
+  ArchiveRequest,
   type CommitRequest,
   CommitRequest as CommitRequestSchema,
   type CommitResult,
+  CreateDocumentRequest,
+  CreateRequest,
+  DateRequest,
+  DescRequest,
   type Derived,
   MARKS,
+  MarkRequest,
+  MergeRequest,
+  MirrorRequest,
+  MoveRequest,
   NodeAnswer,
   NodeRequest,
   type OpFailure,
@@ -44,34 +55,20 @@ import {
   type PushResult,
   SearchAnswer,
   SearchRequest,
+  SeeRequest,
+  SplitRequest,
   type Status,
   SubtreeAnswer,
   SubtreeRequest,
-  type Writer,
-} from "@olai/format"
-
-import * as Query from "./query.ts"
-import {
-  AddRequest,
-  type Applied,
-  AfterRequest,
-  ArchiveRequest,
-  CreateDocumentRequest,
-  CreateRequest,
-  DateRequest,
-  DescRequest,
-  MarkRequest,
-  MergeRequest,
-  MirrorRequest,
-  MoveRequest,
-  type Request,
-  SeeRequest,
-  SplitRequest,
   TitleRequest,
   UnarchiveRequest,
   UnmirrorRequest,
   WriteDocumentRequest,
-} from "./request.ts"
+  type WriteRequest as Request,
+  type WriteResult as Applied,
+} from "@olai/format"
+
+import * as Query from "./query.ts"
 
 /** The set as a reader sees it: the files that were found, and the derivations
  *  every answer is computed from. One value, so a run of queries walks the tree
@@ -155,28 +152,27 @@ export const asking = (read: Effect.Effect<Reading, OpFailure>): Asking => ({
   search: (request) => Effect.map(read, (at) => Query.search(at.derived, request)),
 })
 
-/** The WRITE half, the same way: one verb, and the only thing every one of the
- *  eighteen write tools does. Named as an argument for {@link Acting}'s reason
- *  — and, since `mcp-bridge`, satisfied by a surface client as readily as by a
- *  local `Ops`. */
+/**
+ * The WRITE half, the same way: one verb, and the only thing every one of the
+ * eighteen write tools does. Named as an argument for {@link Acting}'s reason —
+ * and, since `mcp-bridge`, satisfied by a surface client as readily as by a
+ * local `Ops`.
+ *
+ * NO WRITER, unlike `Ops.run` which this is otherwise the shape of. Who is
+ * writing is not a tool's business — a tool that could name a writer could name
+ * the wrong one — so it is bound where the DOOR is built, one layer out, and
+ * every table entry below is one call with nothing to remember.
+ */
 export interface Running {
-  readonly run: (
-    request: Request,
-    writer: Writer,
-  ) => Effect.Effect<Applied, OpFailure>
+  readonly run: (request: Request) => Effect.Effect<Applied, OpFailure>
 }
 
 /** The half of the ops layer a self-answering tool reaches. Named as an
  *  argument rather than imported as the whole `Ops`, so the table below stays a
  *  declaration of tools rather than a consumer of the writer. */
 export interface Acting {
-  readonly commit: (
-    request: CommitRequest,
-    writer: Writer,
-  ) => Effect.Effect<CommitResult>
-  /** No writer: a push records nothing about who asked, because it makes no
-   *  commit — the trailers on what it sends were written when those commits
-   *  were made. */
+  readonly commit: (request: CommitRequest) => Effect.Effect<CommitResult>
+  /** No arguments at all: the current branch to the upstream it already has. */
   readonly push: Effect.Effect<PushResult>
 }
 
@@ -235,11 +231,7 @@ export type Tool =
   })
   | (Described & {
     readonly kind: "act"
-    readonly act: (
-      ops: Acting,
-      args: never,
-      writer: Writer,
-    ) => Effect.Effect<unknown, never>
+    readonly act: (ops: Acting, args: never) => Effect.Effect<unknown, never>
   })
 
 // ── reading ────────────────────────────────────────────────────────────
@@ -294,14 +286,14 @@ const act = <A>(
   title: string,
   description: string,
   schema: Schema.Codec<A, never, never, never> | Schema.Top,
-  answer: (ops: Acting, args: A, writer: Writer) => Effect.Effect<unknown, never>,
+  answer: (ops: Acting, args: A) => Effect.Effect<unknown, never>,
 ): Tool => ({
   name,
   title,
   description,
   schema,
   kind: "act",
-  act: answer as (ops: Acting, args: never, writer: Writer) => Effect.Effect<unknown, never>,
+  act: answer as (ops: Acting, args: never) => Effect.Effect<unknown, never>,
 })
 
 /**
@@ -500,7 +492,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Commit what you changed",
     "Record what is waiting in the repository as one git commit — the audit trail of what this tool wrote. Writes land on disk immediately and WAIT for this; nothing commits on your behalf. Call it when a train of thought is finished, not after every edit, and give `message` saying what the work was (`reconcile the roadmap with the #70-#81 merges`) — an omitted one is composed from what changed, which can only describe the edits and not why you made them.\n\nIT SWEEPS THE WHOLE REPOSITORY, not only the outlines: every file that differs from HEAD, including a `.md` or a source file a person edited by hand, and including anything untracked that `.gitignore` does not cover. Read `surface://cells/pending` first to see exactly what that is — `outlines` with their node-level changes, `others` as paths with a status each, and `served` saying which part of the repository olai serves. Give `paths` (repository-root-relative, as `pending` lists them) to commit only some of it; what you leave out stays waiting for a commit and a message of its own. A path nothing is waiting on is refused rather than quietly skipped.\n\nIt never touches git's index, so anything staged by hand is left exactly as it was, and it refuses while the repository is mid-merge, mid-rebase or on a detached HEAD.",
     CommitRequestSchema,
-    (ops, args: CommitRequest, writer) => ops.commit(args, writer),
+    (ops, args: CommitRequest) => ops.commit(args),
   ),
 
   act(
@@ -511,6 +503,3 @@ export const TOOLS: ReadonlyArray<Tool> = [
     (ops) => ops.push,
   ),
 ]
-
-export const toolNamed = (name: string): Tool | undefined =>
-  TOOLS.find((tool) => tool.name === name)

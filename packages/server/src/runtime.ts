@@ -44,7 +44,7 @@
  */
 
 import { NOTHING_PENDING } from "@olai/format"
-import { type Ops, Query, type Status } from "@olai/ops"
+import { type Ops, Query, type Request, type Status } from "@olai/ops"
 import type {
   CommitRequest,
   CommitResult,
@@ -68,10 +68,14 @@ import {
   surface,
 } from "@olai/surface"
 import { UsageFailure } from "@olai/format"
+import { surfaceTag } from "@kolu/surface/define"
 import {
+  emptyHandlers,
   type ImplementSurfaceDeps,
   implementSurface,
   inMemoryStore,
+  type SurfaceHandler,
+  type SurfaceHandlers,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
 import { Duration, Effect, Result, Stream, SubscriptionRef } from "effect"
@@ -122,11 +126,12 @@ export interface Wiring {
    *  they hold nothing of their own: what a keystroke MEANT is resolved
    *  against this layer's own reading (`./edit.ts`) and run as one op. */
   readonly ops: Ops
-  /** WHO a keystroke is, for the commit trailer — decided by whoever composed
-   *  this, exactly as the git half's writer is, and for the same reason: a
-   *  transport that named itself could name another. `web` on the browser's
-   *  face; on `olai mcp` these procedures are unexposed, so it is the one
-   *  nobody can reach. */
+  /** WHO this runtime's OWN face writes as, for the commit trailer — decided by
+   *  whoever composed it, because a transport that named itself could name
+   *  another. `web` in `../serve.ts`, which is the browser's; a face composed
+   *  for an agent is served the same runtime under a different one
+   *  ({@link writerAt}), which is what lets one store answer a tab and an
+   *  attached `olai mcp` without either being recorded as the other. */
   readonly writer: Writer
   /**
    * The git half, taken from the ops layer rather than the layer itself: this
@@ -189,6 +194,74 @@ export const gitWiring = (
 export interface Publishers {
   readonly state: (state: ChatState) => void
   readonly transcript: (change: Change) => void
+}
+
+/**
+ * Every member whose answer RECORDS who asked, bound to one writer.
+ *
+ * Two of them, and the list is here rather than spelled at each face because
+ * that is the whole point: {@link writerAt} rebuilds exactly these for a face
+ * composed under a different writer, so "which members carry a writer" is one
+ * declaration that both the binding and the rebinding walk. A third one added
+ * here reaches every face without anybody remembering to say so.
+ *
+ * Why a face rather than a call. Git records the repository's own name and
+ * email whoever asked, so the `X-Olai-Writer` trailer is the only thing that
+ * can tell one agent's edits from a person's — and a transport that could name
+ * itself could name another. Every caller of these is already identified by the
+ * FACE it arrived on: the websocket is a tab (`web`), an owner-only socket is
+ * an attached `olai mcp`, an in-process dispatch is whichever agent the
+ * composition root built it for. So the writer is decided where the face is,
+ * which is where every other fact about a face is decided.
+ */
+const writing = (ops: Ops, writer: Writer) => ({
+  ops: { run: (request: Request) => ops.run(request, writer) },
+  git: { commit: (request: CommitRequest) => ops.commit(request, writer) },
+})
+
+/** One of those, as `implementSurface` wants it. A bound member is called with
+ *  the bare input (`bind(ns, verb, (input) => handler({ input, ctx }))`), and
+ *  the declaration below is called with `{ input, ctx }` — so the two shapes
+ *  meet here, once, rather than {@link writing} having to be written twice in
+ *  whichever one the reader is looking at. Neither of these two members wants
+ *  `ctx`: what a write changes reaches every tab through the store. */
+const impl =
+  <I, A, E>(answer: (input: I) => Effect.Effect<A, E>) =>
+  ({ input }: { input: I }): Effect.Effect<A, E> => answer(input)
+
+/**
+ * The same surface, served to a face that writes as somebody else.
+ *
+ * `bind` binds {@link writing}'s members once, under the writer the runtime was
+ * composed with — `web` in `../serve.ts`. A face served to an AGENT wants the
+ * identical runtime (one store, one set of cells, one revision) with those two
+ * members recording that agent instead, and this is that: the same handler
+ * record with exactly those tags replaced.
+ *
+ * A REBIND rather than a second `implementSurface`, which would be a second
+ * runtime over the same store — two sets of connectors, two publishers, and two
+ * answers to every question this file exists to make sure there is one of.
+ *
+ * The record is rebuilt with `emptyHandlers()` rather than spread into a
+ * literal, because a handler record is null-prototype on purpose: a member
+ * legitimately named `toString` must not collide with what an object literal
+ * inherits (`@kolu/surface`'s `server.ts`). Every tag it produces is proved to
+ * be one the group serves — by `restrictHandlers`, which every face applies —
+ * so a mis-derived tag is a boot crash and not a hole.
+ */
+export const writerAt = (
+  bound: Pick<Bound, "handlers">,
+  ops: Ops,
+  writer: Writer,
+): SurfaceHandlers => {
+  const handlers = emptyHandlers()
+  for (const [tag, handler] of Object.entries(bound.handlers)) handlers[tag] = handler
+  for (const [namespace, verbs] of Object.entries(writing(ops, writer))) {
+    for (const [verb, handler] of Object.entries(verbs)) {
+      handlers[surfaceTag(surface.tagPrefix, namespace, verb)] = handler as SurfaceHandler
+    }
+  }
+  return handlers
 }
 
 export const bind = (
@@ -493,27 +566,25 @@ export const bind = (
          * keyboard's `edit.apply` lands through, reached with a different
          * vocabulary.
          *
-         * `writer` comes off the CALL rather than off `wiring`, which is the
-         * one thing that differs from every other door here and is argued where
-         * the procedures are declared: this face is served to a process that
-         * may not be this one, so a writer decided here would record a bridged
-         * agent's work as the browser's.
+         * The one member that records WHO asked comes from {@link writing}, so
+         * a face can be served the same surface under a different writer — see
+         * there, and {@link writerAt}.
          */
         ops: {
-          run: ({ input }) => wiring.ops.run(input.request, input.writer),
-          commit: ({ input }) => wiring.ops.commit(input.request, input.writer),
+          run: impl(writing(wiring.ops, wiring.writer).ops.run),
           outlines: () => wiring.ops.outlines,
           node: ({ input }) => wiring.ops.node(input),
           subtree: ({ input }) => wiring.ops.subtree(input),
         },
         git: {
-          // The button's door. `writer: "web"` is decided in `serve.ts`, where
-          // the ops layer is built — a procedure is a transport, and which
-          // transport this one is is not a thing it should be able to claim
-          // about itself. What republishes afterwards is NOT here: it is the
-          // `recorded` subscription above, so the agent's tool and
+          // The button's door, under the writer this runtime was composed with
+          // — and under a different one on a face composed for an agent, which
+          // is what {@link writing} is for. A procedure is a transport, and
+          // which transport this one is is not a thing it should be able to
+          // claim about itself. What republishes afterwards is NOT here: it is
+          // the `recorded` subscription above, so the agent's tool and
           // `--commit=auto` get it too.
-          commit: ({ input }) => wiring.git.commit(input),
+          commit: impl(writing(wiring.ops, wiring.writer).git.commit),
           // The Push button's door, and it takes no input at all — one verb,
           // the current branch, the upstream it already has. It republishes
           // through the same subscription for the same reason: pushing moves no
