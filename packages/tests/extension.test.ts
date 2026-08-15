@@ -110,7 +110,7 @@ const MAY_SPELL_IT: ReadonlyArray<string> = [
 /** Every line of `docs/format.md` allowed to say it: the recipe, and the
  *  sentence that sends a person to it. */
 const FORMAT_MD_LINES: ReadonlyArray<string> = [
-  "not read `.jsonl` any more, and a `.jsonl` left in a served directory is simply",
+  "The extension is what changed; the CONTENT is the same JSON lines it always was. A vault written before the rename is renamed by hand, once — olai does not read `.jsonl` any more, and a `.jsonl` left in a served directory is simply an unclaimed file, like a `.txt`:",
   `git ls-files '*.jsonl' | while read -r f; do git mv "$f" "\${f%.jsonl}.olai"; done`,
 ];
 

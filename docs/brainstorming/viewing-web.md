@@ -28,37 +28,13 @@ Sidebar of found outlines, one tree per route, mirrors inline (marked), client-l
 
 ## Title markdown — resolved 2026-08-10 (title-markdown)
 
-Racket parity: titles are **inline-only** markdown (bold, links, code — no block
-elements). What had to be decided is how that sits on the pipeline `md-docs`
-already built, and what happens when a title contains block-level source.
+Racket parity: titles are **inline-only** markdown (bold, links, code — no block elements). What had to be decided is how that sits on the pipeline `md-docs` already built, and what happens when a title contains block-level source.
 
-- **Same pipeline, one extra step.** Titles build the note/document tree
-  (`renderToTree`: parse → GFM → rehype → sanitise → highlight), then `toInline`
-  unwraps every block to its phrasing content, then `rewrite`, then title-only
-  walks (tags, optional link unwrap), then stringify. A second pipeline would be
-  a second dialect; a CSS-only "make blocks look inline" would leave
-  `<h1>`/`<ul>`/`<pre>` in the DOM for a screen reader and for any layout that
-  measures block boxes.
-- **Block source is unwrapped, not refused.** A title of `# not a heading` draws
-  the words "not a heading" with no `<h1>`; a fence becomes its `<code>`; a list
-  item becomes its text. The words stay; the boxes do not. Refusing the whole
-  title (or escaping it back to source) would punish a paste more loudly than the
-  layout needs.
-- **`#tags` after markdown, not before.** Walking text nodes of the finished
-  HAST (skipping `code` and `a`) styles tags without splitting markdown
-  constructs across two parser runs — so `**urgent #home**` stays bold,
-  `` `#home` `` stays code, and `[spec](…#home)` keeps its URL fragment. Peeling
-  with `titleParts` *before* markdown destroyed those cases. Tags remain
-  decorative until search/filter lands.
-- **Lost text falls back to escaped source.** The pipeline can drop words a
-  note would keep around (`---` → empty; `Use <Component> here` → `Use  here`).
-  A title that is blank, or that is shorter than the source with markdown marks
-  removed (raw HTML content kept in that estimate), falls back to the escaped
-  source. Looking correct while missing a word is worse than the marks. The
-  fallback is plain escaped text — no tag styling — "show what you wrote".
-- **No nested anchors.** Breadcrumbs and see-refs already wrap the title in a
-  `Link`. Those surfaces pass `links: false` so markdown `[a](url)` unwraps to
-  its children instead of nesting `<a>` inside `<a>`.
+- **Same pipeline, one extra step.** Titles build the note/document tree (`renderToTree`: parse → GFM → rehype → sanitise → highlight), then `toInline` unwraps every block to its phrasing content, then `rewrite`, then title-only walks (tags, optional link unwrap), then stringify. A second pipeline would be a second dialect; a CSS-only "make blocks look inline" would leave `<h1>`/`<ul>`/`<pre>` in the DOM for a screen reader and for any layout that measures block boxes.
+- **Block source is unwrapped, not refused.** A title of `# not a heading` draws the words "not a heading" with no `<h1>`; a fence becomes its `<code>`; a list item becomes its text. The words stay; the boxes do not. Refusing the whole title (or escaping it back to source) would punish a paste more loudly than the layout needs.
+- **`#tags` after markdown, not before.** Walking text nodes of the finished HAST (skipping `code` and `a`) styles tags without splitting markdown constructs across two parser runs — so `**urgent #home**` stays bold, `` `#home` `` stays code, and `[spec](…#home)` keeps its URL fragment. Peeling with `titleParts` *before* markdown destroyed those cases. Tags remain decorative until search/filter lands.
+- **Lost text falls back to escaped source.** The pipeline can drop words a note would keep around (`---` → empty; `Use <Component> here` → `Use  here`). A title that is blank, or that is shorter than the source with markdown marks removed (raw HTML content kept in that estimate), falls back to the escaped source. Looking correct while missing a word is worse than the marks. The fallback is plain escaped text — no tag styling — "show what you wrote".
+- **No nested anchors.** Breadcrumbs and see-refs already wrap the title in a `Link`. Those surfaces pass `links: false` so markdown `[a](url)` unwraps to its children instead of nesting `<a>` inside `<a>`.
 
 ## Documents — resolved 2026-08-10 (md-docs)
 
