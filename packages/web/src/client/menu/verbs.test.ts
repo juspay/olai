@@ -19,7 +19,7 @@ import { subjectOfRow, writeVerbs } from "./verbs.ts"
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":true}`,
   `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}`,
-  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","date":"2026-08-10"}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","date":"2026-08-10","custom":{"pr":"https://x/1","tags":["a","b"]}}`,
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
   `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
   `{"id":"lost","ord":"a1","mirror":"nothing-declares-this"}`,
@@ -69,6 +69,7 @@ test("a node with no mark is offered the three, and nothing to clear", () => {
     "Mark doing",
     "Complete",
     "Set date…",
+    "Add property…",
     "Link to a node…",
     "Wait for a node…",
     "Move to Trash",
@@ -84,6 +85,7 @@ test("the mark a node already carries is not offered back to it", () => {
     "Complete",
     "Clear mark",
     "Set date…",
+    "Add property…",
     "Link to a node…",
     "Wait for a node…",
     "Move to Trash",
@@ -165,6 +167,55 @@ test("the two date entries are next to each other, in that order", () => {
     .toEqual(["Change date…", "Clear date"])
 })
 
+// ── the properties ─────────────────────────────────────────────────────
+
+test("every row that draws a node offers to add a property", () => {
+  // Offered on a node carrying none, which is the same rule the two edge verbs
+  // follow: naming a fact about a node is a thing you do to a node that says
+  // nothing yet.
+  expect(labels("install")).toContain("Add property…")
+  expect(verb("install", "Add property…").does).toEqual({
+    kind: "pick-prop",
+    editing: null,
+  })
+})
+
+test("a property it carries is offered for editing, with what it holds", () => {
+  // The panel is TOLD what it is editing rather than looking it up again off a
+  // row it does not have — so the key and the value in the boxes came from one
+  // read of one record.
+  expect(verb("order", "Edit pr…").does).toEqual({
+    kind: "pick-prop",
+    editing: { key: "pr", value: "https://x/1" },
+  })
+})
+
+test("removing one sends the op's own null, under its key", () => {
+  expect(edit("order", "Remove pr")).toEqual({
+    verb: "prop",
+    id: "order",
+    key: "pr",
+    value: null,
+  })
+})
+
+test("the node's own facts have no property entries, because they have verbs", () => {
+  // `order` carries a `date`, and the entry for it is `Change date…`. An
+  // `Edit date…` beside it would be a second spelling of one write — and the
+  // one the ops layer refuses by name.
+  expect(labels("order")).not.toContain("Edit date…")
+  expect(labels("order")).not.toContain("Remove date")
+  expect(labels("order")).not.toContain("Remove id")
+  expect(labels("kitchen")).not.toContain("Remove status")
+})
+
+test("a property holding a LIST may be removed and not edited", () => {
+  // The editor writes text, so a key holding three values would come back as
+  // one string with commas in it. Taking it off is exact whatever it held.
+  expect(labels("order")).toContain("Remove tags")
+  expect(labels("order")).not.toContain("Edit tags…")
+})
+
 test("a placement offers the picker for the node it SHOWS", () => {
   // `herbs` is undated, so the mirror's row says what its target says. Which
   // id the write names is not this file's answer at all: the picker is opened
@@ -237,6 +288,7 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
       "Complete",
       "Clear mark",
       "Set date…",
+      "Add property…",
       "Link to a node…",
       "Wait for a node…",
     ])

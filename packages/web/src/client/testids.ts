@@ -87,6 +87,31 @@ export const TESTID = {
    *  `data-tone` is which mood — `alarm` for the ops layer's own refusal,
    *  `aside` for a remark on a write that landed. */
   datePickerSaid: "date-picker-said",
+  // ── the properties drawer ────────────────────────────────────────────
+  /** The drawer under a node's note: the node's own facts, then the custom
+   *  properties somebody added. Drawn on a ROW only when there is a custom one,
+   *  and always on the node's own page. */
+  props: "props",
+  /** One line of it. `data-key` names the property; `data-system` is present on
+   *  the read-only lines (`id`, `status`, `date`, the stamps), which is how a
+   *  scenario tells a fact from a property without reading a colour. */
+  prop: "prop",
+  /** The value on that line, as text — a link when the value is a URL. */
+  propValue: "prop-value",
+  /** The editor, in place under the row: opened by the `•••` menu's `Add
+   *  property…` or one of its `Edit <key>…` entries. `data-key` is the key it
+   *  was opened on, absent when it is a new one. */
+  propEditor: "prop-editor",
+  propEditorKey: "prop-editor-key",
+  propEditorValue: "prop-editor-value",
+  /** The button that sends it — `Add property` or `Save`. Disabled while the
+   *  key is empty or the value is what it already was. */
+  propEditorSet: "prop-editor-set",
+  propEditorCancel: "prop-editor-cancel",
+  /** What the last press had to say, keeping the editor open to say it — the
+   *  date picker's arrangement, in the same two moods. */
+  propEditorSaid: "prop-editor-said",
+
   /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
    *  the title, never the node's own mark, which is the checkbox. */
   progress: "progress",

@@ -42,6 +42,7 @@ import { createMemo, Show } from "solid-js"
 import { DocRef } from "./document/DocRef.tsx"
 import { plainLine } from "./note/preview.ts"
 import { Note } from "./Note.tsx"
+import { PropsDrawer } from "./props/PropsDrawer.tsx"
 import { EdgeRefs } from "./edges/EdgeRefs.tsx"
 import { TESTID } from "./testids.ts"
 import { ROW_NOTE } from "./touch.ts"
@@ -138,6 +139,15 @@ export function NodeBody(props: {
             </div>
           </Show>
 
+          {/* The properties, under the note and above the document — drawn on a
+              collapsed row too, because they are the node's own facts rather
+              than a detail of its prose: a reader scanning a tree for "which
+              lane is at review" must not have to open every row to see. On a
+              ROW they appear only when somebody has added one; the node's own
+              facts alone are not worth an `id` line under every bullet in the
+              vault (./props/PropsDrawer.tsx). */}
+          <PropsDrawer node={props.shows.node} />
+
           {/* A doc reference is not densified with the note: it is always a
               line under the node when the node carries one. */}
           <Show when={docOf(props.shows)}>
@@ -156,6 +166,10 @@ export function NodeBody(props: {
           />
         )}
       </Show>
+      {/* Zoomed, the drawer is drawn WHATEVER the node carries: this is a page
+          about one node, its facts are what the page is for, and the id in
+          particular is what every tool call and every `((` reference takes. */}
+      <PropsDrawer node={props.shows.node} always />
       <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
       <Show when={docOf(props.shows)}>
         {(doc) => <DocRef file={doc()} inline />}
