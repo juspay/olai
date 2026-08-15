@@ -83,6 +83,10 @@ export function Entry(props: {
     if (props.entry.streaming !== true) return text
     return due() ? text : previous
   })
+  /** The agent would not take this message — read once, because the bubble and
+   *  the strip under it are two views of the one fact and a second `=== true`
+   *  is a second chance to spell it differently. */
+  const unsent = () => props.entry.unsent === true
 
   // ONLY for the agent's own prose, which is the only row that has rendered
   // markdown in it — and `kind` never changes for an entry, so this is a
@@ -144,7 +148,7 @@ export function Entry(props: {
             <Show when={props.entry.text !== ""}>
               <p
                 class={`whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
-                  props.entry.unsent === true
+                  unsent()
                     ? "border border-dashed border-alarm bg-alarm/5"
                     : "border border-accent/30 bg-accent/10"
                 }`}
@@ -161,7 +165,7 @@ export function Entry(props: {
                 they want next is one press to try again. Nothing retries on
                 its own: the send that failed already happened without being
                 asked twice. */}
-            <Show when={props.entry.unsent === true}>
+            <Show when={unsent()}>
               <div
                 class="mt-1 flex items-center gap-2"
                 data-testid={TESTID.chatUnsent}

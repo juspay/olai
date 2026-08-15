@@ -56,8 +56,8 @@
  * {@link ./chat.ts} because they are a subject of their own: a `transcript`
  * COLLECTION (batched deltas, so a late-joining tab sees the conversation), a
  * `chat` CELL (session, model, commands, whether a turn is running, whether it
- * is blocked on a question) and the `chat` PROCEDURES (send, cancel, new, load,
- * list, attach, and the two that answer a question). The agent's WRITES do not
+ * is blocked on a question) and the `chat` PROCEDURES (send, resend, cancel,
+ * new, load, list, attach, and the two that answer a question). The agent's WRITES do not
  * appear here at all: they reach the ops layer through an internal MCP server
  * the session is handed, and what a reader sees of them is the outline stream
  * moving — server-authoritative, never an optimistic echo.

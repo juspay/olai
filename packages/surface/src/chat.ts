@@ -27,13 +27,20 @@
  *     turn is in flight. One value the server owns, read-only on the wire, and
  *     the panel header is a view of it.
  *
- *   - **the procedures are the verbs**: send, cancel, new, load, the list the
- *     picker draws, the two that answer a question the agent asked, and
- *     `attach` — the one that carries BYTES, in bounded chunks, because a
+ *   - **the procedures are the verbs**: send, resend, cancel, new, load, the
+ *     list the picker draws, the two that answer a question the agent asked,
+ *     and `attach` — the one that carries BYTES, in bounded chunks, because a
  *     pasted picture is the one thing about a conversation that is not already
  *     a string. Each declares its failure channel, so "a turn is already
  *     running" arrives as a `busy` a caller can branch on rather than as an
  *     opaque transport error.
+ *
+ *     `resend` is the odd one and says something about the rest: every other
+ *     verb acts on the conversation, and that one acts on a ROW — the `user`
+ *     entry the agent would not take. It is a verb rather than a second send
+ *     because the browser cannot rebuild that message (the row carries its
+ *     pictures by name and the prompt carries their paths), so what the server
+ *     kept is the only whole copy.
  *
  * Nothing in the transcript is an optimistic echo. What a person typed appears
  * because the server put it there, exactly like everything else — so two tabs
