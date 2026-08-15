@@ -2,6 +2,8 @@
 
 Open the panel in the corner and tell the agent what you want. Ask it to check something off and the checkbox in front of you moves — not because the panel echoed anything, but because the write went to disk, through the same validator a load runs, and came back on the same subscription every other change does.
 
+What you type sits on the right, in a tinted bubble. What the agent answers sits on the left, as prose. The two used to share one shape — a faint box on the human's words — and a glance could not tell them apart.
+
 ## Which agent
 
 The panel speaks [ACP](https://agentclientprotocol.com), and the default agent is the pinned Claude Code adapter, which comes with olai: `nix run`, the packaged binary and `just serve` all default to it, so there is nothing to install and nothing to configure.

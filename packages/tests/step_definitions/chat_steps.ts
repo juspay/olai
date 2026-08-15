@@ -43,6 +43,7 @@ import {
   CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
   CHAT_INPUT,
+  CHAT_MINE,
   CHAT_MISSING,
   CHAT_MISSING_SERVER,
   CHAT_MISSING_WHY,
@@ -55,6 +56,7 @@ import {
   CHAT_PANEL,
   CHAT_QUEUED,
   CHAT_REFUSAL,
+  CHAT_SAID,
   CHAT_SEND,
   CHAT_SESSION,
   CHAT_SESSION_LIST,
@@ -187,6 +189,46 @@ Then(
     );
   },
 );
+
+Then(
+  "the chat shows my message {string}",
+  async function (this: OlaiWorld, text: string) {
+    const mine = this.page.locator(CHAT_MINE).filter({ hasText: text });
+    await mine.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then("my message sits to the right of the agent's", async function (this: OlaiWorld) {
+  // Alignment is a property no attribute can carry: `data-kind="user"` already
+  // says who spoke, and a class is a styling decision a refactor may change.
+  // The claim is that a glance can tell the two speakers apart, which is
+  // where they sit — so this is the same exception `world.box` exists for.
+  const mine = await this.box(
+    this.page.locator(CHAT_MINE).first(),
+    "my message",
+  );
+  const said = await this.box(
+    this.page.locator(CHAT_SAID).first(),
+    "the agent's answer",
+  );
+  const pane = await this.box(
+    this.page.locator(CHAT_TRANSCRIPT),
+    "the transcript",
+  );
+  assert.ok(
+    mine.x > said.x,
+    `my message starts at ${mine.x}, the agent's at ${said.x} — they should not share a left edge`,
+  );
+  // Right-aligned means more empty pane on the left of the bubble than on
+  // its right. Comparing right edges would not say that: the agent's prose
+  // is a full-width block, so both boxes end at the same padding.
+  const left = mine.x - pane.x;
+  const right = pane.x + pane.width - (mine.x + mine.width);
+  assert.ok(
+    left > right,
+    `my message has ${left}px of pane on its left and ${right}px on its right — it should sit on the right`,
+  );
+});
 
 Then("the agent is working", async function (this: OlaiWorld) {
   await this.expectAttribute(
