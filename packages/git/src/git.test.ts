@@ -122,6 +122,7 @@ test("a dirty file answers in all three spellings, from a served subdirectory", 
       served: "b.olai",
       at: path.join(served, "b.olai"),
       how: "untracked",
+      from: null,
     },
   ])
   expect(await asked(served, (git) => Effect.succeed(git.served))).toBe("notes/")
@@ -175,11 +176,149 @@ test("dirty keeps how each file moved", async () => {
   expect(how.get("gone.olai")).toBe("deleted")
   expect(how.get("fresh.md")).toBe("untracked")
   expect(how.get("staged.md")).toBe("added")
-  // A rename names both sides, and both are kept: the new one as what it is,
-  // the old one as a file that has left — a commit of this rename has to carry
-  // both halves or it lands as an unrelated add.
+  // A rename is ONE entry that names both sides — see the test below. The side
+  // it came from is not an entry of its own: it is not a file waiting to be
+  // deleted, it is half of the one above.
   expect(how.get("landed.md")).toBe("renamed")
-  expect(how.get("moved.md")).toBe("deleted")
+  expect(how.has("moved.md")).toBe(false)
+})
+
+/**
+ * A rename is ONE thing that happened, and the survey has to say so.
+ *
+ * Two entries — a `renamed` arrival and a `deleted` departure with nothing
+ * joining them — is what left a person's commit panel reading `Kept.md deleted`
+ * after a `git mv Kept.md Kept.olai`, with the file that actually holds their
+ * notes nowhere near it. Git knows both halves and prints them on one line; the
+ * entry keeps them together, in the same three spellings the arriving side has.
+ */
+test("a staged rename is ONE entry naming both sides", async () => {
+  const { root } = repo()
+  const run = git(root)
+  fs.writeFileSync(path.join(root, "Kept.md"), `{"id":"m","ord":"a0","title":"m"}\n`)
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "more fixtures")
+  run("mv", "Kept.md", "Kept.olai")
+
+  const moved = (await surveyed(root)).files
+  expect(moved).toEqual([
+    {
+      path: "Kept.olai",
+      served: "Kept.olai",
+      at: path.join(root, "Kept.olai"),
+      how: "renamed",
+      from: {
+        path: "Kept.md",
+        served: "Kept.md",
+        at: path.join(root, "Kept.md"),
+      },
+    },
+  ])
+})
+
+/**
+ * A COPY is not a rename, and its source is somebody else's row.
+ *
+ * Git only prints `C` when a reader has asked for copy detection
+ * (`status.renames=copies`), so this is a repository configured the way the
+ * handful of people who want that configure it. What it costs to get wrong is
+ * not rare at all: a copy's source is a file that is STILL THERE, so folding it
+ * into the copy's entry both hid a staged edit to it — the porcelain prints
+ * `C dest\0src` before `M src` whenever `dest` sorts first — and put it on the
+ * pathspec of any commit that ticked the copy, sweeping that edit in unasked.
+ *
+ * Both orderings, because the swallow only showed up in one of them.
+ */
+test("a copy leaves its source to be its own row, whichever order git prints", async () => {
+  const { root } = repo()
+  const run = git(root)
+  fs.writeFileSync(path.join(root, "notes.md"), "the original\n")
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "more fixtures")
+
+  // `Copy.md` sorts BEFORE `notes.md`, so the porcelain prints the copy first
+  // and the source's own modification second.
+  fs.writeFileSync(path.join(root, "Copy.md"), "the original\n")
+  fs.writeFileSync(path.join(root, "notes.md"), "the original, edited\n")
+  run("add", "-A")
+  run("config", "status.renames", "copies")
+
+  const found = (await surveyed(root)).files
+  expect(found.map((one) => [one.path, one.how, one.from?.path ?? null]).sort())
+    .toEqual([
+      // The arrival is an arrival. WHERE git thinks it was copied from is git's
+      // inference about content, not a second file waiting to be committed.
+      ["Copy.md", "added", null],
+      // And the source's staged edit is still here, as its own row and its own
+      // tick — which is the whole of what folding it in had taken away.
+      ["notes.md", "modified", null],
+    ])
+})
+
+/**
+ * The MCP face's own reproduction, at the plumbing.
+ *
+ * `git mv old new` by hand and then a commit answered
+ * `fatal: pathspec 'old' did not match any files` — git's raw refusal, carried
+ * all the way out to an agent's reply. The cause is one call: the `add` that
+ * makes an untracked file committable was handed a path that has already left
+ * the working tree, and `git add` looks only at the working tree and the index.
+ * A path with nothing on disk has nothing to stage; `git commit -- <path>`
+ * records its departure out of HEAD, which is what git's own porcelain does.
+ */
+test("a commit records a staged rename instead of refusing on a pathspec", async () => {
+  const { root } = repo()
+  const run = git(root)
+  fs.writeFileSync(path.join(root, "Kept.md"), `{"id":"m","ord":"a0","title":"m"}\n`)
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "more fixtures")
+  run("mv", "Kept.md", "Kept.olai")
+
+  const done = await asked(root, (git) =>
+    git.commit({
+      paths: [path.join(root, "Kept.md"), path.join(root, "Kept.olai")],
+      message: "olai: the rename\n\nX-Olai-Writer: mcp\n",
+    }))
+  expect(done._tag === "Failed" ? done.said : "").not.toContain("pathspec")
+  expect(done._tag).toBe("Committed")
+
+  // ONE commit, and git reads it back as the rename it is rather than as an
+  // unrelated add beside a deletion.
+  expect(run("show", "--name-status", "--find-renames", "--format=", "HEAD").trim())
+    .toBe("R100\tKept.md\tKept.olai")
+  expect(run("status", "--porcelain").trim()).toBe("")
+  // And the INDEX is what a person's next `git commit` in a terminal will see:
+  // nothing staged that this call left behind. `status` being empty says the
+  // work tree matches HEAD; this says the index does too, which is the promise
+  // {@link keptIndex} makes and the one a clean tree can hide.
+  expect(run("diff", "--cached", "--name-only").trim()).toBe("")
+})
+
+/**
+ * The other departing half, and the same one-line fix under it: a `git rm`.
+ *
+ * `git add -- <a path that is gone>` is the same pathspec fatal the rename hit,
+ * reached without any rename at all — which makes it the narrower statement of
+ * what the filter is for. The commit still names it, and `git commit -- <path>`
+ * records the removal out of HEAD with nothing staged for it.
+ */
+test("a commit records a staged deletion, which has nothing to stage", async () => {
+  const { root } = repo()
+  const run = git(root)
+  fs.writeFileSync(path.join(root, "gone.md"), "not for long\n")
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "more fixtures")
+  run("rm", "--quiet", "gone.md")
+
+  const done = await asked(root, (git) =>
+    git.commit({
+      paths: [path.join(root, "gone.md")],
+      message: "olai: the removal\n\nX-Olai-Writer: mcp\n",
+    }))
+  expect(done._tag === "Failed" ? done.said : "").not.toContain("pathspec")
+  expect(done._tag).toBe("Committed")
+  expect(run("show", "--name-status", "--format=", "HEAD").trim()).toBe("D\tgone.md")
+  expect(run("status", "--porcelain").trim()).toBe("")
 })
 
 test("a clean repository on a branch is ready", async () => {
@@ -415,6 +554,33 @@ test("show is HEAD's copy, and null for a file HEAD has never had", async () => 
   expect(await asked(root, (git) => git.show("a.olai")))
     .toBe(`{"id":"a","ord":"a0","title":"a"}\n`)
   expect(await asked(root, (git) => git.show("never.olai"))).toBe(null)
+})
+
+/**
+ * REPO-ROOT-RELATIVE, from a served subdirectory — the spelling {@link Dirty}
+ * hands out, and the reason it is that one.
+ *
+ * It took the SERVED name and prefixed it, which can name everything under the
+ * served root and nothing above it. That is a hole rather than a restriction:
+ * the side a rename INTO a served directory came from lives above it, and a
+ * caller with only the served spelling had no way to ask for it. `HEAD:<path>`
+ * is repo-root-relative in git's own object syntax whatever directory it runs
+ * in, so the prefix was never doing anything the caller could not do better.
+ */
+test("show names a file the way the repository does, from a served subdirectory", async () => {
+  const { root } = repo()
+  fs.mkdirSync(path.join(root, "notes"))
+  fs.writeFileSync(path.join(root, "notes", "b.olai"), `{"id":"b","ord":"a0","title":"b"}\n`)
+  fs.writeFileSync(path.join(root, "above.md"), "one level up\n")
+  const run = git(root)
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "more fixtures")
+
+  const served = path.join(root, "notes")
+  expect(await asked(served, (git) => git.show("notes/b.olai")))
+    .toBe(`{"id":"b","ord":"a0","title":"b"}\n`)
+  // The one the served spelling could not reach at all.
+  expect(await asked(served, (git) => git.show("above.md"))).toBe("one level up\n")
 })
 
 test("git refusing is a warning with git's own words in a field, and a Failed", async () => {

@@ -153,17 +153,85 @@ Feature: Undo
     # pair this answered with sent "take the mark off" at a row that no longer
     # had one, so the undo was refused a moment after it was pressed and dropped
     # with a reason nobody could act on.
-    When I click the title of "hinges"
+    #
+    # `knobs` rather than `hinges`, which this used to walk: `hinges` comes
+    # after `order`, and `order` is still `doing`, so the walk's step onto
+    # `doing` is now refused (`keyboard_editing.feature`). `knobs` is the same
+    # `todo` with nothing in front of it, so the shape under test — a walk, and
+    # the undo that puts back what it took off — is the one this scenario is
+    # about rather than the order rule.
+    When I click the title of "knobs"
     And I press "Control+Shift+Enter"
-    Then the node "hinges" has status "doing"
+    Then the node "knobs" has status "doing"
     When I press "Control+Shift+Enter"
-    Then the node "hinges" has no status
+    Then the node "knobs" has no status
     When I click away from the editor
     And I press "ControlOrMeta+z"
-    Then the node "hinges" has status "doing"
+    Then the node "knobs" has status "doing"
     And nothing is said about the undo
     When I press "ControlOrMeta+Shift+z"
-    Then the node "hinges" has no status
+    Then the node "knobs" has no status
+
+  Scenario: An undo that would re-enter doing on a now-blocked node is refused like anything else
+    # The gate has no back door. An undo is a WRITE — the inverse the server
+    # recorded, replayed through the same `edit.apply` every key goes through
+    # and judged against the set AS IT IS NOW — so a `doing` this tab took off
+    # does not get put back just because it was there a moment ago.
+    #
+    # The world moves in between, which is the whole reason undo replays rather
+    # than restores: `demo` is `done`, so `order` (which comes after it) is
+    # free to be `doing`. Take that `done` off and walk `demo` to `todo`, and
+    # `order` is now waiting on unfinished work.
+    When I click the title of "demo"
+    And I press "Control+Enter"
+    Then the node "demo" has no status
+    When I press "Control+Shift+Enter"
+    Then the node "demo" has status "todo"
+    # `order` was `doing` and is now drawn blocked. Walk the mark off it.
+    #
+    # THIS IS THE EDIT ⌘Z WILL TAKE BACK, and it is worth saying outright
+    # because two writes to `demo` come first in this scenario: the stack
+    # replays NEWEST first, so the two above are older entries and it is this
+    # walk — the last thing this tab did — that sits on top.
+    When I click away from the editor
+    And I click the title of "order"
+    And I press "Control+Shift+Enter"
+    Then the node "order" has no status
+    # ⌘Z asks for that `doing` back, and meets the refusal in the ops layer's
+    # own words rather than writing a row the DAG forbids. The entry is dropped,
+    # which is what a refused replay always is.
+    When I click away from the editor
+    And I press "ControlOrMeta+z"
+    Then the undo refusal says "`order the new cabinets` comes after 1 unfinished task, so it cannot start yet: `take out the old counters` (`demo`, todo). Finish that first — or start what is ready."
+    And the node "order" has no status
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A two-call undo that meets the gate halfway stops there, and says why
+    # The one undo shape that is a SEQUENCE — taking back the write that ticks a
+    # node off — meeting the new gate. `order` is `doing`; put something
+    # unfinished in front of it, then tick it off. Undoing that is the two calls
+    # an agent makes: take the `done` off, then put the `doing` back. The first
+    # lands and the second is refused, so `order` is left a bullet.
+    #
+    # That is the replay contract already documented for every inverse here
+    # ("a refusal partway stops there"), not a hole opened by this rule: the
+    # first call is a legal write on its own, nothing is lost, and the row is
+    # one `Mark todo` away from where a blocked node should be. It is drawn
+    # rather than swallowed, which is the whole of what is owed.
+    When I click the title of "demo"
+    And I press "Control+Enter"
+    And I press "Control+Shift+Enter"
+    Then the node "demo" has status "todo"
+    When I click away from the editor
+    And I click the title of "order"
+    And I press "Control+Enter"
+    Then the node "order" has status "done"
+    When I click away from the editor
+    And I press "ControlOrMeta+z"
+    Then the undo refusal says "`order the new cabinets` comes after 1 unfinished task, so it cannot start yet: `take out the old counters` (`demo`, todo). Finish that first — or start what is ready."
+    And the node "order" has no status
+    And "house.olai" holds the node "order" with no mark
 
   Scenario: A new row is taken back into the Trash, and redo brings it out again
     When I click the title of "handles"

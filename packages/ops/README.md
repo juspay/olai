@@ -84,6 +84,19 @@ Only the record being marked is rewritten; a `true` or a day-only value on any
 other node comes back exactly as it was read, which is what the format means by
 validating dates as text.
 
+**`set_doing` is the one mark verb the ORDER is a law for.** A node whose
+`after` targets include a task that is not done cannot start, and the refusal
+names them — title, id and the mark each one carries. The asymmetry with
+`set_done` is the design and not an oversight: finishing out of order is
+sometimes true, so that verb allows and remarks (above); starting is an
+INSTRUCTION about what to pick up next, and a machine told to start what the
+graph forbids has been told to do the impossible. `set_todo` is not gated at
+all — filing work is not starting it, and a blocked node must be able to stop
+claiming to be under way. The predicate is the format's `standingBefore`, the
+blocked derivation read from the target end, so a bullet blocks nothing, done
+work blocks nothing, the archive blocks nothing, and no row is ever drawn ready
+by one rule and refused by another.
+
 `pending.ts` derives and stores nothing, which is the same design in the other
 direction: what is waiting is a question git already answers, and a tally of our
 own would be a second answer that goes wrong the moment somebody edits a file in
@@ -315,6 +328,13 @@ and `commit`. It is a SELECTION and never git's index, so work somebody staged
 by hand is undisturbed and what is left out stays waiting for its own commit and
 its own message. A path nothing is waiting on is refused by name rather than
 quietly dropped.
+
+Undisturbed reads both ways, which is what `commit-op-staged-rename` corrected.
+A rename somebody staged themselves is ONE row naming both halves and one tick;
+the commit carries the departing half with the arriving one, so it lands as a
+rename rather than as an add beside a deletion left staged. For an outline, the
+committed side is HEAD's copy of the file it CAME FROM — read against the name
+it has now, which HEAD has never had, every node in it reported as created.
 
 `Ops.push` is the verb beside it: the current branch to the upstream it already
 tracks, no arguments, and a refusal carrying git's own words. What is ahead of

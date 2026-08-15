@@ -223,8 +223,9 @@ export interface Repo {
    *  of those matter is a statement about the format, and this file has none of
    *  that in it. */
   readonly dirty: Effect.Effect<Dirt>
-  /** One served file as HEAD has it, or `null` when HEAD does not. */
-  readonly show: (file: string) => Effect.Effect<string | null>
+  /** One file of the REPOSITORY as HEAD has it, named the way {@link Dirty}
+   *  names it — repo-root-relative — or `null` when HEAD does not have it. */
+  readonly show: (path: string) => Effect.Effect<string | null>
   /** The last commit the caller's own audit filter claims, or `null` for a
    *  repository that has none. */
   readonly last: (audit: Audit) => Effect.Effect<Recorded | null>
@@ -256,7 +257,7 @@ export const open = (root: string): Effect.Effect<Opening> =>
         served: placing.placement.prefix,
         state: state(root, placing.placement),
         dirty: dirty(root, placing.placement),
-        show: (file) => show(root, placing.placement, file),
+        show: (path) => show(root, path),
         last: (audit) => last(root, audit),
         commit: (what) => commit(root, placing.placement, what),
         push: push(root),
@@ -294,15 +295,20 @@ const state = (
   })
 
 /**
- * One file that has moved, in the three spellings its three readers need.
+ * One path, in the three spellings its three readers need.
  *
  * Three, deliberately, and it is the same argument the placement itself makes:
  * git speaks repo-relative paths, a served set is keyed by served-relative
  * ones, and a commit takes absolute ones — so a consumer holding any one of
  * them would be a consumer doing this arithmetic, with the prefix carried
  * around to do it with. It is done once, here, where the placement lives.
+ *
+ * Its own shape rather than three fields on {@link Dirty}, because a rename has
+ * TWO paths and each needs all three: the side that arrived and the side that
+ * left are spelled the same way, and a second set of flattened fields would be
+ * this arithmetic written out twice.
  */
-export interface Dirty {
+export interface Spelled {
   /** Repo-root-relative, which is what git printed: what a reader is SHOWN,
    *  and the one unambiguous name for a file across a whole repository. */
   readonly path: string
@@ -313,7 +319,35 @@ export interface Dirty {
   readonly served: string | null
   /** Absolute — what {@link commit} takes. */
   readonly at: string
+}
+
+/** One file that has moved, and — for a rename — the side it moved from. */
+export interface Dirty extends Spelled {
   readonly how: How
+  /**
+   * Where a `renamed` file CAME FROM, in the same three spellings — `null` for
+   * every other kind of entry.
+   *
+   * A rename is ONE thing that happened, and git prints both halves of it on
+   * one line. It used to be split into two entries here — a `renamed` arrival
+   * and a `deleted` departure with nothing joining them — and every reader
+   * above had to guess they belonged together, which none of them did: one
+   * drew the departure as a file about to be deleted, and one committed the
+   * arrival on its own and left the other half staged.
+   *
+   * The departing side is NOT also a top-level entry, deliberately. It is not a
+   * file waiting to be committed; it is half of this one.
+   *
+   * A COPY IS NOT A RENAME and does not fill this in, which is the difference
+   * between a source that has LEFT and one that is still sitting there. Git can
+   * be configured to detect copies (`status.renames=copies`), and it then prints
+   * `C dest\0src` for a file that was copied — but `src` is untouched by that
+   * act, so there is nothing about it to report and nothing of it to commit.
+   * Folding it in here did both: it hid a staged edit to `src` when the porcelain
+   * happened to print the copy first, and it put `src` on the pathspec of any
+   * commit that ticked the copy, which would have swept that edit in unasked.
+   */
+  readonly from: Spelled | null
 }
 
 /** Where the branch stands against the branch it tracks. `null` when there is
@@ -365,9 +399,12 @@ export type Dirt =
  * prints repo-relative paths. It is the porcelain default, and a reader's
  * config is not something to be at the mercy of.
  *
- * A rename arrives as one entry naming both sides, and both are kept — the ids
- * on the old side are what say what left, and both have to be named on the
- * commit for the rename to land as one.
+ * A rename arrives as ONE entry naming both sides, and it stays one: the
+ * departing side rides on {@link Dirty.from} rather than becoming a second
+ * entry of its own. Both facts about it are wanted by the readers above — the
+ * ids on the old side are what say what left, and both paths have to be named
+ * on the commit for the rename to land as one — and neither of them is "there
+ * is a file here waiting to be deleted", which is what a second entry said.
  */
 const dirty = (
   root: string,
@@ -387,16 +424,26 @@ const dirty = (
 
     const files: Array<Dirty> = []
     const seen = new Set<string>()
-    const take = (path: string, how: How): void => {
+    const spell = (path: string): Spelled => ({
+      path,
+      served: path.startsWith(placed.prefix)
+        ? path.slice(placed.prefix.length)
+        : null,
+      at: join(placed.top, path),
+    })
+    const take = (path: string, how: How, from: string | undefined): void => {
+      // The departing side of a rename is accounted for by THIS entry, so a
+      // later token naming it cannot become a row of its own. Marked BEFORE the
+      // duplicate check rather than after: a stream that named this destination
+      // twice would otherwise leave the second entry's source unclaimed, which
+      // is the one way a departure could still come back as a row of its own.
+      if (from !== undefined && from !== "") seen.add(from)
       if (path === "" || seen.has(path)) return
       seen.add(path)
       files.push({
-        path,
-        served: path.startsWith(placed.prefix)
-          ? path.slice(placed.prefix.length)
-          : null,
-        at: join(placed.top, path),
+        ...spell(path),
         how,
+        from: from === undefined || from === "" ? null : spell(from),
       })
     }
 
@@ -415,14 +462,15 @@ const dirty = (
       }
       if (entry.length < 4) continue
       const how = howOf(entry[0] ?? " ", entry[1] ?? " ")
-      take(entry.slice(3), how)
-      if (entry[0] === "R" || entry[0] === "C") {
-        at += 1
-        // The side it came FROM, which for a rename is a file that has left.
-        // Named so a commit of this rename carries both halves.
-        const from = tokens[at]
-        if (from !== undefined) take(from, entry[0] === "R" ? "deleted" : "modified")
-      }
+      // A rename or a copy is followed by a SECOND token naming where it came
+      // from. BOTH consume it — the cursor has to move either way or every
+      // entry after this one is read as a path — and only a RENAME keeps it:
+      // see {@link Dirty.from} for why a copy's source is somebody else's row.
+      // Taken off the stream here rather than inside {@link take}, so an entry
+      // that returns early still leaves the cursor past the token it owns.
+      const paired = entry[0] === "R" || entry[0] === "C"
+      const other = paired ? tokens[++at] : undefined
+      take(entry.slice(3), how, entry[0] === "R" ? other : undefined)
     }
     return { _tag: "Surveyed", files, upstream } as const
   })
@@ -462,15 +510,25 @@ const tracking = (header: string): Upstream | null => {
   return { name, ahead: ahead === null ? 0 : Number(ahead[1]) }
 }
 
-/** HEAD's copy covers every file of a repository with no commits yet, and every
- *  file that is new, with the same `null`. */
+/**
+ * HEAD's copy covers every file of a repository with no commits yet, and every
+ * file that is new, with the same `null`.
+ *
+ * REPO-ROOT-RELATIVE, which is the spelling {@link Dirty} hands out and the one
+ * name a file has that is the same wherever olai is serving from. It took the
+ * SERVED spelling and prefixed it, which is the same string for everything
+ * under the served root and unable to name anything above it — so a rename INTO
+ * a served subdirectory (`git mv Notes.md docs/Notes.olai`) had no way to ask
+ * for the side it came from, and the caller fell back to asking for a name HEAD
+ * has never had. `HEAD:<path>` is repo-root-relative in git's own object syntax
+ * whatever directory it runs in, so this is a prefix that had nothing to do.
+ */
 const show = (
   root: string,
-  placed: Placement,
-  file: string,
+  path: string,
 ): Effect.Effect<string | null> =>
   Effect.map(
-    git(root, ["show", `HEAD:${placed.prefix}${file}`]),
+    git(root, ["show", `HEAD:${path}`]),
     (shown) => (shown.ok ? shown.out : null),
   )
 
@@ -560,8 +618,20 @@ export type Done =
   | { readonly _tag: "Committed"; readonly sha: string }
   | { readonly _tag: "Failed"; readonly said: string }
 
+/**
+ * Whether a path has working-tree content to stage.
+ *
+ * `lstat` rather than `existsSync`, which follows symlinks: a symbolic link
+ * whose target is gone is still a file git tracks and still a file a commit
+ * must be able to name.
+ */
+const there = (at: string): boolean =>
+  fs.lstatSync(at, { throwIfNoEntry: false }) !== undefined
+
 export interface CommitInput {
-  /** Absolute paths of the files to commit. */
+  /** Absolute paths of the files to commit. A path that has LEFT the working
+   *  tree is welcome here and is how a deletion or the departing half of a
+   *  rename is recorded — see {@link commit}. */
   readonly paths: ReadonlyArray<string>
   /** Subject, body and trailer, whole. The `olai` prefix and the writer
    *  trailer are the caller's to have put on: this file composes nothing. */
@@ -651,14 +721,31 @@ const commit = (
   Effect.gen(function*() {
     const index = keptIndex(placed)
 
-    const staged = yield* git(root, ["add", "--", ...what.paths])
-    if (!staged.ok) {
-      index.restore()
-      yield* Effect.annotateLogs(
-        Effect.logWarning("olai git: could not stage the write"),
-        { said: staged.said },
-      )
-      return { _tag: "Failed", said: staged.said } as const
+    // ONLY THE PATHS THAT ARE THERE, which is the whole of `commit-op-staged-rename`.
+    //
+    // The `add` exists for one reason — an untracked file is not committable
+    // without it — so a path with no working-tree content has nothing for it to
+    // do. It used to be handed every path anyway, and `git add` looks at the
+    // working tree and the index and NOWHERE ELSE: the departing half of a
+    // staged `git mv` is in neither, so git refused the whole call with
+    // `fatal: pathspec '<old>' did not match any files` and a person watched
+    // their own rename come back as git's raw words.
+    //
+    // Skipping it loses nothing. `git commit -- <paths>` records a departure
+    // out of HEAD and the index without any staging at all, which is exactly
+    // what git's own porcelain does for a `git rm`, and it is why the commit
+    // below still names every path it was given.
+    const staging = what.paths.filter(there)
+    if (staging.length > 0) {
+      const staged = yield* git(root, ["add", "--", ...staging])
+      if (!staged.ok) {
+        index.restore()
+        yield* Effect.annotateLogs(
+          Effect.logWarning("olai git: could not stage the write"),
+          { said: staged.said },
+        )
+        return { _tag: "Failed", said: staged.said } as const
+      }
     }
 
     const committed = yield* git(root, [

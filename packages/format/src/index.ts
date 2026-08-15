@@ -104,6 +104,12 @@ export {
   rowsOf,
   rowsUnder,
   siblingsOf,
+  /** What a node's `after` targets hold up, asked of a node that is not work
+   *  yet. Exported for the reason `drawnFrom` above is: two rules read
+   *  blockedness and they must agree. The web draws it with `blockersOf`; the
+   *  ops layer refuses `set_doing` with this one, which is the same reading
+   *  from the other end of the arrow. */
+  standingBefore,
   isTagName,
   mayHoldTag,
   storedMarker,

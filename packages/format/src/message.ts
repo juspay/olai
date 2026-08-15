@@ -96,7 +96,14 @@ export const composed = (
     // not read as another node change.
     if (lines.length > 0) lines.push("")
     for (const other of others.slice(0, BODY_LINES)) {
-      lines.push(`${other.how}: ${other.path}`)
+      // A rename names both halves, because one path and the word `renamed`
+      // says a file moved and refuses to say where from — which is the reading
+      // that had a person's own `git mv` in the log as `deleted:`.
+      lines.push(
+        other.from === null
+          ? `${other.how}: ${other.path}`
+          : `${other.how}: ${other.from} → ${other.path}`,
+      )
     }
     const left = others.length - Math.min(others.length, BODY_LINES)
     if (left > 0) lines.push(`… and ${left} more`)
