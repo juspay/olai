@@ -30,7 +30,7 @@ import { inverseOf, requestFor } from "./edit.ts"
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
   `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
-  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"oak, or birch"}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"oak, or birch","custom":{"pr":"https://x/1","tags":["a","b"]}}`,
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
   `{"id":"handles","parent":"install","ord":"a0","title":"pick the handles"}`,
   `{"id":"loose","ord":"a1","title":"a node with no children"}`,
@@ -672,6 +672,27 @@ test("a date set over nothing is put back as nothing", () => {
 
 test("a MIRROR has no date of its own either", () => {
   expect(inverse({ verb: "date", id: "echo", date: null })).toEqual([])
+})
+
+test("a property is put back as the value it held, and a new one by removing it", () => {
+  expect(inverse({ verb: "prop", id: "order", key: "pr", value: null }))
+    .toEqual([{ verb: "prop", id: "order", key: "pr", value: "https://x/1" }])
+  expect(inverse({ verb: "prop", id: "install", key: "stage", value: "review" }))
+    .toEqual([{ verb: "prop", id: "install", key: "stage", value: null }])
+})
+
+/**
+ * A key holding a LIST has NO inverse, and nothing is the honest answer.
+ *
+ * The menu offers `Remove tags` on such a key (`set_prop` writes text, so it
+ * cannot offer to edit one), and the arm that used to be here read the value
+ * as text — `undefined` for a list — and then spelled `?? null`. So the undo of
+ * a removal was a SECOND removal: ⌘Z looked like it worked and the list was
+ * gone with nothing to say so (Grok, review of #179). An undo with no inverse
+ * is not recorded at all, which is what a person can act on.
+ */
+test("a property holding a LIST has no inverse, rather than a wrong one", () => {
+  expect(inverse({ verb: "prop", id: "order", key: "tags", value: null })).toEqual([])
 })
 
 test("an archive records the place the row is about to stop having", () => {

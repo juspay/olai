@@ -46,6 +46,14 @@ const HOUSE = [
   "",
 ].join("\n")
 
+/** The same outline with a property on it — what a stamp-only write needs to
+ *  be about, since the seam only shows on a node that carries one. */
+const PROPPED = HOUSE.replace(
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
+    `"custom":{"pr":"https://x/1"}}`,
+)
+
 interface Fixture {
   readonly ops: Ops.Ops
   readonly store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>>
@@ -390,6 +398,43 @@ test("a refusal writes nothing and comes back with its structured detail", () =>
       // a second caller — the web UI's own procedures, when they arrive — is
       // not a second place to remember to report from.
       expect(fixture.refusals).toEqual(["done: UsageFailure"])
+    })))
+
+/**
+ * A `set_prop` of the value a node already holds is a refusal, and the point is
+ * the BYTES: nothing lands, so nothing is stamped, so git sees nothing.
+ *
+ * The planner's own test says it is refused; this says what that buys. Before
+ * the guard the write landed — the record was rewritten with a fresh `changed`
+ * — and every face then told a different story: git called the tree dirty, the
+ * pending panel listed nothing (it does not compare stamps, on purpose), and the
+ * transcript claimed an edit. Disclosed by opencode in review of #179, and the
+ * one assertion that covers all three is that the file did not move.
+ */
+test("a set_prop of the value already held writes nothing at all", () =>
+  withOps({ "house.olai": PROPPED }, (fixture) =>
+    Effect.gen(function*() {
+      const failure = yield* Effect.orDie(
+        Effect.flip(
+          fixture.ops.run({ op: "prop", id: "order", key: "pr", value: "https://x/1" }, "mcp"),
+        ),
+      )
+      expect(failure._tag).toBe("UsageFailure")
+      expect(failure.message).toContain("nothing would change")
+      // Byte for byte, including the stamp that would otherwise have been put
+      // there — and the store never moved, so nothing downstream was told a
+      // revision happened.
+      expect(fixture.read("house.olai")).toBe(PROPPED)
+      expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(1)
+    })))
+
+test("a set_prop that DOES change something lands, and stamps the write", () =>
+  withOps({ "house.olai": PROPPED }, (fixture) =>
+    Effect.gen(function*() {
+      yield* run(fixture, { op: "prop", id: "order", key: "pr", value: "https://x/2" })
+      const written = fixture.read("house.olai")
+      expect(written).toContain(`"custom":{"pr":"https://x/2"}`)
+      expect(written).toContain(`"changed":`)
     })))
 
 /**

@@ -54,7 +54,7 @@
  */
 
 import {
-  customText,
+  customOf as customOfNode,
   dailyNotePathFor,
   type Derived,
   INBOX,
@@ -1030,7 +1030,20 @@ const propOf = (
 ): ReadonlyArray<Edit> => {
   const located = derived.byId.get(id)
   if (located === undefined || isMirror(located.node)) return []
-  return [{ verb: "prop", id, key, value: customText(located.node, key) ?? null }]
+  const held = customOfNode(located.node)[key]
+  // A LIST, and there is NO inverse for one. `set_prop` writes text, so an undo
+  // that spelled a list would have to flatten three values into one string with
+  // commas in it — and the arm that used to be here did something quieter and
+  // worse: `customText` answers `undefined` for a list, so `?? null` turned the
+  // undo of a removal into a SECOND removal, and the value the menu had just
+  // deleted was gone with nothing to say so (found by Grok, review of #179).
+  //
+  // Nothing is a truthful answer here where a wrong edit is not: an undo with
+  // no inverse is not recorded, so ⌘Z walks past it to the write before rather
+  // than pretending to put something back. `docs/editing.md` says so, and the
+  // menu can only reach this at all for a list somebody wrote by hand.
+  if (held !== undefined && typeof held !== "string") return []
+  return [{ verb: "prop", id, key, value: held ?? null }]
 }
 
 /**

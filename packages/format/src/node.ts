@@ -197,6 +197,28 @@ const DOORS = {
 } as const satisfies Record<keyof RegularNode | keyof MirrorNode | "status", string>
 
 /**
+ * What a shadowed key shadows: the verb that writes that fact, and whether the
+ * word is a FIELD of the record at all.
+ *
+ * The second half exists for one entry. `status` is in {@link DOORS} because it
+ * is exactly the word a person reaches for when they mean the mark — and it is
+ * not a field: nothing stores it, three fields answer it. A refusal that told
+ * somebody "a node already says `status` with a field of its own" would be
+ * teaching a shape this format does not have, in the one sentence whose whole
+ * job is to point at the right door (found by Grok, review of #179).
+ */
+export interface Shadow {
+  readonly door: string
+  /** Is the word a field the record declares? `false` for `status` alone. */
+  readonly field: boolean
+}
+
+const FIELD_NAMES: ReadonlySet<string> = new Set([
+  ...Object.keys(RegularNode.fields),
+  ...Object.keys(MirrorNode.fields),
+])
+
+/**
  * Is this custom key one of them — and if so, what to say instead?
  *
  * FOLDED, because a `Date` key shadows `date` for every reader who is not a
@@ -205,8 +227,11 @@ const DOORS = {
  * everything else is somebody's own vocabulary and none of this format's
  * business.
  */
-export const shadowFor = (key: string): string | undefined =>
-  (DOORS as Record<string, string | undefined>)[key.trim().toLowerCase()]
+export const shadowFor = (key: string): Shadow | undefined => {
+  const folded = key.trim().toLowerCase()
+  const door = (DOORS as Record<string, string | undefined>)[folded]
+  return door === undefined ? undefined : { door, field: FIELD_NAMES.has(folded) }
+}
 
 /** The discriminator, as a type guard, so every consumer narrows the same way
  *  and none of them re-derives it from a field test. */

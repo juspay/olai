@@ -23,6 +23,7 @@
 
 import { Schema } from "effect"
 
+import type { Custom } from "./custom.ts"
 import { isArchived, isMirror, MirrorNode, type Node, RegularNode } from "./node.ts"
 
 /**
@@ -239,19 +240,47 @@ const differing = (before: Placed, after: Placed): ReadonlyArray<Field> => {
   return fields
 }
 
-type Value = string | boolean | ReadonlyArray<string> | undefined
+type Value = string | boolean | ReadonlyArray<string> | Custom | undefined
 
 const valueOf = (node: Node, field: (typeof RECORD_FIELDS)[number]): Value =>
   (node as Readonly<Record<string, Value>>)[field]
 
-/** Values are strings, booleans, absent, or lists of ids — so this is the whole
- *  of the comparison, and it is shallow because the format has no depth. */
+/**
+ * Are these two field values the same thing?
+ *
+ * BY CONTENT, all the way down, and each arm is here because a reading is a
+ * PARSE: the two sides of a comparison are two objects however equal the bytes
+ * were, so anything compared by identity reports every node carrying it as
+ * changed on every write. The list arm has always been here for that reason;
+ * the map arm was missing, and `custom` is the first map-valued field the
+ * format has (found by Grok, review of #179).
+ *
+ * That miss was not one wrong field among many. The stamps are excluded from
+ * {@link RECORD_FIELDS} precisely so a write whose only mark is `changed` says
+ * nothing — and a `custom` compared by identity put that change straight back
+ * in under another name, on exactly the nodes properties were built for.
+ *
+ * The recursion is one level and cannot be more: a map's values are text or a
+ * list of text ({@link ./custom.ts}), which is what the two arms above it
+ * already answer.
+ */
 const same = (a: Value, b: Value): boolean => {
   if (Array.isArray(a) && Array.isArray(b)) {
     return a.length === b.length && a.every((entry, at) => entry === b[at])
   }
+  if (isMap(a) && isMap(b)) {
+    const keys = Object.keys(a)
+    return keys.length === Object.keys(b).length &&
+      keys.every((key) => same(a[key], b[key]))
+  }
   return a === b
 }
+
+/** A `custom` map rather than the other three kinds of value — asked as a
+ *  shape rather than by field name, so the comparison above stays a statement
+ *  about VALUES and a second map-valued field needs nothing here. */
+const isMap = (value: Value): value is Custom =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
 
 /** Whether a field says something now. The two marks and `date` are all
  *  set-or-absent, and the difference between putting one on and taking it off

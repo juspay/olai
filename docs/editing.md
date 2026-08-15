@@ -345,7 +345,9 @@ A node's **properties** are named facts on it ([format.md](format.md)) — `pr`,
 
 **On a row it appears once somebody has added a property**; on a node's own page it is always drawn. A tree is a column of titles, and an `id` line under every bullet in the vault would double the height of every row to say something nobody asked to see.
 
-**The `•••` menu writes the custom half.** *Add property…* opens two boxes under the row — a key and a value — and every custom property already on the node adds a pair beside it: *Edit `pr`…*, which opens the same panel with the value in it, and *Remove `pr`*, which is one write and takes the key off. **Enter** sends, **Escape** and **Cancel** leave without writing, and ⌘Z takes any of it back. What goes is the same `set_prop` an agent sends, judged by the same planner and refused in the same words.
+**The `•••` menu writes the custom half.** *Add property…* opens two boxes under the row — a key and a value — and every custom property already on the node adds a pair beside it: *Edit `pr`…*, which opens the same panel with the value in it, and *Remove `pr`*, which is one write and takes the key off. **Enter** sends, **Escape** and **Cancel** leave without writing, and ⌘Z takes it back. What goes is the same `set_prop` an agent sends, judged by the same planner and refused in the same words — including its refusals: setting a property to the value it already holds, or removing one that is not there, is turned away rather than written, so the same gesture twice is one write and one sentence.
+
+**One removal has no undo, and says so by having none**: a property whose value is a LIST, which only a hand-edited file can hold. `set_prop` writes text, so an undo would have to flatten the list into one string with commas in it; nothing is recorded instead, and ⌘Z walks past to the write before.
 
 **The key is fixed while you are changing a value**, and that is not a limitation of the boxes: `set_prop` writes one key, so renaming a property is removing one and adding another — two ops, which is exactly the two calls an agent makes. Both entries are in the menu.
 

@@ -1104,6 +1104,72 @@ describe("prop", () => {
       .toBe("UsageFailure")
   })
 
+  /** `status` is the one shadowed word that is NOT a field — three fields
+   *  answer it — so the sentence may not tell somebody a node carries one
+   *  (Grok, review of #179). */
+  test("the refusal does not call `status` a field, because it is not one", () => {
+    const status = refused(house(), { op: "prop", id: "order", key: "status", value: "done" })
+    expect(status.message).not.toContain("with a field of its own")
+    expect(status.message).toContain("`status` is what a node's own fields already answer")
+    expect(status.message).toContain("`set_done`")
+    // ...and a word that IS a field still says so.
+    expect(refused(house(), { op: "prop", id: "order", key: "date", value: "x" }).message)
+      .toContain("with a field of its own")
+  })
+
+  /**
+   * A write that would change nothing is REFUSED, which is the rule every other
+   * op in this file already follows — `set_done` on a done node, `set_see` with
+   * a target it already names — and the one this op was missing.
+   *
+   * It matters more here than it looks, because of the stamps. Such a write
+   * still rewrote the record (`changed` is stamped on every write), so it
+   * landed on disk, dirtied git, counted as an op in the chat transcript, and
+   * reported `edited` — while the pending panel, which does not compare stamps,
+   * listed nothing at all for a tree git called dirty. One gesture, two faces,
+   * neither of them true. Disclosed by opencode in review of #179.
+   */
+  test("setting a property to what it already holds is refused", () => {
+    const carrying = setOf({
+      "house.olai": KITCHEN.replace(
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
+          `"custom":{"pr":"https://x/1"}}`,
+      ),
+    })
+    const failure = refused(carrying, {
+      op: "prop",
+      id: "order",
+      key: "pr",
+      value: "https://x/1",
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("nothing would change")
+    expect(failure.message).toContain("`pr`")
+  })
+
+  test("removing a property that is not there is refused", () => {
+    const failure = refused(house(), { op: "prop", id: "order", key: "stage", value: null })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("carries no `stage`")
+  })
+
+  test("a value that DIFFERS is not refused, however similar", () => {
+    const carrying = setOf({
+      "house.olai": KITCHEN.replace(
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
+          `"custom":{"pr":"https://x/1","tags":["a","b"]}}`,
+      ),
+    })
+    expect(customOf(carrying, { op: "prop", id: "order", key: "pr", value: "https://x/2" }))
+      .toMatchObject({ pr: "https://x/2" })
+    // A key holding a LIST is not "already that value" for any text: the write
+    // replaces the list, which is a real change and the caller's to make.
+    expect(customOf(carrying, { op: "prop", id: "order", key: "tags", value: "a" }))
+      .toMatchObject({ tags: "a" })
+  })
+
   test("a key that is nothing but space is not a key", () => {
     expect(refused(house(), { op: "prop", id: "order", key: "  ", value: "x" }).message)
       .toBe("a property needs a key")

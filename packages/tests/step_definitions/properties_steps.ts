@@ -134,6 +134,42 @@ When("I leave the property editor", async function (this: OlaiWorld) {
   await this.press(this.page.locator(PROP_EDITOR_CANCEL));
 });
 
+/**
+ * Every control of the editor is on the screen and big enough for a thumb.
+ *
+ * The panel is a flex row of two boxes and two buttons, which is a comfortable
+ * shape at 1200pt and a claim at 390 — the row wraps, and nothing says so until
+ * something has fallen off the side. `min-h` is the other half: the app's rule
+ * for anything a finger aims at is 44px, and these inputs carry `md:min-h-0`,
+ * so the phone keeps the target and the laptop does not pay for it.
+ *
+ * Asked of the VIEWPORT rather than of a container, because what a person
+ * cannot reach is what is off the screen (opencode's nit, review of #179).
+ */
+Then("the property editor fits the screen", async function (this: OlaiWorld) {
+  const width = this.page.viewportSize()?.width ?? 0;
+  for (
+    const [name, selector] of [
+      ["the key box", PROP_EDITOR_KEY],
+      ["the value box", PROP_EDITOR_VALUE],
+      ["the button", PROP_EDITOR_SET],
+      ["cancel", PROP_EDITOR_CANCEL],
+    ] as ReadonlyArray<readonly [string, string]>
+  ) {
+    const box = await this.box(this.page.locator(selector), name);
+    assert.ok(
+      box.x >= -0.5 && box.x + box.width <= width + 0.5,
+      `${name} runs from ${Math.round(box.x)} to ${
+        Math.round(box.x + box.width)
+      } on a ${width}pt screen`,
+    );
+    assert.ok(
+      box.height >= 44,
+      `${name} is ${Math.round(box.height)}px tall, under the 44px a thumb is given`,
+    );
+  }
+});
+
 // ── and what the directory says ────────────────────────────────────────
 
 const customOf = (node: Record<string, unknown>): Record<string, unknown> =>

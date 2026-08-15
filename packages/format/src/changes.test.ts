@@ -82,6 +82,62 @@ describe("what changed", () => {
     expect(changesOf(at("a.olai", same), at("a.olai", same))).toEqual([])
   })
 
+  /**
+   * The MAP, compared by what it holds — the first field of this format whose
+   * value is neither text nor a list, and the one the comparison got wrong.
+   *
+   * Two readings are two parses, so a `custom` map is two objects whatever it
+   * says. Under `===` every node carrying a property therefore reported as
+   * edited on every write, which is not a small lie: it is the pending panel
+   * naming a change nobody made, the commit subject counting it, and — since
+   * the stamps are excluded precisely so a re-stamp is invisible — the one
+   * exception this format makes being defeated by the one field it was made
+   * for. Found by Grok in review of #179.
+   */
+  test("two readings of the same properties are not a change", () => {
+    const same = node({ id: "x", title: "x", custom: { pr: "https://x/1", tags: ["a", "b"] } })
+    expect(changesOf(at("a.olai", same), at("a.olai", same))).toEqual([])
+  })
+
+  test("a property that changed, appeared or went is reported once", () => {
+    const none = node({ id: "x", title: "x" })
+    const one = node({ id: "x", title: "x", custom: { pr: "https://x/1" } })
+    const other = node({ id: "x", title: "x", custom: { pr: "https://x/2" } })
+    const two = node({ id: "x", title: "x", custom: { pr: "https://x/1", agent: "opus" } })
+
+    for (const [before, after] of [[none, one], [one, other], [one, two], [one, none]]) {
+      expect(changesOf(at("a.olai", before as string), at("a.olai", after as string))[0])
+        .toMatchObject({ fields: ["custom"], sort: "edited" })
+    }
+  })
+
+  /**
+   * The stamps, from the other side: they are left out of the field list, so a
+   * write whose only mark on the record is `changed` says nothing at all — with
+   * or without properties beside it.
+   *
+   * The second half is the one that was broken. `changed` was already excluded;
+   * `custom` compared by identity put the change back in under another name.
+   */
+  test("a re-stamp is not a change, whatever else the node carries", () => {
+    const bare = { id: "x", title: "x" }
+    const props = { ...bare, custom: { pr: "https://x/1" } }
+    for (const record of [bare, props]) {
+      expect(changesOf(
+        at("a.olai", node({ ...record, changed: "2026-08-15T09:00:00-04:00" })),
+        at("a.olai", node({ ...record, changed: "2026-08-15T21:00:00-04:00" })),
+      )).toEqual([])
+    }
+  })
+
+  test("a field that changed is not joined by a phantom `custom`", () => {
+    // The tooltip in the commit panel lists these names. A node that carries a
+    // property and had its title changed changed its title.
+    const before = node({ id: "x", title: "one", custom: { pr: "https://x/1" } })
+    const after = node({ id: "x", title: "two", custom: { pr: "https://x/1" } })
+    expect(changesOf(at("a.olai", before), at("a.olai", after))[0]?.fields).toEqual(["title"])
+  })
+
   test("every field that differs is reported, and the sort is the biggest of them", () => {
     const before = node({ id: "x", title: "one", desc: "old" })
     const after = node({ id: "x", parent: "p", ord: "a1", title: "two", desc: "new" })

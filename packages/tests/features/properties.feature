@@ -91,6 +91,24 @@ Feature: Properties on a node, from the web
     And the node "handles" shows no drawer
     And there should be no page errors
 
+  @phone
+  Scenario: The drawer and its editor work with a thumb, at 390 points
+    # The `•••` is not drawn on a phone at all — a gutter that wide would leave
+    # no room for the title — so the drawer's door here is the same long press
+    # every other verb uses (`on_a_phone.feature`). What is new is the panel:
+    # two boxes and two buttons in a flex row, which is comfortable at 1200pt
+    # and a claim at 390, and the inputs keep the 44px a finger is given while
+    # a laptop does not pay for it (`md:min-h-0`).
+    When I hold a finger on the node "handles"
+    Then the node menu is open
+    When I tap "Add property…" in the node menu
+    Then the property editor is open
+    And the property editor fits the screen
+    When I write the property "pr" holding "https://github.com/juspay/olai/pull/179"
+    Then the node "handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/179"
+    And "house.olai" holds the node "handles" with "pr" set to "https://github.com/juspay/olai/pull/179"
+    And there should be no page errors
+
   Scenario: The node's own facts have no entries in the menu
     # `order` carries a date, and the entry for it is `Change date…`. An
     # `Edit date…` beside it would be a second spelling of one write — and the

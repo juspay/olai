@@ -1131,9 +1131,11 @@ const planProp = (
   if (shadow !== undefined) {
     return Result.fail(
       new UsageFailure({
-        reason:
-          `a node already says \`${key}\` with a field of its own, so a property by that ` +
-          `name would be a second answer to one question — ${shadow}`,
+        reason: `${
+          shadow.field
+            ? `a node already says \`${key}\` with a field of its own`
+            : `\`${key}\` is what a node's own fields already answer`
+        }, so a property by that name would be a second answer to one question — ${shadow.door}`,
       }),
     )
   }
@@ -1150,6 +1152,33 @@ const planProp = (
       value === null || value === ""
         ? `prop: ${node.title} -> ${key} (cleared)`
         : `prop: ${node.title} -> ${key}=${value}`,
+    // A WRITE THAT WOULD CHANGE NOTHING IS REFUSED, which is what `set_done` on
+    // a done node and `set_see` with a target it already names both do — and
+    // what this op was missing.
+    //
+    // It matters more here than the symmetry suggests, because of the stamps.
+    // Every write stamps `changed`, and the stamps are deliberately invisible to
+    // the comparison (`@olai/format`'s `changes.ts`), so a set_prop of the value
+    // already held used to land on disk, dirty git, count as an op in the chat
+    // transcript and report `edited` — while the pending panel listed nothing at
+    // all for a tree git called dirty. One gesture, two faces, neither of them
+    // true. The guard is what makes "a stamp is not a change" a fact rather than
+    // a thing the panel happens not to look at.
+    (node) => {
+      const held = node.custom?.[key]
+      if (value === null || value === "") {
+        return held === undefined
+          ? new UsageFailure({
+            reason: `\`${node.title}\` carries no \`${key}\`, so there is none to take off`,
+          })
+          : null
+      }
+      return held === value
+        ? new UsageFailure({
+          reason: `\`${node.title}\` already says \`${key}\` is \`${value}\` — nothing would change`,
+        })
+        : null
+    },
   )
 }
 
