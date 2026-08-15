@@ -16,7 +16,15 @@ import { type FileKind } from "@olai/format"
 /** What a reader calls each kind of file, in a sentence. The registry names
  *  kinds for the code that branches on them; this is the same set of things
  *  said the way somebody looking at their own directory would say it — which is
- *  why `hypertext` is a "page" here and nowhere else in the source. */
+ *  why `hypertext` is a "page" here and nowhere else in the source.
+ *
+ *  THIS TABLE IS THE VOCABULARY SEAM, and it is the whole of it: the format's
+ *  name for a kind is an internal one, and the one place it is translated for a
+ *  person is this column. So a fourth kind owes a WORD here — chosen for a
+ *  reader rather than inherited from the registry — and the compile error is
+ *  what asks for it. If a second surface ever has to say a kind out loud, it
+ *  reads this rather than minting a second noun, for the reason every other
+ *  table over these kinds is one table. */
 const NOUN: Record<FileKind, string> = {
   outline: "outline",
   document: "document",

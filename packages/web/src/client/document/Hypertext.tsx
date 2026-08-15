@@ -57,6 +57,7 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
       // omitted — an absent `sandbox` attribute is a frame with NO restrictions
       // at all, which is the one-character difference between this component
       // and a page that runs somebody's JavaScript in this app's origin.
+      // MUST STAY THE EMPTY STRING — a token added here is that difference.
       sandbox=""
       // Nothing is fetched from in there (the seal's `default-src 'none'` sees
       // to that), so this is belt to that braces: were a directive ever
