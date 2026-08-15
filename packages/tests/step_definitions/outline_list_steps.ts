@@ -15,6 +15,8 @@ import {
   OUTLINE_LIST,
   OUTLINE_TREE,
   POLL_TIMEOUT,
+  RAIL_DOCS,
+  RAIL_OUTLINES,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -296,3 +298,36 @@ Then(
     );
   },
 );
+
+// ── …and on the OTHER face of the same column ─────────────────────────
+//
+// The rail is the directory collapsed, and its two ways in stand for the two
+// kinds of file. They draw the tree's own glyphs (`client/file/icons.tsx`), so
+// the same `data-glyph` is the same claim made about the same drawing: an
+// inline SVG put back on either button would say a different word here, or no
+// word at all. No `showSidebar()` — the rail is what there is INSTEAD of the
+// column, and asking for the column back is the one thing that would hide it.
+
+Then("the rail's outlines button is drawn as an outline", async function (
+  this: OlaiWorld,
+) {
+  await this.expectAttribute(
+    `${RAIL_OUTLINES} ${FILE_GLYPH}`,
+    "data-glyph",
+    "outline",
+    "the rail's outlines button",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the rail's documents button is drawn as a document", async function (
+  this: OlaiWorld,
+) {
+  await this.expectAttribute(
+    `${RAIL_DOCS} ${FILE_GLYPH}`,
+    "data-glyph",
+    "document",
+    "the rail's documents button",
+    HYDRATION_TIMEOUT,
+  );
+});

@@ -152,6 +152,10 @@ export const SIDEBAR_RAIL = selector(TESTID.sidebarRail);
 /** The rail's way to the agenda — the collapsed column's face of the entry,
  *  carrying the same `data-owed` as a dot. */
 export const RAIL_AGENDA = selector(TESTID.railAgenda);
+/** The rail's two ways INTO the directory — the collapsed column's outlines
+ *  and documents buttons, which draw the tree's own glyphs. */
+export const RAIL_OUTLINES = selector(TESTID.railOutlines);
+export const RAIL_DOCS = selector(TESTID.railDocs);
 export const SIDEBAR_RESIZE = selector(TESTID.sidebarResize);
 /** The file tree: every outline and document under the folders they live in. */
 export const OUTLINE_LIST = selector(TESTID.outlineList);
