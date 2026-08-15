@@ -11,6 +11,7 @@
 import {
   dateOf,
   derive,
+  doorFor,
   listOf,
   markOf,
   type Node,
@@ -20,6 +21,7 @@ import {
   type RegularNode,
   serializeOutline,
   sinceOf,
+  SYSTEM_KEYS,
   AddRequest,
   type WriteRequest as Request,
 } from "@olai/format"
@@ -797,6 +799,76 @@ describe("title, note and date", () => {
     expect(planned(house(), { op: "date", id: "order", date: null }).summary).toBe(
       "date: order the cabinets -> (cleared)",
     )
+  })
+})
+
+// ── prop ───────────────────────────────────────────────────────────────
+
+describe("prop", () => {
+  const propsOf = (set: OutlineSet, request: Request): Record<string, unknown> => ({
+    ...record(fileOf(planned(set, request), "house.olai"), "order").props,
+  })
+
+  test("a key olai does not read holds whatever it is given", () => {
+    expect(propsOf(house(), { op: "prop", id: "order", key: "pr", value: "https://x/1" }))
+      .toEqual({ pr: "https://x/1" })
+    // The summary names the KEY, because the key is what changed: a subject
+    // reading `prop: order the cabinets` would leave the reader to diff the
+    // line to find out which fact moved.
+    expect(planned(house(), { op: "prop", id: "order", key: "pr", value: "https://x/1" }).summary)
+      .toBe("prop: order the cabinets -> pr=https://x/1")
+  })
+
+  test("`null` removes it, and so does the empty string", () => {
+    const carrying = setOf({
+      "house.olai": KITCHEN.replace(
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
+          `"props":{"pr":"https://x/1","agent":"claude-opus"}}`,
+      ),
+    })
+    // The other key is untouched: this op is about ONE property, and a write
+    // that rebuilt the map would take the rest of it with whatever it knew.
+    expect(propsOf(carrying, { op: "prop", id: "order", key: "pr", value: null }))
+      .toEqual({ agent: "claude-opus" })
+    expect(propsOf(carrying, { op: "prop", id: "order", key: "pr", value: "" }))
+      .toEqual({ agent: "claude-opus" })
+    expect(planned(carrying, { op: "prop", id: "order", key: "pr", value: null }).summary)
+      .toBe("prop: order the cabinets -> pr (cleared)")
+  })
+
+  /**
+   * The six keys olai reads, each refused toward the verb that owns it — and
+   * the list is read off the FORMAT's own table rather than typed here, so a
+   * seventh system key is covered by this test the day it is declared.
+   *
+   * This is the whole of what makes `set_prop` safe to give an agent: every one
+   * of those verbs does something this op cannot — records the instant,
+   * validates the day, refuses the cycle, resolves the target — and a writer
+   * that could spell the same fact as a key would walk around all of it.
+   */
+  test("every key olai reads is refused, naming the verb that owns it", () => {
+    for (const { key } of SYSTEM_KEYS) {
+      const failure = refused(house(), { op: "prop", id: "order", key, value: "x" })
+      expect({ key, tag: failure._tag }).toEqual({ key, tag: "UsageFailure" })
+      expect({ key, says: failure.message.includes(`\`${key}\``) })
+        .toEqual({ key, says: true })
+      // The sentence is the key's own, from the format's table.
+      expect({ key, door: failure.message.endsWith(doorFor(key) as string) })
+        .toEqual({ key, door: true })
+    }
+  })
+
+  test("a key that is nothing but space is not a key", () => {
+    expect(refused(house(), { op: "prop", id: "order", key: "  ", value: "x" }).message)
+      .toBe("a property needs a key")
+  })
+
+  test("a key is trimmed, and otherwise spelled however it was typed", () => {
+    // NOT case-folded, not slugged: the map takes any key, and a rule here
+    // about spelling would be this op inventing one the format does not have.
+    expect(propsOf(house(), { op: "prop", id: "order", key: " Due-Owner ", value: "@rahul" }))
+      .toEqual({ "Due-Owner": "@rahul" })
   })
 })
 

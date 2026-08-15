@@ -68,6 +68,7 @@ import {
   type OpFailure,
   siblingsOf,
   type Status,
+  textOf as textOfProp,
   UsageFailure,
 } from "@olai/format"
 import { merging, notFound, type Reading, type Request } from "@olai/ops"
@@ -125,6 +126,16 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       })
     case "date":
       return Result.succeed({ op: "date", id: edit.id, date: edit.date })
+    // A property resolves nothing either: the key is the caller's and the value
+    // is text. Which keys are refused is the ops layer's answer, said in its own
+    // words at the one gate both faces go through.
+    case "prop":
+      return Result.succeed({
+        op: "prop",
+        id: edit.id,
+        key: edit.key,
+        value: edit.value,
+      })
     // The two COMPOUND keys, and they resolve nothing for the same reason the
     // five above do: everything either of them needs to work out — where the
     // tail lands, which sibling is above, what the archive's scaffold is — the
@@ -710,6 +721,11 @@ export const inverseOf = (
     // overwrite — the ops layer's own `set_date` is what judges it either way.
     case "date":
       return dateOf(at.derived, edit.id)
+    // The VALUE this write is about to replace, under the key it names — the
+    // date arm one map in. A property set over nothing is put back as nothing,
+    // which is the same arm and is what makes `Remove` undoable.
+    case "prop":
+      return propOf(at.derived, edit.id, edit.key)
     // A split is taken back by MERGING the half it made back into the half it
     // came off — one edit, and the ops layer's own inverse rather than one
     // assembled here. `applied` is the new node, which is the only id in this
@@ -998,6 +1014,32 @@ const dateOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   const located = derived.byId.get(id)
   if (located === undefined || isMirror(located.node)) return []
   return [{ verb: "date", id, date: dateProp(located.node) ?? null }]
+}
+
+/**
+ * What one property holds, as the edit that would put it back.
+ *
+ * {@link dateOf} with a key, and the resemblance is not an accident — a date IS
+ * a property now, and the only reason it has an arm of its own is that it has a
+ * verb of its own. Both answer for a value that is not there: a property added
+ * where there was none is undone by removing it, which is the `null` this hands
+ * back, and it is the arm that makes the drawer's `Remove` a thing a person can
+ * take back.
+ *
+ * A LIST is answered as nothing, which is unreachable and honest: `set_prop`
+ * refuses every key that holds a list (they are all system keys), so a `prop`
+ * edit can only ever be about a key holding text. If one ever arrives about a
+ * list, the undo declines to spell it rather than flattening a set of ids into
+ * a string nobody wrote.
+ */
+const propOf = (
+  derived: Derived,
+  id: string,
+  key: string,
+): ReadonlyArray<Edit> => {
+  const located = derived.byId.get(id)
+  if (located === undefined || isMirror(located.node)) return []
+  return [{ verb: "prop", id, key, value: textOfProp(located.node, key) ?? null }]
 }
 
 /**

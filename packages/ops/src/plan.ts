@@ -41,6 +41,7 @@ import {
   type LocatedRegular,
   DATE,
   dateOf,
+  doorFor,
   isEmptyProps,
   listOf,
   type MirrorNode,
@@ -191,6 +192,8 @@ export const plan = (
         (node) => withKey(node, DATE, request.date),
         (node) => `date: ${node.title} -> ${dateOf(node) ?? "(cleared)"}`,
       )
+    case "prop":
+      return planProp(scope, request)
     case "move":
       return planMove(scope, request)
     case "split":
@@ -1008,6 +1011,58 @@ const planEdit = (
     file,
     summary,
   })
+}
+
+/**
+ * One property, set or taken off — the freeform half of the map, and the ONE
+ * write in this file that names a key rather than a field.
+ *
+ * THE REFUSAL IS THE OP. Everything else here is `planEdit` with a different
+ * lambda; what this adds is the gate that keeps the six keys olai reads behind
+ * the verbs that own them. `set_prop` could otherwise write `status: "dnoe"`,
+ * a `date` no calendar could place, or an `after` closing a loop — each of them
+ * a rule some other op in this file enforces, walked around by a writer that
+ * spells the same fact as a key. The key's own sentence names the door
+ * (`@olai/format`'s `doorFor`), so the seventh system key arrives refused
+ * rather than arriving as a hole.
+ *
+ * A KEY IS NOT VALIDATED beyond that, and deliberately: the map takes any key
+ * (docs/format.md), so a rule here about hyphens or case would be this op
+ * inventing a spelling the format does not have. An EMPTY key is the one
+ * exception, and it is not a rule about keys — it is the same "nothing has one
+ * spelling" the value's `null` obeys: a property with no name is not a property.
+ */
+const planProp = (
+  scope: Scope,
+  request: Extract<Request, { op: "prop" }>,
+): Planned => {
+  const key = request.key.trim()
+  if (key === "") {
+    return Result.fail(new UsageFailure({ reason: "a property needs a key" }))
+  }
+  const door = doorFor(key)
+  if (door !== undefined) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `\`${key}\` is a key olai reads, so it is not written this way — ${door}`,
+      }),
+    )
+  }
+
+  const value = request.value
+  return planEdit(
+    scope,
+    request.id,
+    (node) => withKey(node, key, value),
+    // The KEY is in the subject either way, because that is what changed: a
+    // commit reading `prop: chat-model-stale -> pr=…` says which fact moved,
+    // where one reading `prop: chat-model-stale` would leave the reader to
+    // diff the line to find out.
+    (node) =>
+      value === null || value === ""
+        ? `prop: ${node.title} -> ${key} (cleared)`
+        : `prop: ${node.title} -> ${key}=${value}`,
+  )
 }
 
 /**

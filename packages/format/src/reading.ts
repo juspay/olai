@@ -77,7 +77,7 @@ import { Schema } from "effect"
 
 import { Progress } from "./derive.ts"
 import { RegularNode } from "./node.ts"
-import { Status } from "./props.ts"
+import { Props, Status } from "./props.ts"
 
 /** `true`, or the ISO date/datetime the state was reached at — what a mark on
  *  an ANSWER carries. The shape the record's three mark fields had, kept
@@ -260,9 +260,10 @@ export type Placed = typeof Placed.Type
  * this goes on reading it and cannot tell the difference, which is the whole
  * claim of the change.
  *
- * They are not the answer's LAST word on the subject — the sibling PR that adds
- * `props` to a reading is where a face learns to say the map — but they are the
- * word this one keeps.
+ * They are not the answer's last word on the subject: {@link Detail} carries
+ * the MAP as well now, so a reader that wants the whole of what a node says
+ * about itself asks for `props` and one that has been reading `done` since
+ * before any of this goes on reading it.
  */
 const STAMPED = {
   done: Schema.optionalKey(Marker),
@@ -274,6 +275,21 @@ export const Detail = Schema.Struct({
   ...Found.fields,
   ...STAMPED,
   date: Schema.optionalKey(Schema.String),
+  /**
+   * EVERY property the node carries, as the record holds them — the map itself,
+   * borrowed from `./props.ts` rather than restated, because this one is handed
+   * back verbatim.
+   *
+   * The system keys are in it too, and that is deliberate: a reader asking what
+   * a node says about itself should get one answer, not one with six holes in
+   * it that the fields above happen to fill. Those fields stay because they are
+   * a contract older than the map ({@link STAMPED}); this is where a `pr`, an
+   * `isbn` or a `stage` is read, and it is what `set_prop` writes into.
+   *
+   * Absent for a node with no properties at all, which is the writer's own rule
+   * for absence rather than an empty map for every bullet in the vault.
+   */
+  props: Schema.optionalKey(Props),
   desc: RegularNode.fields.desc,
   /** The `#topic` and `@person` tags in the title, AS WRITTEN, sigil and all —
    *  a list that dropped the character that started them could not tell a

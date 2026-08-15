@@ -141,17 +141,42 @@ export const DATE = "date"
  *
  * `shape` is what a per-line check enforces: a `status` holding a list is a
  * legal `props` map and an illegal record, exactly as two marks used to be.
+ *
+ * `door` is the other half of "olai reads it": the verb that OWNS the key, and
+ * the sentence a freeform write is refused with ({@link doorFor}). Every one of
+ * these is policed by something — an instant recorded, a date validated, a
+ * cycle refused — and a `set_prop` that could put `status: "dnoe"` in the map
+ * would be a second writer with none of that. So the key names its own door
+ * here, beside what it holds, rather than in a table somewhere that could list
+ * five of the six.
  */
 export const SYSTEM_KEYS = [
-  { key: STATUS, shape: "text" },
-  { key: SINCE, shape: "text" },
-  { key: DATE, shape: "text" },
-  { key: "after", shape: "list" },
-  { key: "blocks", shape: "list" },
-  { key: "see", shape: "list" },
+  {
+    key: STATUS,
+    shape: "text",
+    door: "`set_done`, `set_doing` and `set_todo` are the doors — they record the instant",
+  },
+  {
+    key: SINCE,
+    shape: "text",
+    door: "the mark verbs write this — it is WHEN `status` was reached, and it is recorded rather than typed",
+  },
+  { key: DATE, shape: "text", door: "`set_date` is the door — it validates" },
+  { key: "after", shape: "list", door: "`set_after` is the door — it refuses a cycle" },
+  {
+    key: "blocks",
+    shape: "list",
+    door: "`set_after` is the door, said from the waiting node — `a blocks b` is written as `b after a`",
+  },
+  {
+    key: "see",
+    shape: "list",
+    door: "`set_see` is the door — it resolves the target and refuses an unknown id",
+  },
 ] as const satisfies ReadonlyArray<{
   readonly key: string
   readonly shape: "text" | "list"
+  readonly door: string
 }>
 
 export type SystemKey = (typeof SYSTEM_KEYS)[number]["key"]
@@ -186,6 +211,19 @@ const SYSTEM_ORDER: ReadonlyMap<string, number> = new Map(
  *  whether a write goes through a verb (props-parity's `set_prop`) and a second
  *  spelling of it would be a key policed in one face and free in another. */
 export const isSystemKey = (key: string): key is SystemKey => SYSTEM_ORDER.has(key)
+
+/**
+ * The verb that owns a key — the sentence a freeform write is turned away with,
+ * or `undefined` for a key nothing here reads.
+ *
+ * ONE TABLE, read by the op that refuses ({@link ../../ops/src/plan.ts}) and by
+ * the tool description an agent reads before it calls. The alternative was a
+ * list of forbidden keys beside the sentences somewhere else, which is the pair
+ * that goes stale the day a seventh system key arrives: it would be readable by
+ * the journal and writable by anybody, and nothing would have said so.
+ */
+export const doorFor = (key: string): string | undefined =>
+  SYSTEM_KEYS.find((one) => one.key === key)?.door
 
 /**
  * The keys of a map, in the order a file writes them: the system keys first, in

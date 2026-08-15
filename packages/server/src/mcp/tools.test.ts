@@ -202,6 +202,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
       "set_desc",
       "set_doing",
       "set_done",
+      "set_prop",
       "set_see",
       "set_title",
       "set_todo",

@@ -26,7 +26,7 @@ const LEDGER = (): OutlineSet =>
       `{"id":"now-git","parent":"now","ord":"a1","mirror":"focus-git"}`,
       `{"id":"bugs","ord":"a1","title":"Bugs"}`,
       `{"id":"sticky","parent":"bugs","ord":"a0","title":"the header scrolls away","props":{"status":"doing","after":["git"],"see":["git"]}}`,
-      `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","props":{"status":"todo"}}`,
+      `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","props":{"status":"todo","pr":"https://github.com/juspay/olai/pull/176","agent":"claude-opus"}}`,
     ].join("\n"),
     "focus.olai": [
       `{"id":"focus","ord":"a0","title":"Focus"}`,
@@ -54,6 +54,33 @@ describe("the edges a node carries", () => {
     expect(bugs?.children.find((child) => child.id === "sticky"))
       .toMatchObject({ after: ["git"] })
     expect(detail(at(), "sticky")).toMatchObject({ after: ["git"], see: ["git"] })
+  })
+})
+
+/**
+ * The MAP, on a node read — every property it carries, and nothing invented
+ * for one that carries none.
+ *
+ * The three stamps and `date` beside it are the same facts in the vocabulary
+ * this answer had before there were properties, and they stay. This is the node
+ * saying everything it says about itself, and it is the only place a `pr` or an
+ * `isbn` could come from — without it, `set_prop` would be a write whose result
+ * no read could show.
+ */
+describe("the properties a node carries", () => {
+  test("a node read answers the map, system keys and all", () => {
+    expect(detail(at(), "git")?.props).toEqual({
+      status: "todo",
+      pr: "https://github.com/juspay/olai/pull/176",
+      agent: "claude-opus",
+    })
+    // The old vocabulary still answers, over the same record: a reader that has
+    // been reading `todo` cannot tell the difference.
+    expect(detail(at(), "git")).toMatchObject({ todo: true, status: "todo" })
+  })
+
+  test("a node with no properties carries no map, rather than an empty one", () => {
+    expect(detail(at(), "bugs")).not.toHaveProperty("props")
   })
 })
 

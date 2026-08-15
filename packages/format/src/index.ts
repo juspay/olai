@@ -90,13 +90,15 @@ export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./
  * key by hand: a consumer asks `markOf` or `listOf(node, "after")` rather than
  * indexing `node.props`, for the reason this package exports `markOf`
  * rather than a field name. `SYSTEM_KEYS` and `isSystemKey` are what a WRITER
- * needs — the sibling PR's `set_prop` refuses a key olai reads, and it must ask
- * that question of the same list ./parse.ts checks.
+ * needs — `set_prop` refuses a key olai reads, and it asks that question of the
+ * same list ./parse.ts checks, with `doorFor` supplying the sentence that names
+ * the verb which owns it.
  */
 export {
   canonicalKeys,
   DATE,
   dateOf,
+  doorFor,
   isEmptyProps,
   isSystemKey,
   listOf,
@@ -258,6 +260,7 @@ export {
   MirrorRequest,
   MoveRequest,
   NESTING,
+  PropRequest,
   SeeRequest,
   SplitRequest,
   TitleRequest,

@@ -34,6 +34,7 @@ import {
   isMirror,
   type LocatedRegular,
   dateOf,
+  isEmptyProps,
   listOf,
   markOf,
   sinceOf,
@@ -260,6 +261,16 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     ...(dateOf(node) === undefined ? {} : { date: dateOf(node) }),
     ...(node.desc === undefined ? {} : { desc: node.desc }),
     ...stampsOf(node),
+    // THE MAP, verbatim — the record's own, in the record's own key order,
+    // system keys included. The three stamps and `date` above are the same
+    // facts said in the vocabulary this answer had before there were
+    // properties; this is the node saying everything it says about itself, and
+    // it is the only place a `pr` or an `isbn` could come from.
+    //
+    // Absent rather than `{}` for a node with no properties, which is the
+    // writer's rule for absence read at the answer: a bullet does not carry an
+    // empty map on disk and does not carry one here.
+    ...(isEmptyProps(node.props) ? {} : { props: node.props }),
     // AS WRITTEN, sigil and all: `#alice` and `@alice` are two tags, so a list
     // that dropped the character that started them could not tell a reader
     // which one this node carries.
