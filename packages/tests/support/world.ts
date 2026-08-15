@@ -152,6 +152,10 @@ export const SIDEBAR_RAIL = selector(TESTID.sidebarRail);
 /** The rail's way to the agenda — the collapsed column's face of the entry,
  *  carrying the same `data-owed` as a dot. */
 export const RAIL_AGENDA = selector(TESTID.railAgenda);
+/** The rail's two ways INTO the directory — the collapsed column's outlines
+ *  and documents buttons, which draw the tree's own glyphs. */
+export const RAIL_OUTLINES = selector(TESTID.railOutlines);
+export const RAIL_DOCS = selector(TESTID.railDocs);
 export const SIDEBAR_RESIZE = selector(TESTID.sidebarResize);
 /** The file tree: every outline and document under the folders they live in. */
 export const OUTLINE_LIST = selector(TESTID.outlineList);
@@ -159,6 +163,9 @@ export const OUTLINE_LINK = selector(TESTID.outlineLink);
 /** One folder in that tree. `data-path` / `data-collapsed` say which and how. */
 export const FILE_DIR = selector(TESTID.fileDir);
 export const FILE_DIR_TOGGLE = selector(TESTID.fileDirToggle);
+/** The glyph in front of a row's name, saying what KIND it is. `data-glyph`
+ *  is `outline` / `document` / `folder` — the fact, not the ink. */
+export const FILE_GLYPH = selector(TESTID.fileGlyph);
 /** One document entry in the file tree (no second list — same folders). */
 export const DOCUMENT_LINK = selector(TESTID.documentLink);
 /** One document, as a page: `/doc/<file>`. */

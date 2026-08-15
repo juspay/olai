@@ -8,12 +8,15 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import {
   DOCUMENT_LINK,
   FILE_DIR,
+  FILE_GLYPH,
   HYDRATION_TIMEOUT,
   oneLine,
   OUTLINE_LINK,
   OUTLINE_LIST,
   OUTLINE_TREE,
   POLL_TIMEOUT,
+  RAIL_DOCS,
+  RAIL_OUTLINES,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -234,3 +237,107 @@ Then(
     );
   },
 );
+
+// ── what KIND each row is ──────────────────────────────────────────────
+//
+// The basename is what the row SAYS; the glyph is what it says the row IS
+// (`client/file/icons.tsx`). Asserted on `data-glyph` rather than on the
+// drawing, because which shape is right for an outline is a design question
+// and "there is one, and it is the outline's" is the promise. The extension is
+// deliberately not the assertion either: `.jsonl` in the label is the thing
+// that was carrying this on its own and the reason the mark was filed.
+//
+// SEVEN rows are asserted and not every row on screen, which a reviewer asked
+// about and which is deliberate: three kinds × the two faces they are drawn on,
+// which is the whole of the closed set (`DirectoryKind`). What a per-row sweep
+// would add is a fourth reading of `fileTree.ts`'s walk — the tree's membership
+// and its order are already promised by the scenarios above this one — and what
+// it could not add is the case that actually threatens this: a kind with NO
+// glyph. `Record<DirectoryKind, Drawn>` makes that a compile error rather than
+// a row the suite would have to catch, so the type carries the exhaustiveness
+// and these rows carry the wiring.
+
+// Through `expectAttribute`, like every other `data-` fact in this file. The
+// compound selector is what makes the wait RETRY across the frame that paints
+// the tree, and the failure says what the glyph carries INSTEAD — which is the
+// difference between "the wrong kind" and "no glyph at all".
+//
+// Scoped to the clickable thing — a link, or a folder's own `:scope > button`,
+// the same scoping `folderToggle` gives — and never to a folder's `<li>`:
+// nested folders nest their `li`s, so a glyph found under one of those could be
+// a child's.
+
+Then(
+  "the outline link {string} is drawn as an outline",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    await this.expectAttribute(
+      `${OUTLINE_LINK}[data-file="${file}"] ${FILE_GLYPH}`,
+      "data-glyph",
+      "outline",
+      `the outline "${file}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the document link {string} is drawn as a document",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    await this.expectAttribute(
+      `${DOCUMENT_LINK}[data-file="${file}"] ${FILE_GLYPH}`,
+      "data-glyph",
+      "document",
+      `the document "${file}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the folder {string} is drawn as a folder",
+  async function (this: OlaiWorld, path: string) {
+    await this.showSidebar();
+    await this.expectAttribute(
+      `${folderSelector(path)} > button ${FILE_GLYPH}`,
+      "data-glyph",
+      "folder",
+      `the folder "${path}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+// ── …and on the OTHER face of the same column ─────────────────────────
+//
+// The rail is the directory collapsed, and its two ways in stand for the two
+// kinds of file. They draw the tree's own glyphs (`client/file/icons.tsx`), so
+// the same `data-glyph` is the same claim made about the same drawing: an
+// inline SVG put back on either button would say a different word here, or no
+// word at all. No `showSidebar()` — the rail is what there is INSTEAD of the
+// column, and asking for the column back is the one thing that would hide it.
+
+Then("the rail's outlines button is drawn as an outline", async function (
+  this: OlaiWorld,
+) {
+  await this.expectAttribute(
+    `${RAIL_OUTLINES} ${FILE_GLYPH}`,
+    "data-glyph",
+    "outline",
+    "the rail's outlines button",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the rail's documents button is drawn as a document", async function (
+  this: OlaiWorld,
+) {
+  await this.expectAttribute(
+    `${RAIL_DOCS} ${FILE_GLYPH}`,
+    "data-glyph",
+    "document",
+    "the rail's documents button",
+    HYDRATION_TIMEOUT,
+  );
+});

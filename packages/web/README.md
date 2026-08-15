@@ -903,6 +903,110 @@ is untouched: the directory there is a fixed drawer with a scrim and this is a
 `md:` change. `features/the_sidebar_sticks.feature` holds all of it, with the
 phone scenario as the fence against the pin leaking below 48rem.
 
+## The tree says what each row IS
+
+Filed from a screenshot: the directory drew `garden.jsonl`, `finishes.md` and
+`notes` in one ink at one weight, so the only thing telling an OUTLINE from a
+DOCUMENT was four characters of extension at the end of the name, and the only
+thing marking a FOLDER was a triangle every fold control in this app has. Three
+kinds, one face.
+
+Each row now carries its kind's glyph in front of its name
+(`file/icons.tsx`): the olai outline, the document, the folder. Two of the
+three are vendored from Pierre Computer Company's icon set
+([pierrecomputer/icons](https://github.com/pierrecomputer/icons), Apache-2.0,
+attributed in that file's header) — verbatim path data, with `fill="black"`
+changed to `currentColor` and the size handed to Tailwind. The third has no
+upstream, because no icon set has an olai outline in it; it is drawn there to
+the same set's metrics (`IconListUnordered.svg`'s `r=1` bullets against
+`h=1.5`, `rx=0.75` bars), with the lower two rows indented, which is the whole
+of what an outline is.
+
+**The glyph takes the row's own ink** — `currentColor`, never a colour per
+kind. A folder row is `text-muted`, a file row is `text-ink`, the open file's
+row is `text-accent` and semibold, and the glyph is simply part of whichever of
+those the row already is. A code host with forty extensions to tell apart wants
+a green markdown and an orange JSON; this directory has two kinds of file and
+is Workflowy-quiet. It also keeps a second utility off `color` on a row that
+already has one — the trap `Sidebar.tsx`'s `ENTRY_SHAPE` is split in two to
+avoid. `data-glyph` is the fact a scenario reads
+(`features/serve_a_directory.feature`); the shape is what a reader reads, and
+neither is the ink.
+
+**Both faces draw from it.** `layout/Rail.tsx` — this same column collapsed —
+had inline SVGs of its own for two of the three kinds, a generic three-line
+list and a generic page-with-a-corner, and after the tree started glyphing them
+the app had two answers to "what does an outline look like". It draws
+`<Glyph>` now, at the rail's size rather than the tree's (the size is the
+site's; the drawing is the directory's). This is the same argument that puts
+the agenda's mark on both faces one section up: a reader who collapses the
+column has not gone somewhere else. Changing a path in `file/icons.tsx` moves
+pixels in two components, deliberately.
+
+### Why not `@pierre/trees`
+
+The same company publishes the tree itself, and adopting it was the ruling this
+work started from. It was tried against this sidebar before it was declined,
+and the reasons are structural rather than cosmetic — the *styling* reached
+further than expected. Custom properties inherit into a shadow root, the
+`unsafeCSS` option puts arbitrary rules inside it (the app's own typeface
+pierced on the first try), and `sort` takes a comparator, so even this tree's
+folders-among-files order is expressible. What could not be expressed:
+
+- **Rows are never anchors.** Pierre's rows are `div` and `button`; selection
+  arrives through `onSelectionChange`. Every entry in this column is a `<Link>`
+  — an `<a href>` with ⌘-click, middle-click, open-in-new-tab, a status bar on
+  hover, and `aria-current="page"`. There is no option that emits one.
+- **Rows are a fixed height, because they are virtualized.** Pierre ellipsizes
+  a name that does not fit (`a-note-whose-nan…md`); this tree wraps it
+  (`break-all`) onto a second line, which is what `fileTree.ts` exists for —
+  once a corpus has depth, names get long. Wrapping and virtualization are
+  incompatible by construction, not by CSS.
+- **It owns a scroller and needs a definite height.** The sidebar body is ONE
+  scroll region holding the agenda and the month above the tree and
+  New-outline, New-document and Trash below it. Pierre has a `header`
+  composition slot (and no footer), and anything rendered into it is inside the
+  shadow root, where Tailwind does not reach. So the tree either nests a second
+  scroller inside a scroll region — against the ruling one section up — or
+  swallows chrome that is not the directory.
+- **The first paint.** `@pierre/trees` bundles Preact; a bare
+  `new FileTree({paths})`, minified and tree-shaken, is **252.8 kB raw /
+  62.3 kB brotli**. This surface is on every page, so that is first-paint
+  weight — 2.7× the 23.4 kB PR #171 had just taken off that chunk. The
+  `menu/chunk.ts` lazy pattern does not rescue it either: that split works
+  because the `•••` has a fallback identical to the thing that replaces it, and
+  a directory tree's fallback is the directory.
+
+A fifth is worth recording for whoever tries again: expansion has no event.
+`FileTreeListener` is `() => void` and there is no `getExpandedPaths()`, so
+remembering folds (`fold/folders.ts`) would mean polling
+`getItem(path).isExpanded()` over every directory on every invalidation tick.
+
+**What the hatch cost instead**, by #171's method — `just build-client`'s own
+per-asset report summed over the first-paint set (the entry the shell names,
+plus every chunk it `modulepreload`s, plus the stylesheet; a dynamic `import()`
+is deliberately not followed), with the `before` side built in a second
+worktree at the same `origin/master` this branch is merged up to:
+
+| | raw | brotli |
+|---|---|---|
+| `origin/master` first paint | 907,903 | 236,647 |
+| with the glyphs | 909,912 | 237,423 |
+| **delta** | **+2,009** | **+776** |
+
+Three glyphs for two kilobytes, against the 252,776 / 62,250 the library would
+have put on the same surface. `main-bgprjr4z.js` is 534 B with no `.br` sibling
+— under the compressor's floor, so it is counted raw on both sides.
+
+Both sides must be built at the SAME base, which is the one way to get this
+wrong: the raw delta is +2,009 measured against either base, but subtracting a
+NEWER master's first paint from an OLDER base's branch build silently credits
+this change with whatever the intervening PR did (#172 put +663 raw / +311
+brotli on master, and that subtraction reported +1,346 / +362). Brotli deltas
+in particular are not additive across bases — the same 2,009 bytes compressed
+to +673 against the older base and +776 against this one, because what they are
+compressed ALONGSIDE changed.
+
 ## The connection, said out loud
 
 `src/client/connection/` is the chrome for the one thing the outlines cannot
