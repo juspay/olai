@@ -1393,9 +1393,9 @@ const planCreate = (
     return Result.fail(
       new UsageFailure({
         reason:
-          `\`${request.file}\` is not a relative \`${OUTLINE_EXT}\` path under the served ` +
+          `\`${request.file}\` is not a relative \`.olai\` path under the served ` +
           `directory (no absolute path, no \`..\`, no \`.\`, and the name must end ` +
-          `in \`${OUTLINE_EXT}\`)`,
+          `in \`.olai\`)`,
       }),
     )
   }
@@ -1461,10 +1461,7 @@ const planCreate = (
  *
  * Same discipline as `mediaTarget` in `@olai/surface`: judge segments after
  * they are read, refuse empty / `.` / `..` / separators / NUL rather than
- * resolving them, and require the name the format already treats as an outline
- * — which is why the suffix comes from `@olai/format`'s {@link OUTLINE_EXT}
- * and is not retyped here: a mint that admitted a name `fileKind` will not
- * claim writes a file the walk never picks up again.
+ * resolving them, and require the name the format already treats as an outline.
  * Absolute paths (leading `/`) and Windows-style backslash separators never
  * become a segment that could be joined under the root by accident.
  */
@@ -1472,9 +1469,9 @@ export const outlinePath = (raw: string): string | null => creatable(raw, OUTLIN
 
 /** The same judgment for the other kind of file a call may mint: one relative
  *  `.md` under the served root. One rule, two extensions — the two create ops
- *  must not differ in what a path may smuggle, and both extensions come from
- *  the format for the same reason: a mint that admits a name `fileKind` will
- *  not claim writes a file nothing reads back. */
+ *  must not differ in what a path may smuggle, and both take their suffix from
+ *  the format, because a mint that admits a name `fileKind` will not claim
+ *  writes a file nothing ever reads back. */
 export const documentPath = (raw: string): string | null => creatable(raw, DOCUMENT_EXT)
 
 const creatable = (raw: string, extension: string): string | null => {

@@ -202,19 +202,25 @@ export const targetsOf = (
  *
  *  It is not a knob. A directory holds one kind of outline and this is what it
  *  is called; the constant exists so the answer is asked for rather than
- *  retyped. */
+ *  retyped.
+ *
+ *  **CODE that DECIDES reads it; PROSE that DESCRIBES spells it out.** The
+ *  eighty-odd docstrings, tool descriptions and refusal messages that say
+ *  `.olai` in words go on saying it in words — they are read by a person or an
+ *  agent, not by a branch, and interpolating a constant into a sentence buys
+ *  nothing while costing the one thing a message has: you can grep for it. The
+ *  rule is written here because the line between the two is the only thing a
+ *  reader would otherwise have to guess at. */
 export const OUTLINE_EXT = ".olai"
 
-/** The other kind's, on the same terms and for the same failure. It is not
- *  moving and nothing is arguing about it — but `create_document` mints a path
- *  and {@link fileKind} decides whether the walk will ever claim one, and those
- *  two disagreeing is a file written where nobody can read it back. That is the
- *  outline suffix's own argument, and there is no version of it that is true
- *  above and false here.
+/** The other kind's, on the same terms: `create_document` mints a path and
+ *  {@link fileKind} decides whether the walk will ever claim one, and those two
+ *  disagreeing is a document written where nothing reads it back. That the
+ *  suffix is not moving today is not a reason for the answer to live twice.
  *
- *  It is deliberately NOT the same thing as `@olai/surface`'s
- *  `DOCUMENT_EXTENSIONS`, which answers a different question — what may be
- *  handed to an agent as a path — and answers it with five entries. */
+ *  Deliberately NOT `@olai/surface`'s `DOCUMENT_EXTENSIONS`, which answers a
+ *  different question — what may be handed to an agent as a path — with five
+ *  entries. The one string they share means a different thing on each side. */
 export const DOCUMENT_EXT = ".md"
 
 /** What a served file is, by its name. An outline is an {@link OUTLINE_EXT}, a

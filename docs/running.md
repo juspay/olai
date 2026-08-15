@@ -22,6 +22,10 @@ It does not descend into dot-directories or `node_modules` — a directory of
 outlines is usually a git repository, and nothing anyone wrote is inside
 `.git`. Defaults: port `7714`, host `127.0.0.1`.
 
+If a directory that used to serve comes up EMPTY, its outlines predate the
+rename to `.olai`: [format.md](format.md) carries the one-line `git mv` to run
+on it. olai reads the one extension and migrates nothing for you.
+
 It binds to loopback by default because the surface is unauthenticated: anyone
 who can reach the port can read every outline under the directory — and, since
 the keyboard editor arrived, change one.

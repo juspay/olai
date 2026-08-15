@@ -11,6 +11,7 @@
  * entitled not to notice — so a gesture made after one would be a gesture over
  * a frame nobody can reproduce.
  */
+import { fileKind } from "@olai/format"
 import { readdirSync, readFileSync } from "node:fs"
 import { type Browser, chromium, type Locator, type Page } from "playwright"
 
@@ -170,7 +171,11 @@ const recordOf = (id: string): string => {
   const vault = process.env["VAULT"]
   if (vault === undefined) return "(no VAULT; run through evidence.sh)"
   for (const file of readdirSync(vault)) {
-    if (!file.endsWith(".olai")) continue
+    // Which files hold records is the format's answer, not a suffix retyped
+    // here — the same arrangement `step_definitions/` has with `MARKS`, and for
+    // the same reason: this package and `@olai/format` never otherwise meet, so
+    // a disagreement between them is silent.
+    if (fileKind(file) !== "outline") continue
     for (const line of readFileSync(`${vault}/${file}`, "utf8").split("\n")) {
       if (line.includes(`"id":"${id}"`)) return `${file} — ${line}`
     }

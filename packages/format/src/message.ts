@@ -140,11 +140,9 @@ const subjectOf = (
   return `${MESSAGE_PREFIX}: ${count}${where} — ${biggest.title} ${biggest.sort}${also}`
 }
 
-/** An outline's name without its extension — `roadmap`, not
- *  `roadmap.olai`. A subject is read at a glance and the extension is the
- *  same on every one of them, which is why it is stripped and why the suffix
- *  is asked of {@link OUTLINE_EXT} rather than retyped: a message is a commit,
- *  and a commit subject cannot be corrected after the fact. */
+/** An outline's name without its extension — `roadmap`, not `roadmap.olai`.
+ *  A subject is read at a glance and the extension is the same on every one of
+ *  them. */
 const stemOf = (file: string): string => {
   const name = file.slice(file.lastIndexOf("/") + 1)
   return name.endsWith(OUTLINE_EXT) ? name.slice(0, -OUTLINE_EXT.length) : name

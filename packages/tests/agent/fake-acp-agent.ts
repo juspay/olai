@@ -747,6 +747,12 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // Which TEXTS depends on the file, because what the panel has to do with
     // them depends on the file: an outline may never be drawn as lines, and a
     // rewrite past the comparison budget has to say that it is one.
+    //
+    // The suffix is SPELLED rather than asked of `@olai/format`'s `fileKind`,
+    // which this package imports elsewhere. That is not an oversight: this is a
+    // third party, and an agent on the far end of a pipe has no access to
+    // olai's constants — deriving the fixture from the implementation under
+    // test would make the scenario agree with the client by construction.
     const texts = file.endsWith(".olai")
       ? EDITED_OUTLINE
       : file === "huge.md"

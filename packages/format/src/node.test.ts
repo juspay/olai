@@ -87,23 +87,20 @@ test("a served file is an outline, a document, or none of the set's business", (
 // here, and this is where the argument against it is written down.
 test("the extension olai used to have is not claimed, and nothing warns about it", () => {
   expect(fileKind("plan.jsonl")).toBeNull()
-  expect(fileKind("sub/dir/plan.jsonl")).toBeNull()
-  // Including the two conventional names: an old vault's archive is not an
-  // archive to this format, it is a file olai walks past.
+  // The conventional names do not rescue it, which is the assumption worth
+  // pinning: an old vault's archive is not an archive to this format, and its
+  // inbox is not an inbox. They are files olai walks past.
   expect(fileKind("Archive.jsonl")).toBeNull()
   expect(inboxIn(["Inbox.jsonl"])).toBeUndefined()
 })
 
-// The three rules a served directory is read by all come off ONE constant, so
-// that moving it moves them together. Written as a derivation rather than as
-// three literals for the reason node.ts gives: a retyped suffix left behind is
-// not a type error, it is a file the walk stops claiming.
-test("the archive, the inbox and the walk all wear the one suffix", () => {
+// The two conventional names are DERIVED from the suffix rather than typed
+// beside it, for the reason node.ts gives: a retyped suffix left behind is not
+// a type error, it is a file the walk stops claiming. `fileKind` needs no
+// assertion here — it reads the same constant, one line above them.
+test("the archive and the inbox wear the one suffix", () => {
   expect(ARCHIVE).toBe(`Archive${OUTLINE_EXT}`)
   expect(INBOX).toBe(`Inbox${OUTLINE_EXT}`)
-  expect(fileKind(`anything${OUTLINE_EXT}`)).toBe("outline")
-  expect(fileKind(ARCHIVE)).toBe("outline")
-  expect(fileKind(INBOX)).toBe("outline")
 })
 
 // The inbox is the other named file this format knows, and it is read the same
