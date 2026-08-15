@@ -54,6 +54,20 @@ Feature: Keyboard editing
     Then the node "knobs" has the title "pick the little brass knobs"
     And no row is being edited
 
+  Scenario: Blur commits a BRAND-NEW line, and leaves it too
+    # The same promise for the other kind of draft, and it was half kept: the
+    # line was written and the caret stayed in the row it had just made. A
+    # blur closes the draft only when the editor it came from is still the open
+    # one, and committing a new line REPLACES that draft with the row it wrote
+    # — a different slot — so the guard read "the reader went somewhere else"
+    # about a reader who had gone nowhere.
+    When I click the title of "handles"
+    And I press "Enter"
+    And I type "measure the alcove"
+    And I click away from the editor
+    Then "house.olai" holds a node titled "measure the alcove"
+    And no row is being edited
+
   Scenario: Enter opens the next row, and it is written when it has a title
     When I click the title of "handles"
     And I press "Enter"
@@ -374,6 +388,10 @@ Feature: Keyboard editing
     And I click away from the editor
     Then "house.olai" holds a node titled "brushed steel, maybe"
     And the tree is shown
+    # The `under` anchor's half of the scenario above: a start line is a
+    # pending draft too, so the click that commits it is the click that ends
+    # it.
+    And no row is being edited
 
   Scenario: An outline that holds nothing offers its first line
     When I rewrite "empty.olai" as:
@@ -384,3 +402,5 @@ Feature: Keyboard editing
     And I type "the first thing"
     And I click away from the editor
     Then "empty.olai" holds a node titled "the first thing"
+    # And the `first` anchor's, which is the last of the three.
+    And no row is being edited

@@ -2,9 +2,10 @@
  * What a READ of the set asks, and what it says back.
  *
  * Data, and nothing but: there is no index in this file and nothing here walks
- * anything. It DOES reach `./derive.ts` and `./node.ts`, for three shapes each
+ * anything. It DOES reach `./derive.ts` and `./node.ts`, for four shapes each
  * of them declares beside the thing that produces it — {@link Progress},
- * {@link Status}, and the record's own mark fields — which is the same
+ * {@link Status}, the record's own mark fields, and {@link Site}, the
+ * `{file, line}` every answer here is situated by — which is the same
  * borrowing `./committing.ts` does from `@olai/git/state`: the shape travels,
  * so it is declared once at its source rather than copied to the module that
  * carries it.
@@ -72,14 +73,17 @@
 import { Schema } from "effect"
 
 import { Progress } from "./derive.ts"
-import { RegularNode, STAMPED, Status } from "./node.ts"
+import { RegularNode, Site, STAMPED, Status } from "./node.ts"
 
 /**
  * One node, SITUATED — the shape every read of the set answers with.
  *
  * Flattened on purpose, and not a {@link Located}: a caller of a read wants the
  * node's facts beside where it lives, not a record nested under a file and a
- * line. `@olai/ops` builds one with `foundOf` and every other answer in this
+ * line. The two are the same {@link Site} carrying different things — the
+ * record verbatim on one, what a reader needs to see on the other — which is
+ * why they stay two declarations and the PLACE stays one. `@olai/ops` builds
+ * one with `foundOf` and every other answer in this
  * file hangs off it — {@link Detail}, {@link Subtree}, {@link Placed}, and one
  * level up the search hit in `./searching.ts`. It is the atom of the whole read
  * vocabulary, which is why it sits at the top of the module named for that
@@ -88,9 +92,11 @@ import { RegularNode, STAMPED, Status } from "./node.ts"
 export const Found = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
-  /** Where a person is pointed. Relative to the served directory, 1-based. */
-  file: Schema.String,
-  line: Schema.Int,
+  /** Where a person is pointed — `./node.ts`'s {@link Site}, the same pair an
+   *  error names and a record in the set carries. Spread rather than respelled
+   *  for the reason the mark fields below are: what it means to be somewhere in
+   *  the loaded set is one declaration's to say. */
+  ...Site.fields,
   /** The mark the node carries — a mirror's being its target's, since that is
    *  what it shows. ABSENT when it carries none: nobody marked it, so it is a
    *  bullet rather than a task nobody has started. */
@@ -196,8 +202,10 @@ export type NodeRequest = typeof NodeRequest.Type
  */
 export const Placement = Schema.Struct({
   id: Schema.String,
-  file: Schema.String,
-  line: Schema.Int,
+  /** Where the MIRROR RECORD sits — the line `remove_mirror` takes away, never
+   *  the line the node it shows lives on. The narrowing is this declaration's;
+   *  the pair is {@link Site}'s. */
+  ...Site.fields,
   /** The node it is placed under. Absent at the top level of its file. */
   parent: Schema.optionalKey(Schema.String),
 })

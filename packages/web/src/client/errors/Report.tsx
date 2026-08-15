@@ -17,7 +17,7 @@
  * that file's outline would have been.
  */
 
-import { hasLine, isCrossFile, type OutlineError } from "@olai/format"
+import { hasLine, isCrossFile, type OutlineError, type Site } from "@olai/format"
 import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
@@ -92,14 +92,14 @@ function Row(props: { readonly error: OutlineError }) {
       data-testid={TESTID.error}
       data-code={props.error.code}
     >
-      <Site file={props.error.file} line={props.error.line} />
+      <At site={props.error} />
       <span>{props.error.message}</span>
       <Show when={props.error.related?.length}>
         <ul class="mt-1 ml-4 list-none text-sm text-muted">
           <For each={props.error.related ?? []}>
             {(related) => (
               <li>
-                <Site file={related.file} line={related.line} />
+                <At site={related} />
                 <span>{related.note}</span>
               </li>
             )}
@@ -113,12 +113,18 @@ function Row(props: { readonly error: OutlineError }) {
 /** `file:line`, or just the file when there is no line to name. WHICH of those
  *  it is comes from the format (`hasLine`) rather than from a comparison
  *  written here: an agent's one-liner and these rows must not disagree about
- *  whether `plan.olai:0` is a line number somebody could go and look for. */
-function Site(props: { readonly file: string; readonly line: number }) {
+ *  whether `plan.olai:0` is a line number somebody could go and look for.
+ *
+ *  It takes the format's {@link Site} WHOLE rather than the two fields apart,
+ *  and the difference is not tidiness: taken apart, this was a sixth spelling
+ *  of `{file, line}` — in a component named for the very thing the format
+ *  declares — and a place that grew a third fact would have reached the rows
+ *  drawing it last, by hand, or never. */
+function At(props: { readonly site: Site }) {
   return (
     <code class="mr-2 font-mono text-[0.8125rem] text-muted">
-      {props.file}
-      {hasLine(props) ? `:${props.line}` : ""}
+      {props.site.file}
+      {hasLine(props.site) ? `:${props.site.line}` : ""}
     </code>
   )
 }
