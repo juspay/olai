@@ -133,8 +133,8 @@ const LEGACY_KEYS: ReadonlyArray<string> = [
 ]
 
 /**
- * Every JSON object in `text` that looks like a node RECORD — one line, and
- * carrying an `id`.
+ * Every JSON object in `text` that looks like a node RECORD — one carrying an
+ * `id`, wherever in the file and however it is laid out.
  *
  * Scanned rather than matched, because a `desc` holds arbitrary text: a note
  * containing `}` or a quoted brace would end a regex's idea of the object in
@@ -142,17 +142,31 @@ const LEGACY_KEYS: ReadonlyArray<string> = [
  * The scanner tracks string state and escapes, which is the only way to know
  * where a JSON object actually ends.
  *
+ * NEWLINES ARE NOTHING SPECIAL to it, and that is a correction: it used to stop
+ * at the first one, on the reasoning that the format is JSONL and a record is a
+ * line. But this fence is not reading the format — it is reading the
+ * REPOSITORY, where the old spelling can just as easily arrive pretty-printed
+ * in a fixture, a doc example or a test literal, and a fence that only sees the
+ * house style is one somebody steps over without ever meaning to. So the scan
+ * ends where the object ends, which is the same rule the string tracking is
+ * there to get right. A brace in prose that opens nothing simply fails to parse
+ * and is skipped.
+ *
  * Exported for the sabotage test below: what proves a sweep can go red is
  * running the sweep itself over a planted violation, and that needs the
  * function rather than the file listing.
  */
 export const recordsIn = (text: string): ReadonlyArray<Record<string, unknown>> => {
   const found: Array<Record<string, unknown>> = []
+  // A record literal opens with a quoted key — with whatever indentation a
+  // pretty-printer put between the two. Anything else is a TypeScript object, a
+  // template hole, or prose with a brace in it. Sticky rather than sliced,
+  // since the whitespace it has to cross has no length known in advance.
+  const OPENS = /\{\s*"[a-zA-Z]+"\s*:/y
   for (let at = 0; at < text.length; at++) {
     if (text[at] !== "{") continue
-    // A record literal starts with a quoted key. Anything else is a TypeScript
-    // object, a template hole, or prose with a brace in it.
-    if (!/^\{"[a-zA-Z]+":/.test(text.slice(at, at + 24))) continue
+    OPENS.lastIndex = at
+    if (!OPENS.test(text)) continue
 
     let depth = 0
     let inString = false
@@ -189,7 +203,7 @@ export const recordsIn = (text: string): ReadonlyArray<Record<string, unknown>> 
           at = cursor
           break
         }
-      } else if (ch === "\n") break
+      }
     }
   }
   return found
@@ -328,6 +342,35 @@ test("the new shape is not reported, however many of the words are inside it", (
   const legal =
     `{"id":"x","ord":"a0","title":"t","props":{"status":"done","since":"2026-08-11",` +
     `"date":"2026-08-10","after":["a"],"blocks":["b"],"see":["c"],"todo":"a user key"}}`
+  const records = recordsIn(legal)
+  expect(records).toHaveLength(1)
+  expect(legacyKeysIn(records[0] as Record<string, unknown>)).toEqual([])
+})
+
+/**
+ * A record that is not on one line is still a record, and this is the hole a
+ * reviewer found in the first cut of this fence.
+ *
+ * Nothing on disk is pretty-printed — the format is JSONL — but the fence is
+ * over the whole repository, and the old spelling gets in through a fixture
+ * built by hand, an example in a doc, or a test literal somebody let their
+ * editor format. A scanner that stopped at the first newline saw none of them,
+ * which is a fence that holds only against the mistake nobody was going to
+ * make.
+ */
+test("a record somebody pretty-printed is caught the same as a one-liner", () => {
+  const planted = `const fixture = {\n  "id": "x",\n  "ord": "a0",\n  "title": "t",\n` +
+    `  "done": true\n}\n`
+  const records = recordsIn(planted)
+  expect(records).toHaveLength(1)
+  expect(legacyKeysIn(records[0] as Record<string, unknown>)).toEqual(["done"])
+})
+
+/** And the same record in the new shape is still not reported, so the widening
+ *  bought coverage rather than noise. */
+test("a pretty-printed record in the new shape is not reported", () => {
+  const legal = `{\n  "id": "x",\n  "ord": "a0",\n  "title": "t",\n` +
+    `  "props": { "status": "done", "date": "2026-08-10" }\n}\n`
   const records = recordsIn(legal)
   expect(records).toHaveLength(1)
   expect(legacyKeysIn(records[0] as Record<string, unknown>)).toEqual([])
