@@ -125,21 +125,31 @@ export function Entry(props: {
     >
       <Switch>
         <Match when={props.entry.kind === "user"}>
-          {/* What the message was ABOUT, above what it said — the order the
-              composer had them in, and the order they were meant in: the node
-              is the subject and the words are what was asked about it. Still
-              pressable here, which is the other half of this feature: the row
-              a question was asked from is one press away from the answer. */}
-          <ContextChips nodes={props.entry.context ?? []} />
-          {/* The pictures first, then the words — which is the order they were
-              put in, and it keeps a message whose whole content is a
-              screenshot from being an empty grey box with a chip under it. */}
-          <Attachments names={props.entry.attachments ?? []} />
-          <Show when={props.entry.text !== ""}>
-            <p class="whitespace-pre-wrap rounded bg-rule/60 px-2 py-1 text-sm">
-              {props.entry.text}
-            </p>
-          </Show>
+          {/* What you said sits apart from what the agent said: on the right,
+              in an accent-tinted bubble. A faint `bg-rule/60` box on a
+              full-width line was the only cue before, and it read as another
+              agent paragraph. The chips and pictures ride with the words,
+              because they went with the message. */}
+          <div class="ml-auto flex w-fit max-w-[85%] flex-col items-end">
+            {/* What the message was ABOUT, above what it said — the order the
+                composer had them in, and the order they were meant in: the node
+                is the subject and the words are what was asked about it. Still
+                pressable here, which is the other half of this feature: the row
+                a question was asked from is one press away from the answer. */}
+            <ContextChips nodes={props.entry.context ?? []} />
+            {/* The pictures first, then the words — which is the order they were
+                put in, and it keeps a message whose whole content is a
+                screenshot from being an empty grey box with a chip under it. */}
+            <Attachments names={props.entry.attachments ?? []} />
+            <Show when={props.entry.text !== ""}>
+              <p
+                class="whitespace-pre-wrap rounded border border-accent/30 bg-accent/10 px-2 py-1.5 text-sm text-ink"
+                data-testid={TESTID.chatMine}
+              >
+                {props.entry.text}
+              </p>
+            </Show>
+          </div>
         </Match>
 
         <Match when={props.entry.kind === "agent"}>

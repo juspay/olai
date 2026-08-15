@@ -639,6 +639,10 @@ export const CHAT_CONTEXT_REMOVE = selector(TESTID.chatContextRemove);
  *  id INSIDE it became a reference — everything else about an answer is read
  *  off the transcript as text. */
 export const CHAT_SAID = selector(TESTID.chatSaid);
+/** What YOU typed, quoted. The other half of `CHAT_SAID`: a scenario that
+ *  asks whether the human's words sat apart from the agent's finds them here,
+ *  never by filtering the transcript for a string both speakers might use. */
+export const CHAT_MINE = selector(TESTID.chatMine);
 /** A node named in the panel and pressable, by the id it points at. One
  *  selector for all three shapes — a chip, the node an olai write was about,
  *  and an id the agent wrote in its own prose — because they are one

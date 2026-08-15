@@ -725,6 +725,10 @@ export const TESTID = {
   /** The agent's finished prose, rendered as markdown. Its own name rather
    *  than a node note's: they are two different things on the page. */
   chatSaid: "chat-said",
+  /** What YOU typed, quoted verbatim. Its own name rather than the agent's
+   *  `chatSaid`: they are two different things on the page, and a scenario
+   *  that asks "did I say this" should not have to filter the agent's prose. */
+  chatMine: "chat-mine",
   /** One row. `data-kind` is which of the six it is. */
   chatEntry: "chat-entry",
   /** A question the agent asked, as a form. `data-asking` is whether it is

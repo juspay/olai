@@ -54,6 +54,16 @@ Feature: Talking to the agent
     Then the chat shows a refusal
 
   @scratch:chat
+  Scenario: What you said is not what the agent said
+    # The human's own words used to sit in a faint box that read as another
+    # agent paragraph — a glance could not tell them apart. They sit on the
+    # right now, in an accent-tinted bubble, so the two speakers are two shapes.
+    When I ask the agent "hello"
+    Then the chat shows my message "hello"
+    And the agent's answer mentions "you said: hello"
+    And my message sits to the right of the agent's
+
+  @scratch:chat
   Scenario: The header names the model the session runs on
     # A turn's cost and character depend on the model and nothing else on the
     # page says which one. The agent reports it as a session config option and
