@@ -34,6 +34,7 @@
 
 import { biggestOf, type NodeChange, type Sort } from "./changes.ts"
 import type { Other } from "./committing.ts"
+import { OUTLINE_EXT } from "./node.ts"
 
 /** Every message olai writes starts with this. In a project repository the
  *  prefix is what separates tool writes from a person's: `git log --grep
@@ -139,10 +140,12 @@ const subjectOf = (
   return `${MESSAGE_PREFIX}: ${count}${where} — ${biggest.title} ${biggest.sort}${also}`
 }
 
-/** An outline's name without its extension — `roadmap`, not `roadmap.jsonl`.
- *  A subject is read at a glance and the extension is the same on every one of
- *  them. */
+/** An outline's name without its extension — `roadmap`, not
+ *  `roadmap.jsonl`. A subject is read at a glance and the extension is the
+ *  same on every one of them, which is why it is stripped and why the suffix
+ *  is asked of {@link OUTLINE_EXT} rather than retyped: a message is a commit,
+ *  and a commit subject cannot be corrected after the fact. */
 const stemOf = (file: string): string => {
   const name = file.slice(file.lastIndexOf("/") + 1)
-  return name.endsWith(".jsonl") ? name.slice(0, -".jsonl".length) : name
+  return name.endsWith(OUTLINE_EXT) ? name.slice(0, -OUTLINE_EXT.length) : name
 }

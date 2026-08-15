@@ -47,6 +47,7 @@ import {
   nodesOf,
   type OpFailure,
   ordBetween,
+  OUTLINE_EXT,
   siblingsOf,
   type OutlineSet,
   type RegularNode,
@@ -1391,9 +1392,9 @@ const planCreate = (
     return Result.fail(
       new UsageFailure({
         reason:
-          `\`${request.file}\` is not a relative \`.jsonl\` path under the served ` +
+          `\`${request.file}\` is not a relative \`${OUTLINE_EXT}\` path under the served ` +
           `directory (no absolute path, no \`..\`, no \`.\`, and the name must end ` +
-          `in \`.jsonl\`)`,
+          `in \`${OUTLINE_EXT}\`)`,
       }),
     )
   }
@@ -1455,15 +1456,18 @@ const planCreate = (
 
 /**
  * A path this op may create as a new outline — or `null` for anything that is
- * not one relative `.jsonl` under the served root.
+ * not one relative outline path under the served root.
  *
  * Same discipline as `mediaTarget` in `@olai/surface`: judge segments after
  * they are read, refuse empty / `.` / `..` / separators / NUL rather than
- * resolving them, and require the name the format already treats as an outline.
+ * resolving them, and require the name the format already treats as an outline
+ * — which is why the suffix comes from `@olai/format`'s {@link OUTLINE_EXT}
+ * and is not retyped here: a mint that admitted a name `fileKind` will not
+ * claim writes a file the walk never picks up again.
  * Absolute paths (leading `/`) and Windows-style backslash separators never
  * become a segment that could be joined under the root by accident.
  */
-export const outlinePath = (raw: string): string | null => creatable(raw, ".jsonl")
+export const outlinePath = (raw: string): string | null => creatable(raw, OUTLINE_EXT)
 
 /** The same judgment for the other kind of file a call may mint: one relative
  *  `.md` under the served root. One rule, two extensions — the two create ops
