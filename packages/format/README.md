@@ -80,7 +80,7 @@ It is never a text diff, and that is the format paying for itself in the other d
 | declaration | what answers with it |
 |---|---|
 | `Site` | not a read at all — the `{file, line}` under all of them, `src/node.ts` |
-| `Found` | every read. One node SITUATED — id, title, a `Site`, mark, ancestor titles, the edges it writes |
+| `Found` | every read. One node SITUATED — id, title, a `Site`, mark, ancestor titles, the edges it writes, and the `custom` properties it carries |
 | `OutlineSummary`, `OutlineAnswer` | `list_outlines` — a count and the top-level titles, per file |
 | `Detail`, `NodeAnswer` | `read_node` — the record, its tags, its children, its stamps, and a placement from both ends (`mirrors`, `placed`) |
 | `Subtree`, `SubtreeAnswer` | `read_subtree` — nested, and saying where a walk stopped |

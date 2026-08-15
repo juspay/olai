@@ -134,6 +134,13 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
     ...(status === undefined ? {} : { status }),
     path: ancestorsOf(derived, located.node.id).map((crumb) => crumb.node.title),
     ...edgesOf(located.node),
+    // The map, VERBATIM — the only place a `pr` or an `isbn` could come from,
+    // and absent rather than `{}` on a node carrying none, which is the
+    // writer's rule for absence read at the answer. Produced HERE rather than
+    // at `detail` below, so a search hit carries it: `prop:agent=…` used to
+    // find the lanes and then owe a `read_node` for each one, to see the fact
+    // the query had already matched on.
+    ...(isEmptyCustom(located.node.custom) ? {} : { custom: located.node.custom }),
   }
 }
 
@@ -244,10 +251,8 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     ...foundOf(derived, regular),
     ...(node.date === undefined ? {} : { date: node.date }),
     ...(node.desc === undefined ? {} : { desc: node.desc }),
-    // The map, verbatim — the only place a `pr` or an `isbn` could come from,
-    // and absent rather than `{}` on a node carrying none, which is the
-    // writer's rule for absence read at the answer.
-    ...(isEmptyCustom(node.custom) ? {} : { custom: node.custom }),
+    // `custom` arrives with `foundOf` above, which every situated answer is
+    // built out of — a hit, a child in this list, a row of a subtree.
     ...(node.created === undefined ? {} : { created: node.created }),
     ...(node.changed === undefined ? {} : { changed: node.changed }),
     ...stampsOf(node),

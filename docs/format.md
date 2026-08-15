@@ -53,7 +53,7 @@ Every field above is one this format declares, and the top level is **closed**: 
 
 **One open field rather than an open record.** Letting unknown top-level keys through would buy the same expressiveness by giving up the refusal that catches typos — and it would put `pr` and `title` in one namespace, where a key called `done` reads as a mark and is not one. Two namespaces in two places: which is which is a fact about where the key sits, not a rule to remember.
 
-**Nothing in olai reads a key in here.** That is the whole difference between a system field and a custom key. The journal reads `date`, the checkbox reads the marks, the blocking graph reads `after`; these are read by the person who wrote them, by `prop:` in a query ([search.md](search.md)), and by the drawer the web draws under a node's note.
+**Nothing in olai reads a key in here.** That is the whole difference between a system field and a custom key. The journal reads `date`, the checkbox reads the marks, the blocking graph reads `after`; these are read by the person who wrote them, by `prop:` in a query ([search.md](search.md)), and by the drawer the web draws under a node's note. Every read that situates a node hands the map back verbatim — a search hit as much as `read_node` — so the query that selects on a property answers with the rest of them beside it.
 
 **Written with `set_prop`** — `{id, key, value}`, and `null` (or `""`) removes it. A key spelled like a field this format already has (`done`, `date`, `see`, `title`, `id`, `created`, `changed`, or the word `status`) is refused toward the verb that writes that fact: the two namespaces are two places, so `{"done":true,"custom":{"done":"yesterday"}}` is a legal record and an unreadable one.
 

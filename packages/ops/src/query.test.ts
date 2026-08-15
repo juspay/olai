@@ -13,7 +13,7 @@ import type { OutlineSet } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
 import { setOf } from "./fixtures.testlib.ts"
-import { detail, index, search } from "./query.ts"
+import { detail, index, search, subtree } from "./query.ts"
 
 /** A ledger: items in their sections, and a `Now` list made of placements —
  *  including one that CHAINS through another placement, which is the case
@@ -77,6 +77,59 @@ describe("the properties a node carries", () => {
 
   test("a node with no properties carries no map, rather than an empty one", () => {
     expect(detail(at(), "bugs")).not.toHaveProperty("custom")
+  })
+
+  /** THE HIT, which is the point of the field being on `Found` at all: a board
+   *  asking "every lane at review" is one call, not one call and a `read_node`
+   *  per row to see the fact the query already matched on. */
+  test("a search hit answers the map too, verbatim and uncut", () => {
+    const hit = search(at(), { text: "indicators" }).hits[0]
+    expect(hit).toMatchObject({
+      id: "git",
+      custom: { pr: "https://github.com/juspay/olai/pull/176", agent: "claude-opus" },
+    })
+  })
+
+  test("a hit found BY a property carries the properties beside it", () => {
+    // The orchestration board's own query: select by the agent, and the answer
+    // already holds the PR — the round trip this field exists to remove.
+    const hits = search(at(), { text: "prop:agent=claude-opus" }).hits
+    expect(hits.map((hit) => hit.id)).toEqual(["git"])
+    expect(hits[0]?.custom?.["pr"]).toBe("https://github.com/juspay/olai/pull/176")
+  })
+
+  test("a hit for a node carrying none says nothing, as its read does", () => {
+    const hit = search(at(), { text: "header" }).hits[0]
+    expect(hit).toMatchObject({ id: "sticky" })
+    expect(hit).not.toHaveProperty("custom")
+  })
+
+  test("a child in a node's list and a subtree row carry it, like `see`", () => {
+    // Every situated answer is built out of one `foundOf`, so this follows from
+    // the hit rather than being a second decision — the same shape the edge
+    // test above pins for `see` and `after`.
+    expect(detail(at(), "bugs")?.children.find((child) => child.id === "git"))
+      .toMatchObject({ custom: { agent: "claude-opus" } })
+    const walked = subtree(at(), "bugs", { depth: 1 })
+    expect(walked?.children.find((child) => child.id === "git"))
+      .toMatchObject({ custom: { agent: "claude-opus" } })
+    expect(walked?.children.find((child) => child.id === "sticky"))
+      .not.toHaveProperty("custom")
+  })
+
+  /** A long value travels WHOLE. The wire-cost decision, pinned rather than
+   *  left to whoever next reads a hit and wonders whether it was cut: a value
+   *  cut at some length is one no reader can tell from a short one, and the
+   *  first casualty would be the half of a URL that makes it a link. The dial
+   *  on an answer's size is `limit`, and that one is exact. */
+  test("a long property is not truncated on a hit, and not reduced to its key", () => {
+    const long = `https://github.com/juspay/olai/pull/176#${"x".repeat(500)}`
+    const set = setOf({
+      "roadmap.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":${
+        JSON.stringify(long)
+      }}}`,
+    })
+    expect(search(index(set), { text: "lane" }).hits[0]?.custom).toEqual({ pr: long })
   })
 })
 
