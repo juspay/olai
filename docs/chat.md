@@ -107,7 +107,9 @@ Two things follow from it being the agent's number:
   the agent revising something it told us, and the header follows it.
 - **an agent that reports nothing gets no line.** The header simply says nothing
   about room, which is different from a conversation that has spent nothing —
-  that one says `0/200k`.
+  that one says `0/200k`. You will see this twice: before the first turn of a
+  fresh conversation, and after **opening a stored one**, which replays its
+  messages without a usage report. In both cases the next turn fills it in.
 
 What a session has **cost** is on the wire too, and is deliberately not drawn:
 it is a different question, asked at a different moment, and a second number

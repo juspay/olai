@@ -1,3 +1,0 @@
-{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{"fs":{"readTextFile":false,"writeTextFile":false}}}}
-{"jsonrpc":"2.0","method":"initialized","params":{}}
-{"jsonrpc":"2.0","id":1,"method":"session/new","params":{"cwd":"/tmp/opencode/pr178/vault","mcpServers":[]}}
