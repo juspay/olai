@@ -100,10 +100,13 @@ test("the stored marker is the field a record actually carries, or nothing", () 
   // is a `status` holding something that is not a mark at all — the parser
   // refuses it, and these walks deliberately run over sets it has condemned, so
   // the answer must be "no mark" rather than a fourth one invented from a typo.
-  expect(storedMarker({ id: "x", ord: "a", title: "x", props: { status: "donee" } }))
-    .toBeUndefined()
-  expect(storedMarker({ id: "x", ord: "a", title: "x", props: { status: ["done"] } }))
-    .toBeUndefined()
+  // Typed as records rather than passed as bare literals, which is what makes
+  // them fixtures: both are things a `props` map may legally hold, and it is
+  // the READING that has to refuse them rather than the map's own shape.
+  const typo: RegularNode = { id: "x", ord: "a", title: "x", props: { status: "donee" } }
+  const listed: RegularNode = { id: "x", ord: "a", title: "x", props: { status: ["done"] } }
+  expect(storedMarker(typo)).toBeUndefined()
+  expect(storedMarker(listed)).toBeUndefined()
 })
 
 // A PARENT is what it stores too, and nothing about its children changes that.

@@ -13,25 +13,31 @@
 
 import { expect, test } from "bun:test"
 
-import { meaningOf, migrateOutline, migrateRecord } from "./migrate.ts"
-import type { Node } from "./node.ts"
+import { type Meaning, meaningOf, migrateOutline, migrateRecord } from "./migrate.ts"
+import { isMirror, type Node } from "./node.ts"
 import { dateOf, EDGE_FIELDS, listOf, markOf, sinceOf } from "./props.ts"
 import { serializeNode, serializeOutline } from "./write.ts"
 import { outlineOf } from "./fixtures.testlib.ts"
 
 /** What the new format answers about a record, in the same six terms
  *  {@link meaningOf} reads off the old one. The two sides of the property. */
-const meaningAfter = (node: Node) => ({
-  mark: markOf(node as never),
-  since: sinceOf(node as never),
-  date: dateOf(node as never),
-  edges: Object.fromEntries(
-    EDGE_FIELDS.flatMap((field) => {
-      const held = listOf(node as never, field)
-      return held.length === 0 ? [] : [[field, held]]
-    }),
-  ),
-})
+const meaningAfter = (node: Node): Meaning => {
+  // A mirror carries no properties and never carried any of the seven fields,
+  // so it has no meaning in these terms — and the corpus holds none. Narrowed
+  // rather than cast, so this stays true if one ever does.
+  if (isMirror(node)) return { mark: undefined, since: undefined, date: undefined, edges: {} }
+  return {
+    mark: markOf(node),
+    since: sinceOf(node),
+    date: dateOf(node),
+    edges: Object.fromEntries(
+      EDGE_FIELDS.flatMap((field) => {
+        const held = listOf(node, field)
+        return held.length === 0 ? [] : [[field, held]]
+      }),
+    ),
+  }
+}
 
 /** One old record, migrated, with both readings of its meaning. */
 const across = (line: string) => {
