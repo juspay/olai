@@ -22,13 +22,8 @@
 
 import { Schema } from "effect"
 
-/** `true`, or the ISO date/datetime the state was reached at.
- *
- *  Exported inside the package because a READ hands the value back verbatim
- *  (`./reading.ts`'s stamps): what a mark is worth on disk and what it is worth
- *  in an answer are one fact, and a second spelling of it beside the answer
- *  would be free to drift from the record it is a copy of. */
-export const Marker = Schema.Union([Schema.Literal(true), Schema.String])
+/** `true`, or the ISO date/datetime the state was reached at. */
+const Marker = Schema.Union([Schema.Literal(true), Schema.String])
 
 /**
  * The three MARKS a record may carry, at most one of them, in the order a
@@ -43,6 +38,54 @@ export const Marker = Schema.Union([Schema.Literal(true), Schema.String])
  * ALREADY condemned looks like — the marks are exclusive on disk.
  */
 export const MARKS = ["done", "doing", "todo"] as const
+
+/**
+ * What a node's checkbox shows: one of the {@link MARKS}. STORED, on the node
+ * that carries it, whether or not it has children — and OPTIONAL everywhere,
+ * because a node with no status is a bullet and not a task at all.
+ *
+ * Read off that list rather than spelled again, because a status IS a mark:
+ * there is nothing else it could be now that nothing computes one. One name
+ * for it, so nobody has to learn that two are the same — and one SCHEMA, so
+ * the five places that were each writing `Schema.Literals(MARKS)` for
+ * themselves (a request's `op`, a keystroke's `mark`, a read's `status`) are
+ * one derivation read five times rather than five copies of it.
+ *
+ * Beside {@link MARKS} rather than beside the derivations, which is where it
+ * was: it is a fact about what a RECORD may carry, the same list the fields
+ * below are keyed by, and putting it here is what lets those fields be keyed
+ * by it at all without this module reaching up into a walk.
+ *
+ * What there is deliberately no member for is UNMARKED. `open` used to be one,
+ * and it was what a node got for carrying nothing, which made every node a
+ * task and left one value answering two questions — "a task nobody has
+ * started" and "not a task at all". Absence answers the second; `todo` is how
+ * a node says the first, and someone has to put it there.
+ */
+export const Status = Schema.Literals(MARKS)
+export type Status = typeof Status.Type
+
+/**
+ * The three MARK fields a record may carry, at most one of them.
+ *
+ * ONE declaration, spread into {@link RegularNode} below and read back by
+ * `./reading.ts`'s {@link Detail} — because a mark on an answer is the
+ * record's own value handed over verbatim, and a second spelling of these
+ * three beside the answer would be free to stop meaning what the file means.
+ *
+ * The `satisfies` is the closure, and it is the whole reason the three are
+ * written out rather than folded: a fourth {@link MARKS} entry becomes a
+ * missing key HERE, named by the compiler, at the one place the format
+ * declares what a record holds — rather than a mark that is writable,
+ * plannable and derivable everywhere and readable back nowhere.
+ */
+export const STAMPED = {
+  done: Schema.optionalKey(Marker),
+  doing: Schema.optionalKey(Marker),
+  /** Work that has not started. The third MARK, and stored like the other two
+   *  — a node is a task because someone said so, never by default. */
+  todo: Schema.optionalKey(Marker),
+} satisfies { readonly [M in Status]: unknown }
 
 /** The fields both shapes share: identity, and where the record sits among its
  *  siblings. Named for what it IS rather than `Placement`, which this package
@@ -63,11 +106,7 @@ export const RegularNode = Schema.Struct({
   /** Verbatim. Inline tags live here and are extracted at view time — `#topic`
    *  and `@person`, two namespaces rather than two spellings of one. */
   title: Schema.String,
-  done: Schema.optionalKey(Marker),
-  doing: Schema.optionalKey(Marker),
-  /** Work that has not started. The third MARK, and stored like the other two
-   *  — a node is a task because someone said so, never by default. */
-  todo: Schema.optionalKey(Marker),
+  ...STAMPED,
   date: Schema.optionalKey(Schema.String),
   /** The note: one string, embedded newlines, markdown, stored verbatim. */
   desc: Schema.optionalKey(Schema.String),

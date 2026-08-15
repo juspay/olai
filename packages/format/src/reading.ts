@@ -57,8 +57,8 @@
 
 import { Schema } from "effect"
 
-import { Progress, type Status } from "./derive.ts"
-import { Marker, MARKS } from "./node.ts"
+import { Progress } from "./derive.ts"
+import { RegularNode, STAMPED, Status } from "./node.ts"
 
 /**
  * One node, SITUATED — the shape every read of the set answers with.
@@ -80,14 +80,20 @@ export const Found = Schema.Struct({
   /** The mark the node carries — a mirror's being its target's, since that is
    *  what it shows. ABSENT when it carries none: nobody marked it, so it is a
    *  bullet rather than a task nobody has started. */
-  status: Schema.optionalKey(Schema.Literals(MARKS)),
+  status: Schema.optionalKey(Status),
   /** The canonical ancestor titles, outermost first. What makes a bare title
    *  like "order" mean something in a list of strangers. */
   path: Schema.Array(Schema.String),
   /** Free cross-references this node carries, as target ids. Absent when the
    *  node has none — so a reader can traverse without a second read, and a node
-   *  that does not point anywhere does not pretend to. */
-  see: Schema.optionalKey(Schema.Array(Schema.String)),
+   *  that does not point anywhere does not pretend to.
+   *
+   *  The RECORD'S OWN declaration, and so are the three below it: what these
+   *  fields carry is the file's value handed back verbatim, so a second
+   *  spelling of them here would be free to stop meaning what the file means.
+   *  The prose differs because what is worth saying about a field on an ANSWER
+   *  is not what is worth saying about it on disk. */
+  see: RegularNode.fields.see,
   /** What this node must come AFTER, as target ids — the edges it carries
    *  itself, exactly as they are written.
    *
@@ -96,7 +102,7 @@ export const Found = Schema.Struct({
    *  change it by guessing. Not the derived blockedness — what is standing in
    *  the way right now is a question about marks, and this is what the record
    *  says. */
-  after: Schema.optionalKey(Schema.Array(Schema.String)),
+  after: RegularNode.fields.after,
 })
 export type Found = typeof Found.Type
 
@@ -218,31 +224,19 @@ export const Placed = Schema.Struct({
 export type Placed = typeof Placed.Type
 
 /**
- * The mark a node stores, with what it was stamped — `status` on {@link Found}
- * says WHICH mark, and only this says when.
+ * What one node's page would say, plus the record itself.
  *
- * A field per mark rather than a `{ mark, at }` pair, because that is how the
- * record spells it and this is the record read back: `Marker` is `./node.ts`'
- * own declaration of a mark's value (`true`, or the ISO instant), so a stamp on
- * an answer cannot be a different kind of thing from the stamp on disk.
- *
- * The `satisfies` is the closure, and it is the whole reason the three are
- * written out: a fourth {@link MARKS} entry becomes a missing key HERE, named
- * by the compiler, rather than a mark that is writable, plannable and derivable
- * everywhere and readable back nowhere.
+ * The stamps are `./node.ts`'s {@link STAMPED} — the record's own three mark
+ * fields, spread here as they are spread into the record — because `status` on
+ * {@link Found} says WHICH mark and only these say when, and what they carry is
+ * the file's value handed back verbatim. Same for `date` and `desc`. One
+ * declaration each, in the module that says what a record holds.
  */
-const STAMPED = {
-  done: Schema.optionalKey(Marker),
-  doing: Schema.optionalKey(Marker),
-  todo: Schema.optionalKey(Marker),
-} satisfies { readonly [M in Status]: unknown }
-
-/** What one node's page would say, plus the record itself. */
 export const Detail = Schema.Struct({
   ...Found.fields,
   ...STAMPED,
-  date: Schema.optionalKey(Schema.String),
-  desc: Schema.optionalKey(Schema.String),
+  date: RegularNode.fields.date,
+  desc: RegularNode.fields.desc,
   /** The `#topic` and `@person` tags in the title, AS WRITTEN, sigil and all —
    *  a list that dropped the character that started them could not tell a
    *  reader which of the two namespaces this node carries. */
@@ -333,8 +327,8 @@ export interface Subtree extends Found {
 
 export const Subtree = Schema.Struct({
   ...Found.fields,
-  date: Schema.optionalKey(Schema.String),
-  desc: Schema.optionalKey(Schema.String),
+  date: RegularNode.fields.date,
+  desc: RegularNode.fields.desc,
   children: Schema.Array(Schema.suspend((): Schema.Codec<Subtree> => Subtree)),
   truncated: Schema.optionalKey(Schema.Literal(true)),
 })

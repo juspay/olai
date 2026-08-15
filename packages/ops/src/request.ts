@@ -14,7 +14,7 @@
  * field names kept in step by hand.
  */
 
-import { MARKS, type Sort } from "@olai/format"
+import { type Sort, Status } from "@olai/format"
 import { Schema } from "effect"
 
 /** An id the request names. Spelled once so every op's `id` field carries the
@@ -70,7 +70,7 @@ const CAPTURE = {
    *  booleans: the format allows AT MOST ONE mark, and a shape that can spell
    *  two is a shape a caller can get wrong. */
   mark: Schema.optionalKey(
-    Schema.Literals(MARKS).annotate({
+    Status.annotate({
       description:
         "The mark this node is born with, written exactly as `set_done` / `set_doing` / `set_todo` would: `done` records the instant, so it lands on today's page; the other two store `true` and place it on no day. Absent leaves a bullet, which is not an unstarted task.",
     }),
@@ -235,7 +235,7 @@ export const AddRequest = Schema.Struct({
  *  ARE the format's mark names, read from it rather than re-listed — a fourth
  *  mark should not be writable everywhere except here. */
 export const MarkRequest = Schema.Struct({
-  op: Schema.Literals(MARKS),
+  op: Status,
   id: Id,
   /** Take the mark off instead of putting it on. */
   undo: Schema.optionalKey(Schema.Boolean),
