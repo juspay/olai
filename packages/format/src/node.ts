@@ -44,8 +44,12 @@ export const Marker = Schema.Union([Schema.Literal(true), Schema.String])
  */
 export const MARKS = ["done", "doing", "todo"] as const
 
-/** The fields both shapes share: identity and placement. */
-const Placement = {
+/** The fields both shapes share: identity, and where the record sits among its
+ *  siblings. Named for what it IS rather than `Placement`, which this package
+ *  now exports for a different thing — a MIRROR's location, `./reading.ts`.
+ *  Two adjacent meanings under one word is the collision `OutlineSummary` was
+ *  renamed to avoid, one file over and one visibility down. */
+const Common = {
   id: Schema.String,
   /** Absent at top level. The only field docs/format.md marks optional for a
    *  regular node — which is how `ord` and `title` below are read as required. */
@@ -55,7 +59,7 @@ const Placement = {
 }
 
 export const RegularNode = Schema.Struct({
-  ...Placement,
+  ...Common,
   /** Verbatim. Inline tags live here and are extracted at view time — `#topic`
    *  and `@person`, two namespaces rather than two spellings of one. */
   title: Schema.String,
@@ -76,7 +80,7 @@ export const RegularNode = Schema.Struct({
 export type RegularNode = typeof RegularNode.Type
 
 export const MirrorNode = Schema.Struct({
-  ...Placement,
+  ...Common,
   mirror: Schema.String,
 })
 export type MirrorNode = typeof MirrorNode.Type
