@@ -6,10 +6,7 @@ One `.olai` file per outline. One JSON object per line; one line per node. Every
 {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","date":"2026-08-10","after":["demo"]}
 ```
 
-The extension is what changed; the CONTENT is the same JSON lines it always
-was. A vault written before the rename is renamed by hand, once — olai does
-not read `.jsonl` any more, and a `.jsonl` left in a served directory is simply
-an unclaimed file, like a `.txt`:
+The extension is what changed; the CONTENT is the same JSON lines it always was. A vault written before the rename is renamed by hand, once — olai does not read `.jsonl` any more, and a `.jsonl` left in a served directory is simply an unclaimed file, like a `.txt`:
 
 ```sh
 git ls-files '*.jsonl' | while read -r f; do git mv "$f" "${f%.jsonl}.olai"; done
@@ -77,106 +74,27 @@ Being blocked is a SECOND fact about a node, never a replacement for the first: 
 
 ## Days
 
-The journal, the calendar and the today view are derived from dates AT VIEW
-TIME, over the whole served directory: there is no journal file, no stored
-year→month hierarchy and no OUTLINE whose filename means anything. A day is a
-question asked of every node in every outline.
+The journal, the calendar and the today view are derived from dates AT VIEW TIME, over the whole served directory: there is no journal file, no stored year→month hierarchy and no OUTLINE whose filename means anything. A day is a question asked of every node in every outline.
 
-**One filename does mean something, and it is a document's.** A `.md` whose
-basename is exactly an ISO date — `2026-08-12.md`, wherever in the tree it sits
-— is that day's NOTE, and the day page draws it above the query's answer
-(`2026-08-10-recap.md` is a document about a day and deliberately not one; two
-files claiming one date are both shown, in path order). It is a view
-convention over the directory rather than a rule about records: nothing here
-validates it and no field records it. Olai WRITES one on request now — a bare
-calendar day minted into that day's note lands where the newest existing
-daily note says the vault keeps them — and the convention stays exactly this
-paragraph's: the file is named for its day, and nothing else says so. What it
-changes about the sentence above is only that a day now has two halves — what
-somebody wrote about it, and what the set says was on it — and never that a
-node's dates are read differently.
+**One filename does mean something, and it is a document's.** A `.md` whose basename is exactly an ISO date — `2026-08-12.md`, wherever in the tree it sits — is that day's NOTE, and the day page draws it above the query's answer (`2026-08-10-recap.md` is a document about a day and deliberately not one; two files claiming one date are both shown, in path order). It is a view convention over the directory rather than a rule about records: nothing here validates it and no field records it. Olai WRITES one on request now — a bare calendar day minted into that day's note lands where the newest existing daily note says the vault keeps them — and the convention stays exactly this paragraph's: the file is named for its day, and nothing else says so. What it changes about the sentence above is only that a day now has two halves — what somebody wrote about it, and what the set says was on it — and never that a node's dates are read differently.
 
-**Two outline filenames mean something too, and both are conventions rather
-than rules.** An `Archive.olai` holds what was put away, beside the outline it
-left (the section above says what that does to blockedness); an `Inbox.olai`
-is where a capture lands when the caller names no file. Both are read by NAME:
-the inbox is whichever outline is called `Inbox.olai`, case-insensitively,
-wherever in the tree it sits — shallowest first, then path order, so a
-directory that already keeps `notes/inbox.olai` captures into the file it has
-— and a directory with none gets `Inbox.olai` at the root, minted by the same
-single operation that writes the first line into it. Nothing validates either
-name and no field records them; `@olai/format` spells both (`ARCHIVE` /
-`isArchived`, `INBOX` / `inboxIn`) so every face resolves them identically.
-Both faces reach the inbox the same way: the browser's `⌘K` `+` sends a line
-and no file and the server resolves it, and an agent reads the outlines and
-calls `add_node` or `create_outline` itself.
+**Two outline filenames mean something too, and both are conventions rather than rules.** An `Archive.olai` holds what was put away, beside the outline it left (the section above says what that does to blockedness); an `Inbox.olai` is where a capture lands when the caller names no file. Both are read by NAME: the inbox is whichever outline is called `Inbox.olai`, case-insensitively, wherever in the tree it sits — shallowest first, then path order, so a directory that already keeps `notes/inbox.olai` captures into the file it has — and a directory with none gets `Inbox.olai` at the root, minted by the same single operation that writes the first line into it. Nothing validates either name and no field records them; `@olai/format` spells both (`ARCHIVE` / `isArchived`, `INBOX` / `inboxIn`) so every face resolves them identically. Both faces reach the inbox the same way: the browser's `⌘K` `+` sends a line and no file and the server resolves it, and an agent reads the outlines and calls `add_node` or `create_outline` itself.
 
-**Two fields put a node on a day**: `date`, which is what it is scheduled for,
-and a dated `done` — `{"done":"2026-08-11T15:40:03-04:00"}` is work someone
-finished at that instant. Both place identically: a node finished on the 11th is
-on the 11th's page and lights the 11th in the calendar exactly as a node
-scheduled for it is. (That is a change, resolved 2026-08-11. Only `date` used to
-be read, and the consequence was that finished work — the thing a journal is
-most often asked about — was the one thing not in it.)
+**Two fields put a node on a day**: `date`, which is what it is scheduled for, and a dated `done` — `{"done":"2026-08-11T15:40:03-04:00"}` is work someone finished at that instant. Both place identically: a node finished on the 11th is on the 11th's page and lights the 11th in the calendar exactly as a node scheduled for it is. (That is a change, resolved 2026-08-11. Only `date` used to be read, and the consequence was that finished work — the thing a journal is most often asked about — was the one thing not in it.)
 
-**A dated `doing` or `todo` places nothing.** The format lets any of the three
-marks carry a date and these views read neither of those two (resolved
-2026-08-11, from seeing a day page under the other rule). A journal is narrower
-than the format on purpose: a day answers *what is on, and what got done*, while
-"this was picked up on Tuesday" and "this was filed on Tuesday" are facts about
-a task's own history — read as days they bury the day's real answer under
-everything that was captured that morning. The values stay legal, stay on disk
-untouched, and a node's own row still shows the mark it carries.
+**A dated `doing` or `todo` places nothing.** The format lets any of the three marks carry a date and these views read neither of those two (resolved 2026-08-11, from seeing a day page under the other rule). A journal is narrower than the format on purpose: a day answers *what is on, and what got done*, while "this was picked up on Tuesday" and "this was filed on Tuesday" are facts about a task's own history — read as days they bury the day's real answer under everything that was captured that morning. The values stay legal, stay on disk untouched, and a node's own row still shows the mark it carries.
 
-- **A node with two dates is on two days**, once each. Scheduled for the 10th
-  and finished on the 11th is a true statement about both days.
-- **Two dates on one day are one row.** It is one thing that happened, and a
-  day claiming two of it would be counting the record rather than the event.
-  The row names which of its dates it is there for, and `date` wins that
-  naming: which kind of mark it is, the checkbox has already said.
-- **A `done` holding `true` is on no day.** It says the work is finished and
-  declines to say when — which is legal, and is the shape of everything written
-  before `done` carried instants. There is nothing to put on a calendar, and
-  inventing a day for it would file years of finished work under whatever day
-  it was read on.
-- **The day is the first ten characters**, here as everywhere: dates are text,
-  and a `2026-08-10` parsed into an instant comes back a datetime. So an
-  offset is part of the day it names — a stamp is written in the zone of the
-  person who made it, and the day is theirs.
-- **Work that was archived keeps its days** (resolved 2026-08-11). A node in an
-  `Archive.olai` with a dated `done` lights its day and is on its page, and the
-  group heading says which file it came out of. Blockedness exempts the archive
-  at both ends because nothing can be waiting on work that is over
-  ([Status](#status)); a journal is asking the other question — what happened —
-  and archiving is what people do with work *after* they finish it, so a day
-  that dropped the archived half would be the day with its ending torn out.
+- **A node with two dates is on two days**, once each. Scheduled for the 10th and finished on the 11th is a true statement about both days.
+- **Two dates on one day are one row.** It is one thing that happened, and a day claiming two of it would be counting the record rather than the event. The row names which of its dates it is there for, and `date` wins that naming: which kind of mark it is, the checkbox has already said.
+- **A `done` holding `true` is on no day.** It says the work is finished and declines to say when — which is legal, and is the shape of everything written before `done` carried instants. There is nothing to put on a calendar, and inventing a day for it would file years of finished work under whatever day it was read on.
+- **The day is the first ten characters**, here as everywhere: dates are text, and a `2026-08-10` parsed into an instant comes back a datetime. So an offset is part of the day it names — a stamp is written in the zone of the person who made it, and the day is theirs.
+- **Work that was archived keeps its days** (resolved 2026-08-11). A node in an `Archive.olai` with a dated `done` lights its day and is on its page, and the group heading says which file it came out of. Blockedness exempts the archive at both ends because nothing can be waiting on work that is over ([Status](#status)); a journal is asking the other question — what happened — and archiving is what people do with work *after* they finish it, so a day that dropped the archived half would be the day with its ending torn out.
 
-What a WRITER does with that is policy, not format ([Writing](#writing)), and
-olai's ops layer stamps **only `done`**, with the instant it was made, local and
-with its offset (resolved 2026-08-11). `doing` and `todo` are written `true`.
-The two rules are one rule read twice: a `done` date is what a day page shows,
-so a `done` date is what the writer records. Nothing writes a `doing` or `todo`
-date, and nothing reads one — a value a view ignores is a value no writer should
-be minting. Scheduling has a field of its own, and that is what `date` is for.
+What a WRITER does with that is policy, not format ([Writing](#writing)), and olai's ops layer stamps **only `done`**, with the instant it was made, local and with its offset (resolved 2026-08-11). `doing` and `todo` are written `true`. The two rules are one rule read twice: a `done` date is what a day page shows, so a `done` date is what the writer records. Nothing writes a `doing` or `todo` date, and nothing reads one — a value a view ignores is a value no writer should be minting. Scheduling has a field of its own, and that is what `date` is for.
 
-It is only ever the record being marked that is rewritten, so `true` and
-day-only values elsewhere keep the spelling they were read with — and every
-view and every derivation goes on accepting all three shapes, whoever wrote
-them.
+It is only ever the record being marked that is rewritten, so `true` and day-only values elsewhere keep the spelling they were read with — and every view and every derivation goes on accepting all three shapes, whoever wrote them.
 
-**Due dates are the same two fields read together, and there is no third one.**
-A `date` says WHEN; the mark says whether it is work — so a node carrying a
-`date` and no mark is an OCCURRENCE (a birthday, a delivery, a note pinned to a
-day) and a node carrying a `date` with `todo` or `doing` is DUE WORK. Only the
-second can be late: `overdue(n) ⇔ n carries todo or doing ∧ day(n.date) <
-today`, derived at view time and stored nowhere, the way [blocked](#status) is
-— a second fact about a node, never a replacement for its mark, and one `done`
-extinguishes by construction. A day passing is not a failure of a bullet, which
-is the crown rule of this format read once more, and a `due` field beside `date`
-would have been two dates answering one question. It is written down here
-because it is a claim about what these two fields MEAN together; the view that
-reads it, and the page that collects the answer — the agenda — are
-[architecture.md](architecture.md)'s.
+**Due dates are the same two fields read together, and there is no third one.** A `date` says WHEN; the mark says whether it is work — so a node carrying a `date` and no mark is an OCCURRENCE (a birthday, a delivery, a note pinned to a day) and a node carrying a `date` with `todo` or `doing` is DUE WORK. Only the second can be late: `overdue(n) ⇔ n carries todo or doing ∧ day(n.date) < today`, derived at view time and stored nowhere, the way [blocked](#status) is — a second fact about a node, never a replacement for its mark, and one `done` extinguishes by construction. A day passing is not a failure of a bullet, which is the crown rule of this format read once more, and a `due` field beside `date` would have been two dates answering one question. It is written down here because it is a claim about what these two fields MEAN together; the view that reads it, and the page that collects the answer — the agenda — are [architecture.md](architecture.md)'s.
 
 ## Documents
 

@@ -323,58 +323,20 @@ Approved 2026-08-11 as designed. The branch is built so the upstream-gated part 
 
 ### Closing the gate: what the SDK does not do that the pump did
 
-The upstream half arrived exactly as specified. The olai half turned up four
-behaviours the hand-rolled transport had provided for free, each found by a test
-that already existed, and each is worth recording because none of them is
-visible from the adapter's API:
+The upstream half arrived exactly as specified. The olai half turned up four behaviours the hand-rolled transport had provided for free, each found by a test that already existed, and each is worth recording because none of them is visible from the adapter's API:
 
-1. **The stdio transport never notices stdin ENDING.** It attaches listeners for
-   `data` and `error` and nothing else, so `olai mcp` outlived its client and sat
-   holding a watcher on somebody's notes directory.
-2. **And it does not DRAIN.** The old pump answered lines through
-   `Stream.runForEach`, which awaits each reply before reading the next, so when
-   the stream ended every message had been answered. Closing on `end` alone
-   exited before a single frame was written. The end of stdin now ARMS a shutdown
-   that the last reply performs — requests counted in, replies counted out.
-3. **The Streamable HTTP transport fits neither of its modes.** Stateless refuses
-   reuse ("create a new transport per request"), and a transport per request is a
-   `Server` per request, because an MCP `Server` binds exactly one — that would
-   rebuild the face, its expose walk and its resource pusher on every call.
-   Stateful keeps one transport but issues an `Mcp-Session-Id` clients must echo,
-   which this endpoint has never required. Both prefer SSE, which a client that
-   called `response.json()` waits on forever — the failure the e2e chat scenarios
-   actually showed. So the route keeps a small half-duplex transport of its own.
-   That is not a retreat from the migration: what was bought upstream is the
-   SERVER, and `serveSurfaceAsMcp` takes a transport as an option precisely
-   because the shape of the pipe is the embedder's business.
-4. **`Schema.Struct({})` is not an object to the schema bridge.** Effect compiles
-   it to `anyOf: [object, array]`, so a no-argument tool was advertised wrapped
-   under `value` and every call refused with "Expected object | array".
-   `list_outlines` is that tool and it is the first call an agent makes, so this
-   was the entire capture flow. Fixed by giving a tool that takes nothing no
-   input schema at all, which is the honest spelling — and fenced by a test.
+1. **The stdio transport never notices stdin ENDING.** It attaches listeners for `data` and `error` and nothing else, so `olai mcp` outlived its client and sat holding a watcher on somebody's notes directory.
+2. **And it does not DRAIN.** The old pump answered lines through `Stream.runForEach`, which awaits each reply before reading the next, so when the stream ended every message had been answered. Closing on `end` alone exited before a single frame was written. The end of stdin now ARMS a shutdown that the last reply performs — requests counted in, replies counted out.
+3. **The Streamable HTTP transport fits neither of its modes.** Stateless refuses reuse ("create a new transport per request"), and a transport per request is a `Server` per request, because an MCP `Server` binds exactly one — that would rebuild the face, its expose walk and its resource pusher on every call. Stateful keeps one transport but issues an `Mcp-Session-Id` clients must echo, which this endpoint has never required. Both prefer SSE, which a client that called `response.json()` waits on forever — the failure the e2e chat scenarios actually showed. So the route keeps a small half-duplex transport of its own. That is not a retreat from the migration: what was bought upstream is the SERVER, and `serveSurfaceAsMcp` takes a transport as an option precisely because the shape of the pipe is the embedder's business.
+4. **`Schema.Struct({})` is not an object to the schema bridge.** Effect compiles it to `anyOf: [object, array]`, so a no-argument tool was advertised wrapped under `value` and every call refused with "Expected object | array". `list_outlines` is that tool and it is the first call an agent makes, so this was the entire capture flow. Fixed by giving a tool that takes nothing no input schema at all, which is the honest spelling — and fenced by a test.
 
-`route.ts` had no test before this, which is how (3) reached the e2e suite. It
-has one now, over real HTTP on olai's real listener.
+`route.ts` had no test before this, which is how (3) reached the e2e suite. It has one now, over real HTTP on olai's real listener.
 
-**One deliberate behaviour change**: an unknown tool is an `isError` result
-rather than JSON-RPC `-32602`. That is the SDK's convention and the better one —
-a model that named a tool it does not have can read the answer and pick another,
-where a protocol error throws inside its client. A second, smaller one: a write
-tool is now advertised `destructiveHint: true` (the adapter derives both hints
-from `mutates`) where the old `describe()` said `false` for everything.
+**One deliberate behaviour change**: an unknown tool is an `isError` result rather than JSON-RPC `-32602`. That is the SDK's convention and the better one — a model that named a tool it does not have can read the answer and pick another, where a protocol error throws inside its client. A second, smaller one: a write tool is now advertised `destructiveHint: true` (the adapter derives both hints from `mutates`) where the old `describe()` said `false` for everything.
 
 ### Where the projection lives, and why it moved
 
-`bespokeFrom` is in `@olai/server`, not beside the table in `@olai/ops`. The
-table was private because that package owned an MCP server, and "what a consumer
-wants is the server, and the list is what the server is made of". Both halves
-stopped being true at once: the server is the framework's now, so the list IS
-what a consumer wants — and the framework brings the MCP SDK, which would put
-express, hono and ajv in the dependency closure of a package whose own manifest
-says it knows "nothing about a listener, a socket or a browser". The ops tests
-for the tool surface moved with it and got stronger: they run through a real MCP
-client instead of a dispatch function.
+`bespokeFrom` is in `@olai/server`, not beside the table in `@olai/ops`. The table was private because that package owned an MCP server, and "what a consumer wants is the server, and the list is what the server is made of". Both halves stopped being true at once: the server is the framework's now, so the list IS what a consumer wants — and the framework brings the MCP SDK, which would put express, hono and ajv in the dependency closure of a package whose own manifest says it knows "nothing about a listener, a socket or a browser". The ops tests for the tool surface moved with it and got stronger: they run through a real MCP client instead of a dispatch function.
 
 ### Corrections and findings from building it
 
@@ -406,49 +368,20 @@ One observation worth passing upstream, not a blocker: `failFrom` brands every f
 
 ## Review round, 2026-08-11
 
-An opposite-model review on PR #94 raised no architectural objection and set a
-merge gate of two required and two recommended items. All four are taken.
+An opposite-model review on PR #94 raised no architectural objection and set a merge gate of two required and two recommended items. All four are taken.
 
 **Required.**
 
-1. **`destructiveHint` is pinned.** The annotations test now asserts BOTH hints
-   for a read and a write (`search_nodes` true/false, `set_done` false/true).
-   This was the review's sharpest catch: the design log named the change and the
-   suite did not fence it, so a future "simplification" back to the old blanket
-   `destructiveHint: false` would have shipped silently — and hosts key off that
-   field for confirm-before-run and tool grouping.
-2. **Two false comments fixed.** `serve.ts` said "The SDK's stdio transport ends
-   when stdin does" directly above the wrapper that exists *because it does not*
-   — an invitation to delete the wrapper as redundant. And `serve.test.ts`'s
-   header still cited the deleted `stdio.test.ts` for framing, and claimed "the
-   pump answers in order", which the SDK's transport does not promise.
+1. **`destructiveHint` is pinned.** The annotations test now asserts BOTH hints for a read and a write (`search_nodes` true/false, `set_done` false/true). This was the review's sharpest catch: the design log named the change and the suite did not fence it, so a future "simplification" back to the old blanket `destructiveHint: false` would have shipped silently — and hosts key off that field for confirm-before-run and tool grouping.
+2. **Two false comments fixed.** `serve.ts` said "The SDK's stdio transport ends when stdin does" directly above the wrapper that exists *because it does not* — an invitation to delete the wrapper as redundant. And `serve.test.ts`'s header still cited the deleted `stdio.test.ts` for framing, and claimed "the pump answers in order", which the SDK's transport does not promise.
 
 **Recommended, both taken rather than accepted as risk.**
 
-3. **`list_outlines` over the real child pipe** (`serve.test.ts`). The
-   `Schema.Struct({})` wrapping bug was a property of the schema bridge and so
-   transport-independent — but that was a claim, and this is the cheap way to
-   hold it. Asserts both the advertisement (empty object, no `value`) and the
-   call.
-4. **Non-object bodies are refused, not 202-silenced.** `null`, `42`, `[]` and a
-   bare string parse as JSON but are not messages; the SDK's `Protocol` reports
-   them to `onerror` and never replies, which through a half-duplex transport is
-   a 202 and a client waiting for a frame that is not coming. The old dispatch
-   answered `-32600`, so that judgement is back at the edge where it always was.
-   Chosen over the review's alternative of documenting garbage-in as
-   out-of-contract: silence is the worse failure mode.
+3. **`list_outlines` over the real child pipe** (`serve.test.ts`). The `Schema.Struct({})` wrapping bug was a property of the schema bridge and so transport-independent — but that was a claim, and this is the cheap way to hold it. Asserts both the advertisement (empty object, no `value`) and the call.
+4. **Non-object bodies are refused, not 202-silenced.** `null`, `42`, `[]` and a bare string parse as JSON but are not messages; the SDK's `Protocol` reports them to `onerror` and never replies, which through a half-duplex transport is a 202 and a client waiting for a frame that is not coming. The old dispatch answered `-32600`, so that judgement is back at the edge where it always was. Chosen over the review's alternative of documenting garbage-in as out-of-contract: silence is the worse failure mode.
 
-**One thing taken beyond the gate**, because it was a hang in code this PR now
-owns: a second `ask` under an id already in flight used to `set` over the first
-waiter's resolver, leaving that POST unanswered until the process died. It is
-now refused, and the guard has a deterministic transport-level test (through
-HTTP the two requests would almost never actually overlap).
+**One thing taken beyond the gate**, because it was a hang in code this PR now owns: a second `ask` under an id already in flight used to `set` over the first waiter's resolver, leaving that POST unanswered until the process died. It is now refused, and the guard has a deterministic transport-level test (through HTTP the two requests would almost never actually overlap).
 
-**Recorded, not acted on.** The review noted a silent wire change the design log
-had missed: the hand-rolled `describe()` emitted `additionalProperties: false`
-and kolu's bridge deliberately reopens objects, because several hosts break on
-the closed form. That is the bridge doing its job — but it IS a change to what
-olai advertises, and it belongs in the record beside the other two.
+**Recorded, not acted on.** The review noted a silent wire change the design log had missed: the hand-rolled `describe()` emitted `additionalProperties: false` and kolu's bridge deliberately reopens objects, because several hosts break on the closed form. That is the bridge doing its job — but it IS a change to what olai advertises, and it belongs in the record beside the other two.
 
-Also corrected: the PR description said `route.ts` gained "one test". It gained
-four, and now six.
+Also corrected: the PR description said `route.ts` gained "one test". It gained four, and now six.

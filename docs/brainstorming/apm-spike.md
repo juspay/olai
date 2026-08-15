@@ -1,9 +1,6 @@
 # APM as agent launcher — spike report
 
-Scratch directory only. No production code. No commits to any repo.
-Date: 2026-08-13.
-APM exercised: **0.28.0** (`3aa0365`) from a shallow clone of `microsoft/apm` at `apm-src/`.
-Docs: https://microsoft.github.io/apm — specifically [Runtime compatibility](https://microsoft.github.io/apm/integrations/runtime-compatibility/), [`apm runtime`](https://microsoft.github.io/apm/reference/cli/runtime/), [`apm run`](https://microsoft.github.io/apm/reference/cli/run/), [Run scripts](https://microsoft.github.io/apm/consumer/run-scripts/), [Primitives and targets](https://microsoft.github.io/apm/concepts/primitives-and-targets/).
+Scratch directory only. No production code. No commits to any repo. Date: 2026-08-13. APM exercised: **0.28.0** (`3aa0365`) from a shallow clone of `microsoft/apm` at `apm-src/`. Docs: https://microsoft.github.io/apm — specifically [Runtime compatibility](https://microsoft.github.io/apm/integrations/runtime-compatibility/), [`apm runtime`](https://microsoft.github.io/apm/reference/cli/runtime/), [`apm run`](https://microsoft.github.io/apm/reference/cli/run/), [Run scripts](https://microsoft.github.io/apm/consumer/run-scripts/), [Primitives and targets](https://microsoft.github.io/apm/concepts/primitives-and-targets/).
 
 **Bottom line up front:** Ranked options for "APM as our launcher":
 

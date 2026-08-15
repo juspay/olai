@@ -8,6 +8,7 @@
   - docs/* is up to date
   - website/ is up to date
   - All local packages have a concise README.md
+  - Markdown prose is one line per paragraph, never hard-wrapped — GitHub and every renderer reflow. Code blocks, tables, ASCII diagrams and deliberate line-broken lists keep their layout. ~80 columns remains for source comments only.
 - Web
   - UI components are encapsulated & isolated
   - Prefer multiple files & folder hierarchy for ease of navigation, over monolithic modules.

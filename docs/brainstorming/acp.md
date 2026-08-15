@@ -35,85 +35,26 @@ The human likes the `master-racket` chat behaviour; its semantics carry over (se
 
 ## Resolved 2026-08-10 — the external tool surface (roadmap `mcp`)
 
-The punt above came back, and the prediction held: the internal channel produced
-most of it. `@olai/ops`'s `mcp.ts` was written with no transport in it, so what
-this item added is a second caller of the same `handle` and the composition
-around it — the tools themselves, the dispatch, the refusal shape and the closed
-list are untouched.
+The punt above came back, and the prediction held: the internal channel produced most of it. `@olai/ops`'s `mcp.ts` was written with no transport in it, so what this item added is a second caller of the same `handle` and the composition around it — the tools themselves, the dispatch, the refusal shape and the closed list are untouched.
 
-- **Transport: stdio, as a subcommand — `olai mcp <dir>`.** Nearly every MCP
-  client configures a server as a command it launches, so that is what an agent
-  in a terminal is given. The alternative was a bridge into a running `olai web`
-  (find its port, find its per-process token, POST at `/mcp`), and it loses on
-  the ordinary case: somebody in a notes directory with no server running. A
-  bridge would have to do all of this anyway on finding nothing listening, and
-  would additionally need a discovery mechanism nothing else in olai has.
-- **Two stores over one directory is the accepted consequence**, and it is the
-  same bargain the write gate was built for: it probes before it judges, so a
-  base another process moved comes back as `StaleWrite` and the op re-plans
-  against the newer snapshot — exactly what a `git pull` under an open tab
-  already does. It is not a lock: two writers inside the same instant are
-  last-write-wins, as an editor and a `git checkout` are, and git is the
-  recovery net. Note this is the OPPOSITE conclusion from the internal agent's
-  HTTP route, out of the same question — the panel's agent is a child of the
-  server and shares its store by construction; this one cannot.
-- **stdout is the protocol**, so the whole program's logging goes to stderr via
-  `Logger.LogToStderr` rather than by asking each writer to remember. The store
-  logs failed probes and git logs refused commits, and neither knows it is
-  running under a pipe a JSON-RPC parser is reading.
-- **No token, no bind, no origin gate.** There is nothing to authenticate: the
-  client proved who it is by being the process that started this one. That is
-  also why `mcp` takes no `--port` and no `--host`.
-- **The client closing stdin is the shutdown**, which is how an MCP client stops
-  a server; a write that fails because the far end is gone ends the same way,
-  quietly, rather than dying into whatever log the client keeps.
-- **Still no write CLI.** `web` and `mcp` are two transports in front of one ops
-  layer, and neither adds a node from the command line.
+- **Transport: stdio, as a subcommand — `olai mcp <dir>`.** Nearly every MCP client configures a server as a command it launches, so that is what an agent in a terminal is given. The alternative was a bridge into a running `olai web` (find its port, find its per-process token, POST at `/mcp`), and it loses on the ordinary case: somebody in a notes directory with no server running. A bridge would have to do all of this anyway on finding nothing listening, and would additionally need a discovery mechanism nothing else in olai has.
+- **Two stores over one directory is the accepted consequence**, and it is the same bargain the write gate was built for: it probes before it judges, so a base another process moved comes back as `StaleWrite` and the op re-plans against the newer snapshot — exactly what a `git pull` under an open tab already does. It is not a lock: two writers inside the same instant are last-write-wins, as an editor and a `git checkout` are, and git is the recovery net. Note this is the OPPOSITE conclusion from the internal agent's HTTP route, out of the same question — the panel's agent is a child of the server and shares its store by construction; this one cannot.
+- **stdout is the protocol**, so the whole program's logging goes to stderr via `Logger.LogToStderr` rather than by asking each writer to remember. The store logs failed probes and git logs refused commits, and neither knows it is running under a pipe a JSON-RPC parser is reading.
+- **No token, no bind, no origin gate.** There is nothing to authenticate: the client proved who it is by being the process that started this one. That is also why `mcp` takes no `--port` and no `--host`.
+- **The client closing stdin is the shutdown**, which is how an MCP client stops a server; a write that fails because the far end is gone ends the same way, quietly, rather than dying into whatever log the client keeps.
+- **Still no write CLI.** `web` and `mcp` are two transports in front of one ops layer, and neither adds a node from the command line.
 
 ## Resolved 2026-08-11 — the agent asks back (roadmap `form-elicitation`)
 
-The permission punt above came due, and from the direction nobody was watching.
-"Auto-approve" was implemented as *answer every `session/request_permission`
-with the first allow-flavoured option*, which is fine for the tools it was
-written for and wrong for the one request that is not a tool at all: the Claude
-Code adapter maps plan mode's "Ready to code?" onto a permission request whose
-first allow-flavoured option switches the session's permission mode to `auto`.
-So the panel was taking that decision on the human's behalf, silently, every
-time — a decision nobody had been asked about, made by a line whose comment said
-it was about not wedging the wire.
+The permission punt above came due, and from the direction nobody was watching. "Auto-approve" was implemented as *answer every `session/request_permission` with the first allow-flavoured option*, which is fine for the tools it was written for and wrong for the one request that is not a tool at all: the Claude Code adapter maps plan mode's "Ready to code?" onto a permission request whose first allow-flavoured option switches the session's permission mode to `auto`. So the panel was taking that decision on the human's behalf, silently, every time — a decision nobody had been asked about, made by a line whose comment said it was about not wedging the wire.
 
-- **`elicitation.form` is advertised**, and it is the enabling half rather than
-  the polish: the adapter gates `AskUserQuestion` on it and puts the tool in
-  `disallowedTools` otherwise, so until now olai's agent could not ask a
-  structured question at all. It had to guess, or write the question into prose
-  and hope the next message answered it.
-- **A question is a ROW, not a modal.** It stays in the transcript after it is
-  answered, disabled, with what was chosen on it — because "what did I tell it?"
-  is a question about the conversation, and a dialog that vanishes takes the
-  answer with it. It also means the panel needs no new surface member shape: the
-  transcript is a keyed collection, and a question is one more kind of entry
-  that is written twice.
-- **One form for two payloads.** `elicitation/create` (form mode) and
-  `session/request_permission` are different methods asking a person the same
-  kind of thing, so they are projected into one shape and drawn by one
-  component. Nothing about the second is special-cased in the browser.
-- **A dismissal is a decline on the wire.** The agent is told the human would
-  not answer; it is never handed an answer nobody gave. Same rule as the
-  refusals: the honest thing is the thing that renders.
-- **Auto-approval is now POSITIVE recognition** — a permission request for one
-  of the MCP servers this session was handed, and nothing else. Bypass mode is
-  still the design for those (they are mediated and validated); a tool the
-  client cannot name is one a person is asked about. The name comes from the
-  `tool_call` the adapter emits before it asks, because the permission request
-  carries a display title and not a name.
-- **No timeout.** A pending question holds the ACP request open, which IS the
-  blocked turn; what is owed in return is that the block is impossible to
-  miss — the composer, the header and the app's permanent agent toggle all say
-  it — and that a question is withdrawn when its conversation ends, so a live
-  form is never a control that does nothing.
-- **Out of scope, deliberately**: `elicitation.url` (it sends a person out of
-  the panel to a page olai knows nothing about — a different bargain, and its
-  own decision), and a general permission-modes settings UI.
+- **`elicitation.form` is advertised**, and it is the enabling half rather than the polish: the adapter gates `AskUserQuestion` on it and puts the tool in `disallowedTools` otherwise, so until now olai's agent could not ask a structured question at all. It had to guess, or write the question into prose and hope the next message answered it.
+- **A question is a ROW, not a modal.** It stays in the transcript after it is answered, disabled, with what was chosen on it — because "what did I tell it?" is a question about the conversation, and a dialog that vanishes takes the answer with it. It also means the panel needs no new surface member shape: the transcript is a keyed collection, and a question is one more kind of entry that is written twice.
+- **One form for two payloads.** `elicitation/create` (form mode) and `session/request_permission` are different methods asking a person the same kind of thing, so they are projected into one shape and drawn by one component. Nothing about the second is special-cased in the browser.
+- **A dismissal is a decline on the wire.** The agent is told the human would not answer; it is never handed an answer nobody gave. Same rule as the refusals: the honest thing is the thing that renders.
+- **Auto-approval is now POSITIVE recognition** — a permission request for one of the MCP servers this session was handed, and nothing else. Bypass mode is still the design for those (they are mediated and validated); a tool the client cannot name is one a person is asked about. The name comes from the `tool_call` the adapter emits before it asks, because the permission request carries a display title and not a name.
+- **No timeout.** A pending question holds the ACP request open, which IS the blocked turn; what is owed in return is that the block is impossible to miss — the composer, the header and the app's permanent agent toggle all say it — and that a question is withdrawn when its conversation ends, so a live form is never a control that does nothing.
+- **Out of scope, deliberately**: `elicitation.url` (it sends a person out of the panel to a page olai knows nothing about — a different bargain, and its own decision), and a general permission-modes settings UI.
 
 ## Open
 
