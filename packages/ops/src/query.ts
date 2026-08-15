@@ -341,12 +341,22 @@ export const outlines = (
   derived: Derived,
 ): ReadonlyArray<OutlineSummary> => {
   const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
+  // ANNOTATED, so the row literals below are checked against the floor: a
+  // field dropped from `OutlineSummary` fails HERE rather than only at the
+  // table-driven decode. That is independent of what the rows hold, which is
+  // why it survives the revert of the two-arm shape.
   return set.files.map((file): OutlineSummary => {
     const errors = broken.get(file)
-    // The floor's second arm — a count and a root list are what a PARSE
-    // produces, so a file that did not parse has neither. {@link OutlineSummary}
-    // argues it.
-    if (errors !== undefined) return { file, unreadable: errors.map(errorLine) }
+    // The zero and the empty list are what a file that did not parse gets, and
+    // {@link OutlineSummary} says why that is held rather than settled.
+    if (errors !== undefined) {
+      return {
+        file,
+        nodes: 0,
+        roots: [],
+        unreadable: errors.map(errorLine),
+      }
+    }
     const own = derived.nodes.filter((located) => located.file === file)
     return {
       file,

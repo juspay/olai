@@ -132,40 +132,32 @@ export type Found = typeof Found.Type
  * choose a file, nothing that would make listing a directory cost what reading
  * it does.
  *
- * **TWO ARMS, and the file that did not parse is the second one.** It arrived
- * from `@olai/ops` as one flat shape with an optional `unreadable` beside a
- * `nodes` and a `roots` that were filled in with `0` and `[]` — a count nobody
- * counted and a claim that the outline is about nothing, on the one file where
- * neither could be known. Each field read honestly alone; the untruth lived in
- * the combination, held apart by a convention a reader had to know: *if
- * `unreadable` is here, disbelieve the two above it.* An agent that read
- * `nodes` and did not think to look further was told an unparseable outline was
- * an empty one.
+ * **The torn-file row is a FLAT shape, and knowingly so.** A file that did not
+ * parse carries `unreadable` beside a `nodes` and a `roots` filled in with `0`
+ * and `[]` — a count nobody counted, and a claim that the outline is about
+ * nothing, on the one file where neither could be known. Each field reads
+ * honestly alone; what is untrue is the combination, held apart by a convention
+ * a reader has to know: *if `unreadable` is here, disbelieve the two above it.*
  *
- * So the dependent facts exist only on the arm that grounds them. It is also
- * the shape this module's own neighbour already uses for the same kind of news
- * — {@link NodeAnswer}'s second arm is how a read of an id the set does not
- * hold answers — and a listing spelling the same news as an optional field was
- * the asymmetry saying which of the two had been thought through.
+ * Splitting it into two arms — so the dependent facts exist only on the arm
+ * that grounds them, which is what {@link NodeAnswer} already does for an id
+ * the set does not hold — was written, reviewed and then REVERTED on this
+ * branch, because it changes what `list_outlines` answers and that is a ruling
+ * the human has not made. It is a roadmap question, not a defect, and this
+ * comment is here so the next reader does not rediscover it as one.
  */
-export const OutlineSummary = Schema.Union([
-  Schema.Struct({
-    file: Schema.String,
-    /** Regular nodes in it. Mirrors are placements, not nodes, so they do not
-     *  inflate the count. */
-    nodes: Schema.Int,
-    /** Its top-level titles, in order — what the outline is ABOUT, in the space
-     *  a listing has. */
-    roots: Schema.Array(Schema.String),
-  }),
-  Schema.Struct({
-    file: Schema.String,
-    /** Why it did not parse, in the validator's own words — and the whole of
-     *  what can be said about the file, which is why it is the only other
-     *  field. */
-    unreadable: Schema.Array(Schema.String),
-  }),
-])
+export const OutlineSummary = Schema.Struct({
+  file: Schema.String,
+  /** Regular nodes in it. Mirrors are placements, not nodes, so they do not
+   *  inflate the count. */
+  nodes: Schema.Int,
+  /** Its top-level titles, in order — what the outline is ABOUT, in the space
+   *  a listing has. */
+  roots: Schema.Array(Schema.String),
+  /** Present, and the whole of what can be said about it, when the file did
+   *  not parse: its nodes are not loaded, so it has neither count nor roots. */
+  unreadable: Schema.optionalKey(Schema.Array(Schema.String)),
+})
 export type OutlineSummary = typeof OutlineSummary.Type
 
 /**

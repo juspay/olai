@@ -134,8 +134,10 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   const outlines = of("list_outlines")[0]?.["outlines"] as ReadonlyArray<
     Record<string, unknown>
   >
-  // Both arms of a row: one file that parsed, one that did not — and the torn
-  // one carries NEITHER a count nor roots.
+  // Two rows, one of each kind: a file that parsed, and one that did not. The
+  // torn row carries `unreadable` BESIDE a zero count and an empty root list —
+  // the flat shape `OutlineSummary` holds knowingly, and pinned here so a
+  // change to it is a decision somebody makes rather than one that happens.
   expect(outlines[0]).toEqual({
     file: "house.jsonl",
     // Four REGULAR nodes; the two mirrors are placements and do not count.
@@ -144,6 +146,8 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   })
   expect(outlines[1]).toEqual({
     file: "torn.jsonl",
+    nodes: 0,
+    roots: [],
     unreadable: [expect.any(String)],
   })
 
