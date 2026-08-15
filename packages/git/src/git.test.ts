@@ -287,6 +287,38 @@ test("a commit records a staged rename instead of refusing on a pathspec", async
   expect(run("show", "--name-status", "--find-renames", "--format=", "HEAD").trim())
     .toBe("R100\tKept.md\tKept.olai")
   expect(run("status", "--porcelain").trim()).toBe("")
+  // And the INDEX is what a person's next `git commit` in a terminal will see:
+  // nothing staged that this call left behind. `status` being empty says the
+  // work tree matches HEAD; this says the index does too, which is the promise
+  // {@link keptIndex} makes and the one a clean tree can hide.
+  expect(run("diff", "--cached", "--name-only").trim()).toBe("")
+})
+
+/**
+ * The other departing half, and the same one-line fix under it: a `git rm`.
+ *
+ * `git add -- <a path that is gone>` is the same pathspec fatal the rename hit,
+ * reached without any rename at all — which makes it the narrower statement of
+ * what the filter is for. The commit still names it, and `git commit -- <path>`
+ * records the removal out of HEAD with nothing staged for it.
+ */
+test("a commit records a staged deletion, which has nothing to stage", async () => {
+  const { root } = repo()
+  const run = git(root)
+  fs.writeFileSync(path.join(root, "gone.md"), "not for long\n")
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "more fixtures")
+  run("rm", "--quiet", "gone.md")
+
+  const done = await asked(root, (git) =>
+    git.commit({
+      paths: [path.join(root, "gone.md")],
+      message: "olai: the removal\n\nX-Olai-Writer: mcp\n",
+    }))
+  expect(done._tag === "Failed" ? done.said : "").not.toContain("pathspec")
+  expect(done._tag).toBe("Committed")
+  expect(run("show", "--name-status", "--format=", "HEAD").trim()).toBe("D\tgone.md")
+  expect(run("status", "--porcelain").trim()).toBe("")
 })
 
 test("a clean repository on a branch is ready", async () => {
