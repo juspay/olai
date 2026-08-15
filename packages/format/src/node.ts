@@ -123,6 +123,21 @@ export const RegularNode = Schema.Struct({
   after: Schema.optionalKey(Schema.Array(Schema.String)),
   blocks: Schema.optionalKey(Schema.Array(Schema.String)),
   see: Schema.optionalKey(Schema.Array(Schema.String)),
+  /**
+   * The two STAMPS, and the only fields on this record nobody writes on
+   * purpose: the ops layer puts `created` on a node when it is captured and
+   * re-puts `changed` on it whenever it is written afterwards. There is no verb
+   * for either, and `set_prop` refuses both by name.
+   *
+   * ABSENT is the ordinary state of a node written before this existed, and
+   * nothing invents one: a ledger does not make up a past it did not see, and
+   * `git log` is the archaeologist's tool. They appear as a node is touched.
+   *
+   * `changed` absent on a node that HAS a `created` is a real answer too — it
+   * means nothing has been written to it since it was captured.
+   */
+  created: Schema.optionalKey(Schema.String),
+  changed: Schema.optionalKey(Schema.String),
   /** The one OPEN field: named facts this format gives no meaning to, written
    *  by `set_prop` and read by whoever wrote them (./custom.ts). Every other
    *  key on this record is one of the fields above, and a key that is neither
@@ -176,6 +191,8 @@ const DOORS = {
   after: "`set_after` writes it, and refuses a cycle",
   blocks: "`set_after` writes it, said from the waiting node — `a blocks b` is `b after a`",
   see: "`set_see` writes it, and resolves the target",
+  created: "the ops layer stamps this when a node is captured — nothing else may",
+  changed: "the ops layer stamps this on every write — nothing else may",
   custom: "this is the map itself; a key inside it is what `set_prop` writes",
 } as const satisfies Record<keyof RegularNode | keyof MirrorNode | "status", string>
 

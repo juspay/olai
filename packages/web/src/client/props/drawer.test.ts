@@ -44,6 +44,17 @@ test("a date is a line; a note, a document and the edges are not", () => {
   expect(systemEntries(node).map((entry) => entry.key)).toEqual(["id", "date"])
 })
 
+test("the stamps are drawn when the node has them, and never invented", () => {
+  // Absent is the ordinary state of a node written before olai stamped
+  // anything, and the drawer says what the record says.
+  expect(systemEntries(nodeOf(`{"id":"n","ord":"a0","title":"t"}`)).map((one) => one.key))
+    .toEqual(["id"])
+  const stamped = nodeOf(
+    `{"id":"n","ord":"a0","title":"t","created":"2026-08-11T09:00:00-04:00","changed":"2026-08-15T14:00:00-04:00"}`,
+  )
+  expect(systemEntries(stamped).map((one) => one.key)).toEqual(["id", "created", "changed"])
+})
+
 test("the custom half is what somebody added, and nothing else", () => {
   const node = nodeOf(
     `{"id":"n","ord":"a0","title":"t","done":true,"date":"2026-08-10","custom":{"pr":"https://x/1"}}`,

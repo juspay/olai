@@ -918,6 +918,10 @@ describe("title, note and date", () => {
       parent: "kitchen",
       ord: "a1",
       title: "order cabinets",
+      // ...plus the stamp every write leaves, which is not "everything else"
+      // being kept — it is the write saying when it happened (./plan.ts's
+      // `touched`).
+      changed: STAMP,
     })
     expect(result.summary).toBe("rename: order cabinets")
   })
@@ -1111,6 +1115,72 @@ describe("prop", () => {
   })
 })
 
+// ── the stamps ─────────────────────────────────────────────────────────
+
+/**
+ * `created` and `changed`: the two fields nobody asks for.
+ *
+ * There is no verb and no request field — a caller asks for a title, a mark, a
+ * date, an edge or a property, and the stamp rides along. What is tested here
+ * is that it rides along EVERYWHERE, because the failure mode is silent: one
+ * planner that forgot would leave a node whose `changed` is a lie, and nothing
+ * would ever say so.
+ */
+describe("stamps", () => {
+  const stampsOf = (set: OutlineSet, request: Request, id = "order") => {
+    const node = record(fileOf(planned(set, request), "house.olai"), id)
+    return { created: node.created, changed: node.changed }
+  }
+
+  test("a capture is created and not changed", () => {
+    // The honest pair for a node nobody has written to since it was born.
+    const captured = record(
+      fileOf(planned(house(), { op: "add", file: "house.olai", title: "a new one" }), "house.olai"),
+      "n1",
+    )
+    expect({ created: captured.created, changed: captured.changed })
+      .toEqual({ created: STAMP, changed: undefined })
+  })
+
+  test("every write that rewrites a node stamps `changed`", () => {
+    // One test over the ops that touch a record, because the failure mode is a
+    // planner that quietly does not.
+    const writes: ReadonlyArray<Request> = [
+      { op: "title", id: "order", title: "order the walnut ones" },
+      { op: "desc", id: "order", desc: "measure first" },
+      { op: "date", id: "order", date: "2026-08-10" },
+      { op: "prop", id: "order", key: "pr", value: "https://x/1" },
+      { op: "doing", id: "order" },
+      { op: "see", id: "order", add: ["demo"] },
+      { op: "after", id: "order", add: ["demo"] },
+      { op: "move", id: "order", before: "demo" },
+    ]
+    for (const request of writes) {
+      expect({ op: request.op, ...stampsOf(house(), request) })
+        .toEqual({ op: request.op, created: undefined, changed: STAMP })
+    }
+  })
+
+  /** NO BACKFILL: a node that carried no `created` before the write does not
+   *  acquire one, because nobody saw it being made. The ledger does not invent
+   *  a past — `git log` is the archaeologist's tool. */
+  test("a write does not invent a `created` for a node that had none", () => {
+    expect(stampsOf(house(), { op: "title", id: "order", title: "x" }).created)
+      .toBeUndefined()
+  })
+
+  test("archiving stamps nothing, because archiving is not writing", () => {
+    // `archive_node`'s own promise — "nothing is stamped: archiving is not
+    // finishing" — read across to the other stamp. A whole subtree's worth of
+    // `changed` for one gesture that changed nothing anybody wrote would be
+    // noise in every future reading.
+    const archived = planned(house(), { op: "archive", id: "order" })
+    const moved = archived.files.flatMap((one) => one.nodes).find((one) => one.id === "order")
+    expect(moved).toBeDefined()
+    expect((moved as RegularNode).changed).toBeUndefined()
+  })
+})
+
 // ── move ───────────────────────────────────────────────────────────────
 
 describe("move", () => {
@@ -1197,6 +1267,9 @@ describe("create", () => {
         title: "an idea #later",
         desc: "write it down",
         date: "2026-08-10",
+        // A node coming into being is CREATED, and carries no `changed`: nothing
+        // has been written to it since.
+        created: STAMP,
       },
     ])
     expect(result.summary).toBe("capture: an idea #later")
@@ -1383,6 +1456,9 @@ describe("split", () => {
       parent: "kitchen",
       ord: record(nodes, "n1").ord,
       title: " it",
+      // A node coming into being: `created`, and no `changed` — nothing has
+      // been written to it since it was born a moment ago.
+      created: STAMP,
     })
   })
 
@@ -1554,8 +1630,19 @@ describe("merge", () => {
     })
     const after = setOf({ "house.olai": serializeOutline(fileOf(split, "house.olai")) })
     const back = planned(after, { op: "merge", id: "n1" })
-    expect(serializeOutline(fileOf(back, "house.olai")))
-      .toBe(serializeOutline(nodesOf(before.nodes, "house.olai").map((at) => at.node)))
+    // EXCEPT FOR THE STAMP, and the exception is the honest half of the claim:
+    // the node really was written twice, so it really does carry a `changed`
+    // afterwards. What "inverse" means is that everything a person wrote is
+    // back where it was — the titles, the note, the children, the ords — and
+    // the ledger of when it happened is not part of that.
+    const unstamped = (nodes: ReadonlyArray<Node>): string =>
+      serializeOutline(nodes.map((node) => {
+        const { changed: _dropped, ...rest } = node as RegularNode
+        return rest as Node
+      }))
+    expect(unstamped(fileOf(back, "house.olai")))
+      .toBe(unstamped(nodesOf(before.nodes, "house.olai").map((at) => at.node)))
+    expect(record(fileOf(back, "house.olai"), "order").changed).toBe(STAMP)
   })
 })
 

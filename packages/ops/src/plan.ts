@@ -715,6 +715,11 @@ const capturedNode = (
     ...(at.parent === undefined ? {} : { parent: at.parent }),
     ord: at.ord,
     title: capture.title,
+    // The instant it came into being, and the one place it is written. A node
+    // gets no `changed` here: it has not been changed, it has been captured,
+    // and `changed` absent beside a `created` is the honest answer for a node
+    // nobody has written to since (./plan.ts's `touched`).
+    created: scope.context.now(),
   }
   if (capture.mark !== undefined) node[capture.mark] = marker(scope, capture.mark)
   if (capture.date !== undefined) node.date = capture.date
@@ -816,6 +821,31 @@ const UNMARKED = {
 const marker = (scope: Scope, mark: Status): string | true =>
   mark === "done" ? scope.context.now() : true
 
+/**
+ * A record about to be written, stamped `changed` — the one place a write says
+ * when it happened.
+ *
+ * EVERY WRITE THAT REWRITES A NODE goes through here, and that is the whole of
+ * the rule: there is no verb for `changed`, no request carries one, and no
+ * caller decides. A person or an agent asks for a title, a mark, a date, an
+ * edge or a property, and the stamp rides along, exactly as `done` has always
+ * carried its instant.
+ *
+ * WHAT IT IS NOT APPLIED TO, and each is a decision rather than an omission:
+ *
+ *   - a MIRROR, which has neither field. A placement is a location, not a node;
+ *     what changed when one moves is where a node is drawn, and the node itself
+ *     did not hear about it;
+ *   - ARCHIVING and unarchiving, which move a subtree between files without
+ *     asking anything about its content. `archive_node` already promises that
+ *     "nothing is stamped: archiving is not finishing", and re-stamping every
+ *     node under a branch because somebody put the branch away would fill a
+ *     whole subtree's worth of `changed` with one gesture that changed nothing
+ *     anybody wrote.
+ */
+const touched = <N extends Node>(scope: Scope, node: N): N =>
+  isMirror(node) ? node : { ...node, changed: scope.context.now() }
+
 const planMark = (
   scope: Scope,
   request: Extract<Request, { op: Status }>,
@@ -875,7 +905,7 @@ const planMark = (
   const note = nudged(scope, node, mark, undo)
 
   return Result.succeed({
-    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, next) }],
+    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, touched(scope, next)) }],
     id: node.id,
     title: node.title,
     file,
@@ -1059,7 +1089,7 @@ const planEdit = (
   const summary = summarize(next)
 
   return Result.succeed({
-    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, next) }],
+    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, touched(scope, next)) }],
     id: node.id,
     title: next.title,
     file,
@@ -1194,7 +1224,10 @@ const planMove = (
     files: [
       {
         file,
-        nodes: withOrds(replacing(recordsOf(scope, file), node.id, moved), ords.success),
+        nodes: withOrds(
+          replacing(recordsOf(scope, file), node.id, touched(scope, moved)),
+          ords.success,
+        ),
       },
     ],
     id: node.id,
@@ -1297,13 +1330,16 @@ const planSplit = (
     ...(node.parent === undefined ? {} : { parent: node.parent }),
     ord: ordFor(ords.success, id),
     title: request.rest,
+    // A node coming into being, so it is CREATED rather than changed — the same
+    // stamp a capture writes, because this is the other way a node is born.
+    created: scope.context.now(),
   }
 
   return Result.succeed({
     files: [{
       file,
       nodes: withOrds(
-        [...replacing(recordsOf(scope, file), node.id, head), tail],
+        [...replacing(recordsOf(scope, file), node.id, touched(scope, head)), tail],
         ords.success,
       ),
     }],
@@ -1379,7 +1415,7 @@ const planMerge = (
   const { into, adopted, title, desc } = joined.success
 
   const records = recordsOf(scope, file)
-  const merged = withField({ ...into, title }, "desc", desc ?? null)
+  const merged = touched(scope, withField({ ...into, title }, "desc", desc ?? null))
 
   const reparented = new Map(
     appendedUnder([records], into.id, adopted.map((child) => child.node))
@@ -2325,7 +2361,7 @@ const planEdges = (
   else draft[field] = next
 
   return Result.succeed({
-    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, draft) }],
+    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, touched(scope, draft)) }],
     id: node.id,
     title: node.title,
     file,

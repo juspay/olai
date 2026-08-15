@@ -74,6 +74,8 @@ const ORDER = [
   "after",
   "blocks",
   "see",
+  "created",
+  "changed",
   "custom",
 ] as const
 

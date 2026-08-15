@@ -38,6 +38,7 @@ In canonical order (writes always re-serialize the whole record in this order; a
 | `desc` | no | The note: one string, embedded newlines. Markdown, rendered only at view time; stored verbatim. |
 | `doc` | no | Relative path to an attached `.md` document, resolved against the directory of the outline that names it. |
 | `after` / `blocks` / `see` | no | Arrays of target ids (any file in the set). Closed set of relations. `blocks` is sugar: `a blocks b` means `b after a`. `after` (with normalized `blocks`) must stay acyclic, and is what a node being **blocked** is derived from ([Status](#status)); `see` is a free cross-reference. |
+| `created` / `changed` | no | ISO datetimes the ops layer STAMPS: `created` when a node is captured, `changed` on every write to it afterwards. No verb writes either, and `set_prop` refuses both. Absent on a node written before olai stamped anything — nothing invents a past it did not see, and `git log` is the archaeologist's tool. A `created` with no `changed` beside it means nothing has been written to that node since it was made. |
 | `custom` | no | The one OPEN field: a map of named facts olai gives no meaning to — see [Properties](#properties). |
 | `mirror` | mirrors | Makes this record a mirror: it shows the node with that id at a second location. The target may live in any file of the set, and may itself be a mirror — the chain is followed to the regular node at its end. |
 
@@ -58,6 +59,8 @@ Every field above is one this format declares, and the top level is **closed**: 
 **Nothing in olai reads a key in here.** That is the whole difference between a system field and a custom key. The journal reads `date`, the checkbox reads the marks, the blocking graph reads `after`; these are read by the person who wrote them, by `prop:` in a query ([search.md](search.md)), and by the drawer the web draws under a node's note.
 
 **Written with `set_prop`** — `{id, key, value}`, and `null` (or `""`) removes it. A key spelled like a field this format already has (`done`, `date`, `see`, `title`, `id`, `created`, `changed`, or the word `status`) is refused toward the verb that writes that fact: the two namespaces are two places, so `{"done":true,"custom":{"done":"yesterday"}}` is a legal record and an unreadable one.
+
+**The stamps are not compared as changes.** Every write stamps `changed`, so a commit that named it would name it in every line beside the field somebody actually changed — and a write that changed nothing would report as a change, since the stamp would be the difference. What a reader is owed is what they wrote; when they wrote it is the log's own answer.
 
 **Keys are written alphabetically**, and a key holding nothing is not written at all — the same two rules the fields above follow, one level in. A map with no keys left is no `custom` field rather than `{}`.
 

@@ -39,11 +39,24 @@ import { isArchived, isMirror, MirrorNode, type Node, RegularNode } from "./node
  *
  * Declaration order is canonical order — the writer's, and the one a reader
  * sees in the file.
+ *
+ * THE TWO STAMPS ARE NOT FIELDS THIS COMPARES, and they are the exception the
+ * paragraph above has to name rather than a hole in it. `created` and `changed`
+ * are facts about the WRITE, put there by the write itself (`@olai/ops`'
+ * `plan.ts`): every op stamps `changed`, so comparing it would report every
+ * node as differing by it, name it in every commit line beside the field the
+ * person actually changed, and — worse — make a write that changed nothing
+ * report as a change, since the stamp would be the difference. What a reader is
+ * owed is what they wrote; when they wrote it is the log's own answer.
  */
+const STAMPS: ReadonlySet<string> = new Set(["created", "changed"])
+
 const RECORD_FIELDS: ReadonlyArray<string> = [
   ...Object.keys(RegularNode.fields),
   ...Object.keys(MirrorNode.fields),
-].filter((field, at, all) => field !== "id" && all.indexOf(field) === at)
+].filter((field, at, all) =>
+  field !== "id" && !STAMPS.has(field) && all.indexOf(field) === at
+)
 
 /** A field that differs, or `file` — the one difference that is not a field of
  *  the record at all. A node's file changes when it is archived, which is the

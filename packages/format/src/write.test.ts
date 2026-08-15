@@ -254,6 +254,8 @@ const EVERY_REGULAR_FIELD: RegularNode = {
   after: ["x"],
   blocks: ["y"],
   see: ["z"],
+  created: "2026-08-11T09:00:00-04:00",
+  changed: "2026-08-11T10:00:00-04:00",
   custom: { pr: "https://x/1" },
 }
 

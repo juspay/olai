@@ -73,6 +73,15 @@ export const systemEntries = (node: RegularNode): ReadonlyArray<Entry> => {
   if (node.date !== undefined) {
     out.push({ key: "date", value: node.date, system: true, listed: false })
   }
+  // The stamps, when the node has them. Absent is the ordinary state of a node
+  // written before olai stamped anything, and nothing is invented for it: the
+  // drawer says what the record says.
+  for (const stamp of ["created", "changed"] as const) {
+    const held = node[stamp]
+    if (held !== undefined) {
+      out.push({ key: stamp, value: held, system: true, listed: false })
+    }
+  }
   return out
 }
 
