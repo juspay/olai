@@ -1,0 +1,216 @@
+/**
+ * One brain per vault.
+ *
+ * A directory of outlines has exactly one olai over it, and the second one
+ * refuses to boot. This file is that refusal: a kernel-held advisory lock
+ * ({@link ./flock.ts}) taken at the top of every store boot
+ * ({@link ./directory.ts}), and the sentence a person gets instead of a raw
+ * `EWOULDBLOCK`.
+ *
+ * WHY, ratified 2026-08-15. Two stores over one directory have no
+ * cross-process protection at all, and none of the three ways that shows up is
+ * recoverable:
+ *
+ *   - Writes are WHOLE FILE and last-writer-wins. Each store stages its own
+ *     copy of an outline and renames it over the destination; the rename is
+ *     atomic, so nobody sees a torn file — and the loser's edits are gone
+ *     wholesale, with both brains reporting success.
+ *   - Validation is PER BRAIN. Each one validates the set it is about to write
+ *     against the set it last read, so two writes that are each valid alone put
+ *     duplicate ids and after-cycles on disk that neither store would have
+ *     allowed. The invariant olai promises is a property of the directory, and
+ *     only one process can hold it.
+ *   - Commits sweep ONE git repository. Two `git add -A` and two commits
+ *     against one work tree interleave into each other's staged trees.
+ *
+ * WHAT IS EXCLUDED, precisely: another process on THIS MACHINE that boots a
+ * store over this directory. Not a person's editor, not `git pull`, not an
+ * agent writing a file by hand — the store is built to converge on whatever the
+ * disk says, and those are the case it handles rather than the case it cannot.
+ * And not a second olai over a NETWORK filesystem from another host: `flock`
+ * on darwin is local to the host, so that exclusion cannot be promised on both
+ * platforms and is not claimed here.
+ *
+ * WHERE THE LOCK IS: `$XDG_RUNTIME_DIR/olai/<digest>.lock` (or the fixed
+ * per-user `/tmp/olai-$UID/` off systemd), beside the agent socket and with the
+ * same stem — one vault's `.sock` and `.lock` are one glance apart, and the
+ * runtime directory is per-user, owner-only and cleared by the machine rather
+ * than by us. NOT inside the served directory: a vault is somebody's git
+ * repository, and olai does not leave files in it.
+ *
+ * The digest is over the REALPATH, which is the load-bearing half. A person
+ * types `olai web ~/notes` in one terminal and `olai web .` from inside a
+ * symlink to it in another; `resolve` answers those two differently and
+ * `realpath` answers them the same, and two brains over one vault is exactly
+ * what the difference would buy. (The same canonicalisation `./socket.ts` does
+ * for the rendezvous, spelled again here rather than shared, because that file
+ * belongs to a PR removing it. When it goes, this is the only copy left.)
+ *
+ * The lock file is NEVER UNLINKED, and that is deliberate: removing a locked
+ * file is the classic lockfile race — a second process opens the inode, the
+ * holder unlinks it, a third creates a new file at the same path and locks
+ * that, and now two processes hold "the lock". The file is a few bytes in a
+ * tmpfs the machine clears at logout. Its CONTENTS are informational only:
+ * whoever holds the lock writes their pid there so the refusal below can name
+ * them. Nothing decides anything by reading them.
+ */
+
+import { Data, Effect } from "effect"
+import type { Scope } from "effect"
+import { getRuntimeSocketPath } from "@kolu/surface/unix-socket"
+import { createHash } from "node:crypto"
+import * as fs from "node:fs"
+import { dirname, resolve } from "node:path"
+
+import { lockExclusive } from "./flock.ts"
+
+/**
+ * Another olai holds this directory.
+ *
+ * The ordinary answer, and the whole point of the feature — so it reads as
+ * olai's own sentence rather than as a failure from a system call. The pid is
+ * what a person acts on: it is what `ps` turns into "oh, the one I started this
+ * morning", and what `kill` takes if it was a leftover.
+ */
+export class VaultInUse extends Data.TaggedError("VaultInUse")<{
+  readonly root: string
+  /** The holder, when it wrote itself down — see the header on why this is
+   *  informational. A refusal that cannot name a pid is still a refusal. */
+  readonly holder: number | null
+}> {
+  override get message(): string {
+    return `another olai is serving this directory${
+      this.holder === null ? "" : ` (pid ${this.holder})`
+    } — one brain per vault`
+  }
+}
+
+/**
+ * The machine would not answer the question.
+ *
+ * A separate failure from {@link VaultInUse} because it is a different fact
+ * with a different reader: not "somebody else has it" but "olai cannot find out
+ * whether somebody else has it". Serving anyway would be the exact behaviour
+ * this file exists to end, silently — so it refuses, and says what broke.
+ */
+export class LockUnavailable extends Data.TaggedError("LockUnavailable")<{
+  readonly path: string
+  readonly reason: string
+}> {
+  override get message(): string {
+    return `olai cannot take the one-brain lock at ${this.path}: ${this.reason}. ` +
+      "Refusing to serve rather than risk a second olai over the same files."
+  }
+}
+
+/**
+ * Where this directory's lock lives — computed from the directory alone, so two
+ * processes that share nothing else land on the same file.
+ *
+ * A path that does not exist has no realpath, and falls back to the resolved
+ * spelling: the caller is about to fail on the missing directory anyway, and
+ * this must not be what tells them so.
+ */
+export const lockFor = (root: string): string =>
+  getRuntimeSocketPath({
+    app: "olai",
+    file: `${createHash("sha256").update(canonical(root)).digest("hex").slice(0, 16)}.lock`,
+  })
+
+const canonical = (root: string): string => {
+  try {
+    return fs.realpathSync(resolve(root))
+  } catch {
+    return resolve(root)
+  }
+}
+
+/** The pid a holder wrote down, or `null` for anything we cannot read as one.
+ *  Never trusted for a decision — the lock decided already. */
+const holderIn = (path: string): number | null => {
+  try {
+    const written = /^pid=(\d+)$/m.exec(fs.readFileSync(path, "utf8"))?.[1]
+    return written === undefined ? null : Number(written)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Hold `root` for as long as the scope is open.
+ *
+ * The descriptor IS the claim, so it is kept open and closed by the scope's
+ * finalizer — a graceful shutdown releases the directory before the process
+ * exits, and every other way of stopping leaves it to the kernel, which is the
+ * same release by a different route.
+ */
+export const holdVault = (
+  root: string,
+): Effect.Effect<void, VaultInUse | LockUnavailable, Scope.Scope> =>
+  Effect.acquireRelease(
+    Effect.suspend((): Effect.Effect<number, VaultInUse | LockUnavailable> => {
+      const path = lockFor(root)
+      const opened = openLock(path)
+      if (typeof opened !== "number") return Effect.fail(opened)
+
+      const outcome = lockExclusive(opened)
+      if (outcome._tag !== "held") {
+        // Read the holder BEFORE closing ours: nothing here depends on the
+        // ordering, but a descriptor closed early is one more thing between the
+        // question and the answer.
+        const holder = outcome._tag === "busy" ? holderIn(path) : null
+        fs.closeSync(opened)
+        return outcome._tag === "busy"
+          ? Effect.fail(new VaultInUse({ root, holder }))
+          : Effect.fail(new LockUnavailable({ path, reason: outcome.reason }))
+      }
+
+      // Ours now, so say who we are — for the next olai's refusal, and for a
+      // person reading the runtime directory with `cat`. Truncated first: the
+      // file may carry a dead holder's pid, and it is only ever written by
+      // whoever holds the lock.
+      try {
+        fs.ftruncateSync(opened, 0)
+        fs.writeSync(opened, `pid=${process.pid}\nroot=${canonical(root)}\n`, 0)
+      } catch {
+        // The claim is the lock, not the note. A runtime directory that will
+        // not take these few bytes costs the NEXT olai a pid in its refusal and
+        // costs this one nothing, so it is not worth refusing to serve over.
+      }
+      return Effect.succeed(opened)
+    }),
+    (fd) =>
+      Effect.sync(() => {
+        try {
+          fs.closeSync(fd)
+        } catch {
+          // Closing is the release, and a descriptor we cannot close is one the
+          // process is about to lose anyway.
+        }
+      }),
+  ).pipe(Effect.asVoid)
+
+/** The lock file, opened for writing without truncating it — truncation would
+ *  erase the pid of whoever is holding it, which is the one thing the file is
+ *  for. Its directory is made owner-only, and checked to still be ours: the
+ *  same reasoning the agent socket's does, one path along. */
+const openLock = (path: string): number | LockUnavailable => {
+  const directory = dirname(path)
+  try {
+    fs.mkdirSync(directory, { recursive: true, mode: 0o700 })
+    const owner = fs.statSync(directory).uid
+    const us = process.getuid?.()
+    if (us !== undefined && owner !== us) {
+      return new LockUnavailable({
+        path,
+        reason: `${directory} belongs to uid ${owner}, not to you`,
+      })
+    }
+    return fs.openSync(path, fs.constants.O_RDWR | fs.constants.O_CREAT, 0o600)
+  } catch (cause) {
+    return new LockUnavailable({
+      path,
+      reason: cause instanceof Error ? cause.message : String(cause),
+    })
+  }
+}

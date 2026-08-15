@@ -1,0 +1,130 @@
+/**
+ * `flock(2)`, and nothing else.
+ *
+ * An OS ADVISORY LOCK is the whole reason this file exists rather than a
+ * lockfile with a pid in it. The kernel owns the claim: it is released when the
+ * descriptor closes, which happens when the process exits — cleanly, on a
+ * SIGKILL, on a panic, on a laptop losing power. So there is no staleness
+ * protocol, because there is no staleness: no "is that pid still alive", no
+ * "was that pid recycled", no stale-lock timeout, and no leftover file that
+ * makes a machine refuse to serve after a crash. Every one of those is a bug
+ * somebody has shipped, and none of them is reachable from here.
+ *
+ * It is reached through `bun:ffi` because neither Node nor Bun exposes
+ * `flock(2)` — the runtime's file system API stops at open, read, write and
+ * rename. The alternatives were all worse: a lockfile with a pid in it brings
+ * back everything the paragraph above rules out, a `flock(1)` subprocess is a
+ * second process that can outlive us holding the lock, and an abstract unix
+ * socket (Linux's other kernel-released claim) does not exist on macOS. This
+ * calls the same libc function every other program on the machine uses, so a
+ * lock taken here is visible to `lslocks` and to anything else that flocks.
+ *
+ * WHAT IS PLATFORM-SPECIFIC, and what CI can prove: the Linux lane exercises
+ * everything here. macOS is not tested by CI (odu's rule, and this PR does not
+ * change what a Mac does otherwise) — what is known is that `flock` on darwin
+ * takes the same two arguments with the same two constants, and that its
+ * `EWOULDBLOCK` is 35 rather than Linux's 11, which is the one difference this
+ * file encodes. What darwin does DIFFERENTLY is over NFS (BSD flock is local to
+ * the host, where modern Linux forwards it to the server), and that is a
+ * limitation of the guarantee rather than of this code: two olai on two
+ * machines over one network vault are not excluded by any flock, on either
+ * platform.
+ */
+
+import { dlopen, FFIType, type Pointer, read } from "bun:ffi"
+
+/** `LOCK_EX | LOCK_NB` — take it exclusively, and answer now rather than wait.
+ *  Waiting is the wrong verb for a boot: a person who started a second olai by
+ *  mistake wants to be told, not to have their terminal hang until they find
+ *  and stop the first one. Both constants are 2 and 4 on Linux and on darwin. */
+const LOCK_EX = 2
+const LOCK_NB = 4
+
+/** What `flock` sets when somebody else holds the lock — the one failure that
+ *  is an ANSWER rather than a fault. `EWOULDBLOCK` is `EAGAIN`, and it is 11 on
+ *  Linux and 35 on darwin. Read from the platform rather than guessed, because
+ *  mistaking a real failure for "somebody else has it" would report a machine
+ *  problem as another person's olai. */
+const WOULD_BLOCK = process.platform === "darwin" ? 35 : 11
+
+/**
+ * The libc these three symbols come from, by the name the dynamic loader knows
+ * it under. Tried in order, first one that opens wins.
+ *
+ * The bun binary already has libc mapped — it is linked against it — so
+ * `dlopen` here finds the object that is loaded rather than searching the
+ * filesystem, which is why an soname works with no path and no
+ * `LD_LIBRARY_PATH` even inside a Nix store closure.
+ */
+const LIBCS = [
+  // glibc, which is every platform olai is packaged for today.
+  "libc.so.6",
+  // macOS: libc, libm, libpthread and the rest are one library.
+  "libSystem.B.dylib",
+  // musl, and the BSDs' unversioned spelling.
+  "libc.so",
+] as const
+
+/** The errno slot's address, which is per-thread and therefore a function call
+ *  rather than a variable. glibc spells it `__errno_location`; darwin spells it
+ *  `__error`. Only one of the two will resolve, so they are opened separately
+ *  and the missing one is not a failure. */
+const ERRNO_SYMBOLS = ["__errno_location", "__error"] as const
+
+interface Libc {
+  readonly flock: (fd: number, operation: number) => number
+  readonly errno: () => number
+}
+
+/** Opened once, on first use. A process that never serves a directory never
+ *  loads libc through here, and one that serves two does it once. */
+let libc: Libc | Error | null = null
+
+const open = (): Libc | Error => {
+  const tried: Array<string> = []
+  for (const name of LIBCS) {
+    for (const errnoSymbol of ERRNO_SYMBOLS) {
+      try {
+        const library = dlopen(name, {
+          flock: { args: [FFIType.i32, FFIType.i32], returns: FFIType.i32 },
+          [errnoSymbol]: { args: [], returns: FFIType.ptr },
+        })
+        const where = library.symbols[errnoSymbol] as () => Pointer
+        return {
+          flock: library.symbols.flock as (fd: number, operation: number) => number,
+          errno: () => read.i32(where(), 0),
+        }
+      } catch (cause) {
+        tried.push(`${name} (${errnoSymbol}): ${cause instanceof Error ? cause.message : String(cause)}`)
+      }
+    }
+  }
+  return new Error(`no libc with flock: ${tried.join("; ")}`)
+}
+
+/** What a `flock` call answered. `held` and `busy` are the two ordinary
+ *  outcomes; `failed` is the machine refusing to answer the question, which is
+ *  not the same as an answer of "no". */
+export type Locked =
+  | { readonly _tag: "held" }
+  | { readonly _tag: "busy" }
+  | { readonly _tag: "failed"; readonly reason: string }
+
+/**
+ * Take an exclusive advisory lock on `fd`, or say why not.
+ *
+ * The caller keeps the descriptor OPEN for as long as it wants the claim:
+ * closing it — deliberately, or by exiting — is what releases the lock. There
+ * is deliberately no `unlock` here for the same reason there is no unlink: the
+ * lifetime is the descriptor's, and a second way to end it is a second thing to
+ * get wrong.
+ */
+export const lockExclusive = (fd: number): Locked => {
+  libc ??= open()
+  if (libc instanceof Error) return { _tag: "failed", reason: libc.message }
+  if (libc.flock(fd, LOCK_EX | LOCK_NB) === 0) return { _tag: "held" }
+  const errno = libc.errno()
+  return errno === WOULD_BLOCK
+    ? { _tag: "busy" }
+    : { _tag: "failed", reason: `flock failed with errno ${errno}` }
+}
