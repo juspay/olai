@@ -1,10 +1,9 @@
 /**
  * Which stream a line lands on, and which face it wears.
  *
- * `olai mcp` answers JSON-RPC frames on stdout. A log line written there is a
- * frame that is not a frame, and the client parsing it has no way to know that
- * — so "the stderr sink writes to stderr" is a protocol property, not a
- * preference, and it is asserted rather than argued.
+ * A process whose stdout is already spoken for still needs a log. "The
+ * stderr sink writes to stderr" is a routing property, not a preference, and
+ * it is asserted rather than argued.
  *
  * The face is a second contract: non-TTY (and `OLAI_LOG=logfmt`) is logfmt
  * **byte-identical** to Effect's `formatLogFmt`, because the testlib decoder
@@ -186,8 +185,9 @@ test("OLAI_LOG=pretty forces pretty even when the stream is not a TTY", async ()
 })
 
 // The load-bearing new wiring: pretty on toStderr must still leave stdout
-// empty. If LogToStderr were dropped, pretty would land on stdout and corrupt
-// the JSON-RPC stream on `olai mcp`, with every logfmt-only test still green.
+// empty. If LogToStderr were dropped, pretty would land on stdout and
+// corrupt a stream the caller wanted left alone, with every logfmt-only
+// test still green.
 test("OLAI_LOG=pretty on toStderr keeps stdout empty (the protocol stream)", async () => {
   await withOlaiLog("pretty", async () => {
     const { err, out } = await written(toStderr)

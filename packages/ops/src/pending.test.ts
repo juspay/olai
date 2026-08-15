@@ -698,7 +698,7 @@ describe("--commit=off", () => {
  * HACKING.md's rule is that MCP and Web ops must be consistent and never
  * deviate, and this is that rule made checkable at the one place it would be
  * expensive to get wrong: what ends up permanently in somebody's history.
- * `olai web`'s button and `olai mcp`'s tool are two callers of one `Ops.commit`
+ * `olai web`'s button and the agent's `commit` tool are two callers of one `Ops.commit`
  * — but "two callers of one function" is an implementation detail that a
  * refactor can quietly end, and nothing else in the suite compares the two
  * outputs.
@@ -822,7 +822,7 @@ const bodyWithoutTrailer = (body: string): string =>
  *
  * `Applied.why` rides the reply an agent reads, so telling an agent in a
  * terminal to press a Commit button sends it after a control it cannot reach —
- * the same mistake `olai mcp --help` would make if the two faces shared one
+ * the same mistake a terminal-only `--help` would make if the two faces shared one
  * sentence, and the same rule fixes both. The panel's agent keeps both doors
  * named, because it has the tool and a person with the button is watching.
  */

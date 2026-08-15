@@ -22,8 +22,8 @@
  *
  * Colour follows the *destination* stream, not stdout: Effect's
  * `consolePretty` defaults colour off `process.stdout.isTTY` at construction,
- * which is wrong for `olai mcp` (stdout is the protocol pipe; the human is on
- * stderr). {@link prettyFor} builds a pretty logger that re-reads colour from
+ * which is wrong for a sink pointed at stderr (the human is on that stream,
+ * not on stdout). {@link prettyFor} builds a pretty logger that re-reads colour from
  * its stream at emit time (and honours `NO_COLOR`), same discipline as
  * {@link formatFor}.
  *
@@ -38,9 +38,9 @@
  * arrive in one shape by construction.
  *
  * **The stream is the decision.** `olai web` logs to stdout, which is where a
- * person watching a server looks. `olai mcp` logs to STDERR, because on that
- * subcommand stdout is the protocol: a store's failed-probe warning written
- * there is a frame that is not a frame. That is a whole-program property rather
+ * person watching a server looks. `toStderr` is the other layer, for a
+ * process whose stdout is already spoken for — a test, a pipe, a host that
+ * wants the log off the protocol. That is a whole-program property rather
  * than one module's, which is why it is a layer the composition root provides
  * and not a rule every writer has to remember.
  *
@@ -105,8 +105,8 @@ const prettyPlain = Logger.consolePretty({ colors: false })
 /**
  * Pretty logger for `stream`, with colour re-read at **emit** time from that
  * stream (and `NO_COLOR`) — same discipline as {@link formatFor}. Binding
- * colour once at module load is what left `olai mcp` monochrome when stdout
- * was the protocol pipe.
+ * colour once at module load is what left a stderr sink monochrome when stdout
+ * was not a TTY.
  */
 export const prettyFor = (stream: Stream): Logger.Logger<unknown, void> =>
   Logger.make((options) => {

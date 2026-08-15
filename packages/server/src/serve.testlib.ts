@@ -52,8 +52,8 @@ export const served = (): string => {
  * A real `serve` on an OS-chosen port, for the length of `body`, and everything
  * it said.
  *
- * The block this replaces was written four times in this package — three of
- * them added by `mcp-bridge` — and it is exactly the fact this module's header
+ * The block this replaces was written four times in this package, and it is
+ * exactly the fact this module's header
  * says it exists to hold: the platform layers, a directory with something in
  * it, and the `Effect.scoped` + `runPromise` frame around them are "the setup a
  * real server needs", which is one fact rather than one per test file.

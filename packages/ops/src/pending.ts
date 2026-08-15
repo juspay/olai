@@ -920,7 +920,7 @@ const said = (why: string | undefined): { readonly why?: string } =>
  *
  * `olai web` hands its own panel agent the same `commit` tool an outside agent
  * gets (`bespokeFrom(TOOLS)`, over a face composed as `chat-agent`), so a web
- * serve genuinely has BOTH doors and its `--help` should say so. `olai mcp` has
+ * serve genuinely has BOTH doors and its `--help` should say so. A terminal agent has
  * no browser and no button, so it has one. Keying the help text on a WRITER
  * instead read the narrower fact and quietly dropped the tool from
  * `olai web --help`.

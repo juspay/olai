@@ -343,7 +343,7 @@ Messages are prefixed `olai`, so `git log --grep '^olai'` is the audit view and
 `X-Olai-Writer: chat-agent | mcp | web` trailer — git records only the
 repository's own user, which every commit in it already has. The trailer is also
 the ONLY thing that differs between the two faces' commits: the same pending set
-committed from the browser and from `olai mcp` produces the same tree and the
+committed from the browser and from `/mcp` produces the same tree and the
 same message, which `src/pending.test.ts` asserts rather than assumes.
 
 A composed message names the biggest change by a fixed order and lists the rest.

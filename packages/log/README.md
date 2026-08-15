@@ -13,7 +13,7 @@ per caller.
 
 | file | what it owns |
 |---|---|
-| `sinks.ts` | two streams and which face each line wears — stdout for `olai web`, stderr for `olai mcp` (where stdout is the protocol); pretty on a TTY, logfmt everywhere a machine reads |
+| `sinks.ts` | two streams and which face each line wears — stdout for `olai web`, stderr for a process whose stdout is already spoken for; pretty on a TTY, logfmt everywhere a machine reads |
 | `cause.ts` | what a failure says, in the two lengths anything wants it: `prettyCause` for a log, `reasonOf` for a sentence somebody reads |
 | `emit.ts` | `emitter`: how a plain Node callback emits a line without losing the fiber's level, annotations and spans |
 | `lines.testlib.ts` | how a TEST hears a line, on the `./testlib` subpath: the collecting logger inside the process, the logfmt decoder outside it |
@@ -60,7 +60,7 @@ address off stdout, any agent grepping `url=`. Pretty may only exist where no
 machine reads; colour and multi-line pretty layout would break those readers.
 
 Colour follows the **destination** stream (stdout for `toStdout`, stderr for
-`toStderr`), not always stdout — otherwise `olai mcp` would never colour, since
+`toStderr`), not always stdout — otherwise a stderr sink would never colour, since
 its stdout is the protocol pipe. `NO_COLOR` (set and non-empty) turns colour
 off on a TTY.
 

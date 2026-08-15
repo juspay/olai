@@ -364,7 +364,7 @@ Two things about it are worth reading before the file:
   only thing that can tell one agent's edits from a person's, and it is not a
   field on any of these: a transport that could name itself could name another.
   Every caller of this namespace is identified by the FACE it arrived on — an
-  owner-only socket is an attached `olai mcp`, an in-process dispatch is
+  HTTP `/mcp` is a terminal agent, an in-process dispatch is
   whichever agent the composition root built it for — so the writer is bound
   where the face is composed, by rebinding these handlers for it
   (`@olai/server`'s `runtime.ts`, `writerAt`). One fact in one place either way;

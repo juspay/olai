@@ -184,7 +184,7 @@ test("every member the surface declares is DECIDED by one of the faces", () => {
     .toEqual([...DECLARED()].sort())
 })
 
-test("no browser may reach the ops door, and only the socket may", () => {
+test("no browser may reach the ops door, and only the agent face may", () => {
   // The one rule this whole arrangement exists for, as a rule rather than as a
   // list: whatever `ops.*` grows to, a tab gets none of it.
   const ops = DECLARED().filter((member) => member.startsWith("ops."))
@@ -202,7 +202,7 @@ test("the browser's face names nothing the surface does not declare", () => {
 
 test("the agent's face is what it can SEE plus the doors its tools land through", () => {
   // Derived from MCP in the module, so this asserts the derivation rather
-  // than restating a list: what a bridged `olai mcp` may call is exactly what
+  // than restating a list: what `/mcp` may call is exactly what
   // it serves as resources, plus the members `@olai/ops`' three tool arms reach.
   expect([...Object.keys(AGENT)].sort()).toEqual(
     [

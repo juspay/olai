@@ -1,7 +1,7 @@
 # olai docs
 
 - [running.md](running.md) — how to serve a directory: `olai web` and its
-  flags, the home-manager module, and `olai mcp`.
+  flags, the home-manager module, and the HTTP MCP face at `/mcp`.
 - [editing.md](editing.md) — changing an outline by hand: the keys, dragging a
   row, picking several at once, what a draft is, how ⌘Z takes an edit back, and
   writing a document.
