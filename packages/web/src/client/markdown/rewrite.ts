@@ -199,7 +199,7 @@ const openExternal = (element: Element): void => {
   element.properties = {
     ...element.properties,
     target: "_blank",
-    rel: "noopener noreferrer",
+    rel: ["noopener", "noreferrer"],
   }
 }
 
