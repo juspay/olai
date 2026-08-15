@@ -217,6 +217,45 @@ test("a staged rename is ONE entry naming both sides", async () => {
 })
 
 /**
+ * A COPY is not a rename, and its source is somebody else's row.
+ *
+ * Git only prints `C` when a reader has asked for copy detection
+ * (`status.renames=copies`), so this is a repository configured the way the
+ * handful of people who want that configure it. What it costs to get wrong is
+ * not rare at all: a copy's source is a file that is STILL THERE, so folding it
+ * into the copy's entry both hid a staged edit to it — the porcelain prints
+ * `C dest\0src` before `M src` whenever `dest` sorts first — and put it on the
+ * pathspec of any commit that ticked the copy, sweeping that edit in unasked.
+ *
+ * Both orderings, because the swallow only showed up in one of them.
+ */
+test("a copy leaves its source to be its own row, whichever order git prints", async () => {
+  const { root } = repo()
+  const run = git(root)
+  fs.writeFileSync(path.join(root, "notes.md"), "the original\n")
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "more fixtures")
+
+  // `Copy.md` sorts BEFORE `notes.md`, so the porcelain prints the copy first
+  // and the source's own modification second.
+  fs.writeFileSync(path.join(root, "Copy.md"), "the original\n")
+  fs.writeFileSync(path.join(root, "notes.md"), "the original, edited\n")
+  run("add", "-A")
+  run("config", "status.renames", "copies")
+
+  const found = (await surveyed(root)).files
+  expect(found.map((one) => [one.path, one.how, one.from?.path ?? null]).sort())
+    .toEqual([
+      // The arrival is an arrival. WHERE git thinks it was copied from is git's
+      // inference about content, not a second file waiting to be committed.
+      ["Copy.md", "added", null],
+      // And the source's staged edit is still here, as its own row and its own
+      // tick — which is the whole of what folding it in had taken away.
+      ["notes.md", "modified", null],
+    ])
+})
+
+/**
  * The MCP face's own reproduction, at the plumbing.
  *
  * `git mv old new` by hand and then a commit answered

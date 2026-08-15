@@ -324,8 +324,8 @@ export interface Spelled {
 export interface Dirty extends Spelled {
   readonly how: How
   /**
-   * Where a `renamed` (or copied) file CAME FROM, in the same three spellings —
-   * `null` for every other kind of entry.
+   * Where a `renamed` file CAME FROM, in the same three spellings — `null` for
+   * every other kind of entry.
    *
    * A rename is ONE thing that happened, and git prints both halves of it on
    * one line. It used to be split into two entries here — a `renamed` arrival
@@ -336,6 +336,15 @@ export interface Dirty extends Spelled {
    *
    * The departing side is NOT also a top-level entry, deliberately. It is not a
    * file waiting to be committed; it is half of this one.
+   *
+   * A COPY IS NOT A RENAME and does not fill this in, which is the difference
+   * between a source that has LEFT and one that is still sitting there. Git can
+   * be configured to detect copies (`status.renames=copies`), and it then prints
+   * `C dest\0src` for a file that was copied — but `src` is untouched by that
+   * act, so there is nothing about it to report and nothing of it to commit.
+   * Folding it in here did both: it hid a staged edit to `src` when the porcelain
+   * happened to print the copy first, and it put `src` on the pathspec of any
+   * commit that ticked the copy, which would have swept that edit in unasked.
    */
   readonly from: Spelled | null
 }
@@ -422,11 +431,14 @@ const dirty = (
       at: join(placed.top, path),
     })
     const take = (path: string, how: How, from: string | undefined): void => {
+      // The departing side of a rename is accounted for by THIS entry, so a
+      // later token naming it cannot become a row of its own. Marked BEFORE the
+      // duplicate check rather than after: a stream that named this destination
+      // twice would otherwise leave the second entry's source unclaimed, which
+      // is the one way a departure could still come back as a row of its own.
+      if (from !== undefined && from !== "") seen.add(from)
       if (path === "" || seen.has(path)) return
       seen.add(path)
-      // The departing side is accounted for by THIS entry, so a later token
-      // naming it cannot become a row of its own.
-      if (from !== undefined && from !== "") seen.add(from)
       files.push({
         ...spell(path),
         how,
@@ -449,14 +461,15 @@ const dirty = (
       }
       if (entry.length < 4) continue
       const how = howOf(entry[0] ?? " ", entry[1] ?? " ")
-      // A rename or a copy is followed by a SECOND token: the side it came
-      // from, which belongs to this entry rather than being one of its own —
-      // see {@link Dirty.from}. Taken off the stream here rather than inside
-      // {@link take}, so a duplicate entry that returns early still leaves the
-      // cursor past the token this one owns.
-      const moved = entry[0] === "R" || entry[0] === "C"
-      const from = moved ? tokens[++at] : undefined
-      take(entry.slice(3), how, from)
+      // A rename or a copy is followed by a SECOND token naming where it came
+      // from. BOTH consume it — the cursor has to move either way or every
+      // entry after this one is read as a path — and only a RENAME keeps it:
+      // see {@link Dirty.from} for why a copy's source is somebody else's row.
+      // Taken off the stream here rather than inside {@link take}, so an entry
+      // that returns early still leaves the cursor past the token it owns.
+      const paired = entry[0] === "R" || entry[0] === "C"
+      const other = paired ? tokens[++at] : undefined
+      take(entry.slice(3), how, entry[0] === "R" ? other : undefined)
     }
     return { _tag: "Surveyed", files, upstream } as const
   })
