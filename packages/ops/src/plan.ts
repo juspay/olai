@@ -34,6 +34,7 @@ import {
   type Derived,
   didYouMean,
   drawnFrom,
+  DOCUMENT_EXT,
   fileKind,
   isMirror,
   type Located,
@@ -1471,8 +1472,10 @@ export const outlinePath = (raw: string): string | null => creatable(raw, OUTLIN
 
 /** The same judgment for the other kind of file a call may mint: one relative
  *  `.md` under the served root. One rule, two extensions — the two create ops
- *  must not differ in what a path may smuggle. */
-export const documentPath = (raw: string): string | null => creatable(raw, ".md")
+ *  must not differ in what a path may smuggle, and both extensions come from
+ *  the format for the same reason: a mint that admits a name `fileKind` will
+ *  not claim writes a file nothing reads back. */
+export const documentPath = (raw: string): string | null => creatable(raw, DOCUMENT_EXT)
 
 const creatable = (raw: string, extension: string): string | null => {
   if (raw === "" || raw.startsWith("/") || raw.includes("\\") || raw.includes("\0")) {

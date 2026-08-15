@@ -72,6 +72,7 @@ export {
 export {
   ARCHIVE,
   archiveBeside,
+  DOCUMENT_EXT,
   INBOX,
   inboxIn,
   isArchived,

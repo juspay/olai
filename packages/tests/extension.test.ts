@@ -20,6 +20,18 @@
  * a sweep there would be the floor reading the client, which is the layering
  * `ops`' own manifest refuses in the other direction.
  *
+ * It is a file of its own rather than a sweep inside
+ * `web/src/client/claims.test.ts` — the house's canonical shape for this, and
+ * where the expectation style below is borrowed from — for the same reason:
+ * that file is built around `CLIENT = import.meta.dirname` and every claim in
+ * it is one file's monopoly inside one client. This claim is the tree's.
+ *
+ * It also does NOT strip comments the way that file does, and the difference is
+ * the point rather than an omission: there, the claims are about CODE and prose
+ * is free to discuss the spelling it hunts. Here the prose is exactly what goes
+ * stale — a docstring still explaining `.jsonl` is a sentence the next reader
+ * believes, and it is the most common thing a rename leaves behind.
+ *
  * **The DOT is the whole pattern.** `JSONL` names the CONTENT format, and the
  * content did not change: one JSON object per line, byte for byte what it was.
  * `format/src/write.ts` explaining that a record is one line "because the format

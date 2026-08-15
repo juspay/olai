@@ -205,8 +205,20 @@ export const targetsOf = (
  *  retyped. */
 export const OUTLINE_EXT = ".olai"
 
+/** The other kind's, on the same terms and for the same failure. It is not
+ *  moving and nothing is arguing about it — but `create_document` mints a path
+ *  and {@link fileKind} decides whether the walk will ever claim one, and those
+ *  two disagreeing is a file written where nobody can read it back. That is the
+ *  outline suffix's own argument, and there is no version of it that is true
+ *  above and false here.
+ *
+ *  It is deliberately NOT the same thing as `@olai/surface`'s
+ *  `DOCUMENT_EXTENSIONS`, which answers a different question — what may be
+ *  handed to an agent as a path — and answers it with five entries. */
+export const DOCUMENT_EXT = ".md"
+
 /** What a served file is, by its name. An outline is an {@link OUTLINE_EXT}, a
- *  document is a `.md`, and anything else is not part of the set.
+ *  document is a {@link DOCUMENT_EXT}, and anything else is not part of the set.
  *
  *  It lives HERE rather than in whatever happens to read a directory, because
  *  it is a statement about the format: the error that says "no such `.md` file
@@ -216,7 +228,11 @@ export const OUTLINE_EXT = ".olai"
 export type FileKind = "outline" | "document"
 
 export const fileKind = (path: string): FileKind | null =>
-  path.endsWith(OUTLINE_EXT) ? "outline" : path.endsWith(".md") ? "document" : null
+  path.endsWith(OUTLINE_EXT)
+    ? "outline"
+    : path.endsWith(DOCUMENT_EXT)
+    ? "document"
+    : null
 
 /** Where work that is over is put away: one `Archive.olai` per directory,
  *  beside the outline it left. The same rule as the racket reference, so a
