@@ -174,12 +174,18 @@ describe("questions", () => {
   })
 })
 
+// The rule every test here is about: THE MARK AND THE PROMPT MOVE TOGETHER.
+// A row drawn as `unsent` with no prompt behind it offers a retry that
+// refuses, and a prompt with no marked row is a message nobody can see. They
+// live in one place so that neither is constructible, which is what these
+// assert — always both, at every door.
+
 describe("a message the agent would not take", () => {
   test("the mark goes on the row that was already drawn, and the words stay", () => {
     const transcript = new Transcript()
     const row = transcript.user("done order", { context: [] })
 
-    const marked = transcript.unsent(row.key, true)
+    const marked = transcript.unsent(row.key, "done order\nAbout: `order`")
     // THE SAME ROW, not a second one and not a notice underneath: what a
     // person typed stays where they typed it, and the failure is a property
     // of that message rather than an event beside it.
@@ -190,28 +196,50 @@ describe("a message the agent would not take", () => {
       text: "done order",
       unsent: true,
     })
+    // The PROMPT, not the row's text: what the agent refused had a node line
+    // under it, and a retry rebuilt from what the panel shows would send
+    // something else.
+    expect(transcript.undelivered(row.key)).toBe("done order\nAbout: `order`")
   })
 
-  test("a retry that lands takes the mark back off", () => {
+  test("a retry that lands takes the mark off and lets the prompt go", () => {
     const transcript = new Transcript()
     const row = transcript.user("done order")
-    transcript.unsent(row.key, true)
+    transcript.unsent(row.key, "done order")
 
-    transcript.unsent(row.key, false)
+    transcript.sent(row.key)
     // ABSENT rather than `false`: an ordinary message says nothing about this,
     // and a row left carrying the key would go on being drawn as one that had
     // failed once.
     expect(rows(transcript)[0]?.unsent).toBeUndefined()
     expect(rows(transcript)[0]?.text).toBe("done order")
+    // ... and nothing is left to retry it with, so a second click is refused
+    // rather than sending the message twice.
+    expect(transcript.undelivered(row.key)).toBeNull()
   })
 
-  test("marking a row a replaced session took away mints nothing", () => {
+  test("marking a row a replaced session took away keeps neither half", () => {
     const transcript = new Transcript()
     const row = transcript.user("done order")
     transcript.clear()
 
-    expect(transcript.unsent(row.key, true)).toEqual({ upserts: [], removes: [] })
+    expect(transcript.unsent(row.key, "done order")).toEqual({ upserts: [], removes: [] })
     expect(rows(transcript)).toEqual([])
+    // The prompt is not kept for a row that is not there: it would be a retry
+    // nothing on screen could ask for, landing in a conversation that never
+    // saw the message.
+    expect(transcript.undelivered(row.key)).toBeNull()
+  })
+
+  test("clearing takes the prompts with the rows", () => {
+    const transcript = new Transcript()
+    const row = transcript.user("done order")
+    transcript.unsent(row.key, "done order")
+
+    transcript.clear()
+    // The one place a conversation ends empties BOTH halves, so no caller has
+    // to remember the second — which is the whole reason they live together.
+    expect(transcript.undelivered(row.key)).toBeNull()
   })
 })
 

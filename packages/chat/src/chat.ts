@@ -234,21 +234,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** The turn in flight, so a second `send` knows to STEER rather than start
      *  one and a cancel has something to aim at. See {@link Turn}. */
     let turn: Turn | null = null
-    /**
-     * The prompts behind the rows marked `unsent`, by row key.
-     *
-     * NOT a queue, and the difference is the whole point: nothing here is
-     * waiting for anything, nothing drains it, and nothing but a person's click
-     * ({@link Chat.resend}) takes anything out. It exists because the ROW is
-     * the copy a person can see and the row is not the prompt — the pictures
-     * are names on it and paths in the prompt, the nodes are chips on it and
-     * lines in the prompt — so retrying from the row alone would send a
-     * different message than the one that failed.
-     *
-     * Emptied with the transcript ({@link clearRows}): a message is retryable
-     * for exactly as long as the conversation it was typed into is on screen.
-     */
-    const held = new Map<string, string>()
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
@@ -265,14 +250,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       options.onState(state)
     }
 
-    /** Empty the rows — and the undelivered messages that were retryable from
-     *  them. An `unsent` row is only offerable while it is on screen, and a
-     *  retry that outlived its row would land in a conversation that never saw
-     *  the question. */
-    const clearRows = (): Change => {
-      held.clear()
-      return transcript.clear()
-    }
 
     /**
      * How many questions are still waiting on a person, COUNTED off the rows
@@ -369,7 +346,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // its own sake. A LOAD clears too, in the replay that follows. Only a
           // DEAD agent leaves the rows where they are — nobody asked for that,
           // and the `gone` notice explains them.
-          if (event.why === "new") publish(clearRows())
+          if (event.why === "new") publish(transcript.clear())
           // The missing servers go with the session they were missing FROM.
           // The next one is probed fresh and says so before it opens; leaving
           // the last one's answer up in between would be the panel reporting a
@@ -389,7 +366,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           })
           return
         case "replayStarted":
-          publish(clearRows())
+          publish(transcript.clear())
           // Emptying the rows is one of the three things that can change how
           // many questions are open, so it is one of the three that recounts.
           // Every clear is preceded by the agent withdrawing what was waiting,
@@ -501,7 +478,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       Effect.gen(function*() {
         if (turn === null) return yield* begin(prompt)
         const steered = yield* Effect.result(agent.steer(prompt))
-        if (steered._tag === "Failure") return unsent(key, prompt, steered.failure.message)
+        if (steered._tag === "Failure") return undeliverable(key, prompt, steered.failure.message)
         switch (steered.success) {
           case "taken":
             // Delivered, and into the turn a person could see running — so a
@@ -510,18 +487,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             move({ trouble: null })
             return
           case "unsupported":
-            return unsent(key, prompt, CANNOT_STEER)
+            return undeliverable(key, prompt, CANNOT_STEER)
           case "idle":
             return yield* begin(prompt)
         }
       })
 
-    /** The agent would not take it: mark the row, keep the prompt behind it,
-     *  and say why. Nothing is dropped and nothing is retried — {@link Chat.resend}
-     *  is a person's click and is the only thing that moves this. */
-    const unsent = (key: string, prompt: string, why: string): void => {
-      held.set(key, prompt)
-      publish(transcript.unsent(key, true))
+    /** The agent would not take it: the row says so and keeps the prompt
+     *  ({@link ./transcript.ts}), and the banner says why. Nothing is dropped
+     *  and nothing is retried — {@link Chat.resend} is a person's click and is
+     *  the only thing that moves this. */
+    const undeliverable = (key: string, prompt: string, why: string): void => {
+      publish(transcript.unsent(key, prompt))
       move({ trouble: why })
     }
 
@@ -665,21 +642,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const resend = (id: string): Effect.Effect<void, OpFailure> =>
       Effect.gen(function*() {
-        const prompt = held.get(id)
-        if (prompt === undefined) {
+        const prompt = transcript.undelivered(id)
+        if (prompt === null) {
           return yield* new UsageFailure({
             reason: "that message is not waiting to be sent — it went, or its conversation did",
           })
         }
-        // Dropped BEFORE the attempt, so a second click while this one is in
-        // flight is refused rather than sending the message twice. A failed
-        // attempt puts it straight back (`unsent`, through `deliver`).
-        held.delete(id)
+        // Unmarked BEFORE the attempt, so a second click while this one is in
+        // flight is refused rather than sending the message twice — and so a
+        // retry that fails again is `deliver` marking it, on the one path that
+        // marks anything, rather than this deciding not to unmark it.
+        publish(transcript.sent(id))
         yield* deliver(id, prompt)
-        // Delivered exactly when nothing put it back. `deliver` is the only
-        // writer of either fact, so asking it this way is asking the thing
-        // that knows rather than repeating its decision here.
-        if (!held.has(id)) publish(transcript.unsent(id, false))
       })
 
     /** Move to another conversation. The `done` frame of a cancelled turn

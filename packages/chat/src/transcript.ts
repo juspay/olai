@@ -60,6 +60,22 @@ export class Transcript {
    *  becoming a row: what a reader wants is one paragraph growing, not forty. */
   #open: string | null = null
   #minted = 0
+  /**
+   * What it would take to send an `unsent` row again, by that row's key.
+   *
+   * HERE, beside the rows, rather than in the caller that knows about agents —
+   * because it is half of one fact and the other half is a field on the entry.
+   * A row marked `unsent` with no prompt behind it draws a button that refuses;
+   * a prompt with no row is a message nobody can see. Kept together, neither is
+   * constructible: {@link unsent} writes both, {@link sent} drops both, and
+   * {@link clear} — the one place a conversation ends — takes both with it
+   * instead of a caller having to remember the second.
+   *
+   * The prompt is OPAQUE to this file: it is the agent's own string, with tmp
+   * paths in it, and nothing here reads it or publishes it. The transcript
+   * stores it and hands it back.
+   */
+  #undelivered = new Map<string, string>()
 
   entries(): ReadonlyMap<string, ChatEntry> {
     return this.#entries
@@ -71,6 +87,7 @@ export class Transcript {
   clear(): Change {
     const removes = [...this.#entries.keys()]
     this.#entries.clear()
+    this.#undelivered.clear()
     this.#open = null
     this.#seq = 0
     return { upserts: [], removes }
@@ -106,19 +123,44 @@ export class Transcript {
   }
 
   /**
-   * That message never reached the agent — or, with `false`, it has now.
+   * That message never reached the agent, and here is what it would take to
+   * send it again.
    *
    * The row does not move and nothing is minted: what a person typed stays
    * exactly where they typed it, in the conversation, with a mark saying it is
-   * still theirs to send. Clearing it is the same row again, because a retry
-   * that landed must not leave a message advertising a failure that has
-   * stopped being true.
+   * still theirs to send.
    *
    * A row that is not there any more — the session was replaced under it —
    * changes nothing rather than minting one, which is {@link settleAsk}'s rule
-   * and for its reason.
+   * and for its reason. The prompt is not kept either: there is no row for it
+   * to belong to.
    */
-  unsent(key: string, undelivered: boolean): Change {
+  unsent(key: string, prompt: string): Change {
+    const marked = this.#mark(key, true)
+    if (marked !== EMPTY) this.#undelivered.set(key, prompt)
+    return marked
+  }
+
+  /** ... and it has now. The mark comes off and the prompt is let go: a row
+   *  must not go on advertising a failure that has stopped being true, and a
+   *  prompt kept past its row's mark is a retry nothing can ask for. */
+  sent(key: string): Change {
+    this.#undelivered.delete(key)
+    return this.#mark(key, false)
+  }
+
+  /** What it would take to send that row again, or `null` when it is not one
+   *  that failed. The prompt the agent refused, verbatim — never rebuilt from
+   *  the row, which carries its pictures by name where the prompt carries
+   *  their paths. */
+  undelivered(key: string): string | null {
+    return this.#undelivered.get(key) ?? null
+  }
+
+  /** The `unsent` field, on or off, without minting a row for a key that has
+   *  gone. Private because the field never moves without the prompt beside it
+   *  — which is the whole reason both live here. */
+  #mark(key: string, undelivered: boolean): Change {
     const current = this.#entries.get(key)
     if (current === undefined) return EMPTY
     const { id: _id, seq: _seq, streaming: _streaming, unsent: _unsent, ...content } =
