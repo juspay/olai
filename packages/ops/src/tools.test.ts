@@ -28,6 +28,13 @@
  * The set is deliberately MAXIMAL, and the last test is why: an optional field
  * nothing produces is a field this file cannot say anything about, so what the
  * fixture actually reaches is asserted rather than assumed.
+ *
+ * WHEN THIS FAILS, read the whole list. `errors: "all"` reports every key that
+ * did not match, in the order the decoder walked them rather than the order the
+ * declaration is written in — so a field dropped from the floor shows up
+ * SOMEWHERE in the report and not necessarily first, usually with the whole
+ * arm's other keys beside it (a union arm that fails one key fails all of them).
+ * The name you are looking for is in there; it is not the first line.
  */
 
 import {

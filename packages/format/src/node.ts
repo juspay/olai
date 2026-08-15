@@ -78,6 +78,12 @@ export type Status = typeof Status.Type
  * missing key HERE, named by the compiler, at the one place the format
  * declares what a record holds — rather than a mark that is writable,
  * plannable and derivable everywhere and readable back nowhere.
+ *
+ * EXPORTED, and not through `./index.ts`: `./reading.ts` is one module over and
+ * needs it, and the package's rule is that a spelling a rule happens to use is
+ * not contract. A consumer outside this package that wanted these three would
+ * be re-deriving what a record holds; what it should reach for is `Detail`,
+ * which already carries them.
  */
 export const STAMPED = {
   done: Schema.optionalKey(Marker),
