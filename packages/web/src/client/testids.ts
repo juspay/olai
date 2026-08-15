@@ -729,7 +729,10 @@ export const TESTID = {
    *  `chatSaid`: they are two different things on the page, and a scenario
    *  that asks "did I say this" should not have to filter the agent's prose. */
   chatMine: "chat-mine",
-  /** One row. `data-kind` is which of the six it is. */
+  /** One row. `data-kind` is which of the six it is, and `data-entry-id` is
+   *  its transcript key — which is what a lane names when it says which agent
+   *  a call was made inside (`chatLane`), so it is a handle scenarios reach
+   *  for rather than an internal. */
   chatEntry: "chat-entry",
   /** A question the agent asked, as a form. `data-asking` is whether it is
    *  still waiting, `data-how` how it ended once it is not. */
@@ -759,8 +762,10 @@ export const TESTID = {
   /** Where it is working: the follow-along file locations, on the line. */
   chatToolLocations: "chat-tool-locations",
   /** A row a SUBAGENT is responsible for, in the lane it is drawn in.
-   *  `data-lane` is the transcript key of the `Agent` frame it belongs to, so
-   *  a scenario can assert the attribution rather than the indent. */
+   *  `data-lane` is the transcript key of the `Agent` frame it belongs to —
+   *  the same key the row itself carries as `data-entry-id` — so a scenario
+   *  can assert WHICH agent, and find that agent's own frame to measure the
+   *  indent against. */
   chatLane: "chat-lane",
   /** The lane naming itself — drawn once where a stretch of one agent's work
    *  opens, never on every call it makes. */

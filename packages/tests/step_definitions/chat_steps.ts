@@ -1062,8 +1062,15 @@ Then("the tool call's detail is folded away", async function (this: OlaiWorld) {
 
 /** The lane a subagent's row is drawn in, and the `Agent` frame it names. The
  *  attribution is the `data-lane`, not the indent: an indent is a thing a
- *  panel could get right by accident, and this is a claim about WHICH agent. */
+ *  panel could get right by accident, and this is a claim about WHICH agent.
+ *  The indent is asserted too, as GEOMETRY, one step down — both halves,
+ *  because either alone passes a build that lost the other. */
 const firstLane = (world: OlaiWorld) => world.page.locator(CHAT_LANE).first();
+
+/** One row of the conversation, as a selector. Spelled once, the way a node
+ *  and a day already are (`world.ts`): three literals of one scheme in one
+ *  file is two of them being missed the day the scheme moves. */
+const entrySelector = (id: string): string => `${CHAT_ENTRY}[data-entry-id="${id}"]`;
 
 Then(
   "the chat draws a subagent's tool call under the call that spawned it",
@@ -1075,26 +1082,34 @@ Then(
       parent !== null && parent !== "",
       "a lane that names no agent is an indent, not an attribution",
     );
-    // The frame it names has to BE there and has to be ABOVE it. A lane
-    // pointing at a row the panel never drew would look right and say nothing,
-    // and one drawn above its own parent would say something false about the
-    // order the turn happened in.
-    const spawner = this.page.locator(`[data-entry-id="${parent}"]`);
+    // The frame it names has to BE there, and the subagent's row has to be
+    // drawn UNDER it and INSET from it. A lane pointing at a row the panel
+    // never drew would look right and say nothing; one level with its parent
+    // would say something false about who did the work.
+    //
+    // Measured rather than read off a class, for the reason the bubble on your
+    // own message is measured: a class is a styling decision a refactor may
+    // change, and where a thing SITS is the claim. It is also the half of this
+    // feature a `data-` attribute cannot make — strip the rail and the indent
+    // from the panel and every other assertion here still passes.
+    const spawner = this.page.locator(entrySelector(parent ?? ""));
     await spawner.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const above = await this.page.evaluate(
-      ([parentId, laneId]: ReadonlyArray<string>) => {
-        const frame = document.querySelector(`[data-entry-id="${parentId}"]`);
-        const lane = document.querySelector(`[data-testid="${laneId}"]`);
-        if (frame === null || lane === null) return false;
-        // DOCUMENT_POSITION_FOLLOWING: the lane comes after the frame.
-        return (frame.compareDocumentPosition(lane) & 4) !== 0;
-      },
-      [parent, TESTID.chatLane],
+    const above = await spawner.boundingBox();
+    const mine = await lane.locator(CHAT_ENTRY).first().boundingBox();
+    assert.ok(
+      above !== null && mine !== null,
+      "neither the subagent's row nor the call that spawned it was drawn",
     );
     assert.ok(
-      above,
-      `the lane naming "${parent}" is not drawn under that frame; a subagent's ` +
-        "work belongs beneath the call that spawned it",
+      mine.y > above.y,
+      `the subagent's work is drawn above the call that spawned it (${mine.y} ` +
+        `is not below ${above.y})`,
+    );
+    assert.ok(
+      mine.x > above.x,
+      `the subagent's row starts at ${mine.x}, level with the call that ` +
+        `spawned it at ${above.x} — a lane is an INDENT, and a reader who ` +
+        "cannot see one is being told a subagent's work was the main agent's",
     );
   },
 );
@@ -1107,7 +1122,7 @@ Then(
     // conversation's own column with the lane hanging off it.
     const parent = await firstLane(this).getAttribute("data-lane");
     const nested = await this.page
-      .locator(`${CHAT_LANE} [data-entry-id="${parent}"]`)
+      .locator(`${CHAT_LANE} ${entrySelector(parent ?? "")}`)
       .count();
     assert.strictEqual(
       nested,
@@ -1143,10 +1158,10 @@ Then(
       "a lane names itself where it opens and nowhere else — the rail says the " +
         "rest",
     );
-    assert.match(
-      oneLine(await labels.first().innerText()),
-      new RegExp(named.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
-      `the lane does not name "${named}"`,
+    const said = oneLine(await labels.first().innerText());
+    assert.ok(
+      said.includes(named),
+      `the lane says "${said}" rather than naming "${named}"`,
     );
   },
 );

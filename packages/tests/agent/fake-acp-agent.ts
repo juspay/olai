@@ -398,6 +398,18 @@ const callMcp = async (
   return body.result ?? {}
 }
 
+/** A call that finished, carrying nothing but the fact — the shape the real
+ *  adapter has for a completion whose result the announcement already said
+ *  everything about. Shared by the turns that announce their own frames rather
+ *  than going through {@link useTool}, which has a result to report and sends
+ *  its own. */
+const completed = (toolCallId: string): void => {
+  notify("session/update", {
+    sessionId,
+    update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
+  })
+}
+
 /** Announce a tool call, run it, and report how it went — the shape a real
  *  agent's `tool_call` / `tool_call_update` pair has. */
 const useTool = async (
@@ -991,7 +1003,16 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // pass. Two running at once is what people spawn agents FOR, and it is the
   // shape where a lane has to say whose it is.
   if (verb === "subagent") {
-    const spawn = (toolCallId: string, title: string): void => {
+    /** One announcement. The frame is the SAME either way — that is the whole
+     *  point of the scenario — so it is written once and the only thing the
+     *  two callers differ by is the `_meta` a panel has to read to tell them
+     *  apart. Spelled as two frames, the reader would have to diff them to
+     *  find that. */
+    const announce = (
+      toolCallId: string,
+      title: string,
+      claudeCode: Record<string, string>,
+    ): void => {
       notify("session/update", {
         sessionId,
         update: {
@@ -1000,34 +1021,16 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
           title,
           status: "in_progress",
           rawInput: { description: title },
-          _meta: { claudeCode: { toolName: "Agent" } },
+          _meta: { claudeCode },
         },
       })
     }
-    /** One call made INSIDE a spawned agent — the same frame the main agent's
-     *  own calls arrive as, plus the one field that says whose it is. */
-    const inside = (toolCallId: string, title: string, parent: string): void => {
-      notify("session/update", {
-        sessionId,
-        update: {
-          sessionUpdate: "tool_call",
-          toolCallId,
-          title,
-          status: "in_progress",
-          rawInput: { pattern: title },
-          _meta: { claudeCode: { toolName: "Grep", parentToolUseId: parent } },
-        },
-      })
-    }
-    const done = (toolCallId: string): void => {
-      // Status ONLY, with no `_meta` at all — the shape the adapter has for a
-      // completion, and the one that catches a row which read the silence as
-      // "no agent now" and stepped out of its lane the moment it finished.
-      notify("session/update", {
-        sessionId,
-        update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
-      })
-    }
+    const spawn = (id: string, title: string): void =>
+      announce(id, title, { toolName: "Agent" })
+    /** One call made INSIDE a spawned agent — the main agent's own frame, plus
+     *  the one field that says whose it is. */
+    const inside = (id: string, title: string, parent: string): void =>
+      announce(id, title, { toolName: "Grep", parentToolUseId: parent })
     // MINTED, not spelled: a call id is unique to the call, and a transcript
     // is keyed by it — so a turn that reused last turn's ids would update last
     // turn's rows in place and draw nothing at all the second time it was
@@ -1035,19 +1038,20 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // agent can hide.
     const first = `agent-${++nextMcpId}`
     const second = `agent-${++nextMcpId}`
-    const calls = [
-      `sub-${++nextMcpId}`,
-      `sub-${++nextMcpId}`,
-      `sub-${++nextMcpId}`,
-    ] as const
+    const cabinets = `sub-${++nextMcpId}`
+    const note = `sub-${++nextMcpId}`
+    const worktops = `sub-${++nextMcpId}`
     spawn(first, "explore the outline")
-    inside(calls[0], "grep for cabinets", first)
+    inside(cabinets, "grep for cabinets", first)
     spawn(second, "review the notes")
-    inside(calls[1], "read the note", second)
+    inside(note, "read the note", second)
     // ... and back to the FIRST agent, under a row belonging to the second.
     // The one place a rail on its own cannot answer "whose is this".
-    inside(calls[2], "grep for worktops", first)
-    for (const call of [...calls, first, second]) done(call)
+    inside(worktops, "grep for worktops", first)
+    // Status ONLY, with no `_meta` at all — the shape the adapter has for a
+    // completion, and the one that catches a row which read the silence as
+    // "no agent now" and stepped out of its lane the moment it finished.
+    for (const call of [cabinets, note, worktops, first, second]) completed(call)
     say("both agents reported back.")
     respond(id, { stopReason: "end_turn" })
     return
