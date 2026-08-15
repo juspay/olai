@@ -126,6 +126,27 @@ export const Wrote = Schema.Struct({
 export type Wrote = typeof Wrote.Type
 
 /**
+ * Where a RENAMED row came from — repo-root-relative, and `null` on every row
+ * that did not move.
+ *
+ * A rename is ONE thing that happened, so it is one row with two names on it
+ * rather than an arrival beside a departure with nothing joining them. Both
+ * kinds of row carry it, and for the reason they both spell their own name
+ * `path`: a consumer reading either list writes `one.from` without having to
+ * remember which list it is holding.
+ *
+ * It is what turns `Reading.md deleted` — a person's own vault, the morning
+ * after the outline extension changed, with the file that actually holds their
+ * notes nowhere on screen — into `Reading.md → Kept.olai`.
+ *
+ * Repo-root-relative on BOTH rows, like `path`, because that is the one name a
+ * file has that cannot collide across a repository. A list that draws SERVED
+ * names shortens it for the reader, which is a rendering question and belongs
+ * where the drawing is.
+ */
+const From = Schema.NullOr(Schema.String)
+
+/**
  * One dirty OUTLINE, as a file rather than as the nodes in it.
  *
  * The node-level `changes` are what a reader mostly wants, and this is the row
@@ -144,6 +165,7 @@ export const DirtyOutline = Schema.Struct({
   file: Schema.String,
   path: Schema.String,
   how: How,
+  from: From,
 })
 export type DirtyOutline = typeof DirtyOutline.Type
 
@@ -172,6 +194,7 @@ export type DirtyOutline = typeof DirtyOutline.Type
 export const Other = Schema.Struct({
   path: Schema.String,
   how: How,
+  from: From,
 })
 export type Other = typeof Other.Type
 

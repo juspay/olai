@@ -17,6 +17,7 @@
 import type { Other } from "@olai/format"
 import { For } from "solid-js"
 
+import { Moved } from "./Moved.tsx"
 import { HOW, HOW_TONE } from "./said.ts"
 import type { Selection } from "./selection.ts"
 import { TESTID } from "../testids.ts"
@@ -37,6 +38,7 @@ export function Others(props: {
             data-testid={TESTID.commitOther}
             data-path={other.path}
             data-how={other.how}
+            data-from={other.from ?? undefined}
           >
             <Tick
               path={other.path}
@@ -44,6 +46,7 @@ export function Others(props: {
               toggle={() => props.selection.toggle(other.path)}
               label={`commit ${other.path}`}
             />
+            <Moved from={other.from} />
             <span class="min-w-0 truncate font-mono text-xs">{other.path}</span>
             <span class={`ml-auto shrink-0 text-xs ${HOW_TONE[other.how]}`}>
               {HOW[other.how]}

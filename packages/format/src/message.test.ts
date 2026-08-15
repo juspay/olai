@@ -71,7 +71,11 @@ describe("a composed message", () => {
  * than that. The subject counts them and the body names them.
  */
 describe("a message that also carries other files", () => {
-  const other = (path: string, how: Other["how"] = "modified"): Other => ({ path, how })
+  const other = (
+    path: string,
+    how: Other["how"] = "modified",
+    from: string | null = null,
+  ): Other => ({ path, how, from })
 
   test("the subject counts them beside the biggest node change", () => {
     const message = composed(
@@ -86,6 +90,24 @@ describe("a message that also carries other files", () => {
     // exactly what the panel got.
     expect(message).toContain("modified: README.md")
     expect(message).toContain("untracked: notes/todo.md")
+  })
+
+  /**
+   * A RENAME names both halves, which is the one row where the status word on
+   * its own refuses to say the interesting part.
+   *
+   * `renamed: Kept.olai` is a line a person reads a year later and cannot act
+   * on: renamed from WHAT. The body is the permanent record of what a commit
+   * did, and `deleted: Reading.md` — which is what this said before both halves
+   * travelled together — was the log agreeing with the wrong half of the panel.
+   */
+  test("a renamed file names the side it came from", () => {
+    const message = composed([], [other("Kept.olai", "renamed", "Reading.md")])
+    expect(message).toContain("renamed: Reading.md → Kept.olai")
+    expect(message).not.toContain("deleted: Reading.md")
+    // The subject still names the file as it is NOW: what the commit recorded
+    // is a file at that path, and the arrow belongs to the line that has room.
+    expect(message.split("\n")[0]).toBe("olai: 1 file — Kept.olai")
   })
 
   test("one other file is singular", () => {

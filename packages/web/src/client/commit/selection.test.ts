@@ -26,7 +26,9 @@ import { createSelection } from "./selection.ts"
 const WAITING: Pending = {
   ...NOTHING_PENDING,
   repo: { _tag: "Ready", branch: "main" },
-  outlines: [{ file: "roadmap.olai", path: "docs/roadmap.olai", how: "modified" }],
+  outlines: [
+    { file: "roadmap.olai", path: "docs/roadmap.olai", how: "modified", from: null },
+  ],
   changes: [{
     file: "roadmap.olai",
     id: "kolu",
@@ -35,8 +37,8 @@ const WAITING: Pending = {
     sort: "done",
   }],
   others: [
-    { path: "README.md", how: "modified" },
-    { path: "notes/todo.md", how: "untracked" },
+    { path: "README.md", how: "modified", from: null },
+    { path: "notes/todo.md", how: "untracked", from: null },
   ],
   served: "docs/",
 }
@@ -113,7 +115,7 @@ test("a file that arrives while the panel is open is ticked", () => {
     selection.toggle("README.md")
     set({
       ...WAITING,
-      others: [...WAITING.others, { path: "later.md", how: "untracked" }],
+      others: [...WAITING.others, { path: "later.md", how: "untracked", from: null }],
     })
 
     expect(selection.ticked("later.md")).toBe(true)

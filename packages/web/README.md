@@ -1414,6 +1414,15 @@ are staged — `renamed` appears once they are. Saying "renamed" over git's own
 two rows would be the panel guessing at an intention, and what a person is about
 to commit is what git thinks is there.
 
+Once git DOES say `renamed`, it is one row with both names on it (`Moved.tsx`,
+drawing `pending`'s `from`) and one tick. Two rows there was the other half of
+the same mistake read backwards: a person who had staged a rename saw the old
+name marked `deleted` and the new file nowhere, and ticking the arrival alone
+would have committed half a rename. The old name is drawn in this list's own
+spelling when it is inside the served root — `localOf` in `Outlines.tsx`, since
+the wire carries the repo-relative name and `docs/a.olai → b.olai` on one line
+is two spellings of one directory.
+
 Every row carries a TICK (`Tick.tsx`, `selection.ts`) and all of them start
 ticked, so the ordinary sweep is one click. What is stored is the EXCEPTION —
 the paths somebody unticked — so a file that arrives while the panel is open
