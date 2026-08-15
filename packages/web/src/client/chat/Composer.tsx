@@ -233,7 +233,12 @@ export function Composer(props: {
   return (
     <div class="relative shrink-0 p-2">
       <Show when={open()}>
-        <SlashMenu commands={matches()} onAccept={accept} onDismiss={dismiss} />
+        <SlashMenu
+          commands={matches()}
+          within={() => input}
+          onAccept={accept}
+          onDismiss={dismiss}
+        />
       </Show>
 
       {/* Above the box, where what is being typed is: what this message is

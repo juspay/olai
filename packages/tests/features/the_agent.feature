@@ -168,6 +168,26 @@ Feature: Talking to the agent
     When I accept the completion
     Then the chat input reads "/review "
 
+  @scratch:chat
+  Scenario: ...and it answers only the keys aimed at the box
+    # The list listens on the DOCUMENT, in the capture phase — it has to, so
+    # the composer's own Enter cannot send the message somebody was only
+    # completing — and that reach was the trouble: it saw every keystroke on
+    # the page. With a list up, Enter on the preferences trigger was answered
+    # by the COMPLETION: the key was taken and stopped, the box filled itself
+    # in, and the panel a person asked for never opened.
+    #
+    # Being the topmost layer is not the answer to that (`client/topmost.ts`
+    # holds the order, and the list is genuinely on it). A list is the panel
+    # for the keys aimed at the box it completes, which is what `client/keys.ts`
+    # means by its LIST layer — so that is what it now asks first.
+    When I type "/re" into the chat
+    Then the completion offers "review"
+    When I focus the preferences trigger
+    And I press Enter
+    Then the preferences are open
+    And the chat input reads "/re"
+
   @agent-stored @scratch:chat
   Scenario: A first boot has nothing to remember, so it takes the newest
     # `session/list` for this directory answers with two, and nothing has ever

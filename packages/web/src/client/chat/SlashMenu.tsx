@@ -22,6 +22,22 @@ import { TESTID } from "../testids.ts"
 
 export function SlashMenu(props: {
   readonly commands: ReadonlyArray<Command>
+  /**
+   * The BOX this list is completing, which is what makes it caret-scoped.
+   *
+   * The listener below is capture-phase on the document — it has to be, so the
+   * composer's own Enter cannot send the message the reader was only
+   * completing — and that reach is the whole trouble: it saw every keystroke on
+   * the page, not only the ones aimed at the box. With a list up, pressing
+   * Enter on the preferences trigger was answered HERE: `listKey` read it as
+   * `take`, the completion was accepted, the key was stopped, and the panel the
+   * reader asked for never opened (reported by review, reproducible on `master`
+   * too). Being topmost does not answer that — a list is not the panel a
+   * keystroke is for merely by being the last thing opened; it is the panel for
+   * the keys aimed at the box it belongs to, which is what `../keys.ts` means
+   * by its LIST layer.
+   */
+  readonly within: () => HTMLElement | undefined
   readonly onAccept: (name: string) => void
   readonly onDismiss: () => void
 }) {
@@ -75,6 +91,11 @@ export function SlashMenu(props: {
   // means nothing to the other lists, so it stays a case of this handler rather
   // than an arm of the shared matcher.
   const onKey = (event: KeyboardEvent) => {
+    // Aimed at the box this list completes, or it is not this list's (see
+    // `within`). First, because it is the older and stronger of the two
+    // questions: a key somewhere else is not this menu's however topmost the
+    // menu is.
+    if (event.target !== props.within()) return
     // Not while something is over it: a key belongs to the panel that was
     // opened last, and this handler is the one place on the page that could
     // take it before that panel is even asked.
