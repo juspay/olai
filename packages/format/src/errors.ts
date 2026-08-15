@@ -10,9 +10,19 @@
  * what each code means, and the phase that catches it are three facts about
  * the same thing, and a code declared in one place and classified in another
  * is a pair that can — and did — drift apart.
+ *
+ * The `file:line` half of that promise is BORROWED, not declared: `./node.ts`'s
+ * {@link Site}, the same value a record in the set, a read's answer and a
+ * mirror's location each carry. An error is one thing that is AT a place, and
+ * this module used to be where the place itself was written down — which made
+ * the other three carriers three more spellings of it. Same borrowing
+ * `./reading.ts` does from here for a record's mark fields: the shape travels,
+ * so it is declared once at its source.
  */
 
 import { Order, Schema } from "effect"
+
+import { Site } from "./node.ts"
 
 /**
  * Which half of the codec rejects it.
@@ -137,16 +147,6 @@ export const reportStage = (
   errors: ReadonlyArray<{ readonly code: ErrorCode }>,
 ): Stage => errors.some((error) => stageOf(error.code) === "line") ? "line" : "set"
 
-/** A place in the loaded set. `file` is relative to the served directory, so
- *  it reads the same in the browser, in a test assertion and in a report from
- *  another machine. `line` is 1-based — one node per line, so the line is the
- *  whole story. */
-export const Site = Schema.Struct({
-  file: Schema.String,
-  line: Schema.Int,
-})
-export type Site = typeof Site.Type
-
 /** A second place the error is about, with a word on why it is implicated:
  *  the other record that claimed the id, the rest of the cycle, the file the
  *  parent lives in. This is the "structured detail, not prose" rule — the error
@@ -177,8 +177,12 @@ export const isCrossFile = (error: OutlineError): boolean =>
  *  DIRECTORY), and the rule lives here rather than in whichever renderer
  *  noticed first, which is the same argument {@link errorLine} makes: the
  *  browser's rows and an agent's one-liner must not disagree about whether
- *  `plan.olai:0` is a line number somebody could go and look for. */
-export const hasLine = (error: Pick<OutlineError, "line">): boolean => error.line > 0
+ *  `plan.olai:0` is a line number somebody could go and look for.
+ *
+ *  Asked of a {@link Site} rather than of an error: the `line` it reads is the
+ *  PLACE's field, and an error is only where the question happens to come up.
+ *  It was `Pick<OutlineError, "line">`, which said the field was the error's. */
+export const hasLine = (site: Pick<Site, "line">): boolean => site.line > 0
 
 /** One error as one line of plain text.
  *

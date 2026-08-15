@@ -6,10 +6,15 @@
  * browsers. Everything above it — the store's codec, the server, the web
  * client — reads the format through this one surface.
  *
- * Nine things are exported, and that is the whole contract:
+ * These are exported, and that is the whole contract — the list is the claim,
+ * never its length, which is what a counted header keeps getting wrong here
+ * (it has said Eight over nine bullets once already):
  *
  *   - the codec, `parseOutline` (per file) and `validate` (per set);
- *   - what they produce, `OutlineSet` and the records inside it;
+ *   - what they produce, `OutlineSet` and the records inside it — each one AT a
+ *     `Site`, `{file, line}`, which is also what an error names, what a read's
+ *     answer is situated by and where a mirror sits. One declaration, because
+ *     four of them was a fact extensible in one place and silent in three;
  *   - what a set MEANS, `derive` with `rowsOf`, `zoom`, `withoutDone`, the
  *     date derivations (`datedDays`, `datedOn`, and the daily-note pair
  *     `dailyNoteDays` / `dailyNotesOn`), the forward reading of those same
@@ -91,6 +96,10 @@ export {
   isMirror,
   Located,
   MARKS,
+  /** A place in the loaded set — `{file, line}`, as a schema, so an error's
+   *  site, a record in the set, a read's answer and a mirror's location are one
+   *  derivation of "where" rather than four spellings of it. */
+  Site,
   /** What a node's checkbox shows — one of the MARKS, as a schema, so the
    *  request that writes one, the keystroke that toggles one and the read that
    *  answers with one are one derivation of that list rather than five. */

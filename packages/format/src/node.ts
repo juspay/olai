@@ -139,12 +139,45 @@ export type Node = typeof Node.Type
  *  and none of them re-derives it from a field test. */
 export const isMirror = (node: Node): node is MirrorNode => "mirror" in node
 
+/**
+ * A place in the loaded set: which file, which line.
+ *
+ * `file` is relative to the served directory, so it reads the same in the
+ * browser, in a test assertion and in a report from another machine. `line` is
+ * 1-based, and it is the WHOLE address because of what this module is about —
+ * one node per line, so there is nothing finer to name. A `line` of 0 says
+ * there is no record to point at and the place is the path itself, which is a
+ * rule `./errors.ts` spells once as `hasLine` for the same reason this struct
+ * is spelled once here.
+ *
+ * ONE declaration, and that is the whole of what it is for. FOUR things in
+ * this package carry a place — an error's site (`./errors.ts`), a record in
+ * the set ({@link Located} below), the flattened node every read answers with
+ * and a mirror's location (`./reading.ts`'s `Found` and `Placement`) — and
+ * each of them used to spell `{file, line}` for itself. Four spellings of one
+ * fact is not four names for a type: it is a fact that can be extended in one
+ * of four places and compile clean past the other three, which is the drift
+ * this package keeps closing everywhere else (`MARKS`, `STAMPED`, `Status`).
+ * The four remain four — they are different things ABOUT a place, and folding
+ * them into each other would be a lie. The PLACE is one thing, and this is it.
+ *
+ * Here rather than in `./errors.ts`, where it lived: an error is one of the
+ * four carriers and not the atom's home, and this is the module that says what
+ * a line of an outline IS. It also imports nothing in this package, so every
+ * carrier can reach it without a cycle — which the reverse arrangement, with
+ * `./node.ts` reaching up into the error catalogue, could not promise.
+ */
+export const Site = Schema.Struct({
+  file: Schema.String,
+  line: Schema.Int,
+})
+export type Site = typeof Site.Type
+
 /** A node located in the set. The validator, the snapshot and the browser all
  *  need "which file, which line" alongside the record; carrying it beside the
  *  node rather than inside it keeps the record exactly the fields on disk. */
 export const Located = Schema.Struct({
-  file: Schema.String,
-  line: Schema.Int,
+  ...Site.fields,
   node: Node,
 })
 export type Located = typeof Located.Type
