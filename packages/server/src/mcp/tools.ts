@@ -58,12 +58,10 @@ type Door = Running & Asking & Acting
  *
  * **It takes no ops layer, and that is the change this file exists to record.**
  * A tool used to be a closure over a local `Ops`, which meant an MCP face could
- * only exist in a process holding the store — the whole reason `olai mcp` on an
- * already-served directory opened a second one. Now every arm lands on a
+ * only exist in a process holding the store. Now every arm lands on a
  * surface procedure, and the client that carries it is handed in per call by
- * the adapter: a direct dispatch in the process that holds the store, a unix
- * socket in the process that attached to one. One path, and it is the SAME path
- * — not a bridged variant kept beside a local one that could answer differently.
+ * the adapter: a direct dispatch in the process that holds the store. One
+ * path — not a second olai kept beside the first that could answer differently.
  *
  * **And it takes no writer either.** It used to: `chat-agent` for the panel's
  * agent, `mcp` for somebody's own. That is still exactly the distinction the

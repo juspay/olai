@@ -1,12 +1,12 @@
 # @olai/server — the composition root, and the binary
 
-One directory, read and served — and written, by an agent and now by a person at a keyboard. Both go through the ops layer and neither has a path to a file of its own: the browser's edits are surface procedures resolved into ops requests here (`edit.ts`), and the agent's are the ops table projected onto MCP (`mcp/tools.ts`). Plus the two entry points that start it: `olai web <dir> [--port] [--host] [--commit]`, which puts a browser in front of the ops layer, and `olai mcp <dir> [--commit]`, which puts an agent's pipes in front of the same one.
+One directory, read and served — and written, by an agent and now by a person at a keyboard. Both go through the ops layer and neither has a path to a file of its own: the browser's edits are surface procedures resolved into ops requests here (`edit.ts`), and the agent's are the ops table projected onto MCP (`mcp/tools.ts`). Plus the one entry point that starts it: `olai web <dir> [--port] [--host] [--commit]`, which puts a browser in front of the ops layer and `/mcp` in front of the same one, for any HTTP client.
 
-`--commit=off | manual | auto` says how writes reach git, `manual` by default: a write lands on disk and waits, and a Commit button or the agent's `commit` tool asks for one. `--no-commit` still means `off`, and wins when both are given. **Both subcommands take it on identical terms** — same modes, same default, same override — which is `src/commits.ts`, and it is one file rather than two flag declarations because that is exactly the divergence HACKING.md forbids: `olai mcp` once shipped without the flag at all, so an MCP-driven session could not batch and put four commits into a human's log in fifteen seconds. The one thing that differs between the faces is one clause of the help text: which doors that face actually offers. `src/commits.test.ts` holds both halves — the truth table, and that nothing BUT that clause differs.
+`--commit=off | manual | auto` says how writes reach git, `manual` by default: a write lands on disk and waits, and a Commit button or the agent's `commit` tool asks for one. `--no-commit` still means `off`, and wins when both are given. The flag is `src/commits.ts`, and it is one file rather than a declaration per face because that is exactly the divergence HACKING.md forbids: an agent-only face once shipped without the flag at all, so an MCP-driven session could not batch and put four commits into a human's log in fifteen seconds. The one thing that differs between the faces is one clause of the help text: which doors that face actually offers. `src/commits.test.ts` holds both halves — the truth table, and that nothing BUT that clause differs.
 
 That clause is not spelled here, though. `@olai/ops` owns both halves of it: `commitDoors(face)` is what a SUBCOMMAND offers, and `commitDoor(writer)` is what ONE WRITER has, for the sentence its own write carries back. They are different questions and `olai web` is where they come apart — a web serve hands its own panel agent the same `commit` tool, so it genuinely offers both doors, while one writer has one. Keying the help on a writer quietly dropped the tool from `olai web --help`; `commits.test.ts` now asserts each face names its exact SET, which is what catches a face under-describing itself as well as over-describing. The face is a `CommitFace` — `Writer` minus the writer that is not a subcommand — so there is still one name for who is asking, not two to keep in step.
 
-This package decides one more thing about committing, and it is not the mode — it is WHO each FACE is: the internal MCP route is handed to the session olai spawns, so it says `chat-agent`; an owner-only unix socket is somebody's own `olai mcp`, so it says `mcp`; the browser's websocket says `web`. That word is the commit's `X-Olai-Writer` trailer, and a transport that claimed it about itself would be a transport that could claim to be another — which is why it is bound where the face is composed (`src/runtime.ts`'s `writerAt`, which serves one runtime to several faces under several writers) and is a field on no procedure anywhere. Everything else about a commit is the same on both faces, down to the bytes: `@olai/ops`' `pending.test.ts` commits one identical pending set as each and asserts the trees and the messages match, with the trailer as the only difference.
+This package decides one more thing about committing, and it is not the mode — it is WHO each FACE is: the HTTP `/mcp` route is handed to the session olai spawns, so it says `chat-agent`; a terminal agent posting at the same route is the same face; the browser's websocket says `web`. That word is the commit's `X-Olai-Writer` trailer, and a transport that claimed it about itself would be a transport that could claim to be another — which is why it is bound where the face is composed (`src/runtime.ts`'s `writerAt`, which serves one runtime to several faces under several writers) and is a field on no procedure anywhere. Everything else about a commit is the same on both faces, down to the bytes: `@olai/ops`' `pending.test.ts` commits one identical pending set as each and asserts the trees and the messages match, with the trailer as the only difference.
 
 This is the only package allowed to know about all the others, which is what a composition root is for. The ORDER is the whole of what it decides: a store over the directory, the ops layer over the store, an internal MCP server over the ops, an ACP agent handed that server, the surface bound to both, a listener in front. Each of those lives in its own file with its own reason to change.
 
@@ -21,11 +21,9 @@ Talking to the agent is not here. It was, and it was four modules of domain insi
 | `serve.ts` | the order above, and the warning for binding off loopback |
 | `fault.ts` | which runtime failures are news, and how the one that is stops the server — a typed failure the scope unwinds through, never `process.exit` |
 | `mcp/face.ts` | THE MCP face: the surface re-exposed through `@kolu/surface-mcp` — cells and collections as subscribable resources, the ops table beside them as tools |
-| `faces.ts` | the THREE faces of one surface, and what each may reach: the MCP adapter's map (default-deny, and written against a rule about wire COST — a cell is exposable iff it is O(1)-ish), the BROWSER's (everything a page draws or presses, and no `ops.*`), and the unix SOCKET's (derived from the first, plus the members the tool table lands through). One decision read in one place rather than three files to compare |
-| `socket.ts` | the rendezvous: where a running `olai web` puts its surface so an `olai mcp` on the same directory finds it. One owner-only socket per served directory, the path derived from the directory ALONE — so the dial is the discovery and there is no state to go stale |
+| `faces.ts` | the THREE faces of one surface, and what each may reach: the MCP adapter's map (default-deny, and written against a rule about wire COST — a cell is exposable iff it is O(1)-ish), the BROWSER's (everything a page draws or presses, and no `ops.*`), and the AGENT's (derived from the first, plus the members the tool table lands through). One decision read in one place rather than three files to compare |
 | `mcp/tools.ts` | `@olai/ops`' table projected onto that face — the fixed field subtracted, a refusal carried as data: `isError` WITH `structuredContent`, the kind spelled in and the raiser's own detail beside it, so "these rows are wrong" is something an agent acts on rather than a sentence it parses. The four kinds are the format's closed table, and `tools.test.ts` keys a table off it: every kind carries either the CALL that provokes it or a written sentence saying why nothing here can, so a fifth kind is a missing key rather than a word nobody pinned |
-| `mcp/route.ts` | that face for the agent olai STARTED: mounted on this listener, behind a per-process bearer token, over a half-duplex transport of its own |
-| `mcp/serve.ts` | that face for an agent that started US: `olai mcp`'s own, much smaller, composition root, over stdio |
+| `mcp/route.ts` | that face for every MCP client of this process: mounted on this listener, loopback without a bearer, over a half-duplex transport of its own |
 | `commits.ts` | `--commit`, for whichever face is asking: one mode table, one default, one override, and the flag PAIR as one thing — the per-face clause it interpolates is `@olai/ops`' `commitDoors`, sibling to the `commitDoor` the sentence a waiting write carries back is built from |
 | `runtime.ts` | the surface bindings: one owned fiber turns each store revision into the entries that moved and the manifest that names it, the errors cell is a second owned source, the transcript is server-authored, the edit procedures are the browser's door to the ops layer, and the two GIT cells — the header readout and what is waiting — are recomputed together by one connector on three clocks (every revision, every landed commit, a slow sweep, because nothing watches `.git`), so the two controls that draw them cannot disagree |
 | `edit.ts` | what a KEYSTROKE — or a `•••` menu entry, or a ⌘K palette row — meant, in terms of ops: the browser sends an intent (`indent`, `toggle`, `walk the mark on`, `a new sibling after this`, `this node is doing now`) and this resolves the placement, or the mark to take off, or the next answer round the mark ring — `done` is not a stop on it, so a walk asked of finished work resolves to the request the ops layer refuses, rather than to a rule this layer would be inventing — against the snapshot, and hands back one request. It answers a second question about the same reading — what would TAKE THE WRITE BACK, which is where the row sat, which mark it carried and which date it had, recorded for the browser's undo stack because those facts stop being true the moment the write lands. The two EDGE verbs and the two creation verbs resolve nothing at all, which is what their carrying the ops layer's own fields buys: `see`/`after` travel as the two lists `set_see` and `set_after` take, and every rule about them — an unknown id, a call that names neither list, an add that would close a loop — is the planner's sentence, reaching a browser exactly as it reaches an agent. It also decides WHERE A CAPTURE LANDS — the palette sends a line and no file, and the inbox (an outline called `Inbox.olai`, or a new one at the root) is a fact about the set, so it is read here and resolves to one op: an `add` into it, or the `create` that mints it holding that line. Pure over a reading, like the planner it feeds |
@@ -62,22 +60,24 @@ Everything `serve` opens is a finalizer of the enclosing scope, so shutting down
 
 ## The tools, without a browser
 
-`olai mcp <dir>` is the other subcommand, and it is the same ops layer with a different thing in front of it. Its client is a coding agent in a terminal, so it gets what nearly every MCP client expects — a command it launches, and JSON-RPC over the pipes:
+`/mcp` on the running `olai web` is the same ops layer with a different thing in front of it. Its client is a coding agent in a terminal, so it gets what nearly every MCP client expects — a URL, and JSON-RPC over HTTP:
 
-```sh
-claude mcp add olai -- olai mcp ~/outlines
+```json
+{
+  "mcpServers": {
+    "olai": {
+      "type": "http",
+      "url": "http://127.0.0.1:7714/mcp"
+    }
+  }
+}
 ```
 
-Three things about it are decisions rather than defaults, and `src/mcp/serve.ts` argues each where it happens:
+Three things about it are decisions rather than defaults, and `src/mcp/route.ts` argues each where it happens:
 
-- **It ATTACHES when a server is already serving that directory**, and opens its own store when none is. The rendezvous is an owner-only unix socket `olai web` binds beside its listener, at a path both processes derive from the directory alone — so discovery is the DIAL, and there is no pidfile, no port and no token to find. `ECONNREFUSED`/`ENOENT` is "nobody is home" and the fresh path is taken, which is the ordinary case and unchanged.
-
-  What that retires is the second store: measured on a 1020-file vault, an   attached session holds **14 file descriptors instead of 1062** (1048 of which   were one per served file, held for the process's lifetime) and re-reads   nothing, so the directory is parsed and validated once per edit instead of   twice on two unsynchronised clocks. It does NOT halve memory, and the numbers   say why: an `olai mcp` over an EMPTY directory is already ~210 MiB, so what the   audit measured per process was the Bun runtime and the module graph, not the   corpus. Full table and method: [the bridge's   measurement](../../docs/brainstorming/mcp-bridge.md).
-
-  Two stores was never UNSAFE — the write gate probes before it judges, so an   out-of-band change is part of the revision a write is checked against, and it   was never a lock either, which is the same trade an editor and a `git pull`   already make. It was argued as safe rather than as cheap, and this is the   cheap part arriving.
-- **The two shapes serve an identical tool list**, which is what made attaching worth doing at all: every verb an agent has is a surface procedure, so the whole difference is whether the client under the tools dispatches in-process or down a socket. A command whose capabilities silently depended on whether a browser happened to be open would be worse than two stores.
-- **stdout is the protocol**, so the whole program's logging goes to stderr (`@olai/log`'s `toStderr`, one line at that composition root). A failed probe from the store on stdout is a frame that is not a frame, and nothing downstream should have to know that.
-- **No port, no host, no token**, in either shape. Its own client proved who it is by being the process that started this one; the socket it attaches over is `0700` in a directory verified owner-only before anything binds, so PERMISSIONS are the authentication and anyone who can `connect()` is already the user whose files these are. That is exactly the reasoning `olai web`'s listener cannot use, and the whole reason the two faces are gated differently (`src/faces.ts`). It stops when that client closes stdin.
+- **There is one store.** A terminal agent is a client of the running `olai web`, the same way the panel's agent already is. A second process on the same directory is the thing this design retired.
+- **Loopback skips the bearer.** A request from `127.0.0.1` reaches the tools with no token; the chat still sends the one it was handed, which is accepted and ignored. Off loopback the token is still required.
+- **`--commit` is the serving process's setting.** An HTTP client does not get a flag of its own; how writes reach git was decided when `olai web` started.
 
 And it commits the way the browser does, because it is the same ops layer: ops accumulate, and the agent asks for one commit when a unit of work is finished. Two members of the surface are what make that usable from a terminal, and both are in the allowlist (`src/faces.ts`):
 
@@ -87,7 +87,7 @@ And it commits the way the browser does, because it is the same ops layer: ops a
 
 An agent does not have to READ that resource to learn a repository is busy, either: a write's own reply says so. Under `manual` a write mid-rebase or on a detached HEAD comes back naming that state rather than saying it is waiting to be asked about, because "waiting" would point the agent at a tool that is going to refuse.
 
-`src/mcp/serve.test.ts` drives all of it against a spawned binary and a real repository: four ops with the log untouched, one `commit` producing a single `olai`-prefixed commit carrying `X-Olai-Writer: mcp`, a second `commit` answering `NothingToCommit`, a detached HEAD refusing with the reason on both the write and the commit, and `--commit=auto` / `--commit=auto --no-commit` through argv — because "the flag reaches the behaviour" is a claim about a composition root and is only true end to end.
+`src/mcp/route.test.ts` and `src/mcp/tools.test.ts` drive the HTTP face against a real listener: initialize, tools/list, a resource read, a write refusal as a 200 result, loopback without a token, and off-loopback still refused. The commit contract lives in `@olai/ops` and is the same on every face.
 
 **One shape worth knowing when writing an agent against this:** `pending` is a PUSHED cell, so a read issued in the same breath as a write's reply can still hold the previous revision. Nothing depends on that for correctness — `commit` re-surveys git itself and never reads the cell — but an agent that wants a precise view should subscribe (`notifications/resources/updated`) or read until the shape it expects appears, which is what the suite models.
 
@@ -114,18 +114,18 @@ Depends on `chat`, `format`, `log`, `ops`, `store` and `surface`, strictly downw
 
 ```sh
 just serve docs              # build the client, serve this repo's own roadmap
-just run mcp docs            # the tool surface over stdio, from the working tree
+just run                     # the one brain, on the port `.mcp.json` names
 ```
 
-The first is the web edit loop: two `bun --watch` processes (client bundler and server), so a validator rule you change is live on the next reload. `just run` is the general entrypoint — any args the binary takes — with the server alone under `bun --watch`. `just nix` is the packaged path: the binary, built from tracked files only, which is what CI and `just e2e` prove.
+The first is the web edit loop: two `bun --watch` processes (client bundler and server), so a validator rule you change is live on the next reload. `just run` is the one brain — `olai web` on this repo's docs, on the justfile `port` — with the server alone under `bun --watch`. `just nix` is the packaged path: the binary, built from tracked files only, which is what CI and `just e2e` prove.
 
-`just run mcp` takes JSON-RPC on stdin, one message per line, which makes it pipeable — the fastest way to see what an agent is actually offered:
+`/mcp` is JSON-RPC over HTTP, one message per POST, which makes it curl-able — the fastest way to see what an agent is actually offered:
 
 ```sh
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | just run mcp docs | tail -1
+curl -s http://127.0.0.1:7714/mcp \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
-
-(`tail -1` is for the recipe, not the server: `just run` prints its own install line first. The binary itself writes nothing to stdout but frames.)
 
 ## The agent
 
@@ -145,4 +145,4 @@ The empty case works through the packaged binary because `makeWrapper --set-defa
 
 Boot is EAGER and runs on its own fiber, so pages serve while the handshake happens and a boot that fails changes nothing — the next prompt retries it exactly as a crash does. What it does, in an order that is a protocol fact rather than a preference: `initialize` (which is what says whether this agent keeps conversations at all), then `session/list` for the served directory, then `session/load` of the one the panel was last in — or `session/new` when there is nothing stored. WHICH one that is comes from olai's own note of it (`@olai/chat`'s `memory.ts`, one file per served directory under the XDG state home), with the most recently updated conversation as the fallback for a directory this olai has never served or a remembered conversation that is gone. It used to be that fallback always, which is `chat-restore-wrong`: newest-by-timestamp answers "what moved last", and anything fresher — a terminal `claude` here, a `/clear` sibling — took the panel over on a restart. The list is narrowed to the exact directory here, once: the Claude Code adapter scopes its answer by PREFIX, so a server started in a checkout is told about every agent working under it, and adopting the newest of that would make an orchestrator's coding session this panel's conversation.
 
-The MCP server the session is handed is this process's own, on this process's listener, behind a bearer token minted per process. `mcp/route.ts` says why HTTP rather than stdio: the tools are this process's ops over this process's store, and a stdio server would be a second olai with a second store watching the same directory.
+The MCP server the session is handed is this process's own, on this process's listener. Loopback clients may omit the bearer; the chat still sends the one it was handed. `mcp/route.ts` says why HTTP: the tools are this process's ops over this process's store, and a second olai would be a second store watching the same directory.

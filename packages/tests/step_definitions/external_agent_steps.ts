@@ -2,11 +2,11 @@
  * The agent olai did not start.
  *
  * These steps are the only ones in the suite that do not go through the
- * browser, and that is the point: the client of `olai mcp` is a coding agent
- * in a terminal, so a scenario about it has to be one. The assertions afterward
+ * browser, and that is the point: the client of `/mcp` is a coding agent in
+ * a terminal, so a scenario about it has to be one. The assertions afterward
  * DO go through the browser, because the claim is not "the write happened" —
  * that has unit tests — but "the page a person is looking at followed a write
- * made by a process it has never heard of".
+ * made by a client it has never heard of".
  *
  * Every tool answer is read from `structuredContent`, never from the prose in
  * `content`: the text is what a model reads, the structure is what a caller
@@ -17,7 +17,6 @@ import * as assert from "node:assert";
 
 import { Given, Then, When } from "@cucumber/cucumber";
 
-import { olaiBin } from "../support/hooks.ts";
 import { callTool, connectTerminalAgent, tryTool } from "../support/mcp.ts";
 import { HYDRATION_TIMEOUT, type OlaiWorld } from "../support/world.ts";
 
@@ -41,10 +40,12 @@ const agentOf = (world: OlaiWorld) => {
 Given(
   "a terminal agent is connected to the served directory",
   async function (this: OlaiWorld) {
-    // `scratch()` rather than `served` — a terminal agent WRITES the directory
-    // it is pointed at, and that is the world's own guard for "this scenario
-    // forgot its @scratch: tag", spelled once for every step that edits a file.
-    this.terminalAgent = await connectTerminalAgent(olaiBin(), this.scratch());
+    // The same `/mcp` the page's server already answers — one store, one
+    // process. `scratch()` is only the guard that this scenario is allowed
+    // to write the directory (the `@scratch:` tag); the client never opens
+    // it itself.
+    this.scratch();
+    this.terminalAgent = await connectTerminalAgent(`${this.baseUrl}/mcp`);
     const listed = await this.terminalAgent.call("tools/list");
     this.toolsOffered = (
       (listed.result?.tools ?? []) as ReadonlyArray<{ name: string }>

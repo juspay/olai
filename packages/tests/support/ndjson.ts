@@ -2,10 +2,10 @@
  * Line-delimited JSON, read off a pipe. One copy, for everything in this
  * package that talks to a subprocess.
  *
- * Three things here speak newline-framed JSON-RPC down or up a pipe — the MCP
- * client that drives `olai mcp` (`support/mcp.ts`), the scripted ACP agent
- * every server is pointed at (`agent/fake-acp-agent.ts`), and the fake `kolu`
- * every server finds on its PATH (`agent/kolu/kolu`) — and each of them used to
+ * Two things here speak newline-framed JSON-RPC down or up a pipe — the
+ * scripted ACP agent every server is pointed at (`agent/fake-acp-agent.ts`),
+ * and the fake `kolu` every server finds on its PATH (`agent/kolu/kolu`) —
+ * and each of them used to
  * carry its own copy of the same six lines: keep what has not ended in a
  * buffer, cut on newlines, parse each whole line. The copies were the bug. A
  * chunk boundary is not a message boundary, which is the one thing this is

@@ -24,6 +24,14 @@ nix_files := "$(git ls-files '*.nix')"
 # writes its own copy inside its sandbox.
 dist := justfile_directory() + "/packages/web/dist"
 
+# The port `just run` (and `just serve`) bind. `.mcp.json` names the same
+# number so a clone can point an agent at this repo's server without editing
+# either file. 7714 is "olai" on a phone keypad — the same default `olai web`
+# uses. Override per-invocation with `--port` on the recipe's extra args
+# only if something else already holds this one; a changed default here
+# must move `.mcp.json` with it.
+port := "7714"
+
 # The e2e shell is the dev shell plus Playwright's browsers, which cost ~600ms
 # of cold `nix develop` that every other leg would pay for nothing. Keyed on
 # PLAYWRIGHT_BROWSERS_PATH rather than IN_NIX_SHELL: the default shell sets
@@ -105,19 +113,20 @@ serve dir="docs" *args: build-client
     trap 'kill 0' EXIT INT TERM
     {{ nix_shell }} bun --watch packages/web/src/build.ts {{ dist }} &
     OLAI_DIST_DIR={{ dist }} \
-      {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
+      {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} --port {{ port }} {{ args }}
 
-# Anything else the binary takes, with the server under `bun --watch` so a
-# source change restarts it. Distinct from `serve`: that one is the web edit
-# loop (client bundler watch + server watch, default docs/); this one is the
-# general entrypoint (`web`, `mcp`, …) with only the server watched. Defaults
-# to the same pinned agent `just serve` and the packaged binary do: no
-# documented way of starting olai may land in the no-agent state by accident.
-run *args: build-client
+# The one brain: `olai web` on this repo's docs, on the `port` above, so a
+# `.mcp.json` URL holds. Distinct from `serve`: that one is the web edit
+# loop (client bundler watch + server watch); this one watches only the
+# server. Extra args after the directory reach the binary (`--commit=manual`,
+# `--host`, …). Defaults to the same pinned agent `just serve` and the
+# packaged binary do: no documented way of starting olai may land in the
+# no-agent state by accident.
+run dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
-    OLAI_DIST_DIR={{ dist }} {{ nix_shell }} bun --watch packages/server/src/main.ts {{ args }}
+    OLAI_DIST_DIR={{ dist }} {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} --port {{ port }} {{ args }}
 
 # Build the binary with nix, then run it. Both halves earn their place: the
 # build is where the hydrated @kolu/* sources and the bun.nix-derived
