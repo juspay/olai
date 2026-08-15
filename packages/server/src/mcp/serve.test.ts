@@ -702,6 +702,9 @@ test("`olai mcp` on a served directory attaches instead of opening a second stor
         name: "set_title",
         arguments: { id: "order", title: "order the cabinets, attached" },
       }),
+      ask(3, "resources/read", {
+        uri: "surface://collections/outlines",
+      }),
     ]))
 
   // It says which shape it took, and it says it INSTEAD of the other one — a
@@ -715,6 +718,11 @@ test("`olai mcp` on a served directory attaches instead of opening a second stor
   expect(answerTo(said, 2).result?.isError).toBeUndefined()
   expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8"))
     .toContain("order the cabinets, attached")
+
+  // BOTH halves of the face cross the socket, not just the tools. A bridge that
+  // wrote but could not read would still log the attached line and still pass
+  // every assertion above — and an agent's first act is a read.
+  expect(JSON.stringify(answerTo(said, 3).result)).toContain("house.jsonl")
 }, BOUND_MS * 3)
 
 test("with nothing serving the directory, it opens its own store exactly as before", async () => {

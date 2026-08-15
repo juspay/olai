@@ -121,6 +121,13 @@ MiB is `kB / 1024`.
 The empty-directory baseline — the load-bearing one, and the cheapest to
 repeat — is the same `olai mcp` invocation against a directory holding nothing.
 
+**And the face was driven by hand over that socket**, because a measurement of a
+process that answers nothing would be a measurement of nothing: the same
+attached session advertises all 25 tools and all five resources, reads
+`surface://collections/outlines` back as the serving store's real key set, and
+lands a `set_title` in a `.jsonl` on the serving process's disk. Both halves —
+the resources and the tools — over a wire, from a process holding 14 descriptors.
+
 ## What this does not measure
 
 - **Latency.** A tool call attached crosses a unix socket and an ndjson frame
