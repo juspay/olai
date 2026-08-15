@@ -58,6 +58,7 @@
  * platform.
  */
 
+import { reasonOf } from "@olai/log"
 import { dlopen, FFIType, type Pointer, read } from "bun:ffi"
 
 /** `LOCK_EX | LOCK_NB` — take it exclusively, and answer now rather than wait.
@@ -67,66 +68,70 @@ import { dlopen, FFIType, type Pointer, read } from "bun:ffi"
 const LOCK_EX = 2
 const LOCK_NB = 4
 
-/** What `flock` sets when somebody else holds the lock — the one failure that
- *  is an ANSWER rather than a fault. `EWOULDBLOCK` is `EAGAIN`, and the number
- *  is 11 on Linux and 35 on darwin. Told apart by platform rather than lumped
- *  in with every other errno, because reporting a machine problem as another
- *  person's olai would send them hunting for a process that does not exist. */
-const WOULD_BLOCK = process.platform === "darwin" ? 35 : 11
-
 /**
- * The libc the two symbols below come from, by the name the dynamic loader
- * knows it under. Tried in order; the first that opens wins.
+ * The three things that differ by platform, in one place — because they are one
+ * question asked three times, and a file that answers it in three places is a
+ * file where a fourth platform is added twice.
  *
- * The bun binary already has libc mapped — it is linked against it — so
- * `dlopen` here finds the object that is loaded rather than searching the
- * filesystem, which is why an soname works with no path and no
- * `LD_LIBRARY_PATH` even inside a Nix store closure.
+ *   - WHICH LIBC, by the name the dynamic loader knows it under. The bun binary
+ *     already has libc mapped — it is linked against it — so `dlopen` finds the
+ *     object that is loaded rather than searching the filesystem, which is why
+ *     an soname works with no path and no `LD_LIBRARY_PATH` even inside a Nix
+ *     store closure. More than one spelling per platform is a LIST rather than
+ *     a guess: glibc and musl are both Linux.
+ *   - WHERE ERRNO IS. It is per-thread, so it is reached through a function
+ *     rather than as a variable: glibc spells that `__errno_location` and
+ *     darwin spells it `__error`.
+ *   - WHAT "SOMEBODY ELSE HAS IT" IS. `EWOULDBLOCK` is `EAGAIN`, 11 on Linux
+ *     and 35 on darwin — the one failure that is an ANSWER rather than a fault,
+ *     and worth telling apart from every other errno because reporting a
+ *     machine problem as another person's olai sends them hunting for a process
+ *     that does not exist.
  */
-const LIBCS = [
-  // glibc, which is every platform olai is packaged for today.
-  "libc.so.6",
-  // macOS: libc, libm, libpthread and the rest are one library.
-  "libSystem.B.dylib",
-  // musl, and the BSDs' unversioned spelling.
-  "libc.so",
-] as const
-
-/** The errno slot's address, which is per-thread and therefore a function call
- *  rather than a variable. glibc spells it `__errno_location`; darwin spells it
- *  `__error`. Only one of the two will resolve, so they are opened separately
- *  and the missing one is not a failure. */
-const ERRNO_SYMBOLS = ["__errno_location", "__error"] as const
+const PLATFORM = process.platform === "darwin"
+  ? {
+    // macOS: libc, libm, libpthread and the rest are one library.
+    libcs: ["libSystem.B.dylib"],
+    errno: "__error",
+    wouldBlock: 35,
+  } as const
+  : {
+    // glibc, which is every platform olai is packaged for today; then musl and
+    // the BSDs' unversioned spelling.
+    libcs: ["libc.so.6", "libc.so"],
+    errno: "__errno_location",
+    wouldBlock: 11,
+  } as const
 
 interface Libc {
   readonly flock: (fd: number, operation: number) => number
   readonly errno: () => number
 }
 
-/** Opened once, on first use. A process that never serves a directory never
- *  loads libc through here, and one that serves two does it once. */
+/** Resolved once, on first use — a process that serves two directories does the
+ *  `dlopen` once. (The `bun:ffi` IMPORT above is static and costs its
+ *  millisecond in any process that reaches `./lock.ts`; it is the library
+ *  lookup that waits until something actually locks.) */
 let libc: Libc | Error | null = null
 
 const open = (): Libc | Error => {
   const tried: Array<string> = []
-  for (const name of LIBCS) {
-    for (const errnoSymbol of ERRNO_SYMBOLS) {
-      try {
-        const library = dlopen(name, {
-          flock: { args: [FFIType.i32, FFIType.i32], returns: FFIType.i32 },
-          [errnoSymbol]: { args: [], returns: FFIType.ptr },
-        })
-        const where = library.symbols[errnoSymbol] as () => Pointer
-        return {
-          flock: library.symbols.flock as (fd: number, operation: number) => number,
-          errno: () => read.i32(where(), 0),
-        }
-      } catch (cause) {
-        tried.push(`${name} (${errnoSymbol}): ${cause instanceof Error ? cause.message : String(cause)}`)
+  for (const name of PLATFORM.libcs) {
+    try {
+      const library = dlopen(name, {
+        flock: { args: [FFIType.i32, FFIType.i32], returns: FFIType.i32 },
+        [PLATFORM.errno]: { args: [], returns: FFIType.ptr },
+      })
+      const where = library.symbols[PLATFORM.errno] as () => Pointer
+      return {
+        flock: library.symbols.flock as (fd: number, operation: number) => number,
+        errno: () => read.i32(where(), 0),
       }
+    } catch (cause) {
+      tried.push(`${name}: ${reasonOf(cause)}`)
     }
   }
-  return new Error(`no libc with flock: ${tried.join("; ")}`)
+  return new Error(`no libc with flock and ${PLATFORM.errno}: ${tried.join("; ")}`)
 }
 
 /** What a `flock` call answered. `held` and `busy` are the two ordinary
@@ -151,7 +156,7 @@ export const lockExclusive = (fd: number): Locked => {
   if (libc instanceof Error) return { _tag: "failed", reason: libc.message }
   if (libc.flock(fd, LOCK_EX | LOCK_NB) === 0) return { _tag: "held" }
   const errno = libc.errno()
-  return errno === WOULD_BLOCK
+  return errno === PLATFORM.wouldBlock
     ? { _tag: "busy" }
     : { _tag: "failed", reason: `flock failed with errno ${errno}` }
 }

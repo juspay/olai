@@ -53,27 +53,29 @@ import { served } from "./serve.testlib.ts"
 const BOUND_MS = BOOT_TIMEOUT * 3
 
 /**
- * A runtime directory of this test's own, shared by the children it spawns —
- * and by THIS process, which is the half that is easy to miss.
+ * A runtime directory this whole file shares — its children, and THIS process,
+ * which is the half that is easy to miss.
  *
  * The lock lives in `$XDG_RUNTIME_DIR/olai/`, so the children are pointed at
  * one of ours rather than at the developer's: it keeps a real olai they have
- * running out of these assertions, and keeps this test's lock files out of
- * their session's runtime directory. `process.env` is moved with them because
- * two tests below name the lock FILE — `lockFor` reads the variable at call
- * time, precisely so a test can do this, and a test that set it for its
- * children only would be looking at a path nobody uses and passing.
+ * running out of these assertions, and keeps this file's lock files out of
+ * their session's runtime directory. `process.env` moves with them because two
+ * tests below name the lock FILE — `lockFor` reads the variable at call time,
+ * precisely so a test can do this, and a test that set it for its children
+ * only would be naming a path nobody uses and passing.
+ *
+ * ONE directory for the file rather than one per test, because what keeps the
+ * tests apart is already the VAULT: every one of them serves a fresh `served()`
+ * of its own, so their locks are different files inside this directory.
  */
-const runtime = (): NodeJS.ProcessEnv => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-lock-run-"))
-  process.env["XDG_RUNTIME_DIR"] = dir
-  return { XDG_RUNTIME_DIR: dir }
-}
+const inherited = process.env["XDG_RUNTIME_DIR"]
+const ours = fs.mkdtempSync(path.join(os.tmpdir(), "olai-lock-run-"))
+process.env["XDG_RUNTIME_DIR"] = ours
+const env: NodeJS.ProcessEnv = { XDG_RUNTIME_DIR: ours }
 
 /** …and put it back, because `bun test` runs every file of this package in one
  *  process: a variable left pointing at a temp directory this file made is a
  *  variable the next file inherits. */
-const inherited = process.env["XDG_RUNTIME_DIR"]
 afterAll(() => {
   if (inherited === undefined) delete process.env["XDG_RUNTIME_DIR"]
   else process.env["XDG_RUNTIME_DIR"] = inherited
@@ -81,7 +83,6 @@ afterAll(() => {
 
 test("a second olai over one directory refuses to boot", async () => {
   const root = served()
-  const env = runtime()
   const first = startWeb({ root, env })
   try {
     await first.address()
@@ -105,7 +106,6 @@ test("the refusal names the olai that holds the vault", async () => {
   // they meant to stop. A refusal that merely said "busy" would leave them
   // hunting.
   const root = served()
-  const env = runtime()
   const first = startWeb({ root, env })
   try {
     await first.address()
@@ -130,7 +130,6 @@ test("a stale pid in the note frees nothing, and is not read out as fact", async
   // does not appear in the sentence, because a wrong pid sends a person to
   // `kill` a process that is not the one holding their notes.
   const root = served()
-  const env = runtime()
   const first = startWeb({ root, env })
   try {
     await first.address()
@@ -163,7 +162,6 @@ test("a symlinked spelling of the vault is the same vault", async () => {
   const link = path.join(elsewhere, "notes")
   fs.symlinkSync(root, link)
 
-  const env = runtime()
   const first = startWeb({ root, env })
   try {
     await first.address()
@@ -182,7 +180,6 @@ test("the holder is stopped and the directory is free", async () => {
   // The ordinary way a server ends: a signal it handles, finalizers running,
   // the scope closing the descriptor on the way out.
   const root = served()
-  const env = runtime()
   const first = startWeb({ root, env })
   await first.address()
   first.kill("SIGINT")
@@ -207,7 +204,6 @@ test("`kill -9` frees the directory: nothing was cleaned up, and nothing had to 
   // Anything whose validity came from a FILE EXISTING would refuse to serve
   // here, and a person's notes would be locked out by a crash.
   const root = served()
-  const env = runtime()
   const first = startWeb({ root, env })
   await first.address()
   first.kill("SIGKILL")

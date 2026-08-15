@@ -40,7 +40,11 @@ This is a refusal rather than a warning because two olai over one directory cann
 
 The claim is an OS advisory lock (`flock`), held in `$XDG_RUNTIME_DIR/olai/` — or `/tmp/olai-$UID/` on a machine without one — and the KERNEL releases it when the process ends, however it ends. There is no stale lock to clear after a crash, nothing to delete before restarting, and no file left inside your notes directory. If a machine ever refuses to serve a directory nothing is serving, that is a bug and not a lock you should go and remove.
 
-What it does not cover: another program editing the files (your editor, `git pull`, an agent writing by hand) — those are the ordinary case, the page follows them, and they are not a second brain; and a second olai on ANOTHER MACHINE over the same network share, which no advisory lock promises on both Linux and macOS.
+What it does not cover:
+
+- **Another program editing the files** — your editor, `git pull`, an agent writing by hand. Those are the ordinary case, the page follows them, and they are not a second brain.
+- **A second olai on ANOTHER MACHINE** over the same network share, which no advisory lock promises on both Linux and macOS.
+- **A directory inside a directory.** `olai web ~/notes` and `olai web ~/notes/projects` are two different directories, so both start — and over the outlines they share, they are two brains with everything above back in play. Serve one or the other, not both.
 
 ### Behind a reverse proxy
 

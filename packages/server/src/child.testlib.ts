@@ -52,6 +52,19 @@ export const stoppedWithin = (child: ChildProcess, ms: number): Promise<boolean>
 
 const MAIN = path.join(import.meta.dirname, "main.ts")
 
+/** A stand-in for the built browser bundle, which the entry point refuses to
+ *  start without. One per test process rather than one per child: the content
+ *  is a constant and nobody writes to it, and a directory per spawn is a dozen
+ *  identical temp directories left behind by a file that starts a dozen
+ *  servers. */
+let dist: string | undefined
+const clientDist = (): string =>
+  (dist ??= (() => {
+    const made = fs.mkdtempSync(path.join(os.tmpdir(), "olai-child-dist-"))
+    fs.writeFileSync(path.join(made, "index.html"), "<!doctype html>\n")
+    return made
+  })())
+
 /** How long a boot may take before it is a hang rather than a slow machine.
  *  Generous by the same argument as the bounds above: what is being told apart
  *  is "under a second" from "never". */
@@ -81,27 +94,21 @@ export interface WebChild {
 /**
  * `olai web <root> --port 0 --no-commit`, spawned the way a person's shell
  * does — the packaged artefact's own entry point, not this package's modules.
- *
- * The `dist` is a stand-in for the built browser bundle, which the entry point
- * refuses to start without. It is made here rather than by each caller because
- * none of them is about the client.
  */
 export const startWeb = (options: {
   readonly root: string
   /** Merged over the defaults below. For a test that needs two children to
-   *  meet somewhere the environment decides they do. */
+   *  meet somewhere the environment decides they do — said explicitly rather
+   *  than left to what this process happens to have inherited. */
   readonly env?: NodeJS.ProcessEnv
 }): WebChild => {
-  const dist = fs.mkdtempSync(path.join(os.tmpdir(), "olai-child-dist-"))
-  fs.writeFileSync(path.join(dist, "index.html"), "<!doctype html>\n")
-
   const child = spawn(
     process.execPath,
     [MAIN, "web", options.root, "--port", "0", "--no-commit"],
     {
       env: {
         ...process.env,
-        OLAI_DIST_DIR: dist,
+        OLAI_DIST_DIR: clientDist(),
         // No agent: none of these tests is about the chat panel, and a real one
         // would make them depend on a model and a network.
         OLAI_ACP_AGENT: "",
@@ -127,6 +134,15 @@ export const startWeb = (options: {
     said += chunk
   })
 
+  // ONE listener for the end of this child, attached at spawn and shared by
+  // everything below. Attaching per question is how a caller that asks after
+  // the child is already gone waits for an event that will never come again —
+  // the hazard `stoppedWithin` has to warn about, and one this shape does not
+  // have.
+  const closed = new Promise<number | null>((resolve) => {
+    child.on("close", (code: number | null) => resolve(code))
+  })
+
   return {
     child,
     said: () => said,
@@ -136,39 +152,29 @@ export const startWeb = (options: {
     address: () =>
       new Promise<string>((resolve, reject) => {
         const look = () => findLogfmt(said, "serving")?.url
-        const settle = (finish: () => void) => {
+        const stop = () => {
           clearInterval(poll)
           clearTimeout(timer)
-          finish()
         }
         const poll = setInterval(() => {
           const url = look()
-          if (url !== undefined) settle(() => resolve(url))
+          if (url === undefined) return
+          stop()
+          resolve(url)
         }, 25)
-        const timer = setTimeout(
-          () =>
-            settle(() =>
-              reject(new Error(`the server never said where it was serving:\n${said}`))
-            ),
-          BOOT_TIMEOUT,
-        )
-        child.once("close", () => {
+        const timer = setTimeout(() => {
+          stop()
+          reject(new Error(`the server never said where it was serving:\n${said}`))
+        }, BOOT_TIMEOUT)
+        void closed.then(() => {
           const url = look()
-          settle(() =>
-            url === undefined
-              ? reject(new Error(`the server exited before it served:\n${said}`))
-              : resolve(url)
-          )
+          stop()
+          if (url === undefined) {
+            reject(new Error(`the server exited before it served:\n${said}`))
+          } else resolve(url)
         })
       }),
-    exited: () =>
-      new Promise<number | null>((resolve) => {
-        if (child.exitCode !== null) {
-          resolve(child.exitCode)
-          return
-        }
-        child.on("close", (code: number | null) => resolve(code))
-      }),
+    exited: () => closed,
     kill: (signal: NodeJS.Signals = "SIGKILL") => {
       if (child.exitCode === null) child.kill(signal)
     },

@@ -24,12 +24,25 @@
  *     against one work tree interleave into each other's staged trees.
  *
  * WHAT IS EXCLUDED, precisely: another process on THIS MACHINE that boots a
- * store over this directory. Not a person's editor, not `git pull`, not an
- * agent writing a file by hand — the store is built to converge on whatever the
- * disk says, and those are the case it handles rather than the case it cannot.
- * And not a second olai over a NETWORK filesystem from another host: `flock`
- * on darwin is local to the host, so that exclusion cannot be promised on both
- * platforms and is not claimed here.
+ * store over THIS DIRECTORY. Three things are outside that, and each is outside
+ * it for its own reason:
+ *
+ *   - A person's editor, a `git pull`, an agent writing a file by hand. The
+ *     store is built to converge on whatever the disk says; those are the case
+ *     it handles rather than the case it cannot.
+ *   - A second olai over a NETWORK filesystem from another host. `flock` on
+ *     darwin is local to the host, so the exclusion cannot be promised on both
+ *     platforms and is not claimed.
+ *   - A NESTED VAULT: `olai web ~/notes` and `olai web ~/notes/projects` are
+ *     two paths, so two digests, so two locks, and both boot — with every
+ *     failure at the top of this file fully live over the subtree they share.
+ *     The claim is keyed on a directory, and the thing it would have to be
+ *     keyed on to catch that is a FILE SET. It is catchable — every holder
+ *     writes its `root=` into the file it holds, so a boot could read the
+ *     runtime directory and refuse on an ancestor or a descendant — and it is
+ *     deliberately not done here: it is a second mechanism, with its own way of
+ *     being wrong, and the exclusion this file promises is worth having without
+ *     it. `docs/running.md` says so where a person reads.
  *
  * WHERE THE LOCK IS: `$XDG_RUNTIME_DIR/olai/<digest>.lock`, the per-user
  * runtime directory — owner-only, and cleared by the machine rather than by
@@ -70,6 +83,7 @@
  * writes inside the thing it holds.
  */
 
+import { codeOf, reasonOf } from "@olai/log"
 import { Data, Effect } from "effect"
 import type { Scope } from "effect"
 import { createHash } from "node:crypto"
@@ -136,6 +150,14 @@ export const lockFor = (root: string): string =>
  * is no runtime directory — the convention kolu's rendezvous sockets use, which
  * olai kept a user of until #184 and is one again here.
  *
+ * Spelled out rather than called as `getRuntimeSocketPath`, which is the same
+ * five lines and IS still importable: that function's value is that two
+ * programs which must MEET compute one path, and the two processes here are
+ * both olai computing it through this file. What it would cost is a module
+ * about serving RPC over unix sockets pulled back into the binary's graph for a
+ * string, one release after #184 took it out. If a second program ever has to
+ * find olai's lock, that trade flips and the call is the right answer.
+ *
  * NOT `os.tmpdir()`, and that is the whole reason this is not one line: it
  * honours `$TMPDIR`, which differs by LAUNCH CONTEXT — a launchd- or
  * systemd-started olai and one a person types into a terminal get different
@@ -200,7 +222,7 @@ const alive = (pid: number): boolean => {
     process.kill(pid, 0)
     return true
   } catch (cause) {
-    return (cause as { readonly code?: unknown } | null)?.code === "EPERM"
+    return codeOf(cause) === "EPERM"
   }
 }
 
@@ -262,27 +284,51 @@ export const holdVault = (
 
 /** The lock file, opened for writing without truncating it — truncation would
  *  erase the pid of whoever is holding it, which is the one thing the file is
- *  for. Its directory is made owner-only and checked to still be ours, because
- *  off systemd it is a fixed path in `/tmp`: a directory somebody else made
- *  there first is one they could hold a lock in, and olai would report their
- *  claim as another olai of the reader's own. */
+ *  for. */
 const openLock = (path: string): number | LockUnavailable => {
   const directory = dirname(path)
   try {
     fs.mkdirSync(directory, { recursive: true, mode: 0o700 })
-    const owner = fs.statSync(directory).uid
-    const us = process.getuid?.()
-    if (us !== undefined && owner !== us) {
-      return new LockUnavailable({
-        path,
-        reason: `${directory} belongs to uid ${owner}, not to you`,
-      })
-    }
+    const wrong = notPrivatelyOurs(directory)
+    if (wrong !== null) return new LockUnavailable({ path, reason: wrong })
     return fs.openSync(path, fs.constants.O_RDWR | fs.constants.O_CREAT, 0o600)
   } catch (cause) {
-    return new LockUnavailable({
-      path,
-      reason: cause instanceof Error ? cause.message : String(cause),
-    })
+    return new LockUnavailable({ path, reason: reasonOf(cause) })
   }
+}
+
+/**
+ * Why the directory the lock sits in has to be interrogated rather than just
+ * created: off systemd it is a FIXED path, `/tmp/olai-$UID`, and anybody on the
+ * machine can get there first. A directory somebody else prepared is a
+ * directory they can hold a lock in — and olai would then report a stranger's
+ * claim as another olai of the reader's own, and refuse to serve their notes
+ * until they worked out why.
+ *
+ * Three predicates, and `mkdirSync`'s `mode` is none of them: it applies only
+ * when the directory is CREATED, so a pre-existing one is exactly the case it
+ * cannot speak for.
+ *
+ *   - `lstat`, never `stat`: `stat` follows a symlink, so a link left at the
+ *     path pointing somewhere owner-private would answer "yours" about a
+ *     directory that is not the one at this path.
+ *   - it must be a directory at all.
+ *   - it must be ours, and closed to group and other.
+ *
+ * The list is `isPrivateOwnedDir` from `@kolu/surface`'s unix-socket module,
+ * which guards the same fixed path against the same person, and whose docstring
+ * argues each of the three. It is not exported, so this is the three predicates
+ * rather than the call; if upstream ever exports it, this function is the thing
+ * to delete.
+ */
+const notPrivatelyOurs = (directory: string): string | null => {
+  const info = fs.lstatSync(directory)
+  if (!info.isDirectory()) return `${directory} is not a directory`
+  const us = process.getuid?.()
+  if (us !== undefined && info.uid !== us) {
+    return `${directory} belongs to uid ${info.uid}, not to you`
+  }
+  return (info.mode & 0o077) === 0
+    ? null
+    : `${directory} is open to other users (mode ${(info.mode & 0o777).toString(8)})`
 }
