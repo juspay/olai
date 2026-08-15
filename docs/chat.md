@@ -50,6 +50,30 @@ when it was last touched, to the minute. That is deliberate rather than decorati
 that says which of them replaced the other, so the time is what tells you the row
 you mean. Picking one loads it — and makes it the conversation you come back to.
 
+## Which model the header names
+
+Under the conversation's title, the header names the model — because a turn's
+cost and character depend on it and nothing else on screen says.
+
+It names the model the agent is **running**, which is not always the one the
+session was started on: `/model` is handled inside the CLI the adapter wraps, so
+the adapter never learns of it and its own picker goes on reporting the starting
+model for the life of the session. What the header follows instead is the CLI's
+own message, forwarded because olai asked for it at `session/new`.
+
+Two consequences, both of them the adapter's shape rather than a choice:
+
+- **it changes one turn late.** That message is emitted as a turn STARTS, so the
+  turn that ran `/model` still announces the model it began on, and the new one
+  is first heard of when you send the next thing. Nothing else on the wire
+  carries it — the only other trace of the change in that turn is the agent
+  saying so in prose, and reading a sentence is not something olai will do.
+- **it is named the way the agent names it.** The running model arrives as an
+  API id (`claude-sonnet-5`) while the picker offers aliases (`sonnet`), so the
+  two are matched up and the header says *Sonnet*. A model the picker does not
+  offer at all is shown as the id it came as, which is truthful about a name
+  nobody gave — never rounded to whichever row looks closest.
+
 ## What it can touch
 
 **Olai hands the agent no filesystem.** What olai itself gives it is a closed

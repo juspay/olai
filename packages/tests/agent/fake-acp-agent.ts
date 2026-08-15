@@ -32,7 +32,8 @@
  *   lose         refuse every `session/list` from here on
  *   flood        say more than fits, so scrolling is a thing that can be tested
  *   hold         start a tool call and STOP there, until released
- *   model <id>   switch the model the way the wrapped CLI does
+ *   model <id>   switch the model the way the wrapped CLI does — which is to
+ *                say silently, and not observably until the NEXT turn
  *   ask          ask a structured question and report the answer
  *   askstrict    ask one with a REQUIRED, typed field, the way an MCP server does
  *   plan         ask to leave plan mode, the way the adapter does
@@ -204,6 +205,17 @@ const storedSessions = () =>
     },
   ].filter((session) => !forgotten(session.sessionId))
 
+/**
+ * The picker, shaped the way the real adapter's is.
+ *
+ * Two rows spelled as ids, and one ALIAS — which is the shape that matters and
+ * the one this file used to be missing. The pinned adapter (0.66.0) offers
+ * `default`, `opus[1m]`, `sonnet`, `haiku`: bare family words, while the live
+ * model it reports on the wire is a concrete API id like `claude-sonnet-5`.
+ * With only id-spelled rows here, a panel that could not bridge the two
+ * vocabularies passed every scenario in this suite and named a raw id in front
+ * of the person who filed the bug.
+ */
 const CONFIG_OPTIONS = [
   {
     id: "model",
@@ -213,6 +225,7 @@ const CONFIG_OPTIONS = [
     options: [
       { value: "fake-model-1", name: "Fake One" },
       { value: "fake-model-2", name: "Fake Two" },
+      { value: "sonnet", name: "Fake Sonnet" },
     ],
   },
 ]
@@ -414,6 +427,21 @@ const sdkInit = (model: string): void => {
   })
 }
 
+/**
+ * The model the wrapped CLI is running, and WHEN a change to it is observable.
+ *
+ * The real adapter emits one `init` per turn, as that turn STARTS — so the turn
+ * that runs `/model` still announces the model it began on, and the new one is
+ * first heard of when the NEXT turn starts. Captured against 0.66.0 with
+ * `emitRawSDKMessages: true`: nothing else in that turn carries it, the only
+ * other trace being a `<synthetic>` assistant message saying so in prose.
+ *
+ * `model <id>` therefore takes effect AFTER this turn's announcement, which is
+ * the whole of what makes the panel's one-turn lag a property a scenario can
+ * assert instead of a surprise a person reports.
+ */
+let liveModel = "fake-model-1"
+
 /** A turn that was cancelled while it was waiting on the client ends as a
  *  cancelled turn. Answers whether it did, so the caller stops there. */
 const endedCancelled = (id: unknown): boolean => {
@@ -435,6 +463,10 @@ const canElicit = (): boolean => {
 const runTurn = async (id: unknown, text: string): Promise<void> => {
   cancelled = false
   noise(`fake agent: ${text}`)
+
+  // What every turn opens with, before it has read a word of the prompt — the
+  // adapter's own order, and the reason a `/model` is heard one turn late.
+  sdkInit(liveModel)
 
   const [verb, ...rest] = text.trim().split(/\s+/)
   const argument = rest.join(" ")
@@ -723,8 +755,12 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  // Handled INSIDE the wrapped CLI, which is why the picker never hears about
+  // it — and why this changes nothing that is observable until the next turn
+  // announces itself. The prose is all this turn has to say about it, exactly
+  // as the real one's `<synthetic>` message is.
   if (verb === "model") {
-    sdkInit(argument)
+    liveModel = argument
     say(`switched to ${argument}.`)
     respond(id, { stopReason: "end_turn" })
     return
@@ -943,11 +979,14 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     case "session/new":
       openSession(params)
       sessionId = "fake-session-1"
+      // A fresh conversation is on whatever the picker says it is picking.
+      liveModel = "fake-model-1"
       respond(id, { sessionId, configOptions: CONFIG_OPTIONS })
-      // A real session says what it is running as it starts. It agrees with
-      // the picker here, which is the case the client must NOT treat as a
-      // change: a session announcing itself is not a session switching.
-      sdkInit("fake-model-1")
+      // NO `init` here, and that is the adapter's own shape: it forwards one
+      // per PROMPT, so between opening a session and sending the first one the
+      // picker is the only thing that has said which model this is. A client
+      // that needed the CLI to speak before it could name a model would draw a
+      // nameless header for exactly that long.
       notify("session/update", {
         sessionId,
         update: { sessionUpdate: "available_commands_update", availableCommands: COMMANDS },
@@ -958,8 +997,8 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       openSession(params)
       sessionId = String(params["sessionId"] ?? sessionId)
       replay()
+      liveModel = "fake-model-1"
       respond(id, { configOptions: CONFIG_OPTIONS })
-      sdkInit("fake-model-1")
       notify("session/update", {
         sessionId,
         update: { sessionUpdate: "available_commands_update", availableCommands: COMMANDS },

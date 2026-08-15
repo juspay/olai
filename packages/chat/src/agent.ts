@@ -100,6 +100,7 @@ import {
   allowedWithoutAsking,
   BYPASS_MODE,
   liveModelIn,
+  modelNameIn,
   modelPickerIn,
   NEW_SESSION_META,
   SDK_MESSAGE,
@@ -297,13 +298,15 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const toolNames = new Map<string, string>()
 
     /** The conversation is over — replaced, reloaded, or dead. Everything keyed
-     *  to it goes: the questions nobody is going to answer now, and the tool
-     *  names they were keyed alongside. One function, because "this session is
-     *  finished" is one fact and four call sites remembering two things each is
-     *  how one of them ends up remembering one. */
+     *  to it goes: the questions nobody is going to answer now, the tool names
+     *  they were keyed alongside, and which model the CLI said it was running.
+     *  One function, because "this session is finished" is one fact and four
+     *  call sites remembering three things each is how one of them ends up
+     *  remembering two. */
     const leaving = (): void => {
       questions.withdrawAll()
       toolNames.clear()
+      forgetModel()
     }
 
     /** Put a form in front of a person and wait for it — the registry holds the
@@ -459,7 +462,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     /**
-     * WHICH MODEL — two sources, because one of them is not enough.
+     * WHICH MODEL — two sources, and one of them is the authority.
      *
      *   - the session's CONFIG OPTION is what was PICKED. It arrives with
      *     `session/new` and again in a `config_option_update` whenever
@@ -469,24 +472,61 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *
      * They part company at a `/model` slash command: the Claude Code adapter
      * wraps a CLI that handles it internally, so the adapter never learns of
-     * it and goes on reporting the model the session started on. Reading only
-     * the config option leaves a header that says one thing while every turn
-     * runs on another.
+     * it and goes on reporting the model the session started on, forever.
      *
-     * WHICHEVER MOVED LAST WINS, and each source is debounced against its OWN
-     * previous value: the picker resends its whole set when anything in it
-     * changes, and the live id repeats on every turn. The FIRST live id is a
-     * baseline — it agrees with the config option by construction, and a
-     * session announcing itself twice would say the same thing twice.
+     * So the picker answers until the CLI has spoken, and the CLI answers
+     * after — it is not a race between two facts, it is a stand-in and the
+     * thing it stood in for. The picker goes on supplying LABELS either way,
+     * which is the whole of what it is still good for once the session is
+     * running: {@link modelNameIn} is what turns a live API id back into the
+     * word the agent uses for it, and without that the header could only ever
+     * name a running model as `claude-sonnet-5`.
      *
-     * Nothing is guessed: an id the picker does not offer is reported raw and
-     * logged once, because a fuzzy match onto a nearby row would be invented.
+     * Debounced ON THE NAME, in {@link show}, rather than on either source's
+     * own previous value. That is what makes the two sources agreeing say
+     * nothing at all — the case that used to need the first live id to be
+     * special-cased as a "baseline" on the untrue grounds that it agrees with
+     * the config option BY CONSTRUCTION. It does not: the picker said
+     * `claude-fable-5[1m]` while the CLI said `claude-fable-5`. It agrees
+     * after it has been resolved, which is a thing to check rather than assume.
+     *
+     * ONE TURN LATE, and this is the adapter's floor rather than ours. The
+     * `init` for a turn is emitted as that turn STARTS, so the turn that runs
+     * `/model` still reports the model it began on; the new one arrives with
+     * the NEXT turn's `init`. Nothing else on the wire carries it — captured
+     * with `emitRawSDKMessages: true` against 0.66.0, the only trace of the
+     * change in that whole turn is a `<synthetic>` assistant message saying so
+     * in prose, and there is no read-only config verb to ask again with. A
+     * panel that closed the gap would be reading a sentence or inventing one.
      */
-    let pickedModel: string | null = null
-    let liveModel: string | null = null
+    /** The name the panel is showing. The one piece of state, because it is
+     *  the one fact — everything below is about what should be in it. */
+    let shown: string | null = null
+    /** The last live id read, so a `system`/`init` repeating every turn is not
+     *  re-resolved and not re-logged. */
+    let announced: string | null = null
+    /** Whether the CLI has said what it is RUNNING. Once it has, the picker is
+     *  a label book and no longer an answer. */
+    let running = false
     /** The picker, as value → label, kept so a LIVE id can be labelled the way
      *  the agent labels its own models. */
     let labels: ReadonlyMap<string, string> = new Map()
+
+    /** Say what the header names, when it changes. */
+    const show = (name: string | null): void => {
+      if (name === shown) return
+      shown = name
+      emit({ _tag: "model", name })
+    }
+
+    /** The conversation is over, as far as WHICH MODEL is concerned: the next
+     *  one gets its answer from its own picker again. `shown` survives on
+     *  purpose — it is what is on screen, and the next session naming the same
+     *  model should not redraw it. */
+    const forgetModel = (): void => {
+      announced = null
+      running = false
+    }
 
     const readModel = (
       configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
@@ -494,22 +534,20 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const picker = modelPickerIn(configOptions)
       if (picker === null) return
       labels = picker.labels
-      const current = picker.picked
-      if (current === pickedModel) return
-      pickedModel = current
-      emit({ _tag: "model", name: current === null ? null : labels.get(current) ?? current })
+      // A picked value the CLI has already overruled is not news. Kept for its
+      // labels, which is what it was re-read for.
+      if (running) return
+      const picked = picker.picked
+      show(picked === null ? null : modelNameIn(labels, picked) ?? picked)
     }
 
     const readLiveModel = (params: unknown): void => {
       const id = liveModelIn(params)
-      if (id === null || id === liveModel) return
-      const baseline = liveModel === null
-      liveModel = id
-      // The first one agrees with the config option by construction; saying it
-      // again would be the same fact in a second spelling.
-      if (baseline) return
-      const name = labels.get(id)
-      if (name === undefined) {
+      if (id === null || id === announced) return
+      announced = id
+      running = true
+      const name = modelNameIn(labels, id)
+      if (name === null) {
         say(
           Effect.annotateLogs(
             Effect.logWarning("the agent is running a model its picker does not offer"),
@@ -517,7 +555,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           ),
         )
       }
-      emit({ _tag: "model", name: name ?? id })
+      show(name ?? id)
     }
 
     /** The agent's own file would not run, said once for the two doors that

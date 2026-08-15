@@ -420,7 +420,28 @@ Feature: Talking to the agent
     # only the picker names the model the session STARTED on, forever.
     Then the panel header names the model "Fake One"
     When I ask the agent "model fake-model-2"
+    Then the agent is idle
+    # ONE TURN LATE, and the lag is the adapter's floor rather than a bug in
+    # the panel: the `init` for a turn is emitted as that turn STARTS, so the
+    # turn that ran `/model` announced the model it began on and nothing else
+    # in it carries the new one. Asserted after the turn is over, when the
+    # header has everything it is ever going to get about that turn.
+    And the panel header names the model "Fake One"
+    When I ask the agent "hello"
     Then the panel header names the model "Fake Two"
+
+  @scratch:chat
+  Scenario: A running model is named the way the picker names it, not as a raw id
+    # The bug the header was filed for, and the half of it that was silent. The
+    # adapter's picker offers ALIASES — `sonnet`, `haiku`, `opus[1m]` — while
+    # the model the CLI reports running is a concrete API id. So the two never
+    # matched, and the one thing the header could say about a model somebody
+    # had just switched to was `claude-sonnet-5`, in a panel whose picker calls
+    # that same model "Sonnet".
+    Then the panel header names the model "Fake One"
+    When I ask the agent "model claude-sonnet-5"
+    And I ask the agent "hello"
+    Then the panel header names the model "Fake Sonnet"
 
   @scratch:chat
   Scenario: A message sent mid-turn waits its turn instead of being refused

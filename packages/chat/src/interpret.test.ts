@@ -21,6 +21,7 @@ import { describe, expect, test } from "bun:test"
 import {
   allowedWithoutAsking,
   liveModelIn,
+  modelNameIn,
   modelPickerIn,
   NEW_SESSION_META,
   toolNameIn,
@@ -283,5 +284,84 @@ describe("which config option is the model, and what it calls its values", () =>
     ])).toBeNull()
     expect(modelPickerIn([{ id: "model", name: "Model", type: "boolean", currentValue: true }]))
       .toBeNull()
+  })
+})
+
+describe("what the agent calls the model it is running", () => {
+  /** The picker the pinned adapter (0.66.0) actually sent, captured off the
+   *  wire. Every value in it is an ALIAS — this is the whole reason the lookup
+   *  needs a rule rather than a `Map.get`. */
+  const OFFERED = new Map([
+    ["default", "Default (recommended)"],
+    ["opus[1m]", "Opus (1M context)"],
+    ["claude-fable-5[1m]", "Fable"],
+    ["sonnet", "Sonnet"],
+    ["haiku", "Haiku"],
+  ])
+
+  test("a picked value is itself, which is the case that always worked", () => {
+    expect(modelNameIn(OFFERED, "sonnet")).toBe("Sonnet")
+    expect(modelNameIn(OFFERED, "claude-fable-5[1m]")).toBe("Fable")
+    expect(modelNameIn(OFFERED, "default")).toBe("Default (recommended)")
+  })
+
+  test("the same model in the adapter's two spellings of a context lane", () => {
+    // What the session came up on: the picker said `claude-fable-5[1m]` and the
+    // CLI's `init` said `claude-fable-5`. One model, two spellings, and reading
+    // them as two was the header changing its language mid-session.
+    expect(modelNameIn(OFFERED, "claude-fable-5")).toBe("Fable")
+    // The other spelling of the same hint, which the adapter treats as equal.
+    expect(modelNameIn(OFFERED, "claude-fable-5-1m")).toBe("Fable")
+  })
+
+  test("a live API id lands on the alias row that names it", () => {
+    // The bug, as three lines. After a `/model`, the next turn's `init` reports
+    // the concrete API id; the picker offers only the alias. The header used to
+    // give up and print the id.
+    expect(modelNameIn(OFFERED, "claude-sonnet-5")).toBe("Sonnet")
+    expect(modelNameIn(OFFERED, "claude-haiku-4-5")).toBe("Haiku")
+    // The lane the live id does not state, borrowed from the only Opus this
+    // session was offered — said out loud in `modelNameIn`'s own note, because
+    // it is the one place this claims more than it was told.
+    expect(modelNameIn(OFFERED, "claude-opus-5")).toBe("Opus (1M context)")
+  })
+
+  test("`default` names no model, so nothing resolves onto it", () => {
+    // It is the adapter's word for "whichever one the CLI recommends today".
+    // It is also a bare word sitting in the alias tier, so it has to be said
+    // rather than assumed.
+    expect(modelNameIn(new Map([["default", "Default (recommended)"]]), "claude-opus-5"))
+      .toBeNull()
+    expect(modelNameIn(new Map([["default", "Default (recommended)"]]), "default-5"))
+      .toBeNull()
+  })
+
+  test("two rows that could both be it is a question this does not answer", () => {
+    // A picker offering a bare `sonnet` and a `sonnet[1m]` is offering two
+    // context lanes, and a live id states neither. The raw id is the truthful
+    // thing to say about a question nobody answered.
+    const both = new Map([["sonnet", "Sonnet"], ["sonnet[1m]", "Sonnet (1M context)"]])
+    expect(modelNameIn(both, "claude-sonnet-5")).toBeNull()
+    // ... and the same rule one tier up: two rows differing only by lane, with
+    // a live id that has none.
+    const lanes = new Map([
+      ["claude-opus-5[1m]", "Opus (1M context)"],
+      ["claude-opus-5-1m", "Opus, again"],
+    ])
+    expect(modelNameIn(lanes, "claude-opus-5")).toBeNull()
+  })
+
+  test("nothing is approximated onto a row that is merely nearby", () => {
+    // The rule the picker's own note has always stated, and it still holds:
+    // these are exact comparisons, and a model this picker does not offer is
+    // reported raw by the caller rather than rounded to a neighbour.
+    expect(modelNameIn(OFFERED, "gpt-5")).toBeNull()
+    expect(modelNameIn(OFFERED, "claude-opus-4-5-20260101")).toBeNull()
+    // A multi-word value never plays in the alias tier: `claude-sonnet-4-5` is
+    // not what `claude-sonnet-5` says it is, however much of it overlaps.
+    expect(modelNameIn(new Map([["claude-sonnet-4-5", "Sonnet 4.5"]]), "claude-sonnet-5"))
+      .toBeNull()
+    expect(modelNameIn(new Map(), "claude-sonnet-5")).toBeNull()
+    expect(modelNameIn(OFFERED, "")).toBeNull()
   })
 })

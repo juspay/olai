@@ -160,6 +160,99 @@ export interface Picker {
 }
 
 /**
+ * The context lane a model string carries, as the adapter spells it.
+ *
+ * Two spellings for one thing — `opus[1m]` in a picker value, `-1m` glued to an
+ * id — and the adapter treats them as the same string (its own
+ * `canonicalizeModelId`). A live id carries NEITHER: the CLI reports the
+ * concrete API id with the hint dropped, which is the whole reason
+ * {@link modelNameIn} has to do any work at all.
+ */
+const CONTEXT_HINT = /(?:\[(\d+m)\]|-(\d+m))$/i
+
+/** A model id with its context lane taken off, lowercased — the spelling in
+ *  which two of the adapter's names for one model are comparable. */
+const withoutLane = (id: string): string => id.trim().toLowerCase().replace(CONTEXT_HINT, "")
+
+/**
+ * What the agent calls the model with this id, out of its own picker — or
+ * `null` when the picker does not name it and the caller should say the id raw.
+ *
+ * THE TWO VOCABULARIES. The picker's values are the adapter's *aliases* —
+ * `default`, `opus[1m]`, `sonnet`, `haiku` — and the live id the CLI reports is
+ * the concrete API id: `claude-sonnet-5`. So the obvious lookup, `labels.get`
+ * on a live id, misses on every alias row the default install ships, and a
+ * header that followed the running model could only ever say `claude-sonnet-5`
+ * where the picker beside it said "Sonnet". Captured off the real adapter
+ * (0.66.0) — the picker offered `default`, `opus[1m]`, `claude-fable-5[1m]`,
+ * `sonnet`, `haiku` while `system`/`init` reported `claude-fable-5`, then
+ * `claude-sonnet-5`. Not one of the five ever matched.
+ *
+ * Three tiers, and every one of them is an EXACT comparison. This is not the
+ * fuzzy match the picker's own note refuses, and the difference is worth
+ * naming: the adapter resolves in exactly this direction itself
+ * (`resolveModelPreference`, `matchResumedModel`) and resolves it to decide
+ * BEHAVIOUR — which context window, which capabilities. What is decided here is
+ * a word on a screen, and it is decided more strictly than the adapter does it:
+ * no scoring, no version fuzz, no nearest row.
+ *
+ *   1. the id IS a picker value. The picked value always lands here;
+ *   2. the same model in the adapter's two spellings of a context lane —
+ *      `claude-fable-5` is the `claude-fable-5[1m]` row;
+ *   3. an ALIAS row: a value that is one bare word naming a FAMILY, against an
+ *      id that is that family and a version and nothing else.
+ *      `claude-sonnet-5` is the `sonnet` row because "sonnet" is literally
+ *      what that id says it is.
+ *
+ * Tier 3 answers for a family and a version — `claude-sonnet-5`,
+ * `claude-haiku-4-5` — and for nothing more decorated than that. A dated or
+ * otherwise pinned id (`claude-opus-4-5-20260101`) names something more
+ * specific than any alias claims to cover, and gets the raw id: an alias row
+ * that answered for it would be saying the picker offers a model it does not.
+ *
+ * And every tier that could answer twice answers `null` instead. Tier 3 in
+ * particular takes a UNIQUE hit or none: two alias rows for one family — a
+ * `sonnet` and a `sonnet[1m]` — are a question this cannot answer, and the raw
+ * id is the truthful thing to say about a question nobody answered.
+ *
+ * `default` is never a match. It is the adapter's word for "whichever model the
+ * CLI recommends today", so it names no model at all — and it is a bare word
+ * that would otherwise sit in tier 3 matching nothing on purpose.
+ *
+ * WHAT THIS DOES CLAIM, said plainly because it is the one soft edge: tier 3
+ * can put a live `claude-opus-5` — which states no lane — on a picker row that
+ * does, "Opus (1M context)". The lane is unknowable from the live id (the CLI
+ * drops it), so the header borrows the lane of the only Opus this session was
+ * offered. A second Opus row would make it ambiguous and this would say nothing.
+ */
+export const modelNameIn = (
+  labels: ReadonlyMap<string, string>,
+  id: string,
+): string | null => {
+  const exact = labels.get(id)
+  if (exact !== undefined) return exact
+
+  const wanted = withoutLane(id)
+  if (wanted === "") return null
+
+  const named = (only: (value: string) => boolean): string | null => {
+    const hits = [...labels].filter(([value]) => value !== "default" && only(value))
+    return hits.length === 1 ? hits[0]?.[1] ?? null : null
+  }
+
+  const lane = named((value) => withoutLane(value) === wanted)
+  if (lane !== null) return lane
+
+  // `claude-` is the vendor and says nothing about which model this is; what
+  // follows is a family and, optionally, the version of it. Anything else in
+  // there — a date, a build — is a pin no family alias covers.
+  const words = wanted.split("-")
+  const [family, ...version] = words[0] === "claude" ? words.slice(1) : words
+  if (family === undefined || !version.every((part) => /^\d{1,2}$/.test(part))) return null
+  return named((value) => withoutLane(value) === family)
+}
+
+/**
  * The model picker out of a session's `configOptions`, or `null` when there is
  * none to read.
  *
@@ -179,9 +272,10 @@ export const modelPickerIn = (
   return { picked: entry.currentValue ?? null, labels: labelsOf(entry) }
 }
 
-/** The picker as value → label ("claude-fable" → "Fable"), which is what the
- *  agent calls its own models. A value it does not offer is absent here, and
- *  the caller keeps the raw id: truthful, where a nearest match is invented.
+/** The picker as value → label ("sonnet" → "Sonnet"), which is what the agent
+ *  calls its own models. Exactly what the picker said and nothing more — the
+ *  vocabulary gap between a picker VALUE and a live API id is
+ *  {@link modelNameIn}'s to bridge, and only it may answer `null`.
  *
  *  The picker is a flat list of options or a list of GROUPS of them, and the
  *  protocol tells the two apart by shape rather than by a tag. */
