@@ -462,7 +462,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     /**
-     * WHICH MODEL — two sources, and one of them is the authority.
+     * WHICH MODEL — two sources, and a change in either is news.
      *
      *   - the session's CONFIG OPTION is what was PICKED. It arrives with
      *     `session/new` and again in a `config_option_update` whenever
@@ -474,21 +474,26 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * wraps a CLI that handles it internally, so the adapter never learns of
      * it and goes on reporting the model the session started on, forever.
      *
-     * So the picker answers until the CLI has spoken, and the CLI answers
-     * after — it is not a race between two facts, it is a stand-in and the
-     * thing it stood in for. The picker goes on supplying LABELS either way,
-     * which is the whole of what it is still good for once the session is
-     * running: {@link modelNameIn} is what turns a live API id back into the
-     * word the agent uses for it, and without that the header could only ever
-     * name a running model as `claude-sonnet-5`.
+     * WHICHEVER MOVED LAST WINS, and each source is debounced against its OWN
+     * previous value — which is what stops a picker RE-SENDING a value it
+     * already sent from overwriting a `/model` the CLI reported since. It is
+     * not that the picker stops being trusted once the CLI has spoken: when
+     * the picker genuinely moves it is because the model genuinely moved (a
+     * refusal fallback re-picks the row it fell back to), and a panel that had
+     * decided to stop listening would sit on a stale name until the next turn.
      *
-     * Debounced ON THE NAME, in {@link show}, rather than on either source's
-     * own previous value. That is what makes the two sources agreeing say
-     * nothing at all — the case that used to need the first live id to be
-     * special-cased as a "baseline" on the untrue grounds that it agrees with
-     * the config option BY CONSTRUCTION. It does not: the picker said
-     * `claude-fable-5[1m]` while the CLI said `claude-fable-5`. It agrees
-     * after it has been resolved, which is a thing to check rather than assume.
+     * The picker also supplies the LABELS, and that is not a side job:
+     * {@link modelNameIn} is what turns a live API id back into the word the
+     * agent uses for it. Without it the header could only ever name a running
+     * model as `claude-sonnet-5`, beside a picker calling it "Sonnet".
+     *
+     * And what reaches the panel is debounced once more, ON THE NAME, in
+     * {@link show}. That is what makes two sources AGREEING say nothing at all
+     * — the case that used to need the first live id special-cased as a
+     * "baseline" on the untrue grounds that it agrees with the config option BY
+     * CONSTRUCTION. It does not: the picker said `claude-fable-5[1m]` while the
+     * CLI said `claude-fable-5`. They agree once resolved, which is a thing to
+     * check rather than assume.
      *
      * ONE TURN LATE, and this is the adapter's floor rather than ours. The
      * `init` for a turn is emitted as that turn STARTS, so the turn that runs
@@ -499,15 +504,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * in prose, and there is no read-only config verb to ask again with. A
      * panel that closed the gap would be reading a sentence or inventing one.
      */
-    /** The name the panel is showing. The one piece of state, because it is
-     *  the one fact — everything below is about what should be in it. */
+    /** The name the panel is showing. Everything below is about what should be
+     *  in it, and {@link show} is the only thing that writes it. */
     let shown: string | null = null
-    /** The last live id read, so a `system`/`init` repeating every turn is not
-     *  re-resolved and not re-logged. */
+    /** What each source last SAID, so that a source repeating itself is not a
+     *  source moving: the picker re-sends its whole set whenever anything in it
+     *  changes, and the live id repeats on every turn. Neither is news. */
+    let picked: string | null = null
     let announced: string | null = null
-    /** Whether the CLI has said what it is RUNNING. Once it has, the picker is
-     *  a label book and no longer an answer. */
-    let running = false
     /** The picker, as value → label, kept so a LIVE id can be labelled the way
      *  the agent labels its own models. */
     let labels: ReadonlyMap<string, string> = new Map()
@@ -519,13 +523,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       emit({ _tag: "model", name })
     }
 
-    /** The conversation is over, as far as WHICH MODEL is concerned: the next
-     *  one gets its answer from its own picker again. `shown` survives on
-     *  purpose — it is what is on screen, and the next session naming the same
-     *  model should not redraw it. */
+    /** The conversation is over, as far as WHICH MODEL is concerned: what the
+     *  next one's sources say is news about IT. `shown` survives on purpose —
+     *  it is what is on screen, and the next session naming the same model
+     *  should not redraw it. */
     const forgetModel = (): void => {
+      picked = null
       announced = null
-      running = false
     }
 
     const readModel = (
@@ -534,10 +538,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const picker = modelPickerIn(configOptions)
       if (picker === null) return
       labels = picker.labels
-      // A picked value the CLI has already overruled is not news. Kept for its
-      // labels, which is what it was re-read for.
-      if (running) return
-      const picked = picker.picked
+      if (picker.picked === picked) return
+      picked = picker.picked
       show(picked === null ? null : modelNameIn(labels, picked) ?? picked)
     }
 
@@ -545,7 +547,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const id = liveModelIn(params)
       if (id === null || id === announced) return
       announced = id
-      running = true
       const name = modelNameIn(labels, id)
       if (name === null) {
         say(
