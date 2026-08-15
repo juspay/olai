@@ -258,25 +258,6 @@ let mode: Mode | undefined;
  *  scenario would let the same mistake be reported forty times. */
 const modeOf = (): Mode => (mode ??= readMode());
 
-/** The olai executable this harness spawns.
- *
- *  For the one caller that launches something OTHER than a server with it: the
- *  external tool surface is a subcommand of the same binary, and a scenario
- *  about a terminal agent has to run the artefact a person would have, not a
- *  script in this tree. A reused server (`OLAI_URL`) is somebody else's
- *  process and says nothing about where its binary is. */
-export const olaiBin = (): string => {
-  const active = modeOf();
-  if (active.kind !== "spawn") {
-    throw new Error(
-      "this scenario launches the olai binary itself (`olai mcp`), so it needs " +
-        `OLAI_BIN — OLAI_URL (${active.baseUrl}) names a running server, not an ` +
-        "executable this harness can start.",
-    );
-  }
-  return active.bin;
-};
-
 /** `bun-types`' `node:net` and `node:child_process` declarations do not carry
  *  EventEmitter's methods, although the objects have them at runtime — a gap in
  *  the types, not in the behaviour (`node:stream`'s do, which is why the pipes

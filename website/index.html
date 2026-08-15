@@ -972,9 +972,16 @@ The corner unit is the **risky one** — see
 └───────────────────────────────────────────┘</code></pre>
       </div>
       <div>
-        <pre><code>$ claude mcp add olai -- olai mcp ~/outlines</code></pre>
+        <pre><code>{
+  "mcpServers": {
+    "olai": {
+      "type": "http",
+      "url": "http://127.0.0.1:7714/mcp"
+    }
+  }
+}</code></pre>
         <p class="caption">The same tools are available over MCP for agents
-        running in a terminal. There is no write CLI.</p>
+        running in a terminal — they dial the running server. There is no write CLI.</p>
       </div>
     </div>
   </div>

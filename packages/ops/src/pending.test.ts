@@ -305,13 +305,13 @@ describe("what is committed, and what is not", () => {
         // The outline still has its node-level detail...
         expect(pending.changes).toHaveLength(1)
         expect(pending.outlines).toEqual([
-          { file: "house.olai", path: "house.olai", how: "modified" },
+          { file: "house.olai", path: "house.olai", how: "modified", from: null },
         ])
         // ... and the other two are rows, with what happened to each.
         expect([...pending.others].sort((a, b) => a.path.localeCompare(b.path)))
           .toEqual([
-            { path: "notes.md", how: "untracked" },
-            { path: "script.sh", how: "untracked" },
+            { path: "notes.md", how: "untracked", from: null },
+            { path: "script.sh", how: "untracked", from: null },
           ])
         // Which the composed message names, so the log says what the commit did.
         expect(pending.message).toContain("· 2 other files")
@@ -397,6 +397,187 @@ describe("what is committed, and what is not", () => {
 })
 
 /**
+ * A rename somebody staged by hand, which is the one shape of hand-staged work
+ * both faces of this feature got wrong at once.
+ *
+ * The reproduction is the human's own vault, the morning after the outline
+ * extension changed: two files `git mv`-ed into the new spelling, then open the
+ * panel. It read `<the old name> deleted` for each — a departure with nothing
+ * joining it to the file that now holds those notes, and the new files nowhere
+ * on screen — and pressing Commit answered
+ * `fatal: pathspec '/home/srid/Vault/<the old name>' did not match any files`,
+ * git's raw words wearing olai's name. The `commit` tool answered the same
+ * fatal from a terminal, over a rename staged the same way.
+ *
+ * Both faces, one cause: the machinery read the working tree against HEAD and
+ * never read the INDEX, so a rename arrived as two unrelated rows and the `add`
+ * behind a commit was handed a path that exists only in HEAD.
+ */
+describe("a rename staged by hand", () => {
+  /** The old side's content, so a rename between two SERVED outlines has nodes
+   *  on both sides to be recognised across. */
+  const KEPT = [
+    `{"id":"kept","ord":"a0","title":"Kept for later"}`,
+    "",
+  ].join("\n")
+
+  /** The WEB face. A document is not an outline, so the ARRIVING side is the
+   *  only outline in this rename — which is the shape of the migration the
+   *  human was doing when this was filed: a file olai did not serve becoming
+   *  one it does. */
+  test("reads as a rename in the panel, not as a deletion", () =>
+    withRepo({ "house.olai": HOUSE, "Kept.md": KEPT }, (fixture) =>
+      Effect.gen(function*() {
+        fixture.git("mv", "Kept.md", "Kept.olai")
+        yield* fixture.refresh
+
+        const pending = yield* fixture.ops.pending
+        // ONE row, naming both sides. The arriving file is an outline olai
+        // serves, so it is an outline row and it says where it came from.
+        expect(pending.outlines).toEqual([
+          {
+            file: "Kept.olai",
+            path: "Kept.olai",
+            how: "renamed",
+            from: "Kept.md",
+          },
+        ])
+        // And the departing side is NOT a second row: it is not a file waiting
+        // to be deleted, it is half of the rename above, and a tick of its own
+        // would be a commit that lands the rename in two pieces.
+        expect(pending.others).toEqual([])
+        // And the log does not say a file was deleted either.
+        expect(pending.message).not.toContain("deleted: Kept.md")
+        // THE NODES, which is the other half of what the human was shown and
+        // the half only THIS shape holds. Between two served outlines the old
+        // side is a dirty outline in its own right, so HEAD's copy of it was
+        // already in hand and the ids already matched across it — the two-row
+        // bug was the whole of what was wrong there. Here the old side is a
+        // file olai does not serve, so nothing fetched HEAD's copy of it at
+        // all, and every node read as freshly created: three arrivals and a
+        // `capture:` message, for a file where nothing happened but the name.
+        expect(pending.changes).toEqual([
+          {
+            file: "Kept.olai",
+            id: "kept",
+            title: "Kept for later",
+            fields: ["file"],
+            sort: "moved",
+          },
+        ])
+      })))
+
+  /** The same rename between two files olai does NOT serve, where the row is
+   *  path-level and the composed message is the only place it can be read.
+   *  `renamed: notes.md` would be the word that refuses to say the interesting
+   *  half, so the body names both. */
+  test("names both halves in the log, for a file that is not an outline", () =>
+    withRepo({ "house.olai": HOUSE, "notes.md": "a document\n" }, (fixture) =>
+      Effect.gen(function*() {
+        fixture.git("mv", "notes.md", "later.md")
+        yield* fixture.refresh
+
+        const pending = yield* fixture.ops.pending
+        expect(pending.others).toEqual([
+          { path: "later.md", how: "renamed", from: "notes.md" },
+        ])
+        expect(pending.message).toContain("renamed: notes.md → later.md")
+      })))
+
+  /** The MCP face, and the fatal it leaked. */
+  test("commits as one rename rather than leaking git's pathspec fatal", () =>
+    withRepo({ "house.olai": HOUSE, "Kept.md": KEPT }, (fixture) =>
+      Effect.gen(function*() {
+        fixture.git("mv", "Kept.md", "Kept.olai")
+        yield* fixture.refresh
+
+        const done = yield* fixture.ops.commit({}, "mcp")
+        expect(done._tag === "Failed" ? done.said : "").not.toContain("pathspec")
+        expect(done._tag).toBe("Committed")
+
+        expect(
+          fixture.git("show", "--name-status", "--find-renames", "--format=", "HEAD").trim(),
+        ).toBe("R100\tKept.md\tKept.olai")
+        expect(fixture.git("status", "--porcelain").trim()).toBe("")
+      })))
+
+  /**
+   * The SWEEP semantics, which is where a half-fix would land somebody's
+   * history in two pieces: a selection names the arriving side, because that is
+   * the row the panel drew and the path `pending` published — and the commit
+   * has to carry the departing half with it.
+   */
+  test("a selection naming the new side takes the whole rename", () =>
+    withRepo({ "house.olai": HOUSE, "Kept.md": KEPT }, (fixture) =>
+      Effect.gen(function*() {
+        fixture.git("mv", "Kept.md", "Kept.olai")
+        fixture.write("later.md", "not this time\n")
+        yield* fixture.refresh
+
+        const done = yield* fixture.ops.commit({ paths: ["Kept.olai"] }, "web")
+        expect(done._tag).toBe("Committed")
+
+        expect(
+          fixture.git("show", "--name-status", "--find-renames", "--format=", "HEAD").trim(),
+        ).toBe("R100\tKept.md\tKept.olai")
+        // What was not picked is still waiting, and nothing of the rename is
+        // left behind in the working tree.
+        expect(fixture.git("status", "--porcelain").trim()).toBe("?? later.md")
+      })))
+
+  /**
+   * Between two SERVED outlines, where the node-level answer is available and
+   * has to be the right one: the same nodes, in a different file.
+   *
+   * The committed side is HEAD's copy of the file it CAME FROM. Read against
+   * HEAD's copy of the name it has now — which HEAD has never had — every node
+   * in it reads as created, and a person is shown a screenful of arrivals for a
+   * file nothing happened inside.
+   */
+  test("between two served outlines, the nodes read as moved rather than reborn", () =>
+    withRepo({ "house.olai": HOUSE, "keep.olai": KEPT }, (fixture) =>
+      Effect.gen(function*() {
+        fixture.git("mv", "keep.olai", "later.olai")
+        yield* fixture.refresh
+
+        const pending = yield* fixture.ops.pending
+        expect(pending.outlines).toEqual([
+          { file: "later.olai", path: "later.olai", how: "renamed", from: "keep.olai" },
+        ])
+        expect(pending.changes).toEqual([
+          {
+            file: "later.olai",
+            id: "kept",
+            title: "Kept for later",
+            fields: ["file"],
+            sort: "moved",
+          },
+        ])
+      })))
+
+  /**
+   * The other half of the promise the `commit` tool already makes in as many
+   * words — that hand-staged work is left undisturbed — read in the direction
+   * nobody had checked: a file somebody staged is WAITING, visible, and
+   * committable when it is picked.
+   */
+  test("a file added to the index by hand is waiting, and commits when picked", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        fixture.write("staged.md", "staged by hand\n")
+        fixture.git("add", "staged.md")
+        yield* fixture.refresh
+
+        const pending = yield* fixture.ops.pending
+        expect(pending.others).toEqual([{ path: "staged.md", how: "added", from: null }])
+
+        const done = yield* fixture.ops.commit({ paths: ["staged.md"] }, "web")
+        expect(done._tag).toBe("Committed")
+        expect(fixture.git("status", "--porcelain").trim()).toBe("")
+      })))
+})
+
+/**
  * Serving a SUBDIRECTORY of a repository, which is how olai serves this
  * project's own `docs/`.
  *
@@ -422,16 +603,82 @@ describe("a served subdirectory reports on the whole repository", () => {
           // The served outline, in BOTH spellings: the store's key and the
           // repository's own name for it.
           expect(pending.outlines).toEqual([
-            { file: "house.olai", path: "docs/house.olai", how: "modified" },
+            { file: "house.olai", path: "docs/house.olai", how: "modified", from: null },
           ])
           expect([...pending.others].map((one) => one.path).sort())
             .toEqual(["README.md", "elsewhere.olai"])
+          // And the node-level answer is about the EDIT, not about the two
+          // spellings of the file it is in. `changesOf` reports a node whose
+          // file differs as having moved, so the two sides of the comparison
+          // have to be keyed in one namespace — key the committed side by the
+          // repository's spelling while the working side keeps the store's, and
+          // every node of every outline reads as `moved` the moment olai serves
+          // a subdirectory. Nothing else in the suite was holding that.
+          expect(pending.changes).toEqual([
+            {
+              file: "house.olai",
+              id: "order",
+              title: "order the cabinets",
+              fields: ["done"],
+              sort: "done",
+            },
+          ])
 
           expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Committed")
           expect(fixture.git("status", "--porcelain").trim()).toBe("")
           // And the commit olai just made is what it reports as last, even
           // though half of it lives outside the served directory.
           expect((yield* fixture.ops.pending).last).not.toBe(null)
+        }),
+      { serve: "docs" },
+    ))
+
+  /**
+   * A rename from ABOVE the served root into it — the one shape where the side
+   * a file came from has no served name at all.
+   *
+   * `git mv Notes.md docs/Notes.olai` is somebody moving their notes under the
+   * directory olai serves, which is a thing people do on the day they start
+   * using it. HEAD has the source as `Notes.md` and nothing else; asked for by
+   * the served spelling there is nothing to ask FOR, so the committed side went
+   * missing and every node in the file read as created. Repo-root-relative is
+   * the one name both sides always have.
+   */
+  test("a rename from above the served root still reads against HEAD's own copy", () =>
+    withRepo(
+      { "docs/house.olai": HOUSE, "Notes.md": `{"id":"kept","ord":"a0","title":"Kept"}\n` },
+      (fixture) =>
+        Effect.gen(function*() {
+          fixture.git("mv", "Notes.md", "docs/Notes.olai")
+          yield* fixture.refresh
+
+          const pending = yield* fixture.ops.pending
+          expect(pending.outlines).toEqual([
+            {
+              file: "Notes.olai",
+              path: "docs/Notes.olai",
+              how: "renamed",
+              // Repo-relative, because that is the only name a file one level
+              // up HAS — and what the panel shortens only when it can.
+              from: "Notes.md",
+            },
+          ])
+          expect(pending.others).toEqual([])
+          // Moved, not reborn: HEAD's `Notes.md` is the committed side.
+          expect(pending.changes).toEqual([
+            {
+              file: "Notes.olai",
+              id: "kept",
+              title: "Kept",
+              fields: ["file"],
+              sort: "moved",
+            },
+          ])
+
+          expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Committed")
+          expect(
+            fixture.git("show", "--name-status", "--find-renames", "--format=", "HEAD").trim(),
+          ).toBe("R100\tNotes.md\tdocs/Notes.olai")
         }),
       { serve: "docs" },
     ))
@@ -454,7 +701,7 @@ describe("a served subdirectory reports on the whole repository", () => {
             .toBe("house.olai")
           // The served one is untouched and still waiting.
           expect((yield* fixture.ops.pending).outlines)
-            .toEqual([{ file: "house.olai", path: "docs/house.olai", how: "modified" }])
+            .toEqual([{ file: "house.olai", path: "docs/house.olai", how: "modified", from: null }])
         }),
       { serve: "docs" },
     ))
@@ -698,7 +945,7 @@ describe("--commit=off", () => {
  * HACKING.md's rule is that MCP and Web ops must be consistent and never
  * deviate, and this is that rule made checkable at the one place it would be
  * expensive to get wrong: what ends up permanently in somebody's history.
- * `olai web`'s button and `olai mcp`'s tool are two callers of one `Ops.commit`
+ * `olai web`'s button and the agent's `commit` tool are two callers of one `Ops.commit`
  * — but "two callers of one function" is an implementation detail that a
  * refactor can quietly end, and nothing else in the suite compares the two
  * outputs.
@@ -822,7 +1069,7 @@ const bodyWithoutTrailer = (body: string): string =>
  *
  * `Applied.why` rides the reply an agent reads, so telling an agent in a
  * terminal to press a Commit button sends it after a control it cannot reach —
- * the same mistake `olai mcp --help` would make if the two faces shared one
+ * the same mistake a terminal-only `--help` would make if the two faces shared one
  * sentence, and the same rule fixes both. The panel's agent keeps both doors
  * named, because it has the tool and a person with the button is watching.
  */

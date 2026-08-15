@@ -1,9 +1,8 @@
 /**
  * "Did that process stop?", as a bounded question.
  *
- * Two tests in this package start a real olai and then ask it to stop — one by
- * a signal (`shutdown.test.ts`, the SIGINT regression), one by closing the
- * pipe an MCP client owns (`mcp/serve.test.ts`). Both are telling the same two
+ * Tests in this package start a real olai and then ask it to stop — by a
+ * signal (`shutdown.test.ts`, the SIGINT regression). They are telling the same two
  * outcomes apart, and it is a distinction a bare `await` cannot make: a
  * process that never stops does not fail a test, it hangs it, and the runner's
  * own timeout then reports only that something took too long.

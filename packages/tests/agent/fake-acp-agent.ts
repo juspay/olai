@@ -23,7 +23,9 @@
  *   add <title>  call `add_node` under the first outline's first root
  *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
  *                outline if the name ends `.olai`, an over-budget rewrite for
- *                `huge.md`, an ordinary markdown edit otherwise
+ *                `huge.md`, unbroken tokens (add, remove, and a same-line
+ *                context row) for `long.md`, an ordinary
+ *                markdown edit otherwise
  *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
  *   deaf         go quiet with our stdin closed, so nothing said back arrives
@@ -302,6 +304,55 @@ const EDITED_OUTLINE = {
   after: [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","desc":"oak, twelve of them"}`,
+    "",
+  ].join("\n"),
+}
+
+/**
+ * A token with no whitespace at all — the case `overflow-wrap: anywhere`
+ * exists for, and the one `whitespace-pre-wrap` alone cannot break. 700
+ * characters is past every dock and sheet this suite draws, so a regression
+ * to `whitespace-pre` is a horizontal scrollbar rather than a lucky fit.
+ */
+const unbroken = (seed: string): string => {
+  const unit = `${seed}X`
+  return unit.repeat(Math.ceil(700 / unit.length)).slice(0, 700)
+}
+
+const LONG_ADDED = unbroken("added")
+const LONG_REMOVED = unbroken("removed")
+const LONG_CONTEXT = unbroken("context")
+
+/**
+ * A long-line edit that pins all three row kinds the gutter must survive:
+ * a wrapping context line that did not change, a wrapping removal, and a
+ * wrapping addition. Short neighbours keep the trim honest.
+ */
+const LONG_EDITED = {
+  before: [
+    "# Kitchen notes",
+    "",
+    LONG_CONTEXT,
+    LONG_REMOVED,
+    "the sink stays exactly where it is",
+    "the tiles are somebody else's problem",
+    "the lights arrive with the worktop",
+    "Nothing here is decided until the worktop is.",
+    "book the electrician",
+    "book the tiler",
+    "",
+  ].join("\n"),
+  after: [
+    "# Kitchen notes",
+    "",
+    LONG_CONTEXT,
+    LONG_ADDED,
+    "the sink stays exactly where it is",
+    "the tiles are somebody else's problem",
+    "the lights arrive with the worktop",
+    "Nothing here is decided until the worktop is.",
+    "book the electrician",
+    "book the tiler",
     "",
   ].join("\n"),
 }
@@ -892,6 +943,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       ? EDITED_OUTLINE
       : file === "huge.md"
       ? REWRITTEN
+      : file === "long.md"
+      ? LONG_EDITED
       : EDITED
     notify("session/update", {
       sessionId,

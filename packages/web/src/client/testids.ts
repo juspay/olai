@@ -752,6 +752,14 @@ export const TESTID = {
    *  the fact, never the colour it is painted in, which is the whole subject
    *  and so the last thing to assert on. */
   chatDiffLine: "chat-diff-line",
+  /** The line-number column of that row. Its own name because a wrapped line
+   *  must leave this column where it is — a continuation that slides under
+   *  the numbers is a row that no longer reads as a diff. */
+  chatDiffGutter: "chat-diff-gutter",
+  /** The `+` / `−` / blank marker, the other column that must not wrap. */
+  chatDiffMark: "chat-diff-mark",
+  /** The line's text. This is the only part of the row that may wrap. */
+  chatDiffText: "chat-diff-text",
   /** The control that opens a trimmed diff in place, and shuts it again. */
   chatDiffExpand: "chat-diff-expand",
   /** One OUTLINE the call rewrote — its own name, because the whole claim is

@@ -303,6 +303,26 @@ export const HOW_TONE: Readonly<Record<How, string>> = {
  * outlines is a row in this list — and a reader who is not told that has to
  * work out why.
  */
+/**
+ * Where a renamed row came FROM, in the spelling the OUTLINE list draws its own
+ * names in.
+ *
+ * The wire carries `from` repo-root-relative on both kinds of row — the one
+ * unambiguous name a file has across a repository, and the namespace a commit
+ * request ticks in. The other-files list draws that name as it is; the outline
+ * list draws SERVED names (`roadmap.olai`, not `docs/roadmap.olai`), and
+ * `docs/a.olai → b.olai` on one line is two spellings of the same directory in
+ * six inches of screen.
+ *
+ * A file from OUTSIDE the served root keeps its repo-relative name, which is
+ * the only honest thing to call it: it really is up there, and shortening it
+ * would name a file that does not exist.
+ */
+export const localOf = (from: string | null, served: string): string | null =>
+  from !== null && served !== "" && from.startsWith(served)
+    ? from.slice(served.length)
+    : from
+
 export const scopeOf = (served: string): string =>
   served === ""
     ? "whole repository · olai serves it from the root"

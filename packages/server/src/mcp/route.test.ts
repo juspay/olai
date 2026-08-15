@@ -9,8 +9,9 @@
  * face can see, because it is a property of the TRANSPORT and its headers.
  *
  * So the assertions here are deliberately about the envelope rather than about
- * the tools: one POST, one JSON reply, the token enforced, and the SSE half
- * refused. What is inside the reply is `tools.test.ts`'s subject — with one
+ * the tools: one POST, one JSON reply, loopback without a token, off-loopback
+ * still refused, and the SSE half refused. What is inside the reply is
+ * `tools.test.ts`'s subject — with one
  * exception, and it earns it: a REFUSAL is an envelope claim as much as a
  * payload one, because getting it wrong here means a 500, or a JSON-RPC error
  * frame, or a structured half that never made it into the reply. This is the
@@ -21,8 +22,9 @@ import { codec, make as makeOps, TOOLS } from "@olai/ops"
 import { type OutlineError, type OutlineSet } from "@olai/format"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
-import { Effect, SubscriptionRef } from "effect"
+import { Effect, Option, SubscriptionRef } from "effect"
 import * as fs from "node:fs"
+import * as http from "node:http"
 import * as os from "node:os"
 import * as path from "node:path"
 
@@ -31,7 +33,7 @@ import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
-import { MCP_PATH, mcpTransport } from "./route.ts"
+import { fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
 import { bespokeFrom } from "./tools.ts"
 
 const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
@@ -47,7 +49,10 @@ interface Served {
   readonly url: string
 }
 
-const withRoute = <A>(use: (served: Served) => Promise<A>): Promise<A> => {
+const withRoute = <A>(
+  use: (served: Served) => Promise<A>,
+  listenOn: { readonly host: string } = { host: "127.0.0.1" },
+): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-route-")))
   fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
 
@@ -86,7 +91,7 @@ const withRoute = <A>(use: (served: Served) => Promise<A>): Promise<A> => {
       bound: wired.bound,
       clientDist: root,
       root,
-      host: "127.0.0.1",
+      host: listenOn.host,
       port: 0,
       allowedOrigins: [],
       mcp: { transport, token: TOKEN },
@@ -164,6 +169,30 @@ test("a tool call goes through and comes back as one reply", async () => {
   })
 })
 
+test("tools/list and a resource read answer over the same POST", async () => {
+  await withRoute(async ({ post }) => {
+    await post(initialize)
+    await post({ jsonrpc: "2.0", method: "notifications/initialized" })
+
+    const listed = await post({ jsonrpc: "2.0", id: 2, method: "tools/list" })
+    expect(listed.status).toBe(200)
+    const tools = (await listed.json() as {
+      result?: { tools?: ReadonlyArray<{ name: string }> }
+    }).result?.tools ?? []
+    expect(tools.map((tool) => tool.name)).toContain("set_done")
+    expect(tools.map((tool) => tool.name)).toContain("list_outlines")
+
+    const read = await post({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "resources/read",
+      params: { uri: "surface://collections/outlines" },
+    })
+    expect(read.status).toBe(200)
+    expect(JSON.stringify(await read.json())).toContain("house.olai")
+  })
+})
+
 /**
  * A refusal is an ANSWER on this transport too.
  *
@@ -203,15 +232,116 @@ test("a refused write crosses as a 200 result carrying its structured detail", a
   })
 })
 
-test("without the token nothing is reachable", async () => {
+test("from loopback the token is optional", async () => {
   await withRoute(async ({ post }) => {
-    const response = await post(initialize, { authorization: "Bearer wrong" })
-    expect(response.status).toBe(401)
-    // The refusal is the ROUTE's, so it never reached the transport and says so
-    // in plain text rather than as a JSON-RPC frame.
-    expect(await response.text()).toBe("unauthorized")
+    // No Authorization at all — the `.mcp.json` HTTP client. Loopback is
+    // who you are, and that is the whole of the authentication.
+    const response = await post(initialize, { authorization: "" })
+    expect(response.status).toBe(200)
+    const body = await response.json() as { result?: { serverInfo?: { name?: string } } }
+    expect(body.result?.serverInfo?.name).toBe("olai")
   })
 })
+
+test("from loopback a token is accepted, not required", async () => {
+  await withRoute(async ({ post }) => {
+    // The chat keeps sending the one it was handed. Harmless either way.
+    const response = await post(initialize)
+    expect(response.status).toBe(200)
+  })
+})
+
+test("from loopback a wrong token is still accepted", async () => {
+  await withRoute(async ({ post }) => {
+    const response = await post(initialize, { authorization: "Bearer wrong" })
+    expect(response.status).toBe(200)
+  })
+})
+
+/**
+ * Off loopback the bearer is still the gate.
+ *
+ * Bound to every interface so a request can arrive from an address that is
+ * not 127.0.0.1; fetched at that address so the kernel reports it as the
+ * peer. A machine with no non-loopback IPv4 cannot pose the question, and
+ * says so rather than passing a test that never ran.
+ */
+test("off loopback the bearer is still required", async () => {
+  const peer = nonLoopbackIPv4()
+  if (peer === undefined) {
+    throw new Error(
+      "off-loopback /mcp auth needs a non-loopback IPv4 to connect from — " +
+        "this machine has none",
+    )
+  }
+
+  await withRoute(async ({ url }) => {
+    const port = Number(new URL(url).port)
+    // Bind the CLIENT to the non-loopback address. Fetching the LAN IP
+    // from the same host often hairpins via 127.0.0.1, which would
+    // silently test the wrong thing.
+    const response = await postFrom(peer, port, initialize)
+    expect(response.status).toBe(401)
+    expect(response.body).toBe("unauthorized")
+  }, { host: "0.0.0.0" })
+})
+
+test("loopback is exactly 127.0.0.1, ::1, and the IPv4-mapped form", () => {
+  expect(fromLoopback("127.0.0.1")).toBe(true)
+  expect(fromLoopback("::1")).toBe(true)
+  expect(fromLoopback("::ffff:127.0.0.1")).toBe(true)
+  expect(fromLoopback("10.0.0.4")).toBe(false)
+  expect(fromLoopback("192.168.1.10")).toBe(false)
+  expect(fromLoopback("8.8.8.8")).toBe(false)
+})
+
+test("mcpAllowed skips the bearer only on a known loopback peer", () => {
+  const token = "secret"
+  expect(mcpAllowed(Option.some("127.0.0.1"), undefined, token)).toBe(true)
+  expect(mcpAllowed(Option.some("127.0.0.1"), "Bearer secret", token)).toBe(true)
+  expect(mcpAllowed(Option.some("10.0.0.4"), undefined, token)).toBe(false)
+  expect(mcpAllowed(Option.some("10.0.0.4"), "Bearer secret", token)).toBe(true)
+  expect(mcpAllowed(Option.some("10.0.0.4"), "Bearer wrong", token)).toBe(false)
+  // Unknown peer — refuse rather than guess.
+  expect(mcpAllowed(Option.none(), undefined, token)).toBe(false)
+})
+
+/** First non-internal IPv4, if this machine has one. */
+const nonLoopbackIPv4 = (): string | undefined => {
+  for (const addrs of Object.values(os.networkInterfaces())) {
+    for (const addr of addrs ?? []) {
+      if (addr.family === "IPv4" && !addr.internal) return addr.address
+    }
+  }
+  return undefined
+}
+
+/** POST /mcp from a specific local address, so the kernel reports that peer. */
+const postFrom = (
+  localAddress: string,
+  port: number,
+  message: unknown,
+): Promise<{ readonly status: number; readonly body: string }> =>
+  new Promise((resolve, reject) => {
+    const req = http.request({
+      host: localAddress,
+      port,
+      path: MCP_PATH,
+      method: "POST",
+      localAddress,
+      headers: { "content-type": "application/json", accept: "application/json" },
+    }, (res) => {
+      const chunks: Buffer[] = []
+      res.on("data", (chunk: Buffer) => chunks.push(chunk))
+      res.on("end", () =>
+        resolve({
+          status: res.statusCode ?? 0,
+          body: Buffer.concat(chunks).toString("utf8"),
+        }))
+    })
+    req.on("error", reject)
+    req.end(JSON.stringify(message))
+  })
 
 test("the SSE half is refused, because this face pushes nothing", async () => {
   await withRoute(async ({ url }) => {

@@ -1,13 +1,12 @@
 /**
- * `olai web <dir>` and `olai mcp <dir>` — the binary.
+ * `olai web <dir>` — the binary.
  *
  * There is still no CLI PRODUCT (the rewrite plan, decision 3): nothing here
  * adds a node, marks one or moves one, and nothing ever will. The two write
- * surfaces are the browser and the agent's MCP tools, and these two
- * subcommands are the two ways of putting one of those in front of a
- * directory — a listener a browser opens, or a pipe an agent speaks JSON-RPC
- * down. Which is why `mcp` takes no port and no host: it is not a server
- * anybody dials.
+ * surfaces are the browser and the agent's MCP tools, and they are two
+ * clients of ONE server: a tab on the websocket, or an HTTP POST at `/mcp`.
+ * There is no second process and no stdio face. An agent that is not ours
+ * dials the running `olai web`, the same way the panel's agent already does.
  *
  * It uses Effect's own CLI rather than an argument parser dependency — usage
  * errors are part of the format's error taxonomy, and they may as well come
@@ -25,21 +24,17 @@ import { Argument, Command, Flag } from "effect/unstable/cli"
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
 import { commitFlags, commitMode } from "./commits.ts"
-import { serveTools } from "./mcp/serve.ts"
 import { serve } from "./serve.ts"
 
-/** The directory of outlines a subcommand operates on. Spelled once: both
- *  take exactly the same thing, and a second `Argument.directory` is a second
- *  place for `mustExist` to be forgotten. */
+/** The directory of outlines the server operates on. */
 const directory = Argument.directory("directory", { mustExist: true }).pipe(
   Argument.withDescription("the directory of outlines, read recursively"),
 )
 
-/** The flag pair each subcommand takes — `./commits.ts`, which owns the mode
- *  table, the default, why `--no-commit` wins, and why the sentence names a
- *  different door on each face. */
+/** `--commit` / `--no-commit` — `./commits.ts`, which owns the mode table,
+ *  the default, why `--no-commit` wins, and why the sentence names both
+ *  doors this face actually has. */
 const webCommits = commitFlags("web")
-const mcpCommits = commitFlags("mcp")
 
 /** No registered port, and memorable: 7714 is "olai" on a phone keypad. */
 const DEFAULT_PORT = 7714
@@ -78,44 +73,9 @@ const web = Command.make("web", {
     Command.withDescription("serve a directory of outlines in the browser"),
   )
 
-/**
- * The same surface the chat panel's agent gets, for an agent that is not ours.
- *
- * Registered with an MCP client as a command it launches — `claude mcp add
- * olai -- olai mcp ~/outlines` — so it speaks JSON-RPC down its own pipes and
- * exits when the client closes them. There is nothing to bind and nothing to
- * authenticate: the client already proved who it is by being the process that
- * started this one.
- *
- * The pipes are not named here any more: the SDK's `StdioServerTransport` takes
- * `process.stdin`/`stdout` itself, and handing them in was only ever how the
- * hand-rolled pump was made testable. What replaced that seam is an injectable
- * TRANSPORT, which a test drives in memory.
- *
- * It takes `--commit` on exactly the terms `web` does, and that is the point
- * rather than a convenience: an agent in a terminal accumulates ops the way a
- * person does, so `manual` is its default too and the `commit` tool is what
- * asks. Under the old per-write behaviour one orchestration beat put four
- * commits into a human's log inside fifteen seconds, which is what a face
- * without this flag costs.
- */
-const mcp = Command.make(
-  "mcp",
-  { directory, ...mcpCommits },
-  ({ commits, directory, noCommit }) =>
-    serveTools({
-      root: directory,
-      commits: commitMode(commits, noCommit),
-    }),
-).pipe(
-  Command.withDescription(
-    "serve the outline tools over stdio, for a coding agent in a terminal",
-  ),
-)
-
 const olai = Command.make("olai").pipe(
   Command.withDescription("olai — outlines in flat-record JSONL"),
-  Command.withSubcommands([web, mcp]),
+  Command.withSubcommands([web]),
 )
 
 // `runMain` IS the signal handling, the keep-alive and the exit code, and it
@@ -130,9 +90,8 @@ const olai = Command.make("olai").pipe(
 // CLI already carries `--log-level`, parses it, documents it in `--help` and
 // provides the minimum level to whichever subcommand runs. Quiet is its default
 // (`Info`), so debug lines — a relayed agent stderr chunk, the loudest thing in
-// the program — are off until somebody asks. What IS ours is the sink, and only
-// one of the two subcommands keeps it: `olai mcp` swaps in the stderr one for
-// itself, because there stdout is the protocol.
+// the program — are off until somebody asks. The sink is stdout: a person
+// watching a server looks there, and nothing else in this process owns it.
 NodeRuntime.runMain(
   Command.run(olai, { version: "0.1.0" }).pipe(
     Effect.scoped,

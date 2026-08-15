@@ -3,16 +3,19 @@ Feature: An agent olai did not start
   The chat panel's agent is olai's own: olai spawns it, hands it the tools, and
   draws what it says. This feature is about the other one — a coding agent in a
   terminal, in the directory, that has never heard of the web app. It reaches
-  the same closed list of tools by launching `olai mcp <dir>`, and the promise
-  is that the browser is not privileged: an outline edited from a terminal
-  turns up on an open page the same way one edited by hand does.
+  the same closed list of tools by POSTing at the running server's `/mcp`,
+  and the promise is that the browser is not privileged: an outline edited
+  from a terminal turns up on an open page the same way one edited by hand
+  does. One store, one process — the page follows because the write went
+  through the same ops layer the keyboard does, not because a second olai
+  happened to be watching the same files.
 
   Every scenario is `@scratch:chat` — the agent writes, so the directory is a
   private copy with a server of its own — and the client is this harness
-  itself (`support/mcp.ts`), speaking JSON-RPC down the pipes of the same
-  nix-built binary the server came from. No model is involved: what is under
-  test is the tool surface and the path from it to the disk, and a language
-  model in the middle would only make that slower and less certain.
+  itself (`support/mcp.ts`), speaking JSON-RPC at that server's `/mcp`. No
+  model is involved: what is under test is the tool surface and the path from
+  it to the disk, and a language model in the middle would only make that
+  slower and less certain.
 
   Background:
     Given I open the app
