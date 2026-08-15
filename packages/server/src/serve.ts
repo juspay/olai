@@ -36,6 +36,7 @@ import { clientOver, serveFace } from "./mcp/face.ts"
 import { MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
 import { bind, gitWiring, type Publishers } from "./runtime.ts"
+import { serveAgentSocket } from "./socket.ts"
 
 export interface ServeOptions {
   /** The directory to serve, recursively. */
@@ -182,6 +183,18 @@ export const serve = (options: ServeOptions) =>
       tools: bespokeFrom(TOOLS, "chat-agent"),
       transport,
     })
+
+    // The OTHER face onto the same runtime: an owner-only unix socket beside
+    // the listener, so somebody's own `olai mcp` on this directory attaches to
+    // this store instead of opening a second one over the same files
+    // (`./socket.ts`, which prices what that used to cost). Additive by
+    // construction — every way it can fail to bind resolves to a sentence and a
+    // no-op listener, and the browser never notices.
+    //
+    // BEFORE the listener, so the socket is up by the time a port is announced
+    // and an agent that races the log line finds a surface rather than an
+    // ENOENT. Its teardown is on this scope like everything else's.
+    yield* serveAgentSocket({ root, bound: wired.bound })
 
     const url = yield* Effect.onError(
       listen({ ...options, bound: wired.bound, mcp: { transport, token } }),

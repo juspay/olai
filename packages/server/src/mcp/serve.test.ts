@@ -39,7 +39,11 @@ import * as path from "node:path"
 import type { Pending } from "@olai/format"
 import { gitIn, repoAt, subjectsIn, writerOf } from "@olai/ops/testlib"
 
+import { Effect, Logger } from "effect"
+
 import { stoppedWithin } from "../child.testlib.ts"
+import { serve } from "../serve.ts"
+import { SERVER_LAYERS } from "../serve.testlib.ts"
 
 const MAIN = path.join(import.meta.dirname, "..", "main.ts")
 
@@ -663,4 +667,85 @@ test("--commit=auto --no-commit is off, through the real binary", async () => {
   // Nothing recorded, and the write is on disk.
   expect(subjectsIn(root)).toEqual([FIXTURE_COMMIT])
   expect(gitIn(root)("status", "--porcelain")).toContain("house.jsonl")
+}, BOUND_MS * 3)
+
+// ── Attached: the same command, over a store it did not open ────────────
+
+/**
+ * The bridge, as the two-process claim it is.
+ *
+ * Everything above spawns `olai mcp` on a directory nobody else is serving,
+ * which is what it always did and still does. These two run it on a directory
+ * an `olai web` IS serving, in this test process, and assert the difference
+ * where it can be seen from outside: the child says which shape it took, and
+ * the write it makes lands in the directory the OTHER process holds a store
+ * over.
+ *
+ * The server is started here rather than as a third process for one reason: a
+ * test that could not prove the socket was up before the child dialled would be
+ * a flake generator, and `serve` returning IS that proof.
+ */
+const withWeb = <A>(root: string, body: () => Promise<A>): Promise<A> =>
+  Effect.gen(function*() {
+    yield* serve({
+      root,
+      port: 0,
+      host: "127.0.0.1",
+      clientDist: served(),
+      allowedOrigins: [],
+      commits: "off",
+    })
+    return yield* Effect.promise(body)
+  }).pipe(
+    Effect.scoped,
+    Effect.provide(SERVER_LAYERS),
+    Effect.provide(Logger.layer([])),
+    Effect.runPromise,
+  )
+
+test("`olai mcp` on a served directory attaches instead of opening a second store", async () => {
+  const root = fs.realpathSync(served())
+
+  const said = await withWeb(root, () =>
+    converse(root, [
+      ask(1, "initialize", HANDSHAKE),
+      ask(null, "notifications/initialized"),
+      ask(2, "tools/call", {
+        name: "set_title",
+        arguments: { id: "order", title: "order the cabinets, attached" },
+      }),
+    ]))
+
+  // It says which shape it took, and it says it INSTEAD of the other one — a
+  // process that had opened its own store would have logged the fresh line.
+  expect(said.err).toInclude("attached to the olai already serving this directory")
+  expect(said.err).not.toInclude("serving the outline surface over stdio")
+
+  // And the write landed, through a process with no store, no watcher and no
+  // ops layer: the whole of what it holds is an MCP adapter over somebody
+  // else's surface.
+  expect(answerTo(said, 2).result?.isError).toBeUndefined()
+  expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8"))
+    .toContain("order the cabinets, attached")
+}, BOUND_MS * 3)
+
+test("with nothing serving the directory, it opens its own store exactly as before", async () => {
+  // The fallback, and the reason discovery is the dial: there is no state file
+  // to be stale, so "nobody is home" is a connect verdict and the answer is the
+  // behaviour this command has always had.
+  const root = fs.realpathSync(served())
+  const said = await converse(root, [
+    ask(1, "initialize", HANDSHAKE),
+    ask(null, "notifications/initialized"),
+    ask(2, "tools/call", {
+      name: "set_title",
+      arguments: { id: "order", title: "order the cabinets, fresh" },
+    }),
+  ])
+
+  expect(said.err).toInclude("serving the outline surface over stdio")
+  expect(said.err).not.toInclude("attached to the olai")
+  expect(answerTo(said, 2).result?.isError).toBeUndefined()
+  expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8"))
+    .toContain("order the cabinets, fresh")
 }, BOUND_MS * 3)

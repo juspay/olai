@@ -1,30 +1,46 @@
 /**
  * `olai mcp <dir>` — the surface handed to an agent that olai did not start.
  *
- * The other composition root, and a much smaller one than {@link ../serve.ts}:
- * a store over the directory, the ops layer over the store, the surface bound
- * to the store, the MCP face over both, and stdio in front. No listener, no
- * browser, no chat — the client is a coding agent in a terminal, and it brought
- * its own everything.
+ * The other composition root, and it has two shapes now. It ATTACHES to a
+ * running `olai web` on the same directory when there is one, and otherwise
+ * opens the directory itself — and the only thing that differs between them is
+ * where the surface comes from:
  *
- * **Why a second process rather than a bridge into a running `olai web`.**
- * {@link ./route.ts} argues the opposite case for the INTERNAL agent, and both
- * arguments are about who owns the store. That agent is a subprocess of the
- * server, so a stdio server there would have been a second olai for no reason.
- * This one is nobody's subprocess: it has to work with no server running at
- * all, which is the ordinary case — somebody in a terminal, in their notes
- * directory. A bridge would need the running server's socket discovered from
- * outside, and would still have to do all of this when it found nothing.
+ *   - ATTACHED — dial the per-directory unix socket (`../socket.ts`) and serve
+ *     the MCP face over THAT surface. No store, no watcher, no ops layer, no
+ *     runtime. The process is an adapter and nothing else;
+ *   - FRESH — a store over the directory, the ops layer over the store, the
+ *     surface bound to the store, the MCP face over both. Exactly as before,
+ *     and still the ordinary case: somebody in a terminal with no browser open.
  *
- * So two stores may watch one directory, and that is safe for the reason the
- * write gate exists: it PROBES before it judges, so a change another process
- * made is part of the revision a write is checked against, and a base that has
- * moved comes back as `StaleWrite` for the ops layer to re-plan against the
- * newer snapshot. That is the same machinery a `git pull` under an open tab
- * already goes through. What it is not is a lock: two writers landing on the
- * same file inside the same instant is last-write-wins, exactly as an editor
- * and a `git checkout` are, and git is the recovery net for that as for
- * everything else.
+ * The two are one call apart because the tools were made to be
+ * ({@link ./tools.ts}): every verb an agent has is a surface procedure, so the
+ * whole difference is whether the client under them dispatches in-process or
+ * down a socket. Nothing about what an agent can do changes, which is what a
+ * command whose tool set depended on whether a server happened to be running
+ * would have cost — a shape the viewing design rejected, correctly.
+ *
+ * **What attaching is worth**, measured rather than asserted: two olai
+ * processes on one 1020-file vault held 418 MB and 2099 open file descriptors,
+ * re-read and re-validated the whole corpus twice per edit on two
+ * unsynchronised clocks, and left an agent and a person reading the same
+ * directory at revisions seconds apart with no number either could compare.
+ * Attaching retires all of it (docs/brainstorming/surface-mcp-positions.md).
+ *
+ * **Two stores were never UNSAFE**, and that is why this took a design ruling
+ * rather than a bug report. The write gate PROBES before it judges, so a change
+ * another process made is part of the revision a write is checked against, and
+ * a base that has moved comes back as `StaleWrite` for the ops layer to re-plan
+ * against the newer snapshot — the same machinery a `git pull` under an open
+ * tab already goes through. What it is not is a lock: two writers landing on
+ * the same file inside the same instant is last-write-wins, exactly as an
+ * editor and a `git checkout` are. It was argued as safe, never as cheap.
+ *
+ * **Discovery is the dial and there is no state anywhere.** No pidfile, no
+ * registry, no port to read: `ECONNREFUSED`/`ENOENT` on the rendezvous path IS
+ * the answer "nobody is home", so there is nothing that can go stale and
+ * nothing to clean up after a crash. A server that stops takes its socket with
+ * it.
  *
  * **stdout is the protocol**, so the logging goes to stderr — the whole
  * program's, not just this file's. The store logs a failed probe, git logs a
@@ -37,13 +53,17 @@
 
 import { toStderr } from "@olai/log"
 import { type CommitMode, make as makeOps, TOOLS } from "@olai/ops"
+import type { OwnedSurfaceConnection } from "@kolu/surface-mcp"
+import type { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import { Effect, SubscriptionRef } from "effect"
+import { resolve } from "node:path"
 
 import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
 import { bind, gitWiring } from "../runtime.ts"
+import { attaching, attachTo, socketFor } from "../socket.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
@@ -147,13 +167,65 @@ export interface McpServeOptions {
 }
 
 /**
- * Serve until the client's end of the transport closes.
+ * Serve until the client's end of the transport closes — attached to a running
+ * `olai web` on this directory if there is one, over a store of our own if
+ * there is not.
+ *
+ * The probe is one dial and there is nothing to undo if it fails: a directory
+ * nobody is serving answers `ENOENT` and this reads exactly as it always did.
  *
  * Everything opened here is a finalizer of the enclosing scope, so the store,
  * its watcher and the surface runtime go away when this returns — the same
  * discipline the web server keeps, for the same reason.
  */
 export const serveTools = (options: McpServeOptions) =>
+  Effect.gen(function*() {
+    const socketPath = socketFor(options.root)
+    const attached = yield* Effect.promise(() => attachTo(socketPath))
+    return yield* attached === null
+      ? fresh(options)
+      : bridged(options, attached, socketPath)
+  }).pipe(Effect.provide(toStderr), Effect.withLogSpan("mcp"))
+
+/**
+ * ATTACHED: the MCP face over somebody else's surface, and nothing else in the
+ * process.
+ *
+ * What is absent is the whole point of this function — no store, no watcher,
+ * no ops layer, no surface runtime, no git. The tools are the same table
+ * projected the same way ({@link ./tools.ts}); only the client under them is a
+ * socket rather than a direct dispatch, which is the difference the design was
+ * built to make invisible.
+ *
+ * `--commit` is the one flag that stops meaning anything here, and it says so
+ * rather than being quietly ignored: how a write reaches git is a property of
+ * the process that HOLDS the store, decided when that server was started.
+ */
+const bridged = (
+  options: McpServeOptions,
+  first: OwnedSurfaceConnection,
+  socketPath: string,
+) =>
+  Effect.gen(function*() {
+    yield* Effect.annotateLogsScoped({ root: resolve(options.root), socket: socketPath })
+    if (options.commits !== "manual") {
+      yield* Effect.logWarning(
+        `--commit=${options.commits} is ignored while attached: how writes reach git is the ` +
+          "running server's setting, not this session's",
+      )
+    }
+    const server = yield* serveFace({
+      client: attaching(first, socketPath),
+      tools: bespokeFrom(TOOLS, "mcp"),
+      transport: options.transport ?? stdio(),
+    })
+    yield* Effect.logInfo("attached to the olai already serving this directory")
+    yield* untilClosed(server)
+  })
+
+/** FRESH: a store of our own, which is what `olai mcp` has always been and
+ *  still is whenever nothing else is serving the directory. */
+const fresh = (options: McpServeOptions) =>
   Effect.gen(function*() {
     const { root, store } = yield* openDirectory(options.root)
 
@@ -212,22 +284,29 @@ export const serveTools = (options: McpServeOptions) =>
     // is to send `initialize` and wait.
     yield* Effect.logInfo("serving the outline surface over stdio")
 
-    // Closing the client's end of the pipe is what stops this process, and that
-    // is a claim `serve.test.ts` makes from outside — so it has to be wired,
-    // not assumed. The SDK's stdio transport does NOT end when stdin does; that
-    // is precisely the gap {@link stdio} exists to close, and it is what puts a
-    // `close()` on this `Server` for the hook below to hear. Nothing here is
-    // redundant with the transport: delete the wrapper and this waits forever.
-    //
-    // CHAINED rather than assigned: `serveSurfaceAsMcp` installs its own
-    // `onclose` to stop the resource pusher and dispose the connection, and
-    // overwriting it would leak both. The adapter's hook runs first, then ours
-    // settles this effect, and the scope unwinds the rest.
-    yield* Effect.callback<void>((resume) => {
-      const adapters = server.onclose
-      server.onclose = () => {
-        adapters?.()
-        resume(Effect.void)
-      }
-    })
-  }).pipe(Effect.provide(toStderr), Effect.withLogSpan("mcp"))
+    yield* untilClosed(server)
+  })
+
+/**
+ * Park until the client hangs up — the last statement of both shapes.
+ *
+ * Closing the client's end of the pipe is what stops this process, and that is
+ * a claim `serve.test.ts` makes from outside — so it has to be wired, not
+ * assumed. The SDK's stdio transport does NOT end when stdin does; that is
+ * precisely the gap {@link stdio} exists to close, and it is what puts a
+ * `close()` on this `Server` for the hook below to hear. Nothing here is
+ * redundant with the transport: delete the wrapper and this waits forever.
+ *
+ * CHAINED rather than assigned: `serveSurfaceAsMcp` installs its own `onclose`
+ * to stop the resource pusher and dispose the connection, and overwriting it
+ * would leak both. The adapter's hook runs first, then ours settles this
+ * effect, and the scope unwinds the rest.
+ */
+const untilClosed = (server: Server): Effect.Effect<void> =>
+  Effect.callback<void>((resume) => {
+    const adapters = server.onclose
+    server.onclose = () => {
+      adapters?.()
+      resume(Effect.void)
+    }
+  })
