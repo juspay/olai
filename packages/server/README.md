@@ -187,7 +187,7 @@ argues each where it happens:
   were one per served file, held for the process's lifetime) and re-reads
   nothing, so the directory is parsed and validated once per edit instead of
   twice on two unsynchronised clocks. It does NOT halve memory, and the numbers
-  say why: an `olai mcp` over an EMPTY directory is already 214 MiB, so what the
+  say why: an `olai mcp` over an EMPTY directory is already ~210 MiB, so what the
   audit measured per process was the Bun runtime and the module graph, not the
   corpus. Full table and method: [the bridge's
   measurement](../../docs/brainstorming/mcp-bridge.md).

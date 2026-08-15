@@ -51,16 +51,31 @@ identical, which is what the comparison rests on.
 
 The obvious reading of "418 MB for two processes" is that a store over a
 thousand files is expensive and a second one doubles it. It is not, and the
-cheapest possible experiment says so:
+cheapest experiment says so: an `olai mcp` over an **empty directory** — no
+outlines, no documents, nothing to watch — is already most of it.
 
-> An `olai mcp` over an **empty directory** — no outlines, no documents, nothing
-> to watch — is **213.8 MiB and 15 fds.**
+**Sampled at three points on the warmth curve**, because "how warm" is the
+obvious way a single figure here could mislead, and a reviewer said so. Same
+`/proc` sampler, same 8 s, same empty directory; the only difference is how many
+frames the session had answered first:
 
-So ~212 MiB of every olai process is the Bun runtime plus the module graph
-(effect, the MCP SDK, the hydrated `@kolu/*` sources), and the 1020-file corpus
-adds about 13 MiB of heap on top of it. Attaching retires the corpus's share and
-cannot touch the interpreter's, because an attached process is still a process:
-it still loads effect, the MCP SDK and the surface.
+| the session had | RSS | fds |
+| --- | --- | --- |
+| **cold** — no frames at all, stdin held open | 210.1 MiB | 15 |
+| **handshaken** — one `initialize` | 215.3 MiB | 15 |
+| **driven** — `initialize`, `tools/list`, a tool call, a resource read | 213.8 MiB | 15 |
+
+Warmth is worth about **5 MiB** and the descriptors do not move at all. So the
+number is not a warm-sample artefact, and it is not precise either: two
+independent re-measures during review came in at 209.0 MiB and 194 MiB on other
+machines. All of them are the same finding — **the floor is around 200 MiB and
+it is the interpreter**, the Bun runtime plus the module graph (effect, the MCP
+SDK, the hydrated `@kolu/*` sources). The 1020-file corpus adds roughly 13 MiB
+of heap on top of that.
+
+Attaching retires the corpus's share and cannot touch the interpreter's, because
+an attached process is still a process: it still loads effect, the MCP SDK and
+the surface.
 
 That is worth stating plainly rather than quietly reporting a 2% win, because it
 corrects what the number was ever evidence FOR. **The second store was never
@@ -119,7 +134,11 @@ Sampled eight seconds after each process starts, then again six seconds later.
 MiB is `kB / 1024`.
 
 The empty-directory baseline — the load-bearing one, and the cheapest to
-repeat — is the same `olai mcp` invocation against a directory holding nothing.
+repeat — is the same `olai mcp` invocation against a directory holding nothing,
+sampled at the three warmth points above by varying only what the fifo writes
+before it sleeps. The fifo is a SEPARATE process, so its pipe ends are not in
+the server's own `/proc/<pid>/fd`; a harness that holds the write end in the
+same process as the sampler will read two or three fds more than these.
 
 **And the face was driven by hand over that socket**, because a measurement of a
 process that answers nothing would be a measurement of nothing: the same
