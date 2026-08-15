@@ -34,7 +34,10 @@ import {
   CHAT_CANCEL,
   CHAT_DIFF,
   CHAT_DIFF_EXPAND,
+  CHAT_DIFF_GUTTER,
   CHAT_DIFF_LINE,
+  CHAT_DIFF_MARK,
+  CHAT_DIFF_TEXT,
   CHAT_DIFF_WHOLESALE,
   CHAT_DROP,
   CHAT_ENTRY,
@@ -782,6 +785,115 @@ Then("the diff is expanded", async function (this: OlaiWorld) {
     "the diff",
     POLL_TIMEOUT,
   );
+});
+
+/**
+ * Nothing in the diff — or in the panel that holds it — may grow a horizontal
+ * scrollbar. Asked of the boxes that would actually scroll (`overflow-x: auto`
+ * / `scroll`), not of every descendant: a truncated path has `scrollWidth`
+ * past `clientWidth` by design and draws an ellipsis, not a bar.
+ */
+Then("the diff does not scroll sideways", async function (this: OlaiWorld) {
+  const box = shownDiff(this);
+  await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const panned = await this.page.evaluate(
+    ({ diffSel, panelSel }) => {
+      const over = (node: Element): boolean => {
+        const ox = getComputedStyle(node).overflowX;
+        return (ox === "auto" || ox === "scroll") && node.scrollWidth > node.clientWidth + 1;
+      };
+      const named = (node: Element): string =>
+        `${node.tagName.toLowerCase()}${node.getAttribute("data-testid") ?? ""} ${node.scrollWidth}>${node.clientWidth}`;
+      const out: Array<string> = [];
+      for (const sel of [diffSel, panelSel]) {
+        const root = document.querySelector(sel);
+        if (root === null) {
+          out.push(`${sel} missing`);
+          continue;
+        }
+        for (const node of [root, ...root.querySelectorAll("*")]) {
+          if (over(node)) out.push(named(node));
+        }
+      }
+      return out;
+    },
+    { diffSel: CHAT_DIFF, panelSel: CHAT_PANEL },
+  );
+  assert.deepStrictEqual(panned, [], "these boxes have a horizontal scrollbar");
+});
+
+/**
+ * The long added line actually wrapped, and every continuation starts in the
+ * content column — never under the line-number gutter or the +/- marker.
+ */
+Then("a wrapped diff line keeps its gutter", async function (this: OlaiWorld) {
+  const row = shownDiff(this).locator(`${CHAT_DIFF_LINE}[data-kind="add"]`).first();
+  await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const geometry = await row.evaluate(
+    (el, ids) => {
+      const gutter = el.querySelector(ids.gutter);
+      const mark = el.querySelector(ids.mark);
+      const text = el.querySelector(ids.text);
+      if (gutter === null || mark === null || text === null) {
+        return { ok: false as const, why: "the added row is missing a gutter, a marker or its text" };
+      }
+      const gutterBox = gutter.getBoundingClientRect();
+      const markBox = mark.getBoundingClientRect();
+      // The text is a grid cell (a block box), so the element's own
+      // `getClientRects()` is one rectangle — the cell. The fragments of a
+      // wrapped line live on a Range over its contents.
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0);
+      if (rects.length < 2) {
+        return {
+          ok: false as const,
+          why: `the added line sat on ${rects.length} row(s); a long line that did not wrap cannot speak for the gutter`,
+        };
+      }
+      const under = rects.filter((r) => r.left + 0.5 < markBox.right);
+      if (under.length > 0) {
+        return {
+          ok: false as const,
+          why:
+            `${under.length} wrapped fragment(s) start at x=${Math.round(under[0]!.left)}, ` +
+            `under the marker which ends at ${Math.round(markBox.right)}`,
+        };
+      }
+      // One visual line is many rects (a word each). The hanging indent is
+      // the LEFT EDGE of each line, not of every word on it.
+      const starts = new Map<number, number>();
+      for (const r of rects) {
+        const key = Math.round(r.top);
+        const prev = starts.get(key);
+        starts.set(key, prev === undefined ? r.left : Math.min(prev, r.left));
+      }
+      const lineLefts = [...starts.values()];
+      if (lineLefts.length < 2) {
+        return {
+          ok: false as const,
+          why: `the added line sat on ${lineLefts.length} visual row(s); a long line that did not wrap cannot speak for the gutter`,
+        };
+      }
+      const drift = Math.max(...lineLefts) - Math.min(...lineLefts);
+      if (drift > 1) {
+        return {
+          ok: false as const,
+          why: `wrapped rows do not share a left edge (${Math.round(drift)}px of drift) — the continuation slid toward the gutter`,
+        };
+      }
+      const contentLeft = Math.min(...lineLefts);
+      if (contentLeft + 0.5 < gutterBox.right) {
+        return {
+          ok: false as const,
+          why: `content starts at x=${Math.round(contentLeft)}, under the gutter which ends at ${Math.round(gutterBox.right)}`,
+        };
+      }
+      return { ok: true as const, why: "" };
+    },
+    { gutter: CHAT_DIFF_GUTTER, mark: CHAT_DIFF_MARK, text: CHAT_DIFF_TEXT },
+  );
+  assert.ok(geometry.ok, geometry.why);
 });
 
 Then(

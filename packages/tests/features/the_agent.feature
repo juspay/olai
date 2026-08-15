@@ -93,6 +93,32 @@ Feature: Talking to the agent
     And the chat shows no diff
 
   @scratch:chat
+  Scenario: A long line in a file-edit diff wraps inside the box
+    # The 26rem drawer used to keep the line on one row and grow a horizontal
+    # scrollbar. The content wraps; the line number and the +/- keep their
+    # column. Asked of both the trimmed preview and the expanded view.
+    When I ask the agent "edit long.md"
+    Then the chat shows a diff of "long.md"
+    And the diff is trimmed
+    And the diff does not scroll sideways
+    And a wrapped diff line keeps its gutter
+    When I expand the diff
+    Then the diff is expanded
+    And the diff does not scroll sideways
+    And a wrapped diff line keeps its gutter
+
+  @scratch:chat @phone
+  Scenario: A long line wraps on a phone too
+    When I ask the agent "edit long.md"
+    Then the chat shows a diff of "long.md"
+    And the diff does not scroll sideways
+    And a wrapped diff line keeps its gutter
+    When I expand the diff
+    Then the diff is expanded
+    And the diff does not scroll sideways
+    And a wrapped diff line keeps its gutter
+
+  @scratch:chat
   Scenario: A rewrite too big to compare says so rather than looking like a hunk
     # Past the comparison budget the two sides are reported as unrelated, so
     # every row is a change and the trimmed view shows the top of the OLD file

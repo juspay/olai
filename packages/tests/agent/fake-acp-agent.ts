@@ -23,7 +23,8 @@
  *   add <title>  call `add_node` under the first outline's first root
  *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
  *                outline if the name ends `.olai`, an over-budget rewrite for
- *                `huge.md`, an ordinary markdown edit otherwise
+ *                `huge.md`, a single enormous line for `long.md`, an ordinary
+ *                markdown edit otherwise
  *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
  *   deaf         go quiet with our stdin closed, so nothing said back arrives
@@ -302,6 +303,45 @@ const EDITED_OUTLINE = {
   after: [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","desc":"oak, twelve of them"}`,
+    "",
+  ].join("\n"),
+}
+
+/**
+ * One genuinely long line, the shape that used to grow a horizontal scrollbar
+ * in the 26rem drawer: a token with no break, long enough that even the
+ * laptop dock cannot hold it on one row, plus enough surrounding lines that
+ * the trim still has something to hide.
+ */
+const LONG_LINE =
+  "export const assembleTheKitchenScheduleFromTheWalnutWorktopLeadTimesAndTheElectricianAvailabilityAndTheTileDeliveryWindow = " +
+  '"the remodel is booked the moment the worktop lands and nobody has to retype this sentence across the drawer"'
+
+const LONG_EDITED = {
+  before: [
+    "# Kitchen notes",
+    "",
+    "The remodel is in three parts, and two of them are waiting on the third.",
+    "a worktop nobody has chosen yet",
+    "the sink stays exactly where it is",
+    "the tiles are somebody else's problem",
+    "the lights arrive with the worktop",
+    "Nothing here is decided until the worktop is.",
+    "book the electrician",
+    "book the tiler",
+    "",
+  ].join("\n"),
+  after: [
+    "# Kitchen notes",
+    "",
+    "The remodel is in three parts, and two of them are waiting on the third.",
+    LONG_LINE,
+    "the sink stays exactly where it is",
+    "the tiles are somebody else's problem",
+    "the lights arrive with the worktop",
+    "Nothing here is decided until the worktop is.",
+    "book the electrician",
+    "book the tiler",
     "",
   ].join("\n"),
 }
@@ -892,6 +932,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       ? EDITED_OUTLINE
       : file === "huge.md"
       ? REWRITTEN
+      : file === "long.md"
+      ? LONG_EDITED
       : EDITED
     notify("session/update", {
       sessionId,
