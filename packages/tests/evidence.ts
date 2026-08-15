@@ -217,6 +217,39 @@ const said = async (page: Page, locator: string) =>
   (await page.locator(locator).first().textContent().catch(() => null)) ?? "(nothing)"
 
 const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
+  /**
+   * `set_doing` refusing what the order forbids, on the web's two mark-walking
+   * surfaces — the shot being the half a transcript cannot show: the DRAFT is
+   * still open with the reason sitting beside it.
+   *
+   * `hinges` is `todo` and comes after `handles` and `order`. `handles` is a
+   * plain bullet, so it stands in nobody's way and is not named; `order` is
+   * `doing`, so it is. `install` is the other shape — an unmarked row, drawn
+   * blocked by nothing because a bullet is not work, and refused all the same
+   * because `Mark doing` is about to make it work.
+   */
+  "doing-refuses-blocked": async (page) => {
+    await page.locator(title("hinges")).click()
+    await page.locator('[data-testid="title-editor"]').first().waitFor()
+    await page.keyboard.press("Control+Shift+Enter")
+    await page.locator('[data-testid="edit-refusal"]').first().waitFor()
+    await page.waitForTimeout(200)
+    console.log(`  the walk onto \`doing\` says: ${await textOf(page, '[data-testid="edit-refusal"]')}`)
+    console.log(`  the draft is still open: ${await page.locator('[data-testid="title-editor"]').first().isVisible()}`)
+    console.log(`  and the file still says:  ${recordOf("hinges")}`)
+    await shot(page, "walk-refused-draft-kept")
+
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(200)
+    await openMenu(page, "install")
+    await page.locator('[data-testid="node-menu-panel"] >> text=Mark doing').first().click()
+    await page.locator('[data-testid="node-menu-said"]').first().waitFor()
+    await page.waitForTimeout(200)
+    console.log(`  the ••• menu says:        ${await textOf(page, '[data-testid="node-menu-said"]')}`)
+    console.log(`  and the file still says:  ${recordOf("install")}`)
+    await shot(page, "menu-refused")
+  },
+
   "filter-keeps-ancestors": async (page) => {
     console.log(`  the whole outline:\n${await drawn(page)}`)
     await shot(page, "unfiltered")
