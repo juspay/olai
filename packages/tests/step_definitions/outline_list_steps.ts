@@ -10,6 +10,7 @@ import {
   FILE_DIR,
   FILE_GLYPH,
   HYDRATION_TIMEOUT,
+  HYPERTEXT_LINK,
   oneLine,
   OUTLINE_LINK,
   OUTLINE_LIST,
@@ -247,9 +248,9 @@ Then(
 // deliberately not the assertion either: `.olai` in the label is the thing
 // that was carrying this on its own and the reason the mark was filed.
 //
-// SEVEN rows are asserted and not every row on screen, which a reviewer asked
-// about and which is deliberate: three kinds × the two faces they are drawn on,
-// which is the whole of the closed set (`DirectoryKind`). What a per-row sweep
+// EIGHT rows are asserted and not every row on screen, which a reviewer asked
+// about and which is deliberate: every kind × the faces it is drawn on, which is
+// the whole of the closed set (`DirectoryKind`). What a per-row sweep
 // would add is a fourth reading of `fileTree.ts`'s walk — the tree's membership
 // and its order are already promised by the scenarios above this one — and what
 // it could not add is the case that actually threatens this: a kind with NO
@@ -267,31 +268,45 @@ Then(
 // nested folders nest their `li`s, so a glyph found under one of those could be
 // a child's.
 
+/** One row of the tree wears one kind's glyph. One body for the three file
+ *  kinds, because the only thing that differs between them is which testid the
+ *  row has and which word the glyph must carry — and a fourth kind's step
+ *  should be a line here rather than a fourth copy of this. */
+const drawnAs = async (
+  world: OlaiWorld,
+  testid: string,
+  file: string,
+  kind: string,
+  what: string,
+): Promise<void> => {
+  await world.showSidebar();
+  await world.expectAttribute(
+    `${testid}[data-file="${file}"] ${FILE_GLYPH}`,
+    "data-glyph",
+    kind,
+    `the ${what} "${file}"`,
+    HYDRATION_TIMEOUT,
+  );
+};
+
 Then(
   "the outline link {string} is drawn as an outline",
   async function (this: OlaiWorld, file: string) {
-    await this.showSidebar();
-    await this.expectAttribute(
-      `${OUTLINE_LINK}[data-file="${file}"] ${FILE_GLYPH}`,
-      "data-glyph",
-      "outline",
-      `the outline "${file}"`,
-      HYDRATION_TIMEOUT,
-    );
+    await drawnAs(this, OUTLINE_LINK, file, "outline", "outline");
   },
 );
 
 Then(
   "the document link {string} is drawn as a document",
   async function (this: OlaiWorld, file: string) {
-    await this.showSidebar();
-    await this.expectAttribute(
-      `${DOCUMENT_LINK}[data-file="${file}"] ${FILE_GLYPH}`,
-      "data-glyph",
-      "document",
-      `the document "${file}"`,
-      HYDRATION_TIMEOUT,
-    );
+    await drawnAs(this, DOCUMENT_LINK, file, "document", "document");
+  },
+);
+
+Then(
+  "the page link {string} is drawn as hypertext",
+  async function (this: OlaiWorld, file: string) {
+    await drawnAs(this, HYPERTEXT_LINK, file, "hypertext", "page");
   },
 );
 

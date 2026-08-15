@@ -11,6 +11,16 @@
  * Both carry the same `data-doc`: the RESOLVED path, which is the thing the
  * `doc` field means once the outline it was written in is taken into account.
  *
+ * IT DRAWS MARKDOWN, ALWAYS, and that is safe to assume rather than a case it
+ * forgot: `doc` names a DOCUMENT, checked by the validator against the `.md`
+ * files served (`@olai/format`'s `checkDocs`), so a node cannot attach the
+ * `.html` beside it. That refusal is where this assumption is kept — a
+ * membership test against the set's bodied files would have widened it, and
+ * what arrives here would be markup drawn through the markdown pipeline. The
+ * two shapes below are why the rule is that way round: one line of a file under
+ * a row, and a whole file under a title, are neither of them a sealed frame
+ * (./Hypertext.tsx).
+ *
  * The inline shape is drawn under the zoomed node's own title, so it is set
  * like a note and not like a page: `olai-md-compact` clamps its headings
  * below that title, which is the same class `Note.tsx` adds for the same

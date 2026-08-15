@@ -1,11 +1,19 @@
 /**
- * One document, as a page.
+ * One file with a BODY, as a page.
  *
  * Every `.md` under the served directory gets one, whether or not a node
  * attaches it: the directory is what is served, and a file in it that no
  * outline happens to name is still a file somebody put there to read. That is
  * also why the sidebar lists documents beside the outlines rather than only
  * under the nodes that point at them.
+ *
+ * A `.html` gets the same page for the same reason — it is a file in somebody's
+ * directory, and this is the address a file that is read rather than edited has
+ * (`../routes.ts` argues the prefix). What differs between the two is the BODY
+ * and nothing else: the heading, the "no such file" screen, the keying below
+ * and the way a body arrives are one page, and which face draws the body is one
+ * table (./faces.tsx). A page per kind would have been four copies of the parts
+ * that are the same, and the first one to drift would do it silently.
  *
  * The page is handed a PATH and reads the body itself (../document/documents.tsx),
  * which is the shape of the wire: the directory's paths are known to every tab,
@@ -36,16 +44,15 @@
  * writing" means.
  */
 
-import { createMemo, createSignal, Show } from "solid-js"
+import { bodyKind } from "@olai/format"
+import { createSignal, Show } from "solid-js"
+import { Dynamic } from "solid-js/web"
 
-import { markdownReady } from "../markdown/chunk.ts"
-import { Markdown } from "../markdown/Markdown.tsx"
-import { outlineOf } from "../markdown/render.ts"
 import { TESTID } from "../testids.ts"
 import { DocEditor } from "./DocEditor.tsx"
 import { useDocument } from "./documents.tsx"
+import { FACES } from "./faces.tsx"
 import { consumeMinted } from "./minted.ts"
-import { Toc } from "./Toc.tsx"
 
 /**
  * A document page is a page OF A FILE, and this is what makes that true.
@@ -78,6 +85,14 @@ export function DocumentPage(props: { readonly file: string }) {
 
 function OneDocument(props: { readonly file: string }) {
   const document = useDocument(() => props.file)
+  // WHICH FACE, off the file's own name — the format's registry answers what
+  // kind of body this is, and ./faces.tsx answers what that kind looks like and
+  // whether it can be written. A path this page model let through is a file the
+  // directory HOLDS, so it is a bodied kind by construction; the fallback is
+  // the markdown one because that is what a `/doc/` address meant before there
+  // was a second kind, and a blank page would be a worse answer than a
+  // rendering of the text.
+  const face = () => FACES[bodyKind(props.file) ?? "document"]
   // Fresh per page mount — and a page is one FILE (see above), so navigating
   // anywhere else, another document included, closes the editor and the draft
   // goes with it: a draft is an editor's, never a file's.
@@ -87,7 +102,7 @@ function OneDocument(props: { readonly file: string }) {
     <section data-testid={TESTID.documentPage} data-file={props.file}>
       <header class="mb-4 flex items-baseline justify-between gap-2">
         <h1 class="m-0 font-mono text-sm text-muted">{props.file}</h1>
-        <Show when={document() !== undefined && !editing()}>
+        <Show when={face().edits && document() !== undefined && !editing()}>
           <button
             type="button"
             class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
@@ -107,7 +122,16 @@ function OneDocument(props: { readonly file: string }) {
         {(served) => (
           <Show
             when={editing()}
-            fallback={<Rendered file={props.file} text={served().text} />}
+            fallback={
+              /* `<Dynamic>` because the component genuinely arrives at RUNTIME
+                 — which kind of file this is, is a fact about the path (the
+                 primitive's own rule, stated beside `../menu/NodeMenu.tsx`'s).
+                 Calling `face().reads(…)` with a plain object instead would
+                 hand it a dead `text`: Solid compiles JSX props into getters,
+                 and a document rewritten on disk reaches an open page through
+                 exactly that. */
+              <Dynamic component={face().reads} file={props.file} text={served().text} />
+            }
           >
             <DocEditor
               file={props.file}
@@ -118,28 +142,5 @@ function OneDocument(props: { readonly file: string }) {
         )}
       </Show>
     </section>
-  )
-}
-
-/** The reading face: the contents, then the body — exactly what the page was
- *  before it could edit, in a component so the mode switch above stays one
- *  `Show` rather than two trees interleaved. */
-function Rendered(props: { readonly file: string; readonly text: string }) {
-  // Empty until the markdown chunk lands, for the same reason the body is the
-  // file's own text until then: there is nothing to make a contents out of
-  // until something has read the headings. The `<Markdown>` under it is what
-  // asks for the chunk; this memo re-runs when it arrives (../markdown/chunk.ts).
-  const headings = createMemo(() =>
-    markdownReady() ? outlineOf(props.text, props.file) : [],
-  )
-  return (
-    <>
-      <Toc file={props.file} headings={headings()} />
-      <Markdown
-        source={props.text}
-        from={props.file}
-        testid={TESTID.documentBody}
-      />
-    </>
   )
 }

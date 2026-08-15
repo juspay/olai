@@ -312,6 +312,23 @@ test("a doc naming no served file is refused, and says what it resolved to", () 
   expect(error.message).toContain("resolves to `notes/a.md`")
 })
 
+// A `doc` names a DOCUMENT, and the set's bodied list is wider than that: a
+// `.html` is read by the same probe and carried in the same field, so a
+// membership test alone would have let a node attach one. It may not — the two
+// surfaces that draw an attachment are one line of markdown under a row and the
+// whole document under a zoomed node, and neither of them is the sealed frame a
+// `.html` is shown in. The refusal is the one a path resolving nowhere gets,
+// because from a reader's side it is the same thing: no such document.
+test("a doc naming a served `.html` is refused, like any other non-document", () => {
+  const error = only(
+    errorsOf({ "a.olai": `{"id":"a","ord":"a","title":"a","doc":"report.html"}` }, [
+      "report.html",
+    ]),
+  )
+  expect(error.code).toBe("missing-doc")
+  expect(error.message).toContain("resolves to `report.html`")
+})
+
 // "Attached" means relative to the outline that names it, so a doc beside the
 // outline's directory — the `../` case — is a normal, valid attachment.
 test("a doc reached through ../ resolves against the outline's directory", () => {

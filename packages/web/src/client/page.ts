@@ -22,9 +22,10 @@
  * a file's tree is and what is dated a given day; this picks the arm.
  */
 
-import type { BrokenFile, DayGroup, Derived, Row, Zoomed } from "@olai/format"
+import type { BrokenFile, DayGroup, Derived, FileKind, Row, Zoomed } from "@olai/format"
 import {
   dailyNotesOn,
+  bodyKind,
   datedOn,
   isArchived,
   rowsOf,
@@ -84,10 +85,12 @@ export type Page =
    *  does not have — `null` when the directory has no outlines at all, which
    *  is a different thing to tell the reader — and `sought` is what it was
    *  looking for, because "no such outline" and "no such document" send a
-   *  reader to two different places. */
+   *  reader to two different places. It is the FORMAT's kind, read off the
+   *  name the address spelled, so the sentence names the thing the reader asked
+   *  for rather than the collection this model happened to look in. */
   | {
     readonly kind: "nothing"
-    readonly sought: "outline" | "document"
+    readonly sought: FileKind
     readonly requested: string | null
   }
 
@@ -96,9 +99,11 @@ export type Page =
  *  caller cannot hand over half of it. */
 export interface Found {
   readonly files: ReadonlyArray<string>
-  /** The documents' PATHS, in the order the sidebar draws them — the same
-   *  shape `files` has, and asked the same question: does the directory hold
-   *  the file this address names. */
+  /** The BODIED files' paths — every `.md` and every `.html` the directory
+   *  holds, in the order the sidebar draws them. The same shape `files` has,
+   *  and asked the same question: does the directory hold the file this address
+   *  names. Named for the collection they arrive on, which is the wire's own
+   *  name for "a file whose body is read one at a time". */
   readonly documents: ReadonlyArray<string>
   readonly broken: ReadonlyMap<string, BrokenFile>
 }
@@ -117,7 +122,12 @@ export const pageOf = (
   if (route.kind === "document") {
     return found.documents.includes(route.file)
       ? { kind: "document", file: route.file }
-      : { kind: "nothing", sought: "document", requested: route.file }
+      // Asked of `bodyKind` rather than `fileKind`: this address opens the files
+      // that HAVE a page, so `/doc/plan.olai` is a reader who meant a document
+      // and not a screen that says "no outline named plan.olai" about an outline
+      // the directory is serving. `/doc/nowhere.txt` names no kind at all and
+      // lands in the same place, for the same reason.
+      : { kind: "nothing", sought: bodyKind(route.file) ?? "document", requested: route.file }
   }
 
   if (route.kind === "agenda") return { kind: "agenda", date: today }

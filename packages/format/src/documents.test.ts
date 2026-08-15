@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 
 import {
   docOf,
-  documentOf,
+  bodiedOf,
   isPicture,
   pictureOf,
   resolveRelative,
@@ -82,12 +82,12 @@ test("only a relative picture is drawn at all", () => {
 // itself, and it lands beside the file that WROTE it — the same arithmetic a
 // `doc` and a picture already use, which is why they are one resolver.
 test("a relative link to a document resolves beside the file that names it", () => {
-  expect(documentOf("Daily/2026/08/2026-08-12.md", "../../../projects/deck.md"))
+  expect(bodiedOf("Daily/2026/08/2026-08-12.md", "../../../projects/deck.md"))
     .toBe("projects/deck.md")
-  expect(documentOf("notes/palette.md", "finishes.md")).toBe("notes/finishes.md")
-  expect(documentOf("notes/palette.md", "./finishes.md")).toBe("notes/finishes.md")
+  expect(bodiedOf("notes/palette.md", "finishes.md")).toBe("notes/finishes.md")
+  expect(bodiedOf("notes/palette.md", "./finishes.md")).toBe("notes/finishes.md")
   // A note is written in an OUTLINE, and a link in one resolves the same way.
-  expect(documentOf("house.olai", "finishes.md")).toBe("finishes.md")
+  expect(bodiedOf("house.olai", "finishes.md")).toBe("finishes.md")
 })
 
 // Everything this must not reinterpret. A link with a scheme goes where it
@@ -107,7 +107,7 @@ test("only a relative link to a document is a document link", () => {
     "garden.olai",
     "README",
   ]) {
-    expect(documentOf("notes/palette.md", href)).toBeNull()
+    expect(bodiedOf("notes/palette.md", href)).toBeNull()
   }
 })
 

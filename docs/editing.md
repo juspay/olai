@@ -213,7 +213,7 @@ That first line is where this differs from the tool, deliberately. `create_outli
 
 ## Writing a document
 
-A `.md` under the served directory has always had a page; the page can be written now. **Edit**, on its header, turns the rendered body into its SOURCE — a textarea holding the file verbatim, which is the same trade every title and note makes: what you type is the source, and the rendering comes back when you leave. There is no toolbar and no WYSIWYG, because a document is markdown and markdown is text.
+A `.md` under the served directory has always had a page; the page can be written now. **Edit**, on its header, turns the rendered body into its SOURCE — a textarea holding the file verbatim, which is the same trade every title and note makes: what you type is the source, and the rendering comes back when you leave. There is no toolbar and no WYSIWYG, because a document is markdown and markdown is text. A `.html` in the directory has a page too and does not have that control: olai shows one and never writes one, and its markup is drawn sealed in a sandboxed frame ([format.md](format.md#hypertext)).
 
 The mode is declared, so leaving it is too — which is where a document differs from a note, and on purpose. A note is one line, entered by a click and committed on blur; a whole file written because a click strayed is a write nobody asked for. So **Save** commits (⌘Enter / Ctrl+Enter from the editor), **Cancel** abandons (Escape), and nothing commits on a timer — a document mid-edit is often half a sentence, and every open tab would see the half.
 

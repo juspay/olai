@@ -164,10 +164,16 @@ export const OUTLINE_LINK = selector(TESTID.outlineLink);
 export const FILE_DIR = selector(TESTID.fileDir);
 export const FILE_DIR_TOGGLE = selector(TESTID.fileDirToggle);
 /** The glyph in front of a row's name, saying what KIND it is. `data-glyph`
- *  is `outline` / `document` / `folder` — the fact, not the ink. */
+ *  is `outline` / `document` / `hypertext` / `folder` — the fact, not the ink. */
 export const FILE_GLYPH = selector(TESTID.fileGlyph);
 /** One document entry in the file tree (no second list — same folders). */
 export const DOCUMENT_LINK = selector(TESTID.documentLink);
+/** One `.html` entry in that same tree — its own id, so a step about documents
+ *  goes on meaning documents. */
+export const HYPERTEXT_LINK = selector(TESTID.hypertextLink);
+/** A `.html` file's page: the sandboxed frame its markup is drawn in, and the
+ *  only element of that page this app owns. */
+export const HYPERTEXT_PREVIEW = selector(TESTID.hypertextPreview);
 /** One document, as a page: `/doc/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the
@@ -931,7 +937,48 @@ export class OlaiWorld extends World {
 
   /** One sidebar document entry, by the path it stands for. */
   documentLink(file: string): Locator {
-    return this.page.locator(`${DOCUMENT_LINK}[data-file="${file}"]`);
+    return this.fileLink(DOCUMENT_LINK, file);
+  }
+
+  /** One sidebar `.html` entry, on the same terms. */
+  hypertextLink(file: string): Locator {
+    return this.fileLink(HYPERTEXT_LINK, file);
+  }
+
+  /** One row of the sidebar tree, whichever kind of file it stands for. The
+   *  three kinds have a testid each — a step that says "the documents listed
+   *  are …" is asking about ONE of them — but the SELECTOR shape is one thing,
+   *  and it was three copies of the same template string before this. */
+  fileLink(testid: string, file: string): Locator {
+    return this.page.locator(`${testid}[data-file="${file}"]`);
+  }
+
+  /**
+   * Assert exactly which files the tree lists under one kind's testid, in the
+   * order it draws them.
+   *
+   * WAITED FOR BY COUNT rather than read once: a file dropped into the served
+   * directory arrives on a later frame, and reading during the frame that adds
+   * it would see the tree without it. Here rather than in a step file because
+   * two kinds ask it now — the documents and the pages — and a second copy of
+   * the wait is how one of them quietly stops being live.
+   */
+  async expectListed(
+    testid: string,
+    wanted: ReadonlyArray<string>,
+    what: string,
+  ): Promise<void> {
+    const links = this.page.locator(testid);
+    await this.waitUntil(
+      async () => (await links.count()) === wanted.length,
+      `the sidebar to list ${wanted.length} ${what}`,
+    );
+    assert.deepStrictEqual(
+      await links.evaluateAll((nodes) =>
+        nodes.map((node) => node.getAttribute("data-file"))
+      ),
+      [...wanted],
+    );
   }
 
   /** The rendered document on screen — its own page, or the one drawn inline
@@ -997,7 +1044,7 @@ export class OlaiWorld extends World {
 
   /** One sidebar entry, by the relative path it stands for. */
   outlineLink(file: string): Locator {
-    return this.page.locator(`${OUTLINE_LINK}[data-file="${file}"]`);
+    return this.fileLink(OUTLINE_LINK, file);
   }
 
   /** One node in the tree, by id. Ids are unique across the whole loaded set,

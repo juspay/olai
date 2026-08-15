@@ -92,6 +92,7 @@ import {
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { NewOutline } from "./outline/NewOutline.tsx"
+import { ROW_TESTID, routeTo } from "./file/kinds.ts"
 import { Glyph } from "./file/icons.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
@@ -194,7 +195,7 @@ export function Sidebar(props: {
   // door. Filtered here rather than upstream because every other reader of
   // `files` — the page model, the trash itself — wants the whole list.
   const tree = createMemo(() =>
-    fileTree(props.files.filter((file) => !isArchived(file)), props.documents)
+    fileTree([...props.files.filter((file) => !isArchived(file)), ...props.documents])
   )
 
   // Folding a folder is remembered, and the write drops folders that are not in
@@ -473,23 +474,22 @@ function File(props: {
   readonly row: Extract<FileRow, { kind: "file" }>
   readonly view: TreeView
 }) {
+  // Only the ⚠ is asked of the kind here, and it is not one of `./file/kinds.ts`
+  // answers: a file that could not be READ is a fact about this row's file, and
+  // only an outline's unreadability costs the reader a tree.
   const outline = props.row.of === "outline"
 
   return (
     <li class="mb-1">
       <Link
-        route={
-          outline
-            ? { kind: "outline", file: props.row.file }
-            : { kind: "document", file: props.row.file }
-        }
+        route={routeTo(props.row.of, props.row.file)}
         class={ENTRY}
-        testid={outline ? TESTID.outlineLink : TESTID.documentLink}
+        testid={ROW_TESTID[props.row.of]}
         current={props.view.isActive(props.row.file)}
         broken={outline && props.view.broken.has(props.row.file)}
       >
-        {/* Which of the two kinds of file this is — the thing four characters
-            of extension were carrying on their own (`./file/icons.tsx`). */}
+        {/* Which kind of file this is — the thing four characters of extension
+            were carrying on their own (`./file/icons.tsx`). */}
         <Glyph of={props.row.of} />
         {props.row.name}
         <Show when={outline && props.view.broken.has(props.row.file)}>

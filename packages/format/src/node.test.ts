@@ -1,16 +1,15 @@
 import { expect, test } from "bun:test"
 
 import { nodesOf } from "./fixtures.testlib.ts"
+import { OUTLINE_EXT } from "./kinds.ts"
 import {
   ARCHIVE,
-  fileKind,
   ID_SHAPE,
   INBOX,
   inboxIn,
   isMirror,
   MirrorNode,
   type Node,
-  OUTLINE_EXT,
   RegularNode,
 } from "./node.ts"
 
@@ -62,42 +61,10 @@ test("ID_SHAPE admits slugs and nothing else", () => {
   }
 })
 
-// What belongs to a served set is a statement about the FORMAT, not about
-// whatever happened to read the directory: the same answer decides which files
-// are outlines, which are the documents `doc` may point at, and which are
-// neither. A file that is neither is not part of the set at all — so `null` is
-// an answer, not a failure. The suffix is matched exactly as the format writes
-// it, so a near miss is a miss.
-test("a served file is an outline, a document, or none of the set's business", () => {
-  expect(fileKind("plan.olai")).toBe("outline")
-  expect(fileKind("sub/dir/plan.olai")).toBe("outline")
-  expect(fileKind("notes/cabinets.md")).toBe("document")
-  for (const path of ["README", "plan.json", "notes.md.txt", "olai", ".md.bak", "a.OLAI"]) {
-    expect({ path, kind: fileKind(path) }).toEqual({ path, kind: null })
-  }
-})
-
-// The cutover, in the format's own words. Outlines were `.jsonl` files until
-// the rename, and what was ruled is that olai simply stops seeing them: no dual
-// read, no migration on open, no warning — a `.jsonl` left in a served
-// directory is an unclaimed file exactly the way `plan.json` above is, and a
-// person renames their vault once by hand (docs/format.md carries the line).
-// It is asserted rather than left to follow from the constant because the
-// tempting kindness — "claim it too, just for a while" — is a one-word edit
-// here, and this is where the argument against it is written down.
-test("the extension olai used to have is not claimed, and nothing warns about it", () => {
-  expect(fileKind("plan.jsonl")).toBeNull()
-  // The conventional names do not rescue it, which is the assumption worth
-  // pinning: an old vault's archive is not an archive to this format, and its
-  // inbox is not an inbox. They are files olai walks past.
-  expect(fileKind("Archive.jsonl")).toBeNull()
-  expect(inboxIn(["Inbox.jsonl"])).toBeUndefined()
-})
-
 // The two conventional names are DERIVED from the suffix rather than typed
-// beside it, for the reason node.ts gives: a retyped suffix left behind is not
-// a type error, it is a file the walk stops claiming. `fileKind` needs no
-// assertion here — it reads the same constant, one line above them.
+// beside it, for the reason the registry gives: a retyped suffix left behind is
+// not a type error, it is a file the walk stops claiming. `fileKind` needs no
+// assertion here — it reads the same constant these two do.
 test("the archive and the inbox wear the one suffix", () => {
   expect(ARCHIVE).toBe(`Archive${OUTLINE_EXT}`)
   expect(INBOX).toBe(`Inbox${OUTLINE_EXT}`)

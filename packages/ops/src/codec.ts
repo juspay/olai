@@ -16,6 +16,7 @@
 
 import {
   assemble,
+  bodyKind,
   type DecodedFile,
   fileKind,
   type OutlineError,
@@ -29,13 +30,20 @@ import { Result } from "effect"
 export const codec: Codec<DecodedFile, OutlineSet, ReadonlyArray<OutlineError>> = {
   match: (path) => fileKind(path) !== null,
 
-  /** A document decodes to its text, verbatim: markdown is interpreted at view
-   *  time, so there is nothing to parse here and nothing that can fail. It is
-   *  carried rather than dropped because a document is content of the served
+  /** A BODIED file decodes to its text, verbatim: what it says is interpreted
+   *  at view time, so there is nothing to parse here and nothing that can fail.
+   *  It is carried rather than dropped because it is content of the served
    *  directory the same way a note is (`@olai/format`'s `Document`), and this
-   *  is the read path that already re-reads only what changed. */
+   *  is the read path that already re-reads only what changed.
+   *
+   *  WHICH files those are is the registry's answer and not this file's
+   *  (`@olai/format`'s `kinds.ts`): a kind whose content is a body decodes to
+   *  its bytes, and everything else is an outline to parse. A branch spelled
+   *  here would be the second answer to a question the format already
+   *  settles — and the way that reads is a file parsed as records nobody wrote
+   *  as records. */
   decode: (path, contents) =>
-    fileKind(path) === "document"
+    bodyKind(path) !== null
       ? Result.succeed({ file: path, text: contents })
       : parseOutline(path, contents),
 

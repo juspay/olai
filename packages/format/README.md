@@ -4,6 +4,12 @@ The format core ([docs/format.md](../../docs/format.md)): `parseOutline` per fil
 
 Nothing outside these two functions may reject an outline. Not the reader, not the store, not the web layer. A second interpretation of the format would be free to disagree with the one that decides whether a file is legal at all.
 
+## Which files a served directory is made of
+
+`src/kinds.ts` is the one table that says it: a kind per row, each with the suffix that claims a file and whether its content is a tree of RECORDS the validator judges or a BODY carried verbatim. `fileKind` reads it, and so does everything downstream — the store's walk is handed it as `match`, the codec decodes by it, the set sorts decoded files by it, and the client's sidebar, glyphs and routes are `Record`s over the union it exports. It was four spellings before, which is what made the outline rename (PR #177) and the file glyphs (PR #174) each a hunt; a new kind of served file is now one entry here, and the type checker names every surface that owes it a drawing. `packages/tests/kinds.test.ts` holds both halves as sweeps: nothing outside this file decides by spelling a suffix, and every registered kind is drawn everywhere kinds are drawn.
+
+The table holds only what EVERY kind has an answer to. A fact one kind has — where an archive goes, which files a `doc` may point at, what a day's note is named — stays with that kind's rule, because a column that is empty for most rows is a union wearing a table's clothes.
+
 ## Staged, and the stage is part of the answer
 
 Validation is two phases, and the seam is load-bearing rather than tidy.

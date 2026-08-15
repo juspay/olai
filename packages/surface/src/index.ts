@@ -17,8 +17,8 @@
  *     (`keySchema`) rather than inherited from a client library's default.
  *     Every subscription opens with a full snapshot and a reconnect is a fresh
  *     one — the framework's own contract — so there is nothing to resume.
- *   - `documents` is a COLLECTION keyed the same way, one entry per `.md`, and
- *     it is subscribed KEYS-FIRST: the sidebar draws paths, so the key set is
+ *   - `documents` is a COLLECTION keyed the same way, one entry per BODIED file
+ *     — every `.md` and every `.html` — and it is subscribed KEYS-FIRST: the sidebar draws paths, so the key set is
  *     the whole of what a first paint needs, and a body travels when a document
  *     is opened (the per-key `get`). No `deltas` — the batched verb is a push
  *     of every entry, which for documents is every body, which is the thing
@@ -138,7 +138,7 @@ export const OutlineEntry = Schema.Struct({
 export type OutlineEntry = typeof OutlineEntry.Type
 
 /**
- * One `.md` document's slice of the set, as published at set revision `rev`.
+ * One bodied file's slice of the set, as published at set revision `rev`.
  *
  * The entry carries the BODY, and it is the only thing on the wire that does:
  * one collection, keyed by path, read one key at a time. What it replaced was
@@ -161,7 +161,8 @@ export type OutlineEntry = typeof OutlineEntry.Type
  */
 export const DocumentEntry = Schema.Struct({
   rev: Schema.Int,
-  /** Verbatim, exactly as on disk — markdown is interpreted at view time. */
+  /** Verbatim, exactly as on disk — markdown or markup, interpreted at view
+   *  time by whichever face this kind of file is drawn with. */
   text: Schema.String,
 })
 export type DocumentEntry = typeof DocumentEntry.Type
@@ -312,8 +313,17 @@ export const surface = defineSurface({
       verbs: ["keys", "get", "deltas"],
     },
     /**
-     * Every `.md` the directory holds, one entry per document — see
+     * Every BODIED file the directory holds, one entry each — see
      * {@link DocumentEntry}.
+     *
+     * That is every `.md` and every `.html`: the files whose content olai
+     * carries verbatim rather than parsing into records (`@olai/format`'s
+     * registry says which those are). ONE collection rather than one per kind,
+     * because what is encapsulated here is not markdown — it is "a body,
+     * fetched per key, by whoever is showing it", and a second collection would
+     * be that same arrangement built again for a file that differs only in how
+     * a page draws it. The name is kept because it is the wire's: an MCP client
+     * already addresses `surface://collections/documents`.
      *
      * `keys` and `get`, and NO `deltas`, and the omission is the whole point.
      * `deltas` opens with a snapshot of every entry, which for this collection

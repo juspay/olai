@@ -34,7 +34,7 @@
 
 import { biggestOf, type NodeChange, type Sort } from "./changes.ts"
 import type { Other } from "./committing.ts"
-import { OUTLINE_EXT } from "./node.ts"
+import { OUTLINE_EXT } from "./kinds.ts"
 
 /** Every message olai writes starts with this. In a project repository the
  *  prefix is what separates tool writes from a person's: `git log --grep

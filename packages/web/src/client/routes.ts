@@ -8,12 +8,20 @@
  * outlives every edit short of a delete — while a URL that also carried the
  * outline would be a URL that could disagree with the file it named.
  *
- * `/doc/<file>` names a document, which is also a file and also spells its
- * path — and it is a SECOND prefix rather than more work for `/o/` because an
- * outline and a document are two different things a file can be (`fileKind`,
- * in the format). The address says which, so a URL means one kind of page
- * before the set is in hand, and renaming a `.md` to a `.olai` is a different
- * page rather than the same address quietly changing what it draws.
+ * `/doc/<file>` names a file that is READ — a document, or a `.html` — which is
+ * also a file and also spells its path. It is a SECOND prefix rather than more
+ * work for `/o/` because an outline is a different KIND OF PAGE: a tree with
+ * rows to zoom into and a filter to narrow by, against a body drawn whole. The
+ * address says which, so a URL means one kind of page before the set is in
+ * hand, and renaming a `.md` to a `.olai` is a different page rather than the
+ * same address quietly changing what it draws.
+ *
+ * ONE prefix for both bodied kinds, and not a third for hypertext, because the
+ * path already says which: the suffix is what `fileKind` reads, and it is in
+ * the address either way. A `/html/` prefix would be the same fact spelled
+ * twice — free to disagree with the name it carries — and it would make the
+ * kind of a file a property of the LINK that was clicked rather than of the
+ * file, which is the seam this app keeps putting back in the format.
  *
  * `/d/<ISO-date>` names a DAY, which is not a thing on disk at all: it is a
  * question asked of every dated node in the set, and the answer is computed at
