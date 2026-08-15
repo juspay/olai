@@ -189,7 +189,7 @@ export function Sidebar(props: {
   // form subscribes every entry to the open page. This notifies exactly the
   // entry that lit and the one that went out.
   const isActive = createSelector(() => props.active)
-  // The archives are not in the tree: an `Archive.jsonl` is not an outline a
+  // The archives are not in the tree: an `Archive.olai` is not an outline a
   // reader opens and edits, and the Trash entry below the tree is its one
   // door. Filtered here rather than upstream because every other reader of
   // `files` — the page model, the trash itself — wants the whole list.

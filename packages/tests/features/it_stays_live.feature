@@ -11,11 +11,11 @@ Feature: It stays live
   the scenario. See `support/hooks.ts`.
 
   Background:
-    Given I open the outline "garden.jsonl"
+    Given I open the outline "garden.olai"
     And I mark the page
 
   Scenario: An edit on disk reaches the open page
-    When I rewrite "garden.jsonl" as:
+    When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -31,7 +31,7 @@ Feature: It stays live
     # shape of a `git pull`. The settle delay is what makes them one probe, and
     # one probe is what makes them one published set: half a pull is a set that
     # was never on disk.
-    When I rewrite "garden.jsonl" as:
+    When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -39,7 +39,7 @@ Feature: It stays live
       {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true}
       {"id":"compost","parent":"garden","ord":"a1","title":"turn the compost","after":["mint"]}
       """
-    And I rewrite "shed.jsonl" as:
+    And I rewrite "shed.olai" as:
       """
       {"id":"shed","ord":"a0","title":"clear out the shed"}
       {"id":"rake","parent":"shed","ord":"a0","title":"hang up the rake"}
@@ -52,20 +52,20 @@ Feature: It stays live
     And there should be no page errors
 
   Scenario: One file that will not parse costs that one outline
-    # The hybrid error scope: house.jsonl loses its tree and nothing else does.
-    # Note what stays true — the sidebar still lists it, garden.jsonl is still
+    # The hybrid error scope: house.olai loses its tree and nothing else does.
+    # Note what stays true — the sidebar still lists it, garden.olai is still
     # drawn, and there is no banner, because nothing is being held back.
-    When I rewrite "house.jsonl" as:
+    When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
       {"id":"order","parent":"kitchen","ord":"a1",title:"order the new cabinets"}
       """
-    Then the outline "house.jsonl" is marked unreadable
+    Then the outline "house.olai" is marked unreadable
     And no stale banner is shown
     And the node "herbs" is shown
-    When I open the unreadable outline "house.jsonl"
-    Then the outline failure shows an error at "house.jsonl:3"
+    When I open the unreadable outline "house.olai"
+    Then the outline failure shows an error at "house.olai:3"
     And the outline failure shows an error with code "not-json"
     And the page has not reloaded
 
@@ -73,7 +73,7 @@ Feature: It stays live
     # `nowhere` is nobody's id, and no single file owns that fact — so the whole
     # set is held, the tree on screen is the one from before, and the banner
     # says so. Fixing the file is the whole of the recovery.
-    When I rewrite "garden.jsonl" as:
+    When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -83,7 +83,7 @@ Feature: It stays live
     Then the stale banner is shown
     And the stale banner shows an error with code "unknown-target"
     And the node "mint" is shown
-    When I rewrite "garden.jsonl" as:
+    When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -143,7 +143,7 @@ Feature: It stays live
   # what went missing and what was drawn twice, with the line each node claims).
 
   Scenario: A record spliced into the middle of a file appears, once
-    When I rewrite "garden.jsonl" as:
+    When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -154,10 +154,10 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
+    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
     # The insert is at line 5 — the middle of the file, not the end, which is
     # the whole distinction this scenario exists for.
-    When I rewrite "garden.jsonl" as:
+    When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -169,12 +169,12 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint, chives, beds, peas, beans, compost"
+    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, chives, beds, peas, beans, compost"
     And the node "chives" has the title "divide the chives"
     And the page has not reloaded
 
   Scenario: A record deleted from the middle goes, and takes nothing with it
-    When I rewrite "garden.jsonl" as:
+    When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -185,8 +185,8 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
-    When I rewrite "garden.jsonl" as:
+    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
+    When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -196,7 +196,7 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, beds, peas, beans, compost"
+    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, beds, peas, beans, compost"
     And the page has not reloaded
 
   Scenario: A file rewritten in a different order still says the same thing
@@ -204,7 +204,7 @@ Feature: It stays live
     # nothing about the outline: `ord` decides what is drawn where, and the file
     # order is not the outline's order. So nothing on screen may move, and no
     # title may end up on somebody else's node.
-    When I rewrite "garden.jsonl" as:
+    When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -215,8 +215,8 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
-    When I rewrite "garden.jsonl" as:
+    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
+    When I rewrite "garden.olai" as:
       """
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
@@ -227,7 +227,7 @@ Feature: It stays live
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       """
-    Then the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
+    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
     And the node "basil" has the title "sow the basil"
     And the node "mint" has the title "split the mint"
     And the node "peas" has the title "stake the peas"
@@ -239,7 +239,7 @@ Feature: It stays live
     # "one edit was missed": a page whose tree was mis-merged once keeps merging
     # into the wrong tree, so every later edit is wrong too — including the
     # end-appends that work on a clean page. Both new ids have to arrive.
-    When I rewrite "garden.jsonl" as:
+    When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -250,8 +250,8 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
-    When I rewrite "garden.jsonl" as:
+    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
+    When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -263,7 +263,7 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    And I rewrite "garden.jsonl" as:
+    And I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -276,26 +276,26 @@ Feature: It stays live
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       {"id":"leaves","parent":"compost","ord":"a0","title":"rake the leaves in"}
       """
-    Then the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint, chives, beds, peas, beans, compost, leaves"
+    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, chives, beds, peas, beans, compost, leaves"
     And the page has not reloaded
     And there should be no page errors
 
   Scenario: An outline that arrives beside the open one leaves it whole
-    # The shape the residual report came in on: new `.jsonl` files appearing
+    # The shape the residual report came in on: new `.olai` files appearing
     # under a live tab while ANOTHER outline is being read — a port, a clone, a
     # sync finishing. Every scenario above edits the file on screen; this one
     # never touches it, which makes the promise absolute. Nothing about
-    # garden.jsonl changed, so nothing drawn from it may change either — and
+    # garden.olai changed, so nothing drawn from it may change either — and
     # that is a claim only the whole multiset can make, since a tree that drew
     # one node twice still reads correctly.
-    When I rewrite "shed.jsonl" as:
+    When I rewrite "shed.olai" as:
       """
       {"id":"shed","ord":"a0","title":"clear out the shed"}
       {"id":"rake","parent":"shed","ord":"a0","title":"hang up the rake"}
       """
     # Root outlines only: Daily/ stays collapsed. garden + house + shed.
     Then the outline list has 3 entries
-    And the outline "garden.jsonl" shows exactly the nodes "garden, herbs, basil, mint, frames, glazing, sowing, slugs, compost, turned, straw"
+    And the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, frames, glazing, sowing, slugs, compost, turned, straw"
     And the node "basil" has the title "sow the basil"
     And the page has not reloaded
     And there should be no page errors
@@ -305,7 +305,7 @@ Feature: It stays live
     # live" has to mean the same thing there. Zooming is a route change and not
     # a load, which is why the mark planted in the Background is still valid.
     When I zoom into the node "herbs"
-    And I rewrite "garden.jsonl" as:
+    And I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}

@@ -203,7 +203,7 @@ export const targetsOf = (
  *  It is not a knob. A directory holds one kind of outline and this is what it
  *  is called; the constant exists so the answer is asked for rather than
  *  retyped. */
-export const OUTLINE_EXT = ".jsonl"
+export const OUTLINE_EXT = ".olai"
 
 /** What a served file is, by its name. An outline is an {@link OUTLINE_EXT}, a
  *  document is a `.md`, and anything else is not part of the set.
@@ -218,7 +218,7 @@ export type FileKind = "outline" | "document"
 export const fileKind = (path: string): FileKind | null =>
   path.endsWith(OUTLINE_EXT) ? "outline" : path.endsWith(".md") ? "document" : null
 
-/** Where work that is over is put away: one `Archive.jsonl` per directory,
+/** Where work that is over is put away: one `Archive.olai` per directory,
  *  beside the outline it left. The same rule as the racket reference, so a
  *  directory that has been archived from before goes on reading the way it did.
  *
@@ -265,10 +265,10 @@ export const INBOX = `Inbox${OUTLINE_EXT}`
  * resolves through it (`@olai/server`'s `edit.ts`), and an agent capturing by
  * hand reads the same sentence rather than guessing at the browser's.
  *
- * The file is whichever outline is CALLED `Inbox.jsonl`, wherever it sits, so
+ * The file is whichever outline is CALLED `Inbox.olai`, wherever it sits, so
  * a directory that already keeps its inbox under `notes/` captures into the
  * file it has rather than growing a second one at the root. Case-insensitively,
- * because it is a name a person typed and `inbox.jsonl` is the same intention.
+ * because it is a name a person typed and `inbox.olai` is the same intention.
  *
  * SHALLOWEST WINS, then path order — one answer, and a stable one, for the
  * directory that somehow holds two. "First in path order" would let a file

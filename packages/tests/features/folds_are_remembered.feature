@@ -6,7 +6,7 @@ Feature: The outline remembers how you left it
   That is the bug this feature closes (2026-08-13, human).
 
   A fold is a preference of this BROWSER now — kept in its own storage, never
-  sent anywhere, never written into a `.jsonl` and never committed — and it is
+  sent anywhere, never written into a `.olai` and never committed — and it is
   kept BY NODE. Three things follow, and each one is a scenario below: it
   survives a reload, it survives zooming in and back out (a place key would not:
   the walk under a node spells the same row differently), and every mirror of a
@@ -18,7 +18,7 @@ Feature: The outline remembers how you left it
 
   Scenario: A tree you collapsed is still collapsed after a reload
     # The complaint, verbatim, as a scenario.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And the node "kitchen" is expanded
     When I collapse the node "kitchen"
     Then the node "kitchen" is collapsed
@@ -32,7 +32,7 @@ Feature: The outline remembers how you left it
     # The other direction, which a store of "what was collapsed" only gets right
     # if unfolding REMOVES rather than doing nothing: a node nobody has touched
     # and a node somebody has opened both draw open.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I collapse the node "kitchen"
     And I reload the page
     Then the node "kitchen" is collapsed
@@ -46,7 +46,7 @@ Feature: The outline remembers how you left it
     # from the node down, so the same row has a different PLACE key there than
     # it does on the whole outline. Folding by id makes the round trip a
     # no-op, which is what a reader who zoomed in to look at one branch means.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I collapse the node "install"
     Then the node "install" is collapsed
     When I zoom into the node "kitchen"
@@ -61,26 +61,26 @@ Feature: The outline remembers how you left it
     # somebody can arrive at with no history behind it.
     Given I open the node "kitchen"
     When I collapse the node "install"
-    And I open the outline "house.jsonl"
+    And I open the outline "house.olai"
     Then the node "install" is collapsed
 
   Scenario: Mirrors of one node fold together
     # THE RULING (2026-08-13): one node, one fold state. `kitchen-herbs` in
-    # house.jsonl is a mirror of `herbs`, which lives in garden.jsonl — so
+    # house.olai is a mirror of `herbs`, which lives in garden.olai — so
     # folding the placement is a fact about the node, and the node's own row in
     # its own outline is folded with it.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I collapse the node "kitchen-herbs"
     Then the children of "kitchen-herbs" are hidden
-    And this browser remembers "herbs" folded in "garden.jsonl"
-    When I open the outline "garden.jsonl"
+    And this browser remembers "herbs" folded in "garden.olai"
+    When I open the outline "garden.olai"
     Then the node "herbs" is collapsed
     And the children of "herbs" are hidden
 
   Scenario: Collapse all is remembered, and so is expand all
     # The menu's two bulk verbs go through the same memory as the triangle, so
     # a reader who shut a whole branch does not find it open on the next visit.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I open the node menu of "kitchen"
     And I choose "Collapse all" from the node menu
     And I reload the page
@@ -96,7 +96,7 @@ Feature: The outline remembers how you left it
     And this browser remembers no folds
 
   Scenario: A folder you opened in the directory is still open after a reload
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And the folder "Daily" is collapsed
     When I expand the folder "Daily"
     Then the folder "Daily" is expanded
@@ -109,7 +109,7 @@ Feature: The outline remembers how you left it
     # something the directory is told, so nothing crosses the wire and nothing
     # reaches a file. "It works" and "it works without asking anybody" look
     # identical on screen.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I watch what the page asks for
     And I collapse the node "kitchen"
     Then the page asked for nothing at all
@@ -119,7 +119,7 @@ Feature: The outline remembers how you left it
     # the same `storage` event the theme and the Done default ride. A reload
     # scenario cannot ask this: deleting the listener entirely would leave every
     # other scenario here green.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And the node "kitchen" is expanded
     When a second tab collapses the node "kitchen"
     Then the node "kitchen" is collapsed

@@ -64,17 +64,17 @@ Feature: An agent olai did not start
   Scenario: A terminal starts a new outline and the open page lists it
     # The gap `create_outline` closes: `add_node` refuses any file the set does
     # not already hold, so without this an agent cannot open a fresh outline at
-    # all. The store's watcher already handles a new `.jsonl` (see
+    # all. The store's watcher already handles a new `.olai` (see
     # it_stays_live.feature); this scenario proves the write path that mints
     # one reaches the same live tab — no reload.
-    When the terminal agent creates the outline "shed.jsonl" seeded with "clear out the shed"
-    Then the outline list links to "shed.jsonl"
+    When the terminal agent creates the outline "shed.olai" seeded with "clear out the shed"
+    Then the outline list links to "shed.olai"
     And the outline list has 2 entries
     And the page has not reloaded
     And there should be no page errors
 
   Scenario: A terminal captures a node and it appears in the tree
-    When the terminal agent captures "water the plants" in "house.jsonl"
+    When the terminal agent captures "water the plants" in "house.olai"
     Then the tree eventually shows a node titled "water the plants"
     And the page has not reloaded
 
@@ -84,10 +84,10 @@ Feature: An agent olai did not start
     # behind — a file nobody asked for. `seed` is a whole capture now, so the
     # file and everything in it arrive together, on a page that was already
     # open.
-    When the terminal agent creates the outline "shed.jsonl" holding a whole tree
-    Then the outline list links to "shed.jsonl"
+    When the terminal agent creates the outline "shed.olai" holding a whole tree
+    Then the outline list links to "shed.olai"
     And the terminal agent was told it captured 3 nodes
-    When I open the outline "shed.jsonl"
+    When I open the outline "shed.olai"
     Then the node "clear" is a child of "shed"
     And the node "tins" is a child of "clear"
     And the node "clear" shows an empty checkbox
@@ -118,7 +118,7 @@ Feature: An agent olai did not start
     # carries no title of its own, and everything under `kitchen` is drawn
     # beneath it. Nothing was copied — there is one `order` on disk and two on
     # screen.
-    When the terminal agent mirrors "kitchen" at the top of "house.jsonl" as "now-kitchen"
+    When the terminal agent mirrors "kitchen" at the top of "house.olai" as "now-kitchen"
     Then the node "now-kitchen" is shown
     And the node "order" is a child of "now-kitchen"
     And the node "install" is a child of "now-kitchen"
@@ -129,7 +129,7 @@ Feature: An agent olai did not start
     # The other half, and the semantic worth pinning end to end: retiring a
     # placement deletes ONE LINE. The row goes, and the node it was showing is
     # still there in the outline that defines it, with its subtree.
-    When the terminal agent mirrors "kitchen" at the top of "house.jsonl" as "now-kitchen"
+    When the terminal agent mirrors "kitchen" at the top of "house.olai" as "now-kitchen"
     Then the node "now-kitchen" is shown
     When the terminal agent retires the mirror "now-kitchen"
     Then the node "now-kitchen" is not shown
@@ -196,7 +196,7 @@ Feature: An agent olai did not start
     # A hit says where it is, so the agent can act on it without ever reading
     # the file it came out of.
     When the terminal agent searches for "cabinets"
-    Then the terminal agent found "order" in "house.jsonl"
+    Then the terminal agent found "order" in "house.olai"
 
   Scenario: It gets the same grammar a person filters a page with
     # HACKING.md's consistency rule, at the one seam a query language could

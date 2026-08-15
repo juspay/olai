@@ -41,7 +41,7 @@ test("the outlines collection is a key-set resource plus an item template", () =
   // And one file at a time. The `{id}` is a root-relative, `/`-spelled path —
   // the same spelling the store's keys and every `file:line` use — which the
   // adapter parses by splitting on the FIRST `/` after the collection name, so
-  // a nested `notes/todo.jsonl` addresses without escaping.
+  // a nested `notes/todo.olai` addresses without escaping.
   expect(resourceTemplates).toContainEqual(
     expect.objectContaining({
       uriTemplate: "surface://collections/outlines/{id}",

@@ -7,7 +7,7 @@ Feature: Workflowy gutter
   hangs in, and the reading verbs it has always had.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
 
   Scenario: A collapsed parent shows the halo on its bullet
     Given the node "kitchen" is expanded

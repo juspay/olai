@@ -40,7 +40,7 @@ test("the spec's own example line is a node", () => {
   const outline = outlineOf(
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","date":"2026-08-10","after":["demo"]}`,
   )
-  expect(outline.file).toBe("a.jsonl")
+  expect(outline.file).toBe("a.olai")
   expect(outline.nodes.length).toBe(1)
   expect(outline.nodes[0]?.line).toBe(1)
   // Stored verbatim: the reader hands back exactly the fields on disk, because
@@ -64,7 +64,7 @@ test("a line that is not JSON is an error about that line", () => {
 })
 
 // `JSON.parse` accepts scalars and arrays, so "valid JSON" is not "a record".
-// Pasting a whole JSON array into a .jsonl is the mistake people actually make,
+// Pasting a whole JSON array into a .olai is the mistake people actually make,
 // and it should be told what it did rather than shown a schema issue.
 test("valid JSON that is not an object says which shape it got", () => {
   expect(codes(errorsOf(`[{"id":"a"}]`))).toEqual(["not-an-object"])
@@ -204,7 +204,7 @@ test("blank lines are skipped without shifting line numbers", () => {
 // when the line declaring it is the one that failed.
 test("one bad line yields no nodes from the whole file", () => {
   const parsed = parseOutline(
-    "a.jsonl",
+    "a.olai",
     `{"id":"a","ord":"a","title":"t"}\n{"id":"b",\n{"id":"c","ord":"c","title":"t"}`,
   )
   expect(Result.isFailure(parsed)).toBe(true)
@@ -231,5 +231,5 @@ test("several record-level rules can fail on one line", () => {
   )
   expect(codes(errors).slice().sort()).toEqual(["bad-date", "bad-id", "several-marks"])
   expect(errors.every((error) => error.line === 1)).toBe(true)
-  expect(errors.every((error) => error.file === "a.jsonl")).toBe(true)
+  expect(errors.every((error) => error.file === "a.olai")).toBe(true)
 })

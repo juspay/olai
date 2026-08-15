@@ -34,7 +34,7 @@ import { TESTID } from "../testids.ts"
 
 installPipeline(pipeline)
 
-const NOTE = "house.jsonl"
+const NOTE = "house.olai"
 
 test("a fenced block is highlighted, in classes rather than colours", () => {
   const html = renderMarkdown("```ts\nconst a = 1\n```\n", NOTE)
@@ -89,10 +89,10 @@ test("a footnote is a link to a note at the end", () => {
 // break under the reader's cursor.
 test("footnote ids belong to the block, not to the parser", () => {
   const source = "Cabinets[^1]\n\n[^1]: Walnut.\n"
-  const one = renderMarkdown(source, "house.jsonl")
-  const other = renderMarkdown(source, "garden.jsonl")
+  const one = renderMarkdown(source, "house.olai")
+  const other = renderMarkdown(source, "garden.olai")
   expect(one).not.toEqual(other)
-  expect(renderMarkdown(source, "house.jsonl")).toEqual(one)
+  expect(renderMarkdown(source, "house.olai")).toEqual(one)
   // Nothing is left with the parser's own bare `fn-1`.
   expect(one).not.toContain(`id="fn-1"`)
   expect(one).toMatch(/id="md-[a-z0-9]+-fn-1"/)
@@ -176,7 +176,7 @@ test("a link in a note resolves beside the note, not beside the page", () => {
   expect(renderMarkdown(source, "notes/2026-08-12.md"))
     .toContain(`href="/doc/notes/palette.md"`)
   // The same link written in an OUTLINE resolves beside the outline.
-  expect(renderMarkdown(source, "house.jsonl")).toContain(`href="/doc/palette.md"`)
+  expect(renderMarkdown(source, "house.olai")).toContain(`href="/doc/palette.md"`)
 })
 
 // A fragment is two questions — which file, and where in it — so the path is
@@ -194,7 +194,7 @@ test("a link that is not a relative document is left exactly as written", () => 
     .toContain(`href="https://example.com/x.md"`)
   expect(renderMarkdown("[a](/finishes.md)", NOTE)).toContain(`href="/finishes.md"`)
   expect(renderMarkdown("[a](art/handle.png)", NOTE)).toContain(`href="art/handle.png"`)
-  expect(renderMarkdown("[a](house.jsonl)", NOTE)).toContain(`href="house.jsonl"`)
+  expect(renderMarkdown("[a](house.olai)", NOTE)).toContain(`href="house.olai"`)
 })
 
 // The two passes over one anchor stay in their lanes: a fragment-only link is
@@ -229,8 +229,8 @@ test("a heading carries an id and a link to it", () => {
 // that the namespace is the BLOCK's.)
 test("heading ids belong to the block, not to the parser", () => {
   const source = "## Shape\n"
-  expect(renderMarkdown(source, "house.jsonl")).not
-    .toEqual(renderMarkdown(source, "garden.jsonl"))
+  expect(renderMarkdown(source, "house.olai")).not
+    .toEqual(renderMarkdown(source, "garden.olai"))
 })
 
 // The contents is derived from the RENDERING, so what it points at is what is

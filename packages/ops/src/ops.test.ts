@@ -140,16 +140,16 @@ const gitLog = (root: string): ReadonlyArray<string> =>
 // ── the write path ─────────────────────────────────────────────────────
 
 test("a mark lands on disk as bytes the parser reads back", () =>
-  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       const applied = yield* run(fixture, { op: "done", id: "order" })
-      expect(applied).toMatchObject({ id: "order", file: "house.jsonl", rev: 2 })
+      expect(applied).toMatchObject({ id: "order", file: "house.olai", rev: 2 })
 
-      const text = fixture.read("house.jsonl") ?? ""
+      const text = fixture.read("house.olai") ?? ""
       expect(text.endsWith("\n")).toBe(true)
       expect(text.split("\n").filter((line) => line !== "")).toHaveLength(4)
 
-      const parsed = parseOutline("house.jsonl", text)
+      const parsed = parseOutline("house.olai", text)
       expect(Result.isSuccess(parsed)).toBe(true)
 
       // And the browser sees it: the snapshot moved, without anyone probing.
@@ -170,7 +170,7 @@ test("a mark lands on disk as bytes the parser reads back", () =>
  */
 test("the marks on the other records come back as the bytes they were", () =>
   withOps({
-    "house.jsonl": [
+    "house.olai": [
       `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
       `{"id":"old","parent":"kitchen","ord":"a0","title":"an old habit","done":true}`,
       `{"id":"quote","parent":"kitchen","ord":"a1","title":"get a quote","done":"2026-08-01"}`,
@@ -181,7 +181,7 @@ test("the marks on the other records come back as the bytes they were", () =>
     Effect.gen(function*() {
       yield* run(fixture, { op: "done", id: "order" })
 
-      const text = fixture.read("house.jsonl") ?? ""
+      const text = fixture.read("house.olai") ?? ""
       expect(text).toContain(`"done":true`)
       expect(text).toContain(`"done":"2026-08-01"`)
       expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
@@ -200,7 +200,7 @@ test("the marks on the other records come back as the bytes they were", () =>
  * for anyone east of the line, and the value would not parse back to now).
  */
 test("marking done with no clock handed in stamps the current instant", () =>
-  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       // Whole seconds: the stamp has no fraction, so it can land a fraction of
       // a second before this test started counting.
@@ -218,26 +218,26 @@ test("marking done with no clock handed in stamps the current instant", () =>
     }), { realClock: true }))
 
 test("creating an outline lands a new file the set and the disk both see", () =>
-  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       const applied = yield* run(fixture, {
         op: "create",
-        file: "notes/ideas.jsonl",
+        file: "notes/ideas.olai",
         seed: { title: "an idea" },
       })
       expect(applied).toMatchObject({
-        file: "notes/ideas.jsonl",
+        file: "notes/ideas.olai",
         title: "an idea",
         summary: "capture: an idea",
         committed: false,
       })
 
-      const text = fixture.read("notes/ideas.jsonl") ?? ""
+      const text = fixture.read("notes/ideas.olai") ?? ""
       expect(text).toContain(`"title":"an idea"`)
       expect(text.endsWith("\n")).toBe(true)
 
       const set = yield* fixture.set()
-      expect([...set.files].sort()).toEqual(["house.jsonl", "notes/ideas.jsonl"])
+      expect([...set.files].sort()).toEqual(["house.olai", "notes/ideas.olai"])
       expect(set.nodes.some((located) => located.node.id === applied.id)).toBe(true)
     })))
 
@@ -251,13 +251,13 @@ test("creating an outline lands a new file the set and the disk both see", () =>
  * checkable where the file system is.
  */
 test("a new outline arrives holding its whole tree, or does not arrive", () =>
-  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       // Refused: the seed names an id the set already holds, two levels down.
       const failure = yield* Effect.orDie(
         Effect.flip(fixture.ops.run({
           op: "create",
-          file: "shed.jsonl",
+          file: "shed.olai",
           seed: {
             title: "The shed",
             children: [{ title: "clear it out", children: [{ title: "x", id: "order" }] }],
@@ -266,16 +266,16 @@ test("a new outline arrives holding its whole tree, or does not arrive", () =>
       )
       expect(failure._tag).toBe("UsageFailure")
       // Not an empty outline, not a partial one: no file.
-      expect(fixture.read("shed.jsonl")).toBeNull()
-      expect((yield* fixture.set()).files).toEqual(["house.jsonl"])
+      expect(fixture.read("shed.olai")).toBeNull()
+      expect((yield* fixture.set()).files).toEqual(["house.olai"])
       expect(gitLog(fixture.root)).toEqual(["fixtures"])
       // And the outline that WAS there is untouched, byte for byte.
-      expect(fixture.read("house.jsonl")).toBe(HOUSE)
+      expect(fixture.read("house.olai")).toBe(HOUSE)
 
       // The same call with the collision fixed lands all of it at once.
       const applied = yield* run(fixture, {
         op: "create",
-        file: "shed.jsonl",
+        file: "shed.olai",
         seed: {
           title: "The shed",
           children: [{ title: "clear it out", children: [{ title: "the paint tins" }] }],
@@ -283,10 +283,10 @@ test("a new outline arrives holding its whole tree, or does not arrive", () =>
       })
       expect(applied.summary).toBe("capture: The shed (+2)")
       expect(applied.captured).toHaveLength(3)
-      const text = fixture.read("shed.jsonl") ?? ""
+      const text = fixture.read("shed.olai") ?? ""
       expect(text.split("\n").filter((line) => line !== "")).toHaveLength(3)
-      expect(Result.isSuccess(parseOutline("shed.jsonl", text))).toBe(true)
-      expect(fixture.read("house.jsonl")).toBe(HOUSE)
+      expect(Result.isSuccess(parseOutline("shed.olai", text))).toBe(true)
+      expect(fixture.read("house.olai")).toBe(HOUSE)
 
       // One revision and one commit for a file and everything in it.
       expect(applied.rev).toBe(2)
@@ -294,29 +294,29 @@ test("a new outline arrives holding its whole tree, or does not arrive", () =>
     }), { git: true }))
 
 test("creating an empty outline is a zero-byte file the sidebar can list", () =>
-  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
-      const applied = yield* run(fixture, { op: "create", file: "empty.jsonl" })
-      expect(applied.summary).toBe("create: empty.jsonl")
-      expect(fixture.read("empty.jsonl")).toBe("")
-      expect((yield* fixture.set()).files).toContain("empty.jsonl")
+      const applied = yield* run(fixture, { op: "create", file: "empty.olai" })
+      expect(applied.summary).toBe("create: empty.olai")
+      expect(fixture.read("empty.olai")).toBe("")
+      expect((yield* fixture.set()).files).toContain("empty.olai")
     })))
 
 test("archiving writes both files, and the set stays valid across them", () =>
-  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       const applied = yield* run(fixture, { op: "archive", id: "order" })
-      expect(applied.file).toBe("Archive.jsonl")
+      expect(applied.file).toBe("Archive.olai")
 
-      expect(fixture.read("house.jsonl")).not.toContain(`"order"`)
-      const archive = fixture.read("Archive.jsonl") ?? ""
+      expect(fixture.read("house.olai")).not.toContain(`"order"`)
+      const archive = fixture.read("Archive.olai") ?? ""
       expect(archive).toContain(`"title":"Kitchen remodel"`)
       expect(archive).toContain(`"id":"order"`)
 
       // One revision for the pair, not two — the gate renamed both or neither.
       expect(applied.rev).toBe(2)
       const set = yield* fixture.set()
-      expect([...set.files].sort()).toEqual(["Archive.jsonl", "house.jsonl"])
+      expect([...set.files].sort()).toEqual(["Archive.olai", "house.olai"])
     })))
 
 /**
@@ -326,7 +326,7 @@ test("archiving writes both files, and the set stays valid across them", () =>
  * ONE revision and ONE commit, and the ids it hands back are the ids on disk.
  */
 test("a subtree captured in one call is one revision and one commit", () =>
-  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       const applied = yield* run(fixture, {
         op: "add",
@@ -348,8 +348,8 @@ test("a subtree captured in one call is one revision and one commit", () =>
         "paint",
       ])
 
-      const text = fixture.read("house.jsonl") ?? ""
-      expect(Result.isSuccess(parseOutline("house.jsonl", text))).toBe(true)
+      const text = fixture.read("house.olai") ?? ""
+      expect(Result.isSuccess(parseOutline("house.olai", text))).toBe(true)
       expect(text.split("\n").filter((line) => line !== "")).toHaveLength(8)
 
       // The round-trip promise, over the op that rewrites the most records at
@@ -372,13 +372,13 @@ test("a subtree captured in one call is one revision and one commit", () =>
     }), { git: true }))
 
 test("a refusal writes nothing and comes back with its structured detail", () =>
-  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       const failure = yield* Effect.orDie(
         Effect.flip(fixture.ops.run({ op: "done", id: "kitchen", undo: true }, "mcp")),
       )
       expect(failure._tag).toBe("UsageFailure")
-      expect(fixture.read("house.jsonl")).toBe(HOUSE)
+      expect(fixture.read("house.olai")).toBe(HOUSE)
       expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(1)
       // Reported wherever it came from: the observer hangs off the WRITER, so
       // a second caller — the web UI's own procedures, when they arrive — is
@@ -394,22 +394,22 @@ test("a refusal writes nothing and comes back with its structured detail", () =>
  * and that is what is being asserted.
  */
 test("an edit that arrives mid-write is absorbed, not lost", () =>
-  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       // A second outline appears the way a `git pull` would put it there. The
       // store has not probed yet, so the op's first attempt is against a
       // revision the gate's own probe is about to overtake.
-      fixture.write("notes.jsonl", `{"id":"idea","ord":"a0","title":"an idea"}\n`)
+      fixture.write("notes.olai", `{"id":"idea","ord":"a0","title":"an idea"}\n`)
 
       const applied = yield* run(fixture, { op: "done", id: "order" })
       const set = yield* fixture.set()
-      expect([...set.files].sort()).toEqual(["house.jsonl", "notes.jsonl"])
+      expect([...set.files].sort()).toEqual(["house.olai", "notes.olai"])
       expect(
         set.nodes.find((located) => located.node.id === "order")?.node,
       ).toMatchObject({ done: STAMP })
       // The pulled file is still there: the write re-derived rather than
       // re-sending bytes computed from a set that no longer existed.
-      expect(fixture.read("notes.jsonl")).toContain("an idea")
+      expect(fixture.read("notes.olai")).toContain("an idea")
       expect(applied.committed).toBe(false)
     })))
 
@@ -428,10 +428,10 @@ test("an edit that arrives mid-write is absorbed, not lost", () =>
  * that is what makes this a fence rather than a race.
  */
 test("a conditional write refuses when the field moves under the retry", () =>
-  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       fixture.write(
-        "house.jsonl",
+        "house.olai",
         HOUSE.replace(`"title":"order the cabinets"`, `"title":"order the chrome ones"`),
       )
 
@@ -449,12 +449,12 @@ test("a conditional write refuses when the field moves under the retry", () =>
 
       expect(Result.isFailure(outcome)).toBe(true)
       // And the other writer's words are still on disk, which is the claim.
-      expect(fixture.read("house.jsonl")).toContain("order the chrome ones")
-      expect(fixture.read("house.jsonl")).not.toContain("put back what I replaced")
+      expect(fixture.read("house.olai")).toContain("order the chrome ones")
+      expect(fixture.read("house.olai")).not.toContain("put back what I replaced")
     })))
 
 test("concurrent ops all land, each re-derived from the set the last one left", () =>
-  withOps({ "house.jsonl": HOUSE }, (fixture) =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       yield* Effect.all(
         [
@@ -477,14 +477,14 @@ test("concurrent ops all land, each re-derived from the set the last one left", 
 
 describe("the auto-commit", () => {
   test("commits each write with racket's message convention", () =>
-    withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         expect((yield* run(fixture, { op: "done", id: "order" })).committed).toBe(true)
         expect((yield* run(fixture, { op: "add", parent: "kitchen", title: "paint" }))
           .committed).toBe(true)
         expect((yield* run(fixture, {
           op: "create",
-          file: "shed.jsonl",
+          file: "shed.olai",
           seed: { title: "clear the shed" },
         })).committed).toBe(true)
         expect((yield* run(fixture, { op: "archive", id: "install" })).committed).toBe(true)
@@ -504,11 +504,11 @@ describe("the auto-commit", () => {
             cwd: fixture.root,
             encoding: "utf8",
           }).trim().split("\n").sort(),
-        ).toEqual(["Archive.jsonl", "house.jsonl"])
+        ).toEqual(["Archive.olai", "house.olai"])
       }), { git: true }))
 
   test("a write that committed says nothing about why not, and git reads healthy", () =>
-    withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const applied = yield* run(fixture, { op: "done", id: "order" })
         expect(applied.committed).toBe(true)
@@ -517,7 +517,7 @@ describe("the auto-commit", () => {
       }), { git: true }))
 
   test("a directory that is not a work tree is written anyway, and says why", () =>
-    withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         // `commits: "auto"`, but there is no repository here.
         const ops = Ops.make({ store: fixture.store, root: fixture.root, commits: "auto" })
@@ -527,7 +527,7 @@ describe("the auto-commit", () => {
         // pieces of news, and this is the one that says which.
         expect(applied.why).toContain("not a git work tree")
         expect(yield* ops.git).toEqual({ status: "none", said: null })
-        expect(fixture.read("house.jsonl")).toContain(`"done"`)
+        expect(fixture.read("house.olai")).toContain(`"done"`)
       })))
 
   /**
@@ -545,13 +545,13 @@ describe("the auto-commit", () => {
    * the directory alone would read healthy while every commit failed.
    */
   test("a git that refuses the commit lands the write, says why, and turns the state", () =>
-    withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const applied = yield* run(fixture, { op: "done", id: "order" })
 
         expect(applied.committed).toBe(false)
         expect(applied.why).toContain("identity")
-        expect(fixture.read("house.jsonl")).toContain(`"done"`)
+        expect(fixture.read("house.olai")).toContain(`"done"`)
         // Nothing was refused: a git failure is not an op failure.
         expect(fixture.refusals).toEqual([])
         // Still the repository's own history, with nothing new in it.
@@ -563,7 +563,7 @@ describe("the auto-commit", () => {
       }), { git: true, identity: false }))
 
   test("a git that recovers takes the state back to healthy", () =>
-    withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         yield* run(fixture, { op: "done", id: "order" })
         expect((yield* fixture.ops.git).status).toBe("error")
@@ -598,7 +598,7 @@ describe("the auto-commit", () => {
    * broken repository that is not broken.
    */
   test("a write under the default mode waits, and says so without sounding broken", () =>
-    withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const ops = Ops.make({
           store: fixture.store,
@@ -616,12 +616,12 @@ describe("the auto-commit", () => {
         expect(applied.why).not.toContain("refused")
         expect(yield* ops.git).toEqual({ status: "repo", said: null })
         // The write is on disk, and nothing is in the log yet.
-        expect(fixture.read("house.jsonl")).toContain(`"done"`)
+        expect(fixture.read("house.olai")).toContain(`"done"`)
         expect(gitLog(fixture.root)).toEqual(["fixtures"])
       }), { git: true }))
 
   test("the opt-out writes without committing, and says that is why", () =>
-    withOps({ "house.jsonl": HOUSE }, (fixture) =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const ops = Ops.make({ store: fixture.store, root: fixture.root, commits: "off" })
         const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))

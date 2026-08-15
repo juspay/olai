@@ -67,10 +67,10 @@ test("ID_SHAPE admits slugs and nothing else", () => {
 // an answer, not a failure. The suffix is matched exactly as the format writes
 // it, so a near miss is a miss.
 test("a served file is an outline, a document, or none of the set's business", () => {
-  expect(fileKind("plan.jsonl")).toBe("outline")
-  expect(fileKind("sub/dir/plan.jsonl")).toBe("outline")
+  expect(fileKind("plan.olai")).toBe("outline")
+  expect(fileKind("sub/dir/plan.olai")).toBe("outline")
   expect(fileKind("notes/cabinets.md")).toBe("document")
-  for (const path of ["README", "plan.json", "notes.md.txt", "jsonl", ".md.bak", "a.JSONL"]) {
+  for (const path of ["README", "plan.json", "notes.md.txt", "olai", ".md.bak", "a.OLAI"]) {
     expect({ path, kind: fileKind(path) }).toEqual({ path, kind: null })
   }
 })
@@ -80,17 +80,17 @@ test("a served file is an outline, a document, or none of the set's business", (
 // through this — the web's `+` and an agent capturing by hand — so one
 // spelling of the rule is what keeps them landing in the same file.
 test("a directory's inbox is whichever outline is called that, wherever it sits", () => {
-  expect(inboxIn(["house.jsonl", "Inbox.jsonl"])).toBe("Inbox.jsonl")
+  expect(inboxIn(["house.olai", "Inbox.olai"])).toBe("Inbox.olai")
   // A name a person typed, so the case they typed it in does not decide.
-  expect(inboxIn(["house.jsonl", "notes/inbox.jsonl"])).toBe("notes/inbox.jsonl")
+  expect(inboxIn(["house.olai", "notes/inbox.olai"])).toBe("notes/inbox.olai")
   // A file merely ENDING in the name is a different file.
-  expect(inboxIn(["not-an-Inbox.jsonl"])).toBeUndefined()
+  expect(inboxIn(["not-an-Inbox.olai"])).toBeUndefined()
   expect(inboxIn([])).toBeUndefined()
 })
 
 test("with two inboxes the shallower one wins, so the answer is stable", () => {
   // "First in path order" would let a file three directories down claim the
   // capture from the obvious one beside it.
-  expect(inboxIn(["deep/down/Inbox.jsonl", INBOX, "a/Inbox.jsonl"])).toBe(INBOX)
-  expect(inboxIn(["z/Inbox.jsonl", "a/Inbox.jsonl"])).toBe("a/Inbox.jsonl")
+  expect(inboxIn(["deep/down/Inbox.olai", INBOX, "a/Inbox.olai"])).toBe(INBOX)
+  expect(inboxIn(["z/Inbox.olai", "a/Inbox.olai"])).toBe("a/Inbox.olai")
 })

@@ -9,10 +9,10 @@ Feature: Inline markdown in titles
   the `good` corpus, thrown away with the scenario.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
 
   Scenario: A title renders inline markdown
-    When I rewrite "house.jsonl" as:
+    When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"**take out** the old `counters`","done":"2026-08-03"}
@@ -30,7 +30,7 @@ Feature: Inline markdown in titles
   Scenario: A title with block markdown stays phrasing
     # A heading, a list or a fence in a title must not produce block elements
     # that break the row's layout. Words stay; boxes do not.
-    When I rewrite "house.jsonl" as:
+    When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"# not a heading"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"- nor a list item"}

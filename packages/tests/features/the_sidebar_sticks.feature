@@ -42,7 +42,7 @@ Feature: The directory column sticks too
 
     Examples:
       | kind     | name            |
-      | outline  | house.jsonl     |
+      | outline  | house.olai     |
       | node     | kitchen         |
       | document | kitchen-sink.md |
 
@@ -51,7 +51,7 @@ Feature: The directory column sticks too
   @corpus:good
   Scenario: A directory taller than the strip scrolls inside the column
     Given the window is shorter than the page
-    And I open the outline "house.jsonl"
+    And I open the outline "house.olai"
     When I scroll to the bottom of the page
     Then the directory takes the wheel, and the page stays where it is
     And the directory column is pinned under the header
@@ -63,7 +63,7 @@ Feature: The directory column sticks too
   @corpus:good
   Scenario: The icon rail is still on screen at the bottom of a page
     Given the window is shorter than the page
-    And I open the outline "house.jsonl"
+    And I open the outline "house.olai"
     And the sidebar is open on desktop
     When I collapse the sidebar
     And I scroll to the bottom of the page
@@ -79,7 +79,7 @@ Feature: The directory column sticks too
   @corpus:good
   Scenario: The sidebar shortcut still toggles from the bottom of a page
     Given the window is shorter than the page
-    And I open the outline "house.jsonl"
+    And I open the outline "house.olai"
     When I scroll to the bottom of the page
     And I press the sidebar shortcut
     Then the sidebar rail is showing
@@ -96,7 +96,7 @@ Feature: The directory column sticks too
   @corpus:good @phone
   Scenario: On a phone the directory is still a drawer that opens and shuts
     Given the window is shorter than the page
-    And I open the outline "house.jsonl"
+    And I open the outline "house.olai"
     Then the sidebar is put away
     When I scroll to the bottom of the page
     And I tap the burger

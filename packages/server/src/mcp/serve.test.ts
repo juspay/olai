@@ -57,7 +57,7 @@ const HOUSE = [
 /** A directory of outlines, thrown away with the test. */
 const served = (): string => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-mcp-"))
-  fs.writeFileSync(path.join(root, "house.jsonl"), HOUSE)
+  fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
   return root
 }
 
@@ -263,7 +263,7 @@ test("a client that launched it can mark a node, and the disk says so", async ()
   // olai's own agent, changed the outline on disk — through the ops layer, so
   // the record is whole and the file still parses.
   const order = fs
-    .readFileSync(path.join(root, "house.jsonl"), "utf8")
+    .readFileSync(path.join(root, "house.olai"), "utf8")
     .split("\n")
     .find((line) => line.includes(`"id":"order"`))
   expect(order).toInclude(`"done":`)
@@ -346,7 +346,7 @@ test("the no-argument tool works over the pipe, advertised and called", async ()
   expect(answer?.isError).toBeUndefined()
   const outlines = (answer?.structuredContent as { outlines?: ReadonlyArray<{ file: string }> })
     ?.outlines ?? []
-  expect(outlines.map((outline) => outline.file)).toContain("house.jsonl")
+  expect(outlines.map((outline) => outline.file)).toContain("house.olai")
 }, BOUND_MS * 3)
 
 
@@ -471,7 +471,7 @@ test("a busy repository refuses the commit and says which state it is in", async
   // The WRITE happened. That is the guarantee, and it is not negotiable: git
   // never fails a write.
   expect(wrote["isError"]).toBeUndefined()
-  expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8")).toContain(`"done":`)
+  expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toContain(`"done":`)
 
   // And the write's OWN reply already said the repository is the problem —
   // before the agent called `commit` and got refused. Telling it "waiting…
@@ -560,7 +560,7 @@ test("what is waiting, and what was last recorded, are readable over the pipe", 
   const waiting = await read((pending) => pending.changes.length > 0)
   expect(waiting.changes).toHaveLength(1)
   expect(waiting.changes[0]).toMatchObject({
-    file: "house.jsonl",
+    file: "house.olai",
     id: "order",
     title: "order the cabinets",
     sort: "done",
@@ -662,5 +662,5 @@ test("--commit=auto --no-commit is off, through the real binary", async () => {
 
   // Nothing recorded, and the write is on disk.
   expect(subjectsIn(root)).toEqual([FIXTURE_COMMIT])
-  expect(gitIn(root)("status", "--porcelain")).toContain("house.jsonl")
+  expect(gitIn(root)("status", "--porcelain")).toContain("house.olai")
 }, BOUND_MS * 3)

@@ -170,7 +170,7 @@ const recordOf = (id: string): string => {
   const vault = process.env["VAULT"]
   if (vault === undefined) return "(no VAULT; run through evidence.sh)"
   for (const file of readdirSync(vault)) {
-    if (!file.endsWith(".jsonl")) continue
+    if (!file.endsWith(".olai")) continue
     for (const line of readFileSync(`${vault}/${file}`, "utf8").split("\n")) {
       if (line.includes(`"id":"${id}"`)) return `${file} — ${line}`
     }
@@ -678,14 +678,14 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     const box = page.locator('[data-testid="new-outline-path"]')
     await box.waitFor()
     await shot(page, "box")
-    await box.fill("house.jsonl")
+    await box.fill("house.olai")
     await box.press("Enter")
     await page.locator('[data-testid="new-outline-said"]').waitFor()
     console.log(
       `  it says: ${await page.locator('[data-testid="new-outline-said"]').textContent()}`,
     )
     await shot(page, "refused")
-    await box.fill("plans/next.jsonl")
+    await box.fill("plans/next.olai")
     await box.press("Enter")
     await page.waitForTimeout(SETTLE)
     console.log(`  the address: ${new URL(page.url()).pathname}`)
@@ -771,7 +771,7 @@ const main = async () => {
   )
   const page = await context.newPage()
   page.on("pageerror", (error) => console.error("PAGE ERROR", error))
-  await page.goto(`${BASE}/o/house.jsonl`)
+  await page.goto(`${BASE}/o/house.olai`)
   await page.locator('[data-testid="outline-tree"]').first().waitFor()
   await page.waitForTimeout(600)
   await section(page)

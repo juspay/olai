@@ -22,7 +22,7 @@ const HOUSE = [
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
 ].join("\n")
 
-const derived = derive(setOf({ "house.jsonl": HOUSE }).nodes)
+const derived = derive(setOf({ "house.olai": HOUSE }).nodes)
 
 /** The zoomed page for an id, narrowed to the arm that IS a node — which is
  *  the only arm App hands the palette. */

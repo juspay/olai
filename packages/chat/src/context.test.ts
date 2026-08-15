@@ -19,7 +19,7 @@ import { lineFor, promptWith } from "./context.ts"
 const ORDER: NodeContext = {
   id: "order",
   title: "order the new cabinets",
-  file: "house.jsonl",
+  file: "house.olai",
   line: 3,
   path: ["kitchen remodel"],
 }
@@ -27,7 +27,7 @@ const ORDER: NodeContext = {
 const TOP: NodeContext = {
   id: "kitchen",
   title: "kitchen remodel",
-  file: "house.jsonl",
+  file: "house.olai",
   line: 1,
   path: [],
 }
@@ -35,13 +35,13 @@ const TOP: NodeContext = {
 describe("the line a node arrives on", () => {
   test("the id is in backticks, which is how every olai tool spells one", () => {
     expect(lineFor(ORDER)).toBe(
-      "Node in context: `order` — order the new cabinets (house.jsonl:3; under kitchen remodel)",
+      "Node in context: `order` — order the new cabinets (house.olai:3; under kitchen remodel)",
     )
   })
 
   test("a node at the top of its outline is under nothing, and says so by not saying it", () => {
     expect(lineFor(TOP)).toBe(
-      "Node in context: `kitchen` — kitchen remodel (house.jsonl:1)",
+      "Node in context: `kitchen` — kitchen remodel (house.olai:1)",
     )
   })
 

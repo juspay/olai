@@ -41,6 +41,6 @@ export const SERVER_LAYERS = Layer.mergeAll(
  *  not to refuse to start. */
 export const served = (): string => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-served-"))
-  fs.writeFileSync(path.join(root, "a.jsonl"), `{"id":"a","ord":"a0","title":"a"}\n`)
+  fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"a"}\n`)
   return root
 }

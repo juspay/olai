@@ -1189,7 +1189,7 @@ const planSplit = (
  *   - **the mark, the date and the edges go WITH THE RECORD into the archive.**
  *     The format allows one mark per node and the surviving row already has its
  *     own answer, so there is no merge of two; nothing is destroyed, because the
- *     record keeps its id in `Archive.jsonl` and `Put back` returns it. What
+ *     record keeps its id in `Archive.olai` and `Put back` returns it. What
  *     this op owes is that the loss is never SILENT, which is what the
  *     {@link nudge} is for — a `done` that left the live outline is exactly the
  *     news a person is owed.
@@ -1494,7 +1494,7 @@ const creatable = (raw: string, extension: string): string | null => {
 // ── archive ────────────────────────────────────────────────────────────
 
 /**
- * A subtree out of a working outline and into `Archive.jsonl` beside it, with
+ * A subtree out of a working outline and into `Archive.olai` beside it, with
  * the chain it hung off re-created there so the tree still reads years later.
  *
  * The racket reference's semantics, kept because they are what the archive is
@@ -1685,7 +1685,7 @@ const liftSubtree = (
  *
  *  One max scan rather than a filter-map-sort: `ord` is a base62 fractional
  *  index, so `>` on the string IS the comparison, and only the largest matters.
- *  `Archive.jsonl` is the one file in a set that grows without bound, and this
+ *  `Archive.olai` is the one file in a set that grows without bound, and this
  *  runs once per ancestor level of every archive.
  *
  *  Split from {@link appendedOrd} because a merge appends a WHOLE ROW of
@@ -1738,7 +1738,7 @@ const appendedUnder = <N extends Node>(
 // ── unarchive ──────────────────────────────────────────────────────────
 
 /**
- * A subtree back OUT of an `Archive.jsonl` — the inverse `archive` waited for
+ * A subtree back OUT of an `Archive.olai` — the inverse `archive` waited for
  * (`parity-unarchive`), and the reason the trash was never a shredder.
  *
  * The subtree comes back INTACT and the ids come with it, which is the archive
@@ -2311,7 +2311,7 @@ const shownTitle = (scope: Scope, target: string): string =>
  * mark, its children and its own place in whatever outline defines it, and
  * every other placement of it stays exactly where it was. That is the whole
  * semantic, and it is why this is not `archive_node` (which MOVES a node and its
- * subtree into `Archive.jsonl`, ids and all) and not a delete of anything —
+ * subtree into `Archive.olai`, ids and all) and not a delete of anything —
  * there is no op in this layer that destroys content, and this one does not
  * become the first by accident.
  *

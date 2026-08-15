@@ -155,7 +155,7 @@ const conflicted = (fixture: Fixture): Effect.Effect<void> =>
 
 describe("manual is the default", () => {
   test("a write lands on disk and waits, and says what is waiting", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const applied = yield* Effect.orDie(
           fixture.ops.run({ op: "done", id: "order" }, "chat-agent"),
@@ -169,7 +169,7 @@ describe("manual is the default", () => {
         expect(pending.repo).toEqual({ _tag: "Ready", branch: "main" })
         expect(pending.changes).toEqual([
           {
-            file: "house.jsonl",
+            file: "house.olai",
             id: "order",
             title: "order the cabinets",
             fields: ["done"],
@@ -183,7 +183,7 @@ describe("manual is the default", () => {
       })))
 
   test("committing records it, signs it, and empties what was waiting", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "chat-agent"))
         yield* Effect.orDie(
@@ -208,7 +208,7 @@ describe("manual is the default", () => {
       })))
 
   test("what was last recorded is answered beside what is waiting", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         // NEVER, which is not the same as "nothing waiting" and cannot be
         // derived from it: a directory olai has never committed in and one it
@@ -236,25 +236,25 @@ describe("manual is the default", () => {
       })))
 
   test("a second commit with nothing waiting is an answer, not a commit", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("NothingToCommit")
         expect(subjects(fixture)).toEqual(["fixtures"])
       })))
 
   test("an edit made behind olai's back is pending too, and is swept up", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         // Somebody in vim. Nothing told olai; the probe found it, and the
         // comparison is against HEAD rather than against anything olai
         // remembers doing.
-        fixture.write("house.jsonl", HOUSE.replace("install them", "install the cabinets"))
+        fixture.write("house.olai", HOUSE.replace("install them", "install the cabinets"))
         yield* fixture.refresh
 
         const pending = yield* fixture.ops.pending
         expect(pending.changes).toEqual([
           {
-            file: "house.jsonl",
+            file: "house.olai",
             id: "install",
             title: "install the cabinets",
             fields: ["title"],
@@ -270,7 +270,7 @@ describe("manual is the default", () => {
       })))
 
   test("a commit made in a terminal empties it, with no write in between", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
         expect((yield* fixture.ops.pending).changes).toHaveLength(1)
@@ -294,7 +294,7 @@ describe("what is committed, and what is not", () => {
    * feature shows.
    */
   test("every other dirty file in the repository waits too, and is swept up", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         fixture.write("notes.md", "a document, which olai never writes\n")
         fixture.write("script.sh", "somebody else's work\n")
@@ -305,7 +305,7 @@ describe("what is committed, and what is not", () => {
         // The outline still has its node-level detail...
         expect(pending.changes).toHaveLength(1)
         expect(pending.outlines).toEqual([
-          { file: "house.jsonl", path: "house.jsonl", how: "modified" },
+          { file: "house.olai", path: "house.olai", how: "modified" },
         ])
         // ... and the other two are rows, with what happened to each.
         expect([...pending.others].sort((a, b) => a.path.localeCompare(b.path)))
@@ -335,7 +335,7 @@ describe("what is committed, and what is not", () => {
    * afterwards, exactly as they left it.
    */
   test("a commit takes exactly the paths it was given, and leaves the index alone", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         fixture.write("notes.md", "the one to commit\n")
         fixture.write("later.md", "not this time\n")
@@ -345,7 +345,7 @@ describe("what is committed, and what is not", () => {
         yield* fixture.refresh
 
         const done = yield* fixture.ops.commit(
-          { paths: ["house.jsonl", "notes.md"] },
+          { paths: ["house.olai", "notes.md"] },
           "web",
         )
         expect(done._tag).toBe("Committed")
@@ -353,7 +353,7 @@ describe("what is committed, and what is not", () => {
 
         // The commit named those two files and no others.
         expect(fixture.git("show", "--name-only", "--format=", "HEAD").trim().split("\n").sort())
-          .toEqual(["house.jsonl", "notes.md"])
+          .toEqual(["house.olai", "notes.md"])
         // What was not picked is still waiting — and the hand-staged file is
         // still STAGED, which is the whole reason a selection is not an index.
         expect(fixture.git("status", "--porcelain").trim().split("\n").sort())
@@ -369,12 +369,12 @@ describe("what is committed, and what is not", () => {
    *  "the rest of it" under a request that named something else is exactly the
    *  silent half-success this codebase refuses to ship. */
   test("a path that is not waiting refuses, and commits nothing", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
 
         const done = yield* fixture.ops.commit(
-          { paths: ["house.jsonl", "typo.md"] },
+          { paths: ["house.olai", "typo.md"] },
           "web",
         )
         expect(done._tag).toBe("Failed")
@@ -383,13 +383,13 @@ describe("what is committed, and what is not", () => {
       })))
 
   test("an unreadable outline is listed rather than dropped", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        fixture.write("house.jsonl", "this is not a record\n")
+        fixture.write("house.olai", "this is not a record\n")
         yield* fixture.refresh
 
         const pending = yield* fixture.ops.pending
-        expect(pending.unreadable).toEqual(["house.jsonl"])
+        expect(pending.unreadable).toEqual(["house.olai"])
         // Nothing is claimed about what changed in it — the alternative would
         // be reporting every node in it as gone.
         expect(pending.changes).toEqual([])
@@ -409,11 +409,11 @@ describe("what is committed, and what is not", () => {
 describe("a served subdirectory reports on the whole repository", () => {
   test("root-level dirt is waiting, and says which part olai serves", () =>
     withRepo(
-      { "docs/house.jsonl": HOUSE },
+      { "docs/house.olai": HOUSE },
       (fixture) =>
         Effect.gen(function*() {
           fixture.write("README.md", "edited by hand, one level up\n")
-          fixture.write("elsewhere.jsonl", `{"id":"e","ord":"a0","title":"e"}\n`)
+          fixture.write("elsewhere.olai", `{"id":"e","ord":"a0","title":"e"}\n`)
           yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
           yield* fixture.refresh
 
@@ -422,10 +422,10 @@ describe("a served subdirectory reports on the whole repository", () => {
           // The served outline, in BOTH spellings: the store's key and the
           // repository's own name for it.
           expect(pending.outlines).toEqual([
-            { file: "house.jsonl", path: "docs/house.jsonl", how: "modified" },
+            { file: "house.olai", path: "docs/house.olai", how: "modified" },
           ])
           expect([...pending.others].map((one) => one.path).sort())
-            .toEqual(["README.md", "elsewhere.jsonl"])
+            .toEqual(["README.md", "elsewhere.olai"])
 
           expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Committed")
           expect(fixture.git("status", "--porcelain").trim()).toBe("")
@@ -437,24 +437,24 @@ describe("a served subdirectory reports on the whole repository", () => {
     ))
 
   /** The two namespaces cannot collide, which is why an outline carries its
-   *  repository path at all: `docs/house.jsonl` and a root-level `house.jsonl`
+   *  repository path at all: `docs/house.olai` and a root-level `house.olai`
    *  are two files, and a tick names exactly one of them. */
   test("a served outline and a root file of the same name are two ticks", () =>
     withRepo(
-      { "docs/house.jsonl": HOUSE },
+      { "docs/house.olai": HOUSE },
       (fixture) =>
         Effect.gen(function*() {
-          fixture.write("house.jsonl", `{"id":"other","ord":"a0","title":"not served"}\n`)
+          fixture.write("house.olai", `{"id":"other","ord":"a0","title":"not served"}\n`)
           yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
           yield* fixture.refresh
 
-          const done = yield* fixture.ops.commit({ paths: ["house.jsonl"] }, "web")
+          const done = yield* fixture.ops.commit({ paths: ["house.olai"] }, "web")
           expect(done._tag).toBe("Committed")
           expect(fixture.git("show", "--name-only", "--format=", "HEAD").trim())
-            .toBe("house.jsonl")
+            .toBe("house.olai")
           // The served one is untouched and still waiting.
           expect((yield* fixture.ops.pending).outlines)
-            .toEqual([{ file: "house.jsonl", path: "docs/house.jsonl", how: "modified" }])
+            .toEqual([{ file: "house.olai", path: "docs/house.olai", how: "modified" }])
         }),
       { serve: "docs" },
     ))
@@ -467,7 +467,7 @@ describe("a served subdirectory reports on the whole repository", () => {
  */
 describe("push", () => {
   test("what is unpushed is surveyed, and pushing sends it", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const bare = fixture.remote()
         // In sync: an upstream that has everything, which is a different fact
@@ -493,7 +493,7 @@ describe("push", () => {
   /** A branch with no upstream has nowhere to go, and that `null` is what keeps
    *  the panel from offering to guess a remote. */
   test("no upstream is not the same as nothing to push", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         expect((yield* fixture.ops.pending).unpushed).toBe(null)
       })))
@@ -505,7 +505,7 @@ describe("push", () => {
    * app.
    */
   test("a refusal surfaces verbatim", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const bare = fixture.remote()
         // The remote moves on without us, so the push is a non-fast-forward —
@@ -530,7 +530,7 @@ describe("push", () => {
       })))
 
   test("commits off has nothing to push either", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const sent = yield* fixture.ops.push
         expect(sent).toEqual({ _tag: "Blocked", repo: { _tag: "Off" } })
@@ -546,7 +546,7 @@ describe("push", () => {
    * this is what the agent's tool gets, and one rule serves both verbs.
    */
   test("a busy repository is refused with its reason rather than git's detached HEAD", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         fixture.remote()
         yield* conflicted(fixture)
@@ -570,7 +570,7 @@ describe("push", () => {
  * refuses to offer a commit.
  */
 test("a working tree git cannot survey is an error, not an empty one", () =>
-  withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+  withRepo({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
       expect((yield* fixture.ops.pending).changes).toHaveLength(1)
@@ -593,7 +593,7 @@ test("a working tree git cannot survey is an error, not an empty one", () =>
 
 describe("a repository that cannot take a commit", () => {
   test("says so instead of committing into a conflict", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         yield* conflicted(fixture)
 
@@ -621,7 +621,7 @@ describe("the agent's door", () => {
    * the tool table lives up there now, with the SDK.
    */
   test("a commit records which face asked for it", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "mcp"))
         const answered = yield* fixture.ops.commit(
@@ -639,7 +639,7 @@ describe("the agent's door", () => {
 
 describe("--commit=auto", () => {
   test("a write that committed itself is not also reported as waiting", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const applied = yield* Effect.orDie(
           fixture.ops.run({ op: "done", id: "order" }, "chat-agent"),
@@ -661,7 +661,7 @@ describe("--commit=auto", () => {
       }), { commits: "auto" }))
 
   test("a busy repository is declined, and the write still lands", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         yield* conflicted(fixture)
 
@@ -682,7 +682,7 @@ describe("--commit=auto", () => {
 
 describe("--commit=off", () => {
   test("has nothing to say at all", () =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
         const pending = yield* fixture.ops.pending
@@ -721,7 +721,7 @@ test("both faces commit the same tree and the same message, differing only in th
    *  different parent — and a tree comparison wants the two runs to differ in
    *  nothing but the writer. */
   const committedBy = (writer: "web" | "mcp", paths?: ReadonlyArray<string>) =>
-    withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         // A document nobody's op wrote, so the pending set has BOTH kinds of
         // row in it: the two faces have to agree about the other files too, and
@@ -795,7 +795,7 @@ test("both faces commit the same tree and the same message, differing only in th
    * resolved a path differently would put a different file in somebody's history
    * permanently.
    */
-  const picked = ["house.jsonl", "notes.md"] as const
+  const picked = ["house.olai", "notes.md"] as const
   const webSome = await committedBy("web", picked)
   const mcpSome = await committedBy("mcp", picked)
 
@@ -867,7 +867,7 @@ test("what a waiting write says names the door that caller actually has", () => 
  * it does.
  */
 test("a manual write on a busy repository says blocked with the reason, not waiting", () =>
-  withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+  withRepo({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       // Detached, the way an agent finds it when somebody is mid-bisect.
       fixture.git("checkout", "--quiet", "--detach", "HEAD")
@@ -878,7 +878,7 @@ test("a manual write on a busy repository says blocked with the reason, not wait
 
       // The write LANDED.
       expect(applied.committed).toBe(false)
-      expect(fs.readFileSync(path.join(fixture.root, "house.jsonl"), "utf8"))
+      expect(fs.readFileSync(path.join(fixture.root, "house.olai"), "utf8"))
         .toContain(`"done"`)
 
       // And the reply names the state rather than promising a door that will
@@ -893,7 +893,7 @@ test("a manual write on a busy repository says blocked with the reason, not wait
  *  is still the ordinary waiting one, so this is a narrower answer rather than
  *  a louder one. */
 test("a manual write on a healthy repository still just says it is waiting", () =>
-  withRepo({ "house.jsonl": HOUSE }, (fixture) =>
+  withRepo({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
       const applied = yield* Effect.orDie(
         fixture.ops.run({ op: "done", id: "order" }, "mcp"),

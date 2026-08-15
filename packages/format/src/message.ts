@@ -141,7 +141,7 @@ const subjectOf = (
 }
 
 /** An outline's name without its extension — `roadmap`, not
- *  `roadmap.jsonl`. A subject is read at a glance and the extension is the
+ *  `roadmap.olai`. A subject is read at a glance and the extension is the
  *  same on every one of them, which is why it is stripped and why the suffix
  *  is asked of {@link OUTLINE_EXT} rather than retyped: a message is a commit,
  *  and a commit subject cannot be corrected after the fact. */

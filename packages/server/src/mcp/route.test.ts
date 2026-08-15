@@ -49,7 +49,7 @@ interface Served {
 
 const withRoute = <A>(use: (served: Served) => Promise<A>): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-route-")))
-  fs.writeFileSync(path.join(root, "house.jsonl"), HOUSE)
+  fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
 
   return Effect.gen(function*() {
     const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store.make({

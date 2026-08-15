@@ -18,7 +18,7 @@ Feature: The ⌘K palette writes
   gets a private copy of it.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
 
   Scenario: On an outline there is nothing to write about, so nothing is offered
@@ -65,12 +65,12 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I press "Enter"
     Then the command palette is open
-    And "house.jsonl" holds a node marked doing titled "kitchen remodel #home"
+    And "house.olai" holds a node marked doing titled "kitchen remodel #home"
     # …and the arrows are the way in: down lands on the first row, which is the
     # first thing this node can take.
     When I press "ArrowDown"
     And I press "Enter"
-    Then "house.jsonl" holds a node marked todo titled "kitchen remodel #home"
+    Then "house.olai" holds a node marked todo titled "kitchen remodel #home"
 
   Scenario: Every op row says which node it is about
     # The palette is opened from anywhere, so a bare `Complete` in a list of
@@ -88,7 +88,7 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I choose "Mark doing" from the palette
     Then the command palette is closed
-    And "house.jsonl" holds a node marked doing titled "choose the handles"
+    And "house.olai" holds a node marked doing titled "choose the handles"
     And the page has not reloaded
     And there should be no page errors
 
@@ -118,13 +118,13 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I choose "Complete" from the palette
     Then the palette remarks "is done over 2 unfinished tasks"
-    And "house.jsonl" holds a node marked done titled "install the cabinets"
+    And "house.olai" holds a node marked done titled "install the cabinets"
 
   Scenario: Clearing a date from the palette removes the field
     Given I open the node "order"
     When I press the palette shortcut
     And I choose "Clear date" from the palette
-    Then "house.jsonl" holds the node "order" with no date
+    Then "house.olai" holds the node "order" with no date
 
   Scenario: The put-away asks first, in the palette's own box
     # The ••• menu's sentence, verbatim — the same blast radius, counted over
@@ -134,7 +134,7 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I choose "Move to Trash" from the palette
     Then the palette asks "Move “install the cabinets” and the 3 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
-    And "house.jsonl" holds a node titled "install the cabinets"
+    And "house.olai" holds a node titled "install the cabinets"
 
   Scenario: The question takes the caret, and Tab cycles its two ways out
     # A question nobody's keyboard can reach is a question only a mouse may
@@ -154,7 +154,7 @@ Feature: The ⌘K palette writes
     When I press "Escape"
     Then the palette is not asking anything
     And the command palette is open
-    And "house.jsonl" holds a node titled "install the cabinets"
+    And "house.olai" holds a node titled "install the cabinets"
 
   Scenario: A prefix typed behind the question does not steal its Enter
     # The Switch draws the question above both prefixes because nothing typed
@@ -167,8 +167,8 @@ Feature: The ⌘K palette writes
     And I click the palette box
     And I type "+ oops" into the palette
     And I press "Enter"
-    Then "house.jsonl" no longer holds the node "install"
-    And "Inbox.jsonl" holds exactly 0 nodes titled "oops"
+    Then "house.olai" no longer holds the node "install"
+    And "Inbox.olai" holds exactly 0 nodes titled "oops"
 
   Scenario: Cancelling the question writes nothing
     Given I open the node "install"
@@ -177,16 +177,16 @@ Feature: The ⌘K palette writes
     And I choose "Cancel" from the palette
     Then the palette is not asking anything
     And the palette offers "Move to Trash"
-    And "house.jsonl" holds a node titled "install the cabinets"
+    And "house.olai" holds a node titled "install the cabinets"
 
   Scenario: Answering it moves the subtree to the Trash, ids and all
     Given I open the node "install"
     When I press the palette shortcut
     And I choose "Move to Trash" from the palette
     And I choose "Move to Trash" from the palette
-    Then "house.jsonl" no longer holds the node "install"
-    And "Archive.jsonl" holds the node "install"
-    And "Archive.jsonl" holds the node "hinges"
+    Then "house.olai" no longer holds the node "install"
+    And "Archive.olai" holds the node "install"
+    And "Archive.olai" holds the node "hinges"
     And there should be no page errors
 
   Scenario: ⌘Z takes back an op chosen from the palette
@@ -200,9 +200,9 @@ Feature: The ⌘K palette writes
     # files the inverse, so it is the signal that there is something on the
     # stack. The file can be written a beat before that answer reaches the tab.
     Then the command palette is closed
-    And "house.jsonl" holds a node marked doing titled "choose the handles"
+    And "house.olai" holds a node marked doing titled "choose the handles"
     When I press "ControlOrMeta+z"
-    Then "house.jsonl" holds the node "handles" with no mark
+    Then "house.olai" holds the node "handles" with no mark
 
   # ── quick capture ────────────────────────────────────────────────────
 
@@ -230,8 +230,8 @@ Feature: The ⌘K palette writes
     # the browser composed would be the one claim it may not make.
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
-    Then "Inbox.jsonl" holds a node titled "buy the walnut stain"
-    And the palette remarks "captured “buy the walnut stain” to Inbox.jsonl"
+    Then "Inbox.olai" holds a node titled "buy the walnut stain"
+    And the palette remarks "captured “buy the walnut stain” to Inbox.olai"
     And there should be no page errors
 
   Scenario: A second Enter on the first capture is not a second write
@@ -239,7 +239,7 @@ Feature: The ⌘K palette writes
     # the palette, so nothing visible has happened while the round trip is out
     # — which is exactly when a hand repeats the key. Both sends are judged
     # against a reading the first has not landed in yet, so on a directory
-    # with no inbox both resolve to the same `create Inbox.jsonl`, the write
+    # with no inbox both resolve to the same `create Inbox.olai`, the write
     # gate re-plans that REQUEST rather than re-resolving the edit, and the
     # second comes back refused in `create_outline`'s own words — over a line
     # that DID land, with the refusal overwriting the remark saying so.
@@ -251,8 +251,8 @@ Feature: The ⌘K palette writes
     And I type "+ buy the walnut stain" into the palette
     And I press "Enter" without waiting
     And I press "Enter" without waiting
-    Then the palette remarks "captured “buy the walnut stain” to Inbox.jsonl"
-    And "Inbox.jsonl" holds exactly 1 node titled "buy the walnut stain"
+    Then the palette remarks "captured “buy the walnut stain” to Inbox.olai"
+    And "Inbox.olai" holds exactly 1 node titled "buy the walnut stain"
     And there should be no page errors
 
   Scenario: A capture of nothing is refused in the ops layer's own words
@@ -277,17 +277,17 @@ Feature: The ⌘K palette writes
     And the palette box holds "+ "
     And the address is "/n/install"
     When I capture "and a tin of oil" from the palette
-    Then "Inbox.jsonl" holds a node titled "and a tin of oil"
-    And "Inbox.jsonl" holds a node titled "buy the walnut stain"
+    Then "Inbox.olai" holds a node titled "and a tin of oil"
+    And "Inbox.olai" holds a node titled "buy the walnut stain"
     When I close the palette
     Then the zoomed node is "install"
 
   Scenario: A second capture goes into the inbox that now exists
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
-    Then "Inbox.jsonl" holds a node titled "buy the walnut stain"
+    Then "Inbox.olai" holds a node titled "buy the walnut stain"
     When I capture "and a tin of oil" from the palette
-    Then "Inbox.jsonl" holds a node titled "and a tin of oil"
+    Then "Inbox.olai" holds a node titled "and a tin of oil"
     And there should be no page errors
 
   Scenario: ⌘Z takes back a capture
@@ -295,10 +295,10 @@ Feature: The ⌘K palette writes
     And I capture "buy the walnut stain" from the palette
     # The palette's own line rather than the disk, for the reason the op
     # scenario gives: it is said in the answer that files the inverse.
-    Then the palette remarks "captured “buy the walnut stain” to Inbox.jsonl"
-    And "Inbox.jsonl" holds a node titled "buy the walnut stain"
+    Then the palette remarks "captured “buy the walnut stain” to Inbox.olai"
+    And "Inbox.olai" holds a node titled "buy the walnut stain"
     # The palette first: ⌘Z is dead while the box has the caret, because an
     # input has the platform's own undo in it — the same rule a draft follows.
     When I close the palette
     And I press "ControlOrMeta+z"
-    Then "Inbox.jsonl" no longer holds a node titled "buy the walnut stain"
+    Then "Inbox.olai" no longer holds a node titled "buy the walnut stain"

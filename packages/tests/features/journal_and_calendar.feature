@@ -68,7 +68,7 @@ Feature: The journal, and the month in the sidebar
     And the day lists "pack"
     When I click the day "2019-11-05"
     Then the day open is "2019-11-05"
-    And the day groups are "life.jsonl, work.jsonl"
+    And the day groups are "life.olai, work.olai"
     And the day lists "ferry, posts, rails"
     And the ancestors of "ferry" are "the coast trip"
     And there should be no page errors
@@ -80,7 +80,7 @@ Feature: The journal, and the month in the sidebar
     # Grouped by outline, in path order, because a `parent` never crosses a
     # file: two nodes in two outlines have no shared ancestry to draw them
     # under, and the file is the only heading that is true.
-    And the day groups are "life.jsonl, work.jsonl"
+    And the day groups are "life.olai, work.olai"
     # In time order within a group, and a bare date is the day itself — so it
     # comes before the two-thirty one, whatever order the file is written in.
     And the day lists "ferry, posts, rails"
@@ -196,7 +196,7 @@ Feature: The journal, and the month in the sidebar
     Given I open the day "2019-11-05"
     And I mark the page
     Then the day "2019-11-20" is inert
-    When I rewrite "work.jsonl" as:
+    When I rewrite "work.olai" as:
       """
       {"id":"deck","ord":"a0","title":"the deck #home"}
       {"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","doing":true,"date":"2019-11-05","desc":"Call the utility line **before** digging."}

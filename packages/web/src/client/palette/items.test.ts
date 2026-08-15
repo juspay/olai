@@ -18,7 +18,7 @@ test("a search hit becomes a row that jumps to the node", () => {
   const item = nodeItem({
     id: "hinges",
     title: "pick the hinges",
-    file: "house.jsonl",
+    file: "house.olai",
     line: 6,
     path: ["kitchen remodel #home", "install the cabinets"],
     matched: "title",
@@ -37,7 +37,7 @@ test("the place reads NEAREST ancestor first, so a truncation keeps what situate
   const item = nodeItem({
     id: "hinges",
     title: "pick the hinges",
-    file: "house.jsonl",
+    file: "house.olai",
     line: 6,
     path: ["kitchen remodel #home", "install the cabinets"],
     matched: "title",
@@ -49,12 +49,12 @@ test("a node at the top level is placed by its file", () => {
   const top = nodeItem({
     id: "buy",
     title: "Buy groceries",
-    file: "errands.jsonl",
+    file: "errands.olai",
     line: 1,
     path: [],
     matched: "title",
   })
-  expect(top.place).toBe("errands.jsonl")
+  expect(top.place).toBe("errands.olai")
 })
 
 test("a `>` line is a message to the agent", () => {

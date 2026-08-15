@@ -21,7 +21,7 @@ import { createRoot } from "solid-js"
 import { createNarrowing, type Narrowing } from "./narrowing.ts"
 
 const derived = derive(nodesOfFiles({
-  "house.jsonl": [
+  "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":true}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters #home","done":"2026-08-03"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true}`,
@@ -33,7 +33,7 @@ const derived = derive(nodesOfFiles({
 /** The page, at one query and one preference — the same three inputs
  *  `App.tsx` hands over. */
 const page = (text: string, hideDone = false): Narrowing => {
-  const all = (): ReadonlyArray<Row> => rowsOf(derived, "house.jsonl")
+  const all = (): ReadonlyArray<Row> => rowsOf(derived, "house.olai")
   return createRoot(() =>
     createNarrowing({
       derived: () => derived,

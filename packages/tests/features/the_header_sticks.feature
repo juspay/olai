@@ -37,7 +37,7 @@ Feature: The header sticks
 
     Examples:
       | kind     | name            |
-      | outline  | house.jsonl     |
+      | outline  | house.olai     |
       | node     | kitchen         |
       | document | kitchen-sink.md |
 
@@ -75,7 +75,7 @@ Feature: The header sticks
   @corpus:good
   Scenario: The bar sticks in a dark palette, picked from a scrolled page
     Given the window is shorter than the page
-    And I open the outline "house.jsonl"
+    And I open the outline "house.olai"
     When I scroll to the bottom of the page
     And I pick the theme "dark"
     Then the page is in the theme "dark"
@@ -85,7 +85,7 @@ Feature: The header sticks
   @corpus:good
   Scenario: The agent dock still meets the bar after the page has scrolled
     Given the window is shorter than the page
-    And I open the outline "house.jsonl"
+    And I open the outline "house.olai"
     And the agent panel is open
     When I scroll to the bottom of the page
     Then the app header is at the top of the viewport
@@ -94,7 +94,7 @@ Feature: The header sticks
   @corpus:good @phone
   Scenario: On a phone the bar stays put, and the drawer still meets it
     Given the window is shorter than the page
-    And I open the outline "house.jsonl"
+    And I open the outline "house.olai"
     When I scroll to the bottom of the page
     Then the app header is at the top of the viewport
     And the header chrome takes the pointer where the page runs under it

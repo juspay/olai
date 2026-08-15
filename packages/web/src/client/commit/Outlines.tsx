@@ -3,7 +3,7 @@
  *
  * Every row here is a NODE and what changed about it — "marked done", "note
  * rewritten", "archived". There is no text diff and there will not be one: a
- * `.jsonl` diff is one enormous line per node with everything on it changing at
+ * `.olai` diff is one enormous line per node with everything on it changing at
  * once, which is exactly the shape this format bought line-based merges with and
  * exactly the shape nobody can read.
  *

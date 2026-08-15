@@ -51,7 +51,7 @@ the outline set.
 | `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages, and why a child never ran to have any — the two things the two subprocesses above have in common |
 | `questions.ts` | the questions on the wire, and the one rule about them: each ends exactly once, however it ends. Also the SEAM where `@olai/acp`'s own refusal word (`Refused`) becomes the domain's (`UsageFailure`) |
 | `events.ts` | the closed vocabulary of what an agent tells us — a consumer that needs more needs a new member, not a look at the wire |
-| `wrote.ts` | the other half of the same question, for a write that went through the ops layer: the reply's own classification of the change, its node, and the rollup's nudge. Never a diff — a `.jsonl` diff is one enormous line |
+| `wrote.ts` | the other half of the same question, for a write that went through the ops layer: the reply's own classification of the change, its node, and the rollup's nudge. Never a diff — a `.olai` diff is one enormous line |
 | `transcript.ts` | the conversation as ROWS: chunks accumulate, tool calls update in place by id, a replay replaces rather than appends |
 | `attachments.ts` | the conversation's tmp directory: where an attached file lands, what a chunked upload may continue, and what the prompt says about it |
 | `context.ts` | the nodes a message is ABOUT, on their way into the prompt: one line per node, the id in backticks. Its sibling above is the argument — a handle the agent can act on, never a copy of the thing |
@@ -75,7 +75,7 @@ those blocks into `FileDiff`s and the panel draws the change; the client
 computes the line diff
 from the two texts, which is what keeps the wire carrying facts rather than a
 rendering. A write through the OPS layer gets the opposite treatment and for the
-commit panel's own reason — a `.jsonl` diff is one enormous line per node — so
+commit panel's own reason — a `.olai` diff is one enormous line per node — so
 `wrote.ts` reads olai's own tool reply into the node-level story instead:
 *marked done*, *note rewritten*, *moved*. The classification is the reply's
 (`@olai/ops`' `Applied.sort`), never re-derived here and never read out of

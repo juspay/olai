@@ -18,7 +18,7 @@ Feature: The markdown pipeline arrives when it is needed
 
   @corpus:good
   Scenario: An outline of plain titles paints without fetching the pipeline
-    When I open the outline "house.jsonl"
+    When I open the outline "house.olai"
     Then nothing has asked for the markdown pipeline
     # Not "nothing was drawn": the tags and the marks are on the page, drawn
     # from the bundle that was already there.
@@ -61,8 +61,8 @@ Feature: The markdown pipeline arrives when it is needed
   @scratch:good
   Scenario: A title with markdown in it shows its source, then renders
     Given the markdown pipeline is held up
-    Given I open the outline "house.jsonl"
-    When I rewrite "house.jsonl" as:
+    Given I open the outline "house.olai"
+    When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"**take out** the old counters"}

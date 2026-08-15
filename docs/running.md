@@ -17,7 +17,7 @@ just serve docs     # serves this repo's own roadmap, and opens on 127.0.0.1:771
 ```
 
 `olai web <dir> [--port] [--host]` reads the directory recursively, picking up
-every `.jsonl` outline and every `.md` document, and serves them to a browser.
+every `.olai` outline and every `.md` document, and serves them to a browser.
 It does not descend into dot-directories or `node_modules` — a directory of
 outlines is usually a git repository, and nothing anyone wrote is inside
 `.git`. Defaults: port `7714`, host `127.0.0.1`.

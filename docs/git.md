@@ -56,7 +56,7 @@ The two kinds of row are the two things olai can honestly say about a file:
 │   · chat agent · 12m ago · 1a2b3c4        │
 │                                           │
 │ OUTLINES ─────────────────────────────    │
-│ ☑ roadmap.jsonl                           │
+│ ☑ roadmap.olai                           │
 │   ✓  Outlines as a collection    done     │
 │   ✎  Notes: one state, same line  note    │
 │   +  Kolu integration: auto-…    created  │
@@ -74,7 +74,7 @@ The two kinds of row are the two things olai can honestly say about a file:
 ```
 
 An outline olai serves gets its NODES and what changed about each — never a
-text diff, because a `.jsonl` diff is one enormous line per node with
+text diff, because a `.olai` diff is one enormous line per node with
 everything on it changing at once. Every other file gets its path and what git
 says happened to it: `modified`, `added`, `deleted`, `renamed`, `untracked`.
 Those are git's words rather than yours, so a `mv` you have not staged is a

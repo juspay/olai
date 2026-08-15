@@ -105,9 +105,9 @@ test("zooming a mirror shows the node it stands for, with THAT node's crumbs", (
   const zoomed = page(
     zoomOfFiles(
       {
-        "house.jsonl": `{"id":"kitchen","ord":"a0","title":"kitchen"}\n` +
+        "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen"}\n` +
           `{"id":"kitchen-herbs","parent":"kitchen","ord":"a1","mirror":"herbs"}`,
-        "garden.jsonl": `{"id":"garden","ord":"a0","title":"garden"}\n` +
+        "garden.olai": `{"id":"garden","ord":"a0","title":"garden"}\n` +
           `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed"}\n` +
           `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
       },
@@ -117,7 +117,7 @@ test("zooming a mirror shows the node it stands for, with THAT node's crumbs", (
   // The page is the canonical node's, in the canonical node's file, under the
   // canonical node's parent — not `kitchen`, which is where the click was.
   expect(zoomed.shows.node.id).toBe("herbs")
-  expect(zoomed.shows.file).toBe("garden.jsonl")
+  expect(zoomed.shows.file).toBe("garden.olai")
   expect(crumbs(zoomed)).toEqual(["garden"])
   expect(shape(zoomed.children)).toEqual(["/basil node"])
 })

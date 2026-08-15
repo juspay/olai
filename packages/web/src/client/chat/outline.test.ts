@@ -1,7 +1,7 @@
 /**
  * An outline the agent rewrote by hand, read as nodes.
  *
- * The claim under test is the design's own "never a text diff of a `.jsonl`",
+ * The claim under test is the design's own "never a text diff of a `.olai`",
  * made true of the FILE rather than of the tool: whatever wrote it, what a
  * reader gets is the node-level story in the vocabulary the Commit panel
  * already uses.
@@ -17,7 +17,7 @@ const OUTLINE = [
 ].join("\n")
 
 const rewritten = (oldText: string | null, newText: string) =>
-  outlineDiffOf({ path: "house.jsonl", oldText, newText })
+  outlineDiffOf({ path: "house.olai", oldText, newText })
 
 describe("an outline rewritten by hand", () => {
   test("a mark that appeared is the same word the Commit panel uses", () => {
@@ -30,7 +30,7 @@ describe("an outline rewritten by hand", () => {
       _tag: "Changes",
       changes: [
         {
-          file: "house.jsonl",
+          file: "house.olai",
           id: "order",
           title: "order the cabinets",
           fields: ["done"],

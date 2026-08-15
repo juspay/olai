@@ -15,9 +15,9 @@ import {
  *  the round trip is the only thing that catches it. */
 const ROUTES: ReadonlyArray<Route> = [
   { kind: "outline", file: null },
-  { kind: "outline", file: "house.jsonl" },
-  { kind: "outline", file: "wing/kitchen.jsonl" },
-  { kind: "outline", file: "a file with spaces.jsonl" },
+  { kind: "outline", file: "house.olai" },
+  { kind: "outline", file: "wing/kitchen.olai" },
+  { kind: "outline", file: "a file with spaces.olai" },
   { kind: "document", file: "finishes.md" },
   { kind: "document", file: "notes/deep/plan.md" },
   { kind: "node", id: "kitchen" },
@@ -29,7 +29,7 @@ const ROUTES: ReadonlyArray<Route> = [
   // ...and the same two pages, narrowed. The filter is part of the address, so
   // it is part of the round trip: a query the app writes into the bar and
   // cannot read back is a page that loses its filter on reload.
-  { kind: "outline", file: "house.jsonl", filter: "is:done" },
+  { kind: "outline", file: "house.olai", filter: "is:done" },
   { kind: "outline", file: null, filter: "#home -is:done" },
   { kind: "node", id: "kitchen", filter: "date:2026-08-01..2026-08-14" },
   { kind: "node", id: "kitchen", filter: "a query with  spaces & an ampersand" },
@@ -43,7 +43,7 @@ test("every route survives being written to a URL and read back", () => {
 
 test("the addresses are the documented ones", () => {
   expect(hrefOf({ kind: "outline", file: null })).toBe("/")
-  expect(hrefOf({ kind: "outline", file: "house.jsonl" })).toBe("/o/house.jsonl")
+  expect(hrefOf({ kind: "outline", file: "house.olai" })).toBe("/o/house.olai")
   expect(hrefOf({ kind: "node", id: "kitchen" })).toBe("/n/kitchen")
   expect(hrefOf({ kind: "document", file: "notes/finishes.md" })).toBe(
     "/doc/notes/finishes.md",
@@ -59,20 +59,20 @@ test("the addresses are the documented ones", () => {
 // An unfiltered page is exactly the address it always was: no `?`, no empty
 // query, so one page is one string in the bar and one entry in the history.
 test("a page with no filter wears no query at all", () => {
-  expect(hrefOf({ kind: "outline", file: "house.jsonl" })).toBe("/o/house.jsonl")
-  expect(hrefOf({ kind: "outline", file: "house.jsonl", filter: "" })).toBe(
-    "/o/house.jsonl",
+  expect(hrefOf({ kind: "outline", file: "house.olai" })).toBe("/o/house.olai")
+  expect(hrefOf({ kind: "outline", file: "house.olai", filter: "" })).toBe(
+    "/o/house.olai",
   )
   expect(hrefOf({ kind: "node", id: "kitchen", filter: "   " })).toBe("/n/kitchen")
-  expect(routeOf("/o/house.jsonl?q=")).toEqual({
+  expect(routeOf("/o/house.olai?q=")).toEqual({
     kind: "outline",
-    file: "house.jsonl",
+    file: "house.olai",
   })
 })
 
 test("a filtered page spells it in the query", () => {
-  expect(hrefOf({ kind: "outline", file: "house.jsonl", filter: "#home" })).toBe(
-    "/o/house.jsonl?q=%23home",
+  expect(hrefOf({ kind: "outline", file: "house.olai", filter: "#home" })).toBe(
+    "/o/house.olai?q=%23home",
   )
   expect(routeOf("/n/kitchen?q=is%3Adone")).toEqual({
     kind: "node",
@@ -98,12 +98,12 @@ test("only the two tree routes take a filter, and a blank one takes it off", () 
   // actually bites: two routes for the same unfiltered page are one string in
   // the bar and one entry in the history.
   const cleared = narrowedTo(
-    { kind: "outline", file: "house.jsonl", filter: "#home" },
+    { kind: "outline", file: "house.olai", filter: "#home" },
     "",
   )
   expect(filterOf(cleared)).toBe("")
-  expect(hrefOf(cleared)).toBe("/o/house.jsonl")
-  expect(samePage(cleared, { kind: "outline", file: "house.jsonl" })).toBe(true)
+  expect(hrefOf(cleared)).toBe("/o/house.olai")
+  expect(samePage(cleared, { kind: "outline", file: "house.olai" })).toBe(true)
 })
 
 // What the page memo is keyed on: a query typed one character at a time must
@@ -113,7 +113,7 @@ test("two addresses for one page are the same page, whatever narrows them", () =
   expect(samePage(bare, narrowedTo(bare, "#home"))).toBe(true)
   expect(samePage(narrowedTo(bare, "a"), narrowedTo(bare, "b"))).toBe(true)
   expect(samePage(bare, { kind: "node", id: "hinges" })).toBe(false)
-  expect(samePage(bare, { kind: "outline", file: "house.jsonl" })).toBe(false)
+  expect(samePage(bare, { kind: "outline", file: "house.olai" })).toBe(false)
 })
 
 test("what a page is narrowed by is read off the route", () => {
@@ -128,9 +128,9 @@ test("what a page is narrowed by is read off the route", () => {
 // parses — what page it opens is `page.ts`'s call, not this parser's.
 test("the trash is one address, and an archive's path is still an outline's", () => {
   expect(routeOf("/trash")).toEqual({ kind: "trash" })
-  expect(routeOf("/o/Archive.jsonl")).toEqual({
+  expect(routeOf("/o/Archive.olai")).toEqual({
     kind: "outline",
-    file: "Archive.jsonl",
+    file: "Archive.olai",
   })
 })
 
@@ -154,8 +154,8 @@ test("`/today` parses as itself, not as a date", () => {
 // A directory separator stays a separator, so the URL bar shows the path a
 // reader recognises rather than a run of escapes.
 test("an outline in a subdirectory keeps its slashes", () => {
-  expect(hrefOf({ kind: "outline", file: "wing/kitchen.jsonl" })).toBe(
-    "/o/wing/kitchen.jsonl",
+  expect(hrefOf({ kind: "outline", file: "wing/kitchen.olai" })).toBe(
+    "/o/wing/kitchen.olai",
   )
 })
 
@@ -185,7 +185,7 @@ test("a link on the page is a route only when it names a document's page", () =>
   for (
     const href of [
       "https://example.com",
-      "/o/house.jsonl",
+      "/o/house.olai",
       "/d/2026-08-10",
       "/somewhere/else",
       "#md-1a2b-beds",

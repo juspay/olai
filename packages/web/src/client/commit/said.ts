@@ -2,7 +2,7 @@
  * What a change is CALLED on screen.
  *
  * The panel never shows a text diff, and this is the whole reason it does not
- * have to: a `.jsonl` diff is one enormous line per node with everything on it
+ * have to: a `.olai` diff is one enormous line per node with everything on it
  * changing at once, and what a reader actually wants is the sentence. So
  * `@olai/format` classifies a change into one `Sort` — once, on the server,
  * from the fields that differ and what they became — and this is the table that

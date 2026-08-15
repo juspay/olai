@@ -25,7 +25,7 @@ Feature: Daily notes
     # The same pipeline every other rendering on the page goes through.
     And the document renders bold text "ferry"
     # And the query's answer is untouched: the note joined it.
-    And the day groups are "life.jsonl, work.jsonl"
+    And the day groups are "life.olai, work.olai"
     And the day lists "ferry, posts, rails"
     And there should be no page errors
 
