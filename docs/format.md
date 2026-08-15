@@ -59,7 +59,7 @@ Every field above is one this format declares, and the top level is **closed**: 
 
 **The stamps are not compared as changes.** Every write stamps `changed`, so a commit that named it would name it in every line beside the field somebody actually changed — and a write that changed nothing would report as a change, since the stamp would be the difference. What a reader is owed is what they wrote; when they wrote it is the log's own answer.
 
-**Keys are written alphabetically**, and a key holding nothing is not written at all — the same two rules the fields above follow, one level in. A map with no keys left is no `custom` field rather than `{}`.
+**Keys are written alphabetically**, and a key holding nothing is not written at all — the same two rules the fields above follow, one level in. A map with no keys left is no `custom` field rather than `{}`. **A read answers the same map a write would produce**, so a key holding nothing is absent from a hit and from `read_node` exactly as it is absent from the line on disk, and `prop:` — which asks the same question — cannot disagree with the answer beside it.
 
 ## Status
 
