@@ -117,6 +117,32 @@ describe("the properties a node carries", () => {
       .not.toHaveProperty("custom")
   })
 
+  /**
+   * An answer and the GRAMMAR agree about what a node carries, which is one
+   * rule and not two.
+   *
+   * A key holding nothing is a key the file does not carry (`write.ts`'s
+   * `nothing`, read one map in by `prop:` already). The answer used to ask a
+   * different question — is the MAP empty — so a node written by hand with
+   * `{"custom":{"pr":""}}` reported `custom: {"pr": ""}` on a hit that
+   * `prop:pr` did not return. Same node, same query language, two answers.
+   */
+  test("a key holding nothing is carried by neither the hit nor `prop:`", () => {
+    const at = index(setOf({
+      "roadmap.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"","agent":"claude-opus"}}`,
+    }))
+    // The key `prop:` refuses is the key the answer leaves out…
+    expect(search(at, { text: "prop:pr" }).hits).toEqual([])
+    expect(search(at, { text: "lane" }).hits[0]?.custom).toEqual({ agent: "claude-opus" })
+    // …and a map with nothing but such keys is no map at all, exactly as it is
+    // no `custom` field on disk.
+    const bare = index(setOf({
+      "roadmap.olai": `{"id":"bare","ord":"a0","title":"a bare lane","custom":{"pr":""}}`,
+    }))
+    expect(search(bare, { text: "lane" }).hits[0]).not.toHaveProperty("custom")
+    expect(detail(bare, "bare")).not.toHaveProperty("custom")
+  })
+
   /** A long value travels WHOLE. The wire-cost decision, pinned rather than
    *  left to whoever next reads a hit and wonders whether it was cut: a value
    *  cut at some length is one no reader can tell from a short one, and the

@@ -127,7 +127,7 @@ export const serializeNode = (node: Node): string => {
   const record: Record<string, unknown> = {}
   for (const field of ORDER) {
     const value = field === "custom"
-      ? tidy((node as Record<string, unknown>)[field])
+      ? heldCustom((node as Record<string, unknown>)[field])
       : (node as Record<string, unknown>)[field]
     if (required.has(field) || !nothing(value)) record[field] = value
   }
@@ -135,8 +135,8 @@ export const serializeNode = (node: Node): string => {
 }
 
 /**
- * The `custom` map as it is written: canonical key order, and no key holding
- * nothing.
+ * The `custom` map a record actually HOLDS: canonical key order, no key holding
+ * nothing — and `undefined` for a map that says nothing at all.
  *
  * The one field whose VALUE has an inside, so the two rules above it — one
  * spelling of absence, one spelling of a record — have to be applied one level
@@ -144,19 +144,32 @@ export const serializeNode = (node: Node): string => {
  * says, and a map that came back from JSON in whatever order somebody's editor
  * left it would make two equal files differ byte for byte.
  *
- * Pruned BEFORE the emptiness test above, which is the order that matters: a
- * map whose every key held nothing must not reach disk as `{"custom":{}}`.
+ * EXPORTED, alongside {@link nothing} and for the same reason its header gives.
+ * That one is on the package's surface because `has:` (./filter.ts) asks the
+ * same question from the other end, and a second answer to it would let a
+ * `desc` of `""` be a note to search for and no note to write. This is that
+ * sentence one map in, with a third end now asking: `@olai/ops` hands a node's
+ * map back on every hit and every read, and it was answering the map RAW — so a
+ * node carrying `{"custom":{"pr":""}}` reported `custom: {"pr": ""}` on a hit
+ * while `prop:pr`, which asks `nothing` of each value, correctly found nothing.
+ * One node, one query language, two answers. A read hands back what the file
+ * would hold by asking the module that decides what the file holds, rather than
+ * by carrying its own copy of the rule.
+ *
+ * Pruning is what the emptiness test above then reads: a map whose every key
+ * held nothing is `undefined` here, so it must not reach disk as
+ * `{"custom":{}}` and cannot reach an answer as one either.
  */
-const tidy = (value: unknown): unknown => {
-  if (value === undefined || value === null || typeof value !== "object") return value
-  if (Array.isArray(value)) return value
+export const heldCustom = (value: unknown): Custom | undefined => {
+  if (value === undefined || value === null || typeof value !== "object") return undefined
+  if (Array.isArray(value)) return undefined
   const custom = value as Custom
   const out: Record<string, CustomValue> = {}
   for (const key of customKeys(custom)) {
     const held = custom[key]
     if (held !== undefined && !nothing(held)) out[key] = held
   }
-  return out
+  return Object.keys(out).length === 0 ? undefined : out
 }
 
 /**

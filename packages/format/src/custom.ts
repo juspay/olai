@@ -105,9 +105,7 @@ export const withCustom = (
   return next
 }
 
-/** Whether a map says anything at all. An EMPTY map is not written (./write.ts
- *  reads this), so a node whose last custom key was removed is a node with no
- *  `custom` field rather than one carrying `{}` — which would be the `[]`
- *  conflict-about-nothing one level in. */
-export const isEmptyCustom = (custom: Custom | undefined): boolean =>
-  custom === undefined || Object.keys(custom).length === 0
+// Whether a map says anything at all is ./write.ts's `heldCustom`, which
+// answers it by pruning rather than by counting: a map of keys that all hold
+// nothing is as empty as `{}`, and an `isEmptyCustom` here could not see that
+// without a second copy of `nothing`.

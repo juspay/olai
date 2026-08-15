@@ -122,7 +122,6 @@ export {
   customOf,
   customText,
   CustomValue,
-  isEmptyCustom,
   withCustom,
 } from "./custom.ts"
 export type { HasCustom } from "./custom.ts"
@@ -309,7 +308,11 @@ export { composed, MESSAGE_PREFIX } from "./message.ts"
 export { didYouMean, nearestId } from "./suggest.ts"
 
 export { ordBetween } from "./ord.ts"
-export { nodesOf, serializeOutline } from "./write.ts"
+/** `heldCustom` is the writer's rule about the one field with an inside, on the
+ *  surface because an ANSWER asks the same question a file does — see its own
+ *  header. A reader that carried its own copy answered a property `prop:` says
+ *  the node does not carry. */
+export { heldCustom, nodesOf, serializeOutline } from "./write.ts"
 
 export {
   BusyFailure,

@@ -31,7 +31,7 @@ import {
   errorLine,
   follow,
   type Found,
-  isEmptyCustom,
+  heldCustom,
   isMirror,
   type LocatedRegular,
   MARKS,
@@ -123,6 +123,7 @@ const INDEXED = new WeakMap<OutlineSet, Derived>()
  */
 export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
   const status = derived.status.get(located.node.id)
+  const custom = heldCustom(located.node.custom)
   return {
     id: located.node.id,
     title: located.node.title,
@@ -134,13 +135,14 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
     ...(status === undefined ? {} : { status }),
     path: ancestorsOf(derived, located.node.id).map((crumb) => crumb.node.title),
     ...edgesOf(located.node),
-    // The map, VERBATIM — the only place a `pr` or an `isbn` could come from,
-    // and absent rather than `{}` on a node carrying none, which is the
-    // writer's rule for absence read at the answer. Produced HERE rather than
-    // at `detail` below, so a search hit carries it: `prop:agent=…` used to
-    // find the lanes and then owe a `read_node` for each one, to see the fact
-    // the query had already matched on.
-    ...(isEmptyCustom(located.node.custom) ? {} : { custom: located.node.custom }),
+    // The named facts the node carries — the only place a `pr` or an `isbn`
+    // could come from. `heldCustom` is the FORMAT's answer to "what does this
+    // map hold", the same one the file gets, so a key holding nothing is absent
+    // here exactly as it is on disk and as `prop:` reads it. Produced HERE
+    // rather than at `detail` below, so a search hit carries it: `prop:agent=…`
+    // used to find the lanes and then owe a `read_node` for each one, to see
+    // the fact the query had already matched on.
+    ...(custom === undefined ? {} : { custom }),
   }
 }
 
