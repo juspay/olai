@@ -197,6 +197,33 @@ test("a link that is not a relative document is left exactly as written", () => 
   expect(renderMarkdown("[a](house.olai)", NOTE)).toContain(`href="house.olai"`)
 })
 
+// An http(s) address is still the address — the test above pins that — but
+// the click must not be able to throw this tab away. Stamped here, after the
+// sanitiser, so a note cannot carry a target of its own and a relative `.md`
+// that just became `/doc/…` is not treated as something that leaves the app.
+test("an external http(s) link opens in a new tab", () => {
+  for (const href of ["https://example.com/x.md", "http://example.com/x.md"]) {
+    const html = renderMarkdown(`[a](${href})`, NOTE)
+    expect(html).toContain(`href="${href}"`)
+    expect(html).toContain(`target="_blank"`)
+    expect(html).toContain(`rel="noopener noreferrer"`)
+  }
+})
+
+test("a document link is not sent to a new tab", () => {
+  const html = renderMarkdown("[the deck](../projects/deck.md)", "Daily/2026-08-12.md")
+  expect(html).toContain(`href="/doc/projects/deck.md"`)
+  expect(html).not.toContain("target=")
+  expect(html).not.toContain("rel=")
+})
+
+test("a fragment-only link is not sent to a new tab", () => {
+  const html = renderMarkdown("[up](#top)\n\n# top\n", NOTE)
+  expect(html).toMatch(/href="#md-[a-z0-9]+-top"/)
+  expect(html).not.toContain("target=")
+  expect(html).not.toContain("rel=")
+})
+
 // The two passes over one anchor stay in their lanes: a fragment-only link is
 // the BLOCK's own business and is minted into this block's namespace, which is
 // what keeps a footnote pointing at its own note.
@@ -300,7 +327,9 @@ test("inline markdown keeps bold, code and links", () => {
   )
   expect(html).toContain("<strong>bold</strong>")
   expect(html).toContain("<code>code</code>")
-  expect(html).toContain(`<a href="https://example.com">a</a>`)
+  expect(html).toContain(`href="https://example.com"`)
+  expect(html).toContain(`target="_blank"`)
+  expect(html).toContain(`rel="noopener noreferrer"`)
   // No wrapping paragraph: a title is not a document.
   expect(html).not.toContain("<p")
 })

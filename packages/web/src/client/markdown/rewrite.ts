@@ -22,9 +22,10 @@
  *     place on `/d/<date>`, where a note is drawn under an address that is not
  *     a file at all. So it is resolved beside the file the link was WRITTEN in
  *     (`@olai/format`'s `documentOf`) and spelled as this app's own document
- *     route. Nothing else is touched: a `http:` link goes where it says, a
- *     fragment stays a fragment, and a relative path to anything that is not a
- *     document is left exactly as written.
+ *     route. Nothing else is touched: a fragment stays a fragment, a relative
+ *     path to anything that is not a document is left exactly as written, and
+ *     a `http:`/`https:` link still goes where it says — in a new tab, so
+ *     clicking one cannot navigate this app away.
  *   - **ids belong to the page, not to the parser.** Every rendered block on a
  *     page — a note per row, a document, and every note under it — is a
  *     separate run of the pipeline, and each would otherwise mint `fn-1` for
@@ -73,7 +74,12 @@ const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): vo
   for (const child of parent.children) {
     if (child.type !== "element") continue
     if (child.tagName === "img") resolvePicture(child, options.from)
-    if (child.tagName === "a") resolveDocument(child, options.from)
+    if (child.tagName === "a") {
+      // Document first: a relative `.md` becomes `/doc/…` and must not then
+      // be treated as something that leaves the app.
+      resolveDocument(child, options.from)
+      openExternal(child)
+    }
     mint(child, options.ids)
     walk(child, options, headings)
     // AFTER the subtree, so what a heading reads as is what is left of it.
@@ -149,8 +155,9 @@ const resolvePicture = (element: Element, from: string): void => {
  * A link this leaves alone is a link that goes exactly where it says. There is
  * no allowlist to widen and no refusal to draw: the sanitiser has already run
  * (it is the security boundary, and it runs first), an `http:` link is somebody
- * pointing at the internet on purpose, and a relative path to something that is
- * not a document is not this app's to reinterpret.
+ * pointing at the internet on purpose — {@link openExternal} is the tab that
+ * click opens, not a rewrite of the address — and a relative path to something
+ * that is not a document is not this app's to reinterpret.
  *
  * Whether the directory HOLDS the document is not asked, for the same reason
  * `/doc/<anything>` is an address a person may type: the page model already has
@@ -170,6 +177,36 @@ const resolveDocument = (element: Element, from: string): void => {
     href: hrefOf({ kind: "document", file: document }) + written.slice(cut),
   }
 }
+
+/**
+ * Send a cross-origin `http:`/`https:` link out of this tab.
+ *
+ * A click on one of these used to navigate the olai tab away: the href is a
+ * real address the browser is happy to follow, and `../router.tsx`'s
+ * `followed` correctly declines it (`routeIn` claims only a `/doc/…` page).
+ * The address is still the address — this pass does not rewrite it — but the
+ * click must not be able to throw the app away. `noopener noreferrer` is the
+ * pair that keeps the new tab from holding `window.opener` back at us.
+ *
+ * Written here, after the sanitiser, so a note cannot carry a `target` of its
+ * own choosing and so a relative `.md` that {@link resolveDocument} has just
+ * pointed at `/doc/…` is not stamped. Everything else — a fragment, a path
+ * that is not a document, an app `<Link>` this walk never sees — is untouched.
+ */
+const openExternal = (element: Element): void => {
+  const href = element.properties?.["href"]
+  if (typeof href !== "string" || !isHttp(href)) return
+  element.properties = {
+    ...element.properties,
+    target: "_blank",
+    rel: "noopener noreferrer",
+  }
+}
+
+/** A fully-qualified `http:` or `https:` URL, and nothing else. A relative
+ *  path, a fragment, `mailto:`, a protocol-relative `//host` — none of these
+ *  leave the origin the way a pasted web address does, and none are stamped. */
+const isHttp = (href: string): boolean => /^https?:\/\//i.test(href)
 
 /** What an undrawn picture looks like: a quiet inline box, in the same family
  *  as the app's other readouts — visible enough to be seen where the picture
