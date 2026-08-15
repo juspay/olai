@@ -2107,8 +2107,8 @@ whole first-paint set (the entry plus every chunk it statically imports):
 | | raw | brotli |
 |---|---|---|
 | before | 910,400 B | 244,564 B |
-| after | 831,388 B | 225,286 B |
-| | **−79,012 B (−8.7%)** | **−19,278 B (−7.9%)** |
+| after | 831,007 B | 225,358 B |
+| | **−79,393 B (−8.7%)** | **−19,206 B (−7.9%)** |
 
 The deferred chunk is 80,516 B / 23,438 B, fetched once for the whole app the
 first time anybody reaches for a menu — and on a page where nobody does, never.
