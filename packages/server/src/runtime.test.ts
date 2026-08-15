@@ -54,7 +54,7 @@ test("a face served under another writer differs by exactly the members that rec
       chat: null,
       ops,
       writer: "web",
-      git: gitWiring(ops, "web", yield* SubscriptionRef.make(0)),
+      git: gitWiring(ops, yield* SubscriptionRef.make(0)),
     })
     // The runtime's `done` REJECTS when it is closed, so something has to hold
     // that catch or the teardown here is an unhandled rejection the runner

@@ -278,7 +278,7 @@ const fresh = (options: McpServeOptions, face: Face) =>
       chat: null,
       ops,
       writer: "mcp",
-      git: gitWiring(ops, "mcp", recorded),
+      git: gitWiring(ops, recorded),
     })
     // The runtime's `done` rejects when it is closed, so something must hold
     // that catch or a clean shutdown surfaces as an unhandled rejection. Same

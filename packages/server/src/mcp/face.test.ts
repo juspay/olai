@@ -94,7 +94,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
       chat: null,
       ops,
       writer: "mcp",
-      git: gitWiring(ops, "mcp", yield* SubscriptionRef.make(0)),
+      git: gitWiring(ops, yield* SubscriptionRef.make(0)),
     })
     // Not optional, and not ceremony copied from `serve.ts`: the runtime's
     // `done` REJECTS when it is closed, so something has to be holding the

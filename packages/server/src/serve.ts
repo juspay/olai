@@ -156,7 +156,7 @@ export const serve = (options: ServeOptions) =>
       chat,
       ops,
       writer: "web",
-      git: gitWiring(ops, "web", recorded),
+      git: gitWiring(ops, recorded),
     })
     publish = wired.publish
 

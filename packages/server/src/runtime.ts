@@ -47,7 +47,6 @@ import { NOTHING_PENDING } from "@olai/format"
 import { type Ops, Query, type Request, type Status } from "@olai/ops"
 import type {
   CommitRequest,
-  CommitResult,
   OutlineError,
   OutlineSet,
   Pending,
@@ -155,9 +154,11 @@ export interface Wiring {
      *  separately meant two probes of the same repository per republish, and a
      *  window between them in which the two controls could disagree. */
     readonly status: Effect.Effect<Status>
-    readonly commit: (request: CommitRequest) => Effect.Effect<CommitResult>
-    /** The other verb, and it takes nothing: the current branch to the upstream
-     *  it already has. What it changes is the unpushed count on `pending`. */
+    /** The one verb here, and it takes nothing: the current branch to the
+     *  upstream it already has. What it changes is the unpushed count on
+     *  `pending`. COMMIT is deliberately not its neighbour — it records WHO
+     *  asked, so it is bound per face by {@link writing} rather than once
+     *  here. */
     readonly push: Effect.Effect<PushResult>
     /** Bumped by the ops layer whenever git RECORDED or SHARED something — a
      *  commit by whichever door, or a push. Neither moves a served file, so
@@ -167,22 +168,28 @@ export interface Wiring {
 }
 
 /**
- * The git half of {@link Wiring}, from the ops layer and the face asking.
+ * The git half of {@link Wiring}, from the ops layer.
  *
  * ONE spelling, because there are two composition roots — `./serve.ts` for the
  * browser and `./mcp/serve.ts` for the agent in a terminal — and HACKING.md's
  * rule is that they must not diverge. Written out twice, the day one of them
- * grew a cell or changed a writer would be the day the two faces quietly stopped
- * being the same product. `writer` is the only thing that differs between them,
- * so it is the only thing this takes.
+ * grew a cell would be the day the two faces quietly stopped being the same
+ * product.
+ *
+ * IT TAKES NO WRITER, and it used to. It carried a `commit` bound to one, which
+ * was the right shape while a runtime served one face — and became a leftover
+ * twin of {@link writing} the moment a runtime could serve several. Nothing read
+ * it: `git.commit` is answered through `writing` so that `writerAt` can rebind
+ * it, and a third writer-carrying member added HERE would have looked wired and
+ * would not have moved with the face. Two lists of the same thing is precisely
+ * what `runtime.test.ts` fences, so the second one is deleted rather than
+ * fenced as well.
  */
 export const gitWiring = (
-  ops: Pick<Ops, "status" | "commit" | "push">,
-  writer: Writer,
+  ops: Pick<Ops, "status" | "push">,
   recorded: SubscriptionRef.SubscriptionRef<number>,
 ): Wiring["git"] => ({
   status: ops.status,
-  commit: (request) => ops.commit(request, writer),
   push: ops.push,
   recorded,
 })

@@ -64,7 +64,7 @@ const withRoute = <A>(use: (served: Served) => Promise<A>): Promise<A> => {
       chat: null,
       ops,
       writer: "mcp",
-      git: gitWiring(ops, "mcp", yield* SubscriptionRef.make(0)),
+      git: gitWiring(ops, yield* SubscriptionRef.make(0)),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
