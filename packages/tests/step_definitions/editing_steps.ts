@@ -684,6 +684,12 @@ Then(
  * Over the KEYS rather than over a list of fields nobody may have thought of:
  * a tail that inherited the head's mark, date, note, `doc` or edges fails here
  * whichever of them it was, and so would a field this format grows later.
+ *
+ * `created` is in the allowed set and is the one addition since: it is not
+ * something the tail INHERITED, it is the stamp that says the node came into
+ * being just now, which is exactly what a split's tail is. A `changed` here
+ * would be the failure this step is written to catch — nothing has been written
+ * to it since it was made.
  */
 Then(
   "{string} holds a bare node titled {string}",
@@ -694,7 +700,7 @@ Then(
           (node) =>
             node["title"] === title &&
             Object.keys(node).every((field) =>
-              ["id", "parent", "ord", "title"].includes(field)
+              ["id", "parent", "ord", "title", "created"].includes(field)
             ),
         ),
       `${file} to hold ${JSON.stringify(title)} carrying nothing but its placement`,

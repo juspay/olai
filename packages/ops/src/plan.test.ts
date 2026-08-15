@@ -1088,6 +1088,8 @@ describe("prop", () => {
       "after",
       "blocks",
       "see",
+      "created",
+      "changed",
       "custom",
     ]
     for (const key of fields) {
