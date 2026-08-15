@@ -95,9 +95,10 @@ const TRACKED: ReadonlyArray<string> = (() => {
  * runs olai on this repository they will flip, in one commit, exactly as a
  * reader's own vault does.
  *
- * **The migrator's test.** The one live grant, and it is the point of the
- * design rather than an exception to it: one module reads the old shape, and
- * the corpus it is proved against has to be written in it.
+ * **The two migration tests.** The only live grants, and they are the point of
+ * the design rather than exceptions to it: one module reads the old shape, and
+ * what proves it — a corpus of records in `@olai/format`, a directory of files
+ * in `@olai/server` — has to be written in the shape it reads.
  */
 const MAY_SPELL_IT: ReadonlyArray<string> = [
   "docs/RCA/",
@@ -105,6 +106,7 @@ const MAY_SPELL_IT: ReadonlyArray<string> = [
   "docs/Archive.olai",
   "docs/roadmap.olai",
   "packages/format/src/migrate.test.ts",
+  "packages/server/src/migrate.test.ts",
 ]
 
 /** The two above that are olai's own outlines rather than anybody's source —
@@ -279,6 +281,7 @@ test("every file-level grant is still spelling what it was granted for", () => {
   expect(spelling.slice().sort()).toEqual([
     ...THE_VAULT,
     "packages/format/src/migrate.test.ts",
+    "packages/server/src/migrate.test.ts",
   ].sort())
 })
 
