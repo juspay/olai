@@ -50,9 +50,13 @@
  * file is the classic lockfile race — a second process opens the inode, the
  * holder unlinks it, a third creates a new file at the same path and locks
  * that, and now two processes hold "the lock". The file is a few bytes in a
- * tmpfs the machine clears at logout. Its CONTENTS are informational only:
- * whoever holds the lock writes their pid there so the refusal below can name
- * them. Nothing decides anything by reading them.
+ * tmpfs the machine clears at logout. Its CONTENTS are DIAGNOSIS and never
+ * validity: whoever holds the lock writes their pid there so the refusal below
+ * can name them, and no code path decides whether a vault is free by reading
+ * it. That split is what makes a recycled pid harmless — the worst it can do is
+ * put a wrong number in one sentence, never hand a second brain a vault — and
+ * the number is sanity-checked before it is read out at all
+ * ({@link holderIn}).
  *
  * WHY A FILE AT ALL, when `flock` would take the SERVED DIRECTORY's own
  * descriptor and need no file, no digest and no path convention — and would be
@@ -156,14 +160,47 @@ const canonical = (root: string): string => {
   }
 }
 
-/** The pid a holder wrote down, or `null` for anything we cannot read as one.
- *  Never trusted for a decision — the lock decided already. */
+/**
+ * The pid a holder wrote down — DIAGNOSIS, never validity.
+ *
+ * Nothing here decides whether the vault is free: the kernel decided that
+ * before this is called, and a `busy` answer stands whatever this file says or
+ * fails to say. What it decides is only whether the refusal can NAME somebody,
+ * and the sanity check is why it may: the note is written by whoever holds the
+ * lock, so it is the holder's pid in every case but one — the microseconds
+ * between a new holder taking the lock and writing itself down, when the
+ * previous holder's number is still in the file. That number belongs to a dead
+ * process, or, if the kernel has wrapped round to it, to an unrelated live one
+ * — and a refusal that named it would send a person to `kill` something that is
+ * not holding their notes. So a pid that names no process is not read out, and
+ * the sentence simply does not name a holder.
+ *
+ * A recycled pid that IS alive cannot be caught here and does not need to be
+ * caught anywhere: it costs a wrong number in one sentence during a window
+ * microseconds wide, and it can never cost a vault, because nothing about the
+ * refusal itself was ever decided by reading this.
+ */
 const holderIn = (path: string): number | null => {
   try {
     const written = /^pid=(\d+)$/m.exec(fs.readFileSync(path, "utf8"))?.[1]
-    return written === undefined ? null : Number(written)
+    if (written === undefined) return null
+    const pid = Number(written)
+    return alive(pid) ? pid : null
   } catch {
     return null
+  }
+}
+
+/** Signal 0 is the "does this process exist" syscall spelled as a kill.
+ *  `EPERM` is a yes — it exists and belongs to somebody else, which on a
+ *  per-user runtime directory means the pid has been recycled to another
+ *  user's process; anything else (`ESRCH`) is a no. */
+const alive = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (cause) {
+    return (cause as { readonly code?: unknown } | null)?.code === "EPERM"
   }
 }
 

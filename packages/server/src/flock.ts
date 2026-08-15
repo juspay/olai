@@ -12,12 +12,39 @@
  *
  * It is reached through `bun:ffi` because neither Node nor Bun exposes
  * `flock(2)` — the runtime's file system API stops at open, read, write and
- * rename. The alternatives were all worse: a lockfile with a pid in it brings
- * back everything the paragraph above rules out, a `flock(1)` subprocess is a
- * second process that can outlive us holding the lock, and an abstract unix
- * socket (Linux's other kernel-released claim) does not exist on macOS. This
- * calls the same libc function every other program on the machine uses, so a
- * lock taken here is visible to `lslocks` and to anything else that flocks.
+ * rename, and `fs-ext`, the package that has filled that gap for a decade,
+ * exists for exactly this reason. This calls the same libc function every other
+ * program on the machine uses, so a lock taken here is visible to `lslocks` and
+ * to anything else that flocks.
+ *
+ * WHAT WAS WEIGHED FIRST, because forty lines of syscall are worth writing only
+ * if nothing off the shelf does the job:
+ *
+ *   - `proper-lockfile` — the popular answer, and the wrong one HERE. Its lock
+ *     is a directory whose EXISTENCE is the claim, kept alive by an mtime
+ *     heartbeat and released by a staleness timeout — so a SIGKILLed olai
+ *     leaves a vault that stays locked for the stale window, and the library's
+ *     own "compromised" callback exists because that heartbeat can be missed
+ *     under load by a process that is perfectly alive. Its `onCompromised`, its
+ *     `stale`, its `update` and its retry policy are four knobs that describe
+ *     one thing this design does not have: doubt about whether the holder is
+ *     still there. The kernel has no doubt.
+ *   - `lockfile` (npm) and the `@zkochan` fork of proper-lockfile — the same
+ *     family, the same staleness protocol, same verdict.
+ *   - `fs-ext` — a real `flock` binding, and the closest fit. It is a native
+ *     addon built with node-gyp: a C++ toolchain in a build that is otherwise
+ *     bun and Nix, a binding compiled against Node's ABI running under Bun, and
+ *     a dependency to keep pinned in `bun.nix` — all to reach a two-argument
+ *     libc call that `bun:ffi` reaches with no build step at all.
+ *   - `flock(1)` from util-linux — no npm dependency, but the lock would be
+ *     held by a CHILD process that can outlive its parent, which turns "the
+ *     kernel releases it when olai dies" back into a supervision problem. It is
+ *     also Linux-only.
+ *   - An abstract unix socket, Linux's other kernel-released claim: no
+ *     filesystem entry and no staleness — and no macOS.
+ *
+ * So: no dependency, and the one thing a dependency would have had to give us
+ * (a claim the kernel owns) is the thing the popular ones do not have.
  *
  * WHAT IS PLATFORM-SPECIFIC, and what CI can prove: the Linux lane exercises
  * everything here. macOS is not tested by CI (odu's rule, and this PR does not
