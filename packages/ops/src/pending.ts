@@ -919,10 +919,11 @@ const said = (why: string | undefined): { readonly why?: string } =>
  * answers, and the difference is where the two came apart.
  *
  * `olai web` hands its own panel agent the same `commit` tool an outside agent
- * gets (`bespokeFrom(TOOLS, ops, "chat-agent")`), so a web serve genuinely has
- * BOTH doors and its `--help` should say so. `olai mcp` has no browser and no
- * button, so it has one. Keying the help text on a WRITER instead read the
- * narrower fact and quietly dropped the tool from `olai web --help`.
+ * gets (`bespokeFrom(TOOLS)`, over a face composed as `chat-agent`), so a web
+ * serve genuinely has BOTH doors and its `--help` should say so. `olai mcp` has
+ * no browser and no button, so it has one. Keying the help text on a WRITER
+ * instead read the narrower fact and quietly dropped the tool from
+ * `olai web --help`.
  *
  * So: one writer has one door, one face may offer two.
  */
