@@ -285,7 +285,7 @@ rather than thrown, and the stored value stored as a VALUE — a component is a
 function, and Solid reads a bare `set(fn)` as an updater, which is the one
 footgun in this shape and is now spelled once. Each `chunk.ts` keeps its own
 names for it and its own literal specifier, which cannot move: the bundler reads
-that out of the file it is written in. `arriving.test.ts` holds the four rules.
+that out of the file it is written in. `arriving.test.ts` holds the rules.
 
 A document is surveyed and jumped around through those anchors:
 `document/Toc.tsx` draws a collapsible contents above the body, derived from

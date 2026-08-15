@@ -1,5 +1,5 @@
 /**
- * A chunk's arrival, and its four rules (`./arriving.ts`).
+ * A chunk's arrival, and its five rules (`./arriving.ts`).
  *
  * They were spelled twice — once around the markdown pipeline's `import()` and
  * once around the `•••` menu's — before the second one made them one thing.

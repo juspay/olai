@@ -4,12 +4,12 @@
  * Two things in this client are fetched after the page is drawn rather than
  * with it — the markdown pipeline (`markdown/chunk.ts`, ~390 kB) and the `•••`
  * menu's primitive (`menu/chunk.ts`, ~80 kB) — and both had spelled the same
- * four rules around their own `import()`. The second one is what made them
+ * five rules around their own `import()`. The second one is what made them
  * one thing rather than a coincidence, which is the same argument `saying.ts`
  * graduated on: the constant was half the job, and the machinery around it had
  * already drifted into two shapes for one set of rules.
  *
- * THE FOUR RULES, in one place:
+ * THE FIVE RULES, in one place:
  *
  *   - **one signal over the three states.** Two signals would be two writes to
  *     keep in step, and a state that said both "failed" and "here" is a state
@@ -30,6 +30,10 @@
  *   - **the value is stored as a value**, whatever it is. A component is a
  *     FUNCTION, and a bare `set(fn)` is read by Solid as an updater — the one
  *     footgun in this shape, spelled once here instead of once per caller.
+ *   - **the flag that says the fetch has started is NOT a signal.** It was a
+ *     comment on a `let` in both copies; it is a rule, because it is the one
+ *     thing here that a reader would reasonably reach for a signal for. See
+ *     `asked` below for what depends on it.
  *
  * WHAT IS NOT HERE is the `import()`. The bundler READS that specifier out of
  * the file it is written in, which is what puts the chunk in a file of its own
@@ -65,8 +69,29 @@ export interface Arrival<T> {
  */
 export const createArrival = <T>(what: string, fetch: () => Promise<T>): Arrival<T> => {
   const [arrival, setArrival] = createSignal<T | Error | undefined>(undefined)
-  /** Has the fetch been started? Not a signal: nothing draws from it, and it is
-   *  the one piece of this that must not re-run anything when it changes. */
+  /**
+   * Has the fetch been started? A plain `let`, and the fifth rule above:
+   * nothing draws from it, and it is the one piece of this that must not
+   * re-run anything when it changes.
+   *
+   * IT IS WRITTEN INSIDE A SIGNAL READ, which is worth being explicit about
+   * because {@link Arrival.ready} is called from TRACKED scopes — a memo in
+   * `../markdown/render.ts`'s callers, a `<Show>` in `menu/NodeMenu.tsx` — and
+   * a read that writes is a thing to look twice at. What makes it safe is that
+   * this cell is NOT REACTIVE: the write notifies nothing, so it cannot
+   * re-enter the computation that made it, and it is idempotent besides (the
+   * guard is `!asked`; `arriving.test.ts` holds three reads to one fetch). A
+   * signal here would be a computation writing to something it also reads,
+   * which is a loop, and it would be one per caller rather than one here.
+   *
+   * That it behaves that way from inside a real computation is held where it
+   * can be: `features/menu_arrives.feature`'s third scenario reads this from a
+   * `<Show>` in a browser, holds the chunk up, and lands it — the panel
+   * appearing IS the memo re-running. A unit test cannot say it, because
+   * `bun test` resolves Solid's server build, where a memo is computed once
+   * and no signal write propagates (checked: a plain `createSignal` →
+   * `createMemo` does not update there either).
+   */
   let asked = false
   const install = (value: T): void => {
     setArrival(() => value)
