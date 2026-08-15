@@ -8,14 +8,10 @@ Have a conversation with the user to flesh out any idea. Use AskUserQuestion whe
   
 The Olai roadmap is written ONLY through olai's own ops (the MCP tools) — never by editing the roadmap file directly, never by jq, never as a git commit the orchestrator authors. Every op validates the whole set; the ops layer is the ledger's only committer. Serve with --commit=manual, and flush each orchestration beat as one commit via the commit op, message summarizing the beat. The orchestrator's only git verbs in $PWD are git pull --ff-only and git push, after each beat. If the ops layer cannot express a ledger fact, that is a bug to file and fix in olai — not a license to fall back to raw edits.
   
-### The "Now" node
+### lanes.olai
   
-The "Now" node in Olai roadmap tracks ongoing work, each entry is a mirror of the item being worked; the terminal/stage/PR list lives on the item itself.
+lanes.olai tracks ongoing work, each entry is a mirror of the item being worked (template = dag.olai).
   
-(Prefer list over paragraph)
-  
-Prose is not a ledger: anything you would narrate as steps, deferred scope, or follow-up work exists only once it is a node. File multi-step sequences as todo children wired with after edges, and #upstream debt as a node the moment it is identified — never a PR-body note.
-
 ## Spawning Kolu terminal
   
 IMPORTANT: You never spawn terminals on your own; only when the human explicitly asks you. Everything goes through Kolu: never run, resume, or message an agent outside its Kolu terminal (no headless claude -p, no --resume in a background shell, no side channels) — if the terminal can't receive your instruction, stop and ask the human.
