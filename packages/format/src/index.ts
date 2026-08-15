@@ -77,14 +77,44 @@ export {
   isArchived,
   isMirror,
   Located,
+  targetsOf,
+} from "./node.ts"
+export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
+
+/**
+ * The one map a node's facts live in, and the readings of it every face needs.
+ *
+ * What is exported is the VOCABULARY and the accessors, never a way to reach a
+ * key by hand: a consumer asks `markOf` or `listOf(node, "after")` rather than
+ * indexing `node.props`, for the reason this package exports `storedMarker`
+ * rather than a field name. `SYSTEM_KEYS` and `isSystemKey` are what a WRITER
+ * needs — the sibling PR's `set_prop` refuses a key olai reads, and it must ask
+ * that question of the same list ./parse.ts checks.
+ */
+export {
+  canonicalKeys,
+  DATE,
+  dateOf,
+  isEmptyProps,
+  isSystemKey,
+  listOf,
   MARKS,
+  markOf,
+  Props,
+  PropValue,
+  SINCE,
+  sinceOf,
+  STATUS,
   /** What a node's checkbox shows — one of the MARKS, as a schema, so the
    *  request that writes one, the keystroke that toggles one and the read that
    *  answers with one are one derivation of that list rather than five. */
   Status,
-  targetsOf,
-} from "./node.ts"
-export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
+  SYSTEM_KEYS,
+  textOf,
+  withProp,
+  withProps,
+} from "./props.ts"
+export type { HasProps, SystemKey } from "./props.ts"
 
 export {
   ancestorsOf,
@@ -287,3 +317,14 @@ export {
   stageOf,
 } from "./errors.ts"
 export type { ErrorCode, Stage } from "./errors.ts"
+
+/**
+ * The old record shape, and the only module entitled to read it.
+ *
+ * Exported so `@olai/server` can run the sweep at boot and so a test can prove
+ * the round trip; NOT because anything else should ever call it. What the fence
+ * (`packages/tests/props.test.ts`) enforces is the other half of that sentence:
+ * these two names may be imported, and the seven words they exist to migrate
+ * may not be spelled anywhere else.
+ */
+export { type FileResult, type Meaning, meaningOf, migrateOutline, migrateRecord, type RecordResult } from "./migrate.ts"

@@ -31,17 +31,16 @@ import {
   isMirror,
   type Located,
   type LocatedRegular,
-  MARKS,
   type Node,
-  type Status,
 } from "./node.ts"
+import { listOf, markOf, type Status } from "./props.ts"
 
 /** What a node's checkbox shows, re-exported rather than declared: it is one
- *  of `./node.ts`'s {@link MARKS}, and it lives beside that list because it is
- *  a fact about what a RECORD may carry. Here because every derivation below
- *  answers in it, and a consumer of a walk should not have to learn which
+ *  of `./props.ts`'s `MARKS`, and it lives beside that list because it is a
+ *  fact about what the `status` KEY may hold. Here because every derivation
+ *  below answers in it, and a consumer of a walk should not have to learn which
  *  module minted the word. */
-export { Status } from "./node.ts"
+export { Status } from "./props.ts"
 
 /**
  * A set of nodes and everything computed from it.
@@ -186,12 +185,13 @@ const statuses = (
 }
 
 /** What a record claims about itself, which IS its status — and `undefined`
- *  for one claiming nothing, the one spelling of absence this module has. Read
- *  in {@link MARKS} order, which is precedence: the three are mutually
- *  exclusive on disk, so it only decides what a set the validator has already
- *  condemned looks like. */
-export const storedMarker = (node: LocatedRegular["node"]): Status | undefined =>
-  MARKS.find((mark) => node[mark] !== undefined)
+ *  for one claiming nothing, the one spelling of absence this module has.
+ *
+ *  Re-exported rather than re-derived: `./props.ts`'s {@link markOf} reads the
+ *  `status` key, and the name every walk in this package already calls it by
+ *  is this one. A second reading here would be a second answer to what a
+ *  checkbox shows. */
+export const storedMarker = markOf
 
 /**
  * The children of a node that are TASKS, each with the mark that makes it one.
@@ -321,11 +321,11 @@ const orderings = (
 
   for (const { node } of nodes) {
     if (isMirror(node)) continue
-    for (const target of node.after ?? []) edge(node.id, named(target))
+    for (const target of listOf(node, "after")) edge(node.id, named(target))
   }
   for (const { node } of nodes) {
     if (isMirror(node)) continue
-    for (const target of node.blocks ?? []) edge(named(target), node.id)
+    for (const target of listOf(node, "blocks")) edge(named(target), node.id)
   }
   return after
 }

@@ -51,6 +51,7 @@ import {
   groupedOn,
 } from "./dates.ts"
 import { type Derived, storedMarker } from "./derive.ts"
+import { dateOf } from "./props.ts"
 import type { RegularNode } from "./node.ts"
 
 /**
@@ -78,9 +79,10 @@ import type { RegularNode } from "./node.ts"
  * with its target's date and its target's mark: a placement carries neither.
  */
 export const isOverdue = (node: RegularNode, today: string): boolean => {
-  if (node.date === undefined) return false
+  const scheduled = dateOf(node)
+  if (scheduled === undefined) return false
   const mark = storedMarker(node)
-  return (mark === "todo" || mark === "doing") && dayOf(node.date) < dayOf(today)
+  return (mark === "todo" || mark === "doing") && dayOf(scheduled) < dayOf(today)
 }
 
 /** One day ahead, and what is on it. The date is a HEADING here rather than a

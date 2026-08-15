@@ -37,6 +37,7 @@
  */
 
 import {
+  dateOf,
   type Derived,
   isMirror,
   MARKS,
@@ -207,10 +208,10 @@ export const writeVerbs = (
     // hold "one way to say no date" up.
     verbs.push({
       id: "set-date",
-      label: shown.node.date === undefined ? "Set date…" : "Change date…",
+      label: dateOf(shown.node) === undefined ? "Set date…" : "Change date…",
       does: { kind: "pick-date" },
     })
-    if (shown.node.date !== undefined) {
+    if (dateOf(shown.node) !== undefined) {
       verbs.push({
         id: "clear-date",
         label: "Clear date",

@@ -31,7 +31,7 @@
  */
 
 import { Sort } from "./changes.ts"
-import { Status } from "./node.ts"
+import { Status } from "./props.ts"
 import { Schema } from "effect"
 
 /** An id the request names. Spelled once so every op's `id` field carries the

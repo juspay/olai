@@ -43,6 +43,7 @@ import {
 } from "./derive.ts"
 import { datesOf, dayOf } from "./dates.ts"
 import { nothing } from "./write.ts"
+import { isSystemKey } from "./props.ts"
 import {
   isArchived,
   isMirror,
@@ -514,12 +515,18 @@ const holds = (at: LocatedRegular, clause: Clause): boolean => {
 }
 
 /** Whether a record carries a field — the WRITER's own rule for absence
- *  (./write.ts's `nothing`), asked as a question rather than restated. The four
- *  ways a field can hold nothing (`undefined`, `null`, `[]`, `""`) all say the
- *  same thing about the node, and a second list of them here is how `desc: ""`
- *  becomes a note to search for and no note to write. */
+ *  (./write.ts's `nothing`), asked as a question rather than restated. The ways
+ *  a field can hold nothing (`undefined`, `null`, `[]`, `""`, an empty map) all
+ *  say the same thing about the node, and a second list of them here is how
+ *  `desc: ""` becomes a note to search for and no note to write.
+ *
+ *  TWO PLACES ARE ASKED, because the record now has two: `desc` and `doc` are
+ *  fields of the struct, and the edges are keys of the map. Which is which is
+ *  read off `isSystemKey` rather than spelled a second time here — `has:` names
+ *  exactly the things a reader can select on, and where each of them LIVES is
+ *  ./props.ts's answer and not this grammar's. */
 const carries = (node: RegularNode, field: HasField): boolean =>
-  !nothing(node[field])
+  isSystemKey(field) ? !nothing(node.props?.[field]) : !nothing(node[field])
 
 const within = (day: string, clause: Extract<Clause, { kind: "date" }>): boolean =>
   (clause.from === null || day >= clause.from) &&

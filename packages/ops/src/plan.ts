@@ -38,7 +38,10 @@ import {
   isMirror,
   type Located,
   type LocatedRegular,
-  MARKS,
+  DATE,
+  dateOf,
+  isEmptyProps,
+  listOf,
   type MirrorNode,
   type Node,
   nodeNamed,
@@ -50,7 +53,11 @@ import {
   siblingsOf,
   type OutlineSet,
   type RegularNode,
+  SINCE,
+  STATUS,
   storedMarker,
+  withProp,
+  withProps,
   targetsOf,
   unfinishedUnder,
   UsageFailure,
@@ -179,8 +186,8 @@ export const plan = (
       return planEdit(
         scope,
         request.id,
-        (node) => withField(node, "date", request.date),
-        (node) => `date: ${node.title} -> ${node.date ?? "(cleared)"}`,
+        (node) => withKey(node, DATE, request.date),
+        (node) => `date: ${node.title} -> ${dateOf(node) ?? "(cleared)"}`,
       )
     case "move":
       return planMove(scope, request)
@@ -217,10 +224,15 @@ interface Scope {
   readonly context: Context
 }
 
-/** A field set to a value, or removed when the value is `null`. `undefined` is
+/** A FIELD set to a value, or removed when the value is `null`. `undefined` is
  *  how the format spells absent, and the writer omits it — so this is the one
- *  place "clear the date" turns into "there is no `date` key". */
-const withField = <K extends "desc" | "date">(
+ *  place "clear the note" turns into "there is no `desc` key".
+ *
+ *  It used to take `date` as well, and `date` is a property now: the pair below
+ *  is what the split cost, and it is the honest shape — the two live in two
+ *  places on the record, so one function pretending otherwise would only be
+ *  hiding which. */
+const withField = <K extends "desc">(
   node: RegularNode,
   field: K,
   value: string | null,
@@ -230,6 +242,18 @@ const withField = <K extends "desc" | "date">(
   else next[field] = value
   return next
 }
+
+/** The same, for a key of the props map: set, or taken out when the value is
+ *  `null`. `@olai/format`'s `withProp` is what decides that an empty value is a
+ *  removal, so "clear the date" has one answer and it is the format's. */
+const withKey = (
+  node: RegularNode,
+  key: string,
+  value: string | null,
+): RegularNode => ({
+  ...node,
+  props: withProp(node.props, key, value ?? undefined),
+})
 
 /**
  * The node an op names, in a file the op may write — the prologue every
@@ -709,8 +733,12 @@ const capturedNode = (
     ord: at.ord,
     title: capture.title,
   }
-  if (capture.mark !== undefined) node[capture.mark] = marker(scope, capture.mark)
-  if (capture.date !== undefined) node.date = capture.date
+  const props = withProps(undefined, [
+    [STATUS, capture.mark],
+    [SINCE, capture.mark === undefined ? undefined : instantFor(scope, capture.mark)],
+    [DATE, capture.date],
+  ])
+  if (!isEmptyProps(props)) node.props = props
   if (capture.desc !== undefined) node.desc = capture.desc
   return node
 }
@@ -791,7 +819,9 @@ const UNMARKED = {
  * the front of the value either way (`@olai/format`'s `dayOf`), so the time
  * costs a reader nothing and orders a day's finished work.
  *
- * `doing` and `todo` store `true` (resolved 2026-08-11, human). The symmetry
+ * `doing` and `todo` are stamped with NOTHING — they set `status` and leave
+ * `since` absent, which is the same sentence the old `true` said in the shape
+ * the record has now (resolved 2026-08-11, human). The symmetry
  * argument — three answers to one question, written by one op — loses to what a
  * date on a mark now MEANS: it puts the node on that day (docs/format.md's
  * Days). A stamped `todo` would file everything on the day it was captured, so
@@ -806,8 +836,8 @@ const UNMARKED = {
  * does a mark store", and the second one would be the one nobody remembers to
  * change.
  */
-const marker = (scope: Scope, mark: Status): string | true =>
-  mark === "done" ? scope.context.now() : true
+const instantFor = (scope: Scope, mark: Status): string | undefined =>
+  mark === "done" ? scope.context.now() : undefined
 
 const planMark = (
   scope: Scope,
@@ -843,14 +873,22 @@ const planMark = (
     )
   }
 
-  // Setting one mark CLEARS the others: a node carrying two is a record the
-  // format rejects, so this is not tidiness — it is what makes the write valid.
-  const next: Draft<RegularNode> = { ...node }
-  for (const other of MARKS) delete next[other]
+  // Setting a mark is setting TWO keys, always both — the state and the instant
+  // it was reached at — because leaving `since` behind is how a node ends up
+  // done at the moment it was last doing. Clearing the others is no longer a
+  // step: one `status` key held one mark, so there is nothing to clear, and the
+  // record the format used to reject (two marks at once) cannot be written.
+  //
   // Only the node being marked is touched — every other record in the file is
-  // re-emitted exactly as it was read, so a `true` or a day-only value
-  // elsewhere stays the text it was.
-  if (!undo) next[mark] = marker(scope, mark)
+  // re-emitted exactly as it was read, so a day-only value elsewhere stays the
+  // text it was.
+  const next: Draft<RegularNode> = {
+    ...node,
+    props: withProps(node.props, [
+      [STATUS, undo ? undefined : mark],
+      [SINCE, undo ? undefined : instantFor(scope, mark)],
+    ]),
+  }
 
   const summary = undo
     ? `${UNMARKED[mark]}: ${node.title}`
@@ -1352,7 +1390,7 @@ const carriedOff = (scope: Scope, node: RegularNode): string | undefined => {
   const kept: Array<string> = []
   const mark = scope.derived.status.get(node.id)
   if (mark !== undefined) kept.push(`its \`${mark}\` mark`)
-  if (node.date !== undefined) kept.push("its date")
+  if (dateOf(node) !== undefined) kept.push("its date")
   // The ATTACHED DOCUMENT is the same class as the mark and was quiet for one
   // review: a node carries one `doc`, so the survivor's own answer stands and
   // this one leaves the live outline with the record. A reader who put a file
@@ -2141,15 +2179,15 @@ const planEdges = (
   // one that was never there is the same — the refusal below catches a plan
   // that would write nothing.
   const drop = new Set(remove)
+  const previous = listOf(node, field)
   const next: Array<string> = []
-  for (const id of node[field] ?? []) {
+  for (const id of previous) {
     if (!drop.has(id)) next.push(id)
   }
   for (const id of add) {
     if (!next.includes(id)) next.push(id)
   }
 
-  const previous = node[field] ?? []
   if (
     previous.length === next.length &&
     previous.every((id, index) => id === next[index])
@@ -2165,9 +2203,10 @@ const planEdges = (
     )
   }
 
-  const draft: Draft<RegularNode> = { ...node }
-  if (next.length === 0) delete draft[field]
-  else draft[field] = next
+  const draft: Draft<RegularNode> = {
+    ...node,
+    props: withProp(node.props, field, next),
+  }
 
   return Result.succeed({
     files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, draft) }],

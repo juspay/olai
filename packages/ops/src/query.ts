@@ -33,7 +33,10 @@ import {
   type Found,
   isMirror,
   type LocatedRegular,
-  MARKS,
+  dateOf,
+  listOf,
+  markOf,
+  sinceOf,
   matching,
   type OutlineSet,
   type OutlineSummary,
@@ -143,8 +146,8 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
 const edgesOf = (
   node: LocatedRegular["node"],
 ): { see?: ReadonlyArray<string>; after?: ReadonlyArray<string> } => ({
-  ...(node.see === undefined || node.see.length === 0 ? {} : { see: node.see }),
-  ...(node.after === undefined || node.after.length === 0 ? {} : { after: node.after }),
+  ...(listOf(node, "see").length === 0 ? {} : { see: listOf(node, "see") }),
+  ...(listOf(node, "after").length === 0 ? {} : { after: listOf(node, "after") }),
 })
 
 // ── search ─────────────────────────────────────────────────────────────
@@ -221,15 +224,28 @@ export const search = (
 
 // ── one node, and what is under it ─────────────────────────────────────
 
-/** Whichever marks the record carries, from the format's list — at most one
- *  by the format's own rule, but read as a set so this cannot be the place a
- *  new mark is missing from. The SHAPE of what comes back is the floor's, taken
- *  off {@link Detail} itself rather than re-spelled here; this is the reading of
- *  one record against it. */
-const stampsOf = (node: LocatedRegular["node"]): Stamps =>
-  Object.fromEntries(
-    MARKS.flatMap((mark) => node[mark] === undefined ? [] : [[mark, node[mark]]]),
-  )
+/**
+ * The mark the record carries, as the ANSWER has always spelled it: a key named
+ * for the mark, holding the instant it was reached or `true` for a state that
+ * declines to say.
+ *
+ * THE ONE PLACE THE TWO SHAPES MEET, and it is worth saying plainly. A record
+ * holds `status` and `since` in its props map (`@olai/format`'s `props.ts`);
+ * `read_node` answers `done`, `doing`, `todo`, because that is what it has
+ * answered since before there were properties and an agent reading it is
+ * entitled to go on reading it. This function is the whole of the difference,
+ * and it is total in both directions — a `since` becomes the value, an absent
+ * `since` becomes `true`, which is exactly the pair the migration reads the
+ * other way (`@olai/format`'s `migrate.ts`).
+ *
+ * At most one key comes back, and there is no longer a rule making that true:
+ * one `status` holds one mark. The SHAPE is the floor's, taken off
+ * {@link Detail} itself rather than re-spelled here.
+ */
+const stampsOf = (node: LocatedRegular["node"]): Stamps => {
+  const mark = markOf(node)
+  return mark === undefined ? {} : { [mark]: sinceOf(node) ?? true }
+}
 
 export const detail = (derived: Derived, id: string): Detail | null => {
   const located = derived.byId.get(id)
@@ -241,7 +257,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
   const placed = placedUnder(derived, id)
   return {
     ...foundOf(derived, regular),
-    ...(node.date === undefined ? {} : { date: node.date }),
+    ...(dateOf(node) === undefined ? {} : { date: dateOf(node) }),
     ...(node.desc === undefined ? {} : { desc: node.desc }),
     ...stampsOf(node),
     // AS WRITTEN, sigil and all: `#alice` and `@alice` are two tags, so a list
@@ -325,7 +341,7 @@ export const subtree = (
     const children = countedChildren(derived, at.node.id)
     return {
       ...foundOf(derived, at),
-      ...(at.node.date === undefined ? {} : { date: at.node.date }),
+      ...(dateOf(at.node) === undefined ? {} : { date: dateOf(at.node) }),
       ...(at.node.desc === undefined ? {} : { desc: at.node.desc }),
       children: left <= 0 ? [] : children.map((child) => walk(child, left - 1)),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),

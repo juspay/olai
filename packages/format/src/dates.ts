@@ -63,6 +63,7 @@ import {
   storedMarker,
 } from "./derive.ts"
 import { fileKind, isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
+import { dateOf, sinceOf } from "./props.ts"
 
 /** How many characters of an ISO value name the day, and the month. A
  *  datetime is a day plus a time, so the day is the prefix they share. */
@@ -162,9 +163,15 @@ export interface Dated extends Occasioned {
  */
 export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
   const dates: Array<Occasioned> = []
-  if (node.date !== undefined) dates.push({ occasion: "date", date: node.date })
-  if (storedMarker(node) === "done" && typeof node.done === "string") {
-    dates.push({ occasion: "done", date: node.done })
+  const scheduled = dateOf(node)
+  if (scheduled !== undefined) dates.push({ occasion: "date", date: scheduled })
+  // `since` is WHEN the mark was reached, whichever mark it is, and only the
+  // `done` one is read here — the rule this file has argued since 2026-08-11,
+  // unchanged by the two keys replacing three fields. A `since` on a `doing`
+  // stays on disk and stays out of the journal.
+  const reached = sinceOf(node)
+  if (storedMarker(node) === "done" && reached !== undefined) {
+    dates.push({ occasion: "done", date: reached })
   }
   return dates
 }

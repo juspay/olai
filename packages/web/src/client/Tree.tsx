@@ -61,7 +61,7 @@
  * handed here.
  */
 
-import { isOverdue, type Row, shownRecord } from "@olai/format"
+import { dateOf, isOverdue, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 
@@ -505,7 +505,7 @@ function Branch(props: {
                 from={shows().file}
                 status={props.row.status}
                 progress={props.row.progress}
-                date={shows().node.date}
+                date={dateOf(shows().node)}
                 overdue={isOverdue(shows().node, today())}
                 onEdit={clickTitle}
                 onPickDate={openPicker}
@@ -531,7 +531,7 @@ function Branch(props: {
         {(shows) => (
           <div class={PAST_CONTROLS}>
             <DatePicker
-              date={shows().node.date}
+              date={dateOf(shows().node)}
               onPick={(day) => applying(datePick(shows().node.id, day), undo.record)}
               onClose={() => setPicking(false)}
             />

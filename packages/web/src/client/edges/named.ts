@@ -26,7 +26,7 @@
  * there is something to look up.
  */
 
-import { type Derived, nodeNamed, type RegularNode } from "@olai/format"
+import { type Derived, listOf, nodeNamed, type RegularNode } from "@olai/format"
 import type { Accessor } from "solid-js"
 
 import type { NodeRef } from "../NodeRefs.tsx"
@@ -37,8 +37,8 @@ export const namedBy = (
   relation: Relation,
   indexes: Accessor<Derived | undefined>,
 ): ReadonlyArray<NodeRef> => {
-  const named = node[relation]
-  if (named === undefined || named.length === 0) return []
+  const named = listOf(node, relation)
+  if (named.length === 0) return []
   const at = indexes()
   if (at === undefined) return []
   return named.map((id) => {

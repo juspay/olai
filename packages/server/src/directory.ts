@@ -22,6 +22,8 @@ import * as Store from "@olai/store"
 import { Effect } from "effect"
 import { resolve } from "node:path"
 
+import { migrateDirectory } from "./migrate.ts"
+
 export interface Directory {
   /** The directory, resolved. Resolved rather than as typed: it is what every
    *  path answer downstream is relative to, and what the log says we opened. */
@@ -35,6 +37,14 @@ export const openDirectory = (root: string) =>
   Effect.gen(function*() {
     const resolved = resolve(root)
     yield* Effect.annotateLogsScoped({ root: resolved })
+    // BEFORE the store, and that order is as load-bearing as the one above it —
+    // for a different reason, and a harder one to see. The store decodes with
+    // the CURRENT schema, so a directory still writing a node's facts as record
+    // fields does not parse at all: every outline would arrive `broken` and the
+    // snapshot would be null. The flip has to happen while nothing is holding
+    // the files, which is here, once, on the first start of a binary that has
+    // it (./migrate.ts). Every start after that finds nothing to do.
+    yield* migrateDirectory(resolved)
     const directory: Directory = {
       root: resolved,
       store: yield* Store.make({ root: resolved, codec }),

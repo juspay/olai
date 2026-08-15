@@ -31,6 +31,7 @@
  */
 
 import { isMirror, type Located, type Node } from "./node.ts"
+import { canonicalKeys, type Props } from "./props.ts"
 
 /**
  * Which fields a record must carry WHATEVER it holds — docs/format.md's
@@ -64,15 +65,9 @@ const ORDER = [
   "ord",
   "title",
   "mirror",
-  "done",
-  "doing",
-  "todo",
-  "date",
+  "props",
   "desc",
   "doc",
-  "after",
-  "blocks",
-  "see",
 ] as const
 
 /**
@@ -95,7 +90,17 @@ const ORDER = [
  */
 export const nothing = (value: unknown): boolean =>
   value === undefined || value === null ||
-  (Array.isArray(value) && value.length === 0) || value === ""
+  (Array.isArray(value) && value.length === 0) || value === "" ||
+  // A map with no keys is the same sentence one level in: a node whose last
+  // property was removed has no properties, and `{"props":{}}` against no
+  // `props` is the `{"after":[]}` conflict-about-nothing that this rule exists
+  // to keep off disk. Every other object is a value the format has no field
+  // for, and the schema is what refuses those.
+  isEmptyMap(value)
+
+const isEmptyMap = (value: unknown): boolean =>
+  typeof value === "object" && value !== null && !Array.isArray(value) &&
+  Object.keys(value).length === 0
 
 /**
  * One record, as one line — no trailing newline, because who separates lines
@@ -118,9 +123,37 @@ export const serializeNode = (node: Node): string => {
   const record: Record<string, unknown> = {}
   for (const field of ORDER) {
     const value = (node as Record<string, unknown>)[field]
-    if (required.has(field) || !nothing(value)) record[field] = value
+    if (nothing(value)) {
+      if (required.has(field)) record[field] = value
+      continue
+    }
+    record[field] = field === "props" ? ordered(value as Props) : value
   }
   return JSON.stringify(record)
+}
+
+/**
+ * The map, re-keyed in canonical order — the same rule {@link ORDER} is for the
+ * record, one level in.
+ *
+ * A map has no declaration order to fall back on: `JSON.stringify` emits the
+ * insertion order of whatever object it is handed, which for a record read off
+ * disk and edited is the order the LAST writer used. Two files that mean the
+ * same thing would differ byte for byte, and a line-based git merge would
+ * conflict over a shuffle — which is the one thing this format's whole bet
+ * rests on not happening.
+ *
+ * A key holding NOTHING is dropped here as well, for the reason an optional
+ * field is: `./props.ts`'s `withProp` already refuses to store one, and this is
+ * the gate that makes it true of a map that arrived some other way.
+ */
+const ordered = (props: Props): Record<string, unknown> => {
+  const out: Record<string, unknown> = {}
+  for (const key of canonicalKeys(props)) {
+    const value = props[key]
+    if (!nothing(value)) out[key] = value
+  }
+  return out
 }
 
 /**

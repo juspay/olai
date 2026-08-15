@@ -55,11 +55,13 @@
 
 import {
   dailyNotePathFor,
+  dateOf as dateProp,
   type Derived,
   INBOX,
   inboxIn,
   isDay,
   isMirror,
+  listOf,
   type Located,
   type LocatedRegular,
   nodeNamed,
@@ -838,7 +840,7 @@ const edgesOf = (
 ): ReadonlyArray<Edit> => {
   const located = derived.byId.get(edit.id)
   if (located === undefined || isMirror(located.node)) return []
-  const held = located.node[edit.verb] ?? []
+  const held = listOf(located.node, edit.verb)
   const added = (edit.add ?? []).filter((id) => !held.includes(id))
   const removed = (edit.remove ?? []).filter((id) => held.includes(id))
   if (added.length === 0 && removed.length === 0) return []
@@ -995,7 +997,7 @@ const textOf = (
 const dateOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   const located = derived.byId.get(id)
   if (located === undefined || isMirror(located.node)) return []
-  return [{ verb: "date", id, date: located.node.date ?? null }]
+  return [{ verb: "date", id, date: dateProp(located.node) ?? null }]
 }
 
 /**
