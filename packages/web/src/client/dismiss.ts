@@ -3,11 +3,12 @@
  *
  * Every dismissable surface in this client had its own copy of them — the two
  * header popovers through `./popover.ts`, a row's expanded note through
- * `./note/expand.ts`, the chat's session picker (`chat/Sessions.tsx`), and the
- * `•••` menu, which had a fourth. They agreed about almost everything and
- * drifted where they did not: one grew Escape, one never had it, one got its
- * click-away wrong in a way nothing could see, and one answered neither gesture
- * at all. That is the argument for one spelling of it.
+ * `./note/expand.ts`, and the `•••` menu, which had a fourth. They agreed about
+ * almost everything and drifted where they did not: one grew Escape, one never
+ * had it, and one got its click-away wrong in a way nothing could see. That is
+ * the argument for one spelling of it. The chat's session picker
+ * (`chat/Sessions.tsx`) is the fifth caller and the odd one: it had no copy,
+ * because it answered neither gesture at all.
  *
  * WHICH panel a gesture is for, when more than one is up, is `./topmost.ts` —
  * one stack, and only the last thing opened answers. Every caller here is on it

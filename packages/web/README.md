@@ -774,11 +774,13 @@ this client draws itself.** Each had its own copy of "a pointer down outside
 it, capture phase" — these two popovers, a row's expanded note
 (`note/expand.ts`), and the `•••` menu, which had a fourth — and they agreed
 about almost everything and drifted where they did not. `dismiss.ts` holds what
-is common (which root counts as inside, and only listening while the panel is
-up) and leaves each caller what "shut" MEANS: focus back on the trigger here,
-nothing to remember there. It is built on Kobalte's own `createInteractOutside`
-/ `createEscapeKeyDown` rather than on a listener pair of ours, so these shut by
-the same code the one real primitive (the `•••` menu) shuts by — and a touch,
+is common — which root counts as inside, only listening while the panel is up,
+and (since the picker made it two callers) the caret going back to the control
+that opened it when a KEY asked — and leaves each caller the rest of what "shut"
+means: whether the trigger toggles instead, whether anything is remembered. It
+is built on Kobalte's own `createInteractOutside` / `createEscapeKeyDown`
+rather than on a listener pair of ours, so these shut by the same code the one
+real primitive (the `•••` menu) shuts by — and a touch,
 which every copy here handled by never considering it, defers to the `click`
 that follows. The note gained Escape by being deduped: it is the model that note
 already keeps, where expanding and editing are one state you leave at once.
@@ -792,8 +794,8 @@ deferred to by it, and **one Escape shut both** — not two dismissals, one
 keystroke landing twice. Every open panel takes a ticket from `topmost.ts` now
 and only the highest ticket answers, so a second Escape reaches the next one
 down, which is what a person pressing it twice means. It is a module of its own
-rather than a few lines inside `dismiss.ts` because the menu wants the ORDER and
-none of the gestures — one consumer that needs only half is what graduates a
+rather than a few lines inside `dismiss.ts` because three panels want the ORDER
+and none of the gestures — one consumer that needs only half is what graduates a
 half, the same argument `arriving.ts` was extracted on. The stack is ours rather
 than Kobalte's for a reason worth writing down: `layerStack` is not exported
 from `@kobalte/core` at any subpath, its only public door is a COMPONENT that
