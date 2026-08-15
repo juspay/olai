@@ -96,14 +96,20 @@ const GLYPHS: Record<RowOf, Drawn> = {
   outline: { box: "0 0 16 16", shape: OutlinePaths },
 }
 
-/** One row's glyph. `data-glyph` is the fact a test reads; the shape is the
- *  fact a reader reads, and neither is the colour it happens to be painted. */
-export function Glyph(props: { readonly of: RowOf }) {
+/** One kind's glyph. `data-glyph` is the fact a test reads; the shape is the
+ *  fact a reader reads, and neither is the colour it happens to be painted.
+ *
+ *  The SIZE is the site's and not the drawing's, which is what the second
+ *  consumer made obvious: a tree row is 0.875rem of glyph against 0.8125rem of
+ *  type, and a rail button is 1rem of glyph beside four other 1rem buttons.
+ *  Same drawing, two rooms. The default is the tree's, because that is where
+ *  three of the four are drawn. */
+export function Glyph(props: { readonly of: RowOf; readonly size?: string }) {
   const glyph = (): Drawn => GLYPHS[props.of]
 
   return (
     <svg
-      class="size-3.5 shrink-0"
+      class={`${props.size ?? "size-3.5"} shrink-0`}
       viewBox={glyph().box}
       fill="currentColor"
       aria-hidden="true"

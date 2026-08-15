@@ -115,23 +115,29 @@ const ENTRY_SHAPE =
   "no-underline hover:bg-rule/50 aria-[current=page]:bg-accent/15 " +
   "aria-[current=page]:text-accent aria-[current=page]:font-semibold md:min-h-0"
 
+/** The space between the things on a row of the tree — a glyph, a name, and
+ *  the mark when a file could not be read.
+ *
+ *  ONE gap for both kinds of row, spelled once, because the two agreeing is a
+ *  promise and not a coincidence: a folder's name and a file's name are read
+ *  as one column of names, and a folder row that took a different gap would
+ *  put its names a couple of pixels off every file's for as long as nobody
+ *  looked. Named for the same reason `./touch.ts` names the tree's
+ *  `GUTTER_GAP` rather than repeating it down the row: a gap that is written
+ *  twice is a rule, and a rule is what nothing enforces. */
+const ROW_GAP = "gap-1.5"
+
 /** One file entry. Workflowy-quiet: soft hover, a wash when current.
  *
- *  The gap is HERE and not in the shape above, because it is the file row that
- *  has more than one thing on it — its kind's glyph (`./file/icons.tsx`), its
- *  name, and the mark when it could not be read. One gap for the row rather
- *  than a margin per thing, which is the arithmetic the tree's own gutter is
- *  built on (`./touch.ts`). The agenda's entry is the same SHAPE and not this,
- *  so nothing about that row moves; `Trash` borrows this one and has a single
- *  child, where a gap is inert. */
-const ENTRY = `${ENTRY_SHAPE} gap-1.5 text-ink`
+ *  The gap is HERE and not in the shape above, because it is the tree's rows
+ *  that have more than one thing on them. The agenda's entry is the same
+ *  SHAPE and not this, so nothing about that row moves; `Trash` borrows this
+ *  one and has a single child, where a gap is inert. */
+const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP} text-ink`
 
-/** A directory row: folds, does not navigate. The gap is the file row's
- *  (`ENTRY`), so a folder's name and a file's name sit the same distance from
- *  the glyph in front of them — the tree reads as one column of names and not
- *  two that nearly line up. */
+/** A directory row: folds, does not navigate. */
 const DIR =
-  `flex ${TARGET} items-center gap-1.5 rounded-sm px-1 py-0.5 text-[0.8125rem] ` +
+  `flex ${TARGET} items-center ${ROW_GAP} rounded-sm px-1 py-0.5 text-[0.8125rem] ` +
   "leading-snug text-muted hover:bg-rule/60 hover:text-ink md:min-h-0"
 
 interface TreeView {

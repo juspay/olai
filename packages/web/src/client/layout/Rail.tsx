@@ -26,6 +26,7 @@ import type { Agenda } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
 import { type Face, markOf, unchanged } from "../agenda/owed.ts"
+import { Glyph } from "../file/icons.tsx"
 import type { Route } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
@@ -111,9 +112,11 @@ export function Rail(props: {
           props.go({ kind: "outline", file: null })
         }}
       >
-        <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
-          <path d="M2.5 3.5a.75.75 0 0 1 .75-.75h9.5a.75.75 0 0 1 0 1.5h-9.5a.75.75 0 0 1-.75-.75zm0 4a.75.75 0 0 1 .75-.75h9.5a.75.75 0 0 1 0 1.5h-9.5A.75.75 0 0 1 2.5 7.5zm0 4a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5h-6a.75.75 0 0 1-.75-.75z" />
-        </svg>
+        {/* The tree's own outline glyph (../file/icons.tsx), at the rail's
+            size. Both faces of this column already agree about what is OWED;
+            they agree about what an OUTLINE is for the same reason — a reader
+            who collapses the column has not gone somewhere else. */}
+        <Glyph of="outline" size="size-4" />
       </RailButton>
 
       <RailButton
@@ -122,9 +125,8 @@ export function Rail(props: {
         title="documents"
         onClick={() => setSidebarOpen(true)}
       >
-        <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
-          <path d="M4 1.75A.75.75 0 0 1 4.75 1h4.69c.2 0 .39.08.53.22l3.81 3.81c.14.14.22.33.22.53v8.69A.75.75 0 0 1 13.25 15h-8.5A.75.75 0 0 1 4 14.25V1.75zm5.25.75v2.69c0 .41.34.75.75.75h2.69L9.25 2.5z" />
-        </svg>
+        {/* And the tree's document glyph, for the same reason. */}
+        <Glyph of="document" size="size-4" />
       </RailButton>
     </div>
   )
