@@ -9,7 +9,7 @@
  * field dropped from a search hit would fail nothing over there.
  */
 
-import type { OutlineSet } from "@olai/format"
+import { Found, type OutlineSet } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
 import { setOf } from "./fixtures.testlib.ts"
@@ -36,6 +36,32 @@ const LEDGER = (): OutlineSet =>
   })
 
 const at = () => index(LEDGER())
+
+/**
+ * EVERY field {@link Found} declares is one this layer actually fills.
+ *
+ * The floor's record fields are all OPTIONAL, so a field declared there and
+ * never produced by `foundOf` type-checks clean everywhere and is silently
+ * absent from every answer — which is precisely how a field once reached an
+ * agent through `search_nodes` and was dropped on the way to the palette
+ * (`@olai/format`'s `searching.ts` header). `carriedOf`'s list and `Found`'s
+ * are two hand-written lists of the same three fields; this is the cheap thing
+ * that fails when they stop agreeing, and it names the field when it does.
+ */
+test("a node carrying everything produces every field `Found` declares", () => {
+  const at = index(setOf({
+    "roadmap.olai": [
+      `{"id":"top","ord":"a0","title":"Top"}`,
+      `{"id":"all","parent":"top","ord":"a0","title":"carries everything","todo":true,` +
+      `"see":["top"],"after":["top"],"custom":{"pr":"https://github.com/juspay/olai/pull/192"}}`,
+    ].join("\n"),
+  }))
+  // A child in a node's list is a plain `Found` — no `matched`, which is the
+  // query's fact rather than the record's.
+  const carrying = detail(at, "top")?.children[0]
+  expect(carrying?.id).toBe("all")
+  expect(Object.keys(carrying ?? {}).sort()).toEqual(Object.keys(Found.fields).sort())
+})
 
 describe("the edges a node carries", () => {
   test("a search hit carries `after` and `see`, and omits what is not there", () => {
@@ -81,21 +107,22 @@ describe("the properties a node carries", () => {
 
   /** THE HIT, which is the point of the field being on `Found` at all: a board
    *  asking "every lane at review" is one call, not one call and a `read_node`
-   *  per row to see the fact the query already matched on. */
-  test("a search hit answers the map too, verbatim and uncut", () => {
-    const hit = search(at(), { text: "indicators" }).hits[0]
-    expect(hit).toMatchObject({
+   *  per row to see the fact the query already matched on.
+   *
+   *  Both ways of reaching the node in ONE test, because they are one path — a
+   *  word and a `prop:` clause select through the same `matching`, and what a
+   *  hit then carries is `foundOf`'s answer either way. What the second half
+   *  pins is the round trip the field exists to remove, not a second branch. */
+  test("a search hit answers the map, verbatim and uncut — found by word or by property", () => {
+    expect(search(at(), { text: "indicators" }).hits[0]).toMatchObject({
       id: "git",
       custom: { pr: "https://github.com/juspay/olai/pull/176", agent: "claude-opus" },
     })
-  })
-
-  test("a hit found BY a property carries the properties beside it", () => {
     // The orchestration board's own query: select by the agent, and the answer
-    // already holds the PR — the round trip this field exists to remove.
-    const hits = search(at(), { text: "prop:agent=claude-opus" }).hits
-    expect(hits.map((hit) => hit.id)).toEqual(["git"])
-    expect(hits[0]?.custom?.["pr"]).toBe("https://github.com/juspay/olai/pull/176")
+    // already holds the PR.
+    const byProp = search(at(), { text: "prop:agent=claude-opus" }).hits
+    expect(byProp.map((hit) => hit.id)).toEqual(["git"])
+    expect(byProp[0]?.custom?.["pr"]).toBe("https://github.com/juspay/olai/pull/176")
   })
 
   test("a hit for a node carrying none says nothing, as its read does", () => {

@@ -164,11 +164,13 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
 const carriedOf = (
   node: LocatedRegular["node"],
 ): Pick<Found, "see" | "after" | "custom"> => {
+  // Pruned first, so what `nothing` is asked about is what the file would hold:
+  // a map of keys that all hold nothing is `{}`, and `{}` is nothing.
   const custom = heldCustom(node.custom)
   return {
     ...(nothing(node.see) ? {} : { see: node.see }),
     ...(nothing(node.after) ? {} : { after: node.after }),
-    ...(custom === undefined ? {} : { custom }),
+    ...(nothing(custom) ? {} : { custom }),
   }
 }
 

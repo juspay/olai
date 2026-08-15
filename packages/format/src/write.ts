@@ -28,6 +28,16 @@
  * The other half of "one spelling" is {@link nothing}: an optional field that
  * holds nothing is not written at all, so no writer can put `null`, `[]` or `""`
  * into a file where the format says the field is simply absent.
+ *
+ * THAT HALF OUTGREW "writing", and the header should say so rather than leave
+ * a reader to discover it. {@link nothing} and {@link heldCustom} — the same
+ * rule for the one field with an inside — are what "absent" MEANS in this
+ * format, and three readers ask them: this file, so nothing absent reaches a
+ * file; `./filter.ts`, so `has:` and `prop:` do not find what a file would not
+ * hold; and `@olai/ops`, so an ANSWER leaves out exactly what the line on disk
+ * leaves out. They are the only things here on the package's surface, and they
+ * are on it because a second copy of the rule is how a value becomes a thing to
+ * search for and no thing to write.
  */
 
 import { type Custom, type CustomValue, customKeys } from "./custom.ts"
@@ -135,8 +145,14 @@ export const serializeNode = (node: Node): string => {
 }
 
 /**
- * The `custom` map a record actually HOLDS: canonical key order, no key holding
- * nothing — and `undefined` for a map that says nothing at all.
+ * The `custom` map a record actually HOLDS: canonical key order, and no key
+ * holding nothing.
+ *
+ * EMPTY for a record that holds none, which is `./custom.ts`'s `customOf`
+ * convention and not a second one — and it means this function answers only
+ * what the map holds, leaving "does that amount to anything" to {@link nothing}
+ * above, which already says an empty map is nothing. A caller asks the two in
+ * sequence; neither answers the other's question.
  *
  * The one field whose VALUE has an inside, so the two rules above it — one
  * spelling of absence, one spelling of a record — have to be applied one level
@@ -156,20 +172,20 @@ export const serializeNode = (node: Node): string => {
  * would hold by asking the module that decides what the file holds, rather than
  * by carrying its own copy of the rule.
  *
- * Pruning is what the emptiness test above then reads: a map whose every key
- * held nothing is `undefined` here, so it must not reach disk as
- * `{"custom":{}}` and cannot reach an answer as one either.
+ * Pruning happens BEFORE that test, which is the order that matters: a map
+ * whose every key held nothing comes back `{}` here, so `nothing` calls it
+ * nothing, and it reaches neither disk as `{"custom":{}}` nor an answer as one.
  */
-export const heldCustom = (value: unknown): Custom | undefined => {
-  if (value === undefined || value === null || typeof value !== "object") return undefined
-  if (Array.isArray(value)) return undefined
+export const heldCustom = (value: unknown): Custom => {
+  if (value === undefined || value === null || typeof value !== "object") return {}
+  if (Array.isArray(value)) return {}
   const custom = value as Custom
   const out: Record<string, CustomValue> = {}
   for (const key of customKeys(custom)) {
     const held = custom[key]
     if (held !== undefined && !nothing(held)) out[key] = held
   }
-  return Object.keys(out).length === 0 ? undefined : out
+  return out
 }
 
 /**
