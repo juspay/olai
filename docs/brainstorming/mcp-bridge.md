@@ -7,9 +7,10 @@ the same measurement taken again on both sides of the change, because a price
 quoted once is a claim and a price quoted twice is a receipt.
 
 **The headline is that one of the two numbers did not move, and the audit's
-reading of it was wrong.** The descriptors halve, the second parse goes away
-entirely, and memory drops by 3%. What follows says why, and the experiment that
-settles it takes ten seconds to repeat.
+reading of it was wrong.** The descriptors halve and the second parse goes away
+entirely; memory drops by about 2% of the pair, which is barely outside the
+noise. What follows says why, and the experiment that settles it takes ten
+seconds to repeat.
 
 ---
 
@@ -22,9 +23,9 @@ are the store and the surface and nothing else.
 
 | | master: two stores | this branch: attached |
 | --- | --- | --- |
-| `olai web` RSS | 219.9 MiB | 218.6 MiB |
-| `olai mcp` RSS | 224.6 MiB | **211.7 MiB** |
-| **together** | **444.5 MiB** | **430.2 MiB** (−3%) |
+| `olai web` RSS | 215.9 MiB | 223.1 MiB |
+| `olai mcp` RSS | 225.8 MiB | **208.3 MiB** |
+| **together** | **441.7 MiB** | **431.5 MiB** |
 | `olai web` open fds | 1063 | 1065 |
 | `olai mcp` open fds | 1062 | **14** |
 | **together** | **2125** | **1079** (−49%) |
@@ -33,6 +34,14 @@ are the store and the surface and nothing else.
 
 Re-sampled six seconds later and unchanged, which is the point about the
 descriptors: they are HELD, not transient.
+
+**Read the memory column with its noise**, because it is the smaller number of
+the two and the honest way to report it. RSS moves a few MiB between runs of the
+same binary — a second pass of both rows put master at 444.5 MiB together and
+this branch at 430.2 — so the WEB row's apparent 7 MiB rise is nothing, and the
+only figure that survives repetition is the `olai mcp` process being **~15 MiB
+lighter** when it holds no store. The descriptor column has no such spread: it
+is 1062 or it is 14.
 
 The audit's own numbers on its own machine were 209 MB and 1050 fds per process.
 The absolute memory differs (a different machine, a later Bun); the SHAPE is
@@ -53,7 +62,7 @@ adds about 13 MiB of heap on top of it. Attaching retires the corpus's share and
 cannot touch the interpreter's, because an attached process is still a process:
 it still loads effect, the MCP SDK and the surface.
 
-That is worth stating plainly rather than quietly reporting a 3% win, because it
+That is worth stating plainly rather than quietly reporting a 2% win, because it
 corrects what the number was ever evidence FOR. **The second store was never
 mostly a memory cost.** It was a descriptor cost, a parse cost, and a
 consistency cost, and those are the three that moved.

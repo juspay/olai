@@ -200,7 +200,6 @@ export const serveTools = (options: McpServeOptions) =>
  *  shapes differ by. */
 type Face = Pick<FaceOptions, "tools" | "transport">
 
-
 /**
  * ATTACHED: the MCP face over somebody else's surface, and nothing else in the
  * process.
