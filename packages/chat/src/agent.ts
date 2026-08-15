@@ -105,6 +105,9 @@ import {
   modelPickerIn,
   NEW_SESSION_META,
   SDK_MESSAGE,
+  STEER_METHOD,
+  STEER_WHEN_IDLE,
+  steeringIn,
   toolNameIn,
 } from "./interpret.ts"
 import * as Kolu from "./kolu.ts"
@@ -134,6 +137,23 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
     return this.why
   }
 }
+
+/**
+ * What became of a steer — three answers, because they want three different
+ * things done and only one of them is "it worked".
+ *
+ *   - `taken` — the message is in the running turn. Nothing else to do; what
+ *     the agent makes of it arrives on the transcript like everything else.
+ *   - `idle` — the agent had no turn to steer. It has NOT taken the message
+ *     (that is what {@link ./interpret.ts}'s `STEER_WHEN_IDLE` asks for), so
+ *     the caller sends it as an ordinary prompt. This is the race and not the
+ *     ordinary path: olai steers only while it believes a turn is running, and
+ *     the turn can settle between the two.
+ *   - `unsupported` — this agent has no steering at all, so there is no way to
+ *     reach the turn in flight. Nothing was sent, and the caller is the one
+ *     that owes a person their words back.
+ */
+export type Steered = "taken" | "idle" | "unsupported"
 
 export interface Options {
   /** The executable to run. `OLAI_ACP_AGENT`, or the adapter nix baked in. */
@@ -170,6 +190,16 @@ export interface Agent {
    *  …) — the turn's END is a return value rather than an event, because the
    *  caller that asked is the one waiting. */
   readonly prompt: (text: string) => Effect.Effect<string, AgentGone>
+  /**
+   * Put a message INTO the turn already running — see {@link Steered} for the
+   * three things that can come back.
+   *
+   * The other half of {@link prompt}, and deliberately not a second prompt: a
+   * `session/prompt` sent mid-turn is queued by the agent and reached when the
+   * running turn is over, which is waiting with extra steps. This one is
+   * injected, so a person can redirect an agent that is already working.
+   */
+  readonly steer: (text: string) => Effect.Effect<Steered, AgentGone>
   /** Stop the turn in flight.
    *
    *  A notification, so there is nothing to WAIT for — but there is very much
@@ -227,6 +257,11 @@ interface Live {
   readonly connection: ClientConnection
   readonly canList: boolean
   readonly canLoad: boolean
+  /** Whether a message may be put into a turn that is already running — the
+   *  steering extension, read off `initialize` ({@link steeringIn}). A `false`
+   *  here is what turns a mid-turn send into a row marked unsent rather than a
+   *  call to a method the agent does not have. */
+  readonly canSteer: boolean
 }
 
 export const make = (options: Options): Effect.Effect<Agent, never, never> =>
@@ -710,6 +745,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           connection,
           canList: capabilities?.sessionCapabilities?.list != null,
           canLoad: capabilities?.loadSession === true,
+          // Off `_meta` rather than `agentCapabilities`, because that is where
+          // the steering extension advertises itself: it is an extension, and
+          // the capabilities struct is the protocol proper's.
+          canSteer: steeringIn(initialized._meta),
         }
       })
 
@@ -970,6 +1009,45 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         })
       )
 
+    /**
+     * The steering half of {@link prompt}: hand the running turn something
+     * more to work with.
+     *
+     * It takes a DEADLINE where a prompt takes none, and the two are not the
+     * same kind of wait: a prompt is a person waiting on a model, and this is
+     * an injection the agent either accepts or does not — it answers as soon
+     * as the message is on the SDK's input, long before the turn does anything
+     * with it. So a steer that has not been answered in the boot window is not
+     * a slow turn, it is an agent that has stopped listening, and the words
+     * belong back in front of the person who typed them rather than in a call
+     * nobody is going to answer.
+     *
+     * The outcome is read POSITIVELY: `injected` is the only thing that counts
+     * as taken. Everything else — `promptRequired`, a legacy `startedNewTurn`,
+     * a value from a future version of the extension — is `idle`, which sends
+     * the message as an ordinary prompt. That is the safe direction: the worst
+     * case is a message the agent gets twice-over as its own next turn, where
+     * reading an unknown outcome as "taken" would be a message nobody has.
+     */
+    const steer = (text: string): Effect.Effect<Steered, AgentGone> =>
+      withSession((at, id) =>
+        !at.canSteer ? Effect.succeed<Steered>("unsupported") : Effect.map(
+          ask(
+            at.connection,
+            STEER_METHOD,
+            {
+              sessionId: id,
+              prompt: [{ type: "text", text }],
+              _meta: STEER_WHEN_IDLE,
+            },
+          ),
+          (answered) =>
+            (answered as { readonly outcome?: unknown } | null)?.outcome === "injected"
+              ? "taken"
+              : "idle",
+        )
+      )
+
     const cancel = Effect.suspend(() => {
       const at = live
       const id = session
@@ -1003,6 +1081,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     return {
       boot,
       prompt,
+      steer,
       cancel,
       newSession: withLive((at) =>
         Effect.gen(function*() {

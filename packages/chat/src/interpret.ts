@@ -112,6 +112,62 @@ export const toolNameIn = (
     : null
 }
 
+// ── steering a turn that is already running ────────────────────────────
+
+/**
+ * The request that puts a message INTO the turn already in flight, rather than
+ * behind it.
+ *
+ * A `session/prompt` sent while a turn runs is not this: the adapter enqueues
+ * it and the agent reaches it when the running turn is over, which is the same
+ * waiting olai used to do for itself with the same words held out of sight.
+ * This one is delivered at the SDK's `now` priority — it pre-empts the current
+ * generation and lands between the turn's own steps — so what a person typed
+ * reaches the model that is working, which is the whole point of typing it
+ * then.
+ *
+ * An EXTENSION, hence the leading underscore, and named for the agreed ACP
+ * steering wire protocol rather than for one adapter — but it is read here
+ * with everything else that is a bet on the agent, because a bet it is:
+ * {@link steeringIn} is the only thing that says whether the agent on the
+ * other end has this at all, and an agent that does not is told nothing and
+ * asked for nothing ({@link ../chat.ts} keeps the words instead).
+ */
+export const STEER_METHOD = "_session/steering"
+
+/**
+ * How a steer that found NOTHING RUNNING should behave, in the request's own
+ * `_meta`.
+ *
+ * The default is for the agent to start a fresh turn of its own, detached —
+ * which would be a turn olai never asked for, never tracked and could not
+ * cancel, reporting through the transcript from nowhere. `promptRequired`
+ * hands the message BACK instead ("nothing to steer; send it yourself"), which
+ * is the only outcome a client that owns its turns can use. Olai only steers
+ * while it believes a turn is running, so this is the answer to the race
+ * rather than the ordinary path: the adapter settled while the send was on its
+ * way, and it says so instead of inventing a turn.
+ */
+export const STEER_WHEN_IDLE = {
+  steering: { idleBehavior: "promptRequired" },
+}
+
+/**
+ * Whether the agent takes {@link STEER_METHOD} at all, out of `initialize`'s
+ * top-level `_meta`.
+ *
+ * The safe direction is the one it fails in: an agent that says nothing is
+ * treated as unable to steer, so a mid-turn message is kept and marked unsent
+ * rather than dropped into a method that does not exist. Nothing is ever
+ * assumed to be supported by failing to see it said.
+ */
+export const steeringIn = (
+  meta: { readonly [key: string]: unknown } | null | undefined,
+): boolean => {
+  const steering = meta?.["steering"] as { readonly supported?: unknown } | undefined
+  return steering?.supported === true
+}
+
 // ── which model a turn is running on ───────────────────────────────────
 
 /** What `session/new` asks the Claude Code adapter to forward, and why: the

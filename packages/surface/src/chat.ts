@@ -187,7 +187,9 @@ export type Wrote = typeof Wrote.Type
  *
  *   - `user` — what was typed, the names of any pictures sent with it, and the
  *     nodes it was ABOUT ({@link NodeContext}). Never markdown: it is quoted,
- *     not rendered.
+ *     not rendered. Marked `unsent` when the agent would not take it, which is
+ *     the one row in this collection that records something that did NOT
+ *     happen — see that field.
  *   - `agent` — the agent's prose, accumulated as it streams. Rendered as
  *     markdown once the turn is done, which is a view-time decision.
  *   - `tool` — a tool call, foldable, updated in place by its own id, carrying
@@ -281,6 +283,23 @@ export const ChatEntry = Schema.Struct({
    *  either of them: it is guarded to the served directory and these bytes are
    *  deliberately in tmp. */
   attachments: Schema.optionalKey(Schema.Array(Schema.String)),
+  /**
+   * `user` only: this message NEVER REACHED THE AGENT, and can be sent again.
+   *
+   * Everything typed goes to the agent the moment it is sent — a turn already
+   * running is steered rather than waited on — so the only rows that carry this
+   * are the ones delivery genuinely refused: an agent that died between the row
+   * being written and the prompt going out, or one that cannot take a message
+   * mid-turn at all. What used to happen to those words is the whole reason the
+   * flag exists: they sat in a server-side queue nobody could see and were
+   * thrown away by the next cancel.
+   *
+   * Absent on every row that WAS delivered, rather than `false` — the ordinary
+   * message says nothing about this, the same way it says nothing about diffs.
+   * It is cleared by {@link ../index.ts}'s `chat.resend` when the retry lands,
+   * so the row stops advertising a failure that has stopped being true.
+   */
+  unsent: Schema.optionalKey(Schema.Boolean),
 })
 export type ChatEntry = typeof ChatEntry.Type
 
@@ -407,10 +426,12 @@ export const ChatState = Schema.Struct({
    *   - `booting` — the agent is starting, or being asked for its sessions.
    *     A prompt typed now is accepted and sent when the handshake finishes.
    *   - `idle` — ready.
-   *   - `thinking` — a turn is in flight. Sending is still allowed: the
-   *     message goes in the transcript and QUEUES, and is prompted the moment
-   *     this turn ends. A person who has thought of the next thing should not
-   *     have to hold it in their head until an agent is ready for it.
+   *   - `thinking` — a turn is in flight. Sending is still allowed and is not
+   *     deferred by it: the message goes in the transcript and STRAIGHT to the
+   *     agent, which steers it into the turn it is already running. A person
+   *     who has thought of the next thing should not have to hold it in their
+   *     head until an agent is ready for it — and should not have it held for
+   *     them somewhere they cannot see.
    *   - `gone` — the agent is not there. `trouble` says why, and the next
    *     prompt retries the boot.
    *   - `off` — no ACP agent is configured. The panel still DRAWS and says so,
@@ -440,13 +461,6 @@ export const ChatState = Schema.Struct({
    */
   usage: Schema.NullOr(Usage),
   commands: Schema.Array(Command),
-  /** How many messages are typed and waiting for the turn in flight to end.
-   *
-   *  A count rather than the messages themselves, because the messages are
-   *  already in the transcript: what you typed is a row the moment you send
-   *  it, in the order you meant it, and this is only the panel's way of saying
-   *  the agent has not reached them yet. */
-  queued: Schema.Int,
   /**
    * How many questions the agent is waiting on a person to answer.
    *
@@ -491,7 +505,6 @@ export const CHAT_OFF: ChatState = {
   model: null,
   usage: null,
   commands: [],
-  queued: 0,
   asking: 0,
   trouble: null,
   missing: [],

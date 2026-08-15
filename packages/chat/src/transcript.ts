@@ -85,6 +85,47 @@ export class Transcript {
     return both(this.#close(), this.#put(this.#next(kind), { kind, text, ...extra }))
   }
 
+  /**
+   * What a person said — a row like any other, ANSWERING WITH ITS KEY.
+   *
+   * The one kind whose key a caller has to keep. Every other entry is written
+   * and forgotten, but a user message can turn out to be undeliverable after
+   * it has been drawn ({@link unsent}), and a retry that lands has to find the
+   * same row again — so the key comes back here rather than being fished out
+   * of the change or re-derived from a counter kept somewhere else.
+   */
+  user(text: string, extra: Partial<ChatEntry> = {}): {
+    readonly key: string
+    readonly change: Change
+  } {
+    const key = this.#next("user")
+    return {
+      key,
+      change: both(this.#close(), this.#put(key, { kind: "user", text, ...extra })),
+    }
+  }
+
+  /**
+   * That message never reached the agent — or, with `false`, it has now.
+   *
+   * The row does not move and nothing is minted: what a person typed stays
+   * exactly where they typed it, in the conversation, with a mark saying it is
+   * still theirs to send. Clearing it is the same row again, because a retry
+   * that landed must not leave a message advertising a failure that has
+   * stopped being true.
+   *
+   * A row that is not there any more — the session was replaced under it —
+   * changes nothing rather than minting one, which is {@link settleAsk}'s rule
+   * and for its reason.
+   */
+  unsent(key: string, undelivered: boolean): Change {
+    const current = this.#entries.get(key)
+    if (current === undefined) return EMPTY
+    const { id: _id, seq: _seq, streaming: _streaming, unsent: _unsent, ...content } =
+      current
+    return this.#put(key, undelivered ? { ...content, unsent: true } : content)
+  }
+
   /** One chunk of the agent's prose. Appends to the entry already open, or
    *  opens one. */
   say(text: string): Change {

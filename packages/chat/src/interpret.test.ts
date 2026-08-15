@@ -24,6 +24,9 @@ import {
   modelNameIn,
   modelPickerIn,
   NEW_SESSION_META,
+  STEER_METHOD,
+  STEER_WHEN_IDLE,
+  steeringIn,
   toolNameIn,
 } from "./interpret.ts"
 
@@ -162,6 +165,49 @@ describe("which tool a call is", () => {
         EXIT_PLAN_MODE,
       ),
     ).toBeNull()
+  })
+})
+
+describe("whether the agent can be steered mid-turn", () => {
+  test("the adapter's own `initialize` says yes", () => {
+    // Verbatim from the pinned adapter (0.66.0): top-level `_meta`, a SIBLING
+    // of `agentCapabilities` rather than a field in it, with the goal
+    // extension riding alongside — which is the shape a reader has to be
+    // right about, since looking in the capabilities struct finds nothing and
+    // silently never steers.
+    expect(
+      steeringIn({
+        steering: { supported: true },
+        goal: { version: 1, controlMethod: "_session/goal", actions: ["set"] },
+      }),
+    ).toBe(true)
+  })
+
+  test("an agent that says nothing cannot be steered", () => {
+    // The direction this is allowed to be wrong in. A false negative costs a
+    // mid-turn message its delivery and SAYS SO on the row; a false positive
+    // would send it to a method that does not exist.
+    expect(steeringIn(undefined)).toBe(false)
+    expect(steeringIn(null)).toBe(false)
+    expect(steeringIn({})).toBe(false)
+    expect(steeringIn({ goal: { version: 1 } })).toBe(false)
+  })
+
+  test("nothing but `true` is yes", () => {
+    expect(steeringIn({ steering: {} })).toBe(false)
+    expect(steeringIn({ steering: { supported: false } })).toBe(false)
+    // Truthy is not true: a string is somebody else's extension using the same
+    // word, and reading it as a yes would call a method on the strength of it.
+    expect(steeringIn({ steering: { supported: "yes" } })).toBe(false)
+    expect(steeringIn({ steering: null })).toBe(false)
+  })
+
+  test("the method and the idle behaviour are the wire's own spellings", () => {
+    // Two literals the adapter matches EXACTLY — an underscore or a casing off
+    // and the request is a method the agent has never heard of, which is a
+    // refusal per mid-turn message and no other symptom.
+    expect(STEER_METHOD).toBe("_session/steering")
+    expect(STEER_WHEN_IDLE).toEqual({ steering: { idleBehavior: "promptRequired" } })
   })
 })
 

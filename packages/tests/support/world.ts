@@ -612,7 +612,10 @@ export const CHAT_ASK_SUBMIT = selector(TESTID.chatAskSubmit);
 export const CHAT_ASK_DISMISS = selector(TESTID.chatAskDismiss);
 export const CHAT_ASK_OUTCOME = selector(TESTID.chatAskOutcome);
 export const CHAT_INPUT = selector(TESTID.chatInput);
-export const CHAT_QUEUED = selector(TESTID.chatQueued);
+/** The strip on a `user` row the agent would not take, and the button that
+ *  tries again. The words stay in the bubble above both. */
+export const CHAT_UNSENT = selector(TESTID.chatUnsent);
+export const CHAT_RESEND = selector(TESTID.chatResend);
 export const CHAT_WAITING = selector(TESTID.chatWaiting);
 export const CHAT_SEND = selector(TESTID.chatSend);
 export const CHAT_CANCEL = selector(TESTID.chatCancel);

@@ -174,6 +174,47 @@ describe("questions", () => {
   })
 })
 
+describe("a message the agent would not take", () => {
+  test("the mark goes on the row that was already drawn, and the words stay", () => {
+    const transcript = new Transcript()
+    const row = transcript.user("done order", { context: [] })
+
+    const marked = transcript.unsent(row.key, true)
+    // THE SAME ROW, not a second one and not a notice underneath: what a
+    // person typed stays where they typed it, and the failure is a property
+    // of that message rather than an event beside it.
+    expect(touched(marked)).toEqual([row.key])
+    expect(rows(transcript)).toHaveLength(1)
+    expect(rows(transcript)[0]).toMatchObject({
+      kind: "user",
+      text: "done order",
+      unsent: true,
+    })
+  })
+
+  test("a retry that lands takes the mark back off", () => {
+    const transcript = new Transcript()
+    const row = transcript.user("done order")
+    transcript.unsent(row.key, true)
+
+    transcript.unsent(row.key, false)
+    // ABSENT rather than `false`: an ordinary message says nothing about this,
+    // and a row left carrying the key would go on being drawn as one that had
+    // failed once.
+    expect(rows(transcript)[0]?.unsent).toBeUndefined()
+    expect(rows(transcript)[0]?.text).toBe("done order")
+  })
+
+  test("marking a row a replaced session took away mints nothing", () => {
+    const transcript = new Transcript()
+    const row = transcript.user("done order")
+    transcript.clear()
+
+    expect(transcript.unsent(row.key, true)).toEqual({ upserts: [], removes: [] })
+    expect(rows(transcript)).toEqual([])
+  })
+})
+
 describe("refusals and replacement", () => {
   test("a refusal carries the failure itself, not a sentence about it", () => {
     const transcript = new Transcript()

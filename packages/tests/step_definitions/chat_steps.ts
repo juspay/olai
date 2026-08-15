@@ -54,8 +54,8 @@ import {
   CHAT_OUTLINE_CHANGE,
   CHAT_OUTLINE_DIFF,
   CHAT_PANEL,
-  CHAT_QUEUED,
   CHAT_REFUSAL,
+  CHAT_RESEND,
   CHAT_SAID,
   CHAT_SEND,
   CHAT_SESSION,
@@ -72,6 +72,7 @@ import {
   CHAT_TOOL_PROGRESS,
   CHAT_TRANSCRIPT,
   CHAT_TROUBLE,
+  CHAT_UNSENT,
   CHAT_USAGE,
   CHAT_WAITING,
   CHAT_WORKING,
@@ -278,21 +279,40 @@ Then("the chat input still has the caret", async function (this: OlaiWorld) {
   );
 });
 
-Then("the chat says {int} message is queued", async function (this: OlaiWorld, many: number) {
-  await this.waitUntil(
-    async () => {
-      const shown = this.page.locator(CHAT_QUEUED);
-      return (await shown.count()) > 0 &&
-        oneLine(await shown.innerText()) === `${many} queued`;
-    },
-    `the composer to say ${many} queued`,
-  );
+// ── words the agent would not take ─────────────────────────────────────
+//
+// The row is the copy. There is no queue behind the panel any more, so a
+// message the agent refused has exactly one place to be, and it is on screen
+// where it was typed — which is what these three steps are about.
+
+Then(
+  "the chat shows my message {string} as not sent",
+  async function (this: OlaiWorld, text: string) {
+    // The BUBBLE has to still say it. A row that reported the failure and lost
+    // the words would pass a check for the mark alone, and losing the words is
+    // the whole thing this feature exists to stop.
+    await this.page
+      .locator(CHAT_MINE)
+      .filter({ hasText: text })
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await this.page.locator(CHAT_UNSENT).count()) > 0,
+      `"${text}" to be marked as not sent`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+When("I send the unsent message again", async function (this: OlaiWorld) {
+  const again = this.page.locator(CHAT_RESEND).first();
+  await again.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await again.click();
 });
 
-Then("nothing is queued any more", async function (this: OlaiWorld) {
+Then("no message is marked unsent", async function (this: OlaiWorld) {
   await this.waitUntil(
-    async () => (await this.page.locator(CHAT_QUEUED).count()) === 0,
-    "the queue to drain",
+    async () => (await this.page.locator(CHAT_UNSENT).count()) === 0,
+    "the unsent mark to come off",
     HYDRATION_TIMEOUT,
   );
 });
@@ -1202,6 +1222,21 @@ When(
 );
 
 // ── what the OUTLINE did about it ──────────────────────────────────────
+
+/** The other half of the step below, and it is a claim about a WRITE THAT DID
+ *  NOT HAPPEN — so it is checked against the settled page rather than waited
+ *  for. Its caller has already waited for something else to be true (the row
+ *  marked unsent), which is what makes this a read rather than a race. */
+Then("node {string} is not done", async function (this: OlaiWorld, id: string) {
+  const status = await this.page
+    .locator(nodeSelector(id))
+    .getAttribute("data-status");
+  assert.notStrictEqual(
+    status,
+    "done",
+    `node "${id}" is done — a message the agent never received marked it`,
+  );
+});
 
 Then("node {string} is done", async function (this: OlaiWorld, id: string) {
   // The HYDRATION budget, not the interaction one: getting here is a prompt, a

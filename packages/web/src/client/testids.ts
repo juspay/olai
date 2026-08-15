@@ -813,8 +813,10 @@ export const TESTID = {
   /** What went wrong where nobody was waiting: a boot, a dead agent. */
   chatTrouble: "chat-trouble",
   chatInput: "chat-input",
-  /** How many messages are typed and waiting for the turn in flight. */
-  chatQueued: "chat-queued",
+  /** On a `user` row the agent would not take: the strip saying so, with the
+   *  button that tries again. The words stay in the bubble above it. */
+  chatUnsent: "chat-unsent",
+  chatResend: "chat-resend",
   /** The composer saying the turn is stopped on YOU: the agent asked something
    *  and is waiting for the form above to be answered. */
   chatWaiting: "chat-waiting",

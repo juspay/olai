@@ -177,6 +177,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   pending: "resource",
   "chat.send": "tool",
   "chat.attach": "tool",
+  "chat.resend": "tool",
   "chat.cancel": "tool",
   "chat.newSession": "tool",
   "chat.loadSession": "tool",

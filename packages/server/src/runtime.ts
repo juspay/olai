@@ -538,6 +538,11 @@ export const bind = (
           // the chat, and re-deciding any of it here would be a second opinion
           // about the same bytes.
           attach: ({ input }) => withChat((open) => open.attach(input)),
+          // Straight through, like the chunk above and for its reason: which
+          // row is still undelivered, and what the prompt behind it was, is
+          // the chat's own record — a second opinion here would be a second
+          // answer to "what did that message actually say".
+          resend: ({ input }) => withChat((open) => open.resend(input.id)),
           cancel: () => withChat((open) => open.cancel),
           newSession: () => withChat((open) => open.newSession),
           loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),

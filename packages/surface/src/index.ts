@@ -391,6 +391,25 @@ export const surface = defineSurface({
         }),
         error: ChatFailure,
       },
+      /**
+       * Try a message the agent would not take AGAIN — `id` is the `user`
+       * row's own key, the one carrying `unsent`.
+       *
+       * The row is the only copy of those words, so retrying from it is the
+       * only retry that can be whole: the server still holds the prompt it
+       * failed to deliver, pictures and node lines and all, where a browser
+       * re-reading the row would have the names of the pictures and not their
+       * paths. What lands is the same message, not a reconstruction of it.
+       *
+       * A person's click and nothing else drains this. Nothing retries on its
+       * own, which is the difference between a row marked unsent and the queue
+       * this replaced: an undelivered message stays on screen, in the
+       * conversation, until somebody decides what to do with it.
+       */
+      resend: {
+        input: Schema.Struct({ id: Schema.String }),
+        error: ChatFailure,
+      },
       /** One chunk of a picture, into the conversation's tmp directory.
        *
        *  A PROCEDURE rather than an upload route, which is the decision worth
