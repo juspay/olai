@@ -331,36 +331,6 @@ const orderings = (
 }
 
 /**
- * What is standing in each node's way — the whole of blockedness, derived like
- * everything else here and stored nowhere.
- *
- * `a after b` means b blocks a WHILE b is a task that is not done — with the
- * three marks there are, while b is `doing` or `todo`. A target with NO status
- * never blocks: it is not a task, there is nothing under it to finish, so
- * there is nothing to wait for. The trap this rule is written against is
- * spelling it `status !== "done"`, which reads every plain bullet as an
- * obstacle that can never be cleared — and adding `todo` did not narrow that
- * trap by one case, since the unmarked node is still the one that must not
- * block (docs/format.md).
- *
- * ONE predicate, read at BOTH ENDS of the arrow, which is the racket
- * reference's own shape (`olai/query.rkt`'s `live?`): "a node this can be said
- * about" and "a node that still stands in the way" are the same question asked
- * from either side, and two spellings of it would be two chances to disagree
- * about what unfinished work is. So a done node is waiting on nothing — it has
- * happened, and the order it happened in is no longer a question — and a
- * bullet is neither blocked nor blocking, because a bullet is not work.
- *
- * ARCHIVED is that same answer arrived at from the other side, and it also
- * goes both ways. Work that was put away is not blocking anything: archiving
- * is what you do to work that is over, and a live node waiting on one would be
- * waiting forever. Nor is it blocked: the archive is read as history, and a
- * node in it is not being told it cannot start. Note where the exemption
- * stops — the validator's `after` cycle check exempts nothing, because a loop
- * is a loop whether or not part of it has been put away, and it is a claim
- * about the file rather than about what is on anyone's plate.
- */
-/**
  * The node an end of an arrow names, WHILE it is still in play: it exists, it
  * is a task that is not done, and it has not been put away.
  *
@@ -394,6 +364,36 @@ const waitingOn = (
     .map((target) => inPlay(index, status, target))
     .filter((blocker) => blocker !== undefined)
 
+/**
+ * What is standing in each node's way — the whole of blockedness, derived like
+ * everything else here and stored nowhere.
+ *
+ * `a after b` means b blocks a WHILE b is a task that is not done — with the
+ * three marks there are, while b is `doing` or `todo`. A target with NO status
+ * never blocks: it is not a task, there is nothing under it to finish, so
+ * there is nothing to wait for. The trap this rule is written against is
+ * spelling it `status !== "done"`, which reads every plain bullet as an
+ * obstacle that can never be cleared — and adding `todo` did not narrow that
+ * trap by one case, since the unmarked node is still the one that must not
+ * block (docs/format.md).
+ *
+ * ONE predicate, read at BOTH ENDS of the arrow, which is the racket
+ * reference's own shape (`olai/query.rkt`'s `live?`): "a node this can be said
+ * about" and "a node that still stands in the way" are the same question asked
+ * from either side, and two spellings of it would be two chances to disagree
+ * about what unfinished work is. So a done node is waiting on nothing — it has
+ * happened, and the order it happened in is no longer a question — and a
+ * bullet is neither blocked nor blocking, because a bullet is not work.
+ *
+ * ARCHIVED is that same answer arrived at from the other side, and it also
+ * goes both ways. Work that was put away is not blocking anything: archiving
+ * is what you do to work that is over, and a live node waiting on one would be
+ * waiting forever. Nor is it blocked: the archive is read as history, and a
+ * node in it is not being told it cannot start. Note where the exemption
+ * stops — the validator's `after` cycle check exempts nothing, because a loop
+ * is a loop whether or not part of it has been put away, and it is a claim
+ * about the file rather than about what is on anyone's plate.
+ */
 const blockage = (
   byId: ReadonlyMap<string, Located>,
   status: ReadonlyMap<string, Status>,
