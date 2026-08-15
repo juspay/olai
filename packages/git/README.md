@@ -43,7 +43,7 @@ them — nothing here says `rev-parse`, and nothing above says it either:
 |---|---|
 | `state` | whether the repository can take a commit right now, and why not when it cannot |
 | `dirty` | every file in the REPOSITORY git thinks has moved, and how far ahead of its upstream the branch is |
-| `show(file)` | one served file as HEAD has it, or `null` when HEAD does not |
+| `show(path)` | one file of the repository as HEAD has it (repo-root-relative, the way `dirty` names it), or `null` when HEAD does not |
 | `last(audit)` | the newest commit matching a caller's own audit filter |
 | `commit(what)` | commit exactly these paths with exactly this message |
 | `push` | send the current branch to the upstream it already tracks |

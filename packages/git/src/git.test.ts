@@ -524,6 +524,33 @@ test("show is HEAD's copy, and null for a file HEAD has never had", async () => 
   expect(await asked(root, (git) => git.show("never.olai"))).toBe(null)
 })
 
+/**
+ * REPO-ROOT-RELATIVE, from a served subdirectory — the spelling {@link Dirty}
+ * hands out, and the reason it is that one.
+ *
+ * It took the SERVED name and prefixed it, which can name everything under the
+ * served root and nothing above it. That is a hole rather than a restriction:
+ * the side a rename INTO a served directory came from lives above it, and a
+ * caller with only the served spelling had no way to ask for it. `HEAD:<path>`
+ * is repo-root-relative in git's own object syntax whatever directory it runs
+ * in, so the prefix was never doing anything the caller could not do better.
+ */
+test("show names a file the way the repository does, from a served subdirectory", async () => {
+  const { root } = repo()
+  fs.mkdirSync(path.join(root, "notes"))
+  fs.writeFileSync(path.join(root, "notes", "b.olai"), `{"id":"b","ord":"a0","title":"b"}\n`)
+  fs.writeFileSync(path.join(root, "above.md"), "one level up\n")
+  const run = git(root)
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "more fixtures")
+
+  const served = path.join(root, "notes")
+  expect(await asked(served, (git) => git.show("notes/b.olai")))
+    .toBe(`{"id":"b","ord":"a0","title":"b"}\n`)
+  // The one the served spelling could not reach at all.
+  expect(await asked(served, (git) => git.show("above.md"))).toBe("one level up\n")
+})
+
 test("git refusing is a warning with git's own words in a field, and a Failed", async () => {
   const { root } = repo()
   // A path git will not stage, because it is not in this repository at all.

@@ -607,12 +607,78 @@ describe("a served subdirectory reports on the whole repository", () => {
           ])
           expect([...pending.others].map((one) => one.path).sort())
             .toEqual(["README.md", "elsewhere.olai"])
+          // And the node-level answer is about the EDIT, not about the two
+          // spellings of the file it is in. `changesOf` reports a node whose
+          // file differs as having moved, so the two sides of the comparison
+          // have to be keyed in one namespace — key the committed side by the
+          // repository's spelling while the working side keeps the store's, and
+          // every node of every outline reads as `moved` the moment olai serves
+          // a subdirectory. Nothing else in the suite was holding that.
+          expect(pending.changes).toEqual([
+            {
+              file: "house.olai",
+              id: "order",
+              title: "order the cabinets",
+              fields: ["done"],
+              sort: "done",
+            },
+          ])
 
           expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Committed")
           expect(fixture.git("status", "--porcelain").trim()).toBe("")
           // And the commit olai just made is what it reports as last, even
           // though half of it lives outside the served directory.
           expect((yield* fixture.ops.pending).last).not.toBe(null)
+        }),
+      { serve: "docs" },
+    ))
+
+  /**
+   * A rename from ABOVE the served root into it — the one shape where the side
+   * a file came from has no served name at all.
+   *
+   * `git mv Notes.md docs/Notes.olai` is somebody moving their notes under the
+   * directory olai serves, which is a thing people do on the day they start
+   * using it. HEAD has the source as `Notes.md` and nothing else; asked for by
+   * the served spelling there is nothing to ask FOR, so the committed side went
+   * missing and every node in the file read as created. Repo-root-relative is
+   * the one name both sides always have.
+   */
+  test("a rename from above the served root still reads against HEAD's own copy", () =>
+    withRepo(
+      { "docs/house.olai": HOUSE, "Notes.md": `{"id":"kept","ord":"a0","title":"Kept"}\n` },
+      (fixture) =>
+        Effect.gen(function*() {
+          fixture.git("mv", "Notes.md", "docs/Notes.olai")
+          yield* fixture.refresh
+
+          const pending = yield* fixture.ops.pending
+          expect(pending.outlines).toEqual([
+            {
+              file: "Notes.olai",
+              path: "docs/Notes.olai",
+              how: "renamed",
+              // Repo-relative, because that is the only name a file one level
+              // up HAS — and what the panel shortens only when it can.
+              from: "Notes.md",
+            },
+          ])
+          expect(pending.others).toEqual([])
+          // Moved, not reborn: HEAD's `Notes.md` is the committed side.
+          expect(pending.changes).toEqual([
+            {
+              file: "Notes.olai",
+              id: "kept",
+              title: "Kept",
+              fields: ["file"],
+              sort: "moved",
+            },
+          ])
+
+          expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Committed")
+          expect(
+            fixture.git("show", "--name-status", "--find-renames", "--format=", "HEAD").trim(),
+          ).toBe("R100\tNotes.md\tdocs/Notes.olai")
         }),
       { serve: "docs" },
     ))

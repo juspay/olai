@@ -539,7 +539,11 @@ export const make = (options: Options): Committing => {
       // CONCURRENTLY: each is its own subprocess, and they do not depend on
       // each other. Bounded, because a `git pull` can make a hundred outlines
       // dirty at once and a hundred simultaneous processes is its own problem.
-      const heads = yield* Effect.all(readable.map((one) => git.show(was(one))), {
+      // HEAD's copy is asked for under the name HEAD HAD IT UNDER, which for a
+      // rename is the side it came from — read against the name it has now,
+      // which HEAD has never had, every node in it reports as created.
+      const committed = readable.map(was)
+      const heads = yield* Effect.all(committed.map((one) => git.show(one.ask)), {
         concurrency: 8,
       })
 
@@ -547,14 +551,13 @@ export const make = (options: Options): Committing => {
       const after = new Map<string, ReadonlyArray<Node>>()
       readable.forEach((one, at) => {
         const head = heads[at]
-        // HEAD's copy is keyed by the name HEAD HAD IT UNDER, which for a
-        // rename is the side it came from. `changesOf` matches by id across
-        // files, so a node in both maps under two names reads as one node that
-        // moved — where reading a renamed outline against its own new name
-        // (which HEAD has never had) reported every node in it as created.
-        const committed = was(one)
+        // ... and keyed under it too, in the namespace the working side uses:
+        // `changesOf` matches by id ACROSS files, so a node in both maps under
+        // two names is one node that moved. See {@link Was} for why the name
+        // asked for and the name keyed by are not the same string.
+        const key = committed[at]?.key ?? one.file
         if (head !== undefined && head !== null) {
-          const parsed = parseOutline(committed, head)
+          const parsed = parseOutline(key, head)
           if (Result.isFailure(parsed)) {
             // The COMMITTED copy does not parse. Rare, and not this working
             // tree's doing — but nothing can be said about what changed in it.
@@ -563,10 +566,10 @@ export const make = (options: Options): Committing => {
             // — a `.md` becoming a `.olai`, which is the migration this was
             // filed during — has no committed outline to compare against, and
             // that is an absence rather than a fault to report.
-            if (fileKind(committed) === "outline") unreadable.add(one.file)
+            if (fileKind(key) === "outline") unreadable.add(one.file)
             return
           }
-          before.set(committed, parsed.success.nodes.map((located) => located.node))
+          before.set(key, parsed.success.nodes.map((located) => located.node))
         }
         // A dirty file the set does not list has left the disk, and an absent
         // `after` side is exactly how that reads: every node in it is gone.
@@ -892,15 +895,33 @@ const otherOf = (entry: Git.Dirty): Other => ({
 })
 
 /**
- * What HEAD calls one dirty outline.
+ * The COMMITTED side of one dirty outline: what to ask HEAD for, and what to
+ * call it in the comparison.
  *
- * Its own name, unless it is a rename — in which case HEAD has never heard of
- * that name, and the committed side is the file it came from. `null` served
- * spelling falls back the same way: a rename out of a directory olai does not
- * serve has no committed copy this layer can ask for, and every node in it
- * arriving is then the honest reading.
+ * TWO NAMES, because the two questions want different ones and answering both
+ * with one is a bug in whichever direction it is resolved.
  */
-const was = (one: Served): string => one.from?.served ?? one.file
+interface Was {
+  /** Repo-root-relative, which is what `git.show` takes — and the only spelling
+   *  a rename's source is guaranteed to have. Keyed by the SERVED one, a rename
+   *  INTO the served directory (`git mv Notes.md docs/Notes.olai` while olai
+   *  serves `docs/`) has a source with no served name at all, so it fell back
+   *  to the arriving name — which HEAD has never had — and every node in the
+   *  file read as created. */
+  readonly ask: string
+  /** What `changesOf` keys the BEFORE side by, in the same namespace the after
+   *  side uses. Served, and it has to be: `changesOf` reports a node whose file
+   *  differs as having MOVED, so keying the before side repo-relative would
+   *  make every node of every unmoved outline read as moved the moment olai
+   *  served a subdirectory. A source with no served name keeps its repo one,
+   *  which differs from the arriving name — correctly, since it did move. */
+  readonly key: string
+}
+
+const was = (one: Served): Was =>
+  one.from === null
+    ? { ask: one.path, key: one.file }
+    : { ask: one.from.path, key: one.from.served ?? one.from.path }
 
 /** What a commit is going to name, out of what is waiting. */
 interface Picked {

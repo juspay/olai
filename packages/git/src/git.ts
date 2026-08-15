@@ -223,8 +223,9 @@ export interface Repo {
    *  of those matter is a statement about the format, and this file has none of
    *  that in it. */
   readonly dirty: Effect.Effect<Dirt>
-  /** One served file as HEAD has it, or `null` when HEAD does not. */
-  readonly show: (file: string) => Effect.Effect<string | null>
+  /** One file of the REPOSITORY as HEAD has it, named the way {@link Dirty}
+   *  names it — repo-root-relative — or `null` when HEAD does not have it. */
+  readonly show: (path: string) => Effect.Effect<string | null>
   /** The last commit the caller's own audit filter claims, or `null` for a
    *  repository that has none. */
   readonly last: (audit: Audit) => Effect.Effect<Recorded | null>
@@ -256,7 +257,7 @@ export const open = (root: string): Effect.Effect<Opening> =>
         served: placing.placement.prefix,
         state: state(root, placing.placement),
         dirty: dirty(root, placing.placement),
-        show: (file) => show(root, placing.placement, file),
+        show: (path) => show(root, path),
         last: (audit) => last(root, audit),
         commit: (what) => commit(root, placing.placement, what),
         push: push(root),
@@ -509,15 +510,25 @@ const tracking = (header: string): Upstream | null => {
   return { name, ahead: ahead === null ? 0 : Number(ahead[1]) }
 }
 
-/** HEAD's copy covers every file of a repository with no commits yet, and every
- *  file that is new, with the same `null`. */
+/**
+ * HEAD's copy covers every file of a repository with no commits yet, and every
+ * file that is new, with the same `null`.
+ *
+ * REPO-ROOT-RELATIVE, which is the spelling {@link Dirty} hands out and the one
+ * name a file has that is the same wherever olai is serving from. It took the
+ * SERVED spelling and prefixed it, which is the same string for everything
+ * under the served root and unable to name anything above it — so a rename INTO
+ * a served subdirectory (`git mv Notes.md docs/Notes.olai`) had no way to ask
+ * for the side it came from, and the caller fell back to asking for a name HEAD
+ * has never had. `HEAD:<path>` is repo-root-relative in git's own object syntax
+ * whatever directory it runs in, so this is a prefix that had nothing to do.
+ */
 const show = (
   root: string,
-  placed: Placement,
-  file: string,
+  path: string,
 ): Effect.Effect<string | null> =>
   Effect.map(
-    git(root, ["show", `HEAD:${placed.prefix}${file}`]),
+    git(root, ["show", `HEAD:${path}`]),
     (shown) => (shown.ok ? shown.out : null),
   )
 
