@@ -36,12 +36,16 @@ import {
   type CommitResult,
   type Derived,
   MARKS,
+  type NodeAnswer,
   NodeRequest,
   type OpFailure,
+  type OutlineAnswer,
   type OutlineSet,
   type PushResult,
+  type SearchAnswer,
   SearchRequest,
   type Status,
+  type SubtreeAnswer,
   SubtreeRequest,
   type Writer,
 } from "@olai/format"
@@ -136,11 +140,28 @@ export type Tool =
 
 // ── reading ────────────────────────────────────────────────────────────
 
-/** A read takes NOTHING that is not on the floor: the four request schemas are
- *  `@olai/format`'s, for the reason its `./reading.ts` argues — a question the
- *  agent's face asks and a question a wire spec would carry are one question,
- *  and two spellings of it are two spellings free to drift. `list_outlines` is
- *  the exception that proves it, having nothing to ask. */
+/**
+ * A read asks and answers NOTHING that is not on the floor.
+ *
+ * Both halves are `@olai/format`'s, for the reason its `./reading.ts` argues —
+ * a question the agent's face asks and a question a wire spec would carry are
+ * one question, and two spellings of it are two spellings free to drift.
+ * `list_outlines` is the exception that proves the request half, having nothing
+ * to ask.
+ *
+ * The ANSWER half is the one that has to be written out, and it is written out
+ * as a return-type annotation on each reader below. `Tool`'s read arm carries
+ * its reader typed to `unknown`, which is what lets one table hold four
+ * different answers — and it means the reader's own literal is checked against
+ * nothing unless somebody says what it is. Three of the four build a literal
+ * here rather than handing back a value the walk already typed: the `outlines`
+ * envelope, and the `{ missing }` a read of an id the set does not hold answers
+ * with. Those are the shapes the floor declares, so those are the names the
+ * annotations use, and an envelope that stopped matching is a type error at the
+ * table rather than a surprise on the wire.
+ */
+
+/** The one read with nothing to ask. */
 const NoArgs = Schema.Struct({})
 
 // ── the list ───────────────────────────────────────────────────────────
@@ -225,7 +246,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "List outlines",
     "Every outline under the served directory, with its top-level titles and how many nodes it holds. Start here: it is the map.\n\nTWO FILENAMES IN IT MEAN SOMETHING, both by name and neither by any field. An `Archive.jsonl` holds what was put away (`unarchive_node` is the way back out). An `Inbox.jsonl` is where a line goes when nobody named a place for it: capture into whichever outline is called that — case-insensitively, shallowest first, then path order, so a directory keeping `notes/inbox.jsonl` gets its own file rather than a second one — and when this list holds none, `create_outline` an `Inbox.jsonl` at the ROOT, seeded with the line. The web's ⌘K `+` resolves exactly that; doing it by hand here is the same two moves and lands in the same file.",
     NoArgs,
-    (at) => ({ outlines: Query.outlines(at.set, at.derived) }),
+    (at): OutlineAnswer => ({ outlines: Query.outlines(at.set, at.derived) }),
   ),
   read(
     "search_nodes",
@@ -238,14 +259,14 @@ export const TOOLS: ReadonlyArray<Tool> = [
     // the per-field prose in that schema are the same grammar described from
     // the two ends a caller reads it from.
     SearchRequest,
-    (at, args: SearchRequest) => Query.search(at.derived, args),
+    (at, args: SearchRequest): SearchAnswer => Query.search(at.derived, args),
   ),
   read(
     "read_node",
     "Read a node",
     "One node in full: its record, its tags (`#topic` and `@person`, reported as written), its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more. Its edges come too when it has them — `see` and `after`, the ids `set_see` / `set_after` take.\n\nTHIS IS ALSO WHERE MIRRORS ARE FOUND, and it is the only place: a placement is not a node, so a search never returns one and `children` never lists one. Ask the node instead. `mirrors` is every placement OF this node — where else it is drawn, chains followed — and each entry's `id` is what `remove_mirror` takes, so a Now entry is retired by reading the ITEM that finished. `placed` is the other half: the placements UNDER this node, each with the node it shows — which is how you read a curated list (\"what is on Now?\") without knowing in advance what is on it.",
     NodeRequest,
-    (at, args: NodeRequest) =>
+    (at, args: NodeRequest): NodeAnswer =>
       Query.detail(at.derived, args.id) ?? { missing: args.id },
   ),
   read(
@@ -253,7 +274,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Read a subtree",
     "A node and everything under it, nested. Says when it stopped at the depth it was given rather than at a leaf. Mirrors are not walked — a placement is a second view of a node rather than something hanging off this one — so read a list of them with `read_node`'s `placed`.",
     SubtreeRequest,
-    (at, args: SubtreeRequest) =>
+    (at, args: SubtreeRequest): SubtreeAnswer =>
       Query.subtree(
         at.derived,
         args.id,
