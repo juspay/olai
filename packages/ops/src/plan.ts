@@ -845,7 +845,11 @@ const planMark = (
       }),
     )
   }
-  // THE ONE VERB THE ORDER IS A LAW FOR. See {@link heldUp}.
+  // THE ONE VERB THE ORDER IS A LAW FOR — the mark above walks finished work
+  // backwards and is refused for all three, this one is refused for `doing`
+  // alone. Starting is an instruction about what to pick up next; finishing is
+  // a report about what happened, and reports are not gated. {@link heldUp}
+  // carries the argument, and sits beside the nudge that is its other half.
   if (!undo && mark === "doing") {
     const held = heldUp(scope, node)
     if (held !== undefined) return Result.fail(held)

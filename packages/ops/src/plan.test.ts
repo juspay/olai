@@ -16,6 +16,7 @@ import {
   type OutlineSet,
   type RegularNode,
   serializeOutline,
+  standingBefore,
   AddRequest,
   type WriteRequest as Request,
 } from "@olai/format"
@@ -822,6 +823,72 @@ describe("starting what is blocked", () => {
     const result = planned(started, { op: "doing", id: "install", undo: true })
     expect(record(fileOf(result, "house.olai"), "install").doing).toBeUndefined()
     expect(result.summary).toBe("not-doing: install them")
+  })
+
+  /**
+   * The first deliberate non-gate, as a TEST rather than a claim in a comment
+   * (grok, review of a41e74cc). Wiring an `after` edge onto a node that is
+   * already `doing` records a discovery — "I picked this up and have just
+   * realised it needs X first" — and the row then truthfully draws blocked.
+   * What is refused is the INSTRUCTION to start, never the correction of the
+   * graph, so gating this verb would make the order unsayable exactly when
+   * somebody has learned what it is.
+   */
+  test("`set_after` onto an already-doing node lands: the graph is not immutable", () => {
+    const started = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","doing":true}`,
+    )
+    const result = planned(started, { op: "after", id: "install", add: ["order"] })
+    const node = record(fileOf(result, "house.olai"), "install")
+    expect(node.after).toEqual(["order"])
+    // Still doing, and now drawn blocked — both facts at once, which is what
+    // docs/format.md means by blockedness being a SECOND fact about a node.
+    expect(node.doing).toBe(true)
+    // The edge the write just added IS what the gate would have refused, had
+    // this been a start — so the two verbs are looking at one graph.
+    expect(
+      standingBefore(derive(setOf({ "house.olai": serializeOutline(fileOf(result, "house.olai")) }).nodes), "install")
+        .map((one) => one.at.node.id),
+    ).toEqual(["order"])
+  })
+
+  /**
+   * The second, and this one is a property of the FORMAT rather than a choice:
+   * a captured node cannot arrive blocked, because a capture has no way to
+   * spell an edge. `AddRequest`'s `after` is the sibling ANCHOR — where among
+   * its siblings the row lands — and the capture schema carries no `after` or
+   * `blocks` field at any depth. Asserted on the RECORD the plan writes, so a
+   * field quietly gaining an edge shape here fails rather than opening a way
+   * to mint a blocked `doing` in one call.
+   */
+  test("a capture cannot arrive blocked: `after` is an anchor, not an edge", () => {
+    const set = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+    )
+    const nodes = fileOf(
+      planned(set, {
+        op: "add",
+        parent: "kitchen",
+        title: "install them",
+        mark: "doing",
+        // The `after` an `add` takes: WHERE among its siblings, never an edge.
+        after: "order",
+      }),
+      "house.olai",
+    )
+    const born = record(nodes, "n1")
+    expect(born.doing).toBe(true)
+    expect(childOrder(nodes, "kitchen")).toEqual(["order", "n1"])
+    // The anchor placed it and left no edge behind: nothing for the gate to
+    // have been asked about, which is why the planner never asks.
+    expect(born.after).toBeUndefined()
+    expect(born.blocks).toBeUndefined()
+    // Said the other way, over the derivation the gate reads: born `doing`,
+    // waiting on nothing, however unfinished the row it was anchored after.
+    expect(
+      standingBefore(derive(setOf({ "house.olai": serializeOutline(nodes) }).nodes), "n1"),
+    ).toEqual([])
   })
 
   // The two refusals that were already there still come first: neither is

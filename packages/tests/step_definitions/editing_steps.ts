@@ -57,6 +57,28 @@ import type { OlaiWorld } from "../support/world.ts";
 
 // ── opening an editor ──────────────────────────────────────────────────
 
+/**
+ * CLICK AWAY FIRST WHEN SWITCHING ROWS. The wait below is for ANY title editor
+ * (`.first()`), not for THIS row's — so with a draft already open on another
+ * row it is satisfied the instant it is called, by the editor that is already
+ * there. The click may then not have landed where the step says, and every key
+ * the scenario presses afterwards goes to the old row.
+ *
+ * It fails loudly in the common case — the click is swallowed by the open
+ * draft, no editor opens on the named row, and the NEXT step times out — which
+ * is how the convention was found rather than reasoned out (`set_doing`
+ * refuses, 2026-08-15). It would fail QUIETLY if the two rows happened to
+ * accept the same keys.
+ *
+ * So: `I click away from the editor` (or `Escape`) between two `I click the
+ * title of` steps. Scenarios that interleave ⌘Z need it anyway — undo is
+ * answered from a page with no caret in a row.
+ *
+ * The fix that would retire the ritual is scoping this wait to the row
+ * (`[data-node-id=…] [data-testid=title-editor]`), which is a change to a step
+ * ~100 scenarios press and is deliberately not made here (grok, review of
+ * a41e74cc: "out of scope unless you are already touching the step").
+ */
 When(
   "I click the title of {string}",
   async function (this: OlaiWorld, id: string) {

@@ -447,6 +447,14 @@ test("standingBefore asks the same question of a node that is not work yet", () 
 
   // The `blocks` sugar and the promised order are the graph's, so they are
   // this reading's too — it is `derived.after` it walks.
+  //
+  // THE ORDER HERE IS USER-VISIBLE, which is why it is asserted rather than
+  // sorted away: `@olai/ops`' `set_doing` refusal names its blockers in this
+  // sequence, so a regression that shuffled it would change the sentence a
+  // person and an agent both read ("comes after 2 unfinished tasks: `b` …,
+  // `c` …"). It is the same promise `Derived.blocked` makes for the one
+  // blocker a row has space to draw — a node's own `after` as it writes them,
+  // then whatever `blocks` points back at it.
   const both = derive(nodesOf(
     `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
       `{"id":"b","ord":"b","title":"b","doing":true}\n` +

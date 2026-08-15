@@ -187,8 +187,12 @@ Feature: Undo
     Then the node "demo" has no status
     When I press "Control+Shift+Enter"
     Then the node "demo" has status "todo"
-    # `order` was `doing` and is now drawn blocked. Walk the mark off it — the
-    # last thing this tab did, so it is the top of the stack.
+    # `order` was `doing` and is now drawn blocked. Walk the mark off it.
+    #
+    # THIS IS THE EDIT ⌘Z WILL TAKE BACK, and it is worth saying outright
+    # because two writes to `demo` come first in this scenario: the stack
+    # replays NEWEST first, so the two above are older entries and it is this
+    # walk — the last thing this tab did — that sits on top.
     When I click away from the editor
     And I click the title of "order"
     And I press "Control+Shift+Enter"
