@@ -86,6 +86,26 @@ Feature: The ••• menu writes
     And I choose "Mark doing" from the node menu
     Then the node "demo" has status "doing"
 
+  Scenario: The menu will not start what the order forbids either
+    # HACKING.md's parity rule, on the refusal this PR adds: the mouse meets the
+    # ops layer's sentence exactly as the keyboard and an agent do, because
+    # there is one gate and the menu sends one op through it. `install` is a
+    # bullet — nothing is drawing it blocked, because a bullet is not work — and
+    # `Mark doing` is about to MAKE it work, so its `after` edge is asked about
+    # here rather than after the write.
+    When I open the node menu of "install"
+    And I choose "Mark doing" from the node menu
+    Then the node menu of "install" says "`install the cabinets` comes after 1 unfinished task, so it cannot start yet: `order the new cabinets` (`order`, doing). Finish that first — or start what is ready."
+    And the node "install" has no status
+    # And the other two verbs are untouched: finishing out of order is
+    # sometimes true, and filing work is not starting it.
+    When I open the node menu of "install"
+    And I choose "Mark todo" from the node menu
+    Then the node "install" has status "todo"
+    When I open the node menu of "install"
+    And I choose "Complete" from the node menu
+    Then the node "install" has status "done"
+
   Scenario: A write that landed with something to say says it here too
     # The rollup's nudge reaches the person who caused the write, exactly as it
     # reaches an agent that did — in the other mood, which is what `data-tone`

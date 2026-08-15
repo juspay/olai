@@ -31,6 +31,7 @@ export {
   type Recorded,
   type Repo,
   type Sent,
+  type Spelled,
   type Upstream,
 } from "./git.ts"
 export { How, Reason, RepoState } from "./state.ts"

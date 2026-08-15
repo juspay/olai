@@ -72,6 +72,8 @@ The exemptions stop at the validator: `after` must stay **acyclic** whatever the
 
 Being blocked is a SECOND fact about a node, never a replacement for the first: a blocked task keeps the mark it carries and the date it is due on. A view is free to draw the two together — olai answers both in one column, since "has this started" and "can it start" are the same kind of question about the same node — but nothing may make a node's mark depend on what it is waiting for.
 
+**One verb is gated on it, and only one.** Marking a node `doing` is REFUSED while anything is in its way, and the refusal names what — titles and ids, with the mark each carries. Starting is not a report about the world, it is an instruction about what to pick up next, and `a after b` is the set's own statement that `b` comes first; a tool that lets a machine start what the graph forbids has turned its own law into a drawing. `set_done` keeps its nudge and lands anyway, because finishing out of order is sometimes simply what happened and a tool that will not record that is a tool that gets lied to. `set_todo` is not gated at all: filing work is not starting it, and un-starting a blocked node is exactly what should be possible. The gate asks what a node's `after` targets hold up rather than what the node is *drawn* waiting on, because the two differ for a plain bullet — nothing tells a bullet it cannot start, and the write is about to make it work.
+
 ## Days
 
 The journal, the calendar and the today view are derived from dates AT VIEW TIME, over the whole served directory: there is no journal file, no stored year→month hierarchy and no OUTLINE whose filename means anything. A day is a question asked of every node in every outline.

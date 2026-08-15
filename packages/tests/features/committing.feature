@@ -119,6 +119,33 @@ Feature: Committing on purpose
     And "later.md" is still waiting in the repository
     And there should be no page errors
 
+  Scenario: A rename staged by hand reads as a rename, and commits as one
+    # The human's own vault, the morning after the outline extension changed:
+    # two files `git mv`-ed into the new spelling. The panel drew the OLD name
+    # marked `deleted` with nothing joining it to the file that now held those
+    # notes, and pressing Commit answered with git's raw
+    # `fatal: pathspec '<old>' did not match any files` — because the machinery
+    # read the working tree against HEAD and never read the INDEX.
+    When I stage a rename of "finishes.md" to "kept.md"
+    Then the commit pill says "waiting"
+    # ONE, not two. A rename is one thing that happened, and two rows is what
+    # made the second one read as a file being deleted.
+    And the commit pill says 1 uncommitted
+    When I open the commit panel
+    Then the panel lists "kept.md" as "renamed"
+    And the panel lists "kept.md" as renamed from "finishes.md"
+    And the panel does not list "finishes.md"
+    When I commit with the message "keep the finishes note"
+    # No pathspec fatal, and the rename landed whole: nothing of it is left in
+    # the work tree for somebody's next commit to sweep up. The pill first,
+    # which is both the assertion and the wait — the log below is read after
+    # the server has already written it.
+    Then the commit pill says "committed"
+    And the last commit is "olai: keep the finishes note" by "web"
+    And the last commit renamed "finishes.md" to "kept.md"
+    And the repository is clean
+    And there should be no page errors
+
   Scenario: What is recorded and not shared says so, in the header and in the panel
     # "I think 'push' is the only thing that makes me use CLI outside of olai" —
     # the human. An audit trail that lives on one machine is one disk failure

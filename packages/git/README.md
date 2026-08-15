@@ -30,7 +30,7 @@ Six verbs, and they are business questions rather than the commands behind them 
 |---|---|
 | `state` | whether the repository can take a commit right now, and why not when it cannot |
 | `dirty` | every file in the REPOSITORY git thinks has moved, and how far ahead of its upstream the branch is |
-| `show(file)` | one served file as HEAD has it, or `null` when HEAD does not |
+| `show(path)` | one file of the repository as HEAD has it (repo-root-relative, the way `dirty` names it), or `null` when HEAD does not |
 | `last(audit)` | the newest commit matching a caller's own audit filter |
 | `commit(what)` | commit exactly these paths with exactly this message |
 | `push` | send the current branch to the upstream it already tracks |
@@ -43,7 +43,8 @@ Plus one property, `served`: where the served directory sits from the repository
 { path: "docs/roadmap.olai",  // repo-root-relative: what a person is shown, and the commit key
   served: "roadmap.olai",     // served-root-relative, or null for a file outside the served tree
   at: "/home/you/notes/docs/roadmap.olai",   // absolute: what `commit` takes
-  how: "modified" }            // the porcelain XY letters, read
+  how: "modified",             // the porcelain XY letters, read
+  from: null }                 // the same three spellings again, for a rename's other half
 ```
 
 Three, because three different callers ask, and the arithmetic between them is precisely what this package exists to keep. `how` is `modified | added | deleted | renamed | untracked`, and it is **git's** word rather than the person's: an unstaged `mv a b` is a `deleted` and an `untracked`, because that is what `git status` sees until both halves are staged. `dirty` answers with the upstream beside the files (`{name, ahead}`, or `null` when the branch tracks nothing) — two answers from the one `git status --branch`, since "what is not recorded" and "what is not shared" are wanted together.
@@ -60,7 +61,7 @@ Two olai-isms, and both are now handed in rather than known:
 ## Two properties that are decisions
 
 - **It cannot fail a write.** A commit runs after the bytes are already on disk and already on screen, so turning git's refusal into a failed op would be a lie about what happened. A missing binary, a non-zero exit, a timeout — every outcome comes back as an answer.
-- **Only the files named**, on both `add` and `commit`. A served directory is a working tree with other work in it, and a commit that swept up a half-finished edit somebody had staged would be a far worse failure than not committing at all.
+- **Only the files named**, on both `add` and `commit`. A served directory is a working tree with other work in it, and a commit that swept up a half-finished edit somebody had staged would be a far worse failure than not committing at all. The `add` names only the ones that are THERE: it exists so an untracked file is committable, and a path that has left the working tree has nothing for it to do. Handing it one anyway is what answered `fatal: pathspec '<old>' did not match any files` over somebody's own `git mv` — `git add` reads the working tree and the index and nowhere else, while `git commit -- <path>` records a departure straight out of HEAD.
 - **A refusal leaves the index exactly as it found it.** The `add` a commit needs (an untracked file is not committable without one) writes the real index, so when the commit then refuses, the index file is put back — bit-identical, by a copy made before the staging and an atomic rename after. Otherwise a refused commit left the selection staged, and the next `git commit` in a terminal would record the files olai had just said it could not. The obvious alternative — never touch the index at all, by running under a temporary `GIT_INDEX_FILE` — is wrong: a file in HEAD and absent from the index reads as a staged DELETION, so the real index would show `D` against every file olai committed. Git's own `git commit -- <paths>` writes them back for that reason, and so does this.
 
 Never `--amend` — an audit trail that can be edited after the fact is not one. Always `--no-verify` — a served directory's hooks belong to whatever project it is part of, and a linter refusing an outline write would leave the bytes on disk and the reason somewhere nobody is looking.

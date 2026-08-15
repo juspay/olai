@@ -138,6 +138,7 @@ export function Panel(props: {
         <Outlines
           outlines={pending().outlines}
           changes={pending().changes}
+          served={pending().served}
           selection={selection}
         />
       </Show>

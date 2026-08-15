@@ -27,6 +27,7 @@ import {
   HOW,
   HOW_TONE,
   isInert,
+  localOf,
   MARK,
   pushTrouble,
   scopeOf,
@@ -204,6 +205,27 @@ test("the scope line says which part of the repository olai serves", () => {
 })
 
 /**
+ * Where a rename came from, in the outline list's own spelling.
+ *
+ * The wire carries one unambiguous name — repo-root-relative, the namespace a
+ * commit request ticks in — and this is the rendering the outline list does to
+ * it, so that a rename inside `docs/` reads `a.olai → b.olai` rather than
+ * spelling the served directory once on each side of the arrow.
+ */
+test("a rename's other half is shortened to the served spelling, and only there", () => {
+  expect(localOf("docs/a.olai", "docs/")).toBe("a.olai")
+  // Served AT the root, where the two spellings are already the same string.
+  expect(localOf("a.olai", "")).toBe("a.olai")
+  // From OUTSIDE the served root, where the repo-relative name is the only one
+  // that names a file that exists. Shortening by prefix alone would have turned
+  // `docsy/a.olai` into `a.olai` — a file one directory over, or none at all.
+  expect(localOf("README.md", "docs/")).toBe("README.md")
+  expect(localOf("docsy/a.olai", "docs/")).toBe("docsy/a.olai")
+  // Nothing to say for a row that did not move.
+  expect(localOf(null, "docs/")).toBe(null)
+})
+
+/**
  * What is committed here and nowhere else.
  *
  * `null` is drawn as nothing at all, and it covers the two cases that are not
@@ -284,7 +306,7 @@ test("an outline that changed no node is still something waiting", () => {
   const reformatted: Pending = {
     ...NOTHING_PENDING,
     repo: READY,
-    outlines: [{ file: "garden.olai", path: "garden.olai", how: "modified" }],
+    outlines: [{ file: "garden.olai", path: "garden.olai", how: "modified", from: null }],
     last: { sha: "abc", message: "olai: earlier", writer: "web", at: "" },
   }
   expect(waitingIn(reformatted)).toBe(1)
