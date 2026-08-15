@@ -8,7 +8,7 @@
  * pure, so it is asserted as values rather than by starting a process.
  *
  * The FENCE is about the two faces, and it is the one this file exists for.
- * `olai mcp` shipped without the flag at all — the tri-state was `olai web`'s
+ * the agent face shipped without the flag at all — the tri-state was `olai web`'s
  * alone, so an MCP-driven session could not batch and put four commits into a
  * human's log in fifteen seconds. Nothing failed, because nothing compared the
  * two faces. These tests do: every mode and the default are asserted present on
@@ -70,7 +70,7 @@ test("both faces advertise every mode, so neither can quietly grow or lose one",
  * The "no fewer" half is the one that was got wrong. `olai web` hands its own
  * panel agent the same `commit` tool an outside agent gets, so a web serve
  * really does have both doors, and a help text naming only the button leaves out
- * something true. `olai mcp` has no browser, so naming the button there sends a
+ * something true. A terminal agent has no browser, so naming the button there sends a
  * person after a control they have not got. Both are the same mistake pointed
  * two ways, and only asserting the exact SET catches both — an earlier version
  * of this test compared the two sentences modulo one substitution, which could

@@ -1,9 +1,9 @@
 /**
- * The served directory, opened — the three lines both composition roots start
+ * The served directory, opened — the three lines the composition root starts
  * with, and the one ordering rule between them.
  *
- * `olai web` and `olai mcp` are two transports over one directory, so both
- * resolve the path, annotate it onto the log, and open a store over it. The
+ * `olai web` is the one transport over a directory: it resolves the path,
+ * annotates it onto the log, and opens a store over it. The
  * ORDER of the middle two is load-bearing and invisible when it is wrong:
  * `Store.make` forks the watcher and the probe loop, and a fiber inherits the
  * log annotations in force when it is forked. Annotate afterwards and every

@@ -127,9 +127,9 @@ Those scenarios do two things nothing else in the suite does. They **tap** (`loc
 
 ## The one client that is not a browser
 
-`features/an_external_agent.feature` is about the tool surface a coding agent in a terminal reaches, so its steps are not a browser at all: `support/mcp.ts` launches `olai mcp <dir>` — the same nix-built binary the servers come from, via `olaiBin()` — and speaks newline-framed JSON-RPC down its pipes. The client is hand-rolled and tiny on purpose; an MCP SDK here would be testing that SDK's framing against ours rather than ours.
+`features/an_external_agent.feature` is about the tool surface a coding agent in a terminal reaches, so its steps are not a browser at all: `support/mcp.ts` POSTs JSON-RPC at that server's `/mcp` — the same URL a `.mcp.json` names. The client is hand-rolled and tiny on purpose; an MCP SDK here would be testing that SDK's framing against ours rather than ours.
 
-The assertions afterward DO go through the browser, and that is the whole point of putting these scenarios in this suite instead of a unit test: the claim is not "the write happened" but "the page a person is looking at followed a write made by a process it has never heard of". They are `@scratch:` for the usual reason — the agent writes — and the child process is killed in `After` beside the server, before the directory both were watching is removed.
+The assertions afterward DO go through the browser, and that is the whole point of putting these scenarios in this suite instead of a unit test: the claim is not "the write happened" but "the page a person is looking at followed a write made by a client it has never heard of". They are `@scratch:` for the usual reason — the agent writes.
 
 ## The claim only the AGENT can make
 

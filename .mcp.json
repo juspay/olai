@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "olai": {
-      "command": "nix",
-      "args": ["run", ".#olai", "--accept-flake-config", "--", "mcp", "docs"]
+      "type": "http",
+      "url": "http://127.0.0.1:7714/mcp"
     }
   }
 }
