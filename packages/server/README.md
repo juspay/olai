@@ -14,6 +14,8 @@ One ordering is not arbitrary and is written down where it happens: the chat is 
 
 Talking to the agent is not here. It was, and it was four modules of domain inside a file whose whole job is the ORDER things go in — so it left, as `@olai/chat`. What is left of it here is a workspace dependency and one call: resolve the adapter from the environment, build, wire the two publishers, and register `stop` as a finalizer.
 
+**One brain per vault**, and it is the first thing the order does: `directory.ts` takes a kernel-held advisory lock on the directory before the store opens, and a second olai over the same files refuses to boot naming the process that holds it. That is enforcement rather than convention, because two stores over one directory have no cross-process protection of any kind — whole-file writes are last-writer-wins, so one brain's edit erases the other's with both reporting success; validation is per-brain, so duplicate ids and after-cycles neither store would allow reach the disk; and two commit paths sweep one work tree against each other. `src/lock.ts` has the mechanism and everything the guarantee does NOT cover.
+
 ## The files, and their separate reasons to change
 
 | file | what it owns |
@@ -33,7 +35,9 @@ Talking to the agent is not here. It was, and it was four modules of domain insi
 | `report.ts` | the other one: what a listener event — a stale tab, a refused origin, a faulted connection — sounds like in olai's log |
 | `media.ts` | `/media/*`: the pictures a document points at, and the only bytes that leave the served directory over HTTP without going through the store |
 | `manifest.ts` | what an installed olai is: name, description, colours, and the mark |
-| `directory.ts` | the served directory, opened: resolved, annotated onto the log, and a store over it — in the order both composition roots need and neither should have to remember |
+| `directory.ts` | the served directory, opened: resolved, annotated onto the log, CLAIMED, and a store over it — in the order the composition root needs and should not have to remember |
+| `lock.ts` | one brain per vault: the kernel-held claim on the served directory, keyed on its realpath, and the sentence a second olai gets instead of a store of its own |
+| `flock.ts` | `flock(2)` itself, through `bun:ffi`, because the runtime does not expose it |
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
 | `allowedOrigins.ts` | `OLAI_ALLOWED_ORIGINS`, the one place the websocket's origin allowlist is named |
 | `main.ts` | argv, defaults, the log sink, and the top-level run |
