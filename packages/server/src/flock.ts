@@ -150,13 +150,51 @@ export type Locked =
  * is deliberately no `unlock` here for the same reason there is no unlink: the
  * lifetime is the descriptor's, and a second way to end it is a second thing to
  * get wrong.
+ *
+ * `EINTR` is RETRIED, and the two reviews of this file disagreed about whether
+ * that line should exist, so the reasoning is here rather than in a thread.
+ * Both readings are correct and they are answering different questions:
+ *
+ *   - `flock(2)` documents `EINTR` as "while WAITING to acquire a lock, the
+ *     call was interrupted by delivery of a signal". `LOCK_NB` is precisely the
+ *     flag that means never wait, so on a regular file the call returns at once
+ *     and the documented window does not open. That reading says the loop is
+ *     unreachable, and as far as the man page goes it is right.
+ *   - The other reading is about what the unreachable case COSTS. Under
+ *     fail-closed, an `EINTR` that did somehow arrive is the one errno that is
+ *     neither an answer ("somebody has it") nor a fault ("this machine cannot
+ *     tell") — it means "ask again" — and treating it as a fault refuses to
+ *     serve somebody's notes over a signal.
+ *
+ * So it is retried, BOUNDED: a handful of attempts and then the ordinary
+ * `failed`, because a spurious `EINTR` that never clears must not become a
+ * spin. What it costs when the first reading is right — which is every run on
+ * every platform anybody has measured — is one integer comparison, once, at
+ * boot. What it saves if the first reading is ever wrong on some platform or
+ * filesystem is a refused boot that nobody could reproduce.
  */
 export const lockExclusive = (fd: number): Locked => {
   libc ??= open()
   if (libc instanceof Error) return { _tag: "failed", reason: libc.message }
-  if (libc.flock(fd, LOCK_EX | LOCK_NB) === 0) return { _tag: "held" }
-  const errno = libc.errno()
-  return errno === PLATFORM.wouldBlock
-    ? { _tag: "busy" }
-    : { _tag: "failed", reason: `flock failed with errno ${errno}` }
+
+  let errno = 0
+  for (let attempt = 0; attempt < EINTR_ATTEMPTS; attempt++) {
+    if (libc.flock(fd, LOCK_EX | LOCK_NB) === 0) return { _tag: "held" }
+    errno = libc.errno()
+    if (errno === PLATFORM.wouldBlock) return { _tag: "busy" }
+    if (errno !== EINTR) break
+  }
+  return {
+    _tag: "failed",
+    reason: errno === EINTR
+      ? `flock was interrupted ${EINTR_ATTEMPTS} times running (errno ${EINTR})`
+      : `flock failed with errno ${errno}`,
+  }
 }
+
+/** 4 on every platform this runs on, and one of the few errnos POSIX fixes. */
+const EINTR = 4
+
+/** Enough that a real signal storm still lets a boot through, small enough that
+ *  an `EINTR` which never clears is a refusal rather than a spin. */
+const EINTR_ATTEMPTS = 5

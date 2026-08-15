@@ -148,10 +148,12 @@ const GIT_TAG = /^@git:(repo|none|broken)$/;
 
 /** The corpus a scenario gets when it names none. */
 const DEFAULT_CORPUS = "good";
-/** `@corpus:<name>` shares the tracked fixture directory; `@scratch:<name>`
- *  gets a private, writable copy of it. One pattern rather than two, because
- *  they are one question — which corpus, and may I write to it — and two
- *  regexes is how the answer ends up parsed in two places. */
+/** `@corpus:<name>` shares this WORKER's copy of the tracked fixture directory
+ *  (see the header — nothing serves the tracked tree itself any more);
+ *  `@scratch:<name>` gets a copy of its own that it may write to, thrown away
+ *  with the scenario. One pattern rather than two, because they are one
+ *  question — which corpus, and may I write to it — and two regexes is how the
+ *  answer ends up parsed in two places. */
 const CORPUS_TAG = /^@(corpus|scratch):([A-Za-z0-9_-]+)$/;
 
 /** The screen a scenario is read on, and the pointer it is read with.
@@ -734,11 +736,44 @@ process.on("exit", killLive);
 
 // ── hooks ──────────────────────────────────────────────────────────────
 
+/**
+ * What `git` says about the tracked fixtures — the sweep's two readings, taken
+ * before the run and after it.
+ *
+ * Copies and `world.scratch()` between them make "a scenario wrote into the
+ * repository's fixtures" hard to do, and hard is not the same as impossible: a
+ * step that joins a raw path, or a future caller of `fixtureDir` that forgets
+ * to copy, would put it back and nothing would say so. Silence is the whole
+ * failure mode — a dirty fixture is a change to a file the NEXT run reads as
+ * its baseline — so the invariant the copies were made to hold is asserted
+ * rather than trusted.
+ *
+ * TWO readings rather than one, because a clean tree is not the invariant.
+ * Somebody adding a fixture has uncommitted work under `fixtures/` and their
+ * run must not fail for it; what may not happen is a CHANGE across the run.
+ *
+ * `null` when git cannot answer (no git, not a work tree) — the sweep is a
+ * guard, and a guard that cannot read is not a failure of the thing it guards.
+ */
+const fixtureStatus = (): string | null => {
+  try {
+    return execFileSync("git", ["status", "--porcelain", "--", FIXTURES], {
+      cwd: FIXTURES,
+      encoding: "utf8",
+    });
+  } catch {
+    return null;
+  }
+};
+
+let fixturesWere: string | null = null;
+
 BeforeAll(async () => {
   // Fail here rather than in the first scenario: an unset (or doubly set)
   // OLAI_BIN/OLAI_URL is a setup mistake, and reporting it once beats
   // reporting it per scenario.
   modeOf();
+  fixturesWere = fixtureStatus();
   browser = await chromium.launch({
     headless: process.env.HEADLESS !== "false",
     args: ciArgs,
@@ -751,6 +786,20 @@ AfterAll(async () => {
   if (workerState !== undefined) {
     fs.rmSync(workerState, { recursive: true, force: true });
     workerState = undefined;
+  }
+
+  // LAST, and after the servers are down: a server still running is a server
+  // still able to write, and this reading has to be of a tree nobody holds.
+  const now = fixtureStatus();
+  if (fixturesWere !== null && now !== null && now !== fixturesWere) {
+    throw new Error(
+      "this run changed the tracked fixtures, which no scenario may do — a " +
+        "shared corpus is served from a per-worker COPY and a writing scenario " +
+        "owns a scratch copy of its own (support/hooks.ts's header).\n" +
+        `  before: ${fixturesWere.trim() || "(clean)"}\n` +
+        `  after:  ${now.trim() || "(clean)"}\n` +
+        "  Restore them with: git checkout -- packages/tests/fixtures",
+    );
   }
 });
 

@@ -37,6 +37,11 @@
  *      DIAGNOSIS, not validity: with a bogus one written over it, the second
  *      olai is still refused (the kernel decides) and the bogus number is not
  *      read out as fact.
+ *   7. THE OTHER REFUSAL IS REAL TOO. When the machine will not answer the
+ *      question — a runtime directory that is not a directory, or one other
+ *      users can write — olai says `cannot take the one-brain lock` and does
+ *      not serve. That branch is a hard boot failure with no escape, which is
+ *      what makes it worth pinning rather than what makes it exotic.
  */
 
 import { findLogfmt } from "@olai/log/testlib"
@@ -134,8 +139,11 @@ test("a stale pid in the note frees nothing, and is not read out as fact", async
   try {
     await first.address()
     // Writing needs no lock — flock is advisory — which is exactly why the
-    // contents can never be the thing that decides.
-    fs.writeFileSync(lockFor(root), `pid=${IMPOSSIBLE_PID}\n`)
+    // contents can never be the thing that decides. The mode is spelled out
+    // because it is what the holder creates the file with (`lock.ts`'s
+    // `openLock`), so a note this test leaves behind is the note olai would
+    // have left — and a scanner reading this line is owed the same answer.
+    fs.writeFileSync(lockFor(root), `pid=${IMPOSSIBLE_PID}\n`, { mode: 0o600 })
 
     const second = startWeb({ root, env })
     expect(await second.exited()).not.toBe(0)
@@ -234,3 +242,53 @@ test("the lock is the directory's, however the directory was spelled", () => {
   expect(lockFor(`${root}/.`)).toBe(lockFor(root))
   expect(lockFor(elsewhere)).not.toBe(lockFor(root))
 })
+
+/**
+ * The OTHER refusal, which had no test: the machine will not answer the
+ * question at all.
+ *
+ * `LockUnavailable` is a hard boot refusal with no escape, so what it costs to
+ * be wrong is a person unable to serve their notes — which makes it the branch
+ * most worth pinning, not the least. Both cases below are reachable by hand,
+ * and both are reached the way somebody would reach them by accident: a
+ * runtime directory that is not a directory, and one left open to other users
+ * (`/tmp/olai-$UID` is a fixed path, so who made it first is not always us).
+ *
+ * What each asserts is the same three things: it exits non-zero, it says
+ * `cannot take the one-brain lock` in olai's own words, and it NEVER serves —
+ * because the failure mode that would matter is a server that shrugged and
+ * came up unprotected.
+ */
+const refusedWithNoLock = async (runtimeDir: string): Promise<void> => {
+  const child = startWeb({
+    root: served(),
+    env: { XDG_RUNTIME_DIR: runtimeDir },
+  })
+  try {
+    expect(await child.exited()).not.toBe(0)
+    expect(child.said()).toContain("cannot take the one-brain lock")
+    expect(findLogfmt(child.said(), "serving")).toBeUndefined()
+  } finally {
+    child.kill()
+  }
+}
+
+test("a runtime directory that is not a directory refuses the boot", async () => {
+  // `mkdirSync` over a plain file throws EEXIST/ENOTDIR, which is the `catch`
+  // in `openLock` rather than any predicate of ours.
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "olai-lock-bad-")), "runtime")
+  fs.writeFileSync(file, "not a directory\n", { mode: 0o600 })
+  await refusedWithNoLock(file)
+}, BOUND_MS)
+
+test("a runtime directory other users can write refuses the boot", async () => {
+  // The threat `notPrivatelyOurs` is for: `/tmp/olai-$UID` is a fixed path, and
+  // a directory somebody else prepared is one they can hold a lock in — olai
+  // would then report a stranger's claim as another olai of the reader's own.
+  // 0755 is OURS and still open, which is the case `mkdirSync`'s `mode:` cannot
+  // catch, because that argument only applies to a directory it CREATES.
+  const runtime = fs.mkdtempSync(path.join(os.tmpdir(), "olai-lock-open-"))
+  fs.mkdirSync(path.join(runtime, "olai"), { mode: 0o755 })
+  fs.chmodSync(path.join(runtime, "olai"), 0o755)
+  await refusedWithNoLock(runtime)
+}, BOUND_MS)
