@@ -2,7 +2,7 @@
  * The doors to a row's `•••` menu: how it is opened, and whether it is open.
  *
  * The `•••` is the pointer's door and it is drawn beside the panel
- * (`./Dots.tsx`, and `./NodeMenu.tsx`'s trigger once a row is armed). A phone
+ * (`./Dots.tsx`, and `./Dropdown.tsx`'s trigger once a row is armed). A phone
  * has no `•••` at all — a 390px screen has no room for a
  * second always-on cell before the title (`../touch.ts`) — so its door is a
  * LONG PRESS on the row line (`../longPress.ts`), which is markup the menu

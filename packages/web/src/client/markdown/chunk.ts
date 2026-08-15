@@ -17,6 +17,13 @@
  * moving parts (a build, a placeholder, a reader) held together to say what one
  * `import()` says on its own.
  *
+ * WHAT A CHUNK'S ARRIVAL IS — the one signal over not-here / here / not-coming,
+ * the read that starts the fetch, the failure kept as a value — is
+ * `../arriving.ts`, since the `•••` menu's primitive is fetched the same way
+ * (`../menu/chunk.ts`). What stays here is this app's four names for it, and
+ * the literal specifier, which has to be written where the bundler will read
+ * it.
+ *
  * ## How the rest of the app asks
  *
  * {@link markdownReady} is a SIGNAL read, so a memo that asks becomes a memo
@@ -38,21 +45,17 @@
  * the longer it is broken.
  */
 
-import { createSignal } from "solid-js"
+import { createArrival } from "../arriving.ts"
 
-import type { Pipeline } from "./pipeline.ts"
-
-/**
- * Where the pipeline has got to: not here, here, or not coming. ONE signal
- * holding all three, because they are one fact — two signals would be two
- * writes to keep in step, and a state that said both "failed" and "here" is a
- * state nothing should be able to spell.
- */
-const [arrival, setArrival] = createSignal<Pipeline | Error | undefined>(undefined)
-
-/** Has the fetch been started? Not a signal: nothing draws from it, and it is
- *  the one piece of this that must not re-run anything when it changes. */
-let asked = false
+// The literal specifier is the point: the bundler READS it, which is what gets
+// ./pipeline.ts's graph out of `main-*.js` and into a chunk of its own rather
+// than merely unreached inside it. It was a variable while `splitting` was off,
+// when a specifier the bundler could resolve would have been inlined — the
+// opposite of what this file is for. It also carried an `as Pipeline`, which a
+// variable specifier needs and this one does not: the namespace object is
+// TYPED here, so renaming an export in ./pipeline.ts is a compile error rather
+// than a page that loads and then cannot render.
+const pipeline = createArrival("the markdown renderer", () => import("./pipeline.ts"))
 
 /**
  * Is the pipeline here yet — and, if it is not, start fetching it.
@@ -61,71 +64,21 @@ let asked = false
  * makes the answer change from `false` to `true` re-render the thing that
  * asked.
  */
-export const markdownReady = (): boolean => {
-  const here = arrival()
-  if (here === undefined && !asked) {
-    asked = true
-    void fetchPipeline()
-  }
-  return here !== undefined && !(here instanceof Error)
-}
+export const markdownReady = pipeline.ready
 
 /** Why it is not coming, once that is known. Reactive, for the one component
  *  that says so on the page (./Markdown.tsx). */
-export const markdownFailure = (): Error | undefined => {
-  const here = arrival()
-  return here instanceof Error ? here : undefined
-}
+export const markdownFailure = pipeline.failure
 
-/**
- * The pipeline, for code that has already established it is here.
- *
- * Throws rather than returning `undefined`, because every caller
- * (./render.ts) is inside a memo that just read {@link markdownReady}: a throw
- * here is a bug in this app's own ordering, and a silent empty rendering would
- * hide it behind a page that merely looked blank.
- */
-export const pipelineNow = (): Pipeline => {
-  const here = arrival()
-  if (here === undefined || here instanceof Error) {
-    throw new Error(
-      "the markdown pipeline was used before it arrived — read markdownReady() first",
-    )
-  }
-  return here
-}
+/** The pipeline, for code that has already established it is here
+ *  (./render.ts, inside a memo that just read {@link markdownReady}). */
+export const pipelineNow = pipeline.now
 
 /**
  * Hand the pipeline over.
  *
- * Called by the fetch below, and directly by unit tests: a test has no bundler
- * splitting anything, so it imports ./pipeline.ts itself and installs it. That
- * is the same module the browser ends up with, which is what makes those tests
- * tests of the thing that ships.
+ * For unit tests: a test has no bundler splitting anything, so it imports
+ * ./pipeline.ts itself and installs it. That is the same module the browser
+ * ends up with, which is what makes those tests tests of the thing that ships.
  */
-export const installPipeline = (module: Pipeline): void => {
-  setArrival(() => module)
-}
-
-const fetchPipeline = async (): Promise<void> => {
-  try {
-    // The literal specifier is the point: the bundler READS it, which is what
-    // gets ./pipeline.ts's graph out of `main-*.js` and into a chunk of its own
-    // rather than merely unreached inside it. It was a variable while
-    // `splitting` was off, when a specifier the bundler could resolve would have
-    // been inlined — the opposite of what this file is for. It also carried an
-    // `as Pipeline`, which a variable specifier needs and this one does not: the
-    // namespace object is TYPED here, so renaming an export in ./pipeline.ts is
-    // a compile error rather than a page that loads and then cannot render.
-    installPipeline(await import("./pipeline.ts"))
-  } catch (cause) {
-    const error = new Error(
-      `the markdown renderer could not be loaded: ${
-        cause instanceof Error ? cause.message : String(cause)
-      }`,
-      { cause },
-    )
-    console.error(error)
-    setArrival(error)
-  }
-}
+export const installPipeline = pipeline.install

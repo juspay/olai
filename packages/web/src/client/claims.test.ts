@@ -173,3 +173,62 @@ test("only pointer.ts suppresses the page's text selection", () => {
 test("only saying.ts counts SAID_MS down", () => {
   expect(filesSpelling(/\bSAID_MS\b/)).toEqual([path.join("edit", "undoing.ts"), "saying.ts"])
 })
+
+// menu/chunk.ts's claim — `DropdownMenu` is not on the first-paint chunk, and
+// nothing may put it back. The split is a fact about the module GRAPH and
+// nothing in the source looks wrong on the day it is undone: one static
+// `import` of `menu/Dropdown.tsx` (or of `./Panel.tsx` / `./Confirm.tsx` behind
+// it) from a file the entry reaches, and the bundler inlines all ~80 kB of it
+// again while every test still passes and every pixel is where it was. So the
+// two edges are swept instead.
+//
+// First, the subpath itself: exactly the three files that live BEHIND the
+// `import()` may name it. The list is the chunk's own contents, and a fourth
+// name is either a new file that belongs in there or a first-paint file that
+// has just re-imported the menu.
+test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
+  expect(filesSpelling(/@kobalte\/core\/dropdown-menu/)).toEqual([
+    path.join("menu", "Confirm.tsx"),
+    path.join("menu", "Dropdown.tsx"),
+    path.join("menu", "Panel.tsx"),
+  ])
+})
+
+// And the other edge, which is the way the first one would be undone without
+// naming Kobalte at all: the chunk is THREE files, and a static import of any
+// of them from a file the entry reaches drags the whole graph back into
+// `main-*.js`. `Panel.tsx` and `Confirm.tsx` already name the dropdown subpath,
+// so they sail through the sweep above; only this one sees them. (Grok's review
+// of PR #171 found that hole, when the sweep here asked about `Dropdown.tsx`
+// alone.)
+//
+// It resolves the specifier rather than matching it, because the SPELLING
+// cannot say which file is meant: this client holds four `Panel.tsx` — the
+// menu's, the chat's, the commit's and the preferences' — and three of those
+// are imported by first-paint code as `./Panel.tsx` from their own directory.
+//
+// The expectation is the chunk's own SHAPE, as a table: who may import each
+// file of it, and nobody else. `Dropdown.tsx`'s empty list is the claim that
+// used to be a sweep of its own — the entry is reached by the `import(...)` in
+// `menu/chunk.ts`, which carries no `from` and is the split itself.
+const CHUNK = ["Dropdown.tsx", "Panel.tsx", "Confirm.tsx"].map((one) => path.join("menu", one))
+
+/** What a file statically imports, as client-relative paths. A dynamic
+ *  `import(...)` is deliberately not one of them: `import` followed by a paren
+ *  never matches, which is what makes `menu/chunk.ts` the one legitimate way
+ *  in. */
+const importsOf = (source: { file: string; code: string }): ReadonlyArray<string> =>
+  [...source.code.matchAll(/(?:from|import)\s*["'](\.[^"']*)["']/g)]
+    .map(([, spec]) => path.normalize(path.join(path.dirname(source.file), spec!)))
+
+test("nothing outside the menu's chunk imports the menu's chunk", () => {
+  const importers = new Map(CHUNK.map((one) => [one, [] as string[]]))
+  for (const source of SOURCES) {
+    for (const target of importsOf(source)) importers.get(target)?.push(source.file)
+  }
+  expect([...importers].map(([file, from]) => [file, from.sort()])).toEqual([
+    [path.join("menu", "Dropdown.tsx"), []],
+    [path.join("menu", "Panel.tsx"), [path.join("menu", "Dropdown.tsx")]],
+    [path.join("menu", "Confirm.tsx"), [path.join("menu", "Panel.tsx")]],
+  ])
+})

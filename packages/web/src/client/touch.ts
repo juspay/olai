@@ -135,7 +135,7 @@ export const HOVER_REVEAL =
  *
  * `data-[expanded]` is the third arm and it is not optional: an OPEN menu
  * whose `•••` had faded out would be a panel hanging off nothing. Kobalte puts
- * that attribute on the trigger for exactly this (`menu/NodeMenu.tsx`), which
+ * that attribute on the trigger for exactly this (`menu/Dropdown.tsx`), which
  * is steadier than the focus it used to ride on — a menu's own list can take
  * and drop the caret as a pointer moves over it.
  */

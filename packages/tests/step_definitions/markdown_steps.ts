@@ -13,80 +13,36 @@
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
-import type { Route } from "playwright";
 
+import { chunkOf } from "../support/chunks.ts";
 import { DOCUMENT_BODY, HYDRATION_TIMEOUT, POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 /**
- * The chunk's URL, as the bundler names it: `[name]-[hash].js` under the hashed
- * asset prefix, where the name is the split module's own — so the chunk holding
- * `markdown/pipeline.ts` is `pipeline-<hash>.js`. ONE spelling, used both to
- * intercept the request and to read the recording back, so what a scenario holds
- * up and what it then claims was never asked for cannot drift apart.
- */
-const CHUNK_URL = /\/assets\/pipeline-[^/]+\.js$/;
-
-const asked = (world: OlaiWorld): ReadonlyArray<string> =>
-  world.requests.filter((url) => CHUNK_URL.test(url));
-
-/**
- * What to print when a step expected the chunk to have been asked for and it
- * was not.
+ * The pipeline, as a chunk a scenario can hold up.
  *
- * The failure this has to be legible for is NAMING ROT rather than a broken
- * page: the chunk is called `pipeline-<hash>.js` because the bundler names a
- * split chunk after the module it starts at, which is a spelling olai does not
- * choose and did not choose before (it was `markdown-<hash>.js`, written by a
- * build step this repo owned). If it moves again, every step here goes quiet in
- * the same way — "the page never asked" — and the log has to be enough to tell
- * that from a page that genuinely did not ask. So the pattern goes in the
- * message beside every `/assets/*` the page DID fetch, and the two together
- * name the mismatch without anybody opening this file.
+ * The URL it is fetched from is derived from the module it is split at —
+ * `markdown/pipeline.ts` → `pipeline-<hash>.js` — because that is the bundler's
+ * naming rule, and the rule is spelled once for both chunks in
+ * `support/chunks.ts` (the `•••` menu's primitive is the other; its steps are
+ * in `menu_steps.ts`).
  */
-const diagnosis = (world: OlaiWorld): string => {
-  const assets = world.requests.filter((url) => url.includes("/assets/"));
-  return [
-    `expected a request matching ${CHUNK_URL}`,
-    ...(assets.length === 0
-      ? ["this page fetched nothing under /assets/ at all"]
-      : ["the /assets/* this page did fetch:", ...assets.map((url) => `  ${url}`)]),
-  ].join("\n  ");
-};
+const PIPELINE = chunkOf("the markdown pipeline", "pipeline");
 
 Given("the markdown pipeline is held up", async function (this: OlaiWorld) {
-  const held: Route[] = [];
-  this.heldMarkdown = held;
-  // Registered before the page is opened, so it catches the fetch whenever the
-  // app makes it — the point of the scenario is that it has not arrived YET.
-  await this.page.route(CHUNK_URL, (route) => {
-    held.push(route);
-  });
+  await PIPELINE.holdUp(this);
 });
 
 Given("the markdown pipeline never arrives", async function (this: OlaiWorld) {
-  await this.page.route(CHUNK_URL, (route) => route.abort("failed"));
+  await PIPELINE.neverArrives(this);
 });
 
 When("the markdown pipeline arrives", async function (this: OlaiWorld) {
-  const held = this.heldMarkdown;
-  assert.ok(
-    held !== undefined,
-    "nothing is holding the markdown pipeline up, so there is nothing to let through",
-  );
-  assert.ok(
-    held.length > 0,
-    `the page never asked for the markdown pipeline, so letting it through proves nothing\n  ${
-      diagnosis(this)
-    }`,
-  );
-  for (const route of held) await route.continue();
-  this.heldMarkdown = [];
-  await this.waitForFrame();
+  await PIPELINE.arrive(this);
 });
 
 Then("nothing has asked for the markdown pipeline", function (this: OlaiWorld) {
-  const requested = asked(this);
+  const requested = PIPELINE.asked(this);
   assert.deepStrictEqual(
     [...requested],
     [],
@@ -95,12 +51,12 @@ Then("nothing has asked for the markdown pipeline", function (this: OlaiWorld) {
 });
 
 Then("the markdown pipeline was fetched once", function (this: OlaiWorld) {
-  const requested = asked(this);
+  const requested = PIPELINE.asked(this);
   assert.strictEqual(
     requested.length,
     1,
     `the page asked for the markdown pipeline ${requested.length} time(s)\n  ${
-      requested.length === 0 ? diagnosis(this) : requested.join("\n  ")
+      requested.length === 0 ? PIPELINE.diagnosis(this) : requested.join("\n  ")
     }`,
   );
 });

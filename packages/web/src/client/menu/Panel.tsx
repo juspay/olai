@@ -6,12 +6,12 @@
  * shuts — so `asking` dies with the panel, and a menu closed on Escape and
  * reopened is a menu that is not still asking. That disposal is also the one
  * event in the whole primitive that fires on every close, which is why the
- * caret's way home hangs off it (`onGone`, and `./NodeMenu.tsx`'s `handBack`
+ * caret's way home hangs off it (`onGone`, and `./Dropdown.tsx`'s `handBack`
  * for why Kobalte's own hook cannot be the one to do it).
  *
  * Everything here is Kobalte's `Item` and `Separator` wearing this app's own
  * classes — the library ships none — so this file is the whole of what the
- * `role="menu"` looks like, and `./NodeMenu.tsx` is the whole of how it
+ * `role="menu"` looks like, and `./Dropdown.tsx` is the whole of how it
  * behaves. That is the seam the primitive drew: the two used to be one file
  * and had no reason left to be.
  */

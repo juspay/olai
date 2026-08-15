@@ -8,12 +8,13 @@
  * phone lays one out at all. That is a fact about the row; everything here is
  * about the panel.
  *
- * TWO features are served from here, which is the exception to one-file-per-
+ * THREE features are served from here, which is the exception to one-file-per-
  * feature and the reason worth writing down: `menu_verbs.feature` is what the
- * menu DOES to a node and `menu_panel.feature` is how the panel opens and
- * shuts, and both drive it through the same three gestures. A second copy of
- * "open it, then wait for the panel" is exactly the drift this suite spends
- * its selectors avoiding.
+ * menu DOES to a node, `menu_panel.feature` is how the panel opens and shuts,
+ * and `menu_arrives.feature` is the chunk the primitive travels in — and all
+ * three drive the menu through the same three gestures. A second copy of "open
+ * it, then wait for the panel" is exactly the drift this suite spends its
+ * selectors avoiding.
  *
  * The one thing this file is careful about is TONE. What a verb said is drawn
  * in one place in two moods — a refusal, in the ops layer's own words, and a
@@ -25,6 +26,8 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import { TESTID } from "@olai/web/src/client/testids.ts";
+
+import { chunkOf } from "../support/chunks.ts";
 
 import {
   NODE_GUTTER,
@@ -196,7 +199,7 @@ Then(
  * The caret back on the `•••` a menu was opened from.
  *
  * A panel that took the caret has to give it back when it goes, and the
- * primitive's own way of doing that never fires here (`menu/NodeMenu.tsx`'s
+ * primitive's own way of doing that never fires here (`menu/Dropdown.tsx`'s
  * `handBack` says why), so this is the step that would notice it stopping.
  * The ROW is asserted as well as the control: handing the caret to some other
  * row's `•••` would be its own kind of lost.
@@ -465,3 +468,81 @@ Then("the clipboard holds:", async function (this: OlaiWorld, expected: string) 
   );
   assert.strictEqual(await copied(this), expected);
 });
+
+/**
+ * THE PRIMITIVE AS A CHUNK, which is the other half of "a row pays for its
+ * menu once it reaches for one".
+ *
+ * Kobalte's `DropdownMenu` is fetched by the `import()` in
+ * `client/menu/chunk.ts` — ~80 kB the first paint of an outline does not wait
+ * for — so what a row draws before anybody presses it is a plain `<button>`,
+ * and these steps are about the network rather than about the panel. The
+ * machinery is `support/chunks.ts`, shared with the markdown pipeline, and the
+ * chunk's URL is derived there from the module it is split at: `menu/
+ * Dropdown.tsx` → `Dropdown-<hash>.js`.
+ */
+const PRIMITIVE = chunkOf("the menu's primitive", "Dropdown");
+
+Given("the menu's primitive is held up", async function (this: OlaiWorld) {
+  await PRIMITIVE.holdUp(this);
+});
+
+Given("the menu's primitive never arrives", async function (this: OlaiWorld) {
+  await PRIMITIVE.neverArrives(this);
+});
+
+When("the menu's primitive arrives", async function (this: OlaiWorld) {
+  await PRIMITIVE.arrive(this);
+});
+
+Then("nothing has asked for the menu's primitive", function (this: OlaiWorld) {
+  const requested = PRIMITIVE.asked(this);
+  assert.deepStrictEqual(
+    [...requested],
+    [],
+    `this page fetched the menu's primitive before any row was asked for a menu:\n  ${
+      requested.join("\n  ")
+    }`,
+  );
+});
+
+/** ONCE, however many rows have been opened: the chunk is one fact about the
+ *  app, not one per row (`client/arriving.ts`). */
+Then("the menu's primitive was fetched once", function (this: OlaiWorld) {
+  const requested = PRIMITIVE.asked(this);
+  assert.strictEqual(
+    requested.length,
+    1,
+    `the page asked for the menu's primitive ${requested.length} time(s)\n  ${
+      requested.length === 0 ? PRIMITIVE.diagnosis(this) : requested.join("\n  ")
+    }`,
+  );
+});
+
+/**
+ * WHAT A ROW SAYS when the primitive is never coming.
+ *
+ * Not the verbatim-sentence step above, and the difference is the CAUSE: the
+ * middle of this sentence is the browser's own words for a fetch that failed,
+ * with the hashed chunk URL in them, so a feature file cannot spell it. What
+ * the app owns is the two ends — what could not be loaded, and what to do
+ * about it — and those are what this holds, in the alarm tone every refusal
+ * wears. `markdown_steps.ts` says the same thing about the renderer the same
+ * way.
+ */
+Then(
+  "the node menu of {string} says its menu never came",
+  async function (this: OlaiWorld, id: string) {
+    const line = await said(this, id);
+    assert.ok(
+      line.text.startsWith("the ••• menu could not be loaded:") &&
+        line.text.endsWith("reloading is the way to try again."),
+      `"${id}" did not say why its menu is not opening: ${JSON.stringify(line.text)}`,
+    );
+    assert.strictEqual(
+      line.tone,
+      "alarm",
+      `"${id}" said its menu never came in the wrong tone — a fault is an alarm`,
+    );
+  },
+);
