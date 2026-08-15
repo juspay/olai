@@ -172,7 +172,7 @@ describe("manual is the default", () => {
             file: "house.jsonl",
             id: "order",
             title: "order the cabinets",
-            fields: ["done"],
+            fields: ["status", "since"],
             sort: "done",
           },
         ])

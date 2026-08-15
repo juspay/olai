@@ -23,7 +23,7 @@ describe("an outline rewritten by hand", () => {
   test("a mark that appeared is the same word the Commit panel uses", () => {
     const marked = OUTLINE.replace(
       `"title":"order the cabinets"}`,
-      `"title":"order the cabinets","done":"2026-08-12T10:00:00-04:00"}`,
+      `"title":"order the cabinets","props":{"status":"done","since":"2026-08-12T10:00:00-04:00"}}`,
     )
     const answer = rewritten(`${OUTLINE}\n`, `${marked}\n`)
     expect(answer).toEqual({
@@ -33,7 +33,7 @@ describe("an outline rewritten by hand", () => {
           file: "house.jsonl",
           id: "order",
           title: "order the cabinets",
-          fields: ["done"],
+          fields: ["status", "since"],
           sort: "done",
         },
       ],

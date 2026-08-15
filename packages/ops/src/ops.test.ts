@@ -162,7 +162,7 @@ test("a mark lands on disk as bytes the parser reads back", () =>
       // And the browser sees it: the snapshot moved, without anyone probing.
       const set = yield* fixture.set()
       const order = set.nodes.find((located) => located.node.id === "order")
-      expect(order?.node).toMatchObject({ done: STAMP })
+      expect(order?.node).toMatchObject({ props: { status: "done", since: STAMP } })
     })))
 
 /**
@@ -189,9 +189,9 @@ test("the marks on the other records come back as the bytes they were", () =>
       yield* run(fixture, { op: "done", id: "order" })
 
       const text = fixture.read("house.jsonl") ?? ""
-      expect(text).toContain(`"done":true`)
-      expect(text).toContain(`"done":"2026-08-01"`)
-      expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
+      expect(text).toContain(`"props":{"status":"done"}`)
+      expect(text).toContain(`"status":"done","since":"2026-08-01"`)
+      expect(text).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
     })))
 
 /**
@@ -370,7 +370,7 @@ test("a subtree captured in one call is one revision and one commit", () =>
       const set = yield* fixture.set()
       const byId = new Map(set.nodes.map((located) => [located.node.id, located.node]))
       for (const node of applied.captured ?? []) expect(byId.has(node.id)).toBe(true)
-      expect(byId.get(applied.captured?.[3]?.id ?? "")).toMatchObject({ done: STAMP })
+      expect(byId.get(applied.captured?.[3]?.id ?? "")).toMatchObject({ props: { status: "done", since: STAMP } })
 
       expect(gitLog(fixture.root)).toEqual([
         "olai: capture: the pantry (+3)",
@@ -413,7 +413,7 @@ test("an edit that arrives mid-write is absorbed, not lost", () =>
       expect([...set.files].sort()).toEqual(["house.jsonl", "notes.jsonl"])
       expect(
         set.nodes.find((located) => located.node.id === "order")?.node,
-      ).toMatchObject({ done: STAMP })
+      ).toMatchObject({ props: { status: "done", since: STAMP } })
       // The pulled file is still there: the write re-derived rather than
       // re-sending bytes computed from a set that no longer existed.
       expect(fixture.read("notes.jsonl")).toContain("an idea")
@@ -474,7 +474,7 @@ test("concurrent ops all land, each re-derived from the set the last one left", 
 
       const set = yield* fixture.set()
       const byId = new Map(set.nodes.map((located) => [located.node.id, located.node]))
-      expect(byId.get("order")).toMatchObject({ done: STAMP })
+      expect(byId.get("order")).toMatchObject({ props: { status: "done", since: STAMP } })
       expect(byId.get("install")).toMatchObject({ title: "install the cabinets" })
       expect([...byId.values()].some((node) => "title" in node && node.title === "paint"))
         .toBe(true)

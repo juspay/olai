@@ -404,7 +404,7 @@ test("a write through a tool changes the directory", async () => {
     const answer = await call(client, "set_done", { id: "order" })
     expect(answer.isError).toBe(false)
     expect(answer.structured).toMatchObject({ did: "set_done", id: "order" })
-    expect(read("house.jsonl")).toContain(`"done":${JSON.stringify(STAMP)}`)
+    expect(read("house.jsonl")).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
   })
 })
 
@@ -442,7 +442,7 @@ test("marking a parent lands, and the answer carries what the rollup noticed", a
     expect(answer.structured["nudge"]).not.toContain("order the cabinets")
     expect(refusals).toEqual([])
     expect(read("house.jsonl")).toContain(`"id":"kitchen"`)
-    expect(read("house.jsonl")).toContain(`"done":${JSON.stringify(STAMP)}`)
+    expect(read("house.jsonl")).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
   })
 })
 
@@ -644,8 +644,8 @@ test("one add_node lands a whole subtree, and says what it made", async () => {
 
     const text = read("house.jsonl") ?? ""
     expect(text.split("\n").filter((line) => line !== "")).toHaveLength(8)
-    expect(text).toContain(`"todo":true`)
-    expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
+    expect(text).toContain(`"props":{"status":"todo"}`)
+    expect(text).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
 
     // The tree is a tree: `measure` hangs off `shelves`, which hangs off the
     // node the call named.

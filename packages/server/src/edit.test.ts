@@ -249,7 +249,10 @@ const marked = (id: string, mark: string): Reading => {
   const line = HOUSE.split("\n").find((one) => one.includes(`"id":"${id}"`))
   if (line === undefined) throw new Error(`no \`${id}\` in the fixture`)
   return reading(setOf({
-    "house.jsonl": HOUSE.replace(line, `${line.slice(0, -1)},"${mark}":true}`),
+    "house.jsonl": HOUSE.replace(
+      line,
+      `${line.slice(0, -1)},"props":{"status":"${mark}"}}`,
+    ),
   }))
 }
 

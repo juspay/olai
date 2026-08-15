@@ -2073,7 +2073,7 @@ describe("unmirror", () => {
         "now.jsonl": [
           `{"id":"x","ord":"a0","title":"x"}`,
           `{"id":"one","ord":"a1","mirror":"x"}`,
-          `{"id":"y","ord":"a2","title":"y","${edge}":["one"]}`,
+          `{"id":"y","ord":"a2","title":"y","props":{"${edge}":["one"]}}`,
         ].join("\n"),
       })
       const failure = refused(set, { op: "unmirror", id: "one" })
