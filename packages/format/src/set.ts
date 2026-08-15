@@ -19,7 +19,7 @@ import { Result, Schema } from "effect"
 
 import { Document } from "./documents.ts"
 import { OutlineError } from "./errors.ts"
-import { fileKind, holdsText } from "./kinds.ts"
+import { bodyKind } from "./kinds.ts"
 import { Located } from "./node.ts"
 
 /**
@@ -45,11 +45,12 @@ export const OutlineSet = Schema.Struct({
    *  `nodes`. */
   files: Schema.Array(Schema.String),
   nodes: Schema.Array(Located),
-  /** Every `.md` found, with its text. Documents are part of the set because
-   *  `doc` points into them — a reference the validator cannot see is one it
-   *  cannot check — and their text rides along because it is the same kind of
-   *  thing a note is: markdown from the directory, read by the same probe and
-   *  published in the same revision ({@link ./documents.ts}). */
+  /** Every BODIED file found — each `.md` and each `.html` — with its text.
+   *  Documents are part of the set because `doc` points into them: a reference
+   *  the validator cannot see is one it cannot check. Their text rides along
+   *  because it is the same kind of thing a note is — content of the directory,
+   *  read by the same probe and published in the same revision
+   *  ({@link ./documents.ts}). The field keeps the name it has on the wire. */
   documents: Schema.Array(Document),
   /** The files above that did not parse. Their nodes are absent from `nodes`,
    *  which is exactly what makes the rest of the set renderable. */
@@ -108,8 +109,7 @@ export const assemble = (
   for (const [path, decoded] of files) {
     if (Result.isFailure(decoded)) {
       broken.push({ file: path, errors: decoded.failure })
-      const kind = fileKind(path)
-      if (kind !== null && holdsText(kind)) documents.push({ file: path, text: "" })
+      if (bodyKind(path) !== null) documents.push({ file: path, text: "" })
       else outlines.push(path)
       continue
     }
@@ -125,7 +125,3 @@ export const assemble = (
   }
   return { files: outlines, nodes, documents, broken }
 }
-
-/** Re-exported so a reader of the set finds the rule that decides what belongs
- *  in it without leaving this file. */
-export { fileKind }

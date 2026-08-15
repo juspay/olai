@@ -11,12 +11,12 @@
  *     outline rename was: a rule the walk stopped claiming while one caller went
  *     on believing it (./extension.test.ts bans the retired spelling outright,
  *     and this is its sibling in the present tense);
- *   - a kind added to the registry and NOT DRAWN. The type checker catches most
- *     of that on its own — every surface that draws a kind holds a `Record` over
- *     the registry's union, so a new entry is a compile error at each of them —
- *     but the compiler can only name the sites that already exist. The second
- *     sweep below is the list of them, so "everywhere it must" is a thing a
- *     person can read.
+ *   - a kind added to the registry and NOT DRAWN. Every surface that draws one
+ *     holds a `Record` over the registry's union, so the type checker fails each
+ *     of them on a new entry — but only the ones it knows about. What it cannot
+ *     see is a surface that draws kinds WITHOUT such a table, or one added and
+ *     never written down, so the second sweep is about the INVENTORY: every
+ *     table over the union is on the list, and every kind is in every table.
  *
  * It lives in `@olai/tests` for ./extension.test.ts' reason: this is the only
  * package ABOVE all the others, and a sweep in `@olai/format` reading the
@@ -30,43 +30,15 @@
  */
 
 import { expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
-import * as fs from "node:fs";
-import * as path from "node:path";
 
 import { FILE_KINDS } from "@olai/format";
 
-/** The repository root — two directories up from this file, which lives in
- *  `packages/tests/`. */
-const ROOT = path.dirname(path.dirname(import.meta.dirname));
+import { read, tracked, withoutComments } from "./support/sweep.ts";
 
-const SELF = path.relative(ROOT, import.meta.filename);
-
-/** Every TypeScript file this repository owns, with its comments removed —
- *  `git ls-files` for the reason ./extension.test.ts gives (tracked is what
- *  "a file this repo owns" means, and an untracked one has not landed).
- *
- *  The comment stripper is `@olai/web`'s `claims.test.ts`, verbatim in effect:
- *  a `//` is only taken when it opens a line or follows whitespace, so a
- *  `https://…` inside a string survives. The cost is a comment pasted
- *  mid-expression surviving too, which for a sweep means a false alarm a human
- *  reads — never a silent pass. */
-const SOURCES: ReadonlyArray<{ file: string; code: string }> = (() => {
-  const listed = spawnSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" });
-  if (listed.status !== 0) {
-    throw new Error(`git ls-files failed in ${ROOT}: ${listed.stderr || listed.error}`);
-  }
-  return listed.stdout
-    .split("\0")
-    .filter((one) => one !== "" && one !== SELF && /\.tsx?$/.test(one))
-    .map((file) => ({
-      file,
-      code: fs
-        .readFileSync(path.join(ROOT, file), "utf8")
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/(^|\s)\/\/.*$/gm, "$1"),
-    }));
-})();
+/** Every TypeScript file this repository owns, with its comments removed. */
+const SOURCES: ReadonlyArray<{ file: string; code: string }> = tracked(import.meta.filename)
+  .filter((file) => /\.tsx?$/.test(file))
+  .map((file) => ({ file, code: withoutComments(read(file)) }));
 
 const filesSpelling = (pattern: RegExp): ReadonlyArray<string> =>
   SOURCES.filter((one) => pattern.test(one.code)).map((one) => one.file).sort();
@@ -117,60 +89,57 @@ test("no code outside the registry decides by spelling a suffix", () => {
 });
 
 /**
- * Every surface that has to DRAW a kind, and the shape an entry takes there.
+ * Every surface that draws a kind, and which union it draws over.
  *
- * Each of these is a `Record` over the registry's union, so this list is not
- * what enforces the property — the type checker is, on every one of them, and
- * that is the whole reason the tables are `Record`s. What the list is FOR is
- * the other half: it says out loud what "renders everywhere it must" means, so
- * a person adding a kind can read the sites, and a site that quietly stopped
- * being a table (an entry deleted, a `Partial<>`, a cast) is named here.
+ * `FileKind` is every kind there is; `BodyKind` is the ones whose content is a
+ * body, which is what a `/doc/…` address opens. A table over the second must
+ * NOT have an outline in it — that is not a page with a body, and an entry
+ * there would be a face nothing can reach.
+ *
+ * This list is not what enforces per-kind coverage — the type checker is, on
+ * every one of these tables, which is the whole reason they are `Record`s. What
+ * it enforces is the thing a compiler cannot see: that the list is COMPLETE.
+ * The test below finds every table over either union in the tree and requires
+ * it to be here, so a fourth surface added a year from now is either written
+ * down or red.
  */
-const DRAWN_AT: ReadonlyArray<string> = [
-  // The glyph before the name, in the tree and on the collapsed rail.
-  "packages/web/src/client/file/icons.tsx",
-  // Where a row of that kind links, and what a scenario calls it.
-  "packages/web/src/client/file/kinds.ts",
-];
-
-/**
- * And the surfaces that draw only the BODIED kinds — the files a `/doc/…`
- * address opens. An outline has no entry there and must not: it is a different
- * kind of page (a tree with rows to zoom and filter), which is what the
- * registry's `holds` column separates.
- */
-const FACED_AT: ReadonlyArray<string> = [
+const TABLES: ReadonlyArray<{ file: string; over: "FileKind" | "BodyKind" }> = [
+  // The glyph before the name, in the tree and on the collapsed rail. Its union
+  // is the directory's — every file kind, plus the folders they sit under.
+  { file: "packages/web/src/client/file/icons.tsx", over: "FileKind" },
+  // What a scenario grips a row of this kind by.
+  { file: "packages/web/src/client/file/kinds.ts", over: "FileKind" },
+  // What a reader is told when the directory does not hold what was asked for.
+  { file: "packages/web/src/client/Nothing.tsx", over: "FileKind" },
   // What the body of one is drawn as, and whether its page can write it.
-  "packages/web/src/client/document/faces.tsx",
+  { file: "packages/web/src/client/document/faces.tsx", over: "BodyKind" },
 ];
 
-/** Whether `site` has a table entry for `kind` — the shape every one of these
- *  tables writes, `<kind>: {…}`, at the start of a line. */
-const entered = (site: string, kind: string): boolean => {
-  const source = SOURCES.find((one) => one.file === site);
-  if (source === undefined) throw new Error(`${site} is not a tracked source file`);
-  return new RegExp(`^\\s*${kind}:`, "m").test(source.code);
+/** Whether `code` has a table entry for `kind` — the shape every one of these
+ *  writes, `<kind>: …`, at the start of a line. */
+const entered = (code: string, kind: string): boolean =>
+  new RegExp(`^\\s*${kind}:`, "m").test(code);
+
+const sourceOf = (file: string): string => {
+  const source = SOURCES.find((one) => one.file === file);
+  if (source === undefined) throw new Error(`${file} is not a tracked source file`);
+  return source.code;
 };
 
-test("every kind in the registry is drawn at every surface that draws kinds", () => {
-  const missing: Array<string> = [];
-  for (const site of DRAWN_AT) {
-    for (const kind of Object.keys(FILE_KINDS)) {
-      if (!entered(site, kind)) missing.push(`${site}: ${kind}`);
-    }
-  }
-  expect(missing).toEqual([]);
-});
-
-test("every bodied kind has a face, and no other kind has one", () => {
+test("every kind is in every table that draws kinds, and only the bodied ones are faced", () => {
   const wrong: Array<string> = [];
-  for (const site of FACED_AT) {
+  for (const table of TABLES) {
+    const code = sourceOf(table.file);
     for (const [kind, claim] of Object.entries(FILE_KINDS)) {
-      const wanted = claim.holds === "text";
-      if (entered(site, kind) !== wanted) {
-        wrong.push(`${site}: ${kind} ${wanted ? "has no face" : "has a face it should not"}`);
-      }
+      const wanted = table.over === "FileKind" || claim.holds === "text";
+      if (entered(code, kind) === wanted) continue;
+      wrong.push(`${table.file}: ${kind} ${wanted ? "is missing" : "should not be here"}`);
     }
   }
   expect(wrong).toEqual([]);
+});
+
+test("every table over the registry's unions is on the list", () => {
+  const declares = /Record<\s*(?:FileKind|BodyKind|DirectoryKind)\b/;
+  expect(filesSpelling(declares)).toEqual(TABLES.map((one) => one.file).sort());
 });

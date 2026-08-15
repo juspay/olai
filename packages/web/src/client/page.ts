@@ -25,8 +25,8 @@
 import type { BrokenFile, DayGroup, Derived, FileKind, Row, Zoomed } from "@olai/format"
 import {
   dailyNotesOn,
+  bodyKind,
   datedOn,
-  fileKind,
   isArchived,
   rowsOf,
   rowsUnder,
@@ -122,10 +122,12 @@ export const pageOf = (
   if (route.kind === "document") {
     return found.documents.includes(route.file)
       ? { kind: "document", file: route.file }
-      // `/doc/nowhere.txt` names no kind at all, and the screen still has to say
-      // something: it is a document that was sought, because that is what this
-      // address is for and what the reader will have meant.
-      : { kind: "nothing", sought: fileKind(route.file) ?? "document", requested: route.file }
+      // Asked of `bodyKind` rather than `fileKind`: this address opens the files
+      // that HAVE a page, so `/doc/plan.olai` is a reader who meant a document
+      // and not a screen that says "no outline named plan.olai" about an outline
+      // the directory is serving. `/doc/nowhere.txt` names no kind at all and
+      // lands in the same place, for the same reason.
+      : { kind: "nothing", sought: bodyKind(route.file) ?? "document", requested: route.file }
   }
 
   if (route.kind === "agenda") return { kind: "agenda", date: today }

@@ -26,24 +26,16 @@ import type { OlaiWorld } from "../support/world.ts";
 
 // ── documents in the file tree ─────────────────────────────────────────
 
+// Order is document-link order in the tree (path order of the walk), not a
+// separate section. The waiting and the comparison are the world's
+// (`expectListed`), shared with the same question asked about `.html` files.
 Then(
   "the documents listed are {string}",
   async function (this: OlaiWorld, expected: string) {
-    const wanted = expected.split(",").map((file) => file.trim());
-    const links = this.page.locator(DOCUMENT_LINK);
-    // Waited for by COUNT rather than read once: a document dropped into the
-    // directory arrives on a later frame, and reading during the frame that
-    // adds it would see the tree without it. Order is document-link order in
-    // the tree (path order of the walk), not a separate section.
-    await this.waitUntil(
-      async () => (await links.count()) === wanted.length,
-      `the sidebar to list ${wanted.length} document(s)`,
-    );
-    assert.deepStrictEqual(
-      await links.evaluateAll((nodes) =>
-        nodes.map((node) => node.getAttribute("data-file")),
-      ),
-      wanted,
+    await this.expectListed(
+      DOCUMENT_LINK,
+      expected.split(",").map((file) => file.trim()),
+      "document(s)",
     );
   },
 );

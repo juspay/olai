@@ -119,7 +119,7 @@ Which files olai claims at all is one table, in `@olai/format`'s `kinds.ts`: an 
 - It **fetches nothing**, which is a rule about privacy rather than about scripts: a saved page full of remote images would tell somebody else's server what this reader is reading, with no script involved. It is the same rule markdown already lives by here — a relative picture or nothing, and a vendored highlighter.
 - The cost is stated plainly: **a picture beside a `.html` is not drawn**, because `img-src` is `'none'`. Making one work means rewriting each relative `src` to the `/media/…` route the way markdown's pictures are rewritten, which means parsing somebody's markup rather than handing it over whole. That is a change with its own argument to make.
 - It is **read, not written.** There is no editor on its page and no create op: `create_document` and `write_document` take a `.md`, and a `.html` in the directory belongs to whatever wrote it.
-- It is part of the loaded set the way a document is — same probe, same revision, same live update when the file changes on disk — and its text crosses the wire the same way, one body at a time to whoever opens it.
+- It is part of the loaded set the way a document is — same probe, same revision, same live update when the file changes on disk — and its text crosses the wire the same way, one body at a time to whoever opens it. That has a cost worth naming: a saved page can be megabytes with its pictures inlined, and every `.html` under the served directory is held in the loaded set for as long as olai is serving it. Nothing about it travels until somebody opens it, but the memory is the directory's content rather than its size.
 
 ## Validation
 

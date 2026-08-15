@@ -52,13 +52,8 @@
  */
 
 import { expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
-import * as fs from "node:fs";
-import * as path from "node:path";
 
-/** The repository root — two directories up from this file, which lives in
- *  `packages/tests/`. */
-const ROOT = path.dirname(path.dirname(import.meta.dirname));
+import { read, tracked } from "./support/sweep.ts";
 
 /**
  * What may still spell it, and why each one may.
@@ -114,22 +109,12 @@ const FORMAT_MD_LINES: ReadonlyArray<string> = [
   `git ls-files '*.jsonl' | while read -r f; do git mv "$f" "\${f%.jsonl}.olai"; done`,
 ];
 
-const SELF = path.relative(ROOT, import.meta.filename);
-
-/** Every file this repository owns, as root-relative `/`-spelled paths. Not
- *  filtered by extension: the point is that NOTHING says it, and a `.feature`,
- *  a `README.md`, an `index.html`, a `.nix` and the justfile are all places the
- *  old spelling actually lived. */
-const TRACKED: ReadonlyArray<string> = (() => {
-  const listed = spawnSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" });
-  // A sweep that quietly swept nothing is worse than no sweep: it is a green
-  // run that checked one file. Anything other than a clean listing is a failure
-  // to say out loud, here, rather than an empty array to assert against.
-  if (listed.status !== 0) {
-    throw new Error(`git ls-files failed in ${ROOT}: ${listed.stderr || listed.error}`);
-  }
-  return listed.stdout.split("\0").filter((one) => one !== "" && one !== SELF);
-})();
+/** Every file this repository owns — not filtered by extension, because the
+ *  point is that NOTHING says it, and a `.feature`, a `README.md`, an
+ *  `index.html`, a `.nix` and the justfile are all places the old spelling
+ *  actually lived. The listing and its guarantees are `./support/sweep.ts`',
+ *  shared with the registry's own sweep next door. */
+const TRACKED = tracked(import.meta.filename);
 
 /** Root-relative paths of every tracked file matching `pattern`, minus the ones
  *  allowed to. A prefix in the list covers a directory; an exact string covers
@@ -142,7 +127,7 @@ const granted = (file: string): boolean =>
 const spelling = (pattern: RegExp): ReadonlyArray<string> =>
   TRACKED
     .filter((file) => !granted(file))
-    .filter((file) => pattern.test(fs.readFileSync(path.join(ROOT, file), "utf8")))
+    .filter((file) => pattern.test(read(file)))
     .sort();
 
 // A guard on the sweep itself: a listing that came back short — a `cwd` that
@@ -185,8 +170,7 @@ test("no file in the repository is still named with it", () => {
 // recipe is one where a person with a pre-rename vault has nothing to run, and
 // the sweep, having granted the file, would be the last thing to notice.
 test("docs/format.md says it only on the lines the grant was written for", () => {
-  const said = fs
-    .readFileSync(path.join(ROOT, "docs/format.md"), "utf8")
+  const said = read("docs/format.md")
     .split("\n")
     .filter((line) => /\.jsonl/i.test(line))
     .map((line) => line.trim());

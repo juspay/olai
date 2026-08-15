@@ -935,7 +935,48 @@ export class OlaiWorld extends World {
 
   /** One sidebar document entry, by the path it stands for. */
   documentLink(file: string): Locator {
-    return this.page.locator(`${DOCUMENT_LINK}[data-file="${file}"]`);
+    return this.fileLink(DOCUMENT_LINK, file);
+  }
+
+  /** One sidebar `.html` entry, on the same terms. */
+  hypertextLink(file: string): Locator {
+    return this.fileLink(HYPERTEXT_LINK, file);
+  }
+
+  /** One row of the sidebar tree, whichever kind of file it stands for. The
+   *  three kinds have a testid each — a step that says "the documents listed
+   *  are …" is asking about ONE of them — but the SELECTOR shape is one thing,
+   *  and it was three copies of the same template string before this. */
+  fileLink(testid: string, file: string): Locator {
+    return this.page.locator(`${testid}[data-file="${file}"]`);
+  }
+
+  /**
+   * Assert exactly which files the tree lists under one kind's testid, in the
+   * order it draws them.
+   *
+   * WAITED FOR BY COUNT rather than read once: a file dropped into the served
+   * directory arrives on a later frame, and reading during the frame that adds
+   * it would see the tree without it. Here rather than in a step file because
+   * two kinds ask it now — the documents and the pages — and a second copy of
+   * the wait is how one of them quietly stops being live.
+   */
+  async expectListed(
+    testid: string,
+    wanted: ReadonlyArray<string>,
+    what: string,
+  ): Promise<void> {
+    const links = this.page.locator(testid);
+    await this.waitUntil(
+      async () => (await links.count()) === wanted.length,
+      `the sidebar to list ${wanted.length} ${what}`,
+    );
+    assert.deepStrictEqual(
+      await links.evaluateAll((nodes) =>
+        nodes.map((node) => node.getAttribute("data-file"))
+      ),
+      [...wanted],
+    );
   }
 
   /** The rendered document on screen — its own page, or the one drawn inline
@@ -1001,7 +1042,7 @@ export class OlaiWorld extends World {
 
   /** One sidebar entry, by the relative path it stands for. */
   outlineLink(file: string): Locator {
-    return this.page.locator(`${OUTLINE_LINK}[data-file="${file}"]`);
+    return this.fileLink(OUTLINE_LINK, file);
   }
 
   /** One node in the tree, by id. Ids are unique across the whole loaded set,

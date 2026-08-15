@@ -2534,14 +2534,18 @@ const planWriteDocument = (
   scope: Scope,
   request: Extract<Request, { op: "doc" }>,
 ): Planned => {
-  const documents = scope.set.documents.filter(
-    (entry) => fileKind(entry.file) === "document",
-  )
-  const document = documents.find((entry) => entry.file === request.file)
+  // The kind is asked of the REQUESTED path rather than of every entry: a
+  // `.html` is refused by its own name, and the walk over the set is then only
+  // what the near-miss list below needs — which is the failure path.
+  const document = fileKind(request.file) === "document"
+    ? scope.set.documents.find((entry) => entry.file === request.file)
+    : undefined
   if (document === undefined) {
     const near = didYouMean(
       request.file,
-      documents.map((entry) => entry.file),
+      scope.set.documents
+        .filter((entry) => fileKind(entry.file) === "document")
+        .map((entry) => entry.file),
     )
     return Result.fail(
       new NotFoundFailure({

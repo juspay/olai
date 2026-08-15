@@ -29,30 +29,22 @@ import type { OlaiWorld } from "../support/world.ts";
 
 // ── the row in the tree ────────────────────────────────────────────────
 
+// The same question the documents step asks, about the other kind, through the
+// world that owns the waiting (`expectListed`).
 Then(
   "the pages listed are {string}",
   async function (this: OlaiWorld, expected: string) {
-    const wanted = expected.split(",").map((file) => file.trim());
-    const links = this.page.locator(HYPERTEXT_LINK);
-    // By COUNT first, for `document_steps.ts`' reason: a file dropped into the
-    // directory arrives on a later frame, and reading during the frame that
-    // adds it would see the tree without it.
-    await this.waitUntil(
-      async () => (await links.count()) === wanted.length,
-      `the sidebar to list ${wanted.length} page(s)`,
-    );
-    assert.deepStrictEqual(
-      await links.evaluateAll((nodes) =>
-        nodes.map((node) => node.getAttribute("data-file")),
-      ),
-      wanted,
+    await this.expectListed(
+      HYPERTEXT_LINK,
+      expected.split(",").map((file) => file.trim()),
+      "page(s)",
     );
   },
 );
 
 When("I click the page {string}", async function (this: OlaiWorld, file: string) {
   await this.showSidebar();
-  const link = this.page.locator(`${HYPERTEXT_LINK}[data-file="${file}"]`);
+  const link = this.hypertextLink(file);
   await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await link.click();
   await this.waitForFrame();
@@ -66,12 +58,20 @@ When("I open the page {string}", async function (this: OlaiWorld, file: string) 
 
 // ── what is drawn in the frame ─────────────────────────────────────────
 
-/** The preview frame's own document. Waited for as an ELEMENT first so a
- *  failure says "there is no preview" rather than timing out on a heading. */
+/** The frame ELEMENT, on screen — what every step below starts from, so a
+ *  failure says "there is no preview" rather than timing out on something
+ *  inside one. */
+const preview = async (world: OlaiWorld) => {
+  const frame = world.page.locator(HYPERTEXT_PREVIEW);
+  await frame.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  return frame;
+};
+
+/** …and the document inside it, which is where everything the FILE says is
+ *  read. Asked through `frameLocator` because that is the only way in: nothing
+ *  in there can reach a testid out here, which is the point. */
 const inside = async (world: OlaiWorld) => {
-  await world.page
-    .locator(HYPERTEXT_PREVIEW)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await preview(world);
   return world.page.frameLocator(HYPERTEXT_PREVIEW);
 };
 
@@ -125,8 +125,7 @@ Then(
 Then(
   "the preview is sandboxed with no scripts and no same-origin",
   async function (this: OlaiWorld) {
-    const frame = this.page.locator(HYPERTEXT_PREVIEW);
-    await frame.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const frame = await preview(this);
     // The ATTRIBUTE, exactly as written: an empty `sandbox` is every
     // restriction on, and the two that matter are named in the message because
     // they are the two a well-meaning patch adds ("just to make this one page
@@ -144,8 +143,7 @@ Then(
 Then(
   "the preview's markup is sealed with a policy that fetches nothing",
   async function (this: OlaiWorld) {
-    const frame = this.page.locator(HYPERTEXT_PREVIEW);
-    await frame.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const frame = await preview(this);
     const srcdoc = (await frame.getAttribute("srcdoc")) ?? "";
     assert.ok(
       srcdoc.startsWith("<!doctype html>"),
@@ -218,11 +216,9 @@ Then("the app's page is untouched by the preview", async function (this: OlaiWor
 // ── the affordance a document has and this page does not ───────────────
 
 Then("there is no way to edit this page", async function (this: OlaiWorld) {
-  // Given a moment to appear, because "not there" is the assertion: reading it
-  // in the frame before the body arrives would pass for the wrong reason.
-  await this.page
-    .locator(HYPERTEXT_PREVIEW)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  // The preview first, because "not there" is the assertion: reading for the
+  // control before the page has drawn would pass for the wrong reason.
+  await preview(this);
   assert.strictEqual(
     await this.page.locator(DOCUMENT_EDIT).count(),
     0,

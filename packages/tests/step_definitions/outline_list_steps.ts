@@ -268,45 +268,45 @@ Then(
 // nested folders nest their `li`s, so a glyph found under one of those could be
 // a child's.
 
+/** One row of the tree wears one kind's glyph. One body for the three file
+ *  kinds, because the only thing that differs between them is which testid the
+ *  row has and which word the glyph must carry — and a fourth kind's step
+ *  should be a line here rather than a fourth copy of this. */
+const drawnAs = async (
+  world: OlaiWorld,
+  testid: string,
+  file: string,
+  kind: string,
+  what: string,
+): Promise<void> => {
+  await world.showSidebar();
+  await world.expectAttribute(
+    `${testid}[data-file="${file}"] ${FILE_GLYPH}`,
+    "data-glyph",
+    kind,
+    `the ${what} "${file}"`,
+    HYDRATION_TIMEOUT,
+  );
+};
+
 Then(
   "the outline link {string} is drawn as an outline",
   async function (this: OlaiWorld, file: string) {
-    await this.showSidebar();
-    await this.expectAttribute(
-      `${OUTLINE_LINK}[data-file="${file}"] ${FILE_GLYPH}`,
-      "data-glyph",
-      "outline",
-      `the outline "${file}"`,
-      HYDRATION_TIMEOUT,
-    );
+    await drawnAs(this, OUTLINE_LINK, file, "outline", "outline");
   },
 );
 
 Then(
   "the document link {string} is drawn as a document",
   async function (this: OlaiWorld, file: string) {
-    await this.showSidebar();
-    await this.expectAttribute(
-      `${DOCUMENT_LINK}[data-file="${file}"] ${FILE_GLYPH}`,
-      "data-glyph",
-      "document",
-      `the document "${file}"`,
-      HYDRATION_TIMEOUT,
-    );
+    await drawnAs(this, DOCUMENT_LINK, file, "document", "document");
   },
 );
 
 Then(
   "the page link {string} is drawn as hypertext",
   async function (this: OlaiWorld, file: string) {
-    await this.showSidebar();
-    await this.expectAttribute(
-      `${HYPERTEXT_LINK}[data-file="${file}"] ${FILE_GLYPH}`,
-      "data-glyph",
-      "hypertext",
-      `the page "${file}"`,
-      HYDRATION_TIMEOUT,
-    );
+    await drawnAs(this, HYPERTEXT_LINK, file, "hypertext", "page");
   },
 );
 

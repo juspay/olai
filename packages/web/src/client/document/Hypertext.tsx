@@ -37,10 +37,19 @@
  * this file, so the two kinds of page answer the question in one place.
  */
 
+import { createMemo } from "solid-js"
+
 import { TESTID } from "../testids.ts"
 import { sealed } from "./sealed.ts"
 
 export function Hypertext(props: { readonly file: string; readonly text: string }) {
+  // The text, held by VALUE, and the seal applied downstream of it. A
+  // collection entry is a fresh object on every revision the server publishes,
+  // so without this the file would be copied and compared — saved pages run to
+  // megabytes — every time anything in the directory moved. A memo over a
+  // string settles by `===`, so an unchanged body never reaches `sealed`.
+  const body = createMemo(() => props.text)
+
   return (
     <iframe
       // EVERY restriction: no scripts, and an opaque origin because
@@ -53,7 +62,7 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
       // to that), so this is belt to that braces: were a directive ever
       // loosened, the request still would not carry which page a reader is on.
       referrerpolicy="no-referrer"
-      srcdoc={sealed(props.text)}
+      srcdoc={sealed(body())}
       // The frame is a document in the page, so it gets a name a screen reader
       // can announce — the path, which is what the heading above it says too.
       title={props.file}

@@ -33,6 +33,7 @@ import {
   isGuessWhileUnreadable,
   type OutlineError,
 } from "./errors.ts"
+import { fileKind } from "./kinds.ts"
 import { isMirror, type Located, targetsOf } from "./node.ts"
 import { didYouMean } from "./suggest.ts"
 import type { OutlineSet } from "./set.ts"
@@ -224,13 +225,25 @@ const checkMirrorContainment = (
 /** `doc` is relative to the outline that names it — that is what "attached"
  *  means — so it is resolved against the outline's own directory ({@link
  *  ./documents.ts}, the one place that arithmetic lives) and matched against
- *  the `.md` files actually found. */
+ *  the `.md` files actually found.
+ *
+ *  DOCUMENTS, not every bodied file. The set's `documents` list carries each
+ *  `.html` too since they are read the same way, and a membership test alone
+ *  would therefore have quietly widened what `doc` may point at — to a file the
+ *  surfaces that draw an attachment cannot draw (a reference under a row is one
+ *  line of markdown, and a zoomed node draws the whole document through the
+ *  markdown pipeline; neither is a sealed frame). So the kind is asked here,
+ *  where the rule about `doc` lives, and the message below stays true. */
 const checkDocs = (
   all: ReadonlyArray<Located>,
   documents: ReadonlyArray<Document>,
   errors: Array<OutlineError>,
 ): void => {
-  const known = new Set(documents.map((document) => document.file))
+  const known = new Set(
+    documents
+      .filter((document) => fileKind(document.file) === "document")
+      .map((document) => document.file),
+  )
   for (const located of all) {
     const { file, node } = located
     if (isMirror(node) || node.doc === undefined) continue

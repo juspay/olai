@@ -6,7 +6,6 @@ import {
   FILE_KINDS,
   fileKind,
   type FileKind,
-  holdsText,
   OUTLINE_EXT,
 } from "./kinds.ts"
 import { inboxIn } from "./node.ts"
@@ -83,26 +82,24 @@ test("every kind in the registry claims a file named for it", () => {
 
 // `bodyKind` is `fileKind` with the outlines taken out, and it has to stay
 // exactly that: the codec decodes by it (a body is carried verbatim, everything
-// else is parsed as records), so a kind that answered to both would be a file
-// parsed as an outline and carried as text at once.
+// else is parsed as records), and the client picks a page by it. Spelled as the
+// ANSWERS rather than derived from the table beside it — a loop over `holds`
+// would re-run the implementation and could only fail if somebody rewrote that
+// one line into something else.
 test("a bodied file is a claimed file whose content is text, and nothing else", () => {
-  for (const [kind, claim] of ENTRIES) {
-    const body = bodyKind(`thing${claim.ext}`)
-    expect({ kind, itself: body === kind, none: body === null }).toEqual({
-      kind,
-      itself: claim.holds === "text",
-      none: claim.holds !== "text",
-    })
-    expect(holdsText(kind)).toBe(claim.holds === "text")
-  }
+  expect(bodyKind("notes/cabinets.md")).toBe("document")
+  expect(bodyKind("report.html")).toBe("hypertext")
+  // An outline is claimed and is NOT a body: it decodes to records, and the
+  // page that draws one is a tree rather than a rendering.
+  expect(bodyKind("plan.olai")).toBeNull()
   expect(bodyKind("README")).toBeNull()
 })
 
-// The two suffixes the ops layer mints paths with are the table's own, rather
-// than a second spelling that could drift from what the walk claims — the whole
-// failure PR #177 was written against, in the one direction a type checker
-// cannot see.
-test("the minting constants are the table's entries", () => {
-  expect(OUTLINE_EXT).toBe(FILE_KINDS.outline.ext)
-  expect(DOCUMENT_EXT).toBe(FILE_KINDS.document.ext)
+// The two suffixes the ops layer mints paths with come off the table rather than
+// being retyped beside it — the whole failure PR #177 was written against, in
+// the one direction a type checker cannot see. Read as the STRINGS a refusal
+// message and a minted path will carry, because that is what a caller sees.
+test("the minting constants are the suffixes the walk claims", () => {
+  expect(fileKind(`a${OUTLINE_EXT}`)).toBe("outline")
+  expect(fileKind(`a${DOCUMENT_EXT}`)).toBe("document")
 })

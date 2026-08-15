@@ -92,7 +92,7 @@ import {
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { NewOutline } from "./outline/NewOutline.tsx"
-import { DRAWN } from "./file/kinds.ts"
+import { ROW_TESTID, routeTo } from "./file/kinds.ts"
 import { Glyph } from "./file/icons.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
@@ -474,20 +474,17 @@ function File(props: {
   readonly row: Extract<FileRow, { kind: "file" }>
   readonly view: TreeView
 }) {
+  // Only the ⚠ is asked of the kind here, and it is not one of `./file/kinds.ts`
+  // answers: a file that could not be READ is a fact about this row's file, and
+  // only an outline's unreadability costs the reader a tree.
   const outline = props.row.of === "outline"
-  // Where it goes and what a scenario calls it, from the one table that answers
-  // that per kind (`./file/kinds.ts`). Only the ⚠ is asked of the kind here,
-  // and it is not a table entry: a file that could not be READ is a fact about
-  // this row's file, and only an outline's unreadability costs the reader a
-  // tree.
-  const drawn = () => DRAWN[props.row.of]
 
   return (
     <li class="mb-1">
       <Link
-        route={drawn().route(props.row.file)}
+        route={routeTo(props.row.of, props.row.file)}
         class={ENTRY}
-        testid={drawn().testid}
+        testid={ROW_TESTID[props.row.of]}
         current={props.view.isActive(props.row.file)}
         broken={outline && props.view.broken.has(props.row.file)}
       >

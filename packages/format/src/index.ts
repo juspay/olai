@@ -59,7 +59,7 @@
 export { parseOutline } from "./parse.ts"
 export { validate } from "./validate.ts"
 
-export { assemble, BrokenFile, fileKind, OutlineSet } from "./set.ts"
+export { assemble, BrokenFile, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
 /** WHICH files a served directory is made of — one table, and the two suffixes
  *  the ops layer mints paths with. The table is exported whole because the
@@ -69,6 +69,7 @@ export {
   bodyKind,
   DOCUMENT_EXT,
   FILE_KINDS,
+  fileKind,
   holdsText,
   OUTLINE_EXT,
 } from "./kinds.ts"
