@@ -8,7 +8,7 @@
  * tree, and a past change is a commit against its parent
  * (docs/brainstorming/git-commits.md).
  *
- * **Never a text diff.** A `.jsonl` diff is one enormous line per node with
+ * **Never a text diff.** A `.olai` diff is one enormous line per node with
  * everything on it changing at once, which is exactly the thing this format
  * bought line-based merges with — and exactly the thing nobody can read. The
  * unit here is a NODE, and what a reader is told is what CHANGED ABOUT IT:
@@ -125,7 +125,7 @@ interface Placed {
  *
  * Matched by ID ACROSS FILES rather than within one, so archiving reads as one
  * change to one node rather than as a removal and an unrelated arrival: the
- * subtree left `roadmap.jsonl` and is in `Archive.jsonl`, which is what
+ * subtree left `roadmap.olai` and is in `Archive.olai`, which is what
  * happened. Both files are dirty in that case, so both sides are in hand.
  *
  * The answer is in file order — the `after` side's, then whatever only the

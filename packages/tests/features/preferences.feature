@@ -102,7 +102,7 @@ Feature: One place to set how this browser reads
     # A default that only applied to the NEXT page would be a setting that does
     # nothing when you press it, on a page that is showing exactly what it is
     # about.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     Then the node "demo" is shown
     When I set Done to "hidden"
     Then the Done row explains that finished work is "hidden"
@@ -111,7 +111,7 @@ Feature: One place to set how this browser reads
     And the node "order" is shown
 
   Scenario: The hint is read off the choice in force
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I set Done to "hidden"
     Then the Done row explains that finished work is "hidden"
     When I set Done to "visible"
@@ -123,7 +123,7 @@ Feature: One place to set how this browser reads
     # says visible, which is the inverse of the old pin. Hide/show-and-come-back
     # in zoom_and_navigate is the tree filter; this one is that Prefs is the
     # only circuit.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I hide the done nodes
     Then the node "demo" is not shown
     When I set Done to "visible"
@@ -134,7 +134,7 @@ Feature: One place to set how this browser reads
     # `Hiding done nodes works on a zoomed page too` is the same filter on a
     # page you opened first; this one is that zooming does not start a new
     # reading.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I set Done to "hidden"
     And I press Escape on the preferences
     Then the node "demo" is not shown
@@ -149,7 +149,7 @@ Feature: One place to set how this browser reads
     # key. Sabotage: apply the default at module load and leave the write
     # and the follow alone (`pref.set(SHOWN, { persist: false })` after the
     # factory). That reddens this scenario and nothing else.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     Then the node "demo" is shown
     When I set Done to "hidden"
     Then the node "demo" is not shown
@@ -164,7 +164,7 @@ Feature: One place to set how this browser reads
     # cannot ask: deleting that line entirely would pass every other Done
     # scenario here. The theme has had this fence since it was written; this is
     # the same one for the second preference, through the same `storage` event.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     Then the node "demo" is shown
     When a second tab sets Done to "hidden"
     Then the node "demo" is not shown

@@ -20,10 +20,10 @@ const nodeOf = (line: string, file: string) => {
 // reader of the directory, and the validator's whole job is to judge the one
 // the store already read.
 test("a relative path resolves against the naming file's directory", () => {
-  expect(resolveRelative("sub/plan.jsonl", "../notes/a.md")).toBe("notes/a.md")
-  expect(resolveRelative("sub/plan.jsonl", "./a.md")).toBe("sub/a.md")
-  expect(resolveRelative("sub/plan.jsonl", "a.md")).toBe("sub/a.md")
-  expect(resolveRelative("plan.jsonl", "notes/a.md")).toBe("notes/a.md")
+  expect(resolveRelative("sub/plan.olai", "../notes/a.md")).toBe("notes/a.md")
+  expect(resolveRelative("sub/plan.olai", "./a.md")).toBe("sub/a.md")
+  expect(resolveRelative("sub/plan.olai", "a.md")).toBe("sub/a.md")
+  expect(resolveRelative("plan.olai", "notes/a.md")).toBe("notes/a.md")
 })
 
 // There is nothing above the served directory to name, so a `..` that would
@@ -31,20 +31,20 @@ test("a relative path resolves against the naming file's directory", () => {
 // the answer against files that were actually found, and a path that clamped
 // simply resolves to nothing.
 test("a path climbing above the served directory clamps to it", () => {
-  expect(resolveRelative("plan.jsonl", "../../etc/passwd.md")).toBe("etc/passwd.md")
-  expect(resolveRelative("sub/plan.jsonl", "../../../a.md")).toBe("a.md")
+  expect(resolveRelative("plan.olai", "../../etc/passwd.md")).toBe("etc/passwd.md")
+  expect(resolveRelative("sub/plan.olai", "../../../a.md")).toBe("a.md")
 })
 
 test("docOf is where a node's doc lands, and nothing for a node without one", () => {
-  expect(docOf(nodeOf(`{"id":"a","ord":"a","title":"a","doc":"../n/a.md"}`, "sub/p.jsonl")))
+  expect(docOf(nodeOf(`{"id":"a","ord":"a","title":"a","doc":"../n/a.md"}`, "sub/p.olai")))
     .toBe("n/a.md")
-  expect(docOf(nodeOf(`{"id":"a","ord":"a","title":"a"}`, "p.jsonl"))).toBeUndefined()
+  expect(docOf(nodeOf(`{"id":"a","ord":"a","title":"a"}`, "p.olai"))).toBeUndefined()
 })
 
 // A mirror is a second PLACEMENT of a node, not a second copy of its fields:
 // the document belongs to the node it points at, and is drawn from there.
 test("a mirror attaches no document of its own", () => {
-  expect(docOf(nodeOf(`{"id":"m","ord":"a","mirror":"a"}`, "p.jsonl"))).toBeUndefined()
+  expect(docOf(nodeOf(`{"id":"m","ord":"a","mirror":"a"}`, "p.olai"))).toBeUndefined()
 })
 
 // A picture is a file beside the text that names it, resolved the same way a
@@ -87,7 +87,7 @@ test("a relative link to a document resolves beside the file that names it", () 
   expect(documentOf("notes/palette.md", "finishes.md")).toBe("notes/finishes.md")
   expect(documentOf("notes/palette.md", "./finishes.md")).toBe("notes/finishes.md")
   // A note is written in an OUTLINE, and a link in one resolves the same way.
-  expect(documentOf("house.jsonl", "finishes.md")).toBe("finishes.md")
+  expect(documentOf("house.olai", "finishes.md")).toBe("finishes.md")
 })
 
 // Everything this must not reinterpret. A link with a scheme goes where it
@@ -104,7 +104,7 @@ test("only a relative link to a document is a document link", () => {
     "#beds",
     "",
     "art/handle.png",
-    "garden.jsonl",
+    "garden.olai",
     "README",
   ]) {
     expect(documentOf("notes/palette.md", href)).toBeNull()
@@ -117,7 +117,7 @@ test("only picture extensions are pictures, case-insensitively", () => {
   expect(isPicture("a/shot.png")).toBe(true)
   expect(isPicture("a/SHOT.JPEG")).toBe(true)
   expect(isPicture("a/logo.svg")).toBe(false)
-  expect(isPicture("a/plan.jsonl")).toBe(false)
+  expect(isPicture("a/plan.olai")).toBe(false)
   expect(isPicture("a/notes.md")).toBe(false)
   expect(isPicture("png")).toBe(false)
 })

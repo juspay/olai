@@ -260,7 +260,7 @@ export const writeVerbs = (
     // somewhere else, out of sight, on a click that reads as being about this
     // line. The entry SPEAKS Trash — the human-facing name for the archive
     // (`../trash/TrashPage.tsx`) — while the id below, the wire verb and the
-    // op stay `archive`: the file is still `Archive.jsonl` and the agent's
+    // op stay `archive`: the file is still `Archive.olai` and the agent's
     // tool is still `archive_node`; only the surface a person reads renames.
     verbs.push({
       id: "archive",

@@ -2,7 +2,7 @@
 
 Cucumber features driven through Playwright against a real `olai` server
 serving a real directory of fixture outlines. Nothing here is mocked: the
-server loads `.jsonl` files off disk, the client renders them over a
+server loads `.olai` files off disk, the client renders them over a
 WebSocket, and the assertions read the DOM a person would be looking at.
 
 ```
@@ -452,7 +452,7 @@ out locally: it is `index.html`'s mount point, which the client does not own.
    wait for something to change or disappear, which a Playwright selector
    cannot state — `world.waitUntil` is what those steps are built on.
 6. If the edit changes WHICH records exist — an insert, a delete, a reorder —
-   assert the id multiset (`the outline "x.jsonl" shows exactly the nodes "…"`),
+   assert the id multiset (`the outline "x.olai" shows exactly the nodes "…"`),
    not that some title eventually reads a certain way. A tree that has lost one
    node and drawn another twice still has all the right titles in it, which is
    how a broken live view stayed green through a whole feature file.
@@ -473,8 +473,8 @@ different steps that read almost the same:
 
 | the claim | the shape | example |
 |---|---|---|
-| nothing was written, and stays unwritten | HOLD: assert repeatedly across the commit window | `"house.jsonl" holds no node titled "…"` |
-| the write took it away | WAIT: poll for it to go | `"house.jsonl" no longer holds a node titled "…"` |
+| nothing was written, and stays unwritten | HOLD: assert repeatedly across the commit window | `"house.olai" holds no node titled "…"` |
+| the write took it away | WAIT: poll for it to go | `"house.olai" no longer holds a node titled "…"` |
 
 Asking the holding form of a write passes only when the round trip happens to
 land inside one animation frame. Asking the waiting form of "nothing was
@@ -482,7 +482,7 @@ written" passes instantly and proves nothing. Where a count is the claim, it is
 both: wait for the number, then hold it, because the second of two writes lands
 a moment after the first.
 
-**A file the write has not minted yet** — `Archive.jsonl`, which the first
+**A file the write has not minted yet** — `Archive.olai`, which the first
 archive creates. A waiting reader goes through `world.servedNodesSoFar`, which
 answers "nothing there yet" for a file that is not there; a step that WRITES the
 served directory goes through `world.servedNodes`, which throws. The reason

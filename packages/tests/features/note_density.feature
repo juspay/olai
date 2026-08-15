@@ -9,7 +9,7 @@ Feature: Notes under the title
   line. The zoomed page keeps the full note always.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
 
   Scenario: By default a note is one clamped line under the title
     # `order` stores a multi-line markdown note with a list and bold. The

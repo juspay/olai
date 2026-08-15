@@ -122,7 +122,7 @@ const checkParents = (
       errors.push({
         code: "foreign-parent",
         ...siteOf(located),
-        message: `\`parent\` is \`${node.parent}\`, which lives in another file; every \`.jsonl\` is an independent tree, so cross-file placement is a \`mirror\``,
+        message: `\`parent\` is \`${node.parent}\`, which lives in another file; every \`.olai\` is an independent tree, so cross-file placement is a \`mirror\``,
         related: [{ ...siteOf(parent), note: "the parent lives here" }],
       })
       continue

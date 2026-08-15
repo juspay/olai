@@ -58,7 +58,7 @@ const HOUSE = [
 /** A directory of outlines, thrown away with the test. */
 const served = (): string => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-mcp-"))
-  fs.writeFileSync(path.join(root, "house.jsonl"), HOUSE)
+  fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
   return root
 }
 
@@ -264,7 +264,7 @@ test("a client that launched it can mark a node, and the disk says so", async ()
   // olai's own agent, changed the outline on disk — through the ops layer, so
   // the record is whole and the file still parses.
   const order = fs
-    .readFileSync(path.join(root, "house.jsonl"), "utf8")
+    .readFileSync(path.join(root, "house.olai"), "utf8")
     .split("\n")
     .find((line) => line.includes(`"id":"order"`))
   expect(order).toInclude(`"done":`)
@@ -347,7 +347,7 @@ test("the no-argument tool works over the pipe, advertised and called", async ()
   expect(answer?.isError).toBeUndefined()
   const outlines = (answer?.structuredContent as { outlines?: ReadonlyArray<{ file: string }> })
     ?.outlines ?? []
-  expect(outlines.map((outline) => outline.file)).toContain("house.jsonl")
+  expect(outlines.map((outline) => outline.file)).toContain("house.olai")
 }, BOUND_MS * 3)
 
 
@@ -472,7 +472,7 @@ test("a busy repository refuses the commit and says which state it is in", async
   // The WRITE happened. That is the guarantee, and it is not negotiable: git
   // never fails a write.
   expect(wrote["isError"]).toBeUndefined()
-  expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8")).toContain(`"done":`)
+  expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toContain(`"done":`)
 
   // And the write's OWN reply already said the repository is the problem —
   // before the agent called `commit` and got refused. Telling it "waiting…
@@ -561,7 +561,7 @@ test("what is waiting, and what was last recorded, are readable over the pipe", 
   const waiting = await read((pending) => pending.changes.length > 0)
   expect(waiting.changes).toHaveLength(1)
   expect(waiting.changes[0]).toMatchObject({
-    file: "house.jsonl",
+    file: "house.olai",
     id: "order",
     title: "order the cabinets",
     sort: "done",
@@ -663,7 +663,7 @@ test("--commit=auto --no-commit is off, through the real binary", async () => {
 
   // Nothing recorded, and the write is on disk.
   expect(subjectsIn(root)).toEqual([FIXTURE_COMMIT])
-  expect(gitIn(root)("status", "--porcelain")).toContain("house.jsonl")
+  expect(gitIn(root)("status", "--porcelain")).toContain("house.olai")
 }, BOUND_MS * 3)
 
 // ── Attached: the same command, over a store it did not open ────────────
@@ -716,13 +716,13 @@ test("`olai mcp` on a served directory attaches instead of opening a second stor
   // ops layer: the whole of what it holds is an MCP adapter over somebody
   // else's surface.
   expect(answerTo(said, 2).result?.isError).toBeUndefined()
-  expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8"))
+  expect(fs.readFileSync(path.join(root, "house.olai"), "utf8"))
     .toContain("order the cabinets, attached")
 
   // BOTH halves of the face cross the socket, not just the tools. A bridge that
   // wrote but could not read would still log the attached line and still pass
   // every assertion above — and an agent's first act is a read.
-  expect(JSON.stringify(answerTo(said, 3).result)).toContain("house.jsonl")
+  expect(JSON.stringify(answerTo(said, 3).result)).toContain("house.olai")
 }, BOUND_MS * 3)
 
 test("with nothing serving the directory, it opens its own store exactly as before", async () => {
@@ -742,7 +742,7 @@ test("with nothing serving the directory, it opens its own store exactly as befo
   expect(said.err).toInclude("serving the outline surface over stdio")
   expect(said.err).not.toInclude("attached to the olai")
   expect(answerTo(said, 2).result?.isError).toBeUndefined()
-  expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8"))
+  expect(fs.readFileSync(path.join(root, "house.olai"), "utf8"))
     .toContain("order the cabinets, fresh")
 }, BOUND_MS * 3)
 

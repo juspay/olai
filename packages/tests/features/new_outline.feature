@@ -15,13 +15,13 @@ Feature: Starting a new outline from the sidebar
   `@scratch:` because these write the directory they are served.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
 
   Scenario: A new outline is created and opened, and the sidebar lists it
-    When I create the outline "plans/next.jsonl" from the sidebar
-    Then the address is "/o/plans/next.jsonl"
-    And the outline list links to "plans/next.jsonl"
+    When I create the outline "plans/next.olai" from the sidebar
+    Then the address is "/o/plans/next.olai"
+    And the outline list links to "plans/next.olai"
     And the page has not reloaded
     And there should be no page errors
 
@@ -29,30 +29,30 @@ Feature: Starting a new outline from the sidebar
     # No seed on the wire, deliberately: an agent's `create_outline` may be born
     # holding a tree, and a person types the first line where it will live —
     # which the empty outline's own page is already the affordance for.
-    When I create the outline "plans/next.jsonl" from the sidebar
+    When I create the outline "plans/next.olai" from the sidebar
     And I start the first line
     And I type "buy the tickets"
     And I click away from the editor
-    Then "plans/next.jsonl" holds a node titled "buy the tickets"
+    Then "plans/next.olai" holds a node titled "buy the tickets"
     And there should be no page errors
 
   Scenario: A path the set already holds is refused in the op's own words
-    When I create the outline "house.jsonl" from the sidebar
+    When I create the outline "house.olai" from the sidebar
     Then the outline creation is refused saying "is already an outline"
-    And the address is "/o/house.jsonl"
+    And the address is "/o/house.olai"
 
-  Scenario: So is a path that is not a relative `.jsonl`
+  Scenario: So is a path that is not a relative `.olai`
     # Three rules, one sentence, and it is the planner's — a browser that
     # pre-checked any of them would be a second rule free to disagree with the
     # one an agent meets.
-    When I create the outline "../escape.jsonl" from the sidebar
-    Then the outline creation is refused saying "is not a relative `.jsonl` path"
+    When I create the outline "../escape.olai" from the sidebar
+    Then the outline creation is refused saying "is not a relative `.olai` path"
     When I create the outline "notes.md" from the sidebar
-    Then the outline creation is refused saying "is not a relative `.jsonl` path"
+    Then the outline creation is refused saying "is not a relative `.olai` path"
 
   Scenario: Escape puts the box away and writes nothing
     When I open the new outline box
-    And I fill the new outline box with "plans/next.jsonl"
+    And I fill the new outline box with "plans/next.olai"
     And I press "Escape"
     Then the new outline box is gone
-    And the outline list does not link to "plans/next.jsonl"
+    And the outline list does not link to "plans/next.olai"

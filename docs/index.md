@@ -16,7 +16,7 @@
   the fields, status, days, and merge safety.
 - [architecture.md](architecture.md) — how the packages fit, and the reasoning
   behind the layering.
-- [roadmap.jsonl](roadmap.jsonl) — the plan, in the format itself.
+- [roadmap.olai](roadmap.olai) — the plan, in the format itself.
 - [brainstorming/](brainstorming) — the decisions, and why the alternatives
   lost.
 - [RCA/](RCA) — root-cause analyses of things that went wrong.

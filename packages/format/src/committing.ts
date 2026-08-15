@@ -131,14 +131,14 @@ export type Wrote = typeof Wrote.Type
  * The node-level `changes` are what a reader mostly wants, and this is the row
  * they hang under: the file is the unit git commits, so it is the unit a
  * selection ticks — an outline's node changes travel together, because a partial
- * `.jsonl` write is not a thing that exists.
+ * `.olai` write is not a thing that exists.
  *
  * It carries BOTH spellings because both are needed and neither can be derived
  * from the other outside the server: `file` is what `changes` and `unreadable`
  * are keyed by (served-root-relative, the store's own key), and `path` is the
  * one unambiguous name for the file in the repository — which is what a commit
- * request names, so that an outline `roadmap.jsonl` under `docs/` and some other
- * dirty `roadmap.jsonl` at the repository root can never be the same tick.
+ * request names, so that an outline `roadmap.olai` under `docs/` and some other
+ * dirty `roadmap.olai` at the repository root can never be the same tick.
  */
 export const DirtyOutline = Schema.Struct({
   file: Schema.String,
@@ -153,7 +153,7 @@ export type DirtyOutline = typeof DirtyOutline.Type
  *
  * A person edits a `README.md` by hand and the git part of the UI used to show
  * nothing pending: `git status` had already surveyed the file and one line later
- * threw it away, because olai only writes `.jsonl` and only listed what it
+ * threw it away, because olai only writes `.olai` and only listed what it
  * writes. These are path-level rows and deliberately nothing more — no diff, no
  * parsing, no node list. What would be shown is a text diff, and this feature
  * has never shown one.

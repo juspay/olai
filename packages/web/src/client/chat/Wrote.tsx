@@ -2,7 +2,7 @@
  * What an olai write did, in the transcript — a line, never a diff.
  *
  * The other vocabulary of `chat-edit-diffs`, and the reason there are two. A
- * `.jsonl` diff is one enormous line per node with everything on it changing at
+ * `.olai` diff is one enormous line per node with everything on it changing at
  * once, which is the shape the format bought line-based merges with and exactly
  * the shape nobody can read — so the commit panel has never shown one, and
  * neither does this. The unit is the NODE and what changed about it.

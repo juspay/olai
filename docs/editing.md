@@ -395,7 +395,7 @@ under it, and not something a key of its own can ask for.
 
 The `•••` menu's **Move to Trash** puts a row and everything under it away,
 behind a question that names how many rows go. Where they go is
-`Archive.jsonl` on disk — an outline like any other to an agent, whose tool
+`Archive.olai` on disk — an outline like any other to an agent, whose tool
 for the same gesture is still called `archive_node` — but to a person it is
 the **Trash** at the foot of the sidebar: every archive under the directory,
 readable and not editable, each subtree drawn under the chain of ancestor
@@ -474,8 +474,8 @@ node; the box empties for the next one, so several thoughts arriving at once
 cost one chord.
 
 It lands at the top level of the directory's **inbox** — the outline called
-`Inbox.jsonl`, wherever the directory already keeps one, and a new
-`Inbox.jsonl` at the root when it has none. Minting it is part of the same
+`Inbox.olai`, wherever the directory already keeps one, and a new
+`Inbox.olai` at the root when it has none. Minting it is part of the same
 single operation as the line, so a capture that is refused leaves no file
 behind. Which file that is is decided on the server, against the same reading
 the write is judged on, exactly as a daily note's path is.
@@ -492,11 +492,11 @@ leaves the caret after it.
 
 ## Starting an outline
 
-**The sidebar's `+ New outline`** asks for a path — relative, `.jsonl`, judged
+**The sidebar's `+ New outline`** asks for a path — relative, `.olai`, judged
 by the same rules an agent's `create_outline` is judged by — and mints the file
 there. What comes back for a path it will not take is that op's own sentence,
 under the box: one the directory already holds, one that climbs out of it with
-`..`, one whose name does not end in `.jsonl`. Enter creates it, Escape puts the
+`..`, one whose name does not end in `.olai`. Enter creates it, Escape puts the
 box away, and the page it lands on is the new outline's, with the same *write
 the first line* the empty-outline page has always offered.
 

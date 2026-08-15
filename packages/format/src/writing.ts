@@ -383,7 +383,7 @@ export const SplitRequest = Schema.Struct({
  *   - the CHILDREN move, in order, to the end of the sibling's own — nothing
  *     may be orphaned by a keystroke;
  *   - the MARK, the DATE and the EDGES of the node being merged go WITH ITS
- *     RECORD into `Archive.jsonl`, because the format allows one mark per node
+ *     RECORD into `Archive.olai`, because the format allows one mark per node
  *     and the surviving row already has its own answer. Nothing is destroyed —
  *     the record is in the trash with its ids intact — and the answer's `nudge`
  *     says what went, so a `done` never disappears silently.
@@ -392,7 +392,7 @@ export const MergeRequest = Schema.Struct({
   op: Schema.Literal("merge"),
   id: Schema.String.annotate({
     description:
-      "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `Archive.jsonl`, keeping its id, mark, date and edges.",
+      "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `Archive.olai`, keeping its id, mark, date and edges.",
   }),
 })
 
@@ -402,7 +402,7 @@ export const ArchiveRequest = Schema.Struct({
 })
 
 /**
- * Take a subtree back OUT of an `Archive.jsonl` — the inverse `archive` never
+ * Take a subtree back OUT of an `Archive.olai` — the inverse `archive` never
  * had, built once here and exposed on both faces together (HACKING.md's
  * consistency rule; `parity-unarchive`).
  *
@@ -421,7 +421,7 @@ export const UnarchiveRequest = Schema.Struct({
   op: Schema.Literal("unarchive"),
   id: Schema.String.annotate({
     description:
-      "The `id` of a node in an `Archive.jsonl`. It comes back out with everything under it.",
+      "The `id` of a node in an `Archive.olai`. It comes back out with everything under it.",
   }),
   file: Schema.optionalKey(
     Schema.String.annotate({
@@ -457,7 +457,7 @@ export const CreateRequest = Schema.Struct({
   file: Schema.String.annotate({
     description:
       "Relative path of the new outline under the served directory. Must end in " +
-      "`.jsonl`. No absolute path, no `..` / `.` segments, no separators inside a " +
+      "`.olai`. No absolute path, no `..` / `.` segments, no separators inside a " +
       "segment. Refused if that file already exists among the loaded outlines.",
   }),
   seed: Schema.optionalKey(

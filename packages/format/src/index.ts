@@ -72,12 +72,14 @@ export {
 export {
   ARCHIVE,
   archiveBeside,
+  DOCUMENT_EXT,
   INBOX,
   inboxIn,
   isArchived,
   isMirror,
   Located,
   MARKS,
+  OUTLINE_EXT,
   /** What a node's checkbox shows — one of the MARKS, as a schema, so the
    *  request that writes one, the keystroke that toggles one and the read that
    *  answers with one are one derivation of that list rather than five. */

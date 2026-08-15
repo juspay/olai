@@ -18,7 +18,7 @@ Feature: The three input widgets
   gets a private copy of it.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
 
   # ── `!` — a day, in words ───────────────────────────────────────────
@@ -50,8 +50,8 @@ Feature: The three input widgets
     And I type " !2026-09-01"
     And I press "Enter"
     Then the row being typed holds "choose the handles"
-    And "house.jsonl" holds the node "handles" dated "2026-09-01"
-    And "house.jsonl" holds a node titled "choose the handles"
+    And "house.olai" holds the node "handles" dated "2026-09-01"
+    And "house.olai" holds a node titled "choose the handles"
     And no completions are open
     And the page has not reloaded
     And there should be no page errors
@@ -62,7 +62,7 @@ Feature: The three input widgets
     When I click the title of "handles"
     And I type " !tomorrow"
     And I press "Enter"
-    Then "house.jsonl" holds the node "handles" dated tomorrow
+    Then "house.olai" holds the node "handles" dated tomorrow
     And there should be no page errors
 
   Scenario: A day chosen at a mirror lands on the node it shows
@@ -71,8 +71,8 @@ Feature: The three input widgets
     When I click the title of "kitchen-herbs"
     And I type " !2026-09-01"
     And I press "Enter"
-    Then "garden.jsonl" holds the node "herbs" dated "2026-09-01"
-    And "house.jsonl" holds the node "kitchen-herbs" with no date
+    Then "garden.olai" holds the node "herbs" dated "2026-09-01"
+    And "house.olai" holds the node "kitchen-herbs" with no date
 
   Scenario: A row that does not exist yet is written first, then dated
     # There is no node to put a date on until the `add` has landed, so the
@@ -84,8 +84,8 @@ Feature: The three input widgets
     And I press "Enter"
     And I type "ring the joiner !2026-09-01"
     And I press "Enter"
-    Then "house.jsonl" holds a node titled "ring the joiner"
-    And "house.jsonl" holds a node titled "ring the joiner" dated "2026-09-01"
+    Then "house.olai" holds a node titled "ring the joiner"
+    And "house.olai" holds a node titled "ring the joiner" dated "2026-09-01"
     And the row being typed holds "ring the joiner"
     And there should be no page errors
 
@@ -100,10 +100,10 @@ Feature: The three input widgets
     When I click the title of "handles"
     And I type " !2026-09-01"
     And I press "Enter"
-    Then "house.jsonl" holds the node "handles" dated "2026-09-01"
+    Then "house.olai" holds the node "handles" dated "2026-09-01"
     When I type " and the hinges"
     And I click away from the editor
-    Then "house.jsonl" holds a node titled "choose the handles and the hinges"
+    Then "house.olai" holds a node titled "choose the handles and the hinges"
     And no row is being edited
     And there should be no page errors
 
@@ -126,7 +126,7 @@ Feature: The three input widgets
     Then the row being typed holds "pick the knobs #home"
     And no completions are open
     When I click away from the editor
-    Then "house.jsonl" holds a node titled "pick the knobs #home"
+    Then "house.olai" holds a node titled "pick the knobs #home"
     And there should be no page errors
 
   Scenario: A tag is a whole word, so a space ends it
@@ -137,7 +137,7 @@ Feature: The three input widgets
   Scenario: `@` is the other namespace, and it offers only its own
     # `#alice` and `@alice` are different tags. A widget that offered one under
     # the other's sigil would be inventing tags the set does not hold.
-    When I rewrite "house.jsonl" as:
+    When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"ask","parent":"kitchen","ord":"a1","title":"ask @alice about the alcove"}
@@ -182,8 +182,8 @@ Feature: The three input widgets
     # own `Enter` and writing a node titled `((compost`.
     And the mirror completions are open
     And I press "Enter"
-    Then "house.jsonl" holds a mirror of "compost" under "install"
-    And "house.jsonl" holds no node titled "((compost"
+    Then "house.olai" holds a mirror of "compost" under "install"
+    And "house.olai" holds no node titled "((compost"
     And there should be no page errors
 
   Scenario: A line that has words keeps them, and the mirror is the next row
@@ -194,8 +194,8 @@ Feature: The three input widgets
     And I type " ((compost"
     And the mirror completions are open
     And I press "Enter"
-    Then "house.jsonl" holds a node titled "pick the knobs"
-    And "house.jsonl" holds a mirror of "compost" under "install"
+    Then "house.olai" holds a node titled "pick the knobs"
+    And "house.olai" holds a mirror of "compost" under "install"
     And the row being typed holds "pick the knobs"
     And there should be no page errors
     # ...and the caret carries on in it, exactly as it does after a day: the
@@ -203,7 +203,7 @@ Feature: The three input widgets
     # no redraw is owed for it.
     When I type " and the hinges"
     And I click away from the editor
-    Then "house.jsonl" holds a node titled "pick the knobs and the hinges"
+    Then "house.olai" holds a node titled "pick the knobs and the hinges"
     And no row is being edited
 
   Scenario: The placement is drawn, and ⌘Z retires it
@@ -214,10 +214,10 @@ Feature: The three input widgets
     And I type " ((compost"
     And the mirror completions are open
     And I press "Enter"
-    Then "house.jsonl" holds a mirror of "compost" under "install"
+    Then "house.olai" holds a mirror of "compost" under "install"
     When I press "Escape"
     And I press "ControlOrMeta+z"
-    Then "house.jsonl" holds no mirror of "compost"
+    Then "house.olai" holds no mirror of "compost"
     And there should be no page errors
 
   # ── the keys, and what happens when nothing matches ──────────────────
@@ -238,7 +238,7 @@ Feature: The three input widgets
     Then no completions are open
     When I press "Escape"
     Then no row is being edited
-    And "house.jsonl" holds a node titled "pick the knobs"
+    And "house.olai" holds a node titled "pick the knobs"
 
   Scenario: A pointer takes a row without losing the caret
     # The row prevents the default on mousedown, so choosing with the mouse must

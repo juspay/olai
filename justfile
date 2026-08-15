@@ -89,7 +89,7 @@ build-client: install
 # directory's outlines are watched by the running server itself and reach the
 # open page with no reload at all.
 #
-# Defaults to docs/, which is itself an outline set (docs/roadmap.jsonl), so
+# Defaults to docs/, which is itself an outline set (docs/roadmap.olai), so
 # `just serve` with no arguments shows this project's own plan. `just nix` is
 # the other path: the packaged binary, built from tracked files only. Use this
 # one while working; that one is what CI proves.

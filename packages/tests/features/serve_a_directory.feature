@@ -1,7 +1,7 @@
 @corpus:good
 Feature: Serve a directory
   Olai is pointed at one directory and serves what it finds there. Every
-  `.jsonl` under it is an independent outline, every `.md` a document, and the
+  `.olai` under it is an independent outline, every `.md` a document, and the
   sidebar is one file TREE of both — so this is the first thing that has to be
   true, and the cheapest thing to be wrong about (a mis-globbed extension, a
   path that reads as absolute in the browser and relative on disk).
@@ -14,12 +14,12 @@ Feature: Serve a directory
   Scenario: Every outline in the directory is listed
     # A root outline so no folder is force-opened for ancestry: only the two
     # root outlines show until Daily is unfolded (or someone opens a nested file).
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     Then the outline list has 2 entries
-    And the outline list links to "garden.jsonl"
-    And the outline list links to "house.jsonl"
+    And the outline list links to "garden.olai"
+    And the outline list links to "house.olai"
     When I expand the folder "Daily"
-    Then the outline list links to "Daily/2026-08.jsonl"
+    Then the outline list links to "Daily/2026-08.olai"
     And the outline list has 3 entries
 
   Scenario: Documents are not outlines
@@ -36,7 +36,7 @@ Feature: Serve a directory
     # the reader opens one. Expanding shows the children; collapsing hides
     # them again. The fold is client-local, and this browser remembers which
     # folders are open (`folds_are_remembered.feature`).
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     Then the file tree shows the folder "Daily"
     And the file tree shows the folder "notes"
     And the folder "Daily" is collapsed
@@ -52,7 +52,7 @@ Feature: Serve a directory
     And the document link "notes/palette.md" is hidden
     And the page has not reloaded
     When I expand the folder "Daily"
-    Then the outline link "Daily/2026-08.jsonl" reads "2026-08.jsonl"
+    Then the outline link "Daily/2026-08.olai" reads "2026-08.olai"
 
   Scenario: Every row says what kind of thing it is
     # Filed from a screenshot: an outline, a document and a folder were three
@@ -60,9 +60,9 @@ Feature: Serve a directory
     # the extension at the end of the name. Each row now carries its kind's
     # glyph in front of the name (`client/file/icons.tsx`) — which is a fact
     # about the row, so it is asserted as one.
-    Given I open the outline "house.jsonl"
-    Then the outline link "house.jsonl" is drawn as an outline
-    And the outline link "garden.jsonl" is drawn as an outline
+    Given I open the outline "house.olai"
+    Then the outline link "house.olai" is drawn as an outline
+    And the outline link "garden.olai" is drawn as an outline
     And the document link "finishes.md" is drawn as a document
     And the folder "notes" is drawn as a folder
     And the folder "Daily" is drawn as a folder
@@ -74,7 +74,7 @@ Feature: Serve a directory
     # that puts the agenda's mark on both faces (`agenda.feature`). It is a
     # promise and not an accident of who wrote which SVG, so it is asserted:
     # an inline drawing put back on either button fails here.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I collapse the sidebar
     Then the sidebar rail is showing
     And the rail's outlines button is drawn as an outline
@@ -88,6 +88,6 @@ Feature: Serve a directory
     Then the folder "notes" is expanded
     And the document link "notes/palette.md" is shown
     And the folder "Daily" is collapsed
-    When I open the outline "house.jsonl"
+    When I open the outline "house.olai"
     Then the folder "notes" is collapsed
     And the document link "notes/palette.md" is hidden

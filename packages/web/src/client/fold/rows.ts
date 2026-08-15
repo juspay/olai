@@ -17,8 +17,8 @@
  *
  * The FILE travels with the id, because the memory is scoped by file
  * (./memory.ts) and it is the file the node is DEFINED in — not the one being
- * read. Folding a mirror of `herbs` while reading `house.jsonl` is a fact about
- * `garden.jsonl`, where `herbs` lives, and storing it under the page's file
+ * read. Folding a mirror of `herbs` while reading `house.olai` is a fact about
+ * `garden.olai`, where `herbs` lives, and storing it under the page's file
  * would be the same node folded twice under two names.
  */
 

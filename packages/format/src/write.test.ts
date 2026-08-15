@@ -159,7 +159,7 @@ describe("serializeOutline", () => {
     const text = serializeOutline(nodes)
     expect(text.split("\n")).toHaveLength(nodes.length + 1)
 
-    const parsed = parseOutline("round-trip.jsonl", text)
+    const parsed = parseOutline("round-trip.olai", text)
     if (Result.isFailure(parsed)) {
       throw new Error(
         `the bytes this writer produced do not parse: ${

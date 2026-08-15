@@ -35,7 +35,7 @@ export interface Making {
 
 export const MAKING_OUTLINE: Making = {
   label: "+ New outline",
-  placeholder: "notes/plan.jsonl",
+  placeholder: "notes/plan.olai",
   aria: "path of the new outline, relative to the served directory",
   testids: {
     open: TESTID.newOutline,

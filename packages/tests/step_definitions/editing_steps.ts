@@ -382,7 +382,7 @@ Then(
  *  Deliberately the RECORDS rather than the page: what these scenarios claim
  *  is that a keystroke reached a file through the ops layer.
  *
- *  Through `servedNodesSoFar`, which is where the reason lives: `Archive.jsonl`
+ *  Through `servedNodesSoFar`, which is where the reason lives: `Archive.olai`
  *  is written by the write that archives the first thing, so a step polling for
  *  a node to ARRIVE in it is polling for the file too — and a reader that threw
  *  ENOENT turned that wait into an error on the first attempt. It tolerates a

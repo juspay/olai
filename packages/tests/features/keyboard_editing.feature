@@ -11,7 +11,7 @@ Feature: Keyboard editing
   each gets a private copy of it (`support/hooks.ts`).
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
 
   Scenario: Typing a title writes it, and the page follows the file
@@ -19,7 +19,7 @@ Feature: Keyboard editing
     And I select all and type "choose the brass handles"
     And I press "Enter"
     Then the node "handles" has the title "choose the brass handles"
-    And "house.jsonl" holds a node titled "choose the brass handles"
+    And "house.olai" holds a node titled "choose the brass handles"
     And the page has not reloaded
     And there should be no page errors
 
@@ -30,13 +30,13 @@ Feature: Keyboard editing
     # wrote would pass the first, and one that wrote per keystroke the second.
     When I click the title of "knobs"
     And I select all and type "pick the little brass knobs"
-    Then "house.jsonl" holds no node titled "pick the little brass knobs"
-    And "house.jsonl" holds a node titled "pick the knobs"
+    Then "house.olai" holds no node titled "pick the little brass knobs"
+    And "house.olai" holds a node titled "pick the knobs"
     # Idle is the third moment (blur and Enter are the other two, and have
     # scenarios of their own): stop typing, and it goes. The editor stays open
     # — a commit is not a reason to take the caret away — so the row is asked
     # of the page only after the caret leaves it.
-    Then "house.jsonl" holds a node titled "pick the little brass knobs"
+    Then "house.olai" holds a node titled "pick the little brass knobs"
     When I press "Escape"
     Then the node "knobs" has the title "pick the little brass knobs"
 
@@ -60,10 +60,10 @@ Feature: Keyboard editing
     Then a new row is being typed
     # Still nothing on disk: an empty new row is not a node, which is why
     # `Enter` opens an editor rather than writing a blank record.
-    And the outline "house.jsonl" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+    And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
     When I type "measure the alcove"
     And I press "Enter"
-    Then "house.jsonl" holds a node titled "measure the alcove"
+    Then "house.olai" holds a node titled "measure the alcove"
     And the page has not reloaded
 
   Scenario: The line being typed sits where the row will sit
@@ -90,7 +90,7 @@ Feature: Keyboard editing
     And I press "Enter"
     And I press "Escape"
     Then no row is being edited
-    And the outline "house.jsonl" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+    And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
 
   Scenario: Tab indents under the row above, and Shift+Tab puts it back
     When I click the title of "knobs"
@@ -109,7 +109,7 @@ Feature: Keyboard editing
     # nothing about the editor it was pressed in.
     When I select all and type "choose the brass handles"
     And I click away from the editor
-    Then "house.jsonl" holds a node titled "choose the brass handles"
+    Then "house.olai" holds a node titled "choose the brass handles"
 
   Scenario: Alt+Shift+Up moves a row among its siblings
     When I click the title of "knobs"
@@ -143,7 +143,7 @@ Feature: Keyboard editing
     Then the node "handles" has status "doing"
     When I press "Control+Shift+Enter"
     Then the node "handles" has no status
-    And "house.jsonl" holds the node "handles" with no mark
+    And "house.olai" holds the node "handles" with no mark
     And the page has not reloaded
     And there should be no page errors
 
@@ -178,7 +178,7 @@ Feature: Keyboard editing
     # same way — it would pass just as well if the write had missed `herbs`
     # entirely (review, 2026-08-12). What says the walk landed is the row above
     # and the file below.
-    And "garden.jsonl" holds the node "herbs" with no mark
+    And "garden.olai" holds the node "herbs" with no mark
 
   Scenario: The keys keep working after the row has moved
     # The caret is what a structural op nearly costs: the row is redrawn where
@@ -205,7 +205,7 @@ Feature: Keyboard editing
     And the note being typed holds the source of "order"
     When I type " — measured twice"
     And I click away from the editor
-    Then "house.jsonl" holds a node whose note ends "— measured twice"
+    Then "house.olai" holds a node whose note ends "— measured twice"
     # And clicking away is what it always was: the note folds back to its one
     # clamped line, now with what was typed in it. Editing and expanding are
     # ONE state — you leave both at once — and the full rendered note is the
@@ -223,7 +223,7 @@ Feature: Keyboard editing
     # what comes back is the clamped line — the shape it had before the caret
     # arrived, now with something in it.
     And the description of "handles" is a preview of "the alcove is 1830mm wide"
-    And "house.jsonl" holds a node whose note ends "wide"
+    And "house.olai" holds a node whose note ends "wide"
 
   Scenario: A write that lands can have something to say
     # The ops layer's nudge — advice on a SUCCESS, never a refusal. It reaches
@@ -231,7 +231,7 @@ Feature: Keyboard editing
     # who it is for, so it reaches them too.
     # `mint` is the last unfinished task under `herbs` — which is the moment
     # somebody might want to tick the parent too, and now can.
-    Given I open the outline "garden.jsonl"
+    Given I open the outline "garden.olai"
     When I click the title of "mint"
     And I press "Control+Enter"
     Then the node "mint" has status "done"
@@ -246,7 +246,7 @@ Feature: Keyboard editing
     And I click away from the editor
     Then the refusal says "a node needs a title"
     And the row being typed holds ""
-    And "house.jsonl" holds a node titled "choose the handles"
+    And "house.olai" holds a node titled "choose the handles"
 
   Scenario: A refusal belongs to the row that caused it
     # Two rows and one refusal: clicking away to another title commits the
@@ -259,7 +259,7 @@ Feature: Keyboard editing
     And I click the title of "knobs"
     Then the refusal says "a node needs a title"
     And the row being typed holds ""
-    And "house.jsonl" holds a node titled "pick the knobs"
+    And "house.olai" holds a node titled "pick the knobs"
 
   Scenario: Two refusals in a row leave the editor working
     # The blur guard is cleared by a refused key as well as by a frame, so a
@@ -271,7 +271,7 @@ Feature: Keyboard editing
     Then the refusal says "no row above it"
     When I select all and type "choose the brass handles"
     And I click away from the editor
-    Then "house.jsonl" holds a node titled "choose the brass handles"
+    Then "house.olai" holds a node titled "choose the brass handles"
 
   Scenario: The keys keep up with a person typing faster than the wire
     # Every write goes through one queue, so keys pressed without waiting land
@@ -300,8 +300,8 @@ Feature: Keyboard editing
     And I press "Enter"
     # The write lands in the file the NODE lives in, which is not the file the
     # placement was typed in.
-    Then "garden.jsonl" holds a node titled "the herb bed by the back door"
-    And "house.jsonl" holds no node titled "the herb bed by the back door"
+    Then "garden.olai" holds a node titled "the herb bed by the back door"
+    And "house.olai" holds no node titled "the herb bed by the back door"
 
   Scenario: Enter on a mirror makes a sibling of the PLACEMENT
     # The other half of the mirror rule: what a row SAYS belongs to the node it
@@ -312,8 +312,8 @@ Feature: Keyboard editing
     And I press "Enter"
     And I type "and one after the mirror"
     And I click away from the editor
-    Then "house.jsonl" holds a node titled "and one after the mirror"
-    And "garden.jsonl" holds no node titled "and one after the mirror"
+    Then "house.olai" holds a node titled "and one after the mirror"
+    And "garden.olai" holds no node titled "and one after the mirror"
 
   Scenario: Ctrl+Enter on a mirror ticks off the node it shows
     # And the mark is the other way round: it is a fact about the node, so the
@@ -322,7 +322,7 @@ Feature: Keyboard editing
     When I click the title of "kitchen-herbs"
     And I press "Control+Enter"
     Then the node "kitchen-herbs" has status "done"
-    And "garden.jsonl" holds a node marked done titled "the herb bed by the door"
+    And "garden.olai" holds a node marked done titled "the herb bed by the door"
 
   Scenario: A zoomed node with nothing under it offers the first child
     # The other page that has no row to press a key in. The anchor is the node
@@ -332,15 +332,15 @@ Feature: Keyboard editing
     And I start the first line
     And I type "brushed steel, maybe"
     And I click away from the editor
-    Then "house.jsonl" holds a node titled "brushed steel, maybe"
+    Then "house.olai" holds a node titled "brushed steel, maybe"
     And the tree is shown
 
   Scenario: An outline that holds nothing offers its first line
-    When I rewrite "empty.jsonl" as:
+    When I rewrite "empty.olai" as:
       """
       """
-    And I open the empty outline "empty.jsonl"
+    And I open the empty outline "empty.olai"
     And I start the first line
     And I type "the first thing"
     And I click away from the editor
-    Then "empty.jsonl" holds a node titled "the first thing"
+    Then "empty.olai" holds a node titled "the first thing"

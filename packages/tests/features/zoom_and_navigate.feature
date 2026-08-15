@@ -12,7 +12,7 @@ Feature: Zoom and navigate
   placement that was clicked.
 
   Scenario: Clicking a bullet zooms into that node
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
     When I zoom into the node "install"
     Then the zoomed node is "install"
@@ -25,7 +25,7 @@ Feature: Zoom and navigate
   Scenario: A permalink opens the same page cold
     When I open the node "handles"
     Then the zoomed node is "handles"
-    And the breadcrumbs are "house.jsonl, kitchen remodel #home, install the cabinets"
+    And the breadcrumbs are "house.olai, kitchen remodel #home, install the cabinets"
     And the outline list is shown
     And there should be no page errors
 
@@ -43,23 +43,23 @@ Feature: Zoom and navigate
 
   Scenario: The trail roots at the node's own outline
     Given I open the node "handles"
-    When I follow the breadcrumb "house.jsonl"
+    When I follow the breadcrumb "house.olai"
     Then the tree is shown
-    And the address is "/o/house.jsonl"
+    And the address is "/o/house.olai"
 
   Scenario: Zooming a mirror lands on the node it stands for
-    # `kitchen-herbs` lives in house.jsonl and mirrors `herbs` in garden.jsonl.
+    # `kitchen-herbs` lives in house.olai and mirrors `herbs` in garden.olai.
     # There is one page per node, so this is `herbs`' page — with `herbs`'
     # crumbs, in `herbs`' file, whichever placement was clicked.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I zoom into the node "kitchen-herbs"
     Then the zoomed node is "herbs"
-    And the breadcrumbs are "garden.jsonl, garden #outdoors"
+    And the breadcrumbs are "garden.olai, garden #outdoors"
     And the node "basil" is shown
     And there should be no page errors
 
   Scenario: Done nodes can be hidden, and come back
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     Then the node "demo" is shown
     When I hide the done nodes
     Then the node "demo" is not shown
@@ -76,7 +76,7 @@ Feature: Zoom and navigate
     #
     # Done-hidden now means what it says: the two DONE rows go, and the branch
     # nobody marked stays, with its note.
-    Given I open the outline "garden.jsonl"
+    Given I open the outline "garden.olai"
     Then the node "glazing" is shown
     When I hide the done nodes
     Then the node "glazing" is not shown
@@ -88,7 +88,7 @@ Feature: Zoom and navigate
     # The other half, and what makes the sweep honest: `herbs` carries `doing`,
     # so it stays — but a node whose own mark is `done` is somebody's claim
     # about the whole branch, and the toggle honours it.
-    Given I open the outline "garden.jsonl"
+    Given I open the outline "garden.olai"
     Then the node "herbs" is shown
     When I hide the done nodes
     Then the node "herbs" is shown
@@ -118,7 +118,7 @@ Feature: Zoom and navigate
     # things. The window is made short because the page has to be taller than
     # what is showing for any of this to mean anything.
     Given the window is shorter than the page
-    And I open the outline "house.jsonl"
+    And I open the outline "house.olai"
     And I mark the page
     And I scroll to the bottom of the page
     When I zoom into the node "install"
@@ -144,7 +144,7 @@ Feature: Zoom and navigate
     # outline. See links ride the expanded note (click), the link text is the
     # TARGET's title, and clicking it is the same navigation a bullet is:
     # `/n/<id>`, no reload.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I click the note of "order"
     Then the node "order" sees "herbs" as "the herb bed by the door"
     Given I mark the page
@@ -168,7 +168,7 @@ Feature: Zoom and navigate
     # A row has room for a glyph, not for names, so the click is spent going
     # to the node's OWN page — where they are all named. The box is
     # display-only until keyboard-editing, so the click promises nothing else.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
     When I follow the waiting mark on "hinges"
     Then the zoomed node is "hinges"
@@ -194,7 +194,7 @@ Feature: Zoom and navigate
     # "A tip says" counts as well as reads: a doubled tip said the right thing
     # twice, a few pixels apart and unreadable, and every assertion about the
     # TEXT passed while the screen was wrong.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I hover the waiting mark on "hinges"
     Then a tip says "blocked by order the new cabinets"
     And the tip is inside the window

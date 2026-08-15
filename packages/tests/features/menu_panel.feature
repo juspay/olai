@@ -13,7 +13,7 @@ Feature: The ••• menu opens and shuts
   can quietly change it.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
 
   Scenario: Escape puts the menu away
     When I open the node menu of "kitchen"

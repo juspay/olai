@@ -74,7 +74,7 @@ const clientDist = (): string => {
   )
   // One outline so the store boots.
   fs.writeFileSync(
-    path.join(root, "a.jsonl"),
+    path.join(root, "a.olai"),
     `{"id":"a","ord":"a0","title":"a"}\n`,
   )
   return root

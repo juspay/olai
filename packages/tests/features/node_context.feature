@@ -14,7 +14,7 @@ Feature: The outline and the chat point at each other
   is a private copy with a server of its own.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
     And the agent panel is open
 
@@ -59,7 +59,7 @@ Feature: The outline and the chat point at each other
     # zoomed page draws that node too, with the same attribute on it, so a
     # press that always navigated would satisfy every other line here. The
     # address is what tells the two apart.
-    And the address is "/o/house.jsonl"
+    And the address is "/o/house.olai"
 
   @scratch:chat
   Scenario: An id the agent named in its own prose is a reference, and nothing else is
@@ -70,7 +70,7 @@ Feature: The outline and the chat point at each other
     Then the agent's answer names the node "order"
     When I press the node "order" in the answer
     Then the node "order" is focused
-    And the address is "/o/house.jsonl"
+    And the address is "/o/house.olai"
     # ...and the same backticks around something the set does not declare stay
     # what they are. An agent writes them around file names and flags all day.
     When I ask the agent "edit"
@@ -88,7 +88,7 @@ Feature: The outline and the chat point at each other
     # row on the page, and the press leaves for a node that is right there.
     # The mirror is written here rather than into the fixture because it is
     # this scenario's subject and nobody else's.
-    When I rewrite "house.jsonl" as:
+    When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
@@ -103,7 +103,7 @@ Feature: The outline and the chat point at each other
     Then the agent's answer names the node "order"
     When I press the node "order" in the answer
     Then the node "order" is focused
-    And the address is "/o/house.jsonl"
+    And the address is "/o/house.olai"
 
   @scratch:chat
   Scenario: An armed node that has gone refuses the send rather than losing the subject
@@ -113,7 +113,7 @@ Feature: The outline and the chat point at each other
     When I open the node menu of "order"
     And I choose "Ask agent" from the node menu
     Then the composer is armed with "order"
-    When I rewrite "house.jsonl" as:
+    When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}

@@ -14,7 +14,7 @@ import { nodesOfFiles } from "./fixtures.testlib.ts"
 /** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
  *  a mirror, and an archive beside it. Every assertion below is about this. */
 const CORPUS = {
-  "house.jsonl": [
+  "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"walnut or birch","after":["demo"],"see":["herbs"]}`,
@@ -22,12 +22,12 @@ const CORPUS = {
     `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11"}`,
     `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
   ].join("\n"),
-  "garden.jsonl": [
+  "garden.olai": [
     `{"id":"garden","ord":"a0","title":"garden #outdoors"}`,
     `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","doing":true}`,
     `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}`,
   ].join("\n"),
-  "Archive.jsonl": [
+  "Archive.olai": [
     `{"id":"gone","ord":"a0","title":"the old kitchen table #home","done":"2026-06-01"}`,
   ].join("\n"),
 }
@@ -92,7 +92,7 @@ test("`has:` asks what the record carries, and an empty edge list is no edge", (
 // how `desc: ""` becomes a node with a note and no note at once.
 test("a field holding nothing is a field the record does not carry", () => {
   const hollow = derive(nodesOfFiles({
-    "a.jsonl": [
+    "a.olai": [
       `{"id":"blank","ord":"a0","title":"blank","desc":"","see":[],"after":[]}`,
       `{"id":"real","ord":"a1","title":"real","desc":"something"}`,
     ].join("\n"),
@@ -265,7 +265,7 @@ test("the field a match is reported under is the highest-weighted one that held 
 test("a scope narrows to one outline, or to one node and everything beneath it", () => {
   const home = parseFilter("#home")
   expect(
-    matching(derived, home, { file: "garden.jsonl" }).map(({ at }) => at.node.id),
+    matching(derived, home, { file: "garden.olai" }).map(({ at }) => at.node.id),
   ).toEqual(["herbs"])
   expect(
     matching(derived, home, { under: "kitchen" }).map(({ at }) => at.node.id),
@@ -293,7 +293,7 @@ const narrowed = (file: string, text: string): ReadonlyArray<string> => {
 }
 
 test("a match keeps the ancestors that lead to it, and drops everything else", () => {
-  expect(narrowed("house.jsonl", "hinges")).toEqual([
+  expect(narrowed("house.olai", "hinges")).toEqual([
     "kitchen",
     "  install",
     "    hinges",
@@ -301,7 +301,7 @@ test("a match keeps the ancestors that lead to it, and drops everything else", (
 })
 
 test("a match keeps its whole subtree — you asked for the thing", () => {
-  expect(narrowed("house.jsonl", "install")).toEqual([
+  expect(narrowed("house.olai", "install")).toEqual([
     "kitchen",
     "  install",
     "    hinges",
@@ -309,13 +309,13 @@ test("a match keeps its whole subtree — you asked for the thing", () => {
 })
 
 test("nothing matching is an empty tree rather than the tree it started as", () => {
-  expect(narrowed("house.jsonl", "nothing-is-called-this")).toEqual([])
+  expect(narrowed("house.olai", "nothing-is-called-this")).toEqual([])
 })
 
 test("a mirror is narrowed by the node it SHOWS, wherever it is drawn", () => {
-  // `herbs` lives in garden.jsonl and is mirrored under `kitchen`. Filtering
-  // house.jsonl for it keeps the placement, with its ancestor.
-  expect(narrowed("house.jsonl", "herb")).toEqual([
+  // `herbs` lives in garden.olai and is mirrored under `kitchen`. Filtering
+  // house.olai for it keeps the placement, with its ancestor.
+  expect(narrowed("house.olai", "herb")).toEqual([
     "kitchen",
     "  herbs",
     "    basil",
@@ -325,7 +325,7 @@ test("a mirror is narrowed by the node it SHOWS, wherever it is drawn", () => {
 test("the count is of PLACES, which is what a reader counts on the screen", () => {
   const filter = parseFilter("#home")
   const matched = new Set(matching(derived, filter).map(({ at }) => at.node.id))
-  const house = keeping(rowsOf(derived, "house.jsonl"), matched)
+  const house = keeping(rowsOf(derived, "house.olai"), matched)
   // `kitchen`, `hinges`, and the mirror of `herbs` under `kitchen` — three
   // rows on screen for two nodes plus a placement.
   expect(matchedIn(house, matched)).toBe(3)

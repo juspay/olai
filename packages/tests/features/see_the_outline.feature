@@ -7,7 +7,7 @@ Feature: See the outline
   and the view has to work out that it is `doing` from its three children.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
 
   Scenario: The tree shows the outline's nodes
     Then the tree is shown
@@ -128,8 +128,8 @@ Feature: See the outline
     Then the node "handles" has no toggle
 
   Scenario: A mirror shows its target's subtree, inline and marked
-    # `kitchen-herbs` lives in house.jsonl and points at `herbs` in
-    # garden.jsonl — the one relation that crosses files.
+    # `kitchen-herbs` lives in house.olai and points at `herbs` in
+    # garden.olai — the one relation that crosses files.
     Then the node "kitchen-herbs" is marked as a mirror
     And the node "basil" is a child of "kitchen-herbs"
     And the node "mint" is a child of "kitchen-herbs"
@@ -138,7 +138,7 @@ Feature: See the outline
   Scenario: A mirror draws the mark its target stores
     # A mirror asks EVERYTHING of what it shows: `kitchen-herbs` stands for
     # `herbs`, which carries `doing`, so it draws the same half-filled box the
-    # target draws in garden.jsonl — and the same rollup over the target's own
+    # target draws in garden.olai — and the same rollup over the target's own
     # children. A row that showed a title but no box would say the node is not
     # a task in one place and a task in another.
     Then the node "kitchen-herbs" has status "doing"

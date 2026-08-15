@@ -28,7 +28,7 @@ import { styleTags } from "./tags.ts"
 
 installPipeline(pipeline)
 
-const NOTE = "house.jsonl"
+const NOTE = "house.olai"
 
 /**
  * The long way round: the pipeline, forced inline, then the tag split — which

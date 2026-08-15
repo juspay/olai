@@ -39,7 +39,7 @@ const RECORDS_THE_WRITER = ["surface/git/commit", "surface/ops/run"]
 
 test("a face served under another writer differs by exactly the members that record one", async () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-runtime-")))
-  fs.writeFileSync(path.join(root, "a.jsonl"), `{"id":"a","ord":"a0","title":"a"}\n`)
+  fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"a"}\n`)
 
   await Effect.gen(function*() {
     const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store.make({

@@ -21,7 +21,7 @@ Feature: Writing a node's edges — `see` and `after`
   scenario gets a private copy of it.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
 
   # ── `see`, from a row ───────────────────────────────────────────────
@@ -39,7 +39,7 @@ Feature: Writing a node's edges — `see` and `after`
     Then the see panel is open on "handles"
     When I search the edge panel for "compost"
     And I choose "the compost heap" from the edge panel
-    Then "house.jsonl" holds the node "handles" seeing "compost"
+    Then "house.olai" holds the node "handles" seeing "compost"
     And the page has not reloaded
     And there should be no page errors
 
@@ -51,7 +51,7 @@ Feature: Writing a node's edges — `see` and `after`
     And I choose "Link to a node…" from the node menu
     Then the edge panel holds "herbs"
     When I drop "herbs" in the edge panel
-    Then "house.jsonl" holds the node "order" seeing nothing
+    Then "house.olai" holds the node "order" seeing nothing
     And there should be no page errors
 
   Scenario: ⌘Z takes a link back, and ⌘⇧Z puts it back
@@ -61,12 +61,12 @@ Feature: Writing a node's edges — `see` and `after`
     And I choose "Link to a node…" from the node menu
     And I search the edge panel for "compost"
     And I choose "the compost heap" from the edge panel
-    Then "house.jsonl" holds the node "handles" seeing "compost"
+    Then "house.olai" holds the node "handles" seeing "compost"
     When I press "Escape"
     And I press "ControlOrMeta+z"
-    Then "house.jsonl" holds the node "handles" seeing nothing
+    Then "house.olai" holds the node "handles" seeing nothing
     When I press "ControlOrMeta+Shift+z"
-    Then "house.jsonl" holds the node "handles" seeing "compost"
+    Then "house.olai" holds the node "handles" seeing "compost"
     And there should be no page errors
 
   Scenario: An edge chosen at a MIRROR lands on the node it shows
@@ -76,7 +76,7 @@ Feature: Writing a node's edges — `see` and `after`
     And I choose "Link to a node…" from the node menu
     And I search the edge panel for "compost"
     And I choose "the compost heap" from the edge panel
-    Then "garden.jsonl" holds the node "herbs" seeing "compost"
+    Then "garden.olai" holds the node "herbs" seeing "compost"
     And there should be no page errors
 
   # ── `after`, and the loop it refuses to close ───────────────────────
@@ -92,7 +92,7 @@ Feature: Writing a node's edges — `see` and `after`
     Then the after panel is open on "knobs"
     When I search the edge panel for "order the new cabinets"
     And I choose "order the new cabinets" from the edge panel
-    Then "house.jsonl" holds the node "knobs" after "order"
+    Then "house.olai" holds the node "knobs" after "order"
     And the node "knobs" is blocked by "order"
     And the page has not reloaded
     And there should be no page errors
@@ -106,11 +106,11 @@ Feature: Writing a node's edges — `see` and `after`
     And I choose "Wait for a node…" from the node menu
     And I search the edge panel for "order the new cabinets"
     And I choose "order the new cabinets" from the edge panel
-    Then "house.jsonl" holds the node "knobs" after "order"
+    Then "house.olai" holds the node "knobs" after "order"
     And the node "knobs" is blocked by "order"
     When I press "Escape"
     And I press "ControlOrMeta+z"
-    Then "house.jsonl" holds the node "knobs" after nothing
+    Then "house.olai" holds the node "knobs" after nothing
     And the node "knobs" is not blocked
     And there should be no page errors
 
@@ -126,9 +126,9 @@ Feature: Writing a node's edges — `see` and `after`
     When I open the node "hinges"
     Then the node "hinges" comes after "choose the handles, order the new cabinets"
     When I drop "handles" from the drawn "after" of "hinges"
-    Then "house.jsonl" holds the node "hinges" after "order"
+    Then "house.olai" holds the node "hinges" after "order"
     When I press "ControlOrMeta+z"
-    Then "house.jsonl" holds the node "hinges" after "order, handles"
+    Then "house.olai" holds the node "hinges" after "order, handles"
     And the node "hinges" comes after "order the new cabinets, choose the handles"
     And there should be no page errors
 
@@ -143,7 +143,7 @@ Feature: Writing a node's edges — `see` and `after`
     And I choose "install the cabinets" from the edge panel
     Then the edge panel says "closes a loop"
     And the edge panel says "`order` → `install` → `order`"
-    And "house.jsonl" holds the node "order" after "demo"
+    And "house.olai" holds the node "order" after "demo"
     And there should be no page errors
 
   # ── the zoomed node, which has no `•••` at all ──────────────────────
@@ -162,14 +162,14 @@ Feature: Writing a node's edges — `see` and `after`
     And I open the after panel from the page
     And I search the edge panel for "the compost heap"
     And I choose "the compost heap" from the edge panel
-    Then "house.jsonl" holds the node "handles" after "compost"
+    Then "house.olai" holds the node "handles" after "compost"
     And the node "handles" comes after "the compost heap"
     And there should be no page errors
 
   Scenario: The `×` on a drawn `after` reference drops that dependency
     When I open the node "hinges"
     And I drop "order" from the drawn "after" of "hinges"
-    Then "house.jsonl" holds the node "hinges" after "handles"
+    Then "house.olai" holds the node "hinges" after "handles"
     And there should be no page errors
 
   Scenario: The `×` on a drawn `see` reference drops that link
@@ -178,6 +178,6 @@ Feature: Writing a node's edges — `see` and `after`
     When I open the node "order"
     Then the node "order" sees "herbs" as "the herb bed by the door"
     When I drop "herbs" from the drawn "see" of "order"
-    Then "house.jsonl" holds the node "order" seeing nothing
+    Then "house.olai" holds the node "order" seeing nothing
     And the node "order" draws no "see"
     And there should be no page errors

@@ -421,7 +421,7 @@ export const Edit = Schema.Union([
   /**
    * Put a node and everything under it away — `archive_node`, from the menu.
    *
-   * A TRASH, not a shredder: the subtree moves to `Archive.jsonl` under a
+   * A TRASH, not a shredder: the subtree moves to `Archive.olai` under a
    * scaffold of its ancestors' titles, keeping every id, so a mirror, an
    * `after` or a `see` that named any of it goes on resolving. It is one op —
    * the subtree is the op's unit, not this verb's arithmetic — and the fence
@@ -541,7 +541,7 @@ export const Edit = Schema.Union([
    *
    * WHERE IT LANDS IS THE SERVER'S, exactly as `docDay`'s path is and for the
    * same argument: the inbox is a fact about the SET — the outline named
-   * `Inbox.jsonl`, if the directory has one — so it is read against the
+   * `Inbox.olai`, if the directory has one — so it is read against the
    * reading the write is judged on rather than in a tab holding a file list
    * some frames old. That is also what makes this ONE op rather than a
    * sequence: an existing inbox takes an `add`, a directory with none takes a
@@ -610,7 +610,7 @@ export const Edit = Schema.Union([
    *
    * {@link docNew}'s twin, spelled the same way and for the same reasons: the
    * path is what a person types, because a file's name is its address in this
-   * app, and every rule about that path — relative, `.jsonl`, no `..`, not one
+   * app, and every rule about that path — relative, `.olai`, no `..`, not one
    * the set already holds — is the OP's, surfaced verbatim rather than
    * re-implemented in a browser that would then disagree with an agent.
    *
@@ -672,7 +672,7 @@ export const Edit = Schema.Union([
    * sends it, and the deferral #109 recorded is not this PR's to close.
    *
    * It resolves to `archive`, because that is the only removal the SET has: a
-   * node goes to `Archive.jsonl` keeping its id, which is a trash rather than
+   * node goes to `Archive.olai` keeping its id, which is a trash rather than
    * a shredder and is exactly what `archive_node` does for an agent.
    *
    * What the WIRE guarantees is the narrowing, and it is worth saying in those
@@ -724,7 +724,7 @@ export const Applied = Schema.Struct({
    * the inbox is is a fact about the set. So the tab that captured cannot say
    * where the line went unless the answer says, and a tab that guessed would
    * be inventing a placement one door after arguing it may not compute one —
-   * "captured to the Inbox" over a directory that keeps `notes/inbox.jsonl`.
+   * "captured to the Inbox" over a directory that keeps `notes/inbox.olai`.
    * It rides back for every verb rather than for that one, because the ops
    * layer answers with it for every op already and a field present only
    * sometimes is a field a reader has to know the verbs to use.

@@ -12,7 +12,7 @@
  * path — and it is a SECOND prefix rather than more work for `/o/` because an
  * outline and a document are two different things a file can be (`fileKind`,
  * in the format). The address says which, so a URL means one kind of page
- * before the set is in hand, and renaming a `.md` to a `.jsonl` is a different
+ * before the set is in hand, and renaming a `.md` to a `.olai` is a different
  * page rather than the same address quietly changing what it draws.
  *
  * `/d/<ISO-date>` names a DAY, which is not a thing on disk at all: it is a
@@ -29,8 +29,8 @@
  * meant something different tomorrow, which is the one thing a link may not do.
  *
  * `/trash` spells nothing for the same reason: it is a question asked of the
- * set — every `Archive.jsonl` under the directory — not a file's address. The
- * files it reads still HAVE addresses (`/o/Archive.jsonl` parses like any
+ * set — every `Archive.olai` under the directory — not a file's address. The
+ * files it reads still HAVE addresses (`/o/Archive.olai` parses like any
  * outline path), and what such an address opens is the trash view, because an
  * archive is not a place you edit (`page.ts` decides that, not this parser).
  *
@@ -57,7 +57,7 @@ export type Route =
   | { readonly kind: "today" }
   /** What is owed, read forward from whatever day it is. */
   | { readonly kind: "agenda" }
-  /** What was put away: every `Archive.jsonl` under the directory, read-only.
+  /** What was put away: every `Archive.olai` under the directory, read-only.
    *  It spells no file for the reason `/agenda` spells no horizon — which
    *  archives exist is the set's answer, and an address that named one would
    *  mean something different the day a subdirectory gets its own. */

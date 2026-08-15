@@ -410,7 +410,7 @@ test insists on: a link the app writes has to be a link it can read back.
   path. A second prefix rather than more work for the first, because an outline
   and a document are two different things a file can be (`fileKind`, in the
   format): the address says which, so a URL means one kind of page before the
-  set is in hand, and renaming a `.md` to a `.jsonl` is a different page rather
+  set is in hand, and renaming a `.md` to a `.olai` is a different page rather
   than the same address quietly changing what it draws.
 - `/n/<id>` names a node, and an id is all it may spell. Ids are unique across
   the loaded set and survive renames and moves across files, so the permalink
@@ -905,7 +905,7 @@ phone scenario as the fence against the pin leaking below 48rem.
 
 ## The tree says what each row IS
 
-Filed from a screenshot: the directory drew `garden.jsonl`, `finishes.md` and
+Filed from a screenshot: the directory drew `garden.olai`, `finishes.md` and
 `notes` in one ink at one weight, so the only thing telling an OUTLINE from a
 DOCUMENT was four characters of extension at the end of the name, and the only
 thing marking a FOLDER was a triangle every fold control in this app has. Three
@@ -1178,13 +1178,13 @@ Inside the conversation, three components earn their own file:
   the colours are spent on the tint and the marker rather than on the words:
   text stays `ink`, which is the pair every palette promises.
 - **`OutlineDiff.tsx` / `outline.ts`** are what make "never a text diff of a
-  `.jsonl`" true of the FILE rather than of the tool. Olai's own writes cannot
+  `.olai`" true of the FILE rather than of the tool. Olai's own writes cannot
   produce one; an agent's own `Edit` can name any file, and one aimed at an
   outline used to arrive as a diff block and render as lines. So an outline's
   two texts are parsed and compared as RECORDS — `parseOutline` + `changesOf`,
   the same pair the Commit panel's rows come from — and drawn as node rows in
   the same words. A side that will not parse says which side and draws nothing
-  else: an agent hand-editing an outline is exactly how a `.jsonl` stops
+  else: an agent hand-editing an outline is exactly how a `.olai` stops
   parsing, and lines are not a better answer to that than a sentence.
 - **`armed.ts` / `ContextChips.tsx` / `Reference.tsx` / `refs.ts` / `../focus.ts`** are
   the two directions between a row and the conversation, and they are four small
@@ -1387,7 +1387,7 @@ auto-approves its ops, so git is how you see what the tool did to your files.
 Writes land on disk and WAIT; this is what asks for the commit, and the agent's
 `commit` tool is the same action through the other door.
 
-The panel never shows a text diff — a `.jsonl` diff is one enormous line per
+The panel never shows a text diff — a `.olai` diff is one enormous line per
 node — so every outline row is a NODE and what changed about it
 (`Outlines.tsx`). The classification is the server's (one `Sort` per change,
 from `@olai/format`), and `client/changes.ts` is this client's own table of
@@ -1422,7 +1422,7 @@ quietly left out of a commit the button says is sweeping everything. Unticking
 dims the row and recomposes the message and the button label live, through
 `@olai/format`'s own `composed`: the same function the server would have used,
 so the two faces cannot word one commit differently. The unit is a FILE — an
-outline's node changes travel together, because a partial `.jsonl` write is not
+outline's node changes travel together, because a partial `.olai` write is not
 a thing that exists — and the key is the repository-relative path, which is the
 one name that cannot collide with a served outline's.
 
@@ -2339,7 +2339,7 @@ so on the same line every verb answers on, without a countdown, the way
   edges go on resolving), and the confirm promises the way back it now has:
   the sidebar's Trash, and `Put back` (below). The entry speaks Trash while
   the wire verb, the op and the agent's tool stay `archive` — the file is
-  still `Archive.jsonl`, and only the human-facing surface renames.
+  still `Archive.olai`, and only the human-facing surface renames.
 - **⌘Z takes back a menu write too.** A verb files what would undo it on the
   same stack a keystroke files on (`../writes.ts` → `Undo.record`), so the chord
   does not mean two different things depending on which hand made the edit.
@@ -2375,14 +2375,14 @@ duplicate. Unarchive is no longer on this list: it is the Trash's one verb
 
 ## The Trash
 
-`src/client/trash/TrashPage.tsx` is `Archive.jsonl` made visible — the
+`src/client/trash/TrashPage.tsx` is `Archive.olai` made visible — the
 `parity-unarchive` ruling's UI half. The web calls it TRASH because that is
 what it is to a person; the file keeps its name, the ops vocabulary keeps
 `archive_node` / `unarchive_node`, and only the human-facing surface renames.
 
 - **One page for every archive.** `/trash` (and any archive's own `/o/…`
   address — an archive is not a place you edit, so `page.ts` sends both doors
-  to the same view) draws each `Archive.jsonl` under the directory as the tree
+  to the same view) draws each `Archive.olai` under the directory as the tree
   the archive op wrote: scaffold titles, subtrees shaped as they left. The
   sidebar's file tree never lists an archive; the `Trash` entry at the foot of
   the column is its one door, drawn whether or not anything was ever archived,
@@ -2406,7 +2406,7 @@ what it is to a person; the file keeps its name, the ops vocabulary keeps
   takes `parent` / `file` for an agent that knows better, and an undo sends
   exactly those, because the server read the real place off the snapshot the
   archive was judged against.
-- **The empty trash is a page.** The archive tool re-creates `Archive.jsonl`
+- **The empty trash is a page.** The archive tool re-creates `Archive.olai`
   on first use, so an absent file and an empty one are the same sight: "The
   Trash is empty."
 
@@ -2567,7 +2567,7 @@ left alone rather than dropped into an absence.
 
 What that file may NOT be read as is a claim about one id. **Gone means gone
 from the set**, and the case that proves it is the ordinary one: `archive` is a
-move, not a delete — the record lands in `Archive.jsonl` with its id kept, and
+move, not a delete — the record lands in `Archive.olai` with its id kept, and
 the file it left goes on being served with the rest of its nodes. Pruning each
 bucket against its own file alone reads that as a deletion and forgets the fold
 at exactly the moment keying by id was supposed to keep it (a place key could

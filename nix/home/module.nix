@@ -32,7 +32,7 @@ in
       type = lib.types.str;
       example = lib.literalExpression ''"''${config.home.homeDirectory}/outlines"'';
       description = ''
-        Directory of outlines to serve (*.jsonl and *.md, read recursively).
+        Directory of outlines to serve (*.olai and *.md, read recursively).
         Required — a user unit has no ambient home to fall back on.
       '';
     };

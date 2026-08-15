@@ -26,35 +26,35 @@ const order = (errors: ReadonlyArray<OutlineError>): ReadonlyArray<string> =>
 test("errors sort by file, then line, then code", () => {
   expect(
     order([
-      error("b.jsonl", 1, "bad-id"),
-      error("a.jsonl", 10, "bad-id"),
-      error("a.jsonl", 2, "unknown-target"),
-      error("a.jsonl", 2, "bad-date"),
+      error("b.olai", 1, "bad-id"),
+      error("a.olai", 10, "bad-id"),
+      error("a.olai", 2, "unknown-target"),
+      error("a.olai", 2, "bad-date"),
     ]),
   ).toEqual([
-    "a.jsonl:2:bad-date",
-    "a.jsonl:2:unknown-target",
-    "a.jsonl:10:bad-id",
-    "b.jsonl:1:bad-id",
+    "a.olai:2:bad-date",
+    "a.olai:2:unknown-target",
+    "a.olai:10:bad-id",
+    "b.olai:1:bad-id",
   ])
 })
 
 // Lines are compared as numbers. String order would file line 10 before line 2
 // and make a long file's error list read at random.
 test("line 10 sorts after line 2, not before it", () => {
-  expect(compareErrors(error("a.jsonl", 10, "bad-id"), error("a.jsonl", 2, "bad-id")))
+  expect(compareErrors(error("a.olai", 10, "bad-id"), error("a.olai", 2, "bad-id")))
     .toBeGreaterThan(0)
 })
 
 // Files are compared by code point, not by `localeCompare`: a locale-sensitive
-// sort orders `B.jsonl` after `a.jsonl` in English and elsewhere would not, so
+// sort orders `B.olai` after `a.olai` in English and elsewhere would not, so
 // "two loads of the same broken set produce the same list" would stop being
 // true between two machines — which is the whole reason to order it at all.
 test("files sort by code point, not by locale", () => {
-  expect(order([error("a.jsonl", 1, "bad-id"), error("B.jsonl", 1, "bad-id")]))
-    .toEqual(["B.jsonl:1:bad-id", "a.jsonl:1:bad-id"])
+  expect(order([error("a.olai", 1, "bad-id"), error("B.olai", 1, "bad-id")]))
+    .toEqual(["B.olai:1:bad-id", "a.olai:1:bad-id"])
   // `Order.Order` is still a comparator, which is what `sort` above is handed.
-  expect(compareErrors(error("a.jsonl", 1, "bad-id"), error("B.jsonl", 1, "bad-id")))
+  expect(compareErrors(error("a.olai", 1, "bad-id"), error("B.olai", 1, "bad-id")))
     .toBeGreaterThan(0)
 })
 
@@ -64,8 +64,8 @@ test("files sort by code point, not by locale", () => {
 test("an error is cross-file when a related site lives in another file", () => {
   expect(
     isCrossFile(
-      error("b.jsonl", 1, "duplicate-id", [
-        { file: "a.jsonl", line: 1, note: "first declared here" },
+      error("b.olai", 1, "duplicate-id", [
+        { file: "a.olai", line: 1, note: "first declared here" },
       ]),
     ),
   ).toBe(true)
@@ -73,12 +73,12 @@ test("an error is cross-file when a related site lives in another file", () => {
   // problem.
   expect(
     isCrossFile(
-      error("a.jsonl", 3, "parent-cycle", [
-        { file: "a.jsonl", line: 1, note: "also in the loop" },
+      error("a.olai", 3, "parent-cycle", [
+        { file: "a.olai", line: 1, note: "also in the loop" },
       ]),
     ),
   ).toBe(false)
-  expect(isCrossFile({ code: "bad-id", file: "a.jsonl", line: 1, message: "x" })).toBe(false)
+  expect(isCrossFile({ code: "bad-id", file: "a.olai", line: 1, message: "x" })).toBe(false)
 })
 
 // The stage is a pure function of the code rather than a stored field: two
@@ -99,8 +99,8 @@ test("the stage is decided by the code alone", () => {
 // question still open, and the view says so rather than letting a reader
 // conclude from a short list that the rest of the set is fine.
 test("a report is at the line stage while anything in it is", () => {
-  const line = error("a.jsonl", 1, "not-json")
-  const set = error("a.jsonl", 2, "unknown-parent")
+  const line = error("a.olai", 1, "not-json")
+  const set = error("a.olai", 2, "unknown-parent")
   expect(reportStage([set, set])).toBe("set")
   expect(reportStage([line])).toBe("line")
   // One line error among many set errors still holds the whole report back —

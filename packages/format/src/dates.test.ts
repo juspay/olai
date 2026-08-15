@@ -19,7 +19,7 @@ import { nodesOfFiles } from "./fixtures.testlib.ts"
  *  month boundaries above and below testable rather than assumed. */
 const SET = derive(
   nodesOfFiles({
-    "work.jsonl": [
+    "work.olai": [
       `{"id":"deck","ord":"a0","title":"the deck"}`,
       `{"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","date":"2026-08-05"}`,
       // Later in the day than `posts`, and written to the file first — so a
@@ -29,7 +29,7 @@ const SET = derive(
       `{"id":"july","ord":"a1","title":"the last day of July","date":"2026-07-31"}`,
       `{"id":"september","ord":"a2","title":"the first day of September","date":"2026-09-01"}`,
     ].join("\n"),
-    "life.jsonl": [
+    "life.olai": [
       `{"id":"trip","ord":"a0","title":"the coast trip"}`,
       `{"id":"ferry","parent":"trip","ord":"a0","title":"book the ferry","date":"2026-08-05T09:00"}`,
       `{"id":"pack","parent":"trip","ord":"a1","title":"pack the bags","date":"2026-08-31"}`,
@@ -47,7 +47,7 @@ const SET = derive(
  */
 const MARKED = derive(
   nodesOfFiles({
-    "ship.jsonl": [
+    "ship.olai": [
       // Finished at an instant, scheduled for nothing: the roadmap's own shape
       // after the done-datetime migration, and the case that vanished from the
       // calendar when only `date` counted.
@@ -128,8 +128,8 @@ test("a day is lit once, whatever is on it", () => {
 
 test("a day collects every outline that has something on it", () => {
   expect(datedOn(SET, "2026-08-05").map((group) => group.file)).toEqual([
-    "life.jsonl",
-    "work.jsonl",
+    "life.olai",
+    "work.olai",
   ])
 })
 
@@ -253,8 +253,8 @@ test("a row shows the date that put it on the day", () => {
 test("two records claiming one id are two rows, not one", () => {
   const duplicated = derive(
     nodesOfFiles({
-      "a.jsonl": `{"id":"dup","ord":"a0","title":"one","done":"2026-08-11T09:00:00-04:00"}`,
-      "b.jsonl": `{"id":"dup","ord":"a0","title":"the other","done":"2026-08-11T10:00:00-04:00"}`,
+      "a.olai": `{"id":"dup","ord":"a0","title":"one","done":"2026-08-11T09:00:00-04:00"}`,
+      "b.olai": `{"id":"dup","ord":"a0","title":"the other","done":"2026-08-11T10:00:00-04:00"}`,
     }),
   )
   expect(idsOf(duplicated, "2026-08-11")).toEqual(["dup", "dup"])
@@ -263,18 +263,18 @@ test("two records claiming one id are two rows, not one", () => {
 // Work that was put away is still work that happened. Blockedness exempts the
 // archive at both ends — nothing waits on what is over — and a journal asks the
 // other question, so the exemption does not carry across (resolved 2026-08-11,
-// human). The `Archive.jsonl` heading on the group is what tells the reader
+// human). The `Archive.olai` heading on the group is what tells the reader
 // where the row lives.
 test("an archived node keeps the day its mark was dated", () => {
   const archived = derive(
     nodesOfFiles({
-      "Archive.jsonl":
+      "Archive.olai":
         `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
     }),
   )
   expect(idsOf(archived, "2026-08-11")).toEqual(["deck"])
   expect(datedOn(archived, "2026-08-11").map((group) => group.file)).toEqual([
-    "Archive.jsonl",
+    "Archive.olai",
   ])
   expect(datedDays(archived, "2026-08").has("2026-08-11")).toBe(true)
 })
@@ -285,12 +285,12 @@ test("an archived node keeps the day its mark was dated", () => {
 test("a mirror of a dated node does not put it on the day twice", () => {
   const mirrored = derive(
     nodesOfFiles({
-      "work.jsonl": `{"id":"posts","ord":"a0","title":"dig","date":"2026-08-05"}`,
-      "life.jsonl": `{"id":"posts-here","ord":"a0","mirror":"posts"}`,
+      "work.olai": `{"id":"posts","ord":"a0","title":"dig","date":"2026-08-05"}`,
+      "life.olai": `{"id":"posts-here","ord":"a0","mirror":"posts"}`,
     }),
   )
   expect(datedOn(mirrored, "2026-08-05").map((group) => group.file)).toEqual([
-    "work.jsonl",
+    "work.olai",
   ])
   expect(datedDays(mirrored, "2026-08").size).toBe(1)
 })
@@ -334,7 +334,7 @@ test("a document merely NAMING a date is not that day's note", () => {
       "2026-8-12.md",
       "20260812.md",
       "2026-08-10.txt",
-      "2026-08-10.jsonl",
+      "2026-08-10.olai",
       // The date is the FOLDER here; the file is `notes.md`.
       "2026-08-10/notes.md",
       "notes.md",

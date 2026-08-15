@@ -70,7 +70,7 @@ const CATALOGUE = {
   "duplicate-id": "set",
   /** `parent` names an id no record in the set declares. */
   "unknown-parent": "set",
-  /** `parent` resolves, but in another file. Every `.jsonl` is an independent
+  /** `parent` resolves, but in another file. Every `.olai` is an independent
    *  tree; cross-file relations are mirrors and edges. */
   "foreign-parent": "set",
   /** `parent` resolves to a mirror record. A mirror is a placement, not a
@@ -177,7 +177,7 @@ export const isCrossFile = (error: OutlineError): boolean =>
  *  DIRECTORY), and the rule lives here rather than in whichever renderer
  *  noticed first, which is the same argument {@link errorLine} makes: the
  *  browser's rows and an agent's one-liner must not disagree about whether
- *  `plan.jsonl:0` is a line number somebody could go and look for. */
+ *  `plan.olai:0` is a line number somebody could go and look for. */
 export const hasLine = (error: Pick<OutlineError, "line">): boolean => error.line > 0
 
 /** One error as one line of plain text.

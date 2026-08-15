@@ -12,7 +12,7 @@ Feature: The ••• menu writes
   the directory they are served — each scenario gets a private copy of it.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
 
   Scenario: The menu offers what this row can take, and nothing that would be a no-op
@@ -59,7 +59,7 @@ Feature: The ••• menu writes
     When I open the node menu of "handles"
     And I choose "Mark doing" from the node menu
     Then the node "handles" has status "doing"
-    And "house.jsonl" holds a node marked doing titled "choose the handles"
+    And "house.olai" holds a node marked doing titled "choose the handles"
     And the page has not reloaded
     And there should be no page errors
 
@@ -100,7 +100,7 @@ Feature: The ••• menu writes
     # edited on the node, wherever the reader is standing.
     When I open the node menu of "kitchen-herbs"
     And I choose "Complete" from the node menu
-    Then "garden.jsonl" holds a node marked done titled "the herb bed by the door"
+    Then "garden.olai" holds a node marked done titled "the herb bed by the door"
 
   Scenario: Only a dated row offers to clear a date
     When I open the node menu of "install"
@@ -110,7 +110,7 @@ Feature: The ••• menu writes
     When I open the node menu of "order"
     And I choose "Clear date" from the node menu
     Then the node "order" shows no date
-    And "house.jsonl" holds the node "order" with no date
+    And "house.olai" holds the node "order" with no date
 
   Scenario: Retiring a placement takes the line and leaves the node
     # What `remove_mirror` does, from the row it is about: the placement's own
@@ -119,15 +119,15 @@ Feature: The ••• menu writes
     Then the node menu offers "Remove this placement"
     And the node menu does not offer "Move to Trash"
     When I choose "Remove this placement" from the node menu
-    Then "house.jsonl" no longer holds the node "kitchen-herbs"
-    And "garden.jsonl" holds the node "herbs"
+    Then "house.olai" no longer holds the node "kitchen-herbs"
+    And "garden.olai" holds the node "herbs"
     And the node "kitchen-herbs" is not shown
 
   Scenario: A placement something else still names is refused, naming what
     # The op's own fence, quoted: retiring this line would leave the `see` on
     # `order` pointing at nothing. Written by another hand while the page is
     # open, which is also how the refusal gets to be about the set as it IS.
-    When I rewrite "house.jsonl" as:
+    When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","see":["kitchen-herbs"]}
@@ -140,8 +140,8 @@ Feature: The ••• menu writes
     Then the node "install" is not shown
     When I open the node menu of "kitchen-herbs"
     And I choose "Remove this placement" from the node menu
-    Then the node menu of "kitchen-herbs" says "`kitchen-herbs` is still named by `order` (`see`, house.jsonl:2) — retiring it would leave that pointing at nothing. Re-point it at `herbs` (the node this placement shows), or retire it first."
-    And "house.jsonl" holds the node "kitchen-herbs"
+    Then the node menu of "kitchen-herbs" says "`kitchen-herbs` is still named by `order` (`see`, house.olai:2) — retiring it would leave that pointing at nothing. Re-point it at `herbs` (the node this placement shows), or retire it first."
+    And "house.olai" holds the node "kitchen-herbs"
 
   Scenario: Moving to the Trash asks first, and names how much goes with it
     # The human's ruling: a subtree may be archived, WITH a confirm naming the
@@ -151,7 +151,7 @@ Feature: The ••• menu writes
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
     Then the node menu asks "Move “install the cabinets” and the 3 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
-    And "house.jsonl" holds a node titled "install the cabinets"
+    And "house.olai" holds a node titled "install the cabinets"
 
   Scenario: The confirm counts what the write moves, not what is on screen
     # The rows a page draws are a READING: hiding what is done drops finished
@@ -173,7 +173,7 @@ Feature: The ••• menu writes
     And I choose "Cancel" from the node menu
     Then the node menu is not asking anything
     And the node menu offers "Move to Trash"
-    And "house.jsonl" holds a node titled "install the cabinets"
+    And "house.olai" holds a node titled "install the cabinets"
 
   Scenario: Confirming moves the subtree to the Trash, ids and all
     # A trash rather than a shredder: the ids come along, so the `after` edges
@@ -182,10 +182,10 @@ Feature: The ••• menu writes
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "house.jsonl" no longer holds the node "install"
-    And "Archive.jsonl" holds the node "install"
-    And "Archive.jsonl" holds the node "hinges"
-    And "Archive.jsonl" holds a node titled "install the cabinets"
+    Then "house.olai" no longer holds the node "install"
+    And "Archive.olai" holds the node "install"
+    And "Archive.olai" holds the node "hinges"
+    And "Archive.olai" holds a node titled "install the cabinets"
     And the node "install" is not shown
     And there should be no page errors
 

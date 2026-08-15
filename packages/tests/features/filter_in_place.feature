@@ -15,7 +15,7 @@ Feature: Filtering the outline in place
     # The whole promise. `hinges` lives under `install`, which lives under
     # `kitchen`: all three stay, everything else goes, and the count says how
     # many of the rows on screen are actually matches.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     Then the outline has 10 rows
     When I filter the page by "hinges"
     Then the outline has 3 rows
@@ -33,9 +33,9 @@ Feature: Filtering the outline in place
     # A narrowed page is a link somebody can send. That is the same argument
     # `/n/<id>` is made of, and it is why the filter is in the URL rather than
     # in a signal beside it.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I filter the page by "hinges"
-    Then the address is exactly "/o/house.jsonl?q=hinges"
+    Then the address is exactly "/o/house.olai?q=hinges"
     When I reload the page
     Then the outline has 3 rows
     And the filter box holds "hinges"
@@ -43,10 +43,10 @@ Feature: Filtering the outline in place
   Scenario: Clearing the filter takes the query out of the address entirely
     # An unfiltered page has ONE spelling — no `?q=`, no empty query — so one
     # page is one string in the bar.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I filter the page by "hinges"
     And I clear the filter
-    Then the address is exactly "/o/house.jsonl"
+    Then the address is exactly "/o/house.olai"
     And the outline has 10 rows
 
   Scenario: A collapsed ancestor does not hide a match
@@ -54,7 +54,7 @@ Feature: Filtering the outline in place
     # tree the reader was reading; the filter makes a different tree, and
     # honouring the collapse inside it would hide the very match that was typed
     # for. Nothing is written — clearing the filter brings the fold back.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I collapse the node "install"
     Then the node "hinges" is not shown
     When I filter the page by "hinges"
@@ -67,14 +67,14 @@ Feature: Filtering the outline in place
     # itself, so it is here as the ancestry rather than as a match. The second
     # match is `basil`, drawn under the MIRROR of `herbs` this outline holds —
     # a placement matches by the node it shows, wherever it is drawn.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I filter the page by "is:done"
     Then the node "demo" is a match
     And the node "kitchen" is context
     And the filter found "2 of 10"
 
   Scenario: `has:desc` finds the node carrying a note
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I filter the page by "has:desc"
     Then the node "order" is a match
     And the filter found "1 of 10"
@@ -83,7 +83,7 @@ Feature: Filtering the outline in place
     # The two dates a journal reads: `order` is scheduled for the 10th, `demo`
     # was finished on the 3rd. A dated `todo` is on no day, here as on the day
     # page, which is why `hinges` never turns up.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I filter the page by "date:2026-08-10"
     Then the node "order" is a match
     And the filter found "1 of 10"
@@ -94,7 +94,7 @@ Feature: Filtering the outline in place
     And the filter found "2 of 10"
 
   Scenario: `-` takes a term or an operator back out
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I filter the page by "cabinets -is:doing"
     Then the node "install" is a match
     And the node "order" is not shown
@@ -105,7 +105,7 @@ Feature: Filtering the outline in place
     # filter that quietly searched for the TEXT `is:blocked` would answer with
     # an empty page and no reason. The reader is told which values the operator
     # takes instead.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I filter the page by "is:blocked"
     Then the filter refuses "is:blocked" and says "done, doing, todo, marked, archived"
     And the outline has 0 rows
@@ -114,7 +114,7 @@ Feature: Filtering the outline in place
     # `2026-13` is shape-clean and impossible, and it SORTS between December and
     # January — so swallowing it reads as a window rather than as nonsense. It
     # is the reader's mistake exactly as much as `date:soon` is.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I filter the page by "date:2026-13"
     Then the filter refuses "date:2026-13" and says "2026-08-10"
     And the outline has 0 rows
@@ -124,7 +124,7 @@ Feature: Filtering the outline in place
     # somebody who wrote `is:BLOCKED` that they wrote `is:blocked` is the
     # refusal misquoting the reader — the same defect class the refusal exists
     # to prevent, and the one none of the four doors had a scenario for.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I filter the page by "is:BLOCKED"
     Then the filter refuses "is:BLOCKED" and says "done, doing, todo, marked, archived"
     # ...while a query that MATCHES still folds, so the two cannot be confused.
@@ -136,7 +136,7 @@ Feature: Filtering the outline in place
     # the ⌘K palette and an agent ask the server — and a door that answered
     # `is:blocked` with an empty list and no reason would be the one place a
     # typo looks exactly like an empty directory.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I search the header for "is:blocked"
     Then the search refuses "is:blocked" and says "done, doing, todo, marked, archived"
 
@@ -145,7 +145,7 @@ Feature: Filtering the outline in place
     # does, and draws the refusal in a row of its own — separate from the row
     # that says the CALL failed, because a refused call and a refused query are
     # two different pieces of news.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I press the palette shortcut
     And I type "is:blocked" into the palette
     Then the search refuses "is:blocked" and says "done, doing, todo, marked, archived"
@@ -153,9 +153,9 @@ Feature: Filtering the outline in place
   Scenario: Pressing a `#tag` filters the page by it
     # The gesture the tags have been decorative for since title-markdown. It is
     # the same act as typing, so it lands in the same place: the address.
-    Given I open the outline "garden.jsonl"
+    Given I open the outline "garden.olai"
     When I press the tag "#outdoors"
-    Then the address is exactly "/o/garden.jsonl?q=%23outdoors"
+    Then the address is exactly "/o/garden.olai?q=%23outdoors"
     And the filter box holds "#outdoors"
     And the node "garden" is a match
 
@@ -163,7 +163,7 @@ Feature: Filtering the outline in place
     # One press, one act. A tag pill sits inside the title, whose own click
     # opens the editor — and Solid runs the row's handler before the pane's, so
     # without a guard the press would filter the page AND start an edit.
-    Given I open the outline "garden.jsonl"
+    Given I open the outline "garden.olai"
     When I press the tag "#outdoors"
     Then no row is being edited
 
@@ -171,13 +171,13 @@ Feature: Filtering the outline in place
     # A zoom is a navigation: it asks for that node's page, not for that node's
     # page still narrowed by what was typed on the last one. The filtered
     # address is not lost — it is where Back goes.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I filter the page by "cabinets"
     And I zoom into the node "install"
     Then the address is exactly "/n/install"
     And the filter box holds ""
     When I go back
-    Then the address is exactly "/o/house.jsonl?q=cabinets"
+    Then the address is exactly "/o/house.olai?q=cabinets"
 
   Scenario: A zoomed page filters its own children
     # Scoped downstream, and it falls out of the address rather than being
@@ -207,7 +207,7 @@ Feature: Filtering the outline in place
     # so the press goes where the crumb goes, exactly as it did before tags
     # were pressable anywhere. What must NOT happen is a filter: the address
     # carries no `?q=`, here or on the page it lands on.
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     Then tags on this page are pressable
     When I open the day "2026-08-10"
     Then tags on this page are decoration

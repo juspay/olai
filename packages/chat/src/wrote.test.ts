@@ -24,7 +24,7 @@ const MARKED = {
   did: "set_done",
   id: "order",
   title: "order the cabinets",
-  file: "house.jsonl",
+  file: "house.olai",
   summary: "done: order the cabinets",
   sort: "done",
   rev: 4,
@@ -38,7 +38,7 @@ describe("what an olai write says for itself", () => {
       sort: "done",
       id: "order",
       title: "order the cabinets",
-      file: "house.jsonl",
+      file: "house.olai",
       nudge: null,
     })
   })

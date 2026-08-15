@@ -87,7 +87,7 @@ test("a serve that never asks git cannot report a git fault", () => {
 })
 
 test("what is waiting outranks what was last recorded, and a busy repository says so", () => {
-  const one = { changes: [], unreadable: ["garden.jsonl"] }
+  const one = { changes: [], unreadable: ["garden.olai"] }
   expect(faceOf(surveyed(READY, one), true, GIT_OFF)).toBe("waiting")
   expect(
     faceOf(
@@ -161,15 +161,15 @@ test("a fault that arrived with nothing to say still reads as a sentence", () =>
 })
 
 test("the sentence counts what the label counts", () => {
-  const waiting = surveyed(READY, { unreadable: ["garden.jsonl"] })
+  const waiting = surveyed(READY, { unreadable: ["garden.olai"] })
   expect(explain("waiting", waiting, GIT_OFF)).toStartWith("1 change is")
-  const two = surveyed(READY, { unreadable: ["garden.jsonl", "shed.jsonl"] })
+  const two = surveyed(READY, { unreadable: ["garden.olai", "shed.olai"] })
   expect(explain("waiting", two, GIT_OFF)).toStartWith("2 changes are")
 })
 
 test("a busy repository says which interruption it is in", () => {
   const busy = surveyed({ _tag: "Blocked", reason: "rebase", said: "" }, {
-    unreadable: ["garden.jsonl"],
+    unreadable: ["garden.olai"],
   })
   expect(explain("blocked", busy, GIT_OFF)).toContain("a rebase is in progress")
 })
@@ -274,7 +274,7 @@ test("every status a file can be in has a word and a tone", () => {
 /**
  * A dirty outline whose bytes moved with NO node moving still counts.
  *
- * The reviewer's reproduction: add a blank line to a `.jsonl` and the file is
+ * The reviewer's reproduction: add a blank line to a `.olai` and the file is
  * dirty, listed, and committable, while `changes` is empty — so a tally of node
  * changes read zero and the pill said `committed` over a panel offering to
  * commit it. `outlines` exists precisely so that reformat is not invisible, and
@@ -284,7 +284,7 @@ test("an outline that changed no node is still something waiting", () => {
   const reformatted: Pending = {
     ...NOTHING_PENDING,
     repo: READY,
-    outlines: [{ file: "garden.jsonl", path: "garden.jsonl", how: "modified" }],
+    outlines: [{ file: "garden.olai", path: "garden.olai", how: "modified" }],
     last: { sha: "abc", message: "olai: earlier", writer: "web", at: "" },
   }
   expect(waitingIn(reformatted)).toBe(1)
@@ -294,7 +294,7 @@ test("an outline that changed no node is still something waiting", () => {
   const changed: Pending = {
     ...reformatted,
     changes: [{
-      file: "garden.jsonl",
+      file: "garden.olai",
       id: "mint",
       title: "split the mint",
       fields: ["done"],
@@ -305,7 +305,7 @@ test("an outline that changed no node is still something waiting", () => {
 
   // An outline that does not parse is its own row and is not double-counted
   // with the file it names either.
-  const broken: Pending = { ...reformatted, unreadable: ["garden.jsonl"] }
+  const broken: Pending = { ...reformatted, unreadable: ["garden.olai"] }
   expect(waitingIn(broken)).toBe(1)
 
   // A clean tree is still clean, which is the other half of the fence.

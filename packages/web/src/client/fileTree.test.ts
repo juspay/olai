@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import { ancestorDirs, dirsIn, fileTree } from "./fileTree.ts"
 
 test("a flat directory is one list of files, outlines and documents mixed", () => {
-  expect(fileTree(["garden.jsonl", "house.jsonl"], ["finishes.md"])).toEqual([
+  expect(fileTree(["garden.olai", "house.olai"], ["finishes.md"])).toEqual([
     {
       kind: "file",
       key: "file:finishes.md",
@@ -13,23 +13,23 @@ test("a flat directory is one list of files, outlines and documents mixed", () =
     },
     {
       kind: "file",
-      key: "file:garden.jsonl",
-      name: "garden.jsonl",
-      file: "garden.jsonl",
+      key: "file:garden.olai",
+      name: "garden.olai",
+      file: "garden.olai",
       of: "outline",
     },
     {
       kind: "file",
-      key: "file:house.jsonl",
-      name: "house.jsonl",
-      file: "house.jsonl",
+      key: "file:house.olai",
+      name: "house.olai",
+      file: "house.olai",
       of: "outline",
     },
   ])
 })
 
 test("a nested path becomes a directory node with the basename as the leaf", () => {
-  expect(fileTree(["house.jsonl"], ["notes/palette.md", "finishes.md"])).toEqual([
+  expect(fileTree(["house.olai"], ["notes/palette.md", "finishes.md"])).toEqual([
     {
       kind: "file",
       key: "file:finishes.md",
@@ -39,9 +39,9 @@ test("a nested path becomes a directory node with the basename as the leaf", () 
     },
     {
       kind: "file",
-      key: "file:house.jsonl",
-      name: "house.jsonl",
-      file: "house.jsonl",
+      key: "file:house.olai",
+      name: "house.olai",
+      file: "house.olai",
       of: "outline",
     },
     {
@@ -68,7 +68,7 @@ test("a nested path becomes a directory node with the basename as the leaf", () 
 test("a directory mixes outlines and documents under one node", () => {
   expect(
     fileTree(
-      ["Daily/2026-08.jsonl", "house.jsonl"],
+      ["Daily/2026-08.olai", "house.olai"],
       ["Daily/notes.md", "finishes.md"],
     ),
   ).toEqual([
@@ -80,9 +80,9 @@ test("a directory mixes outlines and documents under one node", () => {
       children: [
         {
           kind: "file",
-          key: "file:Daily/2026-08.jsonl",
-          name: "2026-08.jsonl",
-          file: "Daily/2026-08.jsonl",
+          key: "file:Daily/2026-08.olai",
+          name: "2026-08.olai",
+          file: "Daily/2026-08.olai",
           of: "outline",
         },
         {
@@ -103,16 +103,16 @@ test("a directory mixes outlines and documents under one node", () => {
     },
     {
       kind: "file",
-      key: "file:house.jsonl",
-      name: "house.jsonl",
-      file: "house.jsonl",
+      key: "file:house.olai",
+      name: "house.olai",
+      file: "house.olai",
       of: "outline",
     },
   ])
 })
 
 test("depth is preserved: a chain of directories is a chain of dir nodes", () => {
-  expect(fileTree(["a/b/c.jsonl"], [])).toEqual([
+  expect(fileTree(["a/b/c.olai"], [])).toEqual([
     {
       kind: "dir",
       key: "dir:a",
@@ -127,9 +127,9 @@ test("depth is preserved: a chain of directories is a chain of dir nodes", () =>
           children: [
             {
               kind: "file",
-              key: "file:a/b/c.jsonl",
-              name: "c.jsonl",
-              file: "a/b/c.jsonl",
+              key: "file:a/b/c.olai",
+              name: "c.olai",
+              file: "a/b/c.olai",
               of: "outline",
             },
           ],
@@ -140,9 +140,9 @@ test("depth is preserved: a chain of directories is a chain of dir nodes", () =>
 })
 
 test("children sort by name, dirs and files together", () => {
-  // `notes` (dir) sorts after `house.jsonl` and before `zebra.md` by name.
+  // `notes` (dir) sorts after `house.olai` and before `zebra.md` by name.
   expect(
-    fileTree(["house.jsonl", "notes/inner.jsonl"], ["zebra.md", "alpha.md"]),
+    fileTree(["house.olai", "notes/inner.olai"], ["zebra.md", "alpha.md"]),
   ).toEqual([
     {
       kind: "file",
@@ -153,9 +153,9 @@ test("children sort by name, dirs and files together", () => {
     },
     {
       kind: "file",
-      key: "file:house.jsonl",
-      name: "house.jsonl",
-      file: "house.jsonl",
+      key: "file:house.olai",
+      name: "house.olai",
+      file: "house.olai",
       of: "outline",
     },
     {
@@ -166,9 +166,9 @@ test("children sort by name, dirs and files together", () => {
       children: [
         {
           kind: "file",
-          key: "file:notes/inner.jsonl",
-          name: "inner.jsonl",
-          file: "notes/inner.jsonl",
+          key: "file:notes/inner.olai",
+          name: "inner.olai",
+          file: "notes/inner.olai",
           of: "outline",
         },
       ],
@@ -190,14 +190,14 @@ test("empty inputs are an empty tree", () => {
 // Keys are unique across dirs and files, and stable for a path — the drawer
 // keys rows by them so a membership change does not rebuild untouched places.
 test("every row's key names its place", () => {
-  const tree = fileTree(["Daily/2026-08.jsonl"], ["notes/palette.md"])
+  const tree = fileTree(["Daily/2026-08.olai"], ["notes/palette.md"])
   const keys = (rows: ReturnType<typeof fileTree>): string[] =>
     rows.flatMap((row) =>
       row.kind === "dir" ? [row.key, ...keys(row.children)] : [row.key],
     )
   expect(keys(tree)).toEqual([
     "dir:Daily",
-    "file:Daily/2026-08.jsonl",
+    "file:Daily/2026-08.olai",
     "dir:notes",
     "file:notes/palette.md",
   ])
@@ -206,17 +206,17 @@ test("every row's key names its place", () => {
 // The open file's parent chain — what the sidebar force-opens so a
 // collapsed-by-default tree never hides the selection.
 test("ancestorDirs is the directory chain above a nested file", () => {
-  expect(ancestorDirs("house.jsonl")).toEqual([])
+  expect(ancestorDirs("house.olai")).toEqual([])
   expect(ancestorDirs("notes/palette.md")).toEqual(["notes"])
-  expect(ancestorDirs("a/b/c.jsonl")).toEqual(["a", "a/b"])
+  expect(ancestorDirs("a/b/c.olai")).toEqual(["a", "a/b"])
 })
 
 // Which folders EXIST, read off the tree the sidebar draws — what the memory of
 // open folders is pruned against (`fold/folders.ts`). Off the rows rather than
 // off the paths, so there is one answer rather than two that could disagree.
 test("dirsIn is every folder the tree draws, nested ones included", () => {
-  expect(dirsIn(fileTree(["house.jsonl"], []))).toEqual(new Set())
+  expect(dirsIn(fileTree(["house.olai"], []))).toEqual(new Set())
   expect(
-    dirsIn(fileTree(["Daily/2026/08.jsonl", "house.jsonl"], ["notes/palette.md"])),
+    dirsIn(fileTree(["Daily/2026/08.olai", "house.olai"], ["notes/palette.md"])),
   ).toEqual(new Set(["Daily", "Daily/2026", "notes"]))
 })
