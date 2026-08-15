@@ -78,9 +78,13 @@ export function Sessions(props: { readonly chat: Chat }) {
   let trigger: HTMLButtonElement | undefined
   let list: HTMLUListElement | undefined
 
-  const shut = (restoreFocus = false): void => {
+  /** Put it away. Only that — where the caret goes is the two callers', and
+   *  they are the only two there can be: a dismissal (`../dismiss.ts` hands it
+   *  back for the key and leaves it alone for the press) and the button
+   *  pressing itself. A `restoreFocus` boolean here would be a second spelling
+   *  of a rule that already has one, selected by a flag at each call. */
+  const shut = (): void => {
     setPicker({ _tag: "shut" })
-    if (restoreFocus) trigger?.focus()
   }
 
   // A pointer outside it and Escape, in this client's one spelling of them.
@@ -91,9 +95,12 @@ export function Sessions(props: { readonly chat: Chat }) {
 
   const toggle = () => {
     if (up()) {
+      shut()
       // A press of the button while the list is up is a dismissal a keyboard
-      // can reach, so the caret goes back the way Escape's does.
-      shut(true)
+      // can reach, so the caret goes back the way Escape's does — spelled out
+      // here because no dismissal can see this press: it lands on the trigger,
+      // which is INSIDE as far as `dismissOn` is concerned.
+      trigger?.focus()
       return
     }
     setPicker({ _tag: "asking" })
