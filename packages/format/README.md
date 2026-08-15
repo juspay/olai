@@ -262,10 +262,19 @@ other vocabulary that crosses this floor. There are four reads and one atom:
 | declaration | what answers with it |
 |---|---|
 | `Found` | every read. One node SITUATED — id, title, `file:line`, mark, ancestor titles, the edges it writes |
-| `OutlineSummary`, `OutlineAnswer` | `list_outlines` — a count and the top-level titles, per file |
+| `OutlineSummary`, `OutlineAnswer` | `list_outlines` — a count and the top-level titles, per file; or, for a file that did not parse, its errors and nothing else |
 | `Detail`, `NodeAnswer` | `read_node` — the record, its tags, its children, its stamps, and a placement from both ends (`mirrors`, `placed`) |
 | `Subtree`, `SubtreeAnswer` | `read_subtree` — nested, and saying where a walk stopped |
 | `SearchHit`, `SearchAnswer` | `search_nodes` and the ⌘K palette |
+
+`OutlineSummary` is a UNION, and the second arm is the file that did not parse.
+It arrived from the ops layer flat, with an optional `unreadable` beside a
+`nodes: 0` and a `roots: []` — a count nobody counted and a claim that the
+outline is about nothing, on the one file where neither could be known. Every
+field read honestly alone; the untruth was in the combination, held apart by a
+convention a reader had to know. The dependent facts now exist only on the arm
+that grounds them, which is also what the neighbouring `Missing` already does
+for a `read_node` of an id the set does not hold.
 
 Plus what each one ASKS — `NodeRequest`, `SubtreeRequest`, `SearchRequest` —
 and the two numbers an omitted field MEANS, `DEFAULT_SEARCH_LIMIT` and

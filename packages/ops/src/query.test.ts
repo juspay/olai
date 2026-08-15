@@ -304,16 +304,25 @@ describe("what a read answers is what the floor declares", () => {
     expect(Schema.decodeUnknownSync(schema, OPTIONS)(produced)).toEqual(produced)
   }
 
-  test("the directory listing, counts and unreadable files and all", () => {
+  test("the directory listing, both arms of a row", () => {
     const set = EVERYTHING()
     const answer = { outlines: outlines(set, index(set)) }
-    // The fixture earns its two rows: one file with nodes and roots, one that
-    // did not parse and so has neither.
-    expect(answer.outlines.map((one) => one.file)).toEqual([
-      "house.jsonl",
-      "torn.jsonl",
-    ])
-    expect(answer.outlines[1]?.unreadable?.length).toBeGreaterThan(0)
+    // The fixture earns its two rows, and they are two SHAPES: a file that
+    // parsed is a count and its roots, a file that did not is its errors and
+    // NOTHING ELSE — no `nodes: 0` for a count nobody counted, and no empty
+    // `roots` claiming the outline is about nothing.
+    expect(answer.outlines[0]).toEqual({
+      file: "house.jsonl",
+      // Four REGULAR nodes; the two mirrors are placements and do not count.
+      nodes: 4,
+      roots: ["House #home @sam"],
+    })
+    const torn = answer.outlines[1]
+    expect(torn?.file).toBe("torn.jsonl")
+    expect(torn).not.toHaveProperty("nodes")
+    expect(torn).not.toHaveProperty("roots")
+    expect(torn && "unreadable" in torn ? torn.unreadable.length : 0)
+      .toBeGreaterThan(0)
     isDeclared(OutlineAnswer, answer)
   })
 
