@@ -117,6 +117,10 @@ export const TESTID = {
    *  tree's `toggle`, so a scenario that folds a folder never has to say
    *  which of the two trees it meant. */
   fileDirToggle: "file-dir-toggle",
+  /** The glyph that says what KIND a row of the file tree is (`file/icons.tsx`).
+   *  `data-glyph` is `outline`, `document` or `folder` — the fact, never the
+   *  ink it is drawn in, which is whatever the row already was. */
+  fileGlyph: "file-glyph",
   /** One document entry in the file tree. There is no second list: documents
    *  sit under the same folders as outlines. */
   documentLink: "document-link",

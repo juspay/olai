@@ -54,6 +54,19 @@ Feature: Serve a directory
     When I expand the folder "Daily"
     Then the outline link "Daily/2026-08.jsonl" reads "2026-08.jsonl"
 
+  Scenario: Every row says what kind of thing it is
+    # Filed from a screenshot: an outline, a document and a folder were three
+    # words in the same ink, and the only thing telling the first two apart was
+    # the extension at the end of the name. Each row now carries its kind's
+    # glyph in front of the name (`client/file/icons.tsx`) — which is a fact
+    # about the row, so it is asserted as one.
+    Given I open the outline "house.jsonl"
+    Then the outline link "house.jsonl" is drawn as an outline
+    And the outline link "garden.jsonl" is drawn as an outline
+    And the document link "finishes.md" is drawn as a document
+    And the folder "notes" is drawn as a folder
+    And the folder "Daily" is drawn as a folder
+
   Scenario: Opening a nested file expands its folder chain
     # The selection must never hide under a shut parent. Landing on a nested
     # path force-opens its ancestors for the duration of that page; folders

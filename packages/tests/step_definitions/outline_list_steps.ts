@@ -8,6 +8,7 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import {
   DOCUMENT_LINK,
   FILE_DIR,
+  FILE_GLYPH,
   HYDRATION_TIMEOUT,
   oneLine,
   OUTLINE_LINK,
@@ -16,6 +17,7 @@ import {
   POLL_TIMEOUT,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
+import type { Locator } from "playwright";
 
 /** One folder in the file tree, as a selector string `expectAttribute` takes. */
 const folderSelector = (path: string): string =>
@@ -231,6 +233,65 @@ Then(
       oneLine(await link.innerText()),
       label,
       `the outline "${file}" draws ${JSON.stringify(oneLine(await link.innerText()))}, not the basename ${JSON.stringify(label)}`,
+    );
+  },
+);
+
+// ── what KIND each row is ──────────────────────────────────────────────
+//
+// The basename is what the row SAYS; the glyph is what it says the row IS
+// (`client/file/icons.tsx`). Asserted on `data-glyph` rather than on the
+// drawing, because which shape is right for an outline is a design question
+// and "there is one, and it is the outline's" is the promise. The extension is
+// deliberately not the assertion either: `.jsonl` in the label is the thing
+// that was carrying this on its own and the reason the mark was filed.
+
+/** `row` is the clickable thing itself — a link, or a folder's own toggle
+ *  (`folderToggle`, already scoped to the direct child) — never its `<li>`:
+ *  nested folders nest their `li`s, so a glyph found under one of those could
+ *  be a child's. */
+const expectGlyph = async (
+  row: Locator,
+  kind: string,
+  said: string,
+): Promise<void> => {
+  const glyph = row.locator(FILE_GLYPH);
+  await glyph.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(
+    await glyph.getAttribute("data-glyph"),
+    kind,
+    `${said} is not drawn as a ${kind}`,
+  );
+};
+
+Then(
+  "the outline link {string} is drawn as an outline",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    await expectGlyph(this.outlineLink(file), "outline", `the outline "${file}"`);
+  },
+);
+
+Then(
+  "the document link {string} is drawn as a document",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    await expectGlyph(
+      this.documentLink(file),
+      "document",
+      `the document "${file}"`,
+    );
+  },
+);
+
+Then(
+  "the folder {string} is drawn as a folder",
+  async function (this: OlaiWorld, path: string) {
+    await this.showSidebar();
+    await expectGlyph(
+      folderToggle(this, path),
+      "folder",
+      `the folder "${path}"`,
     );
   },
 );

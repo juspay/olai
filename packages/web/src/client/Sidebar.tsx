@@ -26,6 +26,14 @@
  * The entry that lights up is the file the open page lives in. A day page
  * lights none. An entry is marked when its file could not be read.
  *
+ * Every row says what KIND it is in a glyph before its name (./file/icons.tsx)
+ * — an olai outline, a document, a folder. Three kinds drawn in one ink was a
+ * bug filed from a screenshot: the only thing separating an outline from a
+ * document was four characters of extension, and the only thing marking a
+ * folder was a triangle every fold control in the app has. The glyph takes the
+ * row's own ink rather than a colour per kind, which is what keeps this
+ * Workflowy-quiet and not a file manager.
+ *
  * The AGENDA entry says one more thing, and it is the only news this column
  * carries: work that has slipped puts it in the app's alarm (a filled chip
  * counting what is late, on a washed and weighted row), work due today gives it
@@ -84,6 +92,7 @@ import {
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { NewOutline } from "./outline/NewOutline.tsx"
+import { Glyph } from "./file/icons.tsx"
 import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { LAYER, WITHIN } from "./layer.ts"
@@ -106,12 +115,23 @@ const ENTRY_SHAPE =
   "no-underline hover:bg-rule/50 aria-[current=page]:bg-accent/15 " +
   "aria-[current=page]:text-accent aria-[current=page]:font-semibold md:min-h-0"
 
-/** One file entry. Workflowy-quiet: soft hover, a wash when current. */
-const ENTRY = `${ENTRY_SHAPE} text-ink`
+/** One file entry. Workflowy-quiet: soft hover, a wash when current.
+ *
+ *  The gap is HERE and not in the shape above, because it is the file row that
+ *  has more than one thing on it — its kind's glyph (`./file/icons.tsx`), its
+ *  name, and the mark when it could not be read. One gap for the row rather
+ *  than a margin per thing, which is the arithmetic the tree's own gutter is
+ *  built on (`./touch.ts`). The agenda's entry is the same SHAPE and not this,
+ *  so nothing about that row moves; `Trash` borrows this one and has a single
+ *  child, where a gap is inert. */
+const ENTRY = `${ENTRY_SHAPE} gap-1.5 text-ink`
 
-/** A directory row: folds, does not navigate. */
+/** A directory row: folds, does not navigate. The gap is the file row's
+ *  (`ENTRY`), so a folder's name and a file's name sit the same distance from
+ *  the glyph in front of them — the tree reads as one column of names and not
+ *  two that nearly line up. */
 const DIR =
-  `flex ${TARGET} items-center gap-0.5 rounded-sm px-1 py-0.5 text-[0.8125rem] ` +
+  `flex ${TARGET} items-center gap-1.5 rounded-sm px-1 py-0.5 text-[0.8125rem] ` +
   "leading-snug text-muted hover:bg-rule/60 hover:text-ink md:min-h-0"
 
 interface TreeView {
@@ -419,6 +439,10 @@ function Dir(props: {
             ▼
           </span>
         </span>
+        {/* The triangle says whether it is OPEN; this says it is a folder at
+            all — which the triangle cannot, because every fold control in the
+            app is one (`./file/icons.tsx`). */}
+        <Glyph of="folder" />
         <span class="break-all">{props.row.name}</span>
       </button>
       <Show when={!folded()}>
@@ -451,9 +475,13 @@ function File(props: {
         current={props.view.isActive(props.row.file)}
         broken={outline && props.view.broken.has(props.row.file)}
       >
+        {/* Which of the two kinds of file this is — the thing four characters
+            of extension were carrying on their own (`./file/icons.tsx`). */}
+        <Glyph of={props.row.of} />
         {props.row.name}
         <Show when={outline && props.view.broken.has(props.row.file)}>
-          <span class="ml-1 text-alarm" title="this file could not be read">
+          {/* No margin of its own: the row has one gap and this is on it. */}
+          <span class="text-alarm" title="this file could not be read">
             ⚠
           </span>
         </Show>

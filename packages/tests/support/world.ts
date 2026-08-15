@@ -159,6 +159,9 @@ export const OUTLINE_LINK = selector(TESTID.outlineLink);
 /** One folder in that tree. `data-path` / `data-collapsed` say which and how. */
 export const FILE_DIR = selector(TESTID.fileDir);
 export const FILE_DIR_TOGGLE = selector(TESTID.fileDirToggle);
+/** The glyph in front of a row's name, saying what KIND it is. `data-glyph`
+ *  is `outline` / `document` / `folder` — the fact, not the ink. */
+export const FILE_GLYPH = selector(TESTID.fileGlyph);
 /** One document entry in the file tree (no second list — same folders). */
 export const DOCUMENT_LINK = selector(TESTID.documentLink);
 /** One document, as a page: `/doc/<file>`. */
