@@ -49,6 +49,7 @@ import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/
 import { type Emit, emitter } from "@olai/log"
 import { Effect, Layer, type Scope } from "effect"
 
+import { BROWSER_FACE } from "./faces.ts"
 import { MANIFEST } from "./manifest.ts"
 import { mcpRoute } from "./mcp/route.ts"
 import { mediaLayer } from "./media.ts"
@@ -122,6 +123,16 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
   serveSurfaceApp({
     group: options.bound.group,
     handlers: options.bound.handlers,
+    // WHAT A TAB MAY CALL, and the reason this argument exists at all: the
+    // surface carries the ops request vocabulary now, and a browser must not
+    // speak it (`./faces.ts`). Everything a page draws or presses is named
+    // there; `ops.*` is not, and a tab that calls one is refused per request
+    // with `SurfaceMemberNotExposed` rather than finding a member missing.
+    //
+    // Not an omission-able option here even though upstream allows one: an
+    // absent `expose` serves the whole surface, and that default is exactly
+    // what this listener must never fall back to.
+    expose: BROWSER_FACE,
     clientDist: options.clientDist,
     // What is in the manifest is `./manifest.ts`; that it is served at
     // `/manifest.webmanifest`, beside a `no-store` shell, immutable hashed

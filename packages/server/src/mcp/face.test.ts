@@ -6,7 +6,7 @@
  * matters. The allowlist says `outlines` is a resource. Whether reading that
  * resource costs the key set or the corpus is decided by the ADAPTER — it picks
  * the verb by kind, `keys` for a collection and `get` for a cell — and that is
- * not visible from the map. So the wire-cost half of `expose.ts`'s rule is
+ * not visible from the map. So the wire-cost half of `faces.ts`'s rule is
  * fenced here, by reading the collection resource in a directory that contains a
  * deliberately fat document and asserting the answer stayed small.
  *

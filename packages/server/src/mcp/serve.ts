@@ -181,7 +181,7 @@ export const serveTools = (options: McpServeOptions) =>
     // the only caller is the agent this process was launched by.
     //
     // The ops layer is the same one the tools get: the edit procedures it backs
-    // are unexposed on this face (`./expose.ts` is default-deny, and an agent
+    // are unexposed on this face (`../faces.ts` is default-deny, and an agent
     // has the tools), so what they cost here is a binding nobody can reach.
     const wired = yield* bind({
       store,

@@ -479,7 +479,32 @@ export const bind = (
         // which this line could not be quietly returning more than the wire
         // carries.
         search: {
-          nodes: ({ input }) => Effect.map(wiring.ops.read, (at) => Query.search(at.derived, input)),
+          nodes: ({ input }) => wiring.ops.search(input),
+        },
+        /**
+         * The agent's door — the ops vocabulary itself
+         * (`@olai/surface`'s `ops.ts`), and the ONE group no browser face
+         * exposes (`./faces.ts`).
+         *
+         * Every member is one call onto the layer this runtime was handed, and
+         * that is the whole of it: the ops layer stays wire-ignorant — an op
+         * does not know it is being called over a wire — so nothing here
+         * translates, re-plans or decides anything. It is the same gate the
+         * keyboard's `edit.apply` lands through, reached with a different
+         * vocabulary.
+         *
+         * `writer` comes off the CALL rather than off `wiring`, which is the
+         * one thing that differs from every other door here and is argued where
+         * the procedures are declared: this face is served to a process that
+         * may not be this one, so a writer decided here would record a bridged
+         * agent's work as the browser's.
+         */
+        ops: {
+          run: ({ input }) => wiring.ops.run(input.request, input.writer),
+          commit: ({ input }) => wiring.ops.commit(input.request, input.writer),
+          outlines: () => wiring.ops.outlines,
+          node: ({ input }) => wiring.ops.node(input),
+          subtree: ({ input }) => wiring.ops.subtree(input),
         },
         git: {
           // The button's door. `writer: "web"` is decided in `serve.ts`, where

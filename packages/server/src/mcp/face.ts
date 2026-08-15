@@ -2,7 +2,7 @@
  * The surface, spoken as MCP — serve-fresh.
  *
  * `@kolu/surface-mcp` adapts a declared surface into an MCP server: the cells
- * and collections named in {@link ./expose.ts} become readable and SUBSCRIBABLE
+ * and collections named in {@link ../faces.ts} become readable and SUBSCRIBABLE
  * resources, so an agent watches the same rows the browser draws instead of
  * polling a second projection of them. This module is the composition — the
  * surface runtime, an in-process dispatch over it, and the adapter in front.
@@ -48,7 +48,7 @@ import type { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import { Effect, type Scope } from "effect"
 
-import { EXPOSE } from "./expose.ts"
+import { EXPOSE } from "../faces.ts"
 import type { Bound } from "../runtime.ts"
 
 // ── The client, typed ────────────────────────────────────────────────────

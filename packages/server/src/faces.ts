@@ -1,11 +1,25 @@
 /**
- * What an agent may see of the surface — the default-deny allowlist.
+ * The three faces of one surface, and what each may reach.
  *
- * `@kolu/surface-mcp` reaches nothing that is not named here: an omitted cell,
- * collection or procedure has no URI and no tool, and a key that names nothing
- * in the spec is a BOOT error rather than a silent no-op (`resolveExpose`). So
- * this file is the whole of the read side's authz, and it is deliberately three
- * entries long.
+ * olai serves ONE surface to three different callers, and they do not carry the
+ * same trust: a browser tab on the websocket, an agent through the MCP adapter,
+ * and — since `mcp-bridge` — somebody's own `olai mcp` on an owner-only unix
+ * socket. Each takes its own default-deny allowlist, in one shared grammar
+ * (`@kolu/surface/expose`), and this module is where all three are written so
+ * that "which face gets what" is one decision read in one place rather than
+ * three files that have to be compared.
+ *
+ * A key that names nothing in the spec is a BOOT error rather than a silent
+ * no-op, in every one of them, and so is a key that would grant nothing. There
+ * is no way to be gated by accident here — which matters more than it sounds,
+ * because a gate that matches nothing denies everything and still binds, and
+ * that is the one failure mode which looks like success from outside.
+ *
+ * Until juspay/kolu#2170 only the MCP face had one; the two wire faces served
+ * whatever the surface declared. That is why the ops request vocabulary could
+ * not be on the surface at all — making it reachable to a bridged agent was
+ * inseparably making it reachable to every open tab — and it is what {@link
+ * BROWSER} now says out loud.
  *
  * **The rule this list is written against is about WIRE COST, not only about
  * secrecy**, and it is the one that decides which cells are eligible at all:
@@ -41,10 +55,10 @@
  */
 
 import { surface } from "@olai/surface"
-import type { ExposeMap } from "@kolu/surface/expose"
+import { type ExposeMap, exposeFace, type FaceExposure } from "@kolu/surface/expose"
 
 /**
- * The allowlist.
+ * The MCP adapter's allowlist — what an agent may SEE.
  *
  * `outlines` is the item: its key set is the file list, and
  * `surface://collections/outlines/<path>` is one file's `{ rev, nodes, broken }`
@@ -123,3 +137,112 @@ export const EXPOSE: ExposeMap<typeof surface.spec> = {
   git: "resource",
   pending: "resource",
 }
+
+/**
+ * THE BROWSER's face — everything a tab draws, and not one verb more.
+ *
+ * Written as the complement of one omission, and the omission is the whole
+ * point of this map existing: `ops.*` is absent. Every cell, every collection,
+ * the chat's eight verbs, `edit.apply`, `search.nodes` and the two git verbs
+ * are here because a page reads or presses them; the ops request vocabulary is
+ * not, because a browser sends INTENTS and the placement is the server's
+ * (`@olai/surface`'s `edit.ts`, argued at length and unchanged by any of this).
+ *
+ * A tab that calls one anyway is refused per request with
+ * `SurfaceMemberNotExposed` naming the tag — the member stays BOUND and
+ * answers, rather than disappearing from the group, so a denial is
+ * distinguishable from a version skew. Pinned in `./faces.test.ts`.
+ *
+ * `"resource"` is the READ face of a primitive: it grants the read verbs a
+ * member declares and withholds `set`/`patch`/`upsert`/`delete`. Every cell and
+ * collection olai declares is already wire-read-only, so nothing here is
+ * narrower than the surface — but the map says it rather than inheriting it,
+ * which is what makes adding a writable cell a decision instead of a leak.
+ *
+ * Two things are deliberately not narrowed. `chat` and `transcript` ARE the
+ * human's session and conversation, and the browser is the human — this is the
+ * face they belong to, and the one place they are exposed. `manifest` is here
+ * for the same reason it is absent from {@link EXPOSE}, inverted: a render-
+ * shaped consumer genuinely needs the "has this directory ever loaded" bit that
+ * a request-shaped one gets for free by blocking on the first frame.
+ */
+export const BROWSER: ExposeMap<typeof surface.spec> = {
+  outlines: "resource",
+  documents: "resource",
+  transcript: "resource",
+  errors: "resource",
+  manifest: "resource",
+  chat: "resource",
+  git: "resource",
+  pending: "resource",
+  "chat.send": "tool",
+  "chat.attach": "tool",
+  "chat.cancel": "tool",
+  "chat.newSession": "tool",
+  "chat.loadSession": "tool",
+  "chat.sessions": "tool",
+  "chat.answer": "tool",
+  "chat.decline": "tool",
+  "edit.apply": "tool",
+  "search.nodes": "tool",
+  "git.commit": "tool",
+  "git.push": "tool",
+}
+
+/**
+ * THE UNIX SOCKET's face — what a bridged `olai mcp` may reach.
+ *
+ * DERIVED from {@link EXPOSE} rather than written beside it, and that is the
+ * load-bearing line in this module. The socket exists to serve one client: a
+ * second olai process running the MCP adapter over this store instead of its
+ * own. What that process serves is `EXPOSE`'s resources plus `@olai/ops`' tool
+ * table — so what it must be able to CALL is exactly `EXPOSE` plus the members
+ * those tools land through. Spelled as a second literal, the day somebody
+ * exposed a sixth resource would be the day a bridged agent could read it
+ * fresh and not attached.
+ *
+ * The procedures added on top are the tool table's three arms, and nothing
+ * else: `ops.*` (the eighteen writes, the three reads and the agent's commit),
+ * `search.nodes` (one question, both doors) and `git.push` (which takes no
+ * writer, so there is nothing for an agent's version of it to differ by).
+ *
+ * `"tool"` is the plain spelling throughout, and the `{ tool: { mutates } }`
+ * hint is deliberately not used: a wire face reads MEMBERSHIP only, and
+ * `mutates` is how an MCP host should PRESENT a call. That decision is made for
+ * this surface where it is read — `@olai/ops`' table, whose `kind` is what
+ * `bespokeFrom` turns into `readOnlyHint` — and a second, unread copy of it
+ * here would be a second place to keep it right.
+ *
+ * WHAT IS ABSENT is the same list as `EXPOSE`'s, for the same reasons, plus
+ * `edit.apply` and `git.commit`: those are the BROWSER's doors onto verbs this
+ * face already has its own spelling of, and an agent reaching the keyboard's
+ * narrowed vocabulary would be an agent sending intents about a screen it
+ * cannot see.
+ */
+export const AGENT: ExposeMap<typeof surface.spec> = {
+  ...EXPOSE,
+  "ops.run": "tool",
+  "ops.commit": "tool",
+  "ops.outlines": "tool",
+  "ops.node": "tool",
+  "ops.subtree": "tool",
+  "search.nodes": "tool",
+  "git.push": "tool",
+}
+
+/**
+ * The two WIRE faces, bound to the surface they describe.
+ *
+ * Bound HERE, at module scope, rather than at each `serve*` call: binding is
+ * what turns a record of strings into a checked `FaceExposure` — it proves
+ * every key names a real member and grants a real verb — so doing it once means
+ * a bad map is a failure this module's own test provokes, not a boot crash on
+ * somebody's machine. `exposeFace` also infers the spec from the surface, so a
+ * typo above is a type error before it is anything else.
+ *
+ * The MCP adapter takes the MAP itself and not one of these: it needs the
+ * member KIND to resolve a `surface://` URI or a tool name, which a tag set has
+ * thrown away.
+ */
+export const BROWSER_FACE: FaceExposure = exposeFace(surface, BROWSER)
+export const AGENT_FACE: FaceExposure = exposeFace(surface, AGENT)
