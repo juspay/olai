@@ -798,9 +798,10 @@ half, the same argument `arriving.ts` was extracted on. The stack is ours rather
 than Kobalte's for a reason worth writing down: `layerStack` is not exported
 from `@kobalte/core` at any subpath, its only public door is a COMPONENT that
 has to wrap the panel element, and no caller here has one to give it — so the
-menu joins ours instead (`menu/Dropdown.tsx`, which also has to refuse the
-primitive's Escape on the menu's own open state, because `MenuContentBase`
-closes on that key whether or not the event was prevented). Two sweeps in
+menu joins ours instead (`menu/Dropdown.tsx`, which refuses an ask to shut on
+the menu's own open state — the one place that covers every gesture, since
+`MenuContentBase` closes on Escape whether or not the event was prevented).
+Two sweeps in
 `claims.test.ts` hold both halves: nothing outside `dismiss.ts` reaches for the
 two Kobalte primitives, and nothing but the menu joins the stack without taking
 the gestures with it. `features/dismiss_stack.feature` walks the path itself —
@@ -2076,11 +2077,16 @@ hand-rolled one was:
   Kobalte hands a gesture to the topmost layer on its OWN stack, and this menu
   is the only layer on it — so it always believed it was on top, and an Escape
   with a popover opened over it shut both. It joins the client's one stack
-  instead (`topmost.ts`, above): a pointer outside is `preventDefault`ed when
-  something is over it, and Escape — which `MenuContentBase` closes on whether
-  or not the event was prevented, in its own words because its selectable list
-  prevents the key first — is refused on the menu's own OPEN state, where the
-  app rather than the library has the last word.
+  instead (`topmost.ts`, above), and the deferral is ONE rule in one place: the
+  menu is CONTROLLED, so an ask to shut is a request this app answers, and
+  `onOpenChange` passes one on only while the menu is the panel a dismissal is
+  for. Refusing gesture by gesture instead does not work and is worth knowing
+  why — `onPointerDownOutside` is `preventDefault`able, but `MenuContentBase`
+  closes on **Escape whether or not the event was prevented** (in its own words,
+  because its selectable list prevents the key first), so half the rule would
+  end up on a flag carried between handlers. Guarding the open state covers
+  every way the primitive can decide to close, including ones it has not grown
+  yet.
 
 **Two doors, because below 48rem there is no `•••` to press.** A phone reaches
 the same menu by HOLDING a finger on the row (`longPress.ts`, and the gutter
