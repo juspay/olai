@@ -252,9 +252,9 @@ test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
 // are Kobalte's, one level up; the palette answers Escape on the window and a
 // press on its own scrim; the slash menu takes keys in the capture phase ahead
 // of everything. Each has a reason written where it joins, and the list is
-// short on purpose — a fourth name is either a panel that had to hand-roll its
-// dismissal (worth arguing about) or one that wanted the stack and skipped the
-// dismissal, which is a panel nothing shuts.
+// short on purpose — a fourth joiner is either a panel that had to hand-roll
+// its dismissal (worth arguing about) or one that wanted the stack and skipped
+// the dismissal, which is a panel nothing shuts.
 test("the stack is joined directly only where the gestures are not dismissOn's", () => {
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
     path.join("chat", "SlashMenu.tsx"),

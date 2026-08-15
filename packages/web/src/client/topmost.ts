@@ -20,7 +20,7 @@
  *
  * The header's two popovers, a row's expanded note and the chat's session
  * picker, through `./dismiss.ts` — which takes a ticket for every caller, so a
- * new panel is on the stack by being written the ordinary way. And four others
+ * new panel is on the stack by being written the ordinary way. And three others
  * that join here directly, because their gestures are somebody else's:
  *
  *   - the `•••` menu (`menu/Dropdown.tsx`) — Kobalte's `DismissableLayer`,
@@ -42,8 +42,8 @@
  * listener rather than once for the gesture. That is how ⌘K over an open
  * popover shut both even after the palette had joined this stack: its box
  * answered Escape as well as its window listener did, and the box went first.
- * The fix was to delete the earlier answer, and the rule is written where each
- * of the four joins.
+ * The fix was to delete the earlier answer, and the rule is written beside each
+ * of the three joins above.
  *
  * A layer that stops the event at its own element instead (`date/DatePicker.tsx`,
  * `edges/EdgePanel.tsx`) is the other lawful shape and needs no ticket: nothing
