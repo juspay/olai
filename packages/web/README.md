@@ -2119,9 +2119,10 @@ does slightly worse than the same bytes inside `main-*.js` did.
 
 A split is a fact about the module graph that nothing in the source looks wrong
 without, so two sweeps in `claims.test.ts` hold it: only the three files behind
-the `import()` may name `@kobalte/core/dropdown-menu`, and the only `from` clause
-in the client naming `menu/Dropdown.tsx` is `chunk.ts`'s `import type`, which is
-erased. A fetch that never lands is not silent either — the row that asked says
+the `import()` may name `@kobalte/core/dropdown-menu`, and **no** file in the
+client names `menu/Dropdown.tsx` in a `from` clause at all — the one mention of
+that module anywhere is the `import(...)` that IS the split, so the sweep asserts
+an empty list. A fetch that never lands is not silent either — the row that asked says
 so on the same line every verb answers on, without a countdown, the way
 `markdown/Markdown.tsx` says it about the renderer.
 
