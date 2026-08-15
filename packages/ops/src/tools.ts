@@ -154,7 +154,7 @@ export const asking = (read: Effect.Effect<Reading, OpFailure>): Asking => ({
 
 /**
  * The WRITE half, the same way: one verb, and the only thing every one of the
- * eighteen write tools does. Named as an argument for {@link Acting}'s reason —
+ * write tools does. Named as an argument for {@link Acting}'s reason —
  * and, since `mcp-bridge`, satisfied by a surface client as readily as by a
  * local `Ops`.
  *

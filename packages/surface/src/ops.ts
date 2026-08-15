@@ -10,8 +10,11 @@
  *
  * ## Why these members exist at all
  *
- * Until `mcp-bridge` the eighteen write tools reached the ops layer by a path
- * of their own: `bespokeFrom` projected `@olai/ops`' table over a LOCAL `Ops`,
+ * Until `mcp-bridge` the write tools reached the ops layer by a path of their
+ * own — nineteen of them, and the roadmap node says eighteen because it was
+ * written before `md-editing` added the two document verbs; the table is the
+ * count, not a sentence about it. `bespokeFrom` projected `@olai/ops`' table
+ * over a LOCAL `Ops`,
  * so an MCP face could only exist in a process that held the store. That is why
  * `olai mcp` on a directory an `olai web` was already serving booted a second
  * store — 418 MB and 2099 open descriptors on a 1020-file vault, two parses of
@@ -79,10 +82,10 @@ export const opsProcedures = {
    * One op, all the way through the write gate — plan, validate, stage,
    * rename, and re-plan against a newer snapshot if the store moved under it.
    *
-   * ONE procedure for eighteen tools, because there is one op. The tool NAMES
+   * ONE procedure for all nineteen, because there is one op. The tool NAMES
    * are a projection of this union's `op` discriminator (`set_done` IS
    * `op: "done"`), and that projection is where it has always been —
-   * `@olai/ops`' table, which also carries the prose an agent reads. Eighteen
+   * `@olai/ops`' table, which also carries the prose an agent reads. Nineteen
    * procedures here would be that projection spelled a second time, in a
    * package that may not import the first.
    *
