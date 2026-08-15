@@ -49,6 +49,7 @@ import {
   MoveRequest,
   NodeAnswer,
   NodeRequest,
+  PropRequest,
   type OpFailure,
   OutlineAnswer,
   type OutlineSet,
@@ -344,7 +345,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   read(
     "search_nodes",
     "Search nodes",
-    "Find nodes by title, id, `#tag` or note — and by what they ARE, with the operators `text` documents (`is:`, `has:`, `date:`, and `-` to negate). Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by. `matched` says which field carried the words, and is ABSENT for a query that named none (`is:done` on its own).\n\nSCOPE IT when you know where to look: `file` is one outline, `under` is a node and everything beneath it. That is the same narrowing a person gets by filtering a zoomed page, which is why it is here — the two faces answer one question.",
+    "Find nodes by title, id, `#tag` or note — and by what they ARE, with the operators `text` documents (`is:`, `has:`, `date:`, `prop:`, and `-` to negate). `prop:` searches a node's custom properties: `prop:pr` finds every node carrying that key, `prop:agent=claude-opus` every node whose value is that. Results carry `file:line`, its ancestor titles and — for a node that is MARKED — that mark, so a hit can be acted on without reading the file. A node with no `status` is a bullet rather than an unstarted task. A hit also carries the edges the node itself writes, when it has any: `see` (free cross-references) and `after` (what it must come after), which are the ids `set_see` and `set_after` remove by. `matched` says which field carried the words, and is ABSENT for a query that named none (`is:done` on its own).\n\nSCOPE IT when you know where to look: `file` is one outline, `under` is a node and everything beneath it. That is the same narrowing a person gets by filtering a zoomed page, which is why it is here — the two faces answer one question.",
     // `@olai/format`'s, and so is what comes back — ONE declaration behind the
     // JSON Schema this tool advertises and the wire shape the palette's
     // `search.nodes` procedure carries, so the two faces cannot ask for
@@ -358,7 +359,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   read(
     "read_node",
     "Read a node",
-    "One node in full: its record, its tags (`#topic` and `@person`, reported as written), its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more. Its edges come too when it has them — `see` and `after`, the ids `set_see` / `set_after` take.\n\nTHIS IS ALSO WHERE MIRRORS ARE FOUND, and it is the only place: a placement is not a node, so a search never returns one and `children` never lists one. Ask the node instead. `mirrors` is every placement OF this node — where else it is drawn, chains followed — and each entry's `id` is what `remove_mirror` takes, so a Now entry is retired by reading the ITEM that finished. `placed` is the other half: the placements UNDER this node, each with the node it shows — which is how you read a curated list (\"what is on Now?\") without knowing in advance what is on it.",
+    "One node in full: its record, its `custom` properties (the named facts `set_prop` writes), its tags (`#topic` and `@person`, reported as written), its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more. Its edges come too when it has them — `see` and `after`, the ids `set_see` / `set_after` take.\n\nTHIS IS ALSO WHERE MIRRORS ARE FOUND, and it is the only place: a placement is not a node, so a search never returns one and `children` never lists one. Ask the node instead. `mirrors` is every placement OF this node — where else it is drawn, chains followed — and each entry's `id` is what `remove_mirror` takes, so a Now entry is retired by reading the ITEM that finished. `placed` is the other half: the placements UNDER this node, each with the node it shows — which is how you read a curated list (\"what is on Now?\") without knowing in advance what is on it.",
     NodeRequest,
     NodeAnswer,
     (asking, args: NodeRequest) => asking.node(args),
@@ -407,6 +408,13 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Set the node's ISO date, making it a scheduled node, or clear it with `null`.",
     DateRequest,
     { op: "date" },
+  ),
+  write(
+    "set_prop",
+    "Set a property",
+    "Put a named FACT on a node — `set_prop {id, key, value}` — or take it off with `value: null`. Any key, holding any text: `pr`, `agent`, `stage`, `isbn`, `source`. Nothing gives a key a meaning and nothing parses the value; a URL is a string that looks like a URL.\n\nUSE IT FOR WHAT WOULD OTHERWISE BE PROSE NOBODY CAN QUERY. A note saying \"PR #176, running on claude-opus\" is a sentence every reader re-parses by eye; `pr` and `agent` as properties are the same two facts, and `search_nodes` finds every node carrying them (`prop:pr`, `prop:agent=claude-opus`). The note keeps the story — what was found, what was ruled, why — and the properties keep the facts.\n\nIT WRITES ONLY INSIDE `custom`, the record's one open field, and it structurally cannot touch anything else: a node's own facts are FIELDS, and those have their own verbs (`set_done`, `set_date`, `set_after`, `set_see`, `set_title`, `set_desc`). The one refusal here is about SHADOWING — a key spelled like a field the format already has (`done`, `doing`, `todo`, `status`, `date`, `see`, `after`, `id`, `title`, `created`, `changed`) is turned toward the verb that writes that fact, because a node saying `done` twice with two meanings is a node no reader can trust.\n\n`read_node` answers `custom`, so read before you overwrite: this replaces one key's value outright.",
+    PropRequest,
+    { op: "prop" },
   ),
   write(
     "move_node",

@@ -49,6 +49,7 @@ import {
   type OpFailure,
   ordBetween,
   OUTLINE_EXT,
+  shadowFor,
   siblingsOf,
   standingBefore,
   type OutlineSet,
@@ -56,6 +57,7 @@ import {
   storedMarker,
   targetsOf,
   unfinishedUnder,
+  withCustom,
   UsageFailure,
   ValidationFailure,
   type Capture,
@@ -185,6 +187,8 @@ export const plan = (
         (node) => withField(node, "date", request.date),
         (node) => `date: ${node.title} -> ${node.date ?? "(cleared)"}`,
       )
+    case "prop":
+      return planProp(scope, request)
     case "move":
       return planMove(scope, request)
     case "split":
@@ -1061,6 +1065,62 @@ const planEdit = (
     file,
     summary,
   })
+}
+
+/**
+ * One custom key, set or taken off — the only writer of `custom`, and the one
+ * op in this file whose subject is a key rather than a field.
+ *
+ * WHAT IT CANNOT DO IS NOT POLICED HERE, and that is the shape doing the work:
+ * every fact olai reads is a FIELD at the top level and this writes inside one
+ * map, so there is no list of forbidden keys to keep in step with the format —
+ * `set_prop` could not reach `done` if it tried.
+ *
+ * The one rule left is about SHADOWING rather than about writing, which is why
+ * it reads a table beside the record's own fields (`@olai/format`'s
+ * `shadowFor`) instead of one here: `{"done":true,"custom":{"done":"yesterday"}}`
+ * is a legal record and an unreadable one — a drawer would show `done` beside a
+ * checkbox that says something else, and a reader would have two answers to one
+ * word. So a key spelled like a field is turned toward the verb that writes
+ * that fact.
+ *
+ * A key is otherwise not judged. The map takes any key, so a rule here about
+ * hyphens or case would be this op inventing a spelling the format does not
+ * have. An EMPTY key is the one exception, and it is not a rule about keys —
+ * it is the same "nothing has one spelling" the value's `null` obeys.
+ */
+const planProp = (
+  scope: Scope,
+  request: Extract<Request, { op: "prop" }>,
+): Planned => {
+  const key = request.key.trim()
+  if (key === "") {
+    return Result.fail(new UsageFailure({ reason: "a property needs a key" }))
+  }
+  const shadow = shadowFor(key)
+  if (shadow !== undefined) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `a node already says \`${key}\` with a field of its own, so a property by that ` +
+          `name would be a second answer to one question — ${shadow}`,
+      }),
+    )
+  }
+
+  const value = request.value
+  return planEdit(
+    scope,
+    request.id,
+    (node) => ({ ...node, custom: withCustom(node.custom, key, value ?? undefined) }),
+    // The KEY is in the subject either way, because it is what changed: a
+    // commit reading `prop: the header goes stale` would leave the reader to
+    // diff the line to find out which fact moved.
+    (node) =>
+      value === null || value === ""
+        ? `prop: ${node.title} -> ${key} (cleared)`
+        : `prop: ${node.title} -> ${key}=${value}`,
+  )
 }
 
 /**

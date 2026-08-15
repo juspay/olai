@@ -311,6 +311,46 @@ export const DateRequest = Schema.Struct({
   date: Schema.NullOr(Schema.String),
 })
 
+/**
+ * One CUSTOM key on a node — a named fact, set or taken off.
+ *
+ * The only writer of `custom` (./custom.ts), and the only write in this file
+ * whose subject is a key rather than a field. Nothing here judges the value and
+ * nothing gives the key a meaning: a `pr` is a URL because a person wrote one,
+ * and the day a reading wants `isbn` the key is already sayable.
+ *
+ * IT CANNOT REACH A SYSTEM FIELD, and that is structural rather than policed:
+ * every field this format declares lives at the top level and this writes
+ * inside one map. The single rule left is about SHADOWING — a custom key
+ * spelled like a field (`done`, `date`, `see`, `title`, and the word `status`)
+ * is refused toward the verb that writes that fact, because
+ * `{"done":true,"custom":{"done":"yesterday"}}` is a legal record and an
+ * unreadable one.
+ *
+ * `was` is deliberately absent, where {@link DescRequest} and
+ * {@link TitleRequest} have one. A note and a title are prose somebody is
+ * replacing wholesale after reading it, and the conditional write is what stops
+ * a retry from landing on top of a paragraph nobody saw. A property is one
+ * short value under a name — the gesture is "this node's `stage` is `review`",
+ * not "replace what I read". The day that is wrong it is an added optional
+ * field, which is the cheap direction.
+ */
+export const PropRequest = Schema.Struct({
+  op: Schema.Literal("prop"),
+  id: Id,
+  key: Schema.String.annotate({
+    description:
+      "The property's name. Any key, except one spelled like a field the format already has (`done`, `doing`, `todo`, `status`, `date`, `see`, `after`, `id`, `title`, `created`, `changed`) — those are refused toward the verb that writes them.",
+  }),
+  /** `null` removes the property. So does `""`, which is the writer's own rule
+   *  for absence (./write.ts) rather than a second one: a key holding nothing
+   *  is a key the file does not carry. */
+  value: Schema.NullOr(Schema.String).annotate({
+    description:
+      "What the property holds, as text. `null` removes it — and so does the empty string, since a key holding nothing is a key the file does not carry.",
+  }),
+})
+
 export const MoveRequest = Schema.Struct({
   op: Schema.Literal("move"),
   id: Id,
@@ -651,6 +691,7 @@ export const WriteRequest = Schema.Union([
   TitleRequest,
   DescRequest,
   DateRequest,
+  PropRequest,
   MoveRequest,
   SplitRequest,
   MergeRequest,

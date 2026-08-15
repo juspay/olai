@@ -254,6 +254,7 @@ export {
   MirrorRequest,
   MoveRequest,
   NESTING,
+  PropRequest,
   SeeRequest,
   SplitRequest,
   TitleRequest,

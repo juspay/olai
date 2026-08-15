@@ -1021,6 +1021,96 @@ describe("title, note and date", () => {
   })
 })
 
+// ── prop ───────────────────────────────────────────────────────────────
+
+describe("prop", () => {
+  const customOf = (set: OutlineSet, request: Request): Record<string, unknown> => ({
+    ...record(fileOf(planned(set, request), "house.olai"), "order").custom,
+  })
+
+  test("a key goes into `custom`, holding whatever it was given", () => {
+    expect(customOf(house(), { op: "prop", id: "order", key: "pr", value: "https://x/1" }))
+      .toEqual({ pr: "https://x/1" })
+    // The summary names the KEY, because the key is what changed: a subject
+    // reading `prop: order the cabinets` would leave the reader to diff the
+    // line to find out which fact moved.
+    expect(planned(house(), { op: "prop", id: "order", key: "pr", value: "https://x/1" }).summary)
+      .toBe("prop: order the cabinets -> pr=https://x/1")
+  })
+
+  test("`null` removes it, and so does the empty string", () => {
+    const carrying = setOf({
+      "house.olai": KITCHEN.replace(
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
+          `"custom":{"pr":"https://x/1","agent":"claude-opus"}}`,
+      ),
+    })
+    // The other key is untouched: this op is about ONE property, and a write
+    // that rebuilt the map would take the rest of it with whatever it knew.
+    expect(customOf(carrying, { op: "prop", id: "order", key: "pr", value: null }))
+      .toEqual({ agent: "claude-opus" })
+    expect(customOf(carrying, { op: "prop", id: "order", key: "pr", value: "" }))
+      .toEqual({ agent: "claude-opus" })
+    expect(planned(carrying, { op: "prop", id: "order", key: "pr", value: null }).summary)
+      .toBe("prop: order the cabinets -> pr (cleared)")
+  })
+
+  /**
+   * The one refusal, and it is about SHADOWING rather than about reach: this op
+   * writes inside `custom` and could not touch a field if it tried. What it must
+   * not do is let a node say `done` twice with two meanings.
+   *
+   * The list is the RATIFIED one, written out: these are the words a reader
+   * would take for a fact about the node. That a FIELD cannot be added to the
+   * format without a sentence here is the other half, and it is a compile error
+   * rather than a test — `shadowFor`'s table is keyed by the record's own
+   * fields.
+   */
+  test("a key spelled like a field is refused, naming what writes that fact", () => {
+    const fields = [
+      "id",
+      "parent",
+      "ord",
+      "title",
+      "mirror",
+      "done",
+      "doing",
+      "todo",
+      "status",
+      "date",
+      "desc",
+      "doc",
+      "after",
+      "blocks",
+      "see",
+      "custom",
+    ]
+    for (const key of fields) {
+      const failure = refused(house(), { op: "prop", id: "order", key, value: "x" })
+      expect({ key, tag: failure._tag }).toEqual({ key, tag: "UsageFailure" })
+      expect({ key, named: failure.message.includes(`\`${key}\``) })
+        .toEqual({ key, named: true })
+    }
+    // Folded, because the confusion it prevents is a human one and humans do
+    // not read case.
+    expect(refused(house(), { op: "prop", id: "order", key: "Done", value: "x" })._tag)
+      .toBe("UsageFailure")
+  })
+
+  test("a key that is nothing but space is not a key", () => {
+    expect(refused(house(), { op: "prop", id: "order", key: "  ", value: "x" }).message)
+      .toBe("a property needs a key")
+  })
+
+  test("a key is trimmed, and otherwise spelled however it was typed", () => {
+    // NOT case-folded, not slugged: `custom` takes any key, and a rule here
+    // about spelling would be this op inventing one the format does not have.
+    expect(customOf(house(), { op: "prop", id: "order", key: " Due-Owner ", value: "@rahul" }))
+      .toEqual({ "Due-Owner": "@rahul" })
+  })
+})
+
 // ── move ───────────────────────────────────────────────────────────────
 
 describe("move", () => {

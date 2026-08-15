@@ -26,7 +26,7 @@ const LEDGER = (): OutlineSet =>
       `{"id":"now-git","parent":"now","ord":"a1","mirror":"focus-git"}`,
       `{"id":"bugs","ord":"a1","title":"Bugs"}`,
       `{"id":"sticky","parent":"bugs","ord":"a0","title":"the header scrolls away","doing":true,"after":["git"],"see":["git"]}`,
-      `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","todo":true}`,
+      `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","todo":true,"custom":{"pr":"https://github.com/juspay/olai/pull/176","agent":"claude-opus"}}`,
     ].join("\n"),
     "focus.olai": [
       `{"id":"focus","ord":"a0","title":"Focus"}`,
@@ -54,6 +54,29 @@ describe("the edges a node carries", () => {
     expect(bugs?.children.find((child) => child.id === "sticky"))
       .toMatchObject({ after: ["git"] })
     expect(detail(at(), "sticky")).toMatchObject({ after: ["git"], see: ["git"] })
+  })
+})
+
+/**
+ * The custom map, on a node read — every named fact it carries, and nothing
+ * invented for a node that carries none.
+ *
+ * Without it `set_prop` would be a write whose result no read could show, which
+ * is the gap `see` and `after` were given their own fields on an answer to
+ * close: a value written by id and unreadable can only be changed by guessing.
+ */
+describe("the properties a node carries", () => {
+  test("a node read answers the map, verbatim", () => {
+    expect(detail(at(), "git")?.custom).toEqual({
+      pr: "https://github.com/juspay/olai/pull/176",
+      agent: "claude-opus",
+    })
+    // Beside the fields, not instead of them: the mark is still `todo`.
+    expect(detail(at(), "git")).toMatchObject({ todo: true, status: "todo" })
+  })
+
+  test("a node with no properties carries no map, rather than an empty one", () => {
+    expect(detail(at(), "bugs")).not.toHaveProperty("custom")
   })
 })
 
