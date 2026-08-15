@@ -60,7 +60,7 @@ import {
   type Situated,
   situate,
   type Status,
-  storedMarker,
+  markOf,
 } from "./derive.ts"
 import { fileKind, isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
 import { dateOf, sinceOf } from "./props.ts"
@@ -146,7 +146,7 @@ export interface Dated extends Occasioned {
  * a calendar, and inventing a day for it would put years of finished work on
  * whatever day it was read.
  *
- * The mark is asked for through {@link storedMarker}, so a set the validator
+ * The mark is asked for through {@link markOf}, so a set the validator
  * has already condemned — two marks on one record — resolves the same one here
  * as it does in the checkbox: a record carrying `done` AND `todo` is on its
  * `done` day exactly when its checkbox is the one that says done.
@@ -170,7 +170,7 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
   // unchanged by the two keys replacing three fields. A `since` on a `doing`
   // stays on disk and stays out of the journal.
   const reached = sinceOf(node)
-  if (storedMarker(node) === "done" && reached !== undefined) {
+  if (markOf(node) === "done" && reached !== undefined) {
     dates.push({ occasion: "done", date: reached })
   }
   return dates

@@ -50,7 +50,7 @@ import {
   entryOf,
   groupedOn,
 } from "./dates.ts"
-import { type Derived, storedMarker } from "./derive.ts"
+import { type Derived, markOf } from "./derive.ts"
 import { dateOf } from "./props.ts"
 import type { RegularNode } from "./node.ts"
 
@@ -81,7 +81,7 @@ import type { RegularNode } from "./node.ts"
 export const isOverdue = (node: RegularNode, today: string): boolean => {
   const scheduled = dateOf(node)
   if (scheduled === undefined) return false
-  const mark = storedMarker(node)
+  const mark = markOf(node)
   return (mark === "todo" || mark === "doing") && dayOf(scheduled) < dayOf(today)
 }
 
@@ -243,7 +243,7 @@ const owedOn = (
 /** Anything that is not finished work — the one spelling of it in this module,
  *  because "what is left" is the question the whole page asks and two ways of
  *  answering it would be two chances to disagree. */
-const unfinished = (node: RegularNode): boolean => storedMarker(node) !== "done"
+const unfinished = (node: RegularNode): boolean => markOf(node) !== "done"
 
 /**
  * The days after `today` that have something owed on them, ascending, bounded

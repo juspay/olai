@@ -178,20 +178,23 @@ const statuses = (
   const status = new Map<string, Status>()
   for (const located of nodes) {
     const found = follow(index, located)
-    const mark = found.kind === "found" ? storedMarker(found.shows.node) : undefined
+    const mark = found.kind === "found" ? markOf(found.shows.node) : undefined
     if (mark !== undefined) status.set(located.node.id, mark)
   }
   return status
 }
 
-/** What a record claims about itself, which IS its status — and `undefined`
- *  for one claiming nothing, the one spelling of absence this module has.
+/** What a record claims about itself, which IS its status — and `undefined` for
+ *  one claiming nothing.
  *
- *  Re-exported rather than re-derived: `./props.ts`'s {@link markOf} reads the
- *  `status` key, and the name every walk in this package already calls it by
- *  is this one. A second reading here would be a second answer to what a
- *  checkbox shows. */
-export const storedMarker = markOf
+ *  It was declared here, as `storedMarker`, while a mark was three fields and
+ *  reading one meant knowing which three. It is `./props.ts`'s {@link markOf}
+ *  now, beside `dateOf`, `sinceOf` and `listOf`, because reading the `status`
+ *  key is the same kind of act as reading any other — and ONE name, since two
+ *  public spellings of one function is the thing this package spends its whole
+ *  header warning about. Re-exported because every derivation below answers in
+ *  it and a consumer of a walk should not have to learn which module minted it. */
+export { markOf } from "./props.ts"
 
 /**
  * The children of a node that are TASKS, each with the mark that makes it one.

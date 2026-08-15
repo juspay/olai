@@ -138,16 +138,16 @@ would be worse than no dot. Dates stay TEXT here as everywhere else: a day is a
 ten-character prefix, a month a seven-character one, and a datetime counts for
 its own day.
 
-TWO fields are read, not only `date`: a dated `done`
-(`{"done":"2026-08-11T15:40:03-04:00"}`) places a node too, because a journal
+TWO keys are read, not only `date`: a `done` with a `since`
+(`"props":{"status":"done","since":"2026-08-11T15:40:03-04:00"}`) places a node too, because a journal
 without the work that was finished is missing the half of the day that
-happened. A dated `doing` or `todo` is read by neither question (2026-08-11,
+happened. A `since` under `doing` or `todo` is read by neither question (2026-08-11,
 human): the format allows it, a journal is narrower than the format, and
 "picked up on Tuesday" buried the day under everything filed that morning. So a
 node with two dates is on two days, two dates on one day are one row, and each row says
 which of the node's dates put it there (`Occasion`), because scheduled-on and
 finished-on are two different sentences and only the reader can be told which
-one they are reading. A `done` holding `true` is on no day: it declines to say
+one they are reading. A `done` with no `since` is on no day: it declines to say
 when, and inventing an answer would file every old `true` under today. The
 ARCHIVE is not filtered out and that is a decision (2026-08-11): blockedness
 exempts archived work at both ends because nothing waits on what is over, and a
@@ -427,5 +427,8 @@ refusal travels the wire and an MCP tool result as itself. Four classes rather
 than one with a `kind` string because they carry different things — only
 `validation` has a report to show, only `not-found` names what was missed — and
 a single struct would make every field optional and push "which fields are
-meaningful" back into prose. There were five: `derived` refused a write that
-would have stored a computed status, and went with derivation itself.
+meaningful" back into prose. Two have retired, and both dissolved rather than being relaxed: `derived`
+refused a write that would have stored a computed status and went with
+derivation itself, and `several-marks` refused a record carrying two of the
+three marks and went when the three fields became one `status` key. `bad-prop`
+is the code that took its place.

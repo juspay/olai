@@ -12,7 +12,7 @@ import {
   type Status,
   isTagName,
   mayHoldTag,
-  storedMarker,
+  markOf,
   TAG_SIGILS,
   tagOpensAt,
   tagText,
@@ -92,7 +92,7 @@ test("the stored marker is the field a record actually carries, or nothing", () 
         `{"id":"b","ord":"b","title":"b","props":{"status":"doing","since":"2026-08-10"}}\n` +
         `{"id":"t","ord":"c","title":"t","props":{"status":"todo"}}\n` +
         `{"id":"c","ord":"d","title":"c"}`,
-    ).map(storedMarker),
+    ).map(markOf),
   ).toEqual(["done", "doing", "todo", undefined])
 
   // There is no longer a record that claims two marks to have a precedence
@@ -105,8 +105,8 @@ test("the stored marker is the field a record actually carries, or nothing", () 
   // the READING that has to refuse them rather than the map's own shape.
   const typo: RegularNode = { id: "x", ord: "a", title: "x", props: { status: "donee" } }
   const listed: RegularNode = { id: "x", ord: "a", title: "x", props: { status: ["done"] } }
-  expect(storedMarker(typo)).toBeUndefined()
-  expect(storedMarker(listed)).toBeUndefined()
+  expect(markOf(typo)).toBeUndefined()
+  expect(markOf(listed)).toBeUndefined()
 })
 
 // A PARENT is what it stores too, and nothing about its children changes that.

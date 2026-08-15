@@ -107,7 +107,7 @@ const KNOWN_FIELDS: ReadonlySet<string> = new Set([
 ])
 
 /** The mark a record stores, in {@link MARKS} precedence — the reading the old
- *  `storedMarker` did, kept here because this is the last module entitled to
+ *  `markOf` did, kept here because this is the last module entitled to
  *  it. Only ever asked of a record {@link refusalFor} has cleared, so the
  *  precedence decides nothing. */
 const markIn = (

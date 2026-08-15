@@ -66,13 +66,14 @@ about an op is decided there, over a value, so it is testable without a disk
 and re-decidable against a newer snapshot. The two impure things an op needs —
 a fresh id and what time it is — arrive as arguments.
 
-**`done` is stamped with the instant it was made**: `set_done` stores
-`2026-08-11T15:40:03-04:00`, local and carrying its offset (`@olai/format`'s
-`stampOf`), never a bare `true` and never a day with no time in it. Finishing
+**`done` is stamped with the instant it was made**: `set_done` writes `status`
+and `since`, and `since` holds `2026-08-11T15:40:03-04:00`, local and carrying
+its offset (`@olai/format`'s `stampOf`), never a day with no time in it. Finishing
 happens at a moment, the day view reads the day off the front of the value
 anyway, so the time costs a reader nothing and orders a day's finished work.
 
-**`doing` and `todo` store `true`** (resolved 2026-08-11, the human's call).
+**`doing` and `todo` store no `since` at all** (resolved 2026-08-11, the
+human's call — and the same sentence the old bare `true` said).
 The symmetry argument — three answers to one question, written by one op — loses
 to what a date on a mark now means: it puts the node on that day's journal page
 (docs/format.md's Days). A stamped `todo` would file every capture onto the day
@@ -140,10 +141,11 @@ delete.
 
 - **The mark rides along.** A captured node may be born `done`, `doing` or
   `todo`, written exactly as `set_done` / `set_doing` / `set_todo` write it —
-  one `marker` function, read by both — so a `done` records the instant and
-  lands on today's page, and the other two store `true` and place the node on
-  no day. One field rather than three flags, because the format allows at most
-  one mark and a shape that can spell two is a shape a caller can get wrong.
+  one `instantFor` function, read by both — so a `done` records the instant and
+  lands on today's page, and the other two leave `since` absent and place the
+  node on no day. One field rather than three flags, because a node carries at
+  most one mark and a shape that can spell two is a shape a caller can get wrong
+  (and, since the marks became one `status` key, one it could not write down).
 - **Placement is the root's.** `before` / `after` place the node being added
   among its new siblings; the children are being born, so there is nobody to
   place them among and they land in the order they were written. File order is

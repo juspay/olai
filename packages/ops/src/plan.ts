@@ -55,7 +55,7 @@ import {
   type RegularNode,
   SINCE,
   STATUS,
-  storedMarker,
+  markOf,
   withProp,
   withProps,
   targetsOf,
@@ -850,7 +850,7 @@ const planMark = (
   const mark = request.op
   const undo = request.undo === true
 
-  const stored = storedMarker(node)
+  const stored = markOf(node)
   if (undo && stored !== mark) {
     return Result.fail(
       new UsageFailure({ reason: `\`${node.title}\` is not marked ${mark}` }),
@@ -955,7 +955,7 @@ const nudged = (
     ? undefined
     : scope.derived.byId.get(node.parent)?.node
   if (
-    above !== undefined && !isMirror(above) && storedMarker(above) !== "done" &&
+    above !== undefined && !isMirror(above) && markOf(above) !== "done" &&
     unfinishedUnder(scope.derived, above.id).every((child) => child.node.id === node.id)
   ) {
     said.push(

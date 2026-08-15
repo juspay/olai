@@ -86,7 +86,7 @@ export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./
  *
  * What is exported is the VOCABULARY and the accessors, never a way to reach a
  * key by hand: a consumer asks `markOf` or `listOf(node, "after")` rather than
- * indexing `node.props`, for the reason this package exports `storedMarker`
+ * indexing `node.props`, for the reason this package exports `markOf`
  * rather than a field name. `SYSTEM_KEYS` and `isSystemKey` are what a WRITER
  * needs — the sibling PR's `set_prop` refuses a key olai reads, and it must ask
  * that question of the same list ./parse.ts checks.
@@ -134,7 +134,6 @@ export {
   siblingsOf,
   isTagName,
   mayHoldTag,
-  storedMarker,
   TAG_SIGILS,
   tagOpensAt,
   tagText,

@@ -37,7 +37,7 @@ import {
   type Derived,
   mayHoldTag,
   type Row,
-  storedMarker,
+  markOf,
   tagText,
   titleParts,
 } from "./derive.ts"
@@ -494,7 +494,7 @@ const holds = (at: LocatedRegular, clause: Clause): boolean => {
     // The STORED mark, never a derived one: a parent whose children are all
     // ticked is not `is:done` unless somebody ticked it (docs/format.md's
     // Status, and the `not-every-node-a-task` ruling behind it).
-    const mark = storedMarker(at.node)
+    const mark = markOf(at.node)
     if (clause.value === "marked") return mark !== undefined
     return mark === clause.value
   }
