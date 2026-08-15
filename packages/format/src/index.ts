@@ -84,9 +84,28 @@ export {
    *  request that writes one, the keystroke that toggles one and the read that
    *  answers with one are one derivation of that list rather than five. */
   Status,
+  /** Which words a `custom` key may not take, and what writes each of them
+   *  instead — asked of the record's own field names, so a new field cannot
+   *  arrive without one. `set_prop` is its only caller. */
+  shadowFor,
   targetsOf,
 } from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
+
+/** The one OPEN field on a record: named facts olai gives no meaning to. A
+ *  consumer reads a key through these rather than reaching into `node.custom`,
+ *  for the reason it asks `targetsOf` rather than reading `after` — where the
+ *  map lives is this package's answer, and absence has one spelling. */
+export {
+  Custom,
+  customKeys,
+  customOf,
+  customText,
+  CustomValue,
+  isEmptyCustom,
+  withCustom,
+} from "./custom.ts"
+export type { HasCustom } from "./custom.ts"
 
 export {
   ancestorsOf,

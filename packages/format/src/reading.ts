@@ -238,6 +238,11 @@ export const Detail = Schema.Struct({
   ...STAMPED,
   date: RegularNode.fields.date,
   desc: RegularNode.fields.desc,
+  /** The named facts this node carries that olai gives no meaning to — the
+   *  record's own map, handed back verbatim, and what `set_prop` writes into.
+   *  Absent for a node carrying none, which is the writer's own rule for
+   *  absence rather than an empty map on every bullet in the vault. */
+  custom: RegularNode.fields.custom,
   /** The `#topic` and `@person` tags in the title, AS WRITTEN, sigil and all —
    *  a list that dropped the character that started them could not tell a
    *  reader which of the two namespaces this node carries. */
