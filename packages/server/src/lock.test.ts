@@ -40,7 +40,7 @@
  */
 
 import { findLogfmt } from "@olai/log/testlib"
-import { expect, test } from "bun:test"
+import { afterAll, expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -69,6 +69,15 @@ const runtime = (): NodeJS.ProcessEnv => {
   process.env["XDG_RUNTIME_DIR"] = dir
   return { XDG_RUNTIME_DIR: dir }
 }
+
+/** …and put it back, because `bun test` runs every file of this package in one
+ *  process: a variable left pointing at a temp directory this file made is a
+ *  variable the next file inherits. */
+const inherited = process.env["XDG_RUNTIME_DIR"]
+afterAll(() => {
+  if (inherited === undefined) delete process.env["XDG_RUNTIME_DIR"]
+  else process.env["XDG_RUNTIME_DIR"] = inherited
+})
 
 test("a second olai over one directory refuses to boot", async () => {
   const root = served()

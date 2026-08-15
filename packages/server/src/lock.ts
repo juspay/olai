@@ -221,16 +221,18 @@ export const holdVault = (
       const opened = openLock(path)
       if (typeof opened !== "number") return Effect.fail(opened)
 
-      const outcome = lockExclusive(opened)
-      if (outcome._tag !== "held") {
-        // Read the holder BEFORE closing ours: nothing here depends on the
-        // ordering, but a descriptor closed early is one more thing between the
-        // question and the answer.
-        const holder = outcome._tag === "busy" ? holderIn(path) : null
+      // Our descriptor goes with any answer but `held`: we are not serving this
+      // directory, so we hold nothing open over it.
+      const refuse = (failure: VaultInUse | LockUnavailable) => {
         fs.closeSync(opened)
-        return outcome._tag === "busy"
-          ? Effect.fail(new VaultInUse({ root, holder }))
-          : Effect.fail(new LockUnavailable({ path, reason: outcome.reason }))
+        return Effect.fail(failure)
+      }
+      const outcome = lockExclusive(opened)
+      if (outcome._tag === "busy") {
+        return refuse(new VaultInUse({ root, holder: holderIn(path) }))
+      }
+      if (outcome._tag === "failed") {
+        return refuse(new LockUnavailable({ path, reason: outcome.reason }))
       }
 
       // Ours now, so say who we are — for the next olai's refusal, and for a

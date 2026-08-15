@@ -68,15 +68,15 @@ const LOCK_EX = 2
 const LOCK_NB = 4
 
 /** What `flock` sets when somebody else holds the lock — the one failure that
- *  is an ANSWER rather than a fault. `EWOULDBLOCK` is `EAGAIN`, and it is 11 on
- *  Linux and 35 on darwin. Read from the platform rather than guessed, because
- *  mistaking a real failure for "somebody else has it" would report a machine
- *  problem as another person's olai. */
+ *  is an ANSWER rather than a fault. `EWOULDBLOCK` is `EAGAIN`, and the number
+ *  is 11 on Linux and 35 on darwin. Told apart by platform rather than lumped
+ *  in with every other errno, because reporting a machine problem as another
+ *  person's olai would send them hunting for a process that does not exist. */
 const WOULD_BLOCK = process.platform === "darwin" ? 35 : 11
 
 /**
- * The libc these three symbols come from, by the name the dynamic loader knows
- * it under. Tried in order, first one that opens wins.
+ * The libc the two symbols below come from, by the name the dynamic loader
+ * knows it under. Tried in order; the first that opens wins.
  *
  * The bun binary already has libc mapped — it is linked against it — so
  * `dlopen` here finds the object that is loaded rather than searching the
