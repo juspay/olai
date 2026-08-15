@@ -135,18 +135,12 @@ export function Transcript(props: { readonly chat: Chat }) {
                 ? undefined
                 : props.chat.entry(previous)()
             })
-            const lane = createMemo(() => laneOf(entry(), above()))
-            /** What to call the agent whose lane this is: the `Agent` frame's
-             *  own title, which for this adapter is the description the call
-             *  was made with — "find every call site", "review the diff". A
-             *  frame we have not been sent is drawn as the bare fact, because
-             *  "a subagent did this" is still the thing worth saying. */
-            const named = () => {
-              const parent = lane()?.parent
-              return (parent === undefined
-                ? undefined
-                : props.chat.entry(parent)()?.text) ?? "a subagent"
-            }
+            /* What an `Agent` frame is CALLED is its own title, which for this
+               adapter is the description the call was made with — "find every
+               call site", "review the diff". */
+            const lane = createMemo(() =>
+              laneOf(entry(), above(), (key) => props.chat.entry(key)()?.text)
+            )
             return (
               <Show when={entry()}>
                 {(row) => (
@@ -165,21 +159,23 @@ export function Transcript(props: { readonly chat: Chat }) {
                     class={lane() === null
                       ? undefined
                       : `border-l-2 border-muted/70 pl-2 ${
-                        lane()?.labelled === true ? "mt-1" : "-mt-2 pt-2"
+                        lane()?.label === null ? "-mt-2 pt-2" : "mt-1"
                       }`}
                     data-testid={lane() === null ? undefined : TESTID.chatLane}
                     data-lane={lane()?.parent}
                   >
                     {/* Once per stretch of one agent's work, not once per call
                         it makes — see `./lanes.ts`. */}
-                    <Show when={lane()?.labelled === true}>
-                      <p
-                        class="mb-1 flex min-w-0 items-center gap-1 font-mono text-[0.6875rem] text-muted"
-                        data-testid={TESTID.chatLaneLabel}
-                      >
-                        <span aria-hidden="true">↳</span>
-                        <span class="min-w-0 truncate">{named()}</span>
-                      </p>
+                    <Show when={lane()?.label}>
+                      {(label) => (
+                        <p
+                          class="mb-1 flex min-w-0 items-center gap-1 font-mono text-[0.6875rem] text-muted"
+                          data-testid={TESTID.chatLaneLabel}
+                        >
+                          <span aria-hidden="true">↳</span>
+                          <span class="min-w-0 truncate">{label()}</span>
+                        </p>
+                      )}
                     </Show>
                     <Entry entry={row()} chat={props.chat} />
                   </div>

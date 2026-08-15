@@ -45,6 +45,12 @@ export interface Change {
 
 const EMPTY: Change = { upserts: [], removes: [] }
 
+/** What a tool call is filed under. Spelled ONCE: the row a call writes and
+ *  the row it names as the agent that made it are the same kind of key, and
+ *  two literals for one scheme is one of them being missed the day the scheme
+ *  moves. */
+const toolKey = (id: string): string => `tool:${id}`
+
 /** Two changes as one. Closing the open entry and writing the next one are two
  *  upserts a subscriber should see in the same frame. */
 const both = (first: Change, second: Change): Change => ({
@@ -126,7 +132,7 @@ export class Transcript {
       readonly parent?: string | undefined
     },
   ): Change {
-    const key = `tool:${id}`
+    const key = toolKey(id)
     const current = this.#entries.get(key)
     const detail = move.detail ?? current?.detail
     // The protocol's own rule, and the reason neither of these accumulates: a
@@ -152,7 +158,7 @@ export class Transcript {
     // most of what follows, but a completion carrying only a status and a
     // parent-less `_meta` is a shape it has — and a row that read that as "no
     // agent now" would step out of its lane at the moment the call finished.
-    const parent = move.parent === undefined ? current?.parent : `tool:${move.parent}`
+    const parent = move.parent === undefined ? current?.parent : toolKey(move.parent)
     return both(
       this.#close(),
       this.#put(key, {
