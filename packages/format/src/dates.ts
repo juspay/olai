@@ -146,10 +146,12 @@ export interface Dated extends Occasioned {
  * a calendar, and inventing a day for it would put years of finished work on
  * whatever day it was read.
  *
- * The mark is asked for through {@link markOf}, so a set the validator
- * has already condemned — two marks on one record — resolves the same one here
- * as it does in the checkbox: a record carrying `done` AND `todo` is on its
- * `done` day exactly when its checkbox is the one that says done.
+ * The mark is asked for through {@link markOf}, which is the one reading of
+ * `status` in olai — so a node is on its `done` day exactly when its checkbox
+ * is the one that says done, because both asked the same function. This
+ * paragraph used to have a second half about a record carrying `done` AND
+ * `todo` and which of them won here; one `status` key holds one mark, so there
+ * is no such record to resolve.
  *
  * The order decides exactly one thing, and only for a node whose two dates land
  * on the SAME day: which occasion that day names ({@link datedOn}). `date`

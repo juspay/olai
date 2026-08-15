@@ -87,6 +87,36 @@ test("the second start rewrites nothing, and says nothing", async () => {
 })
 
 /**
+ * The crash window, from the other side.
+ *
+ * The sweep stages every rewrite and then renames them one by one, so a crash
+ * between two renames leaves a directory with some files in each shape. That is
+ * a real window and the module says so; what makes it survivable is this — the
+ * next start reads the FILES rather than a memory of what it did, so it
+ * finishes the job and leaves what already landed alone. Recovery is the
+ * ordinary path rather than a repair mode, which is why there is no journal.
+ */
+test("a directory caught half-way across is finished by the next start", async () => {
+  const root = directoryOf({
+    // Already renamed before the crash.
+    "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen","props":{"status":"doing"}}\n`,
+    // Still waiting for theirs.
+    "shed.olai": `{"id":"shelf","ord":"a0","title":"shelf","done":"2026-08-01"}\n`,
+    "notes/garden.olai": `{"id":"herbs","ord":"a0","title":"herbs","todo":true}\n`,
+  })
+  const landed = read(root, "house.olai")
+  const stamp = fs.statSync(path.join(root, "house.olai")).mtimeMs
+
+  const result = await sweep(root)
+  expect(result.migrated.slice().sort()).toEqual(["notes/garden.olai", "shed.olai"])
+  expect(read(root, "house.olai")).toBe(landed)
+  // Not rewritten with identical bytes — not opened for writing at all, so the
+  // recovery costs nothing in the vault's git history either.
+  expect(fs.statSync(path.join(root, "house.olai")).mtimeMs).toBe(stamp)
+  expect(read(root, "shed.olai")).toContain(`"props":{"status":"done","since":"2026-08-01"}`)
+})
+
+/**
  * A file it cannot carry across keeps every byte, and the rest of the directory
  * still goes.
  *

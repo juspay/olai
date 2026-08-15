@@ -25,11 +25,21 @@
  * next to nothing else. A migration that committed on its own behalf would put
  * a commit nobody asked for in front of whatever they were in the middle of.
  *
- * ALL FILES OR NONE, the same bargain `Store.commit` strikes and for the same
- * reason: every rewrite is staged beside its destination first, and only then
- * are the renames done. A directory half in each shape is one no reader has a
- * rule for, and the window where a crash could leave one is the width of the
- * renames rather than of the whole sweep.
+ * STAGE EVERYTHING, THEN RENAME, the same shape `Store.commit` uses: every
+ * rewrite lands beside its destination first, and only when they are all
+ * written are the renames done. That is not all-or-nothing across the
+ * directory, and this comment used to say it was. A crash between two renames
+ * leaves a directory with some files in each shape — the window is the width of
+ * the renames rather than of the whole sweep, which is the honest claim, and
+ * one rename is one syscall.
+ *
+ * What makes that survivable is not atomicity but the RESTART: the sweep reads
+ * the files rather than a memory of what it did, so the next start migrates the
+ * ones that did not make it and leaves the ones that did exactly as they are.
+ * The half-flipped directory is a state olai boots out of, not one it needs a
+ * journal to recover from. It is per FILE that whole-or-nothing is real, and
+ * that is the grain that matters: a file half in each shape is one no reader
+ * has a rule for, and no crash can produce one.
  */
 
 import { fileKind, migrateOutline, serializeOutline } from "@olai/format"

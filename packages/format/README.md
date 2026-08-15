@@ -15,7 +15,11 @@ free to disagree with the one that decides whether a file is legal at all.
 Validation is two phases, and the seam is load-bearing rather than tidy.
 
 `parseOutline` sees one line at a time and checks everything a single line can
-answer alone — shape, id spelling, ISO dates, the two exclusivity rules.
+answer alone — shape, id spelling, ISO dates, and what the six keys olai reads
+are allowed to hold (`bad-prop`). It used to say "the two exclusivity rules"
+here, and one of those was `several-marks`: a record cannot carry two marks now
+because one `status` key cannot hold two values, so there is no rule left to
+run.
 `validate` sees the whole set and owns every rule that needs to know what else
 exists: parents, mirror targets, `after` cycles, documents.
 
