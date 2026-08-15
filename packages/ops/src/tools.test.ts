@@ -1,0 +1,177 @@
+/**
+ * Every read answers what the TABLE says it answers.
+ *
+ * The four read shapes are declared in `@olai/format` and produced here, which
+ * the compiler already checks in one direction — a reader that omits a required
+ * field, or builds an envelope the declaration has never heard of, does not
+ * build. What it cannot check is the other direction, and the other direction
+ * is the one search's drift arrived through: object-literal freshness is lost
+ * through a `.map`, so a field DROPPED from a declaration still compiles at the
+ * one place it is produced, and every consumer encoding against the declaration
+ * would drop it in silence (docs/brainstorming/surface-mcp-positions.md,
+ * position (a)).
+ *
+ * So this walks {@link TOOLS}, calls every read's own reader over one maximal
+ * set, and decodes each answer through the `answers` schema that entry carries,
+ * with `onExcessProperty: "error"` — the same setting `parseOutline` reads
+ * records under, and for the same reason. A field the floor does not declare
+ * fails here; a field the floor declares and the walk stopped producing fails
+ * here; and a value of the wrong KIND — a count that is not an integer, a stamp
+ * that is neither `true` nor a string — fails here too, which no type can say.
+ *
+ * OFF THE TABLE rather than off a hand-picked list of functions, and that is
+ * the difference worth having: `Query.detail` is not what an agent calls,
+ * `read_node` is, and the envelope between them (`?? { missing: id }`) is
+ * exactly the part a test against the function would not see. A fifth read tool
+ * is covered the moment it is added, or the fixture list below fails naming it.
+ *
+ * The set is deliberately MAXIMAL, and the last test is why: an optional field
+ * nothing produces is a field this file cannot say anything about, so what the
+ * fixture actually reaches is asserted rather than assumed.
+ */
+
+import {
+  type OutlineSet,
+  type Placed,
+  type Placement,
+  type Subtree,
+} from "@olai/format"
+import { expect, test } from "bun:test"
+import { Schema } from "effect"
+
+import { setOf } from "./fixtures.testlib.ts"
+import { index } from "./query.ts"
+import { type Reading, TOOLS } from "./tools.ts"
+
+/** One house, and everything a read can carry: both marker kinds, a note, a
+ *  date, both tag sigils, a placement with a parent and one without, a child
+ *  deep enough to truncate a walk, and a file that does not parse. */
+const EVERYTHING = (): OutlineSet =>
+  setOf({
+    "house.jsonl": [
+      `{"id":"house","ord":"a0","title":"House #home @sam","desc":"the note","date":"2026-08-14","doing":true,"see":["paint"],"after":["paint"]}`,
+      `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","done":"2026-08-09T10:15:00-04:00"}`,
+      `{"id":"sand","parent":"house","ord":"a1","title":"sand the floor","todo":true}`,
+      `{"id":"grain","parent":"sand","ord":"a0","title":"with the grain"}`,
+      // Under a node, so `house` has a `placed` row…
+      `{"id":"in-house","parent":"house","ord":"a2","mirror":"paint"}`,
+      // …and at the top level, so one of `paint`'s placements has no parent.
+      `{"id":"loose","ord":"a1","mirror":"paint"}`,
+    ].join("\n"),
+  }, [], { "torn.jsonl": "{ not a record" })
+
+const at = (): Reading => {
+  const set = EVERYTHING()
+  return { set, derived: index(set) }
+}
+
+/**
+ * What each read is CALLED with, one entry per tool and several calls per
+ * entry.
+ *
+ * Several, because a read's answer is not one shape: `read_node` answers a
+ * detail or the id it does not hold, a search answers hits or a refusal, and a
+ * walk answers truncated or finished. Each of those is a decode of its own.
+ */
+const CALLS: Record<string, ReadonlyArray<unknown>> = {
+  list_outlines: [{}],
+  search_nodes: [{ text: "hall" }, { text: "is:blocked" }, { text: "" }],
+  read_node: [{ id: "house" }, { id: "paint" }, { id: "shed" }],
+  read_subtree: [{ id: "house", depth: 1 }, { id: "house" }, { id: "shed" }],
+}
+
+const READS = TOOLS.filter((tool) => tool.kind === "read")
+
+/** Every answer the fixture can provoke, paired with the tool that gave it. */
+const answered = (): ReadonlyArray<{ name: string; answer: unknown }> =>
+  READS.flatMap((tool) =>
+    (CALLS[tool.name] ?? []).map((args) => ({
+      name: tool.name,
+      answer: tool.kind === "read"
+        ? tool.read(at(), args as never)
+        : undefined,
+    }))
+  )
+
+test("every read in the table is called here", () => {
+  // The closure, and the reason the fixtures are a lookup rather than a list:
+  // a fifth read tool is a missing key, named — not a shape nothing checks.
+  expect(READS.map((tool) => tool.name).filter((name) => CALLS[name] === undefined))
+    .toEqual([])
+})
+
+test("every answer decodes through the shape its own entry declares", () => {
+  for (const tool of READS) {
+    if (tool.kind !== "read") continue
+    const decode = Schema.decodeUnknownSync(
+      tool.answers as Schema.Codec<unknown, unknown, never, never>,
+      { errors: "all", onExcessProperty: "error" },
+    )
+    for (const args of CALLS[tool.name] ?? []) {
+      const answer = tool.read(at(), args as never)
+      // Compared with what went in, so the assertion is "this IS the shape"
+      // rather than "this parses" — a decode that dropped a field would
+      // otherwise pass.
+      expect({ [tool.name]: decode(answer) }).toEqual({ [tool.name]: answer })
+    }
+  }
+})
+
+test("the fixture reaches every optional field, so the check is not vacuous", () => {
+  const answers = answered()
+  const of = (name: string): ReadonlyArray<Record<string, unknown>> =>
+    answers.filter((one) => one.name === name).map((one) =>
+      one.answer as Record<string, unknown>
+    )
+
+  const outlines = of("list_outlines")[0]?.["outlines"] as ReadonlyArray<
+    Record<string, unknown>
+  >
+  // Both arms of a row: one file that parsed, one that did not — and the torn
+  // one carries NEITHER a count nor roots.
+  expect(outlines[0]).toEqual({
+    file: "house.jsonl",
+    // Four REGULAR nodes; the two mirrors are placements and do not count.
+    nodes: 4,
+    roots: ["House #home @sam"],
+  })
+  expect(outlines[1]).toEqual({
+    file: "torn.jsonl",
+    unreadable: [expect.any(String)],
+  })
+
+  const searches = of("search_nodes")
+  expect(searches[0]?.["hits"]).toMatchObject([{ id: "paint", matched: "title" }])
+  // A query the grammar could not read carries the reason rather than an
+  // empty list with nothing to say.
+  expect(searches[1]?.["refusals"]).toBeArrayOfSize(1)
+
+  const [house, paint, gone] = of("read_node")
+  expect(house).toMatchObject({
+    // Both marker kinds: `true` here, an ISO instant on `paint` below.
+    doing: true,
+    date: "2026-08-14",
+    desc: "the note",
+    tags: ["#home", "@sam"],
+    progress: { done: 1, total: 2 },
+    see: ["paint"],
+    after: ["paint"],
+    placed: [{ id: "in-house", shows: { id: "paint" } }],
+  })
+  expect(paint).toMatchObject({ done: "2026-08-09T10:15:00-04:00" })
+  // A placement with a parent and one without, on the one node both show.
+  expect((paint?.["mirrors"] as ReadonlyArray<Placement>).map((one) => one.parent))
+    .toEqual(["house", undefined])
+  expect(gone).toEqual({ missing: "shed" })
+
+  const [cut, whole, absent] = of("read_subtree")
+  expect((cut?.["children"] as ReadonlyArray<Subtree>)[1])
+    .toMatchObject({ id: "sand", truncated: true })
+  expect(whole).not.toHaveProperty("truncated")
+  expect(absent).toEqual({ missing: "shed" })
+
+  // `placed` carries the node each row SHOWS, situated — the half of a mirror
+  // a curated list is read with.
+  const placed = house?.["placed"] as ReadonlyArray<Placed>
+  expect(placed[0]?.shows).toMatchObject({ id: "paint", status: "done", path: ["House #home @sam"] })
+})
