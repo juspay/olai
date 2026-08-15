@@ -6,7 +6,7 @@
  * matters. The allowlist says `outlines` is a resource. Whether reading that
  * resource costs the key set or the corpus is decided by the ADAPTER — it picks
  * the verb by kind, `keys` for a collection and `get` for a cell — and that is
- * not visible from the map. So the wire-cost half of `expose.ts`'s rule is
+ * not visible from the map. So the wire-cost half of `faces.ts`'s rule is
  * fenced here, by reading the collection resource in a directory that contains a
  * deliberately fat document and asserting the answer stayed small.
  *
@@ -38,9 +38,9 @@ import * as path from "node:path"
 
 import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
-import { bind, gitWiring } from "../runtime.ts"
+import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
-import { serveFace } from "./face.ts"
+import { clientOver, serveFace } from "./face.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -94,7 +94,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
       chat: null,
       ops,
       writer: "mcp",
-      git: gitWiring(ops, "mcp", yield* SubscriptionRef.make(0)),
+      git: gitWiring(ops, yield* SubscriptionRef.make(0)),
     })
     // Not optional, and not ceremony copied from `serve.ts`: the runtime's
     // `done` REJECTS when it is closed, so something has to be holding the
@@ -107,7 +107,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
-    yield* serveFace({ bound: wired.bound, transport: serverSide })
+    yield* serveFace({ client: () => clientOver(wired.bound.handlers), transport: serverSide })
 
     const client = new Client({ name: "face.test", version: "0" })
     yield* Effect.promise(() => client.connect(clientSide))

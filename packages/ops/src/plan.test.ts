@@ -16,13 +16,14 @@ import {
   type OutlineSet,
   type RegularNode,
   serializeOutline,
+  AddRequest,
+  type WriteRequest as Request,
 } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 import { Result, Schema } from "effect"
 
 import { setOf, STAMP, steady } from "./fixtures.testlib.ts"
 import { plan, type Plan } from "./plan.ts"
-import { AddRequest, type Request } from "./request.ts"
 
 const KITCHEN = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -397,7 +398,7 @@ describe("add with children", () => {
     ).toBe("UsageFailure")
   })
 
-  // The cap is the JSON Schema's, not the format's ({@link ./request.ts}'s
+  // The cap is the JSON Schema's, not the format's (`@olai/format`'s `writing.ts`'s
   // NESTING), and the floor of the unrolled schema exists so that going past it
   // is a REFUSAL rather than a level the decoder quietly drops.
   test("nesting past the depth the schema unrolls is refused, and teaches", () => {

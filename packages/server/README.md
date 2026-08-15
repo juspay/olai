@@ -33,11 +33,14 @@ The face is a `CommitFace` — `Writer` minus the writer that is not a subcomman
 so there is still one name for who is asking, not two to keep in step.
 
 This package decides one more thing about committing, and it is not the mode —
-it is WHO each transport is: the internal MCP route is handed to the session
-olai spawns, so it says `chat-agent`; `olai mcp` is somebody's own coding agent,
-so it says `mcp`; the surface procedure is `web`. That word is the commit's
-`X-Olai-Writer` trailer, and a transport that claimed it about itself would be
-a transport that could claim to be another. Everything else about a commit is
+it is WHO each FACE is: the internal MCP route is handed to the session olai
+spawns, so it says `chat-agent`; an owner-only unix socket is somebody's own
+`olai mcp`, so it says `mcp`; the browser's websocket says `web`. That word is
+the commit's `X-Olai-Writer` trailer, and a transport that claimed it about
+itself would be a transport that could claim to be another — which is why it is
+bound where the face is composed (`src/runtime.ts`'s `writerAt`, which serves
+one runtime to several faces under several writers) and is a field on no
+procedure anywhere. Everything else about a commit is
 the same on both faces, down to the bytes: `@olai/ops`' `pending.test.ts`
 commits one identical pending set as each and asserts the trees and the messages
 match, with the trailer as the only difference.
@@ -69,7 +72,8 @@ register `stop` as a finalizer.
 | `serve.ts` | the order above, and the warning for binding off loopback |
 | `fault.ts` | which runtime failures are news, and how the one that is stops the server — a typed failure the scope unwinds through, never `process.exit` |
 | `mcp/face.ts` | THE MCP face: the surface re-exposed through `@kolu/surface-mcp` — cells and collections as subscribable resources, the ops table beside them as tools |
-| `mcp/expose.ts` | which of those members an agent may see. Default-deny, and written against a rule about wire COST: a cell is exposable iff it is O(1)-ish |
+| `faces.ts` | the THREE faces of one surface, and what each may reach: the MCP adapter's map (default-deny, and written against a rule about wire COST — a cell is exposable iff it is O(1)-ish), the BROWSER's (everything a page draws or presses, and no `ops.*`), and the unix SOCKET's (derived from the first, plus the members the tool table lands through). One decision read in one place rather than three files to compare |
+| `socket.ts` | the rendezvous: where a running `olai web` puts its surface so an `olai mcp` on the same directory finds it. One owner-only socket per served directory, the path derived from the directory ALONE — so the dial is the discovery and there is no state to go stale |
 | `mcp/tools.ts` | `@olai/ops`' table projected onto that face — the fixed field subtracted, a refusal carried as data: `isError` WITH `structuredContent`, the kind spelled in and the raiser's own detail beside it, so "these rows are wrong" is something an agent acts on rather than a sentence it parses. The four kinds are the format's closed table, and `tools.test.ts` keys a table off it: every kind carries either the CALL that provokes it or a written sentence saying why nothing here can, so a fifth kind is a missing key rather than a word nobody pinned |
 | `mcp/route.ts` | that face for the agent olai STARTED: mounted on this listener, behind a per-process bearer token, over a half-duplex transport of its own |
 | `mcp/serve.ts` | that face for an agent that started US: `olai mcp`'s own, much smaller, composition root, over stdio |
@@ -171,26 +175,49 @@ claude mcp add olai -- olai mcp ~/outlines
 Three things about it are decisions rather than defaults, and `src/mcp/serve.ts`
 argues each where it happens:
 
-- **Its own store**, rather than a bridge into a running `olai web`. This has to
-  work with no server running, which is the ordinary case; a bridge would need
-  that server's port and its per-process token discovered from outside, and
-  would still have to do all of this on finding nothing listening. Two stores
-  over one directory is safe for the reason the write gate exists — it probes
-  before it judges, so an out-of-band change is part of the revision a write is
-  checked against — and it is not a lock, which is the same trade an editor and
-  a `git pull` already make.
+- **It ATTACHES when a server is already serving that directory**, and opens its
+  own store when none is. The rendezvous is an owner-only unix socket
+  `olai web` binds beside its listener, at a path both processes derive from the
+  directory alone — so discovery is the DIAL, and there is no pidfile, no port
+  and no token to find. `ECONNREFUSED`/`ENOENT` is "nobody is home" and the
+  fresh path is taken, which is the ordinary case and unchanged.
+
+  What that retires is the second store: measured on a 1020-file vault, an
+  attached session holds **14 file descriptors instead of 1062** (1048 of which
+  were one per served file, held for the process's lifetime) and re-reads
+  nothing, so the directory is parsed and validated once per edit instead of
+  twice on two unsynchronised clocks. It does NOT halve memory, and the numbers
+  say why: an `olai mcp` over an EMPTY directory is already ~210 MiB, so what the
+  audit measured per process was the Bun runtime and the module graph, not the
+  corpus. Full table and method: [the bridge's
+  measurement](../../docs/brainstorming/mcp-bridge.md).
+
+  Two stores was never UNSAFE — the write gate probes before it judges, so an
+  out-of-band change is part of the revision a write is checked against, and it
+  was never a lock either, which is the same trade an editor and a `git pull`
+  already make. It was argued as safe rather than as cheap, and this is the
+  cheap part arriving.
+- **The two shapes serve an identical tool list**, which is what made attaching
+  worth doing at all: every verb an agent has is a surface procedure, so the
+  whole difference is whether the client under the tools dispatches in-process
+  or down a socket. A command whose capabilities silently depended on whether a
+  browser happened to be open would be worse than two stores.
 - **stdout is the protocol**, so the whole program's logging goes to stderr
   (`@olai/log`'s `toStderr`, one line at that composition root). A failed probe
   from the store on stdout is a frame that is not a frame, and nothing
   downstream should have to know that.
-- **No port, no host, no token.** There is nothing to authenticate: the client
-  proved who it is by being the process that started this one. It stops when
-  that client closes stdin.
+- **No port, no host, no token**, in either shape. Its own client proved who it
+  is by being the process that started this one; the socket it attaches over is
+  `0700` in a directory verified owner-only before anything binds, so
+  PERMISSIONS are the authentication and anyone who can `connect()` is already
+  the user whose files these are. That is exactly the reasoning `olai web`'s
+  listener cannot use, and the whole reason the two faces are gated differently
+  (`src/faces.ts`). It stops when that client closes stdin.
 
 And it commits the way the browser does, because it is the same ops layer: ops
 accumulate, and the agent asks for one commit when a unit of work is finished.
 Two members of the surface are what make that usable from a terminal, and both
-are in the allowlist (`src/mcp/expose.ts`):
+are in the allowlist (`src/faces.ts`):
 
 - **the `commit` tool** — message required from the caller in practice (omit it
   and one is composed from what changed, which can only describe the edits and

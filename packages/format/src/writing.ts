@@ -1,20 +1,37 @@
 /**
- * The things a writer may ask for.
+ * The things a writer may ask for, and what one that landed says.
  *
  * They are SEMANTIC — "mark this node done", "start a new outline" — not
  * "replace bytes 40 through 90" — and that is the property the whole write path
  * is built on. A semantic edit can be re-derived from a newer snapshot when the
- * store has moved ({@link ./ops.ts}'s retry), and it cannot express a broken
+ * store has moved (`@olai/ops`' `ops.ts` retry), and it cannot express a broken
  * file: there is no request here whose result is not a set of whole records.
  *
  * Schemas rather than interfaces because these are the payloads a tool call
  * arrives as. One declaration is the type the planner switches on, the JSON
- * Schema the MCP tool advertises ({@link ./mcp.ts}) and the decoder that
- * refuses a malformed call — three uses that would otherwise be three lists of
- * field names kept in step by hand.
+ * Schema the MCP tool advertises, and the decoder that refuses a malformed
+ * call — three uses that would otherwise be three lists of field names kept in
+ * step by hand.
+ *
+ * **Why this is on the FLOOR and not in `@olai/ops`, which produces it.** It was
+ * in `@olai/ops` until the writes went onto the surface (`mcp-bridge`), and the
+ * move is `./searching.ts`'s and `./reading.ts`'s, made for the third time and
+ * for the identical reason: `@olai/surface` may not import `@olai/ops` (a store
+ * has no business in a browser bundle) and `@olai/ops` may not import
+ * `@olai/surface` ("an op does not know it is being called over a wire"). A
+ * vocabulary both of them need therefore has exactly one home that is neither,
+ * and this package is it — the ops layer PRODUCES these values, the surface
+ * CARRIES them, and neither has to agree with the other by memory.
+ *
+ * Two names are not the ones `@olai/ops` knows them by, and both renames are
+ * deliberate ({@link WriteRequest}, {@link WriteResult}): each says what it is
+ * against the neighbours it now sits among, where the old name would have said
+ * it against neighbours it no longer has. `@olai/ops` re-exports both under its
+ * own names, exactly as it re-exports `./searching.ts`.
  */
 
-import { type Sort, Status } from "@olai/format"
+import { Sort } from "./changes.ts"
+import { Status } from "./node.ts"
 import { Schema } from "effect"
 
 /** An id the request names. Spelled once so every op's `id` field carries the
@@ -130,7 +147,7 @@ const TERSE = Object.fromEntries(
  * than that is a second call under an id the first one hands back, which is why
  * the answer names every node it created.
  *
- * It lives HERE, beside the schema that unrolls it, and {@link ./plan.ts} reads
+ * It lives HERE, beside the schema that unrolls it, and `@olai/ops`' `plan.ts` reads
  * it to refuse what the floor below lets through. That is the planner enforcing
  * the schema's limit rather than one of its own, and it is the whole reason the
  * limit is a refusal rather than a truncation. The alternative — a recursive
@@ -149,7 +166,7 @@ export const NESTING = 3
  * point of spelling it: an Effect struct silently DROPS a key it does not
  * declare, so a floor that simply omitted `children` would swallow the deepest
  * level of a capture and report success. The planner refuses it instead, by
- * name, with nothing written ({@link ./plan.ts}).
+ * name, with nothing written (`@olai/ops`' `plan.ts`).
  */
 const childrenOf = (below: number) =>
   Schema.optionalKey(
@@ -198,7 +215,7 @@ const ROOT = { ...CAPTURE, children: childrenOf(NESTING) } as const
  *
  * One declaration for the two ops that create a record — `add_node` and
  * `add_mirror` — because the planner answers it with one function
- * ({@link ./plan.ts}'s `landsIn`) and two copies of the prose would be two
+ * (`@olai/ops`' `plan.ts`'s `landsIn`) and two copies of the prose would be two
  * agent-facing descriptions of one rule, free to drift. Neither field says
  * "node" or "mirror": what lands is the caller's business, and where it lands
  * is this.
@@ -617,7 +634,18 @@ export const AfterRequest = Schema.Struct({
   ),
 })
 
-export const Request = Schema.Union([
+/**
+ * Every ask above, as one union — what a writer sends and what the planner
+ * switches on.
+ *
+ * `WriteRequest` rather than `Request`, which is what `@olai/ops` calls it and
+ * goes on calling it. The rename is the `OutlineSummary` one made again: this
+ * package already exports `NodeRequest`, `SubtreeRequest`, `SearchRequest` and
+ * `CommitRequest`, so a bare `Request` here would be the one request among six
+ * that does not say which question it is — read against those neighbours it
+ * looks like their supertype, which it is not.
+ */
+export const WriteRequest = Schema.Union([
   AddRequest,
   MarkRequest,
   TitleRequest,
@@ -636,33 +664,53 @@ export const Request = Schema.Union([
   WriteDocumentRequest,
   CreateDocumentRequest,
 ])
-export type Request = typeof Request.Type
+export type WriteRequest = typeof WriteRequest.Type
 
 /** One node a capture brought into being. The id matters most when nobody
  *  chose it: a minted id is unguessable, and a caller that just wrote thirteen
  *  nodes should not have to search for them.
  *
- *  Not `@olai/format`'s `Found`, which is what a READ answers with: that one
- *  carries `file:line` and an ancestor path, and a plan has neither — the file
- *  it describes has not been written, so a line number here would be invented. */
-export interface Minted {
-  readonly id: string
-  readonly title: string
-}
+ *  Not {@link Found}, which is what a READ answers with: that one carries
+ *  `file:line` and an ancestor path, and a plan has neither — the file it
+ *  describes has not been written, so a line number here would be invented. */
+export const Minted = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+})
+export type Minted = typeof Minted.Type
 
-/** What an op that succeeded says. The node it was about, where that node
- *  lives NOW (archiving moves it), and the one-line summary that becomes both
- *  the git commit subject and the tool's reply. */
-export interface Applied {
-  readonly id: string
-  readonly title: string
-  readonly file: string
-  readonly summary: string
+/**
+ * What an op that succeeded says. The node it was about, where that node lives
+ * NOW (archiving moves it), and the one-line summary that becomes both the git
+ * commit subject and the tool's reply.
+ *
+ * `WriteResult` rather than `@olai/ops`' own `Applied`, and the rename is the
+ * load-bearing half of putting it here. `@olai/surface` exports an `Applied` of
+ * its own — the KEYBOARD's answer, deliberately a different type (it adds
+ * `undo` and drops `summary`, `sort`, `captured` and `rev`), argued at length in
+ * that package's `edit.ts` and explicitly ruled un-unifiable by the #167 audit.
+ * Two different things called `Applied`, both about a write that landed, both
+ * carrying `id`, `title` and `nudge`, is the collision the `Outline` /
+ * `OutlineSummary` trap taught to spell out: not a rename away from a compile
+ * error, a rename away from a PLAUSIBLE one. So this one is named for the
+ * family it joins — {@link CommitResult}, {@link PushResult} — and the two
+ * `Applied`s never meet.
+ *
+ * A SCHEMA rather than the interface it was, for the reason {@link Found}
+ * became one: it crosses a wire now. `ops.run` is a surface procedure, and a
+ * procedure's answer has to be a shape both ends decode against rather than a
+ * type only one end can check.
+ */
+export const WriteResult = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  file: Schema.String,
+  summary: Schema.String,
   /** What the rollup noticed about a write that landed — the last task under a
    *  parent going done, a branch ticked over unfinished ones. Advice, carried
    *  back so an agent and a person both see it; absent when there is nothing
    *  to say, and never a reason a write did not happen. */
-  readonly nudge?: string
+  nudge: Schema.optionalKey(Schema.String),
   /**
    * What this write CHANGED, in the format's own classification — the same
    * word the commit panel draws a pending row with.
@@ -671,14 +719,14 @@ export interface Applied {
    * which is what a reader that draws a write rather than logging one needs:
    * the chat transcript says *marked done* / *note rewritten* / *moved* about
    * an olai write, because it may never say it with a text diff. Derived from
-   * the two readings the write is made of ({@link ./sorted.ts}) rather than
-   * from the op's name, so there is one classification of a change in this
+   * the two readings the write is made of (`@olai/ops`' `sorted.ts`) rather
+   * than from the op's name, so there is one classification of a change in this
    * codebase and not two.
    *
    * ABSENT when the write changed no record — a mark set on a node that
    * already carried it. Additive and optional, like `nudge` and `why`.
    */
-  readonly sort?: Sort
+  sort: Schema.optionalKey(Sort),
   /** Every node this write brought into being, parent before child and siblings
    *  in the order they were given — id and title, so the caller can mark, note
    *  or capture UNDER one of them without a search for an id it never chose. A
@@ -689,18 +737,18 @@ export interface Applied {
    *  strictly: `add_mirror` creates a placement of a node that already exists,
    *  not a node, and it has no title to report. `id` above names the placement
    *  it made, which is what `remove_mirror` takes. */
-  readonly captured?: ReadonlyArray<Minted>
+  captured: Schema.optionalKey(Schema.Array(Minted)),
   /** The store revision this write produced. */
-  readonly rev: number
+  rev: Schema.Int,
   /**
    * Whether THIS WRITE was committed to git on its own.
    *
    * Only `--commit=auto` ever makes this true, and that mode exists for a
    * headless server with no browser to press anything. Under the default,
    * `manual`, a write lands on disk and waits: `false` here means "not yet",
-   * and what is waiting is `pending` ({@link ./pending.ts}).
+   * and what is waiting is {@link Pending}.
    */
-  readonly committed: boolean
+  committed: Schema.Boolean,
   /**
    * Why it was not, in one sentence. Absent when it was.
    *
@@ -715,5 +763,6 @@ export interface Applied {
    * ADDITIVE and optional on purpose — a healthy commit says nothing, so
    * nothing that reads this reply had to change to keep working.
    */
-  readonly why?: string
-}
+  why: Schema.optionalKey(Schema.String),
+})
+export type WriteResult = typeof WriteResult.Type

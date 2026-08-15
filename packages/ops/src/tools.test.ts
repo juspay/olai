@@ -11,8 +11,9 @@
  * would drop it in silence (docs/brainstorming/surface-mcp-positions.md,
  * position (a)).
  *
- * So this walks {@link TOOLS}, calls every read's own reader over one maximal
- * set, and decodes each answer through the `answers` schema that entry carries,
+ * So this walks {@link TOOLS}, asks every read of an {@link asking} door over
+ * one maximal set, and decodes each answer through the `answers` schema it
+ * carries,
  * with `onExcessProperty: "error"` — the same setting `parseOutline` reads
  * records under, and for the same reason. A field the floor does not declare
  * fails here; a field the floor declares and the walk stopped producing fails
@@ -24,6 +25,11 @@
  * `read_node` is, and the envelope between them (`?? { missing: id }`) is
  * exactly the part a test against the function would not see. A fifth read tool
  * is covered the moment it is added, or the fixture list below fails naming it.
+ *
+ * That envelope now lives in `asking`, one declaration serving the local layer
+ * and the surface procedure a bridged agent reaches — so this walk covers the
+ * bridged answer too, which is the reason it goes through the door rather than
+ * around it.
  *
  * The set is deliberately MAXIMAL, and the last test is why: an optional field
  * nothing produces is a field this file cannot say anything about, so what the
@@ -44,11 +50,11 @@ import {
   type Subtree,
 } from "@olai/format"
 import { expect, test } from "bun:test"
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 
 import { setOf } from "./fixtures.testlib.ts"
 import { index } from "./query.ts"
-import { type Reading, TOOLS } from "./tools.ts"
+import { asking, type Reading, TOOLS } from "./tools.ts"
 
 /** One house, and everything a read can carry: both marker kinds, a note, a
  *  date, both tag sigils, a placement with a parent and one without, a child
@@ -73,6 +79,25 @@ const at = (): Reading => {
 }
 
 /**
+ * The read door, over that fixture — the SAME `asking` the ops layer builds
+ * over its own gated read, so what this walks is the envelope an agent
+ * actually receives and not a `Query` call the envelope is made of.
+ *
+ * `Effect.sync` rather than `succeed` so each question gets its own set,
+ * exactly as the per-call `at()` this replaced did. Nothing here can fail —
+ * the read is a fixture — so every answer is `runSync`-able.
+ */
+const ASKING = asking(Effect.sync(at))
+
+/** One read, answered. The tools' own effects never fail over a fixture that
+ *  loaded, so the failure channel is discharged here rather than threaded
+ *  through three tests that have nothing to say about it. */
+const answerOf = (
+  tool: Extract<(typeof TOOLS)[number], { kind: "read" }>,
+  args: unknown,
+): unknown => Effect.runSync(Effect.orDie(tool.ask(ASKING, args as never)))
+
+/**
  * What each read is CALLED with, one entry per tool and several calls per
  * entry.
  *
@@ -94,9 +119,7 @@ const answered = (): ReadonlyArray<{ name: string; answer: unknown }> =>
   READS.flatMap((tool) =>
     (CALLS[tool.name] ?? []).map((args) => ({
       name: tool.name,
-      answer: tool.kind === "read"
-        ? tool.read(at(), args as never)
-        : undefined,
+      answer: tool.kind === "read" ? answerOf(tool, args) : undefined,
     }))
   )
 
@@ -115,7 +138,7 @@ test("every answer decodes through the shape its own entry declares", () => {
       { errors: "all", onExcessProperty: "error" },
     )
     for (const args of CALLS[tool.name] ?? []) {
-      const answer = tool.read(at(), args as never)
+      const answer = answerOf(tool, args)
       // Compared with what went in, so the assertion is "this IS the shape"
       // rather than "this parses" — a decode that dropped a field would
       // otherwise pass.

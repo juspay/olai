@@ -37,8 +37,8 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
-import { bind, gitWiring } from "../runtime.ts"
-import { serveFace } from "./face.ts"
+import { bind, gitWiring, writerAt } from "../runtime.ts"
+import { clientOver, serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
 const HOUSE = [
@@ -105,15 +105,15 @@ const withTools = <A>(
       chat: null,
       ops,
       writer: "mcp",
-      git: gitWiring(ops, "mcp", yield* SubscriptionRef.make(0)),
+      git: gitWiring(ops, yield* SubscriptionRef.make(0)),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
-      bound: wired.bound,
-      tools: bespokeFrom(TOOLS, ops, "mcp"),
+      client: () => clientOver(writerAt(wired.bound, ops, "mcp")),
+      tools: bespokeFrom(TOOLS),
       transport: serverSide,
     })
 

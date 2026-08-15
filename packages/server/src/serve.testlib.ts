@@ -21,11 +21,14 @@
  * the sentence explaining each of them is.
  */
 
+import { collector, type Logged } from "@olai/log/testlib"
 import { NodeHttpServer, NodeServices } from "@effect/platform-node"
-import { Layer } from "effect"
+import { Effect, Layer } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
+
+import { serve } from "./serve.ts"
 
 /** The platform a real server needs: the CLI's own services (stdio, terminal,
  *  file system) and the static layer's (the file-response platform and ETags)
@@ -43,4 +46,55 @@ export const served = (): string => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-served-"))
   fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"a"}\n`)
   return root
+}
+
+/**
+ * A real `serve` on an OS-chosen port, for the length of `body`, and everything
+ * it said.
+ *
+ * The block this replaces was written four times in this package — three of
+ * them added by `mcp-bridge` — and it is exactly the fact this module's header
+ * says it exists to hold: the platform layers, a directory with something in
+ * it, and the `Effect.scoped` + `runPromise` frame around them are "the setup a
+ * real server needs", which is one fact rather than one per test file.
+ *
+ * `said` is handed to the body because half of what a real server does is only
+ * observable there — the URL it bound, the socket it announced — and a test
+ * that had to reach into a second collector for that would be composing this
+ * helper with the thing it was extracted from.
+ *
+ * `Logger.layer([])` is NOT the default: a test that asserts on nothing a
+ * server said still wants the lines off its terminal, and a test that asserts
+ * on them wants the collector. Both are ordinary `Layer`s, so the caller says
+ * which, and neither is a flag.
+ */
+export const withServe = async <A>(
+  options: {
+    readonly root: string
+    /** How writes reach git. `off` unless a test is ABOUT committing — a temp
+     *  directory is not a repository, and the tests that do not care should not
+     *  spawn git to find that out. */
+    readonly commits?: "off" | "manual" | "auto"
+  },
+  body: (said: ReadonlyArray<Logged>) => Promise<A>,
+): Promise<A> => {
+  const { layer, said } = collector()
+  return Effect.gen(function*() {
+    yield* serve({
+      root: options.root,
+      port: 0,
+      host: "127.0.0.1",
+      // A directory that exists is all the entry point asks of a bundle it is
+      // never going to serve a page out of.
+      clientDist: served(),
+      allowedOrigins: [],
+      commits: options.commits ?? "off",
+    })
+    return yield* Effect.promise(() => body(said))
+  }).pipe(
+    Effect.scoped,
+    Effect.provide(SERVER_LAYERS),
+    Effect.provide(layer),
+    Effect.runPromise,
+  )
 }

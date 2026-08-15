@@ -57,11 +57,14 @@ import {
   unfinishedUnder,
   UsageFailure,
   ValidationFailure,
+  type Capture,
+  type Minted,
+  NESTING,
+  type WriteRequest as Request,
 } from "@olai/format"
 import { Result } from "effect"
 
 import { index } from "./query.ts"
-import { type Capture, type Minted, NESTING, type Request } from "./request.ts"
 
 /** One outline, as the records it will hold after the write. */
 export interface FilePlan {
@@ -740,7 +743,7 @@ const emit = (
   const children = capture.children ?? []
   if (children.length === 0) return null
 
-  // The floor of the unrolled schema ({@link ./request.ts}'s `NESTING`). Only
+  // The floor of the unrolled schema (`@olai/format`'s `writing.ts`'s `NESTING`). Only
   // the LENGTH of what arrived here is read — it is whatever the host sent,
   // and it is being refused rather than walked.
   if (at.below === 0) {

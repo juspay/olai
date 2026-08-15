@@ -40,6 +40,7 @@ import type { Pending } from "@olai/format"
 import { gitIn, repoAt, subjectsIn, writerOf } from "@olai/ops/testlib"
 
 import { stoppedWithin } from "../child.testlib.ts"
+import { withServe } from "../serve.testlib.ts"
 
 const MAIN = path.join(import.meta.dirname, "..", "main.ts")
 
@@ -663,4 +664,103 @@ test("--commit=auto --no-commit is off, through the real binary", async () => {
   // Nothing recorded, and the write is on disk.
   expect(subjectsIn(root)).toEqual([FIXTURE_COMMIT])
   expect(gitIn(root)("status", "--porcelain")).toContain("house.olai")
+}, BOUND_MS * 3)
+
+// ── Attached: the same command, over a store it did not open ────────────
+
+/**
+ * The bridge, as the two-process claim it is.
+ *
+ * Everything above spawns `olai mcp` on a directory nobody else is serving,
+ * which is what it always did and still does. These two run it on a directory
+ * an `olai web` IS serving, in this test process, and assert the difference
+ * where it can be seen from outside: the child says which shape it took, and
+ * the write it makes lands in the directory the OTHER process holds a store
+ * over.
+ *
+ * The server is started here rather than as a third process for one reason: a
+ * test that could not prove the socket was up before the child dialled would be
+ * a flake generator, and `serve` returning IS that proof.
+ */
+const withWeb = <A>(
+  root: string,
+  body: () => Promise<A>,
+  /** The SERVING process's commit mode, which is the only one that counts
+   *  while a session is attached — `off` unless a test is about committing,
+   *  for the reason `converse`'s default is. */
+  commits: "off" | "manual" = "off",
+): Promise<A> => withServe({ root, commits }, body)
+
+test("`olai mcp` on a served directory attaches instead of opening a second store", async () => {
+  const root = fs.realpathSync(served())
+
+  const said = await withWeb(root, () =>
+    converse(root, [
+      ask(1, "initialize", HANDSHAKE),
+      ask(null, "notifications/initialized"),
+      ask(2, "tools/call", {
+        name: "set_title",
+        arguments: { id: "order", title: "order the cabinets, attached" },
+      }),
+      ask(3, "resources/read", {
+        uri: "surface://collections/outlines",
+      }),
+    ]))
+
+  // It says which shape it took, and it says it INSTEAD of the other one — a
+  // process that had opened its own store would have logged the fresh line.
+  expect(said.err).toInclude("attached to the olai already serving this directory")
+  expect(said.err).not.toInclude("serving the outline surface over stdio")
+
+  // And the write landed, through a process with no store, no watcher and no
+  // ops layer: the whole of what it holds is an MCP adapter over somebody
+  // else's surface.
+  expect(answerTo(said, 2).result?.isError).toBeUndefined()
+  expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8"))
+    .toContain("order the cabinets, attached")
+
+  // BOTH halves of the face cross the socket, not just the tools. A bridge that
+  // wrote but could not read would still log the attached line and still pass
+  // every assertion above — and an agent's first act is a read.
+  expect(JSON.stringify(answerTo(said, 3).result)).toContain("house.jsonl")
+}, BOUND_MS * 3)
+
+test("with nothing serving the directory, it opens its own store exactly as before", async () => {
+  // The fallback, and the reason discovery is the dial: there is no state file
+  // to be stale, so "nobody is home" is a connect verdict and the answer is the
+  // behaviour this command has always had.
+  const root = fs.realpathSync(served())
+  const said = await converse(root, [
+    ask(1, "initialize", HANDSHAKE),
+    ask(null, "notifications/initialized"),
+    ask(2, "tools/call", {
+      name: "set_title",
+      arguments: { id: "order", title: "order the cabinets, fresh" },
+    }),
+  ])
+
+  expect(said.err).toInclude("serving the outline surface over stdio")
+  expect(said.err).not.toInclude("attached to the olai")
+  expect(answerTo(said, 2).result?.isError).toBeUndefined()
+  expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8"))
+    .toContain("order the cabinets, fresh")
+}, BOUND_MS * 3)
+
+test("an attached session's commits are recorded as the AGENT, not as the server", async () => {
+  // The one claim the writer-in-the-call design has to earn. The serving
+  // process is an `olai web` whose own door is `web`; the caller is somebody's
+  // `olai mcp`. If the writer were decided where the store is, every attached
+  // agent's work would go into the log under the browser's name — which is the
+  // one thing the `X-Olai-Writer` trailer exists to tell apart.
+  const root = servedRepo()
+
+  await withWeb(root, () =>
+    withServer(root, async (client) => {
+      await called(client, "set_done", { id: "order" })
+      const recorded = await called(client, "commit", { message: "attached and recorded" })
+      expect(recorded["isError"]).toBeUndefined()
+    }), "manual")
+
+  expect(subjectsIn(root)).toEqual(["olai: attached and recorded", FIXTURE_COMMIT])
+  expect(writerOf(root)).toBe("mcp")
 }, BOUND_MS * 3)

@@ -420,7 +420,63 @@ Feature: Talking to the agent
     # only the picker names the model the session STARTED on, forever.
     Then the panel header names the model "Fake One"
     When I ask the agent "model fake-model-2"
+    Then the agent is idle
+    # ONE TURN LATE, and the lag is the adapter's floor rather than a bug in
+    # the panel: the `init` for a turn is emitted as that turn STARTS, so the
+    # turn that ran `/model` announced the model it began on and nothing else
+    # in it carries the new one. Asserted after the turn is over, when the
+    # header has everything it is ever going to get about that turn.
+    And the panel header names the model "Fake One"
+    When I ask the agent "hello"
     Then the panel header names the model "Fake Two"
+
+  @scratch:chat
+  Scenario: A running model is named the way the picker names it, not as a raw id
+    # The bug the header was filed for, and the half of it that was silent. The
+    # adapter's picker offers ALIASES — `sonnet`, `haiku`, `opus[1m]` — while
+    # the model the CLI reports running is a concrete API id. So the two never
+    # matched, and the one thing the header could say about a model somebody
+    # had just switched to was `claude-sonnet-5`, in a panel whose picker calls
+    # that same model "Sonnet".
+    Then the panel header names the model "Fake One"
+    When I ask the agent "model claude-sonnet-5"
+    And I ask the agent "hello"
+    Then the panel header names the model "Fake Sonnet"
+
+  @scratch:chat
+  Scenario: A model the picker cannot name without inventing is named as its raw id
+    # The negative twin of the scenario above, and the case a review constructed
+    # against the real adapter. A live id states no context lane, so a picker row
+    # that states one may not answer for it: naming "Fake Opus (1M context)" over
+    # a session running 200k is a lie about the number a person reads this line
+    # to decide `/compact` by. The id claims nothing, which is the truth here.
+    When I ask the agent "model claude-opus-5"
+    And I ask the agent "hello"
+    Then the panel header names the model "claude-opus-5"
+    # And the same refusal for a DATED pin, which names something more specific
+    # than any family alias covers — `haiku` is on offer and does not answer.
+    When I ask the agent "model claude-haiku-4-5-20251001"
+    And I ask the agent "hello"
+    Then the panel header names the model "claude-haiku-4-5-20251001"
+    # ... while the undated one it is a pin of resolves, so the refusal above is
+    # the rule doing its job rather than the alias row being unreachable.
+    When I ask the agent "model claude-haiku-4-5"
+    And I ask the agent "hello"
+    Then the panel header names the model "Fake Haiku"
+
+  @scratch:chat
+  Scenario: The picker repeating itself does not undo a model the CLI reported
+    # A `config_option_update` carries the WHOLE set, so anything else moving in
+    # it — a mode, an effort level — re-sends a model row still naming what the
+    # session started on. That frame arriving after a `/model` must not walk the
+    # header back to it. Each source is debounced against its own previous
+    # value, which is what makes a source repeating itself not a source moving.
+    When I ask the agent "model claude-sonnet-5"
+    And I ask the agent "hello"
+    Then the panel header names the model "Fake Sonnet"
+    When I ask the agent "reconfig"
+    Then the agent is idle
+    And the panel header names the model "Fake Sonnet"
 
   @scratch:chat
   Scenario: A message sent mid-turn waits its turn instead of being refused

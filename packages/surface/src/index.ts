@@ -68,6 +68,14 @@
  * and what a reader sees is still the file that was produced arriving on the
  * outlines stream. So a person typing and an agent writing are the same
  * mechanism seen twice, and two tabs cannot disagree about what landed.
+ *
+ * And one group is the AGENT's ({@link ./ops.ts}) — the ops request vocabulary
+ * itself, which is what lets an `olai mcp` attach to a running server instead of
+ * opening the same directory a second time. It is the one group NO browser may
+ * reach, and saying that is possible for the first time: every serving face
+ * takes its own allowlist since juspay/kolu#2170, so a verb is open on the
+ * socket an agent dials and closed on the websocket a tab opens. Which face
+ * gets what is `@olai/server`'s to decide; this spec only says what exists.
  */
 
 import {
@@ -98,6 +106,7 @@ import {
   SessionInfo,
 } from "./chat.ts"
 import { editProcedures } from "./edit.ts"
+import { opsProcedures } from "./ops.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
 
 /**
@@ -428,6 +437,17 @@ export const surface = defineSurface({
      *  which says why the verbs are intents rather than the ops requests
      *  re-spelled, and why they are one member rather than five. */
     edit: editProcedures,
+    /** What an AGENT may do — the ops request vocabulary itself, declared in
+     *  {@link ./ops.ts}. The other half of the sentence above: a keyboard sends
+     *  intents and an agent names ops, and the two are deliberately different
+     *  vocabularies over one write gate.
+     *
+     *  REACHABLE FROM NO BROWSER, and that is a property of how each face is
+     *  served rather than of this declaration — `@olai/server`'s `faces.ts`
+     *  holds the per-face maps, and a tab that calls one of these is refused
+     *  with `SurfaceMemberNotExposed`. Until juspay/kolu#2170 that could not be
+     *  said, which is why these verbs were not here. */
+    ops: opsProcedures,
     /** The palette's search — the same reading `search_nodes` answers an
      *  agent with, reached as a question rather than re-implemented over the
      *  nodes the browser already holds. See {@link ./search.ts} for why that

@@ -59,7 +59,21 @@ export {
   type CommitMode,
   type Status,
 } from "./pending.ts"
-export { type Applied, Request } from "./request.ts"
-export { type Reading, type Tool, TOOLS, toolNamed } from "./tools.ts"
+/** The write vocabulary, under the names this layer's own answers use. It
+ *  lives on the FLOOR (`@olai/format`'s `writing.ts`, which says why): the
+ *  surface carries these to an agent's door, so a package the browser bundles
+ *  and a package that holds a store both need them. Two names differ and the
+ *  aliasing is `committing.ts`'s precedent — `WriteRequest` is `Request` to a
+ *  layer that knows exactly one kind, and `WriteResult` is the `Applied` every
+ *  caller of `run` already speaks. */
+export { WriteRequest as Request, type WriteResult as Applied } from "@olai/format"
+export {
+  type Acting,
+  type Asking,
+  type Reading,
+  type Running,
+  type Tool,
+  TOOLS,
+} from "./tools.ts"
 
 export * as Query from "./query.ts"
