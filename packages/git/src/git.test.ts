@@ -182,6 +182,74 @@ test("dirty keeps how each file moved", async () => {
   expect(how.get("moved.md")).toBe("deleted")
 })
 
+/**
+ * A rename is ONE thing that happened, and the survey has to say so.
+ *
+ * Two entries — a `renamed` arrival and a `deleted` departure with nothing
+ * joining them — is what left a person's commit panel reading
+ * `Kept.md deleted` after a `git mv Kept.md Kept.olai`, with
+ * the file that actually holds their notes nowhere near it. Git knows both
+ * halves and prints them on one line; the entry keeps them together, in the
+ * same three spellings the arriving side has.
+ */
+test("a staged rename is ONE entry naming both sides", async () => {
+  const { root } = repo()
+  const run = git(root)
+  fs.writeFileSync(path.join(root, "Kept.md"), `{"id":"m","ord":"a0","title":"m"}\n`)
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "more fixtures")
+  run("mv", "Kept.md", "Kept.olai")
+
+  const moved = (await surveyed(root)).files
+  expect(moved).toEqual([
+    {
+      path: "Kept.olai",
+      served: "Kept.olai",
+      at: path.join(root, "Kept.olai"),
+      how: "renamed",
+      from: {
+        path: "Kept.md",
+        served: "Kept.md",
+        at: path.join(root, "Kept.md"),
+      },
+    },
+  ])
+})
+
+/**
+ * The MCP face's own reproduction, at the plumbing.
+ *
+ * `git mv old new` by hand and then a commit answered
+ * `fatal: pathspec 'old' did not match any files` — git's raw refusal, carried
+ * all the way out to an agent's reply. The cause is one call: the `add` that
+ * makes an untracked file committable was handed a path that has already left
+ * the working tree, and `git add` looks only at the working tree and the index.
+ * A path with nothing on disk has nothing to stage; `git commit -- <path>`
+ * records its departure out of HEAD, which is what git's own porcelain does.
+ */
+test("a commit records a staged rename instead of refusing on a pathspec", async () => {
+  const { root } = repo()
+  const run = git(root)
+  fs.writeFileSync(path.join(root, "Kept.md"), `{"id":"m","ord":"a0","title":"m"}\n`)
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "more fixtures")
+  run("mv", "Kept.md", "Kept.olai")
+
+  const done = await asked(root, (git) =>
+    git.commit({
+      paths: [path.join(root, "Kept.md"), path.join(root, "Kept.olai")],
+      message: "olai: the rename\n\nX-Olai-Writer: mcp\n",
+    }))
+  expect(done._tag === "Failed" ? done.said : "").not.toContain("pathspec")
+  expect(done._tag).toBe("Committed")
+
+  // ONE commit, and git reads it back as the rename it is rather than as an
+  // unrelated add beside a deletion.
+  expect(run("show", "--name-status", "--find-renames", "--format=", "HEAD").trim())
+    .toBe("R100\tKept.md\tKept.olai")
+  expect(run("status", "--porcelain").trim()).toBe("")
+})
+
 test("a clean repository on a branch is ready", async () => {
   const { root } = repo()
   expect(await asked(root, (git) => git.state)).toEqual({ _tag: "Ready", branch: "main" })
