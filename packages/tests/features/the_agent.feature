@@ -96,7 +96,8 @@ Feature: Talking to the agent
   Scenario: A long line in a file-edit diff wraps inside the box
     # The 26rem drawer used to keep the line on one row and grow a horizontal
     # scrollbar. The content wraps; the line number and the +/- keep their
-    # column. Asked of both the trimmed preview and the expanded view.
+    # column — on the addition, the removal, and a wrapping context line.
+    # Asked of both the trimmed preview and the expanded view.
     When I ask the agent "edit long.md"
     Then the chat shows a diff of "long.md"
     And the diff is trimmed

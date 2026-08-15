@@ -823,75 +823,102 @@ Then("the diff does not scroll sideways", async function (this: OlaiWorld) {
 });
 
 /**
- * The long added line actually wrapped, and every continuation starts in the
- * content column — never under the line-number gutter or the +/- marker.
+ * Every wrapping row — addition, removal, and unchanged context — keeps its
+ * continuation in the content column. The fixture pairs a long token of each
+ * kind so a gutter that only holds for `add` cannot hide.
  */
 Then("a wrapped diff line keeps its gutter", async function (this: OlaiWorld) {
-  const row = shownDiff(this).locator(`${CHAT_DIFF_LINE}[data-kind="add"]`).first();
-  await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const geometry = await row.evaluate(
-    (el, ids) => {
-      const gutter = el.querySelector(ids.gutter);
-      const mark = el.querySelector(ids.mark);
-      const text = el.querySelector(ids.text);
-      if (gutter === null || mark === null || text === null) {
-        return { ok: false as const, why: "the added row is missing a gutter, a marker or its text" };
-      }
-      const gutterBox = gutter.getBoundingClientRect();
-      const markBox = mark.getBoundingClientRect();
-      // The text is a grid cell (a block box), so the element's own
-      // `getClientRects()` is one rectangle — the cell. The fragments of a
-      // wrapped line live on a Range over its contents.
-      const range = document.createRange();
-      range.selectNodeContents(text);
-      const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0);
-      if (rects.length < 2) {
-        return {
-          ok: false as const,
-          why: `the added line sat on ${rects.length} row(s); a long line that did not wrap cannot speak for the gutter`,
-        };
-      }
-      const under = rects.filter((r) => r.left + 0.5 < markBox.right);
-      if (under.length > 0) {
-        return {
-          ok: false as const,
-          why:
-            `${under.length} wrapped fragment(s) start at x=${Math.round(under[0]!.left)}, ` +
-            `under the marker which ends at ${Math.round(markBox.right)}`,
-        };
-      }
-      // One visual line is many rects (a word each). The hanging indent is
-      // the LEFT EDGE of each line, not of every word on it.
-      const starts = new Map<number, number>();
-      for (const r of rects) {
-        const key = Math.round(r.top);
-        const prev = starts.get(key);
-        starts.set(key, prev === undefined ? r.left : Math.min(prev, r.left));
-      }
-      const lineLefts = [...starts.values()];
-      if (lineLefts.length < 2) {
-        return {
-          ok: false as const,
-          why: `the added line sat on ${lineLefts.length} visual row(s); a long line that did not wrap cannot speak for the gutter`,
-        };
-      }
-      const drift = Math.max(...lineLefts) - Math.min(...lineLefts);
-      if (drift > 1) {
-        return {
-          ok: false as const,
-          why: `wrapped rows do not share a left edge (${Math.round(drift)}px of drift) — the continuation slid toward the gutter`,
-        };
-      }
-      const contentLeft = Math.min(...lineLefts);
-      if (contentLeft + 0.5 < gutterBox.right) {
-        return {
-          ok: false as const,
-          why: `content starts at x=${Math.round(contentLeft)}, under the gutter which ends at ${Math.round(gutterBox.right)}`,
-        };
+  const box = shownDiff(this);
+  await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const geometry = await box.evaluate(
+    (root, ids) => {
+      const of = (kind: string): ReadonlyArray<Element> =>
+        [...root.querySelectorAll(`${ids.line}[data-kind="${kind}"]`)];
+
+      const check = (el: Element, kind: string): { ok: true } | { ok: false; why: string } => {
+        const gutter = el.querySelector(ids.gutter);
+        const mark = el.querySelector(ids.mark);
+        const text = el.querySelector(ids.text);
+        if (gutter === null || mark === null || text === null) {
+          return { ok: false, why: `a ${kind} row is missing a gutter, a marker or its text` };
+        }
+        const gutterBox = gutter.getBoundingClientRect();
+        const markBox = mark.getBoundingClientRect();
+        // The text is a grid cell (a block box), so the element's own
+        // `getClientRects()` is one rectangle — the cell. The fragments of a
+        // wrapped line live on a Range over its contents.
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0);
+        const under = rects.filter((r) => r.left + 0.5 < markBox.right);
+        if (under.length > 0) {
+          return {
+            ok: false,
+            why:
+              `a ${kind} row has ${under.length} fragment(s) starting at ` +
+              `x=${Math.round(under[0]!.left)}, under the marker which ends at ${Math.round(markBox.right)}`,
+          };
+        }
+        const starts = new Map<number, number>();
+        for (const r of rects) {
+          const key = Math.round(r.top);
+          const prev = starts.get(key);
+          starts.set(key, prev === undefined ? r.left : Math.min(prev, r.left));
+        }
+        const lineLefts = [...starts.values()];
+        if (lineLefts.length < 2) {
+          return {
+            ok: false,
+            why: `a ${kind} line sat on ${lineLefts.length} visual row(s); a long line that did not wrap cannot speak for the gutter`,
+          };
+        }
+        const drift = Math.max(...lineLefts) - Math.min(...lineLefts);
+        if (drift > 1) {
+          return {
+            ok: false,
+            why: `a ${kind} row's wrapped lines drift ${Math.round(drift)}px — the continuation slid toward the gutter`,
+          };
+        }
+        const contentLeft = Math.min(...lineLefts);
+        if (contentLeft + 0.5 < gutterBox.right) {
+          return {
+            ok: false,
+            why: `a ${kind} row's content starts at x=${Math.round(contentLeft)}, under the gutter which ends at ${Math.round(gutterBox.right)}`,
+          };
+        }
+        return { ok: true };
+      };
+
+      // Add, remove, and unchanged context — not only the arriving line. A
+      // gutter that holds for `+` and slides under `-` or a context wrap is
+      // still a broken gutter.
+      for (const kind of ["add", "remove", "same"] as const) {
+        const wrapping = of(kind).filter((row) => {
+          const text = row.querySelector(ids.text);
+          if (text === null) return false;
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          const tops = new Set(
+            [...range.getClientRects()]
+              .filter((r) => r.width > 0 && r.height > 0)
+              .map((r) => Math.round(r.top)),
+          );
+          return tops.size >= 2;
+        });
+        if (wrapping.length === 0) {
+          return {
+            ok: false as const,
+            why: `no wrapping ${kind} row; the fixture must pin the gutter on every kind, not only additions`,
+          };
+        }
+        for (const row of wrapping) {
+          const result = check(row, kind);
+          if (!result.ok) return { ok: false as const, why: result.why };
+        }
       }
       return { ok: true as const, why: "" };
     },
-    { gutter: CHAT_DIFF_GUTTER, mark: CHAT_DIFF_MARK, text: CHAT_DIFF_TEXT },
+    { line: CHAT_DIFF_LINE, gutter: CHAT_DIFF_GUTTER, mark: CHAT_DIFF_MARK, text: CHAT_DIFF_TEXT },
   );
   assert.ok(geometry.ok, geometry.why);
 });

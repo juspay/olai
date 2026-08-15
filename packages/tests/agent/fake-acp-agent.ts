@@ -23,7 +23,8 @@
  *   add <title>  call `add_node` under the first outline's first root
  *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
  *                outline if the name ends `.olai`, an over-budget rewrite for
- *                `huge.md`, a single enormous line for `long.md`, an ordinary
+ *                `huge.md`, unbroken tokens (add, remove, and a same-line
+ *                context row) for `long.md`, an ordinary
  *                markdown edit otherwise
  *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
@@ -308,21 +309,31 @@ const EDITED_OUTLINE = {
 }
 
 /**
- * One genuinely long line, the shape that used to grow a horizontal scrollbar
- * in the 26rem drawer: a token with no break, long enough that even the
- * laptop dock cannot hold it on one row, plus enough surrounding lines that
- * the trim still has something to hide.
+ * A token with no whitespace at all — the case `overflow-wrap: anywhere`
+ * exists for, and the one `whitespace-pre-wrap` alone cannot break. 700
+ * characters is past every dock and sheet this suite draws, so a regression
+ * to `whitespace-pre` is a horizontal scrollbar rather than a lucky fit.
  */
-const LONG_LINE =
-  "export const assembleTheKitchenScheduleFromTheWalnutWorktopLeadTimesAndTheElectricianAvailabilityAndTheTileDeliveryWindow = " +
-  '"the remodel is booked the moment the worktop lands and nobody has to retype this sentence across the drawer"'
+const unbroken = (seed: string): string => {
+  const unit = `${seed}X`
+  return unit.repeat(Math.ceil(700 / unit.length)).slice(0, 700)
+}
 
+const LONG_ADDED = unbroken("added")
+const LONG_REMOVED = unbroken("removed")
+const LONG_CONTEXT = unbroken("context")
+
+/**
+ * A long-line edit that pins all three row kinds the gutter must survive:
+ * a wrapping context line that did not change, a wrapping removal, and a
+ * wrapping addition. Short neighbours keep the trim honest.
+ */
 const LONG_EDITED = {
   before: [
     "# Kitchen notes",
     "",
-    "The remodel is in three parts, and two of them are waiting on the third.",
-    "a worktop nobody has chosen yet",
+    LONG_CONTEXT,
+    LONG_REMOVED,
     "the sink stays exactly where it is",
     "the tiles are somebody else's problem",
     "the lights arrive with the worktop",
@@ -334,8 +345,8 @@ const LONG_EDITED = {
   after: [
     "# Kitchen notes",
     "",
-    "The remodel is in three parts, and two of them are waiting on the third.",
-    LONG_LINE,
+    LONG_CONTEXT,
+    LONG_ADDED,
     "the sink stays exactly where it is",
     "the tiles are somebody else's problem",
     "the lights arrive with the worktop",
