@@ -8,13 +8,14 @@
  * phone lays one out at all. That is a fact about the row; everything here is
  * about the panel.
  *
- * THREE features are served from here, which is the exception to one-file-per-
+ * FOUR features are served from here, which is the exception to one-file-per-
  * feature and the reason worth writing down: `menu_verbs.feature` is what the
  * menu DOES to a node, `menu_panel.feature` is how the panel opens and shuts,
- * and `menu_arrives.feature` is the chunk the primitive travels in — and all
- * three drive the menu through the same three gestures. A second copy of "open
- * it, then wait for the panel" is exactly the drift this suite spends its
- * selectors avoiding.
+ * `menu_arrives.feature` is the chunk the primitive travels in, and
+ * `dismiss_stack.feature` is which panel a gesture is FOR when the menu is not
+ * the only one up — and all four drive the menu through the same three
+ * gestures. A second copy of "open it, then wait for the panel" is exactly the
+ * drift this suite spends its selectors avoiding.
  *
  * The one thing this file is careful about is TONE. What a verb said is drawn
  * in one place in two moods — a refusal, in the ops layer's own words, and a
@@ -225,6 +226,12 @@ Then("the caret is nowhere", async function (this: OlaiWorld) {
     null,
     `the caret is on ${JSON.stringify(caret)}, and this step says a press outside leaves it where it fell`,
   );
+});
+
+/** Still up — the other half of the claim above, for a scenario that dismissed
+ *  something ELSE and says this one stayed (`dismiss_stack.feature`). */
+Then("the node menu is showing", async function (this: OlaiWorld) {
+  await panelOf(this);
 });
 
 /** GONE, not merely invisible: the panel is unmounted when the menu shuts, so

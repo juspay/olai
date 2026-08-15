@@ -16,10 +16,30 @@
  * same name, and ACP has no field for "this one supersedes that one" — so what
  * is drawn is the fact the protocol does carry, for every agent, rather than a
  * relationship guessed from two rows that happen to share a title.
+ *
+ * ## HOW IT SHUTS, which for a while was "it does not"
+ *
+ * Every other panel this client draws answers a pointer outside it and Escape;
+ * this one answered neither, so the only way out of a list you opened by
+ * mistake was to press `chats` again — and a reader who had moved on to the
+ * transcript underneath was left with a list over it that nothing they tried
+ * would take away. That is a missing affordance rather than a fourth copy of an
+ * existing one, and it is filled by the client's one dismissal (`../dismiss.ts`)
+ * on the same terms as the header's popovers: the pointer, the key, the
+ * topmost panel only — and the caret back on `chats` when a keyboard asked,
+ * because Escape from a list that has the focus would otherwise land on
+ * `<body>`.
+ *
+ * BOTH ROOTS are handed over, which is the same bug the Commit pill had one
+ * layer up: the list is a sibling of the button rather than a child of it, so a
+ * click-away that knew only the list would read a press of `chats` as a press
+ * outside — shutting on the pointerdown, and reopened by that same press's
+ * click. Pressing it a second time would do nothing at all.
  */
 
 import { createSignal, For, Match, Show, Switch } from "solid-js"
 
+import { dismissOn } from "../dismiss.ts"
 import { Refusal } from "./Refusal.tsx"
 import { WITHIN } from "../layer.ts"
 import { QUIET_PILL } from "../pill.ts"
@@ -47,9 +67,30 @@ type Picker = { readonly _tag: "shut" } | { readonly _tag: "asking" } | Answer
 export function Sessions(props: { readonly chat: Chat }) {
   const [picker, setPicker] = createSignal<Picker>({ _tag: "shut" })
 
+  /** The `chats` button and the list it opens — two roots, because the list is
+   *  laid out BESIDE the button rather than inside it (see the header). */
+  let trigger: HTMLButtonElement | undefined
+  let list: HTMLUListElement | undefined
+
+  const shut = (restoreFocus = false): void => {
+    setPicker({ _tag: "shut" })
+    if (restoreFocus) trigger?.focus()
+  }
+
+  // A pointer outside it and Escape, in this client's one spelling of them —
+  // and only the one a keyboard can make puts the caret back on `chats`.
+  dismissOn({
+    open: () => picker()._tag !== "shut",
+    root: () => list,
+    trigger: () => trigger,
+    dismiss: (how) => shut(how === "escape"),
+  })
+
   const toggle = () => {
     if (picker()._tag !== "shut") {
-      setPicker({ _tag: "shut" })
+      // A press of the button while the list is up is a dismissal a keyboard
+      // can reach, so the caret goes back the way Escape's does.
+      shut(true)
       return
     }
     setPicker({ _tag: "asking" })
@@ -65,6 +106,7 @@ export function Sessions(props: { readonly chat: Chat }) {
   return (
     <div class="relative">
       <button
+        ref={trigger}
         type="button"
         class={QUIET_PILL}
         data-testid={TESTID.chatSessions}
@@ -76,6 +118,7 @@ export function Sessions(props: { readonly chat: Chat }) {
 
       <Show when={picker()._tag !== "shut"}>
         <ul
+          ref={list}
           class={`absolute right-0 top-full ${WITHIN.pop} mt-1 max-h-80 w-80 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
           data-testid={TESTID.chatSessionList}
         >

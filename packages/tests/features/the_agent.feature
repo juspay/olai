@@ -255,6 +255,47 @@ Feature: Talking to the agent
     When I pick the conversation "an older conversation"
     Then the conversation is titled "an older conversation"
 
+  # ── and the ways OUT of it ───────────────────────────────────────────────
+  #
+  # The picker had none. Every other panel this client draws answers a pointer
+  # outside it and Escape — one spelling of the two, in `client/dismiss.ts` —
+  # and this one answered neither, so a list opened by mistake sat over the
+  # transcript until somebody found the button again. That is a missing
+  # affordance rather than a fourth copy of an existing one, and the three
+  # scenarios below are the three ways out it now has.
+
+  @agent-stored @scratch:chat
+  Scenario: Escape puts the picker away, and hands the caret back
+    # A keyboard that dismissed a panel it was standing in would be left on
+    # `<body>` — nowhere, and the whole page to walk down to get back — so the
+    # caret goes back on the control that opened it. Same rule as the header's
+    # popovers, and only for the gesture a keyboard can make.
+    When I open the session picker
+    Then the picker is showing
+    When I press "Escape"
+    Then the picker is put away
+    And the chats button has the caret
+
+  @agent-stored @scratch:chat
+  Scenario: A pointer outside puts the picker away
+    When I open the session picker
+    Then the picker is showing
+    When I click away from the session picker
+    Then the picker is put away
+
+  @agent-stored @scratch:chat
+  Scenario: Pressing chats again puts it away
+    # TWO ROOTS, and the bug the Commit pill had one layer up: the list is a
+    # SIBLING of the button rather than a child of it, so a click-away that
+    # knew only the list would read a press of `chats` as a press outside —
+    # shutting on the pointerdown, and reopened a moment later by that same
+    # press's own click. Pressing it a second time would do nothing at all, and
+    # the picker would look identical before and after.
+    When I open the session picker
+    Then the picker is showing
+    When I press the chats button
+    Then the picker is put away
+
   @scratch:chat
   Scenario: The panel shows the turn happening, not only its result
     # Racket's chat.feature had this and this branch did not, which is how a

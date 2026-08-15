@@ -54,6 +54,7 @@ import {
   CHAT_REFUSAL,
   CHAT_SEND,
   CHAT_SESSION,
+  CHAT_SESSION_LIST,
   CHAT_SESSIONS,
   CHAT_SESSIONS_REFUSED,
   CHAT_SLASH_COMMAND,
@@ -929,6 +930,46 @@ Then("the chat is empty", async function (this: OlaiWorld) {
 
 When("I open the session picker", async function (this: OlaiWorld) {
   await this.page.locator(CHAT_SESSIONS).click();
+});
+
+/** The same press with nothing assumed about what it does — for the scenario
+ *  asking what a SECOND press of `chats` is, which is the two-roots fence
+ *  (`chat/Sessions.tsx`). */
+When("I press the chats button", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_SESSIONS).click();
+  await this.waitForFrame();
+});
+
+Then("the picker is showing", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_SESSION_LIST)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/** GONE rather than hidden: the list is a `<Show>`, so a picker left in the
+ *  DOM would be a dismissal that only changed how it looked. */
+Then("the picker is put away", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_SESSION_LIST).count()) === 0,
+    "the session list to be gone",
+  );
+});
+
+/** Where a keyboard is standing after the list goes. Escape from a panel that
+ *  HELD the caret leaves it on `<body>` — nowhere, and the whole page to walk
+ *  down again — unless somebody hands it back, which is `Sessions.tsx`'s job
+ *  and this is the step that says so. */
+Then("the chats button has the caret", async function (this: OlaiWorld) {
+  const caret = await this.page.evaluate(() =>
+    document.activeElement?.getAttribute("data-testid") ?? null
+  );
+  assert.strictEqual(caret, TESTID.chatSessions, `the caret is on ${String(caret)}`);
+});
+
+/** Somewhere that is neither the list nor the button that opens it. The
+ *  sidebar, which `clickAway` presses at a corner that is no control. */
+When("I click away from the session picker", async function (this: OlaiWorld) {
+  await this.clickAway();
 });
 
 /** No `trouble` on screen — what went wrong where nobody was waiting, and the

@@ -55,6 +55,31 @@
  *     asked from, and a menu that read that as "focus left" would shut on its
  *     own Cancel.
  *
+ * ## AND IT DEFERS, which is the one thing the primitive cannot decide alone
+ *
+ * Kobalte keeps a stack of its own layers and gives a gesture to the topmost —
+ * but this menu is the only layer on it, because the panels this client draws
+ * itself are not components wrapping an element and cannot join one
+ * (`../dismiss.ts` has the whole argument). So the primitive always believes it
+ * is on top, and an Escape with a popover opened OVER a menu shut both.
+ *
+ * The stack every dismissable in this client is on is `../dismiss.ts`'s, and
+ * this file joins it with {@link topmostWhileOpen} — the same call the popovers
+ * and the note make one layer down. What is left is telling Kobalte to sit a
+ * gesture out, which takes two different answers because the primitive takes
+ * them differently:
+ *
+ *   - **a pointer outside** is `preventDefault`able: `DismissableLayer` asks
+ *     before it dismisses, so the handler below prevents and nothing else
+ *     happens.
+ *   - **Escape is not.** `MenuContentBase` closes on Escape whether or not the
+ *     event was prevented ("we force close on escape here", in its own words,
+ *     because its selectable list prevents the key first). So the refusal is on
+ *     the menu's OPEN state instead, where this app rather than the library has
+ *     the last word: the menu is CONTROLLED (`./door.ts`), and an ask to shut
+ *     that arrived from a keystroke belonging to a panel above it is not
+ *     passed on.
+ *
  * ## TWO DOORS, because below 48rem there is no `•••` to press
  *
  * A phone spends no gutter width on the menu (`../touch.ts`), so what opens it
@@ -76,6 +101,7 @@ import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import type { MenuAction } from "./action.ts"
 import type { MenuDoor } from "./door.ts"
 import { DOTS } from "./Dots.tsx"
+import { topmostWhileOpen } from "../dismiss.ts"
 import { swallowGhost } from "../ghost.ts"
 import { LAYER } from "../layer.ts"
 import { Panel } from "./Panel.tsx"
@@ -124,6 +150,23 @@ export function Dropdown(props: {
    *  different places, and only one of them wants it back (see `handBack`). */
   let lastGesture: "key" | "pointer" = "pointer"
 
+  /** Is this menu the panel a dismissal is for — the last thing opened that is
+   *  still up, across everything this client can put on screen
+   *  (`../dismiss.ts`)? Kobalte's own stack cannot answer that, because this
+   *  menu is the only layer on it. */
+  const topmost = topmostWhileOpen(() => props.door.open())
+
+  /**
+   * An Escape this menu is not the panel for, held for the one instant between
+   * the primitive hearing it and the primitive asking to shut.
+   *
+   * A `let` and not a signal on purpose: nothing draws from it, and it is
+   * written and read inside ONE synchronous call — `MenuContentBase` runs the
+   * handler below and then closes, in that order — so a second keystroke can
+   * never find it set. It is `false` again by the time either of them returns.
+   */
+  let deferring = false
+
   /**
    * THE CARET COMES BACK when the panel that had it goes.
    *
@@ -167,7 +210,17 @@ export function Dropdown(props: {
       placement="bottom-start"
       gutter={2}
       open={props.door.open()}
-      onOpenChange={props.door.setOpen}
+      // ...and the door does not hear an ask to shut that belonged to a panel
+      // ABOVE this menu. The primitive closes on Escape whether or not the
+      // event was prevented, so this is the only place the key can be given
+      // back (see `deferring`, and the header of this file).
+      onOpenChange={(open: boolean) => {
+        if (!open && deferring) {
+          deferring = false
+          return
+        }
+        props.door.setOpen(open)
+      }}
       // WHAT THE PANEL HANGS OFF: the `•••` where one is DRAWN, and the
       // row's own line where it is not. Below md the `•••` is `hidden` —
       // it is still in the markup, because Kobalte's trigger is what holds
@@ -264,8 +317,22 @@ export function Dropdown(props: {
         onPointerDown={() => {
           lastGesture = "pointer"
         }}
-        onPointerDownOutside={() => {
+        // A press outside is only this menu's while nothing is over it —
+        // prevented otherwise, which is the ask `DismissableLayer` makes
+        // before it dismisses.
+        onPointerDownOutside={(event: Event) => {
           lastGesture = "pointer"
+          if (!topmost()) event.preventDefault()
+        }}
+        // Escape is not preventable HERE — the content closes on it either way
+        // (the header says why) — so what this does is REMEMBER that the key
+        // was not this menu's, and the ask to shut that follows it is refused
+        // in `onOpenChange`. The `preventDefault` is for the SECOND ask:
+        // `DismissableLayer` dismisses again after the content has, unless the
+        // event says it is spent, and one refusal cannot answer two asks.
+        onEscapeKeyDown={(event: KeyboardEvent) => {
+          deferring = !topmost()
+          if (deferring) event.preventDefault()
         }}
         // ...and the tap that any of it leaves behind (see above).
         onPointerUp={tappedInPanel}
