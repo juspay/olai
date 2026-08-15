@@ -188,14 +188,23 @@ export const search = (
   const ranked = matching(derived, filter, { file: query.file, under: query.under })
     .map(({ at, match }) => {
       const found = foundOf(derived, at)
+      // ANNOTATED, never asserted. It was `as Hit` for as long as this function
+      // has existed, and an assertion is exactly the thing that stops checking
+      // when the declaration moves: a required field added to `SearchHit` and to
+      // nothing else would be silently absent from every hit this produces. The
+      // conditional spread needs no cast to satisfy the floor — `foundOf` above
+      // spells the same pattern under a plain return type — so what the cast was
+      // buying was nothing, at the one place in this file that produces a shape
+      // the wire carries.
+      const hit: SearchHit = {
+        ...found,
+        // Omitted for a query that named no words — `is:done` on its own is
+        // carried by no field, and answering "title" would be inventing a
+        // reason. The format's own rule for absence, applied to an answer.
+        ...(match.field === null ? {} : { matched: match.field }),
+      }
       return {
-        hit: {
-          ...found,
-          // Omitted for a query that named no words — `is:done` on its own is
-          // carried by no field, and answering "title" would be inventing a
-          // reason. The format's own rule for absence, applied to an answer.
-          ...(match.field === null ? {} : { matched: match.field }),
-        } as SearchHit,
+        hit,
         score: found.status === "done" ? match.score - DONE_PENALTY : match.score,
       }
     })
