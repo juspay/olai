@@ -1,229 +1,96 @@
 # The orchestrator: give it a real home
 
-Status: brainstorming, opened 2026-08-13 by the human. Nothing here is decided.
+Status: brainstorming, opened 2026-08-13, rewritten 2026-08-15; the direction
+was ratified the same day. The phased work is on the roadmap, as todo
+children of `orchestrator-in-chat` wired with `after` edges. The long version
+with all receipts is in git history; the apm spike is `apm-spike.md`.
 
-## The problem, in one story
+Lesson that opened this file: anything the orchestrator knows that is not in
+a file is a failure waiting to happen (wiped memory, the Fable model burn).
 
-Today "the orchestrator" is a Claude session in a terminal. It follows a
-charter that lives in a gist, and it keeps everything else in its head: which
-agents are running where, what was approved, and even what "the Opus agent"
-means as a command. Twice today that head failed us: its memory gets wiped
-when the session compacts, and this morning every agent it launched ran on
-the wrong model — because the right command was written down nowhere, so a
-machine default won.[^burn]
+## The organizing idea: orchestration is outlines
 
-Lesson: anything the orchestrator knows that is not in a file is a failure
-waiting to happen.
+Three kinds of nodes, all in `.olai` files, all edited in the app and read by
+every launcher:
 
-## Question 1 — where should the orchestrator live?
+- **agents** — who. One node per agent; its note carries the exact launch
+  command. A missing node refuses loudly; no default can win again.
+- **workflows** — how. The pipeline every lane walks as a TEMPLATE subtree:
+  each step a `todo` node, dependencies as `after` edges. The DAG is drawn by
+  the app for free — blocked vs ready already renders.
+- **lanes** — what's live. Dispatching a task CLONES the workflow template
+  under the lane's node (real copies via `add_node`, not mirrors — each lane's
+  steps carry their own marks). Progress is marks flipping todo → doing →
+  done; terminal id, PR, evidence links live in the step descs. The
+  orchestrator's memory becomes the outline; it survives anything.
 
-**Option A: its own repo.** A repo (say `~/code/orchestrator`) holding
-outlines: the agent definitions, the state of every running lane, the
-charter, the operational notes.[^own-repo] The orchestrator session runs
-there and works on the other repos.
+No new olai features are needed to start: marks, `after`, `add_node`, descs.
 
-**Option B: inside olai itself (the human's lean).** Olai already wants this
-— the roadmap has long had "orchestrate from the chat, not a terminal".
-If orchestration is an olai feature:
+### Example: one task, dispatched
 
-- Agent definitions are **nodes** in an outline. The same thing you edit in
-  the app is the thing every launcher reads.
-- Starting a lane is an olai **operation**: olai asks kolu to make a terminal
-  in a fresh worktree and run the agent's command.[^kolu-verb]
-- Running lanes are **nodes too**: who's working, in which terminal, what
-  was reviewed, what was approved. The orchestrator's memory becomes the
-  outline — it survives anything.
-- Approving becomes a button on the node, not a chat message an LLM has to
-  remember.
-- The terminal orchestrator (me) becomes temporary labor, not the system of
-  record.
+The `fix-caret` workflow template, cloned under a lane when dispatched:
 
-Option B contains option A: where the outlines live becomes a small choice,
-not the architecture.
+    lanes
+      fix-caret  (todo, desc: repo, brief, agent → agents/claude-opus)
+        implement + open PR      (doing, desc: terminal 9f2c, PR #180)
+        refactor passes          (todo, after: implement)
+        review: grok             (todo, after: refactor)
+        review: opencode         (todo, after: refactor)
+        rebase onto master       (todo, after: both reviews)
+        address findings         (todo, after: both reviews)
+        CI green at head         (todo, after: rebase, address)
+        evidence verified        (todo, after: CI)
+        merge                    (todo, after: evidence)
 
-**2026-08-14, the human's strong signal**: orchestration will most likely
-happen **from olai chat itself** — whose agent sessions already hold kolu's
-MCP tools. So the operator in the transitional period is not necessarily a
-terminal Claude at all: it is the chat agent, speaking kolu's verbs as tool
-calls (worktree-cutting `lifecycle_create` shipped in kolu #2167), with the
-outline as its memory. The terminal orchestrator's remaining edge is only
-what the chat has not grown yet.
+The two reviews are ready together the moment refactor is done — the fan-out
+is just two `after` edges — and "address" stays blocked until both finish.
+What you see in the app IS the dispatch state; nothing else needs asking.
 
-## How the orchestrator hears that a lane finished (babysitting)
+Template rule the edges encode: a step that MUTATES the worktree sits
+`after` every step that READS it — readers fan out, writers wait. Dispatch
+is `set_doing` on a step, so the day `set_doing` refuses on a blocked node,
+"instructed a rebase under live reviewers" (a real 2026-08-15 incident)
+stops being a discipline and becomes a refusal.
 
-Learned the hard way on 2026-08-13, when a watcher quietly timed out and a
-finished lane sat unread. The options, agent-agnostic ones first — the
-human's constraint: whatever we lean on must work from codex and opencode
-too, not just Claude.
+## Decided (2026-08-15, the human)
 
-- **Blocking waits — the portable answer, in use now.** kolu's `wait` /
-  `debrief` block on the daemon's own event stream (push, not polling). Any
-  agent that can run a shell command — all of them — can hold one. The one
-  wart is the mandatory timeout, which created the lapse; the charter now
-  wraps it in a self-re-arming loop, and the upstream ask is that
-  **block-forever become the default** (the socket already fails loudly when
-  the daemon dies, so the timeout defends nothing).[^timeout]
-- **The same waits as MCP tools** — when kolu MCP is wired into a session,
-  identical shape, better transport: schema-validated arguments and no shell
-  quoting (both charter-mangling incidents on 2026-08-13 were bash eating
-  backticks — a failure class tool calls do not have). Works identically for
-  any MCP-speaking agent.
-- **Rejected: agent-native push.** Claude Code's "channels" can push events
-  into an open session, but only Claude's, and only an always-on one — a
-  daemon impersonated by an LLM session. Fails the agnostic test the way
-  apm's runtime list did. (Checked against the docs: MCP notifications
-  cannot wake an idle turn-based session at all; resource subscriptions are
-  not implemented in Claude Code's client.)[^wake]
-- **End state: olai subscribes.** When orchestration is olai-native, the
-  subscriber is a server that never sleeps between turns — it holds a real
-  kolu-MCP subscription/stream and updates lane nodes live. Agent-agnostic
-  by construction, because the listener is not an LLM harness.
+- **Home: olai itself.** Operated from olai chat — the chat agent already
+  holds kolu's MCP tools (worktree-cutting `lifecycle_create` shipped in kolu
+  #2167). The terminal orchestrator is temporary labor until parity.
+- **Agents outline: now.** Drafted (uncommitted, under review); launchers
+  read it before every spawn. Kolu growing a structured launch spec
+  (`{model: opus}` → argv) is the later upgrade.
+- **Workflow template: one shared place.** A single orchestration outline;
+  every repo's lanes clone from the same template.
+- **Cross-repo progress: the orchestration outline records it.** Repo
+  roadmaps keep their own items; the lane's step-marks live centrally.
+- **Babysitting transport: kolu MCP.** The blocking waits as tool calls
+  (`wait_agentState` / `wait_outputSettled`), not shell — schema-validated
+  arguments, no quoting to mangle. Upstream ask stands: block-forever default.
+- **`.olai` replaces `.jsonl`** — rename PR in flight.
+- **`apm run` is out of the launch path** — the wrapper blinds kolu
+  (measured; see apm-spike.md). At most a prompt compiler.
+- **Rejected: Claude-native push** (Claude Code "channels" — a server pushing
+  events into a session). Claude-only, and it can only reach a session that
+  is already open: no MCP notification can wake an idle agent. Fails the
+  works-from-grok/codex/opencode test.
 
-## Question 2 — who knows how to start an agent?
+## Waking the chat agent (the babysitting gap, and its answer)
 
-The heart of the wrong-model bug. Three candidate answers, none ratified:
+An idle chat agent cannot be woken by any MCP notification, and in-turn
+blocking waits hold a turn open into the host's timeout. But the subscriber
+does not have to be the agent: **olai's server is the ACP client — the party
+that starts turns.** Kolu MCP already exposes subscribable resources with
+snapshots (`urgency` — who needs attention; `terminals` — per-terminal agent
+state). So the wake path is: olai holds a kolu-MCP subscription, and when a
+lane's agent settles, olai starts a chat turn saying so. That is the
+`olai-subscribes` roadmap item; until it lands, mark-flipping and babysitting
+stay the terminal orchestrator's hand.
 
-**Option 1: the command lives in a node.** An `agents` outline; the node
-titled `opus` carries the full command in its note. Launchers read the node
-and run exactly that. A missing node refuses loudly — nobody can fall back
-to a default.[^node-argv]
+## Still open
 
-**Option 2: kolu accepts a structured spec.** Instead of a raw command, the
-launcher passes kolu something like `{"type": "claude", "model": "opus",
-"perms": "bypass"}`, and kolu itself turns that into the right command line.
-The agent node then stores this small spec instead of a command string.
-What it buys: the flag spellings live in one place (kolu — the product whose
-job is agent terminals), and the spec has checkable fields instead of being
-a typo-prone string. What it costs: when an agent CLI renames a flag, the
-fix needs a kolu release instead of a node edit. The philosophy check passes
-with guardrails.[^spec]
-
-**Option 3: apm becomes the launcher.** apm — the agent package manager —
-already has a "run agents" layer for some runtimes, just not for Claude Code
-or Grok today.[^apm] If it grows those, launching could be apm's job, with
-the definitions in `apm.yml`. A watch item, not a plan.
-
-**Option 4: `apm run` scripts — SPIKED, and it failed the test that
-matters.** `apm.yml` can hold npm-style scripts whose body is any command
-(the docs' own examples invoke claude), so launching works today — the spike
-booted the claude TUI through it with the right model and permissions. But
-**the wrapper blinds kolu**: with `apm run` on the terminal's argv, kolu sees
-a python process — the agent column goes empty, and `kolu wait` / `kolu
-debrief` (the tools the orchestrator babysits every lane with) time out.
-Measured, not guessed.[^spike] The spike's ranking: keep `kolu create --
-claude …` for launching; use apm at most as a prompt compiler off the spawn
-path. Full report: `apm-spike.md` in this directory.
-
-These compose rather than exclude: option 1 can ship now; option 2 is a kolu
-feature the node's content would migrate into; option 3 is an ecosystem bet;
-option 4 is measured out of the launch path (its prompt-compilation half
-remains interesting for the charter layer).
-
-Rejected along the way, for the record.[^rejected]
-
-## Question 3 — is it time for `.olai` instead of `.jsonl`?
-
-New outlines (agents, lanes) are about to be born — the cheapest moment to
-rename. The objections both collapsed under the human's push-back: migration
-is one small PR because there is exactly one user, and the "generic tooling"
-argument was defending `jq`-style pipelines that the design *discourages*
-anyway — structured access has one door (the MCP), and the break-glass cases
-(`cat`, `grep`, `git diff`) don't care what a file is called.[^olai-ext]
-
-If ratified: one atomic rename PR, new outlines born `.olai`, no transition
-period.
-
-## Open questions
-
-1. Ratify option B (orchestration in olai) as the direction?
-2. Pick from question 2 — or ship option 1 now and leave 2/3 open?
-3. Should the agents outline exist immediately (kills the wrong-model bug
-   with one small commit), with the launch button coming later?[^halves]
-4. `.olai`: ratify the atomic rename?
-5. When lanes become nodes, where do cross-repo events get stamped — the
-   worked-on repo's roadmap (today's habit), the orchestration outline, or
-   both via mirrors?
-
----
-
-[^burn]: 2026-08-13: all five dispatched authors ran on Fable instead of
-    Opus. The spawn command was bare `claude`; the machine default decided.
-    Fixed for the moment by explicit `--model opus
-    --dangerously-skip-permissions` flags at every spawn plus a `/status`
-    check before chartering. The orchestrator's charter gist:
-    gist.github.com/srid/af6b4bcccf649fb923e4e207a7b93c51.
-
-[^own-repo]: Contents sketch: `agents` (definitions), `lanes` (dispatch
-    state: terminal ids, briefs, approvals, evidence pointers), the charter
-    (the gist retires into a versioned file), operational knowledge (the
-    sick CI-host dossier, pin SHAs). Target repos keep their own roadmaps.
-
-[^kolu-verb]: Via kolu's `lifecycle_create` MCP tool, which is learning to
-    cut worktrees right now (kolu PR #2167, in flight from our own lane).
-    Kolu stays pure mechanism — it runs whatever command it is handed and
-    configures nothing, per kolu.dev/philosophy.
-
-[^node-argv]: The orchestrator becomes the first consumer: `read_node
-    agent-opus` before every spawn, run exactly what the note says. Zero new
-    olai code. Provenance comes free: a lane can carry an edge to the agent
-    node that launched it, so "which agent ran this?" is answerable — the
-    question the Fable burn couldn't answer.
-
-[^spec]: Philosophy check against kolu.dev/philosophy: (a) zero-setup
-    survives — kolu reads no file, stores nothing; the spec arrives in each
-    call; (b) agent-agnostic survives read as "no lock-in" — kolu already
-    has per-agent knowledge in its shell detection; composing flags is
-    detection's generative twin. Guardrails: unknown type/field/value
-    refuses in words (no default model exists anywhere in the path); raw
-    argv remains as the universal escape hatch; same spec always produces
-    the same argv, printable back for logging.
-
-[^apm]: microsoft/apm. Its runtime layer supports Copilot CLI, Codex,
-    Gemini CLI, and the LLM library — not Claude Code or Grok (Grok has
-    experimental *target* support, PR #2420, which is config deployment,
-    not launching). Related: apm deploys `.claude/` configuration (hooks,
-    MCP) into `settings.json`, and declined to own runtime permission
-    decisions (issue #1157's L2/L3 doctrine) — any settings-value
-    passthrough request must be framed as config lifecycle (L3), which they
-    claim. See apm-adoption on the roadmap.
-
-[^rejected]: Hand-written `.claude/settings.json` — worked (proven: repo
-    file beats machine default, `bypassPermissions` boots on), but that file
-    is apm-generated output and the commit was unauthorized; reverted.
-    `.claude/settings.local.json` — also worked, machine-local, uncommitted
-    by design (worktrees inherit it, even from kolu's bare root), but it is
-    a second store outside olai; removed at the human's word. A kolu config
-    file (`.kolu/agents.toml`) — violates kolu's zero-config principle;
-    never built.
-
-[^olai-ext]: The format stays plain line-oriented JSON either way. The
-    one-situater doctrine (every reading through the MCP, never a second
-    parser) is why encouraging raw `jq` pipelines works against the
-    product's grain.
-
-[^spike]: Grok spike, 2026-08-13, against apm 0.28.0 from source. Key
-    measurements: `kolu ls` for an `apm run`-wrapped claude shows
-    `FOREGROUND python`, agent JSON `null` the whole session (vs
-    `kind=claude-code, model=claude-opus-5` for the direct control);
-    `kolu wait --until awaiting,waiting` met in 8ms direct, timed out
-    wrapped. Also found: Claude/Grok are apm *targets* (config deployment),
-    not launch runtimes; `apm runtime setup codex` destructively rewrites
-    `~/.codex/config.toml`; registered-runtime scripts get their prompt
-    passed as an argument with Codex forced onto `codex exec`. Details:
-    `apm-spike.md`.
-
-[^timeout]: Also observed: `kolu watch` (the streaming verb) emitted nothing
-    in two live samples, one taken while a lane was actively working —
-    possibly TTY-only output or bursts-only semantics. Filed mentally as a
-    question for upstream, not a request.
-
-[^wake]: Verified via the Claude Code docs (channels, channels-reference,
-    mcp): idle sessions have exactly three wake paths — user input,
-    background-task completion, remote control. Server-initiated events
-    ("channels") deliver only to open sessions; `list_changed` is the only
-    MCP notification processed, and only mid-turn.
-
-[^halves]: "Ship in halves": the outline is the fix (the knowledge exists,
-    launchers read it), the launch verb is the convenience (olai calling
-    kolu itself). The verb waits on kolu #2167 landing and on the
-    orchestrate-from-chat design deciding where launching lives in the UI.
+1. When `olai-subscribes` gets built (it is on the roadmap, `after`
+   lane-cloning and mcp-bridge) — sequencing, not whether.
+2. Kolu's `urgency`/`terminals` resources have not been driven from olai yet;
+   the first subscription probe may find sharp edges (the activity stream
+   already has a recorded one).
