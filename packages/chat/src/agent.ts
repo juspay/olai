@@ -88,6 +88,7 @@ import {
   permissionFormOf,
   Refused,
   relativeTo,
+  usageIn,
 } from "@olai/acp"
 import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
@@ -444,8 +445,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             emit({ _tag: "sessionTitled", title: update.title })
           }
           return
+        case "usage_update": {
+          // How full the context is, which is the one thing a person needs to
+          // decide whether to `/compact` and the one thing nothing on screen
+          // used to say. Several a turn: the agent revises `used` as it goes
+          // and may revise `size` too, so the panel holds the newest rather
+          // than the first.
+          //
+          // Read by `@olai/acp` rather than by `interpret.ts`, because this is
+          // ACP's own update kind and not one adapter's extension — any agent
+          // may send one, and one that never does simply leaves the header
+          // saying nothing about room.
+          const usage = usageIn(update)
+          if (usage !== null) emit({ _tag: "usage", usage })
+          return
+        }
         default:
-          // Thoughts, plans, usage. Real parts of the protocol that this panel
+          // Thoughts and plans. Real parts of the protocol that this panel
           // does not draw; ignored quietly rather than half-rendered.
           //
           // Quietly is right HERE and not two cases up, and the difference is

@@ -513,6 +513,7 @@ export {
   NodeContext,
   OpFailure,
   SessionInfo,
+  Usage,
   UsageFailure,
   Wrote,
   YES_NO,

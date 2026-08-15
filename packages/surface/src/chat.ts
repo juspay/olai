@@ -41,7 +41,15 @@
  * was never sent.
  */
 
-import { AskAnswer, AskChoice, AskField, AskOutcome, FileDiff, YES_NO } from "@olai/acp/wire"
+import {
+  AskAnswer,
+  AskChoice,
+  AskField,
+  AskOutcome,
+  FileDiff,
+  Usage,
+  YES_NO,
+} from "@olai/acp/wire"
 import {
   BusyFailure,
   Found,
@@ -54,13 +62,13 @@ import {
 import { Schema } from "effect"
 
 /**
- * The ask vocabulary — and {@link FileDiff} below — re-exported rather than
- * declared.
+ * The ask vocabulary — and {@link FileDiff} and {@link Usage} below —
+ * re-exported rather than declared.
  *
- * `AskChoice`, `AskField`, `AskAnswer`, `AskOutcome`, `YES_NO` and `FileDiff`
- * belong to `@olai/acp` now — they are ACP's elicitation and diff shapes in
- * olai's spelling, and the package that speaks the protocol is the one that
- * owns its words. They are re-exported HERE because they TRAVEL: the
+ * `AskChoice`, `AskField`, `AskAnswer`, `AskOutcome`, `YES_NO`, `FileDiff` and
+ * `Usage` belong to `@olai/acp` now — they are ACP's elicitation, diff and
+ * usage shapes in olai's spelling, and the package that speaks the protocol is
+ * the one that owns its words. They are re-exported HERE because they TRAVEL: the
  * transcript entry below carries them, the browser draws them, and consumers
  * keep importing them from the spec they already import everything else from
  * — exactly the arrangement `RepoState` has, declared by `@olai/git` and
@@ -70,7 +78,7 @@ import { Schema } from "effect"
  * package with no protocol payload in it: the projections over ACP's own
  * payloads ride the main entry, and only `@olai/chat` reads those.
  */
-export { AskAnswer, AskChoice, AskField, AskOutcome, FileDiff, YES_NO }
+export { AskAnswer, AskChoice, AskField, AskOutcome, FileDiff, Usage, YES_NO }
 
 /**
  * A question the agent asked, and what became of it.
@@ -416,6 +424,21 @@ export const ChatState = Schema.Struct({
   /** The model a turn actually runs on, labelled the way the agent labels its
    *  own models. `null` until the agent has said. */
   model: Schema.NullOr(Schema.String),
+  /**
+   * How full this conversation's context is — see {@link Usage}.
+   *
+   * Beside the model rather than under it, and for the model's own reason: the
+   * header names what a turn RUNS ON because its cost and character depend on
+   * it, and this is the other half of that sentence — how much room is left to
+   * run it in, which is what "should I `/compact`?" is asking.
+   *
+   * `null` until the agent has reported some, which is not the same as a
+   * conversation that has spent nothing (that is `used: 0`): an agent that
+   * sends no `usage_update` at all leaves this empty for the life of the
+   * session, and the header simply says nothing about room. It goes with the
+   * conversation, like the model and the missing servers.
+   */
+  usage: Schema.NullOr(Usage),
   commands: Schema.Array(Command),
   /** How many messages are typed and waiting for the turn in flight to end.
    *
@@ -466,6 +489,7 @@ export const CHAT_OFF: ChatState = {
   status: "off",
   session: null,
   model: null,
+  usage: null,
   commands: [],
   queued: 0,
   asking: 0,

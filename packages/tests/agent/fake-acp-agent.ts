@@ -36,6 +36,10 @@
  *                say silently, and not observably until the NEXT turn
  *   reconfig     re-announce the session's config options unchanged, the way
  *                the adapter does when anything else in that set moves
+ *   window <n> [hold]   move the context WINDOW, the way the adapter does when
+ *                it corrects a seeded guess at the end of a turn. `hold` stops
+ *                between the turn's two usage frames, so a scenario can look at
+ *                the mid-stream window rather than infer it
  *   ask          ask a structured question and report the answer
  *   askstrict    ask one with a REQUIRED, typed field, the way an MCP server does
  *   plan         ask to leave plan mode, the way the adapter does
@@ -452,6 +456,38 @@ const sdkInit = (model: string): void => {
  */
 let liveModel = "fake-model-1"
 
+/**
+ * How full the context is, and how the real adapter reports it.
+ *
+ * `usage_update` is ACP's own update kind, sent SEVERAL TIMES A TURN: the agent
+ * revises `used` as the turn goes and the last frame of the turn adds the
+ * cumulative cost. Both halves may move — captured against 0.66.0, the first
+ * turn after a `/model` reports the PREVIOUS model's window mid-stream and the
+ * true one on that last frame, because the adapter seeds the window from what
+ * it last learned and corrects it authoritatively when the turn ends.
+ *
+ * Reproduced here rather than simplified, because a panel that held the FIRST
+ * report of a turn instead of the newest would look right in every scenario
+ * that only ever sent one.
+ */
+let used = 0
+let size = 200_000
+
+/** One report, as the protocol shapes it. `cost` rides the turn's last frame
+ *  alone, exactly as the real one's does — and nothing draws it, which is a
+ *  claim worth being able to make about a field that is actually there. */
+const usageUpdate = (final: boolean): void => {
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "usage_update",
+      used,
+      size,
+      ...(final ? { cost: { amount: 0.1234, currency: "USD" } } : {}),
+    },
+  })
+}
+
 /** A turn that was cancelled while it was waiting on the client ends as a
  *  cancelled turn. Answers whether it did, so the caller stops there. */
 const endedCancelled = (id: unknown): boolean => {
@@ -480,6 +516,44 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 
   const [verb, ...rest] = text.trim().split(/\s+/)
   const argument = rest.join(" ")
+
+  // The window the agent believes in, moving under the conversation.
+  //
+  // `window`, NOT `context`: that verb is taken, by the scenarios that prove an
+  // armed node reaches the prompt as an id the ops tools accept.
+  //
+  // `window <n> hold` stops BETWEEN the turn's two frames, which is the only
+  // way a scenario can look at the mid-stream state rather than infer it from
+  // where the turn ended — and inferring it is not enough here, because a
+  // version of this file that moved the window before both frames would end in
+  // the same place and pin nothing.
+  const moving = verb === "window" ? Number(rest[0]) : null
+  const holding = verb === "window" && rest[1] === "hold"
+
+  // What a turn spends, reported the way a real turn reports it: MORE THAN ONE
+  // frame, with BOTH numbers moving between them, and the cost riding the last.
+  // A panel that held the first report of a turn rather than the newest would
+  // pass every scenario that only ever sent one.
+  //
+  // The window moves BETWEEN the two frames rather than before them, which is
+  // where the real adapter moves it: on the first turn after a `/model` it
+  // reports the previous model's window mid-stream and corrects it
+  // authoritatively when the turn ends. Assigning it before both frames — which
+  // is what this did first — sent the new denominator in both, so a panel that
+  // kept a turn's FIRST window would have passed. Newest-wins was pinned for
+  // `used` and not for `size`, which is half a claim.
+  used += 12_000
+  usageUpdate(false)
+  if (holding) await released()
+  if (moving !== null) size = moving
+  used += 900
+  usageUpdate(true)
+
+  if (verb === "window") {
+    say(`the context window is ${size} now.`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
 
   if (verb === "crash") {
     say("about to fall over")
@@ -1012,6 +1086,9 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       sessionId = "fake-session-1"
       // A fresh conversation is on whatever the picker says it is picking.
       liveModel = "fake-model-1"
+      // ... and has spent nothing in a window of its own.
+      used = 0
+      size = 200_000
       respond(id, { sessionId, configOptions: CONFIG_OPTIONS })
       // NO `init` here, and that is the adapter's own shape: it forwards one
       // per PROMPT, so between opening a session and sending the first one the
@@ -1029,6 +1106,11 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       sessionId = String(params["sessionId"] ?? sessionId)
       replay()
       liveModel = "fake-model-1"
+      // A different conversation is a different context. The client empties
+      // what it was showing when the session goes, so nothing is drawn about
+      // this one until its first turn reports.
+      used = 0
+      size = 200_000
       respond(id, { configOptions: CONFIG_OPTIONS })
       notify("session/update", {
         sessionId,

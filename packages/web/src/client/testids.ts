@@ -657,6 +657,10 @@ export const TESTID = {
   paletteSearchError: "palette-search-error",
   chatTitle: "chat-title",
   chatModel: "chat-model",
+  /** How full the context is (`22k/1M`), beside the model. Absent until the
+   *  agent has reported some — a conversation that has spent nothing says
+   *  `0/…`, so an absent line means nothing was said rather than nothing spent. */
+  chatUsage: "chat-usage",
   chatNew: "chat-new",
   /** Drawn beside the model while a turn is running. Beside, not instead:
    *  what it runs on and whether it is running are two facts. */

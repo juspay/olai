@@ -270,6 +270,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         case "model":
           move({ model: event.name })
           return
+        case "usage":
+          // Beside the model, on the cell, for the model's own reason: it is a
+          // standing property of the conversation rather than something that
+          // HAPPENED in it. Several arrive per turn and the newest wins — the
+          // agent is revising a number it already told us, not adding a second.
+          move({ usage: event.usage })
+          return
         case "session":
           move({
             status: state.status === "thinking" ? "thinking" : "idle",
@@ -296,7 +303,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // the last one's answer up in between would be the panel reporting a
           // conversation that no longer exists — and, for a dead agent, one
           // nobody is in.
-          move({ session: null, commands: [], asking: asking(), missing: [] })
+          // The usage goes with the session it was usage OF. A fresh
+          // conversation has spent nothing and a loaded one has spent whatever
+          // it spent; either way the number from the last one is about a
+          // context that no longer exists, and leaving it up would be the
+          // panel answering "should I compact?" about somebody else.
+          move({
+            session: null,
+            commands: [],
+            asking: asking(),
+            missing: [],
+            usage: null,
+          })
           return
         case "replayStarted":
           publish(transcript.clear())
