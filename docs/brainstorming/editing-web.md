@@ -44,296 +44,84 @@ Two more things the build settled, both of which started as the obvious shape an
 
 ## Revised after the human drove it (2026-08-11)
 
-Three bugs and one design change, from the first session with a person's hands
-on it. The design change SUPERSEDES the note decision resolved 2026-08-09
-below, which is left standing as written because the reason it lost is the
-useful part.
+Three bugs and one design change, from the first session with a person's hands on it. The design change SUPERSEDES the note decision resolved 2026-08-09 below, which is left standing as written because the reason it lost is the useful part.
 
-- **The note edits in place, and a click starts it.** `Shift+Enter` opening a
-  plain monospace textarea was rejected on sight — it is ugly, and it is also a
-  lie: a form control appears where the page says "the note". The note now
-  edits AS the note (same size, same muted tone, same place, no border), and
-  clicking one puts the caret in it.
+- **The note edits in place, and a click starts it.** `Shift+Enter` opening a plain monospace textarea was rejected on sight — it is ugly, and it is also a lie: a form control appears where the page says "the note". The note now edits AS the note (same size, same muted tone, same place, no border), and clicking one puts the caret in it.
 
-  WHICH click is the reconciliation this needed, and the answer moved once
-  under evidence. In Workflowy a note is always shown in full and is always one
-  click from the caret — there is no clamped state to reconcile, because the
-  clamp is olai's own compression of it (notes-single). So the faithful mapping
-  is onto the EXPANDED note: the clamped line expands, as it has since that
-  item, and a click in the note you are now reading takes the caret — one click
-  from what Workflowy would have been showing you all along. One click doing
-  both was built first and is worse for a reason the tests found rather than an
-  argument: the expanded note is the only place a row draws its rendered
-  markdown and its `see` links, so a click that went straight to source deleted
-  a reading surface to save a click. Clicking away still folds it; `Shift+Enter`
-  is still one key from the title for a keyboard, and it is the path that never
-  expands.
+  WHICH click is the reconciliation this needed, and the answer moved once   under evidence. In Workflowy a note is always shown in full and is always one   click from the caret — there is no clamped state to reconcile, because the   clamp is olai's own compression of it (notes-single). So the faithful mapping   is onto the EXPANDED note: the clamped line expands, as it has since that   item, and a click in the note you are now reading takes the caret — one click   from what Workflowy would have been showing you all along. One click doing   both was built first and is worse for a reason the tests found rather than an   argument: the expanded note is the only place a row draws its rendered   markdown and its `see` links, so a click that went straight to source deleted   a reading surface to save a click. Clicking away still folds it; `Shift+Enter`   is still one key from the title for a keyboard, and it is the path that never   expands.
 
-  What DID change for notes-single: clicking an open note no longer folds it
-  (that click is the caret's now), so folding is clicking away — which is a
-  gesture that item already had. Its scenarios say so.
-- **A new row's line sat 1.25rem out of the depth it would commit at.** The
-  draft reserved one gutter cell where a row reserves two (the `•••` and the
-  collapse triangle), so the line a person typed was not the line they got.
-  The widths were already shared; the number of CELLS was not.
-- **Walking with `↑`/`↓` showed nothing.** The caret was really there —
-  focused, at the end of the text — but a 1px blink in a dense tree is not an
-  affordance. The row holding it is toned now, and its bullet takes the accent.
-- **The keys were documented only in a package README.** They are a table in
-  the client now (`keys.ts`), drawn by a panel the ⌘K palette opens, mirrored
-  in the top-level README, and held to covering every action by a unit test.
+  What DID change for notes-single: clicking an open note no longer folds it   (that click is the caret's now), so folding is clicking away — which is a   gesture that item already had. Its scenarios say so.
+- **A new row's line sat 1.25rem out of the depth it would commit at.** The draft reserved one gutter cell where a row reserves two (the `•••` and the collapse triangle), so the line a person typed was not the line they got. The widths were already shared; the number of CELLS was not.
+- **Walking with `↑`/`↓` showed nothing.** The caret was really there — focused, at the end of the text — but a 1px blink in a dense tree is not an affordance. The row holding it is toned now, and its bullet takes the accent.
+- **The keys were documented only in a package README.** They are a table in the client now (`keys.ts`), drawn by a panel the ⌘K palette opens, mirrored in the top-level README, and held to covering every action by a unit test.
 
 ## Undo, as it shipped (2026-08-12)
 
-The stack holds INVERSES, and the four things that were decided while building
-it are all consequences of one choice: an undo is a WRITE.
+The stack holds INVERSES, and the four things that were decided while building it are all consequences of one choice: an undo is a WRITE.
 
-- **WHAT IS ON THE STACK: every op this tab made, text included.** The dispatch
-  said "drafts excluded — the undo stack holds structural ops only", and the
-  build read that as "text is not undoable", which the human found by driving
-  it (2026-08-12): retype a title, let it commit, press ⌘Z, and the answer was
-  "nothing to undo" — an undo that does not undo. The ruling is about the
-  CARET, not about text. While an editor is open the chord is the input's own
-  (and Escape abandons the draft); the moment a draft COMMITS it has produced
-  an op like any other, and the text it replaced is a perfect inverse. The one
-  thing text needs that structure does not is a guard: the inverse carries
-  `was`, the text it expects to find, so putting back what this tab replaced
-  can only overwrite what this tab wrote — somebody else's words are refused,
-  in the same shape as every other refusal here.
-- **Where the inverse is derived: the server, at apply time.** The facts an op
-  destroys — the parent a row had, the sibling above it, the mark a toggle
-  replaced, the words it overwrote — are facts about the set the write was
-  judged against. A tab
-  keeping its own note of them would be the second reading this whole seam is
-  written against ("the wire verbs are INTENTS", above), and the two would
-  differ exactly when it matters: when somebody else is writing too. So
-  `edit.apply` answers with what would take the write back, and the browser's
-  stack is a list of things the server said.
-- **What a stack entry is: a LIST of edits, usually one.** Two only where the
-  ops layer needs two: putting `todo` back on a node that is now `done` is
-  refused in one call ("nothing should decide on your behalf that finished work
-  is not finished"), and doing it in one HERE would be the web doing something
-  MCP cannot, which HACKING forbids. So it is the two calls an agent would
-  make.
-- **Undo restores the prior MARK, not the prior mark's stored VALUE.** The
-  judgment call the dispatch named, and it goes to consistency: `done` is
-  re-stamped with the instant the undo was made, and `todo`/`doing` go back as
-  `true`, because that is what `set_done` / `set_todo` write and there is no op
-  — for an agent or for a keyboard — that writes a mark value of its caller's
-  choosing. What an undo restores is the fact, and the clock says when the
-  person decided it.
-- **Un-creating a row archives it — and that is not the delete key.** `archive` is the only removal the set has,
-  and it is a trash rather than a shredder — the node keeps its id in
-  `Archive.jsonl`, so everything pointing at it goes on resolving. It is
-  refused for a row that has grown children since: an undo may take back what
-  it made, never what somebody built on it. The cost was that it did not come
-  back out (a `move` is same-file by the format), so that one entry said it
-  could not be redone rather than leaving a ⌘⇧Z that did nothing.
+- **WHAT IS ON THE STACK: every op this tab made, text included.** The dispatch said "drafts excluded — the undo stack holds structural ops only", and the build read that as "text is not undoable", which the human found by driving it (2026-08-12): retype a title, let it commit, press ⌘Z, and the answer was "nothing to undo" — an undo that does not undo. The ruling is about the CARET, not about text. While an editor is open the chord is the input's own (and Escape abandons the draft); the moment a draft COMMITS it has produced an op like any other, and the text it replaced is a perfect inverse. The one thing text needs that structure does not is a guard: the inverse carries `was`, the text it expects to find, so putting back what this tab replaced can only overwrite what this tab wrote — somebody else's words are refused, in the same shape as every other refusal here.
+- **Where the inverse is derived: the server, at apply time.** The facts an op destroys — the parent a row had, the sibling above it, the mark a toggle replaced, the words it overwrote — are facts about the set the write was judged against. A tab keeping its own note of them would be the second reading this whole seam is written against ("the wire verbs are INTENTS", above), and the two would differ exactly when it matters: when somebody else is writing too. So `edit.apply` answers with what would take the write back, and the browser's stack is a list of things the server said.
+- **What a stack entry is: a LIST of edits, usually one.** Two only where the ops layer needs two: putting `todo` back on a node that is now `done` is refused in one call ("nothing should decide on your behalf that finished work is not finished"), and doing it in one HERE would be the web doing something MCP cannot, which HACKING forbids. So it is the two calls an agent would make.
+- **Undo restores the prior MARK, not the prior mark's stored VALUE.** The judgment call the dispatch named, and it goes to consistency: `done` is re-stamped with the instant the undo was made, and `todo`/`doing` go back as `true`, because that is what `set_done` / `set_todo` write and there is no op — for an agent or for a keyboard — that writes a mark value of its caller's choosing. What an undo restores is the fact, and the clock says when the person decided it.
+- **Un-creating a row archives it — and that is not the delete key.** `archive` is the only removal the set has, and it is a trash rather than a shredder — the node keeps its id in `Archive.jsonl`, so everything pointing at it goes on resolving. It is refused for a row that has grown children since: an undo may take back what it made, never what somebody built on it. The cost was that it did not come back out (a `move` is same-file by the format), so that one entry said it could not be redone rather than leaving a ⌘⇧Z that did nothing.
 
-  What that cost WAS had a name as of the inventory below (2026-08-12): there
-  was **no unarchive on any face**, an equal absence rather than a deviation —
-  one op to build once in the ops layer and expose to both faces together.
-  **That day came (`trash-parity`, 2026-08-13)**: `unarchive` /
-  `unarchive_node` exist on both faces, the un-create's inverse is an
-  `unarchive` carrying the place the row sat, and this entry stopped being the
-  one that cannot be redone — nothing else here changed, exactly as predicted.
-  The other half of that ruling closed earlier the other way (`menu-verbs`):
-  the `•••` menu's archive door, behind its confirm.
-- **A move whose recorded parent has been archived** surfaces as the ops
-  layer's own cross-file refusal, verbatim, and the entry is dropped — the
-  other judgment call the dispatch named. Nothing here invents a sentence for
-  it: the parent is in `Archive.jsonl` and the row is not, a parent is
-  same-file by the format, and `planMove` already says exactly that.
+  What that cost WAS had a name as of the inventory below (2026-08-12): there   was **no unarchive on any face**, an equal absence rather than a deviation —   one op to build once in the ops layer and expose to both faces together.   **That day came (`trash-parity`, 2026-08-13)**: `unarchive` /   `unarchive_node` exist on both faces, the un-create's inverse is an   `unarchive` carrying the place the row sat, and this entry stopped being the   one that cannot be redone — nothing else here changed, exactly as predicted.   The other half of that ruling closed earlier the other way (`menu-verbs`):   the `•••` menu's archive door, behind its confirm.
+- **A move whose recorded parent has been archived** surfaces as the ops layer's own cross-file refusal, verbatim, and the entry is dropped — the other judgment call the dispatch named. Nothing here invents a sentence for it: the parent is in `Archive.jsonl` and the row is not, a parent is same-file by the format, and `planMove` already says exactly that.
 
-What it is NOT: a snapshot restore, persisted, cross-tab, or aware of the
-agent's writes. ⌘Z takes back what THIS tab did, on THIS outline, this session.
+What it is NOT: a snapshot restore, persisted, cross-tab, or aware of the agent's writes. ⌘Z takes back what THIS tab did, on THIS outline, this session.
 
 ## Drag-drop and multi-select, as they shipped (2026-08-13)
 
-The item this file's inventory filed twice, and the whole of what it needed
-from the layers below was **nothing**. No wire verb, no op, no change to the
-planner. That is worth stating first because it is the result rather than the
-approach: a drop is "this row goes under that parent, after that sibling",
-which is `place` — the verb minted for an undo, and the one placement `Anchor`
-cannot spell — and a bulk gesture is the single-row edit repeated. Five things
-the build decided:
+The item this file's inventory filed twice, and the whole of what it needed from the layers below was **nothing**. No wire verb, no op, no change to the planner. That is worth stating first because it is the result rather than the approach: a drop is "this row goes under that parent, after that sibling", which is `place` — the verb minted for an undo, and the one placement `Anchor` cannot spell — and a bulk gesture is the single-row edit repeated. Five things the build decided:
 
-- **A drop is a GAP plus a DEPTH, not a target row.** Workflowy's gesture is a
-  caret for the tree. A gap alone cannot tell "last child of the branch above"
-  from "next sibling of that branch's parent" — those are the same line on
-  screen — so the pointer's X is read as well, and the indicator moves sideways
-  to say which was meant. That is the one piece of real arithmetic here and it
-  is pure over measured rows (`web/src/client/drag/plan.ts`).
-- **Pointer events, not HTML5 drag-and-drop**, which is the call
-  `layout/resize.ts` already made for the panel edges and for the same reason:
-  the browser's gesture owns a ghost image, a protected data store and an
-  element-based `dragover`, none of which is what a gap-and-depth drop wants.
-  The half nobody predicts is that the native one must be turned OFF — a bullet
-  is an `<a href>`, every link is draggable for free, and the platform's
-  link-drag fires `pointercancel` at the gesture underneath it. That was the
-  whole of "the indicator appears for one frame and vanishes".
-- **The rows being carried are left OUT of the ones a drop can land beside.**
-  Which makes "you cannot drop a branch inside itself" true by construction
-  rather than by a guard — and leaves a tree behind, so the walk back for an
-  ancestor always finds one. The ops layer's loop refusal is still there; it is
-  simply unreachable by this gesture.
-- **A pick and a caret are never both live, and that is what lets the keys be
-  the same keys.** `Tab` over a pick indents the pick; `Tab` in a row indents
-  the row. Picking rows closes the draft (committing it first — a pick is not a
-  way to abandon what was typed), and clicking a title puts the pick away. A
-  third key layer that had to coexist with the row layer would have needed a
-  second grammar for bulk, which is a thing to learn rather than a thing to
-  already know.
-- **The ORDER a bulk run goes out in IS the shape it produces.** Each edit is
-  judged against what the one before it did, so indenting a run goes downwards
-  (`B` under `A`, then `C`'s row above is `A` again, so it follows `B` under it)
-  and outdenting goes upwards (downwards, each row lands immediately after the
-  old parent and the run comes out backwards). Two lines of table, and the only
-  thing in this feature that a reader would have to re-derive.
+- **A drop is a GAP plus a DEPTH, not a target row.** Workflowy's gesture is a caret for the tree. A gap alone cannot tell "last child of the branch above" from "next sibling of that branch's parent" — those are the same line on screen — so the pointer's X is read as well, and the indicator moves sideways to say which was meant. That is the one piece of real arithmetic here and it is pure over measured rows (`web/src/client/drag/plan.ts`).
+- **Pointer events, not HTML5 drag-and-drop**, which is the call `layout/resize.ts` already made for the panel edges and for the same reason: the browser's gesture owns a ghost image, a protected data store and an element-based `dragover`, none of which is what a gap-and-depth drop wants. The half nobody predicts is that the native one must be turned OFF — a bullet is an `<a href>`, every link is draggable for free, and the platform's link-drag fires `pointercancel` at the gesture underneath it. That was the whole of "the indicator appears for one frame and vanishes".
+- **The rows being carried are left OUT of the ones a drop can land beside.** Which makes "you cannot drop a branch inside itself" true by construction rather than by a guard — and leaves a tree behind, so the walk back for an ancestor always finds one. The ops layer's loop refusal is still there; it is simply unreachable by this gesture.
+- **A pick and a caret are never both live, and that is what lets the keys be the same keys.** `Tab` over a pick indents the pick; `Tab` in a row indents the row. Picking rows closes the draft (committing it first — a pick is not a way to abandon what was typed), and clicking a title puts the pick away. A third key layer that had to coexist with the row layer would have needed a second grammar for bulk, which is a thing to learn rather than a thing to already know.
+- **The ORDER a bulk run goes out in IS the shape it produces.** Each edit is judged against what the one before it did, so indenting a run goes downwards (`B` under `A`, then `C`'s row above is `A` again, so it follows `B` under it) and outdenting goes upwards (downwards, each row lands immediately after the old parent and the run comes out backwards). Two lines of table, and the only thing in this feature that a reader would have to re-derive.
 
-Two things it deliberately did not do. **Drag-across** — Workflowy's fifth
-picking gesture — was not built: it wants a marquee over a tree that also has
-native text selection in it, and the other four gestures reach every pick it
-would. And **there is still no delete key**: the bulk put-away is a button on
-the selection bar, behind the same confirm the `•••` menu asks, because the
-human's 2026-08-11 ruling is precisely a ruling about a chord that takes a
-branch away — a bulk one would be that at its worst.
+Two things it deliberately did not do. **Drag-across** — Workflowy's fifth picking gesture — was not built: it wants a marquee over a tree that also has native text selection in it, and the other four gestures reach every pick it would. And **there is still no delete key**: the bulk put-away is a button on the selection bar, behind the same confirm the `•••` menu asks, because the human's 2026-08-11 ruling is precisely a ruling about a chord that takes a branch away — a bulk one would be that at its worst.
 
 ## The three deferrals it named, as they shipped (2026-08-14)
 
-`multiselect-completion` closed the first three of those (the delete key is
-still the human's). What each one turned out to BE, rather than what it looked
-like from the outside:
+`multiselect-completion` closed the first three of those (the delete key is still the human's). What each one turned out to BE, rather than what it looked like from the outside:
 
-- **Drag-across was one sentence, not a marquee.** The tension is real —
-  press-and-pull already means "select text" — and the way out is not a modifier
-  or a mode but **where the pull BEGINS**. On the words the browser keeps it,
-  unchanged; on the outline's own scaffolding (the indent rails, the strip left
-  of a note, the page below the last row) there is nothing else for the press to
-  be about, so it picks rows. An ALLOWLIST, marked on the scaffolding itself, so
-  a control added to a row tomorrow inherits the safe answer. And the obvious
-  implementation is wrong: `preventDefault` on the press takes the FOCUS with
-  it and leaves a draft that never blurred, while the `user-select` guard the
-  shared gesture primitive already puts up for the panel edges suppresses the
-  selection and nothing else.
-- **It is a BAND, not a box.** A rectangle asks about two axes and the second
-  one has no meaning here: a row is a LINE drawn as far in as its depth says, so
-  a box down the left of the page would cross a root and miss its indented
-  grandchild. Reading only Y is not a simplification — it is the correct
-  question, and what is drawn is the shape the answer came from.
-- **The touch drag's real content was WHICH CELL, not the timer.** A long press
-  was the obvious answer and it is; what it cost was that the `•••` menu already
-  had one on the row line. Two long presses cannot own one press, so the handle
-  is the BULLET — which is what a mouse and a pen have always dragged from — and
-  the menu keeps the rest of the row. The second half is that claiming the
-  scroll with `touch-action: none` would have passed every scenario and left a
-  28px dead strip down every outline; the claim is a non-passive `touchmove`
-  listener put up at the DEADLINE, a moment the browser has already agreed is
-  not a scroll.
-- **Auto-scroll is a coordinate-space split.** Whether to move is a question
-  about the WINDOW (client coordinates); where the gesture now is is a question
-  about the PAGE (document coordinates, which is how both gestures measured
-  their rows). A pointer held still inside an edge zone therefore keeps
-  producing new answers with no `pointermove` behind it, which a caller that
-  re-planned only on `pointermove` would miss entirely.
+- **Drag-across was one sentence, not a marquee.** The tension is real — press-and-pull already means "select text" — and the way out is not a modifier or a mode but **where the pull BEGINS**. On the words the browser keeps it, unchanged; on the outline's own scaffolding (the indent rails, the strip left of a note, the page below the last row) there is nothing else for the press to be about, so it picks rows. An ALLOWLIST, marked on the scaffolding itself, so a control added to a row tomorrow inherits the safe answer. And the obvious implementation is wrong: `preventDefault` on the press takes the FOCUS with it and leaves a draft that never blurred, while the `user-select` guard the shared gesture primitive already puts up for the panel edges suppresses the selection and nothing else.
+- **It is a BAND, not a box.** A rectangle asks about two axes and the second one has no meaning here: a row is a LINE drawn as far in as its depth says, so a box down the left of the page would cross a root and miss its indented grandchild. Reading only Y is not a simplification — it is the correct question, and what is drawn is the shape the answer came from.
+- **The touch drag's real content was WHICH CELL, not the timer.** A long press was the obvious answer and it is; what it cost was that the `•••` menu already had one on the row line. Two long presses cannot own one press, so the handle is the BULLET — which is what a mouse and a pen have always dragged from — and the menu keeps the rest of the row. The second half is that claiming the scroll with `touch-action: none` would have passed every scenario and left a 28px dead strip down every outline; the claim is a non-passive `touchmove` listener put up at the DEADLINE, a moment the browser has already agreed is not a scroll.
+- **Auto-scroll is a coordinate-space split.** Whether to move is a question about the WINDOW (client coordinates); where the gesture now is is a question about the PAGE (document coordinates, which is how both gestures measured their rows). A pointer held still inside an edge zone therefore keeps producing new answers with no `pointermove` behind it, which a caller that re-planned only on `pointermove` would miss entirely.
 
 ## The three input widgets, as they shipped (2026-08-14)
 
-`!`, `#`/`@` and `((` in a row's title. What the build decided, in the order a
-reader of this page would otherwise have to rediscover it:
+`!`, `#`/`@` and `((` in a row's title. What the build decided, in the order a reader of this page would otherwise have to rediscover it:
 
-- **`@` became a TAG in the format, not a trigger character with a costume.**
-  The item's own scope says the completion is "over tags that exist in the
-  loaded set", and a widget whose `@` inserted text the set does not recognise
-  would be writing decoration. So `titleTagRe` matches both sigils and
-  `TitlePart` carries which one — two NAMESPACES, `#alice` and `@alice` being
-  different tags, which is the whole reason a person reaches for one rather
-  than the other. The asymmetry that came with it is deliberate: `@` is claimed
-  only where a WORD STARTS, because `srid@srid.ca` is an address, while `#`
-  keeps the alphabet it has had since the format's first day (narrowing it
-  would restyle titles in sets already written). Agent-visible consequence:
-  `read_node`'s `tags` reports them AS WRITTEN.
-- **A `((` mirror cannot go inside a sentence, so it goes beside it.** In
-  Workflowy a mirror is an inline reference; here a mirror is a whole ROW —
-  exactly `{id, parent, ord, mirror}`, with no text of its own — and the line
-  you typed in decides which of the two readings you get. A line that is still
-  a DRAFT with nothing else in it BECOMES the placement, which is Workflowy's
-  gesture exactly (Enter, `((`, choose) and falls out of what a draft already
-  is: an empty one writes no node, so the row that was going to be minted there
-  simply is the mirror. A line with WORDS keeps them, committed first like
-  every structural key, and the placement is the next row.
-- **Nothing is added after a chosen tag — not even a space.** Workflowy adds
-  one; a title here is stored verbatim, so a character nobody typed is a
-  character in somebody's git history. What ends the list instead is the
-  completion being taken.
-- **The `!` list is the natural-language half only.** The browser's own
-  calendar is still reached from the date pill and the `•••` menu. A vocabulary
-  filtered by PREFIX (so `tom` offers `tomorrow` with no rule about
-  abbreviations anywhere) plus three regexes for the forms with a number in
-  them, and every row prints the day it means, because `next friday` is an
-  argument about which Friday.
+- **`@` became a TAG in the format, not a trigger character with a costume.** The item's own scope says the completion is "over tags that exist in the loaded set", and a widget whose `@` inserted text the set does not recognise would be writing decoration. So `titleTagRe` matches both sigils and `TitlePart` carries which one — two NAMESPACES, `#alice` and `@alice` being different tags, which is the whole reason a person reaches for one rather than the other. The asymmetry that came with it is deliberate: `@` is claimed only where a WORD STARTS, because `srid@srid.ca` is an address, while `#` keeps the alphabet it has had since the format's first day (narrowing it would restyle titles in sets already written). Agent-visible consequence: `read_node`'s `tags` reports them AS WRITTEN.
+- **A `((` mirror cannot go inside a sentence, so it goes beside it.** In Workflowy a mirror is an inline reference; here a mirror is a whole ROW — exactly `{id, parent, ord, mirror}`, with no text of its own — and the line you typed in decides which of the two readings you get. A line that is still a DRAFT with nothing else in it BECOMES the placement, which is Workflowy's gesture exactly (Enter, `((`, choose) and falls out of what a draft already is: an empty one writes no node, so the row that was going to be minted there simply is the mirror. A line with WORDS keeps them, committed first like every structural key, and the placement is the next row.
+- **Nothing is added after a chosen tag — not even a space.** Workflowy adds one; a title here is stored verbatim, so a character nobody typed is a character in somebody's git history. What ends the list instead is the completion being taken.
+- **The `!` list is the natural-language half only.** The browser's own calendar is still reached from the date pill and the `•••` menu. A vocabulary filtered by PREFIX (so `tom` offers `tomorrow` with no rule about abbreviations anywhere) plus three regexes for the forms with a number in them, and every row prints the day it means, because `next friday` is an argument about which Friday.
 
-Three things came out of the build that are not about widgets at all, and are
-recorded here because the next editor item will meet them: `keys.ts` grew a
-THIRD matcher layer (`listKey`, what the bare keys mean while a shortlist is
-up), `search/cursor.ts` is now the one cursor four shortlists are walked with,
-and `edit/redraws.ts` says which writes can move the row they were made in —
-which is the difference between suppressing a blur for good reason and for
-none.
+Three things came out of the build that are not about widgets at all, and are recorded here because the next editor item will meet them: `keys.ts` grew a THIRD matcher layer (`listKey`, what the bare keys mean while a shortlist is up), `search/cursor.ts` is now the one cursor four shortlists are walked with, and `edit/redraws.ts` says which writes can move the row they were made in — which is the difference between suppressing a blur for good reason and for none.
 
 ## Open
 
-- **Is an archived node FROZEN?** Raised by the review of `trash-parity`
-  (2026-08-13) and deliberately left to the human, because it is a decision
-  about the SET rather than about a view. The Trash view is read-only, and
-  `/o/Archive.jsonl` opens it — but `/n/<archived-id>` is still the ordinary
-  node page, with its editor, and the day page and the agenda still list
-  archived dated work and link to it (the human's own 2026-08-11 ruling: work
-  that was put away is still work that happened).
+- **Is an archived node FROZEN?** Raised by the review of `trash-parity` (2026-08-13) and deliberately left to the human, because it is a decision about the SET rather than about a view. The Trash view is read-only, and `/o/Archive.jsonl` opens it — but `/n/<archived-id>` is still the ordinary node page, with its editor, and the day page and the agenda still list archived dated work and link to it (the human's own 2026-08-11 ruling: work that was put away is still work that happened).
 
-  The reason this PR did not simply close that page: **the ops layer permits
-  editing an archived node.** Nothing in the planner reads `isArchived` on the
-  way into `set_title` / `set_desc` / `set_date` / the marks — the flag gates
-  blockedness, the change classification and unarchive's own rules, and
-  nothing else. So an agent can retitle archived work today. Making the web
-  page refuse would be the web expressing LESS than MCP, which is
-  `editor-op-parity` again with the faces swapped — this item's own bug, in
-  reverse.
+  The reason this PR did not simply close that page: **the ops layer permits   editing an archived node.** Nothing in the planner reads `isArchived` on the   way into `set_title` / `set_desc` / `set_date` / the marks — the flag gates   blockedness, the change classification and unarchive's own rules, and   nothing else. So an agent can retitle archived work today. Making the web   page refuse would be the web expressing LESS than MCP, which is   `editor-op-parity` again with the faces swapped — this item's own bug, in   reverse.
 
-  So the question is not "should the page be read-only" but "should the SET
-  refuse to edit what has been put away", answered once in the ops layer and
-  met identically by both faces. That has real consequences (an agent could no
-  longer fix a typo in archived work; it interacts with the day/agenda
-  ruling), which is exactly why it is the human's to rule on rather than a
-  parity fix's to assume.
+  So the question is not "should the page be read-only" but "should the SET   refuse to edit what has been put away", answered once in the ops layer and   met identically by both faces. That has real consequences (an agent could no   longer fix a typo in archived work; it interacts with the day/agenda   ruling), which is exactly why it is the human's to rule on rather than a   parity fix's to assume.
 
 - ~~**Derived status in the edit UI**: unlike Workflowy, completing a parent isn't just unpropagated — it's *refused* (derived state).~~ **Closed 2026-08-11** (`hide-done-scope`): status derivation is gone, so olai IS the Workflowy model here — `Ctrl+Enter` on a parent stores a mark like it would on a leaf. The rollup badge is drawn beside an editable row like any other, since the editor replaces only the title span.
 - **Delete without undo — deferred entirely, 2026-08-11 (human), and STILL OPEN.** `undo` did not close it. What that item shipped is the UN-CREATE — the inverse of an `add`, sent by no key, over a row that was just made and has nothing under it, resolving to `archive` — which is the "arrives with undo" half read strictly. A delete KEY (which rows? a subtree? a confirmation?) is untouched and is the human's to rule on.
 - ~~**A write's `nudge` has nowhere to go on the keyboard path.**~~ **Closed in this item**: it is a dim line under the row, dismissed by the next keystroke. See above.
 - **Keeping a caret across a server-authoritative redraw is a primitive nobody owns.** The editor holds a focused element through a frame it did not cause — the write answers on one channel and the file arrives on another, in either order, and the redraw either moves the element or replaces the branch that drew it. That is not an outline problem; it is what any editor over this kind of live store has to solve, and olai has graduated this shape before (`listener.ts`'s sequence became `@kolu/surface-app`'s `serveSurfaceApp`, kolu#2137). One consumer today, so it stays where it is used (`web/src/client/edit/editing.tsx`) — recorded here so the second consumer is the moment somebody remembers, rather than the moment somebody re-derives it.
 
-  **The second consumer arrived (`dragdrop-multiselect`, 2026-08-14)**, and it
-  moved: a multi-selection is a SET of places, and a bulk indent redraws every
-  one of them under a new chain of ids. The half that is arithmetic — where the
-  record standing at this place is drawn now — is `refound` in
-  `web/src/client/edit/order.ts`, beside the other two questions about the rows
-  on screen, and both the caret and the pick are one line over it. What is still
-  nobody's, and is the half the paragraph above is really about, is holding the
-  FOCUS through that frame; that remains one consumer's (`editing.tsx`'s
-  `settling`), and the graduation note stands for it.
+  **The second consumer arrived (`dragdrop-multiselect`, 2026-08-14)**, and it   moved: a multi-selection is a SET of places, and a bulk indent redraws every   one of them under a new chain of ids. The half that is arithmetic — where the   record standing at this place is drawn now — is `refound` in   `web/src/client/edit/order.ts`, beside the other two questions about the rows   on screen, and both the caret and the pick are one line over it. What is still   nobody's, and is the half the paragraph above is really about, is holding the   FOCUS through that frame; that remains one consumer's (`editing.tsx`'s   `settling`), and the graduation note stands for it.
 
 ## The full Workflowy modification inventory — researched 2026-08-12
 
-Every way a Workflowy user changes their outline, from the official hotkey
-table, the bullet-types page, the bullets/menu page and the export article,
-mapped to where olai stands. This is the completeness check the Editor
-subtree is measured against; the first research pass (above) took the
-keyboard loop and missed several whole categories. Sources:
-workflowy.com/help/hotkeys, /help/bullet-types, /help/bullets.md,
-zendesk 205757575 (export formats).
+Every way a Workflowy user changes their outline, from the official hotkey table, the bullet-types page, the bullets/menu page and the export article, mapped to where olai stands. This is the completeness check the Editor subtree is measured against; the first research pass (above) took the keyboard loop and missed several whole categories. Sources: workflowy.com/help/hotkeys, /help/bullet-types, /help/bullets.md, zendesk 205757575 (export formats).
 
-Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
-(no roadmap item as of 2026-08-12).
+Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING** (no roadmap item as of 2026-08-12).
 
 ### Structure
 
@@ -388,86 +176,25 @@ Status keys: **shipped** (item, PR) · **filed** (roadmap id) · **MISSING**
 
 ### The bullet/context menu itself
 
-Workflowy's per-node menu carries: Complete · Add note · Duplicate · Mirror ·
-Copy link · Move to · Format conversions · Export · Share · Expand all /
-Collapse all · Delete. olai's `•••` menu started as #102's styling with five
-READING verbs, and `menu-verbs` gave it the write half: Zoom in · Expand /
-Collapse · Expand all · Collapse all · Copy link — then a rule, and below it
-Mark todo / Mark doing / Complete / Clear mark · Clear date · Link to a node… ·
-Wait for a node… · Remove this placement · Archive (subtree, behind a confirm
-naming how many rows go) · Copy as text. Each is drawn only where it applies,
-so the panel is short on a leaf and long on a marked, dated branch — with the
-two edge verbs the exception that proves the rule, since every node can take an
-edge and what would be refused is the ops layer's sentence rather than a
-missing entry.
+Workflowy's per-node menu carries: Complete · Add note · Duplicate · Mirror · Copy link · Move to · Format conversions · Export · Share · Expand all / Collapse all · Delete. olai's `•••` menu started as #102's styling with five READING verbs, and `menu-verbs` gave it the write half: Zoom in · Expand / Collapse · Expand all · Collapse all · Copy link — then a rule, and below it Mark todo / Mark doing / Complete / Clear mark · Clear date · Link to a node… · Wait for a node… · Remove this placement · Archive (subtree, behind a confirm naming how many rows go) · Copy as text. Each is drawn only where it applies, so the panel is short on a leaf and long on a marked, dated branch — with the two edge verbs the exception that proves the rule, since every node can take an edge and what would be refused is the ops layer's sentence rather than a missing entry.
 
-What is still Workflowy's and not olai's, from that list: **Add note** (olai's
-note is one click on the row, so a menu entry would be a second door to the
-same place — deliberately not built), **Duplicate** and **Move to** (both
-MISSING above, and both genuine op design), **Mirror** (creation is
-`input-widgets`' `((`), **Format conversions** (olai nodes have no kind),
-**Export** beyond plain text, **Share** (out of scope), and **Delete**, which
-is nobody's op: `Archive` is the put-away, ids kept.
+What is still Workflowy's and not olai's, from that list: **Add note** (olai's note is one click on the row, so a menu entry would be a second door to the same place — deliberately not built), **Duplicate** and **Move to** (both MISSING above, and both genuine op design), **Mirror** (creation is `input-widgets`' `((`), **Format conversions** (olai nodes have no kind), **Export** beyond plain text, **Share** (out of scope), and **Delete**, which is nobody's op: `Archive` is the put-away, ids kept.
 
 ### Deliberately out of olai's scope (decided by inspection, revisit on demand)
 
-Share/collaboration (olai is a served directory, not a multi-tenant account),
-boards/kanban bullet type, file/image upload into nodes (adjacent to
-`md-editing` and `/media`; revisit there), templates, star/favorites
-(navigation state, not a modification), print.
+Share/collaboration (olai is a served directory, not a multi-tenant account), boards/kanban bullet type, file/image upload into nodes (adjacent to `md-editing` and `/media`; revisit there), templates, star/favorites (navigation state, not a modification), print.
 
 ### The consistency-rule reading (the sharpest framing)
 
-HACKING.md: "MCP and Web ops must be consistent; never deviate." The reading
-that filed `editor-op-parity`: the web editor could express
-`add / move / toggle / title / desc` (+ `remove` as undo's inverse) while MCP
-could also express `archive`, `set_date`, `set_doing`/`set_todo`, `set_see`,
-`set_after`, `add_mirror`/`remove_mirror`, `create_outline` — and NEITHER face
-could unarchive.
+HACKING.md: "MCP and Web ops must be consistent; never deviate." The reading that filed `editor-op-parity`: the web editor could express `add / move / toggle / title / desc` (+ `remove` as undo's inverse) while MCP could also express `archive`, `set_date`, `set_doing`/`set_todo`, `set_see`, `set_after`, `add_mirror`/`remove_mirror`, `create_outline` — and NEITHER face could unarchive.
 
-`menu-verbs` closed four of those from the `•••` menu — `mark` (all three,
-and clearing one), `date`, `unmirror`, `archive` — each as an arm on the same
-intent union and a resolver arm beside it, sending the request the equivalent
-tool sends. What that left, in order of what it would take:
+`menu-verbs` closed four of those from the `•••` menu — `mark` (all three, and clearing one), `date`, `unmirror`, `archive` — each as an arm on the same intent union and a resolver arm beside it, sending the request the equivalent tool sends. What that left, in order of what it would take:
 
-- ~~`set_see` / `set_after` (`parity-see`, `parity-after`): both want a node
-  SEARCH to name the other end, and that widget EXISTS now (`input-widgets`'
-  `((`, over `search/nodes.ts`). What is missing is the two verbs on the wire,
-  not the way to ask "which node?".~~ **Closed (`editor-op-parity`)**: two arms
-  on the intent union carrying the ops layer's own two lists, and ONE panel for
-  both fields — because the planner already plans them with one function. The
-  search is `search/nodes.ts` as predicted, so the widget was indeed the whole
-  of what was missing. Two doors per surface (the `•••`'s two verbs on a row,
-  two controls on a zoomed node whose heading has none) and an `×` on every
-  reference already drawn. The loop refusal reaches the page verbatim, naming
-  the loop; nothing is greyed out first, which is the mark verbs' rule read one
-  field along. What a node DECLARES is drawn beside what is IN ITS WAY on its
-  own page, and only the declared list is editable — `blocked` is derived, folds
-  in `blocks` from other records, and drops finished work, so an `×` on it would
-  name no single edge.
-- ~~`create_outline` (`parity-create-outline`): the sidebar's, not a row's.~~
-  **Closed (`editor-op-parity`)**: `+ New outline` above `+ New document`, the
-  same box and the same rule about who judges a path (the op, verbatim). It
-  sends no `seed` — the one place the verb says less than the tool, and it
-  costs nothing, because a person's first row is typed on the empty outline's
-  own page. Nothing this face reaches is out of the agent's reach, which is the
-  direction the rule runs.
-- ~~setting a date: the `!` picker, `input-widgets`.~~ **Closed** — and
-  `add_mirror` went with it, which was not on this list at all because nobody
-  had noticed the surface could retire a placement it had no way to make.
-  Both are arms on the same intent union: `date` was already there for the
-  menu's `Clear date`, and `mirror` is new beside `unmirror`.
-- ~~UNARCHIVE (`parity-unarchive`): still no op on either face, and the one
-  entry here that is an equal absence rather than a deviation.~~ **Closed
-  2026-08-13 (`trash-parity`)**: the op was born in the ops layer and both
-  faces got it together — `unarchive_node` for the agent, the Trash view's
-  `Put back` for the mouse.
+- ~~`set_see` / `set_after` (`parity-see`, `parity-after`): both want a node SEARCH to name the other end, and that widget EXISTS now (`input-widgets`' `((`, over `search/nodes.ts`). What is missing is the two verbs on the wire, not the way to ask "which node?".~~ **Closed (`editor-op-parity`)**: two arms on the intent union carrying the ops layer's own two lists, and ONE panel for both fields — because the planner already plans them with one function. The search is `search/nodes.ts` as predicted, so the widget was indeed the whole of what was missing. Two doors per surface (the `•••`'s two verbs on a row, two controls on a zoomed node whose heading has none) and an `×` on every reference already drawn. The loop refusal reaches the page verbatim, naming the loop; nothing is greyed out first, which is the mark verbs' rule read one field along. What a node DECLARES is drawn beside what is IN ITS WAY on its own page, and only the declared list is editable — `blocked` is derived, folds in `blocks` from other records, and drops finished work, so an `×` on it would name no single edge.
+- ~~`create_outline` (`parity-create-outline`): the sidebar's, not a row's.~~ **Closed (`editor-op-parity`)**: `+ New outline` above `+ New document`, the same box and the same rule about who judges a path (the op, verbatim). It sends no `seed` — the one place the verb says less than the tool, and it costs nothing, because a person's first row is typed on the empty outline's own page. Nothing this face reaches is out of the agent's reach, which is the direction the rule runs.
+- ~~setting a date: the `!` picker, `input-widgets`.~~ **Closed** — and `add_mirror` went with it, which was not on this list at all because nobody had noticed the surface could retire a placement it had no way to make. Both are arms on the same intent union: `date` was already there for the menu's `Clear date`, and `mirror` is new beside `unmirror`.
+- ~~UNARCHIVE (`parity-unarchive`): still no op on either face, and the one entry here that is an equal absence rather than a deviation.~~ **Closed 2026-08-13 (`trash-parity`)**: the op was born in the ops layer and both faces got it together — `unarchive_node` for the agent, the Trash view's `Put back` for the mouse.
 
-Duplicate, move-to, paste/export, formatting and bullet types remain genuinely
-new design work, each its own item.
+Duplicate, move-to, paste/export, formatting and bullet types remain genuinely new design work, each its own item.
 
-One shape worth keeping from the build: **a fence a UI wants does not belong on
-the wire.** Archive takes a subtree because `archive_node` does, and the
-confirm that names the blast radius is the panel's own second step — put in the
-schema, it would have been a rule the agent's own op does not have, which is
-the deviation read backwards.
+One shape worth keeping from the build: **a fence a UI wants does not belong on the wire.** Archive takes a subtree because `archive_node` does, and the confirm that names the blast radius is the panel's own second step — put in the schema, it would have been a rule the agent's own op does not have, which is the deviation read backwards.
