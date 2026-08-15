@@ -10,9 +10,19 @@
  * what each code means, and the phase that catches it are three facts about
  * the same thing, and a code declared in one place and classified in another
  * is a pair that can — and did — drift apart.
+ *
+ * The `file:line` half of that promise is BORROWED, not declared: `./node.ts`'s
+ * {@link Site}, the same value a record in the set, a read's answer and a
+ * mirror's location each carry. An error is one thing that is AT a place, and
+ * this module used to be where the place itself was written down — which made
+ * the other three carriers three more spellings of it. Same borrowing
+ * `./reading.ts` does from here for a record's mark fields: the shape travels,
+ * so it is declared once at its source.
  */
 
 import { Order, Schema } from "effect"
+
+import { Site } from "./node.ts"
 
 /**
  * Which half of the codec rejects it.
@@ -136,16 +146,6 @@ export const isGuessWhileUnreadable = (code: ErrorCode): boolean =>
 export const reportStage = (
   errors: ReadonlyArray<{ readonly code: ErrorCode }>,
 ): Stage => errors.some((error) => stageOf(error.code) === "line") ? "line" : "set"
-
-/** A place in the loaded set. `file` is relative to the served directory, so
- *  it reads the same in the browser, in a test assertion and in a report from
- *  another machine. `line` is 1-based — one node per line, so the line is the
- *  whole story. */
-export const Site = Schema.Struct({
-  file: Schema.String,
-  line: Schema.Int,
-})
-export type Site = typeof Site.Type
 
 /** A second place the error is about, with a word on why it is implicated:
  *  the other record that claimed the id, the rest of the cycle, the file the

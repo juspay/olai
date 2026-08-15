@@ -80,6 +80,10 @@ export {
   Located,
   MARKS,
   OUTLINE_EXT,
+  /** A place in the loaded set — `{file, line}`, as a schema, so an error's
+   *  site, a record in the set, a read's answer and a mirror's location are one
+   *  derivation of "where" rather than four spellings of it. */
+  Site,
   /** What a node's checkbox shows — one of the MARKS, as a schema, so the
    *  request that writes one, the keystroke that toggles one and the read that
    *  answers with one are one derivation of that list rather than five. */
