@@ -14,7 +14,10 @@
  * would allow on its own reach the disk; and two commit paths sweep one git
  * repository against each other.
  *
- * The three tests are the three things the refusal has to be:
+ * Three of the four are that, and they are the three things the refusal has to
+ * be. The fourth is the same keying question asked of the path function alone,
+ * in milliseconds rather than in three boots — the end-to-end tests are what
+ * make it true, and that one is what says which spellings were meant.
  *
  *   1. A REFUSAL, in olai's own words, naming the process that holds the
  *      directory — not a raw `EWOULDBLOCK` from the kernel, which tells a
@@ -37,6 +40,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { BOOT_TIMEOUT, startWeb, stoppedWithin } from "./child.testlib.ts"
+import { lockFor } from "./lock.ts"
 import { served } from "./serve.testlib.ts"
 
 /** A test may take three boots' worth of waiting before it is a hang. */
@@ -128,3 +132,18 @@ test("the holder dies and the directory is free", async () => {
     next.kill()
   }
 }, BOUND_MS)
+
+test("the lock is the directory's, however the directory was spelled", () => {
+  // The same three spellings the two-process test above proves end to end,
+  // pinned here in milliseconds — and the third one is the half a symlink test
+  // alone would not catch: two vaults must be two locks, or a person with
+  // notes and work open could only ever serve one of them.
+  const root = fs.realpathSync(served())
+  const elsewhere = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-lock-key-")))
+  const link = path.join(elsewhere, "notes")
+  fs.symlinkSync(root, link)
+
+  expect(lockFor(link)).toBe(lockFor(root))
+  expect(lockFor(`${root}/.`)).toBe(lockFor(root))
+  expect(lockFor(elsewhere)).not.toBe(lockFor(root))
+})

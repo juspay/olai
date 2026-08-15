@@ -53,6 +53,17 @@
  * tmpfs the machine clears at logout. Its CONTENTS are informational only:
  * whoever holds the lock writes their pid there so the refusal below can name
  * them. Nothing decides anything by reading them.
+ *
+ * WHY A FILE AT ALL, when `flock` would take the SERVED DIRECTORY's own
+ * descriptor and need no file, no digest and no path convention — and would be
+ * keyed on the inode, so even a bind mount would be one vault: because
+ * `flock(2)` tells a caller `EWOULDBLOCK` and nothing else. It does not say who
+ * holds the lock, and this refusal has to say it. `fcntl(F_GETLK)` does name
+ * the holder, and it comes with POSIX record locking's own famous edge — the
+ * lock is dropped when ANY descriptor to that file is closed anywhere in the
+ * process — which is a foot-gun to leave in a long-lived server for the sake of
+ * one integer. So the claim is `flock`, and the integer is a note the holder
+ * writes inside the thing it holds.
  */
 
 import { Data, Effect } from "effect"
