@@ -29,15 +29,21 @@ Feature: The ••• menu's primitive arrives when a row is asked for its menu
     And there should be no page errors
 
   @corpus:good
-  Scenario: The first press fetches it, and the second row does not fetch it again
+  Scenario: The first press fetches it, and no row after that fetches it again
     When I open the outline "house.jsonl"
     And I open the node menu of "install"
     Then the node menu offers "Zoom in"
     And the menu's primitive was fetched once
     # One chunk for the whole app, not one per row: the arrival is a module
-    # signal every row reads (client/arriving.ts).
+    # signal every row reads (client/arriving.ts). Two more rows, because the
+    # step says "however many rows have been opened" and a scenario that opened
+    # one more than the first would be reading like a pair.
     When I click away from the node menu
     And I open the node menu of "handles"
+    Then the node menu offers "Zoom in"
+    And the menu's primitive was fetched once
+    When I click away from the node menu
+    And I open the node menu of "hinges"
     Then the node menu offers "Zoom in"
     And the menu's primitive was fetched once
     # Same claim the rest of the client makes: this server shipped it, and no
