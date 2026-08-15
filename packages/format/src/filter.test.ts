@@ -17,7 +17,7 @@ const CORPUS = {
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
-    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"walnut or birch","after":["demo"],"see":["herbs"]}`,
+    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"walnut or birch","after":["demo"],"see":["herbs"],"custom":{"agent":"Claude-Opus","pr":"https://github.com/juspay/olai/pull/176","tags":["cabinets","walnut"]}}`,
     `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md"}`,
     `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11"}`,
     `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
@@ -25,7 +25,7 @@ const CORPUS = {
   "garden.olai": [
     `{"id":"garden","ord":"a0","title":"garden #outdoors"}`,
     `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","doing":true}`,
-    `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}`,
+    `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20","custom":{"agent":"claude-opus"}}`,
   ].join("\n"),
   "Archive.olai": [
     `{"id":"gone","ord":"a0","title":"the old kitchen table #home","done":"2026-06-01"}`,
@@ -147,6 +147,75 @@ test("`-` negates whichever kind of token it is in front of", () => {
 test("clauses and words compose", () => {
   expect(selects("#home is:todo")).toEqual(["hinges"])
   expect(selects("has:date is:doing")).toEqual(["order"])
+})
+
+// ── properties ─────────────────────────────────────────────────────────
+
+/**
+ * `prop:` is the question `has:` asks of a FIELD, asked of a map with no fixed
+ * list of keys — which is why it takes the key as its value rather than
+ * appearing as more rows in that table.
+ */
+test("`prop:key` finds every node carrying that key", () => {
+  expect(selects("prop:pr")).toEqual(["order"])
+  expect(selects("prop:agent")).toEqual(["order", "basil"])
+  expect(selects("prop:isbn")).toEqual([])
+})
+
+test("`prop:key=value` finds the nodes whose value is that", () => {
+  // The query the design was written for: every lane this agent ran, out of
+  // facts nobody had to re-parse by eye.
+  expect(selects("prop:agent=claude-opus")).toEqual(["order", "basil"])
+  expect(selects("prop:agent=codex")).toEqual([])
+  // A LIST matches on any member — a fact can be several.
+  expect(selects("prop:tags=walnut")).toEqual(["order"])
+})
+
+/**
+ * CASE IS FOLDED ON BOTH HALVES, which is this grammar's rule rather than a new
+ * one — `#Home` finds `#home`. `order` carries `agent: "Claude-Opus"` and
+ * `basil` carries `agent: "claude-opus"`; both are the same answer to the same
+ * question, because a property is something somebody typed into a map that
+ * gives no key a spelling.
+ */
+test("a key and a value are found however they were capitalised", () => {
+  expect(selects("prop:AGENT")).toEqual(["order", "basil"])
+  expect(selects("prop:Agent=Claude-Opus")).toEqual(["order", "basil"])
+})
+
+/** It reads `custom` and nothing else — a field of the record is not a
+ *  property, however much the word looks like one. `is:done` is how a mark is
+ *  asked about, and there is exactly one way to ask each question. */
+test("a field is not a property, so `prop:` does not find one", () => {
+  expect(selects("prop:date=2026-08-10")).toEqual([])
+  expect(selects("prop:done")).toEqual([])
+  expect(selects("prop:see=herbs")).toEqual([])
+})
+
+test("`prop:` composes and negates like every other clause", () => {
+  expect(selects("prop:agent -is:done")).toEqual(["order"])
+  expect(selects("is:done -prop:agent")).toEqual(["demo"])
+})
+
+test("a `prop:` token with no key, or a key with an empty value, is refused", () => {
+  expect(refusalsOf("prop:")?.[0]?.reason).toContain("no value")
+  // Not "matches nothing": a key holding nothing is a key the file does not
+  // carry, so `prop:stage=` could only ever select nothing — silently.
+  expect(refusalsOf("prop:stage=")?.[0]?.reason).toContain("prop:agent=claude-opus")
+  expect(refusalsOf("prop:=x")?.[0]?.reason).toContain("prop:pr")
+})
+
+/** The first `=` splits it, so a value may hold its own. A URL with a query
+ *  string is the ordinary case, not a corner. */
+test("a value may contain an equals sign", () => {
+  const filter = parseFilter("prop:source=https://news.ycombinator.com/item?id=6560560")
+  expect(filter.kind).toBe("asking")
+  if (filter.kind !== "asking") return
+  expect(filter.clauses[0]?.clause).toEqual({
+    kind: "prop",
+    key: "source",
+    value: "https://news.ycombinator.com/item?id=6560560",
+  })
 })
 
 // ── refusals ───────────────────────────────────────────────────────────

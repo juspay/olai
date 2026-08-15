@@ -31,6 +31,7 @@ import {
   errorLine,
   follow,
   type Found,
+  isEmptyCustom,
   isMirror,
   type LocatedRegular,
   MARKS,
@@ -243,6 +244,12 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     ...foundOf(derived, regular),
     ...(node.date === undefined ? {} : { date: node.date }),
     ...(node.desc === undefined ? {} : { desc: node.desc }),
+    // The map, verbatim — the only place a `pr` or an `isbn` could come from,
+    // and absent rather than `{}` on a node carrying none, which is the
+    // writer's rule for absence read at the answer.
+    ...(isEmptyCustom(node.custom) ? {} : { custom: node.custom }),
+    ...(node.created === undefined ? {} : { created: node.created }),
+    ...(node.changed === undefined ? {} : { changed: node.changed }),
     ...stampsOf(node),
     // AS WRITTEN, sigil and all: `#alice` and `@alice` are two tags, so a list
     // that dropped the character that started them could not tell a reader

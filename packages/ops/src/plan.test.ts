@@ -918,6 +918,10 @@ describe("title, note and date", () => {
       parent: "kitchen",
       ord: "a1",
       title: "order cabinets",
+      // ...plus the stamp every write leaves, which is not "everything else"
+      // being kept — it is the write saying when it happened (./plan.ts's
+      // `touched`).
+      changed: STAMP,
     })
     expect(result.summary).toBe("rename: order cabinets")
   })
@@ -1021,6 +1025,230 @@ describe("title, note and date", () => {
   })
 })
 
+// ── prop ───────────────────────────────────────────────────────────────
+
+describe("prop", () => {
+  const customOf = (set: OutlineSet, request: Request): Record<string, unknown> => ({
+    ...record(fileOf(planned(set, request), "house.olai"), "order").custom,
+  })
+
+  test("a key goes into `custom`, holding whatever it was given", () => {
+    expect(customOf(house(), { op: "prop", id: "order", key: "pr", value: "https://x/1" }))
+      .toEqual({ pr: "https://x/1" })
+    // The summary names the KEY, because the key is what changed: a subject
+    // reading `prop: order the cabinets` would leave the reader to diff the
+    // line to find out which fact moved.
+    expect(planned(house(), { op: "prop", id: "order", key: "pr", value: "https://x/1" }).summary)
+      .toBe("prop: order the cabinets -> pr=https://x/1")
+  })
+
+  test("`null` removes it, and so does the empty string", () => {
+    const carrying = setOf({
+      "house.olai": KITCHEN.replace(
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
+          `"custom":{"pr":"https://x/1","agent":"claude-opus"}}`,
+      ),
+    })
+    // The other key is untouched: this op is about ONE property, and a write
+    // that rebuilt the map would take the rest of it with whatever it knew.
+    expect(customOf(carrying, { op: "prop", id: "order", key: "pr", value: null }))
+      .toEqual({ agent: "claude-opus" })
+    expect(customOf(carrying, { op: "prop", id: "order", key: "pr", value: "" }))
+      .toEqual({ agent: "claude-opus" })
+    expect(planned(carrying, { op: "prop", id: "order", key: "pr", value: null }).summary)
+      .toBe("prop: order the cabinets -> pr (cleared)")
+  })
+
+  /**
+   * The one refusal, and it is about SHADOWING rather than about reach: this op
+   * writes inside `custom` and could not touch a field if it tried. What it must
+   * not do is let a node say `done` twice with two meanings.
+   *
+   * The list is the RATIFIED one, written out: these are the words a reader
+   * would take for a fact about the node. That a FIELD cannot be added to the
+   * format without a sentence here is the other half, and it is a compile error
+   * rather than a test — `shadowFor`'s table is keyed by the record's own
+   * fields.
+   */
+  test("a key spelled like a field is refused, naming what writes that fact", () => {
+    const fields = [
+      "id",
+      "parent",
+      "ord",
+      "title",
+      "mirror",
+      "done",
+      "doing",
+      "todo",
+      "status",
+      "date",
+      "desc",
+      "doc",
+      "after",
+      "blocks",
+      "see",
+      "created",
+      "changed",
+      "custom",
+    ]
+    for (const key of fields) {
+      const failure = refused(house(), { op: "prop", id: "order", key, value: "x" })
+      expect({ key, tag: failure._tag }).toEqual({ key, tag: "UsageFailure" })
+      expect({ key, named: failure.message.includes(`\`${key}\``) })
+        .toEqual({ key, named: true })
+    }
+    // Folded, because the confusion it prevents is a human one and humans do
+    // not read case.
+    expect(refused(house(), { op: "prop", id: "order", key: "Done", value: "x" })._tag)
+      .toBe("UsageFailure")
+  })
+
+  /** `status` is the one shadowed word that is NOT a field — three fields
+   *  answer it — so the sentence may not tell somebody a node carries one
+   *  (Grok, review of #179). */
+  test("the refusal does not call `status` a field, because it is not one", () => {
+    const status = refused(house(), { op: "prop", id: "order", key: "status", value: "done" })
+    expect(status.message).not.toContain("with a field of its own")
+    expect(status.message).toContain("`status` is what a node's own fields already answer")
+    expect(status.message).toContain("`set_done`")
+    // ...and a word that IS a field still says so.
+    expect(refused(house(), { op: "prop", id: "order", key: "date", value: "x" }).message)
+      .toContain("with a field of its own")
+  })
+
+  /**
+   * A write that would change nothing is REFUSED, which is the rule every other
+   * op in this file already follows — `set_done` on a done node, `set_see` with
+   * a target it already names — and the one this op was missing.
+   *
+   * It matters more here than it looks, because of the stamps. Such a write
+   * still rewrote the record (`changed` is stamped on every write), so it
+   * landed on disk, dirtied git, counted as an op in the chat transcript, and
+   * reported `edited` — while the pending panel, which does not compare stamps,
+   * listed nothing at all for a tree git called dirty. One gesture, two faces,
+   * neither of them true. Disclosed by opencode in review of #179.
+   */
+  test("setting a property to what it already holds is refused", () => {
+    const carrying = setOf({
+      "house.olai": KITCHEN.replace(
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
+          `"custom":{"pr":"https://x/1"}}`,
+      ),
+    })
+    const failure = refused(carrying, {
+      op: "prop",
+      id: "order",
+      key: "pr",
+      value: "https://x/1",
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("nothing would change")
+    expect(failure.message).toContain("`pr`")
+  })
+
+  test("removing a property that is not there is refused", () => {
+    const failure = refused(house(), { op: "prop", id: "order", key: "stage", value: null })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("carries no `stage`")
+  })
+
+  test("a value that DIFFERS is not refused, however similar", () => {
+    const carrying = setOf({
+      "house.olai": KITCHEN.replace(
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
+          `"custom":{"pr":"https://x/1","tags":["a","b"]}}`,
+      ),
+    })
+    expect(customOf(carrying, { op: "prop", id: "order", key: "pr", value: "https://x/2" }))
+      .toMatchObject({ pr: "https://x/2" })
+    // A key holding a LIST is not "already that value" for any text: the write
+    // replaces the list, which is a real change and the caller's to make.
+    expect(customOf(carrying, { op: "prop", id: "order", key: "tags", value: "a" }))
+      .toMatchObject({ tags: "a" })
+  })
+
+  test("a key that is nothing but space is not a key", () => {
+    expect(refused(house(), { op: "prop", id: "order", key: "  ", value: "x" }).message)
+      .toBe("a property needs a key")
+  })
+
+  test("a key is trimmed, and otherwise spelled however it was typed", () => {
+    // NOT case-folded, not slugged: `custom` takes any key, and a rule here
+    // about spelling would be this op inventing one the format does not have.
+    expect(customOf(house(), { op: "prop", id: "order", key: " Due-Owner ", value: "@rahul" }))
+      .toEqual({ "Due-Owner": "@rahul" })
+  })
+})
+
+// ── the stamps ─────────────────────────────────────────────────────────
+
+/**
+ * `created` and `changed`: the two fields nobody asks for.
+ *
+ * There is no verb and no request field — a caller asks for a title, a mark, a
+ * date, an edge or a property, and the stamp rides along. What is tested here
+ * is that it rides along EVERYWHERE, because the failure mode is silent: one
+ * planner that forgot would leave a node whose `changed` is a lie, and nothing
+ * would ever say so.
+ */
+describe("stamps", () => {
+  const stampsOf = (set: OutlineSet, request: Request, id = "order") => {
+    const node = record(fileOf(planned(set, request), "house.olai"), id)
+    return { created: node.created, changed: node.changed }
+  }
+
+  test("a capture is created and not changed", () => {
+    // The honest pair for a node nobody has written to since it was born.
+    const captured = record(
+      fileOf(planned(house(), { op: "add", file: "house.olai", title: "a new one" }), "house.olai"),
+      "n1",
+    )
+    expect({ created: captured.created, changed: captured.changed })
+      .toEqual({ created: STAMP, changed: undefined })
+  })
+
+  test("every write that rewrites a node stamps `changed`", () => {
+    // One test over the ops that touch a record, because the failure mode is a
+    // planner that quietly does not.
+    const writes: ReadonlyArray<Request> = [
+      { op: "title", id: "order", title: "order the walnut ones" },
+      { op: "desc", id: "order", desc: "measure first" },
+      { op: "date", id: "order", date: "2026-08-10" },
+      { op: "prop", id: "order", key: "pr", value: "https://x/1" },
+      { op: "doing", id: "order" },
+      { op: "see", id: "order", add: ["demo"] },
+      { op: "after", id: "order", add: ["demo"] },
+      { op: "move", id: "order", before: "demo" },
+    ]
+    for (const request of writes) {
+      expect({ op: request.op, ...stampsOf(house(), request) })
+        .toEqual({ op: request.op, created: undefined, changed: STAMP })
+    }
+  })
+
+  /** NO BACKFILL: a node that carried no `created` before the write does not
+   *  acquire one, because nobody saw it being made. The ledger does not invent
+   *  a past — `git log` is the archaeologist's tool. */
+  test("a write does not invent a `created` for a node that had none", () => {
+    expect(stampsOf(house(), { op: "title", id: "order", title: "x" }).created)
+      .toBeUndefined()
+  })
+
+  test("archiving stamps nothing, because archiving is not writing", () => {
+    // `archive_node`'s own promise — "nothing is stamped: archiving is not
+    // finishing" — read across to the other stamp. A whole subtree's worth of
+    // `changed` for one gesture that changed nothing anybody wrote would be
+    // noise in every future reading.
+    const archived = planned(house(), { op: "archive", id: "order" })
+    const moved = archived.files.flatMap((one) => one.nodes).find((one) => one.id === "order")
+    expect(moved).toBeDefined()
+    expect((moved as RegularNode).changed).toBeUndefined()
+  })
+})
+
 // ── move ───────────────────────────────────────────────────────────────
 
 describe("move", () => {
@@ -1107,6 +1335,9 @@ describe("create", () => {
         title: "an idea #later",
         desc: "write it down",
         date: "2026-08-10",
+        // A node coming into being is CREATED, and carries no `changed`: nothing
+        // has been written to it since.
+        created: STAMP,
       },
     ])
     expect(result.summary).toBe("capture: an idea #later")
@@ -1293,6 +1524,9 @@ describe("split", () => {
       parent: "kitchen",
       ord: record(nodes, "n1").ord,
       title: " it",
+      // A node coming into being: `created`, and no `changed` — nothing has
+      // been written to it since it was born a moment ago.
+      created: STAMP,
     })
   })
 
@@ -1464,8 +1698,19 @@ describe("merge", () => {
     })
     const after = setOf({ "house.olai": serializeOutline(fileOf(split, "house.olai")) })
     const back = planned(after, { op: "merge", id: "n1" })
-    expect(serializeOutline(fileOf(back, "house.olai")))
-      .toBe(serializeOutline(nodesOf(before.nodes, "house.olai").map((at) => at.node)))
+    // EXCEPT FOR THE STAMP, and the exception is the honest half of the claim:
+    // the node really was written twice, so it really does carry a `changed`
+    // afterwards. What "inverse" means is that everything a person wrote is
+    // back where it was — the titles, the note, the children, the ords — and
+    // the ledger of when it happened is not part of that.
+    const unstamped = (nodes: ReadonlyArray<Node>): string =>
+      serializeOutline(nodes.map((node) => {
+        const { changed: _dropped, ...rest } = node as RegularNode
+        return rest as Node
+      }))
+    expect(unstamped(fileOf(back, "house.olai")))
+      .toBe(unstamped(nodesOf(before.nodes, "house.olai").map((at) => at.node)))
+    expect(record(fileOf(back, "house.olai"), "order").changed).toBe(STAMP)
   })
 })
 

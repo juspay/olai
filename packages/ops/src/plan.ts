@@ -50,6 +50,7 @@ import {
   type OpFailure,
   ordBetween,
   OUTLINE_EXT,
+  shadowFor,
   siblingsOf,
   standingBefore,
   type OutlineSet,
@@ -57,6 +58,7 @@ import {
   storedMarker,
   targetsOf,
   unfinishedUnder,
+  withCustom,
   UsageFailure,
   ValidationFailure,
   type Capture,
@@ -186,6 +188,8 @@ export const plan = (
         (node) => withField(node, "date", request.date),
         (node) => `date: ${node.title} -> ${node.date ?? "(cleared)"}`,
       )
+    case "prop":
+      return planProp(scope, request)
     case "move":
       return planMove(scope, request)
     case "split":
@@ -713,6 +717,11 @@ const capturedNode = (
     ...(at.parent === undefined ? {} : { parent: at.parent }),
     ord: at.ord,
     title: capture.title,
+    // The instant it came into being, and the one place it is written. A node
+    // gets no `changed` here: it has not been changed, it has been captured,
+    // and `changed` absent beside a `created` is the honest answer for a node
+    // nobody has written to since (./plan.ts's `touched`).
+    created: scope.context.now(),
   }
   if (capture.mark !== undefined) node[capture.mark] = marker(scope, capture.mark)
   if (capture.date !== undefined) node.date = capture.date
@@ -814,6 +823,31 @@ const UNMARKED = {
 const marker = (scope: Scope, mark: Status): string | true =>
   mark === "done" ? scope.context.now() : true
 
+/**
+ * A record about to be written, stamped `changed` — the one place a write says
+ * when it happened.
+ *
+ * EVERY WRITE THAT REWRITES A NODE goes through here, and that is the whole of
+ * the rule: there is no verb for `changed`, no request carries one, and no
+ * caller decides. A person or an agent asks for a title, a mark, a date, an
+ * edge or a property, and the stamp rides along, exactly as `done` has always
+ * carried its instant.
+ *
+ * WHAT IT IS NOT APPLIED TO, and each is a decision rather than an omission:
+ *
+ *   - a MIRROR, which has neither field. A placement is a location, not a node;
+ *     what changed when one moves is where a node is drawn, and the node itself
+ *     did not hear about it;
+ *   - ARCHIVING and unarchiving, which move a subtree between files without
+ *     asking anything about its content. `archive_node` already promises that
+ *     "nothing is stamped: archiving is not finishing", and re-stamping every
+ *     node under a branch because somebody put the branch away would fill a
+ *     whole subtree's worth of `changed` with one gesture that changed nothing
+ *     anybody wrote.
+ */
+const touched = <N extends Node>(scope: Scope, node: N): N =>
+  isMirror(node) ? node : { ...node, changed: scope.context.now() }
+
 const planMark = (
   scope: Scope,
   request: Extract<Request, { op: Status }>,
@@ -873,7 +907,7 @@ const planMark = (
   const note = nudged(scope, node, mark, undo)
 
   return Result.succeed({
-    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, next) }],
+    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, touched(scope, next)) }],
     id: node.id,
     title: node.title,
     file,
@@ -1057,12 +1091,97 @@ const planEdit = (
   const summary = summarize(next)
 
   return Result.succeed({
-    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, next) }],
+    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, touched(scope, next)) }],
     id: node.id,
     title: next.title,
     file,
     summary,
   })
+}
+
+/**
+ * One custom key, set or taken off — the only writer of `custom`, and the one
+ * op in this file whose subject is a key rather than a field.
+ *
+ * WHAT IT CANNOT DO IS NOT POLICED HERE, and that is the shape doing the work:
+ * every fact olai reads is a FIELD at the top level and this writes inside one
+ * map, so there is no list of forbidden keys to keep in step with the format —
+ * `set_prop` could not reach `done` if it tried.
+ *
+ * The one rule left is about SHADOWING rather than about writing, which is why
+ * it reads a table beside the record's own fields (`@olai/format`'s
+ * `shadowFor`) instead of one here: `{"done":true,"custom":{"done":"yesterday"}}`
+ * is a legal record and an unreadable one — a drawer would show `done` beside a
+ * checkbox that says something else, and a reader would have two answers to one
+ * word. So a key spelled like a field is turned toward the verb that writes
+ * that fact.
+ *
+ * A key is otherwise not judged. The map takes any key, so a rule here about
+ * hyphens or case would be this op inventing a spelling the format does not
+ * have. An EMPTY key is the one exception, and it is not a rule about keys —
+ * it is the same "nothing has one spelling" the value's `null` obeys.
+ */
+const planProp = (
+  scope: Scope,
+  request: Extract<Request, { op: "prop" }>,
+): Planned => {
+  const key = request.key.trim()
+  if (key === "") {
+    return Result.fail(new UsageFailure({ reason: "a property needs a key" }))
+  }
+  const shadow = shadowFor(key)
+  if (shadow !== undefined) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `${
+          shadow.field
+            ? `a node already says \`${key}\` with a field of its own`
+            : `\`${key}\` is what a node's own fields already answer`
+        }, so a property by that name would be a second answer to one question — ${shadow.door}`,
+      }),
+    )
+  }
+
+  const value = request.value
+  return planEdit(
+    scope,
+    request.id,
+    (node) => ({ ...node, custom: withCustom(node.custom, key, value ?? undefined) }),
+    // The KEY is in the subject either way, because it is what changed: a
+    // commit reading `prop: the header goes stale` would leave the reader to
+    // diff the line to find out which fact moved.
+    (node) =>
+      value === null || value === ""
+        ? `prop: ${node.title} -> ${key} (cleared)`
+        : `prop: ${node.title} -> ${key}=${value}`,
+    // A WRITE THAT WOULD CHANGE NOTHING IS REFUSED, which is what `set_done` on
+    // a done node and `set_see` with a target it already names both do — and
+    // what this op was missing.
+    //
+    // It matters more here than the symmetry suggests, because of the stamps.
+    // Every write stamps `changed`, and the stamps are deliberately invisible to
+    // the comparison (`@olai/format`'s `changes.ts`), so a set_prop of the value
+    // already held used to land on disk, dirty git, count as an op in the chat
+    // transcript and report `edited` — while the pending panel listed nothing at
+    // all for a tree git called dirty. One gesture, two faces, neither of them
+    // true. The guard is what makes "a stamp is not a change" a fact rather than
+    // a thing the panel happens not to look at.
+    (node) => {
+      const held = node.custom?.[key]
+      if (value === null || value === "") {
+        return held === undefined
+          ? new UsageFailure({
+            reason: `\`${node.title}\` carries no \`${key}\`, so there is none to take off`,
+          })
+          : null
+      }
+      return held === value
+        ? new UsageFailure({
+          reason: `\`${node.title}\` already says \`${key}\` is \`${value}\` — nothing would change`,
+        })
+        : null
+    },
+  )
 }
 
 /**
@@ -1136,7 +1255,10 @@ const planMove = (
     files: [
       {
         file,
-        nodes: withOrds(replacing(recordsOf(scope, file), node.id, moved), ords.success),
+        nodes: withOrds(
+          replacing(recordsOf(scope, file), node.id, touched(scope, moved)),
+          ords.success,
+        ),
       },
     ],
     id: node.id,
@@ -1239,13 +1361,16 @@ const planSplit = (
     ...(node.parent === undefined ? {} : { parent: node.parent }),
     ord: ordFor(ords.success, id),
     title: request.rest,
+    // A node coming into being, so it is CREATED rather than changed — the same
+    // stamp a capture writes, because this is the other way a node is born.
+    created: scope.context.now(),
   }
 
   return Result.succeed({
     files: [{
       file,
       nodes: withOrds(
-        [...replacing(recordsOf(scope, file), node.id, head), tail],
+        [...replacing(recordsOf(scope, file), node.id, touched(scope, head)), tail],
         ords.success,
       ),
     }],
@@ -1321,7 +1446,7 @@ const planMerge = (
   const { into, adopted, title, desc } = joined.success
 
   const records = recordsOf(scope, file)
-  const merged = withField({ ...into, title }, "desc", desc ?? null)
+  const merged = touched(scope, withField({ ...into, title }, "desc", desc ?? null))
 
   const reparented = new Map(
     appendedUnder([records], into.id, adopted.map((child) => child.node))
@@ -2267,7 +2392,7 @@ const planEdges = (
   else draft[field] = next
 
   return Result.succeed({
-    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, draft) }],
+    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, touched(scope, draft)) }],
     id: node.id,
     title: node.title,
     file,

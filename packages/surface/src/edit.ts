@@ -373,6 +373,26 @@ export const Edit = Schema.Union([
     date: Schema.NullOr(Schema.String),
   }),
   /**
+   * One CUSTOM property, set or taken off — `set_prop`'s own reach, spelled the
+   * way the verb above spells a date and for the same reason: nothing is
+   * resolved behind it, and both directions are one field, so an undo can put
+   * back what a removal took.
+   *
+   * `key` travels with the write because a property is a fact with a NAME, and
+   * the name is what changed. Which keys are refused — the ones spelled like a
+   * field the record already has — is the ops layer's answer in its own words;
+   * this surface does not repeat that list, for the reason the menu does not
+   * grey out `Mark todo` on a finished row.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("prop"),
+    id: Id,
+    key: Schema.String,
+    /** `null` removes it, which is what the drawer's `Remove` entry sends and
+     *  what an emptied value box means. */
+    value: Schema.NullOr(Schema.String),
+  }),
+  /**
    * Retire ONE placement: the row goes, the node it shows and every other
    * placement of it stay.
    *

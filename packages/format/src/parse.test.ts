@@ -90,6 +90,41 @@ test("an unknown field is rejected rather than ignored", () => {
   expect(first(errors).message).toContain("`colour`")
 })
 
+/**
+ * The one OPEN field, and the closure around it — which is the whole shape of
+ * the design in two assertions.
+ *
+ * A key olai has no meaning for is still a `bad-record` at the TOP level, so a
+ * typo'd `colour` is caught exactly as it was. Inside `custom`, any key at all
+ * is fine, because that is what the field is for.
+ */
+test("any key is allowed inside `custom`, and the top level stays closed", () => {
+  const node = outlineOf(
+    `{"id":"a","ord":"a","title":"t","custom":{"pr":"https://x/1","isbn":"978-…","tags":["home"]}}`,
+  ).nodes[0]?.node
+  // Handed back verbatim, keys and all: nothing here reads them, so nothing
+  // here may change them. A list is a value too — a fact can be several,
+  // exactly as an edge can.
+  expect(node).toMatchObject({
+    custom: { pr: "https://x/1", isbn: "978-…", tags: ["home"] },
+  })
+  // ...while a key with no field, at the TOP level, is refused exactly as it
+  // was before there was anywhere open to put one.
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","pr":"https://x/1"}`)))
+    .toEqual(["bad-record"])
+})
+
+// What a custom key may HOLD is the one thing about it this format judges:
+// text, or a list of it. A number is a hand-edit the reader would have to guess
+// at, and guessing is what the type is there to stop.
+test("a custom value that is neither text nor a list of it is a bad-record", () => {
+  const errors = errorsOf(`{"id":"a","ord":"a","title":"t","custom":{"count":3}}`)
+  expect(codes(errors)).toEqual(["bad-record"])
+  // Named down to the KEY, which is what makes the message worth reading: the
+  // map has any number of them and only one is wrong.
+  expect(first(errors).message).toContain("custom.count")
+})
+
 // `id`, `ord` and `title` are what the spec's table leaves unqualified, so a
 // record missing one is not a record at all.
 test("a missing required key is reported by name", () => {

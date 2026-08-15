@@ -105,6 +105,11 @@ export const nodeMenuActions = (args: {
    *  writes through it too), not to a menu that is closed by the time either is
    *  chosen. */
   readonly pickEdge: (relation: Relation) => void
+  /** Open the row's property editor — on an existing property, or on `null` for
+   *  one being added. The same arrangement the two above are, and for the same
+   *  reason: a key and a value are typed, and the panel belongs to the ROW
+   *  rather than to a menu that is closed by the time either of them is. */
+  readonly pickProp: (editing: { key: string; value: string } | null) => void
 }): ReadonlyArray<MenuAction> => {
   const id = args.row.at.node.id
   const items: MenuAction[] = [
@@ -213,6 +218,9 @@ export const nodeMenuActions = (args: {
             return
           case "pick-date":
             args.pickDate()
+            return
+          case "pick-prop":
+            args.pickProp(does.editing)
             return
         }
       },

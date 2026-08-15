@@ -30,6 +30,7 @@
  * into a file where the format says the field is simply absent.
  */
 
+import { type Custom, type CustomValue, customKeys } from "./custom.ts"
 import { isMirror, type Located, type Node } from "./node.ts"
 
 /**
@@ -73,6 +74,9 @@ const ORDER = [
   "after",
   "blocks",
   "see",
+  "created",
+  "changed",
+  "custom",
 ] as const
 
 /**
@@ -95,7 +99,12 @@ const ORDER = [
  */
 export const nothing = (value: unknown): boolean =>
   value === undefined || value === null ||
-  (Array.isArray(value) && value.length === 0) || value === ""
+  (Array.isArray(value) && value.length === 0) || value === "" ||
+  // ...and an EMPTY MAP, which is the same rule one level in: a node whose last
+  // custom key was removed carries no `custom` field rather than `{}`, or the
+  // `{"after":[]}` conflict-about-nothing would simply have moved.
+  (typeof value === "object" && value !== null && !Array.isArray(value) &&
+    Object.keys(value).length === 0)
 
 /**
  * One record, as one line — no trailing newline, because who separates lines
@@ -117,10 +126,37 @@ export const serializeNode = (node: Node): string => {
 
   const record: Record<string, unknown> = {}
   for (const field of ORDER) {
-    const value = (node as Record<string, unknown>)[field]
+    const value = field === "custom"
+      ? tidy((node as Record<string, unknown>)[field])
+      : (node as Record<string, unknown>)[field]
     if (required.has(field) || !nothing(value)) record[field] = value
   }
   return JSON.stringify(record)
+}
+
+/**
+ * The `custom` map as it is written: canonical key order, and no key holding
+ * nothing.
+ *
+ * The one field whose VALUE has an inside, so the two rules above it — one
+ * spelling of absence, one spelling of a record — have to be applied one level
+ * in as well. A key holding `""` says exactly what a key that is not there
+ * says, and a map that came back from JSON in whatever order somebody's editor
+ * left it would make two equal files differ byte for byte.
+ *
+ * Pruned BEFORE the emptiness test above, which is the order that matters: a
+ * map whose every key held nothing must not reach disk as `{"custom":{}}`.
+ */
+const tidy = (value: unknown): unknown => {
+  if (value === undefined || value === null || typeof value !== "object") return value
+  if (Array.isArray(value)) return value
+  const custom = value as Custom
+  const out: Record<string, CustomValue> = {}
+  for (const key of customKeys(custom)) {
+    const held = custom[key]
+    if (held !== undefined && !nothing(held)) out[key] = held
+  }
+  return out
 }
 
 /**

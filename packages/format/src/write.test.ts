@@ -92,6 +92,41 @@ describe("serializeNode", () => {
     const line = serializeNode(regular({ desc: "first\nsecond\n\nthird" }))
     expect(line.includes("\n")).toBe(false)
   })
+
+  /**
+   * `custom` is the one field whose value has an INSIDE, so both writing rules
+   * have to hold one level in as well: canonical order, and one spelling of
+   * absence.
+   *
+   * A map straight from JSON carries whatever order somebody's editor left, and
+   * two files that mean the same thing must not differ byte for byte — the
+   * whole reason the fields above have a canonical order at all.
+   */
+  test("custom keys are written alphabetically, whatever order the map holds", () => {
+    expect(
+      serializeNode(regular({ custom: { pr: "https://x/1", agent: "opus", terminal: "485c" } })),
+    ).toBe(
+      `{"id":"n","ord":"a0","title":"a node",` +
+        `"custom":{"agent":"opus","pr":"https://x/1","terminal":"485c"}}`,
+    )
+  })
+
+  test("a custom key holding nothing is not written, and an empty map is no field", () => {
+    // The `{"after":[]}` conflict-about-nothing, one level in: a key emptied
+    // and a key removed are one file, so they cannot be two maps on disk.
+    expect(serializeNode(regular({ custom: { pr: "", tags: [] } })))
+      .toBe(`{"id":"n","ord":"a0","title":"a node"}`)
+    expect(serializeNode(regular({ custom: {} })))
+      .toBe(serializeNode(regular({})))
+  })
+
+  test("custom is written last, after every field the format gives a meaning", () => {
+    expect(serializeNode(regular({ custom: { pr: "https://x/1" }, see: ["y"], date: "2026-08-10" })))
+      .toBe(
+        `{"id":"n","ord":"a0","title":"a node","date":"2026-08-10","see":["y"],` +
+          `"custom":{"pr":"https://x/1"}}`,
+      )
+  })
 })
 
 describe("serializeOutline", () => {
@@ -219,6 +254,9 @@ const EVERY_REGULAR_FIELD: RegularNode = {
   after: ["x"],
   blocks: ["y"],
   see: ["z"],
+  created: "2026-08-11T09:00:00-04:00",
+  changed: "2026-08-11T10:00:00-04:00",
+  custom: { pr: "https://x/1" },
 }
 
 const EVERY_MIRROR_FIELD: MirrorNode = {

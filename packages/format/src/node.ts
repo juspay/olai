@@ -22,6 +22,7 @@
 
 import { Schema } from "effect"
 
+import { Custom } from "./custom.ts"
 import { OUTLINE_EXT } from "./kinds.ts"
 
 /** `true`, or the ISO date/datetime the state was reached at. */
@@ -123,6 +124,27 @@ export const RegularNode = Schema.Struct({
   after: Schema.optionalKey(Schema.Array(Schema.String)),
   blocks: Schema.optionalKey(Schema.Array(Schema.String)),
   see: Schema.optionalKey(Schema.Array(Schema.String)),
+  /**
+   * The two STAMPS, and the only fields on this record nobody writes on
+   * purpose: the ops layer puts `created` on a node when it is captured and
+   * re-puts `changed` on it whenever it is written afterwards. There is no verb
+   * for either, and `set_prop` refuses both by name.
+   *
+   * ABSENT is the ordinary state of a node written before this existed, and
+   * nothing invents one: a ledger does not make up a past it did not see, and
+   * `git log` is the archaeologist's tool. They appear as a node is touched.
+   *
+   * `changed` absent on a node that HAS a `created` is a real answer too — it
+   * means nothing has been written to it since it was captured.
+   */
+  created: Schema.optionalKey(Schema.String),
+  changed: Schema.optionalKey(Schema.String),
+  /** The one OPEN field: named facts this format gives no meaning to, written
+   *  by `set_prop` and read by whoever wrote them (./custom.ts). Every other
+   *  key on this record is one of the fields above, and a key that is neither
+   *  is a `bad-record` — which is exactly what makes one open field worth
+   *  having rather than an open record. */
+  custom: Schema.optionalKey(Custom),
 })
 export type RegularNode = typeof RegularNode.Type
 
@@ -134,6 +156,83 @@ export type MirrorNode = typeof MirrorNode.Type
 
 export const Node = Schema.Union([RegularNode, MirrorNode])
 export type Node = typeof Node.Type
+
+/**
+ * The words a record's own fields have already claimed, and the verb that
+ * writes each of them.
+ *
+ * A `custom` key may be anything — except one of these, and the reason is
+ * SHADOWING rather than collision: the two namespaces are two places, so
+ * `{"done":true,"custom":{"done":"yesterday"}}` is a perfectly legal record and
+ * a perfectly unreadable one. A reader seeing `done` in a drawer would take it
+ * for the mark, a query for one would find the wrong nodes, and the node would
+ * be saying two things with one word. So the freeform writer is turned away
+ * from these, each toward the verb that actually writes that fact
+ * ({@link shadowFor}).
+ *
+ * Here rather than beside the writer, and keyed by the record's own field
+ * names: a field added above with no sentence here is a COMPILE error, so the
+ * day this format grows a key it cannot grow a hole at the same time. `status`
+ * is the one entry that is not a field — nothing stores it, and it is exactly
+ * the word a person reaches for when they mean the mark.
+ */
+const DOORS = {
+  id: "an id is minted or chosen when the node is captured, and never rewritten",
+  parent: "`move_node` writes where a node sits",
+  ord: "`move_node` writes where a node sits among its siblings",
+  title: "`set_title` writes the title",
+  mirror: "`add_mirror` places a node in a second location",
+  done: "`set_done` writes it, and records the instant",
+  doing: "`set_doing` writes it, and records the instant",
+  todo: "`set_todo` writes it, and records the instant",
+  status: "the mark is `done`, `doing` or `todo` — `set_done` / `set_doing` / `set_todo` write it",
+  date: "`set_date` writes it, and validates the day",
+  desc: "`set_desc` writes the note",
+  doc: "a node names its document when it is captured; `write_document` writes what is in it",
+  after: "`set_after` writes it, and refuses a cycle",
+  blocks: "`set_after` writes it, said from the waiting node — `a blocks b` is `b after a`",
+  see: "`set_see` writes it, and resolves the target",
+  created: "the ops layer stamps this when a node is captured — nothing else may",
+  changed: "the ops layer stamps this on every write — nothing else may",
+  custom: "this is the map itself; a key inside it is what `set_prop` writes",
+} as const satisfies Record<keyof RegularNode | keyof MirrorNode | "status", string>
+
+/**
+ * What a shadowed key shadows: the verb that writes that fact, and whether the
+ * word is a FIELD of the record at all.
+ *
+ * The second half exists for one entry. `status` is in {@link DOORS} because it
+ * is exactly the word a person reaches for when they mean the mark — and it is
+ * not a field: nothing stores it, three fields answer it. A refusal that told
+ * somebody "a node already says `status` with a field of its own" would be
+ * teaching a shape this format does not have, in the one sentence whose whole
+ * job is to point at the right door (found by Grok, review of #179).
+ */
+export interface Shadow {
+  readonly door: string
+  /** Is the word a field the record declares? `false` for `status` alone. */
+  readonly field: boolean
+}
+
+const FIELD_NAMES: ReadonlySet<string> = new Set([
+  ...Object.keys(RegularNode.fields),
+  ...Object.keys(MirrorNode.fields),
+])
+
+/**
+ * Is this custom key one of them — and if so, what to say instead?
+ *
+ * FOLDED, because a `Date` key shadows `date` for every reader who is not a
+ * parser: the confusion this prevents is a human one, and humans do not read
+ * case. The refusal is the only rule `set_prop` has about a key's spelling;
+ * everything else is somebody's own vocabulary and none of this format's
+ * business.
+ */
+export const shadowFor = (key: string): Shadow | undefined => {
+  const folded = key.trim().toLowerCase()
+  const door = (DOORS as Record<string, string | undefined>)[folded]
+  return door === undefined ? undefined : { door, field: FIELD_NAMES.has(folded) }
+}
 
 /** The discriminator, as a type guard, so every consumer narrows the same way
  *  and none of them re-derives it from a field test. */

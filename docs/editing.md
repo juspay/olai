@@ -143,6 +143,24 @@ A node scheduled for a time of day rather than a bare day keeps whatever it says
 
 The row moves the moment the file says so: a task given a day that has gone is in Overdue on the agenda and on that day's page, without a reload and without this page deciding anything for itself.
 
+## What a node says about itself
+
+A node's **properties** are named facts on it ([format.md](format.md)) — `pr`, `agent`, `isbn`, whatever a reader wants to be able to ask about later. They live in the record's one open field, `custom`, and they are drawn in a quiet drawer under the node's note, one `key value` line each.
+
+**The drawer leads with the facts the node already carries**, read-only: its `id`, the mark it has, its `date`, and the `created`/`changed` stamps when it has them. Those had nowhere on the page to be read at all — the id in particular is what every tool call and every `((` reference takes. Below them are the custom keys, and those are the writable ones.
+
+**On a row it appears once somebody has added a property**; on a node's own page it is always drawn. A tree is a column of titles, and an `id` line under every bullet in the vault would double the height of every row to say something nobody asked to see.
+
+**The `•••` menu writes the custom half.** *Add property…* opens two boxes under the row — a key and a value — and every custom property already on the node adds a pair beside it: *Edit `pr`…*, which opens the same panel with the value in it, and *Remove `pr`*, which is one write and takes the key off. **Enter** sends, **Escape** and **Cancel** leave without writing, and ⌘Z takes it back. What goes is the same `set_prop` an agent sends, judged by the same planner and refused in the same words — including its refusals: setting a property to the value it already holds, or removing one that is not there, is turned away rather than written, so the same gesture twice is one write and one sentence.
+
+**One removal has no undo, and says so by having none**: a property whose value is a LIST, which only a hand-edited file can hold. `set_prop` writes text, so an undo would have to flatten the list into one string with commas in it; nothing is recorded instead, and ⌘Z walks past to the write before.
+
+**The key is fixed while you are changing a value**, and that is not a limitation of the boxes: `set_prop` writes one key, so renaming a property is removing one and adding another — two ops, which is exactly the two calls an agent makes. Both entries are in the menu.
+
+**The node's own facts have no entries.** Each of them already has a verb — the mark section, *Change date…*, the two edge verbs — and `set_prop` refuses every one of them by name, so an entry would be an affordance that leads to a refusal.
+
+**A zoomed node draws its drawer and has no door to it**, which is the gap *Set date…* has on the same page and for the same reason: the `•••` hangs off a row, and the ⌘K palette can only carry the verbs that need no second gesture. *Remove `pr`* is one of those, so the palette has it; adding and editing are reached from the row.
+
 ## What a node points at
 
 A node carries two lists of other nodes ([format.md](format.md)): `see`, which is a link and nothing more, and `after`, which is what it must come after. The page has drawn both for a long time — the links under a node, and, for a blocked row, the dim, the mark column's glyph and the **blocked by** line on its own page. Both can be written now, from either end.

@@ -54,6 +54,7 @@
  */
 
 import {
+  customOf as customOfNode,
   dailyNotePathFor,
   type Derived,
   INBOX,
@@ -123,6 +124,11 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       })
     case "date":
       return Result.succeed({ op: "date", id: edit.id, date: edit.date })
+    // A property resolves nothing either: the key is the caller's and the value
+    // is text. Which keys are refused is the ops layer's answer, said in its own
+    // words at the one gate both faces go through.
+    case "prop":
+      return Result.succeed({ op: "prop", id: edit.id, key: edit.key, value: edit.value })
     // The two COMPOUND keys, and they resolve nothing for the same reason the
     // five above do: everything either of them needs to work out — where the
     // tail lands, which sibling is above, what the archive's scaffold is — the
@@ -708,6 +714,12 @@ export const inverseOf = (
     // overwrite — the ops layer's own `set_date` is what judges it either way.
     case "date":
       return dateOf(at.derived, edit.id)
+    // The VALUE this write is about to replace, under the key it names — the
+    // date arm one map in. A property set where there was none is put back by
+    // removing it, which is the `null` this hands back and what makes the
+    // drawer's `Remove` a thing a person can take back.
+    case "prop":
+      return propOf(at.derived, edit.id, edit.key)
     // A split is taken back by MERGING the half it made back into the half it
     // came off — one edit, and the ops layer's own inverse rather than one
     // assembled here. `applied` is the new node, which is the only id in this
@@ -996,6 +1008,42 @@ const dateOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   const located = derived.byId.get(id)
   if (located === undefined || isMirror(located.node)) return []
   return [{ verb: "date", id, date: located.node.date ?? null }]
+}
+
+/**
+ * What one custom property holds, as the edit that would put it back.
+ *
+ * {@link dateOf} with a key, and the resemblance is the point: both answer for
+ * a value that is not there, so a property added where there was none is undone
+ * by removing it — which is what makes the drawer's `Remove` a thing a person
+ * can take back rather than a one-way door.
+ *
+ * A key holding a LIST answers as nothing, which is honest rather than
+ * reachable: `set_prop` writes text, so a `prop` edit can only ever be about a
+ * key holding some. If one ever arrives about a list, the undo declines to
+ * spell it rather than flattening a set of values into a string nobody wrote.
+ */
+const propOf = (
+  derived: Derived,
+  id: string,
+  key: string,
+): ReadonlyArray<Edit> => {
+  const located = derived.byId.get(id)
+  if (located === undefined || isMirror(located.node)) return []
+  const held = customOfNode(located.node)[key]
+  // A LIST, and there is NO inverse for one. `set_prop` writes text, so an undo
+  // that spelled a list would have to flatten three values into one string with
+  // commas in it — and the arm that used to be here did something quieter and
+  // worse: `customText` answers `undefined` for a list, so `?? null` turned the
+  // undo of a removal into a SECOND removal, and the value the menu had just
+  // deleted was gone with nothing to say so (found by Grok, review of #179).
+  //
+  // Nothing is a truthful answer here where a wrong edit is not: an undo with
+  // no inverse is not recorded, so ⌘Z walks past it to the write before rather
+  // than pretending to put something back. `docs/editing.md` says so, and the
+  // menu can only reach this at all for a list somebody wrote by hand.
+  if (held !== undefined && typeof held !== "string") return []
+  return [{ verb: "prop", id, key, value: held ?? null }]
 }
 
 /**
