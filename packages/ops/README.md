@@ -44,7 +44,7 @@ in the system had to arrange:
 
 | file | what it owns |
 |---|---|
-| `request.ts` | the things a writer may ask for, as schemas — one declaration serving the planner's switch, the tool schemas and the decoder |
+| `request.ts` | the things a writer may ask for — a RE-EXPORT of `@olai/format`'s `writing.ts` under the names this layer's answers use (`Request`, `Applied`), because the surface carries them to an agent's door now |
 | `plan.ts` | the whole decision, PURE: a snapshot and a request into the files that write would produce |
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
 | `sorted.ts` | what a write CHANGED, in one word — the format's own classification, derived from the two readings the write is made of rather than from the op's name |
@@ -127,7 +127,7 @@ one level up: `create` then `add` was two plans, and a second one that refused
 left an EMPTY outline on disk nobody had asked for. Now the file and its
 contents are one plan — a seed refused anywhere in its tree leaves no file at
 all, which `src/ops.test.ts` asserts against a real directory. The two tools
-therefore take one shape (`ROOT` in `src/request.ts`): a seed that could say
+therefore take one shape (`ROOT` in `@olai/format`'s `writing.ts`): a seed that could say
 less than a capture would be a reason to make the second call this exists to
 delete.
 

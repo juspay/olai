@@ -205,6 +205,38 @@ export {
   SubtreeRequest,
 } from "./reading.ts"
 
+/** What a WRITE asks for and what one that landed says — see `./writing.ts`,
+ *  which is the same move again for the other half of the ops vocabulary. The
+ *  ops layer produces these, the surface carries them to an agent's door
+ *  (`ops.run`), and `@olai/ops` re-exports the union and the answer under its
+ *  own names (`Request`, `Applied`). Both are renamed at the move, and the
+ *  {@link WriteResult} one is load-bearing: `@olai/surface` has an `Applied` of
+ *  its own that is a different type. */
+export {
+  AddRequest,
+  AfterRequest,
+  ArchiveRequest,
+  type Capture,
+  CreateDocumentRequest,
+  CreateRequest,
+  DateRequest,
+  DescRequest,
+  MarkRequest,
+  MergeRequest,
+  Minted,
+  MirrorRequest,
+  MoveRequest,
+  NESTING,
+  SeeRequest,
+  SplitRequest,
+  TitleRequest,
+  UnarchiveRequest,
+  UnmirrorRequest,
+  WriteDocumentRequest,
+  WriteRequest,
+  WriteResult,
+} from "./writing.ts"
+
 /** What a search ASKS and what one hit SAYS — `./reading.ts`'s division applied
  *  one level up: a hit is a {@link Found} plus the one thing about it that is a
  *  fact about the QUERY. The matcher stays where the matcher is. */
