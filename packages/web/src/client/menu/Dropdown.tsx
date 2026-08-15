@@ -4,7 +4,8 @@
  *
  * This file is the far side of a dynamic `import()` (`./chunk.ts`): it is
  * reached by that one specifier and by nothing else, which is what keeps
- * `@kobalte/core`'s `DropdownMenu` — ~85 kB raw, ~24 kB brotli — out of
+ * `@kobalte/core`'s `DropdownMenu` — 80,516 B raw, 23,438 B brotli as this
+ * chunk is emitted — out of
  * `main-*.js` and in a chunk of its own. Everything it pulls in follows it
  * there (`./Panel.tsx`, `./Confirm.tsx`), so a STATIC import of any of them
  * from a file the entry reaches would silently undo the split; `../claims.test.ts`

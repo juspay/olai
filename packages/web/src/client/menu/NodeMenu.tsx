@@ -23,7 +23,7 @@
  *     rows) that measured 140 `IntersectionObserver`s and 33 MB of heap against
  *     the hand-rolled panel's none and 19 MB.
  *   - **`menuReady()`** (`./chunk.ts`) is per APP, and it is bytes: the
- *     primitive is ~85 kB raw / ~24 kB brotli, and the lazy mount above did
+ *     primitive is 80,516 B raw / 23,438 B brotli, and the lazy mount above did
  *     nothing about it because the entry imported the module whether a row
  *     mounted one or not. Reading it here is what STARTS the fetch, and `&&`
  *     is why that read does not happen until a row is armed.
