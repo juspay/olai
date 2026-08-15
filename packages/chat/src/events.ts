@@ -14,7 +14,14 @@
  * the caller that asked is the one waiting.
  */
 
-import type { AskField, AskOutcome, FileDiff, MissingServer, Wrote } from "@olai/surface"
+import type {
+  AskField,
+  AskOutcome,
+  FileDiff,
+  MissingServer,
+  Usage,
+  Wrote,
+} from "@olai/surface"
 
 /** A slash command the agent offers. */
 export interface Command {
@@ -109,6 +116,10 @@ export type AgentEvent =
   | { readonly _tag: "servers"; readonly missing: ReadonlyArray<MissingServer> }
   /** The model this session runs, labelled the way the agent labels its own. */
   | { readonly _tag: "model"; readonly name: string | null }
+  /** How full this conversation's context is, as the agent last reported it.
+   *  Arrives several times a turn — the agent revises both halves as it goes —
+   *  and the panel holds the newest. */
+  | { readonly _tag: "usage"; readonly usage: Usage }
   /** Which stored conversation this now is. `title` is `null` until the agent
    *  has written one. */
   | { readonly _tag: "session"; readonly id: string; readonly title: string | null }

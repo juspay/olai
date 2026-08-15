@@ -580,6 +580,7 @@ export const CHAT_OUTLINE_CHANGE = selector(TESTID.chatOutlineChange);
 export const CHAT_WROTE = selector(TESTID.chatWrote);
 export const CHAT_NUDGE = selector(TESTID.chatNudge);
 export const CHAT_REFUSAL = selector(TESTID.chatRefusal);
+export const CHAT_USAGE = selector(TESTID.chatUsage);
 export const CHAT_TROUBLE = selector(TESTID.chatTrouble);
 export const CHAT_ASK = selector(TESTID.chatAsk);
 export const CHAT_ASK_CHOICE = selector(TESTID.chatAskChoice);

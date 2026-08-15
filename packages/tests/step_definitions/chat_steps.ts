@@ -67,6 +67,7 @@ import {
   CHAT_TOOL_PROGRESS,
   CHAT_TRANSCRIPT,
   CHAT_TROUBLE,
+  CHAT_USAGE,
   CHAT_WAITING,
   CHAT_WORKING,
   CHAT_WROTE,
@@ -1507,3 +1508,33 @@ Then(
 );
 
 const pictureChip = (name: string): string => `${CHAT_ATTACHMENT}[data-name="${name}"]`;
+
+/** How full the context is, as the header draws it. The whole string — `22k/1M`
+ *  rather than a substring — because the two halves are the claim: a scenario
+ *  matching only the numerator would pass on a build that lost the window. */
+Then(
+  "the panel header says the context is {string}",
+  async function (this: OlaiWorld, usage: string) {
+    await this.waitUntil(
+      async () => {
+        const line = this.page.locator(CHAT_USAGE);
+        return (await line.count()) > 0 && oneLine(await line.innerText()) === usage;
+      },
+      `the header to say the context is "${usage}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/** ... and that it says nothing about it at all, which is a conversation the
+ *  agent has not reported on rather than one that has spent nothing. */
+Then(
+  "the panel header says nothing about the context",
+  async function (this: OlaiWorld) {
+    await this.waitUntil(
+      async () => (await this.page.locator(CHAT_USAGE).count()) === 0,
+      "the header to say nothing about the context",
+      HYDRATION_TIMEOUT,
+    );
+  },
+);

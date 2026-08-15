@@ -36,6 +36,8 @@
  *                say silently, and not observably until the NEXT turn
  *   reconfig     re-announce the session's config options unchanged, the way
  *                the adapter does when anything else in that set moves
+ *   context <n>  move the context WINDOW, the way the adapter does when it
+ *                corrects a seeded guess at the end of a turn
  *   ask          ask a structured question and report the answer
  *   askstrict    ask one with a REQUIRED, typed field, the way an MCP server does
  *   plan         ask to leave plan mode, the way the adapter does
@@ -452,6 +454,38 @@ const sdkInit = (model: string): void => {
  */
 let liveModel = "fake-model-1"
 
+/**
+ * How full the context is, and how the real adapter reports it.
+ *
+ * `usage_update` is ACP's own update kind, sent SEVERAL TIMES A TURN: the agent
+ * revises `used` as the turn goes and the last frame of the turn adds the
+ * cumulative cost. Both halves may move — captured against 0.66.0, the first
+ * turn after a `/model` reports the PREVIOUS model's window mid-stream and the
+ * true one on that last frame, because the adapter seeds the window from what
+ * it last learned and corrects it authoritatively when the turn ends.
+ *
+ * Reproduced here rather than simplified, because a panel that held the FIRST
+ * report of a turn instead of the newest would look right in every scenario
+ * that only ever sent one.
+ */
+let used = 0
+let size = 200_000
+
+/** One report, as the protocol shapes it. `cost` rides the turn's last frame
+ *  alone, exactly as the real one's does — and nothing draws it, which is a
+ *  claim worth being able to make about a field that is actually there. */
+const usageUpdate = (final: boolean): void => {
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "usage_update",
+      used,
+      size,
+      ...(final ? { cost: { amount: 0.1234, currency: "USD" } } : {}),
+    },
+  })
+}
+
 /** A turn that was cancelled while it was waiting on the client ends as a
  *  cancelled turn. Answers whether it did, so the caller stops there. */
 const endedCancelled = (id: unknown): boolean => {
@@ -480,6 +514,27 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 
   const [verb, ...rest] = text.trim().split(/\s+/)
   const argument = rest.join(" ")
+
+  // The window the agent believes in, moving under the conversation — what the
+  // real adapter does on the first turn after a `/model`, where it seeds the
+  // previous model's window and corrects it when the turn ends. Read before the
+  // frames below so the change lands on the turn that asked for it.
+  if (verb === "context") size = Number(argument)
+
+  // What a turn spends, reported the way a real turn reports it: MORE THAN ONE
+  // frame, with the number moving between them, and the cost riding the last.
+  // A panel that held the first report of a turn rather than the newest would
+  // pass every scenario that only ever sent one.
+  used += 12_000
+  usageUpdate(false)
+  used += 900
+  usageUpdate(true)
+
+  if (verb === "context") {
+    say(`the context window is ${size} now.`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
 
   if (verb === "crash") {
     say("about to fall over")
@@ -1006,6 +1061,9 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       sessionId = "fake-session-1"
       // A fresh conversation is on whatever the picker says it is picking.
       liveModel = "fake-model-1"
+      // ... and has spent nothing in a window of its own.
+      used = 0
+      size = 200_000
       respond(id, { sessionId, configOptions: CONFIG_OPTIONS })
       // NO `init` here, and that is the adapter's own shape: it forwards one
       // per PROMPT, so between opening a session and sending the first one the
@@ -1023,6 +1081,11 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       sessionId = String(params["sessionId"] ?? sessionId)
       replay()
       liveModel = "fake-model-1"
+      // A different conversation is a different context. The client empties
+      // what it was showing when the session goes, so nothing is drawn about
+      // this one until its first turn reports.
+      used = 0
+      size = 200_000
       respond(id, { configOptions: CONFIG_OPTIONS })
       notify("session/update", {
         sessionId,
