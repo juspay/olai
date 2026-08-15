@@ -28,11 +28,14 @@ The `fix-caret` workflow template, cloned under a lane when dispatched:
         address findings         (todo, after: both reviews)
         CI green at head         (todo, after: rebase, address)
         evidence verified        (todo, after: CI)
-        merge                    (todo, after: evidence)
+        deferrals ruled #human   (todo, after: evidence — SKIPPED when the report says "no deferrals")
+        merge                    (todo, after: deferrals ruled)
 
 The two reviews are ready together the moment refactor is done — the fan-out is just two `after` edges — and "address" stays blocked until both finish. What you see in the app IS the dispatch state; nothing else needs asking.
 
-Template rule the edges encode: a step that MUTATES the worktree sits `after` every step that READS it — readers fan out, writers wait. Dispatch is `set_doing` on a step, so the day `set_doing` refuses on a blocked node, "instructed a rebase under live reviewers" (a real 2026-08-15 incident) stops being a discipline and becomes a refusal.
+Template rule the edges encode: a step that MUTATES the worktree sits `after` every step that READS it — readers fan out, writers wait. Dispatch is `set_doing` on a step, so the day `set_doing` refuses on a blocked node, "instructed a rebase under live reviewers" (a real 2026-08-15 incident) stops being a discipline and becomes a refusal. (`set_doing` refuses on blocked since PR #181.)
+
+The `deferrals ruled` step is a HUMAN gate (ruled 2026-08-15): a PR whose report carries deferred items merges only on the human's explicit word — each deferral becomes a roadmap node first. A report that says "no deferrals" in so many words skips the gate.
 
 ## Decided (2026-08-15, the human)
 
