@@ -57,6 +57,28 @@ import type { OlaiWorld } from "../support/world.ts";
 
 // ── opening an editor ──────────────────────────────────────────────────
 
+/**
+ * CLICK AWAY FIRST WHEN SWITCHING ROWS. The wait below is for ANY title editor
+ * (`.first()`), not for THIS row's — so with a draft already open on another
+ * row it is satisfied the instant it is called, by the editor that is already
+ * there. The click may then not have landed where the step says, and every key
+ * the scenario presses afterwards goes to the old row.
+ *
+ * It fails loudly in the common case — the click is swallowed by the open
+ * draft, no editor opens on the named row, and the NEXT step times out — which
+ * is how the convention was found rather than reasoned out (`set_doing`
+ * refuses, 2026-08-15). It would fail QUIETLY if the two rows happened to
+ * accept the same keys.
+ *
+ * So: `I click away from the editor` (or `Escape`) between two `I click the
+ * title of` steps. Scenarios that interleave ⌘Z need it anyway — undo is
+ * answered from a page with no caret in a row.
+ *
+ * The fix that would retire the ritual is scoping this wait to the row
+ * (`[data-node-id=…] [data-testid=title-editor]`), which is a change to a step
+ * ~100 scenarios press and is deliberately not made here (grok, review of
+ * a41e74cc: "out of scope unless you are already touching the step").
+ */
 When(
   "I click the title of {string}",
   async function (this: OlaiWorld, id: string) {
@@ -392,12 +414,6 @@ Then(
 const titlesIn = (world: OlaiWorld, file: string): ReadonlyArray<string> =>
   world.servedNodesSoFar(file).map((node) => String(node["title"] ?? ""));
 
-/** The one map a record's facts live in, off a node read back as plain JSON —
- *  `{}` for a record carrying none, so a step can ask any key without asking
- *  first whether the map is there. */
-const propsOf = (node: Record<string, unknown>): Record<string, unknown> =>
-  (node["props"] ?? {}) as Record<string, unknown>;
-
 Then(
   "{string} holds a node titled {string}",
   async function (this: OlaiWorld, file: string, title: string) {
@@ -461,15 +477,15 @@ const HELD = Math.floor(IDLE_COMMIT / 3);
 
 /** The mark is a WORD in the step rather than three steps, because the format
  *  has three of them and a menu that can write all three should be asked about
- *  all three the same way. The word IS what `status` holds on disk, which is
- *  why no table translates it. */
+ *  all three the same way. The field IS the mark's name on disk, which is why
+ *  no table translates it. */
 Then(
   "{string} holds a node marked {word} titled {string}",
   async function (this: OlaiWorld, file: string, mark: string, title: string) {
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) => node["title"] === title && propsOf(node)["status"] === mark,
+          (node) => node["title"] === title && node[mark] !== undefined,
         ),
       `${file} to hold a node titled ${JSON.stringify(title)} that is marked ${mark}`,
     );
@@ -562,7 +578,7 @@ Then(
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) => node["id"] === id && propsOf(node)["date"] === date,
+          (node) => node["id"] === id && node["date"] === date,
         ),
       `${file} to hold ${JSON.stringify(id)} with \`date\` exactly ${JSON.stringify(date)}`,
     );
@@ -577,7 +593,7 @@ Then(
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) => node["title"] === title && propsOf(node)["date"] === date,
+          (node) => node["title"] === title && node["date"] === date,
         ),
       `${file} to hold ${JSON.stringify(title)} dated ${JSON.stringify(date)}`,
     );
@@ -601,7 +617,7 @@ Then(
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) => node["id"] === id && propsOf(node)["date"] === wanted,
+          (node) => node["id"] === id && node["date"] === wanted,
         ),
       `${file} to hold ${JSON.stringify(id)} dated ${JSON.stringify(wanted)}`,
     );
@@ -614,7 +630,7 @@ Then(
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) => node["id"] === id && propsOf(node)["date"] === undefined,
+          (node) => node["id"] === id && node["date"] === undefined,
         ),
       `${file} to hold ${JSON.stringify(id)} with no \`date\` field`,
     );
@@ -626,9 +642,9 @@ Then(
  * disk, and the answer the format draws as no box at all.
  *
  * Asked of the record rather than of the page, because the page can only say
- * that no box is drawn and the claim being made is stronger: the key is gone.
- * One key holds the mark now, so an absent `status` IS carrying none of
- * `MARKS` — there is no second field a fourth mark could hide in.
+ * that no box is drawn and the claim being made is stronger: the field is gone.
+ * Over `MARKS` rather than three named fields, so a fourth mark could not
+ * arrive and leave this quietly passing.
  */
 Then(
   "{string} holds the node {string} with no mark",
@@ -636,7 +652,8 @@ Then(
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) => node["id"] === id && propsOf(node)["status"] === undefined,
+          (node) =>
+            node["id"] === id && MARKS.every((mark) => node[mark] === undefined),
         ),
       `${file} to hold ${JSON.stringify(id)} carrying none of ${MARKS.join(", ")}`,
     );

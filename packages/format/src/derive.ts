@@ -31,16 +31,17 @@ import {
   isMirror,
   type Located,
   type LocatedRegular,
+  MARKS,
   type Node,
+  type Status,
 } from "./node.ts"
-import { listOf, markOf, type Status } from "./props.ts"
 
 /** What a node's checkbox shows, re-exported rather than declared: it is one
- *  of `./props.ts`'s `MARKS`, and it lives beside that list because it is a
- *  fact about what the `status` KEY may hold. Here because every derivation
- *  below answers in it, and a consumer of a walk should not have to learn which
+ *  of `./node.ts`'s {@link MARKS}, and it lives beside that list because it is
+ *  a fact about what a RECORD may carry. Here because every derivation below
+ *  answers in it, and a consumer of a walk should not have to learn which
  *  module minted the word. */
-export { Status } from "./props.ts"
+export { Status } from "./node.ts"
 
 /**
  * A set of nodes and everything computed from it.
@@ -178,23 +179,19 @@ const statuses = (
   const status = new Map<string, Status>()
   for (const located of nodes) {
     const found = follow(index, located)
-    const mark = found.kind === "found" ? markOf(found.shows.node) : undefined
+    const mark = found.kind === "found" ? storedMarker(found.shows.node) : undefined
     if (mark !== undefined) status.set(located.node.id, mark)
   }
   return status
 }
 
-/** What a record claims about itself, which IS its status — and `undefined` for
- *  one claiming nothing.
- *
- *  It was declared here, as `storedMarker`, while a mark was three fields and
- *  reading one meant knowing which three. It is `./props.ts`'s {@link markOf}
- *  now, beside `dateOf`, `sinceOf` and `listOf`, because reading the `status`
- *  key is the same kind of act as reading any other — and ONE name, since two
- *  public spellings of one function is the thing this package spends its whole
- *  header warning about. Re-exported because every derivation below answers in
- *  it and a consumer of a walk should not have to learn which module minted it. */
-export { markOf } from "./props.ts"
+/** What a record claims about itself, which IS its status — and `undefined`
+ *  for one claiming nothing, the one spelling of absence this module has. Read
+ *  in {@link MARKS} order, which is precedence: the three are mutually
+ *  exclusive on disk, so it only decides what a set the validator has already
+ *  condemned looks like. */
+export const storedMarker = (node: LocatedRegular["node"]): Status | undefined =>
+  MARKS.find((mark) => node[mark] !== undefined)
 
 /**
  * The children of a node that are TASKS, each with the mark that makes it one.
@@ -324,14 +321,48 @@ const orderings = (
 
   for (const { node } of nodes) {
     if (isMirror(node)) continue
-    for (const target of listOf(node, "after")) edge(node.id, named(target))
+    for (const target of node.after ?? []) edge(node.id, named(target))
   }
   for (const { node } of nodes) {
     if (isMirror(node)) continue
-    for (const target of listOf(node, "blocks")) edge(named(target), node.id)
+    for (const target of node.blocks ?? []) edge(named(target), node.id)
   }
   return after
 }
+
+/**
+ * The node an end of an arrow names, WHILE it is still in play: it exists, it
+ * is a task that is not done, and it has not been put away.
+ *
+ * THE ONE PREDICATE, and it is read at BOTH ENDS of the arrow — which is the
+ * racket reference's own shape (`olai/query.rkt`'s `live?`). It is a module
+ * function rather than a closure inside {@link blockage} because a THIRD reader
+ * arrived: {@link standingBefore}, which asks the target-side half of the same
+ * question over a set that is already derived. Two spellings would be two
+ * chances to disagree about what unfinished work is.
+ */
+const inPlay = (
+  index: { readonly byId: ReadonlyMap<string, Located> },
+  status: ReadonlyMap<string, Status>,
+  id: string,
+): InTheWay | undefined => {
+  const at = nodeNamed(index, id)
+  if (at === undefined || isArchived(at.file)) return undefined
+  const mark = status.get(at.node.id)
+  return mark === undefined || mark === "done" ? undefined : { at, status: mark }
+}
+
+/** Which of these targets are still in the way, in the order they were named
+ *  — the target-side half of blockedness, shared by the index below and the
+ *  reading beside it. */
+const waitingOn = (
+  index: { readonly byId: ReadonlyMap<string, Located> },
+  status: ReadonlyMap<string, Status>,
+  targets: ReadonlyArray<string>,
+): ReadonlyArray<InTheWay> =>
+  targets
+    .map((target) => inPlay(index, status, target))
+    .filter((blocker) => blocker !== undefined)
 
 /**
  * What is standing in each node's way — the whole of blockedness, derived like
@@ -370,23 +401,12 @@ const blockage = (
 ): ReadonlyMap<string, ReadonlyArray<InTheWay>> => {
   const index = { byId }
 
-  /** The node an end of an arrow names, WHILE it is still in play: it exists,
-   *  it is a task that is not done, and it has not been put away. */
-  const inPlay = (id: string): InTheWay | undefined => {
-    const at = nodeNamed(index, id)
-    if (at === undefined || isArchived(at.file)) return undefined
-    const mark = status.get(at.node.id)
-    return mark === undefined || mark === "done" ? undefined : { at, status: mark }
-  }
-
   const blocked = new Map<string, ReadonlyArray<InTheWay>>()
   for (const [id, targets] of after) {
-    const source = inPlay(id)
+    const source = inPlay(index, status, id)
     if (source === undefined) continue
 
-    const waiting = targets
-      .map((target) => inPlay(target))
-      .filter((blocker) => blocker !== undefined)
+    const waiting = waitingOn(index, status, targets)
     if (waiting.length === 0) continue
 
     // Keyed by the NODE. Both spellings of an edge were resolved to one before
@@ -429,6 +449,32 @@ export const blockersOf = (
   derived: Derived,
   id: string,
 ): ReadonlyArray<InTheWay> => derived.blocked.get(id) ?? []
+
+/**
+ * What this node's `after` targets hold up — whether or not the node is WORK
+ * yet.
+ *
+ * The one place the two readings differ, and the difference is which end of the
+ * arrow the question is asked about. {@link blockersOf} is what a node IS
+ * waiting on, and it is empty for a plain bullet because a bullet is not work
+ * and is therefore not being told it cannot start — that is what every DRAWING
+ * of blockedness wants. This is what a node WOULD be waiting on the moment it
+ * became work, and it is what a WRITE that is about to make it work has to ask:
+ * the ops layer refuses `set_doing` with it, and asking `blockersOf` there
+ * would let `set_doing` on a bullet slip past the gate its own `after` edges
+ * declare — the row landing `doing` and the app drawing it blocked a frame
+ * later, which is precisely the state the refusal exists to make unreachable.
+ *
+ * Not a second rule: it is the target-side half of {@link blockage}, the same
+ * {@link inPlay} over the same normalised graph, in the same promised order.
+ * Both readings say `done` targets, bullets and archived work stand in nobody's
+ * way, because there is one function that decides that.
+ */
+export const standingBefore = (
+  derived: Pick<Derived, "byId" | "status" | "after">,
+  id: string,
+): ReadonlyArray<InTheWay> =>
+  waitingOn(derived, derived.status, derived.after.get(id) ?? [])
 
 // ── the drawable tree ──────────────────────────────────────────────────
 

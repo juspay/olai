@@ -9,10 +9,11 @@ import {
   type Row,
   rowsOf,
   situate,
+  standingBefore,
   type Status,
   isTagName,
   mayHoldTag,
-  markOf,
+  storedMarker,
   TAG_SIGILS,
   tagOpensAt,
   tagText,
@@ -71,8 +72,8 @@ const stubbed = (row: Row): string =>
 // task — which the index says by not holding it at all.
 test("a leaf reports what it stores, and an unmarked one reports nothing", () => {
   const status = statusesOf(
-    `{"id":"a","ord":"a","title":"a","props":{"status":"done"}}\n` +
-      `{"id":"b","ord":"b","title":"b","props":{"status":"doing","since":"2026-08-10"}}\n` +
+    `{"id":"a","ord":"a","title":"a","done":true}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":"2026-08-10"}\n` +
       `{"id":"c","ord":"c","title":"c"}`,
   )
   expect(status.get("a")).toBe("done")
@@ -88,25 +89,20 @@ test("a leaf reports what it stores, and an unmarked one reports nothing", () =>
 test("the stored marker is the field a record actually carries, or nothing", () => {
   expect(
     regulars(
-      `{"id":"a","ord":"a","title":"a","props":{"status":"done"}}\n` +
-        `{"id":"b","ord":"b","title":"b","props":{"status":"doing","since":"2026-08-10"}}\n` +
-        `{"id":"t","ord":"c","title":"t","props":{"status":"todo"}}\n` +
+      `{"id":"a","ord":"a","title":"a","done":true}\n` +
+        `{"id":"b","ord":"b","title":"b","doing":"2026-08-10"}\n` +
+        `{"id":"t","ord":"c","title":"t","todo":true}\n` +
         `{"id":"c","ord":"d","title":"c"}`,
-    ).map(markOf),
+    ).map(storedMarker),
   ).toEqual(["done", "doing", "todo", undefined])
 
-  // There is no longer a record that claims two marks to have a precedence
-  // about: one `status` key holds one value. What CAN still be written by hand
-  // is a `status` holding something that is not a mark at all — the parser
-  // refuses it, and these walks deliberately run over sets it has condemned, so
-  // the answer must be "no mark" rather than a fourth one invented from a typo.
-  // Typed as records rather than passed as bare literals, which is what makes
-  // them fixtures: both are things a `props` map may legally hold, and it is
-  // the READING that has to refuse them rather than the map's own shape.
-  const typo: RegularNode = { id: "x", ord: "a", title: "x", props: { status: "donee" } }
-  const listed: RegularNode = { id: "x", ord: "a", title: "x", props: { status: ["done"] } }
-  expect(markOf(typo)).toBeUndefined()
-  expect(markOf(listed)).toBeUndefined()
+  // Written by hand because the parser refuses these lines: the marks are
+  // exclusive on disk, so this only decides what a set the validator has
+  // already condemned looks like — and it looks as far along as it claims.
+  expect(storedMarker({ id: "x", ord: "a", title: "x", done: true, doing: true }))
+    .toBe("done")
+  expect(storedMarker({ id: "x", ord: "a", title: "x", doing: true, todo: true }))
+    .toBe("doing")
 })
 
 // A PARENT is what it stores too, and nothing about its children changes that.
@@ -120,15 +116,15 @@ test("a parent says what it stores, whatever hangs under it", () => {
   // finished.
   const unmarked = statusesOf(
     `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","props":{"status":"done"}}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2","props":{"status":"done"}}`,
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","done":true}`,
   )
   expect(unmarked.get("p")).toBeUndefined()
 
   // A parent whose children are all NOTES can be a task, which derivation had
   // no way to express: the four findings under it are not four subtasks.
   const overNotes = statusesOf(
-    `{"id":"p","ord":"a","title":"p","props":{"status":"todo","since":"2026-08-11"}}\n` +
+    `{"id":"p","ord":"a","title":"p","todo":"2026-08-11"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1"}\n` +
       `{"id":"c2","parent":"p","ord":"b","title":"c2"}`,
   )
@@ -138,8 +134,8 @@ test("a parent says what it stores, whatever hangs under it", () => {
   // `done` over an unfinished child is a claim about the branch, which somebody
   // is allowed to make (the ops layer says so out loud — plan.ts's nudge).
   const disagreeing = statusesOf(
-    `{"id":"p","ord":"a","title":"p","props":{"status":"done","since":"2026-08-11"}}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","props":{"status":"doing"}}`,
+    `{"id":"p","ord":"a","title":"p","done":"2026-08-11"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","doing":true}`,
   )
   expect(disagreeing.get("p")).toBe("done")
   expect(disagreeing.get("c1")).toBe("doing")
@@ -154,9 +150,9 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
 
   expect(progress(
     `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","props":{"status":"done"}}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2","props":{"status":"doing"}}\n` +
-      `{"id":"c3","parent":"p","ord":"c","title":"c3","props":{"status":"todo"}}`,
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}\n` +
+      `{"id":"c3","parent":"p","ord":"c","title":"c3","todo":true}`,
     "p",
   )).toEqual({ done: 1, total: 3 })
 
@@ -164,7 +160,7 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
   // holds it back — the same rule that keeps a bullet from blocking anything.
   expect(progress(
     `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","props":{"status":"done"}}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
       `{"id":"aside","parent":"p","ord":"b","title":"how it went"}`,
     "p",
   )).toEqual({ done: 1, total: 1 })
@@ -176,14 +172,14 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
       `{"id":"c1","parent":"p","ord":"a","title":"c1"}`,
     "p",
   )).toBeUndefined()
-  expect(progress(`{"id":"p","ord":"a","title":"p","props":{"status":"done"}}`, "p")).toBeUndefined()
+  expect(progress(`{"id":"p","ord":"a","title":"p","done":true}`, "p")).toBeUndefined()
 
   // ITS OWN children, one level. A grandchild is counted by the row it hangs
   // under, which is the row a reader is looking at when they want the number.
   expect(progress(
     `{"id":"top","ord":"a","title":"top"}\n` +
-      `{"id":"mid","parent":"top","ord":"a","title":"mid","props":{"status":"doing"}}\n` +
-      `{"id":"leaf","parent":"mid","ord":"a","title":"leaf","props":{"status":"done"}}`,
+      `{"id":"mid","parent":"top","ord":"a","title":"mid","doing":true}\n` +
+      `{"id":"leaf","parent":"mid","ord":"a","title":"leaf","done":true}`,
     "top",
   )).toEqual({ done: 0, total: 1 })
 })
@@ -194,9 +190,9 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
 test("the unfinished ones are the child tasks that are not done", () => {
   const derived = derive(nodesOf(
     `{"id":"p","ord":"a","title":"p"}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","props":{"status":"done"}}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2","props":{"status":"doing"}}\n` +
-      `{"id":"c3","parent":"p","ord":"c","title":"c3","props":{"status":"todo"}}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}\n` +
+      `{"id":"c3","parent":"p","ord":"c","title":"c3","todo":true}\n` +
       `{"id":"aside","parent":"p","ord":"d","title":"a note about it"}\n` +
       `{"id":"m","parent":"p","ord":"e","mirror":"c3"}`,
   ))
@@ -211,7 +207,7 @@ test("the unfinished ones are the child tasks that are not done", () => {
 // disagreed with the one two lines up would make mirrors unusable.
 test("a mirror reports its target's mark, through as many hops as it takes", () => {
   const status = statusesOf(
-    `{"id":"p","ord":"a","title":"p","props":{"status":"done","since":"2026-08-03"}}\n` +
+    `{"id":"p","ord":"a","title":"p","done":"2026-08-03"}\n` +
       `{"id":"hop","ord":"b","mirror":"p"}\n` +
       `{"id":"far","ord":"c","mirror":"hop"}`,
   )
@@ -231,9 +227,9 @@ test("a mirror reports its target's mark, through as many hops as it takes", () 
 test("a mirror row draws its target's mark, whichever of them it is", () => {
   const rows = rowsOf(
     derive(nodesOfFiles({
-      "a.olai": `{"id":"working","ord":"a","title":"working","props":{"status":"doing","since":"2026-08-11"}}\n` +
-        `{"id":"waiting","ord":"b","title":"waiting","props":{"status":"todo","since":"2026-08-11"}}\n` +
-        `{"id":"finished","ord":"c","title":"finished","props":{"status":"done","since":"2026-08-11"}}\n` +
+      "a.olai": `{"id":"working","ord":"a","title":"working","doing":"2026-08-11"}\n` +
+        `{"id":"waiting","ord":"b","title":"waiting","todo":"2026-08-11"}\n` +
+        `{"id":"finished","ord":"c","title":"finished","done":"2026-08-11"}\n` +
         `{"id":"note","ord":"d","title":"a note about all three"}`,
       // In another file, which is where a mirror usually lives: the one
       // relation that crosses files must not be the one that drops the mark.
@@ -256,9 +252,9 @@ test("a mirror row draws its target's mark, whichever of them it is", () => {
 // the rollup: showing a node in a second place must not make an unrelated
 // parent read `1/2`.
 test("a mirror child does not count toward the rollup of the node it sits under", () => {
-  const contents = `{"id":"elsewhere","ord":"z","title":"somewhere else","props":{"status":"todo"}}\n` +
+  const contents = `{"id":"elsewhere","ord":"z","title":"somewhere else","todo":true}\n` +
     `{"id":"p","ord":"a","title":"p"}\n` +
-    `{"id":"c","parent":"p","ord":"a","title":"c","props":{"status":"done"}}\n` +
+    `{"id":"c","parent":"p","ord":"a","title":"c","done":true}\n` +
     `{"id":"m","parent":"p","ord":"b","mirror":"elsewhere"}`
   const derived = derive(nodesOf(contents))
   expect(derived.status.get("m")).toBe("todo")
@@ -334,14 +330,14 @@ const waitingIn = (contents: string, id: string): ReadonlyArray<string> =>
 test("an after target blocks while it is a task that is not done", () => {
   const of = (mark: string): ReadonlyArray<string> =>
     waitingIn(
-      `{"id":"a","ord":"a","title":"a","props":{"status":"doing","after":["b"]}}\n` +
+      `{"id":"a","ord":"a","title":"a","doing":true,"after":["b"]}\n` +
         `{"id":"b","ord":"b","title":"b"${mark}}`,
       "a",
     )
-  expect(of(`,"props":{"status":"doing"}`)).toEqual(["b doing"])
-  expect(of(`,"props":{"status":"todo"}`)).toEqual(["b todo"])
+  expect(of(`,"doing":true`)).toEqual(["b doing"])
+  expect(of(`,"todo":true`)).toEqual(["b todo"])
   // Done is what clears the way: it has happened, so nothing is waiting.
-  expect(of(`,"props":{"status":"done","since":"2026-08-10"}`)).toEqual([])
+  expect(of(`,"done":"2026-08-10"`)).toEqual([])
 })
 
 // THE TRAP the rule is written against (docs/format.md): spelling it
@@ -352,7 +348,7 @@ test("an after target blocks while it is a task that is not done", () => {
 test("a target nobody marked never blocks, however unfinished it looks", () => {
   expect(
     waitingIn(
-      `{"id":"a","ord":"a","title":"a","props":{"status":"todo","after":["note"]}}\n` +
+      `{"id":"a","ord":"a","title":"a","todo":true,"after":["note"]}\n` +
         `{"id":"note","ord":"b","title":"a note nobody marked"}`,
       "a",
     ),
@@ -362,7 +358,7 @@ test("a target nobody marked never blocks, however unfinished it looks", () => {
   // adds up to a bullet, and this is where that answer earns its keep.
   expect(
     waitingIn(
-      `{"id":"a","ord":"a","title":"a","props":{"status":"todo","after":["notes"]}}\n` +
+      `{"id":"a","ord":"a","title":"a","todo":true,"after":["notes"]}\n` +
         `{"id":"notes","ord":"b","title":"notes"}\n` +
         `{"id":"one","parent":"notes","ord":"a","title":"one"}`,
       "a",
@@ -376,10 +372,10 @@ test("a target nobody marked never blocks, however unfinished it looks", () => {
 // anything however unfinished what they point at is.
 test("a node that is done or unmarked is waiting on nothing", () => {
   const set = (mark: string): string =>
-    `{"id":"a","ord":"a","title":"a","props":{${mark}"after":["b"]}}\n` +
-      `{"id":"b","ord":"b","title":"b","props":{"status":"doing"}}`
-  expect(waitingIn(set(`"status":"doing",`), "a")).toEqual(["b doing"])
-  expect(waitingIn(set(`"status":"done","since":"2026-08-10",`), "a")).toEqual([])
+    `{"id":"a","ord":"a","title":"a"${mark},"after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}`
+  expect(waitingIn(set(`,"doing":true`), "a")).toEqual(["b doing"])
+  expect(waitingIn(set(`,"done":"2026-08-10"`), "a")).toEqual([])
   expect(waitingIn(set(""), "a")).toEqual([])
 })
 
@@ -387,9 +383,9 @@ test("a node that is done or unmarked is waiting on nothing", () => {
 // in ONE place (`derive`) so the acyclicity rule and this read one graph.
 test("blocks is the same edge, and both halves land in one answer", () => {
   const derived = derive(nodesOf(
-    `{"id":"a","ord":"a","title":"a","props":{"status":"todo","after":["b"]}}\n` +
-      `{"id":"b","ord":"b","title":"b","props":{"status":"doing"}}\n` +
-      `{"id":"c","ord":"c","title":"c","props":{"status":"doing","blocks":["a"]}}`,
+    `{"id":"a","ord":"a","title":"a","todo":true,"after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}\n` +
+      `{"id":"c","ord":"c","title":"c","doing":true,"blocks":["a"]}`,
   ))
   expect(waiting(derived, "a")).toEqual(["b doing", "c doing"])
   // The graph itself, as the validator's cycle check reads it.
@@ -402,15 +398,72 @@ test("blocks is the same edge, and both halves land in one answer", () => {
 // read as history rather than as a plate. Both ends, one rule.
 test("archived work neither blocks nor is blocked", () => {
   const derived = derive(nodesOfFiles({
-    "house.olai": `{"id":"a","ord":"a","title":"a","props":{"status":"todo","after":["put-away"]}}`,
+    "house.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["put-away"]}`,
     "Archive.olai":
-      `{"id":"put-away","ord":"a","title":"put away half-finished","props":{"status":"doing"}}\n` +
-        `{"id":"old","ord":"b","title":"old","props":{"status":"todo","after":["a"]}}`,
+      `{"id":"put-away","ord":"a","title":"put away half-finished","doing":true}\n` +
+        `{"id":"old","ord":"b","title":"old","todo":true,"after":["a"]}`,
   }))
   expect(waiting(derived, "a")).toEqual([])
   expect(waiting(derived, "old")).toEqual([])
   // The status index still knows what they are; it is blocking they are out of.
   expect(derived.status.get("put-away")).toBe("doing")
+})
+
+/**
+ * The other end of the arrow, asked of a node that is not work yet.
+ *
+ * `blockersOf` is what a node IS waiting on and it is empty for a bullet,
+ * which is right for every drawing of blockedness — nothing is telling a
+ * bullet it cannot start. `standingBefore` is what its `after` targets hold
+ * up regardless, which is what a write about to MAKE it work has to ask
+ * (`@olai/ops`' `set_doing` refusal). The two differ at exactly one end and
+ * agree at the other, because they share one predicate.
+ */
+test("standingBefore asks the same question of a node that is not work yet", () => {
+  const before = (
+    derived: ReturnType<typeof derive>,
+    id: string,
+  ): ReadonlyArray<string> =>
+    standingBefore(derived, id).map((one) => `${one.at.node.id} ${one.status}`)
+
+  // The one place they part: an unmarked source. It is waiting on nothing, and
+  // there is unfinished work in front of it all the same.
+  const bullet = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}`,
+  ))
+  expect(waiting(bullet, "a")).toEqual([])
+  expect(before(bullet, "a")).toEqual(["b doing"])
+
+  // And everywhere else they agree, because the TARGET side is one function:
+  // a bullet, a done node and an archived one stand in nobody's way.
+  const clear = derive(nodesOfFiles({
+    "a.olai": `{"id":"a","ord":"a","title":"a","after":["note","fin","gone"]}\n` +
+      `{"id":"note","ord":"b","title":"a note"}\n` +
+      `{"id":"fin","ord":"c","title":"fin","done":"2026-08-10"}`,
+    "Archive.olai": `{"id":"gone","ord":"a","title":"gone","todo":true}`,
+  }))
+  expect(before(clear, "a")).toEqual([])
+
+  // The `blocks` sugar and the promised order are the graph's, so they are
+  // this reading's too — it is `derived.after` it walks.
+  //
+  // THE ORDER HERE IS USER-VISIBLE, which is why it is asserted rather than
+  // sorted away: `@olai/ops`' `set_doing` refusal names its blockers in this
+  // sequence, so a regression that shuffled it would change the sentence a
+  // person and an agent both read ("comes after 2 unfinished tasks: `b` …,
+  // `c` …"). It is the same promise `Derived.blocked` makes for the one
+  // blocker a row has space to draw — a node's own `after` as it writes them,
+  // then whatever `blocks` points back at it.
+  const both = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}\n` +
+      `{"id":"c","ord":"c","title":"c","todo":true,"blocks":["a"]}`,
+  ))
+  expect(before(both, "a")).toEqual(["b doing", "c todo"])
+
+  // Nothing named, nothing waiting — the answer for nearly every node.
+  expect(before(both, "b")).toEqual([])
 })
 
 // An archive one directory down is the same archive: `archive` puts a subtree
@@ -419,8 +472,8 @@ test("an archive beside any outline is an archive", () => {
   expect(
     waiting(
       derive(nodesOfFiles({
-        "work/plans.olai": `{"id":"a","ord":"a","title":"a","props":{"status":"todo","after":["old"]}}`,
-        "work/Archive.olai": `{"id":"old","ord":"a","title":"old","props":{"status":"doing"}}`,
+        "work/plans.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
+        "work/Archive.olai": `{"id":"old","ord":"a","title":"old","doing":true}`,
       })),
       "a",
     ),
@@ -432,10 +485,10 @@ test("an archive beside any outline is an archive", () => {
 // blocker a reader is handed is a node with a title to show.
 test("an edge naming a mirror means the node it shows", () => {
   const derived = derive(nodesOfFiles({
-    "a.olai": `{"id":"a","ord":"a","title":"a","props":{"status":"todo","after":["m"]}}\n` +
-      `{"id":"b","ord":"b","title":"the real one","props":{"status":"doing"}}\n` +
+    "a.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["m"]}\n` +
+      `{"id":"b","ord":"b","title":"the real one","doing":true}\n` +
       `{"id":"m","ord":"c","mirror":"b"}\n` +
-      `{"id":"c","ord":"d","title":"c","props":{"status":"doing","blocks":["m2"]}}\n` +
+      `{"id":"c","ord":"d","title":"c","doing":true,"blocks":["m2"]}\n` +
       `{"id":"m2","ord":"e","mirror":"a"}`,
   }))
   expect(waiting(derived, "a")).toEqual(["b doing", "c doing"])
@@ -455,9 +508,9 @@ test("an edge naming a mirror means the node it shows", () => {
 // directory somebody had written an unrelated edge.
 test("a node's own after targets come before anything that blocks it", () => {
   const derived = derive(nodesOf(
-    `{"id":"early","ord":"a","title":"early","props":{"status":"doing","blocks":["subject"]}}\n` +
-      `{"id":"own","ord":"b","title":"own","props":{"status":"doing"}}\n` +
-      `{"id":"subject","ord":"c","title":"subject","props":{"status":"todo","after":["own"]}}`,
+    `{"id":"early","ord":"a","title":"early","doing":true,"blocks":["subject"]}\n` +
+      `{"id":"own","ord":"b","title":"own","doing":true}\n` +
+      `{"id":"subject","ord":"c","title":"subject","todo":true,"after":["own"]}`,
   ))
   expect(waiting(derived, "subject")).toEqual(["own doing", "early doing"])
 })
@@ -467,8 +520,8 @@ test("a node's own after targets come before anything that blocks it", () => {
 // the node's own page.
 test("a row, a mirror row and a page all say what the node is waiting on", () => {
   const derived = derive(nodesOf(
-    `{"id":"first","ord":"a","title":"first","props":{"status":"doing"}}\n` +
-      `{"id":"second","ord":"b","title":"second","props":{"status":"todo","after":["first"]}}\n` +
+    `{"id":"first","ord":"a","title":"first","doing":true}\n` +
+      `{"id":"second","ord":"b","title":"second","todo":true,"after":["first"]}\n` +
       `{"id":"m","ord":"c","mirror":"second"}`,
   ))
   const rows = rowsOf(derived, FIXTURE_FILE)
@@ -488,8 +541,8 @@ test("a row, a mirror row and a page all say what the node is waiting on", () =>
 // where those two key domains have to meet.
 test("a mirror row carries both halves of the waiting glyph", () => {
   const derived = derive(nodesOfFiles({
-    "a.olai": `{"id":"first","ord":"a","title":"first","props":{"status":"doing"}}\n` +
-      `{"id":"second","ord":"b","title":"second","props":{"status":"todo","after":["first"]}}`,
+    "a.olai": `{"id":"first","ord":"a","title":"first","doing":true}\n` +
+      `{"id":"second","ord":"b","title":"second","todo":true,"after":["first"]}`,
     "b.olai": `{"id":"m","ord":"a","mirror":"second"}`,
   }))
   const mirror = drawn(rowsOf(derived, "b.olai"), 0)
@@ -514,8 +567,8 @@ test("a dangling row is waiting on nothing", () => {
 // drawn over a tree. Each of them is waiting on the other, and nothing hangs.
 test("an after loop derives without hanging", () => {
   const derived = derive(nodesOf(
-    `{"id":"a","ord":"a","title":"a","props":{"status":"doing","after":["b"]}}\n` +
-      `{"id":"b","ord":"b","title":"b","props":{"status":"doing","after":["a"]}}`,
+    `{"id":"a","ord":"a","title":"a","doing":true,"after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true,"after":["a"]}`,
   ))
   expect(waiting(derived, "a")).toEqual(["b doing"])
   expect(waiting(derived, "b")).toEqual(["a doing"])
@@ -528,8 +581,8 @@ test("an after loop derives without hanging", () => {
 // says so on two rows for ever. `validate.test.ts` holds the other half.
 test("a loop closing through a mirror is one loop in the graph", () => {
   const derived = derive(nodesOfFiles({
-    "a.olai": `{"id":"x","ord":"a","title":"x","props":{"status":"doing","after":["m"]}}\n` +
-      `{"id":"y","ord":"b","title":"y","props":{"status":"doing","after":["x"]}}`,
+    "a.olai": `{"id":"x","ord":"a","title":"x","doing":true,"after":["m"]}\n` +
+      `{"id":"y","ord":"b","title":"y","doing":true,"after":["x"]}`,
     "b.olai": `{"id":"m","ord":"a","mirror":"y"}`,
   }))
   expect(waiting(derived, "x")).toEqual(["y doing"])
@@ -547,8 +600,8 @@ test("a loop closing through a mirror is one loop in the graph", () => {
 // mirror, and its children are the TARGET's, drawn under the mirror's own key.
 test("a mirror row is drawn with its target's children", () => {
   const nodes = nodesOf(
-    `{"id":"p","ord":"b","title":"p","props":{"status":"doing"}}\n` +
-      `{"id":"c","parent":"p","ord":"a","title":"c","props":{"status":"done"}}\n` +
+    `{"id":"p","ord":"b","title":"p","doing":true}\n` +
+      `{"id":"c","parent":"p","ord":"a","title":"c","done":true}\n` +
       `{"id":"m","ord":"a","mirror":"p"}`,
   )
   const rows = rowsOf(derive(nodes), "a.olai")
@@ -709,10 +762,10 @@ test("roots are the requested file's own top-level nodes, in ord order", () => {
 
 // ── hiding what is done ────────────────────────────────────────────────
 
-const HOUSEWORK = `{"id":"kitchen","ord":"a0","title":"kitchen","props":{"status":"doing"}}\n` +
-  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demo","props":{"status":"done"}}\n` +
+const HOUSEWORK = `{"id":"kitchen","ord":"a0","title":"kitchen","doing":true}\n` +
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demo","done":true}\n` +
   `{"id":"install","parent":"kitchen","ord":"a1","title":"install"}\n` +
-  `{"id":"handles","parent":"install","ord":"a0","title":"handles","props":{"status":"doing"}}`
+  `{"id":"handles","parent":"install","ord":"a0","title":"handles","doing":true}`
 
 test("hiding what is done drops the done rows and keeps the rest", () => {
   const rows = rowsOf(derive(nodesOf(HOUSEWORK)), FIXTURE_FILE)
@@ -736,9 +789,9 @@ test("a stored done hides the whole subtree under it, bullets included", () => {
   const rows = rowsOf(
     derive(
       nodesOf(
-        `{"id":"finished","ord":"a0","title":"finished","props":{"status":"done","since":"2026-08-10"}}\n` +
-          `{"id":"one","parent":"finished","ord":"a0","title":"one","props":{"status":"done"}}\n` +
-          `{"id":"two","parent":"finished","ord":"a1","title":"two","props":{"status":"doing"}}\n` +
+        `{"id":"finished","ord":"a0","title":"finished","done":"2026-08-10"}\n` +
+          `{"id":"one","parent":"finished","ord":"a0","title":"one","done":true}\n` +
+          `{"id":"two","parent":"finished","ord":"a1","title":"two","doing":true}\n` +
           `{"id":"aside","parent":"finished","ord":"a2","title":"how it went"}`,
       ),
     ),
@@ -757,8 +810,8 @@ test("a parent nobody marked is not hidden, however finished its children are", 
     derive(
       nodesOf(
         `{"id":"agents","ord":"a0","title":"agents"}\n` +
-          `{"id":"chat","parent":"agents","ord":"a0","title":"chat","props":{"status":"done"}}\n` +
-          `{"id":"acp","parent":"agents","ord":"a1","title":"acp","props":{"status":"done"}}\n` +
+          `{"id":"chat","parent":"agents","ord":"a0","title":"chat","done":true}\n` +
+          `{"id":"acp","parent":"agents","ord":"a1","title":"acp","done":true}\n` +
           `{"id":"finding","parent":"agents","ord":"a2","title":"nothing wakes a chat agent"}`,
       ),
     ),
@@ -785,9 +838,9 @@ test("a parent nobody marked is not hidden, however finished its children are", 
 test("done-hidden drops a mirror of a done node with the subtree it draws", () => {
   const rows = rowsOf(
     derive(nodesOfFiles({
-      "a.olai": `{"id":"finished","ord":"a","title":"finished","props":{"status":"done","since":"2026-08-11"}}\n` +
+      "a.olai": `{"id":"finished","ord":"a","title":"finished","done":"2026-08-11"}\n` +
         `{"id":"how","parent":"finished","ord":"a","title":"how it went"}\n` +
-        `{"id":"open","ord":"b","title":"open","props":{"status":"doing"}}`,
+        `{"id":"open","ord":"b","title":"open","doing":true}`,
       "b.olai": `{"id":"m-finished","ord":"a","mirror":"finished"}\n` +
         `{"id":"m-open","ord":"b","mirror":"open"}`,
     })),
@@ -954,13 +1007,13 @@ test("a cyclic set derives without hanging", () => {
   // A parent loop no longer touches status at all: each node says what it
   // stores. It is still walked for the rows, which is the guard below.
   const parents = statusesOf(
-    `{"id":"a","parent":"b","ord":"a","title":"a","props":{"status":"doing"}}\n` +
+    `{"id":"a","parent":"b","ord":"a","title":"a","doing":true}\n` +
       `{"id":"b","parent":"a","ord":"b","title":"b"}`,
   )
   expect(parents.get("a")).toBe("doing")
   expect(parents.get("b")).toBeUndefined()
   expect(progressOf(derive(nodesOf(
-    `{"id":"a","parent":"b","ord":"a","title":"a","props":{"status":"doing"}}\n` +
+    `{"id":"a","parent":"b","ord":"a","title":"a","doing":true}\n` +
       `{"id":"b","parent":"a","ord":"b","title":"b"}`,
   )), "b")).toEqual({ done: 0, total: 1 })
 

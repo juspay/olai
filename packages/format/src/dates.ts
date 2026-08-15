@@ -60,10 +60,9 @@ import {
   type Situated,
   situate,
   type Status,
-  markOf,
+  storedMarker,
 } from "./derive.ts"
 import { fileKind, isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
-import { dateOf, sinceOf } from "./props.ts"
 
 /** How many characters of an ISO value name the day, and the month. A
  *  datetime is a day plus a time, so the day is the prefix they share. */
@@ -146,12 +145,10 @@ export interface Dated extends Occasioned {
  * a calendar, and inventing a day for it would put years of finished work on
  * whatever day it was read.
  *
- * The mark is asked for through {@link markOf}, which is the one reading of
- * `status` in olai — so a node is on its `done` day exactly when its checkbox
- * is the one that says done, because both asked the same function. This
- * paragraph used to have a second half about a record carrying `done` AND
- * `todo` and which of them won here; one `status` key holds one mark, so there
- * is no such record to resolve.
+ * The mark is asked for through {@link storedMarker}, so a set the validator
+ * has already condemned — two marks on one record — resolves the same one here
+ * as it does in the checkbox: a record carrying `done` AND `todo` is on its
+ * `done` day exactly when its checkbox is the one that says done.
  *
  * The order decides exactly one thing, and only for a node whose two dates land
  * on the SAME day: which occasion that day names ({@link datedOn}). `date`
@@ -165,15 +162,9 @@ export interface Dated extends Occasioned {
  */
 export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
   const dates: Array<Occasioned> = []
-  const scheduled = dateOf(node)
-  if (scheduled !== undefined) dates.push({ occasion: "date", date: scheduled })
-  // `since` is WHEN the mark was reached, whichever mark it is, and only the
-  // `done` one is read here — the rule this file has argued since 2026-08-11,
-  // unchanged by the two keys replacing three fields. A `since` on a `doing`
-  // stays on disk and stays out of the journal.
-  const reached = sinceOf(node)
-  if (markOf(node) === "done" && reached !== undefined) {
-    dates.push({ occasion: "done", date: reached })
+  if (node.date !== undefined) dates.push({ occasion: "date", date: node.date })
+  if (storedMarker(node) === "done" && typeof node.done === "string") {
+    dates.push({ occasion: "done", date: node.done })
   }
   return dates
 }

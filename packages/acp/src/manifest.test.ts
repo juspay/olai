@@ -152,6 +152,7 @@ describe("the manifest", () => {
       "formOf",
       "permissionFormOf",
       "relativeTo",
+      "usageIn",
     ])
     // ... and the wire half carries the vocabulary alone: no payload reader
     // rides the subpath the surface re-exports.
@@ -161,6 +162,7 @@ describe("the manifest", () => {
       "AskField",
       "AskOutcome",
       "FileDiff",
+      "Usage",
       "YES_NO",
     ])
   })

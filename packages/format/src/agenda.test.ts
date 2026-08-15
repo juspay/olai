@@ -23,34 +23,34 @@ const SET = derive(
     "work.olai": [
       `{"id":"deck","ord":"a0","title":"the deck"}`,
       // Slipped: someone said it was work, and said when.
-      `{"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","props":{"status":"todo","date":"2026-08-10"}}`,
+      `{"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-10"}`,
       // Slipped FURTHER back, and written after `posts` — so a section that
       // ordered by line rather than by date would put it second.
-      `{"id":"permit","parent":"deck","ord":"a1","title":"pull the permit","props":{"status":"doing","date":"2026-08-03"}}`,
+      `{"id":"permit","parent":"deck","ord":"a1","title":"pull the permit","doing":true,"date":"2026-08-03"}`,
       // Dated, unmarked: an OCCURRENCE. Its day has passed and it is simply
       // gone — a day passing is not a failure of a bullet.
-      `{"id":"delivery","parent":"deck","ord":"a2","title":"the timber arrives","props":{"date":"2026-08-04"}}`,
+      `{"id":"delivery","parent":"deck","ord":"a2","title":"the timber arrives","date":"2026-08-04"}`,
       // Finished last week. `done` extinguishes overdue by construction.
-      `{"id":"survey","ord":"a1","title":"the boundary survey","props":{"status":"done","since":"2026-08-05T09:15:00-04:00","date":"2026-08-05"}}`,
+      `{"id":"survey","ord":"a1","title":"the boundary survey","done":"2026-08-05T09:15:00-04:00","date":"2026-08-05"}`,
       // Work with no WHEN. Absent from every section: inventing a day for it is
       // what this format refuses to do.
-      `{"id":"paint","ord":"a2","title":"paint the rails","props":{"status":"todo"}}`,
+      `{"id":"paint","ord":"a2","title":"paint the rails","todo":true}`,
       // A date on the MARK and nowhere else. A day page reads neither a dated
       // `doing` nor a dated `todo`, and neither does this.
-      `{"id":"filed","ord":"a3","title":"replace the gate latch","props":{"status":"todo","since":"2026-07-30"}}`,
+      `{"id":"filed","ord":"a3","title":"replace the gate latch","todo":"2026-07-30"}`,
     ].join("\n"),
     "life.olai": [
       `{"id":"trip","ord":"a0","title":"the coast trip"}`,
       // Today: one due, one an occurrence, one finished this morning.
-      `{"id":"ferry","parent":"trip","ord":"a0","title":"book the ferry","props":{"status":"todo","date":"2026-08-12T09:00"}}`,
-      `{"id":"birthday","parent":"trip","ord":"a1","title":"mum's birthday","props":{"date":"2026-08-12"}}`,
-      `{"id":"visas","parent":"trip","ord":"a2","title":"send the visa forms","props":{"status":"done","since":"2026-08-12T08:00:00-04:00","date":"2026-08-12"}}`,
+      `{"id":"ferry","parent":"trip","ord":"a0","title":"book the ferry","todo":true,"date":"2026-08-12T09:00"}`,
+      `{"id":"birthday","parent":"trip","ord":"a1","title":"mum's birthday","date":"2026-08-12"}`,
+      `{"id":"visas","parent":"trip","ord":"a2","title":"send the visa forms","done":"2026-08-12T08:00:00-04:00","date":"2026-08-12"}`,
       // Ahead.
-      `{"id":"pack","parent":"trip","ord":"a3","title":"pack the bags","props":{"status":"todo","date":"2026-08-14"}}`,
-      `{"id":"train","parent":"trip","ord":"a4","title":"the sleeper leaves","props":{"date":"2026-08-20T21:40"}}`,
+      `{"id":"pack","parent":"trip","ord":"a3","title":"pack the bags","todo":true,"date":"2026-08-14"}`,
+      `{"id":"train","parent":"trip","ord":"a4","title":"the sleeper leaves","date":"2026-08-20T21:40"}`,
       // Scheduled ahead and already finished: nothing owed, so the 22nd is not
       // a day this agenda knows about at all.
-      `{"id":"tickets","parent":"trip","ord":"a5","title":"print the tickets","props":{"status":"done","date":"2026-08-22"}}`,
+      `{"id":"tickets","parent":"trip","ord":"a5","title":"print the tickets","done":true,"date":"2026-08-22"}`,
     ].join("\n"),
   }),
 )
@@ -71,24 +71,24 @@ const node = (source: string): RegularNode => nodesOf(source)[0]!.node as Regula
 test("a dated `todo` before today is overdue, and a dated `doing` is too", () => {
   // The ruling this feature turns on (human, 2026-08-12): started-but-
   // unfinished is the most honest answer to "should this have happened by now".
-  expect(isOverdue(node(`{"id":"a","ord":"a0","title":"a","props":{"status":"todo","date":"2026-08-10"}}`), TODAY))
+  expect(isOverdue(node(`{"id":"a","ord":"a0","title":"a","todo":true,"date":"2026-08-10"}`), TODAY))
     .toBe(true)
   expect(
-    isOverdue(node(`{"id":"a","ord":"a0","title":"a","props":{"status":"doing","date":"2026-08-10"}}`), TODAY),
+    isOverdue(node(`{"id":"a","ord":"a0","title":"a","doing":true,"date":"2026-08-10"}`), TODAY),
   ).toBe(true)
 })
 
 test("a dated bullet is never overdue, however long ago its day was", () => {
   // The crown rule, read once more: an unmarked node is not an unfinished one,
   // so a birthday in 1994 is not work anybody is late on.
-  expect(isOverdue(node(`{"id":"a","ord":"a0","title":"a","props":{"date":"1994-03-02"}}`), TODAY))
+  expect(isOverdue(node(`{"id":"a","ord":"a0","title":"a","date":"1994-03-02"}`), TODAY))
     .toBe(false)
 })
 
 test("`done` extinguishes it — a finished task is late at nothing", () => {
   expect(
     isOverdue(
-      node(`{"id":"a","ord":"a0","title":"a","props":{"status":"done","since":"2026-08-11T09:00:00-04:00","date":"2026-08-01"}}`),
+      node(`{"id":"a","ord":"a0","title":"a","done":"2026-08-11T09:00:00-04:00","date":"2026-08-01"}`),
       TODAY,
     ),
   ).toBe(false)
@@ -96,7 +96,7 @@ test("`done` extinguishes it — a finished task is late at nothing", () => {
 
 test("today is not late, and tomorrow certainly is not", () => {
   const due = (date: string): boolean =>
-    isOverdue(node(`{"id":"a","ord":"a0","title":"a","props":{"status":"todo","date":"${date}"}}`), TODAY)
+    isOverdue(node(`{"id":"a","ord":"a0","title":"a","todo":true,"date":"${date}"}`), TODAY)
   expect(due("2026-08-11")).toBe(true)
   expect(due(TODAY)).toBe(false)
   expect(due("2026-08-13")).toBe(false)
@@ -107,7 +107,7 @@ test("a datetime counts for its day, at either end of it", () => {
   // order, so a task due at ten to midnight yesterday is late and one due at
   // one minute past midnight tonight is not. Nothing here parses a date.
   const due = (date: string): boolean =>
-    isOverdue(node(`{"id":"a","ord":"a0","title":"a","props":{"status":"todo","date":"${date}"}}`), TODAY)
+    isOverdue(node(`{"id":"a","ord":"a0","title":"a","todo":true,"date":"${date}"}`), TODAY)
   expect(due("2026-08-11T23:50")).toBe(true)
   expect(due(`${TODAY}T00:01`)).toBe(false)
   // An offset is part of the day it names: a stamp is written where the person
@@ -123,17 +123,17 @@ test("an instant for TODAY still names a day, on the caller's side too", () => {
   // prefix being less than what extends it — which is the one wrong answer it
   // can give, and the one a reader would notice first.
   const due = (date: string, now: string): boolean =>
-    isOverdue(node(`{"id":"a","ord":"a0","title":"a","props":{"status":"todo","date":"${date}"}}`), now)
+    isOverdue(node(`{"id":"a","ord":"a0","title":"a","todo":true,"date":"${date}"}`), now)
   expect(due(TODAY, `${TODAY}T09:00`)).toBe(false)
   expect(due(`${TODAY}T08:00`, `${TODAY}T09:00`)).toBe(false)
   expect(due("2026-08-11", `${TODAY}T00:00:00-04:00`)).toBe(true)
 })
 
 test("a task with no date is not late — it has no WHEN to be late against", () => {
-  expect(isOverdue(node(`{"id":"a","ord":"a0","title":"a","props":{"status":"todo"}}`), TODAY)).toBe(false)
+  expect(isOverdue(node(`{"id":"a","ord":"a0","title":"a","todo":true}`), TODAY)).toBe(false)
   // Nor is a date on the mark itself one: filing a task on Tuesday says nothing
   // about when it is due, and no view reads it as a day.
-  expect(isOverdue(node(`{"id":"a","ord":"a0","title":"a","props":{"status":"todo","since":"2026-07-30"}}`), TODAY))
+  expect(isOverdue(node(`{"id":"a","ord":"a0","title":"a","todo":"2026-07-30"}`), TODAY))
     .toBe(false)
 })
 
@@ -212,8 +212,8 @@ test("a blocked task keeps both answers, and stays on the agenda", () => {
   const blocked = derive(
     nodesOfFiles({
       "work.olai": [
-        `{"id":"wire","ord":"a0","title":"wire the shed","props":{"status":"todo","date":"2026-08-01","after":["trench"]}}`,
-        `{"id":"trench","ord":"a1","title":"dig the trench","props":{"status":"doing"}}`,
+        `{"id":"wire","ord":"a0","title":"wire the shed","todo":true,"date":"2026-08-01","after":["trench"]}`,
+        `{"id":"trench","ord":"a1","title":"dig the trench","doing":true}`,
       ].join("\n"),
     }),
   )
@@ -227,7 +227,7 @@ test("a mirror is a placement, so late work is late once", () => {
   // agenda asks the node rather than the places it is shown in.
   const mirrored = derive(
     nodesOfFiles({
-      "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","props":{"status":"todo","date":"2026-08-01"}}`,
+      "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-01"}`,
       "now.olai": `{"id":"posts-now","ord":"a0","mirror":"posts"}`,
     }),
   )
@@ -257,7 +257,7 @@ test("Upcoming is bounded by the days it shows, not by a window of dates", () =>
     nodesOfFiles({
       "work.olai": Array.from({ length: 14 }, (_, index) => {
         const day = String(13 + index).padStart(2, "0")
-        return `{"id":"d${day}","ord":"a${index}","title":"day ${day}","props":{"status":"todo","date":"2026-08-${day}"}}`
+        return `{"id":"d${day}","ord":"a${index}","title":"day ${day}","todo":true,"date":"2026-08-${day}"}`
       }).join("\n"),
     }),
   )
@@ -284,8 +284,8 @@ test("a count is of NODES, and never of the outlines they are grouped under", ()
   // reason — so they are split here on purpose.
   const spread = derive(
     nodesOfFiles({
-      "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","props":{"status":"todo","date":"2026-08-10"}}`,
-      "life.olai": `{"id":"visas","ord":"a0","title":"send the visa forms","props":{"status":"todo","date":"2026-08-09"}}`,
+      "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-10"}`,
+      "life.olai": `{"id":"visas","ord":"a0","title":"send the visa forms","todo":true,"date":"2026-08-09"}`,
     }),
   )
   const agenda = agendaOf(spread, TODAY)
@@ -296,7 +296,7 @@ test("a count is of NODES, and never of the outlines they are grouped under", ()
 test("what is COMING is not owed: Upcoming is no part of the counts", () => {
   const ahead = derive(
     nodesOfFiles({
-      "work.olai": `{"id":"pack","ord":"a0","title":"pack the bags","props":{"status":"todo","date":"2026-08-14"}}`,
+      "work.olai": `{"id":"pack","ord":"a0","title":"pack the bags","todo":true,"date":"2026-08-14"}`,
     }),
   )
   const agenda = agendaOf(ahead, TODAY)
@@ -318,7 +318,7 @@ test("the archive keeps its place, for the reason a day page keeps it", () => {
   // lives.
   const archived: Derived = derive(
     nodesOfFiles({
-      "Archive.olai": `{"id":"gate","ord":"a0","title":"the old gate","props":{"status":"todo","date":"2026-08-01"}}`,
+      "Archive.olai": `{"id":"gate","ord":"a0","title":"the old gate","todo":true,"date":"2026-08-01"}`,
     }),
   )
   expect(agendaOf(archived, TODAY).overdue.map((group) => group.file)).toEqual([

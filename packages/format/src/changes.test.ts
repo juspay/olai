@@ -41,10 +41,10 @@ describe("what changed", () => {
 
   test("a mark that appeared and one that was taken off are opposites", () => {
     const open = node({ id: "x", title: "order the cabinets" })
-    const done = node({ id: "x", title: "order the cabinets", props: { status: "done", since: "2026-08-10" } })
+    const done = node({ id: "x", title: "order the cabinets", done: "2026-08-10" })
 
     expect(changesOf(at("a.olai", open), at("a.olai", done))[0]).toMatchObject({
-      fields: ["status", "since"],
+      fields: ["done"],
       sort: "done",
     })
     expect(changesOf(at("a.olai", done), at("a.olai", open))[0]).toMatchObject({
@@ -76,7 +76,7 @@ describe("what changed", () => {
   })
 
   test("an unchanged node is not a change", () => {
-    const same = node({ id: "x", title: "x", props: { see: ["y"] } })
+    const same = node({ id: "x", title: "x", see: ["y"] })
     // Two READINGS of the same bytes: equal lists compare equal, which is the
     // one thing a shallow `===` over an array field would get wrong.
     expect(changesOf(at("a.olai", same), at("a.olai", same))).toEqual([])
@@ -109,7 +109,7 @@ describe("the biggest one", () => {
       at(
         "a.olai",
         node({ id: "keep", desc: "written" }),
-        node({ id: "mark", ord: "a1", props: { status: "done", since: "2026-08-10" } }),
+        node({ id: "mark", ord: "a1", done: "2026-08-10" }),
         node({ id: "fresh", ord: "a2" }),
       ),
     )

@@ -69,8 +69,7 @@ const edgeIn = (
   field: string,
 ): ReadonlyArray<string> => {
   const node = world.servedNodesSoFar(file).find((one) => one["id"] === id);
-  const props = node?.["props"] as Record<string, unknown> | undefined;
-  return (props?.[field] ?? []) as ReadonlyArray<string>;
+  return (node?.[field] ?? []) as ReadonlyArray<string>;
 };
 
 // ── opening the panel ──────────────────────────────────────────────────

@@ -28,11 +28,11 @@ import {
   ID_SHAPE,
   isMirror,
   type Located,
+  MARKS,
   MirrorNode,
   type Node,
   RegularNode,
 } from "./node.ts"
-import { DATE, MARKS, SINCE, STATUS, SYSTEM_KEYS, textOf } from "./props.ts"
 import type { Outline } from "./set.ts"
 
 const options = {
@@ -155,51 +155,25 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
   // ask it. The schema already refused any it should not have.
   if (isMirror(node)) return errors
 
-  // WHAT A SYSTEM KEY HOLDS. The map's own schema says every value is text or a
-  // list of it; these are the six keys olai READS, and a reading needs the one
-  // it can use — a `status` holding a list is a legal map and an illegal
-  // record, exactly as two marks used to be.
-  //
-  // What is NOT here is the rule that refused two marks. Three fields were
-  // three answers to one question and a record could carry all of them; one key
-  // holds one value, so `several-marks` is not enforced-and-passing but
-  // UNREPRESENTABLE, and it retired the way `derived` did when derivation went
-  // (docs/format.md's Errors).
-  for (const { key, shape } of SYSTEM_KEYS) {
-    const value = node.props?.[key]
-    if (value === undefined) continue
-    if (shape === "text" && typeof value !== "string") {
-      at("bad-prop", `\`${key}\` holds a list; it takes one value`)
-    }
-    if (shape === "list" && !Array.isArray(value)) {
-      at("bad-prop", `\`${key}\` holds one value; it takes a list of ids`)
-    }
-  }
-
-  const mark = textOf(node, STATUS)
-  if (mark !== undefined && !(MARKS as ReadonlyArray<string>).includes(mark)) {
+  // At most ONE of the three marks. They are the states of one thing — how
+  // far along a task is — so a record carrying two says two things about the
+  // same question, and there is no rule for which of them wins.
+  const marks = MARKS.filter((field) => node[field] !== undefined)
+  if (marks.length > 1) {
     at(
-      "bad-prop",
-      `\`${STATUS}\` is \`${mark}\`, which is not a mark — it takes one of ${
-        MARKS.map((one) => `\`${one}\``).join(", ")
-      }`,
+      "several-marks",
+      `a node carries one mark or none — this one has ${
+        marks.map((field) => `\`${field}\``).join(" and ")
+      }; drop whichever is stale`,
     )
   }
 
-  // An instant with no state to be the instant OF. It is the half of a mark
-  // that says WHEN, so a record carrying it alone has recorded a moment and
-  // forgotten what happened at it — which is not a shape any writer produces
-  // and is worth refusing rather than reading as a bullet with a stray key.
-  if (textOf(node, SINCE) !== undefined && mark === undefined) {
-    at("bad-prop", `\`${SINCE}\` says when \`${STATUS}\` was reached, and there is no \`${STATUS}\``)
-  }
-
-  for (const key of [SINCE, DATE] as const) {
-    const value = textOf(node, key)
-    if (value !== undefined && !isIsoInstant(value)) {
+  for (const field of [...MARKS, "date"] as const) {
+    const value = node[field]
+    if (typeof value === "string" && !isIsoInstant(value)) {
       at(
         "bad-date",
-        `\`${key}\` is \`${value}\`, which is not an ISO date (\`2026-08-10\`) or datetime (\`2026-08-10T14:30:00Z\`)`,
+        `\`${field}\` is \`${value}\`, which is not an ISO date (\`2026-08-10\`) or datetime (\`2026-08-10T14:30:00Z\`)`,
       )
     }
   }

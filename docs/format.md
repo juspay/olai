@@ -3,7 +3,7 @@
 One `.olai` file per outline. One JSON object per line; one line per node. Every `.olai` file under the served directory is an independent tree: no cross-file parents. Cross-file relations are mirrors and edges, by bare id.
 
 ```jsonl
-{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","props":{"date":"2026-08-10","after":["demo"]}}
+{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","date":"2026-08-10","after":["demo"]}
 ```
 
 The extension is what changed; the CONTENT is the same JSON lines it always
@@ -33,41 +33,14 @@ In canonical order (writes always re-serialize the whole record in this order; a
 | `parent` | no | Parent id, same file. Absent at top level. |
 | `ord` | both shapes | Sibling order: a fractional-index string over base62 (`0-9A-Za-z`). Plain string comparison is the sort; never a float. |
 | `title` | regular nodes | Verbatim text. Inline tags live here and are extracted at view time — `#topic` and `@person`, two sigils over the same alphabet (`[A-Za-z0-9_/-]+`, so `#work/olai` is one tag) and two NAMESPACES: `#alice` and `@alice` are different tags. `@` is claimed only where a word starts, so `srid@srid.ca` is an address; `#` is claimed anywhere, unchanged since the format's first day. Rendered as **inline-only** markdown (bold, links, code — no block elements) through the same sanitised pipeline a note uses. |
-| `props` | no | Every FACT about the node that is not its identity, its placement, its name or its prose — see [Properties](#properties). A map of freeform keys to strings or lists of strings. Absent, never `{}`. |
-| `desc` | no | The note: one string, embedded newlines. Markdown, rendered only at view time; stored verbatim. Deliberately NOT a property: prose stays prose. |
+| `done` / `doing` / `todo` | no | The three MARKS: `true` or an ISO date/datetime string, which is WHEN that state was reached. At most ONE of the three — they are three answers to one question. Storable on ANY node, children or not. A node carrying none of them is not a task at all — see [Status](#status). A dated `done` also puts the node on that day; a dated `doing` or `todo` does not — see [Days](#days). |
+| `date` | no | ISO date/datetime: what the node is SCHEDULED for. A node with a `date` is a day node, and so is one carrying a dated `done` — see [Days](#days). |
+| `desc` | no | The note: one string, embedded newlines. Markdown, rendered only at view time; stored verbatim. |
 | `doc` | no | Relative path to an attached `.md` document, resolved against the directory of the outline that names it. |
+| `after` / `blocks` / `see` | no | Arrays of target ids (any file in the set). Closed set of relations. `blocks` is sugar: `a blocks b` means `b after a`. `after` (with normalized `blocks`) must stay acyclic, and is what a node being **blocked** is derived from ([Status](#status)); `see` is a free cross-reference. |
 | `mirror` | mirrors | Makes this record a mirror: it shows the node with that id at a second location. The target may live in any file of the set, and may itself be a mirror — the chain is followed to the regular node at its end. |
 
 There are no include records; the served directory is the only composition mechanism.
-
-## Properties
-
-Everything a node *asserts about itself* lives in one map. Any key, any string value; olai gives no key a meaning it is not given below.
-
-    "props":{"status":"done","since":"2026-08-11T15:40:03-04:00","pr":"https://…"}
-
-**Values are strings or lists of strings, and that is the whole type.** Typed values are a door deliberately not opened: a URL is a string that looks like a URL. Only the edges are lists.
-
-**System keys and user keys live in the same map.** The difference is only that olai READS the system ones — and their writes stay policed through the verbs that own them (`set_done` records the instant, `set_date` validates, `set_after` refuses a cycle). A key added to a node by hand needs no declaration anywhere: `{"isbn":"978-0134757599"}` on a book note costs the format nothing.
-
-| key | holds | meaning |
-|---|---|---|
-| `status` | one of `done`, `doing`, `todo` | The node's MARK. Storable on ANY node, children or not; a node carrying none is not a task at all — see [Status](#status). |
-| `since` | ISO date/datetime | WHEN `status` was reached. **Absent is a real answer** and the common one: a state somebody reached and declined to date. Requires `status`. A `since` on a `done` puts the node on that day; on a `doing` or `todo` it does not — see [Days](#days). |
-| `date` | ISO date/datetime | What the node is SCHEDULED for. A node with a `date` is a day node, and so is one whose `status` is `done` with a `since` — see [Days](#days). |
-| `after` / `blocks` / `see` | lists of target ids | Any file in the set. Closed set of relations. `blocks` is sugar: `a blocks b` means `b after a`. `after` (with normalized `blocks`) must stay acyclic, and is what a node being **blocked** is derived from ([Status](#status)); `see` is a free cross-reference. |
-
-**Keys are written in canonical order too**: the system keys above in that order, then every other key alphabetically. A map has no declaration order to fall back on, and two files that mean the same thing must not differ byte for byte — the same rule, and the same reason, as the field order above it. That is also the order the web's drawer draws them in: what is on screen is what is in the file, so nothing re-sorts itself under the reader after a reload.
-
-**Every other key is written with `set_prop`** — `{id, key, value}`, and `null` (or `""`) removes it. The six above are refused by it, each naming the verb that owns it, because each of those verbs does something a freeform write cannot: records the instant, validates the day, refuses the cycle, resolves the target. `read_node` answers the whole map, `search_nodes` selects on it (`prop:pr`, `prop:agent=claude-opus` — [search.md](search.md)), and the web draws the user keys under a node's note, editable from its `•••`.
-
-### The shape this replaced
-
-Until 2026-08-15 each of these was a FIELD of the record: `todo`, `doing`, `done`, `date`, `see`, `after`, `blocks`. A mark was two facts in one field — which state, and when it was reached — spelled as `true` or as an ISO string; it is `status` and `since` now, and the correspondence is exact in both directions (`true` ⇔ no `since`).
-
-**Olai migrates a directory on startup**, once, rewriting every outline the first time it is served by a binary that has properties. The old shape is readable by that migrator and by nothing else. A record it cannot carry across faithfully — one carrying two marks, one already half-converted, one carrying a field this format has no place for, one spelling a field it does have with a value that field could never hold (`{"done":false}`, `{"date":true}`) — leaves its whole file untouched and is reported, because all four are records no set could load anyway and none of them has a fix that is not a person's decision. The last of those is the sharp one: read loosely, `{"done":false}` migrates into a task somebody finished, which is a named error turned into a valid record by a step nobody watches.
-
-One rule went with the change rather than being relaxed: **`several-marks` is retired.** Three fields could hold three answers to one question, so a record carrying two had to be refused; one `status` key holds one value, so that record cannot be written down. It dissolved the way `derived` did ([Errors](#errors)).
 
 ## Status
 
@@ -101,6 +74,8 @@ That is ONE predicate and it is read at BOTH ends of the arrow, which is the rac
 The exemptions stop at the validator: `after` must stay **acyclic** whatever the marks say and wherever the nodes live, because a loop is a claim about the file rather than about what is on anyone's plate. Both rules read one graph — `blocks` normalised into `after`, with each edge filed under the node its target NAMES, so an edge written at a mirror and an edge written at the node it stands for are one edge. A deadlock that closes through a placement is a deadlock.
 
 Being blocked is a SECOND fact about a node, never a replacement for the first: a blocked task keeps the mark it carries and the date it is due on. A view is free to draw the two together — olai answers both in one column, since "has this started" and "can it start" are the same kind of question about the same node — but nothing may make a node's mark depend on what it is waiting for.
+
+**One verb is gated on it, and only one.** Marking a node `doing` is REFUSED while anything is in its way, and the refusal names what — titles and ids, with the mark each carries. Starting is not a report about the world, it is an instruction about what to pick up next, and `a after b` is the set's own statement that `b` comes first; a tool that lets a machine start what the graph forbids has turned its own law into a drawing. `set_done` keeps its nudge and lands anyway, because finishing out of order is sometimes simply what happened and a tool that will not record that is a tool that gets lied to. `set_todo` is not gated at all: filing work is not starting it, and un-starting a blocked node is exactly what should be possible. The gate asks what a node's `after` targets hold up rather than what the node is *drawn* waiting on, because the two differ for a plain bullet — nothing tells a bullet it cannot start, and the write is about to make it work.
 
 ## Days
 
@@ -138,16 +113,16 @@ Both faces reach the inbox the same way: the browser's `⌘K` `+` sends a line
 and no file and the server resolves it, and an agent reads the outlines and
 calls `add_node` or `create_outline` itself.
 
-**Two keys put a node on a day**: `date`, which is what it is scheduled for,
-and a `since` under a `done` — `"props":{"status":"done","since":"2026-08-11T15:40:03-04:00"}`
-is work someone finished at that instant. Both place identically: a node finished on the 11th is
+**Two fields put a node on a day**: `date`, which is what it is scheduled for,
+and a dated `done` — `{"done":"2026-08-11T15:40:03-04:00"}` is work someone
+finished at that instant. Both place identically: a node finished on the 11th is
 on the 11th's page and lights the 11th in the calendar exactly as a node
 scheduled for it is. (That is a change, resolved 2026-08-11. Only `date` used to
 be read, and the consequence was that finished work — the thing a journal is
 most often asked about — was the one thing not in it.)
 
-**A `since` under `doing` or `todo` places nothing.** The format lets any of the
-three marks carry one and these views read neither of those two (resolved
+**A dated `doing` or `todo` places nothing.** The format lets any of the three
+marks carry a date and these views read neither of those two (resolved
 2026-08-11, from seeing a day page under the other rule). A journal is narrower
 than the format on purpose: a day answers *what is on, and what got done*, while
 "this was picked up on Tuesday" and "this was filed on Tuesday" are facts about
@@ -161,9 +136,9 @@ untouched, and a node's own row still shows the mark it carries.
   day claiming two of it would be counting the record rather than the event.
   The row names which of its dates it is there for, and `date` wins that
   naming: which kind of mark it is, the checkbox has already said.
-- **A `done` with no `since` is on no day.** It says the work is finished and
+- **A `done` holding `true` is on no day.** It says the work is finished and
   declines to say when — which is legal, and is the shape of everything written
-  before a mark carried instants (and what the old bare `true` migrated to). There is nothing to put on a calendar, and
+  before `done` carried instants. There is nothing to put on a calendar, and
   inventing a day for it would file years of finished work under whatever day
   it was read on.
 - **The day is the first ten characters**, here as everywhere: dates are text,
@@ -180,8 +155,7 @@ untouched, and a node's own row still shows the mark it carries.
 
 What a WRITER does with that is policy, not format ([Writing](#writing)), and
 olai's ops layer stamps **only `done`**, with the instant it was made, local and
-with its offset (resolved 2026-08-11). `doing` and `todo` are written with no
-`since` at all.
+with its offset (resolved 2026-08-11). `doing` and `todo` are written `true`.
 The two rules are one rule read twice: a `done` date is what a day page shows,
 so a `done` date is what the writer records. Nothing writes a `doing` or `todo`
 date, and nothing reads one — a value a view ignores is a value no writer should
@@ -215,6 +189,7 @@ A `.md` file under the served directory is a **document**, and documents are par
 - **The whole set loads; a body travels when it is read.** Those are two rules, and only the first one is about this format: every document is decoded, cached and revised with the rest of the directory, whatever a reader asks for. What crosses a wire is the transport's business — olai's serves the paths to everyone and one document's text to whoever opens it, because a directory of thousands of `.md` files cannot put every body in a first frame. It is still ONE read of the disk: the body comes off the same live set at a named revision, not from a second reader that could disagree with it.
 - `doc` **attaches** one to a node, relative to the outline that names it — a node names a file beside itself, not beside whoever is reading it. The rule is one function (`docOf`), read by the validator and by the view.
 - A document may point at **pictures** beside itself: a relative `![](art/shot.png)` resolves against the document's own directory (a note's resolves against its outline's) and is served from a route restricted to picture extensions. A `..` is clamped at the served directory rather than escaping it, and nothing else is drawn at all — no remote host, no `data:`, no absolute path, no `.svg`, since an SVG is a document that can script. Pictures are not part of the set: nothing loads them, and they exist only as the target of a relative link.
+- A document may **link** to another: a relative `[the deck](../projects/deck.md)` is rewritten at view time to that document's page (`/doc/…`). An `http:`/`https:` link is left as written and opens in a new tab. Everything else — a fragment, a path that is not a document — goes where it says, in this tab. The same pipeline draws a node's note and what the agent says, so the rule is one.
 
 ## Validation
 
@@ -222,7 +197,7 @@ One validator checks the loaded set — on load and after every write. Nothing i
 
 It runs in two stages, and the staging is part of the contract:
 
-1. **Per line.** Everything a single record answers on its own: JSON, the record shape (required fields present, no unknown field, a mirror carrying nothing but its four), the id's spelling, ISO dates, and what each key olai READS may hold.
+1. **Per line.** Everything a single record answers on its own: JSON, the record shape (required fields present, no unknown field, a mirror carrying nothing but its four), the id's spelling, ISO dates, and the `done`/`doing` exclusion.
 2. **Per set.** Everything that needs to know what else exists: uniqueness, references, cycles, documents.
 
 A file is decoded whole or not at all. The set-wide rules then run over the outlines that did parse, and one that did not costs **that outline and nothing else**: if the survivors are clean, the set loads with the broken file's errors carried inside it, shown in that outline's place while the rest stay live. If anything else is wrong, the set is refused and the parse errors are reported alongside it.
@@ -234,14 +209,14 @@ The rules:
 - ids: valid shape, unique across the whole set. The duplicate is reported on the *second* record, pointing at the first, which stays the one every reference resolves to.
 - References resolve: `parent` (same file, must be a regular node, no cycles), `mirror` targets, `after`/`blocks`/`see` targets (any file). Unknown targets get a did-you-mean suggestion.
 - `after` is acyclic (counting normalized `blocks`); mirror placement may not create a containment cycle — a mirror inside the subtree it shows would expand forever.
-- Dates (`since` and `date`) are valid ISO. What a SYSTEM key holds is checked: `status` is one of the three marks, `since` requires a `status` to be the instant of, the edges are lists and the rest are single values. A user key is judged by none of it. Validated as text, because a writer must reproduce what it read: a date-only `2026-08-10` round-tripped through an instant would come back a datetime.
+- Dates (the marks and `date`) are valid ISO; the three marks are mutually exclusive, and a record carrying two is refused whichever two they are. Validated as text, because a writer must reproduce what it read: a date-only `2026-08-10` round-tripped through an instant would come back a datetime.
 - `doc` resolves, against the naming outline's own directory, to an `.md` file that is actually served.
 
 There is deliberately **no rule about a mark and the children under it**. There was one — no stored derived state, which refused any mark on a node with children — and it existed only to keep a computed status and a written one from contradicting each other. Nothing computes one now, so it has nothing to defend: it dissolved with derivation rather than needing an exception ([Status](#status)). What replaced it is a write-time nudge, which is the ops layer's policy and never a reason a set fails to load.
 
 ## Errors
 
-Every error names its location: `file:line` of the bad record (one node per line — the line is the whole story). Errors carry a kind — `usage`, `validation`, `not-found`, `busy` — surfaced as MCP tool errors and HTTP codes, with structured detail (e.g. a `validation` refusal carries the validator's own rows as data, not prose). Two codes have retired, and both dissolved rather than being relaxed: `derived` refused a write that would have stored a computed status and went when derivation did, and `several-marks` refused a record carrying two of them and went when the three fields became one key ([Properties](#properties)). `bad-prop` is what took its place — a key olai reads holding something it cannot read.
+Every error names its location: `file:line` of the bad record (one node per line — the line is the whole story). Errors carry a kind — `usage`, `validation`, `not-found`, `busy` — surfaced as MCP tool errors and HTTP codes, with structured detail (e.g. a `validation` refusal carries the validator's own rows as data, not prose). There were five: `derived` refused a write that would have stored a computed status, and went when derivation did.
 
 ## Writing
 
@@ -251,7 +226,7 @@ Writers emit canonical field order, literal UTF-8 (no `\uXXXX` escaping beyond J
 
 **There is one writer, and callers do not assemble bytes.** A writer is handed the records of a whole file and hands back the whole file, so every separator — the newline between two records, the one at the end, the absence of a blank line — has exactly one owner. That is not tidiness: a caller that built its own bytes once produced two records glued onto one line, out of a write that every layer above believed had succeeded, and the file that came out was one no reader could parse. The shape is what makes it unrepresentable, and there is a test that says so.
 
-**Absent has one spelling, and the writer is what enforces it.** An optional field holding nothing — `undefined`, `null`, `[]` or `""` — is not written, so `{"after":[]}` cannot reach a file however a writer arrived at it — and the rule reaches INSIDE the map, so a key holding nothing is dropped and a `props` left with no keys is not written either. Two files that mean the same thing must not differ byte for byte: the format's whole bet is that a line-based git merge is safe, and a conflict over `after: []` against no `after` is a conflict about nothing. A REQUIRED field is written whatever it holds, and the asymmetry is deliberate — dropping one produces a line the reader rejects outright, which is worse than handing an odd value to the validator that is about to see it anyway.
+**Absent has one spelling, and the writer is what enforces it.** An optional field holding nothing — `undefined`, `null`, `[]` or `""` — is not written, so `{"after":[]}` cannot reach a file however a writer arrived at it. Two files that mean the same thing must not differ byte for byte: the format's whole bet is that a line-based git merge is safe, and a conflict over `after: []` against no `after` is a conflict about nothing. A REQUIRED field is written whatever it holds, and the asymmetry is deliberate — dropping one produces a line the reader rejects outright, which is worse than handing an odd value to the validator that is about to see it anyway.
 
 **A record is one line by construction**, not by care: a `desc`'s embedded newlines are escaped by JSON itself, which is the whole reason the format is JSONL rather than indented JSON.
 

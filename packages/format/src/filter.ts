@@ -37,13 +37,12 @@ import {
   type Derived,
   mayHoldTag,
   type Row,
-  markOf,
+  storedMarker,
   tagText,
   titleParts,
 } from "./derive.ts"
 import { datesOf, dayOf } from "./dates.ts"
 import { nothing } from "./write.ts"
-import { isSystemKey } from "./props.ts"
 import {
   isArchived,
   isMirror,
@@ -124,9 +123,9 @@ type IsValue = (typeof IS_VALUES)[number]
 const HAS_FIELDS = ["desc", "date", "see", "after", "doc"] as const
 type HasField = (typeof HAS_FIELDS)[number]
 
-/** The four operator names. A colon after anything else is a colon in a word
+/** The three operator names. A colon after anything else is a colon in a word
  *  — see {@link parseFilter}. */
-const OPERATORS = ["is", "has", "date", "prop"] as const
+const OPERATORS = ["is", "has", "date"] as const
 type Operator = (typeof OPERATORS)[number]
 
 /** Is this word before a colon one of them? A type guard, so what follows is a
@@ -140,16 +139,6 @@ type Clause =
   /** An inclusive span of DAYS, as text. `null` on either side is "unbounded
    *  that way", which is what `date:..2026-08-10` and `date:2026-08-10..` are. */
   | { readonly kind: "date"; readonly from: string | null; readonly to: string | null }
-  /**
-   * A property, by key — and by value when the token carried one.
-   *
-   * `value: null` is `prop:pr`, "carries this key at all", which is
-   * {@link HAS_FIELDS}' question asked of a map that has no fixed list of keys
-   * to put in that table. `prop:agent=claude-opus` is the same question with an
-   * answer attached, and it is the one the design was written for: every lane
-   * this agent ran, in one query, out of facts nobody had to re-parse by eye.
-   */
-  | { readonly kind: "prop"; readonly key: string; readonly value: string | null }
 
 /** One word to find, and whether the query wants it ABSENT. */
 interface Term {
@@ -299,33 +288,7 @@ const clauseOf = (name: Operator, value: string): Clause | null => {
         : null
     case "date":
       return dateClause(value)
-    case "prop":
-      return propClause(value)
   }
-}
-
-/**
- * `prop:key` or `prop:key=value`, read — or `null` for a token with no key.
- *
- * The FIRST `=` splits it, so a value may hold one: `prop:pr=https://x/?a=b` is
- * a key, an equals, and a URL that has its own. A key is whatever is left of
- * it, whatever that is — the map takes any key, and a grammar that fenced the
- * spelling here would refuse tokens the format accepts.
- *
- * An EMPTY value is not "matches nothing", it is a token that says a key and
- * then trails off: `prop:stage=` is refused, in the same voice `date:` with a
- * space after it is, because the alternative is a query that silently selects
- * the nodes whose `stage` holds the empty string — which is no node at all,
- * since a key holding nothing is a key the file does not carry.
- */
-const propClause = (value: string): Clause | null => {
-  if (value === "") return null
-  const at = value.indexOf("=")
-  if (at === -1) return { kind: "prop", key: value, value: null }
-  const key = value.slice(0, at)
-  const held = value.slice(at + 1)
-  if (key === "" || held === "") return null
-  return { kind: "prop", key, value: held }
 }
 
 /**
@@ -350,11 +313,6 @@ const teaching = (name: Operator, value: string): string => {
       return `has: takes one of ${HAS_FIELDS.join(", ")}`
     case "date":
       return "date: takes a day, month or year (2026-08-10, 2026-08, 2026) or a range (2026-08-01..2026-08-14, ..2026-08-10, 2026-08-10..)"
-    case "prop":
-      // The one operator whose values are not a list this file holds — any key
-      // is a key — so what it teaches is the SHAPE, and the two shapes are the
-      // whole grammar of it.
-      return "prop: takes a property key (prop:pr) or a key and a value (prop:agent=claude-opus)"
   }
 }
 
@@ -535,7 +493,7 @@ const holds = (at: LocatedRegular, clause: Clause): boolean => {
     // The STORED mark, never a derived one: a parent whose children are all
     // ticked is not `is:done` unless somebody ticked it (docs/format.md's
     // Status, and the `not-every-node-a-task` ruling behind it).
-    const mark = markOf(at.node)
+    const mark = storedMarker(at.node)
     if (clause.value === "marked") return mark !== undefined
     return mark === clause.value
   }
@@ -548,7 +506,6 @@ const holds = (at: LocatedRegular, clause: Clause): boolean => {
       ? datesOf(at.node).length > 0
       : carries(at.node, clause.field)
   }
-  if (clause.kind === "prop") return holdsProp(at.node, clause)
   // The same two fields the journal reads (./dates.ts): what the node is
   // scheduled for, and when it was finished. A filter that disagreed with the
   // day page about what a date means would be a third answer to a question
@@ -556,53 +513,13 @@ const holds = (at: LocatedRegular, clause: Clause): boolean => {
   return datesOf(at.node).some(({ date }) => within(dayOf(date), clause))
 }
 
-/**
- * Does this node carry the property the clause names?
- *
- * FOLDED on both halves, key and value, which is this grammar's rule and not a
- * new one: the tokenizer folds every token, `#Home` finds `#home`, and a reader
- * who typed `prop:PR` is asking about the same fact as one who typed `prop:pr`.
- * A property is a fact somebody typed into a map that gives no key a spelling,
- * so case is exactly the kind of difference a search must not be sensitive to.
- *
- * THE KEY IS SCANNED rather than looked up, which is what folding costs and
- * what it buys: `props["pr"]` would find one spelling of the key and miss the
- * other, and the map is a handful of entries on the nodes that have any.
- *
- * A LIST VALUE matches on any member — `prop:see=y` is true of a node whose
- * `see` holds `y` among others. The alternative (the whole list as one string)
- * has no spelling a person would type, and a list is a set of answers rather
- * than one answer with commas in it.
- */
-const holdsProp = (
-  node: RegularNode,
-  clause: Extract<Clause, { kind: "prop" }>,
-): boolean => {
-  for (const [key, value] of Object.entries(node.props ?? {})) {
-    if (key.toLowerCase() !== clause.key) continue
-    // A key holding NOTHING is a key the file does not carry (./write.ts), so
-    // `prop:x` is false for it — the same rule `has:` reads, one map in.
-    if (nothing(value)) continue
-    if (clause.value === null) return true
-    const held = typeof value === "string" ? [value] : value
-    if (held.some((one) => one.toLowerCase() === clause.value)) return true
-  }
-  return false
-}
-
 /** Whether a record carries a field — the WRITER's own rule for absence
- *  (./write.ts's `nothing`), asked as a question rather than restated. The ways
- *  a field can hold nothing (`undefined`, `null`, `[]`, `""`, an empty map) all
- *  say the same thing about the node, and a second list of them here is how
- *  `desc: ""` becomes a note to search for and no note to write.
- *
- *  TWO PLACES ARE ASKED, because the record now has two: `desc` and `doc` are
- *  fields of the struct, and the edges are keys of the map. Which is which is
- *  read off `isSystemKey` rather than spelled a second time here — `has:` names
- *  exactly the things a reader can select on, and where each of them LIVES is
- *  ./props.ts's answer and not this grammar's. */
+ *  (./write.ts's `nothing`), asked as a question rather than restated. The four
+ *  ways a field can hold nothing (`undefined`, `null`, `[]`, `""`) all say the
+ *  same thing about the node, and a second list of them here is how `desc: ""`
+ *  becomes a note to search for and no note to write. */
 const carries = (node: RegularNode, field: HasField): boolean =>
-  isSystemKey(field) ? !nothing(node.props?.[field]) : !nothing(node[field])
+  !nothing(node[field])
 
 const within = (day: string, clause: Extract<Clause, { kind: "date" }>): boolean =>
   (clause.from === null || day >= clause.from) &&

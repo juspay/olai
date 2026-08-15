@@ -17,7 +17,7 @@
  * heading that already has one, meaning something else.
  */
 
-import { dateOf, isOverdue, type Row, type Zoomed } from "@olai/format"
+import { isOverdue, type Row, type Zoomed } from "@olai/format"
 import { Show } from "solid-js"
 
 import { blockedIds } from "./blocked.ts"
@@ -104,7 +104,7 @@ function Zoom(props: {
             <Show when={props.zoomed.progress}>
               {(progress) => <ProgressBadge progress={progress()} />}
             </Show>
-            <Show when={dateOf(props.zoomed.shows.node)}>
+            <Show when={props.zoomed.shows.node.date}>
               {(date) => (
                 <DateBadge
                   date={date()}

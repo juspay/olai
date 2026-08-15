@@ -82,6 +82,39 @@ naming a window five times the real one, in the line you would read to decide
 whether to `/compact`, is worse than naming nothing. You get `claude-opus-5`,
 and what it does not say, it does not say.
 
+## How full the context is
+
+Beside the model, the header says how much room is left: **`22k/1M`** — tokens
+in the conversation, and how many fit. It is the other half of the model's own
+sentence, and it answers the question the panel used to have no answer to at
+all: *is it time to `/compact`?* Before this, the way you found out was by
+watching the agent start forgetting.
+
+It comes from the agent, not from a count kept here — ACP carries it
+(`usage_update`), and olai draws what it is told. Several arrive per turn and
+the newest wins, so the number moves as a turn runs rather than only at the end.
+
+A **fraction rather than a percentage**, because the window is not a constant:
+200k and 1M are both ordinary, and a session moves between them when the model
+does. "2%" would read identically in both and mean quite different amounts of
+work left, so both numbers are shown and the division is yours.
+
+Two things follow from it being the agent's number:
+
+- **the window itself can move under a conversation.** The agent seeds it from
+  what it last knew for the model and corrects it when a turn ends, so the first
+  turn after a `/model` can report the old window and then the true one. That is
+  the agent revising something it told us, and the header follows it.
+- **an agent that reports nothing gets no line.** The header simply says nothing
+  about room, which is different from a conversation that has spent nothing —
+  that one says `0/200k`. You will see this twice: before the first turn of a
+  fresh conversation, and after **opening a stored one**, which replays its
+  messages without a usage report. In both cases the next turn fills it in.
+
+What a session has **cost** is on the wire too, and is deliberately not drawn:
+it is a different question, asked at a different moment, and a second number
+there would buy nothing for the one this line exists to answer.
+
 ## What it can touch
 
 **Olai hands the agent no filesystem.** What olai itself gives it is a closed

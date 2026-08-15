@@ -54,9 +54,9 @@ test("a set using every relation loads clean", () => {
   expectValid(
     {
       "home.olai": `{"id":"kitchen","ord":"a","title":"kitchen #reno"}\n` +
-        `{"id":"demo","parent":"kitchen","ord":"a","title":"demolition","props":{"status":"done","since":"2026-08-01"}}\n` +
-        `{"id":"order","parent":"kitchen","ord":"b","title":"order cabinets","props":{"after":["demo"],"see":["budget"]},"doc":"notes/cabinets.md"}\n`,
-      "work.olai": `{"id":"budget","ord":"a","title":"the budget","props":{"blocks":["order"]}}\n` +
+        `{"id":"demo","parent":"kitchen","ord":"a","title":"demolition","done":"2026-08-01"}\n` +
+        `{"id":"order","parent":"kitchen","ord":"b","title":"order cabinets","after":["demo"],"see":["budget"],"doc":"notes/cabinets.md"}\n`,
+      "work.olai": `{"id":"budget","ord":"a","title":"the budget","blocks":["order"]}\n` +
         `{"id":"m","ord":"b","mirror":"order"}\n`,
     },
     ["notes/cabinets.md"],
@@ -174,7 +174,7 @@ test("a parent cycle is one error naming the whole loop", () => {
 // say which field was the dangling one — a node can carry four.
 test("a dangling target is reported for mirror, after, blocks and see alike", () => {
   const errors = errorsOf({
-    "a.olai": `{"id":"a","ord":"a","title":"a","props":{"after":["no1"],"blocks":["no2"],"see":["no3"]}}\n` +
+    "a.olai": `{"id":"a","ord":"a","title":"a","after":["no1"],"blocks":["no2"],"see":["no3"]}\n` +
       `{"id":"m","ord":"b","mirror":"no4"}`,
   })
   expect(codes(errors)).toEqual([
@@ -196,8 +196,8 @@ test("a dangling target is reported for mirror, after, blocks and see alike", ()
 test("an after cycle is refused", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"a","ord":"a","title":"a","props":{"after":["b"]}}\n` +
-        `{"id":"b","ord":"b","title":"b","props":{"after":["a"]}}`,
+      "a.olai": `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
+        `{"id":"b","ord":"b","title":"b","after":["a"]}`,
     }),
   )
   expect(error.code).toBe("after-cycle")
@@ -210,8 +210,8 @@ test("an after cycle is refused", () => {
 test("a cycle written only in blocks is the same after-cycle", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"a","ord":"a","title":"a","props":{"blocks":["b"]}}\n` +
-        `{"id":"b","ord":"b","title":"b","props":{"blocks":["a"]}}`,
+      "a.olai": `{"id":"a","ord":"a","title":"a","blocks":["b"]}\n` +
+        `{"id":"b","ord":"b","title":"b","blocks":["a"]}`,
     }),
   )
   expect(error.code).toBe("after-cycle")
@@ -228,8 +228,8 @@ test("a cycle written only in blocks is the same after-cycle", () => {
 test("an after cycle closing through a mirror is refused", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"x","ord":"a","title":"x","props":{"after":["m"]}}\n` +
-        `{"id":"y","ord":"b","title":"y","props":{"after":["x"]}}`,
+      "a.olai": `{"id":"x","ord":"a","title":"x","after":["m"]}\n` +
+        `{"id":"y","ord":"b","title":"y","after":["x"]}`,
       "b.olai": `{"id":"m","ord":"a","mirror":"y"}`,
     }),
   )
@@ -248,8 +248,8 @@ test("an after cycle closing through a mirror is refused", () => {
 test("an after cycle through the archive is still refused", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"live","ord":"a","title":"live","props":{"status":"doing","after":["old"]}}`,
-      "Archive.olai": `{"id":"old","ord":"a","title":"old","props":{"status":"done","after":["live"]}}`,
+      "a.olai": `{"id":"live","ord":"a","title":"live","doing":true,"after":["old"]}`,
+      "Archive.olai": `{"id":"old","ord":"a","title":"old","done":true,"after":["live"]}`,
     }),
   )
   expect(error.code).toBe("after-cycle")
@@ -332,12 +332,12 @@ test("a mark on a node with children is a set that loads", () => {
   // tasks, a mark over children that are all done, and a mark over children
   // that are all plain notes.
   expectValid({
-    "a.olai": `{"id":"p","ord":"a","title":"p","props":{"status":"done","since":"2026-08-11"}}\n` +
-      `{"id":"c1","parent":"p","ord":"a","title":"c1","props":{"status":"done"}}\n` +
-      `{"id":"c2","parent":"p","ord":"b","title":"c2","props":{"status":"doing"}}\n` +
-      `{"id":"q","ord":"b","title":"q","props":{"status":"done"}}\n` +
-      `{"id":"q1","parent":"q","ord":"a","title":"q1","props":{"status":"done"}}\n` +
-      `{"id":"notes","ord":"c","title":"read this book","props":{"status":"todo","since":"2026-08-11"}}\n` +
+    "a.olai": `{"id":"p","ord":"a","title":"p","done":"2026-08-11"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}\n` +
+      `{"id":"q","ord":"b","title":"q","done":true}\n` +
+      `{"id":"q1","parent":"q","ord":"a","title":"q1","done":true}\n` +
+      `{"id":"notes","ord":"c","title":"read this book","todo":"2026-08-11"}\n` +
       `{"id":"n1","parent":"notes","ord":"a","title":"chapter three is the good one"}`,
   })
 })
@@ -348,8 +348,8 @@ test("a mark on a node with children is a set that loads", () => {
 // set they make.
 test("a merge that marks a leaf and gives it a child still loads", () => {
   expectValid({
-    "a.olai": `{"id":"leaf","ord":"a","title":"leaf","props":{"status":"done","since":"2026-08-10"}}\n` +
-      `{"id":"arrived","parent":"leaf","ord":"a","title":"arrived from the other branch","props":{"status":"todo"}}`,
+    "a.olai": `{"id":"leaf","ord":"a","title":"leaf","done":"2026-08-10"}\n` +
+      `{"id":"arrived","parent":"leaf","ord":"a","title":"arrived from the other branch","todo":true}`,
   })
 })
 
@@ -358,7 +358,7 @@ test("a merge that marks a leaf and gives it a child still loads", () => {
 test("errors come back sorted by file, then line", () => {
   const errors = errorsOf({
     "b.olai": `{"id":"b1","parent":"nope","ord":"a","title":"b"}`,
-    "a.olai": `{"id":"a1","ord":"a","title":"a","props":{"see":["nope"]}}\n` +
+    "a.olai": `{"id":"a1","ord":"a","title":"a","see":["nope"]}\n` +
       `{"id":"a2","parent":"nope","ord":"b","title":"a"}`,
   })
   expect(errors.map((error) => `${error.file}:${error.line}`)).toEqual([
@@ -389,7 +389,7 @@ test("a file that did not parse leaves the rest of the set valid", () => {
 // file — so the report is the parse error, which is the cause.
 test("a target that the unreadable file might declare is not reported as unknown", () => {
   const errors = errorsOf(
-    { "garden.olai": `{"id":"garden","ord":"a","title":"g","props":{"see":["elsewhere"]}}` },
+    { "garden.olai": `{"id":"garden","ord":"a","title":"g","see":["elsewhere"]}` },
     [],
     { "house.olai": `{"id":"kitchen","ord":"a",title:"kitchen"}` },
   )

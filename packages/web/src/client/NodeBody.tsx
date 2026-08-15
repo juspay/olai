@@ -42,7 +42,6 @@ import { createMemo, Show } from "solid-js"
 import { DocRef } from "./document/DocRef.tsx"
 import { plainLine } from "./note/preview.ts"
 import { Note } from "./Note.tsx"
-import { PropsDrawer } from "./props/PropsDrawer.tsx"
 import { EdgeRefs } from "./edges/EdgeRefs.tsx"
 import { TESTID } from "./testids.ts"
 import { ROW_NOTE } from "./touch.ts"
@@ -139,15 +138,6 @@ export function NodeBody(props: {
             </div>
           </Show>
 
-          {/* The properties, under the note and above the document — drawn
-              whether the note is open or not, and on a collapsed row too. They
-              are the node's own facts rather than a detail of its prose, which
-              is why they are not folded into the expansion the note has: a
-              reader scanning a tree for "which lane is at review" must not have
-              to open every row to see. Nothing at all when the node carries
-              none, which is nearly every node (./props/PropsDrawer.tsx). */}
-          <PropsDrawer node={props.shows.node} />
-
           {/* A doc reference is not densified with the note: it is always a
               line under the node when the node carries one. */}
           <Show when={docOf(props.shows)}>
@@ -166,7 +156,6 @@ export function NodeBody(props: {
           />
         )}
       </Show>
-      <PropsDrawer node={props.shows.node} />
       <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
       <Show when={docOf(props.shows)}>
         {(doc) => <DocRef file={doc()} inline />}

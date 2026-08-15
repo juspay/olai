@@ -135,3 +135,41 @@ export const FileDiff = Schema.Struct({
   newText: Schema.String,
 })
 export type FileDiff = typeof FileDiff.Type
+
+/**
+ * How full the conversation's context is: tokens in it, and how many fit.
+ *
+ * The protocol's own `usage_update`, projected to the two numbers a reader
+ * acts on. It is the other half of the sentence the header's model is there
+ * for — a turn's cost and character depend on which model it runs, and its
+ * ROOM depends on this — and the question it answers is the one nothing on
+ * screen used to: whether it is time to `/compact`.
+ *
+ * BOTH numbers travel, rather than the percentage they imply. A window is not
+ * a constant — 200k and 1M are both ordinary, and a session moves between them
+ * when the model does — so "80%" would be the one figure that reads the same
+ * either way while meaning quite different amounts of work left. The reader
+ * wants the denominator, and the wire is where it is known.
+ *
+ * `size` is the AGENT'S current best knowledge and is allowed to move under a
+ * conversation. The Claude Code adapter seeds it from what it last learned for
+ * the model and corrects it authoritatively when a turn ends, so the first turn
+ * after a `/model` can report the previous model's window mid-stream and the
+ * true one by the end. That is the agent revising a number it told us, not this
+ * panel guessing, and it is drawn as it arrives for exactly that reason.
+ *
+ * `cost` is deliberately NOT here. The protocol carries it on the turn-final
+ * frame and the header does not draw it: what a session has spent is a
+ * different question from whether it is about to run out of room, asked at a
+ * different moment, and a second number in that line buys nothing for the one
+ * this exists to answer.
+ */
+export const Usage = Schema.Struct({
+  /** Tokens currently in the context window. */
+  used: Schema.Int,
+  /** How many fit. Always positive — a report that said otherwise is dropped
+   *  where the payload is read ({@link ./usage.ts}), because a denominator of
+   *  zero is not a fact about a conversation. */
+  size: Schema.Int,
+})
+export type Usage = typeof Usage.Type

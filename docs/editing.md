@@ -62,6 +62,18 @@ carries on from the bullet that leaves. Two presses, the second one yours; the
 ••• menu asks the same two clicks for the mouse, and an agent makes the same two
 calls.
 
+**And it will not start what the order forbids.** A row that comes after work
+nobody has finished cannot take the `doing` step — the app has drawn that row
+dim since edges-ui, and now the write says so too, naming what is in the way and
+the mark each blocker carries. The way through is the sentence's own again:
+finish those, or start something that is ready. Only the STARTING step is gated
+— ⌘Enter still ticks a blocked row off, because finishing out of order is
+sometimes simply what happened — and the ••• menu, the ⌘K palette and an agent's
+`set_doing` all meet the identical sentence, because there is one gate and every
+face sends one op through it. A ⌘Z that would put a `doing` back on a row
+something has since got in front of is refused there too: an undo is a write,
+judged against the outline as it is now.
+
 Every one of these is a fact about the node a row SHOWS, so pressing either key
 at a mirror marks the node it stands for, and every placement of it follows.
 
@@ -324,39 +336,6 @@ panel says what picking one would replace, because a picker picks days.
 The row moves the moment the file says so: a task given a day that has gone is
 in Overdue on the agenda and on that day's page, without a reload and without
 this page deciding anything for itself.
-
-## What a node says about itself
-
-A node's **properties** are named facts on it ([format.md](format.md)) — `pr`,
-`agent`, `isbn`, whatever a reader wants to be able to ask about later. They are
-drawn in a quiet drawer under the node's note, one `key value` line each, and a
-node with none has no drawer at all: a vault where nobody has written a property
-looks exactly as it did before there were any.
-
-**The `•••` menu is where they are written.** *Add property…* opens two boxes
-under the row — a key and a value — and every property already on the node adds
-a pair of entries beside it: *Edit `pr`…*, which opens the same panel with the
-value in it, and *Remove `pr`*, which is one write and takes the key off.
-**Enter** sends, **Escape** and **Cancel** leave without writing, and ⌘Z takes
-any of it back. What goes is the same `set_prop` an agent sends, judged by the
-same planner and refused in the same words.
-
-**The key is fixed while you are changing a value**, and that is not a
-limitation of the boxes: `set_prop` writes one key, so renaming a property is
-removing one and adding another — two ops, which is exactly the two calls an
-agent makes. Both entries are in the menu.
-
-**What olai reads is not in the drawer.** `status`, `since`, `date`, `after`,
-`blocks` and `see` are properties too, and every one of them is already drawn by
-the control that knows what it means — the checkbox, the date pill, the
-reference rows. They are refused by `set_prop` for the same reason, each naming
-the verb that owns it, so what the drawer shows is exactly what it can change.
-
-**A zoomed node draws its drawer and has no door to it**, which is the gap
-`Set date…` has on the same page and for the same reason: the `•••` hangs off a
-row, and the ⌘K palette can only carry the verbs that need no second gesture.
-*Remove `pr`* is one of those, so the palette has it; adding and editing are
-reached from the row.
 
 ## What a node points at
 

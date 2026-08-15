@@ -29,8 +29,8 @@ import { inverseOf, requestFor } from "./edit.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","since":"2026-08-01"}}`,
-  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"status":"doing","date":"2026-08-10"},"desc":"oak, or birch"}`,
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"oak, or birch"}`,
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
   `{"id":"handles","parent":"install","ord":"a0","title":"pick the handles"}`,
   `{"id":"loose","ord":"a1","title":"a node with no children"}`,
@@ -249,10 +249,7 @@ const marked = (id: string, mark: string): Reading => {
   const line = HOUSE.split("\n").find((one) => one.includes(`"id":"${id}"`))
   if (line === undefined) throw new Error(`no \`${id}\` in the fixture`)
   return reading(setOf({
-    "house.olai": HOUSE.replace(
-      line,
-      `${line.slice(0, -1)},"props":{"status":"${mark}"}}`,
-    ),
+    "house.olai": HOUSE.replace(line, `${line.slice(0, -1)},"${mark}":true}`),
   }))
 }
 
@@ -759,9 +756,9 @@ test("what nothing would take back says so with an empty list", () => {
  *  asked about a list that exists rather than about an empty one. */
 const EDGED = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-  `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","props":{"status":"todo","after":["demo"],"see":["demo","install"]}}`,
-  `{"id":"demo","parent":"kitchen","ord":"a1","title":"demolition","props":{"status":"todo"}}`,
-  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","props":{"status":"todo"}}`,
+  `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true,"see":["demo","install"],"after":["demo"]}`,
+  `{"id":"demo","parent":"kitchen","ord":"a1","title":"demolition","todo":true}`,
+  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","todo":true}`,
   `{"id":"echo","ord":"a1","mirror":"order"}`,
 ].join("\n")
 

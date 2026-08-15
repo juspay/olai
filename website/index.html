@@ -115,7 +115,7 @@
   }
   .pill.late { border-color: var(--alarm); color: var(--alarm); }
   /* WHICH of the node's dates this is — said inside the pill, quietly, and only
-     where a page collects both (a tree row draws the `date` property and needs no
+     where a page collects both (a tree row draws the `date` field and needs no
      saying). */
   .pill .occ { margin-right: 0.4em; opacity: 0.7; }
   /* a row draws at most one, and it goes at the end — as .marklbl does */
@@ -298,13 +298,12 @@
       <div>
         <pre><code>{"id":"kitchen","ord":"a","title":"Kitchen renovation"}
 {"id":"demo","parent":"kitchen","ord":"a0",
- "title":"Demolition",
- "props":{"status":"done","since":"2026-08-09T14:02:11-04:00"}}
+ "title":"Demolition","done":"2026-08-09T14:02:11-04:00"}
 {"id":"order","parent":"kitchen","ord":"a1",
  "title":"Order the new cabinets #blocking",
- "props":{"status":"doing","date":"2026-08-07","after":["demo"]},
- "desc":"Measure twice — the corner unit is the risky one.",
- "doc":"cabinets.md"}</code></pre>
+ "doing":true,"date":"2026-08-07","after":["demo"],
+ "doc":"cabinets.md",
+ "desc":"Measure twice — the corner unit is the risky one."}</code></pre>
         <p class="caption">The outline above, as stored on disk.</p>
       </div>
       <div>

@@ -31,7 +31,7 @@
  */
 
 import { Sort } from "./changes.ts"
-import { Status } from "./props.ts"
+import { Status } from "./node.ts"
 import { Schema } from "effect"
 
 /** An id the request names. Spelled once so every op's `id` field carries the
@@ -309,48 +309,6 @@ export const DateRequest = Schema.Struct({
   id: Id,
   /** `null` clears it. */
   date: Schema.NullOr(Schema.String),
-})
-
-/**
- * One PROPERTY on a node — a fact with a name, set or taken off.
- *
- * The freeform half of the map (./props.ts): any key olai does not itself read,
- * holding any string. Nothing here judges the value, and nothing gives the key
- * a meaning — a `pr` is a URL because a person wrote one, and the day a reading
- * wants `isbn` the key is already sayable.
- *
- * WHAT IT DOES NOT OWN is every key olai reads, and that is the whole of the
- * policing this op has: `status`, `since`, `date`, `after`, `blocks` and `see`
- * are refused toward the verb that owns each of them, because each of those
- * verbs does something this one cannot — records the instant, validates the
- * day, refuses the cycle, resolves the target. The refusal is the key's own
- * sentence (`doorFor`), so a seventh system key arrives with its door already
- * written rather than becoming a hole here.
- *
- * `was` is deliberately ABSENT, where {@link DescRequest} and
- * {@link TitleRequest} have one. A note and a title are prose somebody is
- * replacing wholesale after reading it, and the conditional write is what stops
- * a retry from landing on top of a paragraph nobody saw. A property is one
- * short value under a name — the gesture is "this node's `stage` is `review`",
- * not "replace what I read" — and a `was` on it would be a conditional nobody
- * asked for on the one write where the key already says what is being changed.
- * The day that turns out to be wrong it is an added optional field, which is
- * the cheap direction.
- */
-export const PropRequest = Schema.Struct({
-  op: Schema.Literal("prop"),
-  id: Id,
-  key: Schema.String.annotate({
-    description:
-      "The property's name. Any key olai does not itself read — `status`, `since`, `date`, `after`, `blocks` and `see` are refused toward their own verbs.",
-  }),
-  /** `null` removes the property. So does `""`, which is the writer's own rule
-   *  for absence (./write.ts) rather than a second one: a key holding nothing
-   *  is a key that is not there. */
-  value: Schema.NullOr(Schema.String).annotate({
-    description:
-      "What the property holds, as text. `null` removes it — and so does the empty string, since a key holding nothing is a key the file does not carry.",
-  }),
 })
 
 export const MoveRequest = Schema.Struct({
@@ -693,7 +651,6 @@ export const WriteRequest = Schema.Union([
   TitleRequest,
   DescRequest,
   DateRequest,
-  PropRequest,
   MoveRequest,
   SplitRequest,
   MergeRequest,

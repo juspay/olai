@@ -1,7 +1,7 @@
 {"id":"deck","ord":"a0","title":"the deck #home"}
-{"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","props":{"status":"todo","date":"2019-11-05"}}
-{"id":"permit","parent":"deck","ord":"a1","title":"pull the permit","props":{"status":"doing","date":"2019-10-30"}}
-{"id":"delivery","parent":"deck","ord":"a2","title":"the timber arrives","props":{"date":"2019-11-02"}}
-{"id":"survey","ord":"a1","title":"the boundary survey","props":{"status":"done","since":"2019-11-04T09:15:00-04:00","date":"2019-11-01"}}
-{"id":"paint","ord":"a2","title":"paint the rails","props":{"status":"todo"}}
-{"id":"latch","ord":"a3","title":"replace the gate latch","props":{"status":"todo","since":"2019-11-21"}}
+{"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","todo":true,"date":"2019-11-05"}
+{"id":"permit","parent":"deck","ord":"a1","title":"pull the permit","doing":true,"date":"2019-10-30"}
+{"id":"delivery","parent":"deck","ord":"a2","title":"the timber arrives","date":"2019-11-02"}
+{"id":"survey","ord":"a1","title":"the boundary survey","done":"2019-11-04T09:15:00-04:00","date":"2019-11-01"}
+{"id":"paint","ord":"a2","title":"paint the rails","todo":true}
+{"id":"latch","ord":"a3","title":"replace the gate latch","todo":"2019-11-21"}

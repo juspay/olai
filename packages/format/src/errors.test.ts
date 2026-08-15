@@ -134,7 +134,7 @@ test("the line/set split is exactly the two halves of the codec", () => {
     "not-an-object",
     "bad-record",
     "bad-id",
-    "bad-prop",
+    "several-marks",
     "bad-date",
   ])
   expect(of("set")).toEqual([

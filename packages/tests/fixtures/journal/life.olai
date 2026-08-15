@@ -1,3 +1,3 @@
 {"id":"trip","ord":"a0","title":"the coast trip"}
-{"id":"ferry","parent":"trip","ord":"a0","title":"book the ferry","props":{"date":"2019-11-05T09:00"}}
-{"id":"pack","parent":"trip","ord":"a1","title":"pack the bags","props":{"date":"2019-11-06"}}
+{"id":"ferry","parent":"trip","ord":"a0","title":"book the ferry","date":"2019-11-05T09:00"}
+{"id":"pack","parent":"trip","ord":"a1","title":"pack the bags","date":"2019-11-06"}

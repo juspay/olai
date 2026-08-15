@@ -278,20 +278,6 @@ export const DATE_PICKER_CANCEL = selector(TESTID.datePickerCancel);
 /** Said when the node stores a value a day box cannot hold — a datetime,
  *  quoted verbatim, with what picking a day would do to it. */
 export const DATE_PICKER_NOTICE = selector(TESTID.datePickerNotice);
-/** The properties drawer under a node's note, and one `key value` line of it.
- *  A row with no properties draws no drawer at all, so a `count() === 0` is
- *  the assertion for "this node says nothing about itself". */
-export const PROPS = selector(TESTID.props);
-export const PROP = selector(TESTID.prop);
-export const PROP_VALUE = selector(TESTID.propValue);
-/** The editor under the row, opened by the `•••` menu's `Add property…` or one
- *  of its `Edit <key>…` entries. Its key box is read-only while an existing
- *  property is being changed — a rename is two ops. */
-export const PROP_EDITOR = selector(TESTID.propEditor);
-export const PROP_EDITOR_KEY = selector(TESTID.propEditorKey);
-export const PROP_EDITOR_VALUE = selector(TESTID.propEditorValue);
-export const PROP_EDITOR_SET = selector(TESTID.propEditorSet);
-export const PROP_EDITOR_CANCEL = selector(TESTID.propEditorCancel);
 /** The rollup badge beside a title: how many of the tasks under this node are
  *  done. An annotation — the node's OWN mark is the checkbox. */
 export const PROGRESS = selector(TESTID.progress);
@@ -594,6 +580,7 @@ export const CHAT_OUTLINE_CHANGE = selector(TESTID.chatOutlineChange);
 export const CHAT_WROTE = selector(TESTID.chatWrote);
 export const CHAT_NUDGE = selector(TESTID.chatNudge);
 export const CHAT_REFUSAL = selector(TESTID.chatRefusal);
+export const CHAT_USAGE = selector(TESTID.chatUsage);
 export const CHAT_TROUBLE = selector(TESTID.chatTrouble);
 export const CHAT_ASK = selector(TESTID.chatAsk);
 export const CHAT_ASK_CHOICE = selector(TESTID.chatAskChoice);

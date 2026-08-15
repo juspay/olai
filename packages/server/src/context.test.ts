@@ -23,7 +23,7 @@ import { contextFor } from "./context.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"status":"doing"}}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true}`,
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
   `{"id":"handles","parent":"install","ord":"a0","title":"pick the handles"}`,
   `{"id":"echo","ord":"a2","mirror":"order"}`,

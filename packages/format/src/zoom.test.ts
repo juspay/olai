@@ -28,10 +28,10 @@ const page = (zoomed: Zoomed): Extract<Zoomed, { readonly kind: "node" }> => {
   return zoomed
 }
 
-const HOUSE = `{"id":"kitchen","ord":"a0","title":"kitchen remodel","props":{"status":"doing","since":"2026-08-05"}}\n` +
-  `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","props":{"status":"done"}}\n` +
+const HOUSE = `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":"2026-08-05"}\n` +
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":true}\n` +
   `{"id":"install","parent":"kitchen","ord":"a1","title":"install the cabinets"}\n` +
-  `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles","props":{"status":"doing"}}`
+  `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles","doing":true}`
 
 // ── the parent chain ───────────────────────────────────────────────────
 

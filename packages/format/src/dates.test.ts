@@ -21,18 +21,18 @@ const SET = derive(
   nodesOfFiles({
     "work.olai": [
       `{"id":"deck","ord":"a0","title":"the deck"}`,
-      `{"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","props":{"date":"2026-08-05"}}`,
+      `{"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","date":"2026-08-05"}`,
       // Later in the day than `posts`, and written to the file first — so a
       // pass that ordered by line rather than by time would put it above.
-      `{"id":"rails","parent":"deck","ord":"a1","title":"order the railings","props":{"status":"doing","date":"2026-08-05T14:30"}}`,
+      `{"id":"rails","parent":"deck","ord":"a1","title":"order the railings","date":"2026-08-05T14:30","doing":true}`,
       `{"id":"sweep","parent":"deck","ord":"a2","title":"sweep up"}`,
-      `{"id":"july","ord":"a1","title":"the last day of July","props":{"date":"2026-07-31"}}`,
-      `{"id":"september","ord":"a2","title":"the first day of September","props":{"date":"2026-09-01"}}`,
+      `{"id":"july","ord":"a1","title":"the last day of July","date":"2026-07-31"}`,
+      `{"id":"september","ord":"a2","title":"the first day of September","date":"2026-09-01"}`,
     ].join("\n"),
     "life.olai": [
       `{"id":"trip","ord":"a0","title":"the coast trip"}`,
-      `{"id":"ferry","parent":"trip","ord":"a0","title":"book the ferry","props":{"date":"2026-08-05T09:00"}}`,
-      `{"id":"pack","parent":"trip","ord":"a1","title":"pack the bags","props":{"date":"2026-08-31"}}`,
+      `{"id":"ferry","parent":"trip","ord":"a0","title":"book the ferry","date":"2026-08-05T09:00"}`,
+      `{"id":"pack","parent":"trip","ord":"a1","title":"pack the bags","date":"2026-08-31"}`,
     ].join("\n"),
   }),
 )
@@ -51,21 +51,21 @@ const MARKED = derive(
       // Finished at an instant, scheduled for nothing: the roadmap's own shape
       // after the done-datetime migration, and the case that vanished from the
       // calendar when only `date` counted.
-      `{"id":"header","ord":"a0","title":"the header bar","props":{"status":"done","since":"2026-08-11T15:40:03-04:00"}}`,
+      `{"id":"header","ord":"a0","title":"the header bar","done":"2026-08-11T15:40:03-04:00"}`,
       // Scheduled one day, finished another. Two dates, two days, one row each.
-      `{"id":"survey","ord":"a1","title":"the boundary survey","props":{"status":"done","since":"2026-08-12T09:15:00-04:00","date":"2026-08-11"}}`,
+      `{"id":"survey","ord":"a1","title":"the boundary survey","done":"2026-08-12T09:15:00-04:00","date":"2026-08-11"}`,
       // Scheduled and finished on the SAME day, which is one thing that
       // happened and one row.
-      `{"id":"quote","ord":"a2","title":"get a quote","props":{"status":"done","since":"2026-08-11T17:02:00-04:00","date":"2026-08-11T08:00"}}`,
+      `{"id":"quote","ord":"a2","title":"get a quote","done":"2026-08-11T17:02:00-04:00","date":"2026-08-11T08:00"}`,
       // A mark that says only that the state was reached. Legal, and on no day.
-      `{"id":"demo","ord":"a3","title":"take out the counters","props":{"status":"done"}}`,
+      `{"id":"demo","ord":"a3","title":"take out the counters","done":true}`,
       // The other two marks may carry dates — the format allows it, and these
       // are what the roadmap was full of — and no view here reads them.
-      `{"id":"cabinets","ord":"a4","title":"install the cabinets","props":{"status":"doing","since":"2026-08-11T11:00:00-04:00"}}`,
-      `{"id":"paint","ord":"a5","title":"paint the hall","props":{"status":"todo","since":"2026-08-13"}}`,
+      `{"id":"cabinets","ord":"a4","title":"install the cabinets","doing":"2026-08-11T11:00:00-04:00"}`,
+      `{"id":"paint","ord":"a5","title":"paint the hall","todo":"2026-08-13"}`,
       // A dated `todo` that is ALSO scheduled: the `date` places it, the
       // `todo` adds nothing, and it is one row rather than two.
-      `{"id":"tiles","ord":"a6","title":"pick the tiles","props":{"status":"todo","since":"2026-08-11","date":"2026-08-14"}}`,
+      `{"id":"tiles","ord":"a6","title":"pick the tiles","todo":"2026-08-11","date":"2026-08-14"}`,
     ].join("\n"),
   }),
 )
@@ -253,8 +253,8 @@ test("a row shows the date that put it on the day", () => {
 test("two records claiming one id are two rows, not one", () => {
   const duplicated = derive(
     nodesOfFiles({
-      "a.olai": `{"id":"dup","ord":"a0","title":"one","props":{"status":"done","since":"2026-08-11T09:00:00-04:00"}}`,
-      "b.olai": `{"id":"dup","ord":"a0","title":"the other","props":{"status":"done","since":"2026-08-11T10:00:00-04:00"}}`,
+      "a.olai": `{"id":"dup","ord":"a0","title":"one","done":"2026-08-11T09:00:00-04:00"}`,
+      "b.olai": `{"id":"dup","ord":"a0","title":"the other","done":"2026-08-11T10:00:00-04:00"}`,
     }),
   )
   expect(idsOf(duplicated, "2026-08-11")).toEqual(["dup", "dup"])
@@ -269,7 +269,7 @@ test("an archived node keeps the day its mark was dated", () => {
   const archived = derive(
     nodesOfFiles({
       "Archive.olai":
-        `{"id":"deck","ord":"a0","title":"the deck","props":{"status":"done","since":"2026-08-11T09:00:00-04:00"}}`,
+        `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
     }),
   )
   expect(idsOf(archived, "2026-08-11")).toEqual(["deck"])
@@ -285,7 +285,7 @@ test("an archived node keeps the day its mark was dated", () => {
 test("a mirror of a dated node does not put it on the day twice", () => {
   const mirrored = derive(
     nodesOfFiles({
-      "work.olai": `{"id":"posts","ord":"a0","title":"dig","props":{"date":"2026-08-05"}}`,
+      "work.olai": `{"id":"posts","ord":"a0","title":"dig","date":"2026-08-05"}`,
       "life.olai": `{"id":"posts-here","ord":"a0","mirror":"posts"}`,
     }),
   )

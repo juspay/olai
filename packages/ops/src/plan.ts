@@ -39,11 +39,7 @@ import {
   isMirror,
   type Located,
   type LocatedRegular,
-  DATE,
-  dateOf,
-  doorFor,
-  isEmptyProps,
-  listOf,
+  MARKS,
   type MirrorNode,
   type Node,
   nodeNamed,
@@ -54,13 +50,10 @@ import {
   ordBetween,
   OUTLINE_EXT,
   siblingsOf,
+  standingBefore,
   type OutlineSet,
   type RegularNode,
-  SINCE,
-  STATUS,
-  markOf,
-  withProp,
-  withProps,
+  storedMarker,
   targetsOf,
   unfinishedUnder,
   UsageFailure,
@@ -189,11 +182,9 @@ export const plan = (
       return planEdit(
         scope,
         request.id,
-        (node) => withKey(node, DATE, request.date),
-        (node) => `date: ${node.title} -> ${dateOf(node) ?? "(cleared)"}`,
+        (node) => withField(node, "date", request.date),
+        (node) => `date: ${node.title} -> ${node.date ?? "(cleared)"}`,
       )
-    case "prop":
-      return planProp(scope, request)
     case "move":
       return planMove(scope, request)
     case "split":
@@ -229,15 +220,10 @@ interface Scope {
   readonly context: Context
 }
 
-/** A FIELD set to a value, or removed when the value is `null`. `undefined` is
+/** A field set to a value, or removed when the value is `null`. `undefined` is
  *  how the format spells absent, and the writer omits it — so this is the one
- *  place "clear the note" turns into "there is no `desc` key".
- *
- *  It used to take `date` as well, and `date` is a property now: the pair below
- *  is what the split cost, and it is the honest shape — the two live in two
- *  places on the record, so one function pretending otherwise would only be
- *  hiding which. */
-const withField = <K extends "desc">(
+ *  place "clear the date" turns into "there is no `date` key". */
+const withField = <K extends "desc" | "date">(
   node: RegularNode,
   field: K,
   value: string | null,
@@ -247,18 +233,6 @@ const withField = <K extends "desc">(
   else next[field] = value
   return next
 }
-
-/** The same, for a key of the props map: set, or taken out when the value is
- *  `null`. `@olai/format`'s `withProp` is what decides that an empty value is a
- *  removal, so "clear the date" has one answer and it is the format's. */
-const withKey = (
-  node: RegularNode,
-  key: string,
-  value: string | null,
-): RegularNode => ({
-  ...node,
-  props: withProp(node.props, key, value ?? undefined),
-})
 
 /**
  * The node an op names, in a file the op may write — the prologue every
@@ -738,12 +712,8 @@ const capturedNode = (
     ord: at.ord,
     title: capture.title,
   }
-  const props = withProps(undefined, [
-    [STATUS, capture.mark],
-    [SINCE, capture.mark === undefined ? undefined : instantFor(scope, capture.mark)],
-    [DATE, capture.date],
-  ])
-  if (!isEmptyProps(props)) node.props = props
+  if (capture.mark !== undefined) node[capture.mark] = marker(scope, capture.mark)
+  if (capture.date !== undefined) node.date = capture.date
   if (capture.desc !== undefined) node.desc = capture.desc
   return node
 }
@@ -824,9 +794,7 @@ const UNMARKED = {
  * the front of the value either way (`@olai/format`'s `dayOf`), so the time
  * costs a reader nothing and orders a day's finished work.
  *
- * `doing` and `todo` are stamped with NOTHING — they set `status` and leave
- * `since` absent, which is the same sentence the old `true` said in the shape
- * the record has now (resolved 2026-08-11, human). The symmetry
+ * `doing` and `todo` store `true` (resolved 2026-08-11, human). The symmetry
  * argument — three answers to one question, written by one op — loses to what a
  * date on a mark now MEANS: it puts the node on that day (docs/format.md's
  * Days). A stamped `todo` would file everything on the day it was captured, so
@@ -841,8 +809,8 @@ const UNMARKED = {
  * does a mark store", and the second one would be the one nobody remembers to
  * change.
  */
-const instantFor = (scope: Scope, mark: Status): string | undefined =>
-  mark === "done" ? scope.context.now() : undefined
+const marker = (scope: Scope, mark: Status): string | true =>
+  mark === "done" ? scope.context.now() : true
 
 const planMark = (
   scope: Scope,
@@ -855,7 +823,7 @@ const planMark = (
   const mark = request.op
   const undo = request.undo === true
 
-  const stored = markOf(node)
+  const stored = storedMarker(node)
   if (undo && stored !== mark) {
     return Result.fail(
       new UsageFailure({ reason: `\`${node.title}\` is not marked ${mark}` }),
@@ -877,23 +845,24 @@ const planMark = (
       }),
     )
   }
-
-  // Setting a mark is setting TWO keys, always both — the state and the instant
-  // it was reached at — because leaving `since` behind is how a node ends up
-  // done at the moment it was last doing. Clearing the others is no longer a
-  // step: one `status` key held one mark, so there is nothing to clear, and the
-  // record the format used to reject (two marks at once) cannot be written.
-  //
-  // Only the node being marked is touched — every other record in the file is
-  // re-emitted exactly as it was read, so a day-only value elsewhere stays the
-  // text it was.
-  const next: Draft<RegularNode> = {
-    ...node,
-    props: withProps(node.props, [
-      [STATUS, undo ? undefined : mark],
-      [SINCE, undo ? undefined : instantFor(scope, mark)],
-    ]),
+  // THE ONE VERB THE ORDER IS A LAW FOR — the mark above walks finished work
+  // backwards and is refused for all three, this one is refused for `doing`
+  // alone. Starting is an instruction about what to pick up next; finishing is
+  // a report about what happened, and reports are not gated. {@link heldUp}
+  // carries the argument, and sits beside the nudge that is its other half.
+  if (!undo && mark === "doing") {
+    const held = heldUp(scope, node)
+    if (held !== undefined) return Result.fail(held)
   }
+
+  // Setting one mark CLEARS the others: a node carrying two is a record the
+  // format rejects, so this is not tidiness — it is what makes the write valid.
+  const next: Draft<RegularNode> = { ...node }
+  for (const other of MARKS) delete next[other]
+  // Only the node being marked is touched — every other record in the file is
+  // re-emitted exactly as it was read, so a `true` or a day-only value
+  // elsewhere stays the text it was.
+  if (!undo) next[mark] = marker(scope, mark)
 
   const summary = undo
     ? `${UNMARKED[mark]}: ${node.title}`
@@ -912,12 +881,93 @@ const planMark = (
 }
 
 /**
+ * What is standing in this node's way, as the refusal that will not let it
+ * START — or `undefined`, which is nearly every node.
+ *
+ * THE ASYMMETRY BETWEEN THE TWO VERBS IS THE WHOLE DESIGN, and this function
+ * and {@link nudged} below are the two halves of it, deliberately adjacent so
+ * the divergence is one thing to read rather than two rules in two files:
+ *
+ *   - **`set_done` allows and remarks.** Finishing out of order is sometimes
+ *     TRUE — the world outruns the plan, somebody did the thing, and a tool
+ *     that refuses to record what happened is a tool that gets lied to. So the
+ *     rollup says what it noticed and the write lands.
+ *   - **`set_doing` refuses.** Starting is not a report about the world, it is
+ *     an INSTRUCTION about what to pick up next, and `a after b` is the set's
+ *     own statement that b comes first. A machine told to start what the DAG
+ *     forbids has been told to do the impossible, and the honest answer is to
+ *     say so before the write rather than to draw the row dim afterwards. The
+ *     app has drawn blockedness since edges-ui and nothing REFUSED it; that
+ *     gap is what this closes.
+ *   - **`set_todo` is not here at all.** Filing work is not starting it, and
+ *     un-starting needs no gate — a node put back on the pile is a node that
+ *     stopped claiming to be in progress, which is exactly what a blocked node
+ *     should be doing.
+ *
+ * THE BLOCKED DERIVATION IS THE ONE SOURCE OF TRUTH, read and not respelled
+ * (`@olai/format`'s `standingBefore`, which is `blockage`'s own predicate over
+ * `blockage`'s own normalised graph). That is what buys the three rules nobody
+ * would remember to write here: a plain BULLET target blocks nothing (it is
+ * not work, so there is nothing under it to finish), a DONE target blocks
+ * nothing, and an ARCHIVED one blocks nothing either. A second spelling of "is
+ * this in the way" would be a row the app draws ready and the op refuses, or
+ * worse the other way round.
+ *
+ * IT IS `standingBefore` AND NOT `blockersOf`, and that is the one subtle line
+ * here. `blockersOf` answers what a node IS waiting on, which is empty for a
+ * plain bullet — a bullet is not work, so nothing is telling it it cannot
+ * start, and that is right for every DRAWING of blockedness. But this write is
+ * about to make the node work. Asking the drawn reading would let `set_doing`
+ * on an unmarked node walk straight past the gate its own `after` edges
+ * declare, land `doing`, and be drawn blocked a frame later — the exact state
+ * this refusal exists to make unreachable. So the question asked is the one the
+ * write is about: what do this node's `after` targets hold up.
+ *
+ * NAMING WHAT IS IN THE WAY, in both vocabularies: the TITLE, because that is
+ * what the person reading the refusal recognises, and the ID, because that is
+ * what the agent reading it must type into the next call. The mark travels too
+ * — it rides on the `InTheWay` the derivation already hands over, and
+ * "waiting on something somebody is doing" and "waiting on something nobody
+ * has picked up" are different positions to be in.
+ *
+ * NOT the capture path, and that is a property of the format rather than an
+ * omission: a node born marked (`add_node`'s `mark`) has no `after` edges of
+ * its own — the capture schema's `after` is a sibling ANCHOR — and a `blocks`
+ * pointing at an id the set does not declare yet is `unknown-target`, which
+ * the validator refuses. A capture cannot arrive blocked.
+ *
+ * NOT `set_after` EITHER, and that one is a choice. Wiring an edge onto a node
+ * that is already `doing` leaves a started row waiting on something, and that
+ * is a true thing to record: "I picked this up and have just realised it needs
+ * X first" is how anybody finds out. The row goes dim and says what it is
+ * waiting for, which is what the drawing has always been for. What is refused
+ * is the INSTRUCTION to start — the moment a machine is told to do the
+ * impossible — not the discovery that the order was other than you thought.
+ */
+const heldUp = (scope: Scope, node: RegularNode): OpFailure | undefined => {
+  const waiting = standingBefore(scope.derived, node.id)
+  if (waiting.length === 0) return undefined
+
+  const named = waiting
+    .map((one) => `\`${one.at.node.title}\` (\`${one.at.node.id}\`, ${one.status})`)
+    .join(", ")
+  const one = waiting.length === 1
+  return new UsageFailure({
+    reason: `\`${node.title}\` comes after ${waiting.length} unfinished ` +
+      `${one ? "task" : "tasks"}, so it cannot start yet: ${named}. ` +
+      `Finish ${one ? "that" : "those"} first — or start what is ready.`,
+  })
+}
+
+/**
  * What the rollup has to say about a mark that has just been written — and it
  * is a REMARK, never a refusal.
  *
  * A mark is a stored fact on the node that carries it, so nothing here can
  * make a write illegal: the two things a rollup notices are the two a person
- * usually wants noticed, and both arrive after the fact.
+ * usually wants noticed, and both arrive after the fact. That the FINISHING
+ * verb only remarks while the STARTING verb refuses is argued one function up
+ * ({@link heldUp}); this half of it stayed exactly as it was.
  *
  *   - a branch ticked done over tasks nobody finished. Sometimes exactly what
  *     was meant ("shipped, dropping the rest"), which is why it is said and
@@ -960,7 +1010,7 @@ const nudged = (
     ? undefined
     : scope.derived.byId.get(node.parent)?.node
   if (
-    above !== undefined && !isMirror(above) && markOf(above) !== "done" &&
+    above !== undefined && !isMirror(above) && storedMarker(above) !== "done" &&
     unfinishedUnder(scope.derived, above.id).every((child) => child.node.id === node.id)
   ) {
     said.push(
@@ -1011,58 +1061,6 @@ const planEdit = (
     file,
     summary,
   })
-}
-
-/**
- * One property, set or taken off — the freeform half of the map, and the ONE
- * write in this file that names a key rather than a field.
- *
- * THE REFUSAL IS THE OP. Everything else here is `planEdit` with a different
- * lambda; what this adds is the gate that keeps the six keys olai reads behind
- * the verbs that own them. `set_prop` could otherwise write `status: "dnoe"`,
- * a `date` no calendar could place, or an `after` closing a loop — each of them
- * a rule some other op in this file enforces, walked around by a writer that
- * spells the same fact as a key. The key's own sentence names the door
- * (`@olai/format`'s `doorFor`), so the seventh system key arrives refused
- * rather than arriving as a hole.
- *
- * A KEY IS NOT VALIDATED beyond that, and deliberately: the map takes any key
- * (docs/format.md), so a rule here about hyphens or case would be this op
- * inventing a spelling the format does not have. An EMPTY key is the one
- * exception, and it is not a rule about keys — it is the same "nothing has one
- * spelling" the value's `null` obeys: a property with no name is not a property.
- */
-const planProp = (
-  scope: Scope,
-  request: Extract<Request, { op: "prop" }>,
-): Planned => {
-  const key = request.key.trim()
-  if (key === "") {
-    return Result.fail(new UsageFailure({ reason: "a property needs a key" }))
-  }
-  const door = doorFor(key)
-  if (door !== undefined) {
-    return Result.fail(
-      new UsageFailure({
-        reason: `\`${key}\` is a key olai reads, so it is not written this way — ${door}`,
-      }),
-    )
-  }
-
-  const value = request.value
-  return planEdit(
-    scope,
-    request.id,
-    (node) => withKey(node, key, value),
-    // The KEY is in the subject either way, because that is what changed: a
-    // commit reading `prop: chat-model-stale -> pr=…` says which fact moved,
-    // where one reading `prop: chat-model-stale` would leave the reader to
-    // diff the line to find out.
-    (node) =>
-      value === null || value === ""
-        ? `prop: ${node.title} -> ${key} (cleared)`
-        : `prop: ${node.title} -> ${key}=${value}`,
-  )
 }
 
 /**
@@ -1447,7 +1445,7 @@ const carriedOff = (scope: Scope, node: RegularNode): string | undefined => {
   const kept: Array<string> = []
   const mark = scope.derived.status.get(node.id)
   if (mark !== undefined) kept.push(`its \`${mark}\` mark`)
-  if (dateOf(node) !== undefined) kept.push("its date")
+  if (node.date !== undefined) kept.push("its date")
   // The ATTACHED DOCUMENT is the same class as the mark and was quiet for one
   // review: a node carries one `doc`, so the survivor's own answer stands and
   // this one leaves the live outline with the record. A reader who put a file
@@ -2238,15 +2236,15 @@ const planEdges = (
   // one that was never there is the same — the refusal below catches a plan
   // that would write nothing.
   const drop = new Set(remove)
-  const previous = listOf(node, field)
   const next: Array<string> = []
-  for (const id of previous) {
+  for (const id of node[field] ?? []) {
     if (!drop.has(id)) next.push(id)
   }
   for (const id of add) {
     if (!next.includes(id)) next.push(id)
   }
 
+  const previous = node[field] ?? []
   if (
     previous.length === next.length &&
     previous.every((id, index) => id === next[index])
@@ -2262,10 +2260,9 @@ const planEdges = (
     )
   }
 
-  const draft: Draft<RegularNode> = {
-    ...node,
-    props: withProp(node.props, field, next),
-  }
+  const draft: Draft<RegularNode> = { ...node }
+  if (next.length === 0) delete draft[field]
+  else draft[field] = next
 
   return Result.succeed({
     files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, draft) }],

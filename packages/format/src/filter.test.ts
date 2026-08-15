@@ -15,20 +15,20 @@ import { nodesOfFiles } from "./fixtures.testlib.ts"
  *  a mirror, and an archive beside it. Every assertion below is about this. */
 const CORPUS = {
   "house.olai": [
-    `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","props":{"status":"doing","since":"2026-08-01"}}`,
-    `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","props":{"status":"done","since":"2026-08-03"}}`,
-    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"status":"doing","date":"2026-08-10","after":["demo"],"see":["herbs"],"agent":"Claude-Opus","pr":"https://github.com/juspay/olai/pull/176"},"desc":"walnut or birch"}`,
+    `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
+    `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
+    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"walnut or birch","after":["demo"],"see":["herbs"]}`,
     `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md"}`,
-    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","props":{"status":"todo","since":"2026-08-11"}}`,
+    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11"}`,
     `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
   ].join("\n"),
   "garden.olai": [
     `{"id":"garden","ord":"a0","title":"garden #outdoors"}`,
-    `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","props":{"status":"doing"}}`,
-    `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","props":{"status":"done","since":"2026-07-20","agent":"claude-opus"}}`,
+    `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","doing":true}`,
+    `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}`,
   ].join("\n"),
   "Archive.olai": [
-    `{"id":"gone","ord":"a0","title":"the old kitchen table #home","props":{"status":"done","since":"2026-06-01"}}`,
+    `{"id":"gone","ord":"a0","title":"the old kitchen table #home","done":"2026-06-01"}`,
   ].join("\n"),
 }
 
@@ -93,7 +93,7 @@ test("`has:` asks what the record carries, and an empty edge list is no edge", (
 test("a field holding nothing is a field the record does not carry", () => {
   const hollow = derive(nodesOfFiles({
     "a.olai": [
-      `{"id":"blank","ord":"a0","title":"blank"}`,
+      `{"id":"blank","ord":"a0","title":"blank","desc":"","see":[],"after":[]}`,
       `{"id":"real","ord":"a1","title":"real","desc":"something"}`,
     ].join("\n"),
   }))
@@ -147,73 +147,6 @@ test("`-` negates whichever kind of token it is in front of", () => {
 test("clauses and words compose", () => {
   expect(selects("#home is:todo")).toEqual(["hinges"])
   expect(selects("has:date is:doing")).toEqual(["order"])
-})
-
-// ── properties ─────────────────────────────────────────────────────────
-
-/**
- * `prop:` is the question `has:` asks of a FIELD, asked of a map with no fixed
- * list of keys — which is why it takes the key as its value rather than
- * appearing as six more rows in a table.
- */
-test("`prop:key` finds every node carrying that key", () => {
-  expect(selects("prop:pr")).toEqual(["order"])
-  expect(selects("prop:agent")).toEqual(["order", "basil"])
-  expect(selects("prop:isbn")).toEqual([])
-})
-
-test("`prop:key=value` finds the nodes whose value is that", () => {
-  // The query the design was written for: every lane this agent ran, out of
-  // facts nobody had to re-parse by eye.
-  expect(selects("prop:agent=claude-opus")).toEqual(["order", "basil"])
-  expect(selects("prop:agent=codex")).toEqual([])
-})
-
-/**
- * CASE IS FOLDED ON BOTH HALVES, which is this grammar's rule rather than a new
- * one — `#Home` finds `#home`, and a property is a fact typed into a map that
- * gives no key a spelling. `order` carries `agent: "Claude-Opus"` and `basil`
- * carries `agent: "claude-opus"`; both are the same answer to the same question.
- */
-test("a key and a value are found however they were capitalised", () => {
-  expect(selects("prop:AGENT")).toEqual(["order", "basil"])
-  expect(selects("prop:Agent=Claude-Opus")).toEqual(["order", "basil"])
-})
-
-/** The system keys are in the same map and are found the same way. Not a
- *  second grammar for them: `is:done` and `prop:status=done` are two readings
- *  of one key, and they must not disagree. */
-test("a system key is a key like any other to this operator", () => {
-  expect(selects("prop:status=done")).toEqual(selects("is:done"))
-  // A LIST matches on any member, which is what an edge holds.
-  expect(selects("prop:after=demo")).toEqual(["order"])
-  expect(selects("prop:see")).toEqual(["order"])
-})
-
-test("`prop:` composes and negates like every other clause", () => {
-  expect(selects("prop:agent -is:done")).toEqual(["order"])
-  expect(selects("is:done -prop:agent")).toEqual(["demo"])
-})
-
-test("a `prop:` token with no key, or a key with an empty value, is refused", () => {
-  expect(refusalsOf("prop:")?.[0]?.reason).toContain("no value")
-  // Not "matches nothing": a key holding nothing is a key the file does not
-  // carry, so `prop:stage=` could only ever select nothing — silently.
-  expect(refusalsOf("prop:stage=")?.[0]?.reason).toContain("prop:agent=claude-opus")
-  expect(refusalsOf("prop:=x")?.[0]?.reason).toContain("prop:pr")
-})
-
-/** The first `=` splits it, so a value may hold its own. A URL with a query
- *  string is the ordinary case, not a corner. */
-test("a value may contain an equals sign", () => {
-  const filter = parseFilter("prop:source=https://news.ycombinator.com/item?id=6560560")
-  expect(filter.kind).toBe("asking")
-  if (filter.kind !== "asking") return
-  expect(filter.clauses[0]?.clause).toEqual({
-    kind: "prop",
-    key: "source",
-    value: "https://news.ycombinator.com/item?id=6560560",
-  })
 })
 
 // ── refusals ───────────────────────────────────────────────────────────

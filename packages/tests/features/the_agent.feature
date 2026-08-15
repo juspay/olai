@@ -413,6 +413,59 @@ Feature: Talking to the agent
     And the tool call's detail is shown
 
   @scratch:chat
+  Scenario: The header says how full the context is, and follows it across turns
+    # `chat-token-usage`. Nothing on screen used to say how much room was left,
+    # so the way a person found out it was time to `/compact` was by watching
+    # the agent start forgetting. The agent has been sending it all along —
+    # ACP's own `usage_update`, several frames a turn.
+    Then the panel header says nothing about the context
+    When I ask the agent "hello"
+    Then the agent is idle
+    # 12,900 after one turn, and NOT the 12,000 of that turn's first frame: the
+    # panel holds the newest report rather than the first.
+    And the panel header says the context is "13k/200k"
+    When I ask the agent "hello again"
+    Then the agent is idle
+    And the panel header says the context is "26k/200k"
+
+  @scratch:chat
+  Scenario: The context window itself can move, and the header follows that too
+    # Both halves of the fraction are the agent's to revise. The real adapter
+    # seeds the window from what it last learned for the model and corrects it
+    # authoritatively at the end of a turn, so the first turn after a `/model`
+    # can report the previous model's window and then the true one. A percentage
+    # would have hidden this entirely — 6% of 200k and 6% of 1M are the same
+    # number and quite different amounts of work left.
+    When I ask the agent "hello"
+    Then the panel header says the context is "13k/200k"
+    # HELD between the turn's two usage frames, so the mid-stream state is
+    # looked at rather than inferred from where the turn ended. Inferring it
+    # would pin nothing about the ORDER: an agent that moved the window before
+    # both frames ends in the same place.
+    When I ask the agent "window 1000000 hold"
+    Then the agent is working
+    # Mid-turn: the window the conversation began on, and this turn's first
+    # count of what it has spent.
+    And the panel header says the context is "25k/200k"
+    When the agent is released
+    Then the agent is idle
+    # ... and the correction lands on the turn's last frame, which is where the
+    # adapter puts it. A panel that kept the turn's FIRST report would still be
+    # showing the line above.
+    And the panel header says the context is "26k/1M"
+
+  @scratch:chat
+  Scenario: A new conversation is not asked how full the last one was
+    # The number goes with the context it was about. Leaving it up across a
+    # session change would be the panel answering "should I compact?" about a
+    # conversation that no longer exists.
+    When I ask the agent "hello"
+    Then the panel header says the context is "13k/200k"
+    When I start a new conversation
+    Then the agent is idle
+    And the panel header says nothing about the context
+
+  @scratch:chat
   Scenario: The header follows the model the agent is actually running
     # Two sources: the session's config option is what was PICKED, and the
     # CLI's own init message is what is RUNNING. A `/model` is handled inside

@@ -172,7 +172,7 @@ describe("manual is the default", () => {
             file: "house.olai",
             id: "order",
             title: "order the cabinets",
-            fields: ["status", "since"],
+            fields: ["done"],
             sort: "done",
           },
         ])

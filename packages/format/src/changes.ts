@@ -24,13 +24,6 @@
 import { Schema } from "effect"
 
 import { isArchived, isMirror, MirrorNode, type Node, RegularNode } from "./node.ts"
-import {
-  canonicalKeys,
-  markOf,
-  type Props,
-  sinceOf,
-  type Status,
-} from "./props.ts"
 
 /**
  * Every field of a record that can differ between two readings, DERIVED from
@@ -168,7 +161,7 @@ export const changesOf = (
         id: node.id,
         title: nameOf(node),
         fields,
-        sort: sortOf(fields, previous, { file, node }),
+        sort: sortOf(fields, { file, node }),
       })
     }
   }
@@ -222,53 +215,15 @@ const placed = (records: Records): ReadonlyMap<string, Placed> => {
  *  the same way a `move:` line does. */
 const nameOf = (node: Node): string => (isMirror(node) ? node.id : node.title)
 
-/**
- * What differs, field by field — and, INSIDE the map, key by key.
- *
- * `props` is not reported as one field, and that is the whole of what this
- * function had to learn. Every fact a commit message is about used to be a
- * field of its own, so "which fields differ" was already "which facts changed";
- * with one map holding all of them, a record whose date moved and a record that
- * was ticked would both answer `props` and {@link sortOf} could no longer tell
- * a scheduling from a completion. So a key that differs is reported by its own
- * NAME, which is the same word the field had — `status` where there were three
- * marks, and `date`, `see`, `after`, `blocks` unchanged.
- *
- * A user key reports itself too, and lands in {@link sortOf}'s `edited` — which
- * is the right answer for a fact olai does not read: something about the node
- * changed, and the subject says so without pretending to know what it was.
- */
 const differing = (before: Placed, after: Placed): ReadonlyArray<Field> => {
   const fields: Array<Field> = []
   if (before.file !== after.file) fields.push("file")
   for (const field of RECORD_FIELDS) {
-    if (field === "props") continue
     if (!same(valueOf(before.node, field), valueOf(after.node, field))) {
       fields.push(field)
     }
   }
-  fields.push(...differingProps(propsOf(before.node), propsOf(after.node)))
   return fields
-}
-
-const propsOf = (node: Node): Props => (isMirror(node) ? {} : node.props ?? {})
-
-/** The mark and its instant, asked of EITHER shape. A mirror carries neither —
- *  it is a placement, and the format gives it no field to hold one — so the
- *  answer is absence rather than a narrowing every arm above would have to
- *  repeat. */
-const markAt = (node: Node): Status | undefined =>
-  isMirror(node) ? undefined : markOf(node)
-
-const sinceAt = (node: Node): string | undefined =>
-  isMirror(node) ? undefined : sinceOf(node)
-
-/** The keys whose values are not the same on both sides — in canonical order,
- *  so a change reads its keys the way the file writes them and two runs over
- *  one edit report the same list. */
-const differingProps = (before: Props, after: Props): ReadonlyArray<Field> => {
-  const keys = canonicalKeys({ ...before, ...after })
-  return keys.filter((key) => !same(before[key], after[key]))
 }
 
 type Value = string | boolean | ReadonlyArray<string> | undefined
@@ -285,44 +240,22 @@ const same = (a: Value, b: Value): boolean => {
   return a === b
 }
 
-/** Whether a key says something now. `date` is set-or-absent, and the
- *  difference between putting one on and taking it off is the only thing a key
- *  NAME cannot carry. */
-const set = (node: Node, key: string): boolean =>
-  !isMirror(node) && node.props?.[key] !== undefined
+/** Whether a field says something now. The two marks and `date` are all
+ *  set-or-absent, and the difference between putting one on and taking it off
+ *  is the only thing a field NAME cannot carry. */
+const set = (node: Node, field: "done" | "doing" | "date"): boolean =>
+  valueOf(node, field) !== undefined
 
-/**
- * Which of the things that differ is the one this change is ABOUT.
- *
- * Takes BOTH sides now, where it used to take the `after` one and a list of
- * field names. The four mark arms are why: while there were three mark fields,
- * "the `done` field differs" and "`done` is still there" were between them
- * enough to tell a completion from an un-completion, because each mark had a
- * field that appeared and disappeared with it. One `status` key holds every
- * transition, so the question is what the mark WAS and what it BECAME, and both
- * sides have to be in hand to ask it.
- *
- * The four arms are the same four events in the same priority, and the
- * re-statement is exact: `done` is a record that says done now and did not say
- * exactly this before (a re-stamped instant is still a completion, which is
- * what the old rule said by watching the field's VALUE change); `undone` is one
- * that said done and no longer does; then the same pair for `doing`. A `todo`
- * appearing or going is deliberately in none of them, as it was in none of the
- * old ones — it falls to the tail, and `edited` is what a commit says about it.
- */
-const sortOf = (fields: ReadonlyArray<Field>, before: Placed, after: Placed): Sort => {
+/** Which of the fields that differ is the one this change is ABOUT. Takes the
+ *  `after` side because three of the arms turn on what the field BECAME, which
+ *  is the one thing a field name cannot say. */
+const sortOf = (fields: ReadonlyArray<Field>, after: Placed): Sort => {
   const changed = new Set(fields)
   if (changed.has("file")) {
     return isArchived(after.file) ? "archived" : "moved"
   }
-
-  const was = markAt(before.node), now = markAt(after.node)
-  const restamped = was === now && sinceAt(before.node) !== sinceAt(after.node)
-  if (now === "done" && (was !== "done" || restamped)) return "done"
-  if (was === "done" && now !== "done") return "undone"
-  if (now === "doing" && (was !== "doing" || restamped)) return "doing"
-  if (was === "doing" && now !== "doing") return "not-doing"
-
+  if (changed.has("done")) return set(after.node, "done") ? "done" : "undone"
+  if (changed.has("doing")) return set(after.node, "doing") ? "doing" : "not-doing"
   if (changed.has("parent") || changed.has("ord")) return "moved"
   if (changed.has("date")) return set(after.node, "date") ? "scheduled" : "unscheduled"
   if (changed.has("desc")) return "noted"

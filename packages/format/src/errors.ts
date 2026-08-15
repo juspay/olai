@@ -60,17 +60,9 @@ const CATALOGUE = {
   "bad-record": "line",
   /** `id` is not a slug: `[A-Za-z0-9_-]+`. */
   "bad-id": "line",
-  /** A key olai READS holds something it cannot read: a `status` that is not
-   *  one of the marks, a `date` holding a list, an edge holding one value, a
-   *  `since` with no `status` to be the instant of. The map itself takes any
-   *  key and any string; this is the six keys the format gives a meaning.
-   *
-   *  It replaces `several-marks`, which refused a record carrying two of
-   *  `done`, `doing` and `todo`. One `status` key cannot hold two marks, so
-   *  that set is unrepresentable rather than refused — the same retirement
-   *  `derived` had when nothing computed a status any more. */
-  "bad-prop": "line",
-  /** `since` or `date` is not a valid ISO date or datetime. */
+  /** Two of `done`, `doing` and `todo` are set; at most one may be. */
+  "several-marks": "line",
+  /** A mark or `date` is not a valid ISO date or datetime. */
   "bad-date": "line",
 
   // ── the whole set ───────────────────────────────────────────────────

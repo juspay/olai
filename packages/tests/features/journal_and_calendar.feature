@@ -199,11 +199,11 @@ Feature: The journal, and the month in the sidebar
     When I rewrite "work.olai" as:
       """
       {"id":"deck","ord":"a0","title":"the deck #home"}
-      {"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","props":{"status":"doing","date":"2019-11-05"},"desc":"Call the utility line **before** digging."}
-      {"id":"rails","parent":"deck","ord":"a1","title":"order the railings #home","props":{"date":"2019-11-05T14:30"}}
+      {"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","doing":true,"date":"2019-11-05","desc":"Call the utility line **before** digging."}
+      {"id":"rails","parent":"deck","ord":"a1","title":"order the railings #home","date":"2019-11-05T14:30"}
       {"id":"sweep","parent":"deck","ord":"a2","title":"sweep the yard"}
-      {"id":"stain","parent":"deck","ord":"a3","title":"stain the boards","props":{"date":"2019-11-20"}}
-      {"id":"survey","ord":"a1","title":"the boundary survey","props":{"status":"done","since":"2019-10-29","date":"2019-10-28"}}
+      {"id":"stain","parent":"deck","ord":"a3","title":"stain the boards","date":"2019-11-20"}
+      {"id":"survey","ord":"a1","title":"the boundary survey","done":"2019-10-29","date":"2019-10-28"}
       """
     Then the day "2019-11-20" has something on it
     And the page has not reloaded

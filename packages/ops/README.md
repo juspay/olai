@@ -66,14 +66,13 @@ about an op is decided there, over a value, so it is testable without a disk
 and re-decidable against a newer snapshot. The two impure things an op needs —
 a fresh id and what time it is — arrive as arguments.
 
-**`done` is stamped with the instant it was made**: `set_done` writes `status`
-and `since`, and `since` holds `2026-08-11T15:40:03-04:00`, local and carrying
-its offset (`@olai/format`'s `stampOf`), never a day with no time in it. Finishing
+**`done` is stamped with the instant it was made**: `set_done` stores
+`2026-08-11T15:40:03-04:00`, local and carrying its offset (`@olai/format`'s
+`stampOf`), never a bare `true` and never a day with no time in it. Finishing
 happens at a moment, the day view reads the day off the front of the value
 anyway, so the time costs a reader nothing and orders a day's finished work.
 
-**`doing` and `todo` store no `since` at all** (resolved 2026-08-11, the
-human's call — and the same sentence the old bare `true` said).
+**`doing` and `todo` store `true`** (resolved 2026-08-11, the human's call).
 The symmetry argument — three answers to one question, written by one op — loses
 to what a date on a mark now means: it puts the node on that day's journal page
 (docs/format.md's Days). A stamped `todo` would file every capture onto the day
@@ -84,6 +83,19 @@ scheduled for one.
 Only the record being marked is rewritten; a `true` or a day-only value on any
 other node comes back exactly as it was read, which is what the format means by
 validating dates as text.
+
+**`set_doing` is the one mark verb the ORDER is a law for.** A node whose
+`after` targets include a task that is not done cannot start, and the refusal
+names them — title, id and the mark each one carries. The asymmetry with
+`set_done` is the design and not an oversight: finishing out of order is
+sometimes true, so that verb allows and remarks (above); starting is an
+INSTRUCTION about what to pick up next, and a machine told to start what the
+graph forbids has been told to do the impossible. `set_todo` is not gated at
+all — filing work is not starting it, and a blocked node must be able to stop
+claiming to be under way. The predicate is the format's `standingBefore`, the
+blocked derivation read from the target end, so a bullet blocks nothing, done
+work blocks nothing, the archive blocks nothing, and no row is ever drawn ready
+by one rule and refused by another.
 
 `pending.ts` derives and stores nothing, which is the same design in the other
 direction: what is waiting is a question git already answers, and a tally of our
@@ -141,11 +153,10 @@ delete.
 
 - **The mark rides along.** A captured node may be born `done`, `doing` or
   `todo`, written exactly as `set_done` / `set_doing` / `set_todo` write it —
-  one `instantFor` function, read by both — so a `done` records the instant and
-  lands on today's page, and the other two leave `since` absent and place the
-  node on no day. One field rather than three flags, because a node carries at
-  most one mark and a shape that can spell two is a shape a caller can get wrong
-  (and, since the marks became one `status` key, one it could not write down).
+  one `marker` function, read by both — so a `done` records the instant and
+  lands on today's page, and the other two store `true` and place the node on
+  no day. One field rather than three flags, because the format allows at most
+  one mark and a shape that can spell two is a shape a caller can get wrong.
 - **Placement is the root's.** `before` / `after` place the node being added
   among its new siblings; the children are being born, so there is nobody to
   place them among and they land in the order they were written. File order is

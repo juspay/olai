@@ -33,11 +33,7 @@ import {
   type Found,
   isMirror,
   type LocatedRegular,
-  dateOf,
-  isEmptyProps,
-  listOf,
-  markOf,
-  sinceOf,
+  MARKS,
   matching,
   type OutlineSet,
   type OutlineSummary,
@@ -147,8 +143,8 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
 const edgesOf = (
   node: LocatedRegular["node"],
 ): { see?: ReadonlyArray<string>; after?: ReadonlyArray<string> } => ({
-  ...(listOf(node, "see").length === 0 ? {} : { see: listOf(node, "see") }),
-  ...(listOf(node, "after").length === 0 ? {} : { after: listOf(node, "after") }),
+  ...(node.see === undefined || node.see.length === 0 ? {} : { see: node.see }),
+  ...(node.after === undefined || node.after.length === 0 ? {} : { after: node.after }),
 })
 
 // ── search ─────────────────────────────────────────────────────────────
@@ -225,28 +221,15 @@ export const search = (
 
 // ── one node, and what is under it ─────────────────────────────────────
 
-/**
- * The mark the record carries, as the ANSWER has always spelled it: a key named
- * for the mark, holding the instant it was reached or `true` for a state that
- * declines to say.
- *
- * THE ONE PLACE THE TWO SHAPES MEET, and it is worth saying plainly. A record
- * holds `status` and `since` in its props map (`@olai/format`'s `props.ts`);
- * `read_node` answers `done`, `doing`, `todo`, because that is what it has
- * answered since before there were properties and an agent reading it is
- * entitled to go on reading it. This function is the whole of the difference,
- * and it is total in both directions — a `since` becomes the value, an absent
- * `since` becomes `true`, which is exactly the pair the migration reads the
- * other way (`@olai/format`'s `migrate.ts`).
- *
- * At most one key comes back, and there is no longer a rule making that true:
- * one `status` holds one mark. The SHAPE is the floor's, taken off
- * {@link Detail} itself rather than re-spelled here.
- */
-const stampsOf = (node: LocatedRegular["node"]): Stamps => {
-  const mark = markOf(node)
-  return mark === undefined ? {} : { [mark]: sinceOf(node) ?? true }
-}
+/** Whichever marks the record carries, from the format's list — at most one
+ *  by the format's own rule, but read as a set so this cannot be the place a
+ *  new mark is missing from. The SHAPE of what comes back is the floor's, taken
+ *  off {@link Detail} itself rather than re-spelled here; this is the reading of
+ *  one record against it. */
+const stampsOf = (node: LocatedRegular["node"]): Stamps =>
+  Object.fromEntries(
+    MARKS.flatMap((mark) => node[mark] === undefined ? [] : [[mark, node[mark]]]),
+  )
 
 export const detail = (derived: Derived, id: string): Detail | null => {
   const located = derived.byId.get(id)
@@ -258,19 +241,9 @@ export const detail = (derived: Derived, id: string): Detail | null => {
   const placed = placedUnder(derived, id)
   return {
     ...foundOf(derived, regular),
-    ...(dateOf(node) === undefined ? {} : { date: dateOf(node) }),
+    ...(node.date === undefined ? {} : { date: node.date }),
     ...(node.desc === undefined ? {} : { desc: node.desc }),
     ...stampsOf(node),
-    // THE MAP, verbatim — the record's own, in the record's own key order,
-    // system keys included. The three stamps and `date` above are the same
-    // facts said in the vocabulary this answer had before there were
-    // properties; this is the node saying everything it says about itself, and
-    // it is the only place a `pr` or an `isbn` could come from.
-    //
-    // Absent rather than `{}` for a node with no properties, which is the
-    // writer's rule for absence read at the answer: a bullet does not carry an
-    // empty map on disk and does not carry one here.
-    ...(isEmptyProps(node.props) ? {} : { props: node.props }),
     // AS WRITTEN, sigil and all: `#alice` and `@alice` are two tags, so a list
     // that dropped the character that started them could not tell a reader
     // which one this node carries.
@@ -352,7 +325,7 @@ export const subtree = (
     const children = countedChildren(derived, at.node.id)
     return {
       ...foundOf(derived, at),
-      ...(dateOf(at.node) === undefined ? {} : { date: dateOf(at.node) }),
+      ...(at.node.date === undefined ? {} : { date: at.node.date }),
       ...(at.node.desc === undefined ? {} : { desc: at.node.desc }),
       children: left <= 0 ? [] : children.map((child) => walk(child, left - 1)),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),

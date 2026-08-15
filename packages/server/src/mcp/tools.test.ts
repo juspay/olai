@@ -43,9 +43,9 @@ import { bespokeFrom } from "./tools.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","since":"2026-08-01"}}`,
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
   `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
-  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","props":{"status":"doing","since":"2026-08-02"}}`,
+  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","doing":"2026-08-02"}`,
   "",
 ].join("\n")
 
@@ -202,7 +202,6 @@ test("the tool list is reads and writes, and no file access at all", async () =>
       "set_desc",
       "set_doing",
       "set_done",
-      "set_prop",
       "set_see",
       "set_title",
       "set_todo",
@@ -376,7 +375,7 @@ test("a read answers over parsed nodes, with file:line and the marks", async () 
 test("search and subtree carry a node's see so an agent can traverse", async () => {
   const SEEING = [
     `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-    `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","props":{"see":["install"]}}`,
+    `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","see":["install"]}`,
     `{"id":"install","parent":"kitchen","ord":"a1","title":"install them"}`,
     "",
   ].join("\n")
@@ -405,7 +404,7 @@ test("a write through a tool changes the directory", async () => {
     const answer = await call(client, "set_done", { id: "order" })
     expect(answer.isError).toBe(false)
     expect(answer.structured).toMatchObject({ did: "set_done", id: "order" })
-    expect(read("house.olai")).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
+    expect(read("house.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
   })
 })
 
@@ -443,7 +442,7 @@ test("marking a parent lands, and the answer carries what the rollup noticed", a
     expect(answer.structured["nudge"]).not.toContain("order the cabinets")
     expect(refusals).toEqual([])
     expect(read("house.olai")).toContain(`"id":"kitchen"`)
-    expect(read("house.olai")).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
+    expect(read("house.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
   })
 })
 
@@ -645,8 +644,8 @@ test("one add_node lands a whole subtree, and says what it made", async () => {
 
     const text = read("house.olai") ?? ""
     expect(text.split("\n").filter((line) => line !== "")).toHaveLength(8)
-    expect(text).toContain(`"props":{"status":"todo"}`)
-    expect(text).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
+    expect(text).toContain(`"todo":true`)
+    expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
 
     // The tree is a tree: `measure` hangs off `shelves`, which hangs off the
     // node the call named.

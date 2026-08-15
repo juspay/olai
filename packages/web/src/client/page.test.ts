@@ -19,7 +19,7 @@ const SET = derive([
     parent: "kitchen",
     ord: "a0",
     title: "install",
-    props: { date: "2026-08-10" },
+    date: "2026-08-10",
   }),
   located("house.olai", 3, {
     id: "herbs-here",
@@ -33,7 +33,7 @@ const SET = derive([
     parent: "garden",
     ord: "a0",
     title: "herbs",
-    props: { date: "2026-08-10T09:00" },
+    date: "2026-08-10T09:00",
   }),
 ])
 const FILES = ["garden.olai", "house.olai"]

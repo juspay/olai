@@ -360,27 +360,6 @@ export const Edit = Schema.Union([
    * pace. It is also what lets an undo put a cleared date back, which a
    * clear-only verb could not spell.
    */
-  /**
-   * One PROPERTY, set or taken off — `set_prop`'s reach, spelled the way the
-   * verb above spells a date and for the same reason: nothing is resolved
-   * behind it, and both directions are one field so an undo can put back what a
-   * removal took.
-   *
-   * `key` travels with the write because a property is a fact with a NAME, and
-   * the name is what changed. The keys olai reads are refused by the ops layer
-   * in its own words, naming the verb that owns each — this surface does not
-   * repeat that list, for the reason the menu does not grey out `Mark todo` on
-   * a finished row: a rule spelled twice is a rule that can be spelled
-   * differently in one of the two places.
-   */
-  Schema.Struct({
-    verb: Schema.Literal("prop"),
-    id: Id,
-    key: Schema.String,
-    /** `null` removes the property, which is what an emptied value field means
-     *  — and what the `Remove` entry in the drawer's menu sends. */
-    value: Schema.NullOr(Schema.String),
-  }),
   Schema.Struct({
     verb: Schema.Literal("date"),
     id: Id,

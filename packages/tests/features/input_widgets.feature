@@ -139,7 +139,7 @@ Feature: The three input widgets
     # the other's sigil would be inventing tags the set does not hold.
     When I rewrite "house.olai" as:
       """
-      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","props":{"status":"doing","since":"2026-08-01"}}
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"ask","parent":"kitchen","ord":"a1","title":"ask @alice about the alcove"}
       {"id":"knobs","parent":"kitchen","ord":"a2","title":"pick the knobs"}
       """

@@ -25,10 +25,6 @@ Feature: The ••• menu writes
     # everything above the divider changes what this tab is looking at,
     # everything below it changes the directory.
     #
-    # `Add property…` is here and no `Edit`/`Remove` pair is, for the same
-    # reason as the marks: the row carries no property olai does not read, so
-    # there is nothing to offer to change (`properties.feature`).
-    #
     # The two EDGE verbs are the exception that proves the rule, and it is a
     # deliberate one: every node can take a `see` or an `after`, so there is
     # nothing about this row to leave them out for — and what WOULD be refused
@@ -47,7 +43,6 @@ Feature: The ••• menu writes
       | Complete           |
       | Clear mark         |
       | Set date…          |
-      | Add property…      |
       | Link to a node…    |
       | Wait for a node…   |
       | Move to Trash      |
@@ -90,6 +85,26 @@ Feature: The ••• menu writes
     When I open the node menu of "demo"
     And I choose "Mark doing" from the node menu
     Then the node "demo" has status "doing"
+
+  Scenario: The menu will not start what the order forbids either
+    # HACKING.md's parity rule, on the refusal this PR adds: the mouse meets the
+    # ops layer's sentence exactly as the keyboard and an agent do, because
+    # there is one gate and the menu sends one op through it. `install` is a
+    # bullet — nothing is drawing it blocked, because a bullet is not work — and
+    # `Mark doing` is about to MAKE it work, so its `after` edge is asked about
+    # here rather than after the write.
+    When I open the node menu of "install"
+    And I choose "Mark doing" from the node menu
+    Then the node menu of "install" says "`install the cabinets` comes after 1 unfinished task, so it cannot start yet: `order the new cabinets` (`order`, doing). Finish that first — or start what is ready."
+    And the node "install" has no status
+    # And the other two verbs are untouched: finishing out of order is
+    # sometimes true, and filing work is not starting it.
+    When I open the node menu of "install"
+    And I choose "Mark todo" from the node menu
+    Then the node "install" has status "todo"
+    When I open the node menu of "install"
+    And I choose "Complete" from the node menu
+    Then the node "install" has status "done"
 
   Scenario: A write that landed with something to say says it here too
     # The rollup's nudge reaches the person who caused the write, exactly as it
@@ -134,8 +149,8 @@ Feature: The ••• menu writes
     # open, which is also how the refusal gets to be about the set as it IS.
     When I rewrite "house.olai" as:
       """
-      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","props":{"status":"doing","since":"2026-08-01"}}
-      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","props":{"see":["kitchen-herbs"]}}
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","see":["kitchen-herbs"]}
       {"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}
       """
     # The other hand's write has to have ARRIVED before the menu is opened on

@@ -267,7 +267,7 @@ test("a client that launched it can mark a node, and the disk says so", async ()
     .readFileSync(path.join(root, "house.olai"), "utf8")
     .split("\n")
     .find((line) => line.includes(`"id":"order"`))
-  expect(order).toInclude(`"status":"done"`)
+  expect(order).toInclude(`"done":`)
   expect(JSON.parse(order ?? "null")).toMatchObject({
     id: "order",
     parent: "kitchen",
@@ -472,7 +472,7 @@ test("a busy repository refuses the commit and says which state it is in", async
   // The WRITE happened. That is the guarantee, and it is not negotiable: git
   // never fails a write.
   expect(wrote["isError"]).toBeUndefined()
-  expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toContain(`"status":"done"`)
+  expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toContain(`"done":`)
 
   // And the write's OWN reply already said the repository is the problem —
   // before the agent called `commit` and got refused. Telling it "waiting…

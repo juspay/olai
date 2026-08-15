@@ -2,16 +2,12 @@
  * What a READ of the set asks, and what it says back.
  *
  * Data, and nothing but: there is no index in this file and nothing here walks
- * anything. It DOES reach `./derive.ts`, `./node.ts` and `./props.ts`, for the
- * shapes each of them declares beside the thing that produces it —
- * {@link Progress}, {@link Status}, a note — which is the same borrowing
- * `./committing.ts` does from `@olai/git/state`: the shape travels, so it is
- * declared once at its source rather than copied to the module that carries it.
- *
- * The MARKS and the EDGES are where that borrowing stops, and {@link Detail}
- * says why at length: the record holds them as entries in one map now, and an
- * answer that still spells them as three keys and two lists is a contract this
- * file owns rather than one it can point at.
+ * anything. It DOES reach `./derive.ts` and `./node.ts`, for three shapes each
+ * of them declares beside the thing that produces it — {@link Progress},
+ * {@link Status}, and the record's own mark fields — which is the same
+ * borrowing `./committing.ts` does from `@olai/git/state`: the shape travels,
+ * so it is declared once at its source rather than copied to the module that
+ * carries it.
  *
  * It is here for the reason `./committing.ts` and `./searching.ts` are, and the
  * argument is those files' word for word — this package is the floor both the
@@ -76,19 +72,7 @@
 import { Schema } from "effect"
 
 import { Progress } from "./derive.ts"
-import { RegularNode } from "./node.ts"
-import { Props, Status } from "./props.ts"
-
-/** `true`, or the ISO date/datetime the state was reached at — what a mark on
- *  an ANSWER carries. The shape the record's three mark fields had, kept
- *  because the answer keeps them ({@link Detail}). */
-const Marker = Schema.Union([Schema.Literal(true), Schema.String])
-
-/** A list of target ids, as an answer carries one. The record spells its edges
- *  inside `props` now (`./props.ts`), so this is the answer's own declaration
- *  of a shape the two still share rather than a reach into the record for a
- *  field that is no longer there. */
-const EdgeIds = Schema.optionalKey(Schema.Array(Schema.String))
+import { RegularNode, STAMPED, Status } from "./node.ts"
 
 /**
  * One node, SITUATED — the shape every read of the set answers with.
@@ -118,13 +102,12 @@ export const Found = Schema.Struct({
    *  node has none — so a reader can traverse without a second read, and a node
    *  that does not point anywhere does not pretend to.
    *
-   *  What it carries is the file's value handed back verbatim — the list under
-   *  the record's `see` key — and what DECLARES that shape is this file, since
-   *  the record spells it as an entry in a map rather than as a field a schema
-   *  could be borrowed from. The prose differs from the record's because what is
-   *  worth saying about a field on an ANSWER is not what is worth saying about
-   *  it on disk. */
-  see: EdgeIds,
+   *  The RECORD'S OWN declaration, and so are the three below it: what these
+   *  fields carry is the file's value handed back verbatim, so a second
+   *  spelling of them here would be free to stop meaning what the file means.
+   *  The prose differs because what is worth saying about a field on an ANSWER
+   *  is not what is worth saying about it on disk. */
+  see: RegularNode.fields.see,
   /** What this node must come AFTER, as target ids — the edges it carries
    *  itself, exactly as they are written.
    *
@@ -133,7 +116,7 @@ export const Found = Schema.Struct({
    *  change it by guessing. Not the derived blockedness — what is standing in
    *  the way right now is a question about marks, and this is what the record
    *  says. */
-  after: EdgeIds,
+  after: RegularNode.fields.after,
 })
 export type Found = typeof Found.Type
 
@@ -244,52 +227,16 @@ export type Placed = typeof Placed.Type
 /**
  * What one node's page would say, plus the record itself.
  *
- * The three STAMPS are declared here now, and that is the one place in this
- * package where an answer's shape and the record's have genuinely parted
- * company. They used to be `./node.ts`'s `STAMPED`, spread onto the answer
- * exactly as they were spread into the record, because they were the same three
- * fields — and a second spelling of a field the answer hands back verbatim
- * would have been free to stop meaning what the file means.
- *
- * The record has no such fields any more: a mark is `status` and `since` inside
- * one map (`./props.ts`). What an ANSWER says is a separate contract from what
- * a FILE holds, and this PR moves only the second — so the three keep exactly
- * the shape and meaning they had, `true` for a state that declines to say when
- * and the ISO value otherwise, built out of the map by `@olai/ops`' `stampsOf`.
- * A reader that has been reading `done` off `read_node` since before any of
- * this goes on reading it and cannot tell the difference, which is the whole
- * claim of the change.
- *
- * They are not the answer's last word on the subject: {@link Detail} carries
- * the MAP as well now, so a reader that wants the whole of what a node says
- * about itself asks for `props` and one that has been reading `done` since
- * before any of this goes on reading it.
+ * The stamps are `./node.ts`'s {@link STAMPED} — the record's own three mark
+ * fields, spread here as they are spread into the record — because `status` on
+ * {@link Found} says WHICH mark and only these say when, and what they carry is
+ * the file's value handed back verbatim. Same for `date` and `desc`. One
+ * declaration each, in the module that says what a record holds.
  */
-const STAMPED = {
-  done: Schema.optionalKey(Marker),
-  doing: Schema.optionalKey(Marker),
-  todo: Schema.optionalKey(Marker),
-} satisfies { readonly [M in Status]: unknown }
-
 export const Detail = Schema.Struct({
   ...Found.fields,
   ...STAMPED,
-  date: Schema.optionalKey(Schema.String),
-  /**
-   * EVERY property the node carries, as the record holds them — the map itself,
-   * borrowed from `./props.ts` rather than restated, because this one is handed
-   * back verbatim.
-   *
-   * The system keys are in it too, and that is deliberate: a reader asking what
-   * a node says about itself should get one answer, not one with six holes in
-   * it that the fields above happen to fill. Those fields stay because they are
-   * a contract older than the map ({@link STAMPED}); this is where a `pr`, an
-   * `isbn` or a `stage` is read, and it is what `set_prop` writes into.
-   *
-   * Absent for a node with no properties at all, which is the writer's own rule
-   * for absence rather than an empty map for every bullet in the vault.
-   */
-  props: Schema.optionalKey(Props),
+  date: RegularNode.fields.date,
   desc: RegularNode.fields.desc,
   /** The `#topic` and `@person` tags in the title, AS WRITTEN, sigil and all —
    *  a list that dropped the character that started them could not tell a
@@ -381,7 +328,7 @@ export interface Subtree extends Found {
 
 export const Subtree = Schema.Struct({
   ...Found.fields,
-  date: Schema.optionalKey(Schema.String),
+  date: RegularNode.fields.date,
   desc: RegularNode.fields.desc,
   children: Schema.Array(Schema.suspend((): Schema.Codec<Subtree> => Subtree)),
   truncated: Schema.optionalKey(Schema.Literal(true)),

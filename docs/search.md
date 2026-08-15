@@ -41,21 +41,11 @@ one with that sigil.
 | `has:date` | on any day at all — the unbounded `date:`, so the two cannot disagree |
 | `date:2026-08-10` `date:2026-08` `date:2026` | a day, a month, a year |
 | `date:a..b` `date:..b` `date:a..` | an inclusive span, either end optional |
-| `prop:pr` | carries that property at all — `has:` asked of a map with no fixed list of keys |
-| `prop:agent=claude-opus` | carries it holding that value; a list matches on any member |
 | `-anything` | takes that word or operator back out — ONE leading dash. A second one is a character, not a second negation: `--force` is a word people write, so `--is:done` looks for that text and finds it wherever somebody typed it |
 
 `date:` reads the two dates a journal reads — what the node is scheduled for,
 and when it was finished. A dated `doing` or `todo` is on no day here, exactly
 as on the day page ([format.md](format.md)).
-
-`prop:` reads the node's properties ([format.md](format.md)), and it reads all
-of them: the keys olai gives a meaning are entries in the same map, so
-`prop:status=done` and `is:done` are two readings of one key and select the same
-nodes. The key and the value are folded like every other token — a property is a
-fact typed into a map that gives no key a spelling. `prop:stage=` is refused
-rather than selecting nothing: a key holding nothing is a key the file does not
-carry, so an empty value could only ever be a query that quietly found none.
 
 **A known operator with an unknown value is refused**, in the grammar's own
 words, and the query selects nothing: `is:blocked` says which values `is:` takes

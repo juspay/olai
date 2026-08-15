@@ -9,19 +9,14 @@
  */
 
 import {
-  dateOf,
   derive,
-  doorFor,
-  listOf,
-  markOf,
   type Node,
   nodesOf,
   type OpFailure,
   type OutlineSet,
   type RegularNode,
   serializeOutline,
-  sinceOf,
-  SYSTEM_KEYS,
+  standingBefore,
   AddRequest,
   type WriteRequest as Request,
 } from "@olai/format"
@@ -33,7 +28,7 @@ import { plan, type Plan } from "./plan.ts"
 
 const KITCHEN = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","since":"2026-08-01"}}`,
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
   `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
   `{"id":"loose","ord":"a1","title":"a node with no children"}`,
@@ -187,8 +182,7 @@ describe("add", () => {
       }),
       "house.olai",
     )
-    expect(markOf(record(nodes, "n1"))).toBe("todo")
-    expect(sinceOf(record(nodes, "n1"))).toBeUndefined()
+    expect(record(nodes, "n1").todo).toBe(true)
   })
 })
 
@@ -288,10 +282,7 @@ describe("add with children", () => {
       seed: { title: "clear out the shed", id: "shed", mark: "todo" },
     })
     expect(result.captured).toEqual([{ id: "shed", title: "clear out the shed" }])
-    expect(fileOf(result, "shed.olai")[0]).toMatchObject({
-      id: "shed",
-      props: { status: "todo" },
-    })
+    expect(fileOf(result, "shed.olai")[0]).toMatchObject({ id: "shed", todo: true })
 
     // And the id rule is `add`'s, spelled once: a chosen id the set holds is
     // refused with the same words.
@@ -319,18 +310,19 @@ describe("add with children", () => {
       }),
       "house.olai",
     )
-    // `done` records the instant; the other two carry no `since` — the same
-    // rule the mark ops read, so a captured mark and a marked capture agree.
-    expect(markOf(record(nodes, "n2"))).toBe("done")
-    expect(sinceOf(record(nodes, "n2"))).toBe(STAMP)
-    expect(markOf(record(nodes, "n3"))).toBe("doing")
-    expect(sinceOf(record(nodes, "n3"))).toBeUndefined()
+    // `done` records the instant; the other two say `true` — the same rule the
+    // mark ops read, so a captured mark and a marked capture agree.
+    expect(record(nodes, "n2").done).toBe(STAMP)
+    expect(record(nodes, "n3").doing).toBe(true)
     expect(record(nodes, "n4")).toMatchObject({
-      props: { status: "todo", date: "2026-09-02" },
+      todo: true,
+      date: "2026-09-02",
       desc: "on completion",
     })
     // Unmarked is a bullet, and a bullet carries no mark at all.
-    expect(markOf(record(nodes, "n5"))).toBeUndefined()
+    for (const mark of ["done", "doing", "todo"] as const) {
+      expect(record(nodes, "n5")[mark]).toBeUndefined()
+    }
   })
 
   test("`before` places the node being added; the children keep their order", () => {
@@ -478,8 +470,7 @@ describe("add with children", () => {
 describe("done and doing", () => {
   test("marking a leaf stamps the instant and says so in the commit line", () => {
     const result = planned(house(), { op: "done", id: "order" })
-    expect(markOf(record(fileOf(result, "house.olai"), "order"))).toBe("done")
-    expect(sinceOf(record(fileOf(result, "house.olai"), "order"))).toBe(STAMP)
+    expect(record(fileOf(result, "house.olai"), "order").done).toBe(STAMP)
     expect(result.summary).toBe("done: order the cabinets")
   })
 
@@ -490,8 +481,7 @@ describe("done and doing", () => {
   // asked about and nothing else.
   test("the dates on the other records come back as they were written", () => {
     const nodes = fileOf(planned(house(), { op: "done", id: "order" }), "house.olai")
-    expect(markOf(record(nodes, "demo"))).toBe("done")
-    expect(sinceOf(record(nodes, "demo"))).toBe("2026-08-01")
+    expect(record(nodes, "demo").done).toBe("2026-08-01")
   })
 
   // Resolved 2026-08-11 by the human, and it is a decision about the JOURNAL
@@ -500,35 +490,31 @@ describe("done and doing", () => {
   // every capture onto the day it was written down and `/today` would stop
   // being about what happened. Finishing is the event a day page is about;
   // starting and filing are not.
-  test("only `done` carries an instant — the other two carry no `since`", () => {
+  test("only `done` carries an instant — the other two say `true`", () => {
     const marked = (op: "done" | "doing" | "todo"): RegularNode =>
       record(fileOf(planned(house(), { op, id: "order" }), "house.olai"), "order")
-    expect(markOf(marked("done"))).toBe("done")
-    expect(sinceOf(marked("done"))).toBe(STAMP)
-    expect(markOf(marked("doing"))).toBe("doing")
-    expect(sinceOf(marked("doing"))).toBeUndefined()
-    expect(markOf(marked("todo"))).toBe("todo")
-    expect(sinceOf(marked("todo"))).toBeUndefined()
+    expect(marked("done").done).toBe(STAMP)
+    expect(marked("doing").doing).toBe(true)
+    expect(marked("todo").todo).toBe(true)
   })
 
   test("undo takes the mark off", () => {
     const result = planned(house(), { op: "done", id: "demo", undo: true })
-    expect(markOf(record(fileOf(result, "house.olai"), "demo"))).toBeUndefined()
+    expect(record(fileOf(result, "house.olai"), "demo").done).toBeUndefined()
     expect(result.summary).toBe("undone: demolition")
   })
 
   test("`doing` clears a stale `done`, because both at once is not a record", () => {
     const set = setOf({
-      "a.olai": `{"id":"x","ord":"a0","title":"x","props":{"status":"done","since":"2026-08-01"}}`,
+      "a.olai": `{"id":"x","ord":"a0","title":"x","done":"2026-08-01"}`,
     })
     // Straight to `doing` is refused; undo first, as the message says.
     expect(refused(set, { op: "doing", id: "x" }).message).toContain("Undo that first")
 
     const undone = setOf({ "a.olai": `{"id":"x","ord":"a0","title":"x"}` })
     const node = record(fileOf(planned(undone, { op: "doing", id: "x" }), "a.olai"), "x")
-    expect(markOf(node)).toBe("doing")
-    expect(sinceOf(node)).toBeUndefined()
-    expect(markOf(node)).not.toBe("done")
+    expect(node.doing).toBe(true)
+    expect(node.done).toBeUndefined()
   })
 
   test("already marked is refused rather than rewritten", () => {
@@ -540,29 +526,27 @@ describe("done and doing", () => {
   // finished work backwards without being told to.
   test("`todo` is a mark like the other two", () => {
     const result = planned(house(), { op: "todo", id: "order" })
-    expect(markOf(record(fileOf(result, "house.olai"), "order"))).toBe("todo")
-    expect(sinceOf(record(fileOf(result, "house.olai"), "order"))).toBeUndefined()
+    expect(record(fileOf(result, "house.olai"), "order").todo).toBe(true)
     expect(result.summary).toBe("todo: order the cabinets")
 
     // Started, then put back on the pile: `doing` goes, `todo` arrives.
     const under = setOf({
-      "a.olai": `{"id":"x","ord":"a0","title":"x","props":{"status":"doing","since":"2026-08-01"}}`,
+      "a.olai": `{"id":"x","ord":"a0","title":"x","doing":"2026-08-01"}`,
     })
     const node = record(fileOf(planned(under, { op: "todo", id: "x" }), "a.olai"), "x")
-    expect(markOf(node)).toBe("todo")
-    expect(sinceOf(node)).toBeUndefined()
-    expect(markOf(node)).not.toBe("doing")
+    expect(node.todo).toBe(true)
+    expect(node.doing).toBeUndefined()
 
     // A done node is not quietly un-finished, whichever mark is asked for.
     const finished = setOf({
-      "a.olai": `{"id":"x","ord":"a0","title":"x","props":{"status":"done","since":"2026-08-01"}}`,
+      "a.olai": `{"id":"x","ord":"a0","title":"x","done":"2026-08-01"}`,
     })
     expect(refused(finished, { op: "todo", id: "x" }).message).toContain("Undo that first")
 
     // And taking it off says so in the commit line, like its two siblings.
-    const marked = setOf({ "a.olai": `{"id":"x","ord":"a0","title":"x","props":{"status":"todo"}}` })
+    const marked = setOf({ "a.olai": `{"id":"x","ord":"a0","title":"x","todo":true}` })
     const cleared = planned(marked, { op: "todo", id: "x", undo: true })
-    expect(markOf(record(fileOf(cleared, "a.olai"), "x"))).toBeUndefined()
+    expect(record(fileOf(cleared, "a.olai"), "x").todo).toBeUndefined()
     expect(cleared.summary).toBe("not-todo: x")
   })
 
@@ -582,14 +566,13 @@ describe("done and doing", () => {
     const set = setOf({
       "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done"}}`,
-        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"status":"doing"}}`,
+        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":true}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true}`,
         `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "done", id: "kitchen" })
-    expect(markOf(record(fileOf(result, "house.olai"), "kitchen"))).toBe("done")
-    expect(sinceOf(record(fileOf(result, "house.olai"), "kitchen"))).toBe(STAMP)
+    expect(record(fileOf(result, "house.olai"), "kitchen").done).toBe(STAMP)
     expect(result.summary).toBe("done: Kitchen remodel")
   })
 
@@ -605,8 +588,7 @@ describe("done and doing", () => {
       ].join("\n"),
     })
     const result = planned(set, { op: "todo", id: "p" })
-    expect(markOf(record(fileOf(result, "a.olai"), "p"))).toBe("todo")
-    expect(sinceOf(record(fileOf(result, "a.olai"), "p"))).toBeUndefined()
+    expect(record(fileOf(result, "a.olai"), "p").todo).toBe(true)
     // Nothing under it is a task, so there is nothing to remark on either.
     expect(result.nudge).toBeUndefined()
   })
@@ -618,14 +600,13 @@ describe("done and doing", () => {
     const set = setOf({
       "a.olai": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","props":{"status":"done"}}`,
-        `{"id":"c2","parent":"p","ord":"a1","title":"pack","props":{"status":"todo"}}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","done":true}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"pack","todo":true}`,
         `{"id":"c3","parent":"p","ord":"a2","title":"ferry times"}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "done", id: "p" })
-    expect(markOf(record(fileOf(result, "a.olai"), "p"))).toBe("done")
-    expect(sinceOf(record(fileOf(result, "a.olai"), "p"))).toBe(STAMP)
+    expect(record(fileOf(result, "a.olai"), "p").done).toBe(STAMP)
     expect(result.nudge).toContain("1 unfinished task")
     expect(result.nudge).toContain("`pack`")
     expect(result.nudge).not.toContain("ferry times")
@@ -638,8 +619,8 @@ describe("done and doing", () => {
     const set = setOf({
       "a.olai": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","props":{"status":"done"}}`,
-        `{"id":"c2","parent":"p","ord":"a1","title":"pack","props":{"status":"doing"}}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","done":true}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"pack","doing":true}`,
         `{"id":"c3","parent":"p","ord":"a2","title":"ferry times"}`,
       ].join("\n"),
     })
@@ -651,16 +632,16 @@ describe("done and doing", () => {
     const half = setOf({
       "a.olai": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","props":{"status":"todo"}}`,
-        `{"id":"c2","parent":"p","ord":"a1","title":"pack","props":{"status":"doing"}}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","todo":true}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"pack","doing":true}`,
       ].join("\n"),
     })
     expect(planned(half, { op: "done", id: "c2" }).nudge).toBeUndefined()
 
     const already = setOf({
       "a.olai": [
-        `{"id":"p","ord":"a0","title":"the trip","props":{"status":"done","since":"2026-08-01"}}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"pack","props":{"status":"doing"}}`,
+        `{"id":"p","ord":"a0","title":"the trip","done":"2026-08-01"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","doing":true}`,
       ].join("\n"),
     })
     expect(planned(already, { op: "done", id: "c1" }).nudge).toBeUndefined()
@@ -672,7 +653,7 @@ describe("done and doing", () => {
     const set = setOf({
       "a.olai": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"pack","props":{"status":"done"}}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","done":true}`,
       ].join("\n"),
     })
     expect(planned(set, { op: "done", id: "c1", undo: true }).nudge).toBeUndefined()
@@ -686,6 +667,244 @@ describe("done and doing", () => {
       "b.olai": `{"id":"m","ord":"a0","mirror":"x"}`,
     })
     expect(refused(set, { op: "done", id: "m" }).message).toContain("`x`")
+  })
+})
+
+// ── doing refuses what the order forbids ───────────────────────────────
+
+/**
+ * The DAG stops being a drawing and becomes a mechanism: `set_doing` on a node
+ * whose `after` targets are unfinished work refuses, naming them.
+ *
+ * The asymmetry is what most of this block is about. `set_done` keeps its
+ * allow-with-nudge — finishing out of order is sometimes true — and `set_todo`
+ * is untouched, because filing work is not starting it. Only the STARTING verb
+ * says no.
+ */
+describe("starting what is blocked", () => {
+  /** `install` waits on `order`; `order` waits on nothing that is unfinished. */
+  const chain = (...records: ReadonlyArray<string>): OutlineSet =>
+    setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        ...records,
+      ].join("\n"),
+    })
+
+  const WAITING = chain(
+    `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","doing":true}`,
+    `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["order"]}`,
+  )
+
+  test("the refusal names the blockers in words, and nothing is written", () => {
+    const failure = refused(WAITING, { op: "doing", id: "install" })
+    expect(failure._tag).toBe("UsageFailure")
+    // The title a person recognises, the id an agent has to type next, and the
+    // mark that says which kind of waiting this is.
+    expect(failure.message).toContain("`install them`")
+    expect(failure.message).toContain("`order the cabinets`")
+    expect(failure.message).toContain("`order`")
+    expect(failure.message).toContain("doing")
+    expect(failure.message).toContain("1 unfinished task")
+    expect(failure.message).toContain("start what is ready")
+  })
+
+  test("every blocker is named, not just the first", () => {
+    const two = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","doing":true}`,
+      `{"id":"wire","parent":"kitchen","ord":"a1","title":"rewire","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","after":["order","wire"]}`,
+    )
+    const message = refused(two, { op: "doing", id: "install" }).message
+    expect(message).toContain("2 unfinished tasks")
+    expect(message).toContain("`order the cabinets`")
+    expect(message).toContain("`rewire`")
+    expect(message).toContain("Finish those first")
+  })
+
+  /**
+   * The hole the DRAWN reading leaves, and the reason the gate asks
+   * `standingBefore` rather than `blockersOf`: an unmarked node is not drawn
+   * blocked — a bullet is not work — but `set_doing` is about to make it work,
+   * and its `after` edges said what comes first. Asking the drawn reading here
+   * would make "start it from a bullet" the way round the whole law.
+   */
+  test("a bullet with unfinished work before it is refused too", () => {
+    const bullet = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["order"]}`,
+    )
+    expect(refused(bullet, { op: "doing", id: "install" }).message)
+      .toContain("`order the cabinets`")
+    // And it is only the STARTING verb: the same bullet takes both other marks.
+    expect(record(fileOf(planned(bullet, { op: "todo", id: "install" }), "house.olai"), "install")
+      .todo).toBe(true)
+    expect(record(fileOf(planned(bullet, { op: "done", id: "install" }), "house.olai"), "install")
+      .done).toBe(STAMP)
+  })
+
+  test("a node with nothing in its way still starts", () => {
+    const free = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["order"]}`,
+    )
+    expect(record(fileOf(planned(free, { op: "doing", id: "order" }), "house.olai"), "order")
+      .doing).toBe(true)
+    const ready = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","done":"2026-08-01"}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["order"]}`,
+    )
+    expect(record(fileOf(planned(ready, { op: "doing", id: "install" }), "house.olai"), "install")
+      .doing).toBe(true)
+  })
+
+  /**
+   * The derivation is the source of truth and this is what reading it rather
+   * than respelling it buys: three targets that stand in nobody's way, and not
+   * one of them needed a line of its own in the planner.
+   */
+  test("a bullet, a done target and an archived one block nothing", () => {
+    const bullet = chain(
+      `{"id":"note","parent":"kitchen","ord":"a0","title":"the showroom's number"}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["note"]}`,
+    )
+    expect(record(fileOf(planned(bullet, { op: "doing", id: "install" }), "house.olai"), "install")
+      .doing).toBe(true)
+
+    const finished = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","done":"2026-08-01"}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["order"]}`,
+    )
+    expect(record(fileOf(planned(finished, { op: "doing", id: "install" }), "house.olai"), "install")
+      .doing).toBe(true)
+
+    const away = setOf({
+      "house.olai": `{"id":"install","ord":"a0","title":"install them","after":["order"]}`,
+      "Archive.olai": `{"id":"order","ord":"a0","title":"order the cabinets","todo":true}`,
+    })
+    expect(record(fileOf(planned(away, { op: "doing", id: "install" }), "house.olai"), "install")
+      .doing).toBe(true)
+  })
+
+  /** `a blocks b` means `b after a`, normalised in the derivation — so the
+   *  refusal reads one graph and the sugar is not a way round it. */
+  test("`blocks` is the same edge from the other end, and refuses the same", () => {
+    const sugar = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true,"blocks":["install"]}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them"}`,
+    )
+    expect(refused(sugar, { op: "doing", id: "install" }).message)
+      .toContain("`order the cabinets`")
+  })
+
+  // THE ASYMMETRY, stated as a test rather than only as a comment: the verb
+  // that records what happened is not the verb that instructs what to do next.
+  test("`set_done` still lands on a blocked node, with its nudge unchanged", () => {
+    const result = planned(WAITING, { op: "done", id: "install" })
+    expect(record(fileOf(result, "house.olai"), "install").done).toBe(STAMP)
+    expect(result.summary).toBe("done: install them")
+    // Nothing is under it, so there is nothing to remark on — the rollup's own
+    // rule, untouched by this change.
+    expect(result.nudge).toBeUndefined()
+  })
+
+  test("`set_todo` is untouched — filing work is not starting it", () => {
+    expect(record(fileOf(planned(WAITING, { op: "todo", id: "install" }), "house.olai"), "install")
+      .todo).toBe(true)
+  })
+
+  test("un-starting needs no gate: the undo of a blocked `doing` goes through", () => {
+    // The node started before its blocker came back, and putting the mark down
+    // is the thing a blocked node SHOULD be able to do.
+    const started = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","doing":true,"after":["order"]}`,
+    )
+    const result = planned(started, { op: "doing", id: "install", undo: true })
+    expect(record(fileOf(result, "house.olai"), "install").doing).toBeUndefined()
+    expect(result.summary).toBe("not-doing: install them")
+  })
+
+  /**
+   * The first deliberate non-gate, as a TEST rather than a claim in a comment
+   * (grok, review of a41e74cc). Wiring an `after` edge onto a node that is
+   * already `doing` records a discovery — "I picked this up and have just
+   * realised it needs X first" — and the row then truthfully draws blocked.
+   * What is refused is the INSTRUCTION to start, never the correction of the
+   * graph, so gating this verb would make the order unsayable exactly when
+   * somebody has learned what it is.
+   */
+  test("`set_after` onto an already-doing node lands: the graph is not immutable", () => {
+    const started = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","doing":true}`,
+    )
+    const result = planned(started, { op: "after", id: "install", add: ["order"] })
+    const node = record(fileOf(result, "house.olai"), "install")
+    expect(node.after).toEqual(["order"])
+    // Still doing, and now drawn blocked — both facts at once, which is what
+    // docs/format.md means by blockedness being a SECOND fact about a node.
+    expect(node.doing).toBe(true)
+    // The edge the write just added IS what the gate would have refused, had
+    // this been a start — so the two verbs are looking at one graph.
+    expect(
+      standingBefore(derive(setOf({ "house.olai": serializeOutline(fileOf(result, "house.olai")) }).nodes), "install")
+        .map((one) => one.at.node.id),
+    ).toEqual(["order"])
+  })
+
+  /**
+   * The second, and this one is a property of the FORMAT rather than a choice:
+   * a captured node cannot arrive blocked, because a capture has no way to
+   * spell an edge. `AddRequest`'s `after` is the sibling ANCHOR — where among
+   * its siblings the row lands — and the capture schema carries no `after` or
+   * `blocks` field at any depth. Asserted on the RECORD the plan writes, so a
+   * field quietly gaining an edge shape here fails rather than opening a way
+   * to mint a blocked `doing` in one call.
+   */
+  test("a capture cannot arrive blocked: `after` is an anchor, not an edge", () => {
+    const set = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+    )
+    const nodes = fileOf(
+      planned(set, {
+        op: "add",
+        parent: "kitchen",
+        title: "install them",
+        mark: "doing",
+        // The `after` an `add` takes: WHERE among its siblings, never an edge.
+        after: "order",
+      }),
+      "house.olai",
+    )
+    const born = record(nodes, "n1")
+    expect(born.doing).toBe(true)
+    expect(childOrder(nodes, "kitchen")).toEqual(["order", "n1"])
+    // The anchor placed it and left no edge behind: nothing for the gate to
+    // have been asked about, which is why the planner never asks.
+    expect(born.after).toBeUndefined()
+    expect(born.blocks).toBeUndefined()
+    // Said the other way, over the derivation the gate reads: born `doing`,
+    // waiting on nothing, however unfinished the row it was anchored after.
+    expect(
+      standingBefore(derive(setOf({ "house.olai": serializeOutline(nodes) }).nodes), "n1"),
+    ).toEqual([])
+  })
+
+  // The two refusals that were already there still come first: neither is
+  // about the order, and both are about the node's own mark.
+  test("the older refusals are not displaced by this one", () => {
+    const already = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","doing":true,"after":["order"]}`,
+    )
+    expect(refused(already, { op: "doing", id: "install" }).message).toContain("already doing")
+
+    const finished = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","done":"2026-08-01","after":["order"]}`,
+    )
+    expect(refused(finished, { op: "doing", id: "install" }).message).toContain("Undo that first")
   })
 })
 
@@ -802,76 +1021,6 @@ describe("title, note and date", () => {
   })
 })
 
-// ── prop ───────────────────────────────────────────────────────────────
-
-describe("prop", () => {
-  const propsOf = (set: OutlineSet, request: Request): Record<string, unknown> => ({
-    ...record(fileOf(planned(set, request), "house.olai"), "order").props,
-  })
-
-  test("a key olai does not read holds whatever it is given", () => {
-    expect(propsOf(house(), { op: "prop", id: "order", key: "pr", value: "https://x/1" }))
-      .toEqual({ pr: "https://x/1" })
-    // The summary names the KEY, because the key is what changed: a subject
-    // reading `prop: order the cabinets` would leave the reader to diff the
-    // line to find out which fact moved.
-    expect(planned(house(), { op: "prop", id: "order", key: "pr", value: "https://x/1" }).summary)
-      .toBe("prop: order the cabinets -> pr=https://x/1")
-  })
-
-  test("`null` removes it, and so does the empty string", () => {
-    const carrying = setOf({
-      "house.olai": KITCHEN.replace(
-        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
-        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
-          `"props":{"pr":"https://x/1","agent":"claude-opus"}}`,
-      ),
-    })
-    // The other key is untouched: this op is about ONE property, and a write
-    // that rebuilt the map would take the rest of it with whatever it knew.
-    expect(propsOf(carrying, { op: "prop", id: "order", key: "pr", value: null }))
-      .toEqual({ agent: "claude-opus" })
-    expect(propsOf(carrying, { op: "prop", id: "order", key: "pr", value: "" }))
-      .toEqual({ agent: "claude-opus" })
-    expect(planned(carrying, { op: "prop", id: "order", key: "pr", value: null }).summary)
-      .toBe("prop: order the cabinets -> pr (cleared)")
-  })
-
-  /**
-   * The six keys olai reads, each refused toward the verb that owns it — and
-   * the list is read off the FORMAT's own table rather than typed here, so a
-   * seventh system key is covered by this test the day it is declared.
-   *
-   * This is the whole of what makes `set_prop` safe to give an agent: every one
-   * of those verbs does something this op cannot — records the instant,
-   * validates the day, refuses the cycle, resolves the target — and a writer
-   * that could spell the same fact as a key would walk around all of it.
-   */
-  test("every key olai reads is refused, naming the verb that owns it", () => {
-    for (const { key } of SYSTEM_KEYS) {
-      const failure = refused(house(), { op: "prop", id: "order", key, value: "x" })
-      expect({ key, tag: failure._tag }).toEqual({ key, tag: "UsageFailure" })
-      expect({ key, says: failure.message.includes(`\`${key}\``) })
-        .toEqual({ key, says: true })
-      // The sentence is the key's own, from the format's table.
-      expect({ key, door: failure.message.endsWith(doorFor(key) as string) })
-        .toEqual({ key, door: true })
-    }
-  })
-
-  test("a key that is nothing but space is not a key", () => {
-    expect(refused(house(), { op: "prop", id: "order", key: "  ", value: "x" }).message)
-      .toBe("a property needs a key")
-  })
-
-  test("a key is trimmed, and otherwise spelled however it was typed", () => {
-    // NOT case-folded, not slugged: the map takes any key, and a rule here
-    // about spelling would be this op inventing one the format does not have.
-    expect(propsOf(house(), { op: "prop", id: "order", key: " Due-Owner ", value: "@rahul" }))
-      .toEqual({ "Due-Owner": "@rahul" })
-  })
-})
-
 // ── move ───────────────────────────────────────────────────────────────
 
 describe("move", () => {
@@ -957,7 +1106,7 @@ describe("create", () => {
         ord: "a0",
         title: "an idea #later",
         desc: "write it down",
-        props: { date: "2026-08-10" },
+        date: "2026-08-10",
       },
     ])
     expect(result.summary).toBe("capture: an idea #later")
@@ -989,15 +1138,9 @@ describe("create", () => {
     expect(result.files).toHaveLength(1)
     const nodes = fileOf(result, "shed.olai")
     expect(nodes.map((node) => node.id)).toEqual(["n1", "n2", "n3", "n4"])
-    expect(record(nodes, "n2")).toMatchObject({ parent: "n1", props: { status: "todo" } })
-    expect(record(nodes, "n3")).toMatchObject({
-      parent: "n2",
-      props: { status: "done", since: STAMP },
-    })
-    expect(record(nodes, "n4")).toMatchObject({
-      parent: "n1",
-      props: { date: "2026-09-04" },
-    })
+    expect(record(nodes, "n2")).toMatchObject({ parent: "n1", todo: true })
+    expect(record(nodes, "n3")).toMatchObject({ parent: "n2", done: STAMP })
+    expect(record(nodes, "n4")).toMatchObject({ parent: "n1", date: "2026-09-04" })
     expect(childOrder(nodes, "n1")).toEqual(["n2", "n4"])
 
     expect(result.summary).toBe("capture: The shed (+3)")
@@ -1127,7 +1270,7 @@ describe("split", () => {
     const set = setOf({
       "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-        `{"id":"order","parent":"kitchen","ord":"a0","title":"order it","props":{"status":"done","since":"2026-08-01","date":"2026-09-01","see":["kitchen"]},"desc":"walnut"}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order it","done":"2026-08-01","date":"2026-09-01","desc":"walnut","see":["kitchen"]}`,
         `{"id":"quote","parent":"order","ord":"a0","title":"get a quote"}`,
       ].join("\n"),
     })
@@ -1137,13 +1280,10 @@ describe("split", () => {
     )
     const head = record(nodes, "order")
     expect(head).toMatchObject({
-      props: {
-        status: "done",
-        since: "2026-08-01",
-        date: "2026-09-01",
-        see: ["kitchen"],
-      },
+      done: "2026-08-01",
+      date: "2026-09-01",
       desc: "walnut",
+      see: ["kitchen"],
     })
     expect(record(nodes, "quote").parent).toBe("order")
     // And the tail is a BULLET: a node with no mark is not an unstarted task,
@@ -1256,20 +1396,17 @@ describe("merge", () => {
     const set = setOf({
       "house.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
-        `{"id":"b","ord":"a1","title":"b","props":{"status":"done","since":"2026-08-01","date":"2026-09-01","see":["a"]},"doc":"finishes.md"}`,
+        `{"id":"b","ord":"a1","title":"b","done":"2026-08-01","date":"2026-09-01","doc":"finishes.md","see":["a"]}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "merge", id: "b" })
     expect(record(fileOf(result, "Archive.olai"), "b")).toMatchObject({
-      props: {
-        status: "done",
-        since: "2026-08-01",
-        date: "2026-09-01",
-        see: ["a"],
-      },
+      done: "2026-08-01",
+      date: "2026-09-01",
       doc: "finishes.md",
+      see: ["a"],
     })
-    expect(markOf(record(fileOf(result, "house.olai"), "a"))).toBeUndefined()
+    expect(record(fileOf(result, "house.olai"), "a").done).toBeUndefined()
     expect(result.nudge).toContain("`done` mark")
     expect(result.nudge).toContain("its date")
     expect(result.nudge).toContain("its document `finishes.md`")
@@ -1362,7 +1499,7 @@ describe("archive", () => {
       "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order"}`,
-        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","props":{"status":"done","since":"2026-07-01"}}`,
+        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","done":"2026-07-01"}`,
         `{"id":"sign","parent":"quote","ord":"a0","title":"sign it"}`,
       ].join("\n"),
     })
@@ -1370,9 +1507,8 @@ describe("archive", () => {
     expect(source.map((node) => node.id)).toEqual(["kitchen"])
     expect(archive.map((node) => node.id)).toEqual(["n1", "order", "quote", "sign"])
     // Nothing is stamped: archiving is not finishing.
-    expect(markOf(record(archive, "quote"))).toBe("done")
-    expect(sinceOf(record(archive, "quote"))).toBe("2026-07-01")
-    expect(markOf(record(archive, "sign"))).toBeUndefined()
+    expect(record(archive, "quote").done).toBe("2026-07-01")
+    expect(record(archive, "sign").done).toBeUndefined()
     expect(record(archive, "quote").parent).toBe("order")
   })
 
@@ -1459,7 +1595,7 @@ describe("unarchive", () => {
       "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order"}`,
-        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","props":{"status":"done","since":"2026-07-01"}}`,
+        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","done":"2026-07-01"}`,
         `{"id":"sign","parent":"quote","ord":"a0","title":"sign it"}`,
       ].join("\n"),
     })
@@ -1469,9 +1605,8 @@ describe("unarchive", () => {
     expect(record(source, "quote").parent).toBe("order")
     expect(record(source, "sign").parent).toBe("quote")
     // Nothing was stamped on the way in, and nothing is on the way out.
-    expect(markOf(record(source, "quote"))).toBe("done")
-    expect(sinceOf(record(source, "quote"))).toBe("2026-07-01")
-    expect(markOf(record(source, "sign"))).toBeUndefined()
+    expect(record(source, "quote").done).toBe("2026-07-01")
+    expect(record(source, "sign").done).toBeUndefined()
   })
 
   test("an explicit `parent` overrides the chain", () => {
@@ -1582,7 +1717,7 @@ describe("unarchive", () => {
     const set = setOf({
       "house.olai": [
         KITCHEN,
-        `{"id":"note","parent":"kitchen","ord":"a3","title":"see the old plan","props":{"see":["n9"]}}`,
+        `{"id":"note","parent":"kitchen","ord":"a3","title":"see the old plan","see":["n9"]}`,
       ].join("\n"),
       "Archive.olai": [
         `{"id":"n9","ord":"a0","title":"Kitchen remodel"}`,
@@ -1657,7 +1792,7 @@ describe("unarchive", () => {
     const set = setOf({
       "house.olai": KITCHEN,
       "Archive.olai": [
-        `{"id":"was-real","ord":"a0","title":"a whole archived branch","props":{"status":"done","since":"2026-07-01"}}`,
+        `{"id":"was-real","ord":"a0","title":"a whole archived branch","done":"2026-07-01"}`,
         `{"id":"leaf","parent":"was-real","ord":"a0","title":"its one leaf"}`,
       ].join("\n"),
     })
@@ -1676,13 +1811,13 @@ describe("see", () => {
     const set = setOf({
       "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-        `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","props":{"see":["demo"]}}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","see":["demo"]}`,
         `{"id":"demo","parent":"kitchen","ord":"a1","title":"demolition"}`,
         `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "see", id: "order", add: ["install"] })
-    expect(listOf(record(fileOf(result, "house.olai"), "order"), "see")).toEqual([
+    expect(record(fileOf(result, "house.olai"), "order").see).toEqual([
       "demo",
       "install",
     ])
@@ -1692,22 +1827,22 @@ describe("see", () => {
   test("removes targets, and clears the field when none remain", () => {
     const set = setOf({
       "a.olai": [
-        `{"id":"a","ord":"a0","title":"a","props":{"see":["b","c"]}}`,
+        `{"id":"a","ord":"a0","title":"a","see":["b","c"]}`,
         `{"id":"b","ord":"a1","title":"b"}`,
         `{"id":"c","ord":"a2","title":"c"}`,
       ].join("\n"),
     })
     const partial = planned(set, { op: "see", id: "a", remove: ["b"] })
-    expect(listOf(record(fileOf(partial, "a.olai"), "a"), "see")).toEqual(["c"])
+    expect(record(fileOf(partial, "a.olai"), "a").see).toEqual(["c"])
 
     const cleared = planned(set, { op: "see", id: "a", remove: ["b", "c"] })
-    expect(listOf(record(fileOf(cleared, "a.olai"), "a"), "see")).toEqual([])
+    expect("see" in record(fileOf(cleared, "a.olai"), "a")).toBe(false)
   })
 
   test("add and remove in one call: removes first, then appends adds", () => {
     const set = setOf({
       "a.olai": [
-        `{"id":"a","ord":"a0","title":"a","props":{"see":["b","c"]}}`,
+        `{"id":"a","ord":"a0","title":"a","see":["b","c"]}`,
         `{"id":"b","ord":"a1","title":"b"}`,
         `{"id":"c","ord":"a2","title":"c"}`,
         `{"id":"d","ord":"a3","title":"d"}`,
@@ -1718,7 +1853,7 @@ describe("see", () => {
       "a.olai",
     )
     // Survivors keep their order; new ids append.
-    expect(listOf(record(nodes, "a"), "see")).toEqual(["c", "d"])
+    expect(record(nodes, "a").see).toEqual(["c", "d"])
   })
 
   /**
@@ -1761,7 +1896,7 @@ describe("see", () => {
   test("a no-op — re-adding what is already there — is refused rather than rewritten", () => {
     const set = setOf({
       "a.olai": [
-        `{"id":"a","ord":"a0","title":"a","props":{"see":["b"]}}`,
+        `{"id":"a","ord":"a0","title":"a","see":["b"]}`,
         `{"id":"b","ord":"a1","title":"b"}`,
       ].join("\n"),
     })
@@ -1802,14 +1937,14 @@ describe("after", () => {
       "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition"}`,
-        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"after":["demo"]}}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","after":["demo"]}`,
         `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
       ].join("\n"),
     })
 
   test("adds an edge, keeping the ones already written", () => {
     const result = planned(CHAIN(), { op: "after", id: "order", add: ["kitchen"] })
-    expect(listOf(record(fileOf(result, "house.olai"), "order"), "after")).toEqual([
+    expect(record(fileOf(result, "house.olai"), "order").after).toEqual([
       "demo",
       "kitchen",
     ])
@@ -1821,7 +1956,7 @@ describe("after", () => {
       planned(CHAIN(), { op: "after", id: "order", remove: ["demo"] }),
       "house.olai",
     )
-    expect(listOf(record(nodes, "order"), "after")).toEqual([])
+    expect("after" in record(nodes, "order")).toBe(false)
   })
 
   /** The whole rule, and the message is the point of refusing it here rather
@@ -1848,7 +1983,7 @@ describe("after", () => {
     const set = setOf({
       "a.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
-        `{"id":"b","ord":"a1","title":"b","props":{"blocks":["a"]}}`,
+        `{"id":"b","ord":"a1","title":"b","blocks":["a"]}`,
       ].join("\n"),
     })
     // `b blocks a` IS `a after b`, so `b after a` closes it.
@@ -1863,7 +1998,7 @@ describe("after", () => {
     const set = setOf({
       "a.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
-        `{"id":"b","ord":"a1","title":"b","props":{"after":["mirror-of-a"]}}`,
+        `{"id":"b","ord":"a1","title":"b","after":["mirror-of-a"]}`,
       ].join("\n"),
       "b.olai": `{"id":"mirror-of-a","ord":"a0","mirror":"a"}`,
     })
@@ -1877,7 +2012,7 @@ describe("after", () => {
     const set = setOf({
       "a.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
-        `{"id":"b","ord":"a1","title":"b","props":{"after":["a"]}}`,
+        `{"id":"b","ord":"a1","title":"b","after":["a"]}`,
       ].join("\n"),
       "b.olai": `{"id":"mirror-of-b","ord":"a0","mirror":"b"}`,
     })
@@ -2069,7 +2204,7 @@ describe("unmirror", () => {
     setOf({
       "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","since":"2026-08-01"}}`,
+        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
       ].join("\n"),
       "now.olai": [
         `{"id":"now","ord":"a0","title":"Now"}`,
@@ -2145,7 +2280,7 @@ describe("unmirror", () => {
         "now.olai": [
           `{"id":"x","ord":"a0","title":"x"}`,
           `{"id":"one","ord":"a1","mirror":"x"}`,
-          `{"id":"y","ord":"a2","title":"y","props":{"${edge}":["one"]}}`,
+          `{"id":"y","ord":"a2","title":"y","${edge}":["one"]}`,
         ].join("\n"),
       })
       const failure = refused(set, { op: "unmirror", id: "one" })
@@ -2261,8 +2396,8 @@ describe("round trip", () => {
     `{"id":"now","ord":"a0","title":"Now"}`,
     `{"id":"now-demo","parent":"now","ord":"a0","mirror":"demo"}`,
     `{"id":"kitchen","ord":"a1","title":"Kitchen remodel"}`,
-    `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","after":["survey"]}}`,
-    `{"id":"survey","parent":"kitchen","ord":"a1","title":"survey the room","props":{"status":"todo","since":"2026-08-01"}}`,
+    `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":true,"after":["survey"]}`,
+    `{"id":"survey","parent":"kitchen","ord":"a1","title":"survey the room","todo":"2026-08-01"}`,
     `{"id":"paint","parent":"kitchen","ord":"a2","title":"paint the walls"}`,
   ]
 

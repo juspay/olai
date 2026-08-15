@@ -3,9 +3,13 @@
  * session.
  *
  * The model is here because a turn's cost and character depend on it and
- * nothing else on screen says. The session title is here because the agent
- * writes one in the background, and a conversation with a name is one you can
- * come back to — which is what the picker beside it is for.
+ * nothing else on screen says. USAGE is the other half of that same sentence —
+ * how much room is left to run the turn in — and it is here because the
+ * question it answers, "is it time to `/compact`?", had no answer on screen at
+ * all: a person found out by watching the agent start forgetting. The session
+ * title is here because the agent writes one in the background, and a
+ * conversation with a name is one you can come back to — which is what the
+ * picker beside it is for.
  *
  * WORKING is drawn BESIDE the model, not instead of it. The status used to take
  * that line until a model arrived and then never appear again, so from the
@@ -30,6 +34,7 @@ import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { Sessions } from "./Sessions.tsx"
 import type { Chat } from "./state.ts"
+import { usageOf } from "./usage.ts"
 
 export function Header(props: {
   readonly chat: Chat
@@ -50,6 +55,18 @@ export function Header(props: {
         <div class="flex items-center gap-2 truncate font-mono text-[0.6875rem] text-muted">
           <Show when={state().model} fallback={<span>{statusWord(state().status)}</span>}>
             {(model) => <span data-testid={TESTID.chatModel}>{model()}</span>}
+          </Show>
+          {/* The other half of the model's own sentence: what a turn runs on,
+              and how much room is left to run it in. Drawn only once the agent
+              has reported some — before the first turn there is nothing to
+              say, and a `0/?` invented for that gap would be a claim about a
+              window nobody named. */}
+          <Show when={usageOf(state().usage)}>
+            {(usage) => (
+              <span data-testid={TESTID.chatUsage} title="context used / context window">
+                {usage()}
+              </span>
+            )}
           </Show>
           {/* Always in the tree while a turn runs, whether or not a model is
               named — the two are independent, and a cue that only appears in

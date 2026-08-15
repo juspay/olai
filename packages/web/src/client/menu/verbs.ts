@@ -37,7 +37,6 @@
  */
 
 import {
-  dateOf,
   type Derived,
   isMirror,
   MARKS,
@@ -51,7 +50,6 @@ import type { Edit } from "@olai/surface"
 
 import { datePick } from "../date/pick.ts"
 import { type Relation, RELATIONS } from "../edges/relation.ts"
-import { drawerEntries } from "../props/drawer.ts"
 import { archiveQuestion } from "../trash/question.ts"
 import { under } from "./subtree.ts"
 
@@ -122,20 +120,6 @@ export type Does =
    *  panel is about travels with the arm, so the two entries are one code path
    *  rather than two that could drift. */
   | { readonly kind: "pick-edge"; readonly relation: Relation }
-  /**
-   * A PROPERTY, which is `pick-date`'s shape for `pick-date`'s reason: a key
-   * and a value are things somebody has to type, and a menu entry cannot carry
-   * them.
-   *
-   * `editing` is the property being changed, or `null` for one being added —
-   * so `Add property…` and `Edit pr…` are one code path with one panel, and the
-   * panel is told what it is editing rather than looking it up again off a row
-   * it does not have.
-   */
-  | {
-    readonly kind: "pick-prop"
-    readonly editing: { readonly key: string; readonly value: string } | null
-  }
 
 /** The ordinary answer, at the site that gives it — so the list below reads as
  *  a list of verbs rather than a list of wrappers. */
@@ -223,46 +207,14 @@ export const writeVerbs = (
     // hold "one way to say no date" up.
     verbs.push({
       id: "set-date",
-      label: dateOf(shown.node) === undefined ? "Set date…" : "Change date…",
+      label: shown.node.date === undefined ? "Set date…" : "Change date…",
       does: { kind: "pick-date" },
     })
-    if (dateOf(shown.node) !== undefined) {
+    if (shown.node.date !== undefined) {
       verbs.push({
         id: "clear-date",
         label: "Clear date",
         does: sends(datePick(shown.node.id, "")),
-      })
-    }
-    // THE PROPERTIES: one entry that adds one, and a pair per property the
-    // node already carries.
-    //
-    // WHICH properties those are is the DRAWER's answer, asked here rather than
-    // re-derived (`../props/drawer.ts`): the keys olai reads are drawn by the
-    // controls that know what they mean — the checkbox, the date pill, the
-    // reference rows — and are refused by the op, so offering `Edit status…`
-    // would be a menu promising a write the ops layer turns away.
-    //
-    // Editing is not offered for a key holding a LIST, and the drawer's own
-    // note says why: the editor writes text, so a key holding three ids would
-    // come back as one string with commas in it. Removing one is exact whatever
-    // it held, so that half is offered on every line.
-    verbs.push({
-      id: "prop-add",
-      label: "Add property…",
-      does: { kind: "pick-prop", editing: null },
-    })
-    for (const entry of drawerEntries(shown.node)) {
-      if (!entry.listed) {
-        verbs.push({
-          id: `prop-edit-${entry.key}`,
-          label: `Edit ${entry.key}…`,
-          does: { kind: "pick-prop", editing: { key: entry.key, value: entry.value } },
-        })
-      }
-      verbs.push({
-        id: `prop-remove-${entry.key}`,
-        label: `Remove ${entry.key}`,
-        does: sends({ verb: "prop", id: shown.node.id, key: entry.key, value: null }),
       })
     }
     // THE TWO EDGES, and they are offered on every node rather than only on one

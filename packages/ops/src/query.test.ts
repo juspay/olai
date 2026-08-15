@@ -25,8 +25,8 @@ const LEDGER = (): OutlineSet =>
       `{"id":"now-sticky","parent":"now","ord":"a0","mirror":"sticky"}`,
       `{"id":"now-git","parent":"now","ord":"a1","mirror":"focus-git"}`,
       `{"id":"bugs","ord":"a1","title":"Bugs"}`,
-      `{"id":"sticky","parent":"bugs","ord":"a0","title":"the header scrolls away","props":{"status":"doing","after":["git"],"see":["git"]}}`,
-      `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","props":{"status":"todo","pr":"https://github.com/juspay/olai/pull/176","agent":"claude-opus"}}`,
+      `{"id":"sticky","parent":"bugs","ord":"a0","title":"the header scrolls away","doing":true,"after":["git"],"see":["git"]}`,
+      `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","todo":true}`,
     ].join("\n"),
     "focus.olai": [
       `{"id":"focus","ord":"a0","title":"Focus"}`,
@@ -54,33 +54,6 @@ describe("the edges a node carries", () => {
     expect(bugs?.children.find((child) => child.id === "sticky"))
       .toMatchObject({ after: ["git"] })
     expect(detail(at(), "sticky")).toMatchObject({ after: ["git"], see: ["git"] })
-  })
-})
-
-/**
- * The MAP, on a node read — every property it carries, and nothing invented
- * for one that carries none.
- *
- * The three stamps and `date` beside it are the same facts in the vocabulary
- * this answer had before there were properties, and they stay. This is the node
- * saying everything it says about itself, and it is the only place a `pr` or an
- * `isbn` could come from — without it, `set_prop` would be a write whose result
- * no read could show.
- */
-describe("the properties a node carries", () => {
-  test("a node read answers the map, system keys and all", () => {
-    expect(detail(at(), "git")?.props).toEqual({
-      status: "todo",
-      pr: "https://github.com/juspay/olai/pull/176",
-      agent: "claude-opus",
-    })
-    // The old vocabulary still answers, over the same record: a reader that has
-    // been reading `todo` cannot tell the difference.
-    expect(detail(at(), "git")).toMatchObject({ todo: true, status: "todo" })
-  })
-
-  test("a node with no properties carries no map, rather than an empty one", () => {
-    expect(detail(at(), "bugs")).not.toHaveProperty("props")
   })
 })
 
@@ -193,12 +166,12 @@ describe("a query is words and operators", () => {
     setOf({
       "work.olai": [
         `{"id":"trip","ord":"a0","title":"the trip"}`,
-        `{"id":"book","parent":"trip","ord":"a0","title":"book the flights","props":{"status":"done","since":"2026-08-03"}}`,
-        `{"id":"pack","parent":"trip","ord":"a1","title":"pack","props":{"status":"todo"},"desc":"the small case"}`,
+        `{"id":"book","parent":"trip","ord":"a0","title":"book the flights","done":"2026-08-03"}`,
+        `{"id":"pack","parent":"trip","ord":"a1","title":"pack","todo":true,"desc":"the small case"}`,
         `{"id":"house","ord":"a1","title":"the house"}`,
-        `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","props":{"status":"done","since":"2026-08-09"}}`,
+        `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","done":"2026-08-09"}`,
       ].join("\n"),
-      "Archive.olai": `{"id":"old","ord":"a0","title":"an old trip","props":{"status":"done","since":"2026-01-01"}}`,
+      "Archive.olai": `{"id":"old","ord":"a0","title":"an old trip","done":"2026-01-01"}`,
     })
 
   const ids = (query: Parameters<typeof search>[1]): ReadonlyArray<string> =>

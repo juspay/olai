@@ -61,7 +61,7 @@
  * handed here.
  */
 
-import { dateOf, isOverdue, type Row, shownRecord } from "@olai/format"
+import { isOverdue, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 
@@ -86,8 +86,6 @@ import { createFoldReading } from "./fold/reading.ts"
 import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
 import { focusedNode } from "./focus.ts"
 import { createNoteExpand } from "./note/expand.ts"
-import type { Editing } from "./props/editor.ts"
-import { PropEditor } from "./props/PropEditor.tsx"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { nodeMenuActions } from "./menu/actions.ts"
@@ -220,13 +218,6 @@ function Branch(props: {
   const openPicker = (): void => {
     setPicking(true)
   }
-
-  /** Is this row's property editor open, and on WHAT — a property it carries,
-   *  or `null` for one being added? Local to the ROW for the picker's reason:
-   *  the `•••` menu that opened it is closed by the time anything has been
-   *  typed. `undefined` is closed, which is the third state a `null` inside the
-   *  value could not spell (./props/PropEditor.tsx). */
-  const [propping, setPropping] = createSignal<Editing | null | undefined>(undefined)
 
   /** This row's edge editing — which panel is open, the writes its two doors
    *  send, and the line that says what came of them (./edges/editing.tsx). The
@@ -441,7 +432,6 @@ function Branch(props: {
               record: undo.record,
               pickDate: openPicker,
               pickEdge: edges.open,
-              pickProp: (editing) => setPropping(editing),
             })}
           />
           <Show
@@ -515,7 +505,7 @@ function Branch(props: {
                 from={shows().file}
                 status={props.row.status}
                 progress={props.row.progress}
-                date={dateOf(shows().node)}
+                date={shows().node.date}
                 overdue={isOverdue(shows().node, today())}
                 onEdit={clickTitle}
                 onPickDate={openPicker}
@@ -541,32 +531,9 @@ function Branch(props: {
         {(shows) => (
           <div class={PAST_CONTROLS}>
             <DatePicker
-              date={dateOf(shows().node)}
+              date={shows().node.date}
               onPick={(day) => applying(datePick(shows().node.id, day), undo.record)}
               onClose={() => setPicking(false)}
-            />
-          </div>
-        )}
-      </Show>
-
-      {/* The property editor, on the same terms as the picker above: opened
-          from the `•••`, drawn under the line it was opened on, about the node
-          the row SHOWS — a placement carries no properties of its own, so a
-          property typed at a mirror lands on its target exactly as a mark does.
-
-          The `when` tests the OPENNESS rather than the value, because `null` is
-          a state it is open in: adding a property nobody has named yet. */}
-      <Show when={propping() !== undefined ? shown() : undefined}>
-        {(shows) => (
-          <div class={PAST_CONTROLS}>
-            <PropEditor
-              editing={propping() ?? null}
-              onSet={(key, value) =>
-                applying(
-                  { verb: "prop", id: shows().node.id, key, value },
-                  undo.record,
-                )}
-              onClose={() => setPropping(undefined)}
             />
           </div>
         )}

@@ -71,9 +71,9 @@ test("a stamp's day is the local day", () => {
 // opinion about ISO.
 test("what a stamp writes, the format accepts", () => {
   const outline = outlineOf(
-    `{"id":"order","ord":"a0","title":"order the new cabinets","props":{"status":"done","since":${
+    `{"id":"order","ord":"a0","title":"order the new cabinets","done":${
       JSON.stringify(stampOf(AT))
-    }}}`,
+    }}`,
   )
   expect(outline.nodes).toHaveLength(1)
 })

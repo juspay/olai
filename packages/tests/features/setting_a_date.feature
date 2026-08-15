@@ -111,8 +111,8 @@ Feature: Setting a date from the web
     # from a `git pull`.
     When I rewrite "house.olai" as:
       """
-      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","props":{"status":"doing","since":"2026-08-01"}}
-      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","props":{"status":"doing","since":"2026-08-05","date":"2026-08-10T14:30:00-04:00"}}
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","date":"2026-08-10T14:30:00-04:00"}
       """
     Then the node "install" is not shown
     When I open the date picker on "order"

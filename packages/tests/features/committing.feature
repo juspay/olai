@@ -51,16 +51,16 @@ Feature: Committing on purpose
     When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
-      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","props":{"status":"doing","since":"2026-07-20"}}
-      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","props":{"status":"done","since":"2026-07-20"}}
-      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","props":{"status":"done","since":"2026-08-10"}}
+      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","done":"2026-08-10"}
       {"id":"frames","parent":"garden","ord":"a1","title":"the cold frames"}
-      {"id":"glazing","parent":"frames","ord":"a0","title":"replace the cracked pane","props":{"status":"done","since":"2026-07-15"}}
-      {"id":"sowing","parent":"frames","ord":"a1","title":"sow the first trays","props":{"status":"done","since":"2026-08-11"}}
+      {"id":"glazing","parent":"frames","ord":"a0","title":"replace the cracked pane","done":"2026-07-15"}
+      {"id":"sowing","parent":"frames","ord":"a1","title":"sow the first trays","done":"2026-08-11"}
       {"id":"slugs","parent":"frames","ord":"a2","title":"the slugs got the seedlings last year"}
       {"id":"compost","parent":"garden","ord":"a2","title":"the compost heap"}
-      {"id":"turned","parent":"compost","ord":"a0","title":"turn the pile","props":{"status":"done","since":"2026-07-01"}}
-      {"id":"straw","parent":"compost","ord":"a1","title":"add the straw","props":{"status":"done","since":"2026-07-02"}}
+      {"id":"turned","parent":"compost","ord":"a0","title":"turn the pile","done":"2026-07-01"}
+      {"id":"straw","parent":"compost","ord":"a1","title":"add the straw","done":"2026-07-02"}
       """
     Then the commit pill says "waiting"
     And the commit pill says 1 uncommitted
@@ -149,16 +149,16 @@ Feature: Committing on purpose
     And I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
-      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","props":{"status":"doing","since":"2026-07-20"}}
-      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","props":{"status":"done","since":"2026-07-20"}}
-      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","props":{"status":"doing"},"desc":"the roots are matted"}
+      {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true,"desc":"the roots are matted"}
       {"id":"frames","parent":"garden","ord":"a1","title":"the cold frames"}
-      {"id":"glazing","parent":"frames","ord":"a0","title":"replace the cracked pane","props":{"status":"done","since":"2026-07-15"}}
-      {"id":"sowing","parent":"frames","ord":"a1","title":"sow the first trays","props":{"status":"done","since":"2026-08-11"}}
+      {"id":"glazing","parent":"frames","ord":"a0","title":"replace the cracked pane","done":"2026-07-15"}
+      {"id":"sowing","parent":"frames","ord":"a1","title":"sow the first trays","done":"2026-08-11"}
       {"id":"slugs","parent":"frames","ord":"a2","title":"the slugs got the seedlings last year"}
       {"id":"compost","parent":"garden","ord":"a2","title":"the compost heap"}
-      {"id":"turned","parent":"compost","ord":"a0","title":"turn the pile","props":{"status":"done","since":"2026-07-01"}}
-      {"id":"straw","parent":"compost","ord":"a1","title":"add the straw","props":{"status":"done","since":"2026-07-02"}}
+      {"id":"turned","parent":"compost","ord":"a0","title":"turn the pile","done":"2026-07-01"}
+      {"id":"straw","parent":"compost","ord":"a1","title":"add the straw","done":"2026-07-02"}
       """
     Then the commit pill says "blocked"
     And the commit pill says 1 uncommitted

@@ -91,9 +91,9 @@ Feature: The outline and the chat point at each other
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
-      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","props":{"status":"done","since":"2026-08-03"}}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
       {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets"}
-      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","props":{"status":"doing","since":"2026-08-02"}}
+      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
       {"id":"now-order","ord":"a1","mirror":"order"}
       """
     Then the node "now-order" is shown
@@ -116,8 +116,8 @@ Feature: The outline and the chat point at each other
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
-      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","props":{"status":"done","since":"2026-08-03"}}
-      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","props":{"status":"doing","since":"2026-08-02"}}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
+      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
       """
     Then the node "order" is not shown
     When I ask the agent "context"
