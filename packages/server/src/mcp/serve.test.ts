@@ -716,13 +716,13 @@ test("`olai mcp` on a served directory attaches instead of opening a second stor
   // ops layer: the whole of what it holds is an MCP adapter over somebody
   // else's surface.
   expect(answerTo(said, 2).result?.isError).toBeUndefined()
-  expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8"))
+  expect(fs.readFileSync(path.join(root, "house.olai"), "utf8"))
     .toContain("order the cabinets, attached")
 
   // BOTH halves of the face cross the socket, not just the tools. A bridge that
   // wrote but could not read would still log the attached line and still pass
   // every assertion above — and an agent's first act is a read.
-  expect(JSON.stringify(answerTo(said, 3).result)).toContain("house.jsonl")
+  expect(JSON.stringify(answerTo(said, 3).result)).toContain("house.olai")
 }, BOUND_MS * 3)
 
 test("with nothing serving the directory, it opens its own store exactly as before", async () => {
@@ -742,7 +742,7 @@ test("with nothing serving the directory, it opens its own store exactly as befo
   expect(said.err).toInclude("serving the outline surface over stdio")
   expect(said.err).not.toInclude("attached to the olai")
   expect(answerTo(said, 2).result?.isError).toBeUndefined()
-  expect(fs.readFileSync(path.join(root, "house.jsonl"), "utf8"))
+  expect(fs.readFileSync(path.join(root, "house.olai"), "utf8"))
     .toContain("order the cabinets, fresh")
 }, BOUND_MS * 3)
 

@@ -70,12 +70,12 @@ test("a write over the socket lands in the running server's directory", async ()
       dispatch.unary("surface/ops/run", { op: "title", id: "a", title: "renamed over the socket" }) as Effect.Effect<{ title: string; file: string; rev: number }>,
     )
     expect(applied.title).toBe("renamed over the socket")
-    expect(applied.file).toBe("a.jsonl")
+    expect(applied.file).toBe("a.olai")
 
     // The bytes, on the disk of the process that owns the store. This is the
     // whole claim: the caller has no store, no watcher and no ops layer, and
     // the write went through the same gate a keystroke does.
-    expect(fs.readFileSync(path.join(root, "a.jsonl"), "utf8"))
+    expect(fs.readFileSync(path.join(root, "a.olai"), "utf8"))
       .toContain(`"title":"renamed over the socket"`)
   })
 })
