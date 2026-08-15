@@ -982,6 +982,31 @@ A fifth is worth recording for whoever tries again: expansion has no event.
 remembering folds (`fold/folders.ts`) would mean polling
 `getItem(path).isExpanded()` over every directory on every invalidation tick.
 
+**What the hatch cost instead**, by #171's method — `just build-client`'s own
+per-asset report summed over the first-paint set (the entry the shell names,
+plus every chunk it `modulepreload`s, plus the stylesheet; a dynamic `import()`
+is deliberately not followed), with the `before` side built in a second
+worktree at the same `origin/master` this branch is merged up to:
+
+| | raw | brotli |
+|---|---|---|
+| `origin/master` first paint | 907,903 | 236,647 |
+| with the glyphs | 909,912 | 237,423 |
+| **delta** | **+2,009** | **+776** |
+
+Three glyphs for two kilobytes, against the 252,776 / 62,250 the library would
+have put on the same surface. `main-bgprjr4z.js` is 534 B with no `.br` sibling
+— under the compressor's floor, so it is counted raw on both sides.
+
+Both sides must be built at the SAME base, which is the one way to get this
+wrong: the raw delta is +2,009 measured against either base, but subtracting a
+NEWER master's first paint from an OLDER base's branch build silently credits
+this change with whatever the intervening PR did (#172 put +663 raw / +311
+brotli on master, and that subtraction reported +1,346 / +362). Brotli deltas
+in particular are not additive across bases — the same 2,009 bytes compressed
+to +673 against the older base and +776 against this one, because what they are
+compressed ALONGSIDE changed.
+
 ## The connection, said out loud
 
 `src/client/connection/` is the chrome for the one thing the outlines cannot
