@@ -31,20 +31,20 @@
  * on darwin is local to the host, so that exclusion cannot be promised on both
  * platforms and is not claimed here.
  *
- * WHERE THE LOCK IS: `$XDG_RUNTIME_DIR/olai/<digest>.lock` (or the fixed
- * per-user `/tmp/olai-$UID/` off systemd), beside the agent socket and with the
- * same stem — one vault's `.sock` and `.lock` are one glance apart, and the
- * runtime directory is per-user, owner-only and cleared by the machine rather
- * than by us. NOT inside the served directory: a vault is somebody's git
- * repository, and olai does not leave files in it.
+ * WHERE THE LOCK IS: `$XDG_RUNTIME_DIR/olai/<digest>.lock`, the per-user
+ * runtime directory — owner-only, and cleared by the machine rather than by
+ * us. NOT inside the served directory: a vault is somebody's git repository or
+ * notes app, and olai does not leave files in it. A vault on a read-only mount
+ * still serves.
  *
  * The digest is over the REALPATH, which is the load-bearing half. A person
  * types `olai web ~/notes` in one terminal and `olai web .` from inside a
  * symlink to it in another; `resolve` answers those two differently and
  * `realpath` answers them the same, and two brains over one vault is exactly
- * what the difference would buy. (The same canonicalisation `./socket.ts` does
- * for the rendezvous, spelled again here rather than shared, because that file
- * belongs to a PR removing it. When it goes, this is the only copy left.)
+ * what the difference would buy. That seam is the one #175 named and deferred —
+ * the rendezvous socket canonicalised with `realpath` while `./directory.ts`
+ * resolved — and with the socket retired (#184) this is the only
+ * canonicalisation of a served root left in the process.
  *
  * The lock file is NEVER UNLINKED, and that is deliberate: removing a locked
  * file is the classic lockfile race — a second process opens the inode, the
@@ -57,10 +57,9 @@
 
 import { Data, Effect } from "effect"
 import type { Scope } from "effect"
-import { getRuntimeSocketPath } from "@kolu/surface/unix-socket"
 import { createHash } from "node:crypto"
 import * as fs from "node:fs"
-import { dirname, resolve } from "node:path"
+import { dirname, join, resolve } from "node:path"
 
 import { lockExclusive } from "./flock.ts"
 
@@ -112,10 +111,31 @@ export class LockUnavailable extends Data.TaggedError("LockUnavailable")<{
  * this must not be what tells them so.
  */
 export const lockFor = (root: string): string =>
-  getRuntimeSocketPath({
-    app: "olai",
-    file: `${createHash("sha256").update(canonical(root)).digest("hex").slice(0, 16)}.lock`,
-  })
+  join(
+    runtimeHome(),
+    `${createHash("sha256").update(canonical(root)).digest("hex").slice(0, 16)}.lock`,
+  )
+
+/**
+ * `$XDG_RUNTIME_DIR/olai`, or the fixed per-user `/tmp/olai-$UID` where there
+ * is no runtime directory — the convention kolu's rendezvous sockets use, which
+ * olai kept a user of until #184 and is one again here.
+ *
+ * NOT `os.tmpdir()`, and that is the whole reason this is not one line: it
+ * honours `$TMPDIR`, which differs by LAUNCH CONTEXT — a launchd- or
+ * systemd-started olai and one a person types into a terminal get different
+ * ones — so the same vault would be locked at two paths and neither process
+ * would see the other. `/tmp` is present and identical in every process on both
+ * platforms, and `-$UID` keeps it per-user. Read at call time rather than at
+ * import, so a test can point a server somewhere of its own (the same reason
+ * `@olai/chat`'s state home is).
+ */
+const runtimeHome = (): string => {
+  const xdg = process.env["XDG_RUNTIME_DIR"]
+  return xdg !== undefined && xdg !== ""
+    ? join(xdg, "olai")
+    : `/tmp/olai-${process.getuid?.() ?? "shared"}`
+}
 
 const canonical = (root: string): string => {
   try {
@@ -192,8 +212,10 @@ export const holdVault = (
 
 /** The lock file, opened for writing without truncating it — truncation would
  *  erase the pid of whoever is holding it, which is the one thing the file is
- *  for. Its directory is made owner-only, and checked to still be ours: the
- *  same reasoning the agent socket's does, one path along. */
+ *  for. Its directory is made owner-only and checked to still be ours, because
+ *  off systemd it is a fixed path in `/tmp`: a directory somebody else made
+ *  there first is one they could hold a lock in, and olai would report their
+ *  claim as another olai of the reader's own. */
 const openLock = (path: string): number | LockUnavailable => {
   const directory = dirname(path)
   try {

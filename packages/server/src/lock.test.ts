@@ -45,10 +45,10 @@ const BOUND_MS = BOOT_TIMEOUT * 3
 /**
  * A runtime directory of this test's own, shared by the children it spawns.
  *
- * The lock lives beside the agent socket, in `$XDG_RUNTIME_DIR/olai/`, so the
- * two processes here are pointed at one of ours rather than at the developer's
- * — which keeps a real olai they have running out of these assertions, and
- * keeps this test's lock files out of their session's runtime directory.
+ * The lock lives in `$XDG_RUNTIME_DIR/olai/`, so the two processes here are
+ * pointed at one of ours rather than at the developer's — which keeps a real
+ * olai they have running out of these assertions, and keeps this test's lock
+ * files out of their session's runtime directory.
  */
 const runtime = (): NodeJS.ProcessEnv => ({
   XDG_RUNTIME_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "olai-lock-run-")),
@@ -81,11 +81,11 @@ test("a second olai over one directory refuses, and names the one that holds it"
 }, BOUND_MS)
 
 test("a symlinked spelling of the vault is the same vault", async () => {
-  // The seam #175 left open, spelled out: the socket half of the rendezvous
-  // canonicalises with `realpath` and the store half with `resolve`, and the
-  // two answer differently for exactly this. A person types `olai web ~/notes`
-  // in one terminal and `olai web .` from inside a symlink to it in another,
-  // and if the lock keys on the spelling they get two brains over one vault.
+  // The seam #175 named and deferred, spelled out: the rendezvous socket
+  // canonicalised with `realpath` and the store with `resolve`, and the two
+  // answer differently for exactly this. A person types `olai web ~/notes` in
+  // one terminal and `olai web .` from inside a symlink to it in another, and
+  // if the lock keys on the spelling they get two brains over one vault.
   const root = fs.realpathSync(served())
   const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), "olai-lock-link-"))
   const link = path.join(elsewhere, "notes")
