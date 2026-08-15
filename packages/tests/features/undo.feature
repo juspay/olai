@@ -189,7 +189,8 @@ Feature: Undo
     Then the node "demo" has status "todo"
     # `order` was `doing` and is now drawn blocked. Walk the mark off it — the
     # last thing this tab did, so it is the top of the stack.
-    When I click the title of "order"
+    When I click away from the editor
+    And I click the title of "order"
     And I press "Control+Shift+Enter"
     Then the node "order" has no status
     # ⌘Z asks for that `doing` back, and meets the refusal in the ops layer's
@@ -218,7 +219,8 @@ Feature: Undo
     And I press "Control+Enter"
     And I press "Control+Shift+Enter"
     Then the node "demo" has status "todo"
-    When I click the title of "order"
+    When I click away from the editor
+    And I click the title of "order"
     And I press "Control+Enter"
     Then the node "order" has status "done"
     When I click away from the editor

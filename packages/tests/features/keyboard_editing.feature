@@ -182,10 +182,12 @@ Feature: Keyboard editing
     # The way through is the sentence's own: finish what is in the way, and the
     # walk carries on. `Ctrl+Enter` on `order` is the second op — the person's,
     # exactly as an agent makes two calls.
-    When I click the title of "order"
+    When I click away from the editor
+    And I click the title of "order"
     And I press "Control+Enter"
     Then the node "order" has status "done"
-    When I click the title of "hinges"
+    When I click away from the editor
+    And I click the title of "hinges"
     And I press "Control+Shift+Enter"
     Then the node "hinges" has status "doing"
     And "house.olai" holds a node marked doing titled "pick the hinges"
