@@ -268,8 +268,13 @@ when the pipeline was inline.
 
 It is no longer the only one: the `•••` menu's primitive rides the same rules
 (`menu/chunk.ts`), asked for by the first row anybody reaches for a menu on, and
-the `•••` stays drawn while it is in flight. The menu section below has the
-numbers.
+the `•••` stays drawn while it is in flight. `features/menu_arrives.feature` is
+its half of the same four claims — nobody asks, one press fetches it once for
+the whole app, the button stays put while it is in flight, and a row says so if
+it never comes — held the same way, and the machinery for holding a chunk up is
+shared between the two (`tests/support/chunks.ts`, which derives the chunk's URL
+from the module it is split at rather than spelling it twice). The menu section
+below has the numbers.
 
 Being the second is what made the rules a THING rather than a shape — the same
 argument `saying.ts` graduated on. **`src/client/arriving.ts` is the

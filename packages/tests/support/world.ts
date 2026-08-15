@@ -756,11 +756,12 @@ export class OlaiWorld extends World {
    *  `@corpus:<name>` or `@scratch:<name>` tag. See `support/hooks.ts`. */
   corpus!: string;
 
-  /** Requests for the markdown chunk a scenario is deliberately sitting on, so
-   *  it can stand in the moment before the pipeline has arrived rather than
-   *  race it (`step_definitions/markdown_steps.ts`). Undefined unless a
-   *  scenario asked to hold it. */
-  heldMarkdown?: Route[];
+  /** Requests for a split chunk a scenario is deliberately sitting on, keyed by
+   *  the module the chunk is named after — so it can stand in the moment before
+   *  that chunk has arrived rather than race it (`support/chunks.ts`). Two are
+   *  split out now (the markdown pipeline, the `•••` menu's primitive) and a
+   *  scenario may hold either; empty unless one asked to. */
+  heldChunks = new Map<string, Route[]>();
   /** Whether this scenario's agent has stored conversations (`@agent-stored`),
    *  so a restart adopts one rather than opening a fresh session. Carried on
    *  the world because a restart mid-scenario has to spawn the SAME shape of
