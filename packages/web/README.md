@@ -808,8 +808,9 @@ Two sweeps in
 two Kobalte primitives, and the list of panels that join the stack without
 taking the gestures with it is exactly the panels whose gestures are somebody
 else's — the menu's are Kobalte's, the **⌘K palette**'s are its own window
-listener and its own full-screen scrim, and the chat's **slash list** takes keys
-in the capture phase ahead of everything. All three are on the stack, and the
+listener and its own full-screen scrim, the **keyboard-shortcuts dialog** it opens answers the same two (and answered
+neither until review found it), and the chat's **slash list** takes keys in the
+capture phase ahead of everything. All four are on the stack, and the
 palette is not an afterthought: `⌘K` is `whileEditing: true`, so it opens with
 the caret inside an open popover and without a press anywhere, which is the one
 pair on this page that needs no contrivance at all to reach.

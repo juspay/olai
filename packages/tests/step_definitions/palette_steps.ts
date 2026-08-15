@@ -37,6 +37,7 @@ import {
   PALETTE_SAID,
   PALETTE_SCRIM,
   POLL_TIMEOUT,
+  SHORTCUTS,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -63,6 +64,21 @@ Then("the command palette is closed", async function (this: OlaiWorld) {
   await this.page
     .locator(PALETTE)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+/** The keyboard-shortcuts dialog, which the palette opens and which had no
+ *  way out but its scrim until the one-stack work (`palette/Shortcuts.tsx`). */
+Then("the shortcuts are showing", async function (this: OlaiWorld) {
+  await this.page
+    .locator(SHORTCUTS)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the shortcuts are put away", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(SHORTCUTS).count()) === 0,
+    "the shortcuts dialog to be gone",
+  );
 });
 
 /** The palette's own way out for a pointer: the full-screen scrim behind its

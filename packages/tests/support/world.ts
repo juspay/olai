@@ -541,6 +541,7 @@ export const PALETTE_CAPTURE = selector(TESTID.paletteCapture);
 export const PALETTE_CONFIRM = selector(TESTID.paletteConfirm);
 export const PALETTE_SAID = selector(TESTID.paletteSaid);
 export const PALETTE_SCRIM = selector(TESTID.paletteScrim);
+export const SHORTCUTS = selector(TESTID.shortcuts);
 
 export const CHAT_TITLE = selector(TESTID.chatTitle);
 export const CHAT_WORKING = selector(TESTID.chatWorking);

@@ -249,18 +249,19 @@ test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
 
 // ...and the other side of it: WHO JOINS THE STACK WITHOUT `dismissOn`, which
 // is the list of panels whose gestures are somebody else's. The `•••` menu's
-// are Kobalte's, one level up; the palette answers Escape on the window and a
-// press on its own scrim; the slash menu takes keys in the capture phase ahead
-// of everything. Each has a reason written where it joins, and the list is
-// short on purpose — a fourth joiner is either a panel that had to hand-roll
-// its dismissal (worth arguing about) or one that wanted the stack and skipped
-// the dismissal, which is a panel nothing shuts.
+// are Kobalte's, one level up; the palette and the shortcuts dialog answer
+// Escape on the window and a press on their own scrims; the slash menu takes
+// keys in the capture phase ahead of everything. Each has a reason written
+// where it joins, and the list is short on purpose — a fifth joiner is either a
+// panel that had to hand-roll its dismissal (worth arguing about) or one that
+// wanted the stack and skipped the dismissal, which is a panel nothing shuts.
 test("the stack is joined directly only where the gestures are not dismissOn's", () => {
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
     path.join("chat", "SlashMenu.tsx"),
     "dismiss.ts",
     path.join("menu", "Dropdown.tsx"),
     path.join("palette", "Palette.tsx"),
+    path.join("palette", "Shortcuts.tsx"),
     "topmost.ts",
   ])
 })

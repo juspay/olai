@@ -117,6 +117,22 @@ Feature: Dismiss is one stack, and the topmost answers
     When I press "Escape"
     Then the node menu is closed
 
+  Scenario: The keyboard-shortcuts dialog answers the key it is about
+    # It had one way out — its scrim — and reviewers found it twice. The dialog
+    # that TEACHES the keys ignoring the most universal one is the version of
+    # that gap worth closing rather than recording: somebody who opened it to
+    # learn what this app answers pressed Escape and nothing happened.
+    #
+    # Nothing stands over it (the palette that opens it closes on the way
+    # through, and this covers the page), so its ticket buys nothing yet — it
+    # is on the stack so the next thing drawn over a modal does not have to
+    # remember this one.
+    When I press the palette shortcut
+    And I pick the palette item "Keyboard shortcuts"
+    Then the shortcuts are showing
+    When I press "Escape"
+    Then the shortcuts are put away
+
   Scenario: ...and its scrim puts away only the palette
     # The palette's way out for a pointer is a press on its own scrim, which
     # covers the page — so it is also a press outside every panel underneath.
