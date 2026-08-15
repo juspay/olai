@@ -80,6 +80,43 @@ Feature: Dismiss is one stack, and the topmost answers
     When I press "Escape"
     Then the preferences are shut
 
+  Scenario: The menu opened FIRST defers to what was opened over it
+    # THE OTHER ORDER, and the one the menu's own guard exists for. Everything
+    # above asks whether a panel stays put while something newer is dismissed;
+    # this asks whether the `•••` menu — whose dismissal is Kobalte's rather
+    # than this client's — sits an Escape out when the key belongs to a panel
+    # above it. It cannot be told to: `MenuContentBase` closes on Escape
+    # whether or not the event was prevented, so the refusal is on the menu's
+    # own open state (`client/menu/Dropdown.tsx`), and this is what holds it.
+    #
+    # The preferences are opened by KEYBOARD for the same reason the menu is
+    # above: a press of the trigger would be a press outside the menu, and the
+    # menu would correctly be gone before the panel arrived.
+    When I open the node menu of "kitchen" with the keyboard
+    And I focus the preferences trigger
+    And I press Enter
+    Then the preferences are open
+    And the node menu is open
+    When I press "Escape"
+    Then the preferences are shut
+    And the node menu is open
+    When I press "Escape"
+    Then the node menu is closed
+
+  Scenario: ...and to the palette over it
+    # The same order with the pair the author's own altitude pass found, which
+    # no scenario walked: two layers whose dismissals are BOTH somebody else's
+    # — Kobalte's underneath, the palette's own window listener on top.
+    When I open the node menu of "kitchen" with the keyboard
+    And I press the palette shortcut
+    Then the command palette is open
+    And the node menu is open
+    When I press "Escape"
+    Then the command palette is closed
+    And the node menu is open
+    When I press "Escape"
+    Then the node menu is closed
+
   Scenario: ...and its scrim puts away only the palette
     # The palette's way out for a pointer is a press on its own scrim, which
     # covers the page — so it is also a press outside every panel underneath.
