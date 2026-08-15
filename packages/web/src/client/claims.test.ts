@@ -195,18 +195,11 @@ test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
 })
 
 // And the edge to the chunk's own entry, which is the way the above would be
-// undone without naming Kobalte at all. Exactly one file in the client may name
-// `menu/Dropdown.tsx` in a `from` clause at all — the chunk that fetches it —
-// and there it has to be the `import type`, which the bundler erases. The
-// `import(...)` beside it carries no `from` and is the split itself.
-//
-// Two assertions rather than one clever pattern: "which files link to it" and
-// "how that one link is spelled" are different questions, and a regex that
-// tried to be both would be the kind a later reader loosens instead of fixing.
+// undone without naming Kobalte at all. NO file in the client may name
+// `menu/Dropdown.tsx` in a `from` clause: the one mention of that module
+// anywhere is the `import(...)` in `menu/chunk.ts`, which carries no `from` and
+// is the split itself. An empty list is the whole claim, and it is exact — the
+// day somebody reaches for the component the ordinary way, this says so.
 test("nothing statically imports the menu's primitive", () => {
-  expect(filesSpelling(/from\s*["'][^"']*Dropdown\.tsx["']/)).toEqual([
-    path.join("menu", "chunk.ts"),
-  ])
-  const chunk = SOURCES.find((one) => one.file === path.join("menu", "chunk.ts"))
-  expect(chunk?.code).toMatch(/import type \{ Dropdown \} from "\.\/Dropdown\.tsx"/)
+  expect(filesSpelling(/from\s*["'][^"']*Dropdown\.tsx["']/)).toEqual([])
 })
