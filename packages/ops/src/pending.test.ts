@@ -448,6 +448,23 @@ describe("a rename staged by hand", () => {
         expect(pending.others).toEqual([])
         // And the log does not say a file was deleted either.
         expect(pending.message).not.toContain("deleted: Kept.md")
+        // THE NODES, which is the other half of what the human was shown and
+        // the half only THIS shape holds. Between two served outlines the old
+        // side is a dirty outline in its own right, so HEAD's copy of it was
+        // already in hand and the ids already matched across it — the two-row
+        // bug was the whole of what was wrong there. Here the old side is a
+        // file olai does not serve, so nothing fetched HEAD's copy of it at
+        // all, and every node read as freshly created: three arrivals and a
+        // `capture:` message, for a file where nothing happened but the name.
+        expect(pending.changes).toEqual([
+          {
+            file: "Kept.olai",
+            id: "kept",
+            title: "Kept for later",
+            fields: ["file"],
+            sort: "moved",
+          },
+        ])
       })))
 
   /** The same rename between two files olai does NOT serve, where the row is
