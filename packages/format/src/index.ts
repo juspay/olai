@@ -6,7 +6,7 @@
  * browsers. Everything above it — the store's codec, the server, the web
  * client — reads the format through this one surface.
  *
- * Eight things are exported, and that is the whole contract:
+ * Nine things are exported, and that is the whole contract:
  *
  *   - the codec, `parseOutline` (per file) and `validate` (per set);
  *   - what they produce, `OutlineSet` and the records inside it;

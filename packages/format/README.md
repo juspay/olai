@@ -325,8 +325,9 @@ so no wire spec could declare them and the second spelling was still ahead
 rather than behind. What the compiler cannot check on its own is a producer
 putting a key on an answer the declaration has never heard of — object-literal
 freshness is lost through a `.map`, so a field DROPPED here still compiles at
-the one place it is built — and `@olai/ops`' `query.test.ts` closes that by
-decoding each real answer through its own declaration with
+the one place it is built — and `@olai/ops`' `tools.test.ts` closes that by
+walking the tool table, calling every read's own reader, and decoding each
+answer through the declaration that entry carries with
 `onExcessProperty: "error"`, the same setting `parseOutline` reads records
 under.
 
