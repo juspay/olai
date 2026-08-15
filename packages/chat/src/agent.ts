@@ -107,6 +107,7 @@ import {
   SDK_MESSAGE,
   STEER_METHOD,
   STEER_WHEN_IDLE,
+  steerTaken,
   toolNameIn,
 } from "./interpret.ts"
 import * as Kolu from "./kolu.ts"
@@ -252,6 +253,22 @@ const BOOT_TIMEOUT = "30 seconds"
 /** A load is not small: the agent re-opens a conversation and replays every
  *  message in it before it answers. Its own, longer deadline. */
 const LOAD_TIMEOUT = "120 seconds"
+/**
+ * A steer gets a deadline where a prompt gets none, and the two are not the
+ * same kind of wait.
+ *
+ * A prompt is a person waiting on a language model, which is why it has no
+ * deadline at all. A steer is an INJECTION: the agent answers as soon as the
+ * message is on its input, long before the turn does anything with it. So one
+ * that has gone unanswered this long is not a slow turn, it is an agent that
+ * has stopped listening — and the words belong back in front of the person who
+ * typed them rather than in a call nobody is going to answer.
+ *
+ * Its own constant rather than {@link BOOT_TIMEOUT}'s value borrowed by
+ * omitting an argument: the number happens to match, the reason does not, and
+ * a deadline this load-bearing should be readable at the call site.
+ */
+const STEER_TIMEOUT = "30 seconds"
 
 interface Live {
   readonly child: ChildProcess
@@ -1005,29 +1022,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * The steering half of {@link prompt}: hand the running turn something
      * more to work with.
      *
-     * It takes a DEADLINE where a prompt takes none, and the two are not the
-     * same kind of wait: a prompt is a person waiting on a model, and this is
-     * an injection the agent either accepts or does not — it answers as soon
-     * as the message is on the SDK's input, long before the turn does anything
-     * with it. So a steer that has not been answered in the boot window is not
-     * a slow turn, it is an agent that has stopped listening, and the words
-     * belong back in front of the person who typed them rather than in a call
-     * nobody is going to answer.
-     *
-     * An agent with no steering at all needs nothing special here: it refuses
+     * It takes a DEADLINE where a prompt takes none ({@link STEER_TIMEOUT}),
+     * and an agent with no steering at all needs nothing special: it refuses
      * the method and that refusal travels the error channel, in the agent's own
      * words, like every other way this can fail. `initialize` advertises the
      * extension and that advertisement was being read into a `canSteer` flag —
      * a prediction of what the request itself proves, and a second answer to a
      * question that already had one.
      *
-     * The outcome is read POSITIVELY: `injected` is the only thing that counts
-     * as taken. Everything else — `promptRequired`, a legacy `startedNewTurn`,
-     * a value from a future version of the extension — is `no-turn`, which
-     * sends the message as an ordinary prompt. That is the safe direction: the
-     * worst case is a message the agent gets twice-over as its own next turn,
-     * where reading an unknown outcome as "taken" would be a message nobody
-     * has.
+     * What the ANSWER means is {@link steerTaken}'s, beside the two spellings
+     * the request is made of: it is one adapter extension's vocabulary, and
+     * reading half of it here would be the same bet made in two files.
      */
     const steer = (text: string): Effect.Effect<Steered, AgentGone> =>
       withSession((at, id) =>
@@ -1040,11 +1045,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               prompt: [{ type: "text", text }],
               _meta: STEER_WHEN_IDLE,
             },
+            STEER_TIMEOUT,
           ),
-          (answered) =>
-            (answered as { readonly outcome?: unknown } | null)?.outcome === "injected"
-              ? "taken"
-              : "no-turn",
+          (answered): Steered => steerTaken(answered) ? "taken" : "no-turn",
         )
       )
 

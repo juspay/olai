@@ -155,6 +155,28 @@ export const STEER_WHEN_IDLE = {
   steering: { idleBehavior: "promptRequired" },
 }
 
+/**
+ * Whether the steer went INTO the running turn, out of what the agent
+ * answered.
+ *
+ * Read POSITIVELY, and this is the one reading here whose losing direction is
+ * worth spelling out because it is not the usual one. `injected` is the only
+ * outcome that counts as taken; `promptRequired`, a legacy `startedNewTurn`,
+ * and anything a future version of the extension answers all read as NOT
+ * taken, which sends the message again as an ordinary prompt. The worst case
+ * of that is a message the agent hears twice; the worst case of reading an
+ * unknown outcome as taken is a message nobody has, and between a duplicate
+ * and a disappearance there is no contest.
+ *
+ * Here rather than at the call site for the reason {@link liveModelIn} is: it
+ * is a value one adapter's extension chose, and the file that is wrong about a
+ * different agent should be the file that names it. The REQUEST's spellings
+ * are already above; leaving the RESPONSE's in the caller was the same bet
+ * read in two places.
+ */
+export const steerTaken = (answered: unknown): boolean =>
+  (answered as { readonly outcome?: unknown } | null | undefined)?.outcome === "injected"
+
 // ── which model a turn is running on ───────────────────────────────────
 
 /** What `session/new` asks the Claude Code adapter to forward, and why: the

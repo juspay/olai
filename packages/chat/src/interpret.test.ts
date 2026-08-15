@@ -26,6 +26,7 @@ import {
   NEW_SESSION_META,
   STEER_METHOD,
   STEER_WHEN_IDLE,
+  steerTaken,
   toolNameIn,
 } from "./interpret.ts"
 
@@ -177,6 +178,33 @@ describe("steering a turn that is already running", () => {
     // olai never asked for, never tracks and cannot cancel. The literal is
     // what buys the message back instead.
     expect(STEER_WHEN_IDLE).toEqual({ steering: { idleBehavior: "promptRequired" } })
+  })
+
+  test("`injected` is the answer that means the running turn has it", () => {
+    // What the adapter actually answered, captured against 0.66.0 by steering
+    // a turn that was counting to 600: it took the message at 28.
+    expect(steerTaken({ outcome: "injected" })).toBe(true)
+  })
+
+  test("nothing was running, so the caller still has the message", () => {
+    // The opt-in's whole purpose. Read as taken, this would be the one message
+    // in the conversation that exists on screen and nowhere else.
+    expect(steerTaken({ outcome: "promptRequired", reason: "noRunningTurn" })).toBe(false)
+  })
+
+  test("an outcome nobody here knows is NOT taken", () => {
+    // The losing direction, chosen: a message the agent hears twice beats a
+    // message nobody has. `startedNewTurn` is the extension's own legacy
+    // answer for a host that did not opt in — a turn olai never asked for and
+    // could not cancel, so not taken is also the truthful reading of it.
+    expect(steerTaken({ outcome: "startedNewTurn" })).toBe(false)
+    expect(steerTaken({ outcome: "somethingLater" })).toBe(false)
+    expect(steerTaken({})).toBe(false)
+    expect(steerTaken(null)).toBe(false)
+    expect(steerTaken(undefined)).toBe(false)
+    // Truthy is not the word: an agent answering `outcome: true` said
+    // something, and it did not say `injected`.
+    expect(steerTaken({ outcome: true })).toBe(false)
   })
 })
 
