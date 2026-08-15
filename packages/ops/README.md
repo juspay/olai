@@ -494,6 +494,17 @@ None of that is worth anything if nothing says so where an agent will read it,
 which is why the read tools' descriptions name these fields and
 `packages/server/src/mcp/tools.test.ts` fails if they stop.
 
+`custom` is the same argument for a field with no fixed keys: `set_prop` writes
+a named fact into it, `read_node` answers the whole map, and `prop:key` /
+`prop:key=value` select on it. The op writes only inside that field and cannot
+reach a system one — a node's own facts are fields at the top level, each with a
+verb of its own — so the only rule it carries is a refusal of keys spelled like
+those fields, which would otherwise let a node say `done` twice with two
+meanings. The two STAMPS beside it (`created`, `changed`) are the other
+direction: fields the ops layer writes and no request may, put on in one place
+(`plan.ts`'s `touched`) so "every write stamps it" is true rather than
+remembered.
+
 Git can never fail a write. The bytes are on disk and the browser has already
 seen them by the time git runs, so a refusal is a `Failed` carrying git's own
 words and a warning in the log — with those words as a FIELD (`said=…`) rather

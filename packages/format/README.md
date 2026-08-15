@@ -73,6 +73,16 @@ consumer reaching for one would be re-implementing a rule that lives here.
 The derivations are exported for exactly this reason: the browser draws the
 tree with the same code the validator judged it with.
 
+`src/custom.ts` is the record's one OPEN field, and the reason it is one field
+rather than an open record: the top level stays closed, so a key this format has
+no meaning for is still a `bad-record` naming it — which is what catches a
+typo'd `titel` — while `custom` takes any key a person wants. Two namespaces in
+two places, so which is which is a fact about where a key sits rather than a
+rule to remember. Beside it in `src/node.ts` is `shadowFor`, keyed by the
+record's own field names: a custom key spelled like a field is refused toward
+the verb that writes that fact, and a field added to the format without a
+sentence there is a compile error.
+
 `src/filter.ts` is the newest of them and the one whose placement is worth
 arguing: it says what a QUERY means — the words, the operators (`is:`, `has:`,
 `date:`, `-`), which nodes they select, and `keeping`, the row transform that
