@@ -789,9 +789,12 @@ layers and hands a gesture to the last one opened; these panels shut through the
 same library's primitives reached one level down, which know about nothing else
 on the page. So a menu opened over a popover neither deferred to it nor was
 deferred to by it, and **one Escape shut both** — not two dismissals, one
-keystroke landing twice. Every open panel takes a ticket from `dismiss.ts` now
+keystroke landing twice. Every open panel takes a ticket from `topmost.ts` now
 and only the highest ticket answers, so a second Escape reaches the next one
-down, which is what a person pressing it twice means. The stack is ours rather
+down, which is what a person pressing it twice means. It is a module of its own
+rather than a few lines inside `dismiss.ts` because the menu wants the ORDER and
+none of the gestures — one consumer that needs only half is what graduates a
+half, the same argument `arriving.ts` was extracted on. The stack is ours rather
 than Kobalte's for a reason worth writing down: `layerStack` is not exported
 from `@kobalte/core` at any subpath, its only public door is a COMPONENT that
 has to wrap the panel element, and no caller here has one to give it — so the
@@ -2073,7 +2076,7 @@ hand-rolled one was:
   Kobalte hands a gesture to the topmost layer on its OWN stack, and this menu
   is the only layer on it — so it always believed it was on top, and an Escape
   with a popover opened over it shut both. It joins the client's one stack
-  instead (`dismiss.ts`, above): a pointer outside is `preventDefault`ed when
+  instead (`topmost.ts`, above): a pointer outside is `preventDefault`ed when
   something is over it, and Escape — which `MenuContentBase` closes on whether
   or not the event was prevented, in its own words because its selectable list
   prevents the key first — is refused on the menu's own OPEN state, where the

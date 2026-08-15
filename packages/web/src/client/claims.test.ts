@@ -251,12 +251,13 @@ test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
 // gestures with them. Exactly one panel may, and only because its gestures are
 // already the same library's, reached one level up — the `•••` menu is a
 // Kobalte `DismissableLayer`, which keeps a stack of its own that this client's
-// panels cannot get onto (`dismiss.ts` has the argument). Anything else
+// panels cannot get onto (`topmost.ts` has the argument). Anything else
 // reaching for `topmostWhileOpen` directly is a panel that wanted the stack and
 // skipped the dismissal, which is a panel nothing shuts.
 test("only the menu joins the dismissal stack without going through dismissOn", () => {
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
     "dismiss.ts",
     path.join("menu", "Dropdown.tsx"),
+    "topmost.ts",
   ])
 })

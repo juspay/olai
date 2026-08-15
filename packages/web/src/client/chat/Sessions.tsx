@@ -25,8 +25,9 @@
  * transcript underneath was left with a list over it that nothing they tried
  * would take away. That is a missing affordance rather than a fourth copy of an
  * existing one, and it is filled by the client's one dismissal (`../dismiss.ts`)
- * on the same terms as the header's popovers: the pointer, the key, the
- * topmost panel only — and the caret back on `chats` when a keyboard asked,
+ * on the same terms as the header's popovers: the pointer, the key, the topmost
+ * panel only (`../topmost.ts`) — and the caret back on `chats` when a keyboard
+ * asked,
  * because Escape from a list that has the focus would otherwise land on
  * `<body>`.
  *

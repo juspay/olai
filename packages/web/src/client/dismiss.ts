@@ -1,44 +1,25 @@
 /**
- * The two gestures that shut a panel — a pointer down outside it, and Escape —
- * and WHICH panel they shut when more than one is up.
+ * The two gestures that shut a panel: a pointer down outside it, and Escape.
  *
- * Every dismissable surface in this client had its own copy of the gestures —
- * the two header popovers through `./popover.ts`, a row's expanded note through
- * `./note/expand.ts`, and the `•••` menu, which had a fourth. They agreed about
- * almost everything and drifted where they did not: one grew Escape, one never
- * had it, and one got its click-away wrong in a way nothing could see. That is
- * the argument for one spelling of it.
+ * Every dismissable surface in this client had its own copy of them — the two
+ * header popovers through `./popover.ts`, a row's expanded note through
+ * `./note/expand.ts`, the chat's session picker (`chat/Sessions.tsx`), and the
+ * `•••` menu, which had a fourth. They agreed about almost everything and
+ * drifted where they did not: one grew Escape, one never had it, one got its
+ * click-away wrong in a way nothing could see, and one answered neither gesture
+ * at all. That is the argument for one spelling of it.
  *
- * ## ONE STACK, and the topmost answers
+ * WHICH panel a gesture is for, when more than one is up, is `./topmost.ts` —
+ * one stack, and only the last thing opened answers. Everything below is on it,
+ * because {@link dismissOn} puts it there; the `•••` menu joins that same stack
+ * from the other side (`menu/Dropdown.tsx`), since its gestures are already the
+ * library's and only the ORDER was missing.
  *
- * A spelling shared is not a DISCIPLINE shared, and that was the hole #158
- * recorded at its own merge: the `•••` menu shuts inside `@kobalte/core`'s
- * `DismissableLayer`, which keeps a stack of open layers and hands a gesture to
- * the last one opened; the panels here shut through `createInteractOutside` and
- * `createEscapeKeyDown` directly, which know about nothing else on the page. So
- * a menu opened over a popover neither deferred to it nor was deferred to by
- * it, and one Escape shut both — which is not two panels being dismissed, it is
- * a keystroke landing twice.
+ * ## Which is Kobalte's, not ours
  *
- * {@link topmostWhileOpen} is the stack that fixes it, and everything
- * dismissable in this client is on it: the two popovers and the note through
- * {@link dismissOn} below, the chat's session picker (`chat/Sessions.tsx`) the
- * same way, and the menu by joining it directly (`menu/Dropdown.tsx`) — because
- * the library's own layer, being the only Kobalte layer on the page, always
- * believes it is on top. **Every open panel takes a ticket, and only the
- * highest ticket answers.** A second Escape then reaches the next one down,
- * which is what a person pressing it twice means.
- *
- * WHY OURS AND NOT KOBALTE'S, since one of the two panels here is already the
- * library's: `layerStack` is not exported from `@kobalte/core` at any subpath —
- * the only public door to it is `DismissableLayer`, a COMPONENT that has to
- * wrap the panel element, and no caller here has one to give it (see below).
- * Reaching the module through `@kobalte/core/src/…` would resolve a SECOND copy
- * beside the bundled one, which is two stacks wearing one name and worse than
- * having none. So the stack is ours and the menu joins it — one place that
- * knows what is open, rather than two that each believe they are alone.
- *
- * ## The gestures, which are the library's
+ * The `•••` menu is a `@kobalte/core` `DropdownMenu` (`menu/Dropdown.tsx`), and
+ * this is the same library's dismissal reached one layer down, so the panels
+ * that are NOT primitives yet shut by the same code the one that is shuts by.
  *
  * The two primitives below are also, since `menu/chunk.ts`, the ONLY
  * `@kobalte/core` left on the first-paint chunk: `DropdownMenu` is fetched when
@@ -57,89 +38,29 @@
  * one thing every copy here got wrong by never considering it.
  *
  * **Why the primitives and not `DismissableLayer` itself**, which is the same
- * two gestures already composed: it is a COMPONENT that has to wrap the panel
- * element, and neither caller has one to give it. `./popover.ts` is a factory
- * that hands out refs precisely so the two panels it serves stay ordinary
- * markup, and `./note/expand.ts` runs on every visible ROW — a layer that
- * registers on mount, with no way to sit out while the note is shut, would put
- * one on the stack per row of the outline. An accessor plus `isDisabled` is
- * the shape these two need, and it is the shape the stack below takes for the
- * same reason: a layer is a panel that is OPEN, never a component that exists.
+ * two gestures already composed AND the stack `./topmost.ts` had to rebuild: it
+ * is a COMPONENT that has to wrap the panel element, and no caller has one to
+ * give it. `./popover.ts` is a factory that hands out refs precisely so the two
+ * panels it serves stay ordinary markup, and `./note/expand.ts` runs on every
+ * visible ROW — a layer that registers on mount, with no way to sit out while
+ * the note is shut, would put one on the stack per row of the outline. An
+ * accessor plus `isDisabled` is the shape these callers need, and it is the
+ * shape the stack takes for the same reason: a layer is a panel that is OPEN,
+ * never a component that exists.
  *
  * What this does NOT own is what "shut" MEANS — where the focus goes, whether
  * the trigger toggles instead, whether anything is remembered. That is the
  * caller's, because it differs at every site.
- *
- * The other stack in this client is `./layer.ts`, and the two are the same
- * order asked about different things: that one is what COVERS what, in pixels,
- * decided by the design; this one is what shuts FIRST, decided by the reader,
- * in the order they opened things.
  */
 
 import { createEscapeKeyDown, createInteractOutside } from "@kobalte/core"
-import { type Accessor, createMemo, onCleanup } from "solid-js"
+import type { Accessor } from "solid-js"
+
+import { topmostWhileOpen } from "./topmost.ts"
 
 /** Which gesture asked. Callers that put the caret back only for the one a
  *  keyboard can make (`./popover.ts`) need to tell them apart. */
 export type Dismissal = "pointer" | "escape"
-
-/**
- * Tickets, handed out in the order panels OPEN. Monotonic and never reused, so
- * "which of these two opened later" is a comparison rather than a search.
- *
- * Module state because the stack is the PAGE's: "what is on top" is one fact
- * about one screen, and a stack per component tree would be several answers to
- * it. `0` is the ticket a shut panel holds, which is why counting starts at 1.
- */
-let opened = 0
-
-/**
- * What every dismissable is holding right now — its ticket while it is up, `0`
- * while it is not. Registered for the lifetime of the OWNER rather than of the
- * open state, because a `Set` entry costs nothing while a note is shut and
- * re-registering on every open would be a stack that reorders itself.
- */
-const layers = new Set<Accessor<number>>()
-
-/**
- * Whether this panel is the one a dismissal is for: open, and the last one
- * opened that still is.
- *
- * Call it in the owner that holds the panel's state. The answer is reactive —
- * it reads every layer's ticket — so it may be asked from a gesture handler,
- * from a memo, or from a `<Show>`.
- *
- * WHY A TICKET RATHER THAN AN ARRAY the open ones are pushed onto: a push has
- * to happen at the instant `open()` flips, and the only place to do that from
- * an accessor is an effect, which runs a beat LATE — long enough for a
- * capture-phase `pointerdown` that shut the panel above to be still propagating
- * while this one reads a stack that has not noticed. A memo is a pure
- * computation: it settles inside the same signal write, before the handler that
- * made it returns. So the stack is derived where an array would be maintained.
- *
- * It is also why nothing here has to think about listener ORDER. Every layer
- * asks this question for itself, at its own turn, and exactly one can answer
- * yes — so it does not matter which document listener runs first.
- */
-export const topmostWhileOpen = (open: Accessor<boolean>): Accessor<boolean> => {
-  // Taken on the way up and kept until it goes down: a panel that is already
-  // open does not lose its place because something else re-rendered.
-  const ticket = createMemo<number>(
-    (held) => (open() ? (held === 0 ? ++opened : held) : 0),
-    0,
-  )
-  layers.add(ticket)
-  onCleanup(() => {
-    layers.delete(ticket)
-  })
-
-  return () => {
-    const mine = ticket()
-    if (mine === 0) return false
-    for (const other of layers) if (other() > mine) return false
-    return true
-  }
-}
 
 export interface Dismissable {
   /** Whether the panel is up. Nothing is listened for while it is not — a shut

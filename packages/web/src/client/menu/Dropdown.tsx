@@ -60,10 +60,10 @@
  * Kobalte keeps a stack of its own layers and gives a gesture to the topmost —
  * but this menu is the only layer on it, because the panels this client draws
  * itself are not components wrapping an element and cannot join one
- * (`../dismiss.ts` has the whole argument). So the primitive always believes it
+ * (`../topmost.ts` has the whole argument). So the primitive always believes it
  * is on top, and an Escape with a popover opened OVER a menu shut both.
  *
- * The stack every dismissable in this client is on is `../dismiss.ts`'s, and
+ * The stack every dismissable in this client is on is `../topmost.ts`'s, and
  * this file joins it with {@link topmostWhileOpen} — the same call the popovers
  * and the note make one layer down. What is left is telling Kobalte to sit a
  * gesture out, which takes two different answers because the primitive takes
@@ -101,7 +101,7 @@ import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import type { MenuAction } from "./action.ts"
 import type { MenuDoor } from "./door.ts"
 import { DOTS } from "./Dots.tsx"
-import { topmostWhileOpen } from "../dismiss.ts"
+import { topmostWhileOpen } from "../topmost.ts"
 import { swallowGhost } from "../ghost.ts"
 import { LAYER } from "../layer.ts"
 import { Panel } from "./Panel.tsx"
@@ -152,7 +152,7 @@ export function Dropdown(props: {
 
   /** Is this menu the panel a dismissal is for — the last thing opened that is
    *  still up, across everything this client can put on screen
-   *  (`../dismiss.ts`)? Kobalte's own stack cannot answer that, because this
+   *  (`../topmost.ts`)? Kobalte's own stack cannot answer that, because this
    *  menu is the only layer on it. */
   const topmost = topmostWhileOpen(() => props.door.open())
 
