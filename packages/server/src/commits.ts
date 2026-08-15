@@ -10,7 +10,7 @@
  * What differs between the faces is one clause of one sentence, and it is not a
  * deviation: it is the same rule described accurately to two audiences. `manual`
  * means "a write waits until something asks", and WHAT ASKS differs by face —
- * `olai mcp` has the `commit` tool and no browser to press anything, while
+ * a terminal agent has the `commit` tool and no browser to press anything, while
  * `olai web` has the button AND hands its own panel agent the same tool, so it
  * genuinely offers both. Telling a terminal about a button sends somebody after
  * a control they have not got; telling a web serve about only the button leaves

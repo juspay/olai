@@ -16,7 +16,7 @@
  * count, not a sentence about it. `bespokeFrom` projected `@olai/ops`' table
  * over a LOCAL `Ops`,
  * so an MCP face could only exist in a process that held the store. That is why
- * `olai mcp` on a directory an `olai web` was already serving booted a second
+ * a second olai on a directory an `olai web` was already serving booted a second
  * store — 418 MB and 2099 open descriptors on a 1020-file vault, two parses of
  * everything per edit, and two probe clocks a reader could be seconds apart on
  * (docs/brainstorming/surface-mcp-positions.md, position (c)).
@@ -47,7 +47,7 @@
  * the only thing that can tell one agent's edits from another's. It is NOT a
  * field on any of these procedures: a transport that could name itself could
  * name another, and every caller of this namespace is already identified by the
- * FACE it arrived on — an owner-only socket is an attached `olai mcp`, an
+ * FACE it arrived on — HTTP `/mcp` is a terminal agent, an
  * in-process dispatch is whichever agent the composition root built it for.
  *
  * So the writer is bound where the face is composed, by rebinding these

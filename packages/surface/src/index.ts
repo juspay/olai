@@ -70,7 +70,7 @@
  * mechanism seen twice, and two tabs cannot disagree about what landed.
  *
  * And one group is the AGENT's ({@link ./ops.ts}) — the ops request vocabulary
- * itself, which is what lets an `olai mcp` attach to a running server instead of
+ * itself, which is what lets an HTTP `/mcp` client write through the running server instead of
  * opening the same directory a second time. It is the one group NO browser may
  * reach, and saying that is possible for the first time: every serving face
  * takes its own allowlist since juspay/kolu#2170, so a verb is open on the

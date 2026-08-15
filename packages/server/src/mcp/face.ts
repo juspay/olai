@@ -8,19 +8,14 @@
  * adapter, its expose map, and the typed client the tools and the resources
  * both read through.
  *
- * **Both of the adapter's shapes go through this one function**, and the caller
- * decides which by what it passes as `client`: a direct dispatch at a runtime
- * this process built (serve-fresh), or a dialled unix socket into an `olai web`
- * that already holds the store (attached, `../socket.ts`). Nothing else differs
- * — same expose map, same tools, same instructions — which is the property
- * `mcp-bridge` was built to have and the reason an agent's tool list cannot
- * depend on whether a browser happens to be open.
+ * **The adapter's client is a direct dispatch at a runtime this process
+ * built.** Same expose map, same tools, same instructions, whether the
+ * caller is the panel's agent or a `.mcp.json` HTTP client — which is the
+ * reason an agent's tool list cannot depend on who is asking.
  *
- * There is no wire under the direct dispatch and that is the point of it: the
- * same consumer code that runs against a socket-served surface runs against an
- * in-process one, so what an agent reads and writes here and what it reads and
- * writes attached are the same values by construction rather than by two
- * implementations agreeing.
+ * There is no wire under the direct dispatch and that is the point of it:
+ * the same consumer code that a test drives in memory is the code the HTTP
+ * route runs, so what an agent reads and writes is one implementation.
  *
  * **The tools ride here too**, as bespoke tools projected from `@olai/ops`'
  * table ({@link ./tools.ts}). That waited on juspay/kolu#2155, because olai's
@@ -31,8 +26,7 @@
  * the other half of the same PR.
  *
  * So this is now the WHOLE of olai's MCP face, resources and tools together, and
- * both transports are one call apart: stdio for `olai mcp <dir>`
- * ({@link ./serve.ts}), Streamable HTTP for the session the server spawns
+ * the transport is Streamable HTTP for every client of the running server
  * ({@link ./route.ts}). The hand-rolled JSON-RPC dispatch this replaced is gone.
  */
 
@@ -108,9 +102,9 @@ export type OlaiSurfaceClient = {
     & SurfaceCollectionsReadFace<typeof surface.spec>
 }
 
-/** Build the typed face over any dispatch — an in-process one here, a unix
- *  socket's when `olai mcp` attaches. THE one place the structural cast lives,
- *  so nothing downstream re-derives it. */
+/** Build the typed face over any dispatch — the in-process one the HTTP
+ *  route uses. THE one place the structural cast lives, so nothing
+ *  downstream re-derives it. */
 export const clientOn = (dispatch: SurfaceDispatch): OlaiSurfaceClient =>
   buildSurfaceFace(surface, dispatch) as unknown as OlaiSurfaceClient
 
@@ -119,12 +113,11 @@ export const clientOn = (dispatch: SurfaceDispatch): OlaiSurfaceClient =>
  *  a socket-served surface, so what an agent reads and writes here and what it
  *  would read and write attached are the same values by construction.
  *
- *  GATED BY THE SAME FACE the socket is, which is the other half of that
- *  sentence and the reason `restrictHandlers` is exported upstream for
- *  hand-built serve paths. Without it a fresh `olai mcp` would reach members an
- *  attached one is refused, and a tool that worked in a terminal would fail on
- *  a directory that happened to have a browser open on it — the one divergence
- *  this whole arrangement exists to foreclose. It costs nothing: the adapter is
+ *  GATED BY THE AGENT FACE, which is the reason `restrictHandlers` is
+ *  exported upstream for hand-built serve paths. Without it an HTTP client
+ *  would reach members a browser is refused — or the other way around —
+ *  and a tool that worked in a terminal would fail on a directory that
+ *  happened to have a browser open on it. It costs nothing: the adapter is
  *  the only caller, and it asks for what the map already grants. */
 export const clientOver = (handlers: SurfaceHandlers): OlaiSurfaceClient =>
   clientOn(
@@ -155,22 +148,14 @@ export interface FaceOptions {
   /**
    * Where the surface IS — the adapter's live-client factory, verbatim.
    *
-   * Two shapes, and the whole of the difference between olai's two deployments
-   * is which one a composition root passes:
-   *
-   *   - SERVE-FRESH — `clientOver(bound.handlers)`, a direct dispatch at the
-   *     runtime this process built. Nothing to dispose;
-   *   - ATTACHED — a dialled unix socket, returned as `{ client, dispose }` so
-   *     the adapter closes what it opened and re-dials after a drop.
-   *
-   * It is a THUNK because the adapter re-invokes it: a dropped connection is
-   * re-dialled rather than mourned, and the bespoke tools are handed whichever
-   * client is live at the moment they are called.
+   * A thunk because the adapter re-invokes it. On this face it answers with
+   * the same in-process client every time — nothing to dispose, nothing to
+   * re-dial.
    */
   readonly client: () => ClientOrConnection | Promise<ClientOrConnection>
-  /** Where the protocol goes. `process.stdin`/`stdout` in the binary (the
-   *  adapter's own default), an `InMemoryTransport` half in a test. Injectable
-   *  is the whole reason a test can read this face without a pipe. */
+  /** Where the protocol goes. The HTTP route in the binary, an
+   *  `InMemoryTransport` half in a test. Injectable is the whole reason a
+   *  test can read this face without a listener. */
   readonly transport?: Transport
   /**
    * The call-shaped half of the surface: `@olai/ops`' table, projected by
@@ -178,9 +163,8 @@ export interface FaceOptions {
    * standing an ops layer up behind them.
    *
    * It closes over no client. The adapter hands each handler the LIVE one, so
-   * the table is projected once, in one process, and answers over whatever
-   * connection is current — which is what lets a re-dial after a socket drop
-   * leave the tool surface alone.
+   * the table is projected once, in one process, and answers over the live
+   * client the adapter hands each call.
    */
   readonly tools?: Record<string, BespokeTool>
 }
@@ -188,9 +172,9 @@ export interface FaceOptions {
 /**
  * Serve the surface as MCP until the enclosing scope closes.
  *
- * Scoped rather than returning a teardown: everything else in both composition
- * roots is, and a caller holding a `close()` it might forget is exactly the
- * arrangement `serve.ts` took the listener's lifetime away from.
+ * Scoped rather than returning a teardown: everything else in the
+ * composition root is, and a caller holding a `close()` it might forget is
+ * exactly the arrangement `serve.ts` took the listener's lifetime away from.
  */
 export const serveFace = (
   options: FaceOptions,

@@ -3,8 +3,7 @@
  *
  * olai serves ONE surface to three different callers, and they do not carry the
  * same trust: a browser tab on the websocket, an agent through the MCP adapter,
- * and — since `mcp-bridge` — somebody's own `olai mcp` on an owner-only unix
- * socket. Each takes its own default-deny allowlist, in one shared grammar
+ * and an HTTP client on `/mcp`. Each takes its own default-deny allowlist, in one shared grammar
  * (`@kolu/surface/expose`), and this module is where all three are written so
  * that "which face gets what" is one decision read in one place rather than
  * three files that have to be compared.
@@ -97,7 +96,7 @@ import { type ExposeMap, exposeFace, type FaceExposure } from "@kolu/surface/exp
  * and it is the same news the app header draws. An agent gets the reason on its
  * own write's reply (`Applied.why`), which is the channel that matters for the
  * write it just made; this is what lets it ask BEFORE writing, and what lets an
- * `olai mcp` client watching this directory notice that commits have started
+ * HTTP MCP client watching this directory notice that commits have started
  * failing without making one.
  *
  * `pending` is what is WAITING to be committed, and it is the other half of the
@@ -191,24 +190,23 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
 }
 
 /**
- * THE UNIX SOCKET's face — what a bridged `olai mcp` may reach.
+ * THE AGENT's face — what `/mcp` may reach.
  *
  * DERIVED from {@link MCP} rather than written beside it, and that is the
- * load-bearing line in this module. The socket exists to serve one client: a
- * second olai process running the MCP adapter over this store instead of its
- * own. What that process serves is `MCP`'s resources plus `@olai/ops`' tool
- * table — so what it must be able to CALL is exactly `MCP` plus the members
- * those tools land through. Spelled as a second literal, the day somebody
- * exposed a sixth resource would be the day a bridged agent could read it
- * fresh and not attached.
+ * load-bearing line in this module. `/mcp` exists to serve one client: an
+ * agent talking to this store. What that client is served is `MCP`'s
+ * resources plus `@olai/ops`' tool table — so what it must be able to CALL
+ * is exactly `MCP` plus the members those tools land through. Spelled as a
+ * second literal, the day somebody exposed a sixth resource would be the
+ * day an agent could read it on one path and not the other.
  *
  * The procedures added on top are the tool table's three arms, and nothing
  * else: `ops.*` (the nineteen writes and the three reads that had no procedure),
  * plus `search.nodes`, `git.commit` and `git.push` — the three members BOTH
  * doors call, because none of them has an agent-specific version. What a commit
  * is RECORDED AS does differ, and it is not a member's business: this face is
- * served under the `mcp` writer (`./runtime.ts`'s `writerAt`), which is where
- * every other fact about a face is decided too.
+ * served under the writer the composition root bound (`./runtime.ts`'s
+ * `writerAt`), which is where every other fact about a face is decided too.
  *
  * `"tool"` is the plain spelling throughout, and the `{ tool: { mutates } }`
  * hint is deliberately not used: a wire face reads MEMBERSHIP only, and

@@ -1,5 +1,7 @@
 You are the agent orchestrator for this repository in $PWD. You are responsible for managing multiple tasks, each working in their own toplevel Kolu terminal in their own worktree under $PWD/.worktrees/<name>.
 
+Unattended agent runs — this orchestrator, a Kolu terminal, anything that dials `.mcp.json` — need the server up. `just run` is the one brain: it owns the store, and every MCP consumer is a client of `http://127.0.0.1:7714/mcp`. Nothing here starts a second olai, and nothing can: a second one over this directory refuses to boot and names the pid of the one that has it ([running.md](running.md)).
+
 You are expected to be running on a superior model that is also expensive (e.g.: Fable). Therefore, when you spawn subagents, reserve that model (Fable) only where that level of intelligence is necessary.
   
 ## Planning & Roadmap updates

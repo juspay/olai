@@ -579,6 +579,9 @@ export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
 export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
 export const CHAT_DIFF = selector(TESTID.chatDiff);
 export const CHAT_DIFF_LINE = selector(TESTID.chatDiffLine);
+export const CHAT_DIFF_GUTTER = selector(TESTID.chatDiffGutter);
+export const CHAT_DIFF_MARK = selector(TESTID.chatDiffMark);
+export const CHAT_DIFF_TEXT = selector(TESTID.chatDiffText);
 export const CHAT_DIFF_EXPAND = selector(TESTID.chatDiffExpand);
 export const CHAT_DIFF_WHOLESALE = selector(TESTID.chatDiffWholesale);
 export const CHAT_OUTLINE_DIFF = selector(TESTID.chatOutlineDiff);
@@ -817,8 +820,7 @@ export class OlaiWorld extends World {
    *  `After` if the scenario never came back. */
   portHold?: Server;
   /** A coding agent in a terminal, for the scenarios about the tool surface
-   *  olai does not own the client of: `olai mcp` over the same directory the
-   *  page is watching. Killed in `After` beside the server. */
+   *  olai does not own the client of: an HTTP POST at this server's `/mcp`. */
   terminalAgent?: TerminalAgent;
   /** The tool names that agent was offered, and the last tool RESULT it got.
    *  Both are read by later steps than the one that provoked them, which is
@@ -1449,8 +1451,9 @@ export class OlaiWorld extends World {
     if (this.served === undefined) {
       throw new Error(
         `this scenario edits the files it is served, so it must be tagged ` +
-          `@scratch:${this.corpus} rather than @corpus:${this.corpus} — the shared ` +
-          `corpora are tracked fixtures and are served to every other scenario too`,
+          `@scratch:${this.corpus} rather than @corpus:${this.corpus} — a shared ` +
+          `corpus is one copy of a tracked fixture, served to every other ` +
+          `scenario this worker runs`,
       );
     }
     return this.served;

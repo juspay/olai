@@ -2,10 +2,10 @@
  * One runtime, several faces, several writers — the rebinding, as a fence.
  *
  * `writerAt` is what lets an `olai web` serve its own websocket as `web` and,
- * over the same store and the same cells, an attached `olai mcp` as `mcp`. The
- * END of that is proven where it can be seen from outside — `mcp/serve.test.ts`
- * reads `X-Olai-Writer: mcp` out of a repository an attached session committed
- * into, from a process whose own door is `web`.
+ * over the same store and the same cells, an HTTP `/mcp` client as `mcp`. The
+ * END of that is proven where it can be seen from outside — a commit's
+ * `X-Olai-Writer` trailer, from a face composed under a writer that is not
+ * this process's own door.
  *
  * What that cannot see is the MECHANISM, and the mechanism has one way to rot
  * quietly: a member that records who asked, added to the surface and bound in

@@ -16,13 +16,20 @@
  * the transport as a capability (`mcpCapabilities.http`), so an agent that
  * cannot do it says so.
  *
- * **The token.** The listener binds loopback and is otherwise unauthenticated,
- * which is the standing trade for a read-only outline surface; a WRITE surface
- * reachable from whatever page the browser happens to be showing is a different
- * bargain. So the route requires a bearer token minted per process and handed
- * only to the session we spawn. It is not a secret worth much — anything that
- * can read this process's memory has already won — but it closes the one
- * realistic path, which is a page on another origin POSTing at localhost.
+ * **The token, and who may skip it.** The listener binds loopback and is
+ * otherwise unauthenticated, which is the standing trade for a read-only
+ * outline surface; a WRITE surface reachable from whatever page the browser
+ * happens to be showing is a different bargain. So a request that did not
+ * come from loopback (`127.0.0.1`) still needs the bearer token minted per
+ * process and handed only to the session we spawn. A request that DID come
+ * from loopback does not: that is how a `.mcp.json` HTTP client — an agent
+ * the operator started on this machine — reaches the same store the browser
+ * is looking at, with nothing to configure beyond the URL. The chat keeps
+ * sending its token; a loopback request that carries one is accepted the
+ * same as one that does not. It is not a secret worth much — anything that
+ * can read this process's memory has already won — but off-loopback it
+ * still closes the one realistic path, which is a page on another origin
+ * POSTing at a port bound to the world.
  *
  * **Why the SDK's Streamable HTTP transport is not used here**, having been
  * tried. It offers two modes and neither fits. STATELESS refuses to be reused —
@@ -44,7 +51,7 @@
 
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Option } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 
 /** Where the route lives. Named once: `session/new` is told the same URL. */
@@ -68,9 +75,10 @@ type Message = { id?: string | number | null }
  * documented behaviour rather than an oversight: a server-initiated notification
  * (a `resources/updated`, say) has no open channel to travel down here. The
  * browser is what watches cells on this process, and it watches them over the
- * websocket the surface already serves; the stdio face is where an agent
- * subscribes to them. If that ever changes, this is the file that grows an SSE
- * arm — and the 405 below is what tells a client today that it has not.
+ * websocket the surface already serves. A Streamable-HTTP client that wants
+ * live `resources/updated` is asking for the SSE half this route refuses. If
+ * that ever changes, this is the file that grows an SSE arm — and the 405
+ * below is what tells a client today that it has not.
  */
 class RouteTransport implements Transport {
   onmessage?: <T extends JSONRPCMessage>(message: T) => void
@@ -148,8 +156,38 @@ export interface Options {
    *  driven here. One object for the lifetime of the process: it holds no
    *  per-request state beyond the requests actually in flight. */
   readonly transport: RouteTransport
-  /** The bearer token this route requires. Minted per process. */
+  /** The bearer token a non-loopback request must present. Minted per process.
+   *  Loopback may omit it; a request that carries it is accepted either way. */
   readonly token: string
+}
+
+/**
+ * Whether `address` is loopback as the kernel reports it on the accepted
+ * socket. `127.0.0.1` is the documented case; `::1` and the IPv4-mapped
+ * form are the same host, and a client that reached us that way is no less
+ * local.
+ */
+export const fromLoopback = (address: string): boolean => {
+  const host = address.replace(/^::ffff:/i, "")
+  return host === "127.0.0.1" || host === "::1"
+}
+
+/**
+ * Whether this request may reach the tools.
+ *
+ * Loopback skips the bearer: that is how a `.mcp.json` HTTP client on this
+ * machine talks to the running server. Off loopback — or when the peer
+ * address is unknown — the token is still required. A loopback request that
+ * carries a token is accepted the same as one that does not, so the chat
+ * may keep sending the one it was handed.
+ */
+export const mcpAllowed = (
+  remote: Option.Option<string>,
+  authorization: string | undefined,
+  token: string,
+): boolean => {
+  if (Option.isSome(remote) && fromLoopback(remote.value)) return true
+  return authorization === `Bearer ${token}`
 }
 
 /** The transport {@link mcpRoute} drives and {@link ./face.ts} is connected to.
@@ -169,7 +207,7 @@ export const mcpRoute = (options: Options): Layer.Layer<never, never, HttpRouter
       MCP_PATH,
       (request: HttpServerRequest.HttpServerRequest) =>
         Effect.gen(function*() {
-          if (request.headers["authorization"] !== `Bearer ${options.token}`) {
+          if (!mcpAllowed(request.remoteAddress, request.headers["authorization"], options.token)) {
             return HttpServerResponse.text("unauthorized", { status: 401 })
           }
 

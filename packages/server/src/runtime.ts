@@ -130,7 +130,7 @@ export interface Wiring {
    *  another. `web` in `../serve.ts`, which is the browser's; a face composed
    *  for an agent is served the same runtime under a different one
    *  ({@link writerAt}), which is what lets one store answer a tab and an
-   *  attached `olai mcp` without either being recorded as the other. */
+   *  `/mcp` client without either being recorded as the other. */
   readonly writer: Writer
   /**
    * The git half, taken from the ops layer rather than the layer itself: this
@@ -170,11 +170,11 @@ export interface Wiring {
 /**
  * The git half of {@link Wiring}, from the ops layer.
  *
- * ONE spelling, because there are two composition roots — `./serve.ts` for the
- * browser and `./mcp/serve.ts` for the agent in a terminal — and HACKING.md's
+ * ONE spelling, because there used to be two composition roots and HACKING.md's
  * rule is that they must not diverge. Written out twice, the day one of them
  * grew a cell would be the day the two faces quietly stopped being the same
- * product.
+ * product. There is one root now (`./serve.ts`); this helper is still the
+ * place the git half is assembled, so a second caller cannot drift.
  *
  * IT TAKES NO WRITER, and it used to. It carried a `commit` bound to one, which
  * was the right shape while a runtime served one face — and became a leftover
@@ -217,7 +217,7 @@ export interface Publishers {
  * can tell one agent's edits from a person's — and a transport that could name
  * itself could name another. Every caller of these is already identified by the
  * FACE it arrived on: the websocket is a tab (`web`), an owner-only socket is
- * an attached `olai mcp`, an in-process dispatch is whichever agent the
+ * an HTTP `/mcp` client, an in-process dispatch is whichever agent the
  * composition root built it for. So the writer is decided where the face is,
  * which is where every other fact about a face is decided.
  */

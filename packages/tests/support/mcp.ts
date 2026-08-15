@@ -3,28 +3,24 @@
  *
  * Everything else in this suite drives olai through a browser, because the
  * browser is what a person uses. The external tool surface has no browser: its
- * client is a coding agent in a terminal, so the only honest way to exercise it
- * is to be one — launch the command an agent would be configured with, speak
- * JSON-RPC down its pipes, and then look at the page to see what it did.
+ * client is a coding agent in a terminal, so the only honest way to exercise
+ * it is to be one — POST JSON-RPC at the running server's `/mcp`, the same
+ * URL a `.mcp.json` names, and then look at the page to see what it did.
+ *
+ * Loopback, no bearer: that is the contract the route pins. The chat keeps
+ * sending a token; this client does not, on purpose, so a regression that
+ * re-required one on 127.0.0.1 fails here the way a real agent would.
  *
  * It is deliberately hand-rolled and tiny. Pulling in an MCP SDK here would
- * test that SDK's framing against ours; forty lines of `write a line, read a
- * line` tests OURS, which is the thing that could be wrong. Reading the lines
- * is `./ndjson.ts`, which is this package's own and shared with the two fake
- * servers — the same argument, one directory over.
+ * test that SDK's framing against ours; a POST and a JSON body tests OURS,
+ * which is the thing that could be wrong.
  */
 
 import * as assert from "node:assert";
-import { type ChildProcess, spawn } from "node:child_process";
-import * as path from "node:path";
 
-import { readMessages } from "./ndjson.ts";
-import { isolateEnv } from "./workers.ts";
-
-/** How long one call may take before it is a hang, and how long the process
- *  gets to come up. Generous by the same argument as the rest of the harness:
- *  a loaded CI runner is slow, and what is being told apart is "slow" from
- *  "never". */
+/** How long one call may take before it is a hang. Generous by the same
+ *  argument as the rest of the harness: a loaded CI runner is slow, and what
+ *  is being told apart is "slow" from "never". */
 const CALL_TIMEOUT = 30_000;
 
 interface Reply {
@@ -41,66 +37,52 @@ export interface TerminalAgent {
 }
 
 /**
- * Launch `olai mcp <dir>` and complete the MCP handshake, as a client does.
+ * Complete the MCP handshake against a running server's `/mcp`.
  *
- * The binary is the same nix-built one every server in this suite is spawned
- * from, which is the point: the subcommand has to EXIST in the packaged
- * artefact, and nothing else in the suite would notice if it stopped shipping.
+ * The URL is the one the page is already talking to. That is the whole of
+ * the one-brain claim: this client holds no store and starts no process.
  */
 export const connectTerminalAgent = async (
-  bin: string,
-  directory: string,
+  mcpUrl: string,
 ): Promise<TerminalAgent> => {
-  const child: ChildProcess = spawn(bin, ["mcp", directory, "--commit=off"], {
-    stdio: ["pipe", "pipe", "pipe"],
-    env: isolateEnv(`${directory}.xdg`, {
-      // stderr diagnostics stay logfmt; do not inherit OLAI_LOG=pretty.
-      OLAI_LOG: "logfmt",
-    }),
-  });
-
-  // stderr is where it may say anything that is not a frame, so it is where a
-  // failure will explain itself — kept for the diagnostics below and nowhere
-  // else, because a scenario has nothing to assert about it.
-  let said = "";
   let next = 0;
   const waiting = new Map<number, (reply: Reply) => void>();
+  const pending: Promise<void>[] = [];
 
-  child.stderr?.setEncoding("utf8");
-  // One message per line is the transport's contract, and reading it that way
-  // is `support/ndjson.ts` — a line that will not parse is left to throw here,
-  // because this client is reading a protocol WE serve and a frame that is not
-  // one is the bug this suite exists to catch.
-  if (child.stdout !== null) {
-    readMessages<Reply>(child.stdout, (message) => {
-      if (message.id === undefined) return;
-      waiting.get(message.id)?.(message);
-      waiting.delete(message.id);
+  const post = (message: Readonly<Record<string, unknown>>): Promise<Response> =>
+    fetch(mcpUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify(message),
     });
-  }
-  child.stderr?.on("data", (chunk: string) => {
-    said += chunk;
-  });
 
   const call = (method: string, params?: unknown): Promise<Reply> => {
     const id = ++next;
     const answered = new Promise<Reply>((resolve, reject) => {
       const timer = setTimeout(() => {
-        reject(
-          new Error(
-            `the terminal agent's \`${method}\` was never answered.\n  stderr: ${
-              said.trim() || "(empty)"
-            }`,
-          ),
-        );
+        reject(new Error(`the terminal agent's \`${method}\` was never answered`));
       }, CALL_TIMEOUT);
       waiting.set(id, (reply) => {
         clearTimeout(timer);
         resolve(reply);
       });
     });
-    child.stdin?.write(
-      `${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`,
+    pending.push(
+      post({ jsonrpc: "2.0", id, method, params }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error(
+            `the terminal agent's \`${method}\` was refused at HTTP ${response.status}: ${
+              (await response.text()).trim() || "(empty)"
+            }`,
+          );
+        }
+        const reply = (await response.json()) as Reply;
+        waiting.get(id)?.(reply);
+        waiting.delete(id);
+      }),
     );
     return answered;
   };
@@ -108,11 +90,9 @@ export const connectTerminalAgent = async (
   const agent: TerminalAgent = {
     call,
     notify: (method) => {
-      child.stdin?.write(`${JSON.stringify({ jsonrpc: "2.0", method })}\n`);
+      pending.push(post({ jsonrpc: "2.0", method }).then(() => undefined));
     },
-    stop: () => {
-      if (child.exitCode === null) child.kill("SIGKILL");
-    },
+    stop: () => {},
   };
 
   const ready = await call("initialize", {
@@ -121,7 +101,6 @@ export const connectTerminalAgent = async (
     clientInfo: { name: "olai's own e2e suite", version: "0" },
   });
   if (ready.error !== undefined) {
-    agent.stop();
     throw new Error(
       `the terminal agent refused to initialize: ${ready.error.message}`,
     );

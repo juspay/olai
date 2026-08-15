@@ -14,7 +14,7 @@ let
   # @kolu/surface-mcp is the third face on the same surface: it re-exposes a
   # declared surface as an MCP server, so an agent reads the cells and
   # collections the browser draws instead of a second projection of them. It is
-  # what `olai mcp` serves the READ side from — resources, with the
+  # what `/mcp` serves the READ side from — resources, with the
   # subscribe/notify lifecycle and the Effect Schema → JSON Schema bridge that
   # are the two things olai should not be writing by hand
   # (docs/brainstorming/surface-mcp-viewing.md).

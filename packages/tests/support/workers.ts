@@ -107,7 +107,7 @@ export const releasePort = (holder: net.Server): Promise<void> =>
   });
 
 /**
- * The environment a spawned olai (or `olai mcp`) is allowed to see.
+ * The environment a spawned olai is allowed to see.
  *
  * Spreads the host env so PATH and the nix-built binary's own variables
  * still work, then takes back the shared stores: XDG cache (recall and

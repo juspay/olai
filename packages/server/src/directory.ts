@@ -1,10 +1,20 @@
 /**
- * The served directory, opened — the three lines both composition roots start
- * with, and the one ordering rule between them.
+ * The served directory, opened — the four lines the composition root starts
+ * with, and the ordering rules between them.
  *
- * `olai web` and `olai mcp` are two transports over one directory, so both
- * resolve the path, annotate it onto the log, and open a store over it. The
- * ORDER of the middle two is load-bearing and invisible when it is wrong:
+ * `olai web` is the one transport over a directory: it resolves the path,
+ * annotates it onto the log, CLAIMS the directory, and opens a store over it.
+ *
+ * The claim is `./lock.ts`, and this is where it goes because this is where a
+ * store over somebody's vault is born: every path that opens one comes through
+ * here, so "one brain per vault" is a property of this function rather than a
+ * rule a composition root has to remember — including the next one, whenever a
+ * second way to serve a directory arrives. It is taken BEFORE the store, which
+ * is the only order that means anything: a store opened first has already
+ * forked a watcher over files this process may turn out not to own.
+ *
+ * The ORDER of the annotation and the store is load-bearing in a different way,
+ * and invisible when it is wrong:
  * `Store.make` forks the watcher and the probe loop, and a fiber inherits the
  * log annotations in force when it is forked. Annotate afterwards and every
  * line those fibers ever emit — a failed probe, three layers down, on somebody
@@ -22,6 +32,8 @@ import * as Store from "@olai/store"
 import { Effect } from "effect"
 import { resolve } from "node:path"
 
+import { holdVault } from "./lock.ts"
+
 export interface Directory {
   /** The directory, resolved. Resolved rather than as typed: it is what every
    *  path answer downstream is relative to, and what the log says we opened. */
@@ -30,11 +42,15 @@ export interface Directory {
 }
 
 /** Open `root` as an outline store, with the log annotated for everything the
- *  store and its callers will go on to say. Scoped, like the store it opens. */
+ *  store and its callers will go on to say, and the directory held against a
+ *  second olai for as long as this one has it. Scoped, like the store it opens:
+ *  closing the scope releases the claim, and so does the process ending by any
+ *  route at all (`./lock.ts`). */
 export const openDirectory = (root: string) =>
   Effect.gen(function*() {
     const resolved = resolve(root)
     yield* Effect.annotateLogsScoped({ root: resolved })
+    yield* holdVault(resolved)
     const directory: Directory = {
       root: resolved,
       store: yield* Store.make({ root: resolved, codec }),

@@ -19,6 +19,17 @@
  * scratch scenario gets a fresh copy of the named corpus in a temp directory
  * and a server of its very own, both thrown away afterwards. It is the one case
  * where the per-scenario spawn is worth paying for.
+ *
+ * WHAT A SHARED SERVER SERVES is a per-WORKER copy of the tracked corpus, never
+ * the tracked directory itself, and that is not tidiness. `--parallel` is one
+ * process per worker, each with its own `servers` map, so four workers asking
+ * for `good` are four olai — and one olai per directory is now enforced by the
+ * kernel (`packages/server/src/lock.ts`, "one brain per vault"): the second
+ * worker's server would REFUSE to boot and every scenario behind it would fail
+ * in its `Before`. A copy per worker is what makes each of those a directory of
+ * its own, which is what the lock is asking for and what a parallel harness
+ * should have been doing anyway — before this, a scenario that wrote where it
+ * should not have was writing into the repository's tracked fixtures.
  */
 
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
@@ -137,10 +148,12 @@ const GIT_TAG = /^@git:(repo|none|broken)$/;
 
 /** The corpus a scenario gets when it names none. */
 const DEFAULT_CORPUS = "good";
-/** `@corpus:<name>` shares the tracked fixture directory; `@scratch:<name>`
- *  gets a private, writable copy of it. One pattern rather than two, because
- *  they are one question — which corpus, and may I write to it — and two
- *  regexes is how the answer ends up parsed in two places. */
+/** `@corpus:<name>` shares this WORKER's copy of the tracked fixture directory
+ *  (see the header — nothing serves the tracked tree itself any more);
+ *  `@scratch:<name>` gets a copy of its own that it may write to, thrown away
+ *  with the scenario. One pattern rather than two, because they are one
+ *  question — which corpus, and may I write to it — and two regexes is how the
+ *  answer ends up parsed in two places. */
 const CORPUS_TAG = /^@(corpus|scratch):([A-Za-z0-9_-]+)$/;
 
 /** The screen a scenario is read on, and the pointer it is read with.
@@ -205,14 +218,33 @@ const live = new Set<ChildProcess>();
  *  retrying its way onto a fresh port after the run is over. */
 let stopped = false;
 
-/** Per-worker XDG root for shared corpus servers. Scratch servers keep
- *  theirs beside the scratch copy; `After` deletes the sibling. */
+/** Per-worker temp root: one directory per corpus this worker serves, each
+ *  holding the copy it serves and the XDG state that server writes. Scratch
+ *  servers keep theirs beside the scratch copy; `After` deletes the sibling. */
 let workerState: string | undefined;
 
 const workerStateRoot = (): string =>
   (workerState ??= fs.mkdtempSync(
     path.join(os.tmpdir(), `olai-e2e-w${workerId()}-`),
   ));
+
+/** This worker's home for one corpus: `<worker>/<corpus>/served` is the copy
+ *  its server reads, and `cache`/`state` are its siblings — beside the served
+ *  tree and never inside it, the same rule `scratchState` keeps and for the
+ *  same reason. */
+const corpusHome = (corpus: string): string =>
+  path.join(workerStateRoot(), corpus);
+
+/** A copy of the tracked corpus that belongs to THIS worker, made on the first
+ *  ask and kept for the run. See the header: two workers over one directory is
+ *  two olai over one vault, which the server refuses. */
+const workerCopyOf = (corpus: string): string => {
+  const root = path.join(corpusHome(corpus), "served");
+  if (!fs.existsSync(root)) {
+    fs.cpSync(fixtureDir(corpus), root, { recursive: true });
+  }
+  return root;
+};
 
 /** Beside the scratch copy, never inside it. A `@git:repo` scratch is a
  *  real work tree; XDG/HOME written under it would show up as uncommitted
@@ -257,25 +289,6 @@ let mode: Mode | undefined;
 /** Read once. The environment cannot change mid-run, and re-deriving it per
  *  scenario would let the same mistake be reported forty times. */
 const modeOf = (): Mode => (mode ??= readMode());
-
-/** The olai executable this harness spawns.
- *
- *  For the one caller that launches something OTHER than a server with it: the
- *  external tool surface is a subcommand of the same binary, and a scenario
- *  about a terminal agent has to run the artefact a person would have, not a
- *  script in this tree. A reused server (`OLAI_URL`) is somebody else's
- *  process and says nothing about where its binary is. */
-export const olaiBin = (): string => {
-  const active = modeOf();
-  if (active.kind !== "spawn") {
-    throw new Error(
-      "this scenario launches the olai binary itself (`olai mcp`), so it needs " +
-        `OLAI_BIN — OLAI_URL (${active.baseUrl}) names a running server, not an ` +
-        "executable this harness can start.",
-    );
-  }
-  return active.bin;
-};
 
 /** `bun-types`' `node:net` and `node:child_process` declarations do not carry
  *  EventEmitter's methods, although the objects have them at runtime — a gap in
@@ -623,9 +636,12 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
   const started =
     active.kind === "reuse"
       ? reusedServer(active.baseUrl, corpus)
-      : startServerChild(active.bin, fixtureDir(corpus), `corpus "${corpus}"`, {
-          stateRoot: path.join(workerStateRoot(), corpus),
-        });
+      : startServerChild(
+          active.bin,
+          workerCopyOf(corpus),
+          `corpus "${corpus}"`,
+          { stateRoot: corpusHome(corpus) },
+        );
 
   // A FAILED start is not kept: the next scenario asking for this corpus
   // deserves a real attempt rather than a replay of the same rejection.
@@ -720,11 +736,44 @@ process.on("exit", killLive);
 
 // ── hooks ──────────────────────────────────────────────────────────────
 
+/**
+ * What `git` says about the tracked fixtures — the sweep's two readings, taken
+ * before the run and after it.
+ *
+ * Copies and `world.scratch()` between them make "a scenario wrote into the
+ * repository's fixtures" hard to do, and hard is not the same as impossible: a
+ * step that joins a raw path, or a future caller of `fixtureDir` that forgets
+ * to copy, would put it back and nothing would say so. Silence is the whole
+ * failure mode — a dirty fixture is a change to a file the NEXT run reads as
+ * its baseline — so the invariant the copies were made to hold is asserted
+ * rather than trusted.
+ *
+ * TWO readings rather than one, because a clean tree is not the invariant.
+ * Somebody adding a fixture has uncommitted work under `fixtures/` and their
+ * run must not fail for it; what may not happen is a CHANGE across the run.
+ *
+ * `null` when git cannot answer (no git, not a work tree) — the sweep is a
+ * guard, and a guard that cannot read is not a failure of the thing it guards.
+ */
+const fixtureStatus = (): string | null => {
+  try {
+    return execFileSync("git", ["status", "--porcelain", "--", FIXTURES], {
+      cwd: FIXTURES,
+      encoding: "utf8",
+    });
+  } catch {
+    return null;
+  }
+};
+
+let fixturesWere: string | null = null;
+
 BeforeAll(async () => {
   // Fail here rather than in the first scenario: an unset (or doubly set)
   // OLAI_BIN/OLAI_URL is a setup mistake, and reporting it once beats
   // reporting it per scenario.
   modeOf();
+  fixturesWere = fixtureStatus();
   browser = await chromium.launch({
     headless: process.env.HEADLESS !== "false",
     args: ciArgs,
@@ -737,6 +786,20 @@ AfterAll(async () => {
   if (workerState !== undefined) {
     fs.rmSync(workerState, { recursive: true, force: true });
     workerState = undefined;
+  }
+
+  // LAST, and after the servers are down: a server still running is a server
+  // still able to write, and this reading has to be of a tree nobody holds.
+  const now = fixtureStatus();
+  if (fixturesWere !== null && now !== null && now !== fixturesWere) {
+    throw new Error(
+      "this run changed the tracked fixtures, which no scenario may do — a " +
+        "shared corpus is served from a per-worker COPY and a writing scenario " +
+        "owns a scratch copy of its own (support/hooks.ts's header).\n" +
+        `  before: ${fixturesWere.trim() || "(clean)"}\n` +
+        `  after:  ${now.trim() || "(clean)"}\n` +
+        "  Restore them with: git checkout -- packages/tests/fixtures",
+    );
   }
 });
 
