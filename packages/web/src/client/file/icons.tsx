@@ -82,6 +82,13 @@ interface Drawn {
   readonly shape: () => JSX.Element
 }
 
+/** Every kind, and everything that is true of how it is drawn — the shape this
+ *  client already reaches for whenever a closed set of kinds each carries a
+ *  few facts (`../Checkbox.tsx`'s `FACE`, `../agenda/owed.ts`'s `PAINT`,
+ *  `../commit/said.ts`'s `MARK`, `../chat/Diff.tsx`'s `LOOK`). It is a
+ *  `Record` over the union for the reason `Checkbox.tsx` spells out beside its
+ *  own: a fourth kind is then a compile error here rather than a row that
+ *  quietly draws whatever the last arm of a chain of ternaries was. */
 const GLYPHS: Record<RowOf, Drawn> = {
   // Wider than tall, as a folder is; the square box would letterbox it.
   folder: { box: "0 0 18 16", shape: FolderPaths },
