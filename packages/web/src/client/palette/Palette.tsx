@@ -556,7 +556,17 @@ export function Palette(props: {
           class="absolute inset-0 cursor-default"
           aria-label="close the palette"
           data-testid={TESTID.paletteScrim}
-          onClick={close}
+          // Asked of the stack like the key is, and for the same reason: this
+          // is the palette's other dismissal, and a press on a full-screen
+          // scrim is a press outside every panel underneath as well. Nothing
+          // stands over the palette today (a row that opens another surface
+          // calls `close` on its way through, and the scrim covers the page),
+          // so this guard changes no pixel now — it is the pointer half of the
+          // rule the Escape above keeps, left unguarded once and worth exactly
+          // one line to not leave unguarded twice.
+          onClick={() => {
+            if (topmost()) close()
+          }}
         />
         <div
           class={`relative ${WITHIN.raised} w-full max-w-lg overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg`}
