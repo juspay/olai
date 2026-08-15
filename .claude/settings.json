@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(CLAUDE.md)",
+      "Write(CLAUDE.md)",
+      "Edit(docs/orchestrator/instructions.md)",
+      "Write(docs/orchestrator/instructions.md)",
+      "Edit(HACKING.md)",
+      "Write(HACKING.md)"
+    ]
+  }
+}
