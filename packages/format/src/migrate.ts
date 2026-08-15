@@ -29,7 +29,7 @@
  * ## What it declines to touch
  *
  * A record it cannot migrate faithfully is left EXACTLY as it was, and the file
- * it is in is left alone with it — reported, never guessed at. There are three,
+ * it is in is left alone with it — reported, never guessed at. There are four,
  * and every one of them is already a record no set could load:
  *
  *   - a record carrying TWO marks. Three fields could hold three answers to one
@@ -46,8 +46,16 @@
  *     by ./write.ts, which writes the fields it knows and no others, so a `titel`
  *     would be silently deleted by the step whose whole promise is faithfulness.
  *     The validator was about to name it; it still can, because the bytes stay.
+ *   - a record spelling a field it DOES define with a value that field could
+ *     never hold — `{"done":false}`, `{"date":true}`, `{"see":"y"}`. Same
+ *     argument as `titel`, one level down: a mark was `true` or an instant, and
+ *     everything else was a `bad-record` the moment somebody tried to load the
+ *     file. Carrying such a record across would ask this module what `false`
+ *     means as a mark, and every answer it could give is an invention — a
+ *     `status` nobody wrote, or a `date` that quietly disappears on the way to
+ *     the writer. The named error stays named.
  *
- * A file holding either keeps every byte, so a second start finds the same
+ * A file holding any of them keeps every byte, so a second start finds the same
  * problem and says the same thing. That is what makes declining safe: this is
  * not a step that can be half-done.
  */
@@ -95,8 +103,61 @@ const refusalFor = (
       unknown.map((key) => `\`${key}\``).join(", ")
     }, which this format has no field for — rewriting the record would drop it`
   }
+  // A VALUE THE FIELD COULD NEVER HOLD, which is the `titel` argument one level
+  // down and the one this module got wrong first. Reading a mark as "present or
+  // absent" and copying an instant only "if it is a string" looks careful and is
+  // the opposite: `{"done":false}` becomes a finished task nobody finished, and
+  // `{"date":true}` loses its date on the way through. Both were `bad-record`
+  // before this change — a file that would not load — so the migration would be
+  // TURNING a named error into a valid record, silently, in a step the human
+  // never asked for and does not watch.
+  const misshapen = legacyIn(record).filter((field) => !shapeOf(field).holds(record[field]))
+  if (misshapen.length > 0) {
+    return `${
+      misshapen.map((field) =>
+        `\`${field}\` holds ${JSON.stringify(record[field])}, and ${shapeOf(field).but}`
+      ).join("; ")
+    } — the record cannot load as it stands, and migrating it would make one that can`
+  }
   return null
 }
+
+/**
+ * What each old field was allowed to hold, and how to say so.
+ *
+ * Taken from the schema this change replaced: a mark was `true | string`, a
+ * `date` was a string, an edge was a list. The one thing added to that reading
+ * is that an EMPTY string is not an instant — the schema let it through and the
+ * validator then said `bad-date`, but the writer omits fields holding nothing
+ * (./write.ts), so carrying `{"done":""}` across would produce a plain finished
+ * node and lose the complaint. An empty LIST is different and is carried as
+ * absence, because absence is exactly what it meant on both sides of the change.
+ */
+const SHAPES = {
+  mark: {
+    holds: (value: unknown) => value === true || (typeof value === "string" && value !== ""),
+    but: "a mark holds `true` or the instant the state was reached",
+  },
+  date: {
+    holds: (value: unknown) => typeof value === "string" && value !== "",
+    but: "a date holds the day it names",
+  },
+  edge: {
+    // The MEMBERS are not checked here on purpose: a list holding a number is
+    // carried into `props` verbatim and the validator says `bad-record` about
+    // it exactly as it did before, which is the outcome this arm exists to
+    // protect. It is only a non-list that has nowhere to go.
+    holds: (value: unknown) => Array.isArray(value),
+    but: "an edge holds a list of ids",
+  },
+} as const
+
+const shapeOf = (field: string): (typeof SHAPES)[keyof typeof SHAPES] =>
+  (MARKS as ReadonlyArray<string>).includes(field)
+    ? SHAPES.mark
+    : field === "date"
+    ? SHAPES.date
+    : SHAPES.edge
 
 /** Every field either record shape declares, asked of the schemas rather than
  *  listed: what a rewrite is able to carry over is exactly what a writer knows
@@ -123,6 +184,14 @@ const markIn = (
  * other side is built with the accessors every reading in olai now uses
  * (`migrate.test.ts`), so what is being compared is what the file said before
  * against what the format answers after.
+ *
+ * It reads what is THERE, with no filter of its own — no "if it is a string",
+ * no "if it is a list". That is what makes the comparison worth running: this
+ * side and {@link migrateRecord} once shared those two conditions, and a
+ * property whose two sides skip the same values agrees about them by
+ * construction. A record whose mark holds `false` is declined long before it
+ * reaches here; if one ever did, this would report `false` and the comparison
+ * would fail, which is the whole point of a measurement.
  */
 export interface Meaning {
   readonly mark: string | undefined
@@ -138,13 +207,17 @@ export const meaningOf = (record: Readonly<Record<string, unknown>>): Meaning =>
   const value = mark === undefined ? undefined : record[mark]
   const date = record["date"]
   return {
+    // `true` is the one value that is not an instant, and it is the absence of
+    // one rather than a value the new shape stores differently.
+    since: value === true ? undefined : (value as string | undefined),
     mark,
-    since: typeof value === "string" ? value : undefined,
-    date: typeof date === "string" ? date : undefined,
+    date: date as string | undefined,
     edges: Object.fromEntries(
       EDGE_FIELDS.flatMap((field) => {
-        const held = record[field]
-        return Array.isArray(held) ? [[field, held as ReadonlyArray<string>]] : []
+        const held = record[field] as ReadonlyArray<string> | undefined
+        // An empty list is absence in both shapes — the old writer omitted it
+        // too — so it is read as nothing here rather than as an edge nobody has.
+        return held === undefined || held.length === 0 ? [] : [[field, held]]
       }),
     ),
   }
@@ -186,15 +259,18 @@ export const migrateRecord = (
   if (mark !== undefined) {
     props[STATUS] = mark
     const value = record[mark]
-    // A string is the instant the state was reached; `true` is the state
-    // reached without one, and it becomes an ABSENT `since` rather than any
-    // value at all. Those two are the whole of what a mark field held.
-    if (typeof value === "string") props[SINCE] = value
+    // `true` is the state reached without an instant, and it becomes an ABSENT
+    // `since` rather than any value at all; anything else is the instant, taken
+    // as it stands. Those two are the whole of what a mark field could hold —
+    // {@link refusalFor} has already declined every record where it held
+    // something else, so there is nothing here to fall back to, and nothing
+    // this step could quietly decide.
+    if (value !== true) props[SINCE] = value
   }
-  if (typeof record["date"] === "string") props["date"] = record["date"]
+  if (record["date"] !== undefined) props["date"] = record["date"]
   for (const field of EDGE_FIELDS) {
-    const held = record[field]
-    if (Array.isArray(held) && held.length > 0) props[field] = held
+    const held = record[field] as ReadonlyArray<unknown> | undefined
+    if (held !== undefined && held.length > 0) props[field] = held
   }
 
   const out: Record<string, unknown> = {}

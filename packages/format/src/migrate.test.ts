@@ -12,9 +12,11 @@
  */
 
 import { expect, test } from "bun:test"
+import { Result } from "effect"
 
 import { type Meaning, meaningOf, migrateOutline, migrateRecord } from "./migrate.ts"
 import { isMirror, type Node } from "./node.ts"
+import { parseOutline } from "./parse.ts"
 import { dateOf, EDGE_FIELDS, listOf, markOf, sinceOf } from "./props.ts"
 import { serializeNode, serializeOutline } from "./write.ts"
 import { outlineOf } from "./fixtures.testlib.ts"
@@ -181,10 +183,10 @@ test("a file already in the new shape is not rewritten at all", () => {
 // ── what it declines ───────────────────────────────────────────────────
 
 /**
- * Three records it will not carry across, and the file keeps every byte for
+ * Four records it will not carry across, and the file keeps every byte for
  * each of them.
  *
- * All three are records no set could load before this change either, which is
+ * All four are records no set could load before this change either, which is
  * what makes declining the safe answer rather than a cop-out: nothing that ever
  * worked stops working, and the human sees what they wrote rather than a
  * cleaned-up half of it.
@@ -231,6 +233,114 @@ test("a record carrying a field the format has no place for stops its file", () 
   expect(serializeNode(
     JSON.parse(`{"id":"a","ord":"a","title":"t","titel":"oops"}`) as Node,
   )).toBe(`{"id":"a","ord":"a","title":"t"}`)
+})
+
+/**
+ * The fourth, and the one this file got wrong the first time: a field the
+ * format DOES define, holding a value it never could.
+ *
+ * A corpus again rather than a table, because the mistake was precisely a
+ * shape nobody thought to write a case for. Every line below was `bad-record`
+ * on the binary this change replaces, and the two claims are made together:
+ * the migration declines it, and the CURRENT parser still refuses the bytes it
+ * left behind. That pair is what "a named error stays named" means — declining
+ * would be no better than laundering if the file the sweep walked away from
+ * then loaded clean.
+ */
+const MALFORMED: ReadonlyArray<{ field: string; value: string; line: string }> = (() => {
+  const cross = (fields: ReadonlyArray<string>, values: ReadonlyArray<string>) =>
+    fields.flatMap((field) =>
+      values.map((value) => ({
+        field,
+        value,
+        line: `{"id":"n","ord":"a0","title":"t","${field}":${value}}`,
+      }))
+    )
+  return [
+    // `""` is in this list on purpose and is the subtlest of them: the old
+    // schema ACCEPTED it and the validator then said `bad-date`. The writer
+    // omits fields holding nothing, so a migration that copied it would produce
+    // a node that is simply finished, and the complaint would be gone.
+    ...cross(["done", "doing", "todo"], [`false`, `1`, `null`, `[]`, `{}`, `""`]),
+    ...cross(["date"], [`true`, `[]`, `""`, `7`, `{"day":"2026-08-10"}`]),
+    ...cross(["after", "see", "blocks"], [`"y"`, `true`, `7`, `{"0":"y"}`]),
+  ]
+})()
+
+test("a legacy field holding a value it could never hold stops its file", () => {
+  expect(MALFORMED.length).toBeGreaterThan(30)
+
+  for (const { field, value, line } of MALFORMED) {
+    const result = migrateOutline(line + "\n")
+    expect({ line, kind: result.kind }).toEqual({ line, kind: "left" })
+    if (result.kind !== "left") continue
+    // NAMED, not merely refused: the reason quotes the field and the value it
+    // holds, so the human reads what is wrong with the line rather than that
+    // something is.
+    expect({ line, why: result.why[0]?.why }).toEqual({
+      line,
+      why: expect.stringContaining(`\`${field}\` holds ${value}`) as unknown as string,
+    })
+
+    // And the bytes it left behind are still a file that does not load, which
+    // is the other half of the claim: the complaint the old binary made about
+    // this line is a complaint the current one still makes.
+    expect({ line, loads: Result.isSuccess(parseOutline("a.olai", line + "\n")) })
+      .toEqual({ line, loads: false })
+  }
+})
+
+/**
+ * The two that would have gone through quietly, said as themselves, because a
+ * corpus proves the class and an example is what a reader remembers.
+ *
+ * `{"done":false}` had no mark at all under the old schema — it was a record
+ * that would not load. Read as "the key is present", it becomes a task somebody
+ * finished. `{"date":true}` is the same mistake pointing the other way: read as
+ * "copy it if it is a string", the date simply stops existing.
+ */
+test("`{\"done\":false}` is not a finished task, and `{\"date\":true}` does not vanish", () => {
+  const done = migrateRecord(JSON.parse(`{"id":"n","ord":"a0","title":"t","done":false}`))
+  expect(done.kind).toBe("refused")
+  if (done.kind === "refused") expect(done.why).toContain("`done` holds false")
+
+  const date = migrateRecord(JSON.parse(`{"id":"n","ord":"a0","title":"t","date":true}`))
+  expect(date.kind).toBe("refused")
+  if (date.kind === "refused") expect(date.why).toContain("`date` holds true")
+})
+
+/**
+ * An empty LIST is the one shape in that neighbourhood that is carried rather
+ * than declined, and it is carried as absence.
+ *
+ * It is not a malformed value: the old schema accepted it, the old writer
+ * omitted it, and `targetsOf` answered nothing about it. So it means on both
+ * sides of the change exactly what no `see` at all means, and the record it
+ * migrates to is the record with no `see` at all.
+ */
+test("an empty edge list is absence, and migrates to absence", () => {
+  const empty = migrateRecord(JSON.parse(`{"id":"n","ord":"a0","title":"t","see":[],"done":true}`))
+  expect(empty).toEqual({
+    kind: "migrated",
+    record: { id: "n", ord: "a0", title: "t", props: { status: "done" } },
+  })
+})
+
+/**
+ * A list holding something that is not an id is NOT declined, and that is the
+ * arm doing its job rather than overreaching.
+ *
+ * The value has somewhere to go — `props` holds lists — so it is carried across
+ * verbatim and the validator says the same thing about it afterwards as before.
+ * Refusing here would be this module judging records, which is the parser's job
+ * and the reason the other three arms are all about what a REWRITE would lose.
+ */
+test("a list holding a non-id is carried across, and still refused by the parser", () => {
+  const line = `{"id":"n","ord":"a0","title":"t","after":["a",7]}`
+  const result = migrateOutline(line + "\n")
+  expect(result.kind).toBe("migrated")
+  if (result.kind !== "migrated") return
+  expect(Result.isFailure(parseOutline("a.olai", serializeOutline(result.records)))).toBe(true)
 })
 
 test("a line that is not JSON stops its file rather than being judged", () => {
