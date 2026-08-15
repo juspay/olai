@@ -931,6 +931,14 @@ const planMark = (
  * its own — the capture schema's `after` is a sibling ANCHOR — and a `blocks`
  * pointing at an id the set does not declare yet is `unknown-target`, which
  * the validator refuses. A capture cannot arrive blocked.
+ *
+ * NOT `set_after` EITHER, and that one is a choice. Wiring an edge onto a node
+ * that is already `doing` leaves a started row waiting on something, and that
+ * is a true thing to record: "I picked this up and have just realised it needs
+ * X first" is how anybody finds out. The row goes dim and says what it is
+ * waiting for, which is what the drawing has always been for. What is refused
+ * is the INSTRUCTION to start — the moment a machine is told to do the
+ * impossible — not the discovery that the order was other than you thought.
  */
 const heldUp = (scope: Scope, node: RegularNode): OpFailure | undefined => {
   const waiting = standingBefore(scope.derived, node.id)
