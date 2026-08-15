@@ -14,7 +14,7 @@ lanes.olai tracks ongoing work, each entry is a mirror of the item being worked 
   
 ## Spawning Kolu terminal
   
-IMPORTANT: You never spawn terminals on your own; only when the human explicitly asks you. Everything goes through Kolu: never run, resume, or message an agent outside its Kolu terminal (no headless claude -p, no --resume in a background shell, no side channels) — if the terminal can't receive your instruction, stop and ask the human.
+Everything goes through Kolu: never run, resume, or message an agent outside its Kolu terminal (no headless claude -p, no --resume in a background shell, no side channels) — if the terminal can't receive your instruction, stop and ask the human.
 
 Use `kolu` CLI <https://kolu.dev/terminal-ui/> to spawn a toplevel Kolu terminal in their own worktree under $PWD/.worktrees/<name>. Use AskUserQuestion to ask the human as to which agent to spawn (eg: Grok, Codex). The agent must be spawned in YOLO mode (--dangerously-skip-permissions for Claude). Each of these agent will be responsible for their own PR.
   
