@@ -6,7 +6,9 @@
  * browsers. Everything above it — the store's codec, the server, the web
  * client — reads the format through this one surface.
  *
- * Nine things are exported, and that is the whole contract:
+ * These are exported, and that is the whole contract — the list is the claim,
+ * never its length, which is what a counted header keeps getting wrong here
+ * (it has said Eight over nine bullets once already):
  *
  *   - the codec, `parseOutline` (per file) and `validate` (per set);
  *   - what they produce, `OutlineSet` and the records inside it — each one AT a
