@@ -41,7 +41,7 @@
  */
 
 import { surface } from "@olai/surface"
-import type { ExposeMap } from "@kolu/surface-mcp"
+import type { ExposeMap } from "@kolu/surface/expose"
 
 /**
  * The allowlist.
