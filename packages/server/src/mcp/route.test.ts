@@ -30,7 +30,7 @@ import { watchFault } from "../fault.ts"
 import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { bind, gitWiring } from "../runtime.ts"
-import { serveFace } from "./face.ts"
+import { clientOver, serveFace } from "./face.ts"
 import { MCP_PATH, mcpTransport } from "./route.ts"
 import { bespokeFrom } from "./tools.ts"
 
@@ -71,8 +71,8 @@ const withRoute = <A>(use: (served: Served) => Promise<A>): Promise<A> => {
 
     const transport = mcpTransport()
     yield* serveFace({
-      bound: wired.bound,
-      tools: bespokeFrom(TOOLS, ops, "mcp"),
+      client: () => clientOver(wired.bound.handlers),
+      tools: bespokeFrom(TOOLS, "mcp"),
       transport,
     })
     yield* Effect.addFinalizer(() => runtime.stopped)

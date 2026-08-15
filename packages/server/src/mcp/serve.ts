@@ -44,7 +44,7 @@ import { Effect, SubscriptionRef } from "effect"
 import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
 import { bind, gitWiring } from "../runtime.ts"
-import { serveFace } from "./face.ts"
+import { clientOver, serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
 /**
@@ -198,11 +198,11 @@ export const serveTools = (options: McpServeOptions) =>
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const server = yield* serveFace({
-      bound: wired.bound,
+      client: () => clientOver(wired.bound.handlers),
       // `mcp`, not `chat-agent`: the client here is somebody's own coding agent,
       // launched from their terminal, and the commit trailer is the only place
       // that difference is ever recorded.
-      tools: bespokeFrom(TOOLS, ops, "mcp"),
+      tools: bespokeFrom(TOOLS, "mcp"),
       transport: options.transport ?? stdio(),
     })
     yield* Effect.addFinalizer(() => runtime.stopped)

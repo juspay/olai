@@ -32,7 +32,7 @@ import * as Chat from "@olai/chat"
 import { openDirectory } from "./directory.ts"
 import { watchFault } from "./fault.ts"
 import { listen } from "./listener.ts"
-import { serveFace } from "./mcp/face.ts"
+import { clientOver, serveFace } from "./mcp/face.ts"
 import { MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
 import { bind, gitWiring, type Publishers } from "./runtime.ts"
@@ -178,8 +178,8 @@ export const serve = (options: ServeOptions) =>
     // hand-rolled dispatch this replaced is gone.
     const transport = mcpTransport()
     yield* serveFace({
-      bound: wired.bound,
-      tools: bespokeFrom(TOOLS, ops, "chat-agent"),
+      client: () => clientOver(wired.bound.handlers),
+      tools: bespokeFrom(TOOLS, "chat-agent"),
       transport,
     })
 

@@ -41,15 +41,17 @@ import { surface } from "@olai/surface"
 import { buildSurfaceFace, type StreamingProcedure } from "@kolu/surface/client"
 import type { SurfaceSpec } from "@kolu/surface/define"
 import { directDispatch } from "@kolu/surface/links/direct"
+import { restrictHandlers } from "@kolu/surface/expose"
+import type { SurfaceDispatch } from "@kolu/surface/link"
 import type { SurfaceReadFace } from "@kolu/surface/project"
 import type { SurfaceHandlers } from "@kolu/surface/server"
-import { type BespokeTool, serveSurfaceAsMcp } from "@kolu/surface-mcp"
+import { type BespokeTool, type ClientOrConnection, serveSurfaceAsMcp } from "@kolu/surface-mcp"
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import { Effect, type Scope } from "effect"
 
-import { EXPOSE } from "../faces.ts"
-import type { Bound } from "../runtime.ts"
+import { AGENT_FACE, EXPOSE } from "../faces.ts"
+
 
 // ── The client, typed ────────────────────────────────────────────────────
 
@@ -80,6 +82,38 @@ type SurfaceCollectionsReadFace<S extends SurfaceSpec> = {
   }
 }
 
+/** One procedure's three schemas, as the client's call signature. Read off the
+ *  SPEC rather than restated, so the day a procedure's input or answer changes
+ *  is the day this stops compiling — which is the whole reason the leaves below
+ *  are derived and not hand-written. An absent `input` is `undefined` (the
+ *  framework's payload for a no-argument member) and an absent `error` is
+ *  `never`, exactly as `defineSurface` reads them. */
+type Called<P> = (
+  input: P extends { readonly input: { readonly Type: infer I } } ? I : undefined,
+) => Effect.Effect<
+  P extends { readonly output: { readonly Type: infer O } } ? O : void,
+  P extends { readonly error: { readonly Type: infer E } } ? E : never
+>
+
+/** The declared procedures, at the shape the spec holds them. */
+type Procedures = NonNullable<typeof surface.spec["procedures"]>
+
+/**
+ * The CALL half of the face — the members `@olai/ops`' tool table lands
+ * through, and exactly those.
+ *
+ * The same list `AGENT`'s map grants (`../faces.ts`), which is not a
+ * coincidence and is not enforced either: one says what a bridged process MAY
+ * call and this says what it DOES call, and the pair is what `tools.ts` turns
+ * into the three ops-layer doors. A member here that the map omits is a refusal
+ * at the first tool call; the map's own test is what keeps them together.
+ */
+type SurfaceCallFace = {
+  readonly ops: { [V in keyof Procedures["ops"]]: Called<Procedures["ops"][V]> }
+  readonly search: { readonly nodes: Called<Procedures["search"]["nodes"]> }
+  readonly git: { readonly push: Called<Procedures["git"]["push"]> }
+}
+
 /**
  * olai's surface as a CLIENT sees it — spec-derived, so a schema edit is a
  * compile error here rather than a runtime surprise.
@@ -92,20 +126,44 @@ type SurfaceCollectionsReadFace<S extends SurfaceSpec> = {
  * declares the narrow face it actually calls, the way `@kolu/padi` declares
  * `PadiSurfaceClient`, and the framework-forced structural cast lives in ONE
  * named place — {@link clientOver} — instead of at every call site.
+ *
+ * It carries the CALL half now as well as the read half, because the tools go
+ * through it: `@olai/ops`' table is projected over this client rather than over
+ * a local `Ops` ({@link ./tools.ts}), which is what makes an attached process
+ * possible and what makes the attached answer and the fresh one the same
+ * statement rather than two implementations that agree.
  */
 export type OlaiSurfaceClient = {
   readonly surface:
     & SurfaceReadFace<typeof surface.spec>
     & SurfaceCollectionsReadFace<typeof surface.spec>
+    & SurfaceCallFace
 }
 
-/** Build the typed face over an in-process dispatch. THE one place the
- *  structural cast lives, so nothing downstream re-derives it. */
-const clientOver = (handlers: SurfaceHandlers): OlaiSurfaceClient =>
-  buildSurfaceFace(
-    surface,
-    directDispatch({ handlers }),
-  ) as unknown as OlaiSurfaceClient
+/** Build the typed face over any dispatch — an in-process one here, a unix
+ *  socket's when `olai mcp` attaches. THE one place the structural cast lives,
+ *  so nothing downstream re-derives it. */
+export const clientOn = (dispatch: SurfaceDispatch): OlaiSurfaceClient =>
+  buildSurfaceFace(surface, dispatch) as unknown as OlaiSurfaceClient
+
+/** The in-process case: dispatch straight at the handlers this process bound.
+ *  No wire under it and that is the point — the same consumer code runs against
+ *  a socket-served surface, so what an agent reads and writes here and what it
+ *  would read and write attached are the same values by construction.
+ *
+ *  GATED BY THE SAME FACE the socket is, which is the other half of that
+ *  sentence and the reason `restrictHandlers` is exported upstream for
+ *  hand-built serve paths. Without it a fresh `olai mcp` would reach members an
+ *  attached one is refused, and a tool that worked in a terminal would fail on
+ *  a directory that happened to have a browser open on it — the one divergence
+ *  this whole arrangement exists to foreclose. It costs nothing: the adapter is
+ *  the only caller, and it asks for what the map already grants. */
+export const clientOver = (handlers: SurfaceHandlers): OlaiSurfaceClient =>
+  clientOn(
+    directDispatch({
+      handlers: restrictHandlers(surface.group, handlers, AGENT_FACE),
+    }),
+  )
 
 /** What this server calls itself. The version is the binary's, spelled here
  *  because the adapter has no other way to learn it. */
@@ -126,11 +184,22 @@ const INSTRUCTIONS =
   "file access — a node is the smallest thing you can name, and that is deliberate."
 
 export interface FaceOptions {
-  /** The surface, bound to this process's store. `handlers` is all the
-   *  in-process dispatch needs — `ctx` is the WRITE face and stays with
-   *  whoever built the runtime, so nothing that serves a transport can also
-   *  publish into the surface. */
-  readonly bound: Pick<Bound, "handlers">
+  /**
+   * Where the surface IS — the adapter's live-client factory, verbatim.
+   *
+   * Two shapes, and the whole of the difference between olai's two deployments
+   * is which one a composition root passes:
+   *
+   *   - SERVE-FRESH — `clientOver(bound.handlers)`, a direct dispatch at the
+   *     runtime this process built. Nothing to dispose;
+   *   - ATTACHED — a dialled unix socket, returned as `{ client, dispose }` so
+   *     the adapter closes what it opened and re-dials after a drop.
+   *
+   * It is a THUNK because the adapter re-invokes it: a dropped connection is
+   * re-dialled rather than mourned, and the bespoke tools are handed whichever
+   * client is live at the moment they are called.
+   */
+  readonly client: () => ClientOrConnection | Promise<ClientOrConnection>
   /** Where the protocol goes. `process.stdin`/`stdout` in the binary (the
    *  adapter's own default), an `InMemoryTransport` half in a test. Injectable
    *  is the whole reason a test can read this face without a pipe. */
@@ -139,6 +208,11 @@ export interface FaceOptions {
    * The call-shaped half of the surface: `@olai/ops`' table, projected by
    * {@link ./tools.ts}. Optional so a test can read the resources without
    * standing an ops layer up behind them.
+   *
+   * It closes over no client. The adapter hands each handler the LIVE one, so
+   * the table is projected once, in one process, and answers over whatever
+   * connection is current — which is what lets a re-dial after a socket drop
+   * leave the tool surface alone.
    */
   readonly tools?: Record<string, BespokeTool>
 }
@@ -154,14 +228,10 @@ export const serveFace = (
   options: FaceOptions,
 ): Effect.Effect<Server, never, Scope.Scope> =>
   Effect.gen(function*() {
-    // The member face over the in-process dispatch — typed, and typed HERE
-    // rather than cast at the adapter's door. See {@link OlaiSurfaceClient}.
-    const client = clientOver(options.bound.handlers)
-
     const served = yield* Effect.promise(() =>
       serveSurfaceAsMcp({
         surface,
-        client: () => client,
+        client: options.client,
         expose: EXPOSE,
         serverInfo: SERVER_INFO,
         instructions: INSTRUCTIONS,

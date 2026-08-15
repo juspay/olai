@@ -40,7 +40,7 @@ import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
 import { bind, gitWiring } from "../runtime.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
-import { serveFace } from "./face.ts"
+import { clientOver, serveFace } from "./face.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -107,7 +107,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
-    yield* serveFace({ bound: wired.bound, transport: serverSide })
+    yield* serveFace({ client: () => clientOver(wired.bound.handlers), transport: serverSide })
 
     const client = new Client({ name: "face.test", version: "0" })
     yield* Effect.promise(() => client.connect(clientSide))

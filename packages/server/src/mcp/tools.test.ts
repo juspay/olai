@@ -38,7 +38,7 @@ import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
 import { bind, gitWiring } from "../runtime.ts"
-import { serveFace } from "./face.ts"
+import { clientOver, serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
 const HOUSE = [
@@ -112,8 +112,8 @@ const withTools = <A>(
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
-      bound: wired.bound,
-      tools: bespokeFrom(TOOLS, ops, "mcp"),
+      client: () => clientOver(wired.bound.handlers),
+      tools: bespokeFrom(TOOLS, "mcp"),
       transport: serverSide,
     })
 
