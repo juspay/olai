@@ -30,7 +30,8 @@
 
 import { Schema } from "effect"
 
-import { fileKind, isMirror, type Located } from "./node.ts"
+import { fileKind } from "./kinds.ts"
+import { isMirror, type Located } from "./node.ts"
 
 /**
  * One `.md` of the set: its path, and its text.

@@ -58,8 +58,9 @@ export interface Disk {
   readonly read: (path: string) => Effect.Effect<string | null, PlatformFailure>
   /** Write `contents` to a temp file BESIDE `path`, and answer with the temp's
    *  own root-relative path. Nothing about `path` has changed yet. The name is
-   *  a dot-file with no `.olai` or `.md` suffix, so no codec claims it and the
-   *  listing walks straight past it. */
+   *  a dot-file ending in `.tmp`, which no kind of served file is named for
+   *  (`@olai/format`'s registry), so no codec claims it and the listing walks
+   *  straight past it. */
   readonly stage: (
     path: string,
     contents: string,

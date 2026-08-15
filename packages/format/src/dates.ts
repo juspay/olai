@@ -62,7 +62,8 @@ import {
   type Status,
   storedMarker,
 } from "./derive.ts"
-import { fileKind, isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
+import { fileKind } from "./kinds.ts"
+import { isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
 
 /** How many characters of an ISO value name the day, and the month. A
  *  datetime is a day plus a time, so the day is the prefix they share. */

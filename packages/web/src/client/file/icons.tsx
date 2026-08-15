@@ -81,19 +81,20 @@
  * two to avoid.
  */
 
+import type { FileKind } from "@olai/format"
 import type { JSX } from "solid-js"
 
-import { type FileOf } from "../fileTree.ts"
 import { TESTID } from "../testids.ts"
 
-/** The three kinds of thing this directory is made of — the two kinds of FILE,
- *  plus the folders they sit under.
+/** The kinds of thing this directory is made of — every kind of FILE the format
+ *  claims (`@olai/format`'s registry), plus the folders they sit under.
  *
  *  Named for the DIRECTORY and not for a row of the tree, because the tree is
  *  not the only place they are drawn: the rail draws two of them while the
- *  column is collapsed, and neither of those is a row. Not exported — the tree
- *  passes a `FileRow`'s own `of`, the rail passes the literal it means. */
-type DirectoryKind = FileOf | "folder"
+ *  column is collapsed, and neither of those is a row. Exported for the sweep
+ *  that says every registered kind has a drawing (../file/kinds.test.ts) — the
+ *  tree passes a `FileRow`'s own `of`, the rail passes the literal it means. */
+export type DirectoryKind = FileKind | "folder"
 
 /** One kind, drawn: the box it is drawn in and the shape drawn in it, in one
  *  place because they are one drawing. Held apart — a `viewBox` chosen by one
@@ -110,9 +111,11 @@ interface Drawn {
  *  few facts (`../Checkbox.tsx`'s `FACE`, `../agenda/owed.ts`'s `PAINT`,
  *  `../commit/said.ts`'s `MARK`, `../chat/Diff.tsx`'s `LOOK`). It is a
  *  `Record` over the union for the reason `Checkbox.tsx` spells out beside its
- *  own: a fourth kind is then a compile error here rather than a row that
- *  quietly draws whatever the last arm of a chain of ternaries was. */
-const GLYPHS: Record<DirectoryKind, Drawn> = {
+ *  own: a kind added to the format's registry is then a compile error here —
+ *  which is exactly what this file wants to be, since a drawing is the one
+ *  thing no table can derive — rather than a row that quietly draws whatever
+ *  the last arm of a chain of ternaries was. */
+export const GLYPHS: Record<DirectoryKind, Drawn> = {
   // Wider than tall, as a folder is; the square box would letterbox it.
   folder: { box: "0 0 18 16", shape: FolderPaths },
   document: { box: "0 0 16 16", shape: DocumentPaths },

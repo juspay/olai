@@ -19,7 +19,8 @@ import { Result, Schema } from "effect"
 
 import { Document } from "./documents.ts"
 import { OutlineError } from "./errors.ts"
-import { fileKind, Located } from "./node.ts"
+import { fileKind, holdsText } from "./kinds.ts"
+import { Located } from "./node.ts"
 
 /**
  * A file of the set that could not be read, and why.
@@ -107,7 +108,8 @@ export const assemble = (
   for (const [path, decoded] of files) {
     if (Result.isFailure(decoded)) {
       broken.push({ file: path, errors: decoded.failure })
-      if (fileKind(path) === "document") documents.push({ file: path, text: "" })
+      const kind = fileKind(path)
+      if (kind !== null && holdsText(kind)) documents.push({ file: path, text: "" })
       else outlines.push(path)
       continue
     }

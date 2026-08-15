@@ -28,6 +28,7 @@ import {
   ancestorsOf,
   ARCHIVE,
   archiveBeside,
+  bodyKind,
   chainOf,
   isArchived,
   derive,
@@ -363,12 +364,13 @@ const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFa
  * from the set would erase whatever is really in it. That has to be a refusal,
  * and it has to carry the errors — fix the file, then edit it.
  *
- * ONE rule, both kinds of file, because it is one rule: an outline whose lines
+ * ONE rule, every kind of file, because it is one rule: an outline whose lines
  * did not parse has lost its records, and a document that could not be read has
  * lost its text, and writing either from a set that is missing it is the same
  * mistake. Only the clause differs, and which clause it is comes off the
- * format's own {@link fileKind} rather than a flag a caller passes — so a caller
- * cannot ask for the wrong sentence about the file it named.
+ * format's own registry rather than a flag a caller passes — a file whose
+ * content is a BODY lost its text, a file whose content is records lost those —
+ * so a caller cannot ask for the wrong sentence about the file it named.
  */
 const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> => {
   const broken = scope.set.broken.find((entry) => entry.file === file)
@@ -376,7 +378,7 @@ const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> =>
     return Result.fail(
       new ValidationFailure({
         reason: `\`${file}\` ${
-          fileKind(file) === "document"
+          bodyKind(file) !== null
             ? "could not be read, so what it holds is not loaded — writing it would drop that."
             : "has lines that do not parse, so its records are not loaded — writing it would drop them."
         } Fix the file first.`,

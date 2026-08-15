@@ -61,6 +61,18 @@ export { validate } from "./validate.ts"
 
 export { assemble, BrokenFile, fileKind, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
+/** WHICH files a served directory is made of — one table, and the two suffixes
+ *  the ops layer mints paths with. The table is exported whole because the
+ *  surfaces that DRAW a kind hold a `Record` over it, and the sweep that says
+ *  nobody spelled a suffix elsewhere has to read the list itself. */
+export {
+  bodyKind,
+  DOCUMENT_EXT,
+  FILE_KINDS,
+  holdsText,
+  OUTLINE_EXT,
+} from "./kinds.ts"
+export type { BodyKind, FileKind } from "./kinds.ts"
 export {
   docOf,
   Document,
@@ -72,21 +84,19 @@ export {
 export {
   ARCHIVE,
   archiveBeside,
-  DOCUMENT_EXT,
   INBOX,
   inboxIn,
   isArchived,
   isMirror,
   Located,
   MARKS,
-  OUTLINE_EXT,
   /** What a node's checkbox shows — one of the MARKS, as a schema, so the
    *  request that writes one, the keystroke that toggles one and the read that
    *  answers with one are one derivation of that list rather than five. */
   Status,
   targetsOf,
 } from "./node.ts"
-export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
+export type { LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
 export {
   ancestorsOf,
