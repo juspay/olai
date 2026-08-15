@@ -43,9 +43,9 @@ import { bespokeFrom } from "./tools.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","since":"2026-08-01"}}`,
   `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
-  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","doing":"2026-08-02"}`,
+  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","props":{"status":"doing","since":"2026-08-02"}}`,
   "",
 ].join("\n")
 
@@ -375,7 +375,7 @@ test("a read answers over parsed nodes, with file:line and the marks", async () 
 test("search and subtree carry a node's see so an agent can traverse", async () => {
   const SEEING = [
     `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-    `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","see":["install"]}`,
+    `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","props":{"see":["install"]}}`,
     `{"id":"install","parent":"kitchen","ord":"a1","title":"install them"}`,
     "",
   ].join("\n")

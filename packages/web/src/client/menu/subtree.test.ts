@@ -16,8 +16,8 @@ import { asText, under } from "./subtree.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
-  `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}`,
-  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the **walnut** cabinets","date":"2026-08-10","desc":"Two ways to go:\\n\\n- walnut, six weeks\\n- birch, in stock"}`,
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","props":{"status":"done","since":"2026-08-03"}}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the **walnut** cabinets","props":{"date":"2026-08-10"},"desc":"Two ways to go:\\n\\n- walnut, six weeks\\n- birch, in stock"}`,
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
   `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}`,
   `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,

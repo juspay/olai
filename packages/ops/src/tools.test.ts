@@ -62,9 +62,9 @@ import { asking, type Reading, TOOLS } from "./tools.ts"
 const EVERYTHING = (): OutlineSet =>
   setOf({
     "house.jsonl": [
-      `{"id":"house","ord":"a0","title":"House #home @sam","desc":"the note","date":"2026-08-14","doing":true,"see":["paint"],"after":["paint"]}`,
-      `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","done":"2026-08-09T10:15:00-04:00"}`,
-      `{"id":"sand","parent":"house","ord":"a1","title":"sand the floor","todo":true}`,
+      `{"id":"house","ord":"a0","title":"House #home @sam","props":{"status":"doing","date":"2026-08-14","after":["paint"],"see":["paint"]},"desc":"the note"}`,
+      `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","props":{"status":"done","since":"2026-08-09T10:15:00-04:00"}}`,
+      `{"id":"sand","parent":"house","ord":"a1","title":"sand the floor","props":{"status":"todo"}}`,
       `{"id":"grain","parent":"sand","ord":"a0","title":"with the grain"}`,
       // Under a node, so `house` has a `placed` row…
       `{"id":"in-house","parent":"house","ord":"a2","mirror":"paint"}`,

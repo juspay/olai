@@ -32,7 +32,7 @@ import { chatOpen, setChatOpen } from "../layout/prefs.ts"
 import { nodeMenuActions } from "./actions.ts"
 
 const HOUSE = [
-  `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":true}`,
+  `{"id":"kitchen","ord":"a0","title":"kitchen remodel","props":{"status":"doing"}}`,
   `{"id":"install","parent":"kitchen","ord":"a1","title":"install them"}`,
   `{"id":"echo","ord":"a2","mirror":"install"}`,
 ].join("\n")

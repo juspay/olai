@@ -15,9 +15,9 @@ Feature: Inline markdown in titles
     When I rewrite "house.jsonl" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
-      {"id":"demo","parent":"kitchen","ord":"a0","title":"**take out** the old `counters`","done":"2026-08-03"}
-      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","date":"2026-08-10"}
-      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","after":["order"]}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"**take out** the old `counters`","props":{"status":"done","since":"2026-08-03"}}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","props":{"status":"doing","since":"2026-08-05","date":"2026-08-10"}}
+      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","props":{"after":["order"]}}
       {"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}
       """
     Then the title of "demo" renders bold text "take out"

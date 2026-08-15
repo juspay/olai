@@ -15,10 +15,10 @@ import { markOf } from "./owed.ts"
  *  own agenda tests fix one: a test that read a clock would expire. */
 const TODAY = "2026-08-12"
 
-const LATE = `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-03"}`
-const ALSO_LATE = `{"id":"visas","ord":"a0","title":"send the visa forms","doing":true,"date":"2026-08-10"}`
-const ON_TODAY = `{"id":"ferry","ord":"a1","title":"book the ferry","todo":true,"date":"${TODAY}"}`
-const COMING = `{"id":"pack","ord":"a2","title":"pack the bags","todo":true,"date":"2026-08-14"}`
+const LATE = `{"id":"posts","ord":"a0","title":"dig the post holes","props":{"status":"todo","date":"2026-08-03"}}`
+const ALSO_LATE = `{"id":"visas","ord":"a0","title":"send the visa forms","props":{"status":"doing","date":"2026-08-10"}}`
+const ON_TODAY = `{"id":"ferry","ord":"a1","title":"book the ferry","props":{"status":"todo","date":"${TODAY}"}}`
+const COMING = `{"id":"pack","ord":"a2","title":"pack the bags","props":{"status":"todo","date":"2026-08-14"}}`
 
 /** One reading of a directory of two outlines — `work.jsonl` is what the first
  *  argument holds, `life.jsonl` the second, because a count of NODES has to be
@@ -86,14 +86,14 @@ test("both at once: the alarm wins the row, and the count is the LATE one", () =
 })
 
 test("an occurrence on today counts as the row it is, and is never called due", () => {
-  const birthday = `{"id":"birthday","ord":"a0","title":"mum's birthday","date":"${TODAY}"}`
+  const birthday = `{"id":"birthday","ord":"a0","title":"mum's birthday","props":{"date":"${TODAY}"}}`
   const mark = markOf(readingOf([birthday]))
   expect(mark.face).toBe("today")
   expect(mark.count).toBe(1)
   expect(mark.said).toBe("Agenda — 1 on today")
   // And it can never be the loud one, however long ago its day was: a day
   // passing is not a failure of a bullet.
-  const gone = `{"id":"delivery","ord":"a0","title":"the timber arrives","date":"2026-08-01"}`
+  const gone = `{"id":"delivery","ord":"a0","title":"the timber arrives","props":{"date":"2026-08-01"}}`
   expect(markOf(readingOf([gone])).face).toBe("quiet")
 })
 

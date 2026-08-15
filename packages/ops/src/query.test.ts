@@ -25,8 +25,8 @@ const LEDGER = (): OutlineSet =>
       `{"id":"now-sticky","parent":"now","ord":"a0","mirror":"sticky"}`,
       `{"id":"now-git","parent":"now","ord":"a1","mirror":"focus-git"}`,
       `{"id":"bugs","ord":"a1","title":"Bugs"}`,
-      `{"id":"sticky","parent":"bugs","ord":"a0","title":"the header scrolls away","doing":true,"after":["git"],"see":["git"]}`,
-      `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","todo":true}`,
+      `{"id":"sticky","parent":"bugs","ord":"a0","title":"the header scrolls away","props":{"status":"doing","after":["git"],"see":["git"]}}`,
+      `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","props":{"status":"todo"}}`,
     ].join("\n"),
     "focus.jsonl": [
       `{"id":"focus","ord":"a0","title":"Focus"}`,
@@ -166,12 +166,12 @@ describe("a query is words and operators", () => {
     setOf({
       "work.jsonl": [
         `{"id":"trip","ord":"a0","title":"the trip"}`,
-        `{"id":"book","parent":"trip","ord":"a0","title":"book the flights","done":"2026-08-03"}`,
-        `{"id":"pack","parent":"trip","ord":"a1","title":"pack","todo":true,"desc":"the small case"}`,
+        `{"id":"book","parent":"trip","ord":"a0","title":"book the flights","props":{"status":"done","since":"2026-08-03"}}`,
+        `{"id":"pack","parent":"trip","ord":"a1","title":"pack","props":{"status":"todo"},"desc":"the small case"}`,
         `{"id":"house","ord":"a1","title":"the house"}`,
-        `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","done":"2026-08-09"}`,
+        `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","props":{"status":"done","since":"2026-08-09"}}`,
       ].join("\n"),
-      "Archive.jsonl": `{"id":"old","ord":"a0","title":"an old trip","done":"2026-01-01"}`,
+      "Archive.jsonl": `{"id":"old","ord":"a0","title":"an old trip","props":{"status":"done","since":"2026-01-01"}}`,
     })
 
   const ids = (query: Parameters<typeof search>[1]): ReadonlyArray<string> =>

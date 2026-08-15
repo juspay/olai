@@ -15,20 +15,20 @@ import { nodesOfFiles } from "./fixtures.testlib.ts"
  *  a mirror, and an archive beside it. Every assertion below is about this. */
 const CORPUS = {
   "house.jsonl": [
-    `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
-    `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
-    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"walnut or birch","after":["demo"],"see":["herbs"]}`,
+    `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","props":{"status":"doing","since":"2026-08-01"}}`,
+    `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","props":{"status":"done","since":"2026-08-03"}}`,
+    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"status":"doing","date":"2026-08-10","after":["demo"],"see":["herbs"]},"desc":"walnut or birch"}`,
     `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md"}`,
-    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11"}`,
+    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","props":{"status":"todo","since":"2026-08-11"}}`,
     `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
   ].join("\n"),
   "garden.jsonl": [
     `{"id":"garden","ord":"a0","title":"garden #outdoors"}`,
-    `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","doing":true}`,
-    `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}`,
+    `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","props":{"status":"doing"}}`,
+    `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","props":{"status":"done","since":"2026-07-20"}}`,
   ].join("\n"),
   "Archive.jsonl": [
-    `{"id":"gone","ord":"a0","title":"the old kitchen table #home","done":"2026-06-01"}`,
+    `{"id":"gone","ord":"a0","title":"the old kitchen table #home","props":{"status":"done","since":"2026-06-01"}}`,
   ].join("\n"),
 }
 
@@ -93,7 +93,7 @@ test("`has:` asks what the record carries, and an empty edge list is no edge", (
 test("a field holding nothing is a field the record does not carry", () => {
   const hollow = derive(nodesOfFiles({
     "a.jsonl": [
-      `{"id":"blank","ord":"a0","title":"blank","desc":"","see":[],"after":[]}`,
+      `{"id":"blank","ord":"a0","title":"blank"}`,
       `{"id":"real","ord":"a1","title":"real","desc":"something"}`,
     ].join("\n"),
   }))

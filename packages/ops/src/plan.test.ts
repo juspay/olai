@@ -9,13 +9,17 @@
  */
 
 import {
+  dateOf,
   derive,
+  listOf,
+  markOf,
   type Node,
   nodesOf,
   type OpFailure,
   type OutlineSet,
   type RegularNode,
   serializeOutline,
+  sinceOf,
   AddRequest,
   type WriteRequest as Request,
 } from "@olai/format"
@@ -27,7 +31,7 @@ import { plan, type Plan } from "./plan.ts"
 
 const KITCHEN = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","since":"2026-08-01"}}`,
   `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
   `{"id":"loose","ord":"a1","title":"a node with no children"}`,
@@ -181,7 +185,8 @@ describe("add", () => {
       }),
       "house.jsonl",
     )
-    expect(record(nodes, "n1").todo).toBe(true)
+    expect(markOf(record(nodes, "n1"))).toBe("todo")
+    expect(sinceOf(record(nodes, "n1"))).toBeUndefined()
   })
 })
 
@@ -281,7 +286,10 @@ describe("add with children", () => {
       seed: { title: "clear out the shed", id: "shed", mark: "todo" },
     })
     expect(result.captured).toEqual([{ id: "shed", title: "clear out the shed" }])
-    expect(fileOf(result, "shed.jsonl")[0]).toMatchObject({ id: "shed", todo: true })
+    expect(fileOf(result, "shed.jsonl")[0]).toMatchObject({
+      id: "shed",
+      props: { status: "todo" },
+    })
 
     // And the id rule is `add`'s, spelled once: a chosen id the set holds is
     // refused with the same words.
@@ -309,19 +317,18 @@ describe("add with children", () => {
       }),
       "house.jsonl",
     )
-    // `done` records the instant; the other two say `true` — the same rule the
-    // mark ops read, so a captured mark and a marked capture agree.
-    expect(record(nodes, "n2").done).toBe(STAMP)
-    expect(record(nodes, "n3").doing).toBe(true)
+    // `done` records the instant; the other two carry no `since` — the same
+    // rule the mark ops read, so a captured mark and a marked capture agree.
+    expect(markOf(record(nodes, "n2"))).toBe("done")
+    expect(sinceOf(record(nodes, "n2"))).toBe(STAMP)
+    expect(markOf(record(nodes, "n3"))).toBe("doing")
+    expect(sinceOf(record(nodes, "n3"))).toBeUndefined()
     expect(record(nodes, "n4")).toMatchObject({
-      todo: true,
-      date: "2026-09-02",
+      props: { status: "todo", date: "2026-09-02" },
       desc: "on completion",
     })
     // Unmarked is a bullet, and a bullet carries no mark at all.
-    for (const mark of ["done", "doing", "todo"] as const) {
-      expect(record(nodes, "n5")[mark]).toBeUndefined()
-    }
+    expect(markOf(record(nodes, "n5"))).toBeUndefined()
   })
 
   test("`before` places the node being added; the children keep their order", () => {
@@ -469,7 +476,8 @@ describe("add with children", () => {
 describe("done and doing", () => {
   test("marking a leaf stamps the instant and says so in the commit line", () => {
     const result = planned(house(), { op: "done", id: "order" })
-    expect(record(fileOf(result, "house.jsonl"), "order").done).toBe(STAMP)
+    expect(markOf(record(fileOf(result, "house.jsonl"), "order"))).toBe("done")
+    expect(sinceOf(record(fileOf(result, "house.jsonl"), "order"))).toBe(STAMP)
     expect(result.summary).toBe("done: order the cabinets")
   })
 
@@ -480,7 +488,8 @@ describe("done and doing", () => {
   // asked about and nothing else.
   test("the dates on the other records come back as they were written", () => {
     const nodes = fileOf(planned(house(), { op: "done", id: "order" }), "house.jsonl")
-    expect(record(nodes, "demo").done).toBe("2026-08-01")
+    expect(markOf(record(nodes, "demo"))).toBe("done")
+    expect(sinceOf(record(nodes, "demo"))).toBe("2026-08-01")
   })
 
   // Resolved 2026-08-11 by the human, and it is a decision about the JOURNAL
@@ -489,31 +498,35 @@ describe("done and doing", () => {
   // every capture onto the day it was written down and `/today` would stop
   // being about what happened. Finishing is the event a day page is about;
   // starting and filing are not.
-  test("only `done` carries an instant — the other two say `true`", () => {
+  test("only `done` carries an instant — the other two carry no `since`", () => {
     const marked = (op: "done" | "doing" | "todo"): RegularNode =>
       record(fileOf(planned(house(), { op, id: "order" }), "house.jsonl"), "order")
-    expect(marked("done").done).toBe(STAMP)
-    expect(marked("doing").doing).toBe(true)
-    expect(marked("todo").todo).toBe(true)
+    expect(markOf(marked("done"))).toBe("done")
+    expect(sinceOf(marked("done"))).toBe(STAMP)
+    expect(markOf(marked("doing"))).toBe("doing")
+    expect(sinceOf(marked("doing"))).toBeUndefined()
+    expect(markOf(marked("todo"))).toBe("todo")
+    expect(sinceOf(marked("todo"))).toBeUndefined()
   })
 
   test("undo takes the mark off", () => {
     const result = planned(house(), { op: "done", id: "demo", undo: true })
-    expect(record(fileOf(result, "house.jsonl"), "demo").done).toBeUndefined()
+    expect(markOf(record(fileOf(result, "house.jsonl"), "demo"))).toBeUndefined()
     expect(result.summary).toBe("undone: demolition")
   })
 
   test("`doing` clears a stale `done`, because both at once is not a record", () => {
     const set = setOf({
-      "a.jsonl": `{"id":"x","ord":"a0","title":"x","done":"2026-08-01"}`,
+      "a.jsonl": `{"id":"x","ord":"a0","title":"x","props":{"status":"done","since":"2026-08-01"}}`,
     })
     // Straight to `doing` is refused; undo first, as the message says.
     expect(refused(set, { op: "doing", id: "x" }).message).toContain("Undo that first")
 
     const undone = setOf({ "a.jsonl": `{"id":"x","ord":"a0","title":"x"}` })
     const node = record(fileOf(planned(undone, { op: "doing", id: "x" }), "a.jsonl"), "x")
-    expect(node.doing).toBe(true)
-    expect(node.done).toBeUndefined()
+    expect(markOf(node)).toBe("doing")
+    expect(sinceOf(node)).toBeUndefined()
+    expect(markOf(node)).not.toBe("done")
   })
 
   test("already marked is refused rather than rewritten", () => {
@@ -525,27 +538,29 @@ describe("done and doing", () => {
   // finished work backwards without being told to.
   test("`todo` is a mark like the other two", () => {
     const result = planned(house(), { op: "todo", id: "order" })
-    expect(record(fileOf(result, "house.jsonl"), "order").todo).toBe(true)
+    expect(markOf(record(fileOf(result, "house.jsonl"), "order"))).toBe("todo")
+    expect(sinceOf(record(fileOf(result, "house.jsonl"), "order"))).toBeUndefined()
     expect(result.summary).toBe("todo: order the cabinets")
 
     // Started, then put back on the pile: `doing` goes, `todo` arrives.
     const under = setOf({
-      "a.jsonl": `{"id":"x","ord":"a0","title":"x","doing":"2026-08-01"}`,
+      "a.jsonl": `{"id":"x","ord":"a0","title":"x","props":{"status":"doing","since":"2026-08-01"}}`,
     })
     const node = record(fileOf(planned(under, { op: "todo", id: "x" }), "a.jsonl"), "x")
-    expect(node.todo).toBe(true)
-    expect(node.doing).toBeUndefined()
+    expect(markOf(node)).toBe("todo")
+    expect(sinceOf(node)).toBeUndefined()
+    expect(markOf(node)).not.toBe("doing")
 
     // A done node is not quietly un-finished, whichever mark is asked for.
     const finished = setOf({
-      "a.jsonl": `{"id":"x","ord":"a0","title":"x","done":"2026-08-01"}`,
+      "a.jsonl": `{"id":"x","ord":"a0","title":"x","props":{"status":"done","since":"2026-08-01"}}`,
     })
     expect(refused(finished, { op: "todo", id: "x" }).message).toContain("Undo that first")
 
     // And taking it off says so in the commit line, like its two siblings.
-    const marked = setOf({ "a.jsonl": `{"id":"x","ord":"a0","title":"x","todo":true}` })
+    const marked = setOf({ "a.jsonl": `{"id":"x","ord":"a0","title":"x","props":{"status":"todo"}}` })
     const cleared = planned(marked, { op: "todo", id: "x", undo: true })
-    expect(record(fileOf(cleared, "a.jsonl"), "x").todo).toBeUndefined()
+    expect(markOf(record(fileOf(cleared, "a.jsonl"), "x"))).toBeUndefined()
     expect(cleared.summary).toBe("not-todo: x")
   })
 
@@ -565,13 +580,14 @@ describe("done and doing", () => {
     const set = setOf({
       "house.jsonl": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":true}`,
-        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true}`,
+        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done"}}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"status":"doing"}}`,
         `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "done", id: "kitchen" })
-    expect(record(fileOf(result, "house.jsonl"), "kitchen").done).toBe(STAMP)
+    expect(markOf(record(fileOf(result, "house.jsonl"), "kitchen"))).toBe("done")
+    expect(sinceOf(record(fileOf(result, "house.jsonl"), "kitchen"))).toBe(STAMP)
     expect(result.summary).toBe("done: Kitchen remodel")
   })
 
@@ -587,7 +603,8 @@ describe("done and doing", () => {
       ].join("\n"),
     })
     const result = planned(set, { op: "todo", id: "p" })
-    expect(record(fileOf(result, "a.jsonl"), "p").todo).toBe(true)
+    expect(markOf(record(fileOf(result, "a.jsonl"), "p"))).toBe("todo")
+    expect(sinceOf(record(fileOf(result, "a.jsonl"), "p"))).toBeUndefined()
     // Nothing under it is a task, so there is nothing to remark on either.
     expect(result.nudge).toBeUndefined()
   })
@@ -599,13 +616,14 @@ describe("done and doing", () => {
     const set = setOf({
       "a.jsonl": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","done":true}`,
-        `{"id":"c2","parent":"p","ord":"a1","title":"pack","todo":true}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","props":{"status":"done"}}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"pack","props":{"status":"todo"}}`,
         `{"id":"c3","parent":"p","ord":"a2","title":"ferry times"}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "done", id: "p" })
-    expect(record(fileOf(result, "a.jsonl"), "p").done).toBe(STAMP)
+    expect(markOf(record(fileOf(result, "a.jsonl"), "p"))).toBe("done")
+    expect(sinceOf(record(fileOf(result, "a.jsonl"), "p"))).toBe(STAMP)
     expect(result.nudge).toContain("1 unfinished task")
     expect(result.nudge).toContain("`pack`")
     expect(result.nudge).not.toContain("ferry times")
@@ -618,8 +636,8 @@ describe("done and doing", () => {
     const set = setOf({
       "a.jsonl": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","done":true}`,
-        `{"id":"c2","parent":"p","ord":"a1","title":"pack","doing":true}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","props":{"status":"done"}}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"pack","props":{"status":"doing"}}`,
         `{"id":"c3","parent":"p","ord":"a2","title":"ferry times"}`,
       ].join("\n"),
     })
@@ -631,16 +649,16 @@ describe("done and doing", () => {
     const half = setOf({
       "a.jsonl": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","todo":true}`,
-        `{"id":"c2","parent":"p","ord":"a1","title":"pack","doing":true}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","props":{"status":"todo"}}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"pack","props":{"status":"doing"}}`,
       ].join("\n"),
     })
     expect(planned(half, { op: "done", id: "c2" }).nudge).toBeUndefined()
 
     const already = setOf({
       "a.jsonl": [
-        `{"id":"p","ord":"a0","title":"the trip","done":"2026-08-01"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"pack","doing":true}`,
+        `{"id":"p","ord":"a0","title":"the trip","props":{"status":"done","since":"2026-08-01"}}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","props":{"status":"doing"}}`,
       ].join("\n"),
     })
     expect(planned(already, { op: "done", id: "c1" }).nudge).toBeUndefined()
@@ -652,7 +670,7 @@ describe("done and doing", () => {
     const set = setOf({
       "a.jsonl": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"pack","done":true}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","props":{"status":"done"}}`,
       ].join("\n"),
     })
     expect(planned(set, { op: "done", id: "c1", undo: true }).nudge).toBeUndefined()
@@ -867,7 +885,7 @@ describe("create", () => {
         ord: "a0",
         title: "an idea #later",
         desc: "write it down",
-        date: "2026-08-10",
+        props: { date: "2026-08-10" },
       },
     ])
     expect(result.summary).toBe("capture: an idea #later")
@@ -899,9 +917,15 @@ describe("create", () => {
     expect(result.files).toHaveLength(1)
     const nodes = fileOf(result, "shed.jsonl")
     expect(nodes.map((node) => node.id)).toEqual(["n1", "n2", "n3", "n4"])
-    expect(record(nodes, "n2")).toMatchObject({ parent: "n1", todo: true })
-    expect(record(nodes, "n3")).toMatchObject({ parent: "n2", done: STAMP })
-    expect(record(nodes, "n4")).toMatchObject({ parent: "n1", date: "2026-09-04" })
+    expect(record(nodes, "n2")).toMatchObject({ parent: "n1", props: { status: "todo" } })
+    expect(record(nodes, "n3")).toMatchObject({
+      parent: "n2",
+      props: { status: "done", since: STAMP },
+    })
+    expect(record(nodes, "n4")).toMatchObject({
+      parent: "n1",
+      props: { date: "2026-09-04" },
+    })
     expect(childOrder(nodes, "n1")).toEqual(["n2", "n4"])
 
     expect(result.summary).toBe("capture: The shed (+3)")
@@ -1031,7 +1055,7 @@ describe("split", () => {
     const set = setOf({
       "house.jsonl": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-        `{"id":"order","parent":"kitchen","ord":"a0","title":"order it","done":"2026-08-01","date":"2026-09-01","desc":"walnut","see":["kitchen"]}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order it","props":{"status":"done","since":"2026-08-01","date":"2026-09-01","see":["kitchen"]},"desc":"walnut"}`,
         `{"id":"quote","parent":"order","ord":"a0","title":"get a quote"}`,
       ].join("\n"),
     })
@@ -1041,10 +1065,13 @@ describe("split", () => {
     )
     const head = record(nodes, "order")
     expect(head).toMatchObject({
-      done: "2026-08-01",
-      date: "2026-09-01",
+      props: {
+        status: "done",
+        since: "2026-08-01",
+        date: "2026-09-01",
+        see: ["kitchen"],
+      },
       desc: "walnut",
-      see: ["kitchen"],
     })
     expect(record(nodes, "quote").parent).toBe("order")
     // And the tail is a BULLET: a node with no mark is not an unstarted task,
@@ -1157,17 +1184,20 @@ describe("merge", () => {
     const set = setOf({
       "house.jsonl": [
         `{"id":"a","ord":"a0","title":"a"}`,
-        `{"id":"b","ord":"a1","title":"b","done":"2026-08-01","date":"2026-09-01","doc":"finishes.md","see":["a"]}`,
+        `{"id":"b","ord":"a1","title":"b","props":{"status":"done","since":"2026-08-01","date":"2026-09-01","see":["a"]},"doc":"finishes.md"}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "merge", id: "b" })
     expect(record(fileOf(result, "Archive.jsonl"), "b")).toMatchObject({
-      done: "2026-08-01",
-      date: "2026-09-01",
+      props: {
+        status: "done",
+        since: "2026-08-01",
+        date: "2026-09-01",
+        see: ["a"],
+      },
       doc: "finishes.md",
-      see: ["a"],
     })
-    expect(record(fileOf(result, "house.jsonl"), "a").done).toBeUndefined()
+    expect(markOf(record(fileOf(result, "house.jsonl"), "a"))).toBeUndefined()
     expect(result.nudge).toContain("`done` mark")
     expect(result.nudge).toContain("its date")
     expect(result.nudge).toContain("its document `finishes.md`")
@@ -1260,7 +1290,7 @@ describe("archive", () => {
       "house.jsonl": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order"}`,
-        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","done":"2026-07-01"}`,
+        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","props":{"status":"done","since":"2026-07-01"}}`,
         `{"id":"sign","parent":"quote","ord":"a0","title":"sign it"}`,
       ].join("\n"),
     })
@@ -1268,8 +1298,9 @@ describe("archive", () => {
     expect(source.map((node) => node.id)).toEqual(["kitchen"])
     expect(archive.map((node) => node.id)).toEqual(["n1", "order", "quote", "sign"])
     // Nothing is stamped: archiving is not finishing.
-    expect(record(archive, "quote").done).toBe("2026-07-01")
-    expect(record(archive, "sign").done).toBeUndefined()
+    expect(markOf(record(archive, "quote"))).toBe("done")
+    expect(sinceOf(record(archive, "quote"))).toBe("2026-07-01")
+    expect(markOf(record(archive, "sign"))).toBeUndefined()
     expect(record(archive, "quote").parent).toBe("order")
   })
 
@@ -1356,7 +1387,7 @@ describe("unarchive", () => {
       "house.jsonl": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order"}`,
-        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","done":"2026-07-01"}`,
+        `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","props":{"status":"done","since":"2026-07-01"}}`,
         `{"id":"sign","parent":"quote","ord":"a0","title":"sign it"}`,
       ].join("\n"),
     })
@@ -1366,8 +1397,9 @@ describe("unarchive", () => {
     expect(record(source, "quote").parent).toBe("order")
     expect(record(source, "sign").parent).toBe("quote")
     // Nothing was stamped on the way in, and nothing is on the way out.
-    expect(record(source, "quote").done).toBe("2026-07-01")
-    expect(record(source, "sign").done).toBeUndefined()
+    expect(markOf(record(source, "quote"))).toBe("done")
+    expect(sinceOf(record(source, "quote"))).toBe("2026-07-01")
+    expect(markOf(record(source, "sign"))).toBeUndefined()
   })
 
   test("an explicit `parent` overrides the chain", () => {
@@ -1478,7 +1510,7 @@ describe("unarchive", () => {
     const set = setOf({
       "house.jsonl": [
         KITCHEN,
-        `{"id":"note","parent":"kitchen","ord":"a3","title":"see the old plan","see":["n9"]}`,
+        `{"id":"note","parent":"kitchen","ord":"a3","title":"see the old plan","props":{"see":["n9"]}}`,
       ].join("\n"),
       "Archive.jsonl": [
         `{"id":"n9","ord":"a0","title":"Kitchen remodel"}`,
@@ -1553,7 +1585,7 @@ describe("unarchive", () => {
     const set = setOf({
       "house.jsonl": KITCHEN,
       "Archive.jsonl": [
-        `{"id":"was-real","ord":"a0","title":"a whole archived branch","done":"2026-07-01"}`,
+        `{"id":"was-real","ord":"a0","title":"a whole archived branch","props":{"status":"done","since":"2026-07-01"}}`,
         `{"id":"leaf","parent":"was-real","ord":"a0","title":"its one leaf"}`,
       ].join("\n"),
     })
@@ -1572,13 +1604,13 @@ describe("see", () => {
     const set = setOf({
       "house.jsonl": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-        `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","see":["demo"]}`,
+        `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","props":{"see":["demo"]}}`,
         `{"id":"demo","parent":"kitchen","ord":"a1","title":"demolition"}`,
         `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "see", id: "order", add: ["install"] })
-    expect(record(fileOf(result, "house.jsonl"), "order").see).toEqual([
+    expect(listOf(record(fileOf(result, "house.jsonl"), "order"), "see")).toEqual([
       "demo",
       "install",
     ])
@@ -1588,22 +1620,22 @@ describe("see", () => {
   test("removes targets, and clears the field when none remain", () => {
     const set = setOf({
       "a.jsonl": [
-        `{"id":"a","ord":"a0","title":"a","see":["b","c"]}`,
+        `{"id":"a","ord":"a0","title":"a","props":{"see":["b","c"]}}`,
         `{"id":"b","ord":"a1","title":"b"}`,
         `{"id":"c","ord":"a2","title":"c"}`,
       ].join("\n"),
     })
     const partial = planned(set, { op: "see", id: "a", remove: ["b"] })
-    expect(record(fileOf(partial, "a.jsonl"), "a").see).toEqual(["c"])
+    expect(listOf(record(fileOf(partial, "a.jsonl"), "a"), "see")).toEqual(["c"])
 
     const cleared = planned(set, { op: "see", id: "a", remove: ["b", "c"] })
-    expect("see" in record(fileOf(cleared, "a.jsonl"), "a")).toBe(false)
+    expect(listOf(record(fileOf(cleared, "a.jsonl"), "a"), "see")).toEqual([])
   })
 
   test("add and remove in one call: removes first, then appends adds", () => {
     const set = setOf({
       "a.jsonl": [
-        `{"id":"a","ord":"a0","title":"a","see":["b","c"]}`,
+        `{"id":"a","ord":"a0","title":"a","props":{"see":["b","c"]}}`,
         `{"id":"b","ord":"a1","title":"b"}`,
         `{"id":"c","ord":"a2","title":"c"}`,
         `{"id":"d","ord":"a3","title":"d"}`,
@@ -1614,7 +1646,7 @@ describe("see", () => {
       "a.jsonl",
     )
     // Survivors keep their order; new ids append.
-    expect(record(nodes, "a").see).toEqual(["c", "d"])
+    expect(listOf(record(nodes, "a"), "see")).toEqual(["c", "d"])
   })
 
   /**
@@ -1657,7 +1689,7 @@ describe("see", () => {
   test("a no-op — re-adding what is already there — is refused rather than rewritten", () => {
     const set = setOf({
       "a.jsonl": [
-        `{"id":"a","ord":"a0","title":"a","see":["b"]}`,
+        `{"id":"a","ord":"a0","title":"a","props":{"see":["b"]}}`,
         `{"id":"b","ord":"a1","title":"b"}`,
       ].join("\n"),
     })
@@ -1698,14 +1730,14 @@ describe("after", () => {
       "house.jsonl": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition"}`,
-        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","after":["demo"]}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"after":["demo"]}}`,
         `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
       ].join("\n"),
     })
 
   test("adds an edge, keeping the ones already written", () => {
     const result = planned(CHAIN(), { op: "after", id: "order", add: ["kitchen"] })
-    expect(record(fileOf(result, "house.jsonl"), "order").after).toEqual([
+    expect(listOf(record(fileOf(result, "house.jsonl"), "order"), "after")).toEqual([
       "demo",
       "kitchen",
     ])
@@ -1717,7 +1749,7 @@ describe("after", () => {
       planned(CHAIN(), { op: "after", id: "order", remove: ["demo"] }),
       "house.jsonl",
     )
-    expect("after" in record(nodes, "order")).toBe(false)
+    expect(listOf(record(nodes, "order"), "after")).toEqual([])
   })
 
   /** The whole rule, and the message is the point of refusing it here rather
@@ -1744,7 +1776,7 @@ describe("after", () => {
     const set = setOf({
       "a.jsonl": [
         `{"id":"a","ord":"a0","title":"a"}`,
-        `{"id":"b","ord":"a1","title":"b","blocks":["a"]}`,
+        `{"id":"b","ord":"a1","title":"b","props":{"blocks":["a"]}}`,
       ].join("\n"),
     })
     // `b blocks a` IS `a after b`, so `b after a` closes it.
@@ -1759,7 +1791,7 @@ describe("after", () => {
     const set = setOf({
       "a.jsonl": [
         `{"id":"a","ord":"a0","title":"a"}`,
-        `{"id":"b","ord":"a1","title":"b","after":["mirror-of-a"]}`,
+        `{"id":"b","ord":"a1","title":"b","props":{"after":["mirror-of-a"]}}`,
       ].join("\n"),
       "b.jsonl": `{"id":"mirror-of-a","ord":"a0","mirror":"a"}`,
     })
@@ -1773,7 +1805,7 @@ describe("after", () => {
     const set = setOf({
       "a.jsonl": [
         `{"id":"a","ord":"a0","title":"a"}`,
-        `{"id":"b","ord":"a1","title":"b","after":["a"]}`,
+        `{"id":"b","ord":"a1","title":"b","props":{"after":["a"]}}`,
       ].join("\n"),
       "b.jsonl": `{"id":"mirror-of-b","ord":"a0","mirror":"b"}`,
     })
@@ -1965,7 +1997,7 @@ describe("unmirror", () => {
     setOf({
       "house.jsonl": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
+        `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","since":"2026-08-01"}}`,
       ].join("\n"),
       "now.jsonl": [
         `{"id":"now","ord":"a0","title":"Now"}`,
@@ -2157,8 +2189,8 @@ describe("round trip", () => {
     `{"id":"now","ord":"a0","title":"Now"}`,
     `{"id":"now-demo","parent":"now","ord":"a0","mirror":"demo"}`,
     `{"id":"kitchen","ord":"a1","title":"Kitchen remodel"}`,
-    `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":true,"after":["survey"]}`,
-    `{"id":"survey","parent":"kitchen","ord":"a1","title":"survey the room","todo":"2026-08-01"}`,
+    `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","after":["survey"]}}`,
+    `{"id":"survey","parent":"kitchen","ord":"a1","title":"survey the room","props":{"status":"todo","since":"2026-08-01"}}`,
     `{"id":"paint","parent":"kitchen","ord":"a2","title":"paint the walls"}`,
   ]
 

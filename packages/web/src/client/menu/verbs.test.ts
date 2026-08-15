@@ -17,16 +17,16 @@ import { flatten } from "../edit/order.ts"
 import { subjectOfRow, writeVerbs } from "./verbs.ts"
 
 const HOUSE = [
-  `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":true}`,
-  `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}`,
-  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","date":"2026-08-10"}`,
+  `{"id":"kitchen","ord":"a0","title":"kitchen remodel","props":{"status":"doing"}}`,
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","props":{"status":"done","since":"2026-08-03"}}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"date":"2026-08-10"}}`,
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
   `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
   `{"id":"lost","ord":"a1","mirror":"nothing-declares-this"}`,
 ].join("\n")
 
 const GARDEN = [
-  `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
+  `{"id":"herbs","ord":"a0","title":"the herb bed","props":{"status":"todo"}}`,
 ].join("\n")
 
 const derived = derive(setOf({ "house.jsonl": HOUSE, "garden.jsonl": GARDEN }).nodes)

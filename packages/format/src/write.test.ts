@@ -15,17 +15,76 @@ const regular = (fields: Partial<RegularNode>): RegularNode => ({
 describe("serializeNode", () => {
   test("canonical field order, whatever order the object was built in", () => {
     const node: RegularNode = {
-      see: ["x"],
       title: "order the cabinets",
       ord: "a1",
       id: "order",
-      date: "2026-08-10",
       parent: "kitchen",
-      after: ["demo"],
+      props: { see: ["x"], date: "2026-08-10", after: ["demo"] },
     }
     expect(serializeNode(node)).toBe(
       `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
-        `"date":"2026-08-10","after":["demo"],"see":["x"]}`,
+        `"props":{"date":"2026-08-10","after":["demo"],"see":["x"]}}`,
+    )
+  })
+
+  /**
+   * The same rule one level in, and it is a NEW obligation the map brought
+   * with it.
+   *
+   * A struct has a declaration order to fall back on; a map has only whatever
+   * order the object was built in, which for a record read off disk and edited
+   * is the order the LAST writer happened to use. Two files meaning the same
+   * thing would differ byte for byte, and a line-based git merge would conflict
+   * over a shuffle — the one thing this format's whole bet rests on not
+   * happening.
+   *
+   * System keys first in their own order, then everything else alphabetically.
+   * The user keys are alphabetical rather than insertion-ordered for exactly
+   * the reason above: what a FILE holds has to be a function of the map alone.
+   */
+  test("props keys are canonical too: system keys in order, then the rest sorted", () => {
+    const built = serializeNode(regular({
+      props: {
+        zebra: "last",
+        see: ["x"],
+        isbn: "978",
+        status: "done",
+        after: ["y"],
+        since: "2026-08-11",
+        date: "2026-08-10",
+        blocks: ["z"],
+      },
+    }))
+    expect(built).toBe(
+      `{"id":"n","ord":"a0","title":"a node","props":{` +
+        `"status":"done","since":"2026-08-11","date":"2026-08-10",` +
+        `"after":["y"],"blocks":["z"],"see":["x"],"isbn":"978","zebra":"last"}}`,
+    )
+    // The same map, built in a different order, is the same bytes. That is the
+    // whole property, and it is what a merge depends on.
+    expect(serializeNode(regular({
+      props: {
+        isbn: "978",
+        after: ["y"],
+        date: "2026-08-10",
+        zebra: "last",
+        blocks: ["z"],
+        status: "done",
+        see: ["x"],
+        since: "2026-08-11",
+      },
+    }))).toBe(built)
+  })
+
+  /** A map with nothing in it is a node with no properties, and the rule about
+   *  absence reaches inside: `{"props":{}}` against no `props` is the
+   *  `{"after":[]}` conflict-about-nothing one level in. */
+  test("an empty props map is not written, and neither is an empty key", () => {
+    expect(serializeNode(regular({ props: {} }))).toBe(
+      `{"id":"n","ord":"a0","title":"a node"}`,
+    )
+    expect(serializeNode(regular({ props: { see: [], date: "" } }))).toBe(
+      `{"id":"n","ord":"a0","title":"a node"}`,
     )
   })
 
@@ -45,13 +104,15 @@ describe("serializeNode", () => {
   test("an optional field holding nothing is not written at all", () => {
     const empty = serializeNode(
       regular({
-        after: [],
-        blocks: [],
-        see: [],
+        props: {
+          after: [],
+          blocks: [],
+          see: [],
+          // `null` is not in the schema's type, but it is exactly what a writer
+          // reaching for "clear this" produces, and it must not reach a file.
+          date: null as unknown as string,
+        },
         desc: "",
-        // `null` is not in the schema's type, but it is exactly what a writer
-        // reaching for "clear this" produces, and it must not reach a file.
-        date: null as unknown as string,
         doc: undefined,
       }),
     )
@@ -60,8 +121,8 @@ describe("serializeNode", () => {
   })
 
   test("a non-empty array is written, so the rule is about EMPTY and not arrays", () => {
-    expect(serializeNode(regular({ after: ["demo"], see: [] }))).toBe(
-      `{"id":"n","ord":"a0","title":"a node","after":["demo"]}`,
+    expect(serializeNode(regular({ props: { after: ["demo"], see: [] } }))).toBe(
+      `{"id":"n","ord":"a0","title":"a node","props":{"after":["demo"]}}`,
     )
   })
 
@@ -128,9 +189,7 @@ describe("serializeOutline", () => {
         ord: "a0",
         title: "order the cabinets",
         desc: "measure first\n\n- the wall is not square\n- the floor is not level",
-        date: "2026-08-10",
-        done: "2026-08-11",
-        after: ["root"],
+        props: { status: "done", since: "2026-08-11", date: "2026-08-10", after: ["root"] },
       }),
       { id: "mirrored", parent: "root", ord: "a1", mirror: "child" },
       regular({ id: "quotes", parent: "root", ord: "a2", title: `he said "no"` }),
@@ -143,8 +202,7 @@ describe("serializeOutline", () => {
         parent: "root",
         ord: "a4",
         title: "nothing on it",
-        after: [],
-        see: [],
+        props: { after: [], see: [] },
         desc: "",
       }),
     ]
@@ -210,15 +268,9 @@ const EVERY_REGULAR_FIELD: RegularNode = {
   parent: "p",
   ord: "a0",
   title: "a node",
-  done: true,
-  doing: true,
-  todo: true,
-  date: "2026-08-11",
+  props: { status: "doing", since: "2026-08-11", date: "2026-08-11" },
   desc: "a note",
   doc: "notes.md",
-  after: ["x"],
-  blocks: ["y"],
-  see: ["z"],
 }
 
 const EVERY_MIRROR_FIELD: MirrorNode = {

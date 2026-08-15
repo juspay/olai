@@ -353,8 +353,7 @@ When(
       id: "due-today",
       ord: "z0",
       title: "call the surveyor",
-      todo: true,
-      date: isoDayOf(new Date()),
+      props: { status: "todo", date: isoDayOf(new Date()) },
     });
   },
 );
@@ -366,8 +365,7 @@ When(
       id: "due-soon",
       ord: "z1",
       title: "collect the keys",
-      todo: true,
-      date: tomorrow(),
+      props: { status: "todo", date: tomorrow() },
     });
   },
 );
@@ -378,8 +376,12 @@ When(
   "every date is taken off {string}",
   function (this: OlaiWorld, file: string) {
     const records = this.servedNodes(file).map((node) => {
-      const { date: _dropped, ...rest } = node;
-      return rest;
+      const { date: _dropped, ...props } =
+        (node["props"] as Record<string, unknown> | undefined) ?? {};
+      // A map with nothing left in it is not written at all: the format spells
+      // absent by omitting the key, `props` included.
+      const { props: _was, ...rest } = node;
+      return Object.keys(props).length === 0 ? rest : { ...rest, props };
     });
     this.writeServed(file, records.map((node) => JSON.stringify(node)).join("\n"));
   },

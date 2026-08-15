@@ -129,8 +129,8 @@ Feature: The ••• menu writes
     # open, which is also how the refusal gets to be about the set as it IS.
     When I rewrite "house.jsonl" as:
       """
-      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
-      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","see":["kitchen-herbs"]}
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","props":{"status":"doing","since":"2026-08-01"}}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","props":{"see":["kitchen-herbs"]}}
       {"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}
       """
     # The other hand's write has to have ARRIVED before the menu is opened on

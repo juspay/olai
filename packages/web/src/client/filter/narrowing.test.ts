@@ -22,11 +22,11 @@ import { createNarrowing, type Narrowing } from "./narrowing.ts"
 
 const derived = derive(nodesOfFiles({
   "house.jsonl": [
-    `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":true}`,
-    `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters #home","done":"2026-08-03"}`,
-    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true}`,
+    `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","props":{"status":"doing"}}`,
+    `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters #home","props":{"status":"done","since":"2026-08-03"}}`,
+    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"status":"doing"}}`,
     `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets"}`,
-    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":true}`,
+    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","props":{"status":"todo"}}`,
   ].join("\n"),
 }))
 

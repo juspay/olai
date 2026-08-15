@@ -122,12 +122,20 @@ export const serializeNode = (node: Node): string => {
 
   const record: Record<string, unknown> = {}
   for (const field of ORDER) {
-    const value = (node as Record<string, unknown>)[field]
+    // The map is PRUNED BEFORE it is judged, and the order of those two is the
+    // whole of a bug this test suite caught: a `props` holding `{see: [], date:
+    // ""}` is not nothing by the time it reaches here — it has two keys — but
+    // every one of them holds nothing, so what it serialises to is `{}`, and
+    // `{"props":{}}` on disk is precisely the conflict-about-nothing the rule
+    // below exists to prevent. Prune first, then ask.
+    const value = field === "props"
+      ? ordered((node as Record<string, unknown>)[field] as Props | undefined)
+      : (node as Record<string, unknown>)[field]
     if (nothing(value)) {
       if (required.has(field)) record[field] = value
       continue
     }
-    record[field] = field === "props" ? ordered(value as Props) : value
+    record[field] = value
   }
   return JSON.stringify(record)
 }
@@ -147,7 +155,8 @@ export const serializeNode = (node: Node): string => {
  * field is: `./props.ts`'s `withProp` already refuses to store one, and this is
  * the gate that makes it true of a map that arrived some other way.
  */
-const ordered = (props: Props): Record<string, unknown> => {
+const ordered = (props: Props | undefined): Record<string, unknown> | undefined => {
+  if (props === undefined) return undefined
   const out: Record<string, unknown> = {}
   for (const key of canonicalKeys(props)) {
     const value = props[key]

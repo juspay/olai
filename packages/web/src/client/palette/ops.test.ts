@@ -17,8 +17,8 @@ import { filterItems } from "./items.ts"
 import { opItems } from "./ops.ts"
 
 const HOUSE = [
-  `{"id":"kitchen","ord":"a0","title":"kitchen remodel","doing":true}`,
-  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","date":"2026-08-10"}`,
+  `{"id":"kitchen","ord":"a0","title":"kitchen remodel","props":{"status":"doing"}}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"date":"2026-08-10"}}`,
   `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
 ].join("\n")
 

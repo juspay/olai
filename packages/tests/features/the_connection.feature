@@ -73,8 +73,8 @@ Feature: The connection is visible, and a replaced server is recoverable
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
-      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil in trays","done":"2026-07-20"}
-      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil in trays","props":{"status":"done","since":"2026-07-20"}}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","props":{"status":"doing"}}
       """
     Then the node "basil" has the title "sow the basil in trays"
     And the page has not reloaded

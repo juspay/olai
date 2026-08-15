@@ -27,6 +27,7 @@ import {
   type OutlineError,
   type OutlineSet,
   parseOutline,
+  sinceOf,
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
@@ -40,9 +41,9 @@ import * as Ops from "./ops.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","since":"2026-08-01"}}`,
   `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
-  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","doing":"2026-08-02"}`,
+  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","props":{"status":"doing","since":"2026-08-02"}}`,
   "",
 ].join("\n")
 
@@ -178,8 +179,8 @@ test("the marks on the other records come back as the bytes they were", () =>
   withOps({
     "house.jsonl": [
       `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-      `{"id":"old","parent":"kitchen","ord":"a0","title":"an old habit","done":true}`,
-      `{"id":"quote","parent":"kitchen","ord":"a1","title":"get a quote","done":"2026-08-01"}`,
+      `{"id":"old","parent":"kitchen","ord":"a0","title":"an old habit","props":{"status":"done"}}`,
+      `{"id":"quote","parent":"kitchen","ord":"a1","title":"get a quote","props":{"status":"done","since":"2026-08-01"}}`,
       `{"id":"order","parent":"kitchen","ord":"a2","title":"order the cabinets"}`,
       "",
     ].join("\n"),
@@ -215,7 +216,7 @@ test("marking done with no clock handed in stamps the current instant", () =>
 
       const set = yield* fixture.set()
       const order = set.nodes.find((located) => located.node.id === "order")?.node
-      const done = order === undefined || isMirror(order) ? undefined : order.done
+      const done = order === undefined || isMirror(order) ? undefined : sinceOf(order)
       expect(done).toMatch(STAMP_SHAPE)
 
       const at = new Date(String(done)).getTime()

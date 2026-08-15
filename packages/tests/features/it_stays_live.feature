@@ -19,8 +19,8 @@ Feature: It stays live
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
-      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil in trays","done":"2026-07-20"}
-      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil in trays","props":{"status":"done","since":"2026-07-20"}}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","props":{"status":"doing"}}
       """
     Then the node "basil" has the title "sow the basil in trays"
     And the page has not reloaded
@@ -35,9 +35,9 @@ Feature: It stays live
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
-      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
-      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true}
-      {"id":"compost","parent":"garden","ord":"a1","title":"turn the compost","after":["mint"]}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","props":{"status":"done","since":"2026-07-20"}}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","props":{"status":"doing"}}
+      {"id":"compost","parent":"garden","ord":"a1","title":"turn the compost","props":{"after":["mint"]}}
       """
     And I rewrite "shed.jsonl" as:
       """
@@ -58,7 +58,7 @@ Feature: It stays live
     When I rewrite "house.jsonl" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
-      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","props":{"status":"done","since":"2026-08-03"}}
       {"id":"order","parent":"kitchen","ord":"a1",title:"order the new cabinets"}
       """
     Then the outline "house.jsonl" is marked unreadable
@@ -77,8 +77,8 @@ Feature: It stays live
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
-      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
-      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true,"after":["nowhere"]}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","props":{"status":"done","since":"2026-07-20"}}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","props":{"status":"doing","after":["nowhere"]}}
       """
     Then the stale banner is shown
     And the stale banner shows an error with code "unknown-target"
@@ -87,8 +87,8 @@ Feature: It stays live
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
-      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20"}
-      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint at last","doing":true}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","props":{"status":"done","since":"2026-07-20"}}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint at last","props":{"status":"doing"}}
       """
     Then the stale banner is gone
     And the node "mint" has the title "split the mint at last"
@@ -309,8 +309,8 @@ Feature: It stays live
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
-      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil in trays","done":"2026-07-20"}
-      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true}
+      {"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil in trays","props":{"status":"done","since":"2026-07-20"}}
+      {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","props":{"status":"doing"}}
       """
     Then the zoomed node is "herbs"
     And the node "basil" has the title "sow the basil in trays"

@@ -19,7 +19,7 @@ import { sortOfWrite } from "./sorted.ts"
 
 const KITCHEN = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
-  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","since":"2026-08-01"}}`,
   `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
 ].join("\n")
 
@@ -80,7 +80,7 @@ describe("what a write is called", () => {
     // name: `set_date` is one tool and two events, told apart by what the
     // field became rather than by which tool was called.
     const scheduled = setOf({
-      "house.jsonl": `{"id":"order","ord":"a0","title":"order","date":"2026-08-20"}`,
+      "house.jsonl": `{"id":"order","ord":"a0","title":"order","props":{"date":"2026-08-20"}}`,
     })
     expect(sorting(scheduled, { op: "date", id: "order", date: null })).toBe("unscheduled")
   })

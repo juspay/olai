@@ -392,6 +392,12 @@ Then(
 const titlesIn = (world: OlaiWorld, file: string): ReadonlyArray<string> =>
   world.servedNodesSoFar(file).map((node) => String(node["title"] ?? ""));
 
+/** The one map a record's facts live in, off a node read back as plain JSON —
+ *  `{}` for a record carrying none, so a step can ask any key without asking
+ *  first whether the map is there. */
+const propsOf = (node: Record<string, unknown>): Record<string, unknown> =>
+  (node["props"] ?? {}) as Record<string, unknown>;
+
 Then(
   "{string} holds a node titled {string}",
   async function (this: OlaiWorld, file: string, title: string) {
@@ -455,15 +461,15 @@ const HELD = Math.floor(IDLE_COMMIT / 3);
 
 /** The mark is a WORD in the step rather than three steps, because the format
  *  has three of them and a menu that can write all three should be asked about
- *  all three the same way. The field IS the mark's name on disk, which is why
- *  no table translates it. */
+ *  all three the same way. The word IS what `status` holds on disk, which is
+ *  why no table translates it. */
 Then(
   "{string} holds a node marked {word} titled {string}",
   async function (this: OlaiWorld, file: string, mark: string, title: string) {
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) => node["title"] === title && node[mark] !== undefined,
+          (node) => node["title"] === title && propsOf(node)["status"] === mark,
         ),
       `${file} to hold a node titled ${JSON.stringify(title)} that is marked ${mark}`,
     );
@@ -556,7 +562,7 @@ Then(
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) => node["id"] === id && node["date"] === date,
+          (node) => node["id"] === id && propsOf(node)["date"] === date,
         ),
       `${file} to hold ${JSON.stringify(id)} with \`date\` exactly ${JSON.stringify(date)}`,
     );
@@ -571,7 +577,7 @@ Then(
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) => node["title"] === title && node["date"] === date,
+          (node) => node["title"] === title && propsOf(node)["date"] === date,
         ),
       `${file} to hold ${JSON.stringify(title)} dated ${JSON.stringify(date)}`,
     );
@@ -595,7 +601,7 @@ Then(
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) => node["id"] === id && node["date"] === wanted,
+          (node) => node["id"] === id && propsOf(node)["date"] === wanted,
         ),
       `${file} to hold ${JSON.stringify(id)} dated ${JSON.stringify(wanted)}`,
     );
@@ -608,7 +614,7 @@ Then(
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) => node["id"] === id && node["date"] === undefined,
+          (node) => node["id"] === id && propsOf(node)["date"] === undefined,
         ),
       `${file} to hold ${JSON.stringify(id)} with no \`date\` field`,
     );
@@ -620,9 +626,9 @@ Then(
  * disk, and the answer the format draws as no box at all.
  *
  * Asked of the record rather than of the page, because the page can only say
- * that no box is drawn and the claim being made is stronger: the field is gone.
- * Over `MARKS` rather than three named fields, so a fourth mark could not
- * arrive and leave this quietly passing.
+ * that no box is drawn and the claim being made is stronger: the key is gone.
+ * One key holds the mark now, so an absent `status` IS carrying none of
+ * `MARKS` — there is no second field a fourth mark could hide in.
  */
 Then(
   "{string} holds the node {string} with no mark",
@@ -630,8 +636,7 @@ Then(
     await this.waitUntil(
       async () =>
         this.servedNodesSoFar(file).some(
-          (node) =>
-            node["id"] === id && MARKS.every((mark) => node[mark] === undefined),
+          (node) => node["id"] === id && propsOf(node)["status"] === undefined,
         ),
       `${file} to hold ${JSON.stringify(id)} carrying none of ${MARKS.join(", ")}`,
     );

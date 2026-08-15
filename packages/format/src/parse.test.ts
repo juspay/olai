@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import type { OutlineError } from "./errors.ts"
+import { ErrorCode, type OutlineError } from "./errors.ts"
 import { FIXTURE_FILE, outlineOf } from "./fixtures.testlib.ts"
 import { parseOutline } from "./parse.ts"
 
@@ -38,7 +38,7 @@ const messages = (errors: ReadonlyArray<OutlineError>): string =>
 // a format nobody writes.
 test("the spec's own example line is a node", () => {
   const outline = outlineOf(
-    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","date":"2026-08-10","after":["demo"]}`,
+    `{"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","props":{"date":"2026-08-10","after":["demo"]}}`,
   )
   expect(outline.file).toBe("a.jsonl")
   expect(outline.nodes.length).toBe(1)
@@ -50,8 +50,7 @@ test("the spec's own example line is a node", () => {
     parent: "kitchen",
     ord: "a1",
     title: "order the new cabinets",
-    date: "2026-08-10",
-    after: ["demo"],
+    props: { date: "2026-08-10", after: ["demo"] },
   })
 })
 
@@ -105,18 +104,18 @@ test("a missing required key is reported by name", () => {
 // — and it names each offending field on its own, one error per field.
 test("a mirror carrying a descriptive field is refused, per field", () => {
   const errors = errorsOf(
-    `{"id":"m","parent":"p","ord":"a","mirror":"order","title":"a second copy","date":"2026-08-10"}`,
+    `{"id":"m","parent":"p","ord":"a","title":"a second copy","mirror":"order","props":{"date":"2026-08-10"}}`,
   )
   expect(codes(errors)).toEqual(["bad-record", "bad-record"])
   expect(messages(errors)).toContain("`title` is not a field of this format")
-  expect(messages(errors)).toContain("`date` is not a field of this format")
+  expect(messages(errors)).toContain("`props` is not a field of this format")
 })
 
 // Not just the descriptive fields: the mirror shape is `{id, parent?, ord,
 // mirror}` and NOTHING else, so a field a regular node may legally carry is
 // still excess here — which is the whole point of the two structs.
 test("a mirror is refused every field outside its own shape", () => {
-  for (const field of [`"done":true`, `"desc":"x"`, `"see":["a"]`, `"colour":"red"`]) {
+  for (const field of [`"props":{"status":"done"}`, `"desc":"x"`, `"colour":"red"`]) {
     const errors = errorsOf(`{"id":"m","ord":"a","mirror":"x",${field}}`)
     expect(codes(errors)).toEqual(["bad-record"])
     expect(first(errors).message).toContain("is not a field of this format")
@@ -144,35 +143,83 @@ test("an id that is not a slug is a bad-id", () => {
   expect(outlineOf(`{"id":"A_z-09","ord":"a","title":"t"}`).nodes.length).toBe(1)
 })
 
-// The three marks are exclusive. A merge that kept both sides of an edit is
-// exactly how a record ends up claiming two, and it must not load — whichever
-// two they are, since they are three answers to one question.
-test("two marks on one record are refused", () => {
-  const errors = errorsOf(`{"id":"a","ord":"a","title":"t","done":true,"doing":"2026-08-10"}`)
-  expect(codes(errors)).toEqual(["several-marks"])
-  expect(errors[0]?.message).toContain("`done` and `doing`")
+/**
+ * The rule that refused two marks is GONE, and its absence is the test.
+ *
+ * There were three mark fields and a record could carry all of them, so a merge
+ * that kept both sides of an edit produced a record claiming two things about
+ * one question and the validator had to say `several-marks`. One `status` key
+ * holds one value: the set that rule existed to refuse cannot be written down.
+ *
+ * That is the same retirement `derived` had — a rule dissolving because what it
+ * defended stopped being expressible, rather than being relaxed. What is
+ * asserted here is that the vocabulary no longer has the word: a code nothing
+ * can emit is a code that must not survive in the catalogue, waiting to be
+ * matched on by a view that will never see it.
+ */
+test("`several-marks` is retired — one key cannot hold two marks", () => {
+  expect(ErrorCode.literals).not.toContain("several-marks")
+  expect(ErrorCode.literals).toContain("bad-prop")
 
-  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","doing":true,"todo":true}`)))
-    .toEqual(["several-marks"])
-  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","done":true,"todo":true}`)))
-    .toEqual(["several-marks"])
+  // The nearest thing a hand-written file can still do is name a mark that is
+  // not one, and that has its own answer.
+  const errors = errorsOf(`{"id":"a","ord":"a","title":"t","props":{"status":"donee"}}`)
+  expect(codes(errors)).toEqual(["bad-prop"])
+  expect(errors[0]?.message).toContain("`done`")
 
   // One mark is the ordinary case, and `todo` is as ordinary as the others —
   // stored verbatim, like the two that came before it.
-  expect(outlineOf(`{"id":"a","ord":"a","title":"t","todo":true}`).nodes[0]?.node)
-    .toEqual({ id: "a", ord: "a", title: "t", todo: true })
-  expect(outlineOf(`{"id":"a","ord":"a","title":"t","todo":"2026-08-11"}`).nodes.length)
-    .toBe(1)
+  expect(outlineOf(`{"id":"a","ord":"a","title":"t","props":{"status":"todo"}}`).nodes[0]?.node)
+    .toEqual({ id: "a", ord: "a", title: "t", props: { status: "todo" } })
+  expect(
+    outlineOf(`{"id":"a","ord":"a","title":"t","props":{"status":"todo","since":"2026-08-11"}}`)
+      .nodes.length,
+  ).toBe(1)
+})
+
+/**
+ * What a SYSTEM key may hold, which is the per-line rule the map brought with
+ * it.
+ *
+ * The map's own schema takes any key and any string-or-list, and that is the
+ * point of it — a user key is nobody's business. The six keys olai READS are a
+ * different matter: a reading needs a value it can use, so a `status` holding a
+ * list and a `see` holding one id are records the format refuses, exactly as
+ * two marks were.
+ */
+test("a system key holding the wrong shape is refused", () => {
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","props":{"status":["done"]}}`)))
+    .toEqual(["bad-prop"])
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","props":{"see":"b"}}`)))
+    .toEqual(["bad-prop"])
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","props":{"date":["2026-08-10"]}}`)))
+    .toEqual(["bad-prop"])
+
+  // A USER key is judged by none of it — any string, any list, no meaning.
+  expect(
+    outlineOf(`{"id":"a","ord":"a","title":"t","props":{"isbn":"978","tags":["x","y"]}}`)
+      .nodes.length,
+  ).toBe(1)
+})
+
+/** An instant with no state to be the instant OF: the half of a mark that says
+ *  WHEN, on a record that never says WHAT. No writer produces it, and reading
+ *  it as a bullet with a stray key would be the format quietly accepting half a
+ *  fact. */
+test("`since` without `status` is refused", () => {
+  const errors = errorsOf(`{"id":"a","ord":"a","title":"t","props":{"since":"2026-08-11"}}`)
+  expect(codes(errors)).toEqual(["bad-prop"])
+  expect(errors[0]?.message).toContain("`status`")
 })
 
 // Shape is not enough: `2026-02-30` matches the pattern and is still not a
 // day, and a date the calendar rejects would silently vanish from the day view.
 test("a date is checked against the calendar, not just the pattern", () => {
-  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","date":"2026-02-30"}`)))
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","props":{"date":"2026-02-30"}}`)))
     .toEqual(["bad-date"])
-  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","date":"2026-13-01"}`)))
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","props":{"date":"2026-13-01"}}`)))
     .toEqual(["bad-date"])
-  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","date":"10 Aug 2026"}`)))
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","props":{"date":"10 Aug 2026"}}`)))
     .toEqual(["bad-date"])
 })
 
@@ -180,9 +227,9 @@ test("a date is checked against the calendar, not just the pattern", () => {
 // `date` must not have to become a datetime to be accepted.
 test("date-only and full datetime are both accepted, on every dated field", () => {
   const outline = outlineOf(
-    `{"id":"a","ord":"a","title":"t","done":"2026-08-10","date":"2026-08-10T14:30:00Z"}\n` +
-      `{"id":"b","ord":"b","title":"t","doing":"2026-08-10T14:30:00.500+05:30","date":"2028-02-29"}\n` +
-      `{"id":"c","ord":"c","title":"t","done":true}`,
+    `{"id":"a","ord":"a","title":"t","props":{"status":"done","since":"2026-08-10","date":"2026-08-10T14:30:00Z"}}\n` +
+      `{"id":"b","ord":"b","title":"t","props":{"status":"doing","since":"2026-08-10T14:30:00.500+05:30","date":"2028-02-29"}}\n` +
+      `{"id":"c","ord":"c","title":"t","props":{"status":"done"}}`,
   )
   expect(outline.nodes.length).toBe(3)
 })
@@ -227,9 +274,9 @@ test("several schema issues on one line come back together", () => {
 // checked, and they all name the same line.
 test("several record-level rules can fail on one line", () => {
   const errors = errorsOf(
-    `{"id":"a b","ord":"a","title":"t","done":"2026-02-30","doing":true}`,
+    `{"id":"a b","ord":"a","title":"t","props":{"status":"nope","since":"2026-02-30"}}`,
   )
-  expect(codes(errors).slice().sort()).toEqual(["bad-date", "bad-id", "several-marks"])
+  expect(codes(errors).slice().sort()).toEqual(["bad-date", "bad-id", "bad-prop"])
   expect(errors.every((error) => error.line === 1)).toBe(true)
   expect(errors.every((error) => error.file === "a.jsonl")).toBe(true)
 })
