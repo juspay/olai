@@ -124,7 +124,14 @@ const ENTRY_SHAPE =
  *  put its names a couple of pixels off every file's for as long as nobody
  *  looked. Named for the same reason `./touch.ts` names the tree's
  *  `GUTTER_GAP` rather than repeating it down the row: a gap that is written
- *  twice is a rule, and a rule is what nothing enforces. */
+ *  twice is a rule, and a rule is what nothing enforces.
+ *
+ *  It MOVES the folder rows, and that is the promise rather than a side
+ *  effect: a folder's row was `gap-0.5`, so adopting this widens
+ *  triangle-to-glyph from 2px to 6px. Two pixels of difference between the two
+ *  kinds of row is exactly what "one column of names" rules out, and the
+ *  before/after shots are where it can be checked — the folder rows are inside
+ *  the region this PR says DIFFERS, not the ones it says are byte-identical. */
 const ROW_GAP = "gap-1.5"
 
 /** One file entry. Workflowy-quiet: soft hover, a wash when current.

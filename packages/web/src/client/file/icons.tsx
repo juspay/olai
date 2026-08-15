@@ -47,6 +47,18 @@
  * `aria-hidden` is added because the word beside it already says the name. The
  * paths are untouched; that is what makes the third one drawable.
  *
+ * That paragraph is the licence being satisfied and not merely a courtesy:
+ * Apache-2.0 §4 wants the notices retained and the changes stated, and for two
+ * path strings shipped inside a browser bundle, the source, the licence and the
+ * sentence above are where a reader will actually look. **The rule if a third
+ * arrives** — and it is written here rather than remembered, because the
+ * habit is what rots: two vendored snippets in one file is a header; vendored
+ * bytes in a SECOND file is the moment this repo owes a real `NOTICE`,
+ * collected at the dist root by `../build.ts` so the shipped artifact carries
+ * it and not just the source. Reviewer's nit, adopted as the trigger rather
+ * than as the file, because a `NOTICE` naming one file is the drift it exists
+ * to prevent.
+ *
  * The THIRD has no upstream, because no icon set has an olai outline in it.
  * It is drawn here, to the set's own metrics rather than to a guess at them:
  * `IconListUnordered.svg` is bullets of `r=1` against bars of `h=1.5` and

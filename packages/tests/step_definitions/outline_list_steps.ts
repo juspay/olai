@@ -246,6 +246,16 @@ Then(
 // and "there is one, and it is the outline's" is the promise. The extension is
 // deliberately not the assertion either: `.jsonl` in the label is the thing
 // that was carrying this on its own and the reason the mark was filed.
+//
+// SEVEN rows are asserted and not every row on screen, which a reviewer asked
+// about and which is deliberate: three kinds × the two faces they are drawn on,
+// which is the whole of the closed set (`DirectoryKind`). What a per-row sweep
+// would add is a fourth reading of `fileTree.ts`'s walk — the tree's membership
+// and its order are already promised by the scenarios above this one — and what
+// it could not add is the case that actually threatens this: a kind with NO
+// glyph. `Record<DirectoryKind, Drawn>` makes that a compile error rather than
+// a row the suite would have to catch, so the type carries the exhaustiveness
+// and these rows carry the wiring.
 
 // Through `expectAttribute`, like every other `data-` fact in this file. The
 // compound selector is what makes the wait RETRY across the frame that paints
