@@ -36,11 +36,17 @@ import {
   type CommitResult,
   type Derived,
   MARKS,
+  NodeAnswer,
+  NodeRequest,
   type OpFailure,
+  OutlineAnswer,
   type OutlineSet,
   type PushResult,
+  SearchAnswer,
   SearchRequest,
   type Status,
+  SubtreeAnswer,
+  SubtreeRequest,
   type Writer,
 } from "@olai/format"
 
@@ -117,6 +123,27 @@ export interface Acting {
 export type Tool =
   | (Described & {
     readonly kind: "read"
+    /**
+     * The shape this read answers with — `@olai/format`'s declaration, beside
+     * the request schema and for the same reason.
+     *
+     * The read arm is the one that can say this, because it is the one whose
+     * answer is a VALUE rather than an effect, and saying it is what makes the
+     * arm's own rule reach the answer as well as the reader: a read that
+     * answers something other than what it declares does not build, and a read
+     * added without declaring one does not build either. Without it the reader
+     * comes back as `unknown` and its literal — the `outlines` envelope, the
+     * `{ missing }` — is checked against nothing at all.
+     *
+     * READ AT RUNTIME by `./tools.test.ts`, which walks the table, calls every
+     * reader over a maximal set and decodes each answer against this. That is
+     * deliberately a test rather than an encode at the MCP seam: what is being
+     * checked is that the declaration agrees with the producer, which is a
+     * fact about the build, and an encode there would either drop a drifted
+     * field silently (Effect's default) or turn one into a failed tool call
+     * for a live agent.
+     */
+    readonly answers: Schema.Top
     readonly read: (at: Reading, args: never) => unknown
   })
   | (Described & {
@@ -134,35 +161,40 @@ export type Tool =
 
 // ── reading ────────────────────────────────────────────────────────────
 
-const NodeArgs = Schema.Struct({
-  id: Schema.String.annotate({ description: "The node's `id`." }),
-})
-
-const SubtreeArgs = Schema.Struct({
-  id: Schema.String.annotate({ description: "The node to read from." }),
-  depth: Schema.optionalKey(
-    Schema.Number.annotate({
-      description: "How many levels of children to include. Default 3.",
-    }),
-  ),
-})
-
+/** A read asks NOTHING that is not on the floor either — the request schemas
+ *  below are `@olai/format`'s, for the reason its `./reading.ts` argues: a
+ *  question the agent's face asks and a question a wire spec would carry are one
+ *  question, and two spellings of it are two spellings free to drift. This is
+ *  the one read with nothing to ask, which is why it is the only one declared
+ *  here. */
 const NoArgs = Schema.Struct({})
 
 // ── the list ───────────────────────────────────────────────────────────
 
-const read = <A>(
+/**
+ * Both schemas, then the reader between them.
+ *
+ * `R` is INFERRED from `answers`, so the reader is checked against the floor's
+ * declaration with nothing written at the call site — and a read that does not
+ * say what it answers does not compile, rather than quietly getting `unknown`
+ * and being checked against nothing. `A` still needs its annotation on the
+ * reader, because the request parameter's `| Schema.Top` arm defeats inference;
+ * that is the older half and untouched here.
+ */
+const read = <A, R>(
   name: string,
   title: string,
   description: string,
   schema: Schema.Codec<A, never, never, never> | Schema.Top,
-  reader: (at: Reading, args: A) => unknown,
+  answers: Schema.Codec<R, R, never, never>,
+  reader: (at: Reading, args: A) => R,
 ): Tool => ({
   name,
   title,
   description,
   schema,
   kind: "read",
+  answers,
   read: reader as (at: Reading, args: never) => unknown,
 })
 
@@ -231,6 +263,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "List outlines",
     "Every outline under the served directory, with its top-level titles and how many nodes it holds. Start here: it is the map.\n\nTWO FILENAMES IN IT MEAN SOMETHING, both by name and neither by any field. An `Archive.jsonl` holds what was put away (`unarchive_node` is the way back out). An `Inbox.jsonl` is where a line goes when nobody named a place for it: capture into whichever outline is called that — case-insensitively, shallowest first, then path order, so a directory keeping `notes/inbox.jsonl` gets its own file rather than a second one — and when this list holds none, `create_outline` an `Inbox.jsonl` at the ROOT, seeded with the line. The web's ⌘K `+` resolves exactly that; doing it by hand here is the same two moves and lands in the same file.",
     NoArgs,
+    OutlineAnswer,
     (at) => ({ outlines: Query.outlines(at.set, at.derived) }),
   ),
   read(
@@ -244,22 +277,25 @@ export const TOOLS: ReadonlyArray<Tool> = [
     // the per-field prose in that schema are the same grammar described from
     // the two ends a caller reads it from.
     SearchRequest,
+    SearchAnswer,
     (at, args: SearchRequest) => Query.search(at.derived, args),
   ),
   read(
     "read_node",
     "Read a node",
     "One node in full: its record, its tags (`#topic` and `@person`, reported as written), its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more. Its edges come too when it has them — `see` and `after`, the ids `set_see` / `set_after` take.\n\nTHIS IS ALSO WHERE MIRRORS ARE FOUND, and it is the only place: a placement is not a node, so a search never returns one and `children` never lists one. Ask the node instead. `mirrors` is every placement OF this node — where else it is drawn, chains followed — and each entry's `id` is what `remove_mirror` takes, so a Now entry is retired by reading the ITEM that finished. `placed` is the other half: the placements UNDER this node, each with the node it shows — which is how you read a curated list (\"what is on Now?\") without knowing in advance what is on it.",
-    NodeArgs,
-    (at, args: typeof NodeArgs.Type) =>
+    NodeRequest,
+    NodeAnswer,
+    (at, args: NodeRequest) =>
       Query.detail(at.derived, args.id) ?? { missing: args.id },
   ),
   read(
     "read_subtree",
     "Read a subtree",
     "A node and everything under it, nested. Says when it stopped at the depth it was given rather than at a leaf. Mirrors are not walked — a placement is a second view of a node rather than something hanging off this one — so read a list of them with `read_node`'s `placed`.",
-    SubtreeArgs,
-    (at, args: typeof SubtreeArgs.Type) =>
+    SubtreeRequest,
+    SubtreeAnswer,
+    (at, args: SubtreeRequest) =>
       Query.subtree(
         at.derived,
         args.id,

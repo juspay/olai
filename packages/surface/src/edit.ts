@@ -129,7 +129,7 @@
  * leaves an outline saying something nobody wrote.
  */
 
-import { MARKS, OpFailure } from "@olai/format"
+import { OpFailure, Status } from "@olai/format"
 import { Schema } from "effect"
 
 /** A node this edit is about — the record occupying a row, which for a text
@@ -215,7 +215,7 @@ export const Edit = Schema.Union([
    *  binds `done` (`Ctrl+Enter`); the field names a mark because the vocabulary
    *  is the format's own and a fourth mark should not arrive writable
    *  everywhere except here. */
-  Schema.Struct({ verb: Schema.Literal("toggle"), id: Id, mark: Schema.Literals(MARKS) }),
+  Schema.Struct({ verb: Schema.Literal("toggle"), id: Id, mark: Status }),
   /**
    * The MARK WALK: put this node at the next answer along, whatever it is on
    * now — `Ctrl+Shift+Enter`, and the keyboard's half of writing all three
@@ -341,7 +341,7 @@ export const Edit = Schema.Union([
   Schema.Struct({
     verb: Schema.Literal("mark"),
     id: Id,
-    mark: Schema.NullOr(Schema.Literals(MARKS)),
+    mark: Schema.NullOr(Status),
   }),
 
   // ── the three the ••• menu speaks ────────────────────────────────────

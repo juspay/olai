@@ -39,8 +39,66 @@ const Marker = Schema.Union([Schema.Literal(true), Schema.String])
  */
 export const MARKS = ["done", "doing", "todo"] as const
 
-/** The fields both shapes share: identity and placement. */
-const Placement = {
+/**
+ * What a node's checkbox shows: one of the {@link MARKS}. STORED, on the node
+ * that carries it, whether or not it has children — and OPTIONAL everywhere,
+ * because a node with no status is a bullet and not a task at all.
+ *
+ * Read off that list rather than spelled again, because a status IS a mark:
+ * there is nothing else it could be now that nothing computes one. One name
+ * for it, so nobody has to learn that two are the same — and one SCHEMA, so
+ * the five places that were each writing `Schema.Literals(MARKS)` for
+ * themselves (a request's `op`, a keystroke's `mark`, a read's `status`) are
+ * one derivation read five times rather than five copies of it.
+ *
+ * Beside {@link MARKS} rather than beside the derivations, which is where it
+ * was: it is a fact about what a RECORD may carry, the same list the fields
+ * below are keyed by, and putting it here is what lets those fields be keyed
+ * by it at all without this module reaching up into a walk.
+ *
+ * What there is deliberately no member for is UNMARKED. `open` used to be one,
+ * and it was what a node got for carrying nothing, which made every node a
+ * task and left one value answering two questions — "a task nobody has
+ * started" and "not a task at all". Absence answers the second; `todo` is how
+ * a node says the first, and someone has to put it there.
+ */
+export const Status = Schema.Literals(MARKS)
+export type Status = typeof Status.Type
+
+/**
+ * The three MARK fields a record may carry, at most one of them.
+ *
+ * ONE declaration, spread into {@link RegularNode} below and read back by
+ * `./reading.ts`'s {@link Detail} — because a mark on an answer is the
+ * record's own value handed over verbatim, and a second spelling of these
+ * three beside the answer would be free to stop meaning what the file means.
+ *
+ * The `satisfies` is the closure, and it is the whole reason the three are
+ * written out rather than folded: a fourth {@link MARKS} entry becomes a
+ * missing key HERE, named by the compiler, at the one place the format
+ * declares what a record holds — rather than a mark that is writable,
+ * plannable and derivable everywhere and readable back nowhere.
+ *
+ * EXPORTED, and not through `./index.ts`: `./reading.ts` is one module over and
+ * needs it, and the package's rule is that a spelling a rule happens to use is
+ * not contract. A consumer outside this package that wanted these three would
+ * be re-deriving what a record holds; what it should reach for is `Detail`,
+ * which already carries them.
+ */
+export const STAMPED = {
+  done: Schema.optionalKey(Marker),
+  doing: Schema.optionalKey(Marker),
+  /** Work that has not started. The third MARK, and stored like the other two
+   *  — a node is a task because someone said so, never by default. */
+  todo: Schema.optionalKey(Marker),
+} satisfies { readonly [M in Status]: unknown }
+
+/** The fields both shapes share: identity, and where the record sits among its
+ *  siblings. Named for what it IS rather than `Placement`, which this package
+ *  now exports for a different thing — a MIRROR's location, `./reading.ts`.
+ *  Two adjacent meanings under one word is the collision `OutlineSummary` was
+ *  renamed to avoid, one file over and one visibility down. */
+const Common = {
   id: Schema.String,
   /** Absent at top level. The only field docs/format.md marks optional for a
    *  regular node — which is how `ord` and `title` below are read as required. */
@@ -50,15 +108,11 @@ const Placement = {
 }
 
 export const RegularNode = Schema.Struct({
-  ...Placement,
+  ...Common,
   /** Verbatim. Inline tags live here and are extracted at view time — `#topic`
    *  and `@person`, two namespaces rather than two spellings of one. */
   title: Schema.String,
-  done: Schema.optionalKey(Marker),
-  doing: Schema.optionalKey(Marker),
-  /** Work that has not started. The third MARK, and stored like the other two
-   *  — a node is a task because someone said so, never by default. */
-  todo: Schema.optionalKey(Marker),
+  ...STAMPED,
   date: Schema.optionalKey(Schema.String),
   /** The note: one string, embedded newlines, markdown, stored verbatim. */
   desc: Schema.optionalKey(Schema.String),
@@ -71,7 +125,7 @@ export const RegularNode = Schema.Struct({
 export type RegularNode = typeof RegularNode.Type
 
 export const MirrorNode = Schema.Struct({
-  ...Placement,
+  ...Common,
   mirror: Schema.String,
 })
 export type MirrorNode = typeof MirrorNode.Type

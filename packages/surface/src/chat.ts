@@ -44,6 +44,7 @@
 import { AskAnswer, AskChoice, AskField, AskOutcome, FileDiff, YES_NO } from "@olai/acp/wire"
 import {
   BusyFailure,
+  Found,
   isOpFailure,
   kindOf,
   OpFailure,
@@ -97,10 +98,22 @@ export type Ask = typeof Ask.Type
  * that disagrees with the file, and a node archived between arming and sending
  * refuses the send rather than naming something that has moved.
  *
- * The fields are the ones {@link ../../ops/src/query.ts}'s `Found` leads with,
- * and for its reasons: the id is the handle every olai tool takes, `file:line`
- * is where a person is pointed, and `path` — the canonical ancestor titles,
- * outermost first — is what makes a bare title like "order" mean something.
+ * The fields ARE `@olai/format`'s `Found`'s, five of them, taken off that
+ * declaration rather than spelled again (`reading.ts`, the floor both this spec
+ * and the ops layer stand on) — and for its reasons: the id is the handle every
+ * olai tool takes, `file:line` is where a person is pointed, and `path` — the
+ * canonical ancestor titles, outermost first — is what makes a bare title like
+ * "order" mean something.
+ *
+ * A NARROWING and not a copy, and the difference is which half is shared. WHICH
+ * fields a chip carries is this spec's own decision — deliberately less than
+ * what a read answers with, the same kind of thing `./edit.ts`'s `Applied` is to
+ * the ops layer's, and the reason neither is a shared declaration. What each of
+ * those fields IS is the floor's, because the server fills them from
+ * `Query.foundOf` (`server/src/context.ts`) and a `path` that stopped being a
+ * list of strings would otherwise change under a chip that never noticed. Both
+ * reviewers found that gap by experiment, one edit apart: five fields spelled
+ * here independently of the five they are read off.
  * What is deliberately NOT here is the node's CONTENT: a subtree pasted into a
  * prompt is a copy that stops being true the moment anything writes, and the
  * agent has `read_node` / `read_subtree` for the live one. That is the same
@@ -108,14 +121,14 @@ export type Ask = typeof Ask.Type
  * the file itself, rather than the bytes riding the prompt.
  */
 export const NodeContext = Schema.Struct({
-  id: Schema.String,
-  title: Schema.String,
+  id: Found.fields.id,
+  title: Found.fields.title,
   /** Root-relative, like every other `file:line` olai spells. */
-  file: Schema.String,
-  line: Schema.Int,
+  file: Found.fields.file,
+  line: Found.fields.line,
   /** The canonical ancestor titles, outermost first. Empty at the top level of
    *  an outline, which is the answer rather than a gap in it. */
-  path: Schema.Array(Schema.String),
+  path: Found.fields.path,
 })
 export type NodeContext = typeof NodeContext.Type
 
