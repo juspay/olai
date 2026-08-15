@@ -13,6 +13,7 @@ import {
   sameAnchor,
   sameSlot,
   slotOf,
+  stillAt,
   typed,
 } from "./draft.ts"
 
@@ -104,7 +105,9 @@ test("a landed commit carries the nudge the write came back with", () => {
 test("a new row that landed becomes the row it created", () => {
   // The caret stays in the line that was typed: same text, now a row, with the
   // id the set gave it — and no place yet, because the row it names is a frame
-  // away from being drawn. The editor's `follow` is what fills that in.
+  // away from being drawn. The editor's `follow` is what fills that in. It also
+  // keeps the address it was typed at, which is the one thing about it that
+  // anything still holding this caret — a blur in flight — knows it by.
   expect(landed(pending({ text: "measure" }), "n7")).toEqual({
     kind: "row",
     row: "n7",
@@ -113,6 +116,7 @@ test("a new row that landed becomes the row it created", () => {
     field: "title",
     text: "measure",
     saved: "measure",
+    was: { row: "order", field: "new" },
   })
 })
 
@@ -146,6 +150,30 @@ test("a new row is drawn after the row it follows, or on a page's start line", (
   expect(slotOf(pending())).toEqual({ row: "order", field: "new" })
   expect(slotOf(pending({ at: { kind: "first", file: "a.olai" } })))
     .toEqual({ row: null, field: "new" })
+})
+
+test("a line that landed is still the editor the blur came from", () => {
+  // The bug this pair is here for: a blur commits before it closes, and
+  // committing a BRAND-NEW line makes it the row it wrote — a slot at an id
+  // that did not exist when the blur was delivered. Asked on slots alone the
+  // editor read that as the reader having opened something else, so the click
+  // away wrote the line and left the caret sitting in it.
+  const line = pending({ text: "measure the alcove" })
+  const from = slotOf(line)
+  const row = landed(line, "n7")
+  expect(sameSlot(slotOf(row), from)).toBe(false)
+  expect(stillAt(row, from)).toBe(true)
+  // And it is the forwarding address that says so, not a blanket yes: another
+  // row's editor is another row's, landed or not.
+  expect(stillAt(editing({ row: "demo" }), from)).toBe(false)
+  expect(stillAt(row, slotOf(pending({ at: { kind: "after", id: "demo" } })))).toBe(false)
+})
+
+test("a row that was always a row forwards nothing", () => {
+  // Only the one transition mints an address, so a row draft that commits
+  // again does not go on answering to a slot it never had.
+  const row = landed(pending({ text: "measure" }), "n7")
+  expect(landed(typed(row, "measure the alcove"), "n7").was).toBeUndefined()
 })
 
 test("two anchors are the same place only when they name the same one", () => {

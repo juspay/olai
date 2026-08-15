@@ -39,7 +39,7 @@ Every one of these is a fact about the node a row SHOWS, so pressing either key 
 
 A key is not a change to the page. Every one of them is one operation through the same gate the agent writes through, so a row moves when the file says it moved and two tabs on the same outline cannot disagree. What you type buffers locally until you stop (blur, Enter, or a pause), so typing is never a round trip; that buffer is an editor and not a claim about the file, and a write that comes back refused — a title cannot be empty — puts the reason under the row and leaves your text exactly where it is.
 
-A new row is that same idea: **Enter** opens a line where the row will go, and the node is written the moment it has a title. So an outline never fills up with blank bullets, and a key pressed by accident writes nothing at all.
+A new row is that same idea: **Enter** opens a line where the row will go, and the node is written the moment it has a title. So an outline never fills up with blank bullets, and a key pressed by accident writes nothing at all. A line like that is a line like any other while you are in it: click somewhere else and it is written and left behind, with the caret where you clicked rather than back in the row it just made.
 
 ## One row into two, and two into one
 
