@@ -14,23 +14,29 @@
  * would allow on its own reach the disk; and two commit paths sweep one git
  * repository against each other.
  *
- * Three of the four are that, and they are the three things the refusal has to
- * be. The fourth is the same keying question asked of the path function alone,
- * in milliseconds rather than in three boots — the end-to-end tests are what
- * make it true, and that one is what says which spellings were meant.
+ * What the tests are, and each is one property of the refusal:
  *
- *   1. A REFUSAL, in olai's own words, naming the process that holds the
- *      directory — not a raw `EWOULDBLOCK` from the kernel, which tells a
- *      person nothing about what to do next.
- *   2. Keyed on the DIRECTORY rather than on how it was spelled: a symlink to
- *      a vault is that vault, and two olai over the two spellings are two
- *      brains over one set of files.
- *   3. Released BY THE KERNEL. The holder here is killed with SIGKILL, which
- *      runs no finalizer, writes no file and gets no chance to clean up
- *      anything — and the next boot still succeeds. That is the whole reason
- *      the lock is an OS advisory lock and not a lockfile with a pid in it:
- *      there is no staleness protocol to get wrong, because there is no
- *      staleness.
+ *   1. REFUSE THE SECOND. A second olai over a directory another is serving
+ *      does not boot — it never binds a port and never opens a store.
+ *   2. NAME THE HOLDER. In olai's own words, with the pid, because a raw
+ *      `EWOULDBLOCK` tells a person nothing about what to do next.
+ *   3. THE SPELLING IS NOT THE VAULT. A symlink to a directory is that
+ *      directory, so two olai over the two spellings are two brains over one
+ *      set of files. Asked twice: end to end here, and of the path function
+ *      alone in the last test, which is what says which spellings were meant.
+ *   4. A GRACEFUL STOP FREES IT. The holder is signalled, its finalizers run,
+ *      and the next boot succeeds.
+ *   5. `kill -9` FREES IT TOO, and this is the one that matters most: SIGKILL
+ *      runs no finalizer, writes nothing down and unlinks nothing, so what
+ *      releases the vault is the KERNEL closing the descriptors of a process
+ *      that no longer exists. Validity lives in the kernel's lock and never in
+ *      a file's existence — which is why there is no staleness protocol to get
+ *      wrong, and why a machine can never come back from a crash refusing to
+ *      serve its own notes.
+ *   6. A STALE PID IN THE NOTE FOOLS NOBODY. The pid in the lock file is
+ *      DIAGNOSIS, not validity: with a bogus one written over it, the second
+ *      olai is still refused (the kernel decides) and the bogus number is not
+ *      read out as fact.
  */
 
 import { findLogfmt } from "@olai/log/testlib"
@@ -47,18 +53,24 @@ import { served } from "./serve.testlib.ts"
 const BOUND_MS = BOOT_TIMEOUT * 3
 
 /**
- * A runtime directory of this test's own, shared by the children it spawns.
+ * A runtime directory of this test's own, shared by the children it spawns —
+ * and by THIS process, which is the half that is easy to miss.
  *
- * The lock lives in `$XDG_RUNTIME_DIR/olai/`, so the two processes here are
- * pointed at one of ours rather than at the developer's — which keeps a real
- * olai they have running out of these assertions, and keeps this test's lock
- * files out of their session's runtime directory.
+ * The lock lives in `$XDG_RUNTIME_DIR/olai/`, so the children are pointed at
+ * one of ours rather than at the developer's: it keeps a real olai they have
+ * running out of these assertions, and keeps this test's lock files out of
+ * their session's runtime directory. `process.env` is moved with them because
+ * two tests below name the lock FILE — `lockFor` reads the variable at call
+ * time, precisely so a test can do this, and a test that set it for its
+ * children only would be looking at a path nobody uses and passing.
  */
-const runtime = (): NodeJS.ProcessEnv => ({
-  XDG_RUNTIME_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "olai-lock-run-")),
-})
+const runtime = (): NodeJS.ProcessEnv => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-lock-run-"))
+  process.env["XDG_RUNTIME_DIR"] = dir
+  return { XDG_RUNTIME_DIR: dir }
+}
 
-test("a second olai over one directory refuses, and names the one that holds it", async () => {
+test("a second olai over one directory refuses to boot", async () => {
   const root = served()
   const env = runtime()
   const first = startWeb({ root, env })
@@ -72,9 +84,25 @@ test("a second olai over one directory refuses, and names the one that holds it"
     // and never opened a store over files it does not own.
     expect(code).not.toBe(0)
     expect(findLogfmt(second.said(), "serving")).toBeUndefined()
-    // olai's words, and the holder by name. A pid is what a person acts on —
-    // it is what they pass to `ps` to see which vault the other one is serving,
-    // and to `kill` if it is a leftover they meant to stop.
+  } finally {
+    first.kill()
+  }
+}, BOUND_MS)
+
+test("the refusal names the olai that holds the vault", async () => {
+  // Its own test rather than two more assertions above, because it is its own
+  // promise: a pid is what a person ACTS on — what they pass to `ps` to see
+  // which vault the other one is serving, and to `kill` if it is a leftover
+  // they meant to stop. A refusal that merely said "busy" would leave them
+  // hunting.
+  const root = served()
+  const env = runtime()
+  const first = startWeb({ root, env })
+  try {
+    await first.address()
+
+    const second = startWeb({ root, env })
+    await second.exited()
     expect(second.said()).toContain(
       `another olai is serving this directory (pid ${first.child.pid})`,
     )
@@ -83,6 +111,37 @@ test("a second olai over one directory refuses, and names the one that holds it"
     first.kill()
   }
 }, BOUND_MS)
+
+test("a stale pid in the note frees nothing, and is not read out as fact", async () => {
+  // The pid is DIAGNOSIS and the kernel's lock is VALIDITY, and this is the
+  // test that says so. The note is overwritten with a pid that cannot exist —
+  // which is what a recycled or half-written one would look like — and the two
+  // halves are asserted separately: the second olai is still refused, because
+  // nothing reads the file to decide anything; and the number nobody can verify
+  // does not appear in the sentence, because a wrong pid sends a person to
+  // `kill` a process that is not the one holding their notes.
+  const root = served()
+  const env = runtime()
+  const first = startWeb({ root, env })
+  try {
+    await first.address()
+    // Writing needs no lock — flock is advisory — which is exactly why the
+    // contents can never be the thing that decides.
+    fs.writeFileSync(lockFor(root), `pid=${IMPOSSIBLE_PID}\n`)
+
+    const second = startWeb({ root, env })
+    expect(await second.exited()).not.toBe(0)
+    expect(second.said()).toContain("another olai is serving this directory")
+    expect(second.said()).not.toContain(String(IMPOSSIBLE_PID))
+  } finally {
+    first.kill()
+  }
+}, BOUND_MS)
+
+/** Above any `pid_max` Linux or darwin will hand out, so it names no process
+ *  on any machine this runs on — a stale note, without the flake of reusing a
+ *  pid that has just been freed and could be handed to somebody else. */
+const IMPOSSIBLE_PID = 2_147_483_646
 
 test("a symlinked spelling of the vault is the same vault", async () => {
   // The seam #175 named and deferred, spelled out: the rendezvous socket
@@ -110,23 +169,46 @@ test("a symlinked spelling of the vault is the same vault", async () => {
   }
 }, BOUND_MS)
 
-test("the holder dies and the directory is free", async () => {
+test("the holder is stopped and the directory is free", async () => {
+  // The ordinary way a server ends: a signal it handles, finalizers running,
+  // the scope closing the descriptor on the way out.
   const root = served()
   const env = runtime()
   const first = startWeb({ root, env })
   await first.address()
-
-  // SIGKILL, deliberately: no finalizer runs, nothing is unlinked, nothing is
-  // written down. Whatever releases the directory here is the kernel closing
-  // the descriptors of a process that no longer exists.
-  first.kill("SIGKILL")
+  first.kill("SIGINT")
   expect(await stoppedWithin(first.child, BOOT_TIMEOUT)).toBe(true)
 
   const next = startWeb({ root, env })
   try {
     // It BOOTS, and the address is the proof: a server that says where it is
     // serving has a store open over the directory, which it could not have
-    // taken while the dead one's claim stood.
+    // taken while the last one's claim stood.
+    expect(await next.address()).toContain("http://127.0.0.1:")
+  } finally {
+    next.kill()
+  }
+}, BOUND_MS)
+
+test("`kill -9` frees the directory: nothing was cleaned up, and nothing had to be", async () => {
+  // The one that matters most, and the whole argument for an OS lock. SIGKILL
+  // runs no finalizer, writes nothing down and unlinks nothing — it is a power
+  // cut with a smaller blast radius — and the vault is free the instant the
+  // process is gone, because what held it was a descriptor the kernel closed.
+  // Anything whose validity came from a FILE EXISTING would refuse to serve
+  // here, and a person's notes would be locked out by a crash.
+  const root = served()
+  const env = runtime()
+  const first = startWeb({ root, env })
+  await first.address()
+  first.kill("SIGKILL")
+  expect(await stoppedWithin(first.child, BOOT_TIMEOUT)).toBe(true)
+  // The lock FILE is still on disk, untouched and still naming the dead pid.
+  // That it is there and the vault is free anyway is the property.
+  expect(fs.existsSync(lockFor(root))).toBe(true)
+
+  const next = startWeb({ root, env })
+  try {
     expect(await next.address()).toContain("http://127.0.0.1:")
   } finally {
     next.kill()
