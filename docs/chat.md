@@ -59,7 +59,11 @@ The button says **send** the whole time, because that is what it does the whole 
 
 **Cancel stops the agent, and only that.** There is nothing else for it to do — every message you have typed already went. This is a change worth knowing about if you used olai before: a message sent mid-turn used to be held until the turn ended, and cancelling threw away everything that was waiting. Those words were nowhere else. They are not held anywhere now, so there is nothing to throw away.
 
-**If a message cannot be delivered, it stays on screen.** It keeps its own bubble, exactly as you typed it, outlined and marked *not sent*, with **send again** underneath. Nothing retries on its own and nothing disappears; whether to try again is yours. You will only see this with an agent that cannot take a message mid-turn at all — the agent olai ships with can — or one that has died between your pressing Enter and the message reaching it.
+**If a message cannot be delivered, it stays on screen.** It keeps its own bubble, exactly as you typed it, outlined and marked *not sent*, with **send again** underneath. Nothing retries on its own and nothing disappears; whether to try again is yours.
+
+There are four ways to see it, and the last one is the one you are most likely to cause on purpose: an agent that cannot take a message mid-turn at all (the agent olai ships with can), one that has died between your pressing Enter and the message reaching it, one that has gone quiet and not answered within half a minute — and **cancelling while a message is still on its way**. That last one is a fair thing to do: you say the next thing, then decide the whole turn was wrong. The cancel wins, and your message waits on its row rather than quietly starting the turn back up.
+
+The third of those is a guess rather than a certainty, and worth knowing about because of what it means for pressing the button: an agent that took your message and *then* went silent looks exactly like one that never took it. So a *not sent* mark is olai's best reading, not a promise — which is why nothing here re-sends anything for you. Press it when the conversation shows no sign your words arrived.
 
 ## What it can touch
 

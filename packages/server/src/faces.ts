@@ -143,7 +143,7 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  *
  * Written as the complement of one omission, and the omission is the whole
  * point of this map existing: `ops.*` is absent. Every cell, every collection,
- * the chat's eight verbs, `edit.apply`, `search.nodes` and the two git verbs
+ * the chat's nine verbs, `edit.apply`, `search.nodes` and the two git verbs
  * are here because a page reads or presses them; the ops request vocabulary is
  * not, because a browser sends INTENTS and the placement is the server's
  * (`@olai/surface`'s `edit.ts`, argued at length and unchanged by any of this).

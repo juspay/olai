@@ -294,12 +294,28 @@ export const ChatEntry = Schema.Struct({
    * `user` only: this message NEVER REACHED THE AGENT, and can be sent again.
    *
    * Everything typed goes to the agent the moment it is sent — a turn already
-   * running is steered rather than waited on — so the only rows that carry this
-   * are the ones delivery genuinely refused: an agent that died between the row
-   * being written and the prompt going out, or one that cannot take a message
-   * mid-turn at all. What used to happen to those words is the whole reason the
-   * flag exists: they sat in a server-side queue nobody could see and were
-   * thrown away by the next cancel.
+   * running is steered rather than waited on — so a row only carries this when
+   * that delivery did not happen. Four ways it can:
+   *
+   *   - the agent REFUSED the steer (it has no such method, or no such
+   *     session), which is certain;
+   *   - the steer could not be WRITTEN, the agent having died between the row
+   *     being drawn and the message going out — also certain;
+   *   - the steer went UNANSWERED past the deadline, which is an INFERENCE: an
+   *     agent that took the message and then went quiet is indistinguishable
+   *     from one that never took it, and the two are the same `AgentGone` by
+   *     the time anything here can look;
+   *   - the turn was CANCELLED under it — a person's own second press
+   *     overtaking their own message. The agent then answers "nothing to
+   *     steer", which is what a turn that simply finished answers too, so the
+   *     server tells them apart by the turn the message was aimed at rather
+   *     than by the answer.
+   *
+   * Marking the inferred case is safe because nothing ACTS on this: the retry
+   * is a click, made by somebody looking at the row and at whatever the turn
+   * did next. What used to happen to these words is the whole reason the flag
+   * exists — they sat in a server-side queue nobody could see and were thrown
+   * away by the next cancel.
    *
    * Absent on every row that WAS delivered, rather than `false` — the ordinary
    * message says nothing about this, the same way it says nothing about diffs.

@@ -37,6 +37,8 @@
  *   refuse steering   turn `_session/steering` into an error from here on, so
  *                a scenario can see what a panel does with words it could not
  *                deliver
+ *   slow steering  make `_session/steering` answer two seconds late from here
+ *                on, so a cancel can overtake a steer already in flight
  *   model <id>   switch the model the way the wrapped CLI does — which is to
  *                say silently, and not observably until the NEXT turn
  *   reconfig     re-announce the session's config options unchanged, the way
@@ -184,6 +186,21 @@ const steered: Array<string> = []
  *  turn is over — which is the one case where a person's words have nowhere to
  *  go but back on the screen. */
 let steerRefused = false
+/**
+ * How long `_session/steering` sits on a steer before answering (`slow
+ * steering`). Zero answers off the read loop, which is what every other
+ * scenario wants and what a real adapter does.
+ *
+ * A delay is the only way to stage the ORDERING a client can get wrong: a
+ * person sends mid-turn and then cancels, and the steer answers after the turn
+ * it was aimed at is gone. Long enough that the cancel always wins — the
+ * scenario presses one button after the other, which is hundreds of
+ * milliseconds — and it is the only direction that can flake, since a steer
+ * that answered too EARLY would simply be injected and the scenario would say
+ * so.
+ */
+let steerDelayMs = 0
+const SLOW_STEER_MS = 2_000
 /** Whether `session/list` refuses from here on (`lose the conversations`). A
  *  prompt rather than an environment variable, because boot ASKS — a server
  *  that refused from the start would fail its own boot instead of reaching the
@@ -660,6 +677,16 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     say("about to fall over")
     await sleep(20)
     process.exit(1)
+  }
+
+  // BEFORE the bare `slow` below, which would otherwise swallow it. From here
+  // on a steer takes {@link SLOW_STEER_MS} to answer, which is how a scenario
+  // gets a cancel onto the wire ahead of a steer that is already in flight.
+  if (verb === "slow" && argument === "steering") {
+    steerDelayMs = SLOW_STEER_MS
+    say("steering will answer slowly from here on.")
+    respond(id, { stopReason: "end_turn" })
+    return
   }
 
   if (verb === "slow") {
@@ -1193,16 +1220,28 @@ const promptTextOf = (params: Record<string, unknown>): string =>
  *     that cannot be reached mid-turn at all.
  */
 const steerTurn = (id: unknown, params: Record<string, unknown>): void => {
-  if (steerRefused) {
-    refuse(id, -32000, "this turn cannot be steered")
+  // WHETHER A TURN IS RUNNING IS READ WHEN THE ANSWER IS SENT, not when the
+  // request arrives, and with `slow steering` armed those are different
+  // moments. That is the whole of what the delay buys: a cancel can overtake a
+  // steer on the wire, and the answer that comes back — "nothing to steer" —
+  // is then about a turn a PERSON stopped rather than one that finished.
+  const answer = (): void => {
+    if (steerRefused) {
+      refuse(id, -32000, "this turn cannot be steered")
+      return
+    }
+    if (!running) {
+      respond(id, { outcome: "promptRequired", reason: "noRunningTurn" })
+      return
+    }
+    steered.push(promptTextOf(params))
+    respond(id, { outcome: "injected" })
+  }
+  if (steerDelayMs === 0) {
+    answer()
     return
   }
-  if (!running) {
-    respond(id, { outcome: "promptRequired", reason: "noRunningTurn" })
-    return
-  }
-  steered.push(promptTextOf(params))
-  respond(id, { outcome: "injected" })
+  setTimeout(answer, steerDelayMs)
 }
 
 const handle = async (message: Record<string, unknown>): Promise<void> => {

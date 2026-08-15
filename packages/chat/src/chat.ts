@@ -170,6 +170,19 @@ export interface Chat {
 const CANCEL_GRACE = "5 seconds"
 
 /**
+ * What a person is told when their own cancel overtook their own message.
+ *
+ * The words are kept and the row is retryable, like every other way a steer
+ * fails to land — but the reason is worth saying differently, because this one
+ * is not the agent's doing. Both buttons are on screen at once by design, and
+ * pressing them in quick succession is a coherent thing to want: say the next
+ * thing, then decide the whole turn was wrong. What must not happen is the
+ * message quietly starting the turn back up.
+ */
+const CANCELLED_UNDER_IT =
+  "the turn was stopped before this reached it — the message below is still yours to send"
+
+/**
  * The turn in flight, as a TICKET rather than as a fiber handle.
  *
  * It exists because the fiber does not, yet: the ticket is written down before
@@ -186,6 +199,17 @@ const CANCEL_GRACE = "5 seconds"
  */
 interface Turn {
   fiber: Fiber.Fiber<unknown, unknown> | null
+  /**
+   * Somebody asked THIS turn to stop.
+   *
+   * It outlives the turn on purpose, because the thing that needs it is a
+   * steer still on the wire: a message aimed at a turn a person then cancelled
+   * comes back "nothing to steer", which is indistinguishable from the turn
+   * having simply ended — unless the ticket it was aimed at remembers being
+   * stopped. Without that, the two are the same answer and the message starts
+   * a fresh turn the person just pressed a button to end.
+   */
+  stopped: boolean
 }
 
 export const make = (options: Options): Effect.Effect<Chat, never, never> =>
@@ -478,10 +502,25 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * closing it. The permit is held for one round trip: `begin` forks rather
      * than awaiting a turn, and a steer answers as soon as the message is on the
      * agent's input.
+     *
+     * WHAT THE PERMIT DOES NOT COVER IS CANCEL, and it must not: a person who
+     * has sent a message and then thought better of the whole turn is pressing
+     * the one button that has to work while something else is in flight. So a
+     * steer can be overtaken — cancel wins the pipe, the turn ends, and the
+     * steer comes back saying there was nothing to steer. That answer is the
+     * same one the settle race gives, and the two want opposite things done:
+     * one is a turn that finished on its own and the message becomes an
+     * ordinary prompt; the other is a turn a person STOPPED, and starting a
+     * fresh one with the message they sent into it would be the panel
+     * un-cancelling on their behalf. The ticket the steer was aimed at is what
+     * tells them apart — see {@link Turn.stopped}.
      */
     const deliver = (key: string, prompt: string): Effect.Effect<void> =>
       sending.withPermit(Effect.gen(function*() {
-        if (turn !== null) {
+        // WHICH turn this steer is aimed at, kept rather than re-read: by the
+        // time it answers, `turn` may be null, or somebody else's.
+        const aimed = turn
+        if (aimed !== null) {
           const steered = yield* Effect.result(agent.steer(prompt))
           if (steered._tag === "Failure") {
             return undeliverable(key, prompt, steered.failure.message)
@@ -492,6 +531,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // something the agent has visibly moved on from.
             return move({ trouble: null })
           }
+          if (aimed.stopped) return undeliverable(key, prompt, CANCELLED_UNDER_IT)
         }
         yield* begin(prompt)
       }))
@@ -543,7 +583,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const begin = (prompt: string): Effect.Effect<void> =>
       Effect.gen(function*() {
-        const ticket: Turn = { fiber: null }
+        const ticket: Turn = { fiber: null, stopped: false }
         turn = ticket
         move({ status: "thinking", trouble: null })
 
@@ -633,6 +673,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       const asked = turn
       yield* Effect.mapError(agent.cancel, asFailure)
       if (asked === null) return
+      // Written on the TICKET, and after the cancel is on the wire rather than
+      // before, because a cancel that could not be delivered stopped nothing.
+      // What reads it is a steer still in flight against this same turn: it is
+      // about to come back "nothing to steer", and this is the only thing that
+      // says the reason was a person rather than the turn finishing. It
+      // outlives the turn, which is the point — by then the ticket is all that
+      // is left of it.
+      asked.stopped = true
       const quietSince = heard
       yield* Effect.forkDetach(Effect.gen(function*() {
         yield* Effect.sleep(CANCEL_GRACE)

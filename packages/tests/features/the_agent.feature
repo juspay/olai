@@ -620,6 +620,32 @@ Feature: Talking to the agent
     And no message is marked unsent
 
   @scratch:chat
+  Scenario: Cancelling under a message in flight does not start the turn back up
+    # Both buttons are on screen at once, which is what this feature sells — so
+    # saying the next thing and then deciding the whole turn was wrong is a
+    # coherent pair of presses, and the second one has to win.
+    #
+    # The ordering nobody could see before: the steer is on the wire when the
+    # cancel lands, so the agent answers "nothing to steer" — the SAME answer a
+    # turn that simply finished gives. Read as that, the message becomes an
+    # ordinary prompt and the panel starts a fresh turn the person just pressed
+    # a button to end. The ticket the steer was aimed at is what tells the two
+    # apart, and `slow steering` is what makes cancel win the race every time.
+    When I ask the agent "slow steering"
+    Then the agent is idle
+    When I ask the agent "slow"
+    Then the agent is working
+    When I ask the agent "done order"
+    And I cancel the turn
+    # The steer answers a moment later, and the row is what it lands on: the
+    # words are kept and offered back, never re-sent on somebody's behalf.
+    Then the chat shows my message "done order" as not sent
+    # THE CLAIM: still idle. A `begin` here would read as the cancel undoing
+    # itself, which is the whole bug.
+    And the agent is idle
+    And node "order" is not done
+
+  @scratch:chat
   Scenario: The transcript follows the newest line, unless I have scrolled away
     # It stopped following, and the reason is the shape of the two questions.
     # Whether a reader is following is a decision they make by SCROLLING, and it
