@@ -87,6 +87,31 @@ export const TESTID = {
    *  `data-tone` is which mood — `alarm` for the ops layer's own refusal,
    *  `aside` for a remark on a write that landed. */
   datePickerSaid: "date-picker-said",
+  // ── the properties drawer ────────────────────────────────────────────
+  /** The drawer under a node's note: one `key value` line per property the
+   *  node carries and olai does not read. Present only when there is one, so a
+   *  row carrying none has no drawer at all. */
+  props: "props",
+  /** One line of it. `data-key` is the property's key, so a scenario asks for
+   *  the line by name rather than by its position in the grid. */
+  prop: "prop",
+  /** The value on that line, as text — a link when the value is a URL. */
+  propValue: "prop-value",
+  /** The editor, in place under the row: opened by the `•••` menu's `Add
+   *  property…` or one of its `Edit <key>…` entries. `data-key` is the key it
+   *  was opened on, absent when it is a new one. */
+  propEditor: "prop-editor",
+  propEditorKey: "prop-editor-key",
+  propEditorValue: "prop-editor-value",
+  /** The button that sends it — `Add property` or `Save`, one spelling of each
+   *  gesture however a reader arrived at it. Disabled while a key is empty,
+   *  which is what a property with no name would be. */
+  propEditorSet: "prop-editor-set",
+  propEditorCancel: "prop-editor-cancel",
+  /** What the last press had to say, keeping the editor open to say it — the
+   *  date picker's arrangement, in the same two moods. */
+  propEditorSaid: "prop-editor-said",
+
   /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
    *  the title, never the node's own mark, which is the checkbox. */
   progress: "progress",

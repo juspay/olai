@@ -25,6 +25,10 @@ Feature: The ••• menu writes
     # everything above the divider changes what this tab is looking at,
     # everything below it changes the directory.
     #
+    # `Add property…` is here and no `Edit`/`Remove` pair is, for the same
+    # reason as the marks: the row carries no property olai does not read, so
+    # there is nothing to offer to change (`properties.feature`).
+    #
     # The two EDGE verbs are the exception that proves the rule, and it is a
     # deliberate one: every node can take a `see` or an `after`, so there is
     # nothing about this row to leave them out for — and what WOULD be refused
@@ -43,6 +47,7 @@ Feature: The ••• menu writes
       | Complete           |
       | Clear mark         |
       | Set date…          |
+      | Add property…      |
       | Link to a node…    |
       | Wait for a node…   |
       | Move to Trash      |

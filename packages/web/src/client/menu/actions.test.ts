@@ -66,6 +66,10 @@ const actionsFor = (
     // — `setLinking("see")` answers with `"see"`, a perfectly truthy value the
     // panel would have drawn as a sentence.
     pickEdge: opens as (relation: Relation) => void,
+    // And once more for the property editor, which is the third panel a menu
+    // entry opens and the third chance to hand the `•••` line whatever the
+    // opener happened to return.
+    pickProp: opens as unknown as (editing: { key: string; value: string } | null) => void,
   })
 
 const entry = (id: string, label: string) => {
