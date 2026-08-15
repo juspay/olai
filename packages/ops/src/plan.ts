@@ -2510,6 +2510,15 @@ const planUnmirror = (
  * a document write is audit-trailed and revision-published exactly as a node
  * write is, and an open page sees it the way it sees a `git pull`.
  *
+ * IT WRITES DOCUMENTS, and that is narrower than "a file the set holds". The
+ * set carries every BODIED file — a `.html` rides the same collection and the
+ * same probe — and this verb is `write_document`: what it takes is what it is
+ * named for, asked of the format's registry rather than of which list the path
+ * turned up in. So a `.html` is not found here, and the sentence a caller gets
+ * is the one below, naming `create_document` and the nearest document. That is
+ * the whole of why the page for one has no Edit control (`@olai/web`'s
+ * `document/faces.tsx`): the affordance would be a door onto this refusal.
+ *
  * TWO refusals are its own:
  *
  *   - a path the set does not hold, with the closest one that exists — the
@@ -2525,11 +2534,14 @@ const planWriteDocument = (
   scope: Scope,
   request: Extract<Request, { op: "doc" }>,
 ): Planned => {
-  const document = scope.set.documents.find((entry) => entry.file === request.file)
+  const documents = scope.set.documents.filter(
+    (entry) => fileKind(entry.file) === "document",
+  )
+  const document = documents.find((entry) => entry.file === request.file)
   if (document === undefined) {
     const near = didYouMean(
       request.file,
-      scope.set.documents.map((entry) => entry.file),
+      documents.map((entry) => entry.file),
     )
     return Result.fail(
       new NotFoundFailure({

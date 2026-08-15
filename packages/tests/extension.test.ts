@@ -71,7 +71,7 @@ const ROOT = path.dirname(path.dirname(import.meta.dirname));
  * entries describe PRs that shipped against `.jsonl` files. Rewriting any of
  * them would not tidy history, it would falsify it.
  *
- * The fifth is `@olai/format`'s own `node.test.ts`, which asserts that
+ * The fifth is `@olai/format`'s own `kinds.test.ts`, which asserts that
  * `fileKind` does not claim the suffix. That is the cutover itself, and it has
  * to be written out to be tested.
  *
@@ -104,7 +104,7 @@ const MAY_SPELL_IT: ReadonlyArray<string> = [
   "docs/brainstorming/",
   "docs/format.md",
   "docs/roadmap.olai",
-  "packages/format/src/node.test.ts",
+  "packages/format/src/kinds.test.ts",
 ];
 
 /** Every line of `docs/format.md` allowed to say it: the recipe, and the

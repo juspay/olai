@@ -25,8 +25,9 @@ import { TESTID } from "../testids.ts"
 interface Drawn {
   /** The page this kind of file opens. A `.olai` is a tree with rows to zoom
    *  and filter; everything else is a body drawn for reading, and `/doc/` is
-   *  the one address for that (../routes.ts says why the suffix, not a third
-   *  prefix, is what distinguishes them). */
+   *  the one address for that — TWO kinds share it, and the suffix in the path
+   *  is what says which face draws the body (../routes.ts argues why that is
+   *  the seam, and not a third prefix). */
   readonly route: (file: string) => Route
   /** What a scenario grips this row by. Per kind rather than shared, because a
    *  step that says "the documents listed are …" is asking about ONE kind, and
@@ -43,5 +44,9 @@ export const DRAWN: Record<FileKind, Drawn> = {
   document: {
     route: (file) => ({ kind: "document", file }),
     testid: TESTID.documentLink,
+  },
+  hypertext: {
+    route: (file) => ({ kind: "document", file }),
+    testid: TESTID.hypertextLink,
   },
 }

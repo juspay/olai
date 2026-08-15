@@ -2,9 +2,10 @@
  * WHICH files a served directory is made of — the one place that list exists.
  *
  * A served directory is somebody's folder, and olai claims part of it: an
- * outline is a `.olai`, a document is a `.md`, and everything else — a
- * `README`, a `.png`, a `.ts` — is not part of the set at all. That is one
- * decision, and before this file it was four: a chain of `endsWith` in the
+ * outline is a `.olai`, a document is a `.md`, hypertext is a `.html`, and
+ * everything else — a `README`, a `.png`, a `.ts` — is not part of the set at
+ * all. That is one decision, and before this file it was four: a chain of
+ * `endsWith` in the
  * format, a ternary deciding how a file decodes (`@olai/ops`' codec), a second
  * ternary deciding which list of the set it lands in (./set.ts), and a union in
  * the client naming the two kinds the sidebar draws. The rename of PR #177 and
@@ -61,11 +62,21 @@ interface Claim {
  *
  * `.olai` is the outline: the records this app is about. `.md` is the
  * document: prose beside the outlines, which a node may attach and a day may
- * be named for.
+ * be named for. `.html` is hypertext: a page somebody saved or a tool built,
+ * sitting in the vault with everything else — olai SHOWS it and never writes
+ * it, so it has no editor, no create verb, and `write_document` refuses it by
+ * asking for a document (`@olai/ops`).
+ *
+ * The third is called hypertext rather than "page" because the client already
+ * calls what is on screen a page (`@olai/web`'s `page.ts`), and one word for
+ * two things in one repository is an ambiguity every later reader pays for.
+ * `.htm` is deliberately not a second suffix: one spelling per kind, and a
+ * vault that wants the other one can say so when somebody actually has one.
  */
 export const FILE_KINDS = {
   outline: { ext: ".olai", holds: "nodes" },
   document: { ext: ".md", holds: "text" },
+  hypertext: { ext: ".html", holds: "text" },
 } as const satisfies Record<string, Claim>
 
 /** What a served file can be. Derived from the table rather than declared

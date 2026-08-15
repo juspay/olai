@@ -7,6 +7,8 @@ nothing.
 - Doors: **matte**, not gloss.
 - Handles: brushed brass[^brass].
 
+The cabinetmaker sent [the quote](report.html) as a saved page.
+
 ![the handle](art/handle.png)
 
 ```ts

@@ -119,13 +119,18 @@ export const TESTID = {
   fileDirToggle: "file-dir-toggle",
   /** The glyph that says what KIND of thing in the directory this is
    *  (`file/icons.tsx`) — a row of the tree, or the rail button standing for
-   *  that kind while the column is collapsed. `data-glyph` is `outline`,
-   *  `document` or `folder`: the fact, never the ink it is drawn in, which is
-   *  whatever the row already was. */
+   *  that kind while the column is collapsed. `data-glyph` is one of the
+   *  format's kinds — `outline`, `document`, `hypertext` — or `folder`: the
+   *  fact, never the ink it is drawn in, which is whatever the row already
+   *  was. */
   fileGlyph: "file-glyph",
   /** One document entry in the file tree. There is no second list: documents
    *  sit under the same folders as outlines. */
   documentLink: "document-link",
+  /** One `.html` entry in the file tree — its own name rather than the
+   *  document's, so a step that says how many documents a directory has goes on
+   *  meaning documents when a vault gains a saved page. */
+  hypertextLink: "hypertext-link",
   /** One document, as a page. `data-file` is which. */
   documentPage: "document-page",
   /** The link inside a node's `doc` reference — the way from a node to its
@@ -200,6 +205,11 @@ export const TESTID = {
   /** The document itself, rendered — on its own page, or inline under the node
    *  that attaches it. */
   documentBody: "document-body",
+  /** A `.html` file's page: the sandboxed frame its markup is drawn in, and the
+   *  only element of it this app owns. Everything a scenario asks ABOUT the
+   *  file is asked inside the frame, which is the point — nothing in there can
+   *  reach a testid out here. */
+  hypertextPreview: "hypertext-preview",
   /** The way into a document's editor: the quiet control on the page header
    *  that turns the rendered body into its source. */
   documentEdit: "document-edit",

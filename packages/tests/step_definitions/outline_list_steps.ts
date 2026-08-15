@@ -10,6 +10,7 @@ import {
   FILE_DIR,
   FILE_GLYPH,
   HYDRATION_TIMEOUT,
+  HYPERTEXT_LINK,
   oneLine,
   OUTLINE_LINK,
   OUTLINE_LIST,
@@ -247,9 +248,9 @@ Then(
 // deliberately not the assertion either: `.olai` in the label is the thing
 // that was carrying this on its own and the reason the mark was filed.
 //
-// SEVEN rows are asserted and not every row on screen, which a reviewer asked
-// about and which is deliberate: three kinds × the two faces they are drawn on,
-// which is the whole of the closed set (`DirectoryKind`). What a per-row sweep
+// EIGHT rows are asserted and not every row on screen, which a reviewer asked
+// about and which is deliberate: every kind × the faces it is drawn on, which is
+// the whole of the closed set (`DirectoryKind`). What a per-row sweep
 // would add is a fourth reading of `fileTree.ts`'s walk — the tree's membership
 // and its order are already promised by the scenarios above this one — and what
 // it could not add is the case that actually threatens this: a kind with NO
@@ -290,6 +291,20 @@ Then(
       "data-glyph",
       "document",
       `the document "${file}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the page link {string} is drawn as hypertext",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    await this.expectAttribute(
+      `${HYPERTEXT_LINK}[data-file="${file}"] ${FILE_GLYPH}`,
+      "data-glyph",
+      "hypertext",
+      `the page "${file}"`,
       HYDRATION_TIMEOUT,
     );
   },

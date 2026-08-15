@@ -23,18 +23,25 @@
  *     a URL, and the route that answers that URL), they are in packages that
  *     cannot import each other, and two allowlists that drifted apart would
  *     mean either a broken image or a served file nobody meant to serve.
- *   - {@link documentOf} — where a relative `[…](…)` lands. The same arithmetic
+ *   - {@link bodiedOf} — where a relative `[…](…)` lands. The same arithmetic
  *     as a `doc` and as a picture, asked about the third thing markdown can
- *     point at: another document of this directory.
+ *     point at: another file of this directory that has a page.
  */
 
 import { Schema } from "effect"
 
-import { fileKind } from "./kinds.ts"
+import { bodyKind } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
 
 /**
- * One `.md` of the set: its path, and its text.
+ * One BODIED file of the set: its path, and its text.
+ *
+ * A `.md`, or a `.html` beside it — one shape for both, because what the set
+ * knows about either is the same two facts, and WHICH it is, is the name's own
+ * answer (`./kinds.ts`) rather than a tag here that could disagree with it. The
+ * type keeps the name `Document` because it is the wire's: it is the schema of
+ * the `documents` collection an MCP client already addresses by URI, and a
+ * rename would break an external contract to relabel a field.
  *
  * The TEXT is part of the SET, and that is the decision this field records. A
  * document is read by the same probe, cached against the same stamp and
@@ -44,7 +51,7 @@ import { isMirror, type Located } from "./node.ts"
  * directory say right now".
  *
  * What that does NOT decide is when a body crosses a wire. A transport serving
- * a directory of thousands of `.md` files cannot put every one of them in a
+ * a directory of thousands of files cannot put every one of them in a
  * first frame, and olai's does not: `@olai/surface` publishes the documents as
  * a collection read one key at a time. This type is what the validator and the
  * view are handed, which is the whole loaded set, because a `doc` reference has
@@ -122,8 +129,8 @@ const relativeTo = (from: string, to: string): string | null => {
 }
 
 /**
- * The document a markdown `[…](…)` names, as a path relative to the served
- * directory — or `null` for a link that is not one.
+ * The file WITH A PAGE that a markdown `[…](…)` names, as a path relative to
+ * the served directory — or `null` for a link that names none.
  *
  * The vault case, and the reason it exists: a directory of `.md` files links
  * between them with plain relative paths (`../projects/deck.md`), and a
@@ -134,18 +141,23 @@ const relativeTo = (from: string, to: string): string | null => {
  * field and a relative picture already are.
  *
  * The same address rule as {@link pictureOf} — one {@link relativeTo} between
- * them — and a different question at the end of it: a document rather than a
- * picture ({@link fileKind}), so `README` and `art/handle.png` are not
- * documents and a `.md` anywhere under the root is.
+ * them — and a different question at the end of it: a file whose content is a
+ * BODY ({@link bodyKind}), so `README` and `art/handle.png` are not, and a
+ * `.md` or a `.html` anywhere under the root is. It is the registry's question
+ * rather than "is it a document" because the answer it decides is whether the
+ * app has a page to open, and that is exactly what a body means — a link to a
+ * saved `report.html` beside the notes is one a reader can follow now, and it
+ * used to be a full page load to an address resolved against whatever they were
+ * reading.
  *
  * Whether the directory actually HOLDS the answer is not asked here, and that
  * is deliberate: this package knows the arithmetic, the page model knows what
- * was found, and a link to a `.md` that is not there is answered by the screen
+ * was found, and a link to a file that is not there is answered by the screen
  * that says so rather than by a link that silently was not one.
  */
-export const documentOf = (from: string, href: string): string | null => {
+export const bodiedOf = (from: string, href: string): string | null => {
   const resolved = relativeTo(from, href)
-  return resolved !== null && fileKind(resolved) === "document" ? resolved : null
+  return resolved !== null && bodyKind(resolved) !== null ? resolved : null
 }
 
 /** A URL scheme, or the `//host` that borrows the page's own. Tested before

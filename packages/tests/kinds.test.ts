@@ -8,9 +8,9 @@
  *   - a suffix SPELLED somewhere else — `endsWith(".md")` in a new module, a
  *     `".olai"` copied out of git history. It works on the day it is written
  *     and it is a second answer from then on, which is exactly the failure the
- *     `.jsonl` rename was: a rule the walk stopped claiming while one caller
- *     went on believing it (./extension.test.ts holds that ban, and this is its
- *     sibling in the present tense);
+ *     outline rename was: a rule the walk stopped claiming while one caller went
+ *     on believing it (./extension.test.ts bans the retired spelling outright,
+ *     and this is its sibling in the present tense);
  *   - a kind added to the registry and NOT DRAWN. The type checker catches most
  *     of that on its own — every surface that draws a kind holds a `Record` over
  *     the registry's union, so a new entry is a compile error at each of them —
@@ -133,14 +133,44 @@ const DRAWN_AT: ReadonlyArray<string> = [
   "packages/web/src/client/file/kinds.ts",
 ];
 
+/**
+ * And the surfaces that draw only the BODIED kinds — the files a `/doc/…`
+ * address opens. An outline has no entry there and must not: it is a different
+ * kind of page (a tree with rows to zoom and filter), which is what the
+ * registry's `holds` column separates.
+ */
+const FACED_AT: ReadonlyArray<string> = [
+  // What the body of one is drawn as, and whether its page can write it.
+  "packages/web/src/client/document/faces.tsx",
+];
+
+/** Whether `site` has a table entry for `kind` — the shape every one of these
+ *  tables writes, `<kind>: {…}`, at the start of a line. */
+const entered = (site: string, kind: string): boolean => {
+  const source = SOURCES.find((one) => one.file === site);
+  if (source === undefined) throw new Error(`${site} is not a tracked source file`);
+  return new RegExp(`^\\s*${kind}:`, "m").test(source.code);
+};
+
 test("every kind in the registry is drawn at every surface that draws kinds", () => {
   const missing: Array<string> = [];
   for (const site of DRAWN_AT) {
-    const source = SOURCES.find((one) => one.file === site);
-    if (source === undefined) throw new Error(`${site} is not a tracked source file`);
     for (const kind of Object.keys(FILE_KINDS)) {
-      if (!new RegExp(`^\\s*${kind}:`, "m").test(source.code)) missing.push(`${site}: ${kind}`);
+      if (!entered(site, kind)) missing.push(`${site}: ${kind}`);
     }
   }
   expect(missing).toEqual([]);
+});
+
+test("every bodied kind has a face, and no other kind has one", () => {
+  const wrong: Array<string> = [];
+  for (const site of FACED_AT) {
+    for (const [kind, claim] of Object.entries(FILE_KINDS)) {
+      const wanted = claim.holds === "text";
+      if (entered(site, kind) !== wanted) {
+        wrong.push(`${site}: ${kind} ${wanted ? "has no face" : "has a face it should not"}`);
+      }
+    }
+  }
+  expect(wrong).toEqual([]);
 });

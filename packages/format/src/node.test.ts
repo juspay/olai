@@ -61,13 +61,6 @@ test("ID_SHAPE admits slugs and nothing else", () => {
   }
 })
 
-// The old extension does not rescue the two conventional names either, which is
-// the assumption worth pinning here: an old vault's inbox is not an inbox. What
-// `fileKind` itself claims and stopped claiming is ./kinds.test.ts'.
-test("a `.jsonl` inbox is not this format's inbox", () => {
-  expect(inboxIn(["Inbox.jsonl"])).toBeUndefined()
-})
-
 // The two conventional names are DERIVED from the suffix rather than typed
 // beside it, for the reason the registry gives: a retyped suffix left behind is
 // not a type error, it is a file the walk stops claiming. `fileKind` needs no

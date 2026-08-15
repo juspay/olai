@@ -9,6 +9,7 @@ import {
   holdsText,
   OUTLINE_EXT,
 } from "./kinds.ts"
+import { inboxIn } from "./node.ts"
 
 /** The table as pairs, with the keys still narrowed to what they are — plain
  *  `Object.entries` widens them to `string`, which would turn every sweep below
@@ -42,9 +43,11 @@ test("a served file is one of the registry's kinds, or none of the set's busines
 // this is where the argument against it is written down.
 test("the extension olai used to have is not claimed, and nothing warns about it", () => {
   expect(fileKind("plan.jsonl")).toBeNull()
-  // The conventional name does not rescue it: an old vault's archive is not an
-  // archive to this format. It is a file olai walks past.
+  // The conventional names do not rescue it, which is the assumption worth
+  // pinning: an old vault's archive is not an archive to this format, and its
+  // inbox is not an inbox. They are files olai walks past.
   expect(fileKind("Archive.jsonl")).toBeNull()
+  expect(inboxIn(["Inbox.jsonl"])).toBeUndefined()
 })
 
 // THE PROPERTY THE TABLE RESTS ON, and the one thing about it a reader cannot

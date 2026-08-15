@@ -164,10 +164,16 @@ export const OUTLINE_LINK = selector(TESTID.outlineLink);
 export const FILE_DIR = selector(TESTID.fileDir);
 export const FILE_DIR_TOGGLE = selector(TESTID.fileDirToggle);
 /** The glyph in front of a row's name, saying what KIND it is. `data-glyph`
- *  is `outline` / `document` / `folder` — the fact, not the ink. */
+ *  is `outline` / `document` / `hypertext` / `folder` — the fact, not the ink. */
 export const FILE_GLYPH = selector(TESTID.fileGlyph);
 /** One document entry in the file tree (no second list — same folders). */
 export const DOCUMENT_LINK = selector(TESTID.documentLink);
+/** One `.html` entry in that same tree — its own id, so a step about documents
+ *  goes on meaning documents. */
+export const HYPERTEXT_LINK = selector(TESTID.hypertextLink);
+/** A `.html` file's page: the sandboxed frame its markup is drawn in, and the
+ *  only element of that page this app owns. */
+export const HYPERTEXT_PREVIEW = selector(TESTID.hypertextPreview);
 /** One document, as a page: `/doc/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the
