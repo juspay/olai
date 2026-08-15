@@ -22,8 +22,13 @@
 
 import { Schema } from "effect"
 
-/** `true`, or the ISO date/datetime the state was reached at. */
-const Marker = Schema.Union([Schema.Literal(true), Schema.String])
+/** `true`, or the ISO date/datetime the state was reached at.
+ *
+ *  Exported inside the package because a READ hands the value back verbatim
+ *  (`./reading.ts`'s stamps): what a mark is worth on disk and what it is worth
+ *  in an answer are one fact, and a second spelling of it beside the answer
+ *  would be free to drift from the record it is a copy of. */
+export const Marker = Schema.Union([Schema.Literal(true), Schema.String])
 
 /**
  * The three MARKS a record may carry, at most one of them, in the order a

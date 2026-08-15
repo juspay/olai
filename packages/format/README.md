@@ -254,14 +254,30 @@ why it is here at all — this package is the floor both that layer and the wire
 spec stand on, as the refusal vocabulary already is. Design:
 [docs/brainstorming/git-commits.md](../../docs/brainstorming/git-commits.md).
 
-## What a search asks, and what one hit says
+## What a read of the set asks, and what it says back
 
-`src/searching.ts` is the same argument applied to the other vocabulary that
-crosses this floor: `SearchRequest`, `Found`, `SearchHit`, `SearchAnswer`. The
-matcher is `@olai/ops`' (`Query.search`) and stays there; what is here is only
-the SHAPE, because that shape travels four ways at once — an agent reads it off
-`search_nodes`, the `search.nodes` procedure carries it, the ⌘K palette draws it,
-and the header's search box draws it again.
+`src/reading.ts` and `src/searching.ts` are the same argument applied to the
+other vocabulary that crosses this floor. There are four reads and one atom:
+
+| declaration | what answers with it |
+|---|---|
+| `Found` | every read. One node SITUATED — id, title, `file:line`, mark, ancestor titles, the edges it writes |
+| `OutlineSummary`, `OutlineAnswer` | `list_outlines` — a count and the top-level titles, per file |
+| `Detail`, `NodeAnswer` | `read_node` — the record, its tags, its children, its stamps, and a placement from both ends (`mirrors`, `placed`) |
+| `Subtree`, `SubtreeAnswer` | `read_subtree` — nested, and saying where a walk stopped |
+| `SearchHit`, `SearchAnswer` | `search_nodes` and the ⌘K palette |
+
+Plus what each one ASKS — `NodeRequest`, `SubtreeRequest`, `SearchRequest` —
+and the two numbers an omitted field MEANS, `DEFAULT_SEARCH_LIMIT` and
+`DEFAULT_SUBTREE_DEPTH`, which are here because the agent-facing prose beside
+each request quotes them.
+
+The walks are `@olai/ops`' (`Query`) and stay there: which nodes match, how hits
+are ordered, which mirrors resolve to a node, how far a subtree descends. What
+is here is only the SHAPE — because the shape travels. Search's travels four
+ways at once already: an agent reads it off `search_nodes`, the `search.nodes`
+procedure carries it, the ⌘K palette draws it, and the header's search box draws
+it again.
 
 It was spelled twice before — three times counting `Query.search`'s own
 parameter — once in each of the two packages that stand on this floor, and
@@ -290,7 +306,20 @@ needed spelled twice and kept in step by hand, in two packages that cannot
 import each other. Seated here instead, they are spelled once: removing
 `refusals` from this file fails in `@olai/ops` (which produces them),
 `@olai/web` (which draws them) and `@olai/server` at the same moment, where
-before it would have failed on one side and compiled on the other.
+before it would have failed on one side and compiled on the other. Dropping
+`path` from `Found` does the same across the same three packages, which is what
+makes the atom an atom.
+
+**The other three moved BEFORE anything carried them**, which is the cheap end
+of the same lesson: they were TypeScript interfaces in `@olai/ops`' `query.ts`,
+so no wire spec could declare them and the second spelling was still ahead
+rather than behind. What the compiler cannot check on its own is a producer
+putting a key on an answer the declaration has never heard of — object-literal
+freshness is lost through a `.map`, so a field DROPPED here still compiles at
+the one place it is built — and `@olai/ops`' `query.test.ts` closes that by
+decoding each real answer through its own declaration with
+`onExcessProperty: "error"`, the same setting `parseOutline` reads records
+under.
 
 ## Layering
 

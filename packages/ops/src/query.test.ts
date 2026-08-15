@@ -9,11 +9,18 @@
  * field dropped from a search hit would fail nothing over there.
  */
 
-import type { OutlineSet } from "@olai/format"
+import {
+  NodeAnswer,
+  OutlineAnswer,
+  type OutlineSet,
+  SearchAnswer,
+  SubtreeAnswer,
+} from "@olai/format"
 import { describe, expect, test } from "bun:test"
+import { Schema } from "effect"
 
 import { setOf } from "./fixtures.testlib.ts"
-import { detail, index, search } from "./query.ts"
+import { detail, index, outlines, search, subtree } from "./query.ts"
 
 /** A ledger: items in their sections, and a `Now` list made of placements —
  *  including one that CHAINS through another placement, which is the case
@@ -242,5 +249,119 @@ describe("a query is words and operators", () => {
     const answer = search(index(WORK()), { text: "is:done", limit: 1 })
     expect(answer.hits.map((hit) => hit.id)).toEqual(["book"])
     expect(answer.total).toBe(2)
+  })
+})
+
+/**
+ * Every read answers what `@olai/format` says a read answers.
+ *
+ * The four shapes are DECLARED on the floor now and produced here, which the
+ * compiler already checks in one direction — a reader that omits a required
+ * field does not build. What it cannot check is the other direction, and the
+ * other direction is the one search's drift arrived through: a producer may put
+ * a key on an object the declaration has never heard of, and every consumer
+ * encoding against the declaration will drop it in silence
+ * (docs/brainstorming/surface-mcp-positions.md, position (a)).
+ *
+ * So each answer is decoded through its own declaration with
+ * `onExcessProperty: "error"` — the same setting `parseOutline` reads records
+ * under, and for the same reason — and compared with what went in. A field the
+ * floor does not declare fails here; a field the floor declares and the walk
+ * stopped producing fails here; and a value of the wrong KIND (a count that is
+ * not an integer, a stamp that is neither `true` nor a string) fails here too,
+ * which no type can say.
+ *
+ * The fixture is deliberately maximal. Every optional field on every shape is
+ * present somewhere in it, because an optional field nothing produces is a
+ * field this test cannot say anything about.
+ */
+describe("what a read answers is what the floor declares", () => {
+  /** One house, and everything a read can carry: both marker kinds, a note, a
+   *  date, both tag sigils, a placement with a parent and one without, a child
+   *  deep enough to truncate a walk, and a file that does not parse. */
+  const EVERYTHING = (): OutlineSet =>
+    setOf({
+      "house.jsonl": [
+        `{"id":"house","ord":"a0","title":"House #home @sam","desc":"the note","date":"2026-08-14","doing":true,"see":["paint"],"after":["paint"]}`,
+        `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","done":"2026-08-09T10:15:00-04:00"}`,
+        `{"id":"sand","parent":"house","ord":"a1","title":"sand the floor","todo":true}`,
+        `{"id":"grain","parent":"sand","ord":"a0","title":"with the grain"}`,
+        // Under a node, so `house` has a `placed` row…
+        `{"id":"in-house","parent":"house","ord":"a2","mirror":"paint"}`,
+        // …and at the top level, so one of `paint`'s placements has no parent.
+        `{"id":"loose","ord":"a1","mirror":"paint"}`,
+      ].join("\n"),
+    }, [], { "torn.jsonl": "{ not a record" })
+
+  const OPTIONS = { errors: "all", onExcessProperty: "error" } as const
+
+  /** Decoded against the declaration and compared with what was produced, so
+   *  the assertion is "this IS the shape" rather than "this parses". */
+  const isDeclared = <A>(
+    schema: Schema.Codec<A, A, never, never>,
+    produced: A,
+  ): void => {
+    expect(Schema.decodeUnknownSync(schema, OPTIONS)(produced)).toEqual(produced)
+  }
+
+  test("the directory listing, counts and unreadable files and all", () => {
+    const set = EVERYTHING()
+    const answer = { outlines: outlines(set, index(set)) }
+    // The fixture earns its two rows: one file with nodes and roots, one that
+    // did not parse and so has neither.
+    expect(answer.outlines.map((one) => one.file)).toEqual([
+      "house.jsonl",
+      "torn.jsonl",
+    ])
+    expect(answer.outlines[1]?.unreadable?.length).toBeGreaterThan(0)
+    isDeclared(OutlineAnswer, answer)
+  })
+
+  test("one node in full — stamps, tags, progress, mirrors and placed", () => {
+    const answer = detail(index(EVERYTHING()), "house") ?? { missing: "house" }
+    expect(answer).toMatchObject({
+      doing: true,
+      tags: ["#home", "@sam"],
+      progress: { done: 1, total: 2 },
+      placed: [{ id: "in-house" }],
+    })
+    isDeclared(NodeAnswer, answer)
+    // Both marker kinds: `doing: true` above, and an ISO instant here.
+    const stamped = detail(index(EVERYTHING()), "paint") ?? { missing: "paint" }
+    expect(stamped).toMatchObject({ done: "2026-08-09T10:15:00-04:00" })
+    // A placement with a parent and one without, on the one node both show.
+    expect(stamped).toMatchObject({
+      mirrors: [{ id: "in-house", parent: "house" }, { id: "loose" }],
+    })
+    isDeclared(NodeAnswer, stamped)
+  })
+
+  test("a node the set does not hold answers with the id it does not hold", () => {
+    const answer = detail(index(EVERYTHING()), "shed") ?? { missing: "shed" }
+    expect(answer).toEqual({ missing: "shed" })
+    isDeclared(NodeAnswer, answer)
+  })
+
+  test("a subtree, nested and truncated where the walk stopped", () => {
+    const answer = subtree(index(EVERYTHING()), "house", { depth: 1 }) ??
+      { missing: "house" }
+    expect(answer).toMatchObject({
+      children: [{ id: "paint" }, { id: "sand", truncated: true }],
+    })
+    isDeclared(SubtreeAnswer, answer)
+    // And the same walk with room to finish, so the recursion is exercised
+    // past the level `truncated` cuts off.
+    const whole = subtree(index(EVERYTHING()), "house") ?? { missing: "house" }
+    expect(whole).not.toHaveProperty("truncated")
+    isDeclared(SubtreeAnswer, whole)
+  })
+
+  test("a search answer, hits and refusals both", () => {
+    const answered = search(index(EVERYTHING()), { text: "hall" })
+    expect(answered.hits.map((hit) => hit.id)).toEqual(["paint"])
+    isDeclared(SearchAnswer, answered)
+    const refused = search(index(EVERYTHING()), { text: "is:blocked" })
+    expect(refused.refusals?.length).toBeGreaterThan(0)
+    isDeclared(SearchAnswer, refused)
   })
 })

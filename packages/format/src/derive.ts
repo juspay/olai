@@ -24,6 +24,8 @@
  * a bug than a marked stub.
  */
 
+import { Schema } from "effect"
+
 import {
   isArchived,
   isMirror,
@@ -236,10 +238,11 @@ const tasksUnder = (
  * `undefined` when nothing under it is a task — there is no progress to show
  * rather than progress of zero.
  */
-export interface Progress {
-  readonly done: number
-  readonly total: number
-}
+export const Progress = Schema.Struct({
+  done: Schema.Int,
+  total: Schema.Int,
+})
+export type Progress = typeof Progress.Type
 
 export const progressOf = (derived: Derived, id: string): Progress | undefined => {
   const tasks = tasksUnder(derived, id)

@@ -42,11 +42,13 @@
  *     statement about records and this package is the floor both the ops layer
  *     and the wire spec stand on;
  *   - and the other vocabulary that crosses that floor, for the same reason and
- *     with the same division: what a search ASKS and what one hit SAYS
- *     (`SearchRequest`, `Found`, `SearchHit`, `SearchAnswer`), pure, with no
- *     matcher in it. Every field of a hit is a statement about records in the
- *     terms above; which node matches and how hits are ordered are questions
- *     about a query, and they stay in `@olai/ops` where the matcher is.
+ *     with the same division: what a READ of the set asks and what it says back
+ *     — `Found` and the four answers built out of it (`OutlineSummary`,
+ *     `Detail`, `Subtree`, `SearchHit`), pure, with no index and no matcher in
+ *     them. Every field of an answer is a statement about records in the terms
+ *     above; which node matches, how hits are ordered and how far a walk
+ *     descends are questions about a query, and they stay in `@olai/ops` where
+ *     the walks are.
  *
  * Everything else in `src/` is internal. The spellings a rule happens to use —
  * the id regex, the edge-field list, the path resolver — are not contract; a
@@ -107,10 +109,10 @@ export {
   unfinishedUnder,
   withoutDone,
 } from "./derive.ts"
+export { Progress } from "./derive.ts"
 export type {
   Derived,
   InTheWay,
-  Progress,
   Row,
   Situated,
   Status,
@@ -178,14 +180,33 @@ export {
   Wrote,
 } from "./committing.ts"
 
-/** What a search ASKS and what one hit SAYS — see `./searching.ts`, which is
- *  `./committing.ts`'s argument applied to the other vocabulary that crosses
- *  this floor. The ops layer produces these, the wire spec carries them, a
- *  browser and an agent read the identical value; the matcher stays where the
- *  matcher is. */
+/** What a READ of the set asks and what it says back — see `./reading.ts`,
+ *  which is `./committing.ts`'s argument applied to the vocabulary every query
+ *  answer is built out of. `Found` is the atom of all four reads; the other
+ *  three are the directory, one node, and a node with everything under it. The
+ *  ops layer produces these, the wire spec may carry them, a browser and an
+ *  agent read the identical value; the walks stay where the walks are. */
+export {
+  DEFAULT_SUBTREE_DEPTH,
+  Detail,
+  Found,
+  Missing,
+  NodeAnswer,
+  NodeRequest,
+  OutlineAnswer,
+  OutlineSummary,
+  Placed,
+  Placement,
+  Subtree,
+  SubtreeAnswer,
+  SubtreeRequest,
+} from "./reading.ts"
+
+/** What a search ASKS and what one hit SAYS — `./reading.ts`'s division applied
+ *  one level up: a hit is a {@link Found} plus the one thing about it that is a
+ *  fact about the QUERY. The matcher stays where the matcher is. */
 export {
   DEFAULT_SEARCH_LIMIT,
-  Found,
   SearchAnswer,
   SearchHit,
   SearchRequest,
