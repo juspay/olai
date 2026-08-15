@@ -62,6 +62,18 @@ carries on from the bullet that leaves. Two presses, the second one yours; the
 ••• menu asks the same two clicks for the mouse, and an agent makes the same two
 calls.
 
+**And it will not start what the order forbids.** A row that comes after work
+nobody has finished cannot take the `doing` step — the app has drawn that row
+dim since edges-ui, and now the write says so too, naming what is in the way and
+the mark each blocker carries. The way through is the sentence's own again:
+finish those, or start something that is ready. Only the STARTING step is gated
+— ⌘Enter still ticks a blocked row off, because finishing out of order is
+sometimes simply what happened — and the ••• menu, the ⌘K palette and an agent's
+`set_doing` all meet the identical sentence, because there is one gate and every
+face sends one op through it. A ⌘Z that would put a `doing` back on a row
+something has since got in front of is refused there too: an undo is a write,
+judged against the outline as it is now.
+
 Every one of these is a fact about the node a row SHOWS, so pressing either key
 at a mirror marks the node it stands for, and every placement of it follows.
 

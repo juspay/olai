@@ -310,7 +310,7 @@ const MARK_TOOL = {
   doing: {
     title: "Mark doing",
     description:
-      "Mark a node as under way, or undo that with `undo: true`. Stored as `true` and not dated, and a date written here by hand would place the node nowhere: the journal reads a node's `date` and its `done` instant only, because the day work was picked up is a fact about the task rather than about the day. A node that is already done must be un-done first. Works on any node, children or not.",
+      "Mark a node as under way, or undo that with `undo: true`. Stored as `true` and not dated, and a date written here by hand would place the node nowhere: the journal reads a node's `date` and its `done` instant only, because the day work was picked up is a fact about the task rather than about the day. A node that is already done must be un-done first. THE ORDER IS A LAW FOR THIS VERB: a node whose `after` targets include a task that is not done cannot start, and the refusal names them — finish those, or start what is ready. `set_done` is not gated that way, because finishing out of order is sometimes simply what happened. Works on any node, children or not.",
   },
   todo: {
     title: "Mark todo",

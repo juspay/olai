@@ -50,6 +50,7 @@ import {
   ordBetween,
   OUTLINE_EXT,
   siblingsOf,
+  standingBefore,
   type OutlineSet,
   type RegularNode,
   storedMarker,
@@ -844,6 +845,11 @@ const planMark = (
       }),
     )
   }
+  // THE ONE VERB THE ORDER IS A LAW FOR. See {@link heldUp}.
+  if (!undo && mark === "doing") {
+    const held = heldUp(scope, node)
+    if (held !== undefined) return Result.fail(held)
+  }
 
   // Setting one mark CLEARS the others: a node carrying two is a record the
   // format rejects, so this is not tidiness — it is what makes the write valid.
@@ -871,12 +877,85 @@ const planMark = (
 }
 
 /**
+ * What is standing in this node's way, as the refusal that will not let it
+ * START — or `undefined`, which is nearly every node.
+ *
+ * THE ASYMMETRY BETWEEN THE TWO VERBS IS THE WHOLE DESIGN, and this function
+ * and {@link nudged} below are the two halves of it, deliberately adjacent so
+ * the divergence is one thing to read rather than two rules in two files:
+ *
+ *   - **`set_done` allows and remarks.** Finishing out of order is sometimes
+ *     TRUE — the world outruns the plan, somebody did the thing, and a tool
+ *     that refuses to record what happened is a tool that gets lied to. So the
+ *     rollup says what it noticed and the write lands.
+ *   - **`set_doing` refuses.** Starting is not a report about the world, it is
+ *     an INSTRUCTION about what to pick up next, and `a after b` is the set's
+ *     own statement that b comes first. A machine told to start what the DAG
+ *     forbids has been told to do the impossible, and the honest answer is to
+ *     say so before the write rather than to draw the row dim afterwards. The
+ *     app has drawn blockedness since edges-ui and nothing REFUSED it; that
+ *     gap is what this closes.
+ *   - **`set_todo` is not here at all.** Filing work is not starting it, and
+ *     un-starting needs no gate — a node put back on the pile is a node that
+ *     stopped claiming to be in progress, which is exactly what a blocked node
+ *     should be doing.
+ *
+ * THE BLOCKED DERIVATION IS THE ONE SOURCE OF TRUTH, read and not respelled
+ * (`@olai/format`'s `standingBefore`, which is `blockage`'s own predicate over
+ * `blockage`'s own normalised graph). That is what buys the three rules nobody
+ * would remember to write here: a plain BULLET target blocks nothing (it is
+ * not work, so there is nothing under it to finish), a DONE target blocks
+ * nothing, and an ARCHIVED one blocks nothing either. A second spelling of "is
+ * this in the way" would be a row the app draws ready and the op refuses, or
+ * worse the other way round.
+ *
+ * IT IS `standingBefore` AND NOT `blockersOf`, and that is the one subtle line
+ * here. `blockersOf` answers what a node IS waiting on, which is empty for a
+ * plain bullet — a bullet is not work, so nothing is telling it it cannot
+ * start, and that is right for every DRAWING of blockedness. But this write is
+ * about to make the node work. Asking the drawn reading would let `set_doing`
+ * on an unmarked node walk straight past the gate its own `after` edges
+ * declare, land `doing`, and be drawn blocked a frame later — the exact state
+ * this refusal exists to make unreachable. So the question asked is the one the
+ * write is about: what do this node's `after` targets hold up.
+ *
+ * NAMING WHAT IS IN THE WAY, in both vocabularies: the TITLE, because that is
+ * what the person reading the refusal recognises, and the ID, because that is
+ * what the agent reading it must type into the next call. The mark travels too
+ * — it rides on the `InTheWay` the derivation already hands over, and
+ * "waiting on something somebody is doing" and "waiting on something nobody
+ * has picked up" are different positions to be in.
+ *
+ * NOT the capture path, and that is a property of the format rather than an
+ * omission: a node born marked (`add_node`'s `mark`) has no `after` edges of
+ * its own — the capture schema's `after` is a sibling ANCHOR — and a `blocks`
+ * pointing at an id the set does not declare yet is `unknown-target`, which
+ * the validator refuses. A capture cannot arrive blocked.
+ */
+const heldUp = (scope: Scope, node: RegularNode): OpFailure | undefined => {
+  const waiting = standingBefore(scope.derived, node.id)
+  if (waiting.length === 0) return undefined
+
+  const named = waiting
+    .map((one) => `\`${one.at.node.title}\` (\`${one.at.node.id}\`, ${one.status})`)
+    .join(", ")
+  const one = waiting.length === 1
+  return new UsageFailure({
+    reason: `\`${node.title}\` comes after ${waiting.length} unfinished ` +
+      `${one ? "task" : "tasks"}, so it cannot start yet: ${named}. ` +
+      `Finish ${one ? "that" : "those"} first — or start what is ready.`,
+  })
+}
+
+/**
  * What the rollup has to say about a mark that has just been written — and it
  * is a REMARK, never a refusal.
  *
  * A mark is a stored fact on the node that carries it, so nothing here can
  * make a write illegal: the two things a rollup notices are the two a person
- * usually wants noticed, and both arrive after the fact.
+ * usually wants noticed, and both arrive after the fact. That the FINISHING
+ * verb only remarks while the STARTING verb refuses is argued one function up
+ * ({@link heldUp}); this half of it stayed exactly as it was.
  *
  *   - a branch ticked done over tasks nobody finished. Sometimes exactly what
  *     was meant ("shipped, dropping the rest"), which is why it is said and

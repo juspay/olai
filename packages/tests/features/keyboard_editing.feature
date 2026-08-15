@@ -164,6 +164,44 @@ Feature: Keyboard editing
     When I press "Control+Shift+Enter"
     Then the node "demo" has status "todo"
 
+  Scenario: The walk will not start what the order forbids, and names what is in the way
+    # The DAG as a mechanism rather than a drawing. `hinges` is `todo` and comes
+    # after `handles` and `order`; `order` is still `doing`, so the row is drawn
+    # dim and the walk's next stop is `doing` — which the ops layer refuses, in
+    # the same sentence `set_doing` gives an agent. The draft is KEPT and the
+    # reason sits beside it, which is what every OpFailure does here.
+    #
+    # `handles` is the other half of the claim: it is an `after` target of
+    # `hinges` too, and it is a plain BULLET, so it is standing in nobody's way
+    # and it is not named. One derivation, read and not respelled.
+    When I click the title of "hinges"
+    And I press "Control+Shift+Enter"
+    Then the refusal says "`pick the hinges` comes after 1 unfinished task, so it cannot start yet: `order the new cabinets` (`order`, doing). Finish that first — or start what is ready."
+    And the node "hinges" has status "todo"
+    And the row "hinges" holds the caret
+    # The way through is the sentence's own: finish what is in the way, and the
+    # walk carries on. `Ctrl+Enter` on `order` is the second op — the person's,
+    # exactly as an agent makes two calls.
+    When I click the title of "order"
+    And I press "Control+Enter"
+    Then the node "order" has status "done"
+    When I click the title of "hinges"
+    And I press "Control+Shift+Enter"
+    Then the node "hinges" has status "doing"
+    And "house.olai" holds a node marked doing titled "pick the hinges"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: Only the STARTING verb refuses — finishing out of order still lands
+    # The asymmetry, from the keyboard. `install` waits on `order`, which is
+    # `doing`. `Ctrl+Enter` ticks it off anyway, because the world outruns the
+    # plan and a tool that will not record what happened is a tool that gets
+    # lied to. Only the instruction — start this now — is refused.
+    When I click the title of "install"
+    And I press "Control+Enter"
+    Then the node "install" has status "done"
+    And "house.olai" holds a node marked done titled "install the cabinets"
+
   Scenario: The walk at a mirror lands on the node it shows
     # The mark rule the checkbox and Ctrl+Enter already follow, for the key that
     # writes the other two: a placement stores no mark of its own, so the step

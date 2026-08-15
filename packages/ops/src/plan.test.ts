@@ -669,6 +669,178 @@ describe("done and doing", () => {
   })
 })
 
+// ── doing refuses what the order forbids ───────────────────────────────
+
+/**
+ * The DAG stops being a drawing and becomes a mechanism: `set_doing` on a node
+ * whose `after` targets are unfinished work refuses, naming them.
+ *
+ * The asymmetry is what most of this block is about. `set_done` keeps its
+ * allow-with-nudge — finishing out of order is sometimes true — and `set_todo`
+ * is untouched, because filing work is not starting it. Only the STARTING verb
+ * says no.
+ */
+describe("starting what is blocked", () => {
+  /** `install` waits on `order`; `order` waits on nothing that is unfinished. */
+  const chain = (...records: ReadonlyArray<string>): OutlineSet =>
+    setOf({
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        ...records,
+      ].join("\n"),
+    })
+
+  const WAITING = chain(
+    `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","doing":true}`,
+    `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["order"]}`,
+  )
+
+  test("the refusal names the blockers in words, and nothing is written", () => {
+    const failure = refused(WAITING, { op: "doing", id: "install" })
+    expect(failure._tag).toBe("UsageFailure")
+    // The title a person recognises, the id an agent has to type next, and the
+    // mark that says which kind of waiting this is.
+    expect(failure.message).toContain("`install them`")
+    expect(failure.message).toContain("`order the cabinets`")
+    expect(failure.message).toContain("`order`")
+    expect(failure.message).toContain("doing")
+    expect(failure.message).toContain("1 unfinished task")
+    expect(failure.message).toContain("start what is ready")
+  })
+
+  test("every blocker is named, not just the first", () => {
+    const two = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","doing":true}`,
+      `{"id":"wire","parent":"kitchen","ord":"a1","title":"rewire","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","after":["order","wire"]}`,
+    )
+    const message = refused(two, { op: "doing", id: "install" }).message
+    expect(message).toContain("2 unfinished tasks")
+    expect(message).toContain("`order the cabinets`")
+    expect(message).toContain("`rewire`")
+    expect(message).toContain("Finish those first")
+  })
+
+  /**
+   * The hole the DRAWN reading leaves, and the reason the gate asks
+   * `standingBefore` rather than `blockersOf`: an unmarked node is not drawn
+   * blocked — a bullet is not work — but `set_doing` is about to make it work,
+   * and its `after` edges said what comes first. Asking the drawn reading here
+   * would make "start it from a bullet" the way round the whole law.
+   */
+  test("a bullet with unfinished work before it is refused too", () => {
+    const bullet = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["order"]}`,
+    )
+    expect(refused(bullet, { op: "doing", id: "install" }).message)
+      .toContain("`order the cabinets`")
+    // And it is only the STARTING verb: the same bullet takes both other marks.
+    expect(record(fileOf(planned(bullet, { op: "todo", id: "install" }), "house.olai"), "install")
+      .todo).toBe(true)
+    expect(record(fileOf(planned(bullet, { op: "done", id: "install" }), "house.olai"), "install")
+      .done).toBe(STAMP)
+  })
+
+  test("a node with nothing in its way still starts", () => {
+    const free = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["order"]}`,
+    )
+    expect(record(fileOf(planned(free, { op: "doing", id: "order" }), "house.olai"), "order")
+      .doing).toBe(true)
+    const ready = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","done":"2026-08-01"}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["order"]}`,
+    )
+    expect(record(fileOf(planned(ready, { op: "doing", id: "install" }), "house.olai"), "install")
+      .doing).toBe(true)
+  })
+
+  /**
+   * The derivation is the source of truth and this is what reading it rather
+   * than respelling it buys: three targets that stand in nobody's way, and not
+   * one of them needed a line of its own in the planner.
+   */
+  test("a bullet, a done target and an archived one block nothing", () => {
+    const bullet = chain(
+      `{"id":"note","parent":"kitchen","ord":"a0","title":"the showroom's number"}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["note"]}`,
+    )
+    expect(record(fileOf(planned(bullet, { op: "doing", id: "install" }), "house.olai"), "install")
+      .doing).toBe(true)
+
+    const finished = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","done":"2026-08-01"}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","after":["order"]}`,
+    )
+    expect(record(fileOf(planned(finished, { op: "doing", id: "install" }), "house.olai"), "install")
+      .doing).toBe(true)
+
+    const away = setOf({
+      "house.olai": `{"id":"install","ord":"a0","title":"install them","after":["order"]}`,
+      "Archive.olai": `{"id":"order","ord":"a0","title":"order the cabinets","todo":true}`,
+    })
+    expect(record(fileOf(planned(away, { op: "doing", id: "install" }), "house.olai"), "install")
+      .doing).toBe(true)
+  })
+
+  /** `a blocks b` means `b after a`, normalised in the derivation — so the
+   *  refusal reads one graph and the sugar is not a way round it. */
+  test("`blocks` is the same edge from the other end, and refuses the same", () => {
+    const sugar = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true,"blocks":["install"]}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them"}`,
+    )
+    expect(refused(sugar, { op: "doing", id: "install" }).message)
+      .toContain("`order the cabinets`")
+  })
+
+  // THE ASYMMETRY, stated as a test rather than only as a comment: the verb
+  // that records what happened is not the verb that instructs what to do next.
+  test("`set_done` still lands on a blocked node, with its nudge unchanged", () => {
+    const result = planned(WAITING, { op: "done", id: "install" })
+    expect(record(fileOf(result, "house.olai"), "install").done).toBe(STAMP)
+    expect(result.summary).toBe("done: install them")
+    // Nothing is under it, so there is nothing to remark on — the rollup's own
+    // rule, untouched by this change.
+    expect(result.nudge).toBeUndefined()
+  })
+
+  test("`set_todo` is untouched — filing work is not starting it", () => {
+    expect(record(fileOf(planned(WAITING, { op: "todo", id: "install" }), "house.olai"), "install")
+      .todo).toBe(true)
+  })
+
+  test("un-starting needs no gate: the undo of a blocked `doing` goes through", () => {
+    // The node started before its blocker came back, and putting the mark down
+    // is the thing a blocked node SHOULD be able to do.
+    const started = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","doing":true,"after":["order"]}`,
+    )
+    const result = planned(started, { op: "doing", id: "install", undo: true })
+    expect(record(fileOf(result, "house.olai"), "install").doing).toBeUndefined()
+    expect(result.summary).toBe("not-doing: install them")
+  })
+
+  // The two refusals that were already there still come first: neither is
+  // about the order, and both are about the node's own mark.
+  test("the older refusals are not displaced by this one", () => {
+    const already = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","doing":true,"after":["order"]}`,
+    )
+    expect(refused(already, { op: "doing", id: "install" }).message).toContain("already doing")
+
+    const finished = chain(
+      `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","todo":true}`,
+      `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","done":"2026-08-01","after":["order"]}`,
+    )
+    expect(refused(finished, { op: "doing", id: "install" }).message).toContain("Undo that first")
+  })
+})
+
 // ── title / desc / date ────────────────────────────────────────────────
 
 describe("title, note and date", () => {

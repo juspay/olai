@@ -9,6 +9,7 @@ import {
   type Row,
   rowsOf,
   situate,
+  standingBefore,
   type Status,
   isTagName,
   mayHoldTag,
@@ -406,6 +407,55 @@ test("archived work neither blocks nor is blocked", () => {
   expect(waiting(derived, "old")).toEqual([])
   // The status index still knows what they are; it is blocking they are out of.
   expect(derived.status.get("put-away")).toBe("doing")
+})
+
+/**
+ * The other end of the arrow, asked of a node that is not work yet.
+ *
+ * `blockersOf` is what a node IS waiting on and it is empty for a bullet,
+ * which is right for every drawing of blockedness — nothing is telling a
+ * bullet it cannot start. `standingBefore` is what its `after` targets hold
+ * up regardless, which is what a write about to MAKE it work has to ask
+ * (`@olai/ops`' `set_doing` refusal). The two differ at exactly one end and
+ * agree at the other, because they share one predicate.
+ */
+test("standingBefore asks the same question of a node that is not work yet", () => {
+  const before = (
+    derived: ReturnType<typeof derive>,
+    id: string,
+  ): ReadonlyArray<string> =>
+    standingBefore(derived, id).map((one) => `${one.at.node.id} ${one.status}`)
+
+  // The one place they part: an unmarked source. It is waiting on nothing, and
+  // there is unfinished work in front of it all the same.
+  const bullet = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}`,
+  ))
+  expect(waiting(bullet, "a")).toEqual([])
+  expect(before(bullet, "a")).toEqual(["b doing"])
+
+  // And everywhere else they agree, because the TARGET side is one function:
+  // a bullet, a done node and an archived one stand in nobody's way.
+  const clear = derive(nodesOfFiles({
+    "a.olai": `{"id":"a","ord":"a","title":"a","after":["note","fin","gone"]}\n` +
+      `{"id":"note","ord":"b","title":"a note"}\n` +
+      `{"id":"fin","ord":"c","title":"fin","done":"2026-08-10"}`,
+    "Archive.olai": `{"id":"gone","ord":"a","title":"gone","todo":true}`,
+  }))
+  expect(before(clear, "a")).toEqual([])
+
+  // The `blocks` sugar and the promised order are the graph's, so they are
+  // this reading's too — it is `derived.after` it walks.
+  const both = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}\n` +
+      `{"id":"c","ord":"c","title":"c","todo":true,"blocks":["a"]}`,
+  ))
+  expect(before(both, "a")).toEqual(["b doing", "c todo"])
+
+  // Nothing named, nothing waiting — the answer for nearly every node.
+  expect(before(both, "b")).toEqual([])
 })
 
 // An archive one directory down is the same archive: `archive` puts a subtree

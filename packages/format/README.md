@@ -118,8 +118,16 @@ with room for ONE blocker sees is a promise rather than an accident of where in
 the directory somebody wrote an unrelated edge; and both halves are filed under
 the node their target NAMES, mirrors resolved, so the acyclicity rule and this
 cannot disagree about whether two records mean one edge. Nothing outside this
-package asks for the index: what is in a node's way rides on the `Row` and the
-`Situated` it belongs to, the way its mark does.
+package asks for the index to DRAW with: what is in a node's way rides on the
+`Row` and the `Situated` it belongs to, the way its mark does.
+
+One caller asks the other end of it. `standingBefore` is what a node's `after`
+targets hold up whether or not the node is work yet, and `@olai/ops` refuses
+`set_doing` with it. The two readings part at exactly one place — an unmarked
+source, which `blockersOf` reports as waiting on nothing because a bullet is not
+being told it cannot start, and which a write that is about to MAKE it work has
+to hear about. They share `inPlay` and they walk the same graph, so the target
+side — bullets, done work, the archive — cannot come out two different ways.
 
 `zoom` is the same claim
 about one node as a page — which record an id resolves to (following a mirror
