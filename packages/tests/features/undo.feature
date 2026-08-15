@@ -202,6 +202,31 @@ Feature: Undo
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A two-call undo that meets the gate halfway stops there, and says why
+    # The one undo shape that is a SEQUENCE — taking back the write that ticks a
+    # node off — meeting the new gate. `order` is `doing`; put something
+    # unfinished in front of it, then tick it off. Undoing that is the two calls
+    # an agent makes: take the `done` off, then put the `doing` back. The first
+    # lands and the second is refused, so `order` is left a bullet.
+    #
+    # That is the replay contract already documented for every inverse here
+    # ("a refusal partway stops there"), not a hole opened by this rule: the
+    # first call is a legal write on its own, nothing is lost, and the row is
+    # one `Mark todo` away from where a blocked node should be. It is drawn
+    # rather than swallowed, which is the whole of what is owed.
+    When I click the title of "demo"
+    And I press "Control+Enter"
+    And I press "Control+Shift+Enter"
+    Then the node "demo" has status "todo"
+    When I click the title of "order"
+    And I press "Control+Enter"
+    Then the node "order" has status "done"
+    When I click away from the editor
+    And I press "ControlOrMeta+z"
+    Then the undo refusal says "`order the new cabinets` comes after 1 unfinished task, so it cannot start yet: `take out the old counters` (`demo`, todo). Finish that first — or start what is ready."
+    And the node "order" has no status
+    And "house.olai" holds the node "order" with no mark
+
   Scenario: A new row is taken back into the Trash, and redo brings it out again
     When I click the title of "handles"
     And I press "Enter"
