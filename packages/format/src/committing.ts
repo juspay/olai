@@ -135,12 +135,14 @@ export type Wrote = typeof Wrote.Type
  * `path`: a consumer reading either list writes `one.from` without having to
  * remember which list it is holding.
  *
- * It is what turns `Kept.md deleted` — a person's own vault, the morning after
- * the extension changed, with the file that actually holds their notes nowhere
- * on screen — into `Kept.md → Kept.olai`. Repo-root-relative on BOTH rows, like
- * `path`, because that is the one name a file has that cannot collide across a
- * repository; a list that draws served names shortens it for the reader, which
- * is a rendering question and belongs where the drawing is.
+ * It is what turns `Reading.md deleted` — a person's own vault, the morning
+ * after the outline extension changed, with the file that actually holds their
+ * notes nowhere on screen — into `Reading.md → Kept.olai`.
+ *
+ * Repo-root-relative on BOTH rows, like `path`, because that is the one name a
+ * file has that cannot collide across a repository. A list that draws SERVED
+ * names shortens it for the reader, which is a rendering question and belongs
+ * where the drawing is.
  */
 const From = Schema.NullOr(Schema.String)
 
