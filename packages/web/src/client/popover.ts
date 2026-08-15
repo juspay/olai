@@ -107,9 +107,12 @@ export const createPopover = (): Popover => {
   let trigger: HTMLElement | undefined
   let panel: HTMLElement | undefined
 
-  const close = (restoreFocus = false): void => {
+  /** Put it away. Only that — where the caret goes is the two callers', and
+   *  they are the only two there can be: a dismissal (`./dismiss.ts` hands it
+   *  back for the key and leaves it alone for the press) and the trigger
+   *  pressing itself, below. */
+  const close = (): void => {
     setOpen(false)
-    if (restoreFocus) trigger?.focus()
   }
 
   /** The one tab cycle the trigger and its panel make between them, in the
@@ -132,14 +135,11 @@ export const createPopover = (): Popover => {
     }))
   }
 
-  // A pointer outside it and Escape, in this client's one spelling of them —
-  // and only the one a keyboard can make puts the caret back on the trigger.
-  dismissOn({
-    open,
-    root: () => panel,
-    trigger: () => trigger,
-    dismiss: (how) => close(how === "escape"),
-  })
+  // A pointer outside it and Escape, in this client's one spelling of them.
+  // The caret's way back to the trigger is that call's too, since `trigger` is
+  // what it needs to know either way (`./dismiss.ts`) — what is left here is
+  // the press of the trigger itself, which no dismissal can see.
+  dismissOn({ open, root: () => panel, trigger: () => trigger, dismiss: close })
 
   // Scoped to the open state, so a shut panel is not three document listeners
   // for nothing; disposed with the effect when it closes or the owner unmounts.
@@ -189,7 +189,14 @@ export const createPopover = (): Popover => {
     at,
     // A press of the trigger while it is up is a keyboard-reachable dismissal
     // like Escape, so the focus goes back the same way.
-    toggle: () => (open() ? close(true) : setOpen(true)),
+    toggle: () => {
+      if (!open()) return setOpen(true)
+      close()
+      // ...and the caret goes back, spelled out here because no dismissal can
+      // see this press: it lands on the trigger, which is INSIDE as far as
+      // `./dismiss.ts` is concerned.
+      trigger?.focus()
+    },
     setTrigger: (el) => {
       trigger = el
     },

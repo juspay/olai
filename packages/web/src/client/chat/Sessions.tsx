@@ -16,10 +16,30 @@
  * same name, and ACP has no field for "this one supersedes that one" — so what
  * is drawn is the fact the protocol does carry, for every agent, rather than a
  * relationship guessed from two rows that happen to share a title.
+ *
+ * ## HOW IT SHUTS, which for a while was "it does not"
+ *
+ * Every other panel this client draws answers a pointer outside it and Escape;
+ * this one answered neither, so the only way out of a list you opened by
+ * mistake was to press `chats` again — and a reader who had moved on to the
+ * transcript underneath was left with a list over it that nothing they tried
+ * would take away. That is a missing affordance rather than a fourth copy of an
+ * existing one, and it is filled by the client's one dismissal (`../dismiss.ts`)
+ * on the same terms as the header's popovers: the pointer, the key, the topmost
+ * panel only (`../topmost.ts`) — and the caret back on `chats` when a keyboard
+ * asked, because Escape from a list that has the focus would otherwise land on
+ * `<body>`.
+ *
+ * BOTH ROOTS are handed over, which is the same bug the Commit pill had one
+ * layer up: the list is a sibling of the button rather than a child of it, so a
+ * click-away that knew only the list would read a press of `chats` as a press
+ * outside — shutting on the pointerdown, and reopened by that same press's
+ * click. Pressing it a second time would do nothing at all.
  */
 
-import { createSignal, For, Match, Show, Switch } from "solid-js"
+import { createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
 
+import { dismissOn } from "../dismiss.ts"
 import { Refusal } from "./Refusal.tsx"
 import { WITHIN } from "../layer.ts"
 import { QUIET_PILL } from "../pill.ts"
@@ -47,9 +67,40 @@ type Picker = { readonly _tag: "shut" } | { readonly _tag: "asking" } | Answer
 export function Sessions(props: { readonly chat: Chat }) {
   const [picker, setPicker] = createSignal<Picker>({ _tag: "shut" })
 
+  /** Is the list up? The union's own "not shut", read off in ONE place — the
+   *  dismissal, the toggle, the `aria-expanded` and the `<Show>` are four
+   *  askings of one question, and a fourth arm of {@link Picker} would
+   *  otherwise be four sites to find. */
+  const up = () => picker()._tag !== "shut"
+
+  /** The `chats` button and the list it opens — two roots, because the list is
+   *  laid out BESIDE the button rather than inside it (see the header). */
+  let trigger: HTMLButtonElement | undefined
+  let list: HTMLUListElement | undefined
+
+  /** Put it away. Only that — where the caret goes is the two callers', and
+   *  they are the only two there can be: a dismissal (`../dismiss.ts` hands it
+   *  back for the key and leaves it alone for the press) and the button
+   *  pressing itself. A `restoreFocus` boolean here would be a second spelling
+   *  of a rule that already has one, selected by a flag at each call. */
+  const shut = (): void => {
+    setPicker({ _tag: "shut" })
+  }
+
+  // A pointer outside it and Escape, in this client's one spelling of them.
+  // Handing over the `chats` button is the whole of what this takes: it is
+  // both what is not "outside", and where the caret goes back when a key asked
+  // (`../dismiss.ts`).
+  dismissOn({ open: up, root: () => list, trigger: () => trigger, dismiss: shut })
+
   const toggle = () => {
-    if (picker()._tag !== "shut") {
-      setPicker({ _tag: "shut" })
+    if (up()) {
+      shut()
+      // A press of the button while the list is up is a dismissal a keyboard
+      // can reach, so the caret goes back the way Escape's does — spelled out
+      // here because no dismissal can see this press: it lands on the trigger,
+      // which is INSIDE as far as `dismissOn` is concerned.
+      trigger?.focus()
       return
     }
     setPicker({ _tag: "asking" })
@@ -65,17 +116,29 @@ export function Sessions(props: { readonly chat: Chat }) {
   return (
     <div class="relative">
       <button
+        ref={trigger}
         type="button"
         class={QUIET_PILL}
         data-testid={TESTID.chatSessions}
-        aria-expanded={picker()._tag !== "shut"}
+        aria-expanded={up()}
         onClick={toggle}
       >
         chats
       </button>
 
-      <Show when={picker()._tag !== "shut"}>
+      <Show when={up()}>
         <ul
+          ref={(el) => {
+            list = el
+            // Solid never calls a ref with `undefined`, and this one lives
+            // inside the `<Show>` — so the disposal is what says the list is
+            // gone. Without it a shut picker keeps its detached `<ul>` and
+            // every row that was in it, and `root()` answers with an element
+            // that is no longer on the page.
+            onCleanup(() => {
+              list = undefined
+            })
+          }}
           class={`absolute right-0 top-full ${WITHIN.pop} mt-1 max-h-80 w-80 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
           data-testid={TESTID.chatSessionList}
         >

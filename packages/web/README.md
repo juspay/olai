@@ -774,17 +774,73 @@ this client draws itself.** Each had its own copy of "a pointer down outside
 it, capture phase" — these two popovers, a row's expanded note
 (`note/expand.ts`), and the `•••` menu, which had a fourth — and they agreed
 about almost everything and drifted where they did not. `dismiss.ts` holds what
-is common (which root counts as inside, and only listening while the panel is
-up) and leaves each caller what "shut" MEANS: focus back on the trigger here,
-nothing to remember there. It is built on Kobalte's own `createInteractOutside`
-/ `createEscapeKeyDown` rather than on a listener pair of ours, so these shut by
-the same code the one real primitive (the `•••` menu) shuts by — and a touch,
+is common — which root counts as inside, only listening while the panel is up,
+and (since the picker made it two callers) the caret going back to the control
+that opened it when a KEY asked — and leaves each caller the rest of what "shut"
+means: whether the trigger toggles instead, whether anything is remembered. It
+is built on Kobalte's own `createInteractOutside` / `createEscapeKeyDown`
+rather than on a listener pair of ours, so these shut by the same code the one
+real primitive (the `•••` menu) shuts by — and a touch,
 which every copy here handled by never considering it, defers to the `click`
-that follows. Not the same INSTANCE, and the file says so: the menu shuts inside
-Kobalte's own `DismissableLayer` and its layer STACK, which these two are not on,
-so an Escape with both up shuts both. The note gained Escape by being deduped:
-it is the model that note already keeps, where expanding and editing are one
-state you leave at once.
+that follows. The note gained Escape by being deduped: it is the model that note
+already keeps, where expanding and editing are one state you leave at once.
+
+**And one STACK, because a spelling shared is not a discipline shared.** The
+menu shuts inside Kobalte's own `DismissableLayer`, which keeps a stack of open
+layers and hands a gesture to the last one opened; these panels shut through the
+same library's primitives reached one level down, which know about nothing else
+on the page. So a menu opened over a popover neither deferred to it nor was
+deferred to by it, and **one Escape shut both** — not two dismissals, one
+keystroke landing twice. Every open panel takes a ticket from `topmost.ts` now
+and only the highest ticket answers, so a second Escape reaches the next one
+down, which is what a person pressing it twice means. It is a module of its own
+rather than a few lines inside `dismiss.ts` because three panels want the ORDER
+and none of the gestures — one consumer that needs only half is what graduates a
+half, the same argument `arriving.ts` was extracted on. The stack is ours rather
+than Kobalte's for a reason worth writing down: `layerStack` is not exported
+from `@kobalte/core` at any subpath, its only public door is a COMPONENT that
+has to wrap the panel element, and no caller here has one to give it — so the
+menu joins ours instead (`menu/Dropdown.tsx`, which refuses an ask to shut on
+the menu's own open state — the one place that covers every gesture, since
+`MenuContentBase` closes on Escape whether or not the event was prevented).
+Two sweeps in
+`claims.test.ts` hold both halves: nothing outside `dismiss.ts` reaches for the
+two Kobalte primitives, and the list of panels that join the stack without
+taking the gestures with it is exactly the panels whose gestures are somebody
+else's — the menu's are Kobalte's, the **⌘K palette**'s are its own window
+listener and its own full-screen scrim, the **keyboard-shortcuts dialog** it opens answers the same two (and answered
+neither until review found it), and the chat's **slash list** takes keys in the
+capture phase ahead of everything. All four are on the stack, and the
+palette is not an afterthought: `⌘K` is `whileEditing: true`, so it opens with
+the caret inside an open popover and without a press anywhere, which is the one
+pair on this page that needs no contrivance at all to reach.
+
+There is one rule none of this enforces, and `topmost.ts` writes it down: **a
+layer answers a dismissal from the document or later, never from its own box.**
+Handlers run target-first, so a panel that shuts itself at its own element does
+it before anything on the document has been asked — and the panel under it is
+the highest ticket by the time it is. That is how ⌘K over a popover still shut
+both after the palette had joined the stack: its input answered Escape as well
+as its window listener did, and the input went first. The fix was deleting the
+earlier answer. A panel that instead STOPS the event at its own element
+(`date/DatePicker.tsx`, `edges/EdgePanel.tsx`) is the other lawful shape and
+needs no ticket, because nothing below is asked at all; those are caret-scoped,
+which is `keys.ts`'s own layer rather than this one.
+
+`features/dismiss_stack.feature` walks all of it — the menu opened by the
+KEYBOARD, since a press of the `•••` is the press that correctly shuts the
+popover first, which is what made that path unwalkable while the bug was live,
+and the palette by the chord, which needs no such care.
+
+The chat's session picker (`chat/Sessions.tsx`) is on the same stack, and it is
+the one panel that arrived here with a MISSING affordance rather than a
+duplicated one: it answered neither gesture, so a list opened by mistake sat
+over the transcript until somebody found the `chats` button again. It takes
+`dismissOn` on the header popovers' terms — both roots (the list is a sibling of
+its button, so a click-away that knew only the list would shut on the button's
+own pointerdown and be reopened by that press's click), and the caret back on
+`chats` when a keyboard asked. `features/the_agent.feature` holds the three ways
+out.
 
 **And focus has to get IN, which is the other half of the portal's price.** The
 theme popover this replaced was laid out inside its trigger's own box, so the
@@ -2119,6 +2175,20 @@ hand-rolled one was:
   `touch.ts`' `MENU_REVEAL`, which is steadier than the focus-within it used to
   ride on, since a menu's own list takes and drops the caret as a pointer moves
   over it.
+- **and it DEFERS**, which is the one decision the primitive cannot make alone.
+  Kobalte hands a gesture to the topmost layer on its OWN stack, and this menu
+  is the only layer on it — so it always believed it was on top, and an Escape
+  with a popover opened over it shut both. It joins the client's one stack
+  instead (`topmost.ts`, above), and the deferral is ONE rule in one place: the
+  menu is CONTROLLED, so an ask to shut is a request this app answers, and
+  `onOpenChange` passes one on only while the menu is the panel a dismissal is
+  for. Refusing gesture by gesture instead does not work and is worth knowing
+  why — `onPointerDownOutside` is `preventDefault`able, but `MenuContentBase`
+  closes on **Escape whether or not the event was prevented** (in its own words,
+  because its selectable list prevents the key first), so half the rule would
+  end up on a flag carried between handlers. Guarding the open state covers
+  every way the primitive can decide to close, including ones it has not grown
+  yet.
 
 **Two doors, because below 48rem there is no `•••` to press.** A phone reaches
 the same menu by HOLDING a finger on the row (`longPress.ts`, and the gutter

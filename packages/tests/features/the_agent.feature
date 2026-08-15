@@ -168,6 +168,26 @@ Feature: Talking to the agent
     When I accept the completion
     Then the chat input reads "/review "
 
+  @scratch:chat
+  Scenario: ...and it answers only the keys aimed at the box
+    # The list listens on the DOCUMENT, in the capture phase — it has to, so
+    # the composer's own Enter cannot send the message somebody was only
+    # completing — and that reach was the trouble: it saw every keystroke on
+    # the page. With a list up, Enter on the preferences trigger was answered
+    # by the COMPLETION: the key was taken and stopped, the box filled itself
+    # in, and the panel a person asked for never opened.
+    #
+    # Being the topmost layer is not the answer to that (`client/topmost.ts`
+    # holds the order, and the list is genuinely on it). A list is the panel
+    # for the keys aimed at the box it completes, which is what `client/keys.ts`
+    # means by its LIST layer — so that is what it now asks first.
+    When I type "/re" into the chat
+    Then the completion offers "review"
+    When I focus the preferences trigger
+    And I press Enter
+    Then the preferences are open
+    And the chat input reads "/re"
+
   @agent-stored @scratch:chat
   Scenario: A first boot has nothing to remember, so it takes the newest
     # `session/list` for this directory answers with two, and nothing has ever
@@ -254,6 +274,47 @@ Feature: Talking to the agent
     Then the picker lists "an older conversation"
     When I pick the conversation "an older conversation"
     Then the conversation is titled "an older conversation"
+
+  # ── and the ways OUT of it ───────────────────────────────────────────────
+  #
+  # The picker had none. Every other panel this client draws answers a pointer
+  # outside it and Escape — one spelling of the two, in `client/dismiss.ts` —
+  # and this one answered neither, so a list opened by mistake sat over the
+  # transcript until somebody found the button again. That is a missing
+  # affordance rather than a fourth copy of an existing one, and the three
+  # scenarios below are the three ways out it now has.
+
+  @agent-stored @scratch:chat
+  Scenario: Escape puts the picker away, and hands the caret back
+    # A keyboard that dismissed a panel it was standing in would be left on
+    # `<body>` — nowhere, and the whole page to walk down to get back — so the
+    # caret goes back on the control that opened it. Same rule as the header's
+    # popovers, and only for the gesture a keyboard can make.
+    When I open the session picker
+    Then the picker is showing
+    When I press "Escape"
+    Then the picker is put away
+    And the chats button has the caret
+
+  @agent-stored @scratch:chat
+  Scenario: A pointer outside puts the picker away
+    When I open the session picker
+    Then the picker is showing
+    When I click away from the session picker
+    Then the picker is put away
+
+  @agent-stored @scratch:chat
+  Scenario: Pressing chats again puts it away
+    # TWO ROOTS, and the bug the Commit pill had one layer up: the list is a
+    # SIBLING of the button rather than a child of it, so a click-away that
+    # knew only the list would read a press of `chats` as a press outside —
+    # shutting on the pointerdown, and reopened a moment later by that same
+    # press's own click. Pressing it a second time would do nothing at all, and
+    # the picker would look identical before and after.
+    When I open the session picker
+    Then the picker is showing
+    When I press the chats button
+    Then the picker is put away
 
   @scratch:chat
   Scenario: The panel shows the turn happening, not only its result

@@ -232,3 +232,36 @@ test("nothing outside the menu's chunk imports the menu's chunk", () => {
     [path.join("menu", "Confirm.tsx"), [path.join("menu", "Panel.tsx")]],
   ])
 })
+
+// dismiss.ts's claim — the two gestures that shut a panel are spelled in ONE
+// file, which since the layer stack is also the claim that every dismissable
+// is ON that stack. Before it, four panels had four copies of "a pointer down
+// outside it" and they had drifted; now a fifth panel written with a listener
+// pair of its own would not merely be a fifth copy, it would be a panel the
+// stack cannot see — one that shuts when something over it is dismissed, which
+// is the exact bug `features/dismiss_stack.feature` exists about and the one
+// thing a scenario about the OTHER panels would never catch.
+test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
+  expect(filesSpelling(/create(?:EscapeKeyDown|InteractOutside)\s*\(/)).toEqual([
+    "dismiss.ts",
+  ])
+})
+
+// ...and the other side of it: WHO JOINS THE STACK WITHOUT `dismissOn`, which
+// is the list of panels whose gestures are somebody else's. The `•••` menu's
+// are Kobalte's, one level up; the palette and the shortcuts dialog answer
+// Escape on the window and a press on their own scrims; the slash menu takes
+// keys in the capture phase ahead of everything. Each has a reason written
+// where it joins, and the list is short on purpose — a fifth joiner is either a
+// panel that had to hand-roll its dismissal (worth arguing about) or one that
+// wanted the stack and skipped the dismissal, which is a panel nothing shuts.
+test("the stack is joined directly only where the gestures are not dismissOn's", () => {
+  expect(filesSpelling(/topmostWhileOpen/)).toEqual([
+    path.join("chat", "SlashMenu.tsx"),
+    "dismiss.ts",
+    path.join("menu", "Dropdown.tsx"),
+    path.join("palette", "Palette.tsx"),
+    path.join("palette", "Shortcuts.tsx"),
+    "topmost.ts",
+  ])
+})

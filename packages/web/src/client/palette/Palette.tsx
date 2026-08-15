@@ -62,6 +62,7 @@ import {
   toggleChat,
 } from "../layout/prefs.ts"
 import { LAYER, WITHIN } from "../layer.ts"
+import { topmostWhileOpen } from "../topmost.ts"
 import { only } from "../narrow.ts"
 import { ALARM_PILL, QUIET_PILL } from "../pill.ts"
 import type { Route } from "../routes.ts"
@@ -472,6 +473,20 @@ export function Palette(props: {
     cursor.step(by)
   }
 
+  /**
+   * The palette on the client's one dismissal stack (`../topmost.ts`).
+   *
+   * It is a layer like any other — it answers Escape (below) and a press on its
+   * own scrim — and being off that stack was the same bug the `•••` menu had
+   * against the header's popovers: `⌘K` is `whileEditing: true`, so it opens
+   * with the caret inside an open popover and WITHOUT a press anywhere, which
+   * leaves both up. One Escape then ran the popover's handler (on the document)
+   * and this one (on the window, which is later in the same bubble) — two
+   * panels, one keystroke. The ticket is what makes the popover defer; the
+   * guard below is the other direction, for whatever opens over this one next.
+   */
+  const topmost = topmostWhileOpen(paletteOpen)
+
   /** Escape backs out of the question first and closes the palette second —
    *  one key, the nearest thing it can dismiss, which is what it means
    *  everywhere else in this app. */
@@ -488,7 +503,7 @@ export function Palette(props: {
     const onKey = (event: KeyboardEvent) => {
       const match = matchKey(event)
       if (match === null) {
-        if (paletteOpen() && event.key === "Escape") {
+        if (paletteOpen() && topmost() && event.key === "Escape") {
           event.preventDefault()
           escape()
         }
@@ -541,7 +556,17 @@ export function Palette(props: {
           class="absolute inset-0 cursor-default"
           aria-label="close the palette"
           data-testid={TESTID.paletteScrim}
-          onClick={close}
+          // Asked of the stack like the key is, and for the same reason: this
+          // is the palette's other dismissal, and a press on a full-screen
+          // scrim is a press outside every panel underneath as well. Nothing
+          // stands over the palette today (a row that opens another surface
+          // calls `close` on its way through, and the scrim covers the page),
+          // so this guard changes no pixel now — it is the pointer half of the
+          // rule the Escape above keeps, left unguarded once and worth exactly
+          // one line to not leave unguarded twice.
+          onClick={() => {
+            if (topmost()) close()
+          }}
         />
         <div
           class={`relative ${WITHIN.raised} w-full max-w-lg overflow-hidden rounded-lg border border-rule/70 bg-panel shadow-lg`}
@@ -564,16 +589,23 @@ export function Palette(props: {
             }}
             // WHICH key is the registry's (`../keys.ts`'s list layer, the same
             // one the row editor's completions ask); what each answer MEANS is
-            // this dialog's — `take` runs a row, `dismiss` backs out of the
-            // question if one is up and shuts the whole palette otherwise.
+            // this dialog's — `take` runs a row, and the arrows walk it.
+            //
+            // `dismiss` is deliberately NOT answered here, and it is a rule
+            // rather than an omission: this handler is on the BOX, so it runs
+            // at the target, before anything listening on the document — and a
+            // panel that shuts itself that early promotes whatever is under it
+            // to topmost inside the same keystroke, which is how one Escape
+            // took the palette AND the popover it was opened over. Escape is
+            // answered once, on the window, where every layer has already been
+            // asked (`onMount` above, and `../topmost.ts`).
             onKeyDown={(e) => {
               const action = listKey(e)
-              if (action === null) return
+              if (action === null || action === "dismiss") return
               e.preventDefault()
               if (action === "next") walk(1)
               if (action === "prev") walk(-1)
               if (action === "take") confirm()
-              if (action === "dismiss") escape()
             }}
           />
           <Show when={askError()}>

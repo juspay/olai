@@ -55,6 +55,32 @@
  *     asked from, and a menu that read that as "focus left" would shut on its
  *     own Cancel.
  *
+ * ## AND IT DEFERS, which is the one thing the primitive cannot decide alone
+ *
+ * Kobalte keeps a stack of its own layers and gives a gesture to the topmost —
+ * but this menu is the only layer on it, because the panels this client draws
+ * itself are not components wrapping an element and cannot join one
+ * (`../topmost.ts` has the whole argument). So the primitive always believes it
+ * is on top, and an Escape with a popover opened OVER a menu shut both.
+ *
+ * The stack every dismissable in this client is on is `../topmost.ts`'s, and
+ * this file joins it with {@link topmostWhileOpen} — the same call the popovers
+ * and the note make one layer down. What is left is telling Kobalte to sit a
+ * gesture out, and there is exactly one place to say it: **the menu's own OPEN
+ * state**, which is CONTROLLED (`./door.ts`), so an ask to shut is a REQUEST
+ * this app answers rather than a fact the library reports. `onOpenChange`
+ * passes one on only while this menu is the panel a dismissal is for.
+ *
+ * The obvious alternative is to refuse each gesture where the primitive offers
+ * it, and it does not work: `onPointerDownOutside` is `preventDefault`able, but
+ * `MenuContentBase` closes on **Escape whether or not the event was prevented**
+ * ("we force close on escape here", in its own words, because its selectable
+ * list prevents the key first). So half the rule would have to live on a flag
+ * carried from one handler to another anyway — two spellings of one sentence,
+ * and a third gesture would need a third. Guarding the open state covers every
+ * way the primitive can decide to close, including the ones it has not grown
+ * yet.
+ *
  * ## TWO DOORS, because below 48rem there is no `•••` to press
  *
  * A phone spends no gutter width on the menu (`../touch.ts`), so what opens it
@@ -76,6 +102,7 @@ import { DropdownMenu } from "@kobalte/core/dropdown-menu"
 import type { MenuAction } from "./action.ts"
 import type { MenuDoor } from "./door.ts"
 import { DOTS } from "./Dots.tsx"
+import { topmostWhileOpen } from "../topmost.ts"
 import { swallowGhost } from "../ghost.ts"
 import { LAYER } from "../layer.ts"
 import { Panel } from "./Panel.tsx"
@@ -124,6 +151,12 @@ export function Dropdown(props: {
    *  different places, and only one of them wants it back (see `handBack`). */
   let lastGesture: "key" | "pointer" = "pointer"
 
+  /** Is this menu the panel a dismissal is for — the last thing opened that is
+   *  still up, across everything this client can put on screen
+   *  (`../topmost.ts`)? Kobalte's own stack cannot answer that, because this
+   *  menu is the only layer on it. */
+  const topmost = topmostWhileOpen(() => props.door.open())
+
   /**
    * THE CARET COMES BACK when the panel that had it goes.
    *
@@ -167,7 +200,18 @@ export function Dropdown(props: {
       placement="bottom-start"
       gutter={2}
       open={props.door.open()}
-      onOpenChange={props.door.setOpen}
+      // ...and AN ASK TO SHUT IS ONLY HEARD WHILE THIS MENU IS THE PANEL A
+      // DISMISSAL IS FOR. One rule, in one place, for every way the primitive
+      // can decide to close — the pointer outside, Escape, its own trigger,
+      // an entry chosen — because a menu with something over it is a menu that
+      // may not act on any of them. Everything that legitimately shuts it
+      // happens while it IS the topmost: choosing an entry is a press inside,
+      // and a press outside shuts what is over it first (`../topmost.ts`
+      // settles inside that same write, so this reads the stack as it is by
+      // then).
+      onOpenChange={(open: boolean) => {
+        if (open || topmost()) props.door.setOpen(open)
+      }}
       // WHAT THE PANEL HANGS OFF: the `•••` where one is DRAWN, and the
       // row's own line where it is not. Below md the `•••` is `hidden` —
       // it is still in the markup, because Kobalte's trigger is what holds
