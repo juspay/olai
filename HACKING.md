@@ -19,3 +19,5 @@
   - Never silently ignore errors. Most errors should surface to the user at some level in the UX level.
 - Dependencies
   - Olai continues to require **NO** dependencies *outside* of Nix itself
+- PR
+  - No junk (or unused) files accidentally commited in this PR.

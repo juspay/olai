@@ -82,7 +82,7 @@ export function Diff(props: {
 
   return (
     <div
-      class="mt-1 overflow-hidden rounded border border-rule"
+      class="mt-1 min-w-0 overflow-hidden rounded border border-rule"
       data-testid={TESTID.chatDiff}
       data-path={props.diff.path}
       data-expanded={open()}
@@ -113,11 +113,11 @@ export function Diff(props: {
         </Show>
       </p>
 
-      <div class="overflow-x-auto font-mono text-[0.6875rem] leading-5">
+      <div class="min-w-0 font-mono text-[0.6875rem] leading-5">
         <For each={shown()}>
           {(line) => (
             <div
-              class={`flex ${LOOK[line.kind].row}`}
+              class={`grid min-w-0 grid-cols-[2rem_0.75rem_minmax(0,1fr)] items-start ${LOOK[line.kind].row}`}
               data-testid={TESTID.chatDiffLine}
               data-kind={line.kind}
             >
@@ -126,24 +126,38 @@ export function Diff(props: {
                   and shows where it used to be. Two columns is what a diff
                   tool with a full pane does; this is 26rem wide. */}
               <span
-                class="w-8 shrink-0 select-none pr-2 text-right text-muted/70"
+                class="select-none pr-2 text-right text-muted/70"
                 aria-hidden="true"
+                data-testid={TESTID.chatDiffGutter}
               >
                 {line.kind === "gap" ? "" : line.after ?? line.before}
               </span>
               <Show
                 when={line.kind !== "gap"}
                 fallback={
-                  <span class="text-muted/70">⋯ {line.hidden} unchanged</span>
+                  <span class="col-span-2 min-w-0 text-muted/70">⋯ {line.hidden} unchanged</span>
                 }
               >
-                <span class={`shrink-0 select-none pr-1 ${LOOK[line.kind].tone}`}>
+                <span
+                  class={`select-none pr-1 ${LOOK[line.kind].tone}`}
+                  data-testid={TESTID.chatDiffMark}
+                >
                   {LOOK[line.kind].mark}
                 </span>
-                {/* `pre` so leading indentation is what the file has, and no
-                    wrapping: a wrapped line of code is two rows that look like
-                    two lines. The block scrolls sideways instead. */}
-                <span class="whitespace-pre text-ink">{line.text}</span>
+                {/* `pre-wrap` so leading indentation is what the file has, and
+                    a long line wraps inside this column. Continuation stays
+                    here — the gutter and the marker keep their width — because
+                    a 26rem conversation with a sideways scrollbar is a panel
+                    that cannot be read. `anywhere` so a token with no space
+                    still cannot push the box wider than it is. The third
+                    column is `minmax(0, 1fr)` so its min-content cannot
+                    stretch the grid. */}
+                <span
+                  class="min-w-0 whitespace-pre-wrap wrap-anywhere text-ink"
+                  data-testid={TESTID.chatDiffText}
+                >
+                  {line.text}
+                </span>
               </Show>
             </div>
           )}
