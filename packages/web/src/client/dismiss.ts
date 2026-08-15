@@ -10,10 +10,13 @@
  * at all. That is the argument for one spelling of it.
  *
  * WHICH panel a gesture is for, when more than one is up, is `./topmost.ts` —
- * one stack, and only the last thing opened answers. Everything below is on it,
- * because {@link dismissOn} puts it there; the `•••` menu joins that same stack
- * from the other side (`menu/Dropdown.tsx`), since its gestures are already the
- * library's and only the ORDER was missing.
+ * one stack, and only the last thing opened answers. Every caller here is on it
+ * because {@link dismissOn} puts it there, and the panels whose gestures are
+ * somebody else's (the `•••` menu's are Kobalte's, the ⌘K palette's are its
+ * own, the chat's slash list takes keys in the capture phase) join that same
+ * stack directly. That file lists them, and holds the one rule none of this can
+ * enforce: a layer answers a dismissal from the DOCUMENT or later, never from
+ * its own box.
  *
  * ## Which is Kobalte's, not ours
  *

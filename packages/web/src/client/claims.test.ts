@@ -247,17 +247,20 @@ test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
   ])
 })
 
-// ...and the other side of it: who may join the stack WITHOUT taking the
-// gestures with them. Exactly one panel may, and only because its gestures are
-// already the same library's, reached one level up — the `•••` menu is a
-// Kobalte `DismissableLayer`, which keeps a stack of its own that this client's
-// panels cannot get onto (`topmost.ts` has the argument). Anything else
-// reaching for `topmostWhileOpen` directly is a panel that wanted the stack and
-// skipped the dismissal, which is a panel nothing shuts.
-test("only the menu joins the dismissal stack without going through dismissOn", () => {
+// ...and the other side of it: WHO JOINS THE STACK WITHOUT `dismissOn`, which
+// is the list of panels whose gestures are somebody else's. The `•••` menu's
+// are Kobalte's, one level up; the palette answers Escape on the window and a
+// press on its own scrim; the slash menu takes keys in the capture phase ahead
+// of everything. Each has a reason written where it joins, and the list is
+// short on purpose — a fourth name is either a panel that had to hand-roll its
+// dismissal (worth arguing about) or one that wanted the stack and skipped the
+// dismissal, which is a panel nothing shuts.
+test("the stack is joined directly only where the gestures are not dismissOn's", () => {
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
+    path.join("chat", "SlashMenu.tsx"),
     "dismiss.ts",
     path.join("menu", "Dropdown.tsx"),
+    path.join("palette", "Palette.tsx"),
     "topmost.ts",
   ])
 })

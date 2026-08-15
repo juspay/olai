@@ -35,6 +35,7 @@ import {
   PALETTE_INPUT,
   PALETTE_ITEM,
   PALETTE_SAID,
+  PALETTE_SCRIM,
   POLL_TIMEOUT,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -62,6 +63,17 @@ Then("the command palette is closed", async function (this: OlaiWorld) {
   await this.page
     .locator(PALETTE)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+/** The palette's own way out for a pointer: the full-screen scrim behind its
+ *  card. It covers the page, so it is also a press outside every panel
+ *  underneath — which is what `dismiss_stack.feature` asks it about. */
+When("I press the palette scrim", async function (this: OlaiWorld) {
+  // A CORNER of it, not the middle: the scrim covers the viewport, and the
+  // middle of the viewport is where the palette's own card is drawn — so the
+  // default centre press lands on the card and puts nothing away.
+  await this.page.locator(PALETTE_SCRIM).click({ position: { x: 20, y: 20 } });
+  await this.waitForFrame();
 });
 
 /** Escape rather than the chord: a scenario that has just captured is holding

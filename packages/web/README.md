@@ -803,11 +803,31 @@ the menu's own open state — the one place that covers every gesture, since
 `MenuContentBase` closes on Escape whether or not the event was prevented).
 Two sweeps in
 `claims.test.ts` hold both halves: nothing outside `dismiss.ts` reaches for the
-two Kobalte primitives, and nothing but the menu joins the stack without taking
-the gestures with it. `features/dismiss_stack.feature` walks the path itself —
-with the menu opened by the KEYBOARD, since a press of the `•••` is the press
-that correctly shuts the popover first, which is what made this path unwalkable
-while the bug was live.
+two Kobalte primitives, and the list of panels that join the stack without
+taking the gestures with it is exactly the panels whose gestures are somebody
+else's — the menu's are Kobalte's, the **⌘K palette**'s are its own window
+listener and its own full-screen scrim, and the chat's **slash list** takes keys
+in the capture phase ahead of everything. All three are on the stack, and the
+palette is not an afterthought: `⌘K` is `whileEditing: true`, so it opens with
+the caret inside an open popover and without a press anywhere, which is the one
+pair on this page that needs no contrivance at all to reach.
+
+There is one rule none of this enforces, and `topmost.ts` writes it down: **a
+layer answers a dismissal from the document or later, never from its own box.**
+Handlers run target-first, so a panel that shuts itself at its own element does
+it before anything on the document has been asked — and the panel under it is
+the highest ticket by the time it is. That is how ⌘K over a popover still shut
+both after the palette had joined the stack: its input answered Escape as well
+as its window listener did, and the input went first. The fix was deleting the
+earlier answer. A panel that instead STOPS the event at its own element
+(`date/DatePicker.tsx`, `edges/EdgePanel.tsx`) is the other lawful shape and
+needs no ticket, because nothing below is asked at all; those are caret-scoped,
+which is `keys.ts`'s own layer rather than this one.
+
+`features/dismiss_stack.feature` walks all of it — the menu opened by the
+KEYBOARD, since a press of the `•••` is the press that correctly shuts the
+popover first, which is what made that path unwalkable while the bug was live,
+and the palette by the chord, which needs no such care.
 
 The chat's session picker (`chat/Sessions.tsx`) is on the same stack, and it is
 the one panel that arrived here with a MISSING affordance rather than a

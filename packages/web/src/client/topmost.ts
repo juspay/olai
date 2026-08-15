@@ -16,6 +16,41 @@
  * highest ticket answers.** A second Escape then reaches the next one down,
  * which is what a person pressing it twice means by it.
  *
+ * ## WHO IS ON IT
+ *
+ * The header's two popovers, a row's expanded note and the chat's session
+ * picker, through `./dismiss.ts` — which takes a ticket for every caller, so a
+ * new panel is on the stack by being written the ordinary way. And four others
+ * that join here directly, because their gestures are somebody else's:
+ *
+ *   - the `•••` menu (`menu/Dropdown.tsx`) — Kobalte's `DismissableLayer`,
+ *     which has a stack of its own that these panels cannot get onto;
+ *   - the ⌘K palette (`palette/Palette.tsx`) — Escape on the window, and a
+ *     press on its own full-screen scrim;
+ *   - the chat's slash list (`chat/SlashMenu.tsx`) — a capture-phase listener
+ *     that takes the key before anything else on the page can see it.
+ *
+ * `claims.test.ts` sweeps that list, in both directions.
+ *
+ * ## WHERE A LAYER MUST LISTEN, which is the one thing this cannot enforce
+ *
+ * A layer answers a dismissal from the DOCUMENT or later — never from its own
+ * element. The reason is exact: handlers run target-first, so a panel that
+ * shuts itself at its own box does it before anything listening on the document
+ * has been asked, and the panel UNDER it is then the highest ticket by the time
+ * it is. One keystroke, two panels, and the stack is what says so at each
+ * listener rather than once for the gesture. That is how ⌘K over an open
+ * popover shut both even after the palette had joined this stack: its box
+ * answered Escape as well as its window listener did, and the box went first.
+ * The fix was to delete the earlier answer, and the rule is written where each
+ * of the four joins.
+ *
+ * A layer that stops the event at its own element instead (`date/DatePicker.tsx`,
+ * `edges/EdgePanel.tsx`) is the other lawful shape and needs no ticket: nothing
+ * below is asked at all, because the event never reaches the document. Those
+ * are caret-scoped — a bare key where the caret is, `keys.ts`'s own layer — and
+ * they are deliberately not on this stack.
+ *
  * ## Why this is ours, when one of the panels is already the library's
  *
  * `layerStack` is not exported from `@kobalte/core` at any subpath. Its only
