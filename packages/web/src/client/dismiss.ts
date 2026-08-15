@@ -10,7 +10,7 @@
  *
  * ## Which is Kobalte's, not ours
  *
- * The `•••` menu is a `@kobalte/core` `DropdownMenu` now (`menu/NodeMenu.tsx`),
+ * The `•••` menu is a `@kobalte/core` `DropdownMenu` now (`menu/Dropdown.tsx`),
  * and this is the same library's dismissal reached one layer down, so the
  * panels that are NOT primitives yet shut by the same code the one that is
  * shuts by. Not the same INSTANCE of it, which is the honest version of that
@@ -20,6 +20,14 @@
  * deferred to by a menu over it, so an Escape with both up shuts both. Two
  * chrome popovers and a row menu barely coexist, which is why that is a
  * recorded cost rather than a bug).
+ *
+ * The two primitives below are also, since `menu/chunk.ts`, the ONLY
+ * `@kobalte/core` left on the first-paint chunk: `DropdownMenu` is fetched when
+ * a row is first asked for its menu, and what stays behind is
+ * `createEscapeKeyDown`, `createInteractOutside` and the layer stack they share:
+ * ~10 kB raw / ~3 kB brotli, measured by stubbing the two out, against the
+ * menu's ~80 kB / ~23 kB. These panels are up at first paint, so their
+ * dismissal has to be.
  *
  * HACKING.md's SolidJS rule is the reason to reach for the library rather than
  * keep a hand-rolled listener pair that happens to be shared:

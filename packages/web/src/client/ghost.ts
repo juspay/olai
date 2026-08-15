@@ -13,7 +13,7 @@
  *     is still down. The lift then produces a click on the row — which opens
  *     the editor, or follows the bullet's link — or, where the panel was
  *     flipped over the press point, on an entry of the menu that just opened.
- *   - **an entry chosen with a thumb** (`./menu/NodeMenu.tsx`). Kobalte
+ *   - **an entry chosen with a thumb** (`./menu/Dropdown.tsx`). Kobalte
  *     selects on the pointer-up and the panel is gone by the time the click is
  *     made up, so it lands on the ROW that was underneath the entry — which is
  *     how "Move to Trash" navigated into a mirror three rows down, and it is a

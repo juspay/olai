@@ -173,3 +173,40 @@ test("only pointer.ts suppresses the page's text selection", () => {
 test("only saying.ts counts SAID_MS down", () => {
   expect(filesSpelling(/\bSAID_MS\b/)).toEqual([path.join("edit", "undoing.ts"), "saying.ts"])
 })
+
+// menu/chunk.ts's claim — `DropdownMenu` is not on the first-paint chunk, and
+// nothing may put it back. The split is a fact about the module GRAPH and
+// nothing in the source looks wrong on the day it is undone: one static
+// `import` of `menu/Dropdown.tsx` (or of `./Panel.tsx` / `./Confirm.tsx` behind
+// it) from a file the entry reaches, and the bundler inlines all ~80 kB of it
+// again while every test still passes and every pixel is where it was. So the
+// two edges are swept instead.
+//
+// First, the subpath itself: exactly the three files that live BEHIND the
+// `import()` may name it. The list is the chunk's own contents, and a fourth
+// name is either a new file that belongs in there or a first-paint file that
+// has just re-imported the menu.
+test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
+  expect(filesSpelling(/@kobalte\/core\/dropdown-menu/)).toEqual([
+    path.join("menu", "Confirm.tsx"),
+    path.join("menu", "Dropdown.tsx"),
+    path.join("menu", "Panel.tsx"),
+  ])
+})
+
+// And the edge to the chunk's own entry, which is the way the above would be
+// undone without naming Kobalte at all. Exactly one file in the client may name
+// `menu/Dropdown.tsx` in a `from` clause at all — the chunk that fetches it —
+// and there it has to be the `import type`, which the bundler erases. The
+// `import(...)` beside it carries no `from` and is the split itself.
+//
+// Two assertions rather than one clever pattern: "which files link to it" and
+// "how that one link is spelled" are different questions, and a regex that
+// tried to be both would be the kind a later reader loosens instead of fixing.
+test("nothing statically imports the menu's primitive", () => {
+  expect(filesSpelling(/from\s*["'][^"']*Dropdown\.tsx["']/)).toEqual([
+    path.join("menu", "chunk.ts"),
+  ])
+  const chunk = SOURCES.find((one) => one.file === path.join("menu", "chunk.ts"))
+  expect(chunk?.code).toMatch(/import type \{ Dropdown \} from "\.\/Dropdown\.tsx"/)
+})

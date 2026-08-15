@@ -233,8 +233,10 @@ All of that is ~390 kB raw (~95 kB brotli) of `unified`, remark, rehype and
 `highlight.js` grammars, and the first thing this app draws — a tree of rows —
 uses none of it. So the pipeline is a CHUNK of its own
 (`markdown/pipeline.ts` → `/assets/pipeline-<hash>.js`) and is fetched the first
-time something on the page has markdown to interpret. The entry is ~700 kB raw
-(~185 kB brotli) with the pipeline out of it, against 1 054 kB with it in.
+time something on the page has markdown to interpret. With it out, what a first
+paint downloads is the entry plus the small chunks the splitting shares with it
+— 831 kB raw / 225 kB brotli as of the menu's own split below, against 1 054 kB
+when the pipeline was inline.
 
 - **the `import()` is the whole of the request.** `markdown/chunk.ts` names
   `./pipeline.ts` literally; `buildSurfaceClient` splits on a dynamic import and
@@ -263,6 +265,11 @@ time something on the page has markdown to interpret. The entry is ~700 kB raw
   `features/markdown_arrives.feature` holds all of it — including that an
   outline of plain titles never asks at all — by holding the chunk up in the
   network layer.
+
+It is no longer the only one: the `•••` menu's primitive rides the same three
+rules (`menu/chunk.ts`), asked for by the first row anybody reaches for a menu
+on, and the `•••` stays drawn while it is in flight. The menu section below has
+the numbers.
 
 A document is surveyed and jumped around through those anchors:
 `document/Toc.tsx` draws a collapsible contents above the body, derived from
@@ -1937,7 +1944,9 @@ would have sent, judged by the same planner and refused in the same words.
 | `action.ts` | what an ENTRY is, to the panel that draws it — the `MenuAction` shape, and whether a verb asks first. The seam: the catalog builds these knowing nothing about drawing, the panel draws these knowing nothing about routes or the write gate, and neither imports the other |
 | `door.ts` | how a row's menu is reached: the state behind the `•••`, the long press that is the other door, and the `ref` for the line both are about — handed out together, so a row cannot wire one and forget another |
 | `Dots.tsx` | the `•••` itself: the class both spellings of it wear, and the plain `<button>` it is before this row has ever been asked for its menu |
-| `NodeMenu.tsx` | the primitive and its wiring: what owns the menu, where it is drawn, what it hangs off on each of the two doors, and where the caret goes |
+| `NodeMenu.tsx` | what a ROW draws: the box it all hangs in, which of the two things it is showing — the `•••`, or the panel once both of its costs are paid — and the line the answers land on |
+| `chunk.ts` | when the primitive arrives: the dynamic `import()` that keeps ~80 kB of Kobalte off the first-paint chunk, the signal a row reads to ask for it, and what is said when it never comes |
+| `Dropdown.tsx` | the primitive and its wiring: what owns the menu, where it is drawn, what it hangs off on each of the two doors, and where the caret goes. The far side of that `import()`, reached from nowhere else |
 | `Panel.tsx` | what is inside the open panel — the list, in Kobalte's `Item`s wearing this app's classes |
 | `Confirm.tsx` | the second step: the question one verb asks first, and the two ways out of it |
 | `picking.ts` | running a verb and saying what came of it — the ops layer's sentence verbatim, the throw worded from the entry's own label, the cause kept for the console |
@@ -1955,7 +1964,7 @@ three; the receptacle's GRIP is a claim about every other file, so it is a
 sweep in `claims.test.ts`: nothing outside `saying.ts` may count `SAID_MS`
 down.
 
-**The last six are one file split six ways, and the split is Kobalte's doing.**
+**The last eight are one file split eight ways, and the split is Kobalte's doing.**
 `NodeMenu.tsx` was 621 lines because a hand-rolled panel genuinely is one
 thing: being open, the list, the question, the dismissals and the message were
 all the same forty lines of state. Adopting the primitive took the behaviour
@@ -2070,10 +2079,40 @@ ask that opens it — one verb writes both, since the row's own state is one
 signal over three (`menu/door.ts`) — and the row stays armed afterwards; the
 measurement is back to 0 observers and 19 MB. The keys that open a menu arm it
 too, because that button is what a Tab lands on, and so does a phone's long
-press, which is the other door onto the same verb. What the adoption does cost
-unconditionally is **bundle**: `DropdownMenu` is ~85 kB raw / ~24 kB brotli on
-the first-paint chunk, which is a code-split (`markdown/chunk.ts`'s shape) this
-has not taken.
+press, which is the other door onto the same verb.
+
+**And the same ask fetches it.** The adoption's other cost was **bundle**, and
+the lazy mount did nothing about it: `DropdownMenu` is ~80 kB raw / ~23 kB
+brotli, and the entry imported the module whether a row mounted one or not. So
+the primitive is behind a dynamic `import()` in `menu/chunk.ts` — the shape
+`markdown/chunk.ts` already had — with `menu/Dropdown.tsx` on the far side of
+it, and reading `menuReady()` is what starts the fetch. `NodeMenu.tsx` gates one
+`<Show>` on both costs at once: `door.armed() && menuReady()`, where `&&` is why
+nothing is fetched until a row is armed, and the fallback is the same `•••`
+either way — so an armed row whose chunk is still in flight goes on drawing the
+button in the same cell, and nothing in the gutter moves. Measured over the
+whole first-paint set (the entry plus every chunk it statically imports):
+
+| | raw | brotli |
+|---|---|---|
+| before | 910,400 B | 244,564 B |
+| after | 831,388 B | 225,286 B |
+| | **−79,012 B (−8.7%)** | **−19,278 B (−7.9%)** |
+
+The deferred chunk is 80,516 B / 23,438 B, fetched once for the whole app the
+first time anybody reaches for a menu — and on a page where nobody does, never.
+The brotli saving is smaller than that chunk because the ~10 kB of Kobalte that
+`dismiss.ts` shares with it stays at first paint (those panels are up at first
+paint, so their dismissal has to be) and a shared chunk compressed on its own
+does slightly worse than the same bytes inside `main-*.js` did.
+
+A split is a fact about the module graph that nothing in the source looks wrong
+without, so two sweeps in `claims.test.ts` hold it: only the three files behind
+the `import()` may name `@kobalte/core/dropdown-menu`, and the only `from` clause
+in the client naming `menu/Dropdown.tsx` is `chunk.ts`'s `import type`, which is
+erased. A fetch that never lands is not silent either — the row that asked says
+so on the same line every verb answers on, without a countdown, the way
+`markdown/Markdown.tsx` says it about the renderer.
 
 - **The reads are still first, and a rule separates them.** Above it, verbs
   that change what this tab is looking at (zoom, the four folds, copy link);

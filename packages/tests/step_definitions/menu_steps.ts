@@ -196,7 +196,7 @@ Then(
  * The caret back on the `•••` a menu was opened from.
  *
  * A panel that took the caret has to give it back when it goes, and the
- * primitive's own way of doing that never fires here (`menu/NodeMenu.tsx`'s
+ * primitive's own way of doing that never fires here (`menu/Dropdown.tsx`'s
  * `handBack` says why), so this is the step that would notice it stopping.
  * The ROW is asserted as well as the control: handing the caret to some other
  * row's `•••` would be its own kind of lost.

@@ -38,7 +38,7 @@ import { TESTID } from "../testids.ts"
  * cell. What a phone opens the menu with instead is a long press on the row
  * (`./door.ts`); the trigger stays in the MARKUP because it is what holds the
  * primitive's state, and the panel hangs off the row's own line while it has
- * no box (`./NodeMenu.tsx`'s `getAnchorRect`).
+ * no box (`./Dropdown.tsx`'s `getAnchorRect`).
  */
 export const DOTS =
   `${MENU_CELL} ${MENU_REVEAL} cursor-pointer border-0 bg-transparent p-0 ` +
@@ -51,7 +51,7 @@ export const DOTS =
  * The KEYS matter as much as the pointer here: this button is what a Tab lands
  * on, so the keys that open a menu have to arm it too, or a keyboard would
  * press an inert button. Enter, Space and the two arrows Kobalte's own trigger
- * opens on, and the caret lands in the panel from there (`./NodeMenu.tsx`'s
+ * opens on, and the caret lands in the panel from there (`./Dropdown.tsx`'s
  * content ref).
  */
 export function Dots(props: { readonly onArm: () => void }) {
