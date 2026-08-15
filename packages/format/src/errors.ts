@@ -177,8 +177,12 @@ export const isCrossFile = (error: OutlineError): boolean =>
  *  DIRECTORY), and the rule lives here rather than in whichever renderer
  *  noticed first, which is the same argument {@link errorLine} makes: the
  *  browser's rows and an agent's one-liner must not disagree about whether
- *  `plan.olai:0` is a line number somebody could go and look for. */
-export const hasLine = (error: Pick<OutlineError, "line">): boolean => error.line > 0
+ *  `plan.olai:0` is a line number somebody could go and look for.
+ *
+ *  Asked of a {@link Site} rather than of an error: the `line` it reads is the
+ *  PLACE's field, and an error is only where the question happens to come up.
+ *  It was `Pick<OutlineError, "line">`, which said the field was the error's. */
+export const hasLine = (site: Pick<Site, "line">): boolean => site.line > 0
 
 /** One error as one line of plain text.
  *

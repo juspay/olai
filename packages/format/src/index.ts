@@ -9,7 +9,10 @@
  * Nine things are exported, and that is the whole contract:
  *
  *   - the codec, `parseOutline` (per file) and `validate` (per set);
- *   - what they produce, `OutlineSet` and the records inside it;
+ *   - what they produce, `OutlineSet` and the records inside it — each one AT a
+ *     `Site`, `{file, line}`, which is also what an error names, what a read's
+ *     answer is situated by and where a mirror sits. One declaration, because
+ *     four of them was a fact extensible in one place and silent in three;
  *   - what a set MEANS, `derive` with `rowsOf`, `zoom`, `withoutDone`, the
  *     date derivations (`datedDays`, `datedOn`, and the daily-note pair
  *     `dailyNoteDays` / `dailyNotesOn`), the forward reading of those same
