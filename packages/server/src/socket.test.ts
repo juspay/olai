@@ -25,7 +25,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { served, withServe } from "./serve.testlib.ts"
-import { socketFor } from "./socket.ts"
+import { attaching, socketFor } from "./socket.ts"
 
 /**
  * A real `olai web` on a temp directory, and a real dial at the socket it
@@ -108,6 +108,31 @@ test("the socket does not carry the human's conversation", async () => {
       )
     }
   })
+})
+
+test("a server that stopped leaves nothing to dial", async () => {
+  // The claim `docs/running.md` makes to whoever reads it, and the whole reason
+  // there is no state file: a stopped server takes its socket with it, so the
+  // next `olai mcp` finds nobody home and opens its own store. Asserted AFTER
+  // the serve's scope has closed, which is when the listener's own finalizer
+  // has run — so the dial here answers `ENOENT`, the ordinary shutdown.
+  //
+  // The OTHER route to the same verdict is a process that was killed rather
+  // than closed, whose inode survives and answers `ECONNREFUSED`. That one is
+  // upstream's (`serveOverUnixSocket` clears a provably-stale socket at bind)
+  // and is not exercised here; what this file owns is that BOTH codes are read
+  // as "nobody is home", which is one line of `socket.ts` and above.
+  const root = served()
+  await withServe({ root }, async () => {
+    const live = await attaching(socketFor(root))
+    expect(live).not.toBeNull()
+    // Disposed here rather than left for the process to reap: the point of the
+    // line below is what the PATH says once the server is gone, and a socket
+    // this test is still holding open would be the test answering itself.
+    live?.first.dispose()
+  })
+
+  expect(await attaching(socketFor(root))).toBeNull()
 })
 
 test("the socket path is the directory's, however the directory was spelled", () => {

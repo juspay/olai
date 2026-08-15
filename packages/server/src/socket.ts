@@ -186,7 +186,7 @@ const said = (
 }
 
 /**
- * Dial the socket for `root`, or answer `null` when nothing is serving it.
+ * One dial at `socketPath`, or `null` when nothing is serving it.
  *
  * THE DISCOVERY IS THE DIAL, which is what makes this whole arrangement have no
  * state to go stale: there is no pidfile, no registry and no port to read.
