@@ -25,7 +25,7 @@ import { assemble, type DecodedFile, type Outline, type OutlineSet } from "./set
 
 /** The default fixture file name. Named once so a test that cares about paths
  *  can say so, and one that does not need never mention it. */
-export const FIXTURE_FILE = "a.jsonl"
+export const FIXTURE_FILE = "a.olai"
 
 /** One file's worth of JSONL, parsed — or a diagnostic good enough to fix the
  *  fixture without opening the parser. */

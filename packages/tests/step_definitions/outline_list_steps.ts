@@ -244,7 +244,7 @@ Then(
 // (`client/file/icons.tsx`). Asserted on `data-glyph` rather than on the
 // drawing, because which shape is right for an outline is a design question
 // and "there is one, and it is the outline's" is the promise. The extension is
-// deliberately not the assertion either: `.jsonl` in the label is the thing
+// deliberately not the assertion either: `.olai` in the label is the thing
 // that was carrying this on its own and the reason the mark was filed.
 //
 // SEVEN rows are asserted and not every row on screen, which a reviewer asked

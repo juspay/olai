@@ -193,7 +193,7 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     case "docNew":
       return Result.succeed({ op: "create-doc", file: edit.file })
     // …and the outline's own creation door, which resolves nothing for the same
-    // reason: the path is the caller's, and whether it is a relative `.jsonl`
+    // reason: the path is the caller's, and whether it is a relative `.olai`
     // the set does not already hold is `create_outline`'s own judgement, in its
     // own words. No `seed` — a person's first row is an `add` at the anchor the
     // empty file offers (`Anchor`'s `first`).
@@ -582,7 +582,7 @@ const walkRequest = (
  * A row, taken back.
  *
  * `archive` is the whole of it, because `archive` is the whole of what the set
- * can do about a record it no longer wants: the node goes to `Archive.jsonl`
+ * can do about a record it no longer wants: the node goes to `Archive.olai`
  * keeping its id, so anything pointing at it goes on resolving. That is a
  * trash rather than a shredder, and it is the same op `archive_node` runs.
  *
@@ -792,7 +792,7 @@ export const inverseOf = (
     case "docDay":
     // A minted OUTLINE is the same answer for the same reason, and it is the
     // one an existing arm already relies on: quick capture into a directory
-    // with no inbox mints `Inbox.jsonl`, and its ⌘Z takes the LINE back and
+    // with no inbox mints `Inbox.olai`, and its ⌘Z takes the LINE back and
     // leaves the file — an empty outline in the sidebar, which is a thing a
     // reader can see, rather than a file quietly appearing and disappearing.
     case "outlineNew":

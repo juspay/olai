@@ -34,6 +34,7 @@ import {
   type Derived,
   didYouMean,
   drawnFrom,
+  DOCUMENT_EXT,
   fileKind,
   isMirror,
   type Located,
@@ -50,6 +51,7 @@ import {
   nodesOf,
   type OpFailure,
   ordBetween,
+  OUTLINE_EXT,
   siblingsOf,
   type OutlineSet,
   type RegularNode,
@@ -1229,7 +1231,7 @@ const planSplit = (
  *   - **the mark, the date and the edges go WITH THE RECORD into the archive.**
  *     The format allows one mark per node and the surviving row already has its
  *     own answer, so there is no merge of two; nothing is destroyed, because the
- *     record keeps its id in `Archive.jsonl` and `Put back` returns it. What
+ *     record keeps its id in `Archive.olai` and `Put back` returns it. What
  *     this op owes is that the loss is never SILENT, which is what the
  *     {@link nudge} is for — a `done` that left the live outline is exactly the
  *     news a person is owed.
@@ -1432,9 +1434,9 @@ const planCreate = (
     return Result.fail(
       new UsageFailure({
         reason:
-          `\`${request.file}\` is not a relative \`.jsonl\` path under the served ` +
+          `\`${request.file}\` is not a relative \`.olai\` path under the served ` +
           `directory (no absolute path, no \`..\`, no \`.\`, and the name must end ` +
-          `in \`.jsonl\`)`,
+          `in \`.olai\`)`,
       }),
     )
   }
@@ -1496,7 +1498,7 @@ const planCreate = (
 
 /**
  * A path this op may create as a new outline — or `null` for anything that is
- * not one relative `.jsonl` under the served root.
+ * not one relative outline path under the served root.
  *
  * Same discipline as `mediaTarget` in `@olai/surface`: judge segments after
  * they are read, refuse empty / `.` / `..` / separators / NUL rather than
@@ -1504,12 +1506,14 @@ const planCreate = (
  * Absolute paths (leading `/`) and Windows-style backslash separators never
  * become a segment that could be joined under the root by accident.
  */
-export const outlinePath = (raw: string): string | null => creatable(raw, ".jsonl")
+export const outlinePath = (raw: string): string | null => creatable(raw, OUTLINE_EXT)
 
 /** The same judgment for the other kind of file a call may mint: one relative
  *  `.md` under the served root. One rule, two extensions — the two create ops
- *  must not differ in what a path may smuggle. */
-export const documentPath = (raw: string): string | null => creatable(raw, ".md")
+ *  must not differ in what a path may smuggle, and both take their suffix from
+ *  the format, because a mint that admits a name `fileKind` will not claim
+ *  writes a file nothing ever reads back. */
+export const documentPath = (raw: string): string | null => creatable(raw, DOCUMENT_EXT)
 
 const creatable = (raw: string, extension: string): string | null => {
   if (raw === "" || raw.startsWith("/") || raw.includes("\\") || raw.includes("\0")) {
@@ -1531,7 +1535,7 @@ const creatable = (raw: string, extension: string): string | null => {
 // ── archive ────────────────────────────────────────────────────────────
 
 /**
- * A subtree out of a working outline and into `Archive.jsonl` beside it, with
+ * A subtree out of a working outline and into `Archive.olai` beside it, with
  * the chain it hung off re-created there so the tree still reads years later.
  *
  * The racket reference's semantics, kept because they are what the archive is
@@ -1722,7 +1726,7 @@ const liftSubtree = (
  *
  *  One max scan rather than a filter-map-sort: `ord` is a base62 fractional
  *  index, so `>` on the string IS the comparison, and only the largest matters.
- *  `Archive.jsonl` is the one file in a set that grows without bound, and this
+ *  `Archive.olai` is the one file in a set that grows without bound, and this
  *  runs once per ancestor level of every archive.
  *
  *  Split from {@link appendedOrd} because a merge appends a WHOLE ROW of
@@ -1775,7 +1779,7 @@ const appendedUnder = <N extends Node>(
 // ── unarchive ──────────────────────────────────────────────────────────
 
 /**
- * A subtree back OUT of an `Archive.jsonl` — the inverse `archive` waited for
+ * A subtree back OUT of an `Archive.olai` — the inverse `archive` waited for
  * (`parity-unarchive`), and the reason the trash was never a shredder.
  *
  * The subtree comes back INTACT and the ids come with it, which is the archive
@@ -2349,7 +2353,7 @@ const shownTitle = (scope: Scope, target: string): string =>
  * mark, its children and its own place in whatever outline defines it, and
  * every other placement of it stays exactly where it was. That is the whole
  * semantic, and it is why this is not `archive_node` (which MOVES a node and its
- * subtree into `Archive.jsonl`, ids and all) and not a delete of anything —
+ * subtree into `Archive.olai`, ids and all) and not a delete of anything —
  * there is no op in this layer that destroys content, and this one does not
  * become the first by accident.
  *

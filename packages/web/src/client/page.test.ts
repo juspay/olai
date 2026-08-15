@@ -13,22 +13,22 @@ const located = (file: string, line: number, node: Located["node"]): Located => 
 })
 
 const SET = derive([
-  located("house.jsonl", 1, { id: "kitchen", ord: "a0", title: "kitchen" }),
-  located("house.jsonl", 2, {
+  located("house.olai", 1, { id: "kitchen", ord: "a0", title: "kitchen" }),
+  located("house.olai", 2, {
     id: "install",
     parent: "kitchen",
     ord: "a0",
     title: "install",
     props: { date: "2026-08-10" },
   }),
-  located("house.jsonl", 3, {
+  located("house.olai", 3, {
     id: "herbs-here",
     parent: "kitchen",
     ord: "a1",
     mirror: "herbs",
   }),
-  located("garden.jsonl", 1, { id: "garden", ord: "a0", title: "garden" }),
-  located("garden.jsonl", 2, {
+  located("garden.olai", 1, { id: "garden", ord: "a0", title: "garden" }),
+  located("garden.olai", 2, {
     id: "herbs",
     parent: "garden",
     ord: "a0",
@@ -36,7 +36,7 @@ const SET = derive([
     props: { date: "2026-08-10T09:00" },
   }),
 ])
-const FILES = ["garden.jsonl", "house.jsonl"]
+const FILES = ["garden.olai", "house.olai"]
 /** The paths, the way the app holds them: a document's TEXT travels to the tab
  *  that opens one, so it is no business of the page model.
  *
@@ -69,28 +69,28 @@ const roots = (page: Page): ReadonlyArray<string> =>
 
 test("a bare `/` opens the first outline found", () => {
   const page = pageAt({ kind: "outline", file: null })
-  expect(only(page, "outline")?.file).toBe("garden.jsonl")
+  expect(only(page, "outline")?.file).toBe("garden.olai")
   expect(roots(page)).toEqual(["garden"])
 })
 
 test("a named outline opens that one, with its own rows", () => {
-  const page = pageAt({ kind: "outline", file: "house.jsonl" })
-  expect(only(page, "outline")?.file).toBe("house.jsonl")
+  const page = pageAt({ kind: "outline", file: "house.olai" })
+  expect(only(page, "outline")?.file).toBe("house.olai")
   expect(roots(page)).toEqual(["kitchen"])
 })
 
 // The two nothings are decided HERE rather than by a view counting files, so
 // the screen that says them has one thing to say and no reasoning to do.
 test("an outline the directory does not have is a nothing that names it", () => {
-  expect(pageAt({ kind: "outline", file: "shed.jsonl" })).toEqual({
+  expect(pageAt({ kind: "outline", file: "shed.olai" })).toEqual({
     kind: "nothing",
     sought: "outline",
-    requested: "shed.jsonl",
+    requested: "shed.olai",
   })
 })
 
 test("a directory with no outlines at all is the other nothing", () => {
-  expect(pageAt({ kind: "outline", file: "shed.jsonl" }, [])).toEqual({
+  expect(pageAt({ kind: "outline", file: "shed.olai" }, [])).toEqual({
     kind: "nothing",
     sought: "outline",
     requested: null,
@@ -127,37 +127,37 @@ test("a document the directory does not have is a nothing that names it", () => 
 // ── which sidebar entry lights up ──────────────────────────────────────
 
 test("the open outline is the one the page is of", () => {
-  expect(fileOf(pageAt({ kind: "outline", file: "house.jsonl" }))).toBe("house.jsonl")
+  expect(fileOf(pageAt({ kind: "outline", file: "house.olai" }))).toBe("house.olai")
 })
 
 // The point of asking the model rather than the URL: `/n/herbs-here` is a
-// mirror living in house.jsonl, and the page it opens is in garden.jsonl.
+// mirror living in house.olai, and the page it opens is in garden.olai.
 test("a zoomed node lights up the file its CANONICAL record is in", () => {
-  expect(fileOf(pageAt({ kind: "node", id: "herbs-here" }))).toBe("garden.jsonl")
-  expect(fileOf(pageAt({ kind: "node", id: "install" }))).toBe("house.jsonl")
+  expect(fileOf(pageAt({ kind: "node", id: "herbs-here" }))).toBe("garden.olai")
+  expect(fileOf(pageAt({ kind: "node", id: "install" }))).toBe("house.olai")
 })
 
 // A file that would not parse has no tree to draw, so its outline route is a
 // different page — but it is still that file's page, and the sidebar says so.
 test("an outline whose file did not parse is the broken page, not an empty one", () => {
   const unreadable: BrokenFile = {
-    file: "house.jsonl",
+    file: "house.olai",
     errors: [
       {
         code: "not-json",
-        file: "house.jsonl",
+        file: "house.olai",
         line: 2,
         message: "not JSON",
       },
     ],
   }
   const page = pageAt(
-    { kind: "outline", file: "house.jsonl" },
+    { kind: "outline", file: "house.olai" },
     FILES,
-    new Map([["house.jsonl", unreadable]]),
+    new Map([["house.olai", unreadable]]),
   )
   expect(only(page, "broken")?.file).toEqual(unreadable)
-  expect(fileOf(page)).toBe("house.jsonl")
+  expect(fileOf(page)).toBe("house.olai")
 })
 
 test("an open document lights up its own entry", () => {
@@ -167,7 +167,7 @@ test("an open document lights up its own entry", () => {
 
 test("a page that names no node lights up nothing", () => {
   expect(fileOf(pageAt({ kind: "node", id: "nope" }))).toBeUndefined()
-  expect(fileOf(pageAt({ kind: "outline", file: "shed.jsonl" }))).toBeUndefined()
+  expect(fileOf(pageAt({ kind: "outline", file: "shed.olai" }))).toBeUndefined()
 })
 
 // A zoomed page draws the node's children, and it draws them FRESH — the row
@@ -184,12 +184,12 @@ test("a zoomed node's rows are its children, built new every time", () => {
 
 // A day is not a file and not a node: it collects whatever is dated it, from
 // every outline at once, which is what makes the journal a query rather than a
-// place (docs/roadmap.jsonl, resolved 2026-08-09).
+// place (docs/roadmap.olai, resolved 2026-08-09).
 test("a day collects the dated nodes of every outline", () => {
   const page = pageAt({ kind: "day", date: "2026-08-10" })
   expect(only(page, "day")?.groups.map((group) => group.file)).toEqual([
-    "garden.jsonl",
-    "house.jsonl",
+    "garden.olai",
+    "house.olai",
   ])
 })
 
@@ -246,12 +246,12 @@ test("the agenda lights up no outline, and draws no tree", () => {
 
 /** The same directory once something has been archived: the archives are in
  *  the file list like anything else, and only this model treats them apart. */
-const WITH_ARCHIVES = ["Archive.jsonl", ...FILES, "wing/Archive.jsonl"]
+const WITH_ARCHIVES = ["Archive.olai", ...FILES, "wing/Archive.olai"]
 
 test("the trash is every archive the directory holds, and an empty one is a page", () => {
   expect(pageAt({ kind: "trash" }, WITH_ARCHIVES)).toEqual({
     kind: "trash",
-    files: ["Archive.jsonl", "wing/Archive.jsonl"],
+    files: ["Archive.olai", "wing/Archive.olai"],
   })
   // Nothing archived yet — the archive tool creates the file on first use, so
   // an absent archive is an empty trash, never a missing page.
@@ -259,15 +259,15 @@ test("the trash is every archive the directory holds, and an empty one is a page
 })
 
 test("an archive's own address opens the trash — it is not a place you edit", () => {
-  expect(pageAt({ kind: "outline", file: "Archive.jsonl" }, WITH_ARCHIVES)).toEqual({
+  expect(pageAt({ kind: "outline", file: "Archive.olai" }, WITH_ARCHIVES)).toEqual({
     kind: "trash",
-    files: ["Archive.jsonl", "wing/Archive.jsonl"],
+    files: ["Archive.olai", "wing/Archive.olai"],
   })
 })
 
 test("a bare `/` never opens an archive, even one that sorts first", () => {
   expect(pageAt({ kind: "outline", file: null }, WITH_ARCHIVES))
-    .toEqual({ kind: "outline", file: "garden.jsonl" })
+    .toEqual({ kind: "outline", file: "garden.olai" })
 })
 
 test("the trash lights up no outline, and holds no row store", () => {
@@ -280,7 +280,7 @@ test("the trash lights up no outline, and holds no row store", () => {
 // holds nothing while one is open.
 test("a page with nothing to draw has no rows", () => {
   expect(rowsFor(SET, pageAt({ kind: "node", id: "nope" }))).toEqual([])
-  expect(rowsFor(SET, pageAt({ kind: "outline", file: "shed.jsonl" }))).toEqual([])
+  expect(rowsFor(SET, pageAt({ kind: "outline", file: "shed.olai" }))).toEqual([])
   expect(rowsFor(SET, pageAt({ kind: "day", date: "2026-08-10" }))).toEqual([])
   expect(rowsFor(SET, undefined)).toEqual([])
 })

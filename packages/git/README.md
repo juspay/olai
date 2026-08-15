@@ -58,9 +58,9 @@ volatility had leaked into.
 ### Three spellings of one dirty file
 
 ```ts
-{ path: "docs/roadmap.jsonl",  // repo-root-relative: what a person is shown, and the commit key
-  served: "roadmap.jsonl",     // served-root-relative, or null for a file outside the served tree
-  at: "/home/you/notes/docs/roadmap.jsonl",   // absolute: what `commit` takes
+{ path: "docs/roadmap.olai",  // repo-root-relative: what a person is shown, and the commit key
+  served: "roadmap.olai",     // served-root-relative, or null for a file outside the served tree
+  at: "/home/you/notes/docs/roadmap.olai",   // absolute: what `commit` takes
   how: "modified" }            // the porcelain XY letters, read
 ```
 

@@ -10,7 +10,7 @@ Feature: Undo
   reason keyboard editing is: these write the directory they are served.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
 
   Scenario: Tab, and ⌘Z puts the row back where it was
@@ -42,7 +42,7 @@ Feature: Undo
     Then the node "knobs" has the title "pick the little brass knobs"
     When I press "ControlOrMeta+z"
     Then the node "knobs" has the title "pick the knobs"
-    And "house.jsonl" holds a node titled "pick the knobs"
+    And "house.olai" holds a node titled "pick the knobs"
     When I press "ControlOrMeta+Shift+z"
     Then the node "knobs" has the title "pick the little brass knobs"
     And the page has not reloaded
@@ -53,11 +53,11 @@ Feature: Undo
     Then the note of "order" is being typed
     When I type " — measured twice"
     And I click away from the editor
-    Then "house.jsonl" holds a node whose note ends "— measured twice"
+    Then "house.olai" holds a node whose note ends "— measured twice"
     When I press "ControlOrMeta+z"
-    Then "house.jsonl" holds a node whose note ends "before ordering."
+    Then "house.olai" holds a node whose note ends "before ordering."
     When I press "ControlOrMeta+Shift+z"
-    Then "house.jsonl" holds a node whose note ends "— measured twice"
+    Then "house.olai" holds a node whose note ends "— measured twice"
 
   Scenario: Emptying a note is taken back too, and the note comes back
     # `null` is a real value for a note — "there is none" — and it has to
@@ -67,11 +67,11 @@ Feature: Undo
     Then the note of "order" is being typed
     When I select all and type ""
     And I click away from the editor
-    Then "house.jsonl" holds a node with no note titled "order the new cabinets"
+    Then "house.olai" holds a node with no note titled "order the new cabinets"
     When I press "ControlOrMeta+z"
-    Then "house.jsonl" holds a node whose note ends "before ordering."
+    Then "house.olai" holds a node whose note ends "before ordering."
     When I press "ControlOrMeta+Shift+z"
-    Then "house.jsonl" holds a node with no note titled "order the new cabinets"
+    Then "house.olai" holds a node with no note titled "order the new cabinets"
 
   Scenario: Typing through a mirror is taken back on the node it stands for
     # A mirror has no text of its own, so what a person types there lands on the
@@ -81,10 +81,10 @@ Feature: Undo
     And I select all and type "the herb bed by the back door"
     And I press "Enter"
     And I press "Escape"
-    Then "garden.jsonl" holds a node titled "the herb bed by the back door"
+    Then "garden.olai" holds a node titled "the herb bed by the back door"
     When I press "ControlOrMeta+z"
-    Then "garden.jsonl" holds a node titled "the herb bed by the door"
-    And "house.jsonl" holds no node titled "the herb bed by the door"
+    Then "garden.olai" holds a node titled "the herb bed by the door"
+    And "house.olai" holds no node titled "the herb bed by the door"
 
   Scenario: An undo never writes over words somebody else typed
     # A text undo puts back what THIS tab replaced, so it is only entitled to
@@ -96,12 +96,12 @@ Feature: Undo
     And I press "Enter"
     And I press "Escape"
     Then the node "knobs" has the title "pick the little brass knobs"
-    When another writer retitles "knobs" to "pick the chrome knobs" in "house.jsonl"
+    When another writer retitles "knobs" to "pick the chrome knobs" in "house.olai"
     Then the node "knobs" has the title "pick the chrome knobs"
     When I press "ControlOrMeta+z"
     Then the undo refusal says "has been retitled since"
     And the node "knobs" has the title "pick the chrome knobs"
-    And "house.jsonl" holds a node titled "pick the chrome knobs"
+    And "house.olai" holds a node titled "pick the chrome knobs"
 
   Scenario: Shift+Tab goes out, and ⌘Z puts it back in
     # The other direction, and not the same arithmetic: an outdent lands a row
@@ -173,14 +173,14 @@ Feature: Undo
     # leaves the caret nowhere — which is where ⌘Z is answered from.
     And I press "Enter"
     And I press "Escape"
-    Then "house.jsonl" holds a node titled "a line typed by mistake"
+    Then "house.olai" holds a node titled "a line typed by mistake"
     When I press "ControlOrMeta+z"
     # WAITED for, not held: the two steps read alike and mean opposite things.
     # "holds no node" is the promise that nothing was written and has to outlast
     # the commit window; this is a WRITE going through, and asking the holding
     # form of it passes only when the archive lands inside one animation frame.
-    Then "house.jsonl" no longer holds a node titled "a line typed by mistake"
-    And "Archive.jsonl" holds a node titled "a line typed by mistake"
+    Then "house.olai" no longer holds a node titled "a line typed by mistake"
+    And "Archive.olai" holds a node titled "a line typed by mistake"
     # NOTHING is said now, and that is the news. This used to be the one entry
     # that explained why it could not be redone — a `move` is same-file by the
     # format, so nothing this surface could send brought a row back out of the
@@ -188,17 +188,17 @@ Feature: Undo
     # simply lands and the chord below simply works.
     And nothing is said about the undo
     When I press "ControlOrMeta+Shift+z"
-    Then "house.jsonl" holds a node titled "a line typed by mistake"
+    Then "house.olai" holds a node titled "a line typed by mistake"
     # Waited for, and for the second reason the pair exists: an `unarchive` is
     # two files, and the record leaves the archive a moment after it arrives
     # here. Held, this reads the first of the two writes and calls the second
     # one a failure.
-    And "Archive.jsonl" no longer holds a node titled "a line typed by mistake"
+    And "Archive.olai" no longer holds a node titled "a line typed by mistake"
     # WHERE it landed, not just that it is back: the row was a sibling of
     # `handles`, so it belongs under `install`. With the chain above it still
     # standing, both roads lead there — the scenario below is the one that
     # tells the two apart.
-    And "house.jsonl" holds a node titled "a line typed by mistake" under "install"
+    And "house.olai" holds a node titled "a line typed by mistake" under "install"
 
   Scenario: The redo puts the row back where it SAT, not where the titles now point
     # WHY the inverse of an archive carries a parent at all. It is an id the
@@ -213,12 +213,12 @@ Feature: Undo
     And I press "Enter"
     And I press "Escape"
     And I press "ControlOrMeta+z"
-    Then "Archive.jsonl" holds a node titled "a line typed by mistake"
-    When another writer retitles "install" to "fit the cabinets" in "house.jsonl"
+    Then "Archive.olai" holds a node titled "a line typed by mistake"
+    When another writer retitles "install" to "fit the cabinets" in "house.olai"
     Then the node "install" has the title "fit the cabinets"
     When I press "ControlOrMeta+Shift+z"
-    Then "house.jsonl" holds a node titled "a line typed by mistake" under "install"
-    And "Archive.jsonl" no longer holds a node titled "a line typed by mistake"
+    Then "house.olai" holds a node titled "a line typed by mistake" under "install"
+    And "Archive.olai" no longer holds a node titled "a line typed by mistake"
 
   Scenario: An undo does not clobber what somebody else did meanwhile
     # The whole reason this is an inverse and not a snapshot restore. Between
@@ -229,12 +229,12 @@ Feature: Undo
     And I press "Tab"
     Then the node "knobs" is a child of "hinges"
     When I click away from the editor
-    And another writer adds "a row from somewhere else" to "house.jsonl"
+    And another writer adds "a row from somewhere else" to "house.olai"
     Then the node "outsider" is shown
     When I press "ControlOrMeta+z"
     Then the node "knobs" is a child of "install"
     And the node "outsider" is shown
-    And "house.jsonl" holds a node titled "a row from somewhere else"
+    And "house.olai" holds a node titled "a row from somewhere else"
 
   Scenario: An undo of a move somebody else has moved away from
     # The other half of the same claim. The inverse names a parent AND the
@@ -246,7 +246,7 @@ Feature: Undo
     And I press "Tab"
     Then the node "knobs" is a child of "hinges"
     When I click away from the editor
-    And another writer lifts "hinges" to the top level of "house.jsonl"
+    And another writer lifts "hinges" to the top level of "house.olai"
     Then the node "hinges" is not a child of "install"
     When I press "ControlOrMeta+z"
     Then the undo refusal says "siblings"
@@ -260,10 +260,10 @@ Feature: Undo
     And I press "Shift+Tab"
     Then the node "knobs" is a child of "kitchen"
     When I click away from the editor
-    And another writer archives "install" out of "house.jsonl"
+    And another writer archives "install" out of "house.olai"
     Then the node "install" is not shown
     When I press "ControlOrMeta+z"
-    Then the undo refusal says "Archive.jsonl"
+    Then the undo refusal says "Archive.olai"
     And the node "knobs" is a child of "kitchen"
 
   Scenario: An undo that no longer fits says why, and does not try again
@@ -280,11 +280,11 @@ Feature: Undo
     And I type "a line somebody built on"
     And I press "Enter"
     And I press "Escape"
-    And another writer files a row under "a line somebody built on" in "house.jsonl"
+    And another writer files a row under "a line somebody built on" in "house.olai"
     Then the node "interloper" is shown
     When I press "ControlOrMeta+z"
     Then the undo refusal says "under it now"
-    And "house.jsonl" holds a node titled "a line somebody built on"
+    And "house.olai" holds a node titled "a line somebody built on"
     # Dropped, not retried — and what was under it is still there.
     When I press "ControlOrMeta+z"
     Then the node "knobs" is a child of "install"
@@ -367,7 +367,7 @@ Feature: Undo
     When I click the title of "knobs"
     And I press "Tab"
     And I click away from the editor
-    And I open the outline "garden.jsonl"
+    And I open the outline "garden.olai"
     And I press "ControlOrMeta+z"
     Then the undo says "nothing to undo"
     And there should be no page errors

@@ -53,10 +53,10 @@ const codes = (errors: ReadonlyArray<OutlineError>): ReadonlyArray<string> =>
 test("a set using every relation loads clean", () => {
   expectValid(
     {
-      "home.jsonl": `{"id":"kitchen","ord":"a","title":"kitchen #reno"}\n` +
+      "home.olai": `{"id":"kitchen","ord":"a","title":"kitchen #reno"}\n` +
         `{"id":"demo","parent":"kitchen","ord":"a","title":"demolition","props":{"status":"done","since":"2026-08-01"}}\n` +
         `{"id":"order","parent":"kitchen","ord":"b","title":"order cabinets","props":{"after":["demo"],"see":["budget"]},"doc":"notes/cabinets.md"}\n`,
-      "work.jsonl": `{"id":"budget","ord":"a","title":"the budget","props":{"blocks":["order"]}}\n` +
+      "work.olai": `{"id":"budget","ord":"a","title":"the budget","props":{"blocks":["order"]}}\n` +
         `{"id":"m","ord":"b","mirror":"order"}\n`,
     },
     ["notes/cabinets.md"],
@@ -64,12 +64,12 @@ test("a set using every relation loads clean", () => {
 })
 
 // The set is flat: `files` is the list found on disk and the nodes are one
-// list. A `.jsonl` holding no nodes is still a file of the set — which is why
+// list. A `.olai` holding no nodes is still a file of the set — which is why
 // `files` is not derived from `nodes`, and why an empty one is not an error.
 test("a file with no nodes is a member of the set, not a problem with it", () => {
   expectValid({
-    "empty.jsonl": ``,
-    "a.jsonl": `{"id":"a","ord":"a","title":"a"}\n`,
+    "empty.olai": ``,
+    "a.olai": `{"id":"a","ord":"a","title":"a"}\n`,
   })
 })
 
@@ -79,14 +79,14 @@ test("a file with no nodes is a member of the set, not a problem with it", () =>
 test("a duplicate id is reported on the second record, pointing at the first", () => {
   const error = only(
     errorsOf({
-      "a.jsonl": `{"id":"x","ord":"a","title":"one"}`,
-      "b.jsonl": `{"id":"x","ord":"a","title":"two"}`,
+      "a.olai": `{"id":"x","ord":"a","title":"one"}`,
+      "b.olai": `{"id":"x","ord":"a","title":"two"}`,
     }),
   )
   expect(error.code).toBe("duplicate-id")
-  expect([error.file, error.line]).toEqual(["b.jsonl", 1])
+  expect([error.file, error.line]).toEqual(["b.olai", 1])
   expect(error.related).toEqual([
-    { file: "a.jsonl", line: 1, note: "first declared here" },
+    { file: "a.olai", line: 1, note: "first declared here" },
   ])
   // And it is the shape the error view groups separately: two files are
   // implicated, so neither of them is "the broken one".
@@ -98,7 +98,7 @@ test("a duplicate id is reported on the second record, pointing at the first", (
 test("an unknown parent suggests the near id", () => {
   const error = only(
     errorsOf({
-      "a.jsonl": `{"id":"kitchen","ord":"a","title":"k"}\n` +
+      "a.olai": `{"id":"kitchen","ord":"a","title":"k"}\n` +
         `{"id":"sink","parent":"kitchn","ord":"b","title":"s"}`,
     }),
   )
@@ -112,7 +112,7 @@ test("an unknown parent suggests the near id", () => {
 test("an unknown parent nothing resembles gets no did-you-mean", () => {
   const error = only(
     errorsOf({
-      "a.jsonl": `{"id":"kitchen","ord":"a","title":"k"}\n` +
+      "a.olai": `{"id":"kitchen","ord":"a","title":"k"}\n` +
         `{"id":"sink","parent":"zzz","ord":"b","title":"s"}`,
     }),
   )
@@ -120,21 +120,21 @@ test("an unknown parent nothing resembles gets no did-you-mean", () => {
   expect(error.message).not.toContain("did you mean")
 })
 
-// Every `.jsonl` is an independent tree. A parent that resolves in another file
+// Every `.olai` is an independent tree. A parent that resolves in another file
 // is the one unknown-parent case that is not a typo, so it gets its own code
 // and is told what to use instead.
 test("a parent in another file is a foreign-parent, not an unknown one", () => {
   const error = only(
     errorsOf({
-      "a.jsonl": `{"id":"kitchen","ord":"a","title":"k"}`,
-      "b.jsonl": `{"id":"sink","parent":"kitchen","ord":"a","title":"s"}`,
+      "a.olai": `{"id":"kitchen","ord":"a","title":"k"}`,
+      "b.olai": `{"id":"sink","parent":"kitchen","ord":"a","title":"s"}`,
     }),
   )
   expect(error.code).toBe("foreign-parent")
-  expect([error.file, error.line]).toEqual(["b.jsonl", 1])
+  expect([error.file, error.line]).toEqual(["b.olai", 1])
   expect(error.message).toContain("`mirror`")
   expect(error.related).toEqual([
-    { file: "a.jsonl", line: 1, note: "the parent lives here" },
+    { file: "a.olai", line: 1, note: "the parent lives here" },
   ])
 })
 
@@ -143,14 +143,14 @@ test("a parent in another file is a foreign-parent, not an unknown one", () => {
 test("a child of a mirror is refused", () => {
   const error = only(
     errorsOf({
-      "a.jsonl": `{"id":"k","ord":"a","title":"k"}\n` +
+      "a.olai": `{"id":"k","ord":"a","title":"k"}\n` +
         `{"id":"m","ord":"b","mirror":"k"}\n` +
         `{"id":"c","parent":"m","ord":"c","title":"c"}`,
     }),
   )
   expect(error.code).toBe("parent-not-a-node")
   expect(error.line).toBe(3)
-  expect(error.related?.[0]).toEqual({ file: "a.jsonl", line: 2, note: "the mirror is here" })
+  expect(error.related?.[0]).toEqual({ file: "a.olai", line: 2, note: "the mirror is here" })
 })
 
 // A parent loop makes every tree walk in the system non-terminating, and it is
@@ -158,7 +158,7 @@ test("a child of a mirror is refused", () => {
 test("a parent cycle is one error naming the whole loop", () => {
   const error = only(
     errorsOf({
-      "a.jsonl": `{"id":"a","parent":"b","ord":"a","title":"a"}\n` +
+      "a.olai": `{"id":"a","parent":"b","ord":"a","title":"a"}\n` +
         `{"id":"b","parent":"a","ord":"b","title":"b"}`,
     }),
   )
@@ -167,14 +167,14 @@ test("a parent cycle is one error naming the whole loop", () => {
   // same way.
   expect(error.line).toBe(1)
   expect(error.message).toContain("`a` → `b` → `a`")
-  expect(error.related).toEqual([{ file: "a.jsonl", line: 2, note: "also in the loop" }])
+  expect(error.related).toEqual([{ file: "a.olai", line: 2, note: "also in the loop" }])
 })
 
 // Every relation field resolves against the whole set, and the message has to
 // say which field was the dangling one — a node can carry four.
 test("a dangling target is reported for mirror, after, blocks and see alike", () => {
   const errors = errorsOf({
-    "a.jsonl": `{"id":"a","ord":"a","title":"a","props":{"after":["no1"],"blocks":["no2"],"see":["no3"]}}\n` +
+    "a.olai": `{"id":"a","ord":"a","title":"a","props":{"after":["no1"],"blocks":["no2"],"see":["no3"]}}\n` +
       `{"id":"m","ord":"b","mirror":"no4"}`,
   })
   expect(codes(errors)).toEqual([
@@ -196,7 +196,7 @@ test("a dangling target is reported for mirror, after, blocks and see alike", ()
 test("an after cycle is refused", () => {
   const error = only(
     errorsOf({
-      "a.jsonl": `{"id":"a","ord":"a","title":"a","props":{"after":["b"]}}\n` +
+      "a.olai": `{"id":"a","ord":"a","title":"a","props":{"after":["b"]}}\n` +
         `{"id":"b","ord":"b","title":"b","props":{"after":["a"]}}`,
     }),
   )
@@ -210,7 +210,7 @@ test("an after cycle is refused", () => {
 test("a cycle written only in blocks is the same after-cycle", () => {
   const error = only(
     errorsOf({
-      "a.jsonl": `{"id":"a","ord":"a","title":"a","props":{"blocks":["b"]}}\n` +
+      "a.olai": `{"id":"a","ord":"a","title":"a","props":{"blocks":["b"]}}\n` +
         `{"id":"b","ord":"b","title":"b","props":{"blocks":["a"]}}`,
     }),
   )
@@ -228,9 +228,9 @@ test("a cycle written only in blocks is the same after-cycle", () => {
 test("an after cycle closing through a mirror is refused", () => {
   const error = only(
     errorsOf({
-      "a.jsonl": `{"id":"x","ord":"a","title":"x","props":{"after":["m"]}}\n` +
+      "a.olai": `{"id":"x","ord":"a","title":"x","props":{"after":["m"]}}\n` +
         `{"id":"y","ord":"b","title":"y","props":{"after":["x"]}}`,
-      "b.jsonl": `{"id":"m","ord":"a","mirror":"y"}`,
+      "b.olai": `{"id":"m","ord":"a","mirror":"y"}`,
     }),
   )
   expect(error.code).toBe("after-cycle")
@@ -248,8 +248,8 @@ test("an after cycle closing through a mirror is refused", () => {
 test("an after cycle through the archive is still refused", () => {
   const error = only(
     errorsOf({
-      "a.jsonl": `{"id":"live","ord":"a","title":"live","props":{"status":"doing","after":["old"]}}`,
-      "Archive.jsonl": `{"id":"old","ord":"a","title":"old","props":{"status":"done","after":["live"]}}`,
+      "a.olai": `{"id":"live","ord":"a","title":"live","props":{"status":"doing","after":["old"]}}`,
+      "Archive.olai": `{"id":"old","ord":"a","title":"old","props":{"status":"done","after":["live"]}}`,
     }),
   )
   expect(error.code).toBe("after-cycle")
@@ -263,12 +263,12 @@ test("an after cycle through the archive is still refused", () => {
 test("mirrors that show each other are a mirror-cycle", () => {
   const error = only(
     errorsOf({
-      "a.jsonl": `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"m1"}`,
+      "a.olai": `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"m1"}`,
     }),
   )
   expect(error.code).toBe("mirror-cycle")
   expect(error.message).toContain("`m1` → `m2` → `m1`")
-  expect(error.related).toEqual([{ file: "a.jsonl", line: 2, note: "also in the loop" }])
+  expect(error.related).toEqual([{ file: "a.olai", line: 2, note: "also in the loop" }])
 })
 
 // The headline case, and the reason the check exists: a mirror of `a` placed
@@ -277,7 +277,7 @@ test("mirrors that show each other are a mirror-cycle", () => {
 // its own; it is only wrong where it sits.
 test("a mirror placed inside the subtree it shows is a mirror-cycle", () => {
   const errors = errorsOf({
-    "a.jsonl": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"a"}`,
+    "a.olai": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"a"}`,
   })
   expect(codes(errors)).toEqual(["mirror-cycle"])
 })
@@ -285,8 +285,8 @@ test("a mirror placed inside the subtree it shows is a mirror-cycle", () => {
 // And it holds across files, which is the case mirrors exist for.
 test("a mirror is still a cycle when the subtree it shows lives elsewhere", () => {
   const errors = errorsOf({
-    "a.jsonl": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"b"}`,
-    "b.jsonl": `{"id":"b","ord":"a","title":"b"}\n{"id":"n","parent":"b","ord":"b","mirror":"a"}`,
+    "a.olai": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"b"}`,
+    "b.olai": `{"id":"b","ord":"a","title":"b"}\n{"id":"n","parent":"b","ord":"b","mirror":"a"}`,
   })
   expect(codes(errors)).toContain("mirror-cycle")
 })
@@ -295,7 +295,7 @@ test("a mirror is still a cycle when the subtree it shows lives elsewhere", () =
 // mirror in it is a parent cycle and only that.
 test("a pure parent cycle is not also reported as a mirror-cycle", () => {
   const errors = errorsOf({
-    "a.jsonl": `{"id":"a","parent":"b","ord":"a","title":"a"}\n` +
+    "a.olai": `{"id":"a","parent":"b","ord":"a","title":"a"}\n` +
       `{"id":"b","parent":"a","ord":"b","title":"b"}`,
   })
   expect(codes(errors)).toEqual(["parent-cycle"])
@@ -306,7 +306,7 @@ test("a pure parent cycle is not also reported as a mirror-cycle", () => {
 // note nobody will ever see again.
 test("a doc naming no served file is refused, and says what it resolved to", () => {
   const error = only(
-    errorsOf({ "a.jsonl": `{"id":"a","ord":"a","title":"a","doc":"notes/a.md"}` }, []),
+    errorsOf({ "a.olai": `{"id":"a","ord":"a","title":"a","doc":"notes/a.md"}` }, []),
   )
   expect(error.code).toBe("missing-doc")
   expect(error.message).toContain("resolves to `notes/a.md`")
@@ -316,7 +316,7 @@ test("a doc naming no served file is refused, and says what it resolved to", () 
 // outline's directory — the `../` case — is a normal, valid attachment.
 test("a doc reached through ../ resolves against the outline's directory", () => {
   expectValid(
-    { "sub/plan.jsonl": `{"id":"a","ord":"a","title":"a","doc":"../notes/a.md"}` },
+    { "sub/plan.olai": `{"id":"a","ord":"a","title":"a","doc":"../notes/a.md"}` },
     ["notes/a.md"],
   )
   // The arithmetic behind it is `documents.ts`'s, and it is tested there.
@@ -332,7 +332,7 @@ test("a mark on a node with children is a set that loads", () => {
   // tasks, a mark over children that are all done, and a mark over children
   // that are all plain notes.
   expectValid({
-    "a.jsonl": `{"id":"p","ord":"a","title":"p","props":{"status":"done","since":"2026-08-11"}}\n` +
+    "a.olai": `{"id":"p","ord":"a","title":"p","props":{"status":"done","since":"2026-08-11"}}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","props":{"status":"done"}}\n` +
       `{"id":"c2","parent":"p","ord":"b","title":"c2","props":{"status":"doing"}}\n` +
       `{"id":"q","ord":"b","title":"q","props":{"status":"done"}}\n` +
@@ -348,7 +348,7 @@ test("a mark on a node with children is a set that loads", () => {
 // set they make.
 test("a merge that marks a leaf and gives it a child still loads", () => {
   expectValid({
-    "a.jsonl": `{"id":"leaf","ord":"a","title":"leaf","props":{"status":"done","since":"2026-08-10"}}\n` +
+    "a.olai": `{"id":"leaf","ord":"a","title":"leaf","props":{"status":"done","since":"2026-08-10"}}\n` +
       `{"id":"arrived","parent":"leaf","ord":"a","title":"arrived from the other branch","props":{"status":"todo"}}`,
   })
 })
@@ -357,14 +357,14 @@ test("a merge that marks a leaf and gives it a child still loads", () => {
 // human diff two error views and a test assert on the first error.
 test("errors come back sorted by file, then line", () => {
   const errors = errorsOf({
-    "b.jsonl": `{"id":"b1","parent":"nope","ord":"a","title":"b"}`,
-    "a.jsonl": `{"id":"a1","ord":"a","title":"a","props":{"see":["nope"]}}\n` +
+    "b.olai": `{"id":"b1","parent":"nope","ord":"a","title":"b"}`,
+    "a.olai": `{"id":"a1","ord":"a","title":"a","props":{"see":["nope"]}}\n` +
       `{"id":"a2","parent":"nope","ord":"b","title":"a"}`,
   })
   expect(errors.map((error) => `${error.file}:${error.line}`)).toEqual([
-    "a.jsonl:1",
-    "a.jsonl:2",
-    "b.jsonl:1",
+    "a.olai:1",
+    "a.olai:2",
+    "b.olai:1",
   ])
 })
 
@@ -375,11 +375,11 @@ test("errors come back sorted by file, then line", () => {
 // the broken one carries its own errors to render in its own place.
 test("a file that did not parse leaves the rest of the set valid", () => {
   const set = expectValid(
-    { "garden.jsonl": `{"id":"garden","ord":"a","title":"garden"}` },
+    { "garden.olai": `{"id":"garden","ord":"a","title":"garden"}` },
     [],
-    { "house.jsonl": `{"id":"kitchen","ord":"a",title:"kitchen"}` },
+    { "house.olai": `{"id":"kitchen","ord":"a",title:"kitchen"}` },
   )
-  expect(set.broken.map((file) => file.file)).toEqual(["house.jsonl"])
+  expect(set.broken.map((file) => file.file)).toEqual(["house.olai"])
   expect(set.broken[0]?.errors.map((error) => error.code)).toEqual(["not-json"])
 })
 
@@ -389,12 +389,12 @@ test("a file that did not parse leaves the rest of the set valid", () => {
 // file — so the report is the parse error, which is the cause.
 test("a target that the unreadable file might declare is not reported as unknown", () => {
   const errors = errorsOf(
-    { "garden.jsonl": `{"id":"garden","ord":"a","title":"g","props":{"see":["elsewhere"]}}` },
+    { "garden.olai": `{"id":"garden","ord":"a","title":"g","props":{"see":["elsewhere"]}}` },
     [],
-    { "house.jsonl": `{"id":"kitchen","ord":"a",title:"kitchen"}` },
+    { "house.olai": `{"id":"kitchen","ord":"a",title:"kitchen"}` },
   )
   expect(codes(errors)).toEqual(["not-json"])
-  expect(errors[0]?.file).toBe("house.jsonl")
+  expect(errors[0]?.file).toBe("house.olai")
 })
 
 // The other half of the same rule. A missing file can HIDE a duplicate but
@@ -403,11 +403,11 @@ test("a target that the unreadable file might declare is not reported as unknown
 test("an error the unreadable file cannot explain is reported with it", () => {
   const errors = errorsOf(
     {
-      "a.jsonl": `{"id":"x","ord":"a","title":"one"}`,
-      "b.jsonl": `{"id":"x","ord":"a","title":"two"}`,
+      "a.olai": `{"id":"x","ord":"a","title":"one"}`,
+      "b.olai": `{"id":"x","ord":"a","title":"two"}`,
     },
     [],
-    { "c.jsonl": `{"id":"y","ord":"a",title:"three"}` },
+    { "c.olai": `{"id":"y","ord":"a",title:"three"}` },
   )
   expect(codes(errors)).toEqual(["duplicate-id", "not-json"])
 })
@@ -418,9 +418,9 @@ test("an error the unreadable file cannot explain is reported with it", () => {
 // certain, only to re-report it in different words one fix later.
 test("an unknown parent is reported even when a file did not parse", () => {
   const errors = errorsOf(
-    { "a.jsonl": `{"id":"sink","parent":"nowhere","ord":"a","title":"s"}` },
+    { "a.olai": `{"id":"sink","parent":"nowhere","ord":"a","title":"s"}` },
     [],
-    { "b.jsonl": `{"id":"y","ord":"a",title:"y"}` },
+    { "b.olai": `{"id":"y","ord":"a",title:"y"}` },
   )
   expect(codes(errors)).toEqual(["unknown-parent", "not-json"])
 })

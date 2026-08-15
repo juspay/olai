@@ -20,7 +20,7 @@ const TODAY = "2026-08-12"
  */
 const SET = derive(
   nodesOfFiles({
-    "work.jsonl": [
+    "work.olai": [
       `{"id":"deck","ord":"a0","title":"the deck"}`,
       // Slipped: someone said it was work, and said when.
       `{"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","props":{"status":"todo","date":"2026-08-10"}}`,
@@ -39,7 +39,7 @@ const SET = derive(
       // `doing` nor a dated `todo`, and neither does this.
       `{"id":"filed","ord":"a3","title":"replace the gate latch","props":{"status":"todo","since":"2026-07-30"}}`,
     ].join("\n"),
-    "life.jsonl": [
+    "life.olai": [
       `{"id":"trip","ord":"a0","title":"the coast trip"}`,
       // Today: one due, one an occurrence, one finished this morning.
       `{"id":"ferry","parent":"trip","ord":"a0","title":"book the ferry","props":{"status":"todo","date":"2026-08-12T09:00"}}`,
@@ -141,7 +141,7 @@ test("a task with no date is not late — it has no WHEN to be late against", ()
 
 test("Overdue is every slipped task in the set, oldest first, grouped by outline", () => {
   const agenda = agendaOf(SET, TODAY)
-  expect(agenda.overdue.map((group) => group.file)).toEqual(["work.jsonl"])
+  expect(agenda.overdue.map((group) => group.file)).toEqual(["work.olai"])
   expect(listed(agenda.overdue)).toEqual(["permit", "posts"])
 })
 
@@ -211,7 +211,7 @@ test("a blocked task keeps both answers, and stays on the agenda", () => {
   // (docs/format.md's Status).
   const blocked = derive(
     nodesOfFiles({
-      "work.jsonl": [
+      "work.olai": [
         `{"id":"wire","ord":"a0","title":"wire the shed","props":{"status":"todo","date":"2026-08-01","after":["trench"]}}`,
         `{"id":"trench","ord":"a1","title":"dig the trench","props":{"status":"doing"}}`,
       ].join("\n"),
@@ -227,8 +227,8 @@ test("a mirror is a placement, so late work is late once", () => {
   // agenda asks the node rather than the places it is shown in.
   const mirrored = derive(
     nodesOfFiles({
-      "work.jsonl": `{"id":"posts","ord":"a0","title":"dig the post holes","props":{"status":"todo","date":"2026-08-01"}}`,
-      "now.jsonl": `{"id":"posts-now","ord":"a0","mirror":"posts"}`,
+      "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","props":{"status":"todo","date":"2026-08-01"}}`,
+      "now.olai": `{"id":"posts-now","ord":"a0","mirror":"posts"}`,
     }),
   )
   expect(listed(agendaOf(mirrored, TODAY).overdue)).toEqual(["posts"])
@@ -237,7 +237,7 @@ test("a mirror is a placement, so late work is late once", () => {
 test("an agenda with nothing due says so, and says it once", () => {
   const bullets = derive(
     nodesOfFiles({
-      "notes.jsonl": [
+      "notes.olai": [
         `{"id":"deck","ord":"a0","title":"the deck"}`,
         `{"id":"idea","parent":"deck","ord":"a0","title":"maybe a pergola"}`,
       ].join("\n"),
@@ -255,7 +255,7 @@ test("Upcoming is bounded by the days it shows, not by a window of dates", () =>
   // it arithmetic-free (dates are text here as everywhere).
   const many = derive(
     nodesOfFiles({
-      "work.jsonl": Array.from({ length: 14 }, (_, index) => {
+      "work.olai": Array.from({ length: 14 }, (_, index) => {
         const day = String(13 + index).padStart(2, "0")
         return `{"id":"d${day}","ord":"a${index}","title":"day ${day}","props":{"status":"todo","date":"2026-08-${day}"}}`
       }).join("\n"),
@@ -284,8 +284,8 @@ test("a count is of NODES, and never of the outlines they are grouped under", ()
   // reason — so they are split here on purpose.
   const spread = derive(
     nodesOfFiles({
-      "work.jsonl": `{"id":"posts","ord":"a0","title":"dig the post holes","props":{"status":"todo","date":"2026-08-10"}}`,
-      "life.jsonl": `{"id":"visas","ord":"a0","title":"send the visa forms","props":{"status":"todo","date":"2026-08-09"}}`,
+      "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","props":{"status":"todo","date":"2026-08-10"}}`,
+      "life.olai": `{"id":"visas","ord":"a0","title":"send the visa forms","props":{"status":"todo","date":"2026-08-09"}}`,
     }),
   )
   const agenda = agendaOf(spread, TODAY)
@@ -296,7 +296,7 @@ test("a count is of NODES, and never of the outlines they are grouped under", ()
 test("what is COMING is not owed: Upcoming is no part of the counts", () => {
   const ahead = derive(
     nodesOfFiles({
-      "work.jsonl": `{"id":"pack","ord":"a0","title":"pack the bags","props":{"status":"todo","date":"2026-08-14"}}`,
+      "work.olai": `{"id":"pack","ord":"a0","title":"pack the bags","props":{"status":"todo","date":"2026-08-14"}}`,
     }),
   )
   const agenda = agendaOf(ahead, TODAY)
@@ -318,10 +318,10 @@ test("the archive keeps its place, for the reason a day page keeps it", () => {
   // lives.
   const archived: Derived = derive(
     nodesOfFiles({
-      "Archive.jsonl": `{"id":"gate","ord":"a0","title":"the old gate","props":{"status":"todo","date":"2026-08-01"}}`,
+      "Archive.olai": `{"id":"gate","ord":"a0","title":"the old gate","props":{"status":"todo","date":"2026-08-01"}}`,
     }),
   )
   expect(agendaOf(archived, TODAY).overdue.map((group) => group.file)).toEqual([
-    "Archive.jsonl",
+    "Archive.olai",
   ])
 })

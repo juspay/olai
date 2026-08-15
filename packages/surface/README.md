@@ -124,7 +124,7 @@ subject of their own:
   the line diff; the shape is `@olai/acp`'s, re-exported here the way the ask
   vocabulary is, because it is ACP's diff report in olai's spelling), and a
   `Wrote` for a write that went through the ops layer, which is the node-level
-  story in the format's own classification because a `.jsonl` diff is one
+  story in the format's own classification because a `.olai` diff is one
   enormous line per node.
 
   The framework audit asked for "events paired with a collection", because an

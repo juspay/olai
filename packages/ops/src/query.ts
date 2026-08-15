@@ -8,7 +8,7 @@
  * the format can be (docs/brainstorming/acp.md, resolved 2026-08-09: "query
  * tools are over parsed nodes, not raw lines").
  *
- * It is not a smaller `grep`. A grep over `.jsonl` answers with JSON fragments
+ * It is not a smaller `grep`. A grep over `.olai` answers with JSON fragments
  * out of context, invites byte-level edits back, and cannot say where a node
  * SITS — its ancestry, the tags in its title, how far the tasks under it have
  * got, none of which is in the line it would print. What an agent needs to act

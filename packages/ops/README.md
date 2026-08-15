@@ -223,7 +223,7 @@ the decision:
 - **the mark, the date, the attached `doc` and the edges go with the RECORD into
   the archive.** The format allows one of each per node and the survivor already
   has its own answer, so there is no merge of two — and nothing is destroyed,
-  because the record keeps its id in `Archive.jsonl` and `unarchive_node` brings
+  because the record keeps its id in `Archive.olai` and `unarchive_node` brings
   it back. What the op owes is that this is never silent, which is what the
   reply's `nudge` is for: a `done` that has left the live outline is exactly the
   news a person is owed, and so is the file that was attached to it.
@@ -234,7 +234,7 @@ text op, on a placement's own id.
 
 ## Archiving, in racket's terms
 
-`archive` moves a node's whole subtree into `Archive.jsonl` beside the outline
+`archive` moves a node's whole subtree into `Archive.olai` beside the outline
 it left, re-creating the chain of ancestor TITLES it hung off, so the tree
 still reads years later. The reference implementation's semantics are kept
 because they are what the archive is for:
@@ -362,7 +362,7 @@ person already knows how to read is worth more than a better one they do not:
 |---|---|
 | create (with seed) | `capture: TITLE` — the first node is a capture |
 | create (seed with children) | `capture: TITLE (+N)` |
-| create (empty) | `create: path.jsonl` |
+| create (empty) | `create: path.olai` |
 | add | `capture: TITLE` |
 | add (with children) | `capture: TITLE (+N)` — N is what came with it |
 | done / undo | `done: TITLE` / `undone: TITLE` |
@@ -393,7 +393,7 @@ classification in this codebase, not two agreeing by hand. Absent when the write
 changed no record, because there is no honest word for that.
 
 `create` is how a brand-new outline file is born: `add` only writes into a file
-the set already holds. The path is a relative `.jsonl` under the served
+the set already holds. The path is a relative `.olai` under the served
 directory, judged segment by segment the way `/media/*` judges a picture name
 (no absolute path, no `..`), and an existing file is refused rather than
 overwritten. A seeded create mints its nodes the way a capture does, and that is
@@ -434,7 +434,7 @@ file — the practice `docs/RCA/2026-08-11-roadmap-stamp-reverts.md` is about. S
 - **`remove_mirror` retires one, and that is a PLACEMENT rather than a node.**
   `id` is the mirror's own — the line goes, and the target keeps its title, its
   mark, its children and every other placement of it. It is deliberately not
-  `archive_node` (which MOVES a subtree, ids and all, into `Archive.jsonl`) and
+  `archive_node` (which MOVES a subtree, ids and all, into `Archive.olai`) and
   deliberately not a delete of content: no op in this layer destroys any, and
   this one does not become the first by accident. So it refuses on the id of a
   regular node, and says which op puts a node away — and it refuses while

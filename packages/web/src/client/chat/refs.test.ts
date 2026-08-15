@@ -35,7 +35,7 @@ const HOUSE = [
   `{"id":"nowhere","ord":"a2","mirror":"gone"}`,
 ].join("\n")
 
-const indexes = derive(setOf({ "house.jsonl": HOUSE }).nodes)
+const indexes = derive(setOf({ "house.olai": HOUSE }).nodes)
 
 /** What `./Entry.tsx` passes: the format's own rule for what an id names. */
 const resolve = (id: string): string | null =>
@@ -49,7 +49,7 @@ describe("an id the agent named", () => {
   test("a span the set does not declare is left as what it is", () => {
     // Everything else an agent writes in backticks: a flag, a file, a word.
     expect(nodeNamedBy("true", false, resolve)).toBeNull()
-    expect(nodeNamedBy("house.jsonl", false, resolve)).toBeNull()
+    expect(nodeNamedBy("house.olai", false, resolve)).toBeNull()
     expect(nodeNamedBy("bun test", false, resolve)).toBeNull()
   })
 

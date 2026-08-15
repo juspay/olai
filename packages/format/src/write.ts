@@ -178,7 +178,7 @@ export const serializeOutline = (nodes: ReadonlyArray<Node>): string =>
 /**
  * One file's nodes out of a flat set, in the order they are written.
  *
- * The set is flat ({@link ./set.ts}), so "what does `pantry.jsonl` contain" is
+ * The set is flat ({@link ./set.ts}), so "what does `pantry.olai` contain" is
  * a filter — and every writer needs the same one, in the same order, because a
  * write re-emits the whole file and a reordering would be a diff nobody asked
  * for. `line` is the order: the records come back in the order they were read,

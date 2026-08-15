@@ -136,7 +136,7 @@ export type NodeContext = typeof NodeContext.Type
  * What an olai WRITE did to a node, which is the other half of the same
  * feature and deliberately not a diff.
  *
- * A `.jsonl` diff is one enormous line per node with everything on it changing
+ * A `.olai` diff is one enormous line per node with everything on it changing
  * at once — the commit panel's own rule, and the reason `@olai/format`
  * classifies a change into a {@link Sort} instead. So a tool call that went
  * through the ops layer carries the node-level story: the same word the commit

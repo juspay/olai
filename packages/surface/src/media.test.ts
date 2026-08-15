@@ -31,7 +31,7 @@ test("a path that climbs is refused, however it is spelled", () => {
   // A separator smuggled in as an escape is one segment claiming to be two.
   expect(mediaTarget("/media/a%2fb.png")).toBeNull()
   expect(mediaTarget("/media/a%5cb.png")).toBeNull()
-  expect(mediaTarget("/media/shot.png%00.jsonl")).toBeNull()
+  expect(mediaTarget("/media/shot.png%00.olai")).toBeNull()
   // A malformed escape names nothing at all.
   expect(mediaTarget("/media/%zz.png")).toBeNull()
 })
@@ -39,7 +39,7 @@ test("a path that climbs is refused, however it is spelled", () => {
 // Only pictures, and the list is `@olai/format`'s — the same one the renderer
 // rewrites a relative `src` against.
 test("anything that is not a picture is not served", () => {
-  expect(mediaTarget("/media/plan.jsonl")).toBeNull()
+  expect(mediaTarget("/media/plan.olai")).toBeNull()
   expect(mediaTarget("/media/notes.md")).toBeNull()
   // An SVG is a document that can script.
   expect(mediaTarget("/media/logo.svg")).toBeNull()

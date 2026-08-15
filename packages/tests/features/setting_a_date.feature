@@ -14,7 +14,7 @@ Feature: Setting a date from the web
   scenario gets a private copy of it.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
 
   Scenario: The pill on a dated row is the way in, and it starts on that day
@@ -29,7 +29,7 @@ Feature: Setting a date from the web
     When I open the date picker on "order"
     And I pick the date "2026-09-01"
     Then the node "order" shows the date "2026-09-01"
-    And "house.jsonl" holds the node "order" dated "2026-09-01"
+    And "house.olai" holds the node "order" dated "2026-09-01"
     And the date picker is closed
     And the page has not reloaded
     And there should be no page errors
@@ -48,7 +48,7 @@ Feature: Setting a date from the web
     And the node menu of "install" says nothing
     When I pick the date "2026-09-01"
     Then the node "install" shows the date "2026-09-01"
-    And "house.jsonl" holds the node "install" dated "2026-09-01"
+    And "house.olai" holds the node "install" dated "2026-09-01"
     And there should be no page errors
 
   Scenario: A dated row's menu says which of the two it is, and still clears
@@ -70,7 +70,7 @@ Feature: Setting a date from the web
     Then the date picker offers to "Clear date"
     When I press the date picker's button
     Then the node "order" shows no date
-    And "house.jsonl" holds the node "order" with no date
+    And "house.olai" holds the node "order" with no date
     And there should be no page errors
 
   Scenario: Nothing to write is nothing to press
@@ -95,13 +95,13 @@ Feature: Setting a date from the web
     When I open the date picker on "order"
     And I press "Escape"
     Then the date picker is closed
-    And "house.jsonl" holds the node "order" dated "2026-08-10"
+    And "house.olai" holds the node "order" dated "2026-08-10"
 
   Scenario: Cancel does the same, with the mouse
     When I open the date picker on "order"
     And I cancel the date picker
     Then the date picker is closed
-    And "house.jsonl" holds the node "order" dated "2026-08-10"
+    And "house.olai" holds the node "order" dated "2026-08-10"
 
   Scenario: A node scheduled for an INSTANT starts on its day, and says so
     # The format lets `date` carry a datetime, and a day box can only hold a
@@ -109,7 +109,7 @@ Feature: Setting a date from the web
     # first-ten-characters reading) and the panel says what picking one would
     # do to the rest. Written by another hand, which is also how a set arrives
     # from a `git pull`.
-    When I rewrite "house.jsonl" as:
+    When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","props":{"status":"doing","since":"2026-08-01"}}
       {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","props":{"status":"doing","since":"2026-08-05","date":"2026-08-10T14:30:00-04:00"}}
@@ -119,7 +119,7 @@ Feature: Setting a date from the web
     Then the date picker holds "2026-08-10"
     And the date picker says "Scheduled for 2026-08-10T14:30:00-04:00. Picking a day writes that day, and the time goes with it."
     When I pick the date "2026-08-10"
-    Then "house.jsonl" holds the node "order" dated "2026-08-10"
+    Then "house.olai" holds the node "order" dated "2026-08-10"
 
   Scenario: A date picked at a mirror lands on the node it shows
     # The standing routing rule, one field along from the mark verbs: what a
@@ -129,8 +129,8 @@ Feature: Setting a date from the web
     When I open the node menu of "kitchen-herbs"
     And I choose "Set date…" from the node menu
     And I pick the date "2026-09-01"
-    Then "garden.jsonl" holds the node "herbs" dated "2026-09-01"
-    And "house.jsonl" holds the node "kitchen-herbs" with no date
+    Then "garden.olai" holds the node "herbs" dated "2026-09-01"
+    And "house.olai" holds the node "kitchen-herbs" with no date
 
   Scenario: A date set here moves the node onto that day's page
     # `knobs` carries no date, so the menu is its door — there is no pill to
@@ -164,9 +164,9 @@ Feature: Setting a date from the web
     # made the edit.
     When I open the date picker on "order"
     And I pick the date "2026-09-01"
-    Then "house.jsonl" holds the node "order" dated "2026-09-01"
+    Then "house.olai" holds the node "order" dated "2026-09-01"
     When I press "ControlOrMeta+z"
-    Then "house.jsonl" holds the node "order" dated "2026-08-10"
+    Then "house.olai" holds the node "order" dated "2026-08-10"
     And the node "order" shows the date "2026-08-10"
 
   Scenario: The pill on a day page is not a control

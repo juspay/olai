@@ -21,7 +21,7 @@ Feature: The connection is visible, and a replaced server is recoverable
   that, and that gap is why a tab holding a dead server shipped unnoticed.
 
   Background:
-    Given I open the outline "garden.jsonl"
+    Given I open the outline "garden.olai"
 
   Scenario: A page that is talking to its server says so
     Then the connection is "live"
@@ -69,7 +69,7 @@ Feature: The connection is visible, and a replaced server is recoverable
     And the server starts again on the same port
     And I reload from the restart notice
     And I mark the page
-    And I rewrite "garden.jsonl" as:
+    And I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}

@@ -305,7 +305,7 @@ export const surface = defineSurface({
      * other change on the disk.
      */
     outlines: {
-      /** Root-relative, `/`-spelled — `"roadmap.jsonl"`, `"notes/todo.jsonl"`.
+      /** Root-relative, `/`-spelled — `"roadmap.olai"`, `"notes/todo.olai"`.
        *  The same spelling the store's paths and every `file:line` use. */
       keySchema: Schema.String,
       schema: OutlineEntry,

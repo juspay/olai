@@ -37,10 +37,10 @@ const HOUSE = [
   `{"id":"echo","ord":"a2","mirror":"install"}`,
 ].join("\n")
 
-const derived = derive(setOf({ "house.jsonl": HOUSE }).nodes)
+const derived = derive(setOf({ "house.olai": HOUSE }).nodes)
 
 const row = (id: string): Row => {
-  const found = flatten(rowsOf(derived, "house.jsonl"), new Set())
+  const found = flatten(rowsOf(derived, "house.olai"), new Set())
     .find((one) => one.at.node.id === id)
   if (found === undefined) throw new Error(`no row for \`${id}\` in the fixture`)
   return found

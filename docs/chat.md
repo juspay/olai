@@ -99,7 +99,7 @@ assistant, and a coding assistant edits files: ask it to fix a typo in a `.md`
 and it will, with its own tools, on its own authority — the same authority it
 has in a terminal, over the directory it was started in. Olai neither grants
 that nor pretends it away; what it does is SHOW it, which is the section below.
-The one thing worth knowing is that an agent editing a `.jsonl` by hand is
+The one thing worth knowing is that an agent editing a `.olai` by hand is
 writing the format without the validator in front of it — the outlines are
 plain text and nothing stops that — so if you want an outline changed, ask for
 the change rather than for the edit, and it goes through the tools.
@@ -174,7 +174,7 @@ NODE, in the same words the Commit panel uses for the same edit — *marked done
 has something to say, its remark underneath. The tree in front of you has
 already moved anyway; this is the sentence that says which write did it.
 
-That holds for the file rather than for the tool: an agent that edits a `.jsonl`
+That holds for the file rather than for the tool: an agent that edits a `.olai`
 with its own tools gets the same node-level rows, read out of the two versions
 of the file, and never lines. If one of those versions does not parse — which is
 how hand-editing an outline goes wrong — the panel says so and still draws no

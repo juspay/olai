@@ -61,7 +61,7 @@ import { asking, type Reading, TOOLS } from "./tools.ts"
  *  deep enough to truncate a walk, and a file that does not parse. */
 const EVERYTHING = (): OutlineSet =>
   setOf({
-    "house.jsonl": [
+    "house.olai": [
       `{"id":"house","ord":"a0","title":"House #home @sam","props":{"status":"doing","date":"2026-08-14","after":["paint"],"see":["paint"]},"desc":"the note"}`,
       `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","props":{"status":"done","since":"2026-08-09T10:15:00-04:00"}}`,
       `{"id":"sand","parent":"house","ord":"a1","title":"sand the floor","props":{"status":"todo"}}`,
@@ -71,7 +71,7 @@ const EVERYTHING = (): OutlineSet =>
       // …and at the top level, so one of `paint`'s placements has no parent.
       `{"id":"loose","ord":"a1","mirror":"paint"}`,
     ].join("\n"),
-  }, [], { "torn.jsonl": "{ not a record" })
+  }, [], { "torn.olai": "{ not a record" })
 
 const at = (): Reading => {
   const set = EVERYTHING()
@@ -162,13 +162,13 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   // the flat shape `OutlineSummary` holds knowingly, and pinned here so a
   // change to it is a decision somebody makes rather than one that happens.
   expect(outlines[0]).toEqual({
-    file: "house.jsonl",
+    file: "house.olai",
     // Four REGULAR nodes; the two mirrors are placements and do not count.
     nodes: 4,
     roots: ["House #home @sam"],
   })
   expect(outlines[1]).toEqual({
-    file: "torn.jsonl",
+    file: "torn.olai",
     nodes: 0,
     roots: [],
     unreadable: [expect.any(String)],

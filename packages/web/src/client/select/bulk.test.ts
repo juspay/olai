@@ -10,8 +10,8 @@ const row = (id: string, shows: string = id, kind: "node" | "mirror" = "node"): 
     kind,
     key: `/${id}`,
     children: [],
-    at: { file: "house.jsonl", node: { id } },
-    shows: { file: "house.jsonl", node: { id: shows } },
+    at: { file: "house.olai", node: { id } },
+    shows: { file: "house.olai", node: { id: shows } },
   } as unknown as Row)
 
 const rows = [row("a"), row("b"), row("c")]

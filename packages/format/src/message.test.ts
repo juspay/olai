@@ -14,7 +14,7 @@ import type { Other } from "./committing.ts"
 import { composed } from "./message.ts"
 
 const change = (over: Partial<NodeChange>): NodeChange => ({
-  file: "roadmap.jsonl",
+  file: "roadmap.olai",
   id: "x",
   title: "a node",
   fields: [],
@@ -40,7 +40,7 @@ describe("a composed message", () => {
     expect(composed([change({ sort: "done" })]).split("\n")[0])
       .toBe("olai: 1 edit to roadmap — a node done")
     expect(
-      composed([change({ sort: "done" }), change({ file: "other.jsonl", id: "y" })])
+      composed([change({ sort: "done" }), change({ file: "other.olai", id: "y" })])
         .split("\n")[0],
     ).toBe("olai: 2 edits — a node done")
   })

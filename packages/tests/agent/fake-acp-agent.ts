@@ -22,7 +22,7 @@
  *   done <id>    call `set_done` on that node, then say so
  *   add <title>  call `add_node` under the first outline's first root
  *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
- *                outline if the name ends `.jsonl`, an over-budget rewrite for
+ *                outline if the name ends `.olai`, an over-budget rewrite for
  *                `huge.md`, an ordinary markdown edit otherwise
  *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
@@ -282,7 +282,7 @@ const EDITED = {
 }
 
 /**
- * The same gesture aimed at an OUTLINE — an agent's own `Edit` on a `.jsonl`,
+ * The same gesture aimed at an OUTLINE — an agent's own `Edit` on a `.olai`,
  * which is the one thing olai's own tools cannot do and the one file a text
  * diff may never be drawn of.
  *
@@ -582,7 +582,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         title: "a tool call you can watch",
         status: "in_progress",
         rawInput: { held: argument === "" ? "until released" : argument },
-        locations: [{ path: "/served/house.jsonl", line: 12 }],
+        locations: [{ path: "/served/house.olai", line: 12 }],
       },
     })
     // What a real call does while it runs: says something about itself. Sent
@@ -808,7 +808,13 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // Which TEXTS depends on the file, because what the panel has to do with
     // them depends on the file: an outline may never be drawn as lines, and a
     // rewrite past the comparison budget has to say that it is one.
-    const texts = file.endsWith(".jsonl")
+    //
+    // The suffix is SPELLED rather than asked of `@olai/format`'s `fileKind`,
+    // which this package imports elsewhere. That is not an oversight: this is a
+    // third party, and an agent on the far end of a pipe has no access to
+    // olai's constants — deriving the fixture from the implementation under
+    // test would make the scenario agree with the client by construction.
+    const texts = file.endsWith(".olai")
       ? EDITED_OUTLINE
       : file === "huge.md"
       ? REWRITTEN

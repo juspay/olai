@@ -32,7 +32,7 @@ Feature: Dismiss is one stack, and the topmost answers
   anywhere. That pair was reachable in two keystrokes the whole time.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
 
   Scenario: Escape shuts the panel on top, and the next Escape the one under it
     When I open the preferences

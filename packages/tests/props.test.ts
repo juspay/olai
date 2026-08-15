@@ -87,7 +87,7 @@ const TRACKED: ReadonlyArray<string> = (() => {
  * quote itself, and rewriting it would be the one thing worse than a stale
  * spelling: a false one.
  *
- * **The vault.** `docs/roadmap.jsonl` and its archive are OLAI'S OWN OUTLINES,
+ * **The vault.** `docs/roadmap.olai` and its archive are OLAI'S OWN OUTLINES,
  * served by olai like anybody else's directory — and the whole design of this
  * change is that a directory is carried across by the boot migration rather
  * than by hand (`@olai/format`'s `migrate.ts`). They are granted because they
@@ -102,14 +102,14 @@ const TRACKED: ReadonlyArray<string> = (() => {
 const MAY_SPELL_IT: ReadonlyArray<string> = [
   "docs/RCA/",
   "docs/brainstorming/",
-  "docs/Archive.jsonl",
-  "docs/roadmap.jsonl",
+  "docs/Archive.olai",
+  "docs/roadmap.olai",
   "packages/format/src/migrate.test.ts",
 ]
 
 /** The two above that are olai's own outlines rather than anybody's source —
  *  named again so the liveness test below can say what each grant is FOR. */
-const THE_VAULT: ReadonlyArray<string> = ["docs/Archive.jsonl", "docs/roadmap.jsonl"]
+const THE_VAULT: ReadonlyArray<string> = ["docs/Archive.olai", "docs/roadmap.olai"]
 
 const granted = (file: string): boolean =>
   MAY_SPELL_IT.some((allowed) =>
@@ -285,7 +285,7 @@ test("every file-level grant is still spelling what it was granted for", () => {
 /**
  * And the vault's grant is the one with an EXPIRY, said out loud.
  *
- * `docs/roadmap.jsonl` is granted because it is data this PR deliberately does
+ * `docs/roadmap.olai` is granted because it is data this PR deliberately does
  * not touch — the boot migration is what carries a directory across, and olai's
  * own is not a special case. When somebody serves this repository the file
  * flips, this test goes red, and the right fix is to delete the grant rather

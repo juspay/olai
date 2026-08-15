@@ -64,8 +64,8 @@ const MANUAL = `# Manual\n\n${`${BODY_MARKER} filler filler filler.\n`.repeat(12
  *  test. */
 const served = (): string => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-face-"))
-  fs.writeFileSync(path.join(root, "house.jsonl"), HOUSE)
-  fs.writeFileSync(path.join(root, "garden.jsonl"), GARDEN)
+  fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
+  fs.writeFileSync(path.join(root, "garden.olai"), GARDEN)
   fs.writeFileSync(path.join(root, "manual.md"), MANUAL)
   return root
 }
@@ -170,7 +170,7 @@ test("reading the outlines collection costs the KEY SET, not the corpus", async 
     const text = await textOf(client, "surface://collections/outlines")
 
     // What it IS: the file names, and only the outline files.
-    expect(JSON.parse(text).sort()).toEqual(["garden.jsonl", "house.jsonl"])
+    expect(JSON.parse(text).sort()).toEqual(["garden.olai", "house.olai"])
 
     // What it is NOT, stated two ways because they fail differently. The marker
     // catches a projection that reached the document text at all; the size
@@ -185,7 +185,7 @@ test("one outline item is that file's nodes, and no other file's", async () => {
   await withFace(async ({ client }) => {
     const entry = await readJson(
       client,
-      "surface://collections/outlines/house.jsonl",
+      "surface://collections/outlines/house.olai",
     ) as { rev: number; nodes: ReadonlyArray<{ node: { title: string } }>; broken: unknown }
 
     expect(entry.nodes.map((n) => n.node.title)).toEqual([
@@ -231,7 +231,7 @@ test("a directory that cannot be read reaches the agent, not just the browser", 
 
 test("an edited outline notifies its subscribers", async () => {
   await withFace(async ({ client, refresh, root }) => {
-    const uri = "surface://collections/outlines/house.jsonl"
+    const uri = "surface://collections/outlines/house.olai"
 
     const updated = new Promise<string>((resolve) => {
       client.setNotificationHandler(
@@ -243,7 +243,7 @@ test("an edited outline notifies its subscribers", async () => {
 
     // The change an agent is watching for: another writer moved a file.
     fs.writeFileSync(
-      path.join(root, "house.jsonl"),
+      path.join(root, "house.olai"),
       `${HOUSE}{"id":"paint","parent":"kitchen","ord":"a1","title":"paint it"}\n`,
     )
     await refresh()

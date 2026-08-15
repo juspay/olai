@@ -1,6 +1,6 @@
 @scratch:good
 Feature: The trash can be seen into, and taken out of
-  `Archive.jsonl` used to be a file only an agent or an editor could look
+  `Archive.olai` used to be a file only an agent or an editor could look
   into, and nothing on any face could take a node back out of — the one
   entry in `editor-op-parity` that was an equal absence rather than a
   deviation. Now the web calls it the Trash: a sidebar entry of its own,
@@ -12,7 +12,7 @@ Feature: The trash can be seen into, and taken out of
   because these scenarios write the directory they are served.
 
   Background:
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
 
   Scenario: The trash starts empty, and says so rather than erroring
@@ -25,7 +25,7 @@ Feature: The trash can be seen into, and taken out of
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "Archive.jsonl" holds the node "install"
+    Then "Archive.olai" holds the node "install"
     When I open the Trash
     Then the Trash lists the node "install"
     And the Trash lists the node "handles"
@@ -38,25 +38,25 @@ Feature: The trash can be seen into, and taken out of
     When I open the node menu of "knobs"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "Archive.jsonl" holds the node "knobs"
-    And the outline list does not link to "Archive.jsonl"
+    Then "Archive.olai" holds the node "knobs"
+    And the outline list does not link to "Archive.olai"
 
   Scenario: Put back restores the subtree where it came from
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "house.jsonl" no longer holds the node "install"
+    Then "house.olai" no longer holds the node "install"
     When I open the Trash
     And I put back "install" from the Trash
-    Then "Archive.jsonl" no longer holds the node "install"
-    And "house.jsonl" holds the node "install"
+    Then "Archive.olai" no longer holds the node "install"
+    And "house.olai" holds the node "install"
     # WHERE it landed is the half "holds" cannot pin: under its old parent,
     # found by the chain of ancestor titles the archive recorded — and the
     # children came back shaped as they left.
-    And the node "install" in "house.jsonl" sits under "kitchen"
-    And "house.jsonl" holds the node "handles"
-    And the node "handles" in "house.jsonl" sits under "install"
-    And the node "hinges" in "house.jsonl" sits under "install"
+    And the node "install" in "house.olai" sits under "kitchen"
+    And "house.olai" holds the node "handles"
+    And the node "handles" in "house.olai" sits under "install"
+    And the node "hinges" in "house.olai" sits under "install"
     # The emptied scaffold went with it: archive-then-unarchive leaves the
     # archive as it stood, which for this fixture is empty.
     And the Trash is empty
@@ -72,14 +72,14 @@ Feature: The trash can be seen into, and taken out of
     When I open the node menu of "knobs"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "Archive.jsonl" holds the node "knobs"
+    Then "Archive.olai" holds the node "knobs"
     When I open the Trash
     Then the Trash lists the node "knobs"
     # The signpost carries the live `install`'s title, and putting it back
     # would stand a second one beside it with `knobs` hanging off the copy.
     When I put back the row titled "install the cabinets" from the Trash
     Then the Trash says under the row titled "install the cabinets" that it is a signpost
-    And "house.jsonl" holds one node titled "install the cabinets"
+    And "house.olai" holds one node titled "install the cabinets"
     And there should be no page errors
 
   Scenario: A chain that no longer stands is refused, and restoring it heals the way back
@@ -91,18 +91,18 @@ Feature: The trash can be seen into, and taken out of
     When I open the node menu of "knobs"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "Archive.jsonl" holds the node "knobs"
+    Then "Archive.olai" holds the node "knobs"
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "house.jsonl" no longer holds the node "install"
+    Then "house.olai" no longer holds the node "install"
     When I open the Trash
     And I put back "knobs" from the Trash
-    Then the Trash under "knobs" says "`pick the knobs` was archived from under `kitchen remodel #home` → `install the cabinets`, and that chain matches nothing in `garden.jsonl`, `house.jsonl` — it may have been retitled, or put away itself. Give `parent` (it goes under that node) or `file` (top level) to say where it goes back"
-    And "Archive.jsonl" holds the node "knobs"
+    Then the Trash under "knobs" says "`pick the knobs` was archived from under `kitchen remodel #home` → `install the cabinets`, and that chain matches nothing in `garden.olai`, `house.olai` — it may have been retitled, or put away itself. Give `parent` (it goes under that node) or `file` (top level) to say where it goes back"
+    And "Archive.olai" holds the node "knobs"
     When I put back "install" from the Trash
-    Then the node "install" in "house.jsonl" sits under "kitchen"
+    Then the node "install" in "house.olai" sits under "kitchen"
     When I put back "knobs" from the Trash
-    Then the node "knobs" in "house.jsonl" sits under "install"
+    Then the node "knobs" in "house.olai" sits under "install"
     And the Trash is empty
     And there should be no page errors

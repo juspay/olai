@@ -26,7 +26,7 @@ import { fileKind, Located } from "./node.ts"
  *
  * It rides in the SET rather than only in the error report because the two
  * answer different questions. The report is "what must be fixed"; this is
- * "what does `pantry.jsonl` show" — and the answer, for a file whose lines do
+ * "what does `pantry.olai` show" — and the answer, for a file whose lines do
  * not parse, is its own errors, in place, while every other outline stays live
  * (the hybrid error scope, resolved 2026-08-09). A view that had only the
  * report would have to guess which outline a `file:line` belonged to and hope
@@ -39,7 +39,7 @@ export const BrokenFile = Schema.Struct({
 export type BrokenFile = typeof BrokenFile.Type
 
 export const OutlineSet = Schema.Struct({
-  /** Every `.jsonl` found, in path order — including any that hold no nodes
+  /** Every `.olai` found, in path order — including any that hold no nodes
    *  and any that did not parse, which is why this is not derived from
    *  `nodes`. */
   files: Schema.Array(Schema.String),

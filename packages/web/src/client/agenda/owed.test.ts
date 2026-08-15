@@ -20,13 +20,13 @@ const ALSO_LATE = `{"id":"visas","ord":"a0","title":"send the visa forms","props
 const ON_TODAY = `{"id":"ferry","ord":"a1","title":"book the ferry","props":{"status":"todo","date":"${TODAY}"}}`
 const COMING = `{"id":"pack","ord":"a2","title":"pack the bags","props":{"status":"todo","date":"2026-08-14"}}`
 
-/** One reading of a directory of two outlines — `work.jsonl` is what the first
- *  argument holds, `life.jsonl` the second, because a count of NODES has to be
+/** One reading of a directory of two outlines — `work.olai` is what the first
+ *  argument holds, `life.olai` the second, because a count of NODES has to be
  *  exercised across the groups an agenda comes in. */
 const readingOf = (work: ReadonlyArray<string>, life: ReadonlyArray<string> = []) =>
   agendaOf(
     derive(
-      nodesOfFiles({ "work.jsonl": work.join("\n"), "life.jsonl": life.join("\n") }),
+      nodesOfFiles({ "work.olai": work.join("\n"), "life.olai": life.join("\n") }),
     ),
     TODAY,
   )

@@ -174,7 +174,7 @@ const call = async (
 // ── what the agent is offered ──────────────────────────────────────────
 
 test("the tool list is reads and writes, and no file access at all", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const { tools } = await client.listTools()
 
     // The whole surface, spelled out — because what is NOT here is the design:
@@ -237,7 +237,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
  * different products.
  */
 test("the git verbs offer an agent what the panel offers a person", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const { tools } = await client.listTools()
 
     const commit = tools.find((tool) => tool.name === "commit")
@@ -260,7 +260,7 @@ test("the git verbs offer an agent what the panel offers a person", async () => 
  *  an ANSWER — `isError` is for a refused write, and every way pushing can go
  *  wrong is something a caller is entitled to read. */
 test("push answers rather than failing when there is nothing to push to", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const answered = await call(client, "push", {})
     expect(answered.isError).toBe(false)
     expect(answered.structured).toMatchObject({ _tag: "Blocked", did: "push" })
@@ -268,7 +268,7 @@ test("push answers rather than failing when there is nothing to push to", async 
 })
 
 test("each tool carries its title and its description", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const { tools } = await client.listTools()
     const search = tools.find((tool) => tool.name === "search_nodes")
     // MCP's two metadata fields do two jobs: the description is written for the
@@ -292,7 +292,7 @@ test("each tool carries its title and its description", async () => {
  * when this test was written; what was missing was anybody being told.
  */
 test("the read tools teach the fields the mirror and edge ops depend on", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const { tools } = await client.listTools()
     const said = (name: string) =>
       tools.find((tool) => tool.name === name)?.description ?? ""
@@ -322,7 +322,7 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
  * here rather than shipping a quieter confirmation prompt nobody asked for.
  */
 test("both annotation hints are pinned, for a read and for a write", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const { tools } = await client.listTools()
     const of = (name: string) => tools.find((tool) => tool.name === name)?.annotations
 
@@ -336,7 +336,7 @@ test("both annotation hints are pinned, for a read and for a write", async () =>
 })
 
 test("initialize tells a host what olai is", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     // Reachable only because the adapter passes it to the SDK, which serves
     // `initialize` inside its own protocol layer. The prose is load-bearing: an
     // agent arrives assuming files, and this is where it is told there are none.
@@ -348,13 +348,13 @@ test("initialize tells a host what olai is", async () => {
 // ── reading ────────────────────────────────────────────────────────────
 
 test("a read answers over parsed nodes, with file:line and the marks", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const hits = (await call(client, "search_nodes", { text: "cabinets" })).structured
     expect(hits["total"]).toBe(1)
     const hit = (hits["hits"] as ReadonlyArray<Record<string, unknown>>)[0]
     expect(hit).toMatchObject({
       id: "order",
-      file: "house.jsonl",
+      file: "house.olai",
       line: 3,
       path: ["Kitchen remodel"],
     })
@@ -380,7 +380,7 @@ test("search and subtree carry a node's see so an agent can traverse", async () 
     "",
   ].join("\n")
 
-  await withTools({ "house.jsonl": SEEING }, async ({ client }) => {
+  await withTools({ "house.olai": SEEING }, async ({ client }) => {
     const hits = (await call(client, "search_nodes", { text: "cabinets" })).structured
     expect((hits["hits"] as ReadonlyArray<unknown>)[0]).toMatchObject({
       id: "order",
@@ -400,28 +400,28 @@ test("search and subtree carry a node's see so an agent can traverse", async () 
 // ── writing ────────────────────────────────────────────────────────────
 
 test("a write through a tool changes the directory", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client, read }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
     const answer = await call(client, "set_done", { id: "order" })
     expect(answer.isError).toBe(false)
     expect(answer.structured).toMatchObject({ did: "set_done", id: "order" })
-    expect(read("house.jsonl")).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
+    expect(read("house.olai")).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
   })
 })
 
 test("create_outline mints a file through the same tool surface as every other write", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client, read, set }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read, set }) => {
     const answer = await call(client, "create_outline", {
-      file: "inbox.jsonl",
+      file: "inbox.olai",
       seed: { title: "something to capture" },
     })
     expect(answer.structured).toMatchObject({
       did: "create_outline",
-      file: "inbox.jsonl",
+      file: "inbox.olai",
       title: "something to capture",
       summary: "capture: something to capture",
     })
-    expect(read("inbox.jsonl")).toContain("something to capture")
-    expect((await set()).files).toContain("inbox.jsonl")
+    expect(read("inbox.olai")).toContain("something to capture")
+    expect((await set()).files).toContain("inbox.olai")
   })
 })
 
@@ -433,7 +433,7 @@ test("create_outline mints a file through the same tool surface as every other w
  * happened.
  */
 test("marking a parent lands, and the answer carries what the rollup noticed", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client, read, refusals }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
     const answer = await call(client, "set_done", { id: "kitchen" })
     expect(answer.isError).toBe(false)
     // Only `install` is unfinished: `demo` is done, and `order` carries no mark
@@ -441,8 +441,8 @@ test("marking a parent lands, and the answer carries what the rollup noticed", a
     expect(answer.structured["nudge"]).toContain("`install them`")
     expect(answer.structured["nudge"]).not.toContain("order the cabinets")
     expect(refusals).toEqual([])
-    expect(read("house.jsonl")).toContain(`"id":"kitchen"`)
-    expect(read("house.jsonl")).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
+    expect(read("house.olai")).toContain(`"id":"kitchen"`)
+    expect(read("house.olai")).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
   })
 })
 
@@ -456,7 +456,7 @@ test("marking a parent lands, and the answer carries what the rollup noticed", a
  * adapter could only carry the sentence, which is why this could not move.
  */
 test("a refused write is an isError result carrying its kind", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client, read, refusals }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
     const answer = await call(client, "set_done", { id: "nowhere" })
     expect(answer.isError).toBe(true)
     expect(answer.structured["kind"]).toBe("not-found")
@@ -464,18 +464,18 @@ test("a refused write is an isError result carrying its kind", async () => {
     // The observer still fires, and it hangs off OPS rather than off whatever is
     // calling — which is the property that survived the caller being replaced.
     expect(refusals).toEqual(["done: NotFoundFailure"])
-    expect(read("house.jsonl")).toBe(HOUSE)
+    expect(read("house.olai")).toBe(HOUSE)
   })
 })
 
 test("arguments that do not fit the tool are refused before any planning", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client, read, refusals }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
     const answer = await call(client, "set_done", { nope: 1 })
     expect(answer.isError).toBe(true)
     // Refused at the SCHEMA, so the ops layer was never asked and has nothing to
     // report: a malformed call is not a refused write.
     expect(refusals).toEqual([])
-    expect(read("house.jsonl")).toBe(HOUSE)
+    expect(read("house.olai")).toBe(HOUSE)
   })
 })
 
@@ -505,12 +505,12 @@ type Unreachable = { readonly unreachable: string }
 
 const PINNED: Record<FailureKind, Provocation | Unreachable> = {
   "not-found": {
-    files: { "house.jsonl": HOUSE },
+    files: { "house.olai": HOUSE },
     tool: "set_done",
     args: { id: "nowhere" },
   },
   usage: {
-    files: { "house.jsonl": HOUSE },
+    files: { "house.olai": HOUSE },
     // A loop is refused NAMING the loop, and being refused for what a write
     // MEANS rather than for what it names is what makes this kind its own.
     tool: "set_after",
@@ -519,7 +519,7 @@ const PINNED: Record<FailureKind, Provocation | Unreachable> = {
   validation: {
     // A set-wide break: nothing loaded, so there is nothing to write against.
     // The rows this comes back with are the subject of the test below.
-    files: { "house.jsonl": HOUSE, "orphan.jsonl": ORPHAN },
+    files: { "house.olai": HOUSE, "orphan.olai": ORPHAN },
     tool: "set_done",
     args: { id: "order" },
   },
@@ -562,7 +562,7 @@ test("every refusal kind the format declares comes back as an isError result nam
  * looking at one report.
  */
 test("a directory that will not load refuses with the validator's own rows", async () => {
-  await withTools({ "house.jsonl": HOUSE, "orphan.jsonl": ORPHAN }, async ({ client }) => {
+  await withTools({ "house.olai": HOUSE, "orphan.olai": ORPHAN }, async ({ client }) => {
     const read = await call(client, "search_nodes", { text: "kitchen" })
     expect(read.isError).toBe(true)
     expect(read.structured["kind"]).toBe("validation")
@@ -577,7 +577,7 @@ test("a directory that will not load refuses with the validator's own rows", asy
     const rows = read.structured["errors"] as ReadonlyArray<Record<string, unknown>>
     expect(Array.isArray(rows)).toBe(true)
     expect(rows.length).toBeGreaterThan(0)
-    expect(rows[0]).toMatchObject({ file: "orphan.jsonl" })
+    expect(rows[0]).toMatchObject({ file: "orphan.olai" })
     for (const row of rows) {
       expect(typeof row["code"]).toBe("string")
       expect(typeof row["message"]).toBe("string")
@@ -597,7 +597,7 @@ test("a directory that will not load refuses with the validator's own rows", asy
 })
 
 test("a tool that does not exist is an error result, not a protocol error", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     // A CHANGE from the hand-rolled dispatch, which answered JSON-RPC -32602.
     // The SDK's convention is that an unknown tool is a tool-level error, and it
     // is the better one: a model that asked for a tool it does not have can read
@@ -616,7 +616,7 @@ test("a tool that does not exist is an error result, not a protocol error", asyn
  * nobody chose.
  */
 test("one add_node lands a whole subtree, and says what it made", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client, read, set }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read, set }) => {
     const answer = await call(client, "add_node", {
       parent: "kitchen",
       title: "the pantry",
@@ -642,7 +642,7 @@ test("one add_node lands a whole subtree, and says what it made", async () => {
       "paint",
     ])
 
-    const text = read("house.jsonl") ?? ""
+    const text = read("house.olai") ?? ""
     expect(text.split("\n").filter((line) => line !== "")).toHaveLength(8)
     expect(text).toContain(`"props":{"status":"todo"}`)
     expect(text).toContain(`"status":"done","since":${JSON.stringify(STAMP)}`)
@@ -671,7 +671,7 @@ test("one add_node lands a whole subtree, and says what it made", async () => {
  * the fence that says so.
  */
 test("both capture tools advertise children as a finite nested schema, no $ref", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const { tools } = await client.listTools()
 
     const nested = (schema: unknown): Record<string, unknown> | undefined =>
@@ -719,18 +719,18 @@ test("both capture tools advertise children as a finite nested schema, no $ref",
 })
 
 test("list_outlines then add_node — the capture sequence an agent actually runs", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client, read }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
     const listed = (await call(client, "list_outlines", {})).structured
 
     const outlines = listed["outlines"] as ReadonlyArray<{ file: string }>
-    expect(outlines[0]?.file).toBe("house.jsonl")
+    expect(outlines[0]?.file).toBe("house.olai")
 
     const added = await call(client, "add_node", {
       file: outlines[0]?.file,
       title: "water the plants",
     })
     expect(added.isError).toBe(false)
-    expect(read("house.jsonl")).toContain("water the plants")
+    expect(read("house.olai")).toContain("water the plants")
   })
 })
 
@@ -754,7 +754,7 @@ const LEDGER = [
  */
 test("a mirror is placed, found from the node, and retired — the node untouched", async () => {
   await withTools(
-    { "house.jsonl": HOUSE, "now.jsonl": LEDGER },
+    { "house.olai": HOUSE, "now.olai": LEDGER },
     async ({ client, read }) => {
       const placed = await call(client, "add_mirror", {
         target: "order",
@@ -768,22 +768,22 @@ test("a mirror is placed, found from the node, and retired — the node untouche
         // and the title is the node's, which is what a person reads.
         id: "now-order",
         title: "order the cabinets",
-        file: "now.jsonl",
+        file: "now.olai",
         summary: "mirror: order the cabinets",
       })
       // Four fields, and no title, mark or note anywhere on the line.
-      expect(read("now.jsonl")).toContain(
+      expect(read("now.olai")).toContain(
         `{"id":"now-order","parent":"now","ord":"a0","mirror":"order"}`,
       )
       // The node it shows is not rewritten at all.
-      expect(read("house.jsonl")).toBe(HOUSE)
+      expect(read("house.olai")).toBe(HOUSE)
 
       // …and it is FINDABLE, which is what makes retiring it possible in a
       // session that did not place it: mirrors are left out of search and out of
       // every child list, so the node is where you ask.
       const node = (await call(client, "read_node", { id: "order" })).structured
       expect(node["mirrors"]).toEqual([
-        { id: "now-order", file: "now.jsonl", line: 2, parent: "now" },
+        { id: "now-order", file: "now.olai", line: 2, parent: "now" },
       ])
 
       const retired = await call(client, "remove_mirror", { id: "now-order" })
@@ -792,8 +792,8 @@ test("a mirror is placed, found from the node, and retired — the node untouche
         did: "remove_mirror",
         summary: "unmirror: order the cabinets",
       })
-      expect(read("now.jsonl")).toBe(LEDGER)
-      expect(read("house.jsonl")).toBe(HOUSE)
+      expect(read("now.olai")).toBe(LEDGER)
+      expect(read("house.olai")).toBe(HOUSE)
       // Nothing shows it any more, and the field goes rather than emptying.
       expect((await call(client, "read_node", { id: "order" })).structured)
         .not.toHaveProperty("mirrors")
@@ -811,7 +811,7 @@ test("a mirror is placed, found from the node, and retired — the node untouche
  */
 test("read_node answers what a curated list holds, with what each entry shows", async () => {
   await withTools(
-    { "house.jsonl": HOUSE, "now.jsonl": LEDGER },
+    { "house.olai": HOUSE, "now.olai": LEDGER },
     async ({ client }) => {
       await call(client, "add_mirror", { target: "order", parent: "now", id: "now-order" })
       await call(client, "add_mirror", { target: "install", parent: "now", id: "now-install" })
@@ -821,26 +821,26 @@ test("read_node answers what a curated list holds, with what each entry shows", 
       expect(now["placed"]).toEqual([
         {
           id: "now-order",
-          file: "now.jsonl",
+          file: "now.olai",
           line: 2,
           parent: "now",
           shows: {
             id: "order",
             title: "order the cabinets",
-            file: "house.jsonl",
+            file: "house.olai",
             line: 3,
             path: ["Kitchen remodel"],
           },
         },
         {
           id: "now-install",
-          file: "now.jsonl",
+          file: "now.olai",
           line: 3,
           parent: "now",
           shows: {
             id: "install",
             title: "install them",
-            file: "house.jsonl",
+            file: "house.olai",
             line: 4,
             status: "doing",
             path: ["Kitchen remodel"],
@@ -852,13 +852,13 @@ test("read_node answers what a curated list holds, with what each entry shows", 
 })
 
 test("remove_mirror on a node refuses, and says what does put a node away", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client, read, refusals }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
     const answer = await call(client, "remove_mirror", { id: "order" })
     expect(answer.isError).toBe(true)
     expect(answer.structured["kind"]).toBe("usage")
     expect(String(answer.structured["reason"])).toContain("archive_node")
     expect(refusals).toEqual(["unmirror: UsageFailure"])
-    expect(read("house.jsonl")).toBe(HOUSE)
+    expect(read("house.olai")).toBe(HOUSE)
   })
 })
 
@@ -866,33 +866,33 @@ test("remove_mirror on a node refuses, and says what does put a node away", asyn
  *  away and `unarchive_node` brings it back where the recorded chain says it
  *  came from — the op `parity-unarchive` was owed on BOTH faces at once. */
 test("unarchive_node takes back what archive_node put away", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client, read }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
     const away = await call(client, "archive_node", { id: "order" })
     expect(away.isError).toBe(false)
-    expect(read("house.jsonl")).not.toContain(`"id":"order"`)
-    expect(read("Archive.jsonl")).toContain(`"id":"order"`)
+    expect(read("house.olai")).not.toContain(`"id":"order"`)
+    expect(read("Archive.olai")).toContain(`"id":"order"`)
 
     const back = await call(client, "unarchive_node", { id: "order" })
     expect(back.isError).toBe(false)
     expect(back.structured).toMatchObject({
       summary: "unarchive: order the cabinets",
-      file: "house.jsonl",
+      file: "house.olai",
     })
     // Back under its own parent — the chain of ancestor titles, followed — and
     // the emptied scaffold tidied away behind it.
-    expect(read("house.jsonl")).toContain(`"id":"order","parent":"kitchen"`)
-    expect(read("Archive.jsonl")).toBe("")
+    expect(read("house.olai")).toContain(`"id":"order","parent":"kitchen"`)
+    expect(read("Archive.olai")).toBe("")
   })
 })
 
 /** The other half of ledger-complete: a dependency, written from the node that
  *  waits, read back off the node, and refused when it would close a loop. */
 test("set_after writes a dependency, and a loop is refused naming it", async () => {
-  await withTools({ "house.jsonl": HOUSE }, async ({ client, read }) => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
     const wired = await call(client, "set_after", { id: "install", add: ["order"] })
     expect(wired.isError).toBe(false)
     expect(wired.structured).toMatchObject({ summary: "after: install them" })
-    expect(read("house.jsonl")).toContain(`"after":["order"]`)
+    expect(read("house.olai")).toContain(`"after":["order"]`)
 
     // Read back off the node, so the next call can remove one by id.
     expect((await call(client, "read_node", { id: "install" })).structured)

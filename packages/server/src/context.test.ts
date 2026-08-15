@@ -29,7 +29,7 @@ const HOUSE = [
   `{"id":"echo","ord":"a2","mirror":"order"}`,
 ].join("\n")
 
-const reading = (set: OutlineSet = setOf({ "house.jsonl": HOUSE })): Reading => ({
+const reading = (set: OutlineSet = setOf({ "house.olai": HOUSE })): Reading => ({
   set,
   derived: derive(set.nodes),
 })
@@ -58,7 +58,7 @@ test("an id becomes the node, where it lives, and what it hangs off", () => {
     {
       id: "handles",
       title: "pick the handles",
-      file: "house.jsonl",
+      file: "house.olai",
       line: 4,
       // Outermost first, and the CANONICAL chain — what makes a bare "pick the
       // handles" mean something in a directory of outlines.

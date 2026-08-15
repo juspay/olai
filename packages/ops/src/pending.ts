@@ -25,7 +25,7 @@
  *
  *   - **the WHOLE REPOSITORY, in two kinds of row.** `commit-whole-repo`'s
  *     correction, and the human's own words: "the git commit thing should work
- *     across whole repo, not just .jsonl files edited through MCP". A dirty
+ *     across whole repo, not just .olai files edited through MCP". A dirty
  *     outline olai serves gets node-level changes, because both sides parse
  *     into records. Every other dirty file — a document, a source file, an
  *     outline outside the served root — gets a path and a status letter,
@@ -865,7 +865,7 @@ interface Picked {
  *
  * ONE NAMESPACE, repo-root-relative, for both kinds of row — which is why an
  * outline carries its repository path at all. Keyed by the served spelling, an
- * outline `roadmap.jsonl` under `docs/` and a dirty `roadmap.jsonl` at the
+ * outline `roadmap.olai` under `docs/` and a dirty `roadmap.olai` at the
  * repository root would be the same tick, and the commit would name the wrong
  * file. Rare, and permanent once it is in somebody's history.
  *

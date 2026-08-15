@@ -2,7 +2,7 @@
  * What KIND of thing in the directory this is, said in a glyph.
  *
  * The complaint this answers was filed from a screenshot: the sidebar's tree
- * drew `garden.jsonl`, `finishes.md` and `notes` in the same ink at the same
+ * drew `garden.olai`, `finishes.md` and `notes` in the same ink at the same
  * weight, so the only thing separating an OUTLINE from a DOCUMENT was four
  * characters of extension the eye has to read, and the only thing marking a
  * FOLDER was a triangle it shares with every fold control in the app. Three

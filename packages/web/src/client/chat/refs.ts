@@ -16,7 +16,7 @@
  *
  * **A span is a reference only if the SET declares it.** That is the whole of
  * the rule, and it is what makes a false positive unrepresentable: `true`,
- * `.jsonl`, `npm test` and every other backticked thing an agent writes are
+ * `.olai`, `npm test` and every other backticked thing an agent writes are
  * looked up and are not nodes, so they stay what they are. The set is the live
  * one this tab is reading, so an id that names a node today and nothing
  * tomorrow stops being pressable the moment the file says so.
@@ -98,7 +98,7 @@ const AS_A_CONTROL: ReadonlyArray<readonly [string, string]> = [
  *
  * It writes only where the answer MOVED. The pass runs on every frame of a
  * streaming answer, most spans in agent prose are not ids at all (`true`,
- * `house.jsonl`), and re-removing four absent attributes several times a
+ * `house.olai`), and re-removing four absent attributes several times a
  * second is work with no effect to show for it.
  */
 export const markNodeRefs = (

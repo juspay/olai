@@ -16,8 +16,8 @@
  * its own way.
  */
 
-/** Path order, segment by segment: `a/b.jsonl` sorts before `a.jsonl` exactly
- *  as descending into `a` before reading `a.jsonl` does. A plain string compare
+/** Path order, segment by segment: `a/b.olai` sorts before `a.olai` exactly
+ *  as descending into `a` before reading `a.olai` does. A plain string compare
  *  disagrees, because `.` sorts before `/`. */
 const compare = (
   left: ReadonlyArray<string>,

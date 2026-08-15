@@ -2,7 +2,7 @@
  * The set, read by day.
  *
  * A node's dates are the whole of the journal. There is no stored year →
- * month hierarchy, no `Daily.jsonl`, no filename anything is special about
+ * month hierarchy, no `Daily.olai`, no filename anything is special about
  * (docs/format.md; rewrite decision 11): a day is a QUESTION asked of every
  * node in every outline, and the answer is computed here, at view time, from
  * the same records the validator approved.
@@ -190,7 +190,7 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
  * journal asks a different question. It asks what happened, and archiving is
  * what people do with work AFTER they finish it, so a day that dropped the
  * archived half would be a record of the day with its ending torn out. The
- * node is still under `Archive.jsonl` when the day draws it, and the day view
+ * node is still under `Archive.olai` when the day draws it, and the day view
  * groups by file, so the reader is told where it lives by the same heading
  * that tells them about every other row.
  */

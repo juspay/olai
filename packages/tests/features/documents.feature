@@ -151,7 +151,7 @@ Feature: Documents
   # attaches it is still not that document's page.
   @corpus:good
   Scenario: A document drawn under a node has no contents
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I zoom into the node "install"
     Then the reference on "install" draws the document
     And there is no contents on the page
@@ -187,13 +187,13 @@ Feature: Documents
     # `packages/surface`, where a URL nobody can send can still be tried.
     Then requesting "/media/..%2foutside.png" answers 404
     # Only pictures, whatever else is in the directory.
-    And requesting "/media/garden.jsonl" answers 404
+    And requesting "/media/garden.olai" answers 404
     And requesting "/media/finishes.md" answers 404
     And requesting "/media/art/handle.png" answers 200 with type "image/png"
 
   @corpus:good
   Scenario: A node's doc is a reference in the tree and the document itself when zoomed
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     Then the node "install" refers to the document "finishes.md"
     And the reference on "install" shows "Finishes"
     And the reference on "install" does not draw the document
@@ -203,7 +203,7 @@ Feature: Documents
 
   @corpus:good
   Scenario: The reference on a node is the way to the document's page
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     And I mark the page
     When I follow the document link on "install"
     Then the document open is "finishes.md"

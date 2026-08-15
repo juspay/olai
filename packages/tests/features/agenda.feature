@@ -23,7 +23,7 @@ Feature: The agenda — what is owed
     Then the agenda has the sections "overdue"
     # Grouped by outline, in path order, because a `parent` never crosses a
     # file — the same heading a day page uses, for the same reason.
-    And the "overdue" section groups are "life.jsonl, work.jsonl"
+    And the "overdue" section groups are "life.olai, work.olai"
     # `permit` is dated before `posts` and written after it, so a page ordering
     # by line rather than by date would put them the other way round.
     And the "overdue" section lists "visas, permit, posts"
@@ -72,7 +72,7 @@ Feature: The agenda — what is owed
     # One predicate, read everywhere: the agenda's first section and the tone
     # of a date badge are the same question, so a row that is late reads late
     # in the tree it lives in as much as on the page that collects it.
-    Given I open the outline "work.jsonl"
+    Given I open the outline "work.olai"
     Then the date on "posts" is overdue
     # And an occurrence's pill never turns amber, however long ago its day was.
     And the date on "delivery" is not overdue
@@ -99,10 +99,10 @@ Feature: The agenda — what is owed
     Given I open the agenda
     And I mark the page
     Then the agenda has the sections "overdue"
-    When something is scheduled for today in "work.jsonl"
+    When something is scheduled for today in "work.olai"
     Then the agenda has the sections "overdue, today"
     And the "today" section lists "due-today"
-    When something is scheduled for tomorrow in "work.jsonl"
+    When something is scheduled for tomorrow in "work.olai"
     Then the agenda has the sections "overdue, today, upcoming"
     And the upcoming days are tomorrow
     And the "upcoming" section lists "due-soon"
@@ -127,7 +127,7 @@ Feature: The agenda — what is owed
 
   @corpus:agenda
   Scenario: Something slipped, and the entry to it is on fire
-    Given I open the outline "work.jsonl"
+    Given I open the outline "work.olai"
     # Three late tasks over two outlines, counted as NODES: a mark saying "3"
     # means three things are late, not that three files hold them.
     Then the agenda entry is on fire with 3 late
@@ -139,7 +139,7 @@ Feature: The agenda — what is owed
 
   @corpus:agenda
   Scenario: Put the column away and the alarm goes with it
-    Given I open the outline "work.jsonl"
+    Given I open the outline "work.olai"
     When I collapse the sidebar
     Then the sidebar rail is showing
     # A dot rather than a count — three rem has no room for a numeral, and the
@@ -160,8 +160,8 @@ Feature: The agenda — what is owed
     Given I open the app
     And I mark the page
     Then the agenda entry is on fire with 3 late
-    When every date is taken off "life.jsonl"
-    And every date is taken off "work.jsonl"
+    When every date is taken off "life.olai"
+    And every date is taken off "work.olai"
     Then the agenda entry is quiet
     # No chip at all rather than a nought: an agenda with nothing on it is a
     # door, not news.
@@ -173,9 +173,9 @@ Feature: The agenda — what is owed
   Scenario: Work on today is a nudge, and the entry stays quiet about it
     Given I open the app
     And I mark the page
-    When every date is taken off "life.jsonl"
-    And every date is taken off "work.jsonl"
-    And something is scheduled for today in "work.jsonl"
+    When every date is taken off "life.olai"
+    And every date is taken off "work.olai"
+    And something is scheduled for today in "work.olai"
     Then the agenda entry nudges with 1 on today
     And the agenda entry says "Agenda — 1 on today"
     And the page has not reloaded
@@ -184,7 +184,7 @@ Feature: The agenda — what is owed
   Scenario: Both at once — the alarm wins the row, the nudge is still spoken
     Given I open the app
     And I mark the page
-    When something is scheduled for today in "work.jsonl"
+    When something is scheduled for today in "work.olai"
     # One number on a 13px row, and it is the one that decides whether to press.
     Then the agenda entry is on fire with 3 late
     And the agenda entry also carries 1 on today
@@ -196,7 +196,7 @@ Feature: The agenda — what is owed
     # The mark is the page's own reading, so it moves when the files do — which
     # is the whole of "live": a task ticked off in the tree leaves Overdue, and
     # the count beside the word in the column goes with it.
-    Given I open the outline "work.jsonl"
+    Given I open the outline "work.olai"
     And I mark the page
     Then the agenda entry is on fire with 3 late
     When I click the title of "posts"
@@ -210,8 +210,8 @@ Feature: The agenda — what is owed
   Scenario: An agenda with nothing due says so, and offers nothing to press
     Given I open the agenda
     And I mark the page
-    When every date is taken off "life.jsonl"
-    And every date is taken off "work.jsonl"
+    When every date is taken off "life.olai"
+    And every date is taken off "work.olai"
     Then the agenda is empty
     And the agenda has no sections
     # Not a dead end: the directory is still the way on.

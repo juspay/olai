@@ -135,20 +135,58 @@ export const targetsOf = (
       listOf(node, field).map((id) => [field, id] as const)
     )
 
-/** What a served file is, by its name. An outline is a `.jsonl`, a document is
- *  a `.md`, and anything else is not part of the set.
+/** The suffix an outline wears, and the ONE place it is spelled as a rule.
+ *
+ *  Five rules read it and they have to agree, because between them they decide
+ *  which files are served at all: what {@link fileKind} claims, what
+ *  {@link ARCHIVE} and {@link INBOX} are called, what a commit subject strips
+ *  to name an outline (`../message.ts`), and what path `create_outline` will
+ *  mint (`@olai/ops`' `outlinePath`). Four of those used to retype it. That is
+ *  four chances for one of them to be left behind — and the way that failure
+ *  reads is not a type error but a file the walk stops claiming, or an op that
+ *  refuses a path the sidebar just offered.
+ *
+ *  It is not a knob. A directory holds one kind of outline and this is what it
+ *  is called; the constant exists so the answer is asked for rather than
+ *  retyped.
+ *
+ *  **CODE that DECIDES reads it; PROSE that DESCRIBES spells it out.** The
+ *  eighty-odd docstrings, tool descriptions and refusal messages that say
+ *  `.olai` in words go on saying it in words — they are read by a person or an
+ *  agent, not by a branch, and interpolating a constant into a sentence buys
+ *  nothing while costing the one thing a message has: you can grep for it. The
+ *  rule is written here because the line between the two is the only thing a
+ *  reader would otherwise have to guess at. */
+export const OUTLINE_EXT = ".olai"
+
+/** The other kind's, on the same terms: `create_document` mints a path and
+ *  {@link fileKind} decides whether the walk will ever claim one, and those two
+ *  disagreeing is a document written where nothing reads it back. That the
+ *  suffix is not moving today is not a reason for the answer to live twice.
+ *
+ *  Deliberately NOT `@olai/surface`'s `DOCUMENT_EXTENSIONS`, which answers a
+ *  different question — what may be handed to an agent as a path — with five
+ *  entries. The one string they share means a different thing on each side. */
+export const DOCUMENT_EXT = ".md"
+
+/** What a served file is, by its name. An outline is an {@link OUTLINE_EXT}, a
+ *  document is a {@link DOCUMENT_EXT}, and anything else is not part of the set.
  *
  *  It lives HERE rather than in whatever happens to read a directory, because
  *  it is a statement about the format: the error that says "no such `.md` file
- *  is served" and the field documented as "every `.jsonl` found" are both in
+ *  is served" and the field documented as "every outline found" are both in
  *  this package, and phases 3, 4 and 7 each need the same answer for a
  *  different reason. None of them can import the server. */
 export type FileKind = "outline" | "document"
 
 export const fileKind = (path: string): FileKind | null =>
-  path.endsWith(".jsonl") ? "outline" : path.endsWith(".md") ? "document" : null
+  path.endsWith(OUTLINE_EXT)
+    ? "outline"
+    : path.endsWith(DOCUMENT_EXT)
+    ? "document"
+    : null
 
-/** Where work that is over is put away: one `Archive.jsonl` per directory,
+/** Where work that is over is put away: one `Archive.olai` per directory,
  *  beside the outline it left. The same rule as the racket reference, so a
  *  directory that has been archived from before goes on reading the way it did.
  *
@@ -162,7 +200,7 @@ export const fileKind = (path: string): FileKind | null =>
  *  landed here (*archived*) from one that did not (*moved*). Two spellings
  *  would be two answers about the same file — and the third reader makes that
  *  permanent, since a commit message cannot be corrected after the fact. */
-export const ARCHIVE = "Archive.jsonl"
+export const ARCHIVE = `Archive${OUTLINE_EXT}`
 
 export const isArchived = (file: string): boolean =>
   file === ARCHIVE || file.endsWith(`/${ARCHIVE}`)
@@ -183,7 +221,7 @@ export const archiveBeside = (file: string): string => {
  *  it mints has to be the file they would have made themselves. Beside
  *  {@link ARCHIVE} because it is the same kind of statement: what a served
  *  file IS, by its name. */
-export const INBOX = "Inbox.jsonl"
+export const INBOX = `Inbox${OUTLINE_EXT}`
 
 /**
  * The directory's inbox, or `undefined` when it has none.
@@ -195,10 +233,10 @@ export const INBOX = "Inbox.jsonl"
  * resolves through it (`@olai/server`'s `edit.ts`), and an agent capturing by
  * hand reads the same sentence rather than guessing at the browser's.
  *
- * The file is whichever outline is CALLED `Inbox.jsonl`, wherever it sits, so
+ * The file is whichever outline is CALLED `Inbox.olai`, wherever it sits, so
  * a directory that already keeps its inbox under `notes/` captures into the
  * file it has rather than growing a second one at the root. Case-insensitively,
- * because it is a name a person typed and `inbox.jsonl` is the same intention.
+ * because it is a name a person typed and `inbox.olai` is the same intention.
  *
  * SHALLOWEST WINS, then path order — one answer, and a stable one, for the
  * directory that somehow holds two. "First in path order" would let a file

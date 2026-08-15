@@ -12,8 +12,8 @@ const row = (key: string): Row =>
     kind: "node",
     key,
     children: [],
-    at: { file: "house.jsonl", node: { id: key.slice(key.lastIndexOf("/") + 1) } },
-    shows: { file: "house.jsonl", node: { id: key.slice(key.lastIndexOf("/") + 1) } },
+    at: { file: "house.olai", node: { id: key.slice(key.lastIndexOf("/") + 1) } },
+    shows: { file: "house.olai", node: { id: key.slice(key.lastIndexOf("/") + 1) } },
   } as unknown as Row)
 
 //   a

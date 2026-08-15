@@ -37,7 +37,7 @@ const KITCHEN = [
   `{"id":"loose","ord":"a1","title":"a node with no children"}`,
 ].join("\n")
 
-const house = (): OutlineSet => setOf({ "house.jsonl": KITCHEN })
+const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
 
 const planning = (set: OutlineSet, request: Request): Result.Result<Plan, OpFailure> =>
   plan(set, steady(), request)
@@ -100,7 +100,7 @@ describe("add", () => {
       parent: "kitchen",
       title: "paint the walls #home",
     })
-    const nodes = fileOf(result, "house.jsonl")
+    const nodes = fileOf(result, "house.olai")
     expect(childOrder(nodes, "kitchen")).toEqual(["demo", "order", "install", "n1"])
     expect(record(nodes, "n1")).toMatchObject({
       id: "n1",
@@ -113,13 +113,13 @@ describe("add", () => {
   test("`before` and `after` put it where they say", () => {
     const first = fileOf(
       planned(house(), { op: "add", parent: "kitchen", title: "x", before: "order" }),
-      "house.jsonl",
+      "house.olai",
     )
     expect(childOrder(first, "kitchen")).toEqual(["demo", "n1", "order", "install"])
 
     const second = fileOf(
       planned(house(), { op: "add", parent: "kitchen", title: "x", after: "demo" }),
-      "house.jsonl",
+      "house.olai",
     )
     expect(childOrder(second, "kitchen")).toEqual(["demo", "n1", "order", "install"])
   })
@@ -128,7 +128,7 @@ describe("add", () => {
     const before = house()
     const nodes = fileOf(
       planned(before, { op: "add", parent: "kitchen", title: "x", before: "install" }),
-      "house.jsonl",
+      "house.olai",
     )
     for (const id of ["demo", "order", "install"]) {
       expect(record(nodes, id).ord).toBe(
@@ -139,8 +139,8 @@ describe("add", () => {
 
   test("a file with no parent puts the node at top level", () => {
     const nodes = fileOf(
-      planned(house(), { op: "add", file: "house.jsonl", title: "a new root" }),
-      "house.jsonl",
+      planned(house(), { op: "add", file: "house.olai", title: "a new root" }),
+      "house.olai",
     )
     expect(record(nodes, "n1").parent).toBeUndefined()
   })
@@ -150,9 +150,9 @@ describe("add", () => {
   })
 
   test("a file the directory does not serve is not-found, and says what it does serve", () => {
-    const failure = refused(house(), { op: "add", file: "nope.jsonl", title: "x" })
+    const failure = refused(house(), { op: "add", file: "nope.olai", title: "x" })
     expect(failure._tag).toBe("NotFoundFailure")
-    expect(failure.message).toContain("house.jsonl")
+    expect(failure.message).toContain("house.olai")
   })
 
   test("an id the set already holds is refused rather than duplicated", () => {
@@ -164,7 +164,7 @@ describe("add", () => {
   test("a chosen id is kept verbatim", () => {
     const nodes = fileOf(
       planned(house(), { op: "add", parent: "kitchen", title: "x", id: "paint" }),
-      "house.jsonl",
+      "house.olai",
     )
     expect(record(nodes, "paint").title).toBe("x")
   })
@@ -183,7 +183,7 @@ describe("add", () => {
         title: "sand the floor",
         mark: "todo",
       }),
-      "house.jsonl",
+      "house.olai",
     )
     expect(markOf(record(nodes, "n1"))).toBe("todo")
     expect(sinceOf(record(nodes, "n1"))).toBeUndefined()
@@ -204,7 +204,7 @@ describe("add with children", () => {
    *  added, which is the shape the screenshot in the item had. */
   const CAPTURE = {
     op: "add",
-    file: "house.jsonl",
+    file: "house.olai",
     title: "Bathroom remodel",
     children: [
       {
@@ -220,7 +220,7 @@ describe("add with children", () => {
 
   test("one plan holds the whole tree, parent before child, siblings in order", () => {
     const result = planned(house(), CAPTURE)
-    const nodes = fileOf(result, "house.jsonl")
+    const nodes = fileOf(result, "house.olai")
 
     // One file plan: the write gate renames all of it or none of it.
     expect(result.files).toHaveLength(1)
@@ -282,11 +282,11 @@ describe("add with children", () => {
   test("a seeded create names the node it made, and may mark it", () => {
     const result = planned(house(), {
       op: "create",
-      file: "shed.jsonl",
+      file: "shed.olai",
       seed: { title: "clear out the shed", id: "shed", mark: "todo" },
     })
     expect(result.captured).toEqual([{ id: "shed", title: "clear out the shed" }])
-    expect(fileOf(result, "shed.jsonl")[0]).toMatchObject({
+    expect(fileOf(result, "shed.olai")[0]).toMatchObject({
       id: "shed",
       props: { status: "todo" },
     })
@@ -296,7 +296,7 @@ describe("add with children", () => {
     expect(
       refused(house(), {
         op: "create",
-        file: "shed.jsonl",
+        file: "shed.olai",
         seed: { title: "x", id: "order" },
       }).message,
     ).toContain("already the id")
@@ -315,7 +315,7 @@ describe("add with children", () => {
           { title: "plain" },
         ],
       }),
-      "house.jsonl",
+      "house.olai",
     )
     // `done` records the instant; the other two carry no `since` — the same
     // rule the mark ops read, so a captured mark and a marked capture agree.
@@ -340,7 +340,7 @@ describe("add with children", () => {
         before: "order",
         children: [{ title: "walls" }, { title: "floor" }],
       }),
-      "house.jsonl",
+      "house.olai",
     )
     expect(childOrder(nodes, "kitchen")).toEqual(["demo", "n1", "order", "install"])
     expect(childOrder(nodes, "n1")).toEqual(["n2", "n3"])
@@ -349,7 +349,7 @@ describe("add with children", () => {
   test("a chosen id anywhere in the tree that the set holds refuses ALL of it", () => {
     const failure = refused(house(), {
       op: "add",
-      file: "house.jsonl",
+      file: "house.olai",
       title: "Bathroom",
       children: [{ title: "fixtures", children: [{ title: "taps", id: "order" }] }],
     })
@@ -360,7 +360,7 @@ describe("add with children", () => {
   test("one id used twice in the same call is refused — nothing is written", () => {
     const failure = refused(house(), {
       op: "add",
-      file: "house.jsonl",
+      file: "house.olai",
       title: "Bathroom",
       children: [{ title: "taps", id: "twice" }, { title: "shower", id: "twice" }],
     })
@@ -375,7 +375,7 @@ describe("add with children", () => {
   test("a child naming its own ancestor's id is a collision, not a loop", () => {
     const failure = refused(house(), {
       op: "add",
-      file: "house.jsonl",
+      file: "house.olai",
       title: "Bathroom",
       id: "bath",
       children: [{ title: "fixtures", children: [{ title: "taps", id: "bath" }] }],
@@ -411,7 +411,7 @@ describe("add with children", () => {
   test("nesting past the depth the schema unrolls is refused, and teaches", () => {
     const deep = {
       op: "add",
-      file: "house.jsonl",
+      file: "house.olai",
       title: "one",
       children: [{
         title: "two",
@@ -432,7 +432,7 @@ describe("add with children", () => {
     // the node being added, and three levels under it.
     const ok = planned(house(), {
       op: "add",
-      file: "house.jsonl",
+      file: "house.olai",
       title: "one",
       children: [{
         title: "two",
@@ -451,7 +451,7 @@ describe("add with children", () => {
   test("a level past the floor survives decoding, so it can be refused", () => {
     const decoded = Schema.decodeUnknownSync(AddRequest)({
       op: "add",
-      file: "house.jsonl",
+      file: "house.olai",
       title: "one",
       children: [{
         title: "two",
@@ -465,7 +465,7 @@ describe("add with children", () => {
   })
 
   test("the file it produces is still one record per line", () => {
-    const nodes = fileOf(planned(house(), CAPTURE), "house.jsonl")
+    const nodes = fileOf(planned(house(), CAPTURE), "house.olai")
     const text = serializeOutline(nodes)
     expect(text.split("\n").filter((line) => line !== "")).toHaveLength(nodes.length)
   })
@@ -476,8 +476,8 @@ describe("add with children", () => {
 describe("done and doing", () => {
   test("marking a leaf stamps the instant and says so in the commit line", () => {
     const result = planned(house(), { op: "done", id: "order" })
-    expect(markOf(record(fileOf(result, "house.jsonl"), "order"))).toBe("done")
-    expect(sinceOf(record(fileOf(result, "house.jsonl"), "order"))).toBe(STAMP)
+    expect(markOf(record(fileOf(result, "house.olai"), "order"))).toBe("done")
+    expect(sinceOf(record(fileOf(result, "house.olai"), "order"))).toBe(STAMP)
     expect(result.summary).toBe("done: order the cabinets")
   })
 
@@ -487,7 +487,7 @@ describe("done and doing", () => {
   // out there — comes back exactly as written: the op stamps the node it was
   // asked about and nothing else.
   test("the dates on the other records come back as they were written", () => {
-    const nodes = fileOf(planned(house(), { op: "done", id: "order" }), "house.jsonl")
+    const nodes = fileOf(planned(house(), { op: "done", id: "order" }), "house.olai")
     expect(markOf(record(nodes, "demo"))).toBe("done")
     expect(sinceOf(record(nodes, "demo"))).toBe("2026-08-01")
   })
@@ -500,7 +500,7 @@ describe("done and doing", () => {
   // starting and filing are not.
   test("only `done` carries an instant — the other two carry no `since`", () => {
     const marked = (op: "done" | "doing" | "todo"): RegularNode =>
-      record(fileOf(planned(house(), { op, id: "order" }), "house.jsonl"), "order")
+      record(fileOf(planned(house(), { op, id: "order" }), "house.olai"), "order")
     expect(markOf(marked("done"))).toBe("done")
     expect(sinceOf(marked("done"))).toBe(STAMP)
     expect(markOf(marked("doing"))).toBe("doing")
@@ -511,19 +511,19 @@ describe("done and doing", () => {
 
   test("undo takes the mark off", () => {
     const result = planned(house(), { op: "done", id: "demo", undo: true })
-    expect(markOf(record(fileOf(result, "house.jsonl"), "demo"))).toBeUndefined()
+    expect(markOf(record(fileOf(result, "house.olai"), "demo"))).toBeUndefined()
     expect(result.summary).toBe("undone: demolition")
   })
 
   test("`doing` clears a stale `done`, because both at once is not a record", () => {
     const set = setOf({
-      "a.jsonl": `{"id":"x","ord":"a0","title":"x","props":{"status":"done","since":"2026-08-01"}}`,
+      "a.olai": `{"id":"x","ord":"a0","title":"x","props":{"status":"done","since":"2026-08-01"}}`,
     })
     // Straight to `doing` is refused; undo first, as the message says.
     expect(refused(set, { op: "doing", id: "x" }).message).toContain("Undo that first")
 
-    const undone = setOf({ "a.jsonl": `{"id":"x","ord":"a0","title":"x"}` })
-    const node = record(fileOf(planned(undone, { op: "doing", id: "x" }), "a.jsonl"), "x")
+    const undone = setOf({ "a.olai": `{"id":"x","ord":"a0","title":"x"}` })
+    const node = record(fileOf(planned(undone, { op: "doing", id: "x" }), "a.olai"), "x")
     expect(markOf(node)).toBe("doing")
     expect(sinceOf(node)).toBeUndefined()
     expect(markOf(node)).not.toBe("done")
@@ -538,29 +538,29 @@ describe("done and doing", () => {
   // finished work backwards without being told to.
   test("`todo` is a mark like the other two", () => {
     const result = planned(house(), { op: "todo", id: "order" })
-    expect(markOf(record(fileOf(result, "house.jsonl"), "order"))).toBe("todo")
-    expect(sinceOf(record(fileOf(result, "house.jsonl"), "order"))).toBeUndefined()
+    expect(markOf(record(fileOf(result, "house.olai"), "order"))).toBe("todo")
+    expect(sinceOf(record(fileOf(result, "house.olai"), "order"))).toBeUndefined()
     expect(result.summary).toBe("todo: order the cabinets")
 
     // Started, then put back on the pile: `doing` goes, `todo` arrives.
     const under = setOf({
-      "a.jsonl": `{"id":"x","ord":"a0","title":"x","props":{"status":"doing","since":"2026-08-01"}}`,
+      "a.olai": `{"id":"x","ord":"a0","title":"x","props":{"status":"doing","since":"2026-08-01"}}`,
     })
-    const node = record(fileOf(planned(under, { op: "todo", id: "x" }), "a.jsonl"), "x")
+    const node = record(fileOf(planned(under, { op: "todo", id: "x" }), "a.olai"), "x")
     expect(markOf(node)).toBe("todo")
     expect(sinceOf(node)).toBeUndefined()
     expect(markOf(node)).not.toBe("doing")
 
     // A done node is not quietly un-finished, whichever mark is asked for.
     const finished = setOf({
-      "a.jsonl": `{"id":"x","ord":"a0","title":"x","props":{"status":"done","since":"2026-08-01"}}`,
+      "a.olai": `{"id":"x","ord":"a0","title":"x","props":{"status":"done","since":"2026-08-01"}}`,
     })
     expect(refused(finished, { op: "todo", id: "x" }).message).toContain("Undo that first")
 
     // And taking it off says so in the commit line, like its two siblings.
-    const marked = setOf({ "a.jsonl": `{"id":"x","ord":"a0","title":"x","props":{"status":"todo"}}` })
+    const marked = setOf({ "a.olai": `{"id":"x","ord":"a0","title":"x","props":{"status":"todo"}}` })
     const cleared = planned(marked, { op: "todo", id: "x", undo: true })
-    expect(markOf(record(fileOf(cleared, "a.jsonl"), "x"))).toBeUndefined()
+    expect(markOf(record(fileOf(cleared, "a.olai"), "x"))).toBeUndefined()
     expect(cleared.summary).toBe("not-todo: x")
   })
 
@@ -578,7 +578,7 @@ describe("done and doing", () => {
    */
   test("a node with children is marked like any other", () => {
     const set = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done"}}`,
         `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"status":"doing"}}`,
@@ -586,8 +586,8 @@ describe("done and doing", () => {
       ].join("\n"),
     })
     const result = planned(set, { op: "done", id: "kitchen" })
-    expect(markOf(record(fileOf(result, "house.jsonl"), "kitchen"))).toBe("done")
-    expect(sinceOf(record(fileOf(result, "house.jsonl"), "kitchen"))).toBe(STAMP)
+    expect(markOf(record(fileOf(result, "house.olai"), "kitchen"))).toBe("done")
+    expect(sinceOf(record(fileOf(result, "house.olai"), "kitchen"))).toBe(STAMP)
     expect(result.summary).toBe("done: Kitchen remodel")
   })
 
@@ -596,15 +596,15 @@ describe("done and doing", () => {
   // under it is a task, and it is `todo`.
   test("a node whose children are all notes can be marked todo", () => {
     const set = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"p","ord":"a0","title":"orchestrator in chat"}`,
         `{"id":"c1","parent":"p","ord":"a0","title":"nothing wakes a chat agent"}`,
         `{"id":"c2","parent":"p","ord":"a1","title":"no shell, so no gh"}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "todo", id: "p" })
-    expect(markOf(record(fileOf(result, "a.jsonl"), "p"))).toBe("todo")
-    expect(sinceOf(record(fileOf(result, "a.jsonl"), "p"))).toBeUndefined()
+    expect(markOf(record(fileOf(result, "a.olai"), "p"))).toBe("todo")
+    expect(sinceOf(record(fileOf(result, "a.olai"), "p"))).toBeUndefined()
     // Nothing under it is a task, so there is nothing to remark on either.
     expect(result.nudge).toBeUndefined()
   })
@@ -614,7 +614,7 @@ describe("done and doing", () => {
   // tasks that are still open. The BULLET among them is not one of them.
   test("done over unfinished tasks lands, and says so", () => {
     const set = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
         `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","props":{"status":"done"}}`,
         `{"id":"c2","parent":"p","ord":"a1","title":"pack","props":{"status":"todo"}}`,
@@ -622,8 +622,8 @@ describe("done and doing", () => {
       ].join("\n"),
     })
     const result = planned(set, { op: "done", id: "p" })
-    expect(markOf(record(fileOf(result, "a.jsonl"), "p"))).toBe("done")
-    expect(sinceOf(record(fileOf(result, "a.jsonl"), "p"))).toBe(STAMP)
+    expect(markOf(record(fileOf(result, "a.olai"), "p"))).toBe("done")
+    expect(sinceOf(record(fileOf(result, "a.olai"), "p"))).toBe(STAMP)
     expect(result.nudge).toContain("1 unfinished task")
     expect(result.nudge).toContain("`pack`")
     expect(result.nudge).not.toContain("ferry times")
@@ -634,7 +634,7 @@ describe("done and doing", () => {
   // parent, which is now something a person can actually do.
   test("finishing the last task under a parent suggests marking the parent", () => {
     const set = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
         `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","props":{"status":"done"}}`,
         `{"id":"c2","parent":"p","ord":"a1","title":"pack","props":{"status":"doing"}}`,
@@ -647,7 +647,7 @@ describe("done and doing", () => {
     // Not while another task is still open, and not when the parent is already
     // done — neither is news.
     const half = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
         `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","props":{"status":"todo"}}`,
         `{"id":"c2","parent":"p","ord":"a1","title":"pack","props":{"status":"doing"}}`,
@@ -656,7 +656,7 @@ describe("done and doing", () => {
     expect(planned(half, { op: "done", id: "c2" }).nudge).toBeUndefined()
 
     const already = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"p","ord":"a0","title":"the trip","props":{"status":"done","since":"2026-08-01"}}`,
         `{"id":"c1","parent":"p","ord":"a0","title":"pack","props":{"status":"doing"}}`,
       ].join("\n"),
@@ -668,7 +668,7 @@ describe("done and doing", () => {
   // starting a task, and taking a mark off is never news about the parent.
   test("nothing is nudged for doing, todo, or an undo", () => {
     const set = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
         `{"id":"c1","parent":"p","ord":"a0","title":"pack","props":{"status":"done"}}`,
       ].join("\n"),
@@ -680,8 +680,8 @@ describe("done and doing", () => {
 
   test("a mirror is not a node to mark, and the refusal names the one that is", () => {
     const set = setOf({
-      "a.jsonl": `{"id":"x","ord":"a0","title":"x"}`,
-      "b.jsonl": `{"id":"m","ord":"a0","mirror":"x"}`,
+      "a.olai": `{"id":"x","ord":"a0","title":"x"}`,
+      "b.olai": `{"id":"m","ord":"a0","mirror":"x"}`,
     })
     expect(refused(set, { op: "done", id: "m" }).message).toContain("`x`")
   })
@@ -692,7 +692,7 @@ describe("done and doing", () => {
 describe("title, note and date", () => {
   test("a retitle keeps everything else", () => {
     const result = planned(house(), { op: "title", id: "order", title: "order cabinets" })
-    expect(record(fileOf(result, "house.jsonl"), "order")).toEqual({
+    expect(record(fileOf(result, "house.olai"), "order")).toEqual({
       id: "order",
       parent: "kitchen",
       ord: "a1",
@@ -703,12 +703,12 @@ describe("title, note and date", () => {
 
   test("a note is set and removed; `null` means there is no key at all", () => {
     const written = planned(house(), { op: "desc", id: "order", desc: "measure first" })
-    expect(record(fileOf(written, "house.jsonl"), "order").desc).toBe("measure first")
+    expect(record(fileOf(written, "house.olai"), "order").desc).toBe("measure first")
 
     const cleared = planned(setOf({
-      "a.jsonl": `{"id":"x","ord":"a0","title":"x","desc":"gone"}`,
+      "a.olai": `{"id":"x","ord":"a0","title":"x","desc":"gone"}`,
     }), { op: "desc", id: "x", desc: null })
-    expect("desc" in record(fileOf(cleared, "a.jsonl"), "x")).toBe(false)
+    expect("desc" in record(fileOf(cleared, "a.olai"), "x")).toBe(false)
   })
 
   // ── the condition a text write may carry ─────────────────────────────
@@ -728,14 +728,14 @@ describe("title, note and date", () => {
       title: "order cabinets",
       was: "order the cabinets",
     })
-    expect(record(fileOf(result, "house.jsonl"), "order").title).toBe("order cabinets")
+    expect(record(fileOf(result, "house.olai"), "order").title).toBe("order cabinets")
   })
 
   test("and is refused, naming what is there, when somebody else wrote first", () => {
     // This IS the retry, in the shape the planner sees it: the same request,
     // planned a second time against a set where the title has moved on.
     const moved = setOf({
-      "house.jsonl": KITCHEN.replace(
+      "house.olai": KITCHEN.replace(
         `"title":"order the cabinets"`,
         `"title":"order the walnut ones"`,
       ),
@@ -759,13 +759,13 @@ describe("title, note and date", () => {
       record(
         fileOf(
           planned(house(), { op: "desc", id: "order", desc: "measure first", was: null }),
-          "house.jsonl",
+          "house.olai",
         ),
         "order",
       ).desc,
     ).toBe("measure first")
 
-    const noted = setOf({ "a.jsonl": `{"id":"x","ord":"a0","title":"x","desc":"theirs"}` })
+    const noted = setOf({ "a.olai": `{"id":"x","ord":"a0","title":"x","desc":"theirs"}` })
     expect(refused(noted, { op: "desc", id: "x", desc: "mine", was: null }).message)
       .toContain("has changed since")
   })
@@ -774,14 +774,14 @@ describe("title, note and date", () => {
     // What `set_title` has always meant, unchanged: a request with no `was`
     // overwrites whatever is there.
     const moved = setOf({
-      "house.jsonl": KITCHEN.replace(
+      "house.olai": KITCHEN.replace(
         `"title":"order the cabinets"`,
         `"title":"order the walnut ones"`,
       ),
     })
     expect(
       record(
-        fileOf(planned(moved, { op: "title", id: "order", title: "mine" }), "house.jsonl"),
+        fileOf(planned(moved, { op: "title", id: "order", title: "mine" }), "house.olai"),
         "order",
       ).title,
     ).toBe("mine")
@@ -806,7 +806,7 @@ describe("move", () => {
   test("reorders within a parent", () => {
     const nodes = fileOf(
       planned(house(), { op: "move", id: "install", before: "order" }),
-      "house.jsonl",
+      "house.olai",
     )
     expect(childOrder(nodes, "kitchen")).toEqual(["demo", "install", "order"])
   })
@@ -814,7 +814,7 @@ describe("move", () => {
   test("reparents, appending under the new parent", () => {
     const nodes = fileOf(
       planned(house(), { op: "move", id: "order", parent: "loose" }),
-      "house.jsonl",
+      "house.olai",
     )
     expect(childOrder(nodes, "kitchen")).toEqual(["demo", "install"])
     expect(childOrder(nodes, "loose")).toEqual(["order"])
@@ -823,15 +823,15 @@ describe("move", () => {
   test("`parent: null` lifts a node to top level", () => {
     const nodes = fileOf(
       planned(house(), { op: "move", id: "order", parent: null }),
-      "house.jsonl",
+      "house.olai",
     )
     expect(record(nodes, "order").parent).toBeUndefined()
   })
 
   test("a parent in another file is refused, with the reason spelled out", () => {
     const set = setOf({
-      "a.jsonl": `{"id":"x","ord":"a0","title":"x"}`,
-      "b.jsonl": `{"id":"y","ord":"a0","title":"y"}`,
+      "a.olai": `{"id":"x","ord":"a0","title":"x"}`,
+      "b.olai": `{"id":"y","ord":"a0","title":"y"}`,
     })
     expect(refused(set, { op: "move", id: "x", parent: "y" }).message).toContain(
       "independent tree",
@@ -863,23 +863,23 @@ describe("move", () => {
 
 describe("create", () => {
   test("an empty outline is a file with no records, named in the commit line", () => {
-    const result = planned(house(), { op: "create", file: "shed.jsonl" })
-    expect(fileOf(result, "shed.jsonl")).toEqual([])
+    const result = planned(house(), { op: "create", file: "shed.olai" })
+    expect(fileOf(result, "shed.olai")).toEqual([])
     expect(result).toMatchObject({
-      file: "shed.jsonl",
-      id: "shed.jsonl",
-      title: "shed.jsonl",
-      summary: "create: shed.jsonl",
+      file: "shed.olai",
+      id: "shed.olai",
+      title: "shed.olai",
+      summary: "create: shed.olai",
     })
   })
 
   test("a seed is one top-level node, minted the way a capture is", () => {
     const result = planned(house(), {
       op: "create",
-      file: "notes/ideas.jsonl",
+      file: "notes/ideas.olai",
       seed: { title: "an idea #later", desc: "write it down", date: "2026-08-10" },
     })
-    expect(fileOf(result, "notes/ideas.jsonl")).toEqual([
+    expect(fileOf(result, "notes/ideas.olai")).toEqual([
       {
         id: "n1",
         ord: "a0",
@@ -898,7 +898,7 @@ describe("create", () => {
   test("a seed is a whole capture — the outline is born holding its tree", () => {
     const result = planned(house(), {
       op: "create",
-      file: "shed.jsonl",
+      file: "shed.olai",
       seed: {
         title: "The shed",
         children: [
@@ -915,7 +915,7 @@ describe("create", () => {
     // ONE file plan: the outline and its contents are validated together and
     // renamed together.
     expect(result.files).toHaveLength(1)
-    const nodes = fileOf(result, "shed.jsonl")
+    const nodes = fileOf(result, "shed.olai")
     expect(nodes.map((node) => node.id)).toEqual(["n1", "n2", "n3", "n4"])
     expect(record(nodes, "n2")).toMatchObject({ parent: "n1", props: { status: "todo" } })
     expect(record(nodes, "n3")).toMatchObject({
@@ -949,7 +949,7 @@ describe("create", () => {
         { title: "The shed", children: [{ title: "clear it out" }, { title: " " }] },
       ]
     ) {
-      const failure = refused(house(), { op: "create", file: "shed.jsonl", seed })
+      const failure = refused(house(), { op: "create", file: "shed.olai", seed })
       expect(failure._tag).toBe("UsageFailure")
     }
 
@@ -957,7 +957,7 @@ describe("create", () => {
     // rule rather than by a second one.
     const failure = refused(house(), {
       op: "create",
-      file: "shed.jsonl",
+      file: "shed.olai",
       seed: {
         title: "one",
         children: [{
@@ -976,47 +976,47 @@ describe("create", () => {
     const nodes = fileOf(
       planned(house(), {
         op: "create",
-        file: "new.jsonl",
+        file: "new.olai",
         seed: { title: "x", id: "paint" },
       }),
-      "new.jsonl",
+      "new.olai",
     )
     expect(record(nodes, "paint").title).toBe("x")
 
     expect(
       refused(house(), {
         op: "create",
-        file: "new.jsonl",
+        file: "new.olai",
         seed: { title: "x", id: "order" },
       })._tag,
     ).toBe("UsageFailure")
   })
 
   test("an absolute path is refused", () => {
-    const failure = refused(house(), { op: "create", file: "/tmp/out.jsonl" })
+    const failure = refused(house(), { op: "create", file: "/tmp/out.olai" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("relative")
   })
 
   test("a traversal is refused, never resolved under the root", () => {
     for (const file of [
-      "../secret.jsonl",
-      "notes/../../secret.jsonl",
-      "notes/./out.jsonl",
-      "notes//out.jsonl",
-      "a\\b.jsonl",
+      "../secret.olai",
+      "notes/../../secret.olai",
+      "notes/./out.olai",
+      "notes//out.olai",
+      "a\\b.olai",
     ]) {
       expect(refused(house(), { op: "create", file })._tag).toBe("UsageFailure")
     }
   })
 
-  test("a non-`.jsonl` name is refused", () => {
+  test("a non-`.olai` name is refused", () => {
     expect(refused(house(), { op: "create", file: "notes.md" })._tag).toBe("UsageFailure")
     expect(refused(house(), { op: "create", file: "notes" })._tag).toBe("UsageFailure")
   })
 
   test("an outline the directory already holds is refused rather than overwritten", () => {
-    const failure = refused(house(), { op: "create", file: "house.jsonl" })
+    const failure = refused(house(), { op: "create", file: "house.olai" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("already")
     expect(failure.message).toContain("add_node")
@@ -1024,7 +1024,7 @@ describe("create", () => {
 
   test("an empty seed title is refused — a node is its title", () => {
     expect(
-      refused(house(), { op: "create", file: "new.jsonl", seed: { title: "  " } })._tag,
+      refused(house(), { op: "create", file: "new.olai", seed: { title: "  " } })._tag,
     ).toBe("UsageFailure")
   })
 })
@@ -1039,7 +1039,7 @@ describe("split", () => {
       title: "order ",
       rest: "the cabinets",
     })
-    const nodes = fileOf(result, "house.jsonl")
+    const nodes = fileOf(result, "house.olai")
     expect(record(nodes, "order").title).toBe("order ")
     expect(record(nodes, "n1").title).toBe("the cabinets")
     expect(childOrder(nodes, "kitchen")).toEqual(["demo", "order", "n1", "install"])
@@ -1053,7 +1053,7 @@ describe("split", () => {
 
   test("everything that DESCRIBED the node stays with the head", () => {
     const set = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order it","props":{"status":"done","since":"2026-08-01","date":"2026-09-01","see":["kitchen"]},"desc":"walnut"}`,
         `{"id":"quote","parent":"order","ord":"a0","title":"get a quote"}`,
@@ -1061,7 +1061,7 @@ describe("split", () => {
     })
     const nodes = fileOf(
       planned(set, { op: "split", id: "order", title: "order", rest: " it" }),
-      "house.jsonl",
+      "house.olai",
     )
     const head = record(nodes, "order")
     expect(head).toMatchObject({
@@ -1087,7 +1087,7 @@ describe("split", () => {
   test("a top-level node splits into a top-level sibling", () => {
     const nodes = fileOf(
       planned(house(), { op: "split", id: "loose", title: "a node", rest: " with no children" }),
-      "house.jsonl",
+      "house.olai",
     )
     expect(record(nodes, "n1").parent).toBeUndefined()
     expect(
@@ -1106,8 +1106,8 @@ describe("split", () => {
 
   test("a placement has no title of its own, so it cannot be split", () => {
     const set = setOf({
-      "house.jsonl": KITCHEN,
-      "week.jsonl": `{"id":"m","ord":"a0","mirror":"order"}`,
+      "house.olai": KITCHEN,
+      "week.olai": `{"id":"m","ord":"a0","mirror":"order"}`,
     })
     expect(refused(set, { op: "split", id: "m", title: "a", rest: "b" }).message)
       .toContain("is a mirror")
@@ -1121,8 +1121,8 @@ describe("merge", () => {
     const result = planned(set, { op: "merge", id })
     return {
       result,
-      source: fileOf(result, "house.jsonl"),
-      archive: fileOf(result, "Archive.jsonl"),
+      source: fileOf(result, "house.olai"),
+      archive: fileOf(result, "Archive.olai"),
     }
   }
 
@@ -1142,7 +1142,7 @@ describe("merge", () => {
 
   test("the children move, in order, to the end of the survivor's own", () => {
     const set = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order"}`,
         `{"id":"quote","parent":"order","ord":"a0","title":"get a quote"}`,
@@ -1159,21 +1159,21 @@ describe("merge", () => {
 
   test("the notes join a blank line apart, and one note alone simply moves", () => {
     const both = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"a","ord":"a0","title":"a","desc":"the first"}`,
         `{"id":"b","ord":"a1","title":"b","desc":"the second"}`,
       ].join("\n"),
     })
-    expect(record(fileOf(planned(both, { op: "merge", id: "b" }), "house.jsonl"), "a").desc)
+    expect(record(fileOf(planned(both, { op: "merge", id: "b" }), "house.olai"), "a").desc)
       .toBe("the first\n\nthe second")
 
     const only = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
         `{"id":"b","ord":"a1","title":"b","desc":"the second"}`,
       ].join("\n"),
     })
-    expect(record(fileOf(planned(only, { op: "merge", id: "b" }), "house.jsonl"), "a").desc)
+    expect(record(fileOf(planned(only, { op: "merge", id: "b" }), "house.olai"), "a").desc)
       .toBe("the second")
   })
 
@@ -1182,13 +1182,13 @@ describe("merge", () => {
     // and this one leaves the live outline. None of them may go quietly —
     // `doc` was the one that did, for a review (2026-08-14).
     const set = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
         `{"id":"b","ord":"a1","title":"b","props":{"status":"done","since":"2026-08-01","date":"2026-09-01","see":["a"]},"doc":"finishes.md"}`,
       ].join("\n"),
     })
     const result = planned(set, { op: "merge", id: "b" })
-    expect(record(fileOf(result, "Archive.jsonl"), "b")).toMatchObject({
+    expect(record(fileOf(result, "Archive.olai"), "b")).toMatchObject({
       props: {
         status: "done",
         since: "2026-08-01",
@@ -1197,7 +1197,7 @@ describe("merge", () => {
       },
       doc: "finishes.md",
     })
-    expect(markOf(record(fileOf(result, "house.jsonl"), "a"))).toBeUndefined()
+    expect(markOf(record(fileOf(result, "house.olai"), "a"))).toBeUndefined()
     expect(result.nudge).toContain("`done` mark")
     expect(result.nudge).toContain("its date")
     expect(result.nudge).toContain("its document `finishes.md`")
@@ -1209,7 +1209,7 @@ describe("merge", () => {
     // pinned ALONE as well — a nudge that only appears beside a mark would be
     // the same hole one field over.
     const set = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
         `{"id":"b","ord":"a1","title":"b","doc":"finishes.md"}`,
       ].join("\n"),
@@ -1225,7 +1225,7 @@ describe("merge", () => {
 
   test("a mirror above has no title to merge into", () => {
     const set = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
         `{"id":"m","ord":"a1","mirror":"a"}`,
         `{"id":"b","ord":"a2","title":"b"}`,
@@ -1236,8 +1236,8 @@ describe("merge", () => {
 
   test("a placement cannot be merged either", () => {
     const set = setOf({
-      "house.jsonl": KITCHEN,
-      "week.jsonl": [
+      "house.olai": KITCHEN,
+      "week.olai": [
         `{"id":"first","ord":"a0","title":"first"}`,
         `{"id":"m","ord":"a1","mirror":"order"}`,
       ].join("\n"),
@@ -1253,10 +1253,10 @@ describe("merge", () => {
       title: "order ",
       rest: "the cabinets",
     })
-    const after = setOf({ "house.jsonl": serializeOutline(fileOf(split, "house.jsonl")) })
+    const after = setOf({ "house.olai": serializeOutline(fileOf(split, "house.olai")) })
     const back = planned(after, { op: "merge", id: "n1" })
-    expect(serializeOutline(fileOf(back, "house.jsonl")))
-      .toBe(serializeOutline(nodesOf(before.nodes, "house.jsonl").map((at) => at.node)))
+    expect(serializeOutline(fileOf(back, "house.olai")))
+      .toBe(serializeOutline(nodesOf(before.nodes, "house.olai").map((at) => at.node)))
   })
 })
 
@@ -1267,8 +1267,8 @@ describe("archive", () => {
     const result = planned(set, { op: "archive", id })
     return {
       result,
-      source: fileOf(result, "house.jsonl"),
-      archive: fileOf(result, "Archive.jsonl"),
+      source: fileOf(result, "house.olai"),
+      archive: fileOf(result, "Archive.olai"),
     }
   }
 
@@ -1281,13 +1281,13 @@ describe("archive", () => {
       { id: "n1", ord: "a0", title: "Kitchen remodel" },
       { id: "order", parent: "n1", ord: "a0", title: "order the cabinets" },
     ])
-    expect(result.file).toBe("Archive.jsonl")
+    expect(result.file).toBe("Archive.olai")
     expect(result.summary).toBe("archive: order the cabinets")
   })
 
   test("descendants come along, shaped as they were", () => {
     const set = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order"}`,
         `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","props":{"status":"done","since":"2026-07-01"}}`,
@@ -1306,8 +1306,8 @@ describe("archive", () => {
 
   test("ids move with the nodes, so a mirror pointing at one keeps resolving", () => {
     const set = setOf({
-      "house.jsonl": KITCHEN,
-      "week.jsonl": `{"id":"m","ord":"a0","mirror":"order"}`,
+      "house.olai": KITCHEN,
+      "week.olai": `{"id":"m","ord":"a0","mirror":"order"}`,
     })
     const { archive } = archived(set, "order")
     expect(record(archive, "order").id).toBe("order")
@@ -1318,29 +1318,29 @@ describe("archive", () => {
 
   test("a chain the archive already has is merged into, not duplicated", () => {
     const set = setOf({
-      "house.jsonl": KITCHEN,
-      "Archive.jsonl": [
+      "house.olai": KITCHEN,
+      "Archive.olai": [
         `{"id":"old","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"gone","parent":"old","ord":"a0","title":"something earlier"}`,
       ].join("\n"),
     })
-    const archive = fileOf(planned(set, { op: "archive", id: "order" }), "Archive.jsonl")
+    const archive = fileOf(planned(set, { op: "archive", id: "order" }), "Archive.olai")
     expect(archive.filter((node) => node.parent === undefined).map((node) => node.id))
       .toEqual(["old"])
     expect(childOrder(archive, "old")).toEqual(["gone", "order"])
   })
 
   test("the archive sits beside the outline the node left, in its own directory", () => {
-    const set = setOf({ "notes/house.jsonl": KITCHEN })
+    const set = setOf({ "notes/house.olai": KITCHEN })
     const result = planned(set, { op: "archive", id: "order" })
     expect(result.files.map((entry) => entry.file).sort()).toEqual([
-      "notes/Archive.jsonl",
-      "notes/house.jsonl",
+      "notes/Archive.olai",
+      "notes/house.olai",
     ])
   })
 
   test("archiving something already archived is refused", () => {
-    const set = setOf({ "Archive.jsonl": `{"id":"x","ord":"a0","title":"x"}` })
+    const set = setOf({ "Archive.olai": `{"id":"x","ord":"a0","title":"x"}` })
     expect(refused(set, { op: "archive", id: "x" }).message).toContain("already in")
   })
 })
@@ -1370,21 +1370,21 @@ describe("unarchive", () => {
     const set = after(house(), { op: "archive", id: "order" })
     const result = planned(set, { op: "unarchive", id: "order" })
 
-    const source = fileOf(result, "house.jsonl")
+    const source = fileOf(result, "house.olai")
     expect(record(source, "order").parent).toBe("kitchen")
     // Last among its new siblings: the archive does not record where in the
     // row it sat, and the honest answer is the one every other arrival gets.
     expect(childOrder(source, "kitchen")).toEqual(["demo", "install", "order"])
     // The scaffold the removal left empty is tidied away, so archive-then-
     // unarchive leaves the archive as it stood.
-    expect(fileOf(result, "Archive.jsonl")).toEqual([])
+    expect(fileOf(result, "Archive.olai")).toEqual([])
     expect(result.summary).toBe("unarchive: order the cabinets")
-    expect(result.file).toBe("house.jsonl")
+    expect(result.file).toBe("house.olai")
   })
 
   test("descendants come back along, shaped as they were", () => {
     const start = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order"}`,
         `{"id":"quote","parent":"order","ord":"a0","title":"get a quote","props":{"status":"done","since":"2026-07-01"}}`,
@@ -1392,7 +1392,7 @@ describe("unarchive", () => {
       ].join("\n"),
     })
     const set = after(start, { op: "archive", id: "order" })
-    const source = fileOf(planned(set, { op: "unarchive", id: "order" }), "house.jsonl")
+    const source = fileOf(planned(set, { op: "unarchive", id: "order" }), "house.olai")
     expect(source.map((node) => node.id)).toEqual(["kitchen", "order", "quote", "sign"])
     expect(record(source, "quote").parent).toBe("order")
     expect(record(source, "sign").parent).toBe("quote")
@@ -1406,7 +1406,7 @@ describe("unarchive", () => {
     const set = after(house(), { op: "archive", id: "order" })
     const source = fileOf(
       planned(set, { op: "unarchive", id: "order", parent: "loose" }),
-      "house.jsonl",
+      "house.olai",
     )
     expect(record(source, "order").parent).toBe("loose")
   })
@@ -1414,8 +1414,8 @@ describe("unarchive", () => {
   test("an explicit `file` lands it at top level", () => {
     const set = after(house(), { op: "archive", id: "order" })
     const source = fileOf(
-      planned(set, { op: "unarchive", id: "order", file: "house.jsonl" }),
-      "house.jsonl",
+      planned(set, { op: "unarchive", id: "order", file: "house.olai" }),
+      "house.olai",
     )
     expect(record(source, "order").parent).toBeUndefined()
     expect(source.filter((node) => node.parent === undefined).map((node) => node.id))
@@ -1429,16 +1429,16 @@ describe("unarchive", () => {
 
   test("a mirror's id is refused, naming the node it shows", () => {
     const set = setOf({
-      "Archive.jsonl": `{"id":"x","ord":"a0","title":"x"}`,
-      "week.jsonl": `{"id":"m","ord":"a0","mirror":"x"}`,
+      "Archive.olai": `{"id":"x","ord":"a0","title":"x"}`,
+      "week.olai": `{"id":"m","ord":"a0","mirror":"x"}`,
     })
     expect(refused(set, { op: "unarchive", id: "m" }).message).toContain("is a mirror")
   })
 
   test("a chain that matches nowhere is refused, naming the chain", () => {
     const set = setOf({
-      "house.jsonl": KITCHEN,
-      "Archive.jsonl": [
+      "house.olai": KITCHEN,
+      "Archive.olai": [
         `{"id":"n9","ord":"a0","title":"Old kitchen"}`,
         `{"id":"gone","parent":"n9","ord":"a0","title":"something"}`,
       ].join("\n"),
@@ -1451,9 +1451,9 @@ describe("unarchive", () => {
 
   test("a chain that matches more than one place is refused, naming each", () => {
     const set = setOf({
-      "house.jsonl": KITCHEN,
-      "flat.jsonl": `{"id":"twin","ord":"a0","title":"Kitchen remodel"}`,
-      "Archive.jsonl": [
+      "house.olai": KITCHEN,
+      "flat.olai": `{"id":"twin","ord":"a0","title":"Kitchen remodel"}`,
+      "Archive.olai": [
         `{"id":"n9","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"gone","parent":"n9","ord":"a0","title":"something"}`,
       ].join("\n"),
@@ -1466,31 +1466,31 @@ describe("unarchive", () => {
 
   test("a top-level node goes back to the one outline beside its archive", () => {
     const set = after(house(), { op: "archive", id: "loose" })
-    const source = fileOf(planned(set, { op: "unarchive", id: "loose" }), "house.jsonl")
+    const source = fileOf(planned(set, { op: "unarchive", id: "loose" }), "house.olai")
     expect(record(source, "loose").parent).toBeUndefined()
   })
 
   test("a top-level node with outlines to choose from is refused, naming them", () => {
     const set = setOf({
-      "house.jsonl": KITCHEN,
-      "flat.jsonl": `{"id":"other","ord":"a0","title":"elsewhere"}`,
-      "Archive.jsonl": `{"id":"x","ord":"a0","title":"was top level"}`,
+      "house.olai": KITCHEN,
+      "flat.olai": `{"id":"other","ord":"a0","title":"elsewhere"}`,
+      "Archive.olai": `{"id":"x","ord":"a0","title":"was top level"}`,
     })
     const failure = refused(set, { op: "unarchive", id: "x" })
     expect(failure.message).toContain("top level")
-    expect(failure.message).toContain("`house.jsonl`")
-    expect(failure.message).toContain("`flat.jsonl`")
+    expect(failure.message).toContain("`house.olai`")
+    expect(failure.message).toContain("`flat.olai`")
   })
 
   test("an archive is not a destination", () => {
     const set = setOf({
-      "house.jsonl": KITCHEN,
-      "Archive.jsonl": [
+      "house.olai": KITCHEN,
+      "Archive.olai": [
         `{"id":"kept","ord":"a0","title":"kept"}`,
         `{"id":"x","ord":"a1","title":"was top level"}`,
       ].join("\n"),
     })
-    expect(refused(set, { op: "unarchive", id: "x", file: "Archive.jsonl" }).message)
+    expect(refused(set, { op: "unarchive", id: "x", file: "Archive.olai" }).message)
       .toContain("OUT of an archive")
     expect(refused(set, { op: "unarchive", id: "x", parent: "kept" }).message)
       .toContain("OUT of an archive")
@@ -1499,7 +1499,7 @@ describe("unarchive", () => {
   test("scaffold still holding a sibling stays; only the emptied chain goes", () => {
     const once = after(house(), { op: "archive", id: "order" })
     const set = after(once, { op: "archive", id: "install" })
-    const archive = fileOf(planned(set, { op: "unarchive", id: "order" }), "Archive.jsonl")
+    const archive = fileOf(planned(set, { op: "unarchive", id: "order" }), "Archive.olai")
     // `install` is still put away under the same merged chain, so the scaffold
     // above it is not empty and is not tidied.
     expect(archive.map((node) => node.id)).toEqual(["n1", "install"])
@@ -1508,18 +1508,18 @@ describe("unarchive", () => {
 
   test("a scaffold record something still names is kept", () => {
     const set = setOf({
-      "house.jsonl": [
+      "house.olai": [
         KITCHEN,
         `{"id":"note","parent":"kitchen","ord":"a3","title":"see the old plan","props":{"see":["n9"]}}`,
       ].join("\n"),
-      "Archive.jsonl": [
+      "Archive.olai": [
         `{"id":"n9","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"gone","parent":"n9","ord":"a0","title":"something"}`,
       ].join("\n"),
     })
     const archive = fileOf(
       planned(set, { op: "unarchive", id: "gone", parent: "kitchen" }),
-      "Archive.jsonl",
+      "Archive.olai",
     )
     expect(archive.map((node) => node.id)).toEqual(["n9"])
   })
@@ -1536,7 +1536,7 @@ describe("unarchive", () => {
    */
   /** One archive's records, read off the set the plan produced. */
   const archived = (set: OutlineSet): ReadonlyArray<Node> =>
-    nodesOf(set.nodes, "Archive.jsonl").map((located) => located.node)
+    nodesOf(set.nodes, "Archive.olai").map((located) => located.node)
 
   test("the signpost the archive minted above a node is not restorable", () => {
     const set = after(house(), { op: "archive", id: "order" })
@@ -1557,7 +1557,7 @@ describe("unarchive", () => {
     // A two-deep chain, so the inner husk is the one that would duplicate a
     // live node that is not the root.
     const deep = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
         `{"id":"quote","parent":"order","ord":"a0","title":"get a quote"}`,
@@ -1577,21 +1577,21 @@ describe("unarchive", () => {
    *  nothing live is called what it is called. `loose` is exactly that. */
   test("a title-only node the archive MOVED is still restorable", () => {
     const set = after(house(), { op: "archive", id: "loose" })
-    const source = fileOf(planned(set, { op: "unarchive", id: "loose" }), "house.jsonl")
+    const source = fileOf(planned(set, { op: "unarchive", id: "loose" }), "house.olai")
     expect(record(source, "loose").title).toBe("a node with no children")
   })
 
   test("an emptied ancestor that is not bare scaffold is kept — it is content", () => {
     const set = setOf({
-      "house.jsonl": KITCHEN,
-      "Archive.jsonl": [
+      "house.olai": KITCHEN,
+      "Archive.olai": [
         `{"id":"was-real","ord":"a0","title":"a whole archived branch","props":{"status":"done","since":"2026-07-01"}}`,
         `{"id":"leaf","parent":"was-real","ord":"a0","title":"its one leaf"}`,
       ].join("\n"),
     })
     const archive = fileOf(
       planned(set, { op: "unarchive", id: "leaf", parent: "kitchen" }),
-      "Archive.jsonl",
+      "Archive.olai",
     )
     expect(archive.map((node) => node.id)).toEqual(["was-real"])
   })
@@ -1602,7 +1602,7 @@ describe("unarchive", () => {
 describe("see", () => {
   test("adds targets, preserving any that were already there", () => {
     const set = setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","props":{"see":["demo"]}}`,
         `{"id":"demo","parent":"kitchen","ord":"a1","title":"demolition"}`,
@@ -1610,7 +1610,7 @@ describe("see", () => {
       ].join("\n"),
     })
     const result = planned(set, { op: "see", id: "order", add: ["install"] })
-    expect(listOf(record(fileOf(result, "house.jsonl"), "order"), "see")).toEqual([
+    expect(listOf(record(fileOf(result, "house.olai"), "order"), "see")).toEqual([
       "demo",
       "install",
     ])
@@ -1619,22 +1619,22 @@ describe("see", () => {
 
   test("removes targets, and clears the field when none remain", () => {
     const set = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"a","ord":"a0","title":"a","props":{"see":["b","c"]}}`,
         `{"id":"b","ord":"a1","title":"b"}`,
         `{"id":"c","ord":"a2","title":"c"}`,
       ].join("\n"),
     })
     const partial = planned(set, { op: "see", id: "a", remove: ["b"] })
-    expect(listOf(record(fileOf(partial, "a.jsonl"), "a"), "see")).toEqual(["c"])
+    expect(listOf(record(fileOf(partial, "a.olai"), "a"), "see")).toEqual(["c"])
 
     const cleared = planned(set, { op: "see", id: "a", remove: ["b", "c"] })
-    expect(listOf(record(fileOf(cleared, "a.jsonl"), "a"), "see")).toEqual([])
+    expect(listOf(record(fileOf(cleared, "a.olai"), "a"), "see")).toEqual([])
   })
 
   test("add and remove in one call: removes first, then appends adds", () => {
     const set = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"a","ord":"a0","title":"a","props":{"see":["b","c"]}}`,
         `{"id":"b","ord":"a1","title":"b"}`,
         `{"id":"c","ord":"a2","title":"c"}`,
@@ -1643,7 +1643,7 @@ describe("see", () => {
     })
     const nodes = fileOf(
       planned(set, { op: "see", id: "a", add: ["d"], remove: ["b"] }),
-      "a.jsonl",
+      "a.olai",
     )
     // Survivors keep their order; new ids append.
     expect(listOf(record(nodes, "a"), "see")).toEqual(["c", "d"])
@@ -1688,7 +1688,7 @@ describe("see", () => {
 
   test("a no-op — re-adding what is already there — is refused rather than rewritten", () => {
     const set = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"a","ord":"a0","title":"a","props":{"see":["b"]}}`,
         `{"id":"b","ord":"a1","title":"b"}`,
       ].join("\n"),
@@ -1700,8 +1700,8 @@ describe("see", () => {
 
   test("a mirror is not a node to edit, and the refusal names the one that is", () => {
     const set = setOf({
-      "a.jsonl": `{"id":"x","ord":"a0","title":"x"}`,
-      "b.jsonl": `{"id":"m","ord":"a0","mirror":"x"}`,
+      "a.olai": `{"id":"x","ord":"a0","title":"x"}`,
+      "b.olai": `{"id":"m","ord":"a0","mirror":"x"}`,
     })
     expect(refused(set, { op: "see", id: "m", add: ["x"] }).message).toContain(
       "`x`",
@@ -1727,7 +1727,7 @@ describe("see", () => {
 describe("after", () => {
   const CHAIN = (): OutlineSet =>
     setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition"}`,
         `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","props":{"after":["demo"]}}`,
@@ -1737,7 +1737,7 @@ describe("after", () => {
 
   test("adds an edge, keeping the ones already written", () => {
     const result = planned(CHAIN(), { op: "after", id: "order", add: ["kitchen"] })
-    expect(listOf(record(fileOf(result, "house.jsonl"), "order"), "after")).toEqual([
+    expect(listOf(record(fileOf(result, "house.olai"), "order"), "after")).toEqual([
       "demo",
       "kitchen",
     ])
@@ -1747,7 +1747,7 @@ describe("after", () => {
   test("removes an edge, and clears the field when none remain", () => {
     const nodes = fileOf(
       planned(CHAIN(), { op: "after", id: "order", remove: ["demo"] }),
-      "house.jsonl",
+      "house.olai",
     )
     expect(listOf(record(nodes, "order"), "after")).toEqual([])
   })
@@ -1774,7 +1774,7 @@ describe("after", () => {
    *  which is two answers to one question. */
   test("a loop that closes through `blocks` is refused too", () => {
     const set = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
         `{"id":"b","ord":"a1","title":"b","props":{"blocks":["a"]}}`,
       ].join("\n"),
@@ -1789,11 +1789,11 @@ describe("after", () => {
    *  one loop rather than two dead ends. */
   test("a loop that closes through a mirror is one loop", () => {
     const set = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
         `{"id":"b","ord":"a1","title":"b","props":{"after":["mirror-of-a"]}}`,
       ].join("\n"),
-      "b.jsonl": `{"id":"mirror-of-a","ord":"a0","mirror":"a"}`,
+      "b.olai": `{"id":"mirror-of-a","ord":"a0","mirror":"a"}`,
     })
     const failure = refused(set, { op: "after", id: "a", add: ["b"] })
     expect(failure._tag).toBe("UsageFailure")
@@ -1803,11 +1803,11 @@ describe("after", () => {
   /** …including when the ADD is the one addressing the placement. */
   test("adding an edge to a mirror is adding it to the node it shows", () => {
     const set = setOf({
-      "a.jsonl": [
+      "a.olai": [
         `{"id":"a","ord":"a0","title":"a"}`,
         `{"id":"b","ord":"a1","title":"b","props":{"after":["a"]}}`,
       ].join("\n"),
-      "b.jsonl": `{"id":"mirror-of-b","ord":"a0","mirror":"b"}`,
+      "b.olai": `{"id":"mirror-of-b","ord":"a0","mirror":"b"}`,
     })
     expect(refused(set, { op: "after", id: "a", add: ["mirror-of-b"] }).message)
       .toContain("`a` → `b` → `a`")
@@ -1840,13 +1840,13 @@ describe("after", () => {
 describe("mirror", () => {
   const TWO = (): OutlineSet =>
     setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition"}`,
         `{"id":"install","parent":"kitchen","ord":"a1","title":"install them"}`,
         `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}`,
       ].join("\n"),
-      "now.jsonl": [
+      "now.olai": [
         `{"id":"now","ord":"a0","title":"Now"}`,
         `{"id":"now-demo","parent":"now","ord":"a0","mirror":"demo"}`,
       ].join("\n"),
@@ -1854,7 +1854,7 @@ describe("mirror", () => {
 
   test("places a mirror under a parent, last among its siblings", () => {
     const result = planned(TWO(), { op: "mirror", target: "install", parent: "now" })
-    const nodes = fileOf(result, "now.jsonl")
+    const nodes = fileOf(result, "now.olai")
     expect(childOrder(nodes, "now")).toEqual(["now-demo", "n1"])
     expect(result.id).toBe("n1")
     // The whole record: four fields, and there is no way to ask for a fifth.
@@ -1878,15 +1878,15 @@ describe("mirror", () => {
         parent: "now",
         before: "now-demo",
       }),
-      "now.jsonl",
+      "now.olai",
     )
     expect(childOrder(nodes, "now")).toEqual(["n1", "now-demo"])
   })
 
   test("`file` puts it at the top level of an outline", () => {
     const nodes = fileOf(
-      planned(TWO(), { op: "mirror", target: "install", file: "now.jsonl" }),
-      "now.jsonl",
+      planned(TWO(), { op: "mirror", target: "install", file: "now.olai" }),
+      "now.olai",
     )
     expect(nodes.find((node) => node.id === "n1")).toMatchObject({ mirror: "install" })
     expect("parent" in (nodes.find((node) => node.id === "n1") as Node)).toBe(false)
@@ -1902,7 +1902,7 @@ describe("mirror", () => {
         parent: "now",
         id: "now-install",
       }),
-      "now.jsonl",
+      "now.olai",
     )
     expect(nodes.find((node) => node.id === "now-install")).toMatchObject({
       mirror: "install",
@@ -1924,9 +1924,9 @@ describe("mirror", () => {
     const result = planned(TWO(), {
       op: "mirror",
       target: "now-demo",
-      file: "house.jsonl",
+      file: "house.olai",
     })
-    expect(fileOf(result, "house.jsonl").find((node) => node.id === "n1"))
+    expect(fileOf(result, "house.olai").find((node) => node.id === "n1"))
       .toMatchObject({ mirror: "now-demo" })
     expect(result.summary).toBe("mirror: demolition")
   })
@@ -1971,8 +1971,8 @@ describe("mirror", () => {
    *  anything is in: a mirror beside its target is a second row, not a loop. */
   test("a mirror at the top of its target's own file is fine", () => {
     const nodes = fileOf(
-      planned(TWO(), { op: "mirror", target: "demo", file: "house.jsonl" }),
-      "house.jsonl",
+      planned(TWO(), { op: "mirror", target: "demo", file: "house.olai" }),
+      "house.olai",
     )
     expect(nodes.find((node) => node.id === "n1")).toMatchObject({ mirror: "demo" })
   })
@@ -1983,11 +1983,11 @@ describe("mirror", () => {
 
   test("a parent in an outline whose lines do not parse is refused", () => {
     const set = setOf(
-      { "good.jsonl": `{"id":"x","ord":"a0","title":"x"}` },
+      { "good.olai": `{"id":"x","ord":"a0","title":"x"}` },
       [],
-      { "bad.jsonl": `{"id":"y","ord":"a0"` },
+      { "bad.olai": `{"id":"y","ord":"a0"` },
     )
-    expect(refused(set, { op: "mirror", target: "x", file: "bad.jsonl" })._tag)
+    expect(refused(set, { op: "mirror", target: "x", file: "bad.olai" })._tag)
       .toBe("ValidationFailure")
   })
 })
@@ -1995,11 +1995,11 @@ describe("mirror", () => {
 describe("unmirror", () => {
   const PLACED = (): OutlineSet =>
     setOf({
-      "house.jsonl": [
+      "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","props":{"status":"done","since":"2026-08-01"}}`,
       ].join("\n"),
-      "now.jsonl": [
+      "now.olai": [
         `{"id":"now","ord":"a0","title":"Now"}`,
         `{"id":"now-demo","parent":"now","ord":"a0","mirror":"demo"}`,
         `{"id":"now-kitchen","parent":"now","ord":"a1","mirror":"kitchen"}`,
@@ -2009,8 +2009,8 @@ describe("unmirror", () => {
   /** The whole semantic: a placement goes, the node does not. */
   test("takes the placement out and leaves the node alone", () => {
     const result = planned(PLACED(), { op: "unmirror", id: "now-demo" })
-    expect(result.files.map((file) => file.file)).toEqual(["now.jsonl"])
-    const nodes = fileOf(result, "now.jsonl")
+    expect(result.files.map((file) => file.file)).toEqual(["now.olai"])
+    const nodes = fileOf(result, "now.olai")
     expect(nodes.map((node) => node.id)).toEqual(["now", "now-kitchen"])
     // The target's own record is in another file the plan does not even write.
     expect(result.summary).toBe("unmirror: demolition")
@@ -2021,14 +2021,14 @@ describe("unmirror", () => {
   /** Removing one placement is not a claim about any other. */
   test("every other placement of the same node stays", () => {
     const set = setOf({
-      "now.jsonl": [
+      "now.olai": [
         `{"id":"x","ord":"a0","title":"x"}`,
         `{"id":"one","ord":"a1","mirror":"x"}`,
         `{"id":"two","ord":"a2","mirror":"x"}`,
       ].join("\n"),
     })
     expect(
-      fileOf(planned(set, { op: "unmirror", id: "one" }), "now.jsonl")
+      fileOf(planned(set, { op: "unmirror", id: "one" }), "now.olai")
         .map((node) => node.id),
     ).toEqual(["x", "two"])
   })
@@ -2052,17 +2052,17 @@ describe("unmirror", () => {
    */
   test("a placement another mirror chains onto is refused, naming it", () => {
     const set = setOf({
-      "now.jsonl": [
+      "now.olai": [
         `{"id":"x","ord":"a0","title":"x"}`,
         `{"id":"one","ord":"a1","mirror":"x"}`,
       ].join("\n"),
-      "focus.jsonl": `{"id":"two","ord":"a0","mirror":"one"}`,
+      "focus.olai": `{"id":"two","ord":"a0","mirror":"one"}`,
     })
     const failure = refused(set, { op: "unmirror", id: "one" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("`two`")
     expect(failure.message).toContain("`mirror`")
-    expect(failure.message).toContain("focus.jsonl:1")
+    expect(failure.message).toContain("focus.olai:1")
     // The node the placement shows is what a re-point should name.
     expect(failure.message).toContain("`x`")
   })
@@ -2070,7 +2070,7 @@ describe("unmirror", () => {
   test("a placement an edge names is refused too, whichever edge it is", () => {
     for (const edge of ["after", "blocks", "see"]) {
       const set = setOf({
-        "now.jsonl": [
+        "now.olai": [
           `{"id":"x","ord":"a0","title":"x"}`,
           `{"id":"one","ord":"a1","mirror":"x"}`,
           `{"id":"y","ord":"a2","title":"y","props":{"${edge}":["one"]}}`,
@@ -2097,7 +2097,7 @@ describe("unmirror", () => {
 describe("documents", () => {
   const NOTES = "# Notes\n\nwhat was here before\n"
   const vault = (): OutlineSet =>
-    setOf({ "house.jsonl": KITCHEN }, [["notes/notes.md", NOTES], "flat.md"])
+    setOf({ "house.olai": KITCHEN }, [["notes/notes.md", NOTES], "flat.md"])
 
   test("a write replaces the text whole, and touches no outline", () => {
     const outcome = planned(vault(), {
@@ -2196,7 +2196,7 @@ describe("round trip", () => {
 
   const lines = (request: Request): ReadonlyArray<string> =>
     serializeOutline(
-      fileOf(planned(setOf({ "ledger.jsonl": LEDGER.join("\n") }), request), "ledger.jsonl"),
+      fileOf(planned(setOf({ "ledger.olai": LEDGER.join("\n") }), request), "ledger.olai"),
     ).trimEnd().split("\n")
 
   test("placing a mirror adds one line and touches none", () => {
@@ -2228,11 +2228,11 @@ describe("round trip", () => {
 
 test("a file whose lines do not parse is never rewritten from a set that lost them", () => {
   const set = setOf(
-    { "good.jsonl": `{"id":"x","ord":"a0","title":"x"}` },
+    { "good.olai": `{"id":"x","ord":"a0","title":"x"}` },
     [],
-    { "bad.jsonl": `{"id":"y","ord":"a0"` },
+    { "bad.olai": `{"id":"y","ord":"a0"` },
   )
-  const failure = refused(set, { op: "add", file: "bad.jsonl", title: "x" })
+  const failure = refused(set, { op: "add", file: "bad.olai", title: "x" })
   expect(failure._tag).toBe("ValidationFailure")
   if (failure._tag !== "ValidationFailure") return
   expect(failure.errors.length).toBeGreaterThan(0)
@@ -2255,7 +2255,7 @@ test("a mistyped id is offered the one it was probably meant to be, on any op", 
     { op: "move", id: "instal", parent: "kitchen" },
     { op: "unmirror", id: "instal" },
     { op: "after", id: "order", add: ["instal"] },
-    { op: "mirror", target: "instal", file: "house.jsonl" },
+    { op: "mirror", target: "instal", file: "house.olai" },
   ] as ReadonlyArray<Request>) {
     const failure = refused(house(), request)
     expect(failure._tag).toBe("NotFoundFailure")

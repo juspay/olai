@@ -163,8 +163,8 @@ export const createDragging = (
    *     from a drawn tree leaves one, so the planner's walk back for an ancestor
    *     always finds a row.
    *   - **Every row of another FILE.** An outline is an independent tree and a
-   *     parent is same-file by the format, so a row from `house.jsonl` has no
-   *     landing among the rows a mirror of `garden.jsonl` expands — they are
+   *     parent is same-file by the format, so a row from `house.olai` has no
+   *     landing among the rows a mirror of `garden.olai` expands — they are
    *     drawn in this tree and they are records of that one. Dropping between
    *     two of them would name a parent in the wrong file and be refused after
    *     the line had promised it (review, 2026-08-14).

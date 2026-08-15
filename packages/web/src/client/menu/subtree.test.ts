@@ -29,8 +29,8 @@ const GARDEN = [
   `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
 ].join("\n")
 
-const derived = derive(setOf({ "house.jsonl": HOUSE, "garden.jsonl": GARDEN }).nodes)
-const rows = rowsOf(derived, "house.jsonl")
+const derived = derive(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN }).nodes)
+const rows = rowsOf(derived, "house.olai")
 
 /** One row of the fixture, by id. `flatten` with nothing folded is "every row
  *  there is" — the client's own walk (`edit/order.ts`), rather than a second

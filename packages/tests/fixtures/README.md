@@ -28,14 +28,14 @@ of each thing the view has to draw:
 
 | what | where |
 |---|---|
-| nesting | `kitchen` → `install` → `handles` (house.jsonl) |
-| a done child | `demo` (house.jsonl:2) |
-| a doing child | `order` (house.jsonl:3) |
+| nesting | `kitchen` → `install` → `handles` (house.olai) |
+| a done child | `demo` (house.olai:2) |
+| a doing child | `order` (house.olai:3) |
 | a todo child | `knobs` — an unstarted task nothing is waiting on, so an EMPTY box |
 | a todo child that is BLOCKED | `hinges` — the waiting glyph in the mark column instead, and the row dimmed |
-| a parent hiding finished work must not hide | `frames` (garden.jsonl) — both its tasks done, and NOBODY marked it |
+| a parent hiding finished work must not hide | `frames` (garden.olai) — both its tasks done, and NOBODY marked it |
 | a note that must survive hiding finished work | `slugs` under `frames` — nobody finished it, nobody called it work |
-| a subtree that is entirely done | `compost` (garden.jsonl) — two done children, nothing unmarked, so Prefs-hidden empties its page |
+| a subtree that is entirely done | `compost` (garden.olai) — two done children, nothing unmarked, so Prefs-hidden empties its page |
 | a bullet that is not a task | `handles` — no mark, so no status and no box at all |
 | a marked parent | `kitchen` is `doing`, `herbs` is `doing` — stored, like any other mark |
 | a rollup | `kitchen` shows `1/2`: `demo` done, `order` under way, `install` not a task |
@@ -48,11 +48,11 @@ of each thing the view has to draw:
 | an `after` edge that must NOT block | `hinges` after `handles`, a bullet nobody marked: not work, so nothing to wait for |
 | a `doc` | `install` attaches `finishes.md` |
 | a document nothing attaches | `notes/palette.md` — still a page, still in the sidebar |
-| a nested outline | `Daily/2026-08.jsonl` — the sidebar's file tree, not a path string |
+| a nested outline | `Daily/2026-08.olai` — the sidebar's file tree, not a path string |
 | a fenced code block, a footnote | `finishes.md` |
 | every mark the markdown pipeline draws, once each | `kitchen-sink.md` |
 | a relative picture | `finishes.md` names `art/handle.png`; `notes/palette.md` names the same file through `../` |
-| a cross-file mirror | `kitchen-herbs` (house.jsonl) mirrors `herbs` (garden.jsonl) |
+| a cross-file mirror | `kitchen-herbs` (house.olai) mirrors `herbs` (garden.olai) |
 
 `kitchen-sink.md` is the odd one out and says so in its own first paragraph: it
 is not there to be a plausible document but to be LOOKED AT, in a light theme
@@ -60,7 +60,7 @@ and a dark one, by whoever is changing how markdown is set. Only the few of its
 claims that can go silently wrong are asserted
 (`features/documents.feature`) — the rest are for the eye.
 
-The mirror is why there are two files. Every `.jsonl` is an independent tree —
+The mirror is why there are two files. Every `.olai` is an independent tree —
 a `parent` may not cross files — so showing the herb bed inside the kitchen
 remodel is exactly what a mirror is *for*, and it is the one relation that
 cannot be exercised with a single file.
@@ -141,7 +141,7 @@ between them rather than two names in one folder.
 
 | what | where |
 |---|---|
-| one day, two outlines | `2019-11-05` has `ferry` (life.jsonl) and `posts` + `rails` (work.jsonl) |
+| one day, two outlines | `2019-11-05` has `ferry` (life.olai) and `posts` + `rails` (work.olai) |
 | a bare date and a datetime on the same day | `posts` is `2019-11-05`, `rails` `2019-11-05T14:30` |
 | a datetime that must count for its own day | `ferry` is `2019-11-05T09:00` |
 | a day with one node | `2019-11-06` — `pack` |
@@ -174,7 +174,7 @@ pair they can make:
 | finished work with a date on both fields | `survey` — on the 1st and the 4th's day pages, and on no agenda |
 | work with no `date` at all | `paint` — a `todo` nobody scheduled, so there is no *when* to be late against |
 | a date on the MARK and nowhere else | `latch` — `todo: 2019-11-21`, which no view reads as a day |
-| overdue AND blocked | `visas` (life.jsonl) — after `photos`, which is under way, so the row says both |
+| overdue AND blocked | `visas` (life.olai) — after `photos`, which is under way, so the row says both |
 | the blocker itself | `photos` — `doing` and undated, so it holds `visas` up without being on the agenda |
 
 **The dates are in 2019 for the reason the journal corpus's are** — everything
@@ -183,19 +183,19 @@ ahead are empty until a scenario writes into them, which the `@scratch:agenda`
 scenarios do.
 
 Two outlines, again for one reason: the agenda groups by outline within each of
-its sections, and one file cannot show a grouping. `visas` (life.jsonl) is
-dated between `permit` and `posts` (work.jsonl), so the two orders — path order
+its sections, and one file cannot show a grouping. `visas` (life.olai) is
+dated between `permit` and `posts` (work.olai), so the two orders — path order
 across the groups, oldest first inside one — cannot both be satisfied by
 accident.
 
 ## `broken/` — a set that does not parse
 
-- `pantry.jsonl:3` — an unquoted key, so the line is not JSON (`not-json`).
-- `shed.jsonl:2` — `parent` is `shhed`, which no node declares
+- `pantry.olai:3` — an unquoted key, so the line is not JSON (`not-json`).
+- `shed.olai:2` — `parent` is `shhed`, which no node declares
   (`unknown-parent`, with `shed` as the did-you-mean).
 
 A file with an unreadable line contributes no nodes, and the set-wide rules run
-over what is left. `shed.jsonl` is what makes this corpus a whole-set failure
+over what is left. `shed.olai` is what makes this corpus a whole-set failure
 rather than a degrade: `parent` may not cross files, so `shhed` is refused
 whichever file it was going to be in, and an error the missing file cannot
 explain rejects the set. The parse error is reported alongside it — one pass
@@ -211,14 +211,14 @@ Every line here is valid JSON and a well-formed record, so the whole-set
 validator definitely runs. That is the point: this is where the error view's
 *grouping* is exercised, and grouping needs errors in more than one file.
 
-- `attic.jsonl:3` — `after` names `donate`, which nothing declares
-  (`unknown-target`) → belongs to `attic.jsonl` alone.
-- `cellar.jsonl:2` — `parent` is `attic`, which lives in `attic.jsonl`
+- `attic.olai:3` — `after` names `donate`, which nothing declares
+  (`unknown-target`) → belongs to `attic.olai` alone.
+- `cellar.olai:2` — `parent` is `attic`, which lives in `attic.olai`
   (`foreign-parent`) → **cross-file**: it names a site in the other file.
-- `cellar.jsonl:3` — a second `boxes`; `attic.jsonl:2` claimed it first
+- `cellar.olai:3` — a second `boxes`; `attic.olai:2` claimed it first
   (`duplicate-id`) → **cross-file**.
-- `cellar.jsonl:4` — `parent` is `nowhere` (`unknown-parent`) → belongs to
-  `cellar.jsonl` alone.
+- `cellar.olai:4` — `parent` is `nowhere` (`unknown-parent`) → belongs to
+  `cellar.olai` alone.
 
 An error is cross-file when it implicates a second file — `isCrossFile` in
 `packages/format/src/errors.ts` — which is what the `cross-file-errors` section

@@ -20,7 +20,7 @@ import { detail, index, search } from "./query.ts"
  *  every answer here has to follow rather than report as itself. */
 const LEDGER = (): OutlineSet =>
   setOf({
-    "roadmap.jsonl": [
+    "roadmap.olai": [
       `{"id":"now","ord":"a0","title":"Now"}`,
       `{"id":"now-sticky","parent":"now","ord":"a0","mirror":"sticky"}`,
       `{"id":"now-git","parent":"now","ord":"a1","mirror":"focus-git"}`,
@@ -28,7 +28,7 @@ const LEDGER = (): OutlineSet =>
       `{"id":"sticky","parent":"bugs","ord":"a0","title":"the header scrolls away","props":{"status":"doing","after":["git"],"see":["git"]}}`,
       `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","props":{"status":"todo"}}`,
     ].join("\n"),
-    "focus.jsonl": [
+    "focus.olai": [
       `{"id":"focus","ord":"a0","title":"Focus"}`,
       // A mirror OF a mirror: `now-git` shows this, which shows `git`.
       `{"id":"focus-git","parent":"focus","ord":"a0","mirror":"git"}`,
@@ -64,11 +64,11 @@ describe("placements", () => {
     // `git` is placed twice: directly by `focus-git`, and through it by
     // `now-git`, which mirrors the mirror. Both are places `git` is drawn.
     expect(detail(at(), "git")?.mirrors).toEqual([
-      { id: "now-git", file: "roadmap.jsonl", line: 3, parent: "now" },
-      { id: "focus-git", file: "focus.jsonl", line: 2, parent: "focus" },
+      { id: "now-git", file: "roadmap.olai", line: 3, parent: "now" },
+      { id: "focus-git", file: "focus.olai", line: 2, parent: "focus" },
     ])
     expect(detail(at(), "sticky")?.mirrors).toEqual([
-      { id: "now-sticky", file: "roadmap.jsonl", line: 2, parent: "now" },
+      { id: "now-sticky", file: "roadmap.olai", line: 2, parent: "now" },
     ])
   })
 
@@ -90,7 +90,7 @@ describe("placements", () => {
         id: "sticky",
         title: "the header scrolls away",
         status: "doing",
-        file: "roadmap.jsonl",
+        file: "roadmap.olai",
         path: ["Bugs"],
       },
     })
@@ -119,7 +119,7 @@ describe("the tags a node carries", () => {
    *  whole reason the sigil is reported. */
   const TAGGED = (): OutlineSet =>
     setOf({
-      "work.jsonl": [
+      "work.olai": [
         `{"id":"call","ord":"a0","title":"call @alice about #alice/onboarding"}`,
         `{"id":"plain","ord":"a1","title":"nothing to see here"}`,
       ].join("\n"),
@@ -164,14 +164,14 @@ describe("the tags a node carries", () => {
 describe("a query is words and operators", () => {
   const WORK = (): OutlineSet =>
     setOf({
-      "work.jsonl": [
+      "work.olai": [
         `{"id":"trip","ord":"a0","title":"the trip"}`,
         `{"id":"book","parent":"trip","ord":"a0","title":"book the flights","props":{"status":"done","since":"2026-08-03"}}`,
         `{"id":"pack","parent":"trip","ord":"a1","title":"pack","props":{"status":"todo"},"desc":"the small case"}`,
         `{"id":"house","ord":"a1","title":"the house"}`,
         `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","props":{"status":"done","since":"2026-08-09"}}`,
       ].join("\n"),
-      "Archive.jsonl": `{"id":"old","ord":"a0","title":"an old trip","props":{"status":"done","since":"2026-01-01"}}`,
+      "Archive.olai": `{"id":"old","ord":"a0","title":"an old trip","props":{"status":"done","since":"2026-01-01"}}`,
     })
 
   const ids = (query: Parameters<typeof search>[1]): ReadonlyArray<string> =>
@@ -223,9 +223,9 @@ describe("a query is words and operators", () => {
   })
 
   test("a scope narrows to one outline, or to one node and what is beneath it", () => {
-    expect(ids({ text: "is:done", file: "work.jsonl" })).toEqual(["book", "paint"])
+    expect(ids({ text: "is:done", file: "work.olai" })).toEqual(["book", "paint"])
     expect(ids({ text: "is:done", under: "trip" })).toEqual(["book"])
-    expect(ids({ text: "is:done", file: "Archive.jsonl", under: "trip" })).toEqual([])
+    expect(ids({ text: "is:done", file: "Archive.olai", under: "trip" })).toEqual([])
   })
 
   test("a hit says which field carried the words — and says nothing when none did", () => {

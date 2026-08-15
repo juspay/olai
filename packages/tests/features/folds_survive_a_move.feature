@@ -8,9 +8,9 @@ Feature: A fold survives the node moving
   It is the claim that keying by node id was FOR. A place key is the chain of
   records above a row, so it changes the moment a node moves; an id does not.
   `archive` is the move this app actually has — the record goes to
-  Archive.jsonl with its id kept, and the file it left goes on being served with
+  Archive.olai with its id kept, and the file it left goes on being served with
   the rest of its nodes — and a memory that pruned each file's ids against that
-  same file would read "house.jsonl does not declare it any more" as a deletion
+  same file would read "house.olai does not declare it any more" as a deletion
   and quietly forget the fold. Gone means gone from the SET.
 
   What is pinned here is the MEMORY, and since the Trash arrived that is all
@@ -20,7 +20,7 @@ Feature: A fold survives the node moving
   reader can no longer fold — which is right the day the node comes back out.
 
   Scenario: A node moved to the Trash keeps its fold in the memory, under the file it landed in
-    Given I open the outline "house.jsonl"
+    Given I open the outline "house.olai"
     When I collapse the node "install"
     Then the node "install" is collapsed
     When I open the node menu of "install"
@@ -35,7 +35,7 @@ Feature: A fold survives the node moving
     # re-filed under the archive rather than forgotten. Where it is now SEEN is
     # the Trash — an archive is not an outline you open and fold, so the row
     # being drawn there is what "it landed somewhere" looks like now.
-    Then this browser remembers "install" folded in "Archive.jsonl"
+    Then this browser remembers "install" folded in "Archive.olai"
     When I open the Trash
     Then the Trash lists the node "install"
     And there should be no page errors

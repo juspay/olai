@@ -634,7 +634,7 @@ export const NODE_REF_ANY = `[${CHAT_NODE_REF_ATTR}]`;
  *  present), the error view (it did not), or the fault card (the client threw
  *  while drawing). Waiting on any — rather than on the one the scenario
  *  expects — means a broken-set regression fails with "expected a tree, found
- *  the error view for house.jsonl:3" instead of a bare 30-second timeout.
+ *  the error view for house.olai:3" instead of a bare 30-second timeout.
  *
  *  The FAULT is the third for exactly that reason and no other: it is the one
  *  shape no scenario but `the_client_breaks.feature` ever wants, so leaving it
@@ -985,7 +985,7 @@ export class OlaiWorld extends World {
   /** The path AND the query — what a reader would copy out of the bar when the
    *  page is narrowed. Its own accessor beside {@link pathname} because the
    *  filter is part of the address (`routes.ts`) and every other assertion in
-   *  this suite is about a path: a step asserting "/o/house.jsonl" must not
+   *  this suite is about a path: a step asserting "/o/house.olai" must not
    *  start passing for a page that is also filtered. */
   address(): string {
     const url = new URL(this.page.url());
@@ -1433,7 +1433,7 @@ export class OlaiWorld extends World {
    * every assertion that WAITS for something to arrive in one goes through.
    *
    * Some writes in this app mint the file they land in: `archive` writes
-   * `Archive.jsonl` the first time anything is put away. A scenario polling
+   * `Archive.olai` the first time anything is put away. A scenario polling
    * for a node to ARRIVE there is polling for the FILE too, and a reader that
    * threw would fail on the first poll — at speed it usually does not, under
    * load it does, and what the failure then names is an ENOENT out of a helper

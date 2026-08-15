@@ -33,9 +33,9 @@ const node = (record: Readonly<Record<string, unknown>>): string =>
 
 describe("what changed", () => {
   test("a node nobody had before is created", () => {
-    const changes = changesOf(at("a.jsonl"), at("a.jsonl", node({ id: "x" })))
+    const changes = changesOf(at("a.olai"), at("a.olai", node({ id: "x" })))
     expect(changes).toEqual([
-      { file: "a.jsonl", id: "x", title: "x", fields: [], sort: "created" },
+      { file: "a.olai", id: "x", title: "x", fields: [], sort: "created" },
     ])
   })
 
@@ -43,25 +43,25 @@ describe("what changed", () => {
     const open = node({ id: "x", title: "order the cabinets" })
     const done = node({ id: "x", title: "order the cabinets", props: { status: "done", since: "2026-08-10" } })
 
-    expect(changesOf(at("a.jsonl", open), at("a.jsonl", done))[0]).toMatchObject({
+    expect(changesOf(at("a.olai", open), at("a.olai", done))[0]).toMatchObject({
       fields: ["status", "since"],
       sort: "done",
     })
-    expect(changesOf(at("a.jsonl", done), at("a.jsonl", open))[0]).toMatchObject({
+    expect(changesOf(at("a.olai", done), at("a.olai", open))[0]).toMatchObject({
       sort: "undone",
     })
   })
 
   test("a node that changed file is archived, and reads under the file it is in now", () => {
-    const before = at("a.jsonl", node({ id: "x", title: "install them" }))
-    const after = at("Archive.jsonl", node({ id: "x", title: "install them" }))
+    const before = at("a.olai", node({ id: "x", title: "install them" }))
+    const after = at("Archive.olai", node({ id: "x", title: "install them" }))
 
     // ONE change, not a removal and an unrelated arrival: ids are unique
     // across the set, so the comparison is by id across every file it was
     // handed.
     expect(changesOf(before, after)).toEqual([
       {
-        file: "Archive.jsonl",
+        file: "Archive.olai",
         id: "x",
         title: "install them",
         fields: ["file"],
@@ -71,7 +71,7 @@ describe("what changed", () => {
   })
 
   test("a node that is nowhere on the new side is gone", () => {
-    const changes = changesOf(at("a.jsonl", node({ id: "x" })), at("a.jsonl"))
+    const changes = changesOf(at("a.olai", node({ id: "x" })), at("a.olai"))
     expect(changes[0]).toMatchObject({ sort: "gone" })
   })
 
@@ -79,14 +79,14 @@ describe("what changed", () => {
     const same = node({ id: "x", title: "x", props: { see: ["y"] } })
     // Two READINGS of the same bytes: equal lists compare equal, which is the
     // one thing a shallow `===` over an array field would get wrong.
-    expect(changesOf(at("a.jsonl", same), at("a.jsonl", same))).toEqual([])
+    expect(changesOf(at("a.olai", same), at("a.olai", same))).toEqual([])
   })
 
   test("every field that differs is reported, and the sort is the biggest of them", () => {
     const before = node({ id: "x", title: "one", desc: "old" })
     const after = node({ id: "x", parent: "p", ord: "a1", title: "two", desc: "new" })
 
-    const change = changesOf(at("a.jsonl", before), at("a.jsonl", after))[0]
+    const change = changesOf(at("a.olai", before), at("a.olai", after))[0]
     expect(change?.fields).toEqual(["parent", "ord", "title", "desc"])
     // Moved beats retitled and noted, by the fixed order.
     expect(change?.sort).toBe("moved")
@@ -96,8 +96,8 @@ describe("what changed", () => {
   // does — so what a change calls it is the id it was named by.
   test("a mirror answers by the id it was named by", () => {
     const mirror = (ord: string) => JSON.stringify({ id: "m", ord, mirror: "x" })
-    const before = at("a.jsonl", mirror("a0"), `{"id":"x","ord":"a1","title":"x"}`)
-    const after = at("a.jsonl", mirror("a2"), `{"id":"x","ord":"a1","title":"x"}`)
+    const before = at("a.olai", mirror("a0"), `{"id":"x","ord":"a1","title":"x"}`)
+    const after = at("a.olai", mirror("a2"), `{"id":"x","ord":"a1","title":"x"}`)
     expect(changesOf(before, after)[0]).toMatchObject({ title: "m", sort: "moved" })
   })
 })
@@ -105,9 +105,9 @@ describe("what changed", () => {
 describe("the biggest one", () => {
   test("is by the fixed priority, and the first read among equals", () => {
     const changes = changesOf(
-      at("a.jsonl", node({ id: "keep" }), node({ id: "mark", ord: "a1" })),
+      at("a.olai", node({ id: "keep" }), node({ id: "mark", ord: "a1" })),
       at(
-        "a.jsonl",
+        "a.olai",
         node({ id: "keep", desc: "written" }),
         node({ id: "mark", ord: "a1", props: { status: "done", since: "2026-08-10" } }),
         node({ id: "fresh", ord: "a2" }),

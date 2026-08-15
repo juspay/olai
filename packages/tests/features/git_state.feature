@@ -33,7 +33,7 @@ Feature: What git is doing is on screen, in ONE indicator
   corpus server is already the serve it is about.
 
   Background:
-    Given I open the outline "garden.jsonl"
+    Given I open the outline "garden.olai"
 
   Scenario: One pill answers for git, and a serve told not to commit says so
     # `--no-commit` is an owner's choice about a directory whose history is

@@ -23,7 +23,7 @@ const KITCHEN = [
   `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
 ].join("\n")
 
-const house = (): OutlineSet => setOf({ "house.jsonl": KITCHEN })
+const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
 
 /** Plan the request against the set, and say what the write would be called —
  *  exactly as {@link ../ops.ts} assembles a reply, about the node the plan says
@@ -70,7 +70,7 @@ describe("what a write is called", () => {
   })
 
   test("archiving reads as one node archived, not a departure and an arrival", () => {
-    // The node leaves `house.jsonl` for the archive, and both ends are in the
+    // The node leaves `house.olai` for the archive, and both ends are in the
     // plan — which is what lets the comparison match it across the two files.
     expect(sorting(house(), { op: "archive", id: "order" })).toBe("archived")
   })
@@ -80,7 +80,7 @@ describe("what a write is called", () => {
     // name: `set_date` is one tool and two events, told apart by what the
     // field became rather than by which tool was called.
     const scheduled = setOf({
-      "house.jsonl": `{"id":"order","ord":"a0","title":"order","props":{"date":"2026-08-20"}}`,
+      "house.olai": `{"id":"order","ord":"a0","title":"order","props":{"date":"2026-08-20"}}`,
     })
     expect(sorting(scheduled, { op: "date", id: "order", date: null })).toBe("unscheduled")
   })
@@ -93,11 +93,11 @@ describe("what a write is called", () => {
     expect(
       sorting(house(), {
         op: "create",
-        file: "garden.jsonl",
+        file: "garden.olai",
         seed: { title: "Garden", children: [{ title: "prune the apple" }] },
       }),
     ).toBe("created")
-    expect(sorting(house(), { op: "create", file: "garden.jsonl" })).toBe("created")
+    expect(sorting(house(), { op: "create", file: "garden.olai" })).toBe("created")
   })
 
   test("a write that changes no record says nothing rather than `edited`", () => {

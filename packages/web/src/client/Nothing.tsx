@@ -14,7 +14,7 @@ export function Nothing(props: {
   return (
     <p class="text-muted">
       {props.requested === null
-        ? "No .jsonl outlines under the served directory."
+        ? "No .olai outlines under the served directory."
         : props.sought === "document"
         ? `No document named ${props.requested} under the served directory.`
         : `No outline named ${props.requested} under the served directory.`}

@@ -1,10 +1,21 @@
 # The outline format
 
-One `.jsonl` file per outline. One JSON object per line; one line per node. Every `.jsonl` file under the served directory is an independent tree: no cross-file parents. Cross-file relations are mirrors and edges, by bare id.
+One `.olai` file per outline. One JSON object per line; one line per node. Every `.olai` file under the served directory is an independent tree: no cross-file parents. Cross-file relations are mirrors and edges, by bare id.
 
 ```jsonl
 {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","props":{"date":"2026-08-10","after":["demo"]}}
 ```
+
+The extension is what changed; the CONTENT is the same JSON lines it always
+was. A vault written before the rename is renamed by hand, once — olai does
+not read `.jsonl` any more, and a `.jsonl` left in a served directory is simply
+an unclaimed file, like a `.txt`:
+
+```sh
+git ls-files '*.jsonl' | while read -r f; do git mv "$f" "${f%.jsonl}.olai"; done
+```
+
+(`mv` instead of `git mv` outside a repository.)
 
 ## Two record shapes
 
@@ -83,7 +94,7 @@ What follows from the marks on disk:
 
 **Blocked** is the same kind of answer, computed from the edges and the marks together and stored nowhere: `a after b` means `b` blocks `a` while `b` is a task that is not done — with the three marks there are, while `b` is `doing` **or** `todo`, read off `b`'s own record. A target with no status **never blocks**: it is not a task, there is nothing to finish, so there is nothing to wait for — and to block on a branch, mark the branch. The trap the rule is written against is spelling it `status !== "done"`, which reads every plain bullet as an obstacle that can never be cleared.
 
-That is ONE predicate and it is read at BOTH ends of the arrow, which is the racket reference's own shape: "a node this can be said about" and "a node that still stands in the way" are the same question asked from either side, and two spellings of it would be two chances to disagree about what unfinished work is. So a `done` node is waiting on nothing whatever it is after — it has happened, and the order it happened in is no longer a question — and an unmarked node is neither blocked nor blocking, because a bullet is not work. **Archived** work is exempt at both ends for the same reason from the other side: a subtree put away in an `Archive.jsonl` is over, so nothing waits on it (a live node that did would wait forever) and nothing tells it that it cannot start.
+That is ONE predicate and it is read at BOTH ends of the arrow, which is the racket reference's own shape: "a node this can be said about" and "a node that still stands in the way" are the same question asked from either side, and two spellings of it would be two chances to disagree about what unfinished work is. So a `done` node is waiting on nothing whatever it is after — it has happened, and the order it happened in is no longer a question — and an unmarked node is neither blocked nor blocking, because a bullet is not work. **Archived** work is exempt at both ends for the same reason from the other side: a subtree put away in an `Archive.olai` is over, so nothing waits on it (a live node that did would wait forever) and nothing tells it that it cannot start.
 
 The exemptions stop at the validator: `after` must stay **acyclic** whatever the marks say and wherever the nodes live, because a loop is a claim about the file rather than about what is on anyone's plate. Both rules read one graph — `blocks` normalised into `after`, with each edge filed under the node its target NAMES, so an edge written at a mirror and an edge written at the node it stands for are one edge. A deadlock that closes through a placement is a deadlock.
 
@@ -111,13 +122,13 @@ somebody wrote about it, and what the set says was on it — and never that a
 node's dates are read differently.
 
 **Two outline filenames mean something too, and both are conventions rather
-than rules.** An `Archive.jsonl` holds what was put away, beside the outline it
-left (the section above says what that does to blockedness); an `Inbox.jsonl`
+than rules.** An `Archive.olai` holds what was put away, beside the outline it
+left (the section above says what that does to blockedness); an `Inbox.olai`
 is where a capture lands when the caller names no file. Both are read by NAME:
-the inbox is whichever outline is called `Inbox.jsonl`, case-insensitively,
+the inbox is whichever outline is called `Inbox.olai`, case-insensitively,
 wherever in the tree it sits — shallowest first, then path order, so a
-directory that already keeps `notes/inbox.jsonl` captures into the file it has
-— and a directory with none gets `Inbox.jsonl` at the root, minted by the same
+directory that already keeps `notes/inbox.olai` captures into the file it has
+— and a directory with none gets `Inbox.olai` at the root, minted by the same
 single operation that writes the first line into it. Nothing validates either
 name and no field records them; `@olai/format` spells both (`ARCHIVE` /
 `isArchived`, `INBOX` / `inboxIn`) so every face resolves them identically.
@@ -158,7 +169,7 @@ untouched, and a node's own row still shows the mark it carries.
   offset is part of the day it names — a stamp is written in the zone of the
   person who made it, and the day is theirs.
 - **Work that was archived keeps its days** (resolved 2026-08-11). A node in an
-  `Archive.jsonl` with a dated `done` lights its day and is on its page, and the
+  `Archive.olai` with a dated `done` lights its day and is on its page, and the
   group heading says which file it came out of. Blockedness exempts the archive
   at both ends because nothing can be waiting on work that is over
   ([Status](#status)); a journal is asking the other question — what happened —

@@ -72,11 +72,13 @@ export {
 export {
   ARCHIVE,
   archiveBeside,
+  DOCUMENT_EXT,
   INBOX,
   inboxIn,
   isArchived,
   isMirror,
   Located,
+  OUTLINE_EXT,
   targetsOf,
 } from "./node.ts"
 export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"

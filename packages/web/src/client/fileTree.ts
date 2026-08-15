@@ -1,11 +1,11 @@
 /**
  * The served directory as a TREE rather than two flat lists.
  *
- * Outlines (`.jsonl`) and documents (`.md`) share one walk: a folder shows
+ * Outlines (`.olai`) and documents (`.md`) share one walk: a folder shows
  * everything it holds, the way a reader of the same directory sees it, and the
  * way the racket original's sidebar did. The alternative — two sections that
  * each re-spell every nested path as a string — is what this replaces: once a
- * corpus has depth (`Daily/2026-08.jsonl`, `brainstorming/*.md`), the path
+ * corpus has depth (`Daily/2026-08.olai`, `brainstorming/*.md`), the path
  * string wraps and the folder is nowhere to click.
  *
  * Pure: paths in, rows out. Collapse, active marking and the link each file
@@ -136,7 +136,7 @@ export const dirsIn = (rows: ReadonlyArray<FileRow>): ReadonlySet<string> => {
 }
 
 /** Directory paths that contain `file`, outermost first. Empty for a root
- *  file — there is no folder chain to open for `house.jsonl`. The sidebar
+ *  file — there is no folder chain to open for `house.olai`. The sidebar
  *  uses this to keep the open file's ancestors unfolded so a collapsed-by-
  *  default tree never hides the selection. */
 export const ancestorDirs = (file: string): ReadonlyArray<string> => {

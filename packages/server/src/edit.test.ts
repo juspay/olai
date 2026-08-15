@@ -37,7 +37,7 @@ const HOUSE = [
   `{"id":"echo","ord":"a2","mirror":"order"}`,
 ].join("\n")
 
-const reading = (set: OutlineSet = setOf({ "house.jsonl": HOUSE })): Reading => ({
+const reading = (set: OutlineSet = setOf({ "house.olai": HOUSE })): Reading => ({
   set,
   derived: derive(set.nodes),
 })
@@ -72,7 +72,7 @@ test("Enter under a parent adds a sibling in that parent", () => {
 
 test("Enter on a top-level row names the FILE, because there is no parent", () => {
   expect(asked({ verb: "add", at: { kind: "after", id: "kitchen" }, title: "garage" }))
-    .toEqual({ op: "add", file: "house.jsonl", after: "kitchen", title: "garage" })
+    .toEqual({ op: "add", file: "house.olai", after: "kitchen", title: "garage" })
 })
 
 test("the first child of a branch goes under it, last among nothing", () => {
@@ -81,8 +81,8 @@ test("the first child of a branch goes under it, last among nothing", () => {
 })
 
 test("the first row of an empty outline is the one place a file is named", () => {
-  expect(asked({ verb: "add", at: { kind: "first", file: "new.jsonl" }, title: "one" }))
-    .toEqual({ op: "add", file: "new.jsonl", title: "one" })
+  expect(asked({ verb: "add", at: { kind: "first", file: "new.olai" }, title: "one" }))
+    .toEqual({ op: "add", file: "new.olai", title: "one" })
 })
 
 test("a new row after a MIRROR is a sibling of the mirror", () => {
@@ -91,7 +91,7 @@ test("a new row after a MIRROR is a sibling of the mirror", () => {
   // another file. A mirror carries a parent and an `ord` like any record, so
   // there is nothing to resolve through.
   expect(asked({ verb: "add", at: { kind: "after", id: "echo" }, title: "x" }))
-    .toEqual({ op: "add", file: "house.jsonl", after: "echo", title: "x" })
+    .toEqual({ op: "add", file: "house.olai", after: "echo", title: "x" })
 })
 
 test("a new row after a node nothing declares is not found", () => {
@@ -102,7 +102,7 @@ test("a new row after a node nothing declares is not found", () => {
 // ── the palette's capture ──────────────────────────────────────────────
 
 test("a capture into a directory with an inbox is an `add` into that file", () => {
-  const set = setOf({ "house.jsonl": HOUSE, [INBOX]: "" })
+  const set = setOf({ "house.olai": HOUSE, [INBOX]: "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
     .toEqual({ op: "add", file: INBOX, title: "buy milk" })
 })
@@ -118,23 +118,23 @@ test("an inbox the directory already keeps somewhere else is the one used", () =
   // The convention is the NAME, not the place: a directory that files its
   // inbox under `notes/` captures into the file it has rather than growing a
   // second one at the root.
-  const set = setOf({ "house.jsonl": HOUSE, "notes/inbox.jsonl": "" })
+  const set = setOf({ "house.olai": HOUSE, "notes/inbox.olai": "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
-    .toEqual({ op: "add", file: "notes/inbox.jsonl", title: "buy milk" })
+    .toEqual({ op: "add", file: "notes/inbox.olai", title: "buy milk" })
 })
 
 test("with two inboxes the shallower one wins, so the answer is stable", () => {
   const set = setOf({
-    "deep/down/Inbox.jsonl": "",
+    "deep/down/Inbox.olai": "",
     [INBOX]: "",
-    "house.jsonl": HOUSE,
+    "house.olai": HOUSE,
   })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
     .toEqual({ op: "add", file: INBOX, title: "buy milk" })
 })
 
 test("a file merely ENDING in the name is not an inbox", () => {
-  const set = setOf({ "house.jsonl": HOUSE, "not-an-Inbox.jsonl": "" })
+  const set = setOf({ "house.olai": HOUSE, "not-an-Inbox.olai": "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
     .toEqual({ op: "create", file: INBOX, seed: { title: "buy milk" } })
 })
@@ -198,7 +198,7 @@ test("indenting under a MIRROR names the node it shows", () => {
   // `later` is the row under `echo`, which mirrors `order`, so `Tab` on it is
   // "go under what that row shows".
   const set = setOf({
-    "house.jsonl": `${HOUSE}\n{"id":"later","ord":"a3","title":"and one after it"}`,
+    "house.olai": `${HOUSE}\n{"id":"later","ord":"a3","title":"and one after it"}`,
   })
   expect(asked({ verb: "move", id: "later", how: "in" }, reading(set)))
     .toEqual({ op: "move", id: "later", parent: "order" })
@@ -206,7 +206,7 @@ test("indenting under a MIRROR names the node it shows", () => {
 
 test("indenting under a mirror of nothing is refused rather than doomed", () => {
   const set = setOf({
-    "a.jsonl": [
+    "a.olai": [
       `{"id":"one","ord":"a0","title":"one"}`,
       `{"id":"ghost","ord":"a1","mirror":"nowhere"}`,
       `{"id":"two","ord":"a2","title":"two"}`,
@@ -249,7 +249,7 @@ const marked = (id: string, mark: string): Reading => {
   const line = HOUSE.split("\n").find((one) => one.includes(`"id":"${id}"`))
   if (line === undefined) throw new Error(`no \`${id}\` in the fixture`)
   return reading(setOf({
-    "house.jsonl": HOUSE.replace(
+    "house.olai": HOUSE.replace(
       line,
       `${line.slice(0, -1)},"props":{"status":"${mark}"}}`,
     ),
@@ -417,8 +417,8 @@ test("unarchive passes through, destination and all — the chain is the op's to
     .toEqual({ op: "unarchive", id: "handles" })
   expect(asked({ verb: "unarchive", id: "handles", parent: "install" }))
     .toEqual({ op: "unarchive", id: "handles", parent: "install" })
-  expect(asked({ verb: "unarchive", id: "loose", file: "house.jsonl" }))
-    .toEqual({ op: "unarchive", id: "loose", file: "house.jsonl" })
+  expect(asked({ verb: "unarchive", id: "loose", file: "house.olai" }))
+    .toEqual({ op: "unarchive", id: "loose", file: "house.olai" })
 })
 
 test("the inverse of a put-back is the archive that made the row a trash row", () => {
@@ -602,7 +602,7 @@ test("a capture is taken back the same way a new row is", () => {
     inverse(
       { verb: "capture", title: "buy milk" },
       "n7",
-      reading(setOf({ "house.jsonl": HOUSE, [INBOX]: "" })),
+      reading(setOf({ "house.olai": HOUSE, [INBOX]: "" })),
     ),
   ).toEqual([{ verb: "remove", id: "n7" }])
 })
@@ -634,7 +634,7 @@ test("undoing a text edit is undoable in its turn — the pair, the other way ro
   // write is judged against, which by then says what the first write wrote.
   const landed = reading(
     setOf({
-      "house.jsonl": HOUSE.replace(
+      "house.olai": HOUSE.replace(
         `"title":"order the cabinets"`,
         `"title":"order the walnut ones"`,
       ),
@@ -689,7 +689,7 @@ test("an archive records the place the row is about to stop having", () => {
   // A row at top level has no parent to come back under, so its FILE is the
   // recorded fact — the same pair the op takes.
   expect(inverse({ verb: "archive", id: "loose" }))
-    .toEqual([{ verb: "unarchive", id: "loose", file: "house.jsonl" }])
+    .toEqual([{ verb: "unarchive", id: "loose", file: "house.olai" }])
 })
 
 test("a split is taken back by merging the half it made", () => {
@@ -721,7 +721,7 @@ test("a merge is taken back by a whole sequence, and every step is already a ver
 
 test("a merge that MOVED the note puts the note back too, and one that did not says nothing", () => {
   const notes = reading(setOf({
-    "house.jsonl": [
+    "house.olai": [
       `{"id":"a","ord":"a0","title":"a","desc":"the first"}`,
       `{"id":"b","ord":"a1","title":"b","desc":"the second"}`,
     ].join("\n"),
@@ -765,7 +765,7 @@ const EDGED = [
   `{"id":"echo","ord":"a1","mirror":"order"}`,
 ].join("\n")
 
-const edged = (): Reading => reading(setOf({ "house.jsonl": EDGED }))
+const edged = (): Reading => reading(setOf({ "house.olai": EDGED }))
 
 test("an edge write travels as the op's own two lists, and resolves nothing", () => {
   expect(asked({ verb: "see", id: "order", add: ["kitchen"] }, edged()))
@@ -842,7 +842,7 @@ test("an edge write that would change nothing has nothing to take back", () => {
 const NOTES = "# Notes\n\nwhat was here\n"
 const vault = (): Reading =>
   reading(
-    setOf({ "house.jsonl": HOUSE }, [
+    setOf({ "house.olai": HOUSE }, [
       ["notes.md", NOTES],
       "Daily/2026/08/2026-08-12.md",
     ]),
@@ -892,17 +892,17 @@ test("nothing takes a minted document back — no face removes one", () => {
 })
 
 test("a new outline names its path outright, and the op judges it", () => {
-  expect(asked({ verb: "outlineNew", file: "plans.jsonl" }))
-    .toEqual({ op: "create", file: "plans.jsonl" })
+  expect(asked({ verb: "outlineNew", file: "plans.olai" }))
+    .toEqual({ op: "create", file: "plans.olai" })
   // Nothing about the path is checked HERE: a `..`, a `.md`, a file the set
   // already holds are each `create_outline`'s own refusal, in its own words.
-  expect(asked({ verb: "outlineNew", file: "../escape.jsonl" }))
-    .toEqual({ op: "create", file: "../escape.jsonl" })
-  expect(asked({ verb: "outlineNew", file: "house.jsonl" }))
-    .toEqual({ op: "create", file: "house.jsonl" })
+  expect(asked({ verb: "outlineNew", file: "../escape.olai" }))
+    .toEqual({ op: "create", file: "../escape.olai" })
+  expect(asked({ verb: "outlineNew", file: "house.olai" }))
+    .toEqual({ op: "create", file: "house.olai" })
 })
 
 test("nothing takes a minted outline back either", () => {
-  expect(inverse({ verb: "outlineNew", file: "plans.jsonl" }, "plans.jsonl"))
+  expect(inverse({ verb: "outlineNew", file: "plans.olai" }, "plans.olai"))
     .toEqual([])
 })

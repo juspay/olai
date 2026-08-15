@@ -7,7 +7,7 @@
  *
  *   - an OUTLINE it serves gets node-level rows — "marked done", "note
  *     rewritten", "archived" — because both sides parse into records and the
- *     comparison is in hand. Never a text diff: a `.jsonl` diff is one enormous
+ *     comparison is in hand. Never a text diff: a `.olai` diff is one enormous
  *     line per node with everything on it changing at once;
  *   - EVERY OTHER dirty file gets a path and a status chip. A document, a source
  *     file, an outline outside the served root. The only richer thing available

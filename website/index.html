@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>olai — a git-native outliner: memory for the AI era</title>
-<meta name="description" content="Outlines as one .jsonl line per node, prose as Markdown documents attached to them. Git merges and reviews all of it, and an agent edits it through the same gate your keyboard does.">
+<meta name="description" content="Outlines as one .olai line per node, prose as Markdown documents attached to them. Git merges and reviews all of it, and an agent edits it through the same gate your keyboard does.">
 <link rel="canonical" href="https://olai.kolu.dev/">
 <style>
   /* what is not a palette's: the two faces, and the one surface this page
@@ -266,7 +266,7 @@
     <div>
       <h1>olai</h1>
       <p class="tag">A git-native outliner: memory for the AI era.</p>
-      <p class="sub">Outlines are <code>.jsonl</code> files, one line per node.
+      <p class="sub">Outlines are <code>.olai</code> files, one line per node.
       Longer content is Markdown files referenced from the outline. Everything
       is tracked in git, and agents edit through the same operations layer as
       the keyboard.</p>
@@ -274,7 +274,7 @@
     </div>
 
     <div class="panel" aria-label="An olai outline, as the browser draws it">
-      <div class="file">kitchen.jsonl</div>
+      <div class="file">kitchen.olai</div>
       <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
       <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
       <div class="row d1"><span class="box done"></span><span class="t strike">Pick the counter stone</span></div>
@@ -290,7 +290,7 @@
 <section id="format">
   <div class="wrap">
     <h2>The file format</h2>
-    <p class="lead">Each outline is a <code>.jsonl</code> file: one JSON object
+    <p class="lead">Each outline is a <code>.olai</code> file: one JSON object
     per line, one node per line. Nodes have stable ids and parent pointers, so
     line-based git merges are safe and moving a subtree changes one field.
     See the <a href="https://github.com/juspay/olai/blob/master/docs/format.md">format spec</a>.</p>
@@ -405,7 +405,7 @@ The corner unit is the **risky one** — see
         <h3>2026-08-12</h3>
         <p>Fog on the water. Only the ferry has a deadline, so it went
         first.</p>
-        <div class="file" style="margin-top:1rem">kitchen.jsonl</div>
+        <div class="file" style="margin-top:1rem">kitchen.olai</div>
         <div class="row"><span class="box"></span><span class="t">Book the plumber</span><span class="pill">2026-08-12</span></div>
         <div class="row"><span class="box done"></span><span class="t strike">Pick the counter stone</span><span class="pill"><span class="occ">done</span>2026-08-12T16:20:03-04:00</span></div>
       </div>
@@ -482,15 +482,15 @@ The corner unit is the **risky one** — see
         <div class="file">/agenda · 2026-08-12</div>
 
         <p class="sect">overdue</p>
-        <p class="grp">kitchen.jsonl</p>
+        <p class="grp">kitchen.olai</p>
         <p class="trail">Kitchen renovation</p>
         <div class="row"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
 
         <p class="sect">today</p>
-        <p class="grp">kitchen.jsonl</p>
+        <p class="grp">kitchen.olai</p>
         <p class="trail">Kitchen renovation</p>
         <div class="row"><span class="box"></span><span class="t">Book the plumber</span><span class="pill">2026-08-12</span></div>
-        <p class="grp">trip.jsonl</p>
+        <p class="grp">trip.olai</p>
         <div class="row"><span class="bullet">●</span><span class="t">Ferry tickets go on sale</span><span class="pill">2026-08-12</span></div>
 
         <p class="sect">upcoming</p>
@@ -536,7 +536,7 @@ The corner unit is the **risky one** — see
       </div>
       <div>
         <div class="panel">
-          <div class="file">kitchen.jsonl</div>
+          <div class="file">kitchen.olai</div>
           <div class="row"><span class="box"></span><span class="t">Book the plumber</span><span class="pill">2026-08-12</span></div>
           <div class="picker">
             <span>Scheduled for</span>
@@ -598,7 +598,7 @@ The corner unit is the **risky one** — see
     the fourth takes rows away and leaves the rest standing where they live.</p>
     <div class="cols">
       <div class="panel">
-        <div class="file">/o/house.jsonl?q=%23home+-is%3Adone</div>
+        <div class="file">/o/house.olai?q=%23home+-is%3Adone</div>
         <div class="row"><span class="bullet">●</span><span class="t"><strong>kitchen remodel</strong> <span class="tagchip">#home</span></span></div>
         <div class="row d1"><span class="bullet">●</span><span class="t">install the cabinets</span></div>
         <div class="row d2"><span class="box"></span><span class="t">pick the hinges <span class="tagchip">#home</span></span></div>
@@ -722,7 +722,7 @@ The corner unit is the **risky one** — see
     it asks first, and says how many rows go with it — and copying the subtree
     as tab-indented plain text. Those go on the same undo stack, so ⌘Z takes a
     menu edit back too. There is no delete: the Trash keeps the subtree whole,
-    ids and all — on disk it is an <code>Archive.jsonl</code> beside the outline
+    ids and all — on disk it is an <code>Archive.olai</code> beside the outline
     it left, which is why nothing that pointed at it breaks — and the sidebar’s
     Trash is where you read it, with <em>Put back</em> on the rows that were put
     away, restoring each where it came from. (The titles above them are the
@@ -759,7 +759,7 @@ The corner unit is the **risky one** — see
     <p><strong>And a thought that arrives while you are reading something else
     does not cost you your place.</strong> <kbd>⌘</kbd>+<kbd>K</kbd>,
     <kbd>+</kbd>, the line, <kbd>Enter</kbd>: it becomes a node in the
-    directory’s inbox — an <code>Inbox.jsonl</code>, created the first time you
+    directory’s inbox — an <code>Inbox.olai</code>, created the first time you
     capture — while your page, your scroll and the address stay exactly where
     they were, and the box empties for the next line.</p>
   </div>
@@ -813,14 +813,14 @@ The corner unit is the **risky one** — see
       </div>
       <div class="stack">
         <div class="panel" data-theme="pitch">
-          <div class="file">kitchen.jsonl · pitch</div>
+          <div class="file">kitchen.olai · pitch</div>
           <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
           <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
           <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
           <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
         </div>
         <div class="panel" data-theme="manuscript">
-          <div class="file">kitchen.jsonl · manuscript</div>
+          <div class="file">kitchen.olai · manuscript</div>
           <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
           <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
           <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
@@ -911,7 +911,7 @@ The corner unit is the **risky one** — see
         <div class="msg you">plumber's booked — tick it off</div>
         <div class="op"><b>✓</b> set_done · book-plumber</div>
         <div class="wrote"><span>✓</span><span>Book the plumber</span><span class="said">marked done</span></div>
-        <div class="in">kitchen.jsonl</div>
+        <div class="in">kitchen.olai</div>
         <div class="msg agent">Done. Marked “Book the plumber” as done.</div>
 
         <div class="msg you">the base units are carcass-only — say so in the doc</div>
@@ -931,7 +931,7 @@ The corner unit is the **risky one** — see
         <div class="msg agent">Added the carcass note and the filler strips.</div>
       </div>
       <div class="panel">
-        <div class="file">kitchen.jsonl · live</div>
+        <div class="file">kitchen.olai · live</div>
         <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">3/4</span></span></div>
         <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span></div>
         <div class="row d1"><span class="box done"></span><span class="t strike">Book the plumber</span></div>
@@ -958,7 +958,7 @@ The corner unit is the **risky one** — see
 │   · chat agent · 12m ago · 1a2b3c4        │
 │                                           │
 │ OUTLINES ─────────────────────────────    │
-│ ☑ roadmap.jsonl                           │
+│ ☑ roadmap.olai                            │
 │   ✓  Outlines as a collection    done     │
 │   ✎  Notes: one state, same line  note    │
 │   +  Kolu integration: auto-…    created  │
@@ -986,7 +986,7 @@ The corner unit is the **risky one** — see
   <div class="wrap">
     <span>olai — <a href="https://github.com/juspay/olai">github.com/juspay/olai</a></span>
     <span><a href="https://github.com/juspay/olai/blob/master/docs/index.md">docs</a></span>
-    <span><a href="https://github.com/juspay/olai/blob/master/docs/roadmap.jsonl">roadmap — in the format itself</a></span>
+    <span><a href="https://github.com/juspay/olai/blob/master/docs/roadmap.olai">roadmap — in the format itself</a></span>
     <span><a href="https://kolu.dev">kolu.dev</a></span>
   </div>
 </footer>

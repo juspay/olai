@@ -238,7 +238,7 @@ are nothing alike — what is pending is HEAD against the working tree, a past
 change is a commit against its parent — with no git anywhere near this package.
 
 It is never a text diff, and that is the format paying for itself in the other
-direction: a `.jsonl` diff is one enormous line per node with everything on it
+direction: a `.olai` diff is one enormous line per node with everything on it
 changing at once, which is exactly the shape that made line-based merges safe
 and exactly the shape nobody can read. Matching is by ID ACROSS FILES, so
 archiving reads as one change to one node rather than as a removal and an
