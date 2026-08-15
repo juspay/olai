@@ -37,6 +37,16 @@
  * drawing the same button in the same cell, and the panel replaces it when it
  * lands. Nothing in the gutter moves, and there is no third thing to draw.
  *
+ * WHAT THAT WINDOW COSTS, said out loud because it is this file's doing: the
+ * row is `"open"` from the press (`./door.ts`) while no panel exists, so
+ * nothing is listening for a pointer outside or for Escape, and a person who
+ * changes their mind gets the panel anyway when the chunk lands. It is one
+ * fetch of one immutable asset, the panel that arrives dismisses like any
+ * other, and closing the window would mean a dismissal armed for the WAIT —
+ * `../dismiss.ts` registers per owner, which for a menu is per ROW, and that is
+ * the cost `./Dots.tsx` exists to refuse. `features/menu_arrives.feature` pins
+ * the behaviour rather than the intention, so changing it stays a decision.
+ *
  * ## TWO DOORS, because below 48rem there is no `•••` to press
  *
  * A phone spends no gutter width on the menu (`../touch.ts`), so what opens it

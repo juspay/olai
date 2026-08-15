@@ -69,3 +69,33 @@ Feature: The ••• menu's primitive arrives when a row is asked for its menu
     And I press the node menu of "install"
     Then the node menu of "install" says its menu never came
     And the node menu is closed
+
+  # THE WINDOW IS A REAL WINDOW, so what it costs is written down rather than
+  # left to be discovered. Between the press and the chunk landing there is no
+  # panel, so there is nothing listening for a pointer outside or for Escape —
+  # the row is asked-and-open, and the panel appears when it can. A person who
+  # changes their mind inside that window is not stuck (the panel that arrives
+  # dismisses like any other, below), and the window is one fetch of one
+  # immutable asset: 57ms over loopback, once per session.
+  #
+  # Closing it would take a dismissal armed for the wait — and this client's one
+  # spelling of that (`client/dismiss.ts`) registers per owner, which for a menu
+  # means per ROW, the cost `menu/Dots.tsx` exists to refuse. So this scenario
+  # PINS the behaviour rather than the intention: the day somebody decides the
+  # window should cancel, it goes red, and that is a decision being made rather
+  # than a test being written.
+  @corpus:good
+  Scenario: Changing your mind inside the window does not cancel the ask
+    Given the menu's primitive is held up
+    When I open the outline "house.jsonl"
+    And I press the node menu of "install"
+    And I click away from the node menu
+    And I press "Escape"
+    Then the node menu is closed
+    When the menu's primitive arrives
+    # It opens, because the press that asked for it is still the press that
+    # opens it — and from here it is an ordinary menu.
+    Then the node menu is open
+    When I press "Escape"
+    Then the node menu is closed
+    And there should be no page errors
