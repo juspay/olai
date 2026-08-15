@@ -340,6 +340,37 @@ answers with the archive again. Nothing about the collections changed: they
 are still read-only on the wire, and an edit reaches a reader as the file it
 produced.
 
+## And one group NO browser may reach
+
+`src/ops.ts` is the AGENT's door — `ops.run` over `@olai/format`'s
+`WriteRequest` union, `ops.commit`, and the three query answers that had no
+procedure. It is the other half of the sentence above: a keyboard sends intents
+and an agent names ops, deliberately different vocabularies over one write gate,
+and `edit.apply` is untouched by any of it.
+
+Two things about it are worth reading before the file:
+
+- **Why it can exist at all.** Putting the ops vocabulary on the surface used to
+  be inseparable from making it browser-callable, because `serveSurfaceApp` took
+  `handlers` whole: a member existed on every face or on none. That asymmetry is
+  what olai asked upstream about and what
+  [juspay/kolu#2170](https://github.com/juspay/kolu/pull/2170) closed. Every
+  serving face now takes the same `ExposeMap`, so this namespace is open on the
+  socket an agent dials and closed on the websocket a tab opens — and a tab that
+  calls one anyway is refused per request with `SurfaceMemberNotExposed` naming
+  the tag, rather than finding a member missing. Which face gets what is
+  `@olai/server`'s (`src/faces.ts`); this package only declares what exists.
+- **Why the writer travels with the call**, when every other door has it decided
+  by the process it lives in. The serving process is an `olai web`; the CALLER
+  may be somebody's own `olai mcp` two terminals over, so a writer decided by
+  the server would record every attached agent's work as the browser's. It is
+  still decided by a composition root — the caller's, which is the one that
+  knows. It is provenance rather than authorization, and the gate is the face.
+
+`push` and `search.nodes` are deliberately NOT twinned there: a member belongs
+to the agent's door only when the agent's version DIFFERS. A push takes no
+writer at all, and a search asks and answers the same thing whoever asks.
+
 Who is on the other end is deliberately NOT a member here. It is a real
 question — a page bound to a server that has been replaced must know, and both
 ends of the stale-tab handshake compare that id — but the framework reserves

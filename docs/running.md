@@ -92,10 +92,27 @@ claude mcp add olai -- olai mcp ~/outlines
 
 `olai mcp <dir>` speaks MCP over its own stdin and stdout, so there is nothing
 to bind, nothing to configure and nothing to authenticate: the client proved
-who it is by being the process that started it. It needs no `olai web` running,
-and it does not mind one that is — leave a tab open on that directory and it
-follows the terminal's edits live. It gets the `commit` tool too, and
-`--commit=off` turns that off ([git.md](git.md)).
+who it is by being the process that started it. It gets the `commit` tool too,
+and `--commit=off` turns that off ([git.md](git.md)).
+
+**If an `olai web` is already serving that directory, it ATTACHES to it** — over
+a unix socket that server binds beside its listener, in `$XDG_RUNTIME_DIR/olai/`
+(or `/tmp/olai-$UID/`), named after the directory and readable only by you.
+Nothing to configure and nothing to notice: the tool list is identical either
+way, and the only visible difference is a line on stderr saying which happened.
+What changes is underneath — an attached session holds no store, no watcher and
+no file descriptors of its own, so a person and an agent are reading one
+directory at one revision instead of two copies drifting seconds apart. With no
+server running it opens the directory itself, which is the ordinary case.
+
+Two consequences worth knowing:
+
+- **`--commit` is the serving process's setting** while attached, and an
+  attached session says so on stderr rather than pretending the flag took.
+- **A server that stops takes its socket with it.** The next `olai mcp` finds
+  nothing and opens its own store; there is no state file to go stale. A
+  session that was already attached when the server stopped does not silently
+  switch — its next call says the server is gone.
 
 There is no write CLI, and there never will be — no shell command adds a node
 or marks one. `olai web` and `olai mcp` are the two ways of putting a write
