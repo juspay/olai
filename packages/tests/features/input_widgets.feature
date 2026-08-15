@@ -210,6 +210,10 @@ Feature: The three input widgets
     # A pointer's write and a keystroke's file onto one stack, so the chord does
     # not mean two things depending on which hand made the edit. The inverse of
     # `add_mirror` is `remove_mirror`, named by the placement the write minted.
+    # Escape first: the draft must stay closed after the write lands. It used
+    # to bounce back when add_mirror was still in flight (`kept` in draft.ts).
+    # The chord after that spends the inverse `send` recorded — caret.ts waits
+    # for the placement to be drawn, which is this tab having the way back.
     When I click the title of "knobs"
     And I type " ((compost"
     And the mirror completions are open

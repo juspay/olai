@@ -23,7 +23,7 @@ from `broken/` and `tangled/`.
 
 ## `good/` — a set that validates
 
-Three outlines, three documents and a picture. Between them they exercise one
+Three outlines, three documents, a saved `.html` page and a picture. Between them they exercise one
 of each thing the view has to draw:
 
 | what | where |
@@ -52,7 +52,10 @@ of each thing the view has to draw:
 | a fenced code block, a footnote | `finishes.md` |
 | every mark the markdown pipeline draws, once each | `kitchen-sink.md` |
 | a relative picture | `finishes.md` names `art/handle.png`; `notes/palette.md` names the same file through `../` |
+| a `.html` in the vault | `report.html` — a saved page, previewed on its own page, with a hostile script in it that must never run |
 | a cross-file mirror | `kitchen-herbs` (house.olai) mirrors `herbs` (garden.olai) |
+
+`report.html` carries a script that tries four things — rewrite its own page, write the app's `localStorage`, set a cookie, and navigate the tab away — and every one of them has to fail. It is a fixture with teeth on purpose: a preview is only worth having if a file the vault's owner did not write cannot use it as a way in, and a scenario that previewed inert markup would prove nothing about the file that matters. `features/html_previews.feature` reads the evidence that all four failed.
 
 `kitchen-sink.md` is the odd one out and says so in its own first paragraph: it
 is not there to be a plausible document but to be LOOKED AT, in a light theme

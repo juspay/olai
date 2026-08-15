@@ -64,6 +64,7 @@ Feature: Serve a directory
     Then the outline link "house.olai" is drawn as an outline
     And the outline link "garden.olai" is drawn as an outline
     And the document link "finishes.md" is drawn as a document
+    And the page link "report.html" is drawn as hypertext
     And the folder "notes" is drawn as a folder
     And the folder "Daily" is drawn as a folder
 

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cabinet quote</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; }
+      h1 { color: #14532d; }
+      .total { font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <h1>Cabinet quote</h1>
+    <p>Two runs of shaker fronts, <span class="total">£4,180</span> fitted.</p>
+
+    <!--
+      THE PROBE. This file is a fixture with teeth: everything below is what a
+      hostile (or merely careless) saved page would do if the preview handed it
+      to the browser unsealed. It must all fail, and the scenario in
+      features/html_previews.feature reads the evidence that it did:
+
+        - the paragraph is left saying "the script did not run", because the
+          rewrite below never happens;
+        - nothing is written into the app's localStorage or cookie jar;
+        - the app's own DOM is unmarked.
+
+      A page that scripts is not exotic — every "save page as" in every browser
+      produces one — so this is the ordinary case, not the adversarial edge.
+    -->
+    <p id="probe">the script did not run</p>
+    <script>
+      document.getElementById("probe").textContent = "the script ran"
+      try { localStorage.setItem("olai.pwned", "yes") } catch (error) {}
+      try { document.cookie = "olai-pwned=yes; path=/" } catch (error) {}
+      try { parent.document.body.setAttribute("data-pwned", "yes") } catch (error) {}
+      try { top.location.replace("/pwned") } catch (error) {}
+    </script>
+  </body>
+</html>

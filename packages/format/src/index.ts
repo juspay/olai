@@ -19,7 +19,7 @@
  *     date derivations (`datedDays`, `datedOn`, and the daily-note pair
  *     `dailyNoteDays` / `dailyNotesOn`), the forward reading of those same
  *     dates (`isOverdue`, `agendaOf`) and the document rules (`docOf`,
- *     `isPicture`, `documentOf`) — so a reader and the validator agree on
+ *     `isPicture`, `bodiedOf`) — so a reader and the validator agree on
  *     sibling order, mirror expansion, one node's ancestry, what is standing in
  *     its way, what is on a day, what is overdue on it, which document that
  *     day's note is, and where a `doc` or a relative link lands, computing all
@@ -64,12 +64,25 @@
 export { parseOutline } from "./parse.ts"
 export { validate } from "./validate.ts"
 
-export { assemble, BrokenFile, fileKind, OutlineSet } from "./set.ts"
+export { assemble, BrokenFile, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
+/** WHICH files a served directory is made of — one table, and the two suffixes
+ *  the ops layer mints paths with. The table is exported whole because the
+ *  surfaces that DRAW a kind hold a `Record` over it, and the sweep that says
+ *  nobody spelled a suffix elsewhere has to read the list itself. */
 export {
+  bodyKind,
+  DOCUMENT_EXT,
+  FILE_KINDS,
+  fileKind,
+  holdsText,
+  OUTLINE_EXT,
+} from "./kinds.ts"
+export type { BodyKind, FileKind } from "./kinds.ts"
+export {
+  bodiedOf,
   docOf,
   Document,
-  documentOf,
   isPicture,
   PICTURE_EXTENSIONS,
   pictureOf,
@@ -77,14 +90,12 @@ export {
 export {
   ARCHIVE,
   archiveBeside,
-  DOCUMENT_EXT,
   INBOX,
   inboxIn,
   isArchived,
   isMirror,
   Located,
   MARKS,
-  OUTLINE_EXT,
   /** A place in the loaded set — `{file, line}`, as a schema, so an error's
    *  site, a record in the set, a read's answer and a mirror's location are one
    *  derivation of "where" rather than four spellings of it. */
@@ -99,7 +110,7 @@ export {
   shadowFor,
   targetsOf,
 } from "./node.ts"
-export type { FileKind, LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
+export type { LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
 
 /** The one OPEN field on a record: named facts olai gives no meaning to. A
  *  consumer reads a key through these rather than reaching into `node.custom`,

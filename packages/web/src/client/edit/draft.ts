@@ -202,6 +202,32 @@ export const refused = (draft: Draft, failure: OpFailure): Draft => ({
   refused: failure,
 })
 
+/**
+ * After a write that keeps the caret: THIS draft, with what the write said —
+ * or nothing, if the reader already let go.
+ *
+ * Identity, the same check {@link landed}'s caller already makes. A cancel
+ * replaces the object with `null`, and `current ?? held` used to put the
+ * abandoned draft back. That is how Escape after a completion bounced the
+ * editor open (`input_widgets.feature:209`): the placement had landed on
+ * disk, Escape closed the line, and the in-flight `setDraft` resurrected it.
+ *
+ * Three arguments because the question is about TWO drafts — the one the
+ * write left, and the one that is open now — plus what the write said.
+ * {@link typed} and {@link refused} rewrite one draft; this one decides
+ * whether to keep it. Slot forwarding (`was` / {@link stillAt}) is
+ * {@link landed}'s, and a caller that needs both composes them. There is
+ * no overload.
+ */
+export const kept = (
+  current: Draft | null,
+  held: Draft,
+  nudge?: string,
+): Draft | null => {
+  if (current !== held) return current
+  return nudge === undefined || held.kind !== "row" ? held : { ...held, nudge }
+}
+
 /** Where the NEXT row goes when this draft is followed by `Enter`: after the
  *  ROW, not after the node it shows. `Enter` on a mirror makes a sibling of
  *  the mirror — the line appears where the reader is looking — rather than a

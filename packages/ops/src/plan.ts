@@ -28,6 +28,7 @@ import {
   ancestorsOf,
   ARCHIVE,
   archiveBeside,
+  bodyKind,
   chainOf,
   isArchived,
   derive,
@@ -367,12 +368,13 @@ const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFa
  * from the set would erase whatever is really in it. That has to be a refusal,
  * and it has to carry the errors — fix the file, then edit it.
  *
- * ONE rule, both kinds of file, because it is one rule: an outline whose lines
+ * ONE rule, every kind of file, because it is one rule: an outline whose lines
  * did not parse has lost its records, and a document that could not be read has
  * lost its text, and writing either from a set that is missing it is the same
  * mistake. Only the clause differs, and which clause it is comes off the
- * format's own {@link fileKind} rather than a flag a caller passes — so a caller
- * cannot ask for the wrong sentence about the file it named.
+ * format's own registry rather than a flag a caller passes — a file whose
+ * content is a BODY lost its text, a file whose content is records lost those —
+ * so a caller cannot ask for the wrong sentence about the file it named.
  */
 const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> => {
   const broken = scope.set.broken.find((entry) => entry.file === file)
@@ -380,7 +382,7 @@ const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> =>
     return Result.fail(
       new ValidationFailure({
         reason: `\`${file}\` ${
-          fileKind(file) === "document"
+          bodyKind(file) !== null
             ? "could not be read, so what it holds is not loaded — writing it would drop that."
             : "has lines that do not parse, so its records are not loaded — writing it would drop them."
         } Fix the file first.`,
@@ -2633,6 +2635,15 @@ const planUnmirror = (
  * a document write is audit-trailed and revision-published exactly as a node
  * write is, and an open page sees it the way it sees a `git pull`.
  *
+ * IT WRITES DOCUMENTS, and that is narrower than "a file the set holds". The
+ * set carries every BODIED file — a `.html` rides the same collection and the
+ * same probe — and this verb is `write_document`: what it takes is what it is
+ * named for, asked of the format's registry rather than of which list the path
+ * turned up in. So a `.html` is not found here, and the sentence a caller gets
+ * is the one below, naming `create_document` and the nearest document. That is
+ * the whole of why the page for one has no Edit control (`@olai/web`'s
+ * `document/faces.tsx`): the affordance would be a door onto this refusal.
+ *
  * TWO refusals are its own:
  *
  *   - a path the set does not hold, with the closest one that exists — the
@@ -2648,11 +2659,18 @@ const planWriteDocument = (
   scope: Scope,
   request: Extract<Request, { op: "doc" }>,
 ): Planned => {
-  const document = scope.set.documents.find((entry) => entry.file === request.file)
+  // The kind is asked of the REQUESTED path rather than of every entry: a
+  // `.html` is refused by its own name, and the walk over the set is then only
+  // what the near-miss list below needs — which is the failure path.
+  const document = fileKind(request.file) === "document"
+    ? scope.set.documents.find((entry) => entry.file === request.file)
+    : undefined
   if (document === undefined) {
     const near = didYouMean(
       request.file,
-      scope.set.documents.map((entry) => entry.file),
+      scope.set.documents
+        .filter((entry) => fileKind(entry.file) === "document")
+        .map((entry) => entry.file),
     )
     return Result.fail(
       new NotFoundFailure({

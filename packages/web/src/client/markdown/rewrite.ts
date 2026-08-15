@@ -21,7 +21,7 @@
  *     which is the document's own directory on `/doc/…` by luck, and the wrong
  *     place on `/d/<date>`, where a note is drawn under an address that is not
  *     a file at all. So it is resolved beside the file the link was WRITTEN in
- *     (`@olai/format`'s `documentOf`) and spelled as this app's own document
+ *     (`@olai/format`'s `bodiedOf`) and spelled as this app's own document
  *     route. Nothing else is touched: a fragment stays a fragment, a relative
  *     path to anything that is not a document is left exactly as written, and
  *     a `http:`/`https:` link still goes where it says — in a new tab, so
@@ -45,7 +45,7 @@
  * asking a question this one already has the answer to.
  */
 
-import { documentOf, pictureOf } from "@olai/format"
+import { bodiedOf, pictureOf } from "@olai/format"
 import { mediaHref } from "@olai/surface"
 import type { Element, Root } from "hast"
 
@@ -144,7 +144,7 @@ const resolvePicture = (element: Element, from: string): void => {
 /**
  * Point an `<a>` at a served document's own page, when that is what it names.
  *
- * The one thing this decides that `documentOf` does not is the FRAGMENT. A
+ * The one thing this decides that `bodiedOf` does not is the FRAGMENT. A
  * vault writes `[the bed](garden.md#beds)`, and the path and the anchor are two
  * different questions: the path is a file to resolve, the anchor is what to do
  * once the page is there. So it is cut off before the arithmetic and put back
@@ -170,7 +170,7 @@ const resolveDocument = (element: Element, from: string): void => {
   // ONE index, so the two halves cannot be cut at two places: an href with no
   // `#` ends at its own end, which makes the fragment the empty tail.
   const cut = written.includes("#") ? written.indexOf("#") : written.length
-  const document = documentOf(from, written.slice(0, cut))
+  const document = bodiedOf(from, written.slice(0, cut))
   if (document === null) return
   element.properties = {
     ...element.properties,

@@ -65,11 +65,12 @@ import { type ExposeMap, exposeFace, type FaceExposure } from "@kolu/surface/exp
  * outline is told when that outline moves instead of polling for it. The `rev`
  * rides along, which is the base a write will one day name.
  *
- * `documents` is the `.md` half of the same directory, and it is exposable for
- * exactly the reason the rule above gives: it is a COLLECTION, so its key-set
- * resource costs the paths and a body travels only when an agent asks for that
- * one document. It is also declared `keys` + `get` with no `deltas`, so there
- * is not even a batched verb here to reach for by mistake.
+ * `documents` is the bodied half of the same directory — every `.md` and every
+ * `.html` — and it is exposable for exactly the reason the rule above gives: it
+ * is a COLLECTION, so its key-set resource costs the paths and a body travels
+ * only when an agent asks for that one file. It is also declared `keys` + `get`
+ * with no `deltas`, so there is not even a batched verb here to reach for by
+ * mistake.
  *
  * `errors` is what is wrong across the set right now, so an agent can tell a
  * stale-but-valid tree from a current one. It is a cell and it is eligible

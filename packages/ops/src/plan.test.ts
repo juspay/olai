@@ -2599,6 +2599,23 @@ describe("documents", () => {
     expect(far.message).toContain("create_document")
   })
 
+  // The verb takes what it is named for. The set's bodied list is wider than
+  // the documents — a `.html` is read by the same probe and carried in the same
+  // field — so membership alone would have made `write_document` a way to
+  // overwrite a saved page, and the refusal a caller gets would have been about
+  // nothing. It is the same sentence a path the directory does not hold gets,
+  // because from the caller's side it is the same thing: this verb has no such
+  // document. The web's own page reads the same rule from the other end — a
+  // `.html` page has no Edit control, since it would be a door onto this.
+  test("a `.html` the set holds is not a document this verb may write", () => {
+    const set = setOf({ "house.olai": KITCHEN }, [["notes/notes.md", NOTES], "report.html"])
+    const failure = refused(set, { op: "doc", file: "report.html", text: "<h1>no</h1>" })
+    expect(failure._tag).toBe("NotFoundFailure")
+    expect(failure.message).toContain("is not a document under the served directory")
+    // …and the near-miss offered is a document, never the file it just refused.
+    expect(failure.message).not.toContain("report.html —")
+  })
+
   test("a document that could not be read is never overwritten from a set that lost it", () => {
     const set = setOf({}, [], { "broken.md": "anything at all" })
     const failure = refused(set, { op: "doc", file: "broken.md", text: "x" })

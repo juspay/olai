@@ -1,10 +1,10 @@
 /**
- * The served directory as a TREE rather than two flat lists.
+ * The served directory as a TREE rather than flat lists.
  *
- * Outlines (`.olai`) and documents (`.md`) share one walk: a folder shows
- * everything it holds, the way a reader of the same directory sees it, and the
- * way the racket original's sidebar did. The alternative — two sections that
- * each re-spell every nested path as a string — is what this replaces: once a
+ * Every kind of served file shares one walk: a folder shows everything it
+ * holds, the way a reader of the same directory sees it, and the way the racket
+ * original's sidebar did. The alternative — a section per kind, each
+ * re-spelling every nested path as a string — is what this replaces: once a
  * corpus has depth (`Daily/2026-08.olai`, `brainstorming/*.md`), the path
  * string wraps and the folder is nowhere to click.
  *
@@ -19,8 +19,7 @@
  * reference and rebuild the whole sidebar on one membership change.
  */
 
-/** What a leaf of the tree is: the two kinds of file the sidebar draws. */
-export type FileOf = "outline" | "document"
+import { type FileKind, fileKind } from "@olai/format"
 
 /** One row of the tree. A directory carries its own root-relative path so
  *  collapse state can key on it without re-walking parents; a file carries
@@ -43,18 +42,21 @@ export type FileRow =
       readonly name: string
       /** Root-relative path the page routes already use. */
       readonly file: string
-      readonly of: FileOf
+      /** Which kind of served file it is — the format's own answer, read off
+       *  the name (`@olai/format`'s registry) rather than carried in from
+       *  whichever list this path arrived on. */
+      readonly of: FileKind
     }
 
 /** Mutable under construction; frozen into `FileRow` on the way out. */
 interface Building {
   readonly dirs: Map<string, Building>
-  readonly files: Map<string, { readonly file: string; readonly of: FileOf }>
+  readonly files: Map<string, { readonly file: string; readonly of: FileKind }>
 }
 
 const empty = (): Building => ({ dirs: new Map(), files: new Map() })
 
-const put = (root: Building, file: string, of: FileOf): void => {
+const put = (root: Building, file: string, of: FileKind): void => {
   const segments = file.split("/")
   let at = root
   for (let i = 0; i < segments.length - 1; i++) {
@@ -99,18 +101,29 @@ const freeze = (node: Building, prefix: string): ReadonlyArray<FileRow> => {
   return rows
 }
 
-/** Build the tree from the two sets the wire hands the client. Order of the
- *  inputs does not matter; a path that appears in both is a document last, so
- *  a file that is somehow both is not two rows (the set cannot produce that —
- *  an outline and a document have different extensions — but the tree is
- *  still one row per path). */
-export const fileTree = (
-  outlines: Iterable<string>,
-  documents: Iterable<string>,
-): ReadonlyArray<FileRow> => {
+/**
+ * Build the tree from the paths the wire hands the client.
+ *
+ * ONE list, whichever collection each path arrived on, and WHAT KIND each one
+ * is comes off its name. The alternative — a list per kind, tagged by the
+ * caller — is what this replaces, and the reason is not tidiness: the caller's
+ * tag would be a second answer to a question `@olai/format` already settles,
+ * free to disagree with the glyph, the route and the page that read the
+ * registry directly. It also means a new kind of served file is not a third
+ * argument here.
+ *
+ * Order of the input does not matter, and a path repeated is still one row: the
+ * files of a level are a map keyed by name. A path no kind claims is dropped —
+ * the wire cannot produce one, since every collection it comes from is built
+ * from the same registry, and a tree row with no kind would have no glyph and
+ * nowhere to link.
+ */
+export const fileTree = (files: Iterable<string>): ReadonlyArray<FileRow> => {
   const root = empty()
-  for (const file of outlines) put(root, file, "outline")
-  for (const file of documents) put(root, file, "document")
+  for (const file of files) {
+    const of = fileKind(file)
+    if (of !== null) put(root, file, of)
+  }
   return freeze(root, "")
 }
 
