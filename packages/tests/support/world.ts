@@ -1401,8 +1401,9 @@ export class OlaiWorld extends World {
     if (this.served === undefined) {
       throw new Error(
         `this scenario edits the files it is served, so it must be tagged ` +
-          `@scratch:${this.corpus} rather than @corpus:${this.corpus} — the shared ` +
-          `corpora are tracked fixtures and are served to every other scenario too`,
+          `@scratch:${this.corpus} rather than @corpus:${this.corpus} — a shared ` +
+          `corpus is one copy of a tracked fixture, served to every other ` +
+          `scenario this worker runs`,
       );
     }
     return this.served;

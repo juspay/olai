@@ -19,6 +19,17 @@
  * scratch scenario gets a fresh copy of the named corpus in a temp directory
  * and a server of its very own, both thrown away afterwards. It is the one case
  * where the per-scenario spawn is worth paying for.
+ *
+ * WHAT A SHARED SERVER SERVES is a per-WORKER copy of the tracked corpus, never
+ * the tracked directory itself, and that is not tidiness. `--parallel` is one
+ * process per worker, each with its own `servers` map, so four workers asking
+ * for `good` are four olai — and one olai per directory is now enforced by the
+ * kernel (`packages/server/src/lock.ts`, "one brain per vault"): the second
+ * worker's server would REFUSE to boot and every scenario behind it would fail
+ * in its `Before`. A copy per worker is what makes each of those a directory of
+ * its own, which is what the lock is asking for and what a parallel harness
+ * should have been doing anyway — before this, a scenario that wrote where it
+ * should not have was writing into the repository's tracked fixtures.
  */
 
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
@@ -205,14 +216,33 @@ const live = new Set<ChildProcess>();
  *  retrying its way onto a fresh port after the run is over. */
 let stopped = false;
 
-/** Per-worker XDG root for shared corpus servers. Scratch servers keep
- *  theirs beside the scratch copy; `After` deletes the sibling. */
+/** Per-worker temp root: one directory per corpus this worker serves, each
+ *  holding the copy it serves and the XDG state that server writes. Scratch
+ *  servers keep theirs beside the scratch copy; `After` deletes the sibling. */
 let workerState: string | undefined;
 
 const workerStateRoot = (): string =>
   (workerState ??= fs.mkdtempSync(
     path.join(os.tmpdir(), `olai-e2e-w${workerId()}-`),
   ));
+
+/** This worker's home for one corpus: `<worker>/<corpus>/served` is the copy
+ *  its server reads, and `cache`/`state` are its siblings — beside the served
+ *  tree and never inside it, the same rule `scratchState` keeps and for the
+ *  same reason. */
+const corpusHome = (corpus: string): string =>
+  path.join(workerStateRoot(), corpus);
+
+/** A copy of the tracked corpus that belongs to THIS worker, made on the first
+ *  ask and kept for the run. See the header: two workers over one directory is
+ *  two olai over one vault, which the server refuses. */
+const workerCopyOf = (corpus: string): string => {
+  const root = path.join(corpusHome(corpus), "served");
+  if (!fs.existsSync(root)) {
+    fs.cpSync(fixtureDir(corpus), root, { recursive: true });
+  }
+  return root;
+};
 
 /** Beside the scratch copy, never inside it. A `@git:repo` scratch is a
  *  real work tree; XDG/HOME written under it would show up as uncommitted
@@ -604,9 +634,12 @@ const serverFor = (corpus: string): Promise<RunningServer> => {
   const started =
     active.kind === "reuse"
       ? reusedServer(active.baseUrl, corpus)
-      : startServerChild(active.bin, fixtureDir(corpus), `corpus "${corpus}"`, {
-          stateRoot: path.join(workerStateRoot(), corpus),
-        });
+      : startServerChild(
+          active.bin,
+          workerCopyOf(corpus),
+          `corpus "${corpus}"`,
+          { stateRoot: corpusHome(corpus) },
+        );
 
   // A FAILED start is not kept: the next scenario asking for this corpus
   // deserves a real attempt rather than a replay of the same rejection.
