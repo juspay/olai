@@ -47,7 +47,7 @@ import { type Context, plan } from "./plan.ts"
 import { index } from "./query.ts"
 import type { Applied, Request } from "./request.ts"
 import { sortOfWrite } from "./sorted.ts"
-import type { Reading } from "./tools.ts"
+import { type Acting, asking, type Asking, type Reading, type Running } from "./tools.ts"
 
 export interface Options {
   readonly store: Store
@@ -85,7 +85,17 @@ export interface Options {
   readonly onRecorded?: () => void
 }
 
-export interface Ops {
+/**
+ * Everything this layer can be asked, and the three doors it is asked through.
+ *
+ * `Running`, `Asking` and `Acting` are `./tools.ts`'s, declared there because
+ * the tool table is what names them — one interface per arm — and satisfied
+ * here by the real layer. A tool is answerable by anything that satisfies them,
+ * which since `mcp-bridge` includes a surface client with no store behind it at
+ * all; that is the whole of what made the bridge possible, and it is why these
+ * three are interfaces rather than methods this file happens to have.
+ */
+export interface Ops extends Running, Asking, Acting {
   /** Perform one op. Fails only with an {@link OpFailure} — every internal
    *  failure mode (a stale base, a file system error) is either retried or
    *  translated, because a caller of this interface is a tool call or a
@@ -310,6 +320,11 @@ export const make = (options: Options): Ops => {
   return {
     run: reported,
     read,
+    // The four query answers, over the gated read above — one declaration of
+    // each envelope ({@link ./tools.ts}'s `asking`), so the answer an agent
+    // gets through a surface procedure and the answer a local tool call gets
+    // are the same statement rather than two that agree.
+    ...asking(read),
     status: commits.status,
     pending: commits.pending,
     commit: commits.commit,

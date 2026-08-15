@@ -60,6 +60,14 @@ export {
   type Status,
 } from "./pending.ts"
 export { type Applied, Request } from "./request.ts"
-export { type Reading, type Tool, TOOLS, toolNamed } from "./tools.ts"
+export {
+  type Acting,
+  type Asking,
+  type Reading,
+  type Running,
+  type Tool,
+  TOOLS,
+  toolNamed,
+} from "./tools.ts"
 
 export * as Query from "./query.ts"

@@ -37,7 +37,7 @@
  */
 
 import { kindOf, type OpFailure, type Writer } from "@olai/format"
-import { type Ops, type Reading, type Tool } from "@olai/ops"
+import { type Ops, type Tool } from "@olai/ops"
 import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
 import { Effect, Schema } from "effect"
 
@@ -145,7 +145,7 @@ const answer = (
         tool.act(ops, args as never, writer),
         (result) => ({ ...(result as object), did: tool.name }),
       )
-      : Effect.map(ops.read, (at: Reading) => tool.read(at, args as never)),
+      : tool.ask(ops, args as never),
     (failure: OpFailure) => refusal(tool.name, failure),
   )
 
