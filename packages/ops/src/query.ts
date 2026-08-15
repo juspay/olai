@@ -36,6 +36,7 @@ import {
   type LocatedRegular,
   MARKS,
   matching,
+  nothing,
   type OutlineSet,
   type OutlineSummary,
   parseFilter,
@@ -123,7 +124,6 @@ const INDEXED = new WeakMap<OutlineSet, Derived>()
  */
 export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
   const status = derived.status.get(located.node.id)
-  const custom = heldCustom(located.node.custom)
   return {
     id: located.node.id,
     title: located.node.title,
@@ -134,28 +134,43 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
     // should not have to filter a status out of every answer.
     ...(status === undefined ? {} : { status }),
     path: ancestorsOf(derived, located.node.id).map((crumb) => crumb.node.title),
-    ...edgesOf(located.node),
-    // The named facts the node carries — the only place a `pr` or an `isbn`
-    // could come from. `heldCustom` is the FORMAT's answer to "what does this
-    // map hold", the same one the file gets, so a key holding nothing is absent
-    // here exactly as it is on disk and as `prop:` reads it. Produced HERE
-    // rather than at `detail` below, so a search hit carries it: `prop:agent=…`
-    // used to find the lanes and then owe a `read_node` for each one, to see
-    // the fact the query had already matched on.
-    ...(custom === undefined ? {} : { custom }),
+    ...carriedOf(located.node),
   }
 }
 
-/** The edge fields a node carries, omitted when empty — the format's own rule
- *  for absence, applied to an answer rather than to a record. One helper
- *  because the two fields differ only in name here; what they MEAN differs
- *  everywhere else. */
-const edgesOf = (
+/**
+ * The record's OWN fields, handed back verbatim, each omitted when it holds
+ * nothing — everything a situated answer copies rather than derives.
+ *
+ * ONE helper because that is ONE QUESTION, and the name says which. It was
+ * `edgesOf` over `see` and `after`, named for what those fields ARE, and the
+ * comment on it conceded the strain: one helper "because the two fields differ
+ * only in name here". A category is not an axis, and the cost arrived the day
+ * this set grew — `custom` is not an edge, so a hit given it could not go
+ * through the helper and landed BESIDE it, with a third spelling of "does this
+ * hold anything" beside that. The name is what forced the duplication.
+ *
+ * What these fields have in common is not their meaning — that differs
+ * everywhere else, which is why they have separate verbs and separate prose on
+ * {@link Found} — it is their TREATMENT here, and the treatment is what this
+ * names. The set is what changes: `after` joined `see`, `custom` joined both,
+ * and the next record field a reader is allowed to see joins them here, on one
+ * line, without re-deciding what absent means.
+ *
+ * `nothing` and `heldCustom` are the FORMAT's, not restated: a field left out
+ * of an answer is exactly a field left out of the line on disk, and `prop:` and
+ * `has:` ask the same two functions from the query's end.
+ */
+const carriedOf = (
   node: LocatedRegular["node"],
-): { see?: ReadonlyArray<string>; after?: ReadonlyArray<string> } => ({
-  ...(node.see === undefined || node.see.length === 0 ? {} : { see: node.see }),
-  ...(node.after === undefined || node.after.length === 0 ? {} : { after: node.after }),
-})
+): Pick<Found, "see" | "after" | "custom"> => {
+  const custom = heldCustom(node.custom)
+  return {
+    ...(nothing(node.see) ? {} : { see: node.see }),
+    ...(nothing(node.after) ? {} : { after: node.after }),
+    ...(custom === undefined ? {} : { custom }),
+  }
+}
 
 // ── search ─────────────────────────────────────────────────────────────
 
