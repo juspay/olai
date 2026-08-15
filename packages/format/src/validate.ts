@@ -33,7 +33,7 @@ import {
   isGuessWhileUnreadable,
   type OutlineError,
 } from "./errors.ts"
-import { isMirror, type Located, targetsOf } from "./node.ts"
+import { isMirror, type Located, type Site, targetsOf } from "./node.ts"
 import { didYouMean } from "./suggest.ts"
 import type { OutlineSet } from "./set.ts"
 
@@ -324,10 +324,12 @@ const rotateToEarliest = (
 
 // ── shared ─────────────────────────────────────────────────────────────
 
-const siteOf = ({ file, line }: Located): { file: string; line: number } => ({
-  file,
-  line,
-})
+/** The place a located record is at, without the record. Annotated with
+ *  {@link Site} rather than with the pair written out again: this is the
+ *  function every finding in this file gets its `file:line` from, so an
+ *  inline `{file: string; line: number}` here would be the one spelling that
+ *  goes on compiling after the others have been made to agree. */
+const siteOf = ({ file, line }: Located): Site => ({ file, line })
 
 /** "did you mean", over the ids the set declares. The rule itself is
  *  {@link ./suggest.ts}'s, because the ops layer refuses the same unknown
