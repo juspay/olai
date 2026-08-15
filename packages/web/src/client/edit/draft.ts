@@ -107,6 +107,24 @@ export interface Editing extends Said {
    * later, in an element that does not exist yet.
    */
   readonly caret?: number
+  /**
+   * WHERE THIS LINE WAS BEING TYPED BEFORE IT WAS A ROW — a forwarding
+   * address, set by {@link landed} on a line that did not exist yet and by
+   * nothing else.
+   *
+   * A {@link Slot} is an ADDRESS: the row an editor is drawn at and which of
+   * its texts. Every caret keeps its address for as long as it lives, with one
+   * exception — a brand-new line, whose address is minted by the write that
+   * lands it. The caret has gone nowhere and the words are the same; the box it
+   * is drawn in is answering to an id that did not exist a moment ago.
+   *
+   * A blur is the one reader that has to see through that, because it commits
+   * before it closes and then asks whether the editor it came from is still the
+   * open one ({@link stillAt}). Asked of the new address alone the answer is
+   * "the reader opened something else" about a reader who opened nothing, and
+   * the click-away that wrote the line leaves the caret sitting in it.
+   */
+  readonly was?: Slot
 }
 
 /** A row that does not exist yet: an editor standing where it will go. */
@@ -158,7 +176,11 @@ export const typed = (draft: Draft, text: string): Draft => ({
  *  saved, so the next idle tick has nothing to say. A pending row becomes the
  *  row it just created — `id` is the one the set gave it, and it is its own
  *  placement, a brand-new node being nobody's mirror — with no place yet,
- *  because the row it names is a frame away from being drawn. */
+ *  because the row it names is a frame away from being drawn, and carrying the
+ *  slot it was typed at, because that is the address anything still holding
+ *  this caret knows it by ({@link Editing.was}). A row that was already a row
+ *  keeps none of that: its address never moved, so there is nothing to forward
+ *  and a stale one is a question nobody should be able to ask. */
 export const landed = (draft: Draft, id: string, nudge?: string): Editing =>
   draft.kind === "new"
     ? {
@@ -169,9 +191,10 @@ export const landed = (draft: Draft, id: string, nudge?: string): Editing =>
       field: "title",
       text: draft.text,
       saved: draft.text,
+      was: slotOf(draft),
       nudge,
     }
-    : { ...draft, saved: draft.text, refused: undefined, nudge }
+    : { ...draft, saved: draft.text, refused: undefined, was: undefined, nudge }
 
 /** The same draft, holding what the write refused with. */
 export const refused = (draft: Draft, failure: OpFailure): Draft => ({
@@ -210,6 +233,26 @@ export const slotOf = (draft: Draft): Slot =>
 
 export const sameSlot = (a: Slot, b: Slot): boolean =>
   a.row === b.row && a.field === b.field
+
+/**
+ * Whether this draft is the editor `from` names — the question asked AFTER a
+ * commit, where {@link sameSlot} alone is not enough.
+ *
+ * Two ways to be it. The ordinary one is the slot the draft is drawn at now.
+ * The other is the forwarding address a landed line carries
+ * ({@link Editing.was}): committing a brand-new line replaces the draft with
+ * the ROW it wrote, at an id that did not exist when the blur was delivered, so
+ * the caret that never moved answers to a slot nobody outside this module has
+ * heard of.
+ *
+ * Slots alone said no to that, and what it cost was the whole of the
+ * click-away: the line was written and the caret stayed in the row it had just
+ * made, because the blur that committed it decided the reader had gone
+ * somewhere else.
+ */
+export const stillAt = (draft: Draft, from: Slot): boolean =>
+  sameSlot(slotOf(draft), from) ||
+  (draft.kind === "row" && draft.was !== undefined && sameSlot(draft.was, from))
 
 /** The row a pending draft is drawn after, and `null` for the one that is
  *  drawn on a page's own start line — an outline with no rows to follow. */

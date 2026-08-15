@@ -74,6 +74,7 @@ import {
   sameSlot,
   type Slot,
   slotOf,
+  stillAt,
   typed,
 } from "./draft.ts"
 import { flatten, neighbour, refound } from "./order.ts"
@@ -756,10 +757,15 @@ export const createEditor = (
         // Closed only if this is still the same editor. A click on another
         // row's title fires this blur first, and closing then would shut the
         // row the reader was aiming at.
+        //
+        // `stillAt` rather than the slot alone, because the commit above may
+        // have MOVED this editor's address: a line that did not exist yet is
+        // now the row it wrote (`./draft.ts`'s `was`). Asked of the new address
+        // the answer was "somebody else is typing" about the same caret with
+        // the same words in it, so the click-away wrote the line and left the
+        // caret in it.
         setDraft((held) =>
-          held !== null && sameSlot(slotOf(held), from) && held.text === before.text
-            ? null
-            : held
+          held !== null && stillAt(held, from) && held.text === before.text ? null : held
         )
       })
     },
