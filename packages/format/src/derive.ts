@@ -331,6 +331,40 @@ const orderings = (
 }
 
 /**
+ * The node an end of an arrow names, WHILE it is still in play: it exists, it
+ * is a task that is not done, and it has not been put away.
+ *
+ * THE ONE PREDICATE, and it is read at BOTH ENDS of the arrow — which is the
+ * racket reference's own shape (`olai/query.rkt`'s `live?`). It is a module
+ * function rather than a closure inside {@link blockage} because a THIRD reader
+ * arrived: {@link standingBefore}, which asks the target-side half of the same
+ * question over a set that is already derived. Two spellings would be two
+ * chances to disagree about what unfinished work is.
+ */
+const inPlay = (
+  index: { readonly byId: ReadonlyMap<string, Located> },
+  status: ReadonlyMap<string, Status>,
+  id: string,
+): InTheWay | undefined => {
+  const at = nodeNamed(index, id)
+  if (at === undefined || isArchived(at.file)) return undefined
+  const mark = status.get(at.node.id)
+  return mark === undefined || mark === "done" ? undefined : { at, status: mark }
+}
+
+/** Which of these targets are still in the way, in the order they were named
+ *  — the target-side half of blockedness, shared by the index below and the
+ *  reading beside it. */
+const waitingOn = (
+  index: { readonly byId: ReadonlyMap<string, Located> },
+  status: ReadonlyMap<string, Status>,
+  targets: ReadonlyArray<string>,
+): ReadonlyArray<InTheWay> =>
+  targets
+    .map((target) => inPlay(index, status, target))
+    .filter((blocker) => blocker !== undefined)
+
+/**
  * What is standing in each node's way — the whole of blockedness, derived like
  * everything else here and stored nowhere.
  *
@@ -367,23 +401,12 @@ const blockage = (
 ): ReadonlyMap<string, ReadonlyArray<InTheWay>> => {
   const index = { byId }
 
-  /** The node an end of an arrow names, WHILE it is still in play: it exists,
-   *  it is a task that is not done, and it has not been put away. */
-  const inPlay = (id: string): InTheWay | undefined => {
-    const at = nodeNamed(index, id)
-    if (at === undefined || isArchived(at.file)) return undefined
-    const mark = status.get(at.node.id)
-    return mark === undefined || mark === "done" ? undefined : { at, status: mark }
-  }
-
   const blocked = new Map<string, ReadonlyArray<InTheWay>>()
   for (const [id, targets] of after) {
-    const source = inPlay(id)
+    const source = inPlay(index, status, id)
     if (source === undefined) continue
 
-    const waiting = targets
-      .map((target) => inPlay(target))
-      .filter((blocker) => blocker !== undefined)
+    const waiting = waitingOn(index, status, targets)
     if (waiting.length === 0) continue
 
     // Keyed by the NODE. Both spellings of an edge were resolved to one before
@@ -426,6 +449,32 @@ export const blockersOf = (
   derived: Derived,
   id: string,
 ): ReadonlyArray<InTheWay> => derived.blocked.get(id) ?? []
+
+/**
+ * What this node's `after` targets hold up — whether or not the node is WORK
+ * yet.
+ *
+ * The one place the two readings differ, and the difference is which end of the
+ * arrow the question is asked about. {@link blockersOf} is what a node IS
+ * waiting on, and it is empty for a plain bullet because a bullet is not work
+ * and is therefore not being told it cannot start — that is what every DRAWING
+ * of blockedness wants. This is what a node WOULD be waiting on the moment it
+ * became work, and it is what a WRITE that is about to make it work has to ask:
+ * the ops layer refuses `set_doing` with it, and asking `blockersOf` there
+ * would let `set_doing` on a bullet slip past the gate its own `after` edges
+ * declare — the row landing `doing` and the app drawing it blocked a frame
+ * later, which is precisely the state the refusal exists to make unreachable.
+ *
+ * Not a second rule: it is the target-side half of {@link blockage}, the same
+ * {@link inPlay} over the same normalised graph, in the same promised order.
+ * Both readings say `done` targets, bullets and archived work stand in nobody's
+ * way, because there is one function that decides that.
+ */
+export const standingBefore = (
+  derived: Pick<Derived, "byId" | "status" | "after">,
+  id: string,
+): ReadonlyArray<InTheWay> =>
+  waitingOn(derived, derived.status, derived.after.get(id) ?? [])
 
 // ── the drawable tree ──────────────────────────────────────────────────
 
