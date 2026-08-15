@@ -7,6 +7,7 @@ import {
   commitOf,
   type Draft,
   type Editing,
+  kept,
   landed,
   type Pending,
   refused,
@@ -100,6 +101,25 @@ test("a commit that landed is a draft with nothing left to say", () => {
 test("a landed commit carries the nudge the write came back with", () => {
   expect(landed(editing({ text: "x" }), "order", "every task under it is done now").nudge)
     .toBe("every task under it is done now")
+})
+
+test("a cancelled draft stays cancelled when the write lands", () => {
+  // Escape is not queued. A completion's add_mirror can still be in flight
+  // when the key lands, and putting `held` back is how the editor bounced
+  // open after the draft had already closed (input_widgets.feature:209).
+  const held = editing()
+  expect(kept(null, held, "placed")).toBeNull()
+})
+
+test("the same draft keeps the write's nudge", () => {
+  const held = editing()
+  expect(kept(held, held, "placed")).toEqual({ ...held, nudge: "placed" })
+})
+
+test("a different draft is left alone", () => {
+  const held = editing()
+  const other = editing({ row: "knobs", id: "knobs", text: "pick the knobs" })
+  expect(kept(other, held, "placed")).toBe(other)
 })
 
 test("a new row that landed becomes the row it created", () => {

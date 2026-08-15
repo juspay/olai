@@ -69,6 +69,7 @@ import {
   IDLE_COMMIT,
   type Draft,
   type Editing as RowDraft,
+  kept,
   landed,
   refused,
   sameSlot,
@@ -423,20 +424,17 @@ export const createEditor = (
     const moved = redraws(edit)
       ? await redrawing(edit, slot)
       : await send(edit, slot)
-    // The caret stays in the row that just moved: the draft is restored in
-    // case its editor was destroyed and blurred on the way out, and the caret
-    // is taken again because a row that merely moved among its siblings keeps
-    // its editor and loses the focus anyway — the document moved the element.
-    // Whatever the write had to say rides back with it — a `Ctrl+Enter` is the
-    // key most likely to earn a nudge, and it never goes through `commit`.
-    setDraft((current) => noted(current ?? held, moved?.nudge))
+    // The caret stays in the row that just moved: the same draft, with
+    // whatever the write had to say — a `Ctrl+Enter` is the key most likely
+    // to earn a nudge, and it never goes through `commit`. A cancel that
+    // landed while the write was in flight is left alone (`kept`); putting
+    // `held` back is how Escape after a completion bounced the editor open.
+    // The caret is taken again because a row that merely moved among its
+    // siblings keeps its editor and loses the focus anyway — the document
+    // moved the element.
+    setDraft((current) => kept(current, held, moved?.nudge))
     setCaret((n) => n + 1)
   }
-
-  /** A draft carrying what the write that just landed said, when it said
-   *  anything. */
-  const noted = (held: Draft, nudge: string | undefined): Draft =>
-    nudge === undefined || held.kind !== "row" ? held : { ...held, nudge }
 
   /** `Enter`: commit this row, and open an editor where the next one goes. The
    *  new row is not written until it has text — see {@link ./draft.ts}. */

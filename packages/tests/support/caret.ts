@@ -52,6 +52,12 @@
  *     when this returns, so "nothing is being typed" is not the same promise
  *     as "this tab has the way back".
  *
+ * `Enter` on a SHORTLIST is the other shape, not an omission: the list going
+ * is the widget's answer, but a `((` take is also a write, and the disk
+ * having the placement is not this tab having the inverse. Waiting for the
+ * new row to be drawn is what makes the ⌘Z after it spend the entry `send`
+ * just recorded.
+ *
  * Its own module for the reason `./said.ts` is one: this is a RITUAL rather
  * than a step, three step files could want it, and two of them waiting for the
  * client's answer two different ways is how one of them stops waiting properly.
@@ -277,9 +283,36 @@ const answering = async (
   // away; the arrows walk it and settle nothing. None of them moves the caret,
   // so none of the shapes below applies to any of them.
   if (await aListIsUp(world)) {
-    return key === "Enter" || key === "Escape"
-      ? async () => await theListIsGone(world)
-      : nothing;
+    if (key === "Escape") return async () => await theListIsGone(world);
+    if (key !== "Enter") return nothing;
+    // A take is two answers. The list going is the widget's. A `((` take is
+    // also a write, and the row that write draws is this tab saying the
+    // inverse is on the stack (`editing.tsx`'s `send` records it before it
+    // returns; the snapshot and the reply share the wire, and one frame after
+    // the row appears is the reply). Without that wait, Escape+⌘Z after a
+    // completion spent a stack that did not yet hold the placement.
+    const kind = await world.page.locator(COMPLETIONS).getAttribute("data-kind");
+    // Two counts, not one poll: this is the floor, taken before the key.
+    const mirrorsBefore = await world.page
+      .locator(`${NODE}[data-kind="mirror"]`)
+      .count();
+    return async () => {
+      await theListIsGone(world);
+      if (kind !== "mirror") return;
+      // …and this is the one `waitUntil` retries, until a new placement is
+      // on the page.
+      await world.waitUntil(
+        async () =>
+          (await world.page.locator(`${NODE}[data-kind="mirror"]`).count()) >
+          mirrorsBefore,
+        "the placement to be drawn",
+      );
+      // The frame after the row was drawn — the snapshot painted it; the
+      // apply reply is the next message on the same wire, and `undo.record`
+      // has run by then. Not the generic double-rAF flush `pressed` already
+      // waited for above the key.
+      await world.waitForFrame();
+    };
   }
   if (key === "Escape") {
     // Escape abandons the draft, always. With none open there is nothing to
