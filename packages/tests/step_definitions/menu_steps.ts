@@ -228,12 +228,6 @@ Then("the caret is nowhere", async function (this: OlaiWorld) {
   );
 });
 
-/** Still up — the other half of the claim above, for a scenario that dismissed
- *  something ELSE and says this one stayed (`dismiss_stack.feature`). */
-Then("the node menu is showing", async function (this: OlaiWorld) {
-  await panelOf(this);
-});
-
 /** GONE, not merely invisible: the panel is unmounted when the menu shuts, so
  *  a scenario that accepted `hidden` would also accept one left in the DOM
  *  under a row nobody is pointing at. */

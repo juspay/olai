@@ -132,14 +132,11 @@ export const createPopover = (): Popover => {
     }))
   }
 
-  // A pointer outside it and Escape, in this client's one spelling of them —
-  // and only the one a keyboard can make puts the caret back on the trigger.
-  dismissOn({
-    open,
-    root: () => panel,
-    trigger: () => trigger,
-    dismiss: (how) => close(how === "escape"),
-  })
+  // A pointer outside it and Escape, in this client's one spelling of them.
+  // The caret's way back to the trigger is that call's too, since `trigger` is
+  // what it needs to know either way (`./dismiss.ts`) — what is left here is
+  // the press of the trigger itself, which no dismissal can see.
+  dismissOn({ open, root: () => panel, trigger: () => trigger, dismiss: close })
 
   // Scoped to the open state, so a shut panel is not three document listeners
   // for nothing; disposed with the effect when it closes or the owner unmounts.

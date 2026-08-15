@@ -33,7 +33,7 @@ Feature: Dismiss is one stack, and the topmost answers
     When I open the preferences
     And I open the node menu of "kitchen" with the keyboard
     Then the preferences are open
-    And the node menu is showing
+    And the node menu is open
     # ONE panel goes. The menu was opened last, so the menu is what Escape is
     # about; the preferences are still there because nobody asked for them to
     # go.
@@ -51,7 +51,7 @@ Feature: Dismiss is one stack, and the topmost answers
     When I open the preferences
     And I open the node menu of "kitchen" with the keyboard
     Then the preferences are open
-    And the node menu is showing
+    And the node menu is open
     When I click away from the node menu
     Then the node menu is closed
     And the preferences are open

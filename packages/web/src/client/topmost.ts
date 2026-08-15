@@ -75,11 +75,15 @@ let opened = 0
  * What every dismissable is holding right now — its ticket while it is up, `0`
  * while it is not.
  *
- * Registered for the lifetime of the OWNER rather than of the open state, and
- * that is deliberate on a page with 140 rows of outline in it: an entry here is
- * one accessor in a `Set` and it costs nothing while a note is shut, whereas
- * registering on every open would be a stack that reorders itself under the
- * gesture it is being asked about.
+ * Registered for the lifetime of the OWNER rather than of the open state,
+ * because registering on every open would be a stack that reorders itself under
+ * the gesture it is being asked about. What that costs, said plainly because
+ * `note/expand.ts` calls this once per visible ROW: on a 140-row outline this
+ * is 140 memos subscribed to 140 `open()` signals and 140 entries in the `Set`,
+ * held until the row goes — a third reactive node beside the two effects
+ * `./dismiss.ts` already makes per row, and a scan of 140 numbers on each of
+ * the two gestures. Both are dwarfed by anything else a row does; neither is
+ * nothing.
  */
 const layers = new Set<Accessor<number>>()
 
@@ -87,17 +91,19 @@ const layers = new Set<Accessor<number>>()
  * Whether this panel is the one a dismissal is for: open, and the last one
  * opened that still is.
  *
- * Call it in the owner that holds the panel's state. The answer is reactive —
- * it reads every layer's ticket — so it may be asked from a gesture handler,
- * from a memo, or from a `<Show>`.
+ * Call it in the owner that holds the panel's state, and ask it from a GESTURE
+ * HANDLER. It is reactive, so a `<Show>` or a memo may read it — but such a
+ * reader subscribes to every layer's ticket, so anything opening or closing
+ * anywhere on the page would invalidate it, and one per row would be that
+ * squared. Nothing needs to draw from this; a dismissal asks once and acts.
  */
 export const topmostWhileOpen = (open: Accessor<boolean>): Accessor<boolean> => {
-  // Taken on the way up and kept until it goes down: a panel that is already
-  // open does not lose its place because something else re-rendered.
-  const ticket = createMemo<number>(
-    (held) => (open() ? (held === 0 ? ++opened : held) : 0),
-    0,
-  )
+  // Taken on the way up and KEPT until it goes down — `held || ++opened`, and
+  // the `held` is what makes it exactly one ticket per opening: `open` is an
+  // accessor the caller derived, so it may re-fire without the answer changing
+  // (`chat/Sessions.tsx`'s does, when the agent's list arrives), and a panel
+  // must not climb the stack because something inside it moved.
+  const ticket = createMemo<number>((held) => (open() ? held || ++opened : 0), 0)
   layers.add(ticket)
   onCleanup(() => {
     layers.delete(ticket)

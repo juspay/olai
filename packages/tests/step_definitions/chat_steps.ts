@@ -928,16 +928,23 @@ Then("the chat is empty", async function (this: OlaiWorld) {
   );
 });
 
+/** The `chats` button pressed. One body, two phrasings below, because the
+ *  press means different things at different points in a scenario and a second
+ *  spelling of the gesture is how the two would come to settle differently. */
+const pressChats = async (world: OlaiWorld): Promise<void> => {
+  await world.page.locator(CHAT_SESSIONS).click();
+};
+
 When("I open the session picker", async function (this: OlaiWorld) {
-  await this.page.locator(CHAT_SESSIONS).click();
+  await pressChats(this);
 });
 
-/** The same press with nothing assumed about what it does — for the scenario
- *  asking what a SECOND press of `chats` is, which is the two-roots fence
- *  (`chat/Sessions.tsx`). */
+/** The same press where the scenario is asking what a SECOND one does, which
+ *  is the two-roots fence (`chat/Sessions.tsx`): a click-away that knew only
+ *  the list would shut on this press's own pointerdown and be reopened by its
+ *  click, so the panel would be up before and after. */
 When("I press the chats button", async function (this: OlaiWorld) {
-  await this.page.locator(CHAT_SESSIONS).click();
-  await this.waitForFrame();
+  await pressChats(this);
 });
 
 Then("the picker is showing", async function (this: OlaiWorld) {

@@ -27,8 +27,7 @@
  * existing one, and it is filled by the client's one dismissal (`../dismiss.ts`)
  * on the same terms as the header's popovers: the pointer, the key, the topmost
  * panel only (`../topmost.ts`) — and the caret back on `chats` when a keyboard
- * asked,
- * because Escape from a list that has the focus would otherwise land on
+ * asked, because Escape from a list that has the focus would otherwise land on
  * `<body>`.
  *
  * BOTH ROOTS are handed over, which is the same bug the Commit pill had one
@@ -38,7 +37,7 @@
  * click. Pressing it a second time would do nothing at all.
  */
 
-import { createSignal, For, Match, Show, Switch } from "solid-js"
+import { createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
 
 import { dismissOn } from "../dismiss.ts"
 import { Refusal } from "./Refusal.tsx"
@@ -68,6 +67,12 @@ type Picker = { readonly _tag: "shut" } | { readonly _tag: "asking" } | Answer
 export function Sessions(props: { readonly chat: Chat }) {
   const [picker, setPicker] = createSignal<Picker>({ _tag: "shut" })
 
+  /** Is the list up? The union's own "not shut", read off in ONE place — the
+   *  dismissal, the toggle, the `aria-expanded` and the `<Show>` are four
+   *  askings of one question, and a fourth arm of {@link Picker} would
+   *  otherwise be four sites to find. */
+  const up = () => picker()._tag !== "shut"
+
   /** The `chats` button and the list it opens — two roots, because the list is
    *  laid out BESIDE the button rather than inside it (see the header). */
   let trigger: HTMLButtonElement | undefined
@@ -78,17 +83,14 @@ export function Sessions(props: { readonly chat: Chat }) {
     if (restoreFocus) trigger?.focus()
   }
 
-  // A pointer outside it and Escape, in this client's one spelling of them —
-  // and only the one a keyboard can make puts the caret back on `chats`.
-  dismissOn({
-    open: () => picker()._tag !== "shut",
-    root: () => list,
-    trigger: () => trigger,
-    dismiss: (how) => shut(how === "escape"),
-  })
+  // A pointer outside it and Escape, in this client's one spelling of them.
+  // Handing over the `chats` button is the whole of what this takes: it is
+  // both what is not "outside", and where the caret goes back when a key asked
+  // (`../dismiss.ts`).
+  dismissOn({ open: up, root: () => list, trigger: () => trigger, dismiss: shut })
 
   const toggle = () => {
-    if (picker()._tag !== "shut") {
+    if (up()) {
       // A press of the button while the list is up is a dismissal a keyboard
       // can reach, so the caret goes back the way Escape's does.
       shut(true)
@@ -111,15 +113,25 @@ export function Sessions(props: { readonly chat: Chat }) {
         type="button"
         class={QUIET_PILL}
         data-testid={TESTID.chatSessions}
-        aria-expanded={picker()._tag !== "shut"}
+        aria-expanded={up()}
         onClick={toggle}
       >
         chats
       </button>
 
-      <Show when={picker()._tag !== "shut"}>
+      <Show when={up()}>
         <ul
-          ref={list}
+          ref={(el) => {
+            list = el
+            // Solid never calls a ref with `undefined`, and this one lives
+            // inside the `<Show>` — so the disposal is what says the list is
+            // gone. Without it a shut picker keeps its detached `<ul>` and
+            // every row that was in it, and `root()` answers with an element
+            // that is no longer on the page.
+            onCleanup(() => {
+              list = undefined
+            })
+          }}
           class={`absolute right-0 top-full ${WITHIN.pop} mt-1 max-h-80 w-80 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
           data-testid={TESTID.chatSessionList}
         >

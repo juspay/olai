@@ -48,19 +48,21 @@
  * shape the stack takes for the same reason: a layer is a panel that is OPEN,
  * never a component that exists.
  *
- * What this does NOT own is what "shut" MEANS — where the focus goes, whether
- * the trigger toggles instead, whether anything is remembered. That is the
- * caller's, because it differs at every site.
+ * What this does NOT own is what "shut" MEANS — whether the trigger toggles
+ * instead, whether anything is remembered. That is the caller's, because it
+ * differs at every site. WHERE THE CARET GOES it does own, and that is a
+ * correction rather than the original boundary: it was left to the caller when
+ * there was one caller with a trigger, and the moment there were two the rule
+ * ("back to the control that opened it, for the gesture a keyboard can make")
+ * was written out twice, word for word. It is mechanical here — a panel with no
+ * trigger has nowhere to put it back, so nothing is put back — which is why it
+ * costs no flag.
  */
 
 import { createEscapeKeyDown, createInteractOutside } from "@kobalte/core"
 import type { Accessor } from "solid-js"
 
 import { topmostWhileOpen } from "./topmost.ts"
-
-/** Which gesture asked. Callers that put the caret back only for the one a
- *  keyboard can make (`./popover.ts`) need to tell them apart. */
-export type Dismissal = "pointer" | "escape"
 
 export interface Dismissable {
   /** Whether the panel is up. Nothing is listened for while it is not — a shut
@@ -71,19 +73,32 @@ export interface Dismissable {
    *  in place. */
   readonly root: Accessor<HTMLElement | undefined>
   /**
-   * The control that opens it, when it is OUTSIDE that root — which is what a
-   * portal makes of every trigger.
+   * The control that opens it, when there is one — which is TWO things, and
+   * they are two readings of the same fact.
    *
-   * Two roots, and it is the bug worth naming: a portalled panel is not a
-   * descendant of its trigger, so a click-away that knows only the panel reads
-   * a press of the trigger as a press outside — and since the trigger's own
-   * click then reopens what the pointerdown just shut, pressing it a second
-   * time does nothing at all. A panel laid out inside its trigger's own root
-   * (a row's note) has one root and leaves this out.
+   * It is not OUTSIDE, which is what a portal makes of every trigger: a
+   * portalled panel is not a descendant of its trigger, so a click-away that
+   * knows only the panel reads a press of the trigger as a press outside — and
+   * since the trigger's own click then reopens what the pointerdown just shut,
+   * pressing it a second time does nothing at all.
+   *
+   * And it is where the CARET goes back to when a KEY shut the panel. Somebody
+   * who opened one, tabbed into it and pressed Escape would otherwise land on
+   * `<body>`, which is nowhere and the whole page to walk down again. A pointer
+   * gets nothing back: it put the caret where it landed and that is where the
+   * reader now is, so taking it away would be this panel overruling a press it
+   * has nothing to do with.
+   *
+   * A panel laid out inside its trigger's own root (a row's note) has one root
+   * and no control of its own, and leaves this out — which is also what makes
+   * the caret rule mechanical rather than a flag: there is nowhere to put it
+   * back, so nothing is put back.
    */
   readonly trigger?: Accessor<HTMLElement | undefined>
-  /** Shut it. */
-  readonly dismiss: (how: Dismissal) => void
+  /** Shut it. Only that: where the caret goes is above, and everything else a
+   *  close MEANS — whether anything is remembered, whether the trigger toggles
+   *  instead — is the caller's, because it differs at every site. */
+  readonly dismiss: () => void
 }
 
 /**
@@ -105,9 +120,10 @@ export const dismissOn = (on: Dismissable): void => {
       shouldExcludeElement: (element) =>
         on.trigger?.()?.contains(element) === true,
       // Outside THIS panel, and outside everything over it: a press that shut
-      // the menu above is not also a press that shuts this.
+      // the menu above is not also a press that shuts this. The caret stays
+      // where the press put it (see `trigger`).
       onPointerDownOutside: () => {
-        if (topmost()) on.dismiss("pointer")
+        if (topmost()) on.dismiss()
       },
     },
     on.root,
@@ -122,7 +138,10 @@ export const dismissOn = (on: Dismissable): void => {
       // default rather than about the rest of the app: the editors and the
       // palette match on `event.key` and go on seeing it.
       event.preventDefault()
-      on.dismiss("escape")
+      on.dismiss()
+      // AFTER it is gone, and only for the key: until the panel is shut the
+      // caret is still on something on its way out.
+      on.trigger?.()?.focus()
     },
   })
 }
