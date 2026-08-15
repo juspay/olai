@@ -37,7 +37,7 @@ Feature: The header sticks
 
     Examples:
       | kind     | name            |
-      | outline  | house.olai     |
+      | outline  | house.olai      |
       | node     | kitchen         |
       | document | kitchen-sink.md |
 

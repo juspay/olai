@@ -56,7 +56,7 @@ The two kinds of row are the two things olai can honestly say about a file:
 │   · chat agent · 12m ago · 1a2b3c4        │
 │                                           │
 │ OUTLINES ─────────────────────────────    │
-│ ☑ roadmap.olai                           │
+│ ☑ roadmap.olai                            │
 │   ✓  Outlines as a collection    done     │
 │   ✎  Notes: one state, same line  note    │
 │   +  Kolu integration: auto-…    created  │

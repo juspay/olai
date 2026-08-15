@@ -42,7 +42,7 @@ Feature: The directory column sticks too
 
     Examples:
       | kind     | name            |
-      | outline  | house.olai     |
+      | outline  | house.olai      |
       | node     | kitchen         |
       | document | kitchen-sink.md |
 
