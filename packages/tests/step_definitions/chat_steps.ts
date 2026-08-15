@@ -191,11 +191,16 @@ Then(
   },
 );
 
+/** A bubble of my own, by what it says. Two steps ask for one — "the chat
+ *  shows my message X" and "… as not sent" — and which element counts as mine
+ *  is one answer, not two. */
+const myMessage = (world: OlaiWorld, text: string): Locator =>
+  world.page.locator(CHAT_MINE).filter({ hasText: text });
+
 Then(
   "the chat shows my message {string}",
   async function (this: OlaiWorld, text: string) {
-    const mine = this.page.locator(CHAT_MINE).filter({ hasText: text });
-    await mine.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await myMessage(this, text).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
 
@@ -291,10 +296,7 @@ Then(
     // The BUBBLE has to still say it. A row that reported the failure and lost
     // the words would pass a check for the mark alone, and losing the words is
     // the whole thing this feature exists to stop.
-    await this.page
-      .locator(CHAT_MINE)
-      .filter({ hasText: text })
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await myMessage(this, text).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(
       async () => (await this.page.locator(CHAT_UNSENT).count()) > 0,
       `"${text}" to be marked as not sent`,
@@ -304,9 +306,10 @@ Then(
 );
 
 When("I send the unsent message again", async function (this: OlaiWorld) {
-  const again = this.page.locator(CHAT_RESEND).first();
-  await again.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await again.click();
+  // `press` rather than a hand-rolled wait-then-click: it also waits out the
+  // frame the click schedules, and the very next step reads the row this
+  // press is about.
+  await this.press(this.page.locator(CHAT_RESEND).first());
 });
 
 Then("no message is marked unsent", async function (this: OlaiWorld) {
@@ -1228,9 +1231,7 @@ When(
  *  for. Its caller has already waited for something else to be true (the row
  *  marked unsent), which is what makes this a read rather than a race. */
 Then("node {string} is not done", async function (this: OlaiWorld, id: string) {
-  const status = await this.page
-    .locator(nodeSelector(id))
-    .getAttribute("data-status");
+  const status = await this.node(id).getAttribute("data-status");
   assert.notStrictEqual(
     status,
     "done",

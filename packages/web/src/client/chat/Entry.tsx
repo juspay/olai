@@ -173,6 +173,12 @@ export function Entry(props: {
                 <span class="font-mono text-[0.6875rem] text-alarm">
                   not sent
                 </span>
+                {/* The quiet pill's shape in the transcript's own scale, and
+                    that divergence says why in place, as `../pill.ts` asks of
+                    every lookalike: this button sits in a line of 11px mono
+                    with `not sent` beside it, and wearing `QUIET_PILL`'s
+                    `text-xs`/`px-2 py-1` would make one control in that line
+                    a size larger than the words it belongs to. */}
                 <button
                   type="button"
                   class="rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted hover:text-ink"

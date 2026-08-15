@@ -106,6 +106,7 @@ import {
   NEW_SESSION_META,
   SDK_MESSAGE,
   STEER_METHOD,
+  STEER_TIMEOUT,
   STEER_WHEN_IDLE,
   steerTaken,
   toolNameIn,
@@ -194,7 +195,8 @@ export interface Agent {
   readonly prompt: (text: string) => Effect.Effect<string, AgentGone>
   /**
    * Put a message INTO the turn already running — see {@link Steered} for the
-   * three things that can come back.
+   * two things that can come back, and the error channel for every way it
+   * could not be delivered at all.
    *
    * The other half of {@link prompt}, and deliberately not a second prompt: a
    * `session/prompt` sent mid-turn is queued by the agent and reached when the
@@ -253,22 +255,6 @@ const BOOT_TIMEOUT = "30 seconds"
 /** A load is not small: the agent re-opens a conversation and replays every
  *  message in it before it answers. Its own, longer deadline. */
 const LOAD_TIMEOUT = "120 seconds"
-/**
- * A steer gets a deadline where a prompt gets none, and the two are not the
- * same kind of wait.
- *
- * A prompt is a person waiting on a language model, which is why it has no
- * deadline at all. A steer is an INJECTION: the agent answers as soon as the
- * message is on its input, long before the turn does anything with it. So one
- * that has gone unanswered this long is not a slow turn, it is an agent that
- * has stopped listening — and the words belong back in front of the person who
- * typed them rather than in a call nobody is going to answer.
- *
- * Its own constant rather than {@link BOOT_TIMEOUT}'s value borrowed by
- * omitting an argument: the number happens to match, the reason does not, and
- * a deadline this load-bearing should be readable at the call site.
- */
-const STEER_TIMEOUT = "30 seconds"
 
 interface Live {
   readonly child: ChildProcess
@@ -1145,14 +1131,30 @@ const ask = (
   params: unknown,
   timeout: Duration.Input | null = BOOT_TIMEOUT,
 ): Effect.Effect<unknown, AgentGone> => {
+  // The SIGNAL is what makes a deadline a cancellation rather than a walk-away.
+  // The SDK keys every request it sends into a pending map and only clears an
+  // entry when a response arrives or the connection closes — so a timeout that
+  // merely stops waiting leaves the entry, and the closure holding that
+  // request's params, for the life of the subprocess. That was invisible while
+  // every deadline-bearing call happened once per boot or per click; `steer`
+  // is the first that happens once per MESSAGE, and a server that runs for
+  // weeks is the wrong place to find out. Handed the signal, the SDK cancels
+  // on the wire and the agent's reply clears the entry.
   const call: Effect.Effect<unknown, AgentGone> = Effect.tryPromise({
-    try: () =>
+    try: (signal) =>
       (connection.agent as unknown as {
-        request: (method: string, params: unknown) => Promise<unknown>
-      }).request(method, params),
+        request: (
+          method: string,
+          params: unknown,
+          options?: { readonly cancellationSignal?: AbortSignal },
+        ) => Promise<unknown>
+      }).request(method, params, { cancellationSignal: signal }),
     catch: (cause) => new AgentGone({ why: `\`${method}\` failed: ${reasonOf(cause)}` }),
   })
   if (timeout === null) return call
+  // `Effect.timeout` INTERRUPTS what it is timing out, which is what fires the
+  // signal above — so the deadline and the cancellation are one mechanism
+  // rather than a deadline and a cleanup somebody has to remember.
   return Effect.catchTag(
     Effect.timeout(call, timeout),
     "TimeoutError",

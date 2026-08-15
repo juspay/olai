@@ -45,6 +45,23 @@ export interface Change {
 
 const EMPTY: Change = { upserts: [], removes: [] }
 
+/**
+ * An entry without the fields `#put` DERIVES, ready to be written back.
+ *
+ * `streaming` is why this exists and why it is one function: a spread of the
+ * old entry carries the flag straight past the derivation that is supposed to
+ * decide it, which is the bug this class's header says its shape makes
+ * unrepresentable. It stopped being one function the moment a second writer
+ * needed it — and the two lists had already drifted apart by a field, which is
+ * exactly how the header's claim would have quietly stopped being true.
+ */
+const contentOf = (
+  entry: ChatEntry,
+): Omit<ChatEntry, "id" | "seq" | "streaming"> => {
+  const { id: _id, seq: _seq, streaming: _streaming, ...content } = entry
+  return content
+}
+
 /** Two changes as one. Closing the open entry and writing the next one are two
  *  upserts a subscriber should see in the same frame. */
 const both = (first: Change, second: Change): Change => ({
@@ -99,27 +116,28 @@ export class Transcript {
     text: string,
     extra: Partial<ChatEntry> = {},
   ): Change {
-    return both(this.#close(), this.#put(this.#next(kind), { kind, text, ...extra }))
+    return this.#row(kind, text, extra).change
   }
 
   /**
    * What a person said — a row like any other, ANSWERING WITH ITS KEY.
    *
-   * The one kind whose key a caller has to keep. Every other entry is written
-   * and forgotten, but a user message can turn out to be undeliverable after
-   * it has been drawn ({@link unsent}), and a retry that lands has to find the
+   * The one caller that has to keep a key. Every other entry is written and
+   * forgotten, but a user message can turn out to be undeliverable after it
+   * has been drawn ({@link unsent}), and a retry that lands has to find the
    * same row again — so the key comes back here rather than being fished out
    * of the change or re-derived from a counter kept somewhere else.
+   *
+   * It is the same door as {@link add} with the key kept ({@link #row}), and
+   * not a second way to write a row: `add("user", …)` is still what a REPLAY
+   * uses, and two minting paths would be two answers to "how is a row
+   * written" for the one kind that has both.
    */
   user(text: string, extra: Partial<ChatEntry> = {}): {
     readonly key: string
     readonly change: Change
   } {
-    const key = this.#next("user")
-    return {
-      key,
-      change: both(this.#close(), this.#put(key, { kind: "user", text, ...extra })),
-    }
+    return this.#row("user", text, extra)
   }
 
   /**
@@ -136,9 +154,9 @@ export class Transcript {
    * to belong to.
    */
   unsent(key: string, prompt: string): Change {
-    const marked = this.#mark(key, true)
-    if (marked !== EMPTY) this.#undelivered.set(key, prompt)
-    return marked
+    if (!this.#entries.has(key)) return EMPTY
+    this.#undelivered.set(key, prompt)
+    return this.#mark(key, true)
   }
 
   /** ... and it has now. The mark comes off and the prompt is let go: a row
@@ -163,8 +181,10 @@ export class Transcript {
   #mark(key: string, undelivered: boolean): Change {
     const current = this.#entries.get(key)
     if (current === undefined) return EMPTY
-    const { id: _id, seq: _seq, streaming: _streaming, unsent: _unsent, ...content } =
-      current
+    // `unsent` comes off along with the derived fields, for the same reason
+    // `contentOf` takes those: this line is what DECIDES it, and a spread of
+    // the old entry would carry the previous answer past the decision.
+    const { unsent: _unsent, ...content } = contentOf(current)
     return this.#put(key, undelivered ? { ...content, unsent: true } : content)
   }
 
@@ -295,11 +315,23 @@ export class Transcript {
     if (key === null) return EMPTY
     const current = this.#entries.get(key)
     if (current === undefined) return EMPTY
-    // The three fields `#put` mints are dropped rather than passed back in:
-    // `streaming` especially, because a spread of the old entry would carry the
-    // flag straight past the derivation that is supposed to decide it.
-    const { id: _id, seq: _seq, streaming: _streaming, ...content } = current
-    return this.#put(key, content)
+    return this.#put(key, contentOf(current))
+  }
+
+  /** Mint a row and answer with BOTH its key and the change, which is the one
+   *  shape every writer here needs some part of: {@link add} takes the change
+   *  and drops the key, {@link user} keeps both. One place knows how a row is
+   *  written, so a `user` row a person typed and a `user` row a replay wrote
+   *  cannot come out differently. */
+  #row(kind: ChatEntry["kind"], text: string, extra: Partial<ChatEntry>): {
+    readonly key: string
+    readonly change: Change
+  } {
+    const key = this.#next(kind)
+    return {
+      key,
+      change: both(this.#close(), this.#put(key, { kind, text, ...extra })),
+    }
   }
 
   #next(kind: string): string {

@@ -485,15 +485,14 @@ const HOLD_LIMIT_MS = 30_000
 const released = async (onTick?: () => void): Promise<void> => {
   const marker = `${cwd}/${RELEASE}`
   for (let waited = 0; waited < HOLD_LIMIT_MS; waited += 100) {
+    // FIRST, before the release is even looked for, because that is the claim
+    // under test: a message steered into a turn is acted on by the turn that
+    // is still running, not by the one after it.
+    await takeSteering()
     if (existsSync(marker)) {
       rmSync(marker, { force: true })
-      await takeSteering()
       return
     }
-    // BEFORE the tick and inside the wait, because that is the claim: a
-    // message steered into a turn is acted on by the turn that is still
-    // running, not by the one after it.
-    await takeSteering()
     onTick?.()
     await sleep(100)
   }
@@ -512,8 +511,11 @@ const released = async (onTick?: () => void): Promise<void> => {
  * words arrived.
  */
 const takeSteering = async (): Promise<void> => {
-  while (steered.length > 0) {
-    const text = steered.shift() ?? ""
+  // `splice(0)` takes the whole list and leaves it empty, so nothing steered
+  // WHILE this is awaiting a tool call is lost or double-run — and there is no
+  // unreachable `?? ""` standing in for a `shift` the loop guard already made
+  // impossible.
+  for (const text of steered.splice(0)) {
     const [verb, ...rest] = text.trim().split(/\s+/)
     const argument = rest.join(" ")
     if (verb === "done") {
@@ -716,9 +718,6 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
-  // From now on we cannot say what conversations we have. Not the same as
-  // having none — and until the picker grew a refused arm, both arrived there
-  // as an empty list and were drawn as "no stored conversations".
   // From now on there is no way to reach the turn in flight. The words a
   // person types during one have nowhere to go, and the panel owes them the
   // row rather than a queue.
@@ -729,6 +728,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  // From now on we cannot say what conversations we have. Not the same as
+  // having none — and until the picker grew a refused arm, both arrived there
+  // as an empty list and were drawn as "no stored conversations".
   if (verb === "lose") {
     listRefused = true
     say("the conversation store is unreadable")
@@ -1166,6 +1168,16 @@ const replay = (): void => {
 /** The steering extension's method name, as the real adapter spells it. */
 const STEER_METHOD = "_session/steering"
 
+/** The words out of a `prompt` array, which the two lanes that take one — a
+ *  turn and a steer — must read IDENTICALLY. Written twice, it was the cast
+ *  that would have drifted: a lane taught to filter on `type === "text"` or to
+ *  read an image block while the other was not would pass every scenario while
+ *  quietly dropping content on one side. */
+const promptTextOf = (params: Record<string, unknown>): string =>
+  ((params["prompt"] ?? []) as ReadonlyArray<{ text?: string }>)
+    .map((block) => block.text ?? "")
+    .join("")
+
 /**
  * A message put INTO the turn that is running, answered from the read loop.
  *
@@ -1189,10 +1201,7 @@ const steerTurn = (id: unknown, params: Record<string, unknown>): void => {
     respond(id, { outcome: "promptRequired", reason: "noRunningTurn" })
     return
   }
-  const blocks = (params["prompt"] ?? []) as ReadonlyArray<
-    { type?: string; text?: string }
-  >
-  steered.push(blocks.map((block) => block.text ?? "").join(""))
+  steered.push(promptTextOf(params))
   respond(id, { outcome: "injected" })
 }
 
@@ -1283,10 +1292,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/prompt": {
-      const blocks = (params["prompt"] ?? []) as ReadonlyArray<
-        { type?: string; text?: string }
-      >
-      const text = blocks.map((block) => block.text ?? "").join("")
+      const text = promptTextOf(params)
       // The flag the steer handler reads, and it must come off however the
       // turn ends — a crash of a turn that left it set would make every later
       // steer claim to have been injected into nothing.

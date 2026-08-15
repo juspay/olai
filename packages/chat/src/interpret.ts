@@ -156,6 +156,24 @@ export const STEER_WHEN_IDLE = {
 }
 
 /**
+ * How long a steer may go unanswered before the words go back to the person
+ * who typed them.
+ *
+ * HERE and not beside the transport's other deadlines, because its warrant is
+ * a claim about this extension rather than about a pipe. `boot` and `load` are
+ * bounded on "the process did not answer", which is true of any agent; this
+ * one rests on what the adapter DOES with a steer — it answers as soon as the
+ * message is on the SDK's input, long before the turn does anything with it —
+ * so silence past this is not a slow turn but an agent that stopped listening.
+ * An agent that answered steers late would be one file's problem, and this is
+ * the file.
+ *
+ * A prompt, by contrast, gets no deadline at all: that one really is a person
+ * waiting on a language model.
+ */
+export const STEER_TIMEOUT = "30 seconds"
+
+/**
  * Whether the steer went INTO the running turn, out of what the agent
  * answered.
  *

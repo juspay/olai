@@ -125,10 +125,11 @@ export interface Chat {
     chunk: AttachChunk,
   ) => Effect.Effect<Attached, OpFailure>
   /** Deliver a message the agent would not take, again — `id` is the `user`
-   *  row's own key. The prompt is the one this file kept when delivery failed,
-   *  pictures and node lines and all, so what lands is the same message rather
-   *  than a browser's reconstruction of the row. Refuses when that row is not
-   *  waiting to be sent, which two tabs can genuinely race. */
+   *  row's own key. The prompt is the one that failed, kept beside that row
+   *  ({@link ./transcript.ts}) with its pictures and node lines, so what lands
+   *  is the same message rather than a browser's reconstruction of it. Refuses
+   *  when that row is not waiting to be sent, which two tabs can genuinely
+   *  race. */
   readonly resend: (id: string) => Effect.Effect<void, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
   readonly newSession: Effect.Effect<void, OpFailure>
@@ -225,6 +226,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
+    /** One delivery decision at a time — see {@link deliver}. Deciding which
+     *  lane a message takes means reading whether a turn is running, and taking
+     *  that lane means writing it; two sends interleaving between the two would
+     *  start two turns where the panel can only report one. Its own permit
+     *  rather than {@link switching}'s, because that one is held across a
+     *  three-megabyte attachment chunk and a send should not queue behind a
+     *  picture. */
+    const sending = yield* Semaphore.make(1)
     /** Everything the agent has said, counted. See {@link receive}. */
     let heard = 0
 
@@ -237,7 +246,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       state = { ...state, ...next }
       options.onState(state)
     }
-
 
     /**
      * How many questions are still waiting on a person, COUNTED off the rows
@@ -450,38 +458,66 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * Get one prompt to the agent NOW, whatever it is doing — and, when that
      * cannot be done, leave the words with the person who typed them.
      *
-     * The two ways in are the same message from here: an idle agent is
-     * PROMPTED, which starts a turn this file owns, and a working one is
-     * STEERED, which hands the message to the turn already running and starts
-     * nothing. Nothing waits, and there is nowhere for a message to wait.
+     * A working agent is STEERED, which hands the message to the turn already
+     * running and starts nothing; everything else PROMPTS, which starts a turn
+     * this file owns. The ordinary prompt is the fall-through rather than a
+     * second branch, because the two ways of reaching it are the same ending: an
+     * agent that was idle when we looked, and one that turned out to be idle
+     * when the steer got there. That second one is the RACE — olai steers only
+     * while it believes a turn is running, and the agent can settle in between —
+     * and the agent says so rather than inventing a turn ({@link
+     * ./interpret.ts}'s `STEER_WHEN_IDLE`).
      *
-     * `idle` back from a steer is the RACE, not a third way in: olai steers
-     * only while it believes a turn is running, and the agent can settle
-     * between the send and the steer arriving. The agent says so rather than
-     * inventing a turn ({@link ./interpret.ts}'s `STEER_WHEN_IDLE`), and the
-     * message becomes an ordinary prompt — which is what it would have been a
-     * moment later anyway.
+     * UNDER A PERMIT, because the first thing it does is read which lane to take
+     * and the last thing it does is take it. Two tabs sending at an idle agent
+     * both read `turn === null` otherwise, and both start a turn: the second
+     * ticket replaces the first, whose end is then correctly silenced as a turn
+     * that was superseded — so a real turn would end with the panel saying
+     * nothing about it. The ticket answers WHICH turn is speaking; it was never
+     * going to answer how many may start, and narrowing that window is not
+     * closing it. The permit is held for one round trip: `begin` forks rather
+     * than awaiting a turn, and a steer answers as soon as the message is on the
+     * agent's input.
      */
     const deliver = (key: string, prompt: string): Effect.Effect<void> =>
-      Effect.gen(function*() {
-        if (turn === null) return yield* begin(prompt)
-        const steered = yield* Effect.result(agent.steer(prompt))
-        // Every way a steer can fail to be DELIVERED comes back here in the
-        // agent's own words — a method it does not have, a dead pipe, a
-        // deadline — and all of them mean the same thing to a person: their
-        // words are still theirs to send.
-        if (steered._tag === "Failure") return undeliverable(key, prompt, steered.failure.message)
-        if (steered.success === "no-turn") return yield* begin(prompt)
-        // Delivered, and into the turn a person could see running — so a banner
-        // about the last thing that went wrong is a banner about something the
-        // agent has visibly moved on from.
-        move({ trouble: null })
-      })
+      sending.withPermit(Effect.gen(function*() {
+        if (turn !== null) {
+          const steered = yield* Effect.result(agent.steer(prompt))
+          if (steered._tag === "Failure") {
+            return undeliverable(key, prompt, steered.failure.message)
+          }
+          if (steered.success === "taken") {
+            // Delivered, and into the turn a person could see running — so a
+            // banner about the last thing that went wrong is a banner about
+            // something the agent has visibly moved on from.
+            return move({ trouble: null })
+          }
+        }
+        yield* begin(prompt)
+      }))
 
-    /** The agent would not take it: the row says so and keeps the prompt
-     *  ({@link ./transcript.ts}), and the banner says why. Nothing is dropped
-     *  and nothing is retried — {@link Chat.resend} is a person's click and is
-     *  the only thing that moves this. */
+    /**
+     * The agent would not take it: the row says so and keeps the prompt
+     * ({@link ./transcript.ts}), and the banner says why. Nothing is dropped
+     * and nothing is retried — {@link Chat.resend} is a person's click and is
+     * the only thing that moves this.
+     *
+     * TWO CERTAINTIES AND ONE INFERENCE, and it is worth being straight about
+     * which is which. A steer the agent ANSWERED with an error — a method it
+     * does not have, a session it does not know — did not arrive, full stop. A
+     * steer that could not be WRITTEN did not arrive either. A steer that went
+     * unanswered until {@link ./agent.ts}'s deadline is the inference: it
+     * probably never landed, but an agent that took the message and then went
+     * quiet looks identical from here.
+     *
+     * It is marked anyway, and the reason it is safe to is that nothing here
+     * ACTS on the mark — the retry is a person's click, made while looking at
+     * the row and at whatever the turn did next. That is the whole difference
+     * from a turn that DIED mid-prompt ({@link begin}), which is not marked at
+     * all: there the agent demonstrably received the prompt and worked on it,
+     * so a button offering to send it again would be offering a duplicate to
+     * somebody with no way to tell.
+     */
     const undeliverable = (key: string, prompt: string, why: string): void => {
       publish(transcript.unsent(key, prompt))
       move({ trouble: why })
@@ -494,12 +530,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * the transcript, so a five-minute turn is not a five-minute call.
      *
      * The ticket is written down BEFORE the fork and the fiber is filled in
-     * after, so there is no instant in which a turn is running and `turn` says
-     * otherwise — the window a concurrent `send` would read to decide between
-     * prompting and steering. And the fiber's own reports are gated on still
-     * BEING the turn: a turn that settled while its replacement was starting
-     * has nothing true left to say about where the conversation stands, and
-     * saying it anyway would mark a thinking panel idle.
+     * after, so a turn is on the record from the instant it starts rather than
+     * from whenever the fork returns. That NARROWS the window a concurrent
+     * send would read to decide between prompting and steering; what CLOSES it
+     * is {@link deliver}'s permit, because no amount of narrowing makes a
+     * read-then-write atomic and the ticket was never the mechanism for that.
+     *
+     * What the ticket is for is IDENTITY: the fiber's own reports are gated on
+     * still BEING the turn, because a turn that settled while its replacement
+     * was starting has nothing true left to say about where the conversation
+     * stands, and saying it anyway would mark a thinking panel idle.
      */
     const begin = (prompt: string): Effect.Effect<void> =>
       Effect.gen(function*() {
@@ -620,24 +660,32 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * so a retry read off the screen would be a different message wearing the
      * same words.
      *
-     * The mark comes off only when delivery worked. A retry that fails again
-     * leaves the row exactly as it was — still there, still retryable, with the
-     * new reason on the banner — because the one thing this must never do is
-     * make words disappear on their way to failing.
+     * A retry that fails again leaves the row exactly as it was — still there,
+     * still retryable, with the new reason on the banner — because the one
+     * thing this must never do is make words disappear on their way to
+     * failing. That falls out of unmarking FIRST: `deliver` marks it again on
+     * the one path that marks anything, rather than this deciding not to
+     * unmark it and having a second opinion about what happened.
+     *
+     * TAKING the prompt is one step with reading it, under {@link deliver}'s
+     * own permit, and that is what makes a second click a refusal rather than
+     * a second send: whichever press gets there first leaves with the prompt,
+     * and the other finds nothing waiting. Two clicks both reading a non-null
+     * prompt before either unmarked would send the message twice, which is the
+     * one outcome an undelivered row must not be able to produce.
      */
     const resend = (id: string): Effect.Effect<void, OpFailure> =>
       Effect.gen(function*() {
-        const prompt = transcript.undelivered(id)
+        const prompt = yield* sending.withPermit(Effect.sync(() => {
+          const waiting = transcript.undelivered(id)
+          if (waiting !== null) publish(transcript.sent(id))
+          return waiting
+        }))
         if (prompt === null) {
           return yield* new UsageFailure({
             reason: "that message is not waiting to be sent — it went, or its conversation did",
           })
         }
-        // Unmarked BEFORE the attempt, so a second click while this one is in
-        // flight is refused rather than sending the message twice — and so a
-        // retry that fails again is `deliver` marking it, on the one path that
-        // marks anything, rather than this deciding not to unmark it.
-        publish(transcript.sent(id))
         yield* deliver(id, prompt)
       })
 
