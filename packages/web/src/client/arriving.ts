@@ -63,7 +63,7 @@ export interface Arrival<T> {
  * rather than a module name.
  * @param fetch the `import()`, written as a literal in the caller.
  */
-export const arriving = <T>(what: string, fetch: () => Promise<T>): Arrival<T> => {
+export const createArrival = <T>(what: string, fetch: () => Promise<T>): Arrival<T> => {
   const [arrival, setArrival] = createSignal<T | Error | undefined>(undefined)
   /** Has the fetch been started? Not a signal: nothing draws from it, and it is
    *  the one piece of this that must not re-run anything when it changes. */

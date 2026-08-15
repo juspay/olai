@@ -65,14 +65,14 @@
  * broken. Reloading is the honest answer, and the sentence says so.
  */
 
-import { arriving } from "../arriving.ts"
+import { createArrival } from "../arriving.ts"
 
 // The literal specifier is the point: the bundler READS it, which is what gets
 // `./Dropdown.tsx`'s graph — Kobalte, `./Panel.tsx`, `./Confirm.tsx` — out of
 // `main-*.js` and into a chunk of its own rather than merely unreached inside
 // it. It is also the only value-carrying mention of that module in the whole
 // client, which `../claims.test.ts` holds.
-const menu = arriving("the ••• menu", async () => (await import("./Dropdown.tsx")).Dropdown)
+const menu = createArrival("the ••• menu", async () => (await import("./Dropdown.tsx")).Dropdown)
 
 /**
  * Is the primitive here yet — and, if it is not, start fetching it.

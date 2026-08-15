@@ -45,7 +45,7 @@
  * the longer it is broken.
  */
 
-import { arriving } from "../arriving.ts"
+import { createArrival } from "../arriving.ts"
 
 // The literal specifier is the point: the bundler READS it, which is what gets
 // ./pipeline.ts's graph out of `main-*.js` and into a chunk of its own rather
@@ -55,7 +55,7 @@ import { arriving } from "../arriving.ts"
 // variable specifier needs and this one does not: the namespace object is
 // TYPED here, so renaming an export in ./pipeline.ts is a compile error rather
 // than a page that loads and then cannot render.
-const pipeline = arriving("the markdown renderer", () => import("./pipeline.ts"))
+const pipeline = createArrival("the markdown renderer", () => import("./pipeline.ts"))
 
 /**
  * Is the pipeline here yet — and, if it is not, start fetching it.

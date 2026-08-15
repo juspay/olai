@@ -266,10 +266,21 @@ when the pipeline was inline.
   outline of plain titles never asks at all — by holding the chunk up in the
   network layer.
 
-It is no longer the only one: the `•••` menu's primitive rides the same three
-rules (`menu/chunk.ts`), asked for by the first row anybody reaches for a menu
-on, and the `•••` stays drawn while it is in flight. The menu section below has
-the numbers.
+It is no longer the only one: the `•••` menu's primitive rides the same rules
+(`menu/chunk.ts`), asked for by the first row anybody reaches for a menu on, and
+the `•••` stays drawn while it is in flight. The menu section below has the
+numbers.
+
+Being the second is what made the rules a THING rather than a shape — the same
+argument `saying.ts` graduated on. **`src/client/arriving.ts` is the
+receptacle**: one signal over not-here / here / not-coming (two signals would be
+two writes to keep in step, and "failed AND here" is a state nothing should be
+able to spell), the read that starts the fetch, the failure kept as a value
+rather than thrown, and the stored value stored as a VALUE — a component is a
+function, and Solid reads a bare `set(fn)` as an updater, which is the one
+footgun in this shape and is now spelled once. Each `chunk.ts` keeps its own
+names for it and its own literal specifier, which cannot move: the bundler reads
+that out of the file it is written in. `arriving.test.ts` holds the four rules.
 
 A document is surveyed and jumped around through those anchors:
 `document/Toc.tsx` draws a collapsible contents above the body, derived from

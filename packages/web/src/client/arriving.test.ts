@@ -5,14 +5,14 @@
  * once around the `•••` menu's — before the second one made them one thing.
  * Each test below is one of the rules the two copies were both keeping by hand.
  *
- * No bundler is involved: `arriving` takes the thunk, so a test hands it a
+ * No bundler is involved: `createArrival` takes the thunk, so a test hands it a
  * promise it controls and the `import()` stays in the callers, where the
  * bundler reads it.
  */
 
 import { expect, test } from "bun:test"
 
-import { arriving } from "./arriving.ts"
+import { createArrival } from "./arriving.ts"
 
 /** A fetch a test finishes when it chooses, plus how many times it was
  *  started — the counter is the point of the second test. */
@@ -40,7 +40,7 @@ const settled = (): Promise<void> => new Promise((resolve) => queueMicrotask(res
 
 test("asking is what fetches it, and nothing fetches it before that", async () => {
   const held = heldFetch<string>()
-  const chunk = arriving("the thing", held.fetch)
+  const chunk = createArrival("the thing", held.fetch)
   expect(held.started()).toBe(0)
 
   expect(chunk.ready()).toBe(false)
@@ -56,7 +56,7 @@ test("a second ask does not start a second fetch", async () => {
   // Every row of the outline reads the menu's answer; a fetch per reader would
   // be one request per row of the page.
   const held = heldFetch<string>()
-  const chunk = arriving("the thing", held.fetch)
+  const chunk = createArrival("the thing", held.fetch)
   chunk.ready()
   chunk.ready()
   chunk.ready()
@@ -70,7 +70,7 @@ test("a second ask does not start a second fetch", async () => {
 
 test("a fetch that fails is a value, not a throw — and asking again is not a retry", async () => {
   const held = heldFetch<string>()
-  const chunk = arriving("the markdown renderer", held.fetch)
+  const chunk = createArrival("the markdown renderer", held.fetch)
   chunk.ready()
   held.fail(new Error("offline"))
   await settled()
@@ -90,13 +90,13 @@ test("a value that is a FUNCTION is stored, not called", async () => {
   // are held: the fetch, and the install a unit test uses.
   const Component = (): string => "drawn"
   const held = heldFetch<typeof Component>()
-  const fetched = arriving("the menu", held.fetch)
+  const fetched = createArrival("the menu", held.fetch)
   fetched.ready()
   held.land(Component)
   await settled()
   expect(fetched.now()).toBe(Component)
 
-  const installed = arriving("the menu", held.fetch)
+  const installed = createArrival("the menu", held.fetch)
   installed.install(Component)
   expect(installed.now()).toBe(Component)
 })
@@ -104,6 +104,6 @@ test("a value that is a FUNCTION is stored, not called", async () => {
 test("using it before it arrives is a throw, because that is a bug in the caller", () => {
   // A silent `undefined` would be a page that merely looked blank; every
   // caller is inside something that just read `ready()`.
-  const chunk = arriving("the ••• menu", heldFetch<string>().fetch)
+  const chunk = createArrival("the ••• menu", heldFetch<string>().fetch)
   expect(() => chunk.now()).toThrow("the ••• menu was used before it arrived")
 })
