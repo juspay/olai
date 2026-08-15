@@ -44,15 +44,22 @@ in the system had to arrange:
 
 | file | what it owns |
 |---|---|
-| `request.ts` | the things a writer may ask for, as schemas — one declaration serving the planner's switch, the tool schemas and the decoder |
 | `plan.ts` | the whole decision, PURE: a snapshot and a request into the files that write would produce |
 | `ops.ts` | the loop — read, plan, commit, re-plan on a stale base — and nothing else |
 | `sorted.ts` | what a write CHANGED, in one word — the format's own classification, derived from the two readings the write is made of rather than from the op's name |
 | `pending.ts` | what is waiting to be committed, derived from git, the one verb that commits it, and what git is doing for the directory at all — one survey, both answers |
 | `message.ts` | what a commit nobody wrote a message for says, and how olai recognises its own commits — the `olai` prefix and the `X-Olai-Writer` trailer, handed down to the plumbing rather than known by it |
 | `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines. WHAT matches is `@olai/format`'s one matcher (`parseFilter` / `matching` — the words, the operators, the archive rule), because the browser filters rows it already holds and a second implementation of the grammar is how `is:done` comes to mean two things; what the four answers LOOK like is that package's too (`reading.ts` / `searching.ts`), and is NOT re-exported from here — a consumer imports a shape from the floor it is declared on. What is left is every WALK — the field weights, the done penalty, the cap, the total that is not capped, which mirrors resolve to a node, and how far a subtree descends |
-| `tools.ts` | the closed list of what an agent may do, and what it may not |
+| `tools.ts` | the closed list of what an agent may do, and what it may not — plus the three doors it is answered through (`Running`, `Asking`, `Acting`), which is what lets a tool be answered by a surface client with no store behind it |
 | `codec.ts` | the seam where the generic store meets the outline format |
+
+The things a writer may ASK FOR are not in that list any more. They are
+`@olai/format`'s (`writing.ts`), for the reason the four read shapes are: the
+surface carries them to an agent's door now, and a vocabulary two packages that
+may not import each other both need has exactly one home. `index.ts` re-exports
+the two under the names this layer's own answers use — `Request` and `Applied` —
+and a module that wants them internally aliases them at its import, which is one
+door to one package rather than two.
 
 `plan.ts` being pure is the design rather than a preference: everything hard
 about an op is decided there, over a value, so it is testable without a disk
@@ -127,7 +134,7 @@ one level up: `create` then `add` was two plans, and a second one that refused
 left an EMPTY outline on disk nobody had asked for. Now the file and its
 contents are one plan — a seed refused anywhere in its tree leaves no file at
 all, which `src/ops.test.ts` asserts against a real directory. The two tools
-therefore take one shape (`ROOT` in `src/request.ts`): a seed that could say
+therefore take one shape (`ROOT` in `@olai/format`'s `writing.ts`): a seed that could say
 less than a capture would be a reason to make the second call this exists to
 delete.
 

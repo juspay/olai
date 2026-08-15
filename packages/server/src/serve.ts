@@ -32,10 +32,11 @@ import * as Chat from "@olai/chat"
 import { openDirectory } from "./directory.ts"
 import { watchFault } from "./fault.ts"
 import { listen } from "./listener.ts"
-import { serveFace } from "./mcp/face.ts"
+import { clientOver, serveFace } from "./mcp/face.ts"
 import { MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
-import { bind, gitWiring, type Publishers } from "./runtime.ts"
+import { bind, gitWiring, type Publishers, writerAt } from "./runtime.ts"
+import { serveAgentSocket } from "./socket.ts"
 
 export interface ServeOptions {
   /** The directory to serve, recursively. */
@@ -155,7 +156,7 @@ export const serve = (options: ServeOptions) =>
       chat,
       ops,
       writer: "web",
-      git: gitWiring(ops, "web", recorded),
+      git: gitWiring(ops, recorded),
     })
     publish = wired.publish
 
@@ -177,11 +178,26 @@ export const serve = (options: ServeOptions) =>
     // which is the whole point of the surface-mcp adoption, and the reason the
     // hand-rolled dispatch this replaced is gone.
     const transport = mcpTransport()
+    // Built ONCE and handed back on every ask: this face has no transport to
+    // drop, so re-dialling would only re-run the gate over the same handlers.
+    const panel = clientOver(writerAt(wired.bound, ops, "chat-agent"))
     yield* serveFace({
-      bound: wired.bound,
-      tools: bespokeFrom(TOOLS, ops, "chat-agent"),
+      client: () => panel,
+      tools: bespokeFrom(TOOLS),
       transport,
     })
+
+    // The OTHER face onto the same runtime: an owner-only unix socket beside
+    // the listener, so somebody's own `olai mcp` on this directory attaches to
+    // this store instead of opening a second one over the same files
+    // (`./socket.ts`, which prices what that used to cost). Additive by
+    // construction — every way it can fail to bind resolves to a sentence and a
+    // no-op listener, and the browser never notices.
+    //
+    // BEFORE the listener, so the socket is up by the time a port is announced
+    // and an agent that races the log line finds a surface rather than an
+    // ENOENT. Its teardown is on this scope like everything else's.
+    yield* serveAgentSocket({ root, bound: wired.bound, ops })
 
     const url = yield* Effect.onError(
       listen({ ...options, bound: wired.bound, mcp: { transport, token } }),

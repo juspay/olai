@@ -35,7 +35,7 @@ corrected ones.
 | --- | --- | --- | --- | --- |
 | a | the same verbs exist twice, two schemas free to drift | **CLOSED HERE** — one real instance, and it was live | `ops/src/tools.ts:136` + `ops/src/query.ts:293` + `surface/src/search.ts:29,51` — three spellings of the question, two of the answer, and `surface/src/search.ts:14` claiming they could not drift | `format/src/searching.ts:49,111` — one declaration, on the floor both stand on |
 | b | the refusal contract is verified — `isError` + `structuredContent` carrying `OpFailure` | **CLOSED HERE** — one kind of four was pinned, on one face of two | `server/src/mcp/tools.test.ts:452` (the one kind), `mcp/route.test.ts:159` (a success-path `structuredContent` assertion, and no refusal one anywhere in the file) | `mcp/tools.test.ts:506,564`, `mcp/route.test.ts:180` |
-| c | the bridge shape exists — an agent attaching to a RUNNING olai's store | **DEFERRED, with a price and one upstream ask** | — | unchanged; the argument for the second store is `server/src/mcp/serve.ts:10` |
+| c | the bridge shape exists — an agent attaching to a RUNNING olai's store | **DEFERRED, with a price and one upstream ask** — *built since, see below* | — | unchanged; the argument for the second store is `server/src/mcp/serve.ts:10` |
 | d | agents watch live rows, not only call tools | **ALREADY TRUE** — five subscribable resources | — | unchanged: `server/src/mcp/expose.ts:119`, `mcp/face.test.ts:232` |
 | e | `check-kolu-deps.sh` covers the package | **ALREADY TRUE** — by construction, and it always was | — | unchanged: `nix/kolu.nix:27` |
 
@@ -215,6 +215,16 @@ only — a second table there would be a second answer to "which kinds exist".
 ---
 
 ## (c) The bridge: what it would cost to have, and what it costs not to have
+
+> **Since built.** Both things this position said were rulings rather than code
+> have been made: kolu gave every serving face its own `expose`
+> ([juspay/kolu#2170](https://github.com/juspay/kolu/pull/2170), the ask below,
+> ratified and merged), and the ops vocabulary went onto the surface with the
+> browser denied it. `olai mcp` attaches. This section is left as it was
+> WRITTEN — an audit is a record of what was known when — and what the price
+> turned out to be, re-measured on both sides with this same method, is
+> [mcp-bridge.md](./mcp-bridge.md). One number in it corrects a reading here:
+> the memory did not halve, because it was never mostly the corpus.
 
 Today the human runs `olai web <dir>` and, separately, `olai mcp <dir>`. Two
 processes, two stores, one directory. `packages/server/src/mcp/serve.ts:10`

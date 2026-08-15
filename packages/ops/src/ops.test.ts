@@ -22,7 +22,14 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import { isMirror, type OutlineError, type OutlineSet, parseOutline } from "@olai/format"
+import {
+  isMirror,
+  type OutlineError,
+  type OutlineSet,
+  parseOutline,
+  type WriteRequest as Request,
+  type WriteResult as Applied,
+} from "@olai/format"
 import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
 import { Effect, Result, SubscriptionRef } from "effect"
@@ -30,7 +37,6 @@ import { Effect, Result, SubscriptionRef } from "effect"
 import { codec } from "./codec.ts"
 import { repoAt, STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
-import type { Applied, Request } from "./request.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,

@@ -9,13 +9,12 @@
  * one tool and opposite events.
  */
 
-import type { OutlineSet, Sort } from "@olai/format"
+import type { OutlineSet, Sort, WriteRequest as Request } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { setOf, steady } from "./fixtures.testlib.ts"
 import { plan } from "./plan.ts"
-import type { Request } from "./request.ts"
 import { sortOfWrite } from "./sorted.ts"
 
 const KITCHEN = [

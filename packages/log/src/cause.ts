@@ -47,3 +47,24 @@ export const reasonOf = (cause: unknown): string =>
     : cause instanceof Error
     ? cause.message
     : String(cause)
+
+/**
+ * The `errno` a failure carries, if it carries one — `EADDRINUSE`,
+ * `ECONNREFUSED`, `ENOENT`.
+ *
+ * The third question anything asks of an `unknown` failure, and the one whose
+ * answer is a DECISION rather than a sentence: a busy port is a reason to retry
+ * elsewhere, an `ECONNREFUSED` on a rendezvous socket is the answer "nobody is
+ * home". Here for the reason the two above are: the same cast had grown a
+ * private copy in `@olai/server`'s listener, another in its socket, and a third
+ * in `@olai/chat` — and a hand-rolled one that reads `.code` off a `Cause`
+ * rather than off the error inside it answers `undefined` to every question,
+ * silently, which is the failure mode that makes this a receptacle rather than
+ * a convenience.
+ */
+export const codeOf = (cause: unknown): string | undefined => {
+  const failure = Cause.isCause(cause) ? Cause.squash(cause) : cause
+  return typeof failure === "object" && failure !== null && "code" in failure
+    ? String((failure as { readonly code: unknown }).code)
+    : undefined
+}

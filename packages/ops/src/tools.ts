@@ -31,11 +31,22 @@
 import { Effect, Schema } from "effect"
 
 import {
+  AddRequest,
+  AfterRequest,
+  ArchiveRequest,
   type CommitRequest,
   CommitRequest as CommitRequestSchema,
   type CommitResult,
+  CreateDocumentRequest,
+  CreateRequest,
+  DateRequest,
+  DescRequest,
   type Derived,
   MARKS,
+  MarkRequest,
+  MergeRequest,
+  MirrorRequest,
+  MoveRequest,
   NodeAnswer,
   NodeRequest,
   type OpFailure,
@@ -44,32 +55,20 @@ import {
   type PushResult,
   SearchAnswer,
   SearchRequest,
+  SeeRequest,
+  SplitRequest,
   type Status,
   SubtreeAnswer,
   SubtreeRequest,
-  type Writer,
-} from "@olai/format"
-
-import * as Query from "./query.ts"
-import {
-  AddRequest,
-  AfterRequest,
-  ArchiveRequest,
-  CreateDocumentRequest,
-  CreateRequest,
-  DateRequest,
-  DescRequest,
-  MarkRequest,
-  MergeRequest,
-  MirrorRequest,
-  MoveRequest,
-  SeeRequest,
-  SplitRequest,
   TitleRequest,
   UnarchiveRequest,
   UnmirrorRequest,
   WriteDocumentRequest,
-} from "./request.ts"
+  type WriteRequest as Request,
+  type WriteResult as Applied,
+} from "@olai/format"
+
+import * as Query from "./query.ts"
 
 /** The set as a reader sees it: the files that were found, and the derivations
  *  every answer is computed from. One value, so a run of queries walks the tree
@@ -91,17 +90,89 @@ interface Described {
   readonly schema: Schema.Top
 }
 
+/**
+ * The READ half of the ops layer, as the four questions the query tools ask —
+ * not as a snapshot for each of them to walk.
+ *
+ * It is {@link Acting} for reads, and it exists for the reason that one does,
+ * one door further along: a tool has to be answerable by something that is not
+ * a local `Ops`. Since `mcp-bridge` the table is projected onto a SURFACE
+ * CLIENT — in-process over a direct dispatch, or over a unix socket into an
+ * `olai web` that already holds the store — and neither of those can be handed
+ * a {@link Reading}, which is the whole set plus its derivations and exists
+ * only where the store is.
+ *
+ * So the envelope each read answers in — `{ outlines }`, `?? { missing: id }` —
+ * is declared ONCE, here in {@link asking}, and the table's entries are the
+ * one-line calls onto it that the act arm's already are. What a reader would
+ * otherwise have is two spellings of the same envelope, one for the local
+ * answer and one for the wire's.
+ *
+ * The WALKS do not move and are not here: which nodes match, which mirrors
+ * resolve, how far a subtree descends stay in {@link ./query.ts}, pure over a
+ * `Reading`, exactly as `@olai/format` holds the shapes and this package holds
+ * the walks.
+ */
+export interface Asking {
+  /** Every outline under the served directory — `list_outlines`. */
+  readonly outlines: Effect.Effect<OutlineAnswer, OpFailure>
+  /** One node in full, or the id nothing here declares — `read_node`. */
+  readonly node: (request: NodeRequest) => Effect.Effect<NodeAnswer, OpFailure>
+  /** A node and what hangs under it, nested — `read_subtree`. */
+  readonly subtree: (
+    request: SubtreeRequest,
+  ) => Effect.Effect<SubtreeAnswer, OpFailure>
+  /** The one question two faces ask — `search_nodes` and the ⌘K palette. */
+  readonly search: (
+    request: SearchRequest,
+  ) => Effect.Effect<SearchAnswer, OpFailure>
+}
+
+/** The four envelopes, over whatever answers "the set as a reader sees it".
+ *  ONE declaration: `{@link ./ops.ts}`'s `make` builds an {@link Asking} over
+ *  its own gated read, and a test builds one over a fixture — and the second is
+ *  then genuinely testing what an agent calls rather than what `Query` returns.
+ *
+ *  The read is taken as an EFFECT rather than a value because that is what the
+ *  ops layer has: "the served directory has never loaded" is one refusal,
+ *  raised in one place, and every question inherits it. */
+export const asking = (read: Effect.Effect<Reading, OpFailure>): Asking => ({
+  outlines: Effect.map(read, (at) => ({
+    outlines: Query.outlines(at.set, at.derived),
+  })),
+  node: (request) =>
+    Effect.map(read, (at) => Query.detail(at.derived, request.id) ?? { missing: request.id }),
+  subtree: (request) =>
+    Effect.map(read, (at) =>
+      Query.subtree(
+        at.derived,
+        request.id,
+        request.depth === undefined ? {} : { depth: request.depth },
+      ) ?? { missing: request.id }),
+  search: (request) => Effect.map(read, (at) => Query.search(at.derived, request)),
+})
+
+/**
+ * The WRITE half, the same way: one verb, and the only thing every one of the
+ * write tools does. Named as an argument for {@link Acting}'s reason —
+ * and, since `mcp-bridge`, satisfied by a surface client as readily as by a
+ * local `Ops`.
+ *
+ * NO WRITER, unlike `Ops.run` which this is otherwise the shape of. Who is
+ * writing is not a tool's business — a tool that could name a writer could name
+ * the wrong one — so it is bound where the DOOR is built, one layer out, and
+ * every table entry below is one call with nothing to remember.
+ */
+export interface Running {
+  readonly run: (request: Request) => Effect.Effect<Applied, OpFailure>
+}
+
 /** The half of the ops layer a self-answering tool reaches. Named as an
  *  argument rather than imported as the whole `Ops`, so the table below stays a
  *  declaration of tools rather than a consumer of the writer. */
 export interface Acting {
-  readonly commit: (
-    request: CommitRequest,
-    writer: Writer,
-  ) => Effect.Effect<CommitResult>
-  /** No writer: a push records nothing about who asked, because it makes no
-   *  commit — the trailers on what it sends were written when those commits
-   *  were made. */
+  readonly commit: (request: CommitRequest) => Effect.Effect<CommitResult>
+  /** No arguments at all: the current branch to the upstream it already has. */
   readonly push: Effect.Effect<PushResult>
 }
 
@@ -144,7 +215,15 @@ export type Tool =
      * for a live agent.
      */
     readonly answers: Schema.Top
-    readonly read: (at: Reading, args: never) => unknown
+    /** How this read is ANSWERED — one call onto {@link Asking}, exactly as the
+     *  act arm below is one call onto {@link Acting}. It used to be a pure
+     *  function of a {@link Reading}, which is a thing only a process holding
+     *  the store has; the door it reaches through is now the same one whether
+     *  the store is in this process or in an `olai web` next door. */
+    readonly ask: (
+      asking: Asking,
+      args: never,
+    ) => Effect.Effect<unknown, OpFailure>
   })
   | (Described & {
     readonly kind: "write"
@@ -152,11 +231,7 @@ export type Tool =
   })
   | (Described & {
     readonly kind: "act"
-    readonly act: (
-      ops: Acting,
-      args: never,
-      writer: Writer,
-    ) => Effect.Effect<unknown, never>
+    readonly act: (ops: Acting, args: never) => Effect.Effect<unknown, never>
   })
 
 // ── reading ────────────────────────────────────────────────────────────
@@ -172,13 +247,13 @@ const NoArgs = Schema.Struct({})
 // ── the list ───────────────────────────────────────────────────────────
 
 /**
- * Both schemas, then the reader between them.
+ * Both schemas, then the question between them.
  *
- * `R` is INFERRED from `answers`, so the reader is checked against the floor's
+ * `R` is INFERRED from `answers`, so the call is checked against the floor's
  * declaration with nothing written at the call site — and a read that does not
  * say what it answers does not compile, rather than quietly getting `unknown`
  * and being checked against nothing. `A` still needs its annotation on the
- * reader, because the request parameter's `| Schema.Top` arm defeats inference;
+ * asker, because the request parameter's `| Schema.Top` arm defeats inference;
  * that is the older half and untouched here.
  */
 const read = <A, R>(
@@ -187,7 +262,7 @@ const read = <A, R>(
   description: string,
   schema: Schema.Codec<A, never, never, never> | Schema.Top,
   answers: Schema.Codec<R, R, never, never>,
-  reader: (at: Reading, args: A) => R,
+  ask: (asking: Asking, args: A) => Effect.Effect<R, OpFailure>,
 ): Tool => ({
   name,
   title,
@@ -195,7 +270,7 @@ const read = <A, R>(
   schema,
   kind: "read",
   answers,
-  read: reader as (at: Reading, args: never) => unknown,
+  ask: ask as (asking: Asking, args: never) => Effect.Effect<unknown, OpFailure>,
 })
 
 const write = (
@@ -211,14 +286,14 @@ const act = <A>(
   title: string,
   description: string,
   schema: Schema.Codec<A, never, never, never> | Schema.Top,
-  answer: (ops: Acting, args: A, writer: Writer) => Effect.Effect<unknown, never>,
+  answer: (ops: Acting, args: A) => Effect.Effect<unknown, never>,
 ): Tool => ({
   name,
   title,
   description,
   schema,
   kind: "act",
-  act: answer as (ops: Acting, args: never, writer: Writer) => Effect.Effect<unknown, never>,
+  act: answer as (ops: Acting, args: never) => Effect.Effect<unknown, never>,
 })
 
 /**
@@ -264,7 +339,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Every outline under the served directory, with its top-level titles and how many nodes it holds. Start here: it is the map.\n\nTWO FILENAMES IN IT MEAN SOMETHING, both by name and neither by any field. An `Archive.jsonl` holds what was put away (`unarchive_node` is the way back out). An `Inbox.jsonl` is where a line goes when nobody named a place for it: capture into whichever outline is called that — case-insensitively, shallowest first, then path order, so a directory keeping `notes/inbox.jsonl` gets its own file rather than a second one — and when this list holds none, `create_outline` an `Inbox.jsonl` at the ROOT, seeded with the line. The web's ⌘K `+` resolves exactly that; doing it by hand here is the same two moves and lands in the same file.",
     NoArgs,
     OutlineAnswer,
-    (at) => ({ outlines: Query.outlines(at.set, at.derived) }),
+    (asking) => asking.outlines,
   ),
   read(
     "search_nodes",
@@ -278,7 +353,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     // the two ends a caller reads it from.
     SearchRequest,
     SearchAnswer,
-    (at, args: SearchRequest) => Query.search(at.derived, args),
+    (asking, args: SearchRequest) => asking.search(args),
   ),
   read(
     "read_node",
@@ -286,8 +361,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "One node in full: its record, its tags (`#topic` and `@person`, reported as written), its ancestors, its immediate children, and its mark when it carries one — a node with no `status` is not a task. `progress` counts how many of its child tasks are done, which is an annotation and nothing more. Its edges come too when it has them — `see` and `after`, the ids `set_see` / `set_after` take.\n\nTHIS IS ALSO WHERE MIRRORS ARE FOUND, and it is the only place: a placement is not a node, so a search never returns one and `children` never lists one. Ask the node instead. `mirrors` is every placement OF this node — where else it is drawn, chains followed — and each entry's `id` is what `remove_mirror` takes, so a Now entry is retired by reading the ITEM that finished. `placed` is the other half: the placements UNDER this node, each with the node it shows — which is how you read a curated list (\"what is on Now?\") without knowing in advance what is on it.",
     NodeRequest,
     NodeAnswer,
-    (at, args: NodeRequest) =>
-      Query.detail(at.derived, args.id) ?? { missing: args.id },
+    (asking, args: NodeRequest) => asking.node(args),
   ),
   read(
     "read_subtree",
@@ -295,12 +369,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "A node and everything under it, nested. Says when it stopped at the depth it was given rather than at a leaf. Mirrors are not walked — a placement is a second view of a node rather than something hanging off this one — so read a list of them with `read_node`'s `placed`.",
     SubtreeRequest,
     SubtreeAnswer,
-    (at, args: SubtreeRequest) =>
-      Query.subtree(
-        at.derived,
-        args.id,
-        args.depth === undefined ? {} : { depth: args.depth },
-      ) ?? { missing: args.id },
+    (asking, args: SubtreeRequest) => asking.subtree(args),
   ),
 
   write(
@@ -423,7 +492,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
     "Commit what you changed",
     "Record what is waiting in the repository as one git commit — the audit trail of what this tool wrote. Writes land on disk immediately and WAIT for this; nothing commits on your behalf. Call it when a train of thought is finished, not after every edit, and give `message` saying what the work was (`reconcile the roadmap with the #70-#81 merges`) — an omitted one is composed from what changed, which can only describe the edits and not why you made them.\n\nIT SWEEPS THE WHOLE REPOSITORY, not only the outlines: every file that differs from HEAD, including a `.md` or a source file a person edited by hand, and including anything untracked that `.gitignore` does not cover. Read `surface://cells/pending` first to see exactly what that is — `outlines` with their node-level changes, `others` as paths with a status each, and `served` saying which part of the repository olai serves. Give `paths` (repository-root-relative, as `pending` lists them) to commit only some of it; what you leave out stays waiting for a commit and a message of its own. A path nothing is waiting on is refused rather than quietly skipped.\n\nIt never touches git's index, so anything staged by hand is left exactly as it was, and it refuses while the repository is mid-merge, mid-rebase or on a detached HEAD.",
     CommitRequestSchema,
-    (ops, args: CommitRequest, writer) => ops.commit(args, writer),
+    (ops, args: CommitRequest) => ops.commit(args),
   ),
 
   act(
@@ -434,6 +503,3 @@ export const TOOLS: ReadonlyArray<Tool> = [
     (ops) => ops.push,
   ),
 ]
-
-export const toolNamed = (name: string): Tool | undefined =>
-  TOOLS.find((tool) => tool.name === name)

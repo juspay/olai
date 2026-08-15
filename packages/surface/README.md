@@ -340,6 +340,42 @@ answers with the archive again. Nothing about the collections changed: they
 are still read-only on the wire, and an edit reaches a reader as the file it
 produced.
 
+## And one group NO browser may reach
+
+`src/ops.ts` is the AGENT's door — `ops.run` over `@olai/format`'s
+`WriteRequest` union, and the three query answers that had no procedure. It is
+the other half of the sentence above: a keyboard sends intents and an agent
+names ops, deliberately different vocabularies over one write gate, and
+`edit.apply` is untouched by any of it.
+
+Two things about it are worth reading before the file:
+
+- **Why it can exist at all.** Putting the ops vocabulary on the surface used to
+  be inseparable from making it browser-callable, because `serveSurfaceApp` took
+  `handlers` whole: a member existed on every face or on none. That asymmetry is
+  what olai asked upstream about and what
+  [juspay/kolu#2170](https://github.com/juspay/kolu/pull/2170) closed. Every
+  serving face now takes the same `ExposeMap`, so this namespace is open on the
+  socket an agent dials and closed on the websocket a tab opens — and a tab that
+  calls one anyway is refused per request with `SurfaceMemberNotExposed` naming
+  the tag, rather than finding a member missing. Which face gets what is
+  `@olai/server`'s (`src/faces.ts`); this package only declares what exists.
+- **Why nothing here names WHO is writing.** The `X-Olai-Writer` trailer is the
+  only thing that can tell one agent's edits from a person's, and it is not a
+  field on any of these: a transport that could name itself could name another.
+  Every caller of this namespace is identified by the FACE it arrived on — an
+  owner-only socket is an attached `olai mcp`, an in-process dispatch is
+  whichever agent the composition root built it for — so the writer is bound
+  where the face is composed, by rebinding these handlers for it
+  (`@olai/server`'s `runtime.ts`, `writerAt`). One fact in one place either way;
+  what it removes is the spelling of it a caller could have lied about.
+
+`git.commit`, `git.push` and `search.nodes` are deliberately NOT twinned there,
+and that is the rule paying off: a member belongs to the agent's door only when
+the agent's version DIFFERS. Once the writer stops travelling, none of the three
+does — a commit is the same act with the same request and the same answer, and
+only the trailer differs, which the face decides.
+
 Who is on the other end is deliberately NOT a member here. It is a real
 question — a page bound to a server that has been replaced must know, and both
 ends of the stale-tab handshake compare that id — but the framework reserves
