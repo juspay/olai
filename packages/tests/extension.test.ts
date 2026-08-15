@@ -77,15 +77,26 @@ const ROOT = path.dirname(path.dirname(import.meta.dirname));
  *
  * The sixth is `docs/format.md`, and it is the only one that is about the
  * PRESENT: it carries the migration recipe — the `git mv` line a person runs
- * once on a vault they already have — which is the entire user-facing story of
- * a cutover with no auto-migration behind it, and cannot be written without the
- * old spelling. That grant is a whole file, which is more than the recipe
- * needs, so the test below holds it to the thing it was granted for: delete the
- * recipe and the exemption fails rather than quietly becoming a blank cheque.
+ * once on a vault they already have — plus the sentence that says why they have
+ * to. That is the entire user-facing story of a cutover with no auto-migration
+ * behind it, and it cannot be written without the old spelling.
+ *
+ * A whole file is more than those two lines need, so {@link FORMAT_MD_LINES}
+ * holds the grant to exactly them. The first draft of that guard only asserted
+ * the recipe was still PRESENT, which is a weaker claim than it reads as —
+ * Grok's review of this PR appended a second current-tense `.jsonl` sentence
+ * beside the recipe and watched the fence stay green. Asserting the LINES
+ * catches that and keeps the liveness check for free: delete the recipe and the
+ * list stops matching.
  *
  * This file is absent from the list because it is excluded outright below: it
  * quotes what it hunts, and a sweep that caught its own net teaches the next
  * reader to weaken the pattern rather than fix the code.
+ *
+ * A trailing `/` is what makes an entry a DIRECTORY, matched by prefix;
+ * everything else is one exact path. The first draft prefix-matched all of
+ * them, which quietly granted `docs/format.mdx` and `docs/format.md.bak` too —
+ * same review.
  */
 const MAY_SPELL_IT: ReadonlyArray<string> = [
   "docs/Archive.olai",
@@ -96,8 +107,12 @@ const MAY_SPELL_IT: ReadonlyArray<string> = [
   "packages/format/src/node.test.ts",
 ];
 
-/** The recipe `docs/format.md`'s exemption exists for, quoted. */
-const MIGRATION = `git mv "$f" "\${f%.jsonl}.olai"`;
+/** Every line of `docs/format.md` allowed to say it: the recipe, and the
+ *  sentence that sends a person to it. */
+const FORMAT_MD_LINES: ReadonlyArray<string> = [
+  "not read `.jsonl` any more, and a `.jsonl` left in a served directory is simply",
+  `git ls-files '*.jsonl' | while read -r f; do git mv "$f" "\${f%.jsonl}.olai"; done`,
+];
 
 const SELF = path.relative(ROOT, import.meta.filename);
 
@@ -119,9 +134,14 @@ const TRACKED: ReadonlyArray<string> = (() => {
 /** Root-relative paths of every tracked file matching `pattern`, minus the ones
  *  allowed to. A prefix in the list covers a directory; an exact string covers
  *  a file. */
+const granted = (file: string): boolean =>
+  MAY_SPELL_IT.some((allowed) =>
+    allowed.endsWith("/") ? file.startsWith(allowed) : file === allowed
+  );
+
 const spelling = (pattern: RegExp): ReadonlyArray<string> =>
   TRACKED
-    .filter((file) => !MAY_SPELL_IT.some((allowed) => file.startsWith(allowed)))
+    .filter((file) => !granted(file))
     .filter((file) => pattern.test(fs.readFileSync(path.join(ROOT, file), "utf8")))
     .sort();
 
@@ -146,15 +166,29 @@ test("nothing outside the record of the past spells the old extension", () => {
 // whose NAME still carries it. The e2e fixtures are the corpus every scenario
 // runs against, and one left behind is a directory the server serves one file
 // short of what the scenario expects.
+//
+// The same pattern as the content sweep rather than an `endsWith`, because the
+// shapes a botched rename actually leaves are `house.jsonl.bak` and
+// `house.jsonl.olai` — neither of which ENDS in it, and an outline whose records
+// never quote the suffix would sail through the content sweep beside it.
 test("no file in the repository is still named with it", () => {
-  expect(TRACKED.filter((file) => file.toLowerCase().endsWith(".jsonl"))).toEqual([]);
+  expect(TRACKED.filter((file) => /\.jsonl/i.test(file))).toEqual([]);
 });
 
-// `docs/format.md` is exempted for ONE line, and this is what stops the
-// exemption outliving it. A hard cutover's whole migration story is that
-// recipe; a repository that had dropped it would be one where a person with a
-// pre-rename vault has nothing to run and no page to find it on — and the
-// sweep, having granted the file, would be the last thing to notice.
-test("the recipe docs/format.md is exempted for is still in it", () => {
-  expect(fs.readFileSync(path.join(ROOT, "docs/format.md"), "utf8")).toContain(MIGRATION);
+// `docs/format.md` is exempted for two lines, and this is what stops the grant
+// from covering the rest of the file. Held as the LINES rather than as "the
+// recipe is present": that weaker form let a second current-tense sentence in
+// beside the recipe with the fence still green, which is how a dual-read
+// paragraph or an `endsWith(".jsonl")` snippet would arrive in the spec.
+//
+// It is also the liveness check, for free — a repository that had dropped the
+// recipe is one where a person with a pre-rename vault has nothing to run, and
+// the sweep, having granted the file, would be the last thing to notice.
+test("docs/format.md says it only on the lines the grant was written for", () => {
+  const said = fs
+    .readFileSync(path.join(ROOT, "docs/format.md"), "utf8")
+    .split("\n")
+    .filter((line) => /\.jsonl/i.test(line))
+    .map((line) => line.trim());
+  expect(said).toEqual(FORMAT_MD_LINES);
 });
