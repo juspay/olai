@@ -24,8 +24,10 @@ import {
   ancestorsOf,
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
+  DEFAULT_SUBTREE_DEPTH,
   derive,
   type Derived,
+  type Detail,
   errorLine,
   follow,
   type Found,
@@ -34,143 +36,49 @@ import {
   MARKS,
   matching,
   type OutlineSet,
+  type OutlineSummary,
   parseFilter,
-  type Progress,
+  type Placed,
+  type Placement,
   progressOf,
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
-  type Status,
+  type Stamps,
+  type Subtree,
   tagText,
   titleParts,
 } from "@olai/format"
 
 /**
- * One node, said the way every answer here says it — and what a search asks
- * and answers, which is the same vocabulary one level up.
+ * Every shape an answer here has is `@olai/format`'s, and none of them is
+ * re-exported — exactly as `RepoState` and `Pending` are that package's, and
+ * for the reason its `./reading.ts` argues: the wire spec may not import this
+ * layer, so a vocabulary spelled here would have to be spelled again there.
  *
- * DECLARED IN `@olai/format` and re-exported, exactly as `RepoState` and
- * `Pending` are. These shapes TRAVEL: `search_nodes` hands an agent
- * {@link Search} verbatim, and the `search.nodes` procedure the ⌘K palette
- * calls carries the identical value to a browser. A second spelling in the wire
- * spec is a second spelling free to drift from this one — which it was, and did
- * not merely risk: a field added here and produced by {@link foundOf}
- * type-checked clean everywhere, reached the agent, and was dropped by the
- * palette's encoder.
+ * These shapes TRAVEL, or are about to: `search_nodes` hands an agent a
+ * `SearchAnswer` verbatim and the `search.nodes` procedure the ⌘K palette calls
+ * carries the identical value to a browser, and the other three reads are the
+ * ones a bridged agent would reach through a surface it cannot get an `Ops`
+ * from. A second spelling in the wire spec is a second spelling free to drift
+ * from this one — which search's was, and did not merely risk: a field added
+ * here and produced by {@link foundOf} type-checked clean everywhere, reached
+ * the agent, and was dropped by the palette's encoder. The other three moved
+ * BEFORE anything carried them, which is the cheaper end of the same lesson
+ * (docs/brainstorming/surface-mcp-positions.md).
  *
- * What stays HERE is the matcher: which nodes match, how they are ordered, and
- * what `matched` says about one. The shape is the floor's; the ranking is this
- * package's.
+ * A CONSUMER IMPORTS THEM FROM THE FLOOR, which is where they are declared;
+ * this file used to re-export the lot and rename three, and nothing anywhere
+ * read a single one of those names. `Query.Outline` in particular re-made the
+ * exact collision the floor renamed away from — `@olai/format` exports an
+ * `Outline` that is one file's decoded NODES — one package up, in a file whose
+ * whole subject is not spelling one thing twice.
+ *
+ * What stays HERE is every WALK: which nodes match and how they are ordered,
+ * which mirrors resolve to a node, how far a subtree descends, and what a file
+ * that did not parse leaves sayable. The shape is the floor's; the reading is
+ * this package's.
  */
-export { DEFAULT_SEARCH_LIMIT, type Found, type SearchRequest }
-
-/** The wire names, under the names this file's own answers have always used.
- *  `Search` and `Hit` say what a caller of {@link search} is holding; the
- *  floor's names say what crosses to a browser. Same type, two vocabularies,
- *  and neither has to move for the other. */
-export type Search = SearchAnswer
-export type Hit = SearchHit
-
-/**
- * One PLACEMENT of a node: a mirror record that shows it, and where that line
- * sits.
- *
- * Not a {@link Found} — a placement has no title, no mark and no ancestry of
- * its own; it draws the node's. What it does have is an id, and that id is the
- * only thing `remove_mirror` takes, which is why a node's own read is where the
- * placements of it are answered. A search never returns one: a mirror is a
- * second location of a node, and a hit for it would be the same node twice,
- * once at a place no write lands.
- */
-export interface Placement {
-  readonly id: string
-  readonly file: string
-  readonly line: number
-  /** The node it is placed under. Absent at the top level of its file. */
-  readonly parent?: string
-}
-
-/**
- * A placement read from the OTHER end: one row of a curated list, and the node
- * standing at it.
- *
- * {@link Placement} answers "where else is this node drawn"; this answers "what
- * is on this list" — the two halves of the same fact, from whichever end the
- * caller happens to be holding. A Now section is a node whose children are
- * placements, so without this half an agent can retire an entry it already
- * knows about and can never ask what is on the list at all.
- *
- * `shows` is the node itself, situated the way every other answer here situates
- * one — id, title, mark, `file:line`, ancestry — because that is what the list
- * is FOR: the reader wants the items, and the placement id is what lets it take
- * one off.
- */
-export interface Placed extends Placement {
-  readonly shows: Found
-}
-
-/** What one node's page would say, plus the record itself. */
-export interface Detail extends Found, Stamps {
-  readonly date?: string | undefined
-  readonly desc?: string | undefined
-  readonly tags: ReadonlyArray<string>
-  /** How many of its child tasks are done, when any of them is a task. An
-   *  ANNOTATION: it decides nothing, and in particular the node's own status
-   *  is `status` above whatever this says. */
-  readonly progress?: Progress
-  readonly children: ReadonlyArray<Found>
-  /** Everywhere else this node is drawn — the mirrors that show it, chains
-   *  included. Absent when nothing does, which is nearly every node.
-   *
-   *  It is here because a placement is otherwise UNFINDABLE: mirrors are left
-   *  out of search and out of every child list on purpose, so without this the
-   *  only id `remove_mirror` could ever be given is one the same session had
-   *  just created. Asked of the node rather than answered as a node, which is
-   *  the same shape every refusal about mirrors takes — a mirror is not a node,
-   *  so you ask the node where it is placed. */
-  readonly mirrors?: ReadonlyArray<Placement>
-  /** The placements sitting UNDER this node, in sibling order, each with the
-   *  node it shows — what a curated list holds. Absent when none do.
-   *
-   *  `children` above is the node's own children and never a mirror, because
-   *  that list is about what hangs off it; this one is about what it POINTS at,
-   *  and the two are different questions with different answers. A Now section
-   *  is exactly a node of the second kind: without this, "what is on Now?" is a
-   *  question the ops layer could not answer at all, and the ledger it was built
-   *  for is read by hand again (the 2026-08-11 review). */
-  readonly placed?: ReadonlyArray<Placed>
-}
-
-/** The mark a node stores, with what it was stamped — `status` above says
- *  which mark, and only this says when. Keyed by the format's own list rather
- *  than a field per mark: an agent that can `set_todo` should be able to read
- *  back the day it did, and a mark readable everywhere except here is how that
- *  drifts. */
-type Stamps = Partial<Record<Status, string | true>>
-
-/** A node and everything under it, nested — the shape a reader draws. */
-export interface Subtree extends Found {
-  readonly date?: string | undefined
-  readonly desc?: string | undefined
-  readonly children: ReadonlyArray<Subtree>
-  /** True when the walk stopped at the depth it was given and this node has
-   *  children it did not descend into. Said out loud, because a subtree that
-   *  quietly ended would read as a leaf. */
-  readonly truncated?: true
-}
-
-export interface Outline {
-  readonly file: string
-  /** Regular nodes in it. Mirrors are placements, not nodes, so they do not
-   *  inflate the count. */
-  readonly nodes: number
-  /** Its top-level titles, in order — what the outline is ABOUT, in the space
-   *  a listing has. */
-  readonly roots: ReadonlyArray<string>
-  /** Present, and the whole of what can be said about it, when the file did
-   *  not parse: its nodes are not loaded, so it has neither count nor roots. */
-  readonly unreadable?: ReadonlyArray<string>
-}
 
 // ── the index every query is asked of ──────────────────────────────────
 
@@ -267,7 +175,7 @@ const DONE_PENALTY = 300
 export const search = (
   derived: Derived,
   query: SearchRequest,
-): Search => {
+): SearchAnswer => {
   const filter = parseFilter(query.text)
   // A query the grammar could not read answers with no hits AND WITH THE
   // REASON. An empty one answers with no hits and nothing to say — there is no
@@ -280,14 +188,23 @@ export const search = (
   const ranked = matching(derived, filter, { file: query.file, under: query.under })
     .map(({ at, match }) => {
       const found = foundOf(derived, at)
+      // ANNOTATED, never asserted. It was `as Hit` for as long as this function
+      // has existed, and an assertion is exactly the thing that stops checking
+      // when the declaration moves: a required field added to `SearchHit` and to
+      // nothing else would be silently absent from every hit this produces. The
+      // conditional spread needs no cast to satisfy the floor — `foundOf` above
+      // spells the same pattern under a plain return type — so what the cast was
+      // buying was nothing, at the one place in this file that produces a shape
+      // the wire carries.
+      const hit: SearchHit = {
+        ...found,
+        // Omitted for a query that named no words — `is:done` on its own is
+        // carried by no field, and answering "title" would be inventing a
+        // reason. The format's own rule for absence, applied to an answer.
+        ...(match.field === null ? {} : { matched: match.field }),
+      }
       return {
-        hit: {
-          ...found,
-          // Omitted for a query that named no words — `is:done` on its own is
-          // carried by no field, and answering "title" would be inventing a
-          // reason. The format's own rule for absence, applied to an answer.
-          ...(match.field === null ? {} : { matched: match.field }),
-        } as Hit,
+        hit,
         score: found.status === "done" ? match.score - DONE_PENALTY : match.score,
       }
     })
@@ -306,7 +223,9 @@ export const search = (
 
 /** Whichever marks the record carries, from the format's list — at most one
  *  by the format's own rule, but read as a set so this cannot be the place a
- *  new mark is missing from. */
+ *  new mark is missing from. The SHAPE of what comes back is the floor's, taken
+ *  off {@link Detail} itself rather than re-spelled here; this is the reading of
+ *  one record against it. */
 const stampsOf = (node: LocatedRegular["node"]): Stamps =>
   Object.fromEntries(
     MARKS.flatMap((mark) => node[mark] === undefined ? [] : [[mark, node[mark]]]),
@@ -398,7 +317,10 @@ export const subtree = (
   const located = derived.byId.get(id)
   if (located === undefined || isMirror(located.node)) return null
 
-  const depth = options.depth ?? 3
+  // The floor's number, because it is quoted in the sentence `read_subtree`
+  // advertises — one place to change it, rather than a schema saying "default
+  // 3" over a walk that had stopped agreeing.
+  const depth = options.depth ?? DEFAULT_SUBTREE_DEPTH
   const walk = (at: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(derived, at.node.id)
     return {
@@ -417,10 +339,16 @@ export const subtree = (
 export const outlines = (
   set: OutlineSet,
   derived: Derived,
-): ReadonlyArray<Outline> => {
+): ReadonlyArray<OutlineSummary> => {
   const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
-  return set.files.map((file) => {
+  // ANNOTATED, so the row literals below are checked against the floor: a
+  // field dropped from `OutlineSummary` fails HERE rather than only at the
+  // table-driven decode. That is independent of what the rows hold, which is
+  // why it survives the revert of the two-arm shape.
+  return set.files.map((file): OutlineSummary => {
     const errors = broken.get(file)
+    // The zero and the empty list are what a file that did not parse gets, and
+    // {@link OutlineSummary} says why that is held rather than settled.
     if (errors !== undefined) {
       return {
         file,

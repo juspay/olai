@@ -24,6 +24,8 @@
  * a bug than a marked stub.
  */
 
+import { Schema } from "effect"
+
 import {
   isArchived,
   isMirror,
@@ -31,24 +33,15 @@ import {
   type LocatedRegular,
   MARKS,
   type Node,
+  type Status,
 } from "./node.ts"
 
-/**
- * What a node's checkbox shows: one of the {@link MARKS}. STORED, on the node
- * that carries it, whether or not it has children — and OPTIONAL everywhere,
- * because a node with no status is a bullet and not a task at all.
- *
- * Read off that list rather than spelled again, because a status IS a mark:
- * there is nothing else it could be now that nothing computes one. One name
- * for it, so nobody has to learn that two are the same.
- *
- * What there is deliberately no member for is UNMARKED. `open` used to be one,
- * and it was what a node got for carrying nothing, which made every node a
- * task and left one value answering two questions — "a task nobody has
- * started" and "not a task at all". Absence answers the second; `todo` is how
- * a node says the first, and someone has to put it there.
- */
-export type Status = (typeof MARKS)[number]
+/** What a node's checkbox shows, re-exported rather than declared: it is one
+ *  of `./node.ts`'s {@link MARKS}, and it lives beside that list because it is
+ *  a fact about what a RECORD may carry. Here because every derivation below
+ *  answers in it, and a consumer of a walk should not have to learn which
+ *  module minted the word. */
+export { Status } from "./node.ts"
 
 /**
  * A set of nodes and everything computed from it.
@@ -236,10 +229,11 @@ const tasksUnder = (
  * `undefined` when nothing under it is a task — there is no progress to show
  * rather than progress of zero.
  */
-export interface Progress {
-  readonly done: number
-  readonly total: number
-}
+export const Progress = Schema.Struct({
+  done: Schema.Int,
+  total: Schema.Int,
+})
+export type Progress = typeof Progress.Type
 
 export const progressOf = (derived: Derived, id: string): Progress | undefined => {
   const tasks = tasksUnder(derived, id)

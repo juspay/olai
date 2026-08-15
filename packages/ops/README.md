@@ -50,7 +50,7 @@ in the system had to arrange:
 | `sorted.ts` | what a write CHANGED, in one word — the format's own classification, derived from the two readings the write is made of rather than from the op's name |
 | `pending.ts` | what is waiting to be committed, derived from git, the one verb that commits it, and what git is doing for the directory at all — one survey, both answers |
 | `message.ts` | what a commit nobody wrote a message for says, and how olai recognises its own commits — the `olai` prefix and the `X-Olai-Writer` trailer, handed down to the plumbing rather than known by it |
-| `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines. WHAT matches is `@olai/format`'s one matcher (`parseFilter` / `matching` — the words, the operators, the archive rule), because the browser filters rows it already holds and a second implementation of the grammar is how `is:done` comes to mean two things; what is here is the SHORTLIST — the field weights, the done penalty, the cap, and the total that is not capped |
+| `query.ts` | reading the set as NODES: search, one node, a subtree, the outlines. WHAT matches is `@olai/format`'s one matcher (`parseFilter` / `matching` — the words, the operators, the archive rule), because the browser filters rows it already holds and a second implementation of the grammar is how `is:done` comes to mean two things; what the four answers LOOK like is that package's too (`reading.ts` / `searching.ts`), and is NOT re-exported from here — a consumer imports a shape from the floor it is declared on. What is left is every WALK — the field weights, the done penalty, the cap, the total that is not capped, which mirrors resolve to a node, and how far a subtree descends |
 | `tools.ts` | the closed list of what an agent may do, and what it may not |
 | `codec.ts` | the seam where the generic store meets the outline format |
 
@@ -86,10 +86,21 @@ the format.
 **The package exports four things, and the rest of that table is inside.**
 `codec`, `make`, `Query`, `TOOLS` — one socket per concept, not the wires behind
 it. The planner and the commit hook are what those are made of; a consumer wants
-the writer, not the plan, and its own tests reach it directly. `GitState`, the
-one type that used to travel beside them, is `@olai/format`'s declaration now —
-this layer still PRODUCES the value (its survey, over `@olai/git`'s
-subprocesses), and a consumer publishing it imports the type from the floor.
+the writer, not the plan, and its own tests reach it directly.
+
+**None of the SHAPES belong to this package any more, and none of them is
+re-exported from it.** `GitState` went first; search's followed (#167); and the
+last three query answers — the `list_outlines` summary, `Detail` and `Subtree` —
+are `@olai/format`'s `reading.ts` now, with the requests two of them take. This
+layer still PRODUCES every one of those values, and that is the division: a
+shape that crosses a wire is the floor's, because `@olai/surface` may not import
+this package and a vocabulary spelled here would have to be spelled again there.
+A consumer imports them from the floor, where they are declared; every consumer
+of `@olai/ops` already depends on `@olai/format`, so a re-export here would buy
+nobody an import they could not already write. The summary is `OutlineSummary`
+there, renamed on the way because that package already exports an `Outline`
+meaning one file's decoded NODES, which carries `file` and `nodes` too and would
+have looked compatible at a glance.
 
 The TABLE is exported and used to be private, and the reason it changed is that
 this package used to own an MCP server too. What a consumer wanted then was the

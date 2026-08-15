@@ -31,50 +31,18 @@
  * they stay in `@olai/ops` where the matcher is. So this is the same division
  * `./committing.ts` keeps: the shape of what is pending is here, and the survey
  * that produces one is not.
+ *
+ * **{@link Found} is next door**, in `./reading.ts`, and started here. It is
+ * the atom of EVERY read — the node a detail, a subtree and a curated list's
+ * row are each built out of, not only a hit — so the module named for the read
+ * vocabulary is where it belongs, and this one imports it like any other
+ * caller. What is left here is exactly what a QUERY adds to it.
  */
 
 import { Schema } from "effect"
 
 import { Refusal, SEARCH_FIELDS } from "./filter.ts"
-import { MARKS } from "./node.ts"
-
-/**
- * One node, SITUATED — the shape every read of the set answers with.
- *
- * Flattened on purpose, and not a {@link Located}: a caller of a query wants
- * the node's facts beside where it lives, not a record nested under a file and
- * a line. `@olai/ops` builds one with `foundOf` and hangs its other answers off
- * it (`Detail`, `Subtree`, `Placed`), which is why the type is here rather than
- * only the hit below.
- */
-export const Found = Schema.Struct({
-  id: Schema.String,
-  title: Schema.String,
-  /** Where a person is pointed. Relative to the served directory, 1-based. */
-  file: Schema.String,
-  line: Schema.Int,
-  /** The mark the node carries — a mirror's being its target's, since that is
-   *  what it shows. ABSENT when it carries none: nobody marked it, so it is a
-   *  bullet rather than a task nobody has started. */
-  status: Schema.optionalKey(Schema.Literals(MARKS)),
-  /** The canonical ancestor titles, outermost first. What makes a bare title
-   *  like "order" mean something in a list of strangers. */
-  path: Schema.Array(Schema.String),
-  /** Free cross-references this node carries, as target ids. Absent when the
-   *  node has none — so a reader can traverse without a second read, and a node
-   *  that does not point anywhere does not pretend to. */
-  see: Schema.optionalKey(Schema.Array(Schema.String)),
-  /** What this node must come AFTER, as target ids — the edges it carries
-   *  itself, exactly as they are written.
-   *
-   *  Here for the same reason `see` is, and now for a second one: `set_after`
-   *  removes a target BY ID, so a reader that could not see the list could only
-   *  change it by guessing. Not the derived blockedness — what is standing in
-   *  the way right now is a question about marks, and this is what the record
-   *  says. */
-  after: Schema.optionalKey(Schema.Array(Schema.String)),
-})
-export type Found = typeof Found.Type
+import { Found } from "./reading.ts"
 
 /** One hit: a situated node, plus the only thing about it that is a fact about
  *  the QUERY rather than about the record — which field carried the strongest

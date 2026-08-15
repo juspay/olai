@@ -17,7 +17,8 @@ One matcher was never quite the whole of it, because the question and the answer
 were SPELLED twice — once as the wire spec a browser compiles against
 (`@olai/surface`), once as the reader the ops layer answers with — and neither
 package may import the other. They are now one declaration on the floor both
-stand on (`@olai/format`'s `searching.ts`), so a field reaches every door or
+stand on (`@olai/format`'s `searching.ts`, over the situated node every read of
+the set answers with — `reading.ts`'s `Found`), so a field reaches every door or
 none. It used to reach the agent's and be dropped on the way to the person's,
 silently — which is why `file`, `under`, `matched` and `refusals` are declared
 once here rather than four times across two packages.
