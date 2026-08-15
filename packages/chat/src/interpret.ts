@@ -174,6 +174,14 @@ const CONTEXT_HINT = /(?:\[(\d+m)\]|-(\d+m))$/i
  *  which two of the adapter's names for one model are comparable. */
 const withoutLane = (id: string): string => id.trim().toLowerCase().replace(CONTEXT_HINT, "")
 
+/** The context lane a model string states, in ONE spelling whichever way it was
+ *  written, or `null` for a string that states none. A live id is always the
+ *  latter — which is exactly why a row that states one may not answer for it. */
+const laneOf = (id: string): string | null => {
+  const found = CONTEXT_HINT.exec(id.trim().toLowerCase())
+  return (found?.[1] ?? found?.[2] ?? null)
+}
+
 /**
  * What the agent calls the model with this id, out of its own picker — or
  * `null` when the picker does not name it and the caller should say the id raw.
@@ -219,11 +227,22 @@ const withoutLane = (id: string): string => id.trim().toLowerCase().replace(CONT
  * CLI recommends today", so it names no model at all — and it is a bare word
  * that would otherwise sit in tier 3 matching nothing on purpose.
  *
- * WHAT THIS DOES CLAIM, said plainly because it is the one soft edge: tier 3
- * can put a live `claude-opus-5` — which states no lane — on a picker row that
- * does, "Opus (1M context)". The lane is unknowable from the live id (the CLI
- * drops it), so the header borrows the lane of the only Opus this session was
- * offered. A second Opus row would make it ambiguous and this would say nothing.
+ * AND A FAMILY ALIAS MAY NOT LEND A CONTEXT LANE. A live id states no lane —
+ * the CLI drops it — so `claude-opus-5` against a lone `opus[1m]` row was
+ * answered "Opus (1M context)", and a session actually running Opus at 200k
+ * said so in the header for the rest of its life. That is a lie about the one
+ * number a person reads this header to decide `/compact` by, and it is worse
+ * than the raw id it replaced, which claimed nothing. So tier 3 requires the
+ * LANES TO AGREE: laneless id, laneless row. `sonnet` and `haiku` still answer
+ * because they state no lane either; a lane-pinned row does not answer for an
+ * id that never mentioned one, and the header says `claude-opus-5`.
+ *
+ * TIER 2 IS NOT THAT, and the difference is identity. `claude-fable-5` against
+ * the `claude-fable-5[1m]` row is one id in the adapter's own two spellings of
+ * it (`canonicalizeModelId` is the adapter's equality, not a rule invented
+ * here) — the SAME model, so the row's name for it is its name. A family alias
+ * is not an identity: `opus` is whichever Opus, and a row that has pinned
+ * itself to a lane is not the one a laneless id belongs to.
  */
 export const modelNameIn = (
   labels: ReadonlyMap<string, string>,
@@ -249,7 +268,11 @@ export const modelNameIn = (
   const words = wanted.split("-")
   const [family, ...version] = words[0] === "claude" ? words.slice(1) : words
   if (family === undefined || !version.every((part) => /^\d{1,2}$/.test(part))) return null
-  return named((value) => withoutLane(value) === family)
+  // ... and the lanes have to agree, which for a live id means both are absent:
+  // a family alias names a family, and may not throw in a context window the
+  // thing it is naming never claimed.
+  const lanes = laneOf(id)
+  return named((value) => withoutLane(value) === family && laneOf(value) === lanes)
 }
 
 /**

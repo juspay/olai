@@ -444,6 +444,41 @@ Feature: Talking to the agent
     Then the panel header names the model "Fake Sonnet"
 
   @scratch:chat
+  Scenario: A model the picker cannot name without inventing is named as its raw id
+    # The negative twin of the scenario above, and the case a review constructed
+    # against the real adapter. A live id states no context lane, so a picker row
+    # that states one may not answer for it: naming "Fake Opus (1M context)" over
+    # a session running 200k is a lie about the number a person reads this line
+    # to decide `/compact` by. The id claims nothing, which is the truth here.
+    When I ask the agent "model claude-opus-5"
+    And I ask the agent "hello"
+    Then the panel header names the model "claude-opus-5"
+    # And the same refusal for a DATED pin, which names something more specific
+    # than any family alias covers — `haiku` is on offer and does not answer.
+    When I ask the agent "model claude-haiku-4-5-20251001"
+    And I ask the agent "hello"
+    Then the panel header names the model "claude-haiku-4-5-20251001"
+    # ... while the undated one it is a pin of resolves, so the refusal above is
+    # the rule doing its job rather than the alias row being unreachable.
+    When I ask the agent "model claude-haiku-4-5"
+    And I ask the agent "hello"
+    Then the panel header names the model "Fake Haiku"
+
+  @scratch:chat
+  Scenario: The picker repeating itself does not undo a model the CLI reported
+    # A `config_option_update` carries the WHOLE set, so anything else moving in
+    # it — a mode, an effort level — re-sends a model row still naming what the
+    # session started on. That frame arriving after a `/model` must not walk the
+    # header back to it. Each source is debounced against its own previous
+    # value, which is what makes a source repeating itself not a source moving.
+    When I ask the agent "model claude-sonnet-5"
+    And I ask the agent "hello"
+    Then the panel header names the model "Fake Sonnet"
+    When I ask the agent "reconfig"
+    Then the agent is idle
+    And the panel header names the model "Fake Sonnet"
+
+  @scratch:chat
   Scenario: A message sent mid-turn waits its turn instead of being refused
     # The box used to be turned OFF while the agent worked, and a send while it
     # was on was refused. Both were wrong in the same way: a person watching a

@@ -320,10 +320,33 @@ describe("what the agent calls the model it is running", () => {
     // give up and print the id.
     expect(modelNameIn(OFFERED, "claude-sonnet-5")).toBe("Sonnet")
     expect(modelNameIn(OFFERED, "claude-haiku-4-5")).toBe("Haiku")
-    // The lane the live id does not state, borrowed from the only Opus this
-    // session was offered — said out loud in `modelNameIn`'s own note, because
-    // it is the one place this claims more than it was told.
-    expect(modelNameIn(OFFERED, "claude-opus-5")).toBe("Opus (1M context)")
+  })
+
+  test("a family alias does not lend the live id a context lane it never stated", () => {
+    // Constructed against the real adapter in review, not imagined: `/model
+    // claude-opus-4-5` runs a 200k session, the live id arrives laneless, and
+    // the picker's only Opus row is the 1M one. Answering it named a context
+    // window five times the real one — in the header a person reads to decide
+    // whether to `/compact`, which is the one question that number is for.
+    //
+    // The raw id claims nothing, and claiming nothing is the truthful answer to
+    // a lane the CLI did not report.
+    expect(modelNameIn(OFFERED, "claude-opus-4-5")).toBeNull()
+    expect(modelNameIn(OFFERED, "claude-opus-5")).toBeNull()
+    // A LANELESS Opus row answers it, because then nothing is being added.
+    const plain = new Map([...OFFERED, ["opus", "Opus"]])
+    plain.delete("opus[1m]")
+    expect(modelNameIn(plain, "claude-opus-5")).toBe("Opus")
+  })
+
+  test("tier 2 is an identity, so the adapter's own two spellings still meet", () => {
+    // Not the same claim as the alias tier above, and the difference is why
+    // this one is allowed to cross a lane spelling: `claude-fable-5[1m]` and
+    // `claude-fable-5` are ONE id written the adapter's two ways
+    // (`canonicalizeModelId` is its own equality), not a family and a guess at
+    // which member of it. Refusing here would have flipped the header from
+    // "Fable" to a raw id on the first turn of every session.
+    expect(modelNameIn(OFFERED, "claude-fable-5")).toBe("Fable")
   })
 
   test("`default` names no model, so nothing resolves onto it", () => {
@@ -336,19 +359,27 @@ describe("what the agent calls the model it is running", () => {
       .toBeNull()
   })
 
-  test("two rows that could both be it is a question this does not answer", () => {
+  test("two lanes on offer is answered by the one the live id is in", () => {
     // A picker offering a bare `sonnet` and a `sonnet[1m]` is offering two
-    // context lanes, and a live id states neither. The raw id is the truthful
-    // thing to say about a question nobody answered.
+    // context lanes. The live id states none, so it is the LANELESS row — and
+    // saying "Sonnet" adds nothing to what the CLI reported, where naming the
+    // 1M row would have.
     const both = new Map([["sonnet", "Sonnet"], ["sonnet[1m]", "Sonnet (1M context)"]])
-    expect(modelNameIn(both, "claude-sonnet-5")).toBeNull()
-    // ... and the same rule one tier up: two rows differing only by lane, with
-    // a live id that has none.
+    expect(modelNameIn(both, "claude-sonnet-5")).toBe("Sonnet")
+  })
+
+  test("two rows that could both be it is a question this does not answer", () => {
+    // Tier 2, where the lane rule cannot help: two values that are one id in
+    // the adapter's two spellings of the SAME lane. Nothing tells them apart,
+    // so nothing is said.
     const lanes = new Map([
       ["claude-opus-5[1m]", "Opus (1M context)"],
       ["claude-opus-5-1m", "Opus, again"],
     ])
     expect(modelNameIn(lanes, "claude-opus-5")).toBeNull()
+    // ... and the same refusal a tier down, on two spellings of one family.
+    const cased = new Map([["sonnet", "Sonnet"], ["SONNET", "Sonnet, shouting"]])
+    expect(modelNameIn(cased, "claude-sonnet-5")).toBeNull()
   })
 
   test("nothing is approximated onto a row that is merely nearby", () => {

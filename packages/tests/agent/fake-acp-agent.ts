@@ -34,6 +34,8 @@
  *   hold         start a tool call and STOP there, until released
  *   model <id>   switch the model the way the wrapped CLI does — which is to
  *                say silently, and not observably until the NEXT turn
+ *   reconfig     re-announce the session's config options unchanged, the way
+ *                the adapter does when anything else in that set moves
  *   ask          ask a structured question and report the answer
  *   askstrict    ask one with a REQUIRED, typed field, the way an MCP server does
  *   plan         ask to leave plan mode, the way the adapter does
@@ -208,13 +210,19 @@ const storedSessions = () =>
 /**
  * The picker, shaped the way the real adapter's is.
  *
- * Two rows spelled as ids, and one ALIAS — which is the shape that matters and
- * the one this file used to be missing. The pinned adapter (0.66.0) offers
+ * Two rows spelled as ids, and three ALIASES — which is the shape that matters
+ * and the one this file used to be missing. The pinned adapter (0.66.0) offers
  * `default`, `opus[1m]`, `sonnet`, `haiku`: bare family words, while the live
  * model it reports on the wire is a concrete API id like `claude-sonnet-5`.
  * With only id-spelled rows here, a panel that could not bridge the two
  * vocabularies passed every scenario in this suite and named a raw id in front
  * of the person who filed the bug.
+ *
+ * `opus[1m]` is here for the OTHER direction — the one a review constructed
+ * against the real adapter. It is a row that states a context lane, and a live
+ * id never states one, so it must NOT be allowed to answer for a bare
+ * `claude-opus-5`: that named a 1M window over a session running 200k, in the
+ * line a person reads to decide whether to `/compact`.
  */
 const CONFIG_OPTIONS = [
   {
@@ -226,6 +234,8 @@ const CONFIG_OPTIONS = [
       { value: "fake-model-1", name: "Fake One" },
       { value: "fake-model-2", name: "Fake Two" },
       { value: "sonnet", name: "Fake Sonnet" },
+      { value: "haiku", name: "Fake Haiku" },
+      { value: "opus[1m]", name: "Fake Opus (1M context)" },
     ],
   },
 ]
@@ -762,6 +772,21 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "model") {
     liveModel = argument
     say(`switched to ${argument}.`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // The picker SAYING ITSELF AGAIN, which the real adapter does whenever
+  // anything in that set moves — a mode change, an effort change — because a
+  // `config_option_update` carries the whole set rather than the entry that
+  // changed. Its model row still names what the session started on, so this is
+  // the frame that must not overwrite a `/model` the CLI has reported since.
+  if (verb === "reconfig") {
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "config_option_update", configOptions: CONFIG_OPTIONS },
+    })
+    say("the session's options were re-announced.")
     respond(id, { stopReason: "end_turn" })
     return
   }

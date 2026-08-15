@@ -74,6 +74,14 @@ Two consequences, both of them the adapter's shape rather than a choice:
   offer at all is shown as the id it came as, which is truthful about a name
   nobody gave — never rounded to whichever row looks closest.
 
+**A raw id in that line is a refusal, not a failure**, and the commonest reason
+for one is worth knowing: the running model never states its **context window**.
+The CLI reports `claude-opus-5` whether the session has 200k or 1M, so when the
+only Opus the picker offers is the 1M one, that row is not allowed to answer —
+naming a window five times the real one, in the line you would read to decide
+whether to `/compact`, is worse than naming nothing. You get `claude-opus-5`,
+and what it does not say, it does not say.
+
 ## What it can touch
 
 **Olai hands the agent no filesystem.** What olai itself gives it is a closed
