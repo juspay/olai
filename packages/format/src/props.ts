@@ -161,12 +161,17 @@ export type SystemKey = (typeof SYSTEM_KEYS)[number]["key"]
  * `blocks` is sugar — `a blocks b` means `b after a` — so it is normalised into
  * `after` before the acyclicity check, and only there.
  *
- * A SECOND list over the three `list`-shaped entries above, and the `satisfies`
- * is what stops it being a second answer: an edge that is not a system key is a
- * compile error here, at the one place the two lists could disagree. They are
- * kept apart because they say different things — {@link SYSTEM_KEYS} says what
- * a key HOLDS, this says which keys point at a node — and only this one is what
- * `targetsOf` walks.
+ * A second list beside {@link SYSTEM_KEYS}, and they are kept apart because
+ * they say different things: that one says what a key HOLDS, this one says
+ * which keys POINT AT A NODE. Only this one is what `targetsOf` walks and what
+ * the validator resolves.
+ *
+ * The `satisfies` closes the direction that can be closed: an edge that is not
+ * a system key is a compile error here, so no edge can escape the per-line
+ * shape check. The other direction is deliberately left open — a future
+ * `list`-shaped system key need not be an edge (a list of tags would not name a
+ * node), and forcing every one of them into this list would be a rule that is
+ * simply wrong rather than a safety net.
  */
 export const EDGE_FIELDS = ["after", "blocks", "see"] as const satisfies
   ReadonlyArray<SystemKey>
