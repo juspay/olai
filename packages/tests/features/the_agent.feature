@@ -440,6 +440,10 @@ Feature: Talking to the agent
     Then the panel header says the context is "13k/200k"
     When I ask the agent "window 1000000"
     Then the agent is idle
+    # The window moves BETWEEN that turn's two frames, where the adapter moves
+    # it — so this asserts both halves at once. A panel that kept the turn's
+    # first report would say "25k/200k": the old window, and the turn's own
+    # first count of what it had spent.
     And the panel header says the context is "26k/1M"
 
   @scratch:chat

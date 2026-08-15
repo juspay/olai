@@ -1,5 +1,4 @@
-
-| `usage.ts` | the protocol's `usage_update`, read as data: how full the conversation's context is, and how big the window is. Here rather than in `@olai/chat`'s `interpret.ts` because it is ACP's own update kind — any agent may send one — and the cost it also carries is deliberately not read |)| `wire.ts` | the vocabulary that travels olai's wire: `AskChoice` / `AskField` / `AskAnswer` / `AskOutcome`, the `YES_NO` spelling both ends must agree on, `FileDiff` and `Usage`.# @olai/acp — the protocol's words, owned by the wall that speaks them
+# @olai/acp — the protocol's words, owned by the wall that speaks them
 
 The [Agent Client Protocol](https://agentclientprotocol.com)'s vocabulary as
 olai spells it, and the pure projections between ACP's own payloads and that

@@ -515,21 +515,27 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   const [verb, ...rest] = text.trim().split(/\s+/)
   const argument = rest.join(" ")
 
-  // The window the agent believes in, moving under the conversation — what the
-  // real adapter does on the first turn after a `/model`, where it seeds the
-  // previous model's window and corrects it when the turn ends. Read before the
-  // frames below so the change lands on the turn that asked for it.
+  // The window the agent believes in, moving under the conversation.
   //
   // `window`, NOT `context`: that verb is taken, by the scenarios that prove an
   // armed node reaches the prompt as an id the ops tools accept.
-  if (verb === "window") size = Number(argument)
+  const moving = verb === "window" ? Number(argument) : null
 
   // What a turn spends, reported the way a real turn reports it: MORE THAN ONE
-  // frame, with the number moving between them, and the cost riding the last.
+  // frame, with BOTH numbers moving between them, and the cost riding the last.
   // A panel that held the first report of a turn rather than the newest would
   // pass every scenario that only ever sent one.
+  //
+  // The window moves BETWEEN the two frames rather than before them, which is
+  // where the real adapter moves it: on the first turn after a `/model` it
+  // reports the previous model's window mid-stream and corrects it
+  // authoritatively when the turn ends. Assigning it before both frames — which
+  // is what this did first — sent the new denominator in both, so a panel that
+  // kept a turn's FIRST window would have passed. Newest-wins was pinned for
+  // `used` and not for `size`, which is half a claim.
   used += 12_000
   usageUpdate(false)
+  if (moving !== null) size = moving
   used += 900
   usageUpdate(true)
 
