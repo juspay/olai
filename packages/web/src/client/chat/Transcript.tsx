@@ -129,17 +129,13 @@ export function Transcript(props: { readonly chat: Chat }) {
              *  lane needs that a row cannot see for itself — which is the
              *  whole reason the lane is decided out here rather than inside
              *  `Entry`. */
-            const above = createMemo(() => props.chat.rows()[index() - 1])
-            const lane = createMemo(() => {
-              const previous = above()
-              return laneOf(
-                entry()?.parent,
-                previous,
-                previous === undefined
-                  ? undefined
-                  : props.chat.entry(previous)()?.parent,
-              )
+            const above = createMemo(() => {
+              const previous = props.chat.rows()[index() - 1]
+              return previous === undefined
+                ? undefined
+                : props.chat.entry(previous)()
             })
+            const lane = createMemo(() => laneOf(entry(), above()))
             /** What to call the agent whose lane this is: the `Agent` frame's
              *  own title, which for this adapter is the description the call
              *  was made with — "find every call site", "review the diff". A

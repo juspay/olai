@@ -30,6 +30,8 @@
  * the reader left them.
  */
 
+import type { ChatEntry } from "@olai/surface"
+
 /** A row drawn in a lane: whose it is, and whether this is the row that has to
  *  say so. */
 export interface Lane {
@@ -45,19 +47,26 @@ export interface Lane {
  * responsible for — which is most of them, and every row in a conversation
  * that never spawned anything.
  *
- * @param parent the row's own `ChatEntry.parent`
- * @param above the KEY of the row drawn directly above it, if any
- * @param aboveParent that row's `ChatEntry.parent`
+ * THE ROWS THEMSELVES, not facts read off them. This took the row above as a
+ * key and that key's parent, side by side — two arguments whose joint validity
+ * nothing enforced, since the second is only true of the first. Each read
+ * honest alone and the pair could lie: a caller that fetched one row's key and
+ * another row's parent got a confident, wrong answer, and no type said no. One
+ * row is one value, so the precondition is structural and there is no way left
+ * to spell the mistake.
+ *
+ * @param row the row being drawn
+ * @param above the row drawn directly above it, if any
  */
 export const laneOf = (
-  parent: string | undefined,
-  above: string | undefined,
-  aboveParent: string | undefined,
+  row: ChatEntry | undefined,
+  above: ChatEntry | undefined,
 ): Lane | null => {
+  const parent = row?.parent
   if (parent === undefined) return null
   // Two ways for the lane to be established already, and they are the two
   // shapes a reader actually sees: the `Agent` frame itself is the row above
   // (the ordinary case — a subagent's first call lands directly under the call
   // that spawned it), or the row above is another call by the same agent.
-  return { parent, labelled: above !== parent && aboveParent !== parent }
+  return { parent, labelled: above?.id !== parent && above?.parent !== parent }
 }
