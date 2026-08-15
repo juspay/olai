@@ -128,10 +128,13 @@ export const toolNameIn = (
  *
  * An EXTENSION, hence the leading underscore, and named for the agreed ACP
  * steering wire protocol rather than for one adapter — but it is read here
- * with everything else that is a bet on the agent, because a bet it is:
- * {@link steeringIn} is the only thing that says whether the agent on the
- * other end has this at all, and an agent that does not is told nothing and
- * asked for nothing ({@link ../chat.ts} keeps the words instead).
+ * with everything else that is a bet on the agent, because a bet it is. The
+ * losing direction is the safe one and is the only one it loses in: an agent
+ * without this refuses the method, which is a refusal a caller already has to
+ * handle (a dead pipe, a deadline) and which reaches a person as the row
+ * keeping their words. `initialize` also ADVERTISES the extension, in a
+ * top-level `_meta`; reading that would be predicting what the request proves,
+ * so nothing here does.
  */
 export const STEER_METHOD = "_session/steering"
 
@@ -150,22 +153,6 @@ export const STEER_METHOD = "_session/steering"
  */
 export const STEER_WHEN_IDLE = {
   steering: { idleBehavior: "promptRequired" },
-}
-
-/**
- * Whether the agent takes {@link STEER_METHOD} at all, out of `initialize`'s
- * top-level `_meta`.
- *
- * The safe direction is the one it fails in: an agent that says nothing is
- * treated as unable to steer, so a mid-turn message is kept and marked unsent
- * rather than dropped into a method that does not exist. Nothing is ever
- * assumed to be supported by failing to see it said.
- */
-export const steeringIn = (
-  meta: { readonly [key: string]: unknown } | null | undefined,
-): boolean => {
-  const steering = meta?.["steering"] as { readonly supported?: unknown } | undefined
-  return steering?.supported === true
 }
 
 // ── which model a turn is running on ───────────────────────────────────

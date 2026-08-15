@@ -107,7 +107,6 @@ import {
   SDK_MESSAGE,
   STEER_METHOD,
   STEER_WHEN_IDLE,
-  steeringIn,
   toolNameIn,
 } from "./interpret.ts"
 import * as Kolu from "./kolu.ts"
@@ -139,21 +138,23 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
 }
 
 /**
- * What became of a steer — three answers, because they want three different
- * things done and only one of them is "it worked".
+ * What became of a steer — and only two things can, because a steer that could
+ * not be DELIVERED fails on the error channel instead of answering here. An
+ * agent with no steering at all is one of those: it refuses the method, in its
+ * own words, and the caller owes a person their words back exactly as it does
+ * for a dead pipe or a deadline. There was a capability flag read off
+ * `initialize` that predicted this; the request is what proves it, and two
+ * answers to one question is one too many.
  *
  *   - `taken` — the message is in the running turn. Nothing else to do; what
  *     the agent makes of it arrives on the transcript like everything else.
- *   - `idle` — the agent had no turn to steer. It has NOT taken the message
+ *   - `no-turn` — the agent had nothing to steer, and has NOT taken the message
  *     (that is what {@link ./interpret.ts}'s `STEER_WHEN_IDLE` asks for), so
- *     the caller sends it as an ordinary prompt. This is the race and not the
- *     ordinary path: olai steers only while it believes a turn is running, and
- *     the turn can settle between the two.
- *   - `unsupported` — this agent has no steering at all, so there is no way to
- *     reach the turn in flight. Nothing was sent, and the caller is the one
- *     that owes a person their words back.
+ *     the caller sends it as an ordinary prompt. This is the race rather than
+ *     the ordinary path: olai steers only while it believes a turn is running,
+ *     and the turn can settle between the send and the steer arriving.
  */
-export type Steered = "taken" | "idle" | "unsupported"
+export type Steered = "taken" | "no-turn"
 
 export interface Options {
   /** The executable to run. `OLAI_ACP_AGENT`, or the adapter nix baked in. */
@@ -257,11 +258,6 @@ interface Live {
   readonly connection: ClientConnection
   readonly canList: boolean
   readonly canLoad: boolean
-  /** Whether a message may be put into a turn that is already running — the
-   *  steering extension, read off `initialize` ({@link steeringIn}). A `false`
-   *  here is what turns a mid-turn send into a row marked unsent rather than a
-   *  call to a method the agent does not have. */
-  readonly canSteer: boolean
 }
 
 export const make = (options: Options): Effect.Effect<Agent, never, never> =>
@@ -745,10 +741,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           connection,
           canList: capabilities?.sessionCapabilities?.list != null,
           canLoad: capabilities?.loadSession === true,
-          // Off `_meta` rather than `agentCapabilities`, because that is where
-          // the steering extension advertises itself: it is an extension, and
-          // the capabilities struct is the protocol proper's.
-          canSteer: steeringIn(initialized._meta),
         }
       })
 
@@ -1022,16 +1014,24 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * belong back in front of the person who typed them rather than in a call
      * nobody is going to answer.
      *
+     * An agent with no steering at all needs nothing special here: it refuses
+     * the method and that refusal travels the error channel, in the agent's own
+     * words, like every other way this can fail. `initialize` advertises the
+     * extension and that advertisement was being read into a `canSteer` flag —
+     * a prediction of what the request itself proves, and a second answer to a
+     * question that already had one.
+     *
      * The outcome is read POSITIVELY: `injected` is the only thing that counts
      * as taken. Everything else — `promptRequired`, a legacy `startedNewTurn`,
-     * a value from a future version of the extension — is `idle`, which sends
-     * the message as an ordinary prompt. That is the safe direction: the worst
-     * case is a message the agent gets twice-over as its own next turn, where
-     * reading an unknown outcome as "taken" would be a message nobody has.
+     * a value from a future version of the extension — is `no-turn`, which
+     * sends the message as an ordinary prompt. That is the safe direction: the
+     * worst case is a message the agent gets twice-over as its own next turn,
+     * where reading an unknown outcome as "taken" would be a message nobody
+     * has.
      */
     const steer = (text: string): Effect.Effect<Steered, AgentGone> =>
       withSession((at, id) =>
-        !at.canSteer ? Effect.succeed<Steered>("unsupported") : Effect.map(
+        Effect.map(
           ask(
             at.connection,
             STEER_METHOD,
@@ -1044,7 +1044,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           (answered) =>
             (answered as { readonly outcome?: unknown } | null)?.outcome === "injected"
               ? "taken"
-              : "idle",
+              : "no-turn",
         )
       )
 

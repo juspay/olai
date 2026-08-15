@@ -169,18 +169,6 @@ export interface Chat {
 const CANCEL_GRACE = "5 seconds"
 
 /**
- * What a person is told when the agent cannot be steered.
- *
- * The one way a send can still fail to reach an agent that is alive and
- * listening: it is running a turn, and it has no way to be given anything more
- * until that turn is over. Olai will not hold the message for it — that is the
- * arrangement this file just stopped having — so the row keeps the words and
- * says why they are still there.
- */
-const CANNOT_STEER =
-  "this agent cannot be given a message while a turn is running — the message below is still yours to send"
-
-/**
  * The turn in flight, as a TICKET rather than as a fiber handle.
  *
  * It exists because the fiber does not, yet: the ticket is written down before
@@ -478,19 +466,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       Effect.gen(function*() {
         if (turn === null) return yield* begin(prompt)
         const steered = yield* Effect.result(agent.steer(prompt))
+        // Every way a steer can fail to be DELIVERED comes back here in the
+        // agent's own words — a method it does not have, a dead pipe, a
+        // deadline — and all of them mean the same thing to a person: their
+        // words are still theirs to send.
         if (steered._tag === "Failure") return undeliverable(key, prompt, steered.failure.message)
-        switch (steered.success) {
-          case "taken":
-            // Delivered, and into the turn a person could see running — so a
-            // banner about the last thing that went wrong is a banner about
-            // something the agent has visibly moved on from.
-            move({ trouble: null })
-            return
-          case "unsupported":
-            return undeliverable(key, prompt, CANNOT_STEER)
-          case "idle":
-            return yield* begin(prompt)
-        }
+        if (steered.success === "no-turn") return yield* begin(prompt)
+        // Delivered, and into the turn a person could see running — so a banner
+        // about the last thing that went wrong is a banner about something the
+        // agent has visibly moved on from.
+        move({ trouble: null })
       })
 
     /** The agent would not take it: the row says so and keeps the prompt

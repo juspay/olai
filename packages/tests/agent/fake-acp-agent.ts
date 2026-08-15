@@ -1212,12 +1212,12 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           ...(stored() ? { sessionCapabilities: { list: {} } } : {}),
         },
         agentInfo: { name: "fake-acp-agent", version: "0.1.0" },
-        // The steering extension, advertised where the real adapter advertises
-        // it: TOP-LEVEL `_meta`, beside `agentCapabilities` rather than in it,
-        // because it is an extension and that struct is the protocol proper's.
-        // A client that read it off the wrong one would find nothing here and
-        // never steer anything.
-        _meta: { steering: { supported: true } },
+        // No steering advertisement, and its absence is a claim: the real
+        // adapter does advertise one (top-level `_meta`), and the client
+        // deliberately does not read it — a steer that goes out to an agent
+        // that never said it could steer is answered by the REQUEST, which is
+        // the only thing that can actually prove it. This file steers fine
+        // without saying so, which is that arrangement under test.
       })
       return
 
