@@ -758,6 +758,13 @@ export const TESTID = {
   chatToolProgress: "chat-tool-progress",
   /** Where it is working: the follow-along file locations, on the line. */
   chatToolLocations: "chat-tool-locations",
+  /** A row a SUBAGENT is responsible for, in the lane it is drawn in.
+   *  `data-lane` is the transcript key of the `Agent` frame it belongs to, so
+   *  a scenario can assert the attribution rather than the indent. */
+  chatLane: "chat-lane",
+  /** The lane naming itself — drawn once where a stretch of one agent's work
+   *  opens, never on every call it makes. */
+  chatLaneLabel: "chat-lane-label",
   /** One file the call REWROTE, drawn as a trimmed line diff. `data-path` is
    *  the file (root-relative when it is under the served directory) and
    *  `data-expanded` says whether the trim has been opened. */

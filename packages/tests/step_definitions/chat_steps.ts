@@ -43,6 +43,8 @@ import {
   CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
   CHAT_INPUT,
+  CHAT_LANE,
+  CHAT_LANE_LABEL,
   CHAT_MINE,
   CHAT_MISSING,
   CHAT_MISSING_SERVER,
@@ -1055,6 +1057,99 @@ Then("the tool call's detail is folded away", async function (this: OlaiWorld) {
       "bury the conversation they belong to",
   );
 });
+
+// ── subagent lanes ─────────────────────────────────────────────────────
+
+/** The lane a subagent's row is drawn in, and the `Agent` frame it names. The
+ *  attribution is the `data-lane`, not the indent: an indent is a thing a
+ *  panel could get right by accident, and this is a claim about WHICH agent. */
+const firstLane = (world: OlaiWorld) => world.page.locator(CHAT_LANE).first();
+
+Then(
+  "the chat draws a subagent's tool call under the call that spawned it",
+  async function (this: OlaiWorld) {
+    const lane = firstLane(this);
+    await lane.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const parent = await lane.getAttribute("data-lane");
+    assert.ok(
+      parent !== null && parent !== "",
+      "a lane that names no agent is an indent, not an attribution",
+    );
+    // The frame it names has to BE there and has to be ABOVE it. A lane
+    // pointing at a row the panel never drew would look right and say nothing,
+    // and one drawn above its own parent would say something false about the
+    // order the turn happened in.
+    const spawner = this.page.locator(`[data-entry-id="${parent}"]`);
+    await spawner.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const above = await this.page.evaluate(
+      ([parentId, laneId]: ReadonlyArray<string>) => {
+        const frame = document.querySelector(`[data-entry-id="${parentId}"]`);
+        const lane = document.querySelector(`[data-testid="${laneId}"]`);
+        if (frame === null || lane === null) return false;
+        // DOCUMENT_POSITION_FOLLOWING: the lane comes after the frame.
+        return (frame.compareDocumentPosition(lane) & 4) !== 0;
+      },
+      [parent, TESTID.chatLane],
+    );
+    assert.ok(
+      above,
+      `the lane naming "${parent}" is not drawn under that frame; a subagent's ` +
+        "work belongs beneath the call that spawned it",
+    );
+  },
+);
+
+Then(
+  "the call that spawned it is in no lane of its own",
+  async function (this: OlaiWorld) {
+    // The other half of the claim, and the one that catches a panel indenting
+    // everything: the `Agent` call is the MAIN agent's own, so it sits in the
+    // conversation's own column with the lane hanging off it.
+    const parent = await firstLane(this).getAttribute("data-lane");
+    const nested = await this.page
+      .locator(`${CHAT_LANE} [data-entry-id="${parent}"]`)
+      .count();
+    assert.strictEqual(
+      nested,
+      0,
+      `the frame "${parent}" is itself drawn in a lane; the call that spawns a ` +
+        "subagent is the main agent's own work",
+    );
+  },
+);
+
+Then(
+  "the chat draws {int} tool calls in subagent lanes",
+  async function (this: OlaiWorld, many: number) {
+    await this.waitUntil(
+      async () => (await this.page.locator(CHAT_LANE).count()) === many,
+      `${many} rows to be drawn in subagent lanes`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "exactly one lane names itself, as {string}",
+  async function (this: OlaiWorld, named: string) {
+    // ONE, and this is the count that matters: the label is drawn where a
+    // stretch of one agent's work OPENS, so a panel that put it on every row
+    // would say the agent's name three times down a 26rem drawer.
+    const labels = this.page.locator(CHAT_LANE_LABEL);
+    await labels.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      await labels.count(),
+      1,
+      "a lane names itself where it opens and nowhere else — the rail says the " +
+        "rest",
+    );
+    assert.match(
+      oneLine(await labels.first().innerText()),
+      new RegExp(named.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+      `the lane does not name "${named}"`,
+    );
+  },
+);
 
 // ── slash completion ───────────────────────────────────────────────────
 

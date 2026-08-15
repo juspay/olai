@@ -87,6 +87,14 @@ A tool call is one folded line, and what the call CHANGED is not folded away —
 
 That holds for the file rather than for the tool: an agent that edits a `.olai` with its own tools gets the same node-level rows, read out of the two versions of the file, and never lines. If one of those versions does not parse — which is how hand-editing an outline goes wrong — the panel says so and still draws no diff, and the file's own page shows you the validator's rows where they belong.
 
+## When the agent sends other agents
+
+An agent can spawn agents of its own — one to search, one to read, several at once — and their work comes back to olai on the same wire as everything else the turn does. So it is drawn as what it is: a call a subagent made sits **indented behind a rail**, under the call that spawned it, and the ordinary column is the main agent's own.
+
+Where a stretch of one agent's work begins, the lane says whose it is — the description the agent was sent with, *explore the outline*, *review the notes* — and then stops repeating itself: a subagent that reads ten files gets one name and ten rows, not ten names. That name comes back whenever the thread is picked up again, which is what makes two agents running at once readable: their calls interleave, and each stretch says which of them it was.
+
+None of this is anything you turn on, and there is nothing to fold: a turn that spawned nobody looks exactly as it always did. What it replaces is a panel where three agents grepping at once and one agent grepping three times were the same five lines — which was the only thing in this conversation that was not true.
+
 ## Attachments
 
 You can paste a file into the box — a screenshot, a photo of a whiteboard — or drag one onto the panel, or pick one with the **+** button, which is the way in on a phone. All three take the same kinds:

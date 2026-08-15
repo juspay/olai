@@ -9,6 +9,14 @@
  * goes away, not when it changes, so the row component stays mounted across
  * every update and only the text inside it moves.
  *
+ * SUBAGENT LANES are the one thing this file decides about a row rather than
+ * delegating. A tool call a spawned agent made carries the `Agent` frame it
+ * belongs to ({@link ../../../../surface/src/chat.ts}'s `ChatEntry.parent`),
+ * and it is drawn indented behind a rail under that frame — but whether the
+ * lane has to NAME itself depends on the row above, which is a fact about the
+ * list and about nothing else. {@link ./lanes.ts} is that rule; this file is
+ * where the only reader of it lives.
+ *
  * FOLLOWING THE BOTTOM is the other half of this file, and it is two questions
  * that were being answered as one:
  *
@@ -29,11 +37,12 @@
  * two turns ago is worse than a panel that never scrolled at all.
  */
 
-import { For, onCleanup, onMount, Show } from "solid-js"
+import { createMemo, For, onCleanup, onMount, Show } from "solid-js"
 
 import { useShowNode } from "../focus.ts"
 import { TESTID } from "../testids.ts"
 import { Entry } from "./Entry.tsx"
+import { laneOf } from "./lanes.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import type { Chat } from "./state.ts"
@@ -114,11 +123,71 @@ export function Transcript(props: { readonly chat: Chat }) {
           it is the content inside it that grows. */}
       <div class="min-w-0" ref={content}>
         <For each={props.chat.rows()}>
-          {(key) => {
+          {(key, index) => {
             const entry = props.chat.entry(key)
+            /** The row drawn directly ABOVE this one, and the only thing a
+             *  lane needs that a row cannot see for itself — which is the
+             *  whole reason the lane is decided out here rather than inside
+             *  `Entry`. */
+            const above = createMemo(() => props.chat.rows()[index() - 1])
+            const lane = createMemo(() => {
+              const previous = above()
+              return laneOf(
+                entry()?.parent,
+                previous,
+                previous === undefined
+                  ? undefined
+                  : props.chat.entry(previous)()?.parent,
+              )
+            })
+            /** What to call the agent whose lane this is: the `Agent` frame's
+             *  own title, which for this adapter is the description the call
+             *  was made with — "find every call site", "review the diff". A
+             *  frame we have not been sent is drawn as the bare fact, because
+             *  "a subagent did this" is still the thing worth saying. */
+            const named = () => {
+              const parent = lane()?.parent
+              return (parent === undefined
+                ? undefined
+                : props.chat.entry(parent)()?.text) ?? "a subagent"
+            }
             return (
               <Show when={entry()}>
-                {(row) => <Entry entry={row()} chat={props.chat} />}
+                {(row) => (
+                  /* The lane is a WRAPPER rather than a branch, so a row that
+                     learns whose it is on its second frame moves into the lane
+                     without being drawn again from scratch — the same rule the
+                     row list itself follows, one level down.
+
+                     `-mt-2 pt-2` on a continuing row is the rail closing the
+                     gap the row above left under itself: rows are spaced by a
+                     margin, and a rail drawn per row would otherwise come out
+                     as a column of dashes rather than as one line. A row that
+                     OPENS a lane keeps the gap — there is a new lane starting,
+                     and it is allowed to begin somewhere. */
+                  <div
+                    class={lane() === null
+                      ? undefined
+                      : `border-l-2 border-muted/70 pl-2 ${
+                        lane()?.labelled === true ? "mt-1" : "-mt-2 pt-2"
+                      }`}
+                    data-testid={lane() === null ? undefined : TESTID.chatLane}
+                    data-lane={lane()?.parent}
+                  >
+                    {/* Once per stretch of one agent's work, not once per call
+                        it makes — see `./lanes.ts`. */}
+                    <Show when={lane()?.labelled === true}>
+                      <p
+                        class="mb-1 flex min-w-0 items-center gap-1 font-mono text-[0.6875rem] text-muted"
+                        data-testid={TESTID.chatLaneLabel}
+                      >
+                        <span aria-hidden="true">↳</span>
+                        <span class="min-w-0 truncate">{named()}</span>
+                      </p>
+                    </Show>
+                    <Entry entry={row()} chat={props.chat} />
+                  </div>
+                )}
               </Show>
             )
           }}

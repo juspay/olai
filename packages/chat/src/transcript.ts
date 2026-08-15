@@ -123,6 +123,7 @@ export class Transcript {
       readonly diffs?: ReadonlyArray<FileDiff> | undefined
       readonly wrote?: Wrote | undefined
       readonly locations?: ReadonlyArray<string> | undefined
+      readonly parent?: string | undefined
     },
   ): Change {
     const key = `tool:${id}`
@@ -139,6 +140,19 @@ export class Transcript {
     const diffs = move.diffs ?? current?.diffs
     const wrote = move.wrote ?? current?.wrote
     const locations = move.locations ?? current?.locations
+    // WHICH agent made this call, stored as THIS COLLECTION'S OWN KEY rather
+    // than as the id it arrived as. A row is what a reader of this field wants
+    // — the panel draws a subagent's call in a lane and names the lane after
+    // the Agent frame above it — and two spellings, an id on the wire and a
+    // key on screen, would be a mapping to keep in step for nothing. It is the
+    // rule `ask` rows already follow one field down, in the other direction.
+    //
+    // Sticky like everything else here, and for a sharper reason than most:
+    // the adapter stamps the attribution on a subagent's announcement and on
+    // most of what follows, but a completion carrying only a status and a
+    // parent-less `_meta` is a shape it has — and a row that read that as "no
+    // agent now" would step out of its lane at the moment the call finished.
+    const parent = move.parent === undefined ? current?.parent : `tool:${move.parent}`
     return both(
       this.#close(),
       this.#put(key, {
@@ -150,6 +164,7 @@ export class Transcript {
         ...(diffs === undefined ? {} : { diffs }),
         ...(wrote === undefined ? {} : { wrote }),
         ...(locations === undefined ? {} : { locations }),
+        ...(parent === undefined ? {} : { parent }),
       }),
     )
   }
