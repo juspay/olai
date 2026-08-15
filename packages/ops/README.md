@@ -88,17 +88,19 @@ the format.
 it. The planner and the commit hook are what those are made of; a consumer wants
 the writer, not the plan, and its own tests reach it directly.
 
-**None of the SHAPES belong to this package any more.** `GitState` went first;
-search's followed (#167); and the last three query answers — the `list_outlines`
-summary, `Detail` and `Subtree` — are `@olai/format`'s `reading.ts` now, with
-the requests two of them take. This layer still PRODUCES every one of those
-values, and that is the division: a shape that crosses a wire is the floor's,
-because `@olai/surface` may not import this package and a vocabulary spelled
-here would have to be spelled again there. `Query` re-exports them under the
-names its own answers have always used — `Query.Outline` is
-`OutlineSummary` on the floor, renamed there because that package already
-exports an `Outline` meaning one file's decoded NODES, which carries `file` and
-`nodes` too and would have looked compatible at a glance.
+**None of the SHAPES belong to this package any more, and none of them is
+re-exported from it.** `GitState` went first; search's followed (#167); and the
+last three query answers — the `list_outlines` summary, `Detail` and `Subtree` —
+are `@olai/format`'s `reading.ts` now, with the requests two of them take. This
+layer still PRODUCES every one of those values, and that is the division: a
+shape that crosses a wire is the floor's, because `@olai/surface` may not import
+this package and a vocabulary spelled here would have to be spelled again there.
+A consumer imports them from the floor, where they are declared; every consumer
+of `@olai/ops` already depends on `@olai/format`, so a re-export here would buy
+nobody an import they could not already write. The summary is `OutlineSummary`
+there, renamed on the way because that package already exports an `Outline`
+meaning one file's decoded NODES, which carries `file` and `nodes` too and would
+have looked compatible at a glance.
 
 The TABLE is exported and used to be private, and the reason it changed is that
 this package used to own an MCP server too. What a consumer wanted then was the

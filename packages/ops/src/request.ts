@@ -642,9 +642,9 @@ export type Request = typeof Request.Type
  *  chose it: a minted id is unguessable, and a caller that just wrote thirteen
  *  nodes should not have to search for them.
  *
- *  Not `Query.Found`, which is what a READ answers with: that one carries
- *  `file:line` and an ancestor path, and a plan has neither — the file it
- *  describes has not been written, so a line number here would be invented. */
+ *  Not `@olai/format`'s `Found`, which is what a READ answers with: that one
+ *  carries `file:line` and an ancestor path, and a plan has neither — the file
+ *  it describes has not been written, so a line number here would be invented. */
 export interface Minted {
   readonly id: string
   readonly title: string

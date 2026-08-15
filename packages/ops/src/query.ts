@@ -51,11 +51,13 @@ import {
 } from "@olai/format"
 
 /**
- * Every shape an answer here has — DECLARED IN `@olai/format` and re-exported,
- * exactly as `RepoState` and `Pending` are.
+ * Every shape an answer here has is `@olai/format`'s, and none of them is
+ * re-exported — exactly as `RepoState` and `Pending` are that package's, and
+ * for the reason its `./reading.ts` argues: the wire spec may not import this
+ * layer, so a vocabulary spelled here would have to be spelled again there.
  *
- * These shapes TRAVEL, or are about to: `search_nodes` hands an agent
- * {@link Search} verbatim and the `search.nodes` procedure the ⌘K palette calls
+ * These shapes TRAVEL, or are about to: `search_nodes` hands an agent a
+ * `SearchAnswer` verbatim and the `search.nodes` procedure the ⌘K palette calls
  * carries the identical value to a browser, and the other three reads are the
  * ones a bridged agent would reach through a surface it cannot get an `Ops`
  * from. A second spelling in the wire spec is a second spelling free to drift
@@ -65,37 +67,18 @@ import {
  * BEFORE anything carried them, which is the cheaper end of the same lesson
  * (docs/brainstorming/surface-mcp-positions.md).
  *
+ * A CONSUMER IMPORTS THEM FROM THE FLOOR, which is where they are declared;
+ * this file used to re-export the lot and rename three, and nothing anywhere
+ * read a single one of those names. `Query.Outline` in particular re-made the
+ * exact collision the floor renamed away from — `@olai/format` exports an
+ * `Outline` that is one file's decoded NODES — one package up, in a file whose
+ * whole subject is not spelling one thing twice.
+ *
  * What stays HERE is every WALK: which nodes match and how they are ordered,
  * which mirrors resolve to a node, how far a subtree descends, and what a file
  * that did not parse leaves sayable. The shape is the floor's; the reading is
  * this package's.
  */
-export {
-  DEFAULT_SEARCH_LIMIT,
-  DEFAULT_SUBTREE_DEPTH,
-  type Detail,
-  type Found,
-  type Placed,
-  type Placement,
-  type SearchRequest,
-  type Subtree,
-}
-
-/** The wire names, under the names this file's own answers have always used.
- *  `Search` and `Hit` say what a caller of {@link search} is holding; the
- *  floor's names say what crosses to a browser. Same type, two vocabularies,
- *  and neither has to move for the other.
- *
- *  `Outline` is the third and the one that could not keep its name at the
- *  destination: `@olai/format` already exports an `Outline` that is one file's
- *  decoded NODES, and this one is a listing's summary of the same file — both
- *  carrying `file` and `nodes`, where `nodes` is a list on one and a count on
- *  the other. It is `OutlineSummary` on the floor, which says what it is against
- *  the neighbour it would otherwise shadow, and stays `Query.Outline` here,
- *  where `Query.outlines` is what returns it and nothing else is called that. */
-export type Search = SearchAnswer
-export type Hit = SearchHit
-export type Outline = OutlineSummary
 
 // ── the index every query is asked of ──────────────────────────────────
 
@@ -192,7 +175,7 @@ const DONE_PENALTY = 300
 export const search = (
   derived: Derived,
   query: SearchRequest,
-): Search => {
+): SearchAnswer => {
   const filter = parseFilter(query.text)
   // A query the grammar could not read answers with no hits AND WITH THE
   // REASON. An empty one answers with no hits and nothing to say — there is no
@@ -212,7 +195,7 @@ export const search = (
           // carried by no field, and answering "title" would be inventing a
           // reason. The format's own rule for absence, applied to an answer.
           ...(match.field === null ? {} : { matched: match.field }),
-        } as Hit,
+        } as SearchHit,
         score: found.status === "done" ? match.score - DONE_PENALTY : match.score,
       }
     })
@@ -347,9 +330,9 @@ export const subtree = (
 export const outlines = (
   set: OutlineSet,
   derived: Derived,
-): ReadonlyArray<Outline> => {
+): ReadonlyArray<OutlineSummary> => {
   const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
-  return set.files.map((file): Outline => {
+  return set.files.map((file): OutlineSummary => {
     const errors = broken.get(file)
     // The whole of what can be said about it, and nothing more: a count and a
     // root list are what a PARSE produces, so a file that did not parse has
