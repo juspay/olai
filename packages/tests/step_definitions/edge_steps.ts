@@ -185,11 +185,32 @@ const drawnOrSaid = async (
   changed: () => Promise<boolean>,
   what: string,
 ): Promise<void> => {
+  let drawn = false;
   await world.waitUntil(
-    async () =>
-      (await changed()) || (await world.page.locator(EDGE_SAID).count()) > 0,
+    async () => {
+      drawn = await changed();
+      return drawn || (await world.page.locator(EDGE_SAID).count()) > 0;
+    },
     `${what}, or the page to say why it did not`,
   );
+  // ONE MORE FRAME on the happy path, which is what the paragraph above is
+  // actually owed: the refs list changing is the snapshot, and the answer this
+  // tab's undo stack is filed on is the NEXT message on the same wire. Without
+  // it, a poll whose first tick already saw the chip go returns before the
+  // reply lands, and the ⌘Z after it spends a stack that is still empty — the
+  // very gap this helper was written to close, left open by one message.
+  //
+  // The keys already wait exactly this (`support/caret.ts`'s take: wait for the
+  // row the snapshot painted, then one frame), so the ritual here is theirs
+  // rather than a new idea — grok's one follow-up from the review of #199, and
+  // the reason the pointer and the keys now agree about when this tab has the
+  // way back.
+  //
+  // Not on the refusal: a page that has SAID why it did not has already been
+  // answered — the sentence is what the answer was — so there is no later
+  // message to wait out, and waiting one would be every refusal scenario
+  // paying a frame for nothing.
+  if (drawn) await world.waitForFrame();
 };
 
 /**
