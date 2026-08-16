@@ -48,9 +48,9 @@ import type { GitMode } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 import {
   freePortIn,
+  heldBand,
   holdPort,
   isolateEnv,
-  portRange,
   releasePort,
   workerId,
 } from "./workers.ts";
@@ -386,7 +386,7 @@ const startServerChild = async (
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
-    const port = fixedPort ?? (await freePortIn(portRange(workerId())));
+    const port = fixedPort ?? (await freePortIn(await heldBand()));
     // `--no-commit` unless the scenario is ABOUT git: a scratch directory is a
     // temp copy, and committing to whatever repository happens to contain the
     // temp dir is not the suite's business. A `@git:` scenario is the exception
@@ -537,9 +537,12 @@ export const stopOwnServer = async (world: OlaiWorld): Promise<void> => {
   });
   live.delete(child);
   world.ownServer = undefined;
-  // Bind the port ourselves until startOwnServer releases it. Without this,
-  // another worker's `freePortIn` (or a `listen(0)` elsewhere) can steal
-  // the address the page is still pointed at.
+  // Bind the port ourselves until startOwnServer releases it, so nothing on
+  // the box can take the address the page is still pointed at. The band is
+  // this process's alone (`workers.ts`'s `heldBand`), which is what closed the
+  // hole this hold could not: another RUN's `freePortIn` used to walk this
+  // band, and it walked it in the window between the release and the child's
+  // own listen, where a hold has already been given up.
   world.portHold = await holdPort(port);
 };
 

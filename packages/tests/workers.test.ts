@@ -11,8 +11,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import {
+  BANDS,
   defaultWorkers,
   freePortIn,
+  heldBand,
   holdPort,
   isolateEnv,
   PORT_BASE,
@@ -66,6 +68,36 @@ test("PIN (port bands): two workers' ranges do not overlap", () => {
   expect(a.lo).toBe(PORT_BASE);
   // A port in B cannot be in A.
   expect(b.lo >= a.hi).toBe(true);
+  // And the LAST band still ends below the kernel's ephemeral range, which is
+  // what keeps a `listen(0)` anywhere on the box out of every one of them.
+  // Raising BANDS past this is the mistake this line is here to catch.
+  expect(portRange(BANDS - 1).hi).toBeLessThanOrEqual(32_768);
+});
+
+test("PIN (a band is CLAIMED): the marker below it is bound, and asking again is the same band", async () => {
+  // The whole of what makes a band this process's rather than this run's: not
+  // arithmetic on a worker id — every run numbers its workers from zero — but
+  // a socket the kernel will not hand to a second asker. Deliberately makes no
+  // claim about WHICH band comes back: `just check` runs this leg beside the
+  // e2e one, and a test that pinned band 0 would be a test that failed
+  // whenever the thing it is about was working.
+  const band = await heldBand();
+  expect(band.lo).toBeGreaterThan(PORT_BASE - 1);
+  expect(band.hi).toBeLessThanOrEqual(PORT_BASE + BANDS * PORTS_PER_WORKER);
+  // The marker is the band's first port and is NOT served from, which is the
+  // one port of the two hundred this arithmetic can see.
+  expect(band.hi - band.lo).toBe(PORTS_PER_WORKER - 1);
+  let took = false;
+  try {
+    await releasePort(await holdPort(band.lo - 1));
+    took = true;
+  } catch {
+    // What is supposed to happen: we are holding it.
+  }
+  expect(took).toBe(false);
+  // Held for the life of the process: asking again is the same band, not a
+  // second claim walking on to the next one.
+  expect(await heldBand()).toEqual(band);
 });
 
 test("PIN (port hold): a held port is not handed out as free", async () => {
