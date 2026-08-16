@@ -30,6 +30,14 @@
  * page somebody stopped looking at; it never costs a body, because opening one
  * asks again.
  *
+ * It is a bound rather than a lifetime because there is no socket for the
+ * lifetime to come out of: the wire says when a reader OPENS a key and nothing
+ * says when the last one lets go — the framework owns subscription lifetime and
+ * does not publish it. So "who is watching" is inferred from opens and aged
+ * out, which is the honest approximation of a fact this process cannot see. A
+ * `keys`-style member for "who holds this key" upstream is what would replace
+ * it, and until one exists the bound is the whole of the eviction story.
+ *
  * ONE failure is quieter than it used to be, and it is a trade rather than an
  * oversight: a `.html` that cannot be READ (not gone — unreadable) reaches the
  * log, and the reader sees the page it already had, with no body under the

@@ -123,22 +123,27 @@ export const make = <F, S, E>(
           previous.size === stamps.size
         if (settled) return null
 
-        // What the codec can answer from the NAME is answered here, and those
-        // files are not read at all — not at boot, not when they change. They
-        // are stale like any other file (their stamp moved, so they are
-        // `changed` below and a consumer publishing per file hears about it);
-        // what they are not is opened. See {@link Codec.byName}.
-        const named = new Map(
-          stale.flatMap(([path]) => {
-            const decoded = codec.byName?.(path) ?? null
-            return decoded === null ? [] : [[path, decoded] as const]
-          }),
-        )
-        const reread = new Map(
+        // ONE answer per stale file: what it decodes to, or `null` for one that
+        // was deleted between the stat and the read. A file the codec can
+        // decode from its NAME never reaches the disk at all — not at boot, not
+        // when it changes — and is otherwise a stale file like any other, so it
+        // is the same answer arrived at without a read ({@link Codec.byName}).
+        const fresh = new Map(
           yield* Effect.forEach(
-            stale.filter(([path]) => !named.has(path)),
-            ([path]) =>
-              Effect.map(disk.read(path), (contents) => [path, contents] as const),
+            stale,
+            ([path]) => {
+              const named = codec.byName?.(path) ?? null
+              return named !== null
+                ? Effect.succeed([path, named] as const)
+                : Effect.map(
+                  disk.read(path),
+                  (contents) =>
+                    [
+                      path,
+                      contents === null ? null : codec.decode(path, contents),
+                    ] as const,
+                )
+            },
             { concurrency: 16 },
           ),
         )
@@ -146,15 +151,9 @@ export const make = <F, S, E>(
         const next = new Map<string, Cached<F, E>>()
         const changed: Array<string> = []
         for (const [path, stamp] of stamps) {
-          const decoded = named.get(path)
-          if (decoded !== undefined) {
-            next.set(path, { stamp, decoded })
-            changed.push(path)
-            continue
-          }
-          const contents = reread.get(path)
-          if (contents === undefined) {
-            // Unchanged: keep what it decoded to, and the stamp that says so.
+          const decoded = fresh.get(path)
+          if (decoded === undefined) {
+            // Not stale: keep what it decoded to, and the stamp that says so.
             const cached = previous?.get(path)
             if (cached !== undefined) next.set(path, { stamp, decoded: cached.decoded })
             continue
@@ -162,14 +161,14 @@ export const make = <F, S, E>(
           // Read back as gone — it was deleted between the stat and the read.
           // Leaving it out is what the next probe would conclude anyway, and it
           // is a REMOVAL rather than a change, which the loop below sees.
-          if (contents === null) continue
-          next.set(path, { stamp, decoded: codec.decode(path, contents) })
+          if (decoded === null) continue
+          next.set(path, { stamp, decoded })
           changed.push(path)
         }
-        // Off the same two maps the decode loop just built, so "gone" cannot
-        // mean one thing here and another there: anything the last probe held
-        // that this one does not is removed, whether the listing lost it or the
-        // read did.
+        // Off the same map the decode loop just built, so "gone" cannot mean
+        // one thing here and another there: anything the last probe held that
+        // this one does not is removed, whether the listing lost it or the read
+        // did.
         const removed: Array<string> = []
         for (const path of previous?.keys() ?? []) {
           if (!next.has(path)) removed.push(path)
