@@ -9,9 +9,11 @@
  *   - **Cancel appears BESIDE send while a turn is running**, rather than
  *     replacing it. Replacing it was right while a mid-turn send was refused:
  *     there was one action available and one place to look for it. Now that a
- *     message queues, sending and stopping are two things a person can
- *     genuinely want at the same moment, and hiding the send button would
- *     leave the queue reachable only from the keyboard.
+ *     mid-turn message STEERS the running turn, sending and stopping are two
+ *     things a person can genuinely want at the same moment — and they want
+ *     opposite things, which is exactly why both have to be on screen. The
+ *     button says `send` throughout: it used to say `queue` while a turn ran,
+ *     back when the panel really did hold the message.
  *   - **a question the agent asked is said HERE too**, not only where the form
  *     is. Nothing times out a blocked turn, so a form that has scrolled out of
  *     sight looks exactly like an agent that is thinking — and this row is
@@ -337,7 +339,7 @@ export function Composer(props: {
             of a long transcript is otherwise indistinguishable from an agent
             that is thinking. So the composer — which is where somebody's
             attention is, because it is where they were about to type — says
-            it, in the row that already carries "queued". */}
+            it, on the toolbar under the box. */}
         <Show when={props.chat.state().asking > 0}>
           <span
             class="font-mono text-[0.6875rem] text-doing"
@@ -345,16 +347,6 @@ export function Composer(props: {
             aria-live="polite"
           >
             waiting on your answer
-          </span>
-        </Show>
-        {/* Sent, and waiting for the turn in flight. The rows are already in
-            the transcript — this says the agent has not reached them. */}
-        <Show when={props.chat.state().queued > 0}>
-          <span
-            class="font-mono text-[0.6875rem] text-muted"
-            data-testid={TESTID.chatQueued}
-          >
-            {props.chat.state().queued} queued
           </span>
         </Show>
         {/* Only when the agent offers some: a button that opens nothing lies. */}
@@ -386,7 +378,11 @@ export function Composer(props: {
           data-testid={TESTID.chatSend}
           onClick={() => void send()}
         >
-          {working() ? "queue" : "send"}
+          {/* ALWAYS "send", because that is always what it does. It used to
+              read "queue" while a turn ran, which was honest about the panel
+              holding the message and is a lie now: what is typed goes to the
+              agent as it is typed, into the turn it is already running. */}
+          send
         </button>
       </div>
     </div>

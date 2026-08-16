@@ -591,26 +591,81 @@ Feature: Talking to the agent
     And the panel header names the model "Fake Sonnet"
 
   @scratch:chat
-  Scenario: A message sent mid-turn waits its turn instead of being refused
-    # The box used to be turned OFF while the agent worked, and a send while it
-    # was on was refused. Both were wrong in the same way: a person watching a
-    # turn has the next thing ready long before it ends, and the panel made
-    # them hold it — then took the caret away, so coming back meant reaching
-    # for the mouse.
+  Scenario: A message sent mid-turn STEERS the turn that is running
+    # Three arrangements, and only the third is this one. The box used to be
+    # turned OFF while the agent worked; then a send was accepted and QUEUED,
+    # which held the message out of sight until the turn it should have changed
+    # was over — and dropped it on the next cancel, destroying words nobody had
+    # a copy of. Now it goes to the agent as it is typed, into the turn already
+    # running, which is the only moment saying it is worth anything.
     When I ask the agent "hold"
     Then the agent is working
     And the chat input takes typing
     When I ask the agent "done order"
-    Then the chat says 1 message is queued
-    And the chat input still has the caret
-    # It is a row already: what was said, in the order it will be asked.
+    Then the chat input still has the caret
+    # It is a row the moment it is sent, like every other message.
     And the chat eventually shows "done order"
+    # THE CLAIM: the node moves while the first turn is STILL RUNNING. Nothing
+    # has been released and nothing has ended — a queued message could not have
+    # done this, and that is the whole difference.
+    And node "order" is done
     And the agent is working
     When the agent is released
-    # ... and the queued one runs on its own, with nothing else pressed.
-    Then nothing is queued any more
+    Then the agent is idle
+
+  @scratch:chat
+  Scenario: A message the agent will not take stays on screen, and can be sent again
+    # The one way a send can still fail against a live agent: it is mid-turn
+    # and cannot be reached. The words do NOT go into a queue and they do not
+    # go anywhere — they stay in the conversation, in the bubble they were
+    # typed into, marked as not sent, with one press to try again. A person
+    # never has to wonder whether a sentence they typed still exists.
+    When I ask the agent "refuse steering"
+    Then the agent is idle
+    When I ask the agent "hold"
+    Then the agent is working
+    When I ask the agent "done order"
+    Then the chat shows my message "done order" as not sent
+    # ... and it really did not go: nothing marked anything.
+    And node "order" is not done
+    # Pressing it again while the turn is still unreachable changes nothing but
+    # is not silent either — the row stays, the words stay.
+    When I send the unsent message again
+    Then the chat shows my message "done order" as not sent
+    # Once the turn is over there is a turn to start, so the same row's own
+    # words go as an ordinary prompt — and the mark comes off, because a row
+    # must not go on advertising a failure that has stopped being true.
+    When the agent is released
+    Then the agent is idle
+    When I send the unsent message again
+    Then node "order" is done
+    And no message is marked unsent
+
+  @scratch:chat
+  Scenario: Cancelling under a message in flight does not start the turn back up
+    # Both buttons are on screen at once, which is what this feature sells — so
+    # saying the next thing and then deciding the whole turn was wrong is a
+    # coherent pair of presses, and the second one has to win.
+    #
+    # The ordering nobody could see before: the steer is on the wire when the
+    # cancel lands, so the agent answers "nothing to steer" — the SAME answer a
+    # turn that simply finished gives. Read as that, the message becomes an
+    # ordinary prompt and the panel starts a fresh turn the person just pressed
+    # a button to end. The ticket the steer was aimed at is what tells the two
+    # apart, and `slow steering` is what makes cancel win the race every time.
+    When I ask the agent "slow steering"
+    Then the agent is idle
+    When I ask the agent "slow"
+    Then the agent is working
+    When I ask the agent "done order"
+    And I cancel the turn
+    # The steer answers a moment later, and the row is what it lands on: the
+    # words are kept and offered back, never re-sent on somebody's behalf.
+    Then the chat shows my message "done order" as not sent
+    # THE CLAIM: still idle. A `begin` here would read as the cancel undoing
+    # itself, which is the whole bug.
     And the agent is idle
-    And node "order" is done
+    And node "order" is not done
 
   @scratch:chat
   Scenario: The transcript follows the newest line, unless I have scrolled away

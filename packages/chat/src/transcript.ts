@@ -45,6 +45,23 @@ export interface Change {
 
 const EMPTY: Change = { upserts: [], removes: [] }
 
+/**
+ * An entry without the fields `#put` DERIVES, ready to be written back.
+ *
+ * `streaming` is why this exists and why it is one function: a spread of the
+ * old entry carries the flag straight past the derivation that is supposed to
+ * decide it, which is the bug this class's header says its shape makes
+ * unrepresentable. It stopped being one function the moment a second writer
+ * needed it — and the two lists had already drifted apart by a field, which is
+ * exactly how the header's claim would have quietly stopped being true.
+ */
+const contentOf = (
+  entry: ChatEntry,
+): Omit<ChatEntry, "id" | "seq" | "streaming"> => {
+  const { id: _id, seq: _seq, streaming: _streaming, ...content } = entry
+  return content
+}
+
 /** What a tool call is filed under. Spelled ONCE: the row a call writes and
  *  the row it names as the agent that made it are the same kind of key, and
  *  two literals for one scheme is one of them being missed the day the scheme
@@ -66,6 +83,22 @@ export class Transcript {
    *  becoming a row: what a reader wants is one paragraph growing, not forty. */
   #open: string | null = null
   #minted = 0
+  /**
+   * What it would take to send an `unsent` row again, by that row's key.
+   *
+   * HERE, beside the rows, rather than in the caller that knows about agents —
+   * because it is half of one fact and the other half is a field on the entry.
+   * A row marked `unsent` with no prompt behind it draws a button that refuses;
+   * a prompt with no row is a message nobody can see. Kept together, neither is
+   * constructible: {@link unsent} writes both, {@link sent} drops both, and
+   * {@link clear} — the one place a conversation ends — takes both with it
+   * instead of a caller having to remember the second.
+   *
+   * The prompt is OPAQUE to this file: it is the agent's own string, with tmp
+   * paths in it, and nothing here reads it or publishes it. The transcript
+   * stores it and hands it back.
+   */
+  #undelivered = new Map<string, string>()
 
   entries(): ReadonlyMap<string, ChatEntry> {
     return this.#entries
@@ -77,6 +110,7 @@ export class Transcript {
   clear(): Change {
     const removes = [...this.#entries.keys()]
     this.#entries.clear()
+    this.#undelivered.clear()
     this.#open = null
     this.#seq = 0
     return { upserts: [], removes }
@@ -88,7 +122,76 @@ export class Transcript {
     text: string,
     extra: Partial<ChatEntry> = {},
   ): Change {
-    return both(this.#close(), this.#put(this.#next(kind), { kind, text, ...extra }))
+    return this.#row(kind, text, extra).change
+  }
+
+  /**
+   * What a person said — a row like any other, ANSWERING WITH ITS KEY.
+   *
+   * The one caller that has to keep a key. Every other entry is written and
+   * forgotten, but a user message can turn out to be undeliverable after it
+   * has been drawn ({@link unsent}), and a retry that lands has to find the
+   * same row again — so the key comes back here rather than being fished out
+   * of the change or re-derived from a counter kept somewhere else.
+   *
+   * It is the same door as {@link add} with the key kept ({@link #row}), and
+   * not a second way to write a row: `add("user", …)` is still what a REPLAY
+   * uses, and two minting paths would be two answers to "how is a row
+   * written" for the one kind that has both.
+   */
+  user(text: string, extra: Partial<ChatEntry> = {}): {
+    readonly key: string
+    readonly change: Change
+  } {
+    return this.#row("user", text, extra)
+  }
+
+  /**
+   * That message never reached the agent, and here is what it would take to
+   * send it again.
+   *
+   * The row does not move and nothing is minted: what a person typed stays
+   * exactly where they typed it, in the conversation, with a mark saying it is
+   * still theirs to send.
+   *
+   * A row that is not there any more — the session was replaced under it —
+   * changes nothing rather than minting one, which is {@link settleAsk}'s rule
+   * and for its reason. The prompt is not kept either: there is no row for it
+   * to belong to.
+   */
+  unsent(key: string, prompt: string): Change {
+    if (!this.#entries.has(key)) return EMPTY
+    this.#undelivered.set(key, prompt)
+    return this.#mark(key, true)
+  }
+
+  /** ... and it has now. The mark comes off and the prompt is let go: a row
+   *  must not go on advertising a failure that has stopped being true, and a
+   *  prompt kept past its row's mark is a retry nothing can ask for. */
+  sent(key: string): Change {
+    this.#undelivered.delete(key)
+    return this.#mark(key, false)
+  }
+
+  /** What it would take to send that row again, or `null` when it is not one
+   *  that failed. The prompt the agent refused, verbatim — never rebuilt from
+   *  the row, which carries its pictures by name where the prompt carries
+   *  their paths. */
+  undelivered(key: string): string | null {
+    return this.#undelivered.get(key) ?? null
+  }
+
+  /** The `unsent` field, on or off, without minting a row for a key that has
+   *  gone. Private because the field never moves without the prompt beside it
+   *  — which is the whole reason both live here. */
+  #mark(key: string, undelivered: boolean): Change {
+    const current = this.#entries.get(key)
+    if (current === undefined) return EMPTY
+    // `unsent` comes off along with the derived fields, for the same reason
+    // `contentOf` takes those: this line is what DECIDES it, and a spread of
+    // the old entry would carry the previous answer past the decision.
+    const { unsent: _unsent, ...content } = contentOf(current)
+    return this.#put(key, undelivered ? { ...content, unsent: true } : content)
   }
 
   /** One chunk of the agent's prose. Appends to the entry already open, or
@@ -233,11 +336,23 @@ export class Transcript {
     if (key === null) return EMPTY
     const current = this.#entries.get(key)
     if (current === undefined) return EMPTY
-    // The three fields `#put` mints are dropped rather than passed back in:
-    // `streaming` especially, because a spread of the old entry would carry the
-    // flag straight past the derivation that is supposed to decide it.
-    const { id: _id, seq: _seq, streaming: _streaming, ...content } = current
-    return this.#put(key, content)
+    return this.#put(key, contentOf(current))
+  }
+
+  /** Mint a row and answer with BOTH its key and the change, which is the one
+   *  shape every writer here needs some part of: {@link add} takes the change
+   *  and drops the key, {@link user} keeps both. One place knows how a row is
+   *  written, so a `user` row a person typed and a `user` row a replay wrote
+   *  cannot come out differently. */
+  #row(kind: ChatEntry["kind"], text: string, extra: Partial<ChatEntry>): {
+    readonly key: string
+    readonly change: Change
+  } {
+    const key = this.#next(kind)
+    return {
+      key,
+      change: both(this.#close(), this.#put(key, { kind, text, ...extra })),
+    }
   }
 
   #next(kind: string): string {

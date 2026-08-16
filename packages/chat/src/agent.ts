@@ -106,6 +106,10 @@ import {
   NEW_SESSION_META,
   parentToolUseIn,
   SDK_MESSAGE,
+  STEER_METHOD,
+  STEER_TIMEOUT,
+  STEER_WHEN_IDLE,
+  steerTaken,
   toolNameIn,
 } from "./interpret.ts"
 import * as Kolu from "./kolu.ts"
@@ -135,6 +139,25 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
     return this.why
   }
 }
+
+/**
+ * What became of a steer — and only two things can, because a steer that could
+ * not be DELIVERED fails on the error channel instead of answering here. An
+ * agent with no steering at all is one of those: it refuses the method, in its
+ * own words, and the caller owes a person their words back exactly as it does
+ * for a dead pipe or a deadline. There was a capability flag read off
+ * `initialize` that predicted this; the request is what proves it, and two
+ * answers to one question is one too many.
+ *
+ *   - `taken` — the message is in the running turn. Nothing else to do; what
+ *     the agent makes of it arrives on the transcript like everything else.
+ *   - `no-turn` — the agent had nothing to steer, and has NOT taken the message
+ *     (that is what {@link ./interpret.ts}'s `STEER_WHEN_IDLE` asks for), so
+ *     the caller sends it as an ordinary prompt. This is the race rather than
+ *     the ordinary path: olai steers only while it believes a turn is running,
+ *     and the turn can settle between the send and the steer arriving.
+ */
+export type Steered = "taken" | "no-turn"
 
 export interface Options {
   /** The executable to run. `OLAI_ACP_AGENT`, or the adapter nix baked in. */
@@ -171,6 +194,17 @@ export interface Agent {
    *  …) — the turn's END is a return value rather than an event, because the
    *  caller that asked is the one waiting. */
   readonly prompt: (text: string) => Effect.Effect<string, AgentGone>
+  /**
+   * Put a message INTO the turn already running — see {@link Steered} for the
+   * two things that can come back, and the error channel for every way it
+   * could not be delivered at all.
+   *
+   * The other half of {@link prompt}, and deliberately not a second prompt: a
+   * `session/prompt` sent mid-turn is queued by the agent and reached when the
+   * running turn is over, which is waiting with extra steps. This one is
+   * injected, so a person can redirect an agent that is already working.
+   */
+  readonly steer: (text: string) => Effect.Effect<Steered, AgentGone>
   /** Stop the turn in flight.
    *
    *  A notification, so there is nothing to WAIT for — but there is very much
@@ -976,6 +1010,39 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         })
       )
 
+    /**
+     * The steering half of {@link prompt}: hand the running turn something
+     * more to work with.
+     *
+     * It takes a DEADLINE where a prompt takes none ({@link STEER_TIMEOUT}),
+     * and an agent with no steering at all needs nothing special: it refuses
+     * the method and that refusal travels the error channel, in the agent's own
+     * words, like every other way this can fail. `initialize` advertises the
+     * extension and that advertisement was being read into a `canSteer` flag —
+     * a prediction of what the request itself proves, and a second answer to a
+     * question that already had one.
+     *
+     * What the ANSWER means is {@link steerTaken}'s, beside the two spellings
+     * the request is made of: it is one adapter extension's vocabulary, and
+     * reading half of it here would be the same bet made in two files.
+     */
+    const steer = (text: string): Effect.Effect<Steered, AgentGone> =>
+      withSession((at, id) =>
+        Effect.map(
+          ask(
+            at.connection,
+            STEER_METHOD,
+            {
+              sessionId: id,
+              prompt: [{ type: "text", text }],
+              _meta: STEER_WHEN_IDLE,
+            },
+            STEER_TIMEOUT,
+          ),
+          (answered): Steered => steerTaken(answered) ? "taken" : "no-turn",
+        )
+      )
+
     const cancel = Effect.suspend(() => {
       const at = live
       const id = session
@@ -1009,6 +1076,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     return {
       boot,
       prompt,
+      steer,
       cancel,
       newSession: withLive((at) =>
         Effect.gen(function*() {
@@ -1069,14 +1137,30 @@ const ask = (
   params: unknown,
   timeout: Duration.Input | null = BOOT_TIMEOUT,
 ): Effect.Effect<unknown, AgentGone> => {
+  // The SIGNAL is what makes a deadline a cancellation rather than a walk-away.
+  // The SDK keys every request it sends into a pending map and only clears an
+  // entry when a response arrives or the connection closes — so a timeout that
+  // merely stops waiting leaves the entry, and the closure holding that
+  // request's params, for the life of the subprocess. That was invisible while
+  // every deadline-bearing call happened once per boot or per click; `steer`
+  // is the first that happens once per MESSAGE, and a server that runs for
+  // weeks is the wrong place to find out. Handed the signal, the SDK cancels
+  // on the wire and the agent's reply clears the entry.
   const call: Effect.Effect<unknown, AgentGone> = Effect.tryPromise({
-    try: () =>
+    try: (signal) =>
       (connection.agent as unknown as {
-        request: (method: string, params: unknown) => Promise<unknown>
-      }).request(method, params),
+        request: (
+          method: string,
+          params: unknown,
+          options?: { readonly cancellationSignal?: AbortSignal },
+        ) => Promise<unknown>
+      }).request(method, params, { cancellationSignal: signal }),
     catch: (cause) => new AgentGone({ why: `\`${method}\` failed: ${reasonOf(cause)}` }),
   })
   if (timeout === null) return call
+  // `Effect.timeout` INTERRUPTS what it is timing out, which is what fires the
+  // signal above — so the deadline and the cancellation are one mechanism
+  // rather than a deadline and a cleanup somebody has to remember.
   return Effect.catchTag(
     Effect.timeout(call, timeout),
     "TimeoutError",

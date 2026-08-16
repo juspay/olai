@@ -6,8 +6,8 @@
  * agent as far as `packages/server/src/chat/agent.ts` is concerned:
  * line-delimited JSON-RPC on stdio, `initialize` / `session/new` /
  * `session/list` / `session/load` / `session/set_mode` / `session/prompt`,
- * `session/cancel` as a notification, and `session/update` notifications on the
- * way.
+ * `_session/steering`, `session/cancel` as a notification, and `session/update`
+ * notifications on the way.
  *
  * What makes it worth having is the last thing it does: it calls the REAL
  * internal MCP server, over the real HTTP route, with the token the real
@@ -37,6 +37,11 @@
  *   subagent     spawn TWO agents and interleave their tool calls with each
  *                other's, each frame stamped with the `Agent` call it came out
  *                of — the whole of what the adapter says about who did what
+ *   refuse steering   turn `_session/steering` into an error from here on, so
+ *                a scenario can see what a panel does with words it could not
+ *                deliver
+ *   slow steering  make `_session/steering` answer two seconds late from here
+ *                on, so a cancel can overtake a steer already in flight
  *   model <id>   switch the model the way the wrapped CLI does — which is to
  *                say silently, and not observably until the NEXT turn
  *   reconfig     re-announce the session's config options unchanged, the way
@@ -169,6 +174,36 @@ let cancelled = false
 /** Whether we shut our own stdin (`deaf`). Read where the end of that pipe
  *  would otherwise mean the client had gone. */
 let deaf = false
+/** Whether a turn is in flight right now. The one flag `_session/steering`
+ *  reads, and the reason it is a flag rather than a look at the queue: a steer
+ *  is answered from the READ LOOP, while the turn it is about is still sitting
+ *  in `handle`. */
+let running = false
+/** What has been steered into the turn in flight and not yet acted on, in the
+ *  order it arrived. Drained by the turn itself ({@link takeSteering}) — which
+ *  is the whole difference a scenario can see between a message that steered a
+ *  turn and one that waited for it. */
+const steered: Array<string> = []
+/** Whether `_session/steering` refuses from here on (`refuse steering`). An
+ *  agent that is alive, listening, and cannot be told anything more until its
+ *  turn is over — which is the one case where a person's words have nowhere to
+ *  go but back on the screen. */
+let steerRefused = false
+/**
+ * How long `_session/steering` sits on a steer before answering (`slow
+ * steering`). Zero answers off the read loop, which is what every other
+ * scenario wants and what a real adapter does.
+ *
+ * A delay is the only way to stage the ORDERING a client can get wrong: a
+ * person sends mid-turn and then cancels, and the steer answers after the turn
+ * it was aimed at is gone. Long enough that the cancel always wins — the
+ * scenario presses one button after the other, which is hundreds of
+ * milliseconds — and it is the only direction that can flake, since a steer
+ * that answered too EARLY would simply be injected and the scenario would say
+ * so.
+ */
+let steerDelayMs = 0
+const SLOW_STEER_MS = 2_000
 /** Whether `session/list` refuses from here on (`lose the conversations`). A
  *  prompt rather than an environment variable, because boot ASKS — a server
  *  that refused from the start would fail its own boot instead of reaching the
@@ -482,6 +517,10 @@ const HOLD_LIMIT_MS = 30_000
 const released = async (onTick?: () => void): Promise<void> => {
   const marker = `${cwd}/${RELEASE}`
   for (let waited = 0; waited < HOLD_LIMIT_MS; waited += 100) {
+    // FIRST, before the release is even looked for, because that is the claim
+    // under test: a message steered into a turn is acted on by the turn that
+    // is still running, not by the one after it.
+    await takeSteering()
     if (existsSync(marker)) {
       rmSync(marker, { force: true })
       return
@@ -490,6 +529,34 @@ const released = async (onTick?: () => void): Promise<void> => {
     await sleep(100)
   }
   noise("fake agent: nothing released the held turn; going on anyway")
+}
+
+/**
+ * Act on what was steered in, INSIDE the turn that is still running.
+ *
+ * A DELIBERATE SUBSET of what a prompt can ask for: a steered message is
+ * followed as an instruction, not run as a whole turn — there is no second
+ * `stopReason` to send and nothing here may hold, or a steer could wedge the
+ * turn it was steering. `done` is spelled out because it is the one a scenario
+ * can see from the outside (the checkbox moves while the agent is still
+ * working); everything else is answered in prose, which is enough to prove the
+ * words arrived.
+ */
+const takeSteering = async (): Promise<void> => {
+  // `splice(0)` takes the whole list and leaves it empty, so nothing steered
+  // WHILE this is awaiting a tool call is lost or double-run — and there is no
+  // unreachable `?? ""` standing in for a `shift` the loop guard already made
+  // impossible.
+  for (const text of steered.splice(0)) {
+    const [verb, ...rest] = text.trim().split(/\s+/)
+    const argument = rest.join(" ")
+    if (verb === "done") {
+      await useTool("set_done", { id: argument })
+      say(` — steered mid-turn: marked \`${argument}\` done.`)
+      continue
+    }
+    say(` — steered mid-turn: ${text}`)
+  }
 }
 
 /**
@@ -627,9 +694,22 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     process.exit(1)
   }
 
+  // BEFORE the bare `slow` below, which would otherwise swallow it. From here
+  // on a steer takes {@link SLOW_STEER_MS} to answer, which is how a scenario
+  // gets a cancel onto the wire ahead of a steer that is already in flight.
+  if (verb === "slow" && argument === "steering") {
+    steerDelayMs = SLOW_STEER_MS
+    say("steering will answer slowly from here on.")
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "slow") {
     say("thinking")
-    for (let tick = 0; tick < 200 && !cancelled; tick++) await sleep(50)
+    for (let tick = 0; tick < 200 && !cancelled; tick++) {
+      await takeSteering()
+      await sleep(50)
+    }
     respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
     return
   }
@@ -676,6 +756,16 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "picture") {
     say("here it is:")
     showPicture()
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // From now on there is no way to reach the turn in flight. The words a
+  // person types during one have nowhere to go, and the panel owes them the
+  // row rather than a queue.
+  if (verb === "refuse" && argument === "steering") {
+    steerRefused = true
+    say("steering refused from here on.")
     respond(id, { stopReason: "end_turn" })
     return
   }
@@ -1185,6 +1275,58 @@ const replay = (): void => {
   })
 }
 
+/** The steering extension's method name, as the real adapter spells it. */
+const STEER_METHOD = "_session/steering"
+
+/** The words out of a `prompt` array, which the two lanes that take one — a
+ *  turn and a steer — must read IDENTICALLY. Written twice, it was the cast
+ *  that would have drifted: a lane taught to filter on `type === "text"` or to
+ *  read an image block while the other was not would pass every scenario while
+ *  quietly dropping content on one side. */
+const promptTextOf = (params: Record<string, unknown>): string =>
+  ((params["prompt"] ?? []) as ReadonlyArray<{ text?: string }>)
+    .map((block) => block.text ?? "")
+    .join("")
+
+/**
+ * A message put INTO the turn that is running, answered from the read loop.
+ *
+ * Three answers, and the client has to tell them apart:
+ *
+ *   - a turn is running → the message joins it (`injected`) and the turn acts
+ *     on it before it ends ({@link takeSteering});
+ *   - nothing is running → `promptRequired`, which hands the message BACK
+ *     rather than starting a turn nobody asked for. The client only steers
+ *     while it believes a turn is running, so this is the race — and a client
+ *     that took it as delivered would lose the message;
+ *   - `refuse steering` was asked for → a JSON-RPC error, which is an agent
+ *     that cannot be reached mid-turn at all.
+ */
+const steerTurn = (id: unknown, params: Record<string, unknown>): void => {
+  // WHETHER A TURN IS RUNNING IS READ WHEN THE ANSWER IS SENT, not when the
+  // request arrives, and with `slow steering` armed those are different
+  // moments. That is the whole of what the delay buys: a cancel can overtake a
+  // steer on the wire, and the answer that comes back — "nothing to steer" —
+  // is then about a turn a PERSON stopped rather than one that finished.
+  const answer = (): void => {
+    if (steerRefused) {
+      refuse(id, -32000, "this turn cannot be steered")
+      return
+    }
+    if (!running) {
+      respond(id, { outcome: "promptRequired", reason: "noRunningTurn" })
+      return
+    }
+    steered.push(promptTextOf(params))
+    respond(id, { outcome: "injected" })
+  }
+  if (steerDelayMs === 0) {
+    answer()
+    return
+  }
+  setTimeout(answer, steerDelayMs)
+}
+
 const handle = async (message: Record<string, unknown>): Promise<void> => {
   const id = message["id"]
   const method = message["method"]
@@ -1201,6 +1343,12 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           ...(stored() ? { sessionCapabilities: { list: {} } } : {}),
         },
         agentInfo: { name: "fake-acp-agent", version: "0.1.0" },
+        // No steering advertisement, and its absence is a claim: the real
+        // adapter does advertise one (top-level `_meta`), and the client
+        // deliberately does not read it — a steer that goes out to an agent
+        // that never said it could steer is answered by the REQUEST, which is
+        // the only thing that can actually prove it. This file steers fine
+        // without saying so, which is that arrangement under test.
       })
       return
 
@@ -1266,11 +1414,21 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/prompt": {
-      const blocks = (params["prompt"] ?? []) as ReadonlyArray<
-        { type?: string; text?: string }
-      >
-      const text = blocks.map((block) => block.text ?? "").join("")
-      await runTurn(id, text)
+      const text = promptTextOf(params)
+      // The flag the steer handler reads, and it must come off however the
+      // turn ends — a crash of a turn that left it set would make every later
+      // steer claim to have been injected into nothing.
+      running = true
+      try {
+        await runTurn(id, text)
+      } finally {
+        running = false
+        // Anything steered into a turn that never paused to look goes with
+        // that turn. The instant verbs here are over before a steer can land,
+        // and carrying one into the NEXT turn would be this file keeping the
+        // very queue its client just stopped keeping.
+        steered.length = 0
+      }
       return
     }
 
@@ -1299,6 +1457,15 @@ readMessages(
     if (message["method"] === "session/cancel") {
       cancelled = true
       withdrawRequests()
+      return
+    }
+    // ... and so must a steer, for the same reason and more so: the whole
+    // point of it is to reach the turn that is running, and a steer that
+    // waited in the queue behind that turn would BE the queue this file's
+    // client just stopped keeping. Answered here, off the read loop, while
+    // `handle` is still sitting inside `runTurn`.
+    if (message["method"] === STEER_METHOD) {
+      steerTurn(message["id"], (message["params"] ?? {}) as Record<string, unknown>)
       return
     }
     // An answer to something WE asked. It cannot go through the queue: the turn

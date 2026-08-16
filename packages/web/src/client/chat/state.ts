@@ -153,6 +153,11 @@ export interface Chat {
    *  rub out the last one's. The caller collects them and says them once
    *  ({@link Chat.refuse}). */
   readonly attach: (file: File) => Promise<Uploaded>
+  /** Try a message the agent would not take again — `id` is the row's own key,
+   *  and the SERVER still holds the prompt behind it. Nothing is rebuilt here:
+   *  the row carries its pictures by name, and a retry assembled from what is
+   *  on screen would be a different message. */
+  readonly resend: (id: string) => void
   readonly cancel: () => void
   readonly newSession: () => void
   readonly loadSession: (id: string) => void
@@ -293,6 +298,7 @@ export const createChat = (): Chat => {
           },
         )
       }),
+    resend: (id) => verb(olai.procedures.chat.resend({ id })),
     cancel: () => verb(olai.procedures.chat.cancel()),
     newSession: () => verb(olai.procedures.chat.newSession()),
     loadSession: (id) => verb(olai.procedures.chat.loadSession({ id })),

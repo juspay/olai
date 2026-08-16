@@ -154,6 +154,89 @@ const stringIn = (
   return typeof value === "string" && value !== "" ? value : null
 }
 
+// ── steering a turn that is already running ────────────────────────────
+
+/**
+ * The request that puts a message INTO the turn already in flight, rather than
+ * behind it.
+ *
+ * A `session/prompt` sent while a turn runs is not this: the adapter enqueues
+ * it and the agent reaches it when the running turn is over, which is the same
+ * waiting olai used to do for itself with the same words held out of sight.
+ * This one is delivered at the SDK's `now` priority — it pre-empts the current
+ * generation and lands between the turn's own steps — so what a person typed
+ * reaches the model that is working, which is the whole point of typing it
+ * then.
+ *
+ * An EXTENSION, hence the leading underscore, and named for the agreed ACP
+ * steering wire protocol rather than for one adapter — but it is read here
+ * with everything else that is a bet on the agent, because a bet it is. The
+ * losing direction is the safe one and is the only one it loses in: an agent
+ * without this refuses the method, which is a refusal a caller already has to
+ * handle (a dead pipe, a deadline) and which reaches a person as the row
+ * keeping their words. `initialize` also ADVERTISES the extension, in a
+ * top-level `_meta`; reading that would be predicting what the request proves,
+ * so nothing here does.
+ */
+export const STEER_METHOD = "_session/steering"
+
+/**
+ * How a steer that found NOTHING RUNNING should behave, in the request's own
+ * `_meta`.
+ *
+ * The default is for the agent to start a fresh turn of its own, detached —
+ * which would be a turn olai never asked for, never tracked and could not
+ * cancel, reporting through the transcript from nowhere. `promptRequired`
+ * hands the message BACK instead ("nothing to steer; send it yourself"), which
+ * is the only outcome a client that owns its turns can use. Olai only steers
+ * while it believes a turn is running, so this is the answer to the race
+ * rather than the ordinary path: the adapter settled while the send was on its
+ * way, and it says so instead of inventing a turn.
+ */
+export const STEER_WHEN_IDLE = {
+  steering: { idleBehavior: "promptRequired" },
+}
+
+/**
+ * How long a steer may go unanswered before the words go back to the person
+ * who typed them.
+ *
+ * HERE and not beside the transport's other deadlines, because its warrant is
+ * a claim about this extension rather than about a pipe. `boot` and `load` are
+ * bounded on "the process did not answer", which is true of any agent; this
+ * one rests on what the adapter DOES with a steer — it answers as soon as the
+ * message is on the SDK's input, long before the turn does anything with it —
+ * so silence past this is not a slow turn but an agent that stopped listening.
+ * An agent that answered steers late would be one file's problem, and this is
+ * the file.
+ *
+ * A prompt, by contrast, gets no deadline at all: that one really is a person
+ * waiting on a language model.
+ */
+export const STEER_TIMEOUT = "30 seconds"
+
+/**
+ * Whether the steer went INTO the running turn, out of what the agent
+ * answered.
+ *
+ * Read POSITIVELY, and this is the one reading here whose losing direction is
+ * worth spelling out because it is not the usual one. `injected` is the only
+ * outcome that counts as taken; `promptRequired`, a legacy `startedNewTurn`,
+ * and anything a future version of the extension answers all read as NOT
+ * taken, which sends the message again as an ordinary prompt. The worst case
+ * of that is a message the agent hears twice; the worst case of reading an
+ * unknown outcome as taken is a message nobody has, and between a duplicate
+ * and a disappearance there is no contest.
+ *
+ * Here rather than at the call site for the reason {@link liveModelIn} is: it
+ * is a value one adapter's extension chose, and the file that is wrong about a
+ * different agent should be the file that names it. The REQUEST's spellings
+ * are already above; leaving the RESPONSE's in the caller was the same bet
+ * read in two places.
+ */
+export const steerTaken = (answered: unknown): boolean =>
+  (answered as { readonly outcome?: unknown } | null | undefined)?.outcome === "injected"
+
 // ── which model a turn is running on ───────────────────────────────────
 
 /** What `session/new` asks the Claude Code adapter to forward, and why: the

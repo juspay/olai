@@ -20,12 +20,26 @@
  * every turn it asserts on, and which exercises the subprocess and the wire
  * that an injected object would replace with an assumption.
  *
- * Three decisions worth naming:
+ * Four decisions worth naming:
  *
  *   - **a turn is accepted, not awaited.** `send` answers the moment the prompt
  *     is on the wire; what happens next arrives on the transcript, so every open
  *     tab stays in step and a five-minute turn is not a five-minute call. The
  *     turn runs on its own fiber, and the `thinking` state is what says so.
+ *   - **what is typed goes out IMMEDIATELY, always, and this file holds
+ *     nothing.** A message sent while a turn runs is STEERED into that turn
+ *     ({@link ./agent.ts}'s `steer`), so the agent hears it while it is still
+ *     working — which is the only moment saying it is worth anything. There
+ *     used to be a queue here: a mid-turn prompt went into an array, waited for
+ *     the turn to end, and was thrown away by the next cancel. That destroyed
+ *     user words with no copy anywhere — the transcript is not persisted, the
+ *     agent's own session is the persistence, and a message that never reached
+ *     the session was never in it. The queue is gone rather than fixed, and
+ *     with it the reason a cancel had anything to decide: everything typed has
+ *     already been delivered, so cancel means stop the agent and nothing else.
+ *     Delivery that genuinely fails is said ON THE ROW — `unsent`, retryable by
+ *     a person and by nobody else — because the alternative to holding words
+ *     out of sight is not dropping them, it is showing them.
  *   - **the refusals the ops layer produces are OURS to render.** The agent gets
  *     the structured detail in its tool result, but what it then says about it
  *     is prose. So the MCP layer tells us about every refusal and it lands in
@@ -110,6 +124,13 @@ export interface Chat {
   readonly attach: (
     chunk: AttachChunk,
   ) => Effect.Effect<Attached, OpFailure>
+  /** Deliver a message the agent would not take, again — `id` is the `user`
+   *  row's own key. The prompt is the one that failed, kept beside that row
+   *  ({@link ./transcript.ts}) with its pictures and node lines, so what lands
+   *  is the same message rather than a browser's reconstruction of it. Refuses
+   *  when that row is not waiting to be sent, which two tabs can genuinely
+   *  race. */
+  readonly resend: (id: string) => Effect.Effect<void, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
   readonly newSession: Effect.Effect<void, OpFailure>
   readonly loadSession: (id: string) => Effect.Effect<void, OpFailure>
@@ -148,6 +169,49 @@ export interface Chat {
  */
 const CANCEL_GRACE = "5 seconds"
 
+/**
+ * What a person is told when their own cancel overtook their own message.
+ *
+ * The words are kept and the row is retryable, like every other way a steer
+ * fails to land — but the reason is worth saying differently, because this one
+ * is not the agent's doing. Both buttons are on screen at once by design, and
+ * pressing them in quick succession is a coherent thing to want: say the next
+ * thing, then decide the whole turn was wrong. What must not happen is the
+ * message quietly starting the turn back up.
+ */
+const CANCELLED_UNDER_IT =
+  "the turn was stopped before this reached it — the message below is still yours to send"
+
+/**
+ * The turn in flight, as a TICKET rather than as a fiber handle.
+ *
+ * It exists because the fiber does not, yet: the ticket is written down before
+ * the fork, so there is no window in which a turn is running and nothing says
+ * so. The fiber is filled in a moment later, for the one caller that has to
+ * interrupt it.
+ *
+ * Its real job is IDENTITY. A turn that ends reports where it stands — idle,
+ * or gone — and a turn that was superseded must report nothing, or a settling
+ * turn would talk over the one that replaced it. Comparing the ticket is what
+ * separates "the turn I am is still the turn" from "some turn ended", which a
+ * status flag cannot answer and a null check gets wrong exactly when it
+ * matters.
+ */
+interface Turn {
+  fiber: Fiber.Fiber<unknown, unknown> | null
+  /**
+   * Somebody asked THIS turn to stop.
+   *
+   * It outlives the turn on purpose, because the thing that needs it is a
+   * steer still on the wire: a message aimed at a turn a person then cancelled
+   * comes back "nothing to steer", which is indistinguishable from the turn
+   * having simply ended — unless the ticket it was aimed at remembers being
+   * stopped. Without that, the two are the same answer and the message starts
+   * a fresh turn the person just pressed a button to end.
+   */
+  stopped: boolean
+}
+
 export const make = (options: Options): Effect.Effect<Chat, never, never> =>
   Effect.gen(function*() {
     // A FACTORY over the handler, because the two are mutually referential:
@@ -180,15 +244,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     // being started. Restating the other four here would be a second place to
     // remember when the state gains a fifth.
     let state: ChatState = { ...CHAT_OFF, status: "booting" }
-    /** The turn in flight, so a second `send` knows to queue behind it and a
-     *  cancel has something to aim at. */
-    let turn: Fiber.Fiber<unknown, unknown> | null = null
-    /** Typed while a turn was running, in the order it was typed. Drained by
-     *  the turn's own fiber as it ends — see {@link begin}. */
-    const queue: Array<string> = []
+    /** The turn in flight, so a second `send` knows to STEER rather than start
+     *  one and a cancel has something to aim at. See {@link Turn}. */
+    let turn: Turn | null = null
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
+    /** One delivery decision at a time — see {@link deliver}. Deciding which
+     *  lane a message takes means reading whether a turn is running, and taking
+     *  that lane means writing it; two sends interleaving between the two would
+     *  start two turns where the panel can only report one. Its own permit
+     *  rather than {@link switching}'s, because that one is held across a
+     *  three-megabyte attachment chunk and a send should not queue behind a
+     *  picture. */
+    const sending = yield* Semaphore.make(1)
     /** Everything the agent has said, counted. See {@link receive}. */
     let heard = 0
 
@@ -353,19 +422,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       new BusyFailure({ reason: gone.why })
 
     /**
-     * Send, or QUEUE — and which one is not the sender's problem.
+     * Send. Not "send or queue" — SEND, whatever the agent is doing.
      *
      * An agent holds the floor for minutes at a time, and a person watching it
      * work thinks of the next thing well before it is finished. Refusing that
-     * message made them hold it in their head and come back; the panel even
-     * turned the box off while it did, so the thought had nowhere to go at all.
-     * Everything typed is accepted, in the order it was typed, and the turns
-     * run one after another.
+     * message made them hold it in their head and come back; queueing it made
+     * the panel hold it for them, out of sight, until the turn it should have
+     * changed was over — and then a cancel threw it away. Both were the same
+     * mistake: treating a message typed DURING a turn as a message about the
+     * next one.
      *
-     * A queued message is a ROW the moment it is sent — it is what was said,
-     * and the order is the order it will be asked in. What the count on the
-     * state adds is only that the agent has not reached it yet, which is a fact
-     * about the agent rather than about the message.
+     * So it goes to the agent now, and where "now" lands depends on the agent
+     * rather than on this file: an idle one gets a prompt and a working one is
+     * STEERED ({@link deliver}). Either way the row is written first and the
+     * words are on screen before anything is on the wire.
      */
     const send = (
       text: string,
@@ -390,84 +460,183 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // tabs see it and a send that fails does not leave one behind. What
         // the ROW carries is the file NAMES: the tmp path is for the agent,
         // and a reader wants to see which picture went with which message.
-        publish(
-          transcript.add("user", said, {
-            ...(attachments.length === 0
-              ? {}
-              : { attachments: attachments.map(Attachments.nameOf) }),
-            // The nodes as the set answered for them, in the row rather than
-            // only in the prompt: what the message was ABOUT is part of what
-            // was said, so it survives a reload and reaches the other tab like
-            // everything else here.
-            ...(context.length === 0 ? {} : { context }),
-          }),
-        )
+        const row = transcript.user(said, {
+          ...(attachments.length === 0
+            ? {}
+            : { attachments: attachments.map(Attachments.nameOf) }),
+          // The nodes as the set answered for them, in the row rather than
+          // only in the prompt: what the message was ABOUT is part of what
+          // was said, so it survives a reload and reaches the other tab like
+          // everything else here.
+          ...(context.length === 0 ? {} : { context }),
+        })
+        publish(row.change)
 
         const prompt = Attachments.promptWith(
           Context.promptWith(said, context),
           attachments,
         )
-        if (turn !== null) {
-          queue.push(prompt)
-          move({ queued: queue.length, trouble: null })
-          return
-        }
-        yield* begin(prompt)
+        yield* deliver(row.key, prompt)
       })
 
-    /** Run one prompt as a turn, and take the next one waiting when it ends.
+    /**
+     * Get one prompt to the agent NOW, whatever it is doing — and, when that
+     * cannot be done, leave the words with the person who typed them.
      *
-     *  Accepted, not awaited: the turn runs on its own fiber and reports
-     *  through the transcript, so a five-minute turn is not a five-minute
-     *  call. The queue is drained from INSIDE that fiber, which is what makes
-     *  "one turn at a time" true without anything having to poll for it. */
+     * A working agent is STEERED, which hands the message to the turn already
+     * running and starts nothing; everything else PROMPTS, which starts a turn
+     * this file owns. The ordinary prompt is the fall-through rather than a
+     * second branch, because the two ways of reaching it are the same ending: an
+     * agent that was idle when we looked, and one that turned out to be idle
+     * when the steer got there. That second one is the RACE — olai steers only
+     * while it believes a turn is running, and the agent can settle in between —
+     * and the agent says so rather than inventing a turn ({@link
+     * ./interpret.ts}'s `STEER_WHEN_IDLE`).
+     *
+     * UNDER A PERMIT, because the first thing it does is read which lane to take
+     * and the last thing it does is take it. Two tabs sending at an idle agent
+     * both read `turn === null` otherwise, and both start a turn: the second
+     * ticket replaces the first, whose end is then correctly silenced as a turn
+     * that was superseded — so a real turn would end with the panel saying
+     * nothing about it. The ticket answers WHICH turn is speaking; it was never
+     * going to answer how many may start, and narrowing that window is not
+     * closing it. The permit is held for one round trip: `begin` forks rather
+     * than awaiting a turn, and a steer answers as soon as the message is on the
+     * agent's input.
+     *
+     * WHAT THE PERMIT DOES NOT COVER IS CANCEL, and it must not: a person who
+     * has sent a message and then thought better of the whole turn is pressing
+     * the one button that has to work while something else is in flight. So a
+     * steer can be overtaken — cancel wins the pipe, the turn ends, and the
+     * steer comes back saying there was nothing to steer. That answer is the
+     * same one the settle race gives, and the two want opposite things done:
+     * one is a turn that finished on its own and the message becomes an
+     * ordinary prompt; the other is a turn a person STOPPED, and starting a
+     * fresh one with the message they sent into it would be the panel
+     * un-cancelling on their behalf. The ticket the steer was aimed at is what
+     * tells them apart — see {@link Turn.stopped}.
+     */
+    const deliver = (key: string, prompt: string): Effect.Effect<void> =>
+      sending.withPermit(Effect.gen(function*() {
+        // WHICH turn this steer is aimed at, kept rather than re-read: by the
+        // time it answers, `turn` may be null, or somebody else's.
+        const aimed = turn
+        if (aimed !== null) {
+          const steered = yield* Effect.result(agent.steer(prompt))
+          if (steered._tag === "Failure") {
+            return undeliverable(key, prompt, steered.failure.message)
+          }
+          if (steered.success === "taken") {
+            // Delivered, and into the turn a person could see running — so a
+            // banner about the last thing that went wrong is a banner about
+            // something the agent has visibly moved on from.
+            return move({ trouble: null })
+          }
+          if (aimed.stopped) return undeliverable(key, prompt, CANCELLED_UNDER_IT)
+        }
+        yield* begin(prompt)
+      }))
+
+    /**
+     * The agent would not take it: the row says so and keeps the prompt
+     * ({@link ./transcript.ts}), and the banner says why. Nothing is dropped
+     * and nothing is retried — {@link Chat.resend} is a person's click and is
+     * the only thing that moves this.
+     *
+     * TWO CERTAINTIES AND ONE INFERENCE, and it is worth being straight about
+     * which is which. A steer the agent ANSWERED with an error — a method it
+     * does not have, a session it does not know — did not arrive, full stop. A
+     * steer that could not be WRITTEN did not arrive either. A steer that went
+     * unanswered until {@link ./agent.ts}'s deadline is the inference: it
+     * probably never landed, but an agent that took the message and then went
+     * quiet looks identical from here.
+     *
+     * It is marked anyway, and the reason it is safe to is that nothing here
+     * ACTS on the mark — the retry is a person's click, made while looking at
+     * the row and at whatever the turn did next. That is the whole difference
+     * from a turn that DIED mid-prompt ({@link begin}), which is not marked at
+     * all: there the agent demonstrably received the prompt and worked on it,
+     * so a button offering to send it again would be offering a duplicate to
+     * somebody with no way to tell.
+     */
+    const undeliverable = (key: string, prompt: string, why: string): void => {
+      publish(transcript.unsent(key, prompt))
+      move({ trouble: why })
+    }
+
+    /**
+     * Run one prompt as a turn.
+     *
+     * Accepted, not awaited: the turn runs on its own fiber and reports through
+     * the transcript, so a five-minute turn is not a five-minute call.
+     *
+     * The ticket is written down BEFORE the fork and the fiber is filled in
+     * after, so a turn is on the record from the instant it starts rather than
+     * from whenever the fork returns. That NARROWS the window a concurrent
+     * send would read to decide between prompting and steering; what CLOSES it
+     * is {@link deliver}'s permit, because no amount of narrowing makes a
+     * read-then-write atomic and the ticket was never the mechanism for that.
+     *
+     * What the ticket is for is IDENTITY: the fiber's own reports are gated on
+     * still BEING the turn, because a turn that settled while its replacement
+     * was starting has nothing true left to say about where the conversation
+     * stands, and saying it anyway would mark a thinking panel idle.
+     */
     const begin = (prompt: string): Effect.Effect<void> =>
       Effect.gen(function*() {
-        move({ status: "thinking", trouble: null, queued: queue.length })
+        const ticket: Turn = { fiber: null, stopped: false }
+        turn = ticket
+        move({ status: "thinking", trouble: null })
 
         const running = yield* Effect.forkDetach(
           Effect.gen(function*() {
             const outcome = yield* Effect.result(agent.prompt(prompt))
             publish(transcript.settle())
+            // Whether this turn is still THE turn. The notices go in either
+            // way — they are things that happened, and they happened — and
+            // only the state is withheld.
+            const current = turn === ticket
             if (outcome._tag === "Failure") {
-              // The agent is not there, so the queue is not going anywhere
-              // either. Saying how many were dropped beats leaving them to be
-              // sent by whatever comes back.
-              dropQueue("the agent stopped")
+              // NOT marked `unsent`, and that boundary is deliberate: this
+              // failure is a turn that died, and from here there is no telling
+              // whether the agent read the prompt first. `unsent` means WE
+              // KNOW it did not go — a steer the agent refused, a method it
+              // does not have — and offering to send this one again would be
+              // offering to send it twice. The words are on the row either
+              // way, which is the promise; the button is only on the rows
+              // where pressing it is honest.
               publish(transcript.add("notice", outcome.failure.message))
-              move({ status: "gone", trouble: outcome.failure.message })
+              if (current) move({ status: "gone", trouble: outcome.failure.message })
               return
             }
+            // Cancelling means stop, and it means only that now: everything
+            // typed reached the agent when it was typed, so there is nothing
+            // left here for a cancel to decide the fate of.
             if (outcome.success === "cancelled") {
-              // Cancelling means stop, and a queue that carried on afterwards
-              // would be the panel deciding it knew better.
-              dropQueue("cancelled")
               publish(transcript.add("notice", "cancelled"))
             }
             // A turn that came back is the proof that whatever went wrong
             // before has stopped being true. Leaving the banner up after it
             // would make the panel report a state it can see it is not in.
-            move({ status: "idle", trouble: null })
+            if (current) move({ status: "idle", trouble: null })
           }).pipe(
             Effect.ensuring(Effect.sync(() => {
-              turn = null
-            })),
-            // AFTER the fiber's own `ensuring`, so `turn` is already null and
-            // the next `begin` is starting from the same state a fresh one
-            // would. Recursion, one turn deep at a time.
-            Effect.andThen(Effect.suspend(() => {
-              const next = queue.shift()
-              return next === undefined
-                ? Effect.sync(() => move({ queued: 0 }))
-                : begin(next)
+              if (turn === ticket) turn = null
             })),
           ),
         )
-        turn = running
+        ticket.fiber = running
       })
 
     /**
      * Stop the turn — and say so when it DOES NOT STOP.
+     *
+     * STOP THE AGENT AND NOTHING ELSE, which is the whole of what it means now:
+     * everything typed went to the agent as it was typed, so there is no
+     * second question here about what to do with the messages behind it. There
+     * used to be — a cancel dropped the queue, out loud, and out loud is not the
+     * same as out of harm's way: what a person read was a notice counting the
+     * sentences they had just lost.
      *
      * The refusal channel is the easy half and it was missing: `agent.cancel`
      * used to swallow the notification's own failure, so a cancel that could
@@ -505,11 +674,19 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       const asked = turn
       yield* Effect.mapError(agent.cancel, asFailure)
       if (asked === null) return
+      // Written on the TICKET, and after the cancel is on the wire rather than
+      // before, because a cancel that could not be delivered stopped nothing.
+      // What reads it is a steer still in flight against this same turn: it is
+      // about to come back "nothing to steer", and this is the only thing that
+      // says the reason was a person rather than the turn finishing. It
+      // outlives the turn, which is the point — by then the ticket is all that
+      // is left of it.
+      asked.stopped = true
       const quietSince = heard
       yield* Effect.forkDetach(Effect.gen(function*() {
         yield* Effect.sleep(CANCEL_GRACE)
         // A DIFFERENT turn is a turn that ended and was replaced, which is the
-        // cancel having worked; `null` is the same. Comparing the fiber rather
+        // cancel having worked; `null` is the same. Comparing the ticket rather
         // than the status is what makes the second press of the button about
         // the turn it was pressed for.
         if (turn !== asked) return
@@ -524,20 +701,42 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }))
     })
 
-    /** Forget what is waiting, and say so. Called wherever the thing they were
-     *  queued behind has stopped meaning what it meant. */
-    const dropQueue = (why: string): void => {
-      if (queue.length === 0) return
-      const dropped = queue.length
-      queue.length = 0
-      publish(
-        transcript.add(
-          "notice",
-          `${dropped} queued message${dropped === 1 ? "" : "s"} dropped — ${why}`,
-        ),
-      )
-      move({ queued: 0 })
-    }
+    /**
+     * Try an undelivered message again, on a person's say-so.
+     *
+     * The prompt is the one that failed rather than one rebuilt from the row:
+     * the row carries the pictures' NAMES and the prompt carries their paths,
+     * so a retry read off the screen would be a different message wearing the
+     * same words.
+     *
+     * A retry that fails again leaves the row exactly as it was — still there,
+     * still retryable, with the new reason on the banner — because the one
+     * thing this must never do is make words disappear on their way to
+     * failing. That falls out of unmarking FIRST: `deliver` marks it again on
+     * the one path that marks anything, rather than this deciding not to
+     * unmark it and having a second opinion about what happened.
+     *
+     * TAKING the prompt is one step with reading it, under {@link deliver}'s
+     * own permit, and that is what makes a second click a refusal rather than
+     * a second send: whichever press gets there first leaves with the prompt,
+     * and the other finds nothing waiting. Two clicks both reading a non-null
+     * prompt before either unmarked would send the message twice, which is the
+     * one outcome an undelivered row must not be able to produce.
+     */
+    const resend = (id: string): Effect.Effect<void, OpFailure> =>
+      Effect.gen(function*() {
+        const prompt = yield* sending.withPermit(Effect.sync(() => {
+          const waiting = transcript.undelivered(id)
+          if (waiting !== null) publish(transcript.sent(id))
+          return waiting
+        }))
+        if (prompt === null) {
+          return yield* new UsageFailure({
+            reason: "that message is not waiting to be sent — it went, or its conversation did",
+          })
+        }
+        yield* deliver(id, prompt)
+      })
 
     /** Move to another conversation. The `done` frame of a cancelled turn
      *  follows on its own — the agent decides how a turn ended, and a cancel
@@ -552,7 +751,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               reason: "a turn is running; cancel it before switching conversations",
             })
           }
-          dropQueue("this conversation is being left")
           // The pictures went with it. They exist so that a prompt in THIS
           // conversation can name them, and no prompt in the next one will.
           yield* files.discard
@@ -580,6 +778,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // an upload. It also makes the collision suffix sound within a process:
       // two tabs pasting `shot.png` at the same moment cannot both pick it.
       attach: (chunk) => switching.withPermit(files.receive(chunk)),
+      resend,
       // A cancel the agent never took is a refusal like any other, and the
       // click that asked for it is what hears about it — the same treatment
       // `sessions` gets, and for the same reason: a verb that could not be
@@ -632,7 +831,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         )
       }),
       stop: Effect.gen(function*() {
-        const running = turn
+        const running = turn?.fiber ?? null
         turn = null
         if (running !== null) yield* Fiber.interrupt(running)
         yield* agent.stop

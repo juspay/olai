@@ -92,6 +92,10 @@ export function Entry(props: {
     if (props.entry.streaming !== true) return text
     return due() ? text : previous
   })
+  /** The agent would not take this message — read once, because the bubble and
+   *  the strip under it are two views of the one fact and a second `=== true`
+   *  is a second chance to spell it differently. */
+  const unsent = () => props.entry.unsent === true
 
   // ONLY for the agent's own prose, which is the only row that has rendered
   // markdown in it — and `kind` never changes for an entry, so this is a
@@ -152,11 +156,47 @@ export function Entry(props: {
             <Attachments names={props.entry.attachments ?? []} />
             <Show when={props.entry.text !== ""}>
               <p
-                class="whitespace-pre-wrap rounded border border-accent/30 bg-accent/10 px-2 py-1.5 text-sm text-ink"
+                class={`whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
+                  unsent()
+                    ? "border border-dashed border-alarm bg-alarm/5"
+                    : "border border-accent/30 bg-accent/10"
+                }`}
                 data-testid={TESTID.chatMine}
               >
                 {props.entry.text}
               </p>
+            </Show>
+            {/* IT NEVER WENT — and the words are still here, which is the whole
+                of the promise. The bubble goes dashed and alarm-edged rather
+                than being replaced by a notice, because what a person wants to
+                see is the message they typed, exactly as they typed it; what
+                they want to know is that the agent has not got it, and what
+                they want next is one press to try again. Nothing retries on
+                its own: the send that failed already happened without being
+                asked twice. */}
+            <Show when={unsent()}>
+              <div
+                class="mt-1 flex items-center gap-2"
+                data-testid={TESTID.chatUnsent}
+              >
+                <span class="font-mono text-[0.6875rem] text-alarm">
+                  not sent
+                </span>
+                {/* The quiet pill's shape in the transcript's own scale, and
+                    that divergence says why in place, as `../pill.ts` asks of
+                    every lookalike: this button sits in a line of 11px mono
+                    with `not sent` beside it, and wearing `QUIET_PILL`'s
+                    `text-xs`/`px-2 py-1` would make one control in that line
+                    a size larger than the words it belongs to. */}
+                <button
+                  type="button"
+                  class="rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted hover:text-ink"
+                  data-testid={TESTID.chatResend}
+                  onClick={() => props.chat.resend(props.entry.id)}
+                >
+                  send again
+                </button>
+              </div>
             </Show>
           </div>
         </Match>

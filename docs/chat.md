@@ -51,6 +51,20 @@ Two things follow from it being the agent's number:
 
 What a session has **cost** is on the wire too, and is deliberately not drawn: it is a different question, asked at a different moment, and a second number there would buy nothing for the one this line exists to answer.
 
+## Talking while it works
+
+**The box never locks, and what you type while a turn is running goes to the agent immediately.** It does not wait for the turn to finish — it lands *in* the turn, so an agent halfway through the wrong thing can be redirected while it is still doing it. "not that file, the other one" is worth saying at the moment you notice, and that moment is almost never the moment the agent stops.
+
+The button says **send** the whole time, because that is what it does the whole time. Cancel sits beside it rather than replacing it: sending and stopping are two things you can want at the same moment, and while a turn runs they are usually the two you are choosing between.
+
+**Cancel stops the agent, and only that.** There is nothing else for it to do — every message you have typed already went. This is a change worth knowing about if you used olai before: a message sent mid-turn used to be held until the turn ended, and cancelling threw away everything that was waiting. Those words were nowhere else. They are not held anywhere now, so there is nothing to throw away.
+
+**If a message cannot be delivered, it stays on screen.** It keeps its own bubble, exactly as you typed it, outlined and marked *not sent*, with **send again** underneath. Nothing retries on its own and nothing disappears; whether to try again is yours.
+
+There are four ways to see it, and the last one is the one you are most likely to cause on purpose: an agent that cannot take a message mid-turn at all (the agent olai ships with can), one that has died between your pressing Enter and the message reaching it, one that has gone quiet and not answered within half a minute — and **cancelling while a message is still on its way**. That last one is a fair thing to do: you say the next thing, then decide the whole turn was wrong. The cancel wins, and your message waits on its row rather than quietly starting the turn back up.
+
+The third of those is a guess rather than a certainty, and worth knowing about because of what it means for pressing the button: an agent that took your message and *then* went silent looks exactly like one that never took it. So a *not sent* mark is olai's best reading, not a promise — which is why nothing here re-sends anything for you. Press it when the conversation shows no sign your words arrived.
+
 ## What it can touch
 
 **Olai hands the agent no filesystem.** What olai itself gives it is a closed list of tools that can only name nodes — search, read a subtree, create an outline, add, mark, retitle, note, schedule, move, archive, place a mirror, retire one, and wire what a node waits on — so the edits it can ask *olai* for are the edits the format can be, and a malformed outline is not something that path can produce. When a write is refused, the validator's own rows come back, pinned to the lines they are about; when a write lands but is worth a second look, the answer says so — advice about something that happened, never a refusal.

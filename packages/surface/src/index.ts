@@ -56,8 +56,9 @@
  * {@link ./chat.ts} because they are a subject of their own: a `transcript`
  * COLLECTION (batched deltas, so a late-joining tab sees the conversation), a
  * `chat` CELL (session, model, commands, whether a turn is running, whether it
- * is blocked on a question) and the `chat` PROCEDURES (send, cancel, new, load,
- * list, attach, and the two that answer a question). The agent's WRITES do not
+ * is blocked on a question) and the `chat` PROCEDURES (send, resend, cancel,
+ * new, load, list, attach, and the two that answer a question). The agent's
+ * WRITES do not
  * appear here at all: they reach the ops layer through an internal MCP server
  * the session is handed, and what a reader sees of them is the outline stream
  * moving — server-authoritative, never an optimistic echo.
@@ -389,6 +390,25 @@ export const surface = defineSurface({
            *  the agent to guess which. */
           context: Schema.optionalKey(Schema.Array(Schema.String)),
         }),
+        error: ChatFailure,
+      },
+      /**
+       * Try a message the agent would not take AGAIN — `id` is the `user`
+       * row's own key, the one carrying `unsent`.
+       *
+       * The row is the only copy of those words, so retrying from it is the
+       * only retry that can be whole: the server still holds the prompt it
+       * failed to deliver, pictures and node lines and all, where a browser
+       * re-reading the row would have the names of the pictures and not their
+       * paths. What lands is the same message, not a reconstruction of it.
+       *
+       * A person's click and nothing else drains this. Nothing retries on its
+       * own, which is the difference between a row marked unsent and the queue
+       * this replaced: an undelivered message stays on screen, in the
+       * conversation, until somebody decides what to do with it.
+       */
+      resend: {
+        input: Schema.Struct({ id: Schema.String }),
         error: ChatFailure,
       },
       /** One chunk of a picture, into the conversation's tmp directory.
