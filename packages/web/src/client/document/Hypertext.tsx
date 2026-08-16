@@ -312,12 +312,12 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
    * the same question of before it will draw a `/doc/` address), and a path
    * that is not in there names no page and moves nothing.
    *
-   * THAT MEMBERSHIP IS THE WHOLE GUARANTEE, and saying so is worth a line
-   * because the first draft of this dressed it up: it navigated with the string
-   * the LIST held rather than the one that arrived, as if that were a second
-   * guard. It is not — the two are `===` equal strings, so there is no copy,
-   * nothing is laundered, and the ceremony only made the real test harder to
-   * see. One question, asked the way the page model asks it.
+   * THAT MEMBERSHIP IS THE WHOLE GUARANTEE — one question, asked the way the
+   * page model asks it, and there is no second one hiding behind it. In
+   * particular, navigating with the string the LIST holds rather than with the
+   * one that arrived buys nothing: the two are `===` equal strings, so there is
+   * no copy and nothing is laundered. Anything that reads as a further guard
+   * here is ceremony, and ceremony makes the real test harder to see.
    *
    * A MISS MOVES NOTHING, deliberately, and the tempting alternative is worth
    * naming because it looks kinder: navigating anyway would let this app's own

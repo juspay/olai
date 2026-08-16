@@ -556,6 +556,37 @@ When(
   },
 );
 
+/** WHERE IN ITS PAGE the frame is, as the frame's own `location.hash` — the
+ *  half of "a link with a fragment is left to the frame" that a heading cannot
+ *  say. Read inside the frame, because a fragment is not part of `baseURI` and
+ *  nothing out here can see it. */
+Then(
+  "the preview is at the anchor {string}",
+  async function (this: OlaiWorld, anchor: string) {
+    const frame = await inside(this);
+    await this.waitUntil(
+      async () => (await frame.locator("body").evaluate(() => location.hash)) === anchor,
+      `the preview to be at ${anchor}`,
+    );
+  },
+);
+
+/** A modified click on something in the preview — the press a reader makes when
+ *  they want the BROWSER's behaviour rather than this app's, which is the one
+ *  `press.ts`'s rule (and the copy of it the seal ships) refuses to claim.
+ *  Given a moment afterwards for the same reason the plain click is: what the
+ *  scenario asserts is that something did NOT happen. */
+When(
+  "I {word}-click {string} inside the preview",
+  async function (this: OlaiWorld, modifier: string, selector: string) {
+    const frame = await inside(this);
+    await frame.locator(selector).first().click({
+      modifiers: [modifier === "meta" ? "Meta" : modifier === "shift" ? "Shift" : "Alt"],
+    });
+    await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  },
+);
+
 /**
  * The app, INSIDE the preview — the thing that must never be left there. Read
  * as the mount point rather than as a testid, because `#root` is in the shell's

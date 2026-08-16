@@ -236,6 +236,120 @@ Feature: A `.html` in the vault
     And the address is "/doc/notes/palette.md"
 
   @scratch:good
+  Scenario: A link carrying a fragment stays the frame's, even at the file next door
+    # THE CARVE-OUT, which is load-bearing and was the one kept behaviour with
+    # no scenario. `other.html#beds` names a file olai has a page for, so every
+    # other rule here would claim it — and it must not be claimed, because what
+    # a fragment names is an anchor inside the rendered page and olai's own
+    # `/doc/` page cannot land on one. It is the same call `routeIn` makes about
+    # a link in rendered markdown, and `docs/format.md` states it as part of the
+    # closed bug.
+    #
+    # So the assertion is BOTH halves: the app did not move, and the frame did.
+    # Either alone passes for the wrong reason — an app that stayed put because
+    # the click did nothing at all would look identical from out here.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/first.html" as:
+      """
+      <h1>First</h1>
+      <p><a id="deep" href="second.html#beds">the next page, at its beds</a></p>
+      """
+    And I rewrite "notes/second.html" as:
+      """
+      <h1>Second</h1>
+      <p style="height:1200px">a long page</p>
+      <h2 id="beds">Beds</h2>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/first.html"
+    Then the preview shows the heading "First"
+    When I click "#deep" inside the preview
+    # The app is where it was: this click was never its to answer.
+    Then the address is "/doc/notes/first.html"
+    And the document open is "notes/first.html"
+    And the page has not reloaded
+    # …and the frame went, which is the half that says the click was not merely
+    # swallowed — the neighbour is in there, at the anchor the link named, which
+    # is the thing olai's own page could not have done.
+    And the preview shows the heading "Second"
+    And the preview is at the anchor "#beds"
+
+  @scratch:good
+  Scenario: A click the page has already answered is not the seal's to claim
+    # WHY THE HANDLER IS ON THE BUBBLE, pinned rather than described. The seal's
+    # click handler refuses a press whose default is already prevented — that is
+    # `press.ts`'s rule, shipped — and the only way that can be true of a page
+    # that answers its own links is if the handler runs AFTER the page's own.
+    #
+    # This scenario is what tells the two apart. Registered at the capture
+    # phase, the seal would see the click first, find nothing prevented, claim
+    # it and navigate the app; on the bubble it sees a press the page has
+    # already taken and leaves it alone. A saved page that routes its own links
+    # keeps them, and the unit product over `ours` cannot say so — it knows what
+    # the rule answers, not which listener asks it.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/spa.html" as:
+      """
+      <h1>Spa</h1>
+      <p><a id="own" href="second.html">handled by this page</a></p>
+      <p id="probe">not yet</p>
+      <script>
+        document.getElementById("own").addEventListener("click", function (event) {
+          event.preventDefault()
+          document.getElementById("probe").textContent = "this page answered it"
+        })
+      </script>
+      """
+    And I rewrite "notes/second.html" as:
+      """
+      <h1>Second</h1>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/spa.html"
+    Then the preview shows the heading "Spa"
+    When I click "#own" inside the preview
+    # The page's own handler ran…
+    Then the preview says "this page answered it"
+    # …and neither the app nor the frame moved: the press was the page's.
+    And the address is "/doc/notes/spa.html"
+    And the page has not reloaded
+    And the preview shows the heading "Spa"
+
+  @scratch:good
+  Scenario: A modified click is the browser's business, not olai's
+    # The other half of the same rule, in a real browser rather than in a truth
+    # table: a modified click is a reader asking for the BROWSER's own
+    # behaviour, and no surface in this app claims one.
+    #
+    # What the browser then does with it is not asserted, and that is deliberate
+    # rather than a gap: which modifier opens a tab is a platform's decision (on
+    # Linux this one is a plain navigation, so the frame follows the link), and
+    # a scenario that pinned the frame's fate would be asserting Chromium's
+    # keyboard conventions rather than olai's rule. What is olai's rule, and all
+    # of it, is that the APP does not answer this press — which is exactly what
+    # would break if the seal's handler stopped consulting `ours`.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/first.html" as:
+      """
+      <h1>First</h1>
+      <p><a id="next" href="second.html">the next page</a></p>
+      """
+    And I rewrite "notes/second.html" as:
+      """
+      <h1>Second</h1>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/first.html"
+    Then the preview shows the heading "First"
+    When I meta-click "#next" inside the preview
+    Then the address is "/doc/notes/first.html"
+    And the document open is "notes/first.html"
+    And the page has not reloaded
+
+  @scratch:good
   Scenario: A link at anything else in the vault is still the frame's to follow
     # The scope, read as what did NOT change. A link to a part a page draws
     # itself with — a picture, a stylesheet, a font — names a file olai has no

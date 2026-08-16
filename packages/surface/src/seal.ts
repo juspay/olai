@@ -359,8 +359,9 @@ const MEASURE = `(function () {
  * a reader clicking a link at a page of this vault, and hands the address out
  * instead of following it.
  *
- * WHICH CLICKS IT CLAIMS, and every line of the test is a case somebody would
- * otherwise lose:
+ * WHICH CLICKS IT CLAIMS — five conditions, each with what holds it named at
+ * the end of its own bullet, because they are not all held by the same kind of
+ * test and a reader auditing this should not have to guess which:
  *
  *   - a PLAIN left click, and nothing modified — which is not a rule this file
  *     states. It is `./press.ts`'s `ours`, the app's one answer to what a reader
@@ -369,25 +370,39 @@ const MEASURE = `(function () {
  *     shipped. One definition, read by the client and carried into the page,
  *     rather than the second hand-typed spelling this was — whose drift had no
  *     symptom in the direction that matters (a press this app has decided is
- *     not its own, still claimed in the frame). `./seal.test.ts` runs the
- *     shipped text against the function to hold the two together;
+ *     not its own, still claimed in the frame). WHAT HOLDS IT: `./seal.test.ts`
+ *     runs the shipped text against the function over every combination of the
+ *     six facts a press has — which pins what the RULE answers, and cannot pin
+ *     that this handler is what asks it. A modified click is read in a real
+ *     browser by `html_previews.feature` on the app's side only, since which
+ *     modifier opens a tab is the platform's decision and not olai's;
  *   - a click the PAGE has not already answered. Bubble phase and
  *     `defaultPrevented`, so a saved page that routes its own links keeps them.
  *     Capturing would take clicks off a page that had already decided what they
- *     mean, to send them somewhere the page never asked for;
+ *     mean, to send them somewhere the page never asked for. WHAT HOLDS IT: the
+ *     scenario where a page prevents its own link's default and neither the app
+ *     nor the frame moves — which is the one assertion that tells the two
+ *     phases apart, since a capturing handler would see the press first, find
+ *     nothing prevented, and navigate the app out from under the page;
  *   - THIS VAULT's address space and no other: the document's own scheme and
  *     host, under the media route. A link to a stranger is not ours to answer —
  *     it walks the frame off and comes home, which is the behaviour that was
- *     already there and is deliberately untouched;
+ *     already there and is deliberately untouched. WHAT HOLDS IT: the two
+ *     walk-off scenarios;
  *   - a file olai has a PAGE for, by suffix ({@link BODY_EXTS} — a `.html`, and
  *     a `.md` beside it). Everything else under the route is a part a page draws
  *     ITSELF with — a picture, a stylesheet, a font — and a link to one is a
- *     link to a file, which the frame goes on following exactly as it did;
+ *     link to a file, which the frame goes on following exactly as it did.
+ *     WHAT HOLDS IT: the suffix list is asserted against the registry, and a
+ *     link at a `.png` is followed by the frame in a scenario of its own;
  *   - NO FRAGMENT. `#top` on a link is an in-page anchor and must stay one, and
  *     `other.html#beds` is an anchor this app cannot land on — the same call
  *     `routeIn` makes about a link in rendered markdown (`@olai/web`'s
  *     `routes.ts`), for the same reason: a plain navigation that visibly does
- *     not land somewhere is better than a page pretending it did.
+ *     not land somewhere is better than a page pretending it did. WHAT HOLDS
+ *     IT: a scenario that clicks a fragment link AT THE FILE NEXT DOOR — the
+ *     case every other condition here would claim — and reads both halves, the
+ *     app staying put and the frame arriving at the anchor.
  *
  * A `.md` is on that list on purpose, and it is the one judgement call here. The
  * media route REFUSES a `.md` — it is not an `isAsset`, so the frame following
