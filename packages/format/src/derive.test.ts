@@ -559,6 +559,20 @@ test("a node's own after targets come before anything that blocks it", () => {
       `{"id":"subject","ord":"c","title":"subject","todo":true,"after":["own"]}`,
   ))
   expect(waiting(derived, "subject")).toEqual(["own doing", "early doing"])
+
+  // AND THE PROMISE SURVIVES A PAIR THAT SAYS ONE EDGE BOTH WAYS. `own` is
+  // named twice here — by the subject's own `after` and by its own `blocks`,
+  // one file, both legal — so the second pass meets an edge the first already
+  // filed. That is where the two rules meet: the collapse keeps the position
+  // the FIRST saying earned, rather than moving the pair to where the `blocks`
+  // was read or naming `own` twice with `early` between the two.
+  const paired = derive(nodesOf(
+    `{"id":"early","ord":"a","title":"early","doing":true,"blocks":["subject"]}\n` +
+      `{"id":"own","ord":"b","title":"own","doing":true,"blocks":["subject"]}\n` +
+      `{"id":"subject","ord":"c","title":"subject","todo":true,"after":["own"]}`,
+  ))
+  expect(paired.after.get("subject")).toEqual(["own", "early"])
+  expect(waiting(paired, "subject")).toEqual(["own doing", "early doing"])
 })
 
 // Blockedness is read off the same index wherever a node is drawn: a row, a
