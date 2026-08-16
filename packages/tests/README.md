@@ -95,6 +95,20 @@ One section per run, against a directory the driver has just re-copied and a ser
 
 `SECTION=` on its own lists the sections; `SECTION=<name>` runs one against a server you are already running (`BASE` says where).
 
+## Making it flake on purpose
+
+```bash
+export OLAI_BIN="$(nix build .#olai --no-link --print-out-paths)/bin/olai"
+nix develop .#e2e -c bash
+cd packages/tests
+RUNS=20 BUSY=48 sh underload.sh     # one suite, the box pinned
+RUNS=6  SUITES=5 sh underload.sh    # five suites at once, as a shared box is
+```
+
+`underload.sh` / `underload.ts` are NOT part of the suite either. They exist because the failures this section is about are one scenario in six hundred, never the same one twice — so the fact worth having is a CENSUS over thirty runs and not a log of one, and `underload.ts` reads the cucumber message streams back into exactly that: which scenarios went, how often, on which step, and what each said.
+
+**The two knobs are two different questions, and mixing them answers neither.** `BUSY` pins the cores and leaves this the only suite on the box, so whatever fails under it failed on LOAD. `SUITES` starts several at once, which is what a box shared between worktrees actually looks like, and is the only way to reach the failures that need a STRANGER on the machine rather than a slow one — the port bands below were found that way and nothing else would have found them.
+
 ## Fixture corpora
 
 Scenarios do not build their own outlines: they name a directory. A feature (or a scenario) carries a `@corpus:<name>` tag naming a directory under `fixtures/`, and `hooks.ts` starts a server on a copy of it the first time some scenario asks — then keeps it for the rest of the run. Untagged scenarios get `@corpus:good`.
@@ -110,6 +124,10 @@ A COPY, and one per worker, because `--parallel` is one process per worker: four
 **`@git`** rides on top of `@scratch:`: the scratch copy is made a git repository with the fixtures already committed, and its server is started with `--commit=manual` rather than the harness's usual `--commit=off`. What is waiting to be committed is DERIVED from git rather than counted, so there is nothing to test without a repository — and the assertions at the end of those scenarios are lines out of its log, read through `world.git`. **`@no-git`** is the other half of the same knob: commits ON, and deliberately no repository, which is the only way to reach the Commit pill's "no git here" face. Every other scenario keeps `--commit=off`: committing into whatever repository happens to contain a temp directory is not this suite's business.
 
 A `@scratch:` scenario may also RESTART its server, which nothing else in the suite may do — a shared corpus server is running for every other scenario in the run, and `hooks.ts` refuses rather than trusting the tag. That is what lets a feature ask the one question no other scenario could: what does an open page do when the process behind it is replaced? The restart comes back on the SAME port, because the page is already pointed at it — `startOwnServer` binds the exact port and fails loudly if the address it got back is a different one, so a port stolen in between reads as itself instead of as a mysteriously dead page.
+
+**Which ports a worker may bind is CLAIMED, not computed** (`support/workers.ts`'s `heldBand`), and that is what makes the paragraph above hold on a box that is not only running this. Ports 20000 upward are cut into bands of two hundred; a worker takes a band by binding its FIRST port and keeping that socket for its whole life, so a second process wanting the same band is told `EADDRINUSE` by the kernel and walks on to the next. The search starts at the worker's own id, so one suite alone still gets bands 0, 1, 2, 3 exactly as it always did.
+
+It used to be arithmetic on that id, and the id is unique inside ONE run and says nothing about the run beside it: two worktrees each running the suite both numbered their workers from zero and both scanned from 20000. The restart is the one thing that could not survive it, because it has to come back on the same address and therefore has a window between letting the port go and the child's own `listen` — and the other run's port search walked into that window. Measured on a 32-core box, five suites at once, six rounds each: **thirty runs dropped twenty-seven scenarios, and seventeen of them were exactly this**, every one reported in `startOwnServer`'s own sentence. Nothing inside a single run ever collided — its bands were already disjoint and each worker asks for one port at a time — which is why an ordinary CI lane never saw it and a shared box saw it constantly.
 
 ## Git, which every other scenario is served without
 
@@ -244,7 +262,7 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 
 ## Waiting, which is the whole of being honest under load
 
-This suite runs parallel, on machines that are also doing something else, so every assertion in it is a race unless it was written not to be. A run on a saturated box is the only way to find out, and there are exactly three ways to get it wrong. All three are green on an idle laptop.
+This suite runs parallel, on machines that are also doing something else, so every assertion in it is a race unless it was written not to be. A run on a saturated box is the only way to find out — `sh underload.sh` is that run, and it counts what it dropped rather than leaving five logs to read — and there are exactly four ways to get it wrong. All four are green on an idle laptop.
 
 **A value read on its way to its final one.** Most assertions here WAIT: they poll until the page or the file says the thing, and fail saying what they were waiting for. The ones that cannot are the NEGATIVES, and a negative is two different steps that read almost the same:
 
@@ -269,7 +287,25 @@ Asking the holding form of a write passes only when the round trip happens to la
 
 Every one of them will take "the page said why it did not" instead, which is the other way a key ends. `I press "…" without waiting` is how the two scenarios that MEAN the race say so.
 
-None of the three mistakes is fixed by a longer timeout, and a step that needed one was asking the wrong question.
+**A gesture aimed at the tab across a DISK assertion.** The newest one, and the one that reads most like a passing step. A write goes: the server writes the file, publishes the new set, and only then answers the tab that asked (`packages/store/src/store.ts` — *rename them all → re-probe and publish → the caller's post-publish hook*). So a step that polls the disk is reading a fact the server has, and the tab has not — and the tab has rules that turn on having been answered:
+
+| the rule | where | what it does to a gesture aimed too early |
+|---|---|---|
+| the inverse is filed when the answer comes back | `writes.ts` → `edit/undoing.ts`'s `record` | ⌘Z spends an empty stack: it draws `nothing to undo`, and the late `record` wipes even that, so the page keeps no trace |
+| one write at a time | `palette/Palette.tsx`, `edges/editing.tsx`, `date/DatePicker.tsx` — all `sending` | the second write is dropped where it stands: no op, no sentence, nothing on screen |
+
+Both were measured under load, and both failed fifteen seconds later on a file that never changed. So a scenario that makes a write and then aims something ELSE at the same tab needs the tab's own receipt in between, not the disk's: the palette's remark (`I capture …` now waits for it), the row the page redrew (`the node "…" comes after "…"`), the box re-primed. The disk assertion is still worth making — it is the claim about what LANDED — it just is not a gate.
+
+None of the four mistakes is fixed by a longer timeout, and a step that needed one was asking the wrong question. This one is the sharpest case: the gesture was *lost*, so the fifteen seconds are the budget and not the latency, and a minute would fail the same way.
+
+**What the four are worth, measured** (2026-08-16, 32-core box, five suites at once, six rounds each — thirty full runs both sides):
+
+| | drops | runs that dropped something |
+|---|---|---|
+| before | 27 | 20 of 30 |
+| after | 6 | 6 of 30 |
+
+The seventeen port drops went to zero, and so did the four faces of the disk-as-receipt mistake. What is left is **one** scenario this suite has not answered — `A rename staged by hand reads as a rename` waits thirty seconds for the commit pill to say `waiting`, and the diagnostic re-read after the timeout finds the value already correct, so the question is that step's budget against how fast a `.git` change can reach the page and not a lost event. Named here rather than guessed at.
 
 ## The scripted agent
 

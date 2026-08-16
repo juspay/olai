@@ -227,6 +227,19 @@ Then(
   },
 );
 
+/**
+ * WAITS, and that is the whole of what changed here. The badge is redrawn from
+ * the snapshot, and every scenario that asks this has just made a write — so
+ * the date on screen is a value on its way to its final one, and reading it
+ * once is the first mistake `../README.md` lists.
+ *
+ * It bit under load: `⌘Z takes a picked date back` failed in 27ms, saying the
+ * badge still read the date the chord had just taken back. The FILE already
+ * said otherwise (the step before this one polls it) — which is the same
+ * asymmetry the pointer's writes have, one step further along: the server
+ * writes and publishes before the tab is redrawn, so the disk is always the
+ * earlier reading.
+ */
 Then(
   "the node {string} shows the date {string}",
   async function (this: OlaiWorld, id: string, date: string) {
@@ -236,20 +249,29 @@ Then(
     // the ISO value is looked for in the places a formatted badge keeps it as
     // well as in the text. What is being asserted is that the badge is about
     // THIS date — not how it chooses to say so.
-    const shown = await badge.evaluate((node) =>
-      [
-        node.textContent,
-        node.getAttribute("datetime"),
-        node.getAttribute("data-date"),
-        node.getAttribute("title"),
-      ]
-        .filter((value): value is string => typeof value === "string")
-        .join(" | "),
-    );
-    assert.ok(
-      shown.includes(date),
-      `the date badge on "${id}" says ${JSON.stringify(shown)}, which does not mention ${date}`,
-    );
+    const shownOn = async (): Promise<string> =>
+      await badge.evaluate((node) =>
+        [
+          node.textContent,
+          node.getAttribute("datetime"),
+          node.getAttribute("data-date"),
+          node.getAttribute("title"),
+        ]
+          .filter((value): value is string => typeof value === "string")
+          .join(" | "),
+      );
+    // The re-assert on timeout is `has the title`'s rule, for its reason: it
+    // turns "waited 15s" into "says X, which does not mention Y".
+    await this.waitUntil(
+      async () => (await shownOn()).includes(date),
+      `the date badge on "${id}" to be about ${date}`,
+    ).catch(async () => {
+      const shown = await shownOn();
+      assert.ok(
+        shown.includes(date),
+        `the date badge on "${id}" says ${JSON.stringify(shown)}, which does not mention ${date}`,
+      );
+    });
   },
 );
 
