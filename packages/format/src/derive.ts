@@ -318,20 +318,18 @@ const orderings = (
   const index = { byId }
   const named = (id: string): string => nodeNamed(index, id)?.node.id ?? id
   const after = new Map<string, Array<string>>()
+  /** File one edge, ONCE. Both ends are resolved to nodes before they get
+   *  here, so a field repeating a target (a `.olai` is plain text, and nothing
+   *  refuses a hand that writes `after: [b, b]`), the two spellings of one
+   *  arrow both written down, and two ids standing at one node through a
+   *  mirror all arrive as the same pair — and each of them is one edge. Every
+   *  reader takes this as a set: the row a page draws keyed by the blocker's
+   *  id (a repeat crashes the client, `web/client/NodeRefs.tsx`), the `blocked
+   *  by` tip, the walk the acyclicity rule and `set_after`'s loop refusal
+   *  share. A duplicate would say one node is in the way twice. */
   const edge = (from: string, to: string): void => {
     const existing = after.get(from)
     if (existing === undefined) after.set(from, [to])
-    // AN EDGE NAMED TWICE IS ONE EDGE. Both ends are already resolved to nodes
-    // above, so this is the last thing normalisation owes its readers: a field
-    // repeating a target (a `.olai` is plain text, and nothing refuses a hand
-    // that writes `after: [b, b]`), the two spellings of one arrow both
-    // written down, and two ids standing at one node through a mirror all
-    // arrive here as the same pair. What waits on what is a SET, and every
-    // reader takes it as one — the row a page draws keyed by the blocker's id
-    // (crashing the client on a repeat, `web/client/NodeRefs.tsx`), the
-    // `blocked by` tip, the walk the acyclicity rule and `set_after`'s
-    // loop refusal share. A duplicate would say the same node is in the way
-    // twice.
     else if (!existing.includes(to)) existing.push(to)
   }
 
