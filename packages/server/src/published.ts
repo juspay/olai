@@ -188,12 +188,14 @@ export const publishedOf = (
   snapshot: Snapshot<Reading>,
   published: Published | null,
 ): Published => {
-  const set = snapshot.value.set
+  const { set, derived } = snapshot.value
   // The set is FLAT and every record names its own file, so a file's slice is
-  // that grouping — taken in one pass rather than one filter per file, because
-  // this runs on every revision of a directory that can hold any number of
-  // both.
-  const byFile = Map.groupBy(set.nodes, (located) => located.file)
+  // that grouping — and the grouping is READ rather than made, off the
+  // derivation the snapshot now carries (`@olai/format`'s `Derived.byFile`,
+  // which is the same one-pass group-by this file used to do for itself). It
+  // runs on every revision of a directory that can hold any number of both, so
+  // "the same walk, one revision later" was the whole of the cost.
+  const byFile = derived.byFile
   const broken = new Map(set.broken.map((file) => [file.file, file] as const))
 
   return {

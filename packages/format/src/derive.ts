@@ -107,11 +107,14 @@ export interface Derived {
    * ({@link ./set.ts}'s `files`), never this map's, and `?? []` is how every
    * reader here already spells nothing.
    *
-   * It does NOT claim every by-file grouping in the tree. Two of them —
-   * `publishedOf` in `@olai/server` and the pending walk in `@olai/ops` — hold
-   * an `OutlineSet` and never derive at all, so reaching for this would mean
-   * building a whole derivation to group a corpus. They stay as they are, and
-   * saying so here is what keeps that a ruling rather than an oversight.
+   * It DOES claim every by-file grouping in the tree, which it did not when it
+   * shipped. Two of them — `publishedOf` in `@olai/server` and the pending walk
+   * in `@olai/ops` — were parked here as staying, because each held an
+   * `OutlineSet` and never derived, and reaching for this would have meant
+   * building a whole derivation to group a corpus. Since slice 2 a snapshot
+   * carries the derivation beside the set ({@link ./validate.ts}'s `Reading`),
+   * so both hold one, both read this, and the reason they were parked for is
+   * gone rather than outweighed.
    */
   readonly byFile: ReadonlyMap<string, ReadonlyArray<Located>>
   /**
