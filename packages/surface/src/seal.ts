@@ -167,6 +167,7 @@
 import { BODY_EXTS } from "@olai/format"
 
 import { mediaPath, MEDIA_PREFIX } from "./media.ts"
+import { ours } from "./press.ts"
 
 /**
  * WHAT THE FRAME SAYS, and the whole of it: one of these two prefixes, then a
@@ -361,13 +362,15 @@ const MEASURE = `(function () {
  * WHICH CLICKS IT CLAIMS, and every line of the test is a case somebody would
  * otherwise lose:
  *
- *   - a PLAIN left click, and nothing modified. That is `@olai/web`'s `press.ts`
- *     rule spelled a second time, which this module normally refuses to do —
- *     here it is unavoidable (this is text in a template literal, in a package
- *     the client cannot reach and a frame that imports nothing) and it is the
- *     rare copy whose drift is harmless: a modified click that stopped being
- *     claimed behaves as it did before any of this, which is to say the sandbox
- *     refuses it (no `allow-popups`, no `allow-top-navigation`);
+ *   - a PLAIN left click, and nothing modified — which is not a rule this file
+ *     states. It is `./press.ts`'s `ours`, the app's one answer to what a reader
+ *     meant by a press, INTERPOLATED here as its own source: the frame has no
+ *     module system, so a function cannot be imported into it, but it can be
+ *     shipped. One definition, read by the client and carried into the page,
+ *     rather than the second hand-typed spelling this was — whose drift had no
+ *     symptom in the direction that matters (a press this app has decided is
+ *     not its own, still claimed in the frame). `./seal.test.ts` runs the
+ *     shipped text against the function to hold the two together;
  *   - a click the PAGE has not already answered. Bubble phase and
  *     `defaultPrevented`, so a saved page that routes its own links keeps them.
  *     Capturing would take clicks off a page that had already decided what they
@@ -403,9 +406,9 @@ const MEASURE = `(function () {
  */
 const FOLLOW = `(function () {
   var pages = ${JSON.stringify(BODY_EXTS)}
+  var ours = ${ours.toString()}
   addEventListener("click", function (event) {
-    if (event.defaultPrevented || event.button !== 0) return
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    if (!ours(event)) return
     var node = event.target
     var link = node && node.closest ? node.closest("a") : null
     if (!link) return

@@ -2,6 +2,7 @@ import { BODY_EXTS } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { mediaHref } from "./media.ts"
+import { ours, type Press } from "./press.ts"
 import { heard, SEAL, sealPolicy } from "./seal.ts"
 
 /** The host a served page was asked for on — the only thing the policy is
@@ -307,6 +308,67 @@ test("the handler claims the kinds the registry says have pages", () => {
   const found = /var pages = (\[[^\]]*\])/.exec(SEAL)
   if (found === null) throw new Error(`the seal's link handler names no pages: ${SEAL}`)
   expect(JSON.parse(found[1]!)).toEqual([...BODY_EXTS])
+})
+
+/**
+ * THE PRESS RULE IS SHIPPED, NOT RETYPED — and this is what says so.
+ *
+ * `./press.ts`'s `ours` is the app's one answer to what a reader meant by a
+ * press, and the injected handler gets it by having its SOURCE interpolated
+ * (`Function.prototype.toString`), because a frame with no module system cannot
+ * import a function. That is one definition rather than two, which is the point
+ * — but it moves the risk rather than deleting it: what ships is now the source
+ * as the BUILD left it, and a bundler that inlined a helper into this function,
+ * or renamed something it closed over, would emit a guard referring to a name
+ * the frame does not have. The failure would be a click that silently stops
+ * working inside a sandbox.
+ *
+ * So the shipped text is lifted back out of `SEAL` and RUN, against the
+ * function it came from, over every combination of the facts a press has. It
+ * is not a text comparison: a build that reformats passes, and a build that
+ * changes the meaning fails and names the press.
+ */
+const shipped = ((): ((press: Press) => boolean) => {
+  const found = /\n  var ours = ([\s\S]*?)\n  addEventListener/.exec(SEAL)
+  if (found === null) {
+    throw new Error(`the seal ships no press rule — this test has nothing to check:\n${SEAL}`)
+  }
+  return new Function(`return (${found[1]!})`)() as (press: Press) => boolean
+})()
+
+/** Every combination of the six facts: 64 presses, which is small enough to
+ *  take all of rather than sample. `BOTH` is named once rather than spelled at
+ *  each level — the shape is a product, and the only thing that varies between
+ *  the levels is which field is being fixed. */
+const BOTH = [false, true] as const
+const PRESSES: ReadonlyArray<Press> = BOTH.flatMap((defaultPrevented) =>
+  ([0, 1] as const).flatMap((button) =>
+    BOTH.flatMap((metaKey) =>
+      BOTH.flatMap((ctrlKey) =>
+        BOTH.flatMap((shiftKey) =>
+          BOTH.map((altKey) => ({
+            defaultPrevented,
+            button,
+            metaKey,
+            ctrlKey,
+            shiftKey,
+            altKey,
+          }))
+        )
+      )
+    )
+  )
+)
+
+test("the press rule the seal ships is the press rule this app applies", () => {
+  // A BARE `return` is what the handler does with a press it refuses, so what
+  // comes back for one is `undefined` rather than `false` — but that is the
+  // handler's shape, not this function's: `ours` returns a boolean either way,
+  // and any disagreement here is a real one.
+  expect(PRESSES.filter((press) => shipped(press) !== ours(press))).toEqual([])
+  // …and the agreement is over presses of both kinds: a rule that claimed
+  // everything, or nothing, would agree with a broken `ours` and pass above.
+  expect(PRESSES.filter(ours)).toHaveLength(1)
 })
 
 // THE ADDRESS, from both ends: what the frame posts is the pathname the browser
