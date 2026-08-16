@@ -12,7 +12,6 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
-import { DESKTOP } from "../support/hooks.ts";
 import {
   BLOCKED,
   NODE_REF,
@@ -267,7 +266,7 @@ When("I move the pointer away", async function (this: OlaiWorld) {
 Then("the tip is inside the window", async function (this: OlaiWorld) {
   const box = await this.page.locator(TIP).first().boundingBox();
   assert.ok(box !== null, "the tip is not laid out");
-  const width = this.page.viewportSize()?.width ?? 0;
+  const width = this.viewport().width;
   assert.ok(
     box.x >= 0 && box.x + box.width <= width,
     `the tip runs from ${box.x} to ${box.x + box.width}, outside a ${width}px window`,
@@ -293,7 +292,7 @@ Given("the window is shorter than the page", async function (this: OlaiWorld) {
   // Read back rather than spelled, because a `@phone` scenario says this too
   // (`the_header_sticks.feature`) and pinning the laptop's width would have
   // turned its handset into a 1440px one mid-scenario.
-  const size = this.page.viewportSize() ?? DESKTOP.viewport;
+  const size = this.viewport();
   await this.page.setViewportSize({ width: size.width, height: 400 });
 });
 

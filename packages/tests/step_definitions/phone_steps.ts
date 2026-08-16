@@ -201,8 +201,7 @@ Then("the burger is on screen", async function (this: OlaiWorld) {
     this.page.locator(SIDEBAR_TOGGLE),
     "the burger",
   );
-  const viewport = this.page.viewportSize();
-  assert.ok(viewport !== null, "this scenario has no viewport size");
+  const viewport = this.viewport();
   assert.ok(
     burger.y >= 0 && burger.y + burger.height <= viewport.height,
     `the burger is at y=${Math.round(burger.y)} on a ${viewport.height}px ` +
@@ -376,8 +375,7 @@ Then("I can type into the chat", async function (this: OlaiWorld) {
     "the composer is on screen but will not take a message",
   );
   const box = await this.box(input, "the chat input");
-  const viewport = this.page.viewportSize();
-  assert.ok(viewport !== null, "this scenario has no viewport size");
+  const viewport = this.viewport();
   assert.ok(
     box.y >= 0 && box.y + box.height <= viewport.height,
     `the composer is at y=${Math.round(box.y)} on a ${viewport.height}px ` +
@@ -423,8 +421,7 @@ Then(
  *  decision, and the promise it is there to keep is this one: a reader who
  *  opens an outline on a phone can see the outline. */
 Then("the outline is on screen under it", async function (this: OlaiWorld) {
-  const viewport = this.page.viewportSize();
-  assert.ok(viewport !== null, "this scenario has no viewport size");
+  const viewport = this.viewport();
   const tree = await this.box(this.page.locator(OUTLINE_TREE), "the tree");
   const room = viewport.height - tree.y;
   assert.ok(
@@ -486,8 +483,7 @@ Then(
 Then(
   "the sidebar reaches the bottom of the viewport",
   async function (this: OlaiWorld) {
-    const viewport = this.page.viewportSize();
-    assert.ok(viewport !== null, "this scenario has no viewport size");
+    const viewport = this.viewport();
     const nav = await this.box(this.page.locator(SIDEBAR), "the sidebar");
     const bottom = nav.y + nav.height;
     assert.ok(

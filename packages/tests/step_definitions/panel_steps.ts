@@ -347,8 +347,7 @@ Then(
     const header = await this.box(this.page.locator(APP_HEADER), "header");
     const nav = await this.box(this.page.locator(SIDEBAR), "sidebar");
     const scrim = await this.box(this.page.locator(SIDEBAR_SCRIM), "scrim");
-    const viewport = this.page.viewportSize();
-    assert.ok(viewport !== null);
+    const viewport = this.viewport();
 
     // Fixed under the header: top at the header bottom, bottom at the viewport.
     assert.ok(
@@ -385,8 +384,7 @@ Then(
 );
 
 When("I tap the directory scrim", async function (this: OlaiWorld) {
-  const viewport = this.page.viewportSize();
-  assert.ok(viewport !== null, "this scenario has no viewport size");
+  const viewport = this.viewport();
   // Scrim is under the header now; aim at the uncovered right edge.
   await this.page.locator(SIDEBAR_SCRIM).click({
     position: { x: viewport.width - 8, y: Math.round(viewport.height / 3) },
@@ -450,8 +448,7 @@ When("I tap the chat sheet handle", async function (this: OlaiWorld) {
 });
 
 When("I tap the chat sheet scrim", async function (this: OlaiWorld) {
-  const viewport = this.page.viewportSize();
-  assert.ok(viewport !== null);
+  const viewport = this.viewport();
   // Scrim is under the header; tap its top band above the half sheet.
   await this.page.locator(CHAT_SHEET_SCRIM).click({
     position: { x: Math.round(viewport.width / 2), y: 12 },

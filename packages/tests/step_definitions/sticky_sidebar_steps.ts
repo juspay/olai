@@ -56,8 +56,7 @@ const pinnedUnderTheHeader = async (
   selector: string,
   what: string,
 ): Promise<void> => {
-  const viewport = world.page.viewportSize();
-  assert.ok(viewport !== null, "this scenario has no viewport size");
+  const viewport = world.viewport();
   const header = await world.box(world.page.locator(APP_HEADER), "the app header");
   const column = await world.box(world.page.locator(selector), what);
   const seam = header.y + header.height;
@@ -97,8 +96,7 @@ Then("the directory rail is pinned under the header", async function (this: Olai
  *  than the screen legitimately runs past the fold, and it is the column's own
  *  scroll region that reaches the rest of it. */
 Then("the file tree is still on screen", async function (this: OlaiWorld) {
-  const viewport = this.page.viewportSize();
-  assert.ok(viewport !== null, "this scenario has no viewport size");
+  const viewport = this.viewport();
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
   const tree = await this.box(this.page.locator(OUTLINE_LIST), "the file tree");
   const seam = header.y + header.height;
@@ -117,8 +115,7 @@ Then("the file tree is still on screen", async function (this: OlaiWorld) {
  *  the same control in the same corner, and this is the fence that says the pin
  *  did not move it out of the column or under the fold. */
 Then("the collapse affordance is on screen", async function (this: OlaiWorld) {
-  const viewport = this.page.viewportSize();
-  assert.ok(viewport !== null, "this scenario has no viewport size");
+  const viewport = this.viewport();
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
   const button = await this.box(
     this.page.locator(SIDEBAR_COLLAPSE),

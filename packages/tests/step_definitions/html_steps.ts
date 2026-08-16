@@ -195,14 +195,6 @@ const untilHeights = async (
   }
 };
 
-/** The viewport the bounds are written against: `dvh` in a browser with no
- *  address bar in motion is exactly the page's own height. */
-const viewport = (world: OlaiWorld): number => {
-  const size = world.page.viewportSize();
-  assert.ok(size !== null, "this scenario has no viewport size");
-  return size.height;
-};
-
 Then("the preview is as tall as the page it shows", async function (this: OlaiWorld) {
   await untilHeights(
     this,
@@ -216,7 +208,11 @@ Then("the preview is as tall as the page it shows", async function (this: OlaiWo
 
 /** The two directions one step asks in, as the word the feature says and what
  *  it means — a table rather than two near-identical step bodies, since only
- *  the comparison and the complaint differ. */
+ *  the comparison and the complaint differ.
+ *
+ *  `tall` throughout is the VIEWPORT's height, which is what these bounds are
+ *  written against: `dvh` in a browser with no address bar in motion is
+ *  exactly the page's own height. */
 const AGAINST_VIEWPORT = {
   shorter: {
     holds: (frame: number, tall: number) => frame < tall,
@@ -237,7 +233,7 @@ Then(
   async function (this: OlaiWorld, which: string) {
     const how = AGAINST_VIEWPORT[which as keyof typeof AGAINST_VIEWPORT];
     assert.ok(how !== undefined, `no such comparison as "${which} than the viewport"`);
-    const tall = viewport(this);
+    const tall = this.viewport().height;
     await untilHeights(
       this,
       ({ frame }) => how.holds(frame, tall),
@@ -259,7 +255,7 @@ Then(
 Then(
   "the preview stops short of its page and scrolls the rest",
   async function (this: OlaiWorld) {
-    const tall = viewport(this);
+    const tall = this.viewport().height;
     await untilHeights(
       this,
       ({ frame, page }) => page > frame && frame > tall,
