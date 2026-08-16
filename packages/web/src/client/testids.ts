@@ -211,6 +211,8 @@ export const TESTID = {
   edgeHit: "edge-hit",
   /** Where that hit sits — the row's second line. */
   edgeHitPlace: "edge-hit-place",
+  /** One `key value` pair on an edge-panel hit's third line. */
+  edgeHitProp: "edge-hit-prop",
   /** A refused SEARCH, in the server's words. Never the same slot as a refused
    *  write: two unrelated async sources sharing one line is how a reader is
    *  shown the wrong sentence about the wrong thing. */
@@ -361,6 +363,8 @@ export const TESTID = {
   /** Where a `((` hit SITS — the second line of its row, nearest ancestor
    *  first, exactly as the palette writes one. */
   completionItemPlace: "completion-item-place",
+  /** One `key value` pair on a `((` node row's third line. */
+  completionItemProp: "completion-item-prop",
   /** A refused node search, quoted, in its own slot above the rows. */
   completionsError: "completions-error",
   /** What the last commit was refused with, under the row it was typed in.
@@ -654,6 +658,8 @@ export const TESTID = {
   paletteCapture: "palette-capture",
   /** The second line of a result row: where the node lives. */
   paletteItemPlace: "palette-item-place",
+  /** One `key value` pair on a palette node row's third line. */
+  paletteItemProp: "palette-item-prop",
   /** What a write the palette made had to say — a refusal in the ops layer's
    *  own words, or a remark about one that landed. `data-tone` says which,
    *  because the mood is a fact and the colour is a styling decision. */
@@ -683,6 +689,8 @@ export const TESTID = {
   headerSearchResults: "header-search-results",
   headerSearchItem: "header-search-item",
   headerSearchItemPlace: "header-search-item-place",
+  /** One `key value` pair on a header result row's third line. */
+  headerSearchItemProp: "header-search-item-prop",
   headerSearchError: "header-search-error",
   /** Refusal from a `>` ask that the palette surfaces instead of swallowing. */
   paletteAskError: "palette-ask-error",

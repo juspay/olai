@@ -29,7 +29,13 @@
  * have nowhere else to show.
  */
 
-import { customKeys, customOf, type RegularNode, storedMarker } from "@olai/format"
+import {
+  customKeys,
+  customOf,
+  type HasCustom,
+  type RegularNode,
+  storedMarker,
+} from "@olai/format"
 
 /** One line of the drawer. */
 export interface Entry {
@@ -85,10 +91,18 @@ export const systemEntries = (node: RegularNode): ReadonlyArray<Entry> => {
   return out
 }
 
-/** The keys `set_prop` owns, alphabetically — the FILE's own order
- *  (`@olai/format`'s `customKeys`), so what is on screen is what is on disk and
- *  nothing re-sorts itself under the reader after a reload. */
-export const customEntries = (node: RegularNode): ReadonlyArray<Entry> => {
+/**
+ * The keys `set_prop` owns, alphabetically — the FILE's own order
+ * (`@olai/format`'s `customKeys`), so what is on screen is what is on disk and
+ * nothing re-sorts itself under the reader after a reload.
+ *
+ * Takes anything CARRYING a map rather than a whole record, because a search
+ * hit is the other thing that has one (`../search/props.ts`) and it is not a
+ * `RegularNode`. Widened rather than copied: the rule that a list value is
+ * drawn as its members joined lives here, and a second spelling of it in the
+ * row would be free to draw the same node two ways on two surfaces.
+ */
+export const customEntries = (node: HasCustom): ReadonlyArray<Entry> => {
   const custom = customOf(node)
   return customKeys(custom).flatMap((key) => {
     const value = custom[key]

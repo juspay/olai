@@ -125,6 +125,29 @@ describe("the properties a node carries", () => {
     expect(byProp[0]?.custom?.["pr"]).toBe("https://github.com/juspay/olai/pull/176")
   })
 
+  /**
+   * WHY the hit is here, when the reason is a property — the half `matched`
+   * cannot carry, and the reason it is a field of its own.
+   *
+   * Both halves on one hit is the case that settles the design: a query naming
+   * a word AND a property matched on both, and one slot would have had to drop
+   * whichever a precedence rule nobody asked for preferred.
+   */
+  test("a hit says which property carried it, beside which field carried the words", () => {
+    const [byProp] = search(at(), { text: "prop:agent=claude-opus" }).hits
+    expect(byProp?.matchedProps).toEqual(["agent"])
+    // No words in that query, so no field carried it — and `matched` still
+    // means exactly what it meant.
+    expect(byProp).not.toHaveProperty("matched")
+
+    const [both] = search(at(), { text: "indicators prop:pr" }).hits
+    expect(both).toMatchObject({ id: "git", matched: "title", matchedProps: ["pr"] })
+  })
+
+  test("a query that named no property leaves the field off entirely", () => {
+    expect(search(at(), { text: "indicators" }).hits[0]).not.toHaveProperty("matchedProps")
+  })
+
   test("a hit for a node carrying none says nothing, as its read does", () => {
     const hit = search(at(), { text: "header" }).hits[0]
     expect(hit).toMatchObject({ id: "sticky" })

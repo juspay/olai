@@ -3,10 +3,10 @@
  * ancestry innermost first, or the file for a node at top level.
  *
  * Beside the row it is drawn on rather than in `palette/`, where it began: it
- * is a fact about a SEARCH HIT, and all three doors onto the one search draw
- * it — the ⌘K palette, the header's box, and the `((` widget in a row's title.
- * Two spellings of it would be two answers to "which `install them`?" in three
- * places looking at the same set.
+ * is a fact about a SEARCH HIT, and all four doors onto the one search draw
+ * it — the ⌘K palette, the header's box, the `((` widget in a row's title and
+ * the edge panel. Two spellings of it would be two answers to "which `install
+ * them`?" in four places looking at the same set.
  *
  * NEAREST ANCESTOR FIRST, which is not the order the path is stored in, and it
  * is two reasons that are the same reason twice: the nearest ancestor is what
