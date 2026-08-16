@@ -47,13 +47,14 @@ import {
   type OutlineSet,
   type Placed,
   type Placement,
+  type Reading,
   type Subtree,
 } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 
 import { reading, setOf } from "./fixtures.testlib.ts"
-import { asking, type Reading, TOOLS } from "./tools.ts"
+import { asking, TOOLS } from "./tools.ts"
 
 /** One house, and everything a read can carry: both marker kinds, a note, a
  *  date, both tag sigils, a placement with a parent and one without, a child

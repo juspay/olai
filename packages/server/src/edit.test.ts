@@ -18,9 +18,15 @@
  * wrong is answerable here too, without a browser to press ⌘Z in.
  */
 
-import { derive, INBOX, type OpFailure, type OutlineSet } from "@olai/format"
+import {
+  derive,
+  INBOX,
+  type OpFailure,
+  type OutlineSet,
+  type Reading,
+} from "@olai/format"
 import { setOf } from "@olai/format/testlib"
-import type { Reading, Request } from "@olai/ops"
+import type { Request } from "@olai/ops"
 import type { Edit } from "@olai/surface"
 import { expect, test } from "bun:test"
 import { Result } from "effect"

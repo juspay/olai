@@ -28,6 +28,7 @@ import {
   type OpFailure,
   type Pending,
   type PushResult,
+  type Reading,
   serializeOutline,
   stampOf,
   ValidationFailure,
@@ -46,7 +47,7 @@ import {
 } from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
 import { sortOfWrite } from "./sorted.ts"
-import { asking, type Asking, type Reading } from "./tools.ts"
+import { asking, type Asking } from "./tools.ts"
 
 export interface Options {
   readonly store: Store

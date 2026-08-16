@@ -61,7 +61,6 @@ import {
   type Other,
   type Pending,
   type PushResult,
-  type Reading,
   type Reason,
   type RepoState,
   type Unpushed,
@@ -517,10 +516,18 @@ export const make = (options: Options): Committing => {
       const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
       const at = snapshot?.value ?? null
 
-      // The set cut the three ways this needs it, MEMOISED on the reading —
-      // see {@link byFile}. Under `manual` something is nearly always dirty, so
-      // this no longer early-returns the way per-write `auto` did.
-      const { broken, known, served } = byFile(at)
+      // The revision, cut the three ways the walk below reads it: what each
+      // outline holds, which files the set knows, which of them did not parse.
+      // Taken fresh on every survey, because none of the three is a walk: the
+      // first is a LOOKUP in the index the validator built and the snapshot
+      // carries, and the other two are sets over the FILE LIST. They used to be
+      // one memoised value, and the memo was for the first one — a walk of
+      // every record in the corpus, run on every write and every thirty-second
+      // sweep. Slice 2 made it a lookup, and a cache for two sets of file names
+      // is machinery outliving its reason.
+      const served = at?.derived.byFile ?? new Map<string, ReadonlyArray<Located>>()
+      const known = new Set(at?.set.files ?? [])
+      const broken = new Set((at?.set.broken ?? []).map((entry) => entry.file))
 
       // A file that cannot be read on ONE side is dropped from BOTH, and that
       // is the whole reason `unreadable` exists rather than being a silent
@@ -1012,44 +1019,3 @@ export const commitDoors = (face: CommitFace): string => {
  *  for who is asking — minus the one that is not a face a person can start:
  *  `chat-agent` is a session `olai web` spawns, not something with a `--help`. */
 export type CommitFace = Exclude<Writer, "chat-agent">
-
-/** One revision of the set, cut the three ways {@link Committing.pending} needs
- *  it: nodes by file, which files are known, which did not parse. */
-interface ByFile {
-  readonly served: ReadonlyMap<string, ReadonlyArray<Located>>
-  readonly known: ReadonlySet<string>
-  readonly broken: ReadonlySet<string>
-}
-
-/**
- * Memoised on the READING'S OWN IDENTITY: the store replaces the whole value
- * when a probe finds a change, so one object is one revision forever and there
- * is nothing to invalidate.
- *
- * Only two of the three cuts are still made here. `served` is a LOOKUP now —
- * `@olai/format`'s `Derived.byFile`, built once by the validator and carried on
- * the snapshot, which is the same group-by this used to run for itself. The
- * doc that parked it said this walk "holds an `OutlineSet` and never derives";
- * it holds a `Reading` since slice 2, so the reason is gone and so is the walk.
- *
- * The two sets that are left still earn the memo. Under per-write `auto` a
- * clean tree made `detail` return early and this never ran; under `manual` —
- * the default on both faces — something is nearly always waiting, so it ran on
- * every write AND on every thirty-second sweep, over a corpus that had usually
- * not moved at all. Weak, so a superseded revision is collectable the moment
- * nothing holds it.
- */
-const BY_FILE = new WeakMap<Reading, ByFile>()
-
-const byFile = (at: Reading | null): ByFile => {
-  if (at === null) return { served: new Map(), known: new Set(), broken: new Set() }
-  const known = BY_FILE.get(at)
-  if (known !== undefined) return known
-  const cut: ByFile = {
-    served: at.derived.byFile,
-    known: new Set(at.set.files),
-    broken: new Set(at.set.broken.map((entry) => entry.file)),
-  }
-  BY_FILE.set(at, cut)
-  return cut
-}

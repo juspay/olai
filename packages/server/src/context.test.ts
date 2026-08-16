@@ -12,9 +12,13 @@
  * same id.
  */
 
-import { derive, type OpFailure, type OutlineSet } from "@olai/format"
+import {
+  derive,
+  type OpFailure,
+  type OutlineSet,
+  type Reading,
+} from "@olai/format"
 import { setOf } from "@olai/format/testlib"
-import type { Reading } from "@olai/ops"
 import type { NodeContext } from "@olai/surface"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
