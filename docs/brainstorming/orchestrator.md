@@ -56,3 +56,23 @@ An idle chat agent cannot be woken by any MCP notification, and in-turn blocking
 
 1. When `olai-subscribes` gets built (it is on the roadmap, `after` lane-cloning and mcp-bridge) — sequencing, not whether.
 2. Kolu's `urgency`/`terminals` resources have not been driven from olai yet; the first subscription probe may find sharp edges (the activity stream already has a recorded one).
+
+## Challenges seen in practice (root causes, from the 2026-08-16 lapse)
+
+The incident: with eight lanes live, the human caught the orchestrator sitting on two unprocessed debriefs (grok's #207 delta answer; #209's refactor report) with several author terminals left unwatched. Root-cause analysis, written down so the real home fixes it by design:
+
+**Root cause: the orchestrator's only event queue is its own attention.** A watcher firing is an interrupt — a one-shot notification pointing at an output file. If a hotter thread (usually a human message; today they came minutes apart) preempts the turn, nothing anywhere records "this debrief landed and awaits processing." The board cannot serve as the queue: a lane step marked `doing` looks identical whether its debrief is still cooking or has been sitting unread for an hour. The debt is invisible, so it silently ages until a human smells it.
+
+Contributing causes, each observed today:
+
+1. **Preemption without a resume protocol.** Correctly prioritizing the human's message displaces the interrupt, but there is no list to return to — resuming depends on remembering, and memory is the thing this file exists to distrust (see the lesson at the top).
+2. **Re-arming is coupled to processing.** The standing rule — re-arm the watcher after every processed debrief — has a hole: a debrief that is never processed never triggers a re-arm, so the lapse compounds (unread debrief AND unwatched terminal).
+3. **Write-behind board discipline.** The orchestrator updates the board *while* processing, not *when the event lands* — so the board is always slightly behind reality, and auditing it against `kolu ls` is a manual habit rather than a property.
+
+What fixes it in the current (terminal-orchestrator) regime:
+
+- **Land the event before working it.** The moment a debrief notification arrives, one cheap board write (a `debrief=landed` property on the lane step) before anything else — then the queue is durable and `prop:debrief=landed` lists the debt.
+- **Turn-end sweep.** No turn ends while an unread task output or an unwatched live author exists; the audit (`kolu ls` × armed watchers × landed-unprocessed debriefs) is part of ending a turn, not a thing the human requests.
+- **Decouple re-arm from processing.** Re-arm at notification time, not at processing time, so a deferred debrief never costs the watcher too.
+
+What fixes it for real (the argument this section adds to the file's thesis): **events must become nodes.** The wake-path design above (`olai-subscribes`) already says olai's server should start turns when a lane's agent settles; this incident sharpens it — the settle-event should also *write the board itself* (step gains `debrief=landed` mechanically), so the queue exists whether or not any orchestrator is awake to hear the interrupt. An attention-shaped queue was the bug; an outline-shaped queue is the fix, which is this document's organizing idea applied to its own operator.
