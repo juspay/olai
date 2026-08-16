@@ -11,7 +11,7 @@
  *
  * ## The line, left to right
  *
- *   title (ellipsized) · the aside · the note's pilcrow · the date
+ *   title (ellipsized) · the note's pilcrow · the aside · the date
  *
  * THE TITLE ELLIPSIZES rather than wrapping (the quiet outline, human): a row is
  * a line, and a title that wrapped to three of them turned the column into
@@ -19,13 +19,15 @@
  * `title`, so nothing is unreadable — it is one hover, or one click into the
  * editor, away.
  *
- * THE ASIDE AND THE PILCROW SIT AGAINST THE TITLE, not at the far right. They
- * are `shrink-0` and they follow the words immediately, which is what makes them
- * read as a byline rather than as a value column — the ruling that there is
- * nothing table-shaped in this view (human). What absorbs the rest of the line
- * is a filler after them, and it is not decoration: it is the click target that
- * puts the caret in the title from anywhere along the row, which the title's own
- * `flex-1` used to be before the aside needed to sit next to the words.
+ * EVERYTHING AFTER IT SITS AGAINST IT, and nothing floats to the far right.
+ * They are `shrink-0` and they follow the words immediately, which is what makes
+ * them read as a byline rather than as a value column — the ruling that there is
+ * nothing table-shaped in this view (human). The DATE was the last thing still
+ * floating, and it stopped being tolerable when the column lost its measure and
+ * took the whole pane. What absorbs the rest of the line is a filler after them
+ * all, and it is not decoration: it is the click target that puts the caret in
+ * the title from anywhere along the row, which the title's own `flex-1` used to
+ * be before anything needed to sit next to the words.
  *
  * What a node cannot START yet is NOT on this line: it is answered in the glyph
  * column (./Glyph.tsx), because it is the same kind of fact as whether the work
@@ -133,23 +135,32 @@ export function NodeLine(props: {
           {props.children}
           <NodeTitle title={props.title} from={props.from} />
         </span>
-        {props.aside}
+        {/* The pilcrow hugs the TITLE, because it is about the title — "there
+            is more of this" — and the facts follow it. */}
         {props.mark}
+        {props.aside}
+        {/* THE DATE RIDES HERE TOO, and it did not always: it was a sibling
+            outside this cell, which with a `flex-1` title meant the right edge
+            of the pane. That was tolerable while the column stopped at a
+            measure and is not now the tree takes the full width (`./touch.ts`)
+            — a badge a hand's width from the row it is about reads as a value
+            in a column, which is the shape this view has none of. Same rule as
+            the aside beside it: shrink-0, dim, straight after the words. */}
+        <Show when={props.date}>
+          {(date) => (
+            <DateBadge
+              date={date()}
+              occasion={props.occasion}
+              overdue={props.overdue}
+              onPick={props.onPickDate}
+            />
+          )}
+        </Show>
         {/* The rest of the line, and it belongs to the title: a click anywhere
             along a row opens its editor, exactly as it did when the title span
             itself was the thing that stretched. */}
         <span class="min-w-0 flex-1" aria-hidden="true" />
       </span>
-      <Show when={props.date}>
-        {(date) => (
-          <DateBadge
-            date={date()}
-            occasion={props.occasion}
-            overdue={props.overdue}
-            onPick={props.onPickDate}
-          />
-        )}
-      </Show>
     </>
   )
 }
