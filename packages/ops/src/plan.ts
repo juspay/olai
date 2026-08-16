@@ -637,39 +637,25 @@ const planAdd = (
   const contradicts = capturedOverOpenWork(request)
   if (contradicts !== undefined) return Result.fail(contradicts)
 
-  // DOOR TWO: the door the 2026-08-16 incident actually walked through, and
-  // the flow it matters most for — somebody writing down work that has just
-  // come up, under a branch somebody else called finished last week.
-  const above = capturesOpenWork(request)
-    ? staleDoneAbove(scope, file, parent)
-    : NOTHING_ABOVE
-
   // What came WITH the node the caller named. Only the commit line asks: the
   // answer says what it made whether that is one node or fifteen, and `(+0)`
   // would be a subject counting nothing.
   const under = minted.length - 1
-  const summary = under === 0
-    ? `capture: ${request.title}`
-    : `capture: ${request.title} (+${under})`
-  const note = reopening(above)
-  return Result.succeed({
+  // DOOR TWO: the door the 2026-08-16 incident actually walked through, and
+  // the flow it matters most for — somebody writing down work that has just
+  // come up, under a branch somebody else called finished last week.
+  return Result.succeed(arriving(scope, { file, parent }, capturesOpenWork(request), {
     files: [
-      {
-        file,
-        nodes: reopened(
-          scope,
-          withOrds([...recordsOf(scope, file), ...minted], ords.success),
-          above,
-        ),
-      },
+      { file, nodes: withOrds([...recordsOf(scope, file), ...minted], ords.success) },
     ],
     id,
     title: request.title,
     file,
-    summary: withReopened(summary, above),
+    summary: under === 0
+      ? `capture: ${request.title}`
+      : `capture: ${request.title} (+${under})`,
     captured: mintedOf(minted),
-    ...(note === undefined ? {} : { nudge: note }),
-  })
+  }))
 }
 
 /**
@@ -1008,30 +994,22 @@ const planMark = (
     ? `${UNMARKED[mark]}: ${node.title}`
     : `${mark}: ${node.title}`
 
-  // DOOR TWO ({@link staleDoneAbove}): this write is what MAKES the node
-  // unfinished work, so it is an arrival under whatever stands above it. The
-  // node's own parent chain, never its own mark — a node is not above itself.
-  const above = !undo && mark !== "done"
-    ? staleDoneAbove(scope, file, node.parent)
-    : NOTHING_ABOVE
+  const note = nudged(scope, node, mark, undo)
 
-  const note = saying(reopening(above), nudged(scope, node, mark, undo))
-
-  return Result.succeed({
+  // DOOR TWO ({@link arriving}): this write is what MAKES the node unfinished
+  // work, so it is an arrival under whatever stands above it. The node's own
+  // parent chain, never its own mark — a node is not above itself.
+  return Result.succeed(arriving(scope, { file, parent: node.parent }, !undo && mark !== "done", {
     files: [{
       file,
-      nodes: reopened(
-        scope,
-        replacing(recordsOf(scope, file), node.id, touched(scope, next)),
-        above,
-      ),
+      nodes: replacing(recordsOf(scope, file), node.id, touched(scope, next)),
     }],
     id: node.id,
     title: node.title,
     file,
-    summary: withReopened(summary, above),
+    summary,
     ...(note === undefined ? {} : { nudge: note }),
-  })
+  }))
 }
 
 /**
@@ -1182,8 +1160,8 @@ const capped = <T>(all: ReadonlyArray<T>, name: (one: T) => string): string =>
  * `undefined`, which is nearly every node.
  *
  * THE TWO DOORS, and why they are answered differently. This function is one
- * of them and {@link staleDoneAbove} is the other, and the argument is here
- * because it is one argument: they are the two ways into one state, exactly as
+ * of them and {@link arriving} is the other, and the argument is here because
+ * it is one argument: they are the two ways into one state, exactly as
  * {@link heldUp} and {@link nudged} are the two halves of one asymmetry.
  *
  * The state being made unreachable is one state: a node storing `done` with
@@ -1202,7 +1180,7 @@ const capped = <T>(all: ReadonlyArray<T>, name: (one: T) => string): string =>
  *     was marked done when the branch really was finished — a capture, a
  *     `set_todo`, a move, a merge, a return from the archive. Nobody marked
  *     anything over anything; the ancestor's mark simply went stale, five days
- *     of new children at a time ({@link staleDoneAbove}).
+ *     of new children at a time ({@link arriving}).
  *
  * ONE DOOR REFUSES AND THE OTHER REPAIRS, which is the same asymmetry
  * {@link heldUp} draws between finishing and starting, read at a different
@@ -1289,9 +1267,11 @@ const sweepingOpenWork = (
 const NOTHING_ABOVE: ReadonlyArray<LocatedRegular> = []
 
 /**
- * DOOR TWO: the `done` marks standing over a place open work is about to
- * arrive at — root first, and every one of them, because any one of them hides
- * the branch on its own.
+ * What door two DECIDES: the `done` marks standing over a place open work is
+ * about to arrive at — root first, and every one of them, because any one of
+ * them hides the branch on its own. {@link arriving} is what acts on it, and
+ * is the only caller: deciding and acting are one obligation, split here only
+ * so the walk can be read on its own.
  *
  * `parent` is where the arrival LANDS, and the chain asked about is that node
  * and everything above it: the landing parent itself is the first thing that
@@ -1316,63 +1296,88 @@ const staleDoneAbove = (
 
 /** Whether a subtree that is about to arrive somewhere holds work that is not
  *  finished — the node's own mark, or any unfinished task below it. What
- *  {@link staleDoneAbove} is asked ABOUT: a branch of bullets and done work
- *  lands under a finished ancestor without contradicting it. */
+ *  {@link arriving}'s `brings` is answered with when the thing arriving is
+ *  already in the set: a branch of bullets and done work lands under a
+ *  finished ancestor without contradicting it. */
 const holdsOpenWork = (scope: Scope, node: RegularNode): boolean => {
   const own = storedMarker(node)
   return (own !== undefined && own !== "done") ||
     unfinishedWithin(scope.derived, node.id).length > 0
 }
 
-/** The ancestors' `done` taken off, in the records of the file they live in.
- *  Stamped `changed` like any other write, because this IS a write to them —
- *  a mark that came off silently and left no trace would be the second half of
- *  the same problem. */
-const reopened = (
+/**
+ * DOOR TWO, done to a plan: the whole obligation in one move.
+ *
+ * ONE FUNCTION BECAUSE IT IS ONE OBLIGATION, and it was four. Taking a stale
+ * `done` off is three things that must happen together or not at all — the
+ * mark comes off the record, the commit subject names what it took off, and
+ * the answer says so — and each of them was a separate call the five arrival
+ * sites each had to remember to make, off a shared `above` they each had to
+ * compute and each had to spell the empty case of.
+ *
+ * That shape is a rule held in the author's memory rather than in the code,
+ * and two of its three failure modes are SILENT: a site that rewrote the
+ * records and forgot the sentence takes a person's mark off without telling
+ * them — which is the exact half of the ruling that says this may never land
+ * quietly — and one that wrote the sentence without the rewrite says a thing
+ * that is not true of the file. The third loses the git record. Fused, none of
+ * the three is reachable: there is one place where the mark comes off, and it
+ * is the same expression that writes the other two.
+ *
+ * It takes the PLAN the write has already decided and hands back the plan it
+ * becomes, which is why it can own all three: the records are in `files`, the
+ * subject is `summary`, the sentence is `nudge`. A write with nothing arriving
+ * gets its own plan back, unchanged and unallocated.
+ *
+ * The `nudge` it finds is KEPT and this news goes in front of it: a merge that
+ * carried a mark off to the archive, or a `done` that finished the last task
+ * under a parent, still has its own thing to say, and the two are one field on
+ * one answer.
+ */
+const arriving = (
   scope: Scope,
-  records: ReadonlyArray<Node>,
-  above: ReadonlyArray<LocatedRegular>,
-): ReadonlyArray<Node> => {
-  if (above.length === 0) return records
-  const undone = new Set(above.map((one) => one.node.id))
-  return records.map((record) => {
-    if (!undone.has(record.id)) return record
-    const next: Draft<RegularNode> = { ...(record as RegularNode) }
-    delete next.done
-    return touched(scope, next)
-  })
-}
+  /** Where the open work LANDS: the outline it is written in, and the node it
+   *  hangs off — absent at top level, where nothing stands above it. */
+  at: { readonly file: string; readonly parent: string | undefined },
+  /** Whether what is arriving holds work that is not finished. The caller's to
+   *  answer, because only the caller knows what is arriving — a subtree the
+   *  set already holds ({@link holdsOpenWork}) or a capture that is not on
+   *  disk yet ({@link capturesOpenWork}). */
+  brings: boolean,
+  plan: Plan,
+): Plan => {
+  const above = brings ? staleDoneAbove(scope, at.file, at.parent) : NOTHING_ABOVE
+  if (above.length === 0) return plan
 
-/** What the answer says about it — never nothing, which is the whole of the
- *  human's ruling: the hidden state may not land silently, and this is the
- *  channel every face already draws (`@olai/surface`'s `nudge`). */
-const reopening = (above: ReadonlyArray<LocatedRegular>): string | undefined => {
-  if (above.length === 0) return undefined
+  const titles = above.map((one) => one.node.title)
   const one = above.length === 1
-  const named = above.map((at) => `\`${at.node.title}\``).join(", ")
-  return `${named} ${one ? "was" : "were"} marked done, and this is unfinished ` +
-    `work under ${one ? "it" : "them"} — done-hidden would have swept it off ` +
-    `the page, so ${one ? "that mark is" : "those marks are"} off now. Mark ` +
+  // Stamped `changed` like any other write, because this IS a write to them.
+  const undone = new Set(above.map((one) => one.node.id))
+  const said = `${titles.map((title) => `\`${title}\``).join(", ")} ` +
+    `${one ? "was" : "were"} marked done, and this is unfinished work under ` +
+    `${one ? "it" : "them"} — done-hidden would have swept it off the page, so ` +
+    `${one ? "that mark is" : "those marks are"} off now. Mark ` +
     `${one ? "it" : "them"} done again when the branch really is finished.`
-}
 
-/** And what the COMMIT says about it, which is the record that outlives the
- *  answer: a mark this write took off a node nobody named belongs in the
- *  subject line, not only in a sentence the writer read once. */
-const withReopened = (
-  summary: string,
-  above: ReadonlyArray<LocatedRegular>,
-): string =>
-  above.length === 0
-    ? summary
-    : `${summary} (reopened: ${above.map((at) => at.node.title).join(", ")})`
-
-/** Two things a write may have to say, joined — or `undefined` when it has
- *  none. Both are the same field on the answer, so the join is here rather
- *  than at each site that might carry both. */
-const saying = (...parts: ReadonlyArray<string | undefined>): string | undefined => {
-  const said = parts.filter((part) => part !== undefined)
-  return said.length === 0 ? undefined : said.join(" ")
+  return {
+    ...plan,
+    files: plan.files.map((planned) =>
+      planned.file !== at.file ? planned : {
+        file: planned.file,
+        nodes: planned.nodes.map((record) => {
+          if (!undone.has(record.id)) return record
+          const next: Draft<RegularNode> = { ...(record as RegularNode) }
+          delete next.done
+          return touched(scope, next)
+        }),
+      }
+    ),
+    // The COMMIT says it too, which is the record that outlives the answer: a
+    // mark taken off a node nobody named belongs in the subject line, not only
+    // in a sentence the writer read once.
+    summary: `${plan.summary} (reopened: ${titles.join(", ")})`,
+    nudge: plan.nudge === undefined ? said : `${said} ${plan.nudge}`,
+  }
 }
 
 // ── title / desc / date ────────────────────────────────────────────────
@@ -1564,6 +1569,11 @@ const planMove = (
   const ords = placed(siblingsOf(scope.derived, file, parent), node.id, request)
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
 
+  const moved = withParent(node, parent)
+  // A mirror has no title of its own — it is a placement of a node that does —
+  // so what the commit line calls it is the id it was named by.
+  const title = isMirror(node) ? request.id : node.title
+
   // DOOR TWO: a subtree carrying unfinished work, landing somewhere new. Only
   // when the PARENT changes — a reorder among the same siblings arrives under
   // nothing it was not already under, and an ancestor's mark is not this
@@ -1571,36 +1581,24 @@ const planMove = (
   // A MIRROR is never asked: it is a placement, and a placement is not
   // containment, so moving one under a finished branch says nothing about
   // where the work it draws actually lives.
-  const above = parent !== node.parent && !isMirror(node) &&
-      holdsOpenWork(scope, node as RegularNode)
-    ? staleDoneAbove(scope, file, parent)
-    : NOTHING_ABOVE
+  const brings = parent !== node.parent && !isMirror(node) &&
+    holdsOpenWork(scope, node as RegularNode)
 
-  const moved = withParent(node, parent)
-  // A mirror has no title of its own — it is a placement of a node that does —
-  // so what the commit line calls it is the id it was named by.
-  const title = isMirror(node) ? request.id : node.title
-  const note = reopening(above)
-  return Result.succeed({
+  return Result.succeed(arriving(scope, { file, parent }, brings, {
     files: [
       {
         file,
-        nodes: reopened(
-          scope,
-          withOrds(
-            replacing(recordsOf(scope, file), node.id, touched(scope, moved)),
-            ords.success,
-          ),
-          above,
+        nodes: withOrds(
+          replacing(recordsOf(scope, file), node.id, touched(scope, moved)),
+          ords.success,
         ),
       },
     ],
     id: node.id,
     title,
     file,
-    summary: withReopened(`move: ${title}`, above),
-    ...(note === undefined ? {} : { nudge: note }),
-  })
+    summary: `move: ${title}`,
+  }))
 }
 
 const withParent = <N extends Node>(node: N, parent: string | undefined): N => {
@@ -1802,25 +1800,23 @@ const planMerge = (
   // merged node's own mark goes to the archive with its record, so it is the
   // rows it hands over that this asks about — placements excluded, as
   // everywhere.
-  const above = adopted.some((child) =>
-      !isMirror(child.node) && holdsOpenWork(scope, child.node as RegularNode)
-    )
-    ? staleDoneAbove(scope, file, into.id)
-    : NOTHING_ABOVE
+  const brings = adopted.some((child) =>
+    !isMirror(child.node) && holdsOpenWork(scope, child.node as RegularNode)
+  )
 
   const { existing, scaffold, buried } = buriedIn(scope, archive, node)
-  const nudge = saying(reopening(above), carriedOff(scope, node))
-  return Result.succeed({
+  const nudge = carriedOff(scope, node)
+  return Result.succeed(arriving(scope, { file, parent: into.id }, brings, {
     files: [
-      { file, nodes: reopened(scope, keeps, above) },
+      { file, nodes: keeps },
       { file: archive, nodes: [...existing, ...scaffold, buried] },
     ],
     id: into.id,
     title,
     file,
-    summary: withReopened(`merge: ${title}`, above),
+    summary: `merge: ${title}`,
     ...(nudge === undefined ? {} : { nudge }),
-  })
+  }))
 }
 
 /** What merging a node would produce: the row it joins, and the two texts that
@@ -2413,35 +2409,28 @@ const planUnarchive = (
     up = holder.parent
   }
 
-  const arriving = recordsOf(scope, destination)
+  const already = recordsOf(scope, destination)
   const reparented: Node = {
     ...withParent(node, parent),
-    ord: appendedOrd([arriving], parent),
+    ord: appendedOrd([already], parent),
   }
 
   // DOOR TWO, at the one arrival the archive itself sends: work that was put
   // away comes back, and what it comes back UNDER may have been called
   // finished in the meantime. The exemption is about where a node LIVES, so it
   // stops the moment the node stops living in the archive.
-  const above = holdsOpenWork(scope, node)
-    ? staleDoneAbove(scope, destination, parent)
-    : NOTHING_ABOVE
-  const note = reopening(above)
-
-  return Result.succeed({
-    files: [
-      { file, nodes: keeps.filter((record) => !dropped.has(record.id)) },
-      {
-        file: destination,
-        nodes: [...reopened(scope, arriving, above), reparented, ...descendants],
-      },
-    ],
-    id: node.id,
-    title: node.title,
-    file: destination,
-    summary: withReopened(`unarchive: ${node.title}`, above),
-    ...(note === undefined ? {} : { nudge: note }),
-  })
+  return Result.succeed(
+    arriving(scope, { file: destination, parent }, holdsOpenWork(scope, node), {
+      files: [
+        { file, nodes: keeps.filter((record) => !dropped.has(record.id)) },
+        { file: destination, nodes: [...already, reparented, ...descendants] },
+      ],
+      id: node.id,
+      title: node.title,
+      file: destination,
+      summary: `unarchive: ${node.title}`,
+    }),
+  )
 }
 
 /**
