@@ -21,6 +21,20 @@ Nothing has a mode: the title becomes an input in the same place, at the same si
 
 **What has no key is in the row's `•••` menu**, and it has two doors. On a pointer device, hover a row and the `•••` appears in the gutter left of the collapse triangle. A phone has no hover and no room for it, so there the door is the row itself: **hold a finger on a row** and the same menu opens under it, with the same verbs. Nothing in it is a mouse's alone. A finger that MOVES is scrolling the page, not pressing — the menu comes up only for one that stays put — and the tap that lifting it would otherwise leave behind is dropped, so a press never also opens the row for editing or follows its bullet.
 
+## A row is its title
+
+An outline is a column of titles, so that is what it draws. Everything else a node carries — its note, its properties, what it points at — waits behind a small dim **¶** beside the title. Press the ¶ (or **Space**, with it focused) and the row opens into three lines and no grid: the title line, now saying it is open, with its tags brightened; the node's properties as one dim dot-separated run; then the note. Press it again, click away, or press **Escape**, and the row folds back. A node with nothing behind it wears no ¶ at all, so the mark is always a promise there is something there.
+
+**How much a row starts as is yours**, in *prefs → Notes*: **Compact** is the title alone and is the default, **Cozy** keeps the first line of the note under it, **Open** starts every row open. It is a default and not a lock — the ¶ works at all three, and only rows you have not touched follow the setting. Like every preference it belongs to this browser, reaches every tab of it, and is never sent anywhere.
+
+**One fact may ride beside a title**, in the same dim voice as the tags: how far the tasks under a branch have got (`3/5`), or `pr` on work that has shipped. A collapsed branch also says how much finished work it is holding back, because done rows recede and a fold over them should leave a receipt rather than hide them twice.
+
+**Top-level rows read as sections**: a heavier name, the rollup as part of that header, and they stay put under the app bar while their own branch scrolls past.
+
+**The tags stay where they were written**, inline in the title, quieted by contrast rather than by a box: dim ink, no background, brightening under the pointer and while the row is open. Pressing one still filters the page ([search.md](search.md)).
+
+**And how big all of it is set is yours too**, in *prefs → Size*: Medium, Large or Larger. One number moves the whole page — rows, gutter, badges, panels — and it is a multiple of your browser's own text size rather than a pixel count overriding it. The default is Large, a notch above the browser's own: a column of titles read all day is not a document.
+
 ## The three marks, from the keyboard
 
 There are three marks and a node carries at most one of them ([format.md](format.md)) — so there are two keys, and between them they write all three and take one off.
@@ -145,11 +159,11 @@ The row moves the moment the file says so: a task given a day that has gone is i
 
 ## What a node says about itself
 
-A node's **properties** are named facts on it ([format.md](format.md)) — `pr`, `agent`, `isbn`, whatever a reader wants to be able to ask about later. They live in the record's one open field, `custom`, and they are drawn in a quiet drawer under the node's note, one `key value` line each.
+A node's **properties** are named facts on it ([format.md](format.md)) — `pr`, `agent`, `isbn`, whatever a reader wants to be able to ask about later. They live in the record's one open field, `custom`, and they are drawn above the node's note as a quiet RUN: dim `key value` pairs on one wrapping line, dot-separated, reading like a byline under a headline. Never a grid and never a form — a table under every open row turns an outline into a spreadsheet.
 
-**The drawer leads with the facts the node already carries**, read-only: its `id`, the mark it has, its `date`, and the `created`/`changed` stamps when it has them. Those had nowhere on the page to be read at all — the id in particular is what every tool call and every `((` reference takes. Below them are the custom keys, and those are the writable ones.
+**On a row they are part of the open state** (see *A row is its title*, below), and a node that carries one earns a pilcrow for it even with no note — a fact written into a place with no door is a fact nobody can read. **A row draws the custom keys only.** The node's own facts are already on the row: the mark is the glyph, the date is the badge, the id is where the bullet goes, and repeating them under the title would put two spellings of one fact on one screen.
 
-**On a row it appears once somebody has added a property**; on a node's own page it is always drawn. A tree is a column of titles, and an `id` line under every bullet in the vault would double the height of every row to say something nobody asked to see.
+**A node's own page draws them all**, read-only ones first: its `id`, the mark it has, its `date`, and the `created`/`changed` stamps when it has them. Those have nowhere else to be read — the id in particular is what every tool call and every `((` reference takes.
 
 **The `•••` menu writes the custom half.** *Add property…* opens two boxes under the row — a key and a value — and every custom property already on the node adds a pair beside it: *Edit `pr`…*, which opens the same panel with the value in it, and *Remove `pr`*, which is one write and takes the key off. **Enter** sends, **Escape** and **Cancel** leave without writing, and ⌘Z takes it back. What goes is the same `set_prop` an agent sends, judged by the same planner and refused in the same words — including its refusals: setting a property to the value it already holds, or removing one that is not there, is turned away rather than written, so the same gesture twice is one write and one sentence.
 
