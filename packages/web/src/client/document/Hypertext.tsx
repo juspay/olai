@@ -41,10 +41,10 @@
  * this file, so the two kinds of page answer the question in one place.
  */
 
-import { createMemo, createSignal, onCleanup } from "solid-js"
+import { createMemo, createSignal, onCleanup, onMount } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { sealed } from "./sealed.ts"
+import { reportedHeight, sealed } from "./sealed.ts"
 
 /**
  * How tall the frame is, as the three CSS lengths that answer it — a range a
@@ -78,16 +78,6 @@ import { sealed } from "./sealed.ts"
  */
 const HEIGHT = { min: "6rem", max: "200dvh", unmeasured: "70dvh" } as const
 
-/** What {@link MEASURE} sends, as the receiver must treat it: a message from an
- *  opaque origin, so every field is checked rather than trusted. */
-const heightIn = (said: unknown): number | undefined => {
-  if (typeof said !== "object" || said === null) return undefined
-  const claim = said as { readonly olai?: unknown; readonly height?: unknown }
-  if (claim.olai !== "page-height") return undefined
-  if (typeof claim.height !== "number" || !Number.isFinite(claim.height)) return undefined
-  return claim.height > 0 ? Math.ceil(claim.height) : undefined
-}
-
 export function Hypertext(props: { readonly file: string; readonly text: string }) {
   // The text, held by VALUE, and the seal applied downstream of it. A
   // collection entry is a fresh object on every revision the server publishes,
@@ -105,14 +95,20 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
   // in every other tab would also post as. `event.source` is the one thing that
   // cannot be spelled by a stranger: it either IS this element's content window
   // or it is somebody else's message, and somebody else's message is dropped
-  // before its shape is even looked at.
-  const listen = (event: MessageEvent) => {
-    if (frame === undefined || event.source !== frame.contentWindow) return
-    const height = heightIn(event.data)
-    if (height !== undefined) setMeasured(height)
-  }
-  window.addEventListener("message", listen)
-  onCleanup(() => window.removeEventListener("message", listen))
+  // before its shape is even looked at (`./sealed.ts` owns the shape).
+  //
+  // In `onMount`, which is the shape every window listener in this client has
+  // (`../palette/Shortcuts.tsx`, `../edit/Editable.tsx`) and the one that makes
+  // the ref below a fact rather than a hope: the element exists by then.
+  onMount(() => {
+    const listen = (event: MessageEvent) => {
+      if (event.source !== frame?.contentWindow) return
+      const height = reportedHeight(event.data)
+      if (height !== undefined) setMeasured(height)
+    }
+    window.addEventListener("message", listen)
+    onCleanup(() => window.removeEventListener("message", listen))
+  })
 
   // The clamp is CSS rather than arithmetic here, and deliberately not the
   // numeric `clamp` this client already has (`../layout/prefs.ts`, which the

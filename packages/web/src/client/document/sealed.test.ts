@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 
 import { expect, test } from "bun:test"
 
-import { SEAL, sealed } from "./sealed.ts"
+import { reportedHeight, SEAL, sealed } from "./sealed.ts"
 
 /** The policy the seal carries, read back the way a browser reads it: every
  *  directive, with its source list. Parsed rather than matched, because what
@@ -93,4 +93,45 @@ test("the file's own markup is carried through untouched", () => {
 // the parser would take as "no policy".
 test("an empty file is still sealed", () => {
   expect(sealed("")).toBe(SEAL)
+})
+
+// THE MESSAGE, from both ends. The script is text in a string, so nothing type
+// checks that what it builds is what `reportedHeight` takes apart — this pair
+// of assertions is what does, and the first one is the whole reason the parser
+// lives in `sealed.ts` rather than in the component that calls it.
+test("the frame's own message is one the parser recognises", () => {
+  const said = /parent\.postMessage\(\s*("[^"]*")/.exec(SEAL)
+  if (said === null) throw new Error(`the measure does not post a message: ${SEAL}`)
+  expect(reportedHeight(`${JSON.parse(said[1]!)}640`)).toBe(640)
+})
+
+// …and everything else is nothing. A sandboxed frame is an opaque origin and a
+// message from one is a claim, so the cases below are not exotic — they are
+// what a receiver that skipped a check would let through: somebody else's
+// well-formed message, a height that is not a number, a page that measured
+// itself as nothing at all, and the two numeric values that are not lengths.
+test("anything else the frame could say is not a height", () => {
+  for (
+    const said of [
+      undefined,
+      null,
+      42,
+      { olai: "page-height", height: 640 },
+      "olai:page-height:",
+      "olai:page-height:tall",
+      "olai:page-height:0",
+      "olai:page-height:-40",
+      "olai:page-height:Infinity",
+      "some-other-app:page-height:640",
+    ]
+  ) {
+    expect(reportedHeight(said)).toBeUndefined()
+  }
+})
+
+// Rounded UP, and it matters at the last line: a browser lays out in fractions,
+// and a frame truncated to the pixel below its content clips a descender and
+// grows a scrollbar to show it.
+test("a fractional page gets the pixel it needs", () => {
+  expect(reportedHeight("olai:page-height:640.2")).toBe(641)
 })

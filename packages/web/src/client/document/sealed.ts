@@ -97,6 +97,26 @@
  */
 
 /**
+ * WHAT THE FRAME SAYS, and the whole of it: this prefix, then a number.
+ *
+ * The two ends of a `postMessage` have to agree on a shape, and the producer
+ * here is text inside a script that no compiler reads. So the agreement is ONE
+ * CONSTANT, and both ends are in this module — {@link MEASURE} builds the
+ * message out of it and {@link reportedHeight} takes it apart. Spelling it
+ * twice, once in the script and once in whatever parsed the result, is a rule
+ * kept by memory across two files, and its failure mode is the worst kind:
+ * nothing throws, no test goes red, the message simply stops being recognised
+ * and the preview sits on its fallback height forever.
+ *
+ * A prefixed STRING rather than an object with named fields, because that is
+ * the smallest thing that carries one number across a trust boundary. An object
+ * would put its key names in the same two places the tag would have been —
+ * spelled in the script's text, spelled again in the parser — and buy nothing:
+ * the receiver has to validate every byte either way.
+ */
+const REPORT = "olai:page-height:"
+
+/**
  * The one program allowed to run in there: a tape measure.
  *
  * It reports the page's own height to the embedder and does nothing else — no
@@ -129,10 +149,10 @@
 const MEASURE = `(function () {
   var post = function () {
     var page = document.documentElement, body = document.body
-    parent.postMessage({
-      olai: "page-height",
-      height: Math.max(page.offsetHeight, body ? body.scrollHeight : 0)
-    }, "*")
+    parent.postMessage(
+      ${JSON.stringify(REPORT)} + Math.max(page.offsetHeight, body ? body.scrollHeight : 0),
+      "*"
+    )
   }
   addEventListener("load", post)
   addEventListener("DOMContentLoaded", function () {
@@ -152,7 +172,7 @@ const MEASURE = `(function () {
  * A stale number here fails there, before a reader finds out by getting a
  * preview quietly back on its fallback height.
  */
-const MEASURE_SHA256 = "XsBd2vyP9efw0etFdKhC4Emwxe3tSLUCfbPcQvMEv/o="
+const MEASURE_SHA256 = "wLCFaN9yrbDA5UnaRV1OMYb8sxZxJtLPz90rPRRJVPQ="
 
 /**
  * What is put in front of the file's own markup.
@@ -201,3 +221,26 @@ export const SEAL = "<!doctype html>" +
  *  re-encoded: what makes that safe is the frame it is drawn in and the policy
  *  above it, not an edit to somebody else's file. */
 export const sealed = (markup: string): string => SEAL + markup
+
+/**
+ * The other end of {@link REPORT}: what a sealed frame said, as a height — or
+ * nothing, which is the answer to every message that was not one of ours and
+ * to every one of ours that made no sense.
+ *
+ * It lives HERE, beside the script whose output it reads, because the two are
+ * one thing: a message format. Split across a module boundary it would be a
+ * format nobody owns, kept in step by whoever remembers to change both sides.
+ * Here it is also PURE and browser-free like everything else in this file, so
+ * `./sealed.test.ts` can hand it the hostile inputs a real frame never sends.
+ *
+ * Everything is checked because the sender is an opaque origin and nothing it
+ * says is privileged. `Number` of a prefix-stripped tail rejects the empty
+ * string as `0` and anything wordy as `NaN`, both of which fall out through the
+ * same gate as a negative or an infinity. Rounded UP, because a fractional
+ * layout truncated down is the last line of a page clipped by half a pixel.
+ */
+export const reportedHeight = (said: unknown): number | undefined => {
+  if (typeof said !== "string" || !said.startsWith(REPORT)) return undefined
+  const height = Number(said.slice(REPORT.length))
+  return Number.isFinite(height) && height > 0 ? Math.ceil(height) : undefined
+}
