@@ -165,14 +165,25 @@ Feature: A `.html` in the vault
     # itself, not before.
     And the preview is as tall as the page it shows
 
+  # ── a link to a page beside it opens that page ───────────────────────
+  #
+  # `html-preview-relative-links`, finished. A folder holds two pages and one
+  # links to the other; clicking that link opens the other page IN OLAI — the
+  # app's own address, its own heading, its own entry lit in the directory
+  # column — which is exactly where clicking that file in the sidebar lands.
+  #
+  # #206 gave the file a real address, which made the neighbour RENDER inside
+  # the frame while every other sign in the app went on saying the file the
+  # reader had left. That was honest scope and it was not the ask. What claims
+  # the click now is a handler the seal puts in the page: it recognises a link
+  # at a file of this vault that olai has a page for, refuses to follow it, and
+  # posts the address out. Nothing about the seal moved to make that work — the
+  # frame gets no origin and no channel back, only the `postMessage` it already
+  # reports its height on, and what it says is a LOOKUP KEY in this app's own
+  # list of files (`@olai/surface`'s `seal.ts`, `Hypertext.tsx`).
+
   @scratch:good
-  Scenario: A relative link opens the page beside it, inside the frame
-    # What giving the file a real address bought, and the bug it closes:
-    # `html-preview-relative-links` on the roadmap. Under the old seal a
-    # relative link resolved against a `<base>` at the media route's directory,
-    # which was an address the route would not answer — so a click was a 404.
-    # Served at its own path, the file's neighbours are its neighbours, and the
-    # page that opens is sealed exactly as the one that linked to it.
+  Scenario: A relative link opens the page beside it, in olai
     Given I open the app
     When I rewrite "notes/first.html" as:
       """
@@ -186,14 +197,101 @@ Feature: A `.html` in the vault
     And I expand the folder "notes"
     And I click the page "notes/first.html"
     Then the preview shows the heading "First"
+    Given I mark the page
     When I click "#next" inside the preview
-    # The page beside it, in the frame, and STILL THERE — a document this
-    # server sealed says so as it parses, so the frame is not brought home from
-    # it the way it is brought home from a stranger's page (the two scenarios
-    # below this one).
-    Then the preview shows the heading "Second"
+    # THE ASK, read on the APP rather than inside the frame — three readings of
+    # one navigation, because the complaint about what #206 shipped was that the
+    # frame moved and none of these did.
+    Then the document open is "notes/second.html"
+    And the address is "/doc/notes/second.html"
+    And the sidebar marks the page "notes/second.html" as the one open
+    # A route, not a reload: answered in place, exactly as the sidebar's own
+    # click is.
+    And the page has not reloaded
+    # …and it is the page beside it that opened, drawn behind its own seal at
+    # its own address.
+    And the preview shows the heading "Second"
     And the preview resolves the file's addresses beside "notes/second.html"
-    And the app's page is untouched by the preview
+
+  @scratch:good
+  Scenario: A link to a note beside the page opens the note
+    # The other kind of file olai has a page for, and the one judgement call in
+    # this rule. The media route REFUSES a `.md` — it is not a part a page draws
+    # itself with, and a note has a page of its own — so this link is a 404 in
+    # the frame and has always been a dead click. It never reaches the network
+    # now: it names a note, and a note has a page, which is where the reader
+    # meant to go. The two rules answer different questions — what a browser may
+    # be SERVED, and where a reader may be TAKEN.
+    Given I open the app
+    When I rewrite "notes/index.html" as:
+      """
+      <h1>Index</h1>
+      <p><a id="note" href="palette.md">the palette note</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/index.html"
+    Then the preview shows the heading "Index"
+    When I click "#note" inside the preview
+    Then the document open is "notes/palette.md"
+    And the address is "/doc/notes/palette.md"
+
+  @scratch:good
+  Scenario: A link at anything else in the vault is still the frame's to follow
+    # The scope, read as what did NOT change. A link to a part a page draws
+    # itself with — a picture, a stylesheet, a font — names a file olai has no
+    # page for, so the handler leaves the click alone and the frame follows it
+    # exactly as it did before any of this: it lands on something that is not a
+    # sealed document, says nothing, and the file is put back. That is #206's
+    # walk-off story, untouched, and this is the line that says a click on a
+    # link olai cannot answer was not quietly turned into a dead one.
+    Given I open the app
+    And I mark the page
+    When I rewrite "gallery.html" as:
+      """
+      <h1>Gallery</h1>
+      <p><a id="shot" href="art/handle.png">the picture itself</a></p>
+      """
+    And I click the page "gallery.html"
+    Then the preview shows the heading "Gallery"
+    When I click "#shot" inside the preview
+    # The app did not move — this was never its click…
+    Then the address is "/doc/gallery.html"
+    And the page has not reloaded
+    # …and the frame went, found something that does not greet, and was brought
+    # home to the file, which is where the reader can see it.
+    And the preview shows the heading "Gallery"
+
+  @scratch:good
+  Scenario: A page cannot navigate this app by naming a file the vault does not hold
+    # THE HOSTILE CASE, and the reason the message is a lookup key rather than
+    # an instruction. A previewed page runs its own JavaScript, so it can post
+    # this app anything at all: a page that is not there, a climb out of the
+    # vault, one of the app's own addresses, a bare path. Each is decoded
+    # through the vault's one URL decoder and then MATCHED against the files
+    # this app is serving, and the route is built from the string that list
+    # holds — so a miss moves nothing, and nothing a frame said ever reaches the
+    # address bar.
+    #
+    # The last two lines are the fixture's teeth and the residue, in one act. A
+    # forged prefix that no longer matched the seal's would make every line
+    # above vacuous, so the page also sends one WELL-FORMED message naming a
+    # file this vault really holds, and that one does open its page — which is
+    # no more than the page could have done by drawing a link and is exactly as
+    # far as this channel goes.
+    Given I open the app
+    When I rewrite "forger.html" as a page that posts forged addresses at the app
+    And I click the page "forger.html"
+    Then the preview shows the heading "Forger"
+    And the address is "/doc/forger.html"
+    And the document open is "forger.html"
+    # …and neither does a well-formed message from something that is not the
+    # frame: the sender is identified by IDENTITY, since every sandboxed frame
+    # on the internet posts from the same opaque origin.
+    When something other than the preview asks the app to open "finishes.md"
+    Then the address is "/doc/forger.html"
+    When I click "#honest" inside the preview
+    Then the address is "/doc/finishes.md"
+    And the document open is "finishes.md"
 
   @corpus:good
   Scenario: The preview draws the file's own picture

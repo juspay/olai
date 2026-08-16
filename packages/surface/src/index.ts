@@ -586,13 +586,18 @@ export {
  *  onto ops requests total. */
 export { type Applied, Anchor, Edit } from "./edit.ts"
 
-/** The one HTTP address both ends spell — see {@link ./media.ts}. */
-export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
+/** The one HTTP address both ends spell — see {@link ./media.ts}. `mediaTarget`
+ *  is what the ROUTE may answer; `mediaPath` is the decoder under it, for the
+ *  reader that asks which file of the vault an address names without asking
+ *  whether it may be served. */
+export { MEDIA_PREFIX, mediaHref, mediaPath, mediaTarget } from "./media.ts"
 
-/** What a served `.html` is answered with, and how tall it says it is — the
- *  other contract between the server that writes it and the browser that reads
- *  it, for {@link ./media.ts}'s reason. See {@link ./seal.ts}. */
+/** What a served `.html` is answered with, how tall it says it is, and which
+ *  page of this vault it says a reader clicked — the other contract between the
+ *  server that writes it and the browser that reads it, for {@link ./media.ts}'s
+ *  reason. See {@link ./seal.ts}. */
 export {
+  opening,
   type Reading,
   reported,
   SEAL,

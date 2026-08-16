@@ -54,11 +54,25 @@
  * It cannot be asked where it is — an opaque origin answers nothing — so it is
  * COUNTED, and now also LISTENED FOR. Every document this component points the
  * frame at is one it asked for; a `load` nobody asked for is a navigation, and
- * there are two kinds of those now. A relative link to a sibling file of the
- * vault is one, and it is a FEATURE — it is answered by this same route, so the
- * seal is over it and its tape measure reports. A jump to somebody else's server
- * is the other, and nothing reports. So an unasked-for load is given
- * {@link SAYS_HELLO} to identify itself, and the file goes back if it does not.
+ * there are two kinds of those. A page of this vault arrived at from inside the
+ * frame is one — a script assigning `location`, a `refresh` naming a neighbour,
+ * a link carrying a fragment — and it is a FEATURE: it is answered by this same
+ * route, so the seal is over it and its tape measure reports. A jump to somebody
+ * else's server is the other, and nothing reports. So an unasked-for load is
+ * given {@link SAYS_HELLO} to identify itself, and the file goes back if it does
+ * not.
+ *
+ * A LINK THE READER CLICKS AT A PAGE OF THIS VAULT IS NEITHER, and that is the
+ * decision this component gained last. It is not a walk-off, and it is no longer
+ * a navigation at all: the seal's own handler claims that click before the frame
+ * moves and posts the address out here instead (`seal.ts`'s `FOLLOW` and
+ * `OPEN`), and {@link Hypertext}'s `open` navigates THE APP to that file's page.
+ * The reader lands where clicking it in the sidebar lands — same address, same
+ * heading, same entry lit in the column — because it is the same route, and this
+ * element is unmounted along with the page that held it. What the frame said is
+ * a lookup key in this app's own file list and never anything more; the argument
+ * for why that is the only safe reading of it is where the message is defined,
+ * and the enforcement of it is `open` below.
  *
  * THAT TEST IS FORGEABLE, and it is written down here rather than left to be
  * discovered: a page that has walked off can post the same message, because it
@@ -83,10 +97,12 @@
  * this file, so the two kinds of page answer the question in one place.
  */
 
-import { mediaHref, type Reading, reported, sealedHello } from "@olai/surface"
+import { mediaHref, opening, type Reading, reported, sealedHello } from "@olai/surface"
 import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js"
 
+import { useRouter } from "../router.tsx"
 import { TESTID } from "../testids.ts"
+import { useDocumentPaths } from "./documents.tsx"
 
 /**
  * How many times a page may walk the frame off the vault without identifying
@@ -214,6 +230,8 @@ const VISIT = "olai-visit"
 
 export function Hypertext(props: { readonly file: string; readonly rev: number }) {
   const [measured, setMeasured] = createSignal<string>()
+  const router = useRouter()
+  const held = useDocumentPaths()
   let frame: HTMLIFrameElement | undefined
 
   // The widths the accepted heights were measured at, and the reason they are
@@ -284,6 +302,40 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
     point(`${mediaHref(props.file)}?${VISIT}=${visits}`)
   }
 
+  /**
+   * OPEN A PAGE OF THIS VAULT, because a reader clicked a link to it inside the
+   * preview — and the whole of what "because" is worth here.
+   *
+   * What arrives is a path from a document running somebody else's JavaScript,
+   * so it is a LOOKUP KEY and nothing else. It is matched against the paths this
+   * app is serving ({@link useDocumentPaths} — the same list `../page.ts`
+   * decides a `/doc/` address against), and the route is built from the string
+   * THAT LIST holds rather than from the one that arrived. The two are equal by
+   * construction, which is the point: it makes it mechanical, rather than
+   * argued, that nothing a frame said reaches the address bar. A hostile page
+   * can post any string it likes; the most it can do with one is name a file the
+   * reader could have clicked in the sidebar anyway.
+   *
+   * A MISS MOVES NOTHING, deliberately, and the tempting alternative is worth
+   * naming because it looks kinder: navigating anyway would let this app's own
+   * "no such document" screen say what happened. It would also put an arbitrary
+   * string from a sandboxed frame into the URL bar, which is a capability, and
+   * the sentence on screen would be about a file the reader never named. A dead
+   * click on a link to a file the vault does not hold is the honest answer, and
+   * the file it points at is not there for anybody else to click either.
+   *
+   * A link to the page ALREADY OPEN is left to do exactly what such a link does
+   * anywhere in this app — a history entry naming the page you are on — because
+   * a `[here](./here.md)` in a rendered document does the same thing through
+   * `../router.tsx`'s `followed`, and a preview is not the place to invent a
+   * second rule about self-links.
+   */
+  const open = (named: string) => {
+    const file = held().find((path) => path === named)
+    if (file === undefined) return
+    router.go({ kind: "document", file })
+  }
+
   /** Put the file back, or — once the budget is out — nothing at all. */
   const bring = () => {
     walkOffs += 1
@@ -336,6 +388,13 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
         else stand({ ...custody, spoke: true })
         return
       }
+      // A LINK THE READER FOLLOWED, at a page this app can show. The frame has
+      // already declined to navigate itself (`seal.ts`'s `FOLLOW`), so this is
+      // the whole of what the click does — and the frame's custody is untouched
+      // by design: nothing loaded, nothing walked off, and the element is about
+      // to be replaced by the next page's own anyway.
+      const wants = opening(event.data)
+      if (wants !== undefined) return open(wants)
       const report = reported(event.data)
       if (report === undefined) return
       const width = frame.clientWidth

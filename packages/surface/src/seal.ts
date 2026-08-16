@@ -61,9 +61,9 @@
  * allowed to exist.
  *
  * WHAT IS STILL PREPENDED, and it is much less than it was: a doctype, a colour
- * scheme and the tape measure ({@link SEAL}). No policy — that is a header now.
- * No `<base>` — the document has a real URL to resolve against, which is the
- * whole of point 3 below.
+ * scheme, the tape measure and the link handler ({@link SEAL}). No policy — that
+ * is a header now. No `<base>` — the document has a real URL to resolve against,
+ * which is the whole of point 3 below.
  *
  * RELATIVE ADDRESSES RESOLVE THEMSELVES. This is what a real URL is worth. A
  * `srcdoc` document has no address, so `art/shot.png` in it resolved against
@@ -72,8 +72,21 @@
  * file 404 (`html-preview-relative-links` on the roadmap). Served at
  * `/media/notes/report.html`, the file's own URL is its base: `art/shot.png` is
  * `/media/notes/art/shot.png` and `other.html` is `/media/notes/other.html`,
- * both of them files of this vault, answered by this same route. The vault's
- * own shape is the URL space, so nothing has to be rewritten to agree with it.
+ * both of them files of this vault. The vault's own shape is the URL space, so
+ * nothing has to be rewritten to agree with it.
+ *
+ * AND THE TWO PART COMPANY AT THE CLICK, which is the rest of that bug and what
+ * {@link OPEN} is for. The picture is FETCHED — it is a part the page draws
+ * itself with, so it travels this route and the policy above is the whole of
+ * what governs it. The link is not: `other.html` is a file olai has a PAGE for,
+ * and a reader following it wants that page — its address, its heading, its
+ * entry lit in the directory column — rather than the neighbour drawn inside a
+ * frame that is still, by every other sign in the app, `report.html`. So the
+ * handler below claims that one click, hands the address out, and the app
+ * navigates. Nothing about the seal moves an inch to make that work: the frame
+ * gets no origin, no channel back and no privilege it did not have. It gets to
+ * SAY something, over the same `postMessage` it already says its height on, and
+ * to be believed exactly as far as a lookup in this app's own list of files.
  *
  * `base-uri 'none'` is what keeps that true. A saved page carries a `<base
  * href>` of its own often enough that it is the ordinary case rather than the
@@ -151,7 +164,9 @@
  * somebody who needed one embed to work.
  */
 
-import { MEDIA_PREFIX } from "./media.ts"
+import { BODY_EXTS } from "@olai/format"
+
+import { mediaPath, MEDIA_PREFIX } from "./media.ts"
 
 /**
  * WHAT THE FRAME SAYS, and the whole of it: one of these two prefixes, then a
@@ -231,7 +246,40 @@ const HELLO = "olai:page-sealed"
 export const sealedHello = (said: unknown): boolean => said === HELLO
 
 /**
- * The tape measure: the one program olai puts into somebody else's page.
+ * THE THIRD THING A SEALED PAGE MAY SAY: a reader clicked a link, and the
+ * address it names is a file of this vault that olai has a page for.
+ *
+ * It is a MESSAGE rather than a navigation because of what the click means. A
+ * saved page linking to `other.html` beside it is naming a file of the vault,
+ * and this app has a page for that file — its own address, its own heading, its
+ * entry lit in the directory column. Following it inside the frame renders the
+ * neighbour and leaves every one of those saying the file the reader has just
+ * left, which is a preview pretending to be a browser. So the frame hands the
+ * address OUT and the app navigates: the reader lands exactly where clicking
+ * that file in the sidebar lands, because it is the same route.
+ *
+ * `postMessage` is the only way out of an opaque origin and the channel this
+ * seal already speaks (the greeting and the heights above it), so it is the
+ * channel — kolu's own iframe renderer documents the same shape for the same
+ * reason. What travels is the PATHNAME the browser resolved, percent-escapes
+ * and all, exactly as it would have fetched it.
+ *
+ * NOTHING IN IT IS TRUSTED, and the receiving end is written on that
+ * assumption: a page that runs script can post any string at all, so what
+ * arrives is a LOOKUP KEY and never an instruction. {@link opening} decodes it
+ * through the vault's one URL decoder and hands back a path; `Hypertext.tsx`
+ * then matches that path against the set of files this app is actually serving
+ * and navigates using ITS OWN copy of the string. A path the vault does not
+ * hold moves nothing — no address, no page, no screen that says the frame
+ * named it — which is the difference between a lookup and an instruction.
+ */
+const OPEN = "olai:open-page:"
+
+/**
+ * The tape measure: the first of the two programs olai puts into somebody
+ * else's page ({@link FOLLOW} is the other, and they are as separate as they
+ * look — one measures, one listens for a click, and neither knows about the
+ * other).
  *
  * It says {@link HELLO} and then reports the page's own height, and does
  * nothing else — no DOM of its own, no state, no reply channel. An iframe does not size to its
@@ -308,6 +356,81 @@ const MEASURE = `(function () {
 })()`
 
 /**
+ * The second program olai puts into somebody else's page: the one that notices
+ * a reader clicking a link at a page of this vault, and hands the address out
+ * instead of following it.
+ *
+ * WHICH CLICKS IT CLAIMS, and every line of the test is a case somebody would
+ * otherwise lose:
+ *
+ *   - a PLAIN left click, and nothing modified. That is `@olai/web`'s `press.ts`
+ *     rule spelled a second time, which this module normally refuses to do —
+ *     here it is unavoidable (this is text in a template literal, in a package
+ *     the client cannot reach and a frame that imports nothing) and it is the
+ *     rare copy whose drift is harmless: a modified click that stopped being
+ *     claimed behaves as it did before any of this, which is to say the sandbox
+ *     refuses it (no `allow-popups`, no `allow-top-navigation`);
+ *   - a click the PAGE has not already answered. Bubble phase and
+ *     `defaultPrevented`, so a saved page that routes its own links keeps them.
+ *     Capturing would take clicks off a page that had already decided what they
+ *     mean, to send them somewhere the page never asked for;
+ *   - THIS VAULT's address space and no other: the document's own scheme and
+ *     host, under the media route. A link to a stranger is not ours to answer —
+ *     it walks the frame off and comes home, which is the behaviour that was
+ *     already there and is deliberately untouched;
+ *   - a file olai has a PAGE for, by suffix ({@link BODY_EXTS} — a `.html`, and
+ *     a `.md` beside it). Everything else under the route is a part a page draws
+ *     ITSELF with — a picture, a stylesheet, a font — and a link to one is a
+ *     link to a file, which the frame goes on following exactly as it did;
+ *   - NO FRAGMENT. `#top` on a link is an in-page anchor and must stay one, and
+ *     `other.html#beds` is an anchor this app cannot land on — the same call
+ *     `routeIn` makes about a link in rendered markdown (`@olai/web`'s
+ *     `routes.ts`), for the same reason: a plain navigation that visibly does
+ *     not land somewhere is better than a page pretending it did.
+ *
+ * A `.md` is on that list on purpose, and it is the one judgement call here. The
+ * media route REFUSES a `.md` — it is not an `isAsset`, so the frame following
+ * such a link gets a 404 today, which is a dead click at the end of a link
+ * somebody wrote in their own vault. The click never reaches the network now: it
+ * names a note, and a note has a page. What makes the two consistent rather than
+ * contradictory is that they answer different questions — what a browser may be
+ * SERVED, and what a reader may be TAKEN to.
+ *
+ * `new URL` rather than string arithmetic, because resolving `../other.html`
+ * against the document's own address is the browser's job and it is already
+ * done: an anchor's `href` property IS the resolved absolute URL. The `try` is
+ * for the one element that has an `href` which is not a string — an `<a>` in
+ * SVG, whose `href` is an `SVGAnimatedString` — and it falls out as a link this
+ * does not claim.
+ */
+const FOLLOW = `(function () {
+  var pages = ${JSON.stringify(BODY_EXTS)}
+  addEventListener("click", function (event) {
+    if (event.defaultPrevented || event.button !== 0) return
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    var node = event.target
+    var link = node && node.closest ? node.closest("a") : null
+    if (!link) return
+    var at
+    try {
+      at = new URL(link.href)
+    } catch (_) {
+      return
+    }
+    if (at.protocol !== location.protocol || at.host !== location.host) return
+    if (at.hash !== "") return
+    var path = at.pathname
+    if (path.lastIndexOf(${JSON.stringify(MEDIA_PREFIX)}, 0) !== 0) return
+    for (var i = 0; i < pages.length; i++) {
+      if (path.slice(-pages[i].length) !== pages[i]) continue
+      event.preventDefault()
+      parent.postMessage(${JSON.stringify(OPEN)} + path, "*")
+      return
+    }
+  })
+})()`
+
+/**
  * What is put in front of the file's own bytes, and the whole of it.
  *
  * A CONSTANT now, which is the shape of what the header took over: this prefix
@@ -328,9 +451,18 @@ const MEASURE = `(function () {
  * black text on the frame's own white ground, unreadable, with the file itself
  * blameless. A page that styles itself paints over this and is unaffected.
  *
- * Then the measure, in front of every byte of the file so it is installed
- * before the file's own markup has been parsed — and beside the file's own
- * scripts now rather than instead of them.
+ * Then the two programs olai puts in there — the tape measure and the link
+ * handler — in front of every byte of the file, so both are installed before the
+ * file's own markup has been parsed, and beside the file's own scripts now
+ * rather than instead of them. ONE `<script>` element holding both, joined by
+ * the `;` two adjacent parenthesised expressions need: they are two subjects and
+ * one prefix, and a second element would be a second thing for a reader auditing
+ * what this app injects to have to find.
+ *
+ * The MEASURE is first, and one line of it depends on that: the greeting is the
+ * earliest thing a sealed document says, and a click handler installed ahead of
+ * it would put a statement in front of the sentence every embedder is waiting
+ * on.
  *
  * WHAT THIS COSTS, said out loud: the response is no longer the file byte for
  * byte, it is this prefix and then the file byte for byte. Nothing of the
@@ -344,7 +476,7 @@ const MEASURE = `(function () {
  */
 export const SEAL = `<!doctype html>` +
   `<meta name="color-scheme" content="light">` +
-  `<script>${MEASURE}</script>`
+  `<script>${MEASURE};${FOLLOW}</script>`
 
 /**
  * The one place a sealed page may fetch from, as a CSP source — or NOTHING,
@@ -444,6 +576,37 @@ export const sealPolicy = (host: string): string => {
     `script-src ${from("'unsafe-inline'", "'unsafe-eval'")}; ` +
     `style-src ${from("'unsafe-inline'")}; ` +
     `frame-src 'none'; form-action 'none'; base-uri 'none'`
+}
+
+/**
+ * The other end of {@link OPEN}: the file a sealed frame asked this app to open,
+ * or nothing at all.
+ *
+ * NOTHING is the answer to every message that was not one of ours, and to every
+ * one of ours that named an address the vault's URL space does not admit —
+ * anything outside `/media/`, a climb spelled either way, a segment smuggling a
+ * separator or a NUL, a malformed escape. That judgement is not made here: it is
+ * `./media.ts`'s {@link mediaPath}, which is the ONE decoder of this URL space
+ * and already the guard the route stands behind. A second parse written for this
+ * message would be a second traversal guard, and the one nobody thought to
+ * attack is the one that would be wrong.
+ *
+ * WHAT COMES BACK IS STILL NOT A FILE. It is a path shaped like one, from a
+ * document that runs somebody else's JavaScript, and every hostile message that
+ * gets this far gets this far honestly — `../` is refused, but `secrets.md` is a
+ * perfectly well-formed path and this will hand it back. What makes that safe is
+ * the step after it, and it is the receiver's rather than this module's: the
+ * path is looked UP in the set of files this app is serving, and a lookup that
+ * misses moves nothing. This is where the message stops being a URL; it is not
+ * where it starts being trusted.
+ *
+ * Here beside the script that posts it for {@link reported}'s reason — a
+ * message format is one thing with one owner — and pure like everything else in
+ * this file, so `./seal.test.ts` can hand it what no real frame would send.
+ */
+export const opening = (said: unknown): string | undefined => {
+  if (typeof said !== "string" || !said.startsWith(OPEN)) return undefined
+  return mediaPath(said.slice(OPEN.length)) ?? undefined
 }
 
 /** What a sealed frame said: a height, and which reading it is. */

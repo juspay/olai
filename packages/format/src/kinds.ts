@@ -179,6 +179,26 @@ export const unkept = (path: string): boolean => {
 }
 
 /**
+ * The BODIED kinds' suffixes, as the strings themselves.
+ *
+ * {@link bodyKind} is this question wherever a function can be called, and
+ * wherever one can be called it is the answer. This is the same list for the
+ * one caller that cannot call anything: the click handler `@olai/surface`'s
+ * `seal.ts` puts inside a previewed page is TEXT in a template literal, running
+ * in a frame with no imports and no module system, and what it has to decide
+ * about the link under the reader's finger is whether that address names a file
+ * this app has a page for. So the list is interpolated into the script and the
+ * decision stays the registry's — as against a `.html` written out over there,
+ * which is the second answer this file exists to prevent.
+ *
+ * Same terms as {@link OUTLINE_EXT} and {@link DOCUMENT_EXT} below, and the same
+ * one reason: a caller that needs the SPELLING rather than the verdict.
+ */
+export const BODY_EXTS: ReadonlyArray<string> = CLAIMS
+  .filter(([kind]) => holdsText(kind))
+  .map(([, claim]) => claim.ext)
+
+/**
  * The outline's suffix, by name.
  *
  * Two things that are not `fileKind` need the string itself and cannot get it

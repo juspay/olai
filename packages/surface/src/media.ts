@@ -18,6 +18,16 @@
  * {@link mediaTarget} is still the only thing that decides what that admits,
  * and `@olai/format`'s `isAsset` is still the only list of suffixes in it.
  *
+ * A THIRD reader arrived with the clicks. A link inside a preview that names a
+ * file olai has a page for does not travel this route at all — it opens that
+ * page in the app (`./seal.ts`) — so something has to turn the address the
+ * browser resolved back into a path of the vault WITHOUT asking what may be
+ * served, because a `.md` is exactly such a file and exactly not such a
+ * response. That is {@link mediaPath}, which is the decoder and the traversal
+ * guard, with {@link mediaTarget} the same thing plus the allowlist. One
+ * decoder: a second parse of this URL space would be a second guard, and the
+ * one nobody thought to attack is the one that would be wrong.
+ *
  * That is why the bijection is declared here, in the package whose whole job is
  * the contract both ends speak. Two copies of "what a media URL looks like"
  * would be a contract kept by memory, and the failure would be silent in the
@@ -51,8 +61,8 @@ export const mediaHref = (file: string): string =>
   MEDIA_PREFIX + file.split("/").map(encodeURIComponent).join("/")
 
 /**
- * What a `/media/…` request names, as a path relative to the served directory
- * — or `null` for a request this route does not answer at all.
+ * WHICH FILE OF THE VAULT a `/media/…` address spells — or `null` for an
+ * address that spells none.
  *
  * This is the traversal guard, and it is the whole of it:
  *
@@ -62,17 +72,21 @@ export const mediaHref = (file: string): string =>
  *     arithmetic that produced it;
  *   - a segment that is empty, `.`, `..`, or carries a separator or a NUL is a
  *     request to mean something other than one segment of a relative path, and
- *     there is no such meaning;
- *   - the name must be something a page may fetch, by `@olai/format`'s
- *     `isAsset` — the page itself, a picture, a stylesheet, a script, a font.
- *     That list is where the argument for each of those lives, and what it
- *     leaves out (`.md`, `.olai`, `.svg`, data) is the more interesting half of
- *     it. It is WIDER than the allowlist the renderer rewrites a relative
- *     `![](…)` against, and deliberately: markdown may still name a picture and
- *     nothing else, because that is a rule about what markdown MEANS, while
- *     this is a rule about what a browser may ask this server for.
+ *     there is no such meaning.
+ *
+ * IT DOES NOT SAY WHAT MAY BE SERVED, and a caller that wants that wants
+ * {@link mediaTarget} — this is the arithmetic under it, split out because a
+ * SECOND question is asked of the same address and gets a different answer.
+ * That question is a click: a reader following a link inside a preview names a
+ * page for olai to OPEN (`./seal.ts`), and what olai can open is not what the
+ * route can answer — a `.md` has a page and is deliberately never served raw.
+ * One decoder for both, because the URL space is one and a second parse of it
+ * would be a second traversal guard nobody would think to attack.
+ *
+ * So: this admits a path, and each caller says what such a path may then BE.
+ * Anything reached over HTTP wants the wrapper below, never this.
  */
-export const mediaTarget = (url: string): string | null => {
+export const mediaPath = (url: string): string | null => {
   // The query and fragment are not part of the name. Cut before decoding, so a
   // `%3F` in a file name stays a character rather than becoming a delimiter.
   const cut = url.search(/[?#]/)
@@ -95,6 +109,23 @@ export const mediaTarget = (url: string): string | null => {
     segments.push(segment)
   }
 
-  const file = segments.join("/")
-  return isAsset(file) ? file : null
+  return segments.join("/")
+}
+
+/**
+ * What a `/media/…` request names, as a path relative to the served directory
+ * — or `null` for a request this route does not answer at all.
+ *
+ * {@link mediaPath} above, and then the ALLOWLIST: the name must be something a
+ * page may fetch, by `@olai/format`'s `isAsset` — the page itself, a picture, a
+ * stylesheet, a script, a font. That list is where the argument for each of
+ * those lives, and what it leaves out (`.md`, `.olai`, `.svg`, data) is the more
+ * interesting half of it. It is WIDER than the allowlist the renderer rewrites a
+ * relative `![](…)` against, and deliberately: markdown may still name a picture
+ * and nothing else, because that is a rule about what markdown MEANS, while this
+ * is a rule about what a browser may ask this server for.
+ */
+export const mediaTarget = (url: string): string | null => {
+  const file = mediaPath(url)
+  return file !== null && isAsset(file) ? file : null
 }

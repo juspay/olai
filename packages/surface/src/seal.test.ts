@@ -1,6 +1,8 @@
+import { BODY_EXTS } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { reported, SEAL, sealedHello, sealPolicy } from "./seal.ts"
+import { mediaHref } from "./media.ts"
+import { opening, reported, SEAL, sealedHello, sealPolicy } from "./seal.ts"
 
 /** The host a served page was asked for on — the only thing the policy is
  *  built out of, and the value a request's `Host` header carries. */
@@ -273,6 +275,98 @@ test("anything else the frame could say is not a height", () => {
     ]
   ) {
     expect(reported(said)).toBeUndefined()
+  }
+})
+
+// ── the click a page hands out ─────────────────────────────────────────
+
+/**
+ * The prefix the link handler posts, taken out of the SCRIPT rather than
+ * written here — the same discipline the two height prefixes are read under and
+ * for the same reason: the producer is text no compiler reads, so a literal
+ * copied into this file would drift with it and go on passing.
+ */
+const OPEN = ((): string => {
+  const found = /parent\.postMessage\("([^"]*)" \+ path, "\*"\)/.exec(SEAL)
+  if (found === null) throw new Error(`the seal's link handler posts nothing: ${SEAL}`)
+  return found[1]!
+})()
+
+/**
+ * WHICH FILES THE HANDLER CLAIMS A CLICK ON, read the same way: the list is
+ * interpolated from the registry (`@olai/format`'s `BODY_EXTS`), and this is
+ * what says it still is. A `.html` written out over there would pass every
+ * other test in this file and quietly stop following the table the day a fourth
+ * kind of bodied file is added — which is the exact failure the repository's own
+ * suffix sweep exists to prevent, asked here of a list that lives inside a
+ * string where that sweep cannot see it.
+ */
+test("the handler claims the kinds the registry says have pages", () => {
+  const found = /var pages = (\[[^\]]*\])/.exec(SEAL)
+  if (found === null) throw new Error(`the seal's link handler names no pages: ${SEAL}`)
+  expect(JSON.parse(found[1]!)).toEqual([...BODY_EXTS])
+})
+
+// THE ADDRESS, from both ends: what the frame posts is the pathname the browser
+// resolved, and what comes back is the file of this vault it named. Built with
+// `mediaHref` rather than spelled, so this reads the same bijection the frame's
+// own `src` and every rewritten picture are built from.
+test("a page of this vault, clicked, arrives as the file it is", () => {
+  expect(opening(`${OPEN}${mediaHref("notes/second.html")}`)).toBe("notes/second.html")
+  // A `.md` is on the list on purpose: the ROUTE refuses one (it is not an
+  // asset), and a reader clicking a link to a note beside the page still means
+  // that note's page. The two questions are different and this is the one about
+  // where a reader may be taken.
+  expect(opening(`${OPEN}${mediaHref("notes/second.md")}`)).toBe("notes/second.md")
+  // A name that needs escaping survives the trip, which is the whole reason the
+  // pathname travels escaped rather than the frame decoding it first.
+  expect(opening(`${OPEN}${mediaHref("he said \"hi\"/a b.html")}`)).toBe(
+    `he said "hi"/a b.html`,
+  )
+})
+
+/**
+ * …and everything else is nothing at all.
+ *
+ * The sender runs somebody else's JavaScript, so none of these is exotic: they
+ * are what a receiver that skipped a check would let through. The climbs are the
+ * ones `./media.ts` refuses and are here anyway, because the promise this
+ * parser makes is that it refuses them — a future edit that decoded the path
+ * itself "to save an import" would pass the tests above this line.
+ *
+ * What is NOT in this list, and cannot be, is the hostile message that is
+ * perfectly well formed: `${OPEN}/media/secrets.md` names a path this returns.
+ * Stopping that is not this function's job and is not attempted here — it is a
+ * lookup in the app's own file list, and `html_previews.feature` is where a
+ * page posting exactly that is watched failing to move anything.
+ */
+test("anything else a frame could say is not a page to open", () => {
+  for (
+    const said of [
+      undefined,
+      null,
+      42,
+      { olai: "open-page", file: "notes/second.html" },
+      OPEN,
+      `${OPEN}/media/`,
+      // Not this route's URL space at all — the app's own addresses included,
+      // which is the shape a page would reach for to name a page directly.
+      `${OPEN}/doc/second.html`,
+      `${OPEN}second.html`,
+      `${OPEN}https://olai.test/media/second.html`,
+      // The climbs, refused by the one decoder rather than by a second one.
+      `${OPEN}/media/../../etc/hostname`,
+      `${OPEN}/media/%2e%2e/secret.html`,
+      `${OPEN}/media/a%2fb.html`,
+      `${OPEN}/media/second.html%00.olai`,
+      // Ours, and not this message.
+      "olai:page-sealed",
+      "olai:page-height:640",
+      // Somebody else's message that happens to be well formed.
+      "some-other-app:open-page:/media/second.html",
+    ]
+  ) {
+    expect(opening(said)).toBeUndefined()
   }
 })
 

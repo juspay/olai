@@ -604,6 +604,102 @@ Then("the preview is back on the sealed document", async function (this: OlaiWor
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
+// ── a link that opens a page of this vault ─────────────────────────────
+
+/** The directory column's own answer to "which file is open" — `aria-current`,
+ *  which is what the entry's wash is drawn from (`Sidebar.tsx`) and what a
+ *  screen reader announces. Read here rather than inferred from the address,
+ *  because the ask was that a link inside a preview lands EXACTLY where the
+ *  sidebar's own click lands, and the marked entry is the half of that the URL
+ *  cannot say. */
+Then(
+  "the sidebar marks the page {string} as the one open",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    const entry = this.hypertextLink(file);
+    await entry.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(
+      async () => (await entry.getAttribute("aria-current")) === "page",
+      `the sidebar entry for ${file} to be the one marked as open`,
+    );
+  },
+);
+
+/**
+ * THE FORGER: a page that posts this app's own messages at it, which any
+ * previewed file can do because its scripts run.
+ *
+ * The prefix is SPELLED here, and that is the one place in this suite where
+ * spelling a wire constant is the right thing rather than the usual mistake —
+ * for `fake-acp-agent.ts`' reason, which is the same reason: an adversary has no
+ * access to olai's constants, and a fixture that derived the message from the
+ * implementation under test would agree with it by construction and prove
+ * nothing about a hostile page that guesses.
+ *
+ * A guess that guessed WRONG would make every assertion in that scenario vacuous
+ * — a stream of unrecognised strings moving nothing, for the wrong reason — so
+ * the fixture carries its own teeth: `#honest` sends one well-formed message
+ * naming a file this vault really holds, and the scenario watches it land. Only
+ * the ADDRESS in it is built rather than spelled (`mediaHref`), because that is
+ * the bijection both ends of this app already agree on and is not what is being
+ * forged.
+ *
+ * WHAT IS FORGED, and each is a different way through: a page of the right shape
+ * that is not there, a climb out of the vault, a climb spelled inside it, one of
+ * the APP's own addresses (the shape a page reaching for a route would try), a
+ * bare path with no route at all, and a well-formed name for a file no directory
+ * holds.
+ */
+const FORGED_PREFIX = "olai:open-page:";
+
+const FORGERIES: ReadonlyArray<string> = [
+  `${FORGED_PREFIX}${mediaHref("nowhere.html")}`,
+  `${FORGED_PREFIX}${MEDIA_PREFIX}../../etc/hostname`,
+  `${FORGED_PREFIX}${MEDIA_PREFIX}notes/../../secrets.md`,
+  `${FORGED_PREFIX}/doc/finishes.md`,
+  `${FORGED_PREFIX}finishes.md`,
+  `${FORGED_PREFIX}${mediaHref("Daily/nothing.md")}`,
+];
+
+When(
+  "I rewrite {string} as a page that posts forged addresses at the app",
+  function (this: OlaiWorld, file: string) {
+    this.writeServed(
+      file,
+      `<!doctype html>\n<html lang="en"><head><meta charset="utf-8">` +
+        `<title>Forger</title></head>\n<body><h1>Forger</h1>\n` +
+        `<p id="probe">nothing of this page's should move the app</p>\n` +
+        `<button id="honest" type="button">the one that is real</button>\n` +
+        `<script>\n` +
+        `  ${JSON.stringify(FORGERIES)}.forEach(function (said) {\n` +
+        `    parent.postMessage(said, "*")\n` +
+        `  })\n` +
+        `  document.getElementById("honest").addEventListener("click", function () {\n` +
+        `    parent.postMessage(${JSON.stringify(FORGED_PREFIX)} + ${
+          JSON.stringify(mediaHref("finishes.md"))
+        }, "*")\n` +
+        `  })\n` +
+        `</script>\n</body></html>\n`,
+    );
+  },
+);
+
+/** …and the same message from somewhere that is not the frame. The app
+ *  identifies its sender by IDENTITY rather than by origin — every sandboxed
+ *  frame in every tab posts as the same opaque `"null"` — so this is the case
+ *  that check exists for, sent from the app's own window at a file the vault
+ *  really holds. */
+When(
+  "something other than the preview asks the app to open {string}",
+  async function (this: OlaiWorld, file: string) {
+    await this.page.evaluate(
+      (said: string) => window.postMessage(said, "*"),
+      `${FORGED_PREFIX}${mediaHref(file)}`,
+    );
+    await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  },
+);
+
 // ── the seal ───────────────────────────────────────────────────────────
 
 Then(
