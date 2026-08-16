@@ -10,7 +10,7 @@
 import type { SearchHit } from "@olai/surface"
 import { expect, test } from "bun:test"
 
-import { hitProps } from "./props.ts"
+import { nodeProps } from "./props.ts"
 
 /** A hit carrying whatever the case under test needs. The fields a row does not
  *  read are still here because a `SearchHit` has them. */
@@ -28,21 +28,21 @@ const hitOf = (
 })
 
 test("a node carrying no property draws no line", () => {
-  expect(hitProps(hitOf(undefined))).toEqual([])
+  expect(nodeProps(hitOf(undefined))).toEqual([])
 })
 
 /** The FILE's order — alphabetical — when the query asked about none of them.
  *  There is no second sort: "most interesting property" is not a fact this app
  *  has, and a ranking here would be one invented. */
 test("without a property in the query, the file's own order stands", () => {
-  expect(hitProps(hitOf({ pr: "…/192", agent: "claude-opus" })).map((p) => p.key))
+  expect(nodeProps(hitOf({ pr: "…/192", agent: "claude-opus" })).map((p) => p.key))
     .toEqual(["agent", "pr"])
 })
 
 /** The point of the field: what answered the query leads, where an ellipsis
  *  cannot reach it. */
 test("a matched key leads, and says it is why the row is here", () => {
-  const drawn = hitProps(hitOf({ pr: "…/192", agent: "claude-opus" }, ["pr"]))
+  const drawn = nodeProps(hitOf({ pr: "…/192", agent: "claude-opus" }, ["pr"]))
   expect(drawn.map((p) => p.key)).toEqual(["pr", "agent"])
   expect(drawn.map((p) => p.matched)).toEqual([true, false])
 })
@@ -50,7 +50,7 @@ test("a matched key leads, and says it is why the row is here", () => {
 /** Several matched keys keep the QUERY's order among themselves, and the rest
  *  keep the file's — two halves, each already in the order it wants. */
 test("several matched keys lead in the order the query named them", () => {
-  const drawn = hitProps(
+  const drawn = nodeProps(
     hitOf({ agent: "claude-opus", pr: "…/192", source: "inbox" }, ["source", "pr"]),
   )
   expect(drawn.map((p) => p.key)).toEqual(["source", "pr", "agent"])
@@ -60,7 +60,7 @@ test("several matched keys lead in the order the query named them", () => {
  *  rather than re-spelled, so one node does not read two ways on two
  *  surfaces. */
 test("a key holding a list is drawn the way the drawer draws it", () => {
-  expect(hitProps(hitOf({ tags: ["walnut", "birch"] }))[0])
+  expect(nodeProps(hitOf({ tags: ["walnut", "birch"] }))[0])
     .toEqual({ key: "tags", value: "walnut, birch", matched: false })
 })
 
@@ -68,6 +68,6 @@ test("a key holding a list is drawn the way the drawer draws it", () => {
  *  server only ever names keys it matched, and this is the row refusing to
  *  invent a line if that ever stopped being true. */
 test("a named key the node does not carry draws nothing", () => {
-  expect(hitProps(hitOf({ agent: "claude-opus" }, ["isbn"])).map((p) => p.key))
+  expect(nodeProps(hitOf({ agent: "claude-opus" }, ["isbn"])).map((p) => p.key))
     .toEqual(["agent"])
 })

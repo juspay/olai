@@ -41,6 +41,7 @@ import { Result, type RowTestids } from "../search/Result.tsx"
 const COMPLETION_ROW: RowTestids = {
   row: TESTID.completionItem,
   place: TESTID.completionItemPlace,
+  prop: TESTID.completionItemProp,
 }
 import { TESTID } from "../testids.ts"
 import type { Listing } from "./completing.tsx"
@@ -93,6 +94,7 @@ export function Completions(props: { readonly listing: Listing }) {
                   label={choice().label}
                   hint={choice().hint}
                   place={choice().place}
+                  props={choice().props}
                   active={index === props.listing.active()}
                   testids={COMPLETION_ROW}
                   id={choice().id}

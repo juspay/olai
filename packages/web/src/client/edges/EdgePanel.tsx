@@ -67,12 +67,14 @@ import { listKey } from "../keys.ts"
 import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { nodePlace } from "../search/place.ts"
+import { nodeProps } from "../search/props.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
 
 /** What this door calls its rows (`../search/Result.tsx`'s `RowTestids`). */
 const EDGE_ROW: RowTestids = {
   row: TESTID.edgeHit,
   place: TESTID.edgeHitPlace,
+  prop: TESTID.edgeHitProp,
 }
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
@@ -230,6 +232,7 @@ export function EdgePanel(props: {
               <Result
                 label={hit().title}
                 place={nodePlace(hit())}
+                props={nodeProps(hit())}
                 active={index === cursor.at()}
                 testids={EDGE_ROW}
                 id={hit().id}

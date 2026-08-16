@@ -133,6 +133,22 @@ When(
   },
 );
 
+/** The third line, in the door that is NOT the palette. Four surfaces draw
+ *  `Result.tsx` over one `createNodeSearch`, and the properties reached one of
+ *  them first; this is the fence that keeps them reaching all of them. */
+Then(
+  "the edge panel hit {string} shows the property {string} holding {string}",
+  async function (this: OlaiWorld, title: string, key: string, value: string) {
+    const prop = (await panelOf(this))
+      .locator(EDGE_HIT)
+      .filter({ hasText: title })
+      .first()
+      .locator(`[data-testid="edge-hit-prop"][data-key="${key}"]`);
+    await prop.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal((await prop.innerText()).trim(), `${key} ${value}`);
+  },
+);
+
 When(
   "I choose {string} from the edge panel",
   async function (this: OlaiWorld, title: string) {

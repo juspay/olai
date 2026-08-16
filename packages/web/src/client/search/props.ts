@@ -9,6 +9,18 @@
  * export of the component, so a unit test of the ordering does not have to
  * compile a `.tsx`.
  *
+ * Named to match that sibling — `nodeProps` beside `nodePlace`, both taking a
+ * hit and answering what a row draws about the node it stands for. It was
+ * `hitProps`, which is the same job under a second vocabulary, in the file
+ * directly next to the one that had already chosen the first.
+ *
+ * ALL FOUR DOORS reach it, and that took a correction: the ⌘K palette and the
+ * header box had it while the `((` widget and the edge panel did not, over the
+ * same `createNodeSearch` answers. A row that says different things in
+ * different doors is the drift the one-reading doctrine exists to refuse, and
+ * it is drift the shared component cannot prevent on its own — only what each
+ * door passes can.
+ *
  * ## Why the row draws them at all
  *
  * PR #192 put the whole `custom` map on a hit and deliberately left the row
@@ -45,7 +57,7 @@ import { customEntries } from "../props/drawer.ts"
 
 /** One property as the row draws it: what the drawer's line holds, plus
  *  whether it is why this hit is on screen. */
-export interface HitProp {
+export interface NodeProp {
   readonly key: string
   readonly value: string
   /** Selected on by a `prop:` clause — drawn in the reading ink rather than the
@@ -53,7 +65,7 @@ export interface HitProp {
   readonly matched: boolean
 }
 
-export const hitProps = (hit: SearchHit): ReadonlyArray<HitProp> => {
+export const nodeProps = (hit: SearchHit): ReadonlyArray<NodeProp> => {
   const matched = hit.matchedProps ?? []
   const entries = customEntries(hit).map((entry) => ({
     key: entry.key,

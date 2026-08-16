@@ -1,10 +1,18 @@
 /**
  * One result row, wherever search is drawn.
  *
- * Two doors draw results — the ⌘K palette and the header's box — and this is
- * the row both of them draw, for the same reason `./nodes.ts` is the one
- * query: two spellings of a row are two rows, and the day one of them learns
- * to show a mark or a date is the day they stop being the same product.
+ * FOUR surfaces draw this row over the one `./nodes.ts` reading — the ⌘K
+ * palette, the header's box, the `((` widget in a row's title and the edge
+ * panel — and it is one component for the same reason there is one query: two
+ * spellings of a row are two rows, and the day one of them learns to show a
+ * mark or a date is the day they stop being the same product.
+ *
+ * That is not a hypothetical. The properties line below reached the palette and
+ * the header box and stopped, because those two were the doors somebody was
+ * thinking about — one row, drawing different things in different places, over
+ * identical answers. The component was never the problem; what each door PASSES
+ * is, so what a door has to pass is kept as small as it can be (see
+ * {@link RowTestids}) and every door that draws a node hit passes all of it.
  *
  * ## The shape, and the bug it was cut from
  *
@@ -65,7 +73,7 @@
 
 import { For, Show } from "solid-js"
 
-import type { HitProp } from "./props.ts"
+import type { NodeProp } from "./props.ts"
 
 /**
  * The handles ONE door gives this row's three lines.
@@ -101,7 +109,7 @@ export function Result(props: {
   /** The node's properties — the third line, matched ones first. Empty (or
    *  absent) for a node carrying none, which draws no line at all. See
    *  `./props.ts` for the order. */
-  readonly props?: ReadonlyArray<HitProp>
+  readonly props?: ReadonlyArray<NodeProp>
   readonly active: boolean
   /** What this door calls the row and its lines. */
   readonly testids: RowTestids
