@@ -67,6 +67,29 @@ import { For, Show } from "solid-js"
 
 import type { HitProp } from "./props.ts"
 
+/**
+ * The handles ONE door gives this row's three lines.
+ *
+ * One value rather than three props, because they were three props that had to
+ * agree: a door passing `props` and forgetting `propTestid` drew a line no test
+ * could reach, and a door passing the testid without the data drew nothing at
+ * all. Neither mistake is possible now — a caller names its row and the lines
+ * come with it — and the four doors stopped repeating a near-constant triple
+ * that differed only by suffix.
+ *
+ * Still LITERAL ids rather than a prefix this file derives, which is the trade
+ * the other direction and deliberately kept: `../testids.ts` is a registry a
+ * reader greps, and `${prefix}-place` would put half of every id in code where
+ * searching for `header-search-item-place` finds nothing.
+ */
+export interface RowTestids {
+  readonly row: string
+  readonly place: string
+  /** Absent for a door whose rows are not node hits — a tag completion has no
+   *  properties, so there is nothing to name. */
+  readonly prop?: string
+}
+
 
 export function Result(props: {
   readonly label: string
@@ -80,11 +103,8 @@ export function Result(props: {
    *  `./props.ts` for the order. */
   readonly props?: ReadonlyArray<HitProp>
   readonly active: boolean
-  readonly testid: string
-  readonly placeTestid: string
-  /** Identifies one `key value` pair to a test. Absent for the rows that
-   *  cannot have properties — a shell command is not a node. */
-  readonly propTestid?: string
+  /** What this door calls the row and its lines. */
+  readonly testids: RowTestids
   /** Identifies the row to a test and to nothing else. */
   readonly id?: string
   readonly onSelect: () => void
@@ -96,7 +116,7 @@ export function Result(props: {
       class={`flex w-full min-w-0 flex-col rounded px-3 py-2 text-left text-sm ${
         props.active ? "bg-rule text-ink" : "text-ink hover:bg-rule/60"
       }`}
-      data-testid={props.testid}
+      data-testid={props.testids.row}
       data-id={props.id}
       data-active={props.active ? "true" : "false"}
       onMouseEnter={() => props.onHover()}
@@ -121,7 +141,7 @@ export function Result(props: {
         {(place) => (
           <span
             class="w-full min-w-0 truncate font-mono text-[0.6875rem] text-muted"
-            data-testid={props.placeTestid}
+            data-testid={props.testids.place}
           >
             {place()}
           </span>
@@ -135,7 +155,7 @@ export function Result(props: {
             {(prop) => (
               <span
                 class="min-w-0 truncate"
-                data-testid={props.propTestid}
+                data-testid={props.testids.prop}
                 data-key={prop.key}
                 data-matched={prop.matched ? "true" : undefined}
               >

@@ -35,7 +35,13 @@
 import { Index, Show } from "solid-js"
 
 import { LAYER } from "../layer.ts"
-import { Result } from "../search/Result.tsx"
+import { Result, type RowTestids } from "../search/Result.tsx"
+
+/** What this door calls its rows (`../search/Result.tsx`'s `RowTestids`). */
+const COMPLETION_ROW: RowTestids = {
+  row: TESTID.completionItem,
+  place: TESTID.completionItemPlace,
+}
 import { TESTID } from "../testids.ts"
 import type { Listing } from "./completing.tsx"
 
@@ -88,8 +94,7 @@ export function Completions(props: { readonly listing: Listing }) {
                   hint={choice().hint}
                   place={choice().place}
                   active={index === props.listing.active()}
-                  testid={TESTID.completionItem}
-                  placeTestid={TESTID.completionItemPlace}
+                  testids={COMPLETION_ROW}
                   id={choice().id}
                   onHover={() => props.listing.hover(index)}
                   onSelect={() => choice().choose()}
