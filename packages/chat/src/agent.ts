@@ -104,6 +104,7 @@ import {
   modelNameIn,
   modelPickerIn,
   NEW_SESSION_META,
+  parentToolUseIn,
   SDK_MESSAGE,
   toolNameIn,
 } from "./interpret.ts"
@@ -424,6 +425,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             diffs: diffsOf(update.content, options.cwd),
             wrote: wroteIn(update.rawOutput),
             locations: locationsOf(update.locations, options.cwd),
+            // ... and WHO made the call, out of the same `_meta` the name came
+            // from. A subagent's frames arrive on this one feed with nothing
+            // in the protocol to tell them apart, so this is the only thing
+            // that says a turn had more than one agent in it.
+            parent: parentToolUseIn(update._meta) ?? undefined,
           })
           return
         case "available_commands_update":

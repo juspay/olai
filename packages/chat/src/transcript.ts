@@ -45,6 +45,12 @@ export interface Change {
 
 const EMPTY: Change = { upserts: [], removes: [] }
 
+/** What a tool call is filed under. Spelled ONCE: the row a call writes and
+ *  the row it names as the agent that made it are the same kind of key, and
+ *  two literals for one scheme is one of them being missed the day the scheme
+ *  moves. */
+const toolKey = (id: string): string => `tool:${id}`
+
 /** Two changes as one. Closing the open entry and writing the next one are two
  *  upserts a subscriber should see in the same frame. */
 const both = (first: Change, second: Change): Change => ({
@@ -123,9 +129,10 @@ export class Transcript {
       readonly diffs?: ReadonlyArray<FileDiff> | undefined
       readonly wrote?: Wrote | undefined
       readonly locations?: ReadonlyArray<string> | undefined
+      readonly parent?: string | undefined
     },
   ): Change {
-    const key = `tool:${id}`
+    const key = toolKey(id)
     const current = this.#entries.get(key)
     const detail = move.detail ?? current?.detail
     // The protocol's own rule, and the reason neither of these accumulates: a
@@ -139,6 +146,19 @@ export class Transcript {
     const diffs = move.diffs ?? current?.diffs
     const wrote = move.wrote ?? current?.wrote
     const locations = move.locations ?? current?.locations
+    // WHICH agent made this call, stored as THIS COLLECTION'S OWN KEY rather
+    // than as the id it arrived as. A row is what a reader of this field wants
+    // — the panel draws a subagent's call in a lane and names the lane after
+    // the Agent frame above it — and two spellings, an id on the wire and a
+    // key on screen, would be a mapping to keep in step for nothing. It is the
+    // rule `ask` rows already follow one field down, in the other direction.
+    //
+    // Sticky like everything else here, and for a sharper reason than most:
+    // the adapter stamps the attribution on a subagent's announcement and on
+    // most of what follows, but a completion carrying only a status and a
+    // parent-less `_meta` is a shape it has — and a row that read that as "no
+    // agent now" would step out of its lane at the moment the call finished.
+    const parent = move.parent === undefined ? current?.parent : toolKey(move.parent)
     return both(
       this.#close(),
       this.#put(key, {
@@ -150,6 +170,7 @@ export class Transcript {
         ...(diffs === undefined ? {} : { diffs }),
         ...(wrote === undefined ? {} : { wrote }),
         ...(locations === undefined ? {} : { locations }),
+        ...(parent === undefined ? {} : { parent }),
       }),
     )
   }

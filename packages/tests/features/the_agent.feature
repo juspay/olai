@@ -78,6 +78,28 @@ Feature: Talking to the agent
     And the tool call's detail is folded away
 
   @scratch:chat
+  Scenario: An agent the agent spawned is drawn as one, not as the agent itself
+    # A subagent's tool calls come back on the SAME feed as the main agent's,
+    # with nothing in the protocol to tell them apart — so the panel drew a
+    # turn that spawned three agents as one agent doing everything, and there
+    # was no way to tell from the conversation that a subagent had ever been
+    # started. The adapter does know, and says so in a `_meta` olai used to
+    # drop on the floor.
+    When I ask the agent "subagent"
+    Then the chat draws a subagent's tool call under the call that spawned it
+    And the call that spawned it is in no lane of its own
+
+  @scratch:chat
+  Scenario: Two agents at once each say which one is which
+    # The case a rail alone cannot answer, and the reason anybody spawns agents
+    # in the first place: two running together interleave on one feed, so a
+    # lane that resumes under somebody else's work has to name itself. Once per
+    # stretch, though — a subagent's ten reads are not ten copies of its name.
+    When I ask the agent "subagent"
+    Then the chat draws 3 tool calls in subagent lanes
+    And exactly one lane names itself, as "explore the outline"
+
+  @scratch:chat
   Scenario: A file the agent rewrote shows what changed, trimmed
     # The half of this feature that is NOT an outline. A direct edit to a `.md`
     # or a source file shows up in no tree, so until the panel drew the diff

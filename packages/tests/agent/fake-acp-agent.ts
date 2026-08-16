@@ -34,6 +34,9 @@
  *   lose         refuse every `session/list` from here on
  *   flood        say more than fits, so scrolling is a thing that can be tested
  *   hold         start a tool call and STOP there, until released
+ *   subagent     spawn TWO agents and interleave their tool calls with each
+ *                other's, each frame stamped with the `Agent` call it came out
+ *                of — the whole of what the adapter says about who did what
  *   model <id>   switch the model the way the wrapped CLI does — which is to
  *                say silently, and not observably until the NEXT turn
  *   reconfig     re-announce the session's config options unchanged, the way
@@ -393,6 +396,18 @@ const callMcp = async (
   if (response.status === 202) return {}
   const body = (await response.json()) as { result?: Record<string, unknown> }
   return body.result ?? {}
+}
+
+/** A call that finished, carrying nothing but the fact — the shape the real
+ *  adapter has for a completion whose result the announcement already said
+ *  everything about. Shared by the turns that announce their own frames rather
+ *  than going through {@link useTool}, which has a result to report and sends
+ *  its own. */
+const completed = (toolCallId: string): void => {
+  notify("session/update", {
+    sessionId,
+    update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
+  })
 }
 
 /** Announce a tool call, run it, and report how it went — the shape a real
@@ -970,6 +985,74 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
     })
     say(`rewrote \`${file}\`.`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // A TURN WITH OTHER AGENTS IN IT. The adapter forwards a spawned agent's
+  // tool calls on the same feed as the main agent's — there is no second
+  // stream and no `sessionUpdate` of its own — and stamps each one with the
+  // `Agent` call it came out of, in `_meta.claudeCode.parentToolUseId`
+  // (`liveBackgroundTasks`, adapter 0.66.0). Everything a panel can know about
+  // who did what is that one field, so this turn sends exactly what the real
+  // one does and nothing more.
+  //
+  // TWO agents, INTERLEAVED, because one is the case that proves nothing: a
+  // single subagent's calls arrive in a run under the frame that spawned it,
+  // and a panel that simply indented every call it did not recognise would
+  // pass. Two running at once is what people spawn agents FOR, and it is the
+  // shape where a lane has to say whose it is.
+  if (verb === "subagent") {
+    /** One announcement. The frame is the SAME either way — that is the whole
+     *  point of the scenario — so it is written once and the only thing the
+     *  two callers differ by is the `_meta` a panel has to read to tell them
+     *  apart. Spelled as two frames, the reader would have to diff them to
+     *  find that. */
+    const announce = (
+      toolCallId: string,
+      title: string,
+      claudeCode: Record<string, string>,
+    ): void => {
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId,
+          title,
+          status: "in_progress",
+          rawInput: { description: title },
+          _meta: { claudeCode },
+        },
+      })
+    }
+    const spawn = (id: string, title: string): void =>
+      announce(id, title, { toolName: "Agent" })
+    /** One call made INSIDE a spawned agent — the main agent's own frame, plus
+     *  the one field that says whose it is. */
+    const inside = (id: string, title: string, parent: string): void =>
+      announce(id, title, { toolName: "Grep", parentToolUseId: parent })
+    // MINTED, not spelled: a call id is unique to the call, and a transcript
+    // is keyed by it — so a turn that reused last turn's ids would update last
+    // turn's rows in place and draw nothing at all the second time it was
+    // asked for. Which is a thing the panel does correctly and a scripted
+    // agent can hide.
+    const first = `agent-${++nextMcpId}`
+    const second = `agent-${++nextMcpId}`
+    const cabinets = `sub-${++nextMcpId}`
+    const note = `sub-${++nextMcpId}`
+    const worktops = `sub-${++nextMcpId}`
+    spawn(first, "explore the outline")
+    inside(cabinets, "grep for cabinets", first)
+    spawn(second, "review the notes")
+    inside(note, "read the note", second)
+    // ... and back to the FIRST agent, under a row belonging to the second.
+    // The one place a rail on its own cannot answer "whose is this".
+    inside(worktops, "grep for worktops", first)
+    // Status ONLY, with no `_meta` at all — the shape the adapter has for a
+    // completion, and the one that catches a row which read the silence as
+    // "no agent now" and stepped out of its lane the moment it finished.
+    for (const call of [cabinets, note, worktops, first, second]) completed(call)
+    say("both agents reported back.")
     respond(id, { stopReason: "end_turn" })
     return
   }
