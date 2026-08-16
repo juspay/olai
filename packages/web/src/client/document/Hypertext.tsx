@@ -104,9 +104,9 @@
 import { heard, mediaHref, type Reading } from "@olai/surface"
 import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js"
 
+import { useOpens } from "../opens.tsx"
 import { useRouter } from "../router.tsx"
 import { TESTID } from "../testids.ts"
-import { useDocumentPaths } from "./documents.tsx"
 
 /**
  * How many times a page may walk the frame off the vault without identifying
@@ -235,7 +235,7 @@ const VISIT = "olai-visit"
 export function Hypertext(props: { readonly file: string; readonly rev: number }) {
   const [measured, setMeasured] = createSignal<string>()
   const router = useRouter()
-  const held = useDocumentPaths()
+  const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
 
   // The widths the accepted heights were measured at, and the reason they are
@@ -311,17 +311,23 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
    * preview — and the whole of what "because" is worth here.
    *
    * What arrives is a path from a document running somebody else's JavaScript,
-   * so it is a LOOKUP KEY and nothing else: it is looked up in the paths this
-   * app is serving ({@link useDocumentPaths} — the same list `../page.ts` asks
-   * the same question of before it will draw a `/doc/` address), and a path
-   * that is not in there names no page and moves nothing.
+   * so it is a LOOKUP KEY and nothing else: it is handed to the page model
+   * (`../opens.tsx`, `../page.ts`'s `opensAt`), which answers with the route
+   * that draws that file — its `/doc/` page for a `.md` or a `.html`, its `/o/`
+   * page for an outline — or with nothing, and nothing moves nothing.
    *
-   * THAT MEMBERSHIP IS THE WHOLE GUARANTEE — one question, asked the way the
-   * page model asks it, and there is no second one hiding behind it. In
-   * particular, navigating with the string the LIST holds rather than with the
-   * one that arrived buys nothing: the two are `===` equal strings, so there is
-   * no copy and nothing is laundered. Anything that reads as a further guard
-   * here is ceremony, and ceremony makes the real test harder to see.
+   * THAT MEMBERSHIP IS THE WHOLE GUARANTEE — one question, asked by the module
+   * that answers it for every other address in this app, and there is no second
+   * one hiding behind it. In particular, navigating with the string the LIST
+   * holds rather than with the one that arrived buys nothing: the two are `===`
+   * equal strings, so there is no copy and nothing is laundered. Anything that
+   * reads as a further guard here is ceremony, and ceremony makes the real test
+   * harder to see.
+   *
+   * WHICH PAGE is deliberately not decided here either. This component knows
+   * that a path either opens somewhere or does not; that a `.md` is read at
+   * `/doc/` while an outline is a tree at `/o/` is the page model's, and a
+   * preview frame is the last place that should hold a second copy of it.
    *
    * A MISS MOVES NOTHING, deliberately, and the tempting alternative is worth
    * naming because it looks kinder: navigating anyway would let this app's own
@@ -354,8 +360,9 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
    * carries it as owed work.
    */
   const open = (named: string) => {
-    if (!held().includes(named)) return
-    router.go({ kind: "document", file: named })
+    const route = opens(named)
+    if (route === undefined) return
+    router.go(route)
   }
 
   /** Put the file back, or — once the budget is out — nothing at all. */

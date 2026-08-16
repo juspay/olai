@@ -157,7 +157,7 @@ export const createDocuments = (): Documents => {
   }
 }
 
-const DocumentsContext = createContext<Documents>()
+const DocumentsContext = createContext<Documents["read"]>()
 
 export function DocumentsProvider(props: {
   /** The app's one reader of the documents collection. Handed in rather than
@@ -168,39 +168,19 @@ export function DocumentsProvider(props: {
   readonly children: JSX.Element
 }) {
   return (
-    <DocumentsContext.Provider value={props.documents}>
+    <DocumentsContext.Provider value={props.documents.read}>
       {props.children}
     </DocumentsContext.Provider>
   )
 }
 
-/** The reader below this provider, or a legible failure. The context carries
- *  the whole {@link Documents} rather than its `read` alone because two
- *  questions are asked of it now — one body, and the PATHS — and a context per
- *  question would be two providers to keep in step around one value. */
-const documents = (): Documents => {
-  const held = useContext(DocumentsContext)
-  if (held === undefined) {
-    throw new Error("a document reference outside <DocumentsProvider>")
-  }
-  return held
-}
-
 /** One served document, by its path — see {@link Documents.read}. */
 export const useDocument = (
   file: () => string,
-): Accessor<Served | undefined> => documents().read(file)
-
-/**
- * Every bodied file the directory holds, by path — the same list the page model
- * decides `/doc/<file>` against (`../page.ts`'s `Found.documents`).
- *
- * It is a MEMBERSHIP question wherever it is asked from down here, and the one
- * asker is the one that has to be sure: a `.html` preview is handed a path by a
- * frame running somebody else's JavaScript, and what it does with it is look it
- * up in this (`./Hypertext.tsx`). Reading the same list the page model reads is
- * the whole point — a second answer to "does the directory hold that" is a
- * navigation to a page the model will then refuse to draw.
- */
-export const useDocumentPaths = (): Accessor<ReadonlyArray<string>> =>
-  documents().paths
+): Accessor<Served | undefined> => {
+  const read = useContext(DocumentsContext)
+  if (read === undefined) {
+    throw new Error("a document reference outside <DocumentsProvider>")
+  }
+  return read(file)
+}

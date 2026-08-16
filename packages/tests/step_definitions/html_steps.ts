@@ -588,6 +588,18 @@ Then(
   },
 );
 
+/** No preview at all on this page — which is what an OUTLINE looks like: a
+ *  different page shape entirely, not a `.html` page with an empty frame on it.
+ *  Read after something on the new page has been waited for, so "not there" is
+ *  a fact about the page that arrived rather than about one still arriving. */
+Then("there is no preview on this page", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(HYPERTEXT_PREVIEW).count(),
+    0,
+    "a preview frame is still on the page, so this is not the page the link opened",
+  );
+});
+
 /** WHERE IN ITS PAGE the frame is, as the frame's own `location.hash` — the
  *  half of "a link with a fragment is left to the frame" that a heading cannot
  *  say. Read inside the frame, because a fragment is not part of `baseURI` and

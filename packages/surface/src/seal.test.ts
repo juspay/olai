@@ -1,4 +1,4 @@
-import { BODY_EXTS } from "@olai/format"
+import { FILE_EXTS } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { mediaHref } from "./media.ts"
@@ -297,7 +297,7 @@ const OPEN = ((): string => {
 
 /**
  * WHICH FILES THE HANDLER CLAIMS A CLICK ON, read the same way: the list is
- * interpolated from the registry (`@olai/format`'s `BODY_EXTS`), and this is
+ * interpolated from the registry (`@olai/format`'s `FILE_EXTS`), and this is
  * what says it still is. A `.html` written out over there would pass every
  * other test in this file and quietly stop following the table the day a fourth
  * kind of bodied file is added — which is the exact failure the repository's own
@@ -307,7 +307,7 @@ const OPEN = ((): string => {
 test("the handler claims the kinds the registry says have pages", () => {
   const found = /var pages = (\[[^\]]*\])/.exec(SEAL)
   if (found === null) throw new Error(`the seal's link handler names no pages: ${SEAL}`)
-  expect(JSON.parse(found[1]!)).toEqual([...BODY_EXTS])
+  expect(JSON.parse(found[1]!)).toEqual([...FILE_EXTS])
 })
 
 /**

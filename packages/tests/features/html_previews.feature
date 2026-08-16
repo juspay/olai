@@ -214,6 +214,38 @@ Feature: A `.html` in the vault
     And the preview resolves the file's addresses beside "notes/second.html"
 
   @scratch:good
+  Scenario: A link to an outline beside the page opens the outline
+    # THE THIRD KIND, and the one that goes to a different page shape. A vault
+    # is outlines as well as prose, so a saved page sitting in one can link at
+    # `house.olai` beside it — and an outline is not read at `/doc/` like the
+    # other two, it is a TREE at `/o/`. Which page a path opens at is not a
+    # question the frame can answer or needs to: the seal claims the click
+    # because the registry claims the suffix, and the app looks the path up in
+    # whichever list holds it (`page.ts`'s `opensAt`).
+    #
+    # So this is the same host-revalidates shape as the other two, against the
+    # OUTLINES membership list instead of the documents one — and the proof it
+    # really is a different page is that the preview is gone, rather than a
+    # frame sitting there with an outline in it.
+    Given I open the app
+    And I mark the page
+    When I rewrite "atlas.html" as:
+      """
+      <h1>Atlas</h1>
+      <p><a id="tree" href="house.olai">the house outline</a></p>
+      """
+    And I click the page "atlas.html"
+    Then the preview shows the heading "Atlas"
+    When I click "#tree" inside the preview
+    Then the address is "/o/house.olai"
+    And the outline list is shown
+    # A route, not a reload — the same in-place navigation the sidebar's own
+    # click on that outline makes.
+    And the page has not reloaded
+    # …and this is the outline's page rather than a preview showing an outline.
+    And there is no preview on this page
+
+  @scratch:good
   Scenario: A link to a note beside the page opens the note
     # The other kind of file olai has a page for, and the one judgement call in
     # this rule. The media route REFUSES a `.md` — it is not a part a page draws

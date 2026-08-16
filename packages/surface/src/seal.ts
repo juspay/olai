@@ -164,7 +164,7 @@
  * somebody who needed one embed to work.
  */
 
-import { BODY_EXTS } from "@olai/format"
+import { FILE_EXTS } from "@olai/format"
 
 import { mediaPath, MEDIA_PREFIX } from "./media.ts"
 import { ours } from "./press.ts"
@@ -389,10 +389,13 @@ const MEASURE = `(function () {
  *     it walks the frame off and comes home, which is the behaviour that was
  *     already there and is deliberately untouched. WHAT HOLDS IT: the two
  *     walk-off scenarios;
- *   - a file olai has a PAGE for, by suffix ({@link BODY_EXTS} — a `.html`, and
- *     a `.md` beside it). Everything else under the route is a part a page draws
- *     ITSELF with — a picture, a stylesheet, a font — and a link to one is a
- *     link to a file, which the frame goes on following exactly as it did.
+ *   - a file olai has a PAGE for, by suffix ({@link FILE_EXTS} — every kind the
+ *     registry claims: a `.html`, a `.md`, and an outline beside them). WHICH
+ *     page is not asked here and could not be: a `.md` and a `.html` are read at
+ *     `/doc/` and an outline is a tree at `/o/`, and the app routes the path to
+ *     whichever list holds it. Everything else under the route is a part a page
+ *     draws ITSELF with — a picture, a stylesheet, a font — and a link to one is
+ *     a link to a file, which the frame goes on following exactly as it did.
  *     WHAT HOLDS IT: the suffix list is asserted against the registry, and a
  *     link at a `.png` is followed by the frame in a scenario of its own;
  *   - NO FRAGMENT. `#top` on a link is an in-page anchor and must stay one, and
@@ -420,7 +423,7 @@ const MEASURE = `(function () {
  * does not claim.
  */
 const FOLLOW = `(function () {
-  var pages = ${JSON.stringify(BODY_EXTS)}
+  var pages = ${JSON.stringify(FILE_EXTS)}
   var ours = ${ours.toString()}
   addEventListener("click", function (event) {
     if (!ours(event)) return

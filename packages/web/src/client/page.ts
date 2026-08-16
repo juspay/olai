@@ -179,6 +179,46 @@ const trashOf = (found: Found): Page => ({
   files: found.files.filter(isArchived),
 })
 
+/**
+ * WHERE A PATH OF THIS VAULT OPENS — the route that draws the file at `path`,
+ * or nothing at all for a path this directory does not hold.
+ *
+ * It is the same membership {@link pageOf} requires before it will draw either
+ * page, asked one step earlier and for a caller that has a PATH rather than an
+ * address. That caller is the `.html` preview: a reader clicks a link inside
+ * somebody's saved page, the seal hands the path out, and the app has to decide
+ * both whether it holds that file and which of its two page shapes the file is
+ * (`../document/Hypertext.tsx`). Asked here rather than there, because "which
+ * route opens this file" is exactly what this module already answers for every
+ * address, and a second answer beside the frame would be free to disagree with
+ * the one the page model then applies to the route it produced.
+ *
+ * TWO LISTS, in the order a path can only be in one of: `documents` is every
+ * bodied file and `files` is every outline, and no path is in both — the suffix
+ * decides which, and the registry gives each kind exactly one. So the order is
+ * not a precedence, it is a spelling.
+ *
+ * A FRAGMENT rides only on the document arm, and its absence on the outline arm
+ * is a fact about outlines rather than an omission: `/doc/` draws a rendered
+ * body with ids in it, and `/o/` draws a tree of rows whose addresses are node
+ * ids — a `#section` means nothing there, so it is dropped rather than carried
+ * to a page that would ignore it.
+ *
+ * NOT a membership test with a route bolted on afterwards, which is the shape
+ * this replaces: the caller asked one list, got a boolean, and then built the
+ * route itself — which worked only while there was one kind of page to build.
+ */
+export const opensAt = (
+  found: Found,
+  path: string,
+  at?: string,
+): Route | undefined =>
+  found.documents.includes(path)
+    ? { kind: "document", file: path, ...(at === undefined ? {} : { at }) }
+    : found.files.includes(path)
+    ? { kind: "outline", file: path }
+    : undefined
+
 /** The file the open page belongs to — the sidebar entry to light up, in
  *  whichever of its two lists. A zoomed node belongs to the file its CANONICAL
  *  record is in, whichever file the mirror that was clicked lived in; a
