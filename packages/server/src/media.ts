@@ -142,6 +142,42 @@ const PREFIX = new TextEncoder().encode(SEAL)
  * the mechanics: what the page fetches afterwards must not carry which page of
  * this vault a reader is on, and the frame element says the same thing about
  * this request itself (`Hypertext.tsx`).
+ *
+ * WHICH OF A PAGE'S SCRIPTS ACTUALLY RUN, said here because this response is
+ * what decides it and nothing else in the tree says it out loud:
+ *
+ *   - an INLINE `<script>` runs, and a CLASSIC `<script src="chart.js">` beside
+ *     the page runs. A classic script is fetched in `no-cors` mode, so the
+ *     opaque origin this document is in (the `sandbox` directive above) costs it
+ *     nothing: the request goes out, this route answers it, the browser executes
+ *     it. That is the ordinary saved page, and it is what the ruling of
+ *     2026-08-16 was about;
+ *   - a MODULE (`<script type="module">`, a dynamic `import()`) does NOT, and
+ *     neither does `fetch`/`XMLHttpRequest`. Module scripts and `fetch` are
+ *     CORS-mode requests always, and a request from an opaque origin needs an
+ *     `Access-Control-Allow-Origin` to come back — this route sends none, so the
+ *     browser discards the response. The page's console says the module was
+ *     blocked by CORS; the file is not broken and the route is not failing.
+ *
+ * THAT IS ON PURPOSE, not an oversight to be patched the first time somebody's
+ * bundle uses `type="module"`. A CORS grant is the one thing that would let a
+ * document in there READ this vault's bytes as data rather than merely draw
+ * them — every picture is drawable and no picture is readable today (a canvas
+ * that draws one is tainted), and `fetch` over `/media/` would turn the route
+ * into a file-reading API for whatever runs in the frame. The privacy promise
+ * survives a page that draws; it is a different promise once a page can read.
+ *
+ * IF MODULES EVER BECOME REQUIRED — a saved export that will not run any other
+ * way — the shape to reach for is NOT a blanket `Access-Control-Allow-Origin`,
+ * on any value. It is: `Referrer-Policy: same-origin` on this response (so the
+ * frame's own requests carry a `Referer`, which `no-referrer` deliberately
+ * strips today), and then `Access-Control-Allow-Origin: null` answered ONLY to
+ * a request whose `Referer` is this host's own `/media/` path. That grants the
+ * read to documents this route itself served and to nobody else — `null` is the
+ * origin EVERY opaque document sends, so granting it unconditionally grants it
+ * to every sandboxed frame on the internet, which is the mistake this note
+ * exists to stop. It would also cost the referrer half of the promise above,
+ * and that trade should be made in the open rather than discovered.
  */
 const page = (
   disk: FileSystem.FileSystem,

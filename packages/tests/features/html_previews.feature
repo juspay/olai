@@ -29,7 +29,7 @@ Feature: A `.html` in the vault
   @corpus:good
   Scenario: A `.html` is listed in the sidebar and opens as a page
     When I open the app
-    Then the pages listed are "report.html"
+    Then the pages listed are "quarter.html, report.html"
     Given I mark the page
     When I click the page "report.html"
     Then the document open is "report.html"
@@ -103,6 +103,33 @@ Feature: A `.html` in the vault
     # complains about a script, because a script running is what is supposed to
     # happen now.
     And the only complaints are the browser refusing what the file may not do
+
+  @corpus:good
+  Scenario: A page whose parts are files beside it draws with all of them
+    # THE WHOLE RULE, end to end, over a fixture that is in the repository: a
+    # saved dashboard is a page, a stylesheet and a script sitting next to each
+    # other in a folder, and every one of the three has to travel for the page
+    # to be the page. Under the seal this replaced, two of the three were dead
+    # — the route answered pictures only, so `data/report.css` 404'd, and the
+    # policy named one script by hash, so `data/chart.js` was refused — and
+    # `quarter.html` drew as a heading over an empty box.
+    #
+    # It is a @corpus fixture rather than a page a step writes, because this is
+    # the scenario the PR's evidence screenshot is taken against: a reader
+    # holding the repository can serve `packages/tests/fixtures/good` and see
+    # what the picture shows.
+    When I open the page "quarter.html"
+    Then the preview shows the heading "Q3 fitting revenue"
+    # The SCRIPT ran: four bars exist that no markup in the file declares, and
+    # the paragraph it rewrote says so.
+    And the preview drew 4 boxes for ".bar"
+    And the preview says "drawn by this file's own JavaScript, from data/chart.js, in an origin that is nobody's"
+    # …and the STYLESHEET arrived: the heading wears the colour a file beside
+    # this one gives it, which is the difference between a page and its text.
+    And the preview draws "Q3 fitting revenue" in the file's own colour
+    # The frame is the height of what the script drew, which is the same
+    # measurement every other page gets — taken after the page builds itself.
+    And the preview is as tall as the page it shows
 
   @scratch:good
   Scenario: A page that draws itself with its own script draws
@@ -456,7 +483,7 @@ Feature: A `.html` in the vault
       <h1>Dashboard</h1>
       """
     When I expand the folder "notes"
-    Then the pages listed are "notes/dashboard.html, report.html"
+    Then the pages listed are "notes/dashboard.html, quarter.html, report.html"
     And the page has not reloaded
     When I click the page "notes/dashboard.html"
     Then the preview shows the heading "Dashboard"

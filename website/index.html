@@ -368,8 +368,11 @@
     vault is refused before the request is made, so a saved page that merely
     carries somebody else's addresses reaches nobody. (A page that goes out of
     its way to leave — a script navigating its own frame — can, once; no
-    browser gives a page's embedder a way to stop that. olai puts the file back
-    when it happens.) One extra script rides along, olai's own, doing one job:
+    browser gives a page's embedder a way to stop that. olai brings the frame
+    back when a document does not identify itself as one of your own files,
+    which bounds how far a page can drag it — but a page that runs code can
+    claim to be one of yours, so that is a limit on looping and not a proof of
+    where the frame is.) One extra script rides along, olai's own, doing one job:
     reporting how tall the page is, so the frame is the height of what it holds
     instead of a fixed slice of the screen.</p>
     <div class="cols">

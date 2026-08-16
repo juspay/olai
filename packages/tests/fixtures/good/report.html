@@ -76,32 +76,60 @@
       point of the fixture is that running changes none of them: the frame's
       origin is nobody's, so this app's storage, cookie jar and DOM are out of
       reach, and the sandbox has no `allow-top-navigation`, so the tab stays
-      where the reader put it. Each is attempted inside a `try`, because what
-      failure looks like in there is an exception — and the paragraph names
-      whichever one got through, so a preview that had lost its sandbox says so
-      in its own words rather than only in an assertion somewhere else.
+      where the reader put it. The paragraph names whichever one got through, so
+      a preview that had lost its sandbox says so in its own words rather than
+      only in an assertion somewhere else.
+
+      WHICH WAY THE PROBE LEANS is the part worth reading twice, because the
+      first version of it leaned the wrong way. Each capability is CLAIMED
+      before it is attempted and the claim is taken back only when the attempt
+      throws. Written the other way — claim it on success — a probe reports
+      nothing at all about an attempt whose success would end this document,
+      and the tab probe is exactly that: it used to run AFTER the paragraph was
+      written, so a tab that really navigated would have left the paragraph
+      reading "reached nothing" and a forbidden capability would have looked
+      like a refusal. Leaning this way, the only mistake a probe can make is to
+      name something the file could not actually do — which fails the scenario
+      loudly instead of quietly passing it. (opencode's review of this PR asked
+      for it. All four refusals do throw in Chromium today, the blocked
+      top-navigation included, which is why the paragraph reads as it does.)
     -->
     <p id="probe">the script did not run</p>
     <script>
+      // EVERY PROBE IS OPTIMISTIC, and that is the shape rather than a
+      // flourish: each one claims the capability BEFORE trying it and takes
+      // the claim back only when the attempt is refused. A probe written the
+      // other way round — push on success — cannot report a capability whose
+      // refusal is silent or whose success ends the document, and a forbidden
+      // thing would then read as "reached nothing", which is what this
+      // paragraph is asserted to say. Written this way a probe can only be
+      // wrong in the safe direction: it names something the file could not
+      // actually do, and the scenario fails loudly.
       var reached = []
-      try {
+      var refused = function (what, attempt) {
+        reached.push(what)
+        try {
+          attempt()
+        } catch (error) {
+          reached.pop()
+        }
+      }
+      refused("localStorage", function () {
         localStorage.setItem("olai.pwned", "yes")
-        reached.push("localStorage")
-      } catch (error) {}
-      try {
+      })
+      refused("the cookie jar", function () {
         document.cookie = "olai-pwned=yes; path=/"
-        if (document.cookie.indexOf("pwned") !== -1) reached.push("the cookie jar")
-      } catch (error) {}
-      try {
+        if (document.cookie.indexOf("pwned") === -1) throw new Error("no cookie")
+      })
+      refused("the app's page", function () {
         parent.document.body.setAttribute("data-pwned", "yes")
-        reached.push("the app's page")
-      } catch (error) {}
+      })
+      refused("the tab", function () {
+        top.location.replace("/pwned")
+      })
       document.getElementById("probe").textContent = reached.length === 0
         ? "the script ran and reached nothing"
         : "the script reached " + reached.join(", ")
-      // Last, because a navigation that WAS allowed would take everything
-      // above with it.
-      try { top.location.replace("/pwned") } catch (error) {}
     </script>
   </body>
 </html>
