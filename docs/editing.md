@@ -25,7 +25,13 @@ Nothing has a mode: the title becomes an input in the same place, at the same si
 
 An outline is a column of titles, so that is what it draws. Everything else a node carries — its note, its properties, what it points at — waits behind a small dim **¶** beside the title. Press the ¶ (or **Space**, with it focused) and the row opens into three lines and no grid: the title line, now saying it is open, with its tags brightened; the node's properties as one dim dot-separated run; then the note. Press it again, click away, or press **Escape**, and the row folds back. A node with nothing behind it wears no ¶ at all, so the mark is always a promise there is something there.
 
-**How much a row starts as is yours**, in *prefs → Notes*: **Compact** is the title alone and is the default, **Cozy** keeps the first line of the note under it, **Open** starts every row open. It is a default and not a lock — the ¶ works at all three, and only rows you have not touched follow the setting. Like every preference it belongs to this browser, reaches every tab of it, and is never sent anywhere.
+**How much a row starts as is yours**, in *prefs → Notes*:
+
+- **Compact** — the title alone. This is the default.
+- **Cozy** — the title and the first line of the note under it, clamped. This is the shape every row had before the switch existed, so it is the setting to pick if the fold is not what you wanted.
+- **Open** — every note you have not folded yourself is already open: the node's properties, then the note in full.
+
+It is a default and not a lock. The ¶ works at all three, and only rows you have not touched follow the setting — fold one at Open and it stays folded, open one at Compact and it stays open. Like every preference it belongs to this browser, reaches every tab of it, and is never sent anywhere: two machines reading the same vault are entitled to disagree about it, and it is one setting for the whole app rather than one per outline, because "I read a tree as a list of titles" is a fact about you and not about any one file.
 
 **One fact may ride beside a title**, in the same dim voice as the tags: how far the tasks under a branch have got (`3/5`), or `pr` on work that has shipped. A collapsed branch also says how much finished work it is holding back, because done rows recede and a fold over them should leave a receipt rather than hide them twice.
 

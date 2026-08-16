@@ -11,6 +11,7 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
+  APP_HEADER,
   BLOCKED,
   CHECKBOX,
   DATE,
@@ -1020,5 +1021,62 @@ When(
     // group-focus-within without a pointer hover, and `focusWithin` is where
     // that reasoning lives (support/world) — the `•••` is focused the same way.
     await this.focusWithin(id, TOGGLE);
+  },
+);
+
+// ── a section holds its place ──────────────────────────────────────────
+//
+// A TOP-LEVEL row is a section heading, and it is `position: sticky` inside its
+// own `<li>` — so it stays under the app bar for exactly as long as its own
+// branch is on screen and lets go when the next section arrives
+// (`client/Tree.tsx`). It is the third member of the family
+// `the_header_sticks` and `the_sidebar_sticks` opened, and it fails the same
+// way both of those did before they were pinned: silently, as a heading that
+// scrolled off with a page a reader is still reading the middle of.
+//
+// The tolerance is the sidebar's, and for its reason: the seam is two boxes
+// meeting, and sub-pixel layout puts them within a pixel of each other rather
+// than exactly on it.
+const SEAM_EDGE = 2;
+
+/** Where the app bar's bottom edge is — what "pinned under the header" is
+ *  measured against, asked of the bar rather than of `--height-header`, because
+ *  the token and the bar disagreeing is one of the things this can catch. */
+const headerSeam = async (world: OlaiWorld): Promise<number> => {
+  const header = await world.box(world.page.locator(APP_HEADER), "the app header");
+  return header.y + header.height;
+};
+
+Then(
+  "the section heading of {string} is pinned under the header",
+  async function (this: OlaiWorld, id: string) {
+    const seam = await headerSeam(this);
+    const line = await this.box(this.within(id, NODE_GUTTER), `the row "${id}"`);
+    assert.ok(
+      Math.abs(line.y - seam) <= SEAM_EDGE,
+      `the section heading of "${id}" is at y=${Math.round(line.y)} and the ` +
+        `header ends at ${Math.round(seam)} — in flow a heading leaves the ` +
+        "screen with the first flick of the wheel, and a reader in the middle " +
+        "of a long branch is then looking at rows with nothing saying which " +
+        "section they are in",
+    );
+  },
+);
+
+/** The negative half, and it is what makes the claim mean anything: a row that
+ *  is not a section does NOT hold the seam. Without it, a client that pinned
+ *  every row in the tree — or drew the whole outline inside the viewport —
+ *  would pass the assertion above. */
+Then(
+  "the row {string} is not pinned under the header",
+  async function (this: OlaiWorld, id: string) {
+    const seam = await headerSeam(this);
+    const line = await this.box(this.within(id, NODE_GUTTER), `the row "${id}"`);
+    assert.ok(
+      Math.abs(line.y - seam) > SEAM_EDGE,
+      `the row "${id}" is holding the seam at y=${Math.round(line.y)} — only a ` +
+        "top-level row is a section, and a tree that pinned every row would " +
+        "stack them all under the bar",
+    );
   },
 );

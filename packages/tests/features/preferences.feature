@@ -27,8 +27,15 @@ Feature: One place to set how this browser reads
   The Notes row is how much of a row is drawn by default — Compact, Cozy,
   Open — and what it moves is `note_density.feature`'s subject. What is here is
   that it is a preference like the others: it moves the page you are on,
-  follows you to the next one, is stored in this browser, and reaches every tab
-  of it.
+  follows you to the next one, is stored in this browser under one BROWSER-wide
+  key (not one per outline — "I read a tree as a list of titles" is a claim
+  about the reader), and reaches every tab of it.
+
+  Its three words need saying out loud, which is why one scenario below is
+  about the HINT rather than about the tree: Cozy is the shape every row had
+  before the fold existed, Open goes one step further than anything that did,
+  and Compact — the default, because a fold whose default is the old behaviour
+  is a feature nobody discovers — is the title alone.
 
   The Done row is the one switch. The floating pill that sat above the outline
   was a second door for the same preference — the same redundancy the theme
@@ -199,7 +206,7 @@ Feature: One place to set how this browser reads
     Given I open the outline "house.olai"
     Then the row "order" is folded
     When I set Notes to "open"
-    Then the Notes row explains that a row "Every row starts open"
+    Then the Notes row explains that a row "already open"
     And this browser has stored that notes are "open"
     And the row "order" is open
     When I reload the page
@@ -240,3 +247,18 @@ Feature: One place to set how this browser reads
     # line under a reader who had just opened the page.
     Then the page is set at "20px"
     And this browser has stored the size "larger"
+
+  Scenario: Each Notes mode says what you get, not what it is called
+    # THE FENCE FOR A QUIZ. Three adjectives on a segmented strip say which one
+    # is pressed and nothing about what the page will now do — and two of the
+    # three need saying out loud, because a reader arriving after the fold has
+    # no way to know which of them is the shape olai used to have. Cozy names
+    # itself as that shape; Open says it is about notes NOBODY HAS FOLDED, which
+    # is the difference between a default and a lock.
+    Given I open the outline "house.olai"
+    When I set Notes to "cozy"
+    Then the Notes row explains that a row "before this switch existed"
+    When I set Notes to "open"
+    Then the Notes row explains that a row "you have not folded yourself"
+    When I set Notes to "compact"
+    Then the Notes row explains that a row "A row is its title"

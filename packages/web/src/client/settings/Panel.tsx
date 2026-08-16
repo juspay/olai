@@ -162,11 +162,12 @@ const densityHint = (): string => {
       return "A row is its title. A node with a note says so with a ¶ beside " +
         "it — press that, or Space with it focused, to open the row."
     case "cozy":
-      return "A row is its title and the first line of its note. The ¶ opens " +
-        "the rest, with the node's properties."
+      return "A row is its title and the first line of its note, clamped — " +
+        "the shape every row had before this switch existed. The ¶ opens the " +
+        "rest, with the node's properties."
     case "open":
-      return "Every row starts open: its properties, then its note in full. " +
-        "The ¶ folds one back."
+      return "Every note you have not folded yourself is already open: the " +
+        "node's properties, then the note in full. The ¶ folds one back."
   }
 }
 

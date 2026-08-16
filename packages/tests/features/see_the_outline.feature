@@ -146,3 +146,32 @@ Feature: See the outline
     Then the node "kitchen-herbs" has status "doing"
     And the node "kitchen-herbs" shows a doing checkbox
     And the node "kitchen-herbs" shows the progress "1/2"
+
+  # ── a section holds its place ────────────────────────────────────────
+  #
+  # A TOP-LEVEL row is a section heading: a heavier name, its rollup as part of
+  # that header, and `position: sticky` inside its own branch. The third claim
+  # is the one nothing else covers — `the_header_sticks` pins the app bar and
+  # `the_sidebar_sticks` pins the directory, and both were filed because a
+  # permanent answer that scrolls away is not one. A section heading is that
+  # same argument inside the page: a reader in the middle of a long branch
+  # should not have to scroll back up to find out which section they are in.
+  #
+  # The window is made short rather than the fixture long, for the reason
+  # `zoom_and_navigate.feature` gives at the step all four features share — and
+  # the notes are opened for the same reason one step further: this corpus is
+  # eight short rows, so at Compact the page has 82px of scroll and the heading's
+  # own flow position lands within a pixel of the seam anyway. A scenario that
+  # cannot tell a pinned heading from an unpinned one is not a scenario, and
+  # this one was exactly that until it was measured against a client with the
+  # `sticky` taken out.
+  Scenario: A section heading holds the seam while its branch scrolls
+    Given the window is shorter than the page
+    And I read the outline with Notes on "open"
+    When I scroll to the bottom of the page
+    Then the section heading of "kitchen" is pinned under the header
+    # The negative half, and it is what makes the claim mean anything: only a
+    # TOP-LEVEL row is a section. A client that pinned every row would stack the
+    # whole branch under the bar and still pass the line above.
+    And the row "demo" is not pinned under the header
+    And there should be no page errors

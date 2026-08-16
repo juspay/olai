@@ -64,10 +64,6 @@ export const FACE: Record<
  *  a state — it is the absence of one, and a toned bullet would be a claim. */
 export const BULLET_TONE = "text-ink"
 
-/** What a node waiting on something takes, whatever mark it carries: the mark's
- *  own tone, so `doing`-but-waiting still reads as work in flight. */
-export const waitingTone = (status: Status): string => FACE[status].tone
-
 /** What a node is waiting on, as the one sentence both the label and the tip
  *  say — in the order `Derived.blocked` promises, which is the node's own
  *  `after` first and what points back at it after that. */
