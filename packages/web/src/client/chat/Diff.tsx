@@ -31,7 +31,7 @@ import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { type DiffLine, diffOf } from "./diff.ts"
-import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
+import { isUnfolded, toggleFold } from "./folds.ts"
 
 /** How many rows a trimmed diff shows. Enough for a small edit to be whole —
  *  which is most of them — and few enough that four rewritten files still read
@@ -59,21 +59,23 @@ const LOOK: Readonly<Record<DiffLine["kind"], { mark: string; row: string; tone:
   }
 
 export function Diff(props: {
-  /** The call this diff belongs to — half of the key its expansion is
-   *  remembered under. */
-  readonly call: string
+  /** This block of change, by the name its call gave it ({@link
+   *  ./folds.ts}'s `diffKey`) — what its expansion is remembered under, and
+   *  the same string the list drawing it is keyed by. Handed in rather than
+   *  built here: one call reports several blocks about one file, so the name
+   *  needs the block's place in that report, which only the list has. */
+  readonly id: string
   readonly diff: FileDiff
 }) {
   // Recomputed when the texts change and not on every render: an agent
   // rewriting a file reports the call twice, and the second report is the same
   // two texts with a status beside them.
   const computed = createMemo(() => diffOf(props.diff.oldText, props.diff.newText))
-  const key = () => diffKey(props.call, props.diff.path)
   // A MEMO, because the fold set is one signal for every diff on screen: any
   // fold anywhere re-runs this, and a memo over the boolean is what stops that
   // reaching the slice and the list below it. Without it, opening one diff
   // re-slices and re-reconciles every other one in the transcript.
-  const open = createMemo(() => isUnfolded(key()))
+  const open = createMemo(() => isUnfolded(props.id))
   const lines = () => computed().lines
   /** How many rows the trim is holding back — never the `hidden` a gap row
    *  carries, which counts unchanged lines inside the diff. */
@@ -173,7 +175,7 @@ export function Diff(props: {
           class="w-full border-t border-rule px-2 py-1 text-left font-mono text-[0.6875rem] text-muted hover:text-ink"
           data-testid={TESTID.chatDiffExpand}
           aria-expanded={open()}
-          onClick={() => toggleFold(key())}
+          onClick={() => toggleFold(props.id)}
         >
           {open() ? "show less" : `+${more()} more lines`}
         </button>

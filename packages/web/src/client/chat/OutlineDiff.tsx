@@ -24,7 +24,7 @@ import { createMemo, For, Show } from "solid-js"
 
 import { GLYPH, SAID } from "../changes.ts"
 import { TESTID } from "../testids.ts"
-import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
+import { isUnfolded, toggleFold } from "./folds.ts"
 import { outlineDiffOf } from "./outline.ts"
 
 /** How many node rows a trimmed outline change shows. The text diff's number,
@@ -32,7 +32,13 @@ import { outlineDiffOf } from "./outline.ts"
 const TRIMMED = 6
 
 export function OutlineDiff(props: {
-  readonly call: string
+  /** This block of change, by the name its call gave it ({@link
+   *  ./folds.ts}'s `diffKey`) — what its expansion is remembered under, and
+   *  the same string the list drawing it is keyed by. Handed in rather than
+   *  built here, for {@link ./Diff.tsx}'s reason: one call reports several
+   *  blocks about one file, so the name needs the block's place in that
+   *  report, which only the list has. */
+  readonly id: string
   readonly diff: FileDiff
 }) {
   const read = createMemo(() => outlineDiffOf(props.diff))
@@ -45,8 +51,7 @@ export function OutlineDiff(props: {
     const answer = read()
     return answer._tag === "Unreadable" ? answer.side : null
   })
-  const key = () => diffKey(props.call, props.diff.path)
-  const open = createMemo(() => isUnfolded(key()))
+  const open = createMemo(() => isUnfolded(props.id))
   const more = () => Math.max(0, changes().length - TRIMMED)
   const shown = createMemo(() => (open() ? changes() : changes().slice(0, TRIMMED)))
 
@@ -115,7 +120,7 @@ export function OutlineDiff(props: {
           class="w-full border-t border-rule px-2 py-1 text-left font-mono text-[0.6875rem] text-muted hover:text-ink"
           data-testid={TESTID.chatDiffExpand}
           aria-expanded={open()}
-          onClick={() => toggleFold(key())}
+          onClick={() => toggleFold(props.id)}
         >
           {open() ? "show less" : `+${more()} more nodes`}
         </button>

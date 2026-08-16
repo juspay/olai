@@ -26,6 +26,10 @@
  *                `huge.md`, unbroken tokens (add, remove, and a same-line
  *                context row) for `long.md`, an ordinary
  *                markdown edit otherwise
+ *   hunks [file] the same edit landing in THREE PLACES — the announcement's one
+ *                optimistic block, then the PostToolUse report the real
+ *                adapter builds out of `structuredPatch`: one `diff` block per
+ *                hunk, every one of them under the same path
  *   servers      name the MCP servers this session was handed
  *   slow         dawdle, long enough to cancel
  *   deaf         go quiet with our stdin closed, so nothing said back arrives
@@ -324,6 +328,65 @@ const EDITED = {
     "",
   ].join("\n"),
 }
+
+/**
+ * ONE FILE, SEVERAL HUNKS — and the reason this fixture is a LIST where {@link
+ * EDITED} is a pair.
+ *
+ * An `Edit` is reported TWICE by the adapter, and the two reports are not the
+ * same shape. The announcement carries the optimistic block built from the
+ * tool's own arguments: one `diff`, `old_string` against `new_string`. Then the
+ * PostToolUse hook fires with the tool's real answer, and that one is built by
+ * walking `structuredPatch` — **one `diff` block per hunk, every one of them
+ * carrying the same `path`** (`toolUpdateFromDiffToolResponse`, adapter
+ * 0.66.0). So an edit that landed in three places arrives as three blocks under
+ * one name, and a panel that treats a path as a block's identity has three rows
+ * claiming to be the same row.
+ *
+ * THREE of them, and the number is load-bearing rather than generous. Two rows
+ * sharing a name is a row silently DROPPED — the panel draws the last of them
+ * and says nothing about the rest, which is a lie a reader cannot see. Three is
+ * where the framework's own list reconciliation runs off the end of the array
+ * it is patching and throws, which is the crash this fixture exists for. A
+ * fixture with two would have asserted the smaller half of one bug and left the
+ * page-breaking half uncovered.
+ *
+ * The hunks are the three the {@link EDITED} rewrite is made of, each carrying
+ * its own WINDOW of the file rather than only the lines that moved — which is
+ * what the helper produces. It walks the hunk's lines and sorts them by their
+ * marker: a `-` line goes to `oldText`, a `+` line to `newText`, and a CONTEXT
+ * line — neither — is pushed to BOTH. So a block's two sides are that hunk
+ * whole, the unchanged rows around the change included and identical on each
+ * side. The second hunk here is the one that shows it: the tiles line is on
+ * both sides, and the lights line is added under it.
+ */
+const EDITED_HUNKS = [
+  {
+    before: [
+      "- oak doors, twelve of them, ordered on the second",
+      "- a worktop nobody has chosen yet",
+    ].join("\n"),
+    after: [
+      "- oak doors, twelve of them, delivered on the ninth",
+      "- a walnut worktop, ordered on the tenth",
+    ].join("\n"),
+  },
+  {
+    before: "- the tiles are somebody else's problem",
+    after: [
+      "- the tiles are somebody else's problem",
+      "- the lights arrive with the worktop",
+    ].join("\n"),
+  },
+  {
+    before: "Nothing here is decided until the worktop is.",
+    after: [
+      "The worktop settles it: everything else can be booked in now.",
+      "",
+      "_Rewritten while you watched._",
+    ].join("\n"),
+  },
+]
 
 /**
  * The same gesture aimed at an OUTLINE — an agent's own `Edit` on a `.olai`,
@@ -1075,6 +1138,71 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
     })
     say(`rewrote \`${file}\`.`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // THE SAME EDIT, LANDING IN TWO PLACES — and the whole of what makes it a
+  // different scenario is the SECOND report.
+  //
+  // A real `Edit` is reported twice and the two reports are built by two
+  // different functions. The announcement is optimistic: one `diff` block, the
+  // tool's own `old_string` against its `new_string`. Then the adapter's
+  // PostToolUse hook fires with the tool's real answer and walks
+  // `structuredPatch`, pushing one block PER HUNK — every one of them carrying
+  // the same `path` (`toolUpdateFromDiffToolResponse`, adapter 0.66.0). An edit
+  // with `replace_all`, or one that simply touches several parts of a file, is
+  // shape, and it is the commonest shape a coding agent produces.
+  //
+  // So this turn sends exactly those three frames and nothing else. The path
+  // repeating is not decoration: it is the fact under test.
+  if (verb === "hunks") {
+    const toolCallId = `call-${++nextMcpId}`
+    const file = argument === "" ? "notes.md" : argument
+    const path = `${cwd}/${file}`
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: `Edit ${file}`,
+        status: "in_progress",
+        rawInput: { file_path: path },
+        _meta: { claudeCode: { toolName: "Edit" } },
+        content: [
+          {
+            type: "diff",
+            path,
+            oldText: EDITED_HUNKS[0]?.before,
+            newText: EDITED_HUNKS[0]?.after,
+          },
+        ],
+      },
+    })
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId,
+        _meta: { claudeCode: { toolName: "Edit" } },
+        content: EDITED_HUNKS.map((hunk) => ({
+          type: "diff",
+          path,
+          oldText: hunk.before,
+          newText: hunk.after,
+        })),
+        locations: EDITED_HUNKS.map(() => ({ path })),
+      },
+    })
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
+    })
+    // COUNTED off the fixture rather than written out, because the number is
+    // the thing this verb is about: a sentence saying two while three blocks
+    // went out is the scenario contradicting itself in the one place a reader
+    // looks to see what happened.
+    say(`rewrote \`${file}\` in ${EDITED_HUNKS.length} places.`)
     respond(id, { stopReason: "end_turn" })
     return
   }
