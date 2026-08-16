@@ -38,13 +38,37 @@ import { isMirror, type Located, type Site, targetsOf } from "./node.ts"
 import { didYouMean } from "./suggest.ts"
 import type { OutlineSet } from "./set.ts"
 
+/**
+ * A set, and the view it was JUDGED against.
+ *
+ * The two travel together for the reason {@link Derived} carries its own nodes
+ * ({@link ./derive.ts}): a caller holding one revision's set against another's
+ * indexes draws a plausible tree rather than failing, and a live store has two
+ * revisions in flight often enough to make that a real possibility rather than
+ * a theoretical one.
+ *
+ * It is what {@link validate} ANSWERS WITH, which is the whole of why it
+ * exists: the derivation every rule below was checked against used to be built,
+ * read six times and dropped at the door, so the next reader — the store
+ * publishing the snapshot, the planner judging the next keystroke — walked the
+ * corpus again for a value that had just been in hand. The pair is published,
+ * and a reader above reads the view the validator built rather than building a
+ * second one that is free to disagree with it.
+ */
+export interface Reading {
+  readonly set: OutlineSet
+  readonly derived: Derived
+}
+
 export const validate = (
   set: OutlineSet,
-): Result.Result<OutlineSet, ReadonlyArray<OutlineError>> => {
+): Result.Result<Reading, ReadonlyArray<OutlineError>> => {
   const errors: Array<OutlineError> = []
   // One set of indexes, built once and shared by every rule below, so no two
   // of them can disagree about which record an id names or what hangs under it
-  // — and so the browser derives the tree from the same code.
+  // — and so the browser derives the tree from the same code. It LEAVES with
+  // the verdict ({@link Reading}) rather than being dropped here: the caller
+  // that publishes what this approves has no second corpus to walk.
   const derived = derive(set.nodes)
 
   reportDuplicateIds(set.nodes, derived, errors)
@@ -72,7 +96,7 @@ export const validate = (
   // stays on screen underneath it.
   return errors.length > 0
     ? Result.fail([...unreadable, ...found].sort(compareErrors))
-    : Result.succeed(set)
+    : Result.succeed({ set, derived })
 }
 
 // ── ids ────────────────────────────────────────────────────────────────

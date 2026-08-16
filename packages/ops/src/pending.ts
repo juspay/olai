@@ -515,7 +515,7 @@ export const make = (options: Options): Committing => {
       }
 
       const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
-      const set = snapshot?.value ?? null
+      const set = snapshot?.value.set ?? null
 
       // ONE pass over the set for all of it, MEMOISED on the set — see
       // {@link byFile}. Under `manual` something is nearly always dirty, so

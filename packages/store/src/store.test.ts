@@ -40,6 +40,15 @@ interface Loaded {
 }
 
 let decodes: Array<string> = []
+/** One entry per {@link Codec.validate} call, naming the set it was asked
+ *  about. A codec whose validation is expensive — olai's derives the whole
+ *  corpus — makes "how many times per write" a number worth pinning, and the
+ *  gate's answer is once. */
+let validations: Array<ReadonlyArray<string>> = []
+/** Fired inside `decode`, once, then disarmed: the one place a test can reach
+ *  BETWEEN the write gate's validation and the probe that follows its rename,
+ *  which is the window the gate's reuse of that verdict is about. */
+let whileDecoding: (() => void) | null = null
 
 /** What a `.blob` decodes to: the fact that it is there, and no bytes. A
  *  codec's answer for a file whose content the set does not want to hold — see
@@ -54,12 +63,16 @@ const codec: Codec<string, Loaded, ReadonlyArray<string>> = {
 
   decode: (path, contents) => {
     decodes.push(path)
+    const during = whileDecoding
+    whileDecoding = null
+    during?.()
     return contents.startsWith("!")
       ? Result.fail([`${path}: unreadable`])
       : Result.succeed(contents)
   },
 
   validate: (files) => {
+    validations.push([...files.keys()])
     const text: Record<string, string> = {}
     const broken: Array<string> = []
     for (const [path, decoded] of files) {
@@ -122,6 +135,8 @@ const withStore = <A>(
   options: { readonly watch?: boolean; readonly backstop?: Duration.Input } = {},
 ): Promise<A> => {
   decodes = []
+  validations = []
+  whileDecoding = null
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-store-"))
   const write = (file: string, contents: string) => {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
@@ -759,6 +774,81 @@ test("a commit that changes no length in the same second still publishes", () =>
       const after = yield* snapshotOf(store)
       expect(after?.value.text["a.txt"]).toBe("ALPHA")
       expect(after?.rev).toBe((before?.rev ?? 0) + 1)
+    })))
+
+// ── one write, one verdict ─────────────────────────────────────────────
+//
+// The gate judges the set it is ABOUT to write, and then publishes what it
+// wrote. Those used to be two questions to the codec about two equal sets, and
+// for a codec whose validation builds a view of the whole corpus that is the
+// corpus walked twice per keystroke (docs/brainstorming/model-indices.md).
+// It is one question now, and these three say what that rests on: the verdict
+// is reused only about the very files it was reached about, and the bytes on
+// disk are still what decides what those are.
+
+test("a commit is judged once, and its own file decoded once", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      decodes = []
+      validations = []
+      yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "alpha, committed" }],
+      })
+
+      // The set the write would make, judged before anything was renamed —
+      // and no second judgement of the identical set it did make.
+      expect(validations).toEqual([["a.txt", "b.txt"]])
+      // The re-read still happens: the file is opened, and its bytes are
+      // compared with the ones this write promised. What is skipped is turning
+      // those same bytes into a second value ({@link Probe.decode}).
+      expect(decodes).toEqual(["a.txt"])
+      expect((yield* snapshotOf(store))?.value.text["a.txt"]).toBe("alpha, committed")
+    })))
+
+test("a set that moved under the write is judged again", () =>
+  withStore({ "a.txt": "alpha" }, ({ store, write }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      validations = []
+      // Somebody else — a `git pull`, another editor — puts a file down in the
+      // window between the gate's judgement and the probe that follows its
+      // rename. The verdict in hand is about a set that is no longer the one on
+      // disk, so it cannot be the one published.
+      whileDecoding = () => write("c.txt", "gamma")
+
+      yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "alpha, committed" }],
+      })
+
+      expect(validations).toEqual([["a.txt"], ["a.txt", "c.txt"]])
+      expect((yield* snapshotOf(store))?.value.text).toEqual({
+        "a.txt": "alpha, committed",
+        "c.txt": "gamma",
+      })
+    })))
+
+test("a promise a probe does not find is not what publishes", () =>
+  withStore({ "a.txt": "alpha" }, ({ store, write }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      // A refused write: nothing is renamed, so the bytes it decoded — and the
+      // decode it kept beside them — are about a file that was never written.
+      const refused = yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "needs ghost" }],
+      })
+      expect(Result.isFailure(refused)).toBe(true)
+
+      // What lands next is somebody else's, at the same path. The probe reads
+      // it, finds bytes that are not the promised ones, and decodes what it
+      // actually read — so the set says `beta` and not the sentence that was
+      // refused a moment ago.
+      write("a.txt", "beta")
+      yield* store.refresh
+      expect((yield* snapshotOf(store))?.value.text).toEqual({ "a.txt": "beta" })
     })))
 
 test("a new file arrives through the gate, directory and all", () =>

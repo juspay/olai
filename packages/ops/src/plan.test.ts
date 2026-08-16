@@ -23,7 +23,7 @@ import {
 import { describe, expect, test } from "bun:test"
 import { Result, Schema } from "effect"
 
-import { setOf, STAMP, steady } from "./fixtures.testlib.ts"
+import { reading, setOf, STAMP, steady } from "./fixtures.testlib.ts"
 import { plan, type Plan } from "./plan.ts"
 
 const KITCHEN = [
@@ -37,7 +37,7 @@ const KITCHEN = [
 const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
 
 const planning = (set: OutlineSet, request: Request): Result.Result<Plan, OpFailure> =>
-  plan(set, steady(), request)
+  plan(reading(set), steady(), request)
 
 /** The plan, or a failure quoted well enough to fix the test without a
  *  debugger. */

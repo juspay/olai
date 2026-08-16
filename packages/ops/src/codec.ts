@@ -20,15 +20,15 @@ import {
   type DecodedFile,
   fileKind,
   type OutlineError,
-  type OutlineSet,
   parseOutline,
+  type Reading,
   unkept,
   validate,
 } from "@olai/format"
 import type { Codec } from "@olai/store"
 import { Result } from "effect"
 
-export const codec: Codec<DecodedFile, OutlineSet, ReadonlyArray<OutlineError>> = {
+export const codec: Codec<DecodedFile, Reading, ReadonlyArray<OutlineError>> = {
   match: (path) => fileKind(path) !== null,
 
   /** A file whose content the set does not KEEP decodes to its path and
@@ -63,7 +63,13 @@ export const codec: Codec<DecodedFile, OutlineSet, ReadonlyArray<OutlineError>> 
   /** Failures included: whether an unreadable file is a hole the rest of the
    *  set renders around or a reason to hold the last good snapshot is a
    *  question about the FORMAT, so `assemble` carries them in and `validate`
-   *  answers it. */
+   *  answers it.
+   *
+   *  What a valid set publishes as is the validator's own {@link Reading} — the
+   *  set AND the derivation the rules were run over — because the store's `S`
+   *  is whatever the codec says a validated set is, and the alternative is
+   *  every reader above deriving the corpus a second time from a value that had
+   *  just been built and dropped inside this call. */
   validate: (files) => validate(assemble(files)),
 
   /** The store's own failure — the directory would not be listed, a file would

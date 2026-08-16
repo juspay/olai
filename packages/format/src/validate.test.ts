@@ -29,12 +29,14 @@ const expectValid = (
     )
   }
   // The set comes back as it went in — the validator judges, it does not
-  // reshape, so what the browser subscribes to is what the reader found.
-  expect(result.success).toBe(set)
-  expect(result.success.files.length).toBe(
+  // reshape, so what the browser subscribes to is what the reader found. What
+  // is added is the derivation the rules were run over, paired with it.
+  expect(result.success.set).toBe(set)
+  expect(result.success.derived.nodes).toBe(set.nodes)
+  expect(result.success.set.files.length).toBe(
     Object.keys(files).length + Object.keys(broken).length,
   )
-  return result.success
+  return result.success.set
 }
 
 const only = (errors: ReadonlyArray<OutlineError>): OutlineError => {

@@ -35,6 +35,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Result, SubscriptionRef } from "effect"
 
 import { codec } from "./codec.ts"
+import type { Store as OutlineStore } from "./deps.ts"
 import { repoAt, STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 
@@ -56,7 +57,7 @@ const PROPPED = HOUSE.replace(
 
 interface Fixture {
   readonly ops: Ops.Ops
-  readonly store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>>
+  readonly store: OutlineStore
   readonly root: string
   readonly read: (file: string) => string | null
   readonly write: (file: string, contents: string) => void
@@ -124,7 +125,7 @@ const withOps = <A>(
       set: () =>
         Effect.map(SubscriptionRef.get(store.snapshot), (snapshot) => {
           if (snapshot === null) throw new Error("the fixture directory never loaded")
-          return snapshot.value
+          return snapshot.value.set
         }),
     })
   }).pipe(

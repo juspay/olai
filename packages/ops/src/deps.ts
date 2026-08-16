@@ -7,10 +7,13 @@
  * would be the same joint asserted six times.
  */
 
-import type { OutlineError, OutlineSet } from "@olai/format"
+import type { OutlineError, OutlineSet, Reading } from "@olai/format"
 import type * as StoreModule from "@olai/store"
 
 export type { OutlineError, OutlineSet }
 
-/** The store, as an outline set. */
-export type Store = StoreModule.Store<OutlineSet, ReadonlyArray<OutlineError>>
+/** The store, as a validated outline set: the files, and the one derivation
+ *  they were judged against ({@link Reading}). The store's `S` is whatever its
+ *  codec calls a validated set, and olai's is the pair — so a snapshot carries
+ *  the view rather than the raw material for one. */
+export type Store = StoreModule.Store<Reading, ReadonlyArray<OutlineError>>

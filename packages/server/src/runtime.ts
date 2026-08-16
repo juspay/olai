@@ -49,16 +49,14 @@
  */
 
 import { NOTHING_PENDING } from "@olai/format"
-import { type Ops, Query, type Request, type Status } from "@olai/ops"
+import { type Ops, Query, type Request, type Status, type Store } from "@olai/ops"
 import type {
   CommitRequest,
   OutlineError,
-  OutlineSet,
   Pending,
   PushResult,
   Writer,
 } from "@olai/format"
-import type { Store } from "@olai/store"
 import {
   type Applied,
   CHAT_OFF,
@@ -122,7 +120,7 @@ const apply = <T>(
 }
 
 export interface Wiring {
-  readonly store: Store<OutlineSet, ReadonlyArray<OutlineError>>
+  readonly store: Store
   /** Absent when no ACP agent is configured: the cell stays `off` and the
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */

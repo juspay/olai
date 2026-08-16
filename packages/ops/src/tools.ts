@@ -41,7 +41,6 @@ import {
   CreateRequest,
   DateRequest,
   DescRequest,
-  type Derived,
   MARKS,
   MarkRequest,
   MergeRequest,
@@ -52,8 +51,8 @@ import {
   PropRequest,
   type OpFailure,
   OutlineAnswer,
-  type OutlineSet,
   type PushResult,
+  type Reading,
   SearchAnswer,
   SearchRequest,
   SeeRequest,
@@ -73,15 +72,18 @@ import * as Query from "./query.ts"
 
 /** The set as a reader sees it: the files that were found, and the derivations
  *  every answer is computed from. One value, so a run of queries walks the tree
- *  once ({@link ./query.ts}).
+ *  once ({@link ./query.ts}) — and none of them walks it at all, because the
+ *  pair is what the validator ANSWERED with and what the store published.
+ *
+ *  It is `@olai/format`'s own type rather than a shape declared here over the
+ *  two halves: the same two fields named twice would be two spellings of one
+ *  pairing, and the point of the pairing is that nobody can hold one revision's
+ *  set against another's indexes.
  *
  *  TWO FIELDS, and both are pure functions of one snapshot — which is what
  *  lets `@olai/server`'s `edit.ts` and `context.ts` advertise themselves as
  *  pure over a Reading. */
-export interface Reading {
-  readonly set: OutlineSet
-  readonly derived: Derived
-}
+export type { Reading } from "@olai/format"
 
 interface Described {
   readonly name: string

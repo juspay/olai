@@ -2,10 +2,18 @@
  * The probe: the only source of truth about what is on disk.
  *
  * Re-list the tree, re-stat everything, diff against the stamp table, re-read
- * and re-decode ONLY what the stamps say changed. Nothing here is told what
- * happened — not by a watcher event, not by a write the store itself made — so
- * the probe is idempotent, and the state it produces converges on disk truth
- * after any disturbance whether every event lied or none arrived.
+ * and re-decode ONLY what the stamps say changed. Nothing here is BELIEVED
+ * about what happened — not a watcher event, not a write the store itself made
+ * — so the probe is idempotent, and the state it produces converges on disk
+ * truth after any disturbance whether every event lied or none arrived.
+ *
+ * A write does get to say what it is about to put on disk ({@link
+ * Probe.decode}), and that is a promise rather than an instruction: the file is
+ * listed, statted and read exactly as it would have been, and the promised
+ * decode is taken only when the bytes that come back are the promised bytes.
+ * Everything above still learns what is on the disk; what it saves is decoding
+ * the same bytes twice into two values that a codec would then have to judge
+ * twice.
  *
  * The two halves of "what changed" are the two things a store can skip:
  *
@@ -71,6 +79,29 @@ export interface Probe<F, E> {
    *  whether it was pruned, never claimed by the codec, or spelled to climb out
    *  of the root altogether. */
   readonly holds: (path: string) => Effect.Effect<boolean>
+  /**
+   * Decode bytes a write is ABOUT to put on disk, and remember the pair until
+   * the next {@link run} consumes it.
+   *
+   * The write gate decodes what it is about to write in order to validate the
+   * set it would make, and then renames the files and asks for a probe — which
+   * reads those same bytes back and decodes them a SECOND time, into a value
+   * equal to the one already in hand and not the same one. What that costs is
+   * not the decode: it is that the two sets are then two different values, so
+   * the codec has to judge the whole corpus again to say about the second what
+   * it just said about the first ({@link ./store.ts}'s `commit`).
+   *
+   * Told what happened, then — but not TRUSTED with it, which is the line this
+   * keeps. The probe still lists, still stats and still reads; the remembered
+   * decode is used only where the bytes it comes back with are the bytes that
+   * were promised, and any other answer is decoded like every other file. So a
+   * foreign writer that overwrote the file in the moment between the rename and
+   * the read is still what gets published, and the probe still decides.
+   */
+  readonly decode: (
+    path: string,
+    contents: string,
+  ) => Effect.Effect<Result.Result<F, E>>
   /** Forget these files' stamps, so the next {@link run} re-reads them
    *  whatever the file system says about mtime and size.
    *
@@ -88,16 +119,28 @@ interface Cached<F, E> {
   readonly decoded: Result.Result<F, E>
 }
 
+/** One promise a write made about a path: these bytes, decoded to this. Held
+ *  until the next probe, which either reads those exact bytes back and takes
+ *  the value, or reads something else and decodes it ({@link Probe.decode}). */
+interface Promised<F, E> {
+  readonly contents: string
+  readonly decoded: Result.Result<F, E>
+}
+
 export const make = <F, S, E>(
   disk: Disk,
   codec: Codec<F, S, E>,
 ): Effect.Effect<Probe<F, E>> =>
-  Effect.map(
+  Effect.gen(function*() {
     // `null`, not an empty map: an empty directory is a real answer that must
     // be published once, and only "has never been probed" may be indistinct
     // from it.
-    Ref.make<ReadonlyMap<string, Cached<F, E>> | null>(null),
-    (cache) => ({
+    const cache = yield* Ref.make<ReadonlyMap<string, Cached<F, E>> | null>(null)
+    // Emptied by every probe, so what it holds is one write's own files for as
+    // long as that write is in flight and nothing after that.
+    const promised = yield* Ref.make<ReadonlyMap<string, Promised<F, E>>>(new Map())
+
+    return {
       current: Effect.map(
         Ref.get(cache),
         (cached) =>
@@ -117,8 +160,21 @@ export const make = <F, S, E>(
           return kept
         }),
 
+      decode: (path: string, contents: string) =>
+        Effect.gen(function*() {
+          const decoded = codec.decode(path, contents)
+          yield* Ref.update(
+            promised,
+            (held) => new Map(held).set(path, { contents, decoded }),
+          )
+          return decoded
+        }),
+
       run: Effect.gen(function*() {
         const previous = yield* Ref.get(cache)
+        // Taken and cleared in one step: a promise is about the read that comes
+        // next, and a second probe must not be offered a stale one.
+        const owed = yield* Ref.getAndSet(promised, new Map())
         const stamps = yield* disk.listing(codec.match)
 
         const stale = [...stamps].filter(([path, stamp]) => {
@@ -155,7 +211,23 @@ export const make = <F, S, E>(
             { concurrency: 16 },
           )
         ) {
-          fresh.set(path, contents === null ? null : codec.decode(path, contents))
+          if (contents === null) {
+            fresh.set(path, null)
+            continue
+          }
+          // A file whose bytes are the ones a write promised ({@link
+          // Probe.decode}) is not decoded again: the value that comes back is
+          // the value the write validated, and being the SAME value is what
+          // lets the gate publish that verdict rather than reaching a second
+          // one about a second set. Anything else — including this path holding
+          // something else now — decodes here as it always did.
+          const promise = owed.get(path)
+          fresh.set(
+            path,
+            promise?.contents === contents
+              ? promise.decoded
+              : codec.decode(path, contents),
+          )
         }
 
         const next = new Map<string, Cached<F, E>>()
@@ -191,6 +263,6 @@ export const make = <F, S, E>(
           removed,
         }
       }),
-    }),
-  )
+    }
+  })
 

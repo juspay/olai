@@ -43,10 +43,16 @@
  *   produces is what the write is judged against) → the optimistic-concurrency
  *   check against `baseRev` → apply the changes to the last decode and
  *   VALIDATE the whole set → stage every file beside its destination →
- *   RENAME them all → re-probe and publish → the caller's post-publish hook.
+ *   RENAME them all → re-probe and publish THAT VERDICT → the caller's
+ *   post-publish hook.
  *
  * Validation before any rename is what makes a refused write cost nothing: the
  * bytes are on disk under names nothing reads, or they are not there at all.
+ * And it is the ONLY validation the write pays for: the re-probe reads back the
+ * bytes this gate just wrote, so what it finds is the set that was already
+ * judged — proved rather than assumed ({@link sameFiles}), and re-judged in
+ * full the moment it is not. A codec whose validation builds a view of the
+ * whole corpus (olai's does) therefore builds one per edit rather than two.
  * The hook is the caller's Effect, run inside the gate: it is how the git
  * commit rides along without this package ever learning what git is.
  */
@@ -232,6 +238,51 @@ const absorb = (
   return { changed, removed }
 }
 
+/**
+ * A verdict already reached about a decoded set: the exact map that was judged,
+ * and what the codec said about it.
+ *
+ * The write gate reaches one BEFORE it renames anything — that is what makes a
+ * refused write free — and the probe that follows the rename reads back the
+ * same files it just wrote. Handing the verdict forward is what keeps one edit
+ * to one validation: without it the gate asks the codec about the set it is
+ * about to write, and then asks again about the identical set it did write, and
+ * for olai each of those questions is the whole corpus derived
+ * (`docs/brainstorming/model-indices.md`, slice 2).
+ *
+ * THE MAP TRAVELS WITH THE VERDICT, and {@link sameFiles} is what makes that a
+ * guarantee rather than a hope: a verdict is reused only about the very files
+ * it was reached about.
+ */
+interface Judged<F, S, E> {
+  readonly files: Probe.Decoded<F, E>
+  readonly outcome: Result.Result<S, E>
+}
+
+/**
+ * Whether two decoded sets are the SAME SET: the same paths, each holding the
+ * very value the other holds.
+ *
+ * IDENTITY per entry, not equality — the store never looks inside what a codec
+ * decoded to, so it has no way to compare two of them and no business trying.
+ * That is enough because nothing here mutates a decoded value: an unchanged
+ * file keeps the object the probe cached for it, and a file a write both
+ * decoded and read back holds one object too ({@link Probe.decode}). So a
+ * difference of any kind — a neighbour re-decoded by the same probe, a file
+ * that arrived or left, our own bytes overwritten by somebody else between the
+ * rename and the read — fails this test, and the codec is asked afresh.
+ */
+const sameFiles = <F, E>(
+  judged: Probe.Decoded<F, E>,
+  found: Probe.Decoded<F, E>,
+): boolean => {
+  if (judged.size !== found.size) return false
+  for (const [path, decoded] of judged) {
+    if (found.get(path) !== decoded) return false
+  }
+  return true
+}
+
 const DEFAULT_SETTLE = Duration.millis(75)
 const DEFAULT_BACKSTOP = Duration.seconds(60)
 /** How long to wait before re-establishing a watcher that failed. The backstop
@@ -306,13 +357,19 @@ export const make = <F, S, E>(
 
     /** Validate, then move the two refs to match — and say which way it went,
      *  because the write gate has to branch on it and re-reading the refs to
-     *  find out would be the same question asked twice. */
+     *  find out would be the same question asked twice.
+     *
+     *  A verdict may be handed IN, and then no second one is reached: see
+     *  {@link Judged}. */
     const publish = (
       found: Probe.Found<F, E>,
+      judged?: Judged<F, S, E>,
     ): Effect.Effect<Result.Result<Snapshot<S>, E>> =>
       Effect.gen(function*() {
         const since = yield* Ref.updateAndGet(moved, (before) => absorb(before, found))
-        const outcome = options.codec.validate(found.files)
+        const outcome = judged !== undefined && sameFiles(judged.files, found.files)
+          ? judged.outcome
+          : options.codec.validate(found.files)
         if (Result.isFailure(outcome)) {
           // The snapshot stays where it is, so what moved is still owed to
           // whoever reads the next one: `since` is kept rather than cleared.
@@ -381,9 +438,16 @@ export const make = <F, S, E>(
           // The set this write WOULD make: what the probe last decoded, with
           // the changed files swapped in. Decoding here rather than after the
           // rename is what makes a refusal free.
+          //
+          // THROUGH THE PROBE, which is what makes the set below the same set
+          // the re-probe finds rather than an equal one ({@link
+          // Probe.decode}) — and so lets this verdict be the published one.
           const candidate = new Map(yield* probe.current)
           for (const change of write.changes) {
-            candidate.set(change.path, options.codec.decode(change.path, change.contents))
+            candidate.set(
+              change.path,
+              yield* probe.decode(change.path, change.contents),
+            )
           }
           const judged = options.codec.validate(candidate)
           if (Result.isFailure(judged)) return Result.fail(judged.failure)
@@ -406,9 +470,14 @@ export const make = <F, S, E>(
           // not because a stat noticed.
           yield* probe.forget(write.changes.map((change) => change.path))
           const reread = yield* probe.run
+          // The verdict rides along: what came back is the same set that was
+          // judged a few lines up unless something else moved the tree in the
+          // meantime, and then it is judged again ({@link sameFiles}). This is
+          // the publish that used to be a second validation of the set this
+          // gate had just approved.
           const published = reread === null
             ? Result.succeed(current)
-            : yield* publish(reread)
+            : yield* publish(reread, { files: candidate, outcome: judged })
           if (Result.isFailure(published)) {
             // Written, and the set it produced does not validate — which the
             // check above ruled out unless something else moved the tree in

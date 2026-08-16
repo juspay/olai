@@ -13,9 +13,8 @@ import type { OutlineSet, Sort, WriteRequest as Request } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { setOf, steady } from "./fixtures.testlib.ts"
+import { reading, setOf, steady } from "./fixtures.testlib.ts"
 import { plan } from "./plan.ts"
-import { index } from "./query.ts"
 import { sortOfWrite } from "./sorted.ts"
 
 const KITCHEN = [
@@ -30,15 +29,16 @@ const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
  *  exactly as {@link ../ops.ts} assembles a reply, about the node the plan says
  *  it was about. */
 const sorting = (set: OutlineSet, request: Request): Sort | undefined => {
-  const planned = plan(set, steady(), request)
+  const at = reading(set)
+  const planned = plan(at, steady(), request)
   if (Result.isFailure(planned)) {
     throw new Error(
       `expected \`${request.op}\` to plan, and it refused: ${planned.failure.message}`,
     )
   }
-  // The same derivation the plan was judged against — `index` is memoised on
-  // the set's identity, which is how the real caller hands it on too.
-  return sortOfWrite(set, index(set), planned.success)
+  // The same derivation the plan was judged against, handed on — which is what
+  // the real caller does with the pair the snapshot carries.
+  return sortOfWrite(at.set, at.derived, planned.success)
 }
 
 describe("what a write is called", () => {

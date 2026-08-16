@@ -54,6 +54,7 @@ import {
   siblingsOf,
   standingBefore,
   type OutlineSet,
+  type Reading,
   type RegularNode,
   storedMarker,
   targetsOf,
@@ -67,8 +68,6 @@ import {
   type WriteRequest as Request,
 } from "@olai/format"
 import { Result } from "effect"
-
-import { index } from "./query.ts"
 
 /** One outline, as the records it will hold after the write. */
 export interface FilePlan {
@@ -129,18 +128,18 @@ type Planned = Result.Result<Plan, OpFailure>
  *  in the way rather than in the right. */
 type Draft<N> = { -readonly [K in keyof N]: N[K] }
 
+/** The set and its derivation are taken TOGETHER, as the one value the store
+ *  published ({@link Reading}), rather than as a set this planner derives from:
+ *  the view it plans against is the view the validator approved, so a write is
+ *  judged against the same corpus the reader who asked for it was looking at,
+ *  and the whole tree is not walked again per keystroke for an answer already
+ *  in hand. */
 export const plan = (
-  set: OutlineSet,
+  at: Reading,
   context: Context,
   request: Request,
 ): Planned => {
-  // `index`, not a fresh `derive`: the derivation is memoised per SET
-  // (`./query.ts`), and every caller of this has already read that set — a
-  // tool call to answer the request, the editor to resolve a keystroke. A
-  // second derivation per write is the whole corpus walked again for an answer
-  // already in hand, and the editor made that a per-keystroke cost.
-  const derived = index(set)
-  const scope = { set, derived, context }
+  const scope = { ...at, context }
 
   switch (request.op) {
     case "add":

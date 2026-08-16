@@ -26,7 +26,6 @@ import {
   type CommitRequest,
   type CommitResult,
   type OpFailure,
-  type OutlineSet,
   type Pending,
   type PushResult,
   serializeOutline,
@@ -46,7 +45,6 @@ import {
   type Status,
 } from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
-import { index } from "./query.ts"
 import { sortOfWrite } from "./sorted.ts"
 import { asking, type Asking, type Reading } from "./tools.ts"
 
@@ -199,8 +197,9 @@ export const make = (options: Options): Ops => {
         errors: errors ?? [],
       })
     }
-    const set = snapshot.value as OutlineSet
-    return { set, derived: index(set) }
+    // The snapshot IS the reading: the validator paired the set with the view
+    // it judged, and the store published the pair. Nothing is derived here.
+    return snapshot.value
   })
 
   const run = (
@@ -219,7 +218,7 @@ export const make = (options: Options): Ops => {
           })
         }
 
-        const planned = plan(snapshot.value as OutlineSet, context, request)
+        const planned = plan(snapshot.value, context, request)
         if (Result.isFailure(planned)) return yield* planned.failure
         const { files, documents = [], ...about } = planned.success
 
@@ -291,12 +290,11 @@ export const make = (options: Options): Ops => {
         // the two readings this write is made of, which are both still in
         // hand. A reader that DRAWS a write rather than logging one needs a
         // word it can switch on, and the summary above is a commit subject.
-        const set = snapshot.value as OutlineSet
-        // The derivation `plan` was just judged against, handed on rather than
-        // reached for a second time: `index` is memoised on the set's identity,
-        // so this is the same value, and passing it is what keeps the classifier
-        // free of an opinion about whether a memo is warm.
-        const sort = sortOfWrite(set, index(set), planned.success)
+        // The reading `plan` was just judged against, handed on rather than
+        // reached for a second time — the set and the derivation together, as
+        // the snapshot carries them.
+        const { set, derived } = snapshot.value
+        const sort = sortOfWrite(set, derived, planned.success)
         return {
           ...about,
           rev: written.success,

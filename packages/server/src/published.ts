@@ -34,7 +34,7 @@
  * (`runtime.ts`) and needs no projection.
  */
 
-import type { OutlineSet } from "@olai/format"
+import type { Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, OutlineEntry } from "@olai/surface"
 
@@ -106,11 +106,11 @@ export interface Published {
  * rather than papered over.
  */
 const documentsOf = (
-  snapshot: Snapshot<OutlineSet>,
+  snapshot: Snapshot<Reading>,
   held: Change<DocumentEntry> | undefined,
 ): Pick<Published, "documents" | "unread"> => {
   const change = changeOf(
-    snapshot.value.documents,
+    snapshot.value.set.documents,
     (document) => document.file,
     (document) => ({ rev: snapshot.rev, text: document.text }),
     snapshot,
@@ -185,10 +185,10 @@ const changeOf = <S, T>(
  * outline the sidebar stopped showing because it broke.
  */
 export const publishedOf = (
-  snapshot: Snapshot<OutlineSet>,
+  snapshot: Snapshot<Reading>,
   published: Published | null,
 ): Published => {
-  const set = snapshot.value
+  const set = snapshot.value.set
   // The set is FLAT and every record names its own file, so a file's slice is
   // that grouping — taken in one pass rather than one filter per file, because
   // this runs on every revision of a directory that can hold any number of

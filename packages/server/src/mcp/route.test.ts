@@ -18,8 +18,7 @@
  * pipe the chat panel's agent reads its refusals through.
  */
 
-import { codec, make as makeOps, TOOLS } from "@olai/ops"
-import { type OutlineError, type OutlineSet } from "@olai/format"
+import { codec, make as makeOps, type Store as OutlineStore, TOOLS } from "@olai/ops"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, Option, SubscriptionRef } from "effect"
@@ -57,7 +56,7 @@ const withRoute = <A>(
   fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
 
   return Effect.gen(function*() {
-    const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store.make({
+    const store: OutlineStore = yield* Store.make({
       root,
       codec,
       watch: false,
