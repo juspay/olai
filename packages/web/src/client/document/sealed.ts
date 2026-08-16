@@ -31,8 +31,8 @@
  *      being it.
  *   3. WHAT MAY BE FETCHED: the pictures of this vault, and nothing else in the
  *      world. `default-src 'none'` is still the ground under everything — no
- *      font, no stylesheet, no frame, no `fetch`, no `<form>` action, nothing
- *      over the network at all — and it has exactly two exceptions, both of
+ *      font, no stylesheet, no frame, no `fetch`, nothing over the network at
+ *      all — and it has exactly two exceptions, both of
  *      them named. `style-src 'unsafe-inline'` is the older one, and it is what
  *      makes the preview worth having: a saved page's whole appearance is its
  *      own `<style>` block and its `style=` attributes. {@link mediaOn} is
@@ -57,6 +57,28 @@
  *      the end of this one is a static file engine over the served directory
  *      with no index and no fallback, which has nowhere to redirect anybody
  *      to.
+ *
+ *      AND `form-action 'none'`, which is here because `default-src` does NOT
+ *      cover it. That is the surprise worth writing down rather than assuming:
+ *      most directives fall back to `default-src`, and `form-action` is one of
+ *      the few that never has — so a `<form action="https://collector/">` in a
+ *      saved page was covered only by the SANDBOX (no `allow-forms`, so a
+ *      submit is blocked), which is a fact about the element rather than about
+ *      the markup. Everything else in this list is refused by the policy
+ *      itself; leaving one outgoing path to be caught by the attribute alone
+ *      would make the seal's promise — "nothing in the file reaches anywhere
+ *      but this vault's pictures" — true by an argument the reader has to make
+ *      elsewhere. It is now refused twice, and the policy is self-sufficient.
+ *      (opencode's review of this PR asked for exactly this.)
+ *
+ *      Which of the two speaks is worth knowing, because a reader will go
+ *      looking for the refusal and find the wrong sentence: Chromium checks the
+ *      sandbox flag FIRST, so what the console says today is "Blocked form
+ *      submission … because the form's frame is sandboxed" and the directive is
+ *      never reached. That is the point of having it — the second bar is for
+ *      the day the first one is not there, and `features/html_previews.feature`
+ *      reads the outcome (nothing left this server, the frame stayed put)
+ *      rather than either mechanism's wording.
  *
  * WHY A SCRIPT AT ALL, since the previous version of this file had none and
  * said so proudly. Because the frame's HEIGHT could not otherwise be an answer.
@@ -136,12 +158,23 @@
  * `<img src="art/shot.png">` in `notes/report.html` becomes
  * `/media/notes/art/shot.png`, which is the exact URL the markdown beside it
  * would have been rewritten to — and every address that is NOT vault-relative
- * resolves somewhere `img-src` refuses:
- * `https://tracker/pixel.png` is a host that is not this one, `data:…` is a
- * scheme that is not this one, and `../../../etc/passwd.png` is normalised by
- * the URL parser before any of it is fetched, which puts it outside `/media/`
- * and outside the policy. The file is still handed over BYTE FOR BYTE; nothing
- * is parsed, stripped or re-encoded; and the seal is still a prefix.
+ * resolves somewhere it will not be answered. `https://tracker/pixel.png` is a
+ * host that is not this one and `data:…` is a scheme that is not this one; both
+ * are refused by `img-src` with no request made at all.
+ *
+ * A `..` is the case that deserves saying exactly rather than briskly, because
+ * WHERE THE CLIMB LANDS is what decides which of the two guards answers it. The
+ * URL parser normalises it before anything is fetched, and then either it has
+ * left the route — `../../../etc/passwd.png` from a base one directory deep is
+ * `/etc/passwd.png`, outside `img-src`, refused by the browser — or it has not,
+ * and a climb still under `/media/` has BY CONSTRUCTION named a file of this
+ * vault: `notes/../art/shot.png` is `art/shot.png`, the same address the
+ * markdown beside it would have resolved to. That one is a request, and the
+ * route is what answers it: a picture that is there, or a 404. Neither is a
+ * byte that was not already this reader's.
+ *
+ * The file is still handed over BYTE FOR BYTE; nothing is parsed, stripped or
+ * re-encoded; and the seal is still a prefix.
  *
  * It also covers what a rewrite would have had to chase one at a time. A
  * `srcset` with its comma-separated candidates and descriptors, a
@@ -433,7 +466,7 @@ const mediaOn = (origin: string, path: string): string | undefined =>
 export const policyOf = (origin: string): string => {
   const pictures = mediaOn(origin, MEDIA_PREFIX)
   return `default-src 'none'; style-src 'unsafe-inline'; ` +
-    `script-src 'sha256-${MEASURE_SHA256}'` +
+    `script-src 'sha256-${MEASURE_SHA256}'; form-action 'none'` +
     (pictures === undefined ? "" : `; img-src ${pictures}`)
 }
 

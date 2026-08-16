@@ -151,6 +151,37 @@ Feature: A `.html` in the vault
     And requesting "/media/finishes.md" answers 404
 
   @scratch:good
+  Scenario: A form in a saved page cannot post anywhere
+    # The other way a page reaches somebody else's server without a script, and
+    # the one this feature was missing: a `<form action>` and a click. It is
+    # refused twice — the sandbox has no `allow-forms`, and the seal now says
+    # `form-action 'none'`, which it has to say out loud because that directive
+    # is one of the few that does NOT fall back to `default-src` (opencode's
+    # review of this PR found the gap).
+    #
+    # What this scenario reads is the OUTCOME, not which of the two said no:
+    # the click happens, nothing leaves this server, and the frame is still on
+    # the document the seal put there. That the policy carries the directive at
+    # all is `sealed.ts`'s own test, where the whole directive set is asserted.
+    Given I open the app
+    When I rewrite "form.html" as:
+      """
+      <h1>Form</h1>
+      <form action="https://example.invalid/collect" method="post">
+        <input name="reading" value="what this reader is reading">
+        <button id="send" type="submit">send</button>
+      </form>
+      """
+    And I click the page "form.html"
+    Then the preview shows the heading "Form"
+    When I click "#send" inside the preview
+    Then the page requested nothing off this server
+    # …and the frame did not go anywhere: a submission that HAD been allowed is
+    # a navigation, and this page would be somebody else's answer or the empty
+    # seal that the walk-off budget ends at.
+    And the preview shows the heading "Form"
+
+  @scratch:good
   Scenario: A page with a picture in it is as tall as the picture makes it
     # The measurement, and what pictures did to it. An `<img>` is a zero-tall
     # box until its bytes arrive, so the reading taken when the document parsed
@@ -274,9 +305,15 @@ Feature: A `.html` in the vault
     # is ordinary in a saved dashboard — reports a number that grows every time
     # the frame acts on the last one. Measured before this was guarded: a page
     # one screen tall came out at 1798px against a 1800px bound, so every such
-    # export rendered as a two-screen box. A height is accepted once per WIDTH
-    # now, and nothing under this policy can change a page's height at a fixed
-    # width, so the ladder has no rungs. Both reviews of PR #197 found this.
+    # export rendered as a two-screen box. Both reviews of PR #197 found it.
+    #
+    # The rule that bounds it has moved on since, and this says the current one:
+    # a height is accepted once per width PER READING, and there are two
+    # readings — the one taken when the document parsed, and the one taken at
+    # `load`, when the page's pictures have landed and can no longer be missing
+    # from its height. So a `vh` page has exactly two rungs available to it at
+    # one width rather than an open ladder, and this scenario is the one that
+    # reads what that comes to: a page one screen tall stays under one screen.
     Given I open the app
     When I rewrite "hero.html" as:
       """

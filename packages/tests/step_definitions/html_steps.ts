@@ -490,6 +490,19 @@ When("I follow the link out of the preview", async function (this: OlaiWorld) {
   await frame.locator("#away").click();
 });
 
+/** A click on anything else in there — a submit button, so far. Given a moment
+ *  afterwards, because what the scenario using it asserts is that something did
+ *  NOT happen: reading immediately would be reading before the navigation or
+ *  the request it is about could have started. */
+When(
+  "I click {string} inside the preview",
+  async function (this: OlaiWorld, selector: string) {
+    const frame = await inside(this);
+    await frame.locator(selector).first().click();
+    await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  },
+);
+
 // The app, INSIDE the preview — the thing that must never be there. Read as the
 // mount point rather than as a testid, because `#root` is in the shell's own
 // HTML from the first byte, so it is there before any hydration and cannot pass

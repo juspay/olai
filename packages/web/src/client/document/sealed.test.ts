@@ -118,6 +118,12 @@ test("the seal is the strictest policy there is, plus styles, one hash and this 
     // browser refuses a script that no longer matches its hash, and the only
     // symptom is a preview quietly back on its fallback height.
     "script-src": [`'sha256-${scriptHash()}'`],
+    // The one directive here that is not an exception to `default-src` but a
+    // GAP in it: `form-action` does not fall back, so without this line a
+    // `<form action="https://collector/">` in a saved page was refused by the
+    // sandbox's missing `allow-forms` and by nothing in the policy at all. Both
+    // now, which is what lets the seal's promise be read off the seal.
+    "form-action": ["'none'"],
     // The one FETCHING exception, and it is a PATH: this app's own origin and
     // the media route on it, which answers a picture under the served directory
     // or a 404 and nothing else ever. Not `'self'` (an opaque origin matches no
@@ -269,11 +275,13 @@ test("an origin that is not one gets no pictures and no base", () => {
     const seal = sealed("", { ...WHERE, origin })
     expect(policy(seal)["img-src"]).toBeUndefined()
     expect(baseIn(seal)).toBeUndefined()
-    // …and nothing else moved: the refusal is the old seal, not a mangled one.
-    expect(policyOf(origin)).toBe(
-      `default-src 'none'; style-src 'unsafe-inline'; ` +
-        `script-src ${policy(seal)["script-src"]![0]}`,
-    )
+    // …and nothing else moved: what a refused origin gets is the spelled policy
+    // with its pictures clause cut off, rather than a mangled string. Written
+    // as that subtraction rather than as a second spelling of the directives,
+    // so a directive added above is covered here without being typed twice —
+    // and asserted on `policyOf` itself, since that is the function the e2e
+    // step calls to read what the browser was handed.
+    expect(policyOf(origin)).toBe(policyOf(WHERE.origin).split("; img-src ")[0]!)
   }
 })
 
