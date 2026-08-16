@@ -276,6 +276,52 @@ Feature: A `.html` in the vault
     And the preview is at the anchor "#beds"
 
   @scratch:good
+  Scenario: A page that sends the frame to its neighbour is left where it went
+    # THE OTHER UNASKED-FOR NAVIGATION, and the last kept behaviour with no
+    # scenario of its own. A click is not the only way a frame moves: a page can
+    # assign `location`, or carry a `<meta http-equiv="refresh">`, and when what
+    # it names is a file of THIS VAULT that navigation is a FEATURE rather than
+    # a walk-off — the neighbour is answered by the same route behind the same
+    # seal, so it greets while it parses and the frame is left where it went.
+    #
+    # The click handler cannot be what keeps it: this is not a click, so
+    # `FOLLOW` never sees it. What keeps it is the greeting (`Hypertext.tsx`'s
+    # `Custody`) — and that mechanism was only ever exercised by pages walking
+    # off to a STRANGER, where the assertion is the opposite one, that the file
+    # comes back. This is the half that says the same mechanism can say yes, and
+    # it is the case this PR most needed to hold: a change that made the app
+    # answer navigations rather than clicks would pass every other scenario here
+    # and break this one.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/second.html" as:
+      """
+      <h1>Second</h1>
+      """
+    And I rewrite "notes/sender.html" as:
+      """
+      <h1>Sender</h1>
+      <script>location.href = "second.html"</script>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/sender.html"
+    # The frame went where the page sent it…
+    Then the preview shows the heading "Second"
+    # …to the neighbour's own address on the media route, which is what says it
+    # arrived behind the seal rather than anywhere else — being sealed is why it
+    # could greet at all.
+    And the preview resolves the file's addresses beside "notes/second.html"
+    # …and it STAYS, which is the whole promise: a document that says nothing is
+    # replaced by the file after a short grace, so a frame still here afterwards
+    # is one whose greeting was heard.
+    And the preview stays on the heading "Second"
+    # The app never moved. This was the FRAME's navigation, not a click handed
+    # out, and nothing about it is the app's to answer.
+    And the address is "/doc/notes/sender.html"
+    And the document open is "notes/sender.html"
+    And the page has not reloaded
+
+  @scratch:good
   Scenario: A click the page has already answered is not the seal's to claim
     # WHY THE HANDLER IS ON THE BUBBLE, pinned rather than described. The seal's
     # click handler refuses a press whose default is already prevented — that is

@@ -58,7 +58,11 @@
  * frame is one — a script assigning `location`, a `refresh` naming a neighbour,
  * a link carrying a fragment — and it is a FEATURE: it is answered by this same
  * route, so the seal is over it and its tape measure reports. A jump to somebody
- * else's server is the other, and nothing reports. So an unasked-for load is
+ * else's server is the other, and nothing reports. Both halves are held by
+ * `html_previews.feature`: the walk-off scenarios read the file coming BACK,
+ * and a page sending the frame to its own neighbour reads it being LEFT there —
+ * the same mechanism asserted saying no and saying yes, which is what stops a
+ * change that answered navigations rather than clicks from passing. So an unasked-for load is
  * given {@link SAYS_HELLO} to identify itself, and the file goes back if it does
  * not.
  *

@@ -556,6 +556,38 @@ When(
   },
 );
 
+/**
+ * …and it is STILL on that page a moment later, which is the assertion a
+ * snapshot cannot make.
+ *
+ * A document the frame reached on its own is given `SAYS_HELLO` to identify
+ * itself before the file is put back (`Hypertext.tsx`), so a frame that was
+ * going to be brought home has been brought home by the time this reads. The
+ * grace is the same `POLL_TIMEOUT / 10` every other "did NOT happen" step in
+ * this file waits, and it is an order of magnitude past that budget.
+ *
+ * The heading is read and COMPARED rather than waited for, so a frame that was
+ * restored fails here immediately and says which page it is on instead — where
+ * waiting for a heading that is never coming would burn the whole timeout and
+ * report nothing but its absence.
+ */
+Then(
+  "the preview stays on the heading {string}",
+  async function (this: OlaiWorld, text: string) {
+    const frame = await inside(this);
+    const heading = frame.locator("h1").first();
+    await heading.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+    assert.strictEqual(
+      (await heading.textContent())?.trim(),
+      text,
+      "the preview did not stay on the page the frame reached — a document of " +
+        "this vault greets as it parses, so it should have been kept rather " +
+        "than replaced by the file that sent it",
+    );
+  },
+);
+
 /** WHERE IN ITS PAGE the frame is, as the frame's own `location.hash` — the
  *  half of "a link with a fragment is left to the frame" that a heading cannot
  *  say. Read inside the frame, because a fragment is not part of `baseURI` and
