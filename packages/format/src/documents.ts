@@ -23,6 +23,11 @@
  *     a URL, and the route that answers that URL), they are in packages that
  *     cannot import each other, and two allowlists that drifted apart would
  *     mean either a broken image or a served file nobody meant to serve.
+ *   - {@link isAsset} — what the ROUTE may answer at all, which is the same
+ *     question asked once more and one step wider: a previewed `.html` is
+ *     fetched by URL now, so the page itself and the parts it draws with are
+ *     addresses too. Markdown's rule is untouched by that; a relative
+ *     `![](…)` still names a picture or nothing.
  *   - {@link bodiedOf} — where a relative `[…](…)` lands. The same arithmetic
  *     as a `doc` and as a picture, asked about the third thing markdown can
  *     point at: another file of this directory that has a page.
@@ -30,7 +35,7 @@
 
 import { Schema } from "effect"
 
-import { bodyKind } from "./kinds.ts"
+import { bodyKind, fileKind } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
 
 /**
@@ -200,7 +205,67 @@ export const PICTURE_EXTENSIONS: ReadonlyArray<string> = [
   ".ico",
 ]
 
-export const isPicture = (path: string): boolean => {
+/** Whether a path ends in one of these suffixes, case-folded — the matching
+ *  RULE, held once for the two lists below it. Case-folding, exact suffix, no
+ *  dot boundary: two allowlists answering the same shape of question should not
+ *  be two chances to refine one of them and not the other. */
+const suffixed = (path: string, extensions: ReadonlyArray<string>): boolean => {
   const lower = path.toLowerCase()
-  return PICTURE_EXTENSIONS.some((extension) => lower.endsWith(extension))
+  return extensions.some((extension) => lower.endsWith(extension))
 }
+
+export const isPicture = (path: string): boolean => suffixed(path, PICTURE_EXTENSIONS)
+
+/**
+ * The extensions a PAGE may fetch, beyond the pictures above — the parts a
+ * saved `.html` is made of.
+ *
+ * A second allowlist rather than a widening of the first, because the two
+ * answer different questions and only one of them is markdown's. A relative
+ * `![](…)` may name a picture and nothing else; that rule is unchanged and
+ * {@link isPicture} is still the whole of it. What is new is that a previewed
+ * `.html` is now fetched BY URL and draws itself with its own parts — the
+ * stylesheet it was saved beside, the script it was built with, the font it
+ * embeds — and a preview that drew a page's pictures but refused its
+ * stylesheet would be a rule nobody could explain.
+ *
+ * A CLOSED LIST, and what is missing from it is the argument. `.svg` stays out
+ * for the reason it is out of the pictures: an SVG is a document that can
+ * script, and a page may pull one into a frame rather than an `<img>`. Data
+ * (`.json`, `.csv`) stays out because a page reading data is a page reading
+ * FILES, which is a different permission from a page drawing itself, and
+ * nothing forced the question yet. Everything the set itself is made of —
+ * `.olai`, `.md` — stays out because those already have a page of their own,
+ * and a route that also handed them over raw would be a second way to read
+ * them with no argument for the first.
+ *
+ * The `.html` itself is NOT here: which suffix is hypertext is `./kinds.ts`'s
+ * single answer, and {@link isAsset} asks it there.
+ *
+ * Module-private, unlike {@link PICTURE_EXTENSIONS} beside it, because nothing
+ * outside needs the LIST — the route asks {@link isAsset} a question and gets a
+ * yes or a no. A second exported list would be a second thing to keep in step
+ * for no reader.
+ */
+const ASSET_EXTENSIONS: ReadonlyArray<string> = [
+  ".css",
+  ".js",
+  ".mjs",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".otf",
+]
+
+/**
+ * Whether a served path is something a previewed page may fetch: the page
+ * itself, its pictures, or one of its parts.
+ *
+ * The one predicate the media route judges a request by, and the reason it is
+ * here rather than at the route: it is a statement about what a suffix MEANS,
+ * which is this package's business, and the route is in a package the client
+ * cannot import (`@olai/surface` carries the URL shape, `@olai/server`
+ * answers it).
+ */
+export const isAsset = (path: string): boolean =>
+  fileKind(path) === "hypertext" || isPicture(path) || suffixed(path, ASSET_EXTENSIONS)

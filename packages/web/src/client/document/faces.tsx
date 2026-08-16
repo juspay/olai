@@ -31,9 +31,25 @@ import { TESTID } from "../testids.ts"
 import { Hypertext } from "./Hypertext.tsx"
 import { Toc } from "./Toc.tsx"
 
+/** What a reading face is handed: the file's path, the entry the collection
+ *  holds for it, and both halves of that entry. A face takes what it draws
+ *  FROM — the markdown face reads `text`, the hypertext face reads neither
+ *  (its frame fetches the file over HTTP) and watches `rev` to know the file on
+ *  disk moved. Both are passed to both, because which of them a kind uses is
+ *  that kind's business and this table's job is only to say which component
+ *  draws it. */
+export interface Reading {
+  readonly file: string
+  readonly text: string
+  /** Which revision of the directory this body was published in
+   *  (`@olai/surface`'s `DocumentEntry`). It moves when the file does and
+   *  stays put when it does not. */
+  readonly rev: number
+}
+
 export interface Face {
   /** The reading face: the body, drawn however this kind of file is drawn. */
-  readonly reads: (props: { readonly file: string; readonly text: string }) => JSX.Element
+  readonly reads: (props: Reading) => JSX.Element
   /** Whether this kind's page offers the WRITING face — the Edit control, the
    *  draft and the conflict story (`./DocEditor.tsx`). */
   readonly edits: boolean
@@ -47,7 +63,7 @@ export const FACES: Record<BodyKind, Face> = {
 /** A document's reading face: the contents, then the body — exactly what the
  *  page was before it could edit, in a component so the mode switch stays one
  *  `Show` rather than two trees interleaved. */
-function Rendered(props: { readonly file: string; readonly text: string }) {
+function Rendered(props: Reading) {
   // Empty until the markdown chunk lands, for the same reason the body is the
   // file's own text until then: there is nothing to make a contents out of
   // until something has read the headings. The `<Markdown>` under it is what

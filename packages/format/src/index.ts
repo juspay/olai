@@ -19,7 +19,7 @@
  *     date derivations (`datedDays`, `datedOn`, and the daily-note pair
  *     `dailyNoteDays` / `dailyNotesOn`), the forward reading of those same
  *     dates (`isOverdue`, `agendaOf`) and the document rules (`docOf`,
- *     `isPicture`, `bodiedOf`) — so a reader and the validator agree on
+ *     `isPicture`, `isAsset`, `bodiedOf`) — so a reader and the validator agree on
  *     sibling order, mirror expansion, one node's ancestry, what is standing in
  *     its way, what is on a day, what is overdue on it, which document that
  *     day's note is, and where a `doc` or a relative link lands, computing all
@@ -84,6 +84,7 @@ export {
   bodiedOf,
   docOf,
   Document,
+  isAsset,
   isPicture,
   PICTURE_EXTENSIONS,
   pictureOf,

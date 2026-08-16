@@ -130,7 +130,12 @@ function OneDocument(props: { readonly file: string }) {
                  hand it a dead `text`: Solid compiles JSX props into getters,
                  and a document rewritten on disk reaches an open page through
                  exactly that. */
-              <Dynamic component={face().reads} file={props.file} text={served().text} />
+              <Dynamic
+                component={face().reads}
+                file={props.file}
+                text={served().text}
+                rev={served().rev}
+              />
             }
           >
             <DocEditor

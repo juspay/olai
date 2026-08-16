@@ -133,6 +133,7 @@
       "dependencies": {
         "@olai/fonts": "workspace:*",
         "@olai/format": "workspace:*",
+        "@olai/surface": "workspace:*",
         "@olai/web": "workspace:*",
       },
       "devDependencies": {

@@ -7,6 +7,17 @@
  * the URL (`@olai/web`) and the route that READS it (`@olai/server`) — which
  * live in packages that cannot import each other.
  *
+ * A PAGE is fetched here too, and by the same reasoning taken one step further.
+ * A `.html` preview is a frame with a `src` now rather than markup handed over
+ * in a `srcdoc` (`./seal.ts` argues why, and `@olai/web`'s `Hypertext.tsx` is
+ * the frame), so the file has a real URL — and every relative address inside it
+ * resolves against that URL, which is the whole reason to give it one. So this
+ * route answers a page, its pictures, its stylesheet, its script and its font:
+ * the vault's own directory shape, as a URL space, which is what makes a
+ * saved page's addresses correct without anything of the file being rewritten.
+ * {@link mediaTarget} is still the only thing that decides what that admits,
+ * and `@olai/format`'s `isAsset` is still the only list of suffixes in it.
+ *
  * That is why the bijection is declared here, in the package whose whole job is
  * the contract both ends speak. Two copies of "what a media URL looks like"
  * would be a contract kept by memory, and the failure would be silent in the
@@ -19,42 +30,25 @@
  * that round-trips them is what says so.
  */
 
-import { isPicture } from "@olai/format"
+import { isAsset } from "@olai/format"
 
 export const MEDIA_PREFIX = "/media/"
 
-/** Segments of a served path, as the URL spells them. ONE place, because the
- *  two shapes below are the same encoding asked at two lengths — and because
- *  `mediaTarget` decodes exactly this and nothing else. Per segment, so a
- *  directory in the path stays a path rather than a run of `%2F`. */
-const encoded = (segments: ReadonlyArray<string>): string =>
-  segments.map(encodeURIComponent).join("/")
-
-/** The URL a served picture is fetched from. */
-export const mediaHref = (file: string): string =>
-  MEDIA_PREFIX + encoded(file.split("/"))
-
 /**
- * The URL a served file's own DIRECTORY is fetched under — trailing slash and
- * all, which is what makes it a base rather than a name.
+ * The URL a served file is fetched from — a picture a markdown document points
+ * at, or the `.html` a preview frame is pointed AT.
  *
- * The second reader of this route, and the reason it is spelled here rather
- * than at that reader: a sealed `.html` preview (`@olai/web`'s
- * `client/document/sealed.ts`) hands its frame a `<base href>` pointing at this
- * URL, so every relative address the file wrote resolves onto the media route
- * instead of nowhere. That is the same bijection {@link mediaHref} is one half
- * of — a URL this module writes and `mediaTarget` reads back — and a second
- * spelling of it, in a package that cannot import this one, is exactly the
+ * One function for both, because it is one URL space and the second caller is
+ * what makes that visible: the frame's `src` is this route at the file's own
+ * path, so the browser resolves the file's own relative addresses under the
+ * same route with no help from anybody. A second spelling of "what a media URL
+ * looks like", in a package that cannot import this one, is exactly the
  * contract-kept-by-memory this file was written to prevent.
- *
- * A file at the root gets the bare prefix; there is no directory to name and no
- * empty segment to invent (`/media//…` is two segments to `mediaTarget`, and
- * the empty one is refused).
  */
-export const mediaBase = (file: string): string => {
-  const directory = file.split("/").slice(0, -1)
-  return MEDIA_PREFIX + (directory.length === 0 ? "" : `${encoded(directory)}/`)
-}
+export const mediaHref = (file: string): string =>
+  // Per SEGMENT, so a directory in the path stays a path rather than a run of
+  // `%2F` — and it is exactly what {@link mediaTarget} decodes at the other end.
+  MEDIA_PREFIX + file.split("/").map(encodeURIComponent).join("/")
 
 /**
  * What a `/media/…` request names, as a path relative to the served directory
@@ -69,8 +63,14 @@ export const mediaBase = (file: string): string => {
  *   - a segment that is empty, `.`, `..`, or carries a separator or a NUL is a
  *     request to mean something other than one segment of a relative path, and
  *     there is no such meaning;
- *   - the name must be a picture, by `@olai/format`'s allowlist — the same one
- *     the renderer rewrites a relative `src` against.
+ *   - the name must be something a page may fetch, by `@olai/format`'s
+ *     `isAsset` — the page itself, a picture, a stylesheet, a script, a font.
+ *     That list is where the argument for each of those lives, and what it
+ *     leaves out (`.md`, `.olai`, `.svg`, data) is the more interesting half of
+ *     it. It is WIDER than the allowlist the renderer rewrites a relative
+ *     `![](…)` against, and deliberately: markdown may still name a picture and
+ *     nothing else, because that is a rule about what markdown MEANS, while
+ *     this is a rule about what a browser may ask this server for.
  */
 export const mediaTarget = (url: string): string | null => {
   // The query and fragment are not part of the name. Cut before decoding, so a
@@ -96,5 +96,5 @@ export const mediaTarget = (url: string): string | null => {
   }
 
   const file = segments.join("/")
-  return isPicture(file) ? file : null
+  return isAsset(file) ? file : null
 }
