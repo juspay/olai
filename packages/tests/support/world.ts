@@ -788,6 +788,18 @@ export class OlaiWorld extends World {
    *  recordings of one fact can only ever disagree. */
   requests: string[] = [];
 
+  /** …and every one of those the browser then REFUSED to make, with the reason
+   *  it gave, collected by the same hook. A request is recorded above the
+   *  moment a document asks for it, which is before anything decides whether it
+   *  may happen — so `report.html`'s remote picture is in `requests` and never
+   *  reached the network at all. The two together are what let a step say which
+   *  of those it was ("the preview reached nothing off this server",
+   *  `step_definitions/html_steps.ts`); the reason is kept because "blocked by
+   *  the policy" and "that host does not exist" are the same silence otherwise,
+   *  and a fixture pointing at an unresolvable host would prove the policy
+   *  works by never testing it. */
+  refused: Array<{ readonly url: string; readonly why: string }> = [];
+
   /** How far down the page a scenario deliberately scrolled, so a later step
    *  can claim the page came back to exactly there. A number the SCENARIO
    *  chose to remember rather than one written down here: how tall a page is

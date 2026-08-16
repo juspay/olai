@@ -2,11 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!--
+      A BASE OF ITS OWN, which is the first probe and the quietest one. "Save
+      page as" writes these, so it is the ordinary case as well as the attack:
+      if this one were the document's base, every relative address below would
+      resolve at somebody else's server and the cabinet handle would be a
+      request to `example.invalid`. A document's base is the FIRST `<base href>`
+      in tree order and the seal is in front of every byte of this file, so
+      olai's wins — the evidence is that the handle draws at all.
+    -->
+    <base href="https://example.invalid/vault/" />
     <title>Cabinet quote</title>
     <style>
       body { font-family: system-ui, sans-serif; margin: 2rem; }
       h1 { color: #14532d; }
       .total { font-weight: 700; }
+      img { display: block; }
     </style>
   </head>
   <body>
@@ -14,10 +25,47 @@
     <p>Two runs of shaker fronts, <span class="total">£4,180</span> fitted.</p>
 
     <!--
-      THE PROBE. This file is a fixture with teeth: everything below is what a
-      hostile (or merely careless) saved page would do if the preview handed it
-      to the browser unsealed. It must all fail, and the scenario in
-      features/html_previews.feature reads the evidence that it did:
+      THE PICTURE PROBE. A saved page draws pictures out of the directory it
+      was saved into, and the seal points every relative address at the media
+      route so that the FIRST of these — and only the first — is a file this
+      vault meant to serve. Every other line is an address that must reach
+      nothing at all, and `features/html_previews.feature` reads each one:
+
+        - `art/handle.png` is beside this file, so it draws;
+        - `../outside.png` is a real picture one directory ABOVE the served
+          root, which is the traversal: the URL parser normalises the climb
+          before anything is fetched, which puts it outside `/media/` and
+          outside the policy;
+        - the same climb spelled `%2e%2e`, because a guard that judged the text
+          rather than the URL would see two harmless characters;
+        - a remote host, which is the privacy rule: a page full of somebody
+          else's images tells their server what this reader is reading;
+        - a `data:` picture, which is the widening that reads as harmless and
+          is how "just this one scheme" gets into an `img-src`.
+
+      Not one of these reaches the network: the policy refuses each of them
+      before a request is made, which is what "the page requested nothing off
+      this server" reads. The one address that WOULD reach it — a file inside
+      the vault that is not a picture — is the guard at the other END of the
+      route, and it is probed in a scenario of its own, because a page that
+      404s is a page with an ordinary console error on it and that would blunt
+      the assertion that the only complaints here are refusals.
+    -->
+    <img id="mine" src="art/handle.png" alt="a cabinet handle" />
+    <img id="up" src="../outside.png" alt="" />
+    <img id="encoded" src="%2e%2e/outside.png" alt="" />
+    <img id="remote" src="https://example.invalid/pixel.png" alt="" />
+    <img
+      id="inline"
+      src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+      alt=""
+    />
+
+    <!--
+      THE SCRIPT PROBE. Everything below is what a hostile (or merely careless)
+      saved page would do if the preview handed it to the browser unsealed. It
+      must all fail, and the scenario in features/html_previews.feature reads
+      the evidence that it did:
 
         - the paragraph is left saying "the script did not run", because the
           rewrite below never happens;

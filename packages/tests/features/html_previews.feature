@@ -15,6 +15,16 @@ Feature: A `.html` in the vault
   write `localStorage`, set a cookie, mark the app's DOM and navigate the tab
   away. All four must fail, and the last two scenarios are where that is read.
 
+  Its PICTURES draw, and that is the one thing the frame may fetch. A relative
+  address in the file resolves against the media route at the file's own
+  directory — the same route, the same allowlist and the same traversal guard a
+  markdown document's `![](shot.png)` already goes through — so a picture
+  beside the file is drawn and everything else is refused before a request is
+  made: a climb out of the vault, the same climb spelled `%2e%2e`, a remote
+  host, a `data:` URI. `report.html` carries one of each, and it carries a
+  `<base>` of its own trying to move the lot to somebody else's server. The
+  scenarios below read every one of those as evidence rather than as a promise.
+
   @corpus:good
   Scenario: A `.html` is listed in the sidebar and opens as a page
     When I open the app
@@ -29,7 +39,7 @@ Feature: A `.html` in the vault
     # Not "no page errors": a preview of a file WITH a script in it carries one,
     # and it is the browser saying it refused to run the thing. That refusal is
     # evidence, so it is asserted as such rather than filtered away.
-    And the only complaint is the browser refusing the file's script
+    And the only complaints are the browser refusing what the file may not do
 
   @corpus:good
   Scenario: The page shows what the file says, with the file's own styling
@@ -39,7 +49,7 @@ Feature: A `.html` in the vault
     # what `style-src 'unsafe-inline'` in the seal exists to allow. Refusing it
     # would leave every preview as unstyled text and nobody would use this.
     And the preview draws "Cabinet quote" in the file's own colour
-    And the only complaint is the browser refusing the file's script
+    And the only complaints are the browser refusing what the file may not do
 
   @corpus:good
   Scenario: A `.html` is read, not written — there is no editor on its page
@@ -58,11 +68,17 @@ Feature: A `.html` in the vault
     # an outcome that could be true by luck. The sandbox has ONE token and the
     # one that is absent is the point — no `allow-same-origin`, so the frame's
     # origin is nobody's — and the policy in front of the markup refuses every
-    # fetch there is and every script but the one it names by hash. A reviewer
-    # attacking this reads these two lines first.
+    # script but the one it names by hash and every fetch but a picture on this
+    # server's own media route. A reviewer attacking this reads these three
+    # lines first.
     When I open the page "report.html"
     Then the preview is sandboxed into nobody's origin
-    And the preview's markup is sealed with a policy that fetches nothing
+    And the preview's markup is sealed with a policy that fetches only pictures
+    # …and the addressing decision that goes with it, in front of the file for
+    # the same reason the policy is: the first `<base href>` in a document is
+    # the document's, and `report.html` carries one of its own pointing at
+    # somebody else's server.
+    And the preview resolves the file's addresses under "/media/"
 
   @corpus:good
   Scenario: A script in a served `.html` cannot run, and cannot touch the app
@@ -79,18 +95,88 @@ Feature: A `.html` in the vault
     And the address is "/doc/report.html"
     # The browser's own account of the same fact, from the other side: it says
     # out loud that it refused to run the script, and nothing else went wrong.
-    And the only complaint is the browser refusing the file's script
+    And the only complaints are the browser refusing what the file may not do
 
   @corpus:good
-  Scenario: The preview fetches nothing at all
+  Scenario: The preview draws the file's own picture
+    # The point of the whole exercise, and the narrowest possible statement of
+    # it: a file beside this one, drawn — which means the address resolved
+    # against the media route, the route recognised it as a picture under the
+    # served directory, and the policy allowed the fetch. Read as DECODED
+    # rather than as present, since a broken `<img>` is on screen too.
+    When I open the page "report.html"
+    Then the preview shows the heading "Cabinet quote"
+    And the preview draws its picture "#mine"
+
+  @corpus:good
+  Scenario: The preview fetches nothing but this vault's pictures
     # The privacy half, which needs no script: a saved page full of remote
     # images would tell somebody else's server what this reader is reading, the
     # moment it is drawn. It is the same rule markdown is already held to — a
     # relative picture or nothing, and a vendored highlighter — asked of the one
     # surface that hands over foreign markup whole.
+    #
+    # Four addresses, four refusals, and each is a different mechanism failing
+    # to be needed: the climb is normalised out of `/media/` before it is
+    # fetched, the encoded climb is the same URL by another spelling, the
+    # remote host is not this origin, and `data:` is not this scheme. The last
+    # line is the one that would catch a policy quietly widened to make one of
+    # them work: the remote address was STOPPED, by the policy and named as
+    # such, rather than merely having failed to arrive.
     When I open the page "report.html"
     Then the preview shows the heading "Cabinet quote"
-    And the page requested nothing off this server
+    And the preview draws its picture "#mine"
+    And the preview draws no picture for "#up, #encoded, #remote, #inline"
+    And the preview reached nothing off this server
+
+  @scratch:good
+  Scenario: A page cannot pull the vault's other files into the frame
+    # The guard at the OTHER end of the route, and the only address in this
+    # feature that the policy lets through to the server: `finishes.md` is
+    # inside the served directory, so it is under `/media/` and passes the
+    # `img-src` path — and the route answers a picture or nothing at all. Both
+    # halves are read, because the promise is not "the picture did not draw"
+    # (an `<img>` at a document would not draw either) but "the file was never
+    # served".
+    Given I open the app
+    When I rewrite "greedy.html" as:
+      """
+      <h1>Greedy</h1>
+      <img id="notapicture" src="finishes.md" alt="">
+      <img id="climb" src="../../../etc/hostname" alt="">
+      """
+    And I click the page "greedy.html"
+    Then the preview shows the heading "Greedy"
+    And the preview draws no picture for "#notapicture, #climb"
+    And requesting "/media/finishes.md" answers 404
+
+  @scratch:good
+  Scenario: A page with a picture in it is as tall as the picture makes it
+    # The measurement, and what pictures did to it. An `<img>` is a zero-tall
+    # box until its bytes arrive, so the reading taken when the document parsed
+    # is short by the whole height of the picture — and under the old rule (one
+    # height per width, because nothing could be fetched and nothing could
+    # therefore move) that short reading was the only one the frame would ever
+    # accept. `art/tall.png` is 1200px tall and carries no width or height
+    # attribute, so the page cannot be measured correctly before it loads.
+    #
+    # The picture is HELD BACK on purpose, because otherwise this scenario is a
+    # race it usually wins for the wrong reason: a kilobyte over loopback often
+    # beats the first layout, and a run where it did would pass with or without
+    # the mechanism under test. Held, the order is the one a page with a real
+    # photograph in it always sees.
+    Given I open the app
+    And the vault's pictures are slow to arrive
+    When I rewrite "poster.html" as:
+      """
+      <h1>Poster</h1>
+      <img src="art/tall.png" alt="a tall picture">
+      """
+    And I click the page "poster.html"
+    Then the preview shows the heading "Poster"
+    And the preview draws its picture "img"
+    And the preview is as tall as the page it shows
+    And the preview is taller than the viewport
 
   # ── the frame stays on its own document ──────────────────────────────
   #

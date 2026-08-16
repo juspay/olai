@@ -889,11 +889,23 @@ Before(
     // Collected for the whole scenario, asserted on by whichever step cares.
     this.errors = [];
     this.requests = [];
+    this.refused = [];
     // ONE listener, recording everything: which of those left this server, and
     // which arrived after a step started watching, are both questions asked of
     // the same list afterwards (see `world.offSite` / `world.watchRequests`).
     this.page.on("request", (request) => {
       this.requests.push(request.url());
+    });
+    // …and a second recording of a different fact: which of them the browser
+    // refused to make, and why it said so. A request is recorded above when a
+    // document ASKS for it, which is before a content policy has had its say —
+    // so the two lists are what tell "asked and was stopped" apart from "asked
+    // and was answered" (`world.refused`).
+    this.page.on("requestfailed", (request) => {
+      this.refused.push({
+        url: request.url(),
+        why: request.failure()?.errorText ?? "no reason given",
+      });
     });
     this.page.on("pageerror", (error) => {
       this.errors.push(`pageerror: ${error.message}`);
