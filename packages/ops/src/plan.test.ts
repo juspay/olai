@@ -1053,6 +1053,35 @@ describe("done over open work: the claim is refused", () => {
     expect(failure.message).toContain("Nothing was written")
   })
 
+  // The floor of the unrolled capture schema declares `children` as anything
+  // at all (`@olai/format`'s `writing.ts`: "it exists to be refused"), so a
+  // fourth level arrives typed `Capture` by a CAST and validated by nothing.
+  // Every rule here therefore has to let the nesting refusal speak first — a
+  // gate that walked that level would be reading unchecked JSON, and `null` in
+  // it is a crash rather than an answer.
+  test("a capture deeper than the schema's floor is refused, not walked", () => {
+    const tooDeep = {
+      op: "add",
+      title: "one",
+      parent: "kitchen",
+      mark: "done",
+      children: [{
+        title: "two",
+        children: [{
+          title: "three",
+          children: [{
+            // The last level the schema spells out. Its `children` is the one
+            // that accepts anything, so this is what an unvalidated level can
+            // actually hold — and the cast is how it arrives typed.
+            title: "four",
+            children: [null],
+          }],
+        }],
+      }],
+    } as unknown as Request
+    expect(refused(house(), tooDeep).message).toContain("nests at most 3 levels")
+  })
+
   // A seed is a capture, so it meets the same door through the other verb.
   test("a seeded outline cannot be born done over its own open work either", () => {
     const failure = refused(house(), {

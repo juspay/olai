@@ -601,12 +601,6 @@ const planAdd = (
   if (Result.isFailure(landing)) return Result.fail(landing.failure)
   const { file, parent } = landing.success
 
-  // DOOR ONE, spelled in a capture: a tree that arrives already saying `done`
-  // over a task it is bringing with it. Refused before anything is minted,
-  // because nothing landed is what makes a capture atomic.
-  const contradicts = capturedOverOpenWork(request)
-  if (contradicts !== undefined) return Result.fail(contradicts)
-
   // Every id in the tree is decided before any record is built, and the set of
   // ids this call has claimed is what makes the second collision — one child
   // against another — a refusal rather than a duplicate the validator finds.
@@ -627,6 +621,21 @@ const planAdd = (
     below: NESTING,
   })
   if (refused !== null) return Result.fail(refused)
+
+  // DOOR ONE, spelled in a capture: a tree that arrives already saying `done`
+  // over a task it is bringing with it.
+  //
+  // AFTER {@link emit}, and that order is load-bearing rather than incidental.
+  // The floor of the unrolled capture schema declares `children` as anything at
+  // all — deliberately, so the planner can refuse it by name (`@olai/format`'s
+  // `writing.ts`) — so a fourth level arrives typed `Capture` by a cast and
+  // checked by nothing. `emit` never touches it (it reads the length and
+  // refuses); a walk that ran first would be reading unvalidated JSON, where a
+  // `null` is a crash rather than an answer. Nothing has landed either way: a
+  // plan is returned whole or not at all, so "before anything is minted" was
+  // never what made a capture atomic.
+  const contradicts = capturedOverOpenWork(request)
+  if (contradicts !== undefined) return Result.fail(contradicts)
 
   // DOOR TWO: the door the 2026-08-16 incident actually walked through, and
   // the flow it matters most for — somebody writing down work that has just
@@ -710,15 +719,11 @@ const capturedOverOpenWork = (capture: Capture): OpFailure | undefined => {
     const open = capturedOpen(capture)
     if (open.length > 0) {
       const one = open.length === 1
-      const named = open
-        .slice(0, NAMED_AT_MOST)
-        .map((child) => `\`${child.title}\``)
-        .join(", ")
-      const rest = open.length - NAMED_AT_MOST
+      const named = capped(open, (child) => `\`${child.title}\``)
       return new UsageFailure({
         reason: `\`${capture.title}\` is captured done over ${open.length} ` +
-          `unfinished ${one ? "task" : "tasks"} in the same call: ${named}` +
-          `${rest > 0 ? `, and ${rest} more` : ""}. Done-hidden hides a done ` +
+          `unfinished ${one ? "task" : "tasks"} in the same call: ${named}. ` +
+          `Done-hidden hides a done ` +
           `node WITH its subtree, so the capture would land already invisible ` +
           `— capture ${one ? "that one" : "those"} without a mark, or ` +
           `\`${capture.title}\` without the \`done\`. Nothing was written.`,
@@ -1164,6 +1169,14 @@ const nudged = (
  *  been read. */
 const NAMED_AT_MOST = 5
 
+/** That list, written out: the first {@link NAMED_AT_MOST} named however the
+ *  caller names them, then how many it did not name. Two refusals spend this
+ *  cap — the same door, once over a set on disk and once over a capture — and
+ *  a cap that drifted between them would be two policies about one sentence. */
+const capped = <T>(all: ReadonlyArray<T>, name: (one: T) => string): string =>
+  all.slice(0, NAMED_AT_MOST).map(name).join(", ") +
+  (all.length > NAMED_AT_MOST ? `, and ${all.length - NAMED_AT_MOST} more` : "")
+
 /**
  * DOOR ONE: what stands in the way of calling a branch finished — or
  * `undefined`, which is nearly every node.
@@ -1256,18 +1269,14 @@ const sweepingOpenWork = (
   if (open.length === 0) return undefined
 
   const one = open.length === 1
-  const named = open
-    .slice(0, NAMED_AT_MOST)
-    .map((task) => {
-      const mark = scope.derived.status.get(task.node.id)
-      return `\`${task.node.title}\` (\`${task.node.id}\`, ${mark})`
-    })
-    .join(", ")
-  const rest = open.length - NAMED_AT_MOST
+  const named = capped(open, (task) => {
+    const mark = scope.derived.status.get(task.node.id)
+    return `\`${task.node.title}\` (\`${task.node.id}\`, ${mark})`
+  })
   return new UsageFailure({
     reason: `\`${node.title}\` holds ${open.length} unfinished ` +
-      `${one ? "task" : "tasks"}, so it cannot be marked done yet: ${named}` +
-      `${rest > 0 ? `, and ${rest} more` : ""}. Done-hidden hides a done node ` +
+      `${one ? "task" : "tasks"}, so it cannot be marked done yet: ${named}. ` +
+      `Done-hidden hides a done node ` +
       `WITH its subtree, so this would sweep ${one ? "it" : "them"} off the ` +
       `page. Finish ${one ? "that" : "those"} first — or take the mark off ` +
       `${one ? "it" : "them"} if ${one ? "it is" : "they are"} not happening, ` +
@@ -1985,13 +1994,6 @@ const planCreate = (
   // renamed together, so a seed that is refused leaves no file behind rather
   // than an empty outline nobody asked for.
   const seed = request.seed
-  // ...and the same DOOR ONE, for the same reason: a seed is a capture, so a
-  // node born done over a task born under it is the same self-contradiction
-  // spelled through the other verb. There is no door two here — a brand-new
-  // outline has no ancestors for anything to arrive under.
-  const contradicts = capturedOverOpenWork(seed)
-  if (contradicts !== undefined) return Result.fail(contradicts)
-
   const taken = new Set<string>()
   const chosen = idFor(scope, taken, seed.id)
   if (Result.isFailure(chosen)) return Result.fail(chosen.failure)
@@ -2007,6 +2009,15 @@ const planCreate = (
     below: NESTING,
   })
   if (refused !== null) return Result.fail(refused)
+
+  // ...and the same DOOR ONE, in the same place in the sequence and for the
+  // same reason ({@link planAdd}): a seed is a capture, so a node born done
+  // over a task born under it is the same self-contradiction spelled through
+  // the other verb, and the nesting refusal speaks before anything walks the
+  // tree. There is no door two here — a brand-new outline has no ancestors for
+  // anything to arrive under.
+  const contradicts = capturedOverOpenWork(seed)
+  if (contradicts !== undefined) return Result.fail(contradicts)
 
   const under = minted.length - 1
   return Result.succeed({
