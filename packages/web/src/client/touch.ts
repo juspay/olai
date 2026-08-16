@@ -21,7 +21,12 @@
  *
  * A tree row's left side, left to right:
  *
- *   hover strip (triangle; + `•••` on pointer devices) · bullet · checkbox · title
+ *   hover strip (triangle; + `•••` on pointer devices) · glyph · title
+ *
+ * ONE GLYPH CELL, not two. The bullet and the status box were separate columns
+ * until the quiet outline merged them (`../client/Glyph.tsx`): one cell says
+ * what the node is AND is the way into it, which gave a phone back 2rem of a
+ * 390pt screen and gave every reader one place to look instead of two.
  *
  * On a pointer device the menu and triangle appear only on row hover / focus;
  * on a phone the triangle stays visible (there is no hover) and the `•••` is
@@ -60,13 +65,13 @@ export const TARGET_BOX = "min-h-11 min-w-11"
 //     phone  — triangle only                         → 1.75rem
 //     pointer — menu + gap + triangle                → 1 + 0.25 + 1 = 2.25rem
 //
-//   Tree PAST_CONTROLS (hover + 3×gap + bullet + checkbox):
-//     phone   1.75 + 0.75 + 1.75 + 1.75 = 6rem
-//     pointer 2.25 + 0.75 + 1    + 1    = 5rem
-//
-//   Day PAST_BULLET (bullet + 2×gap + checkbox):
+//   Tree PAST_CONTROLS (hover + 2×gap + glyph):
 //     phone   1.75 + 0.5 + 1.75 = 4rem
-//     pointer 1    + 0.5 + 1    = 2.5rem
+//     pointer 2.25 + 0.5 + 1    = 3.75rem
+//
+//   Day PAST_BULLET (glyph + gap):
+//     phone   1.75 + 0.25 = 2rem
+//     pointer 1    + 0.25 = 1.25rem
 //
 // When a width moves, the control, the spacer, HOVER_*, and the two PAST_*
 // constants move with it. They live together here.
@@ -75,13 +80,17 @@ export const TARGET_BOX = "min-h-11 min-w-11"
  *  strip. One export so the JSX and the PAST arithmetic cannot disagree. */
 export const GUTTER_GAP = "gap-1"
 
-/** A row's permanent control — the bullet and the status checkbox. */
+/**
+ * A row's permanent control — the glyph, and the hollow dot a row that does not
+ * exist yet draws in its place.
+ *
+ * There used to be a second one beside it and a blank of the same width for the
+ * rows that carried no mark; the glyph column absorbed both
+ * (`../client/Glyph.tsx`), so every row now spends exactly one of these and
+ * nothing has to hold a place open.
+ */
 export const CONTROL =
   "inline-flex h-11 w-7 shrink-0 items-center justify-center md:h-5 md:w-4"
-
-/** The same width, holding a place: a row with no MARK still lines its title
- *  up with the rows that carry one. */
-export const CONTROL_SPACER = "w-7 shrink-0 md:w-4"
 
 /**
  * The hover strip: collapse triangle always; `•••` menu on pointer devices
@@ -143,12 +152,12 @@ export const MENU_REVEAL =
   "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 " +
   "data-[expanded]:opacity-100"
 
-/** Past the bullet AND the checkbox — where a day's row puts its note. */
-export const PAST_BULLET = "ml-16 md:ml-10"
+/** Past the glyph — where a day's row puts its note. */
+export const PAST_BULLET = "ml-8 md:ml-5"
 
-/** Past the hover strip, the bullet AND the checkbox — where a tree's row
- *  puts its note, and its one aside about a mirror it would not expand. */
-export const PAST_CONTROLS = "ml-24 md:ml-20"
+/** Past the hover strip AND the glyph — where a tree's row puts its note, and
+ *  its one aside about a mirror it would not expand. */
+export const PAST_CONTROLS = "ml-16 md:ml-15"
 
 /**
  * A row's TITLE, as type: the size and leading a line of the outline is set
@@ -167,6 +176,30 @@ export const ROW_TITLE = "font-serif text-[0.9375rem] leading-snug"
  * rather than the same thing becoming editable.
  */
 export const ROW_NOTE = "text-[0.875rem] leading-snug text-muted"
+
+/**
+ * THERE IS NO MEASURE, and its absence is a ruling rather than an omission.
+ *
+ * The quiet outline's brief asked for two: the tree capped near 80 characters
+ * and an opened note wrapped near 62. Both were built, and the human rejected
+ * both on sight of the first build ("why not full width? why waste space on
+ * right"; "no need to wrap desc either. just take full width"). The reason they
+ * were wrong here is worth keeping, because the typographic argument for a
+ * measure is real and will be made again:
+ *
+ *   - a ROW is a LINE, not a paragraph. Nobody tracks back to the start of the
+ *     next one, so the cap bought no legibility — and it cost text, because a
+ *     title longer than it ellipsizes and there was empty pane beside the
+ *     ellipsis. Text lost with room to spare is the trade a measure must never
+ *     make.
+ *   - a NOTE under a row is read in the tree it hangs in, at a glance, against
+ *     the rows above and below it. Ragged short lines with a hand's width of
+ *     empty pane to their right read as a column that has stopped rather than as
+ *     a page that is set.
+ *
+ * What survives of that move is the ellipsis: a long title is still ONE line
+ * (`../client/NodeLine.tsx`), it just gets the whole pane before it is cut.
+ */
 
 /** How far a child list indents from its parent, and the vertical guide. */
 export const CHILD_INDENT = "ml-3 list-none border-l border-rule pl-3 md:ml-4 md:pl-4"

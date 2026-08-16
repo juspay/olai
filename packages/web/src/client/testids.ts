@@ -113,9 +113,23 @@ export const TESTID = {
   propEditorSaid: "prop-editor-said",
 
   /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
-   *  the title, never the node's own mark, which is the checkbox. */
+   *  the title, never the node's own mark, which is the glyph. */
   progress: "progress",
+  /** The one PROPERTY a folded row may show beside its title (`client/hot.ts`)
+   *  — `pr` on shipped work, and nothing else. `data-key` is which key it is;
+   *  the rollup above is the other arm of the same slot and keeps its own
+   *  name, because `3/5` was already assertable and a fact's testid should not
+   *  move because a second fact learnt to sit beside it. */
+  hotFact: "hot-fact",
+  /** On a COLLAPSED row: how many finished rows the fold is holding back
+   *  (`client/hidden.ts`). `data-done` is the count. Absent on an expanded row
+   *  and on a fold hiding nothing finished — a zero is not drawn. */
+  foldedDone: "folded-done",
   desc: "desc",
+  /** The pilcrow beside a title: the door to the row's open state
+   *  (`client/note/Mark.tsx`). `data-open` says which way it is; drawn only on
+   *  a node that HAS an open state — a note, or a property somebody added. */
+  noteMark: "note-mark",
   toggle: "toggle",
   /** The `•••` trigger left of the collapse triangle. Hover-reveal on a
    *  pointer device; always drawn on a phone. */
@@ -166,11 +180,12 @@ export const TESTID = {
    *  RESOLVED path as `data-doc`, and `data-inline` for the zoomed page that
    *  draws the whole document rather than a line of it. */
   docRef: "doc-ref",
-  /** A node held up by an `after` edge, wherever the node is drawn: the mark
-   *  column's waiting glyph on a row or a day entry, the named row of blockers
-   *  on the node's own page. Absent — not empty — on a node with nothing in
-   *  its way. WHETHER a node is blocked, and by what, is `data-blocked` on the
-   *  node itself; this is the affordance that says so on screen. */
+  /** A node held up by an `after` edge, wherever the node is drawn: the glyph
+   *  column's waiting hourglass on a row or a day entry, the named row of
+   *  blockers on the node's own page. Absent — not empty — on a node with
+   *  nothing in its way. WHETHER a node is blocked, and by what, is
+   *  `data-blocked` on the node itself; this is the affordance that says so on
+   *  screen, and it carries the sentence as its `aria-label`. */
   blocked: "blocked",
   /** This app's own hover tip, which replaced the platform's `title` on the
    *  one control whose sentence is too long for it: what it says is also the
@@ -314,7 +329,8 @@ export const TESTID = {
   prefsTrigger: "prefs-trigger",
   /** The panel it opens (portalled out of the header). */
   prefsPanel: "prefs-panel",
-  /** One preference on it; `data-pref` is which — `theme`, `font`, `done`. */
+  /** One preference on it; `data-pref` is which — `theme`, `font`, `size`,
+   *  `density`, `done`. */
   prefsRow: "prefs-row",
   /** That row's hint: what the choice IN FORCE means, re-read whenever the
    *  control moves. Its own name because it is the half of a settings row that
@@ -332,12 +348,15 @@ export const TESTID = {
    *  node's checkbox" needs a handle on the line rather than on the subtree —
    *  without one, the absence of a box has to be asked of markup shape. */
   nodeGutter: "node-gutter",
-  /** The bullet on every row: the link to that node's own page. */
+  /** The glyph column on every row: what the node IS, and the link to that
+   *  node's own page. One cell (`client/Glyph.tsx`); the two inner names below
+   *  say which face it is wearing. */
   zoom: "zoom",
-  /** The status box beside that bullet: checked for done, half for doing,
-   *  EMPTY for todo — and NOTHING carrying this testid on a node with no mark,
-   *  which is how a bullet is told from an unstarted task. Display-only — the
-   *  mark is toggled from the row's editor — so the glyph is the assertion. */
+  /** The MARK inside that cell: checked for done, half for doing, EMPTY for
+   *  todo — and NOTHING carrying this testid on a node with no mark (a bullet)
+   *  or on one that cannot start yet (the waiting face below), which is how the
+   *  three are told apart. Display-only — the mark is written from the row's
+   *  editor — so the face is the assertion. */
   checkbox: "checkbox",
   // ── the row editor ───────────────────────────────────────────────────
   /** The caret in a row's title: an `<input>` standing exactly where the title

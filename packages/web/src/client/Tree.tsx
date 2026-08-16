@@ -14,33 +14,41 @@
  * knows the id it closed on. Recomputing either from the record here would
  * give the FIRST hop, and say something untrue about a mirror three hops long.
  *
- * Every row's bullet is a link to that node's own page (./Bullet.tsx), on the
+ * Every row's bullet is a link to that node's own page (./Glyph.tsx), on the
  * RECORD's id rather than the node it shows: a mirror's id resolves through
  * its chain to the same canonical page, so the two spellings agree and nothing
  * has to resolve anything here.
  *
  * Gutter layout matches Workflowy: on the left, a hover-reveal strip holds the
- * `•••` menu and the collapse triangle; then the filled bullet (with a gray
- * halo when children are hidden); then the status checkbox. The hover strip
- * is always visible on a phone (no hover there) — see ./touch.ts.
+ * `•••` menu and the collapse triangle; then ONE glyph cell (./Glyph.tsx) that
+ * is the bullet, the mark, or the waiting hourglass, wears the gray halo when
+ * children are hidden, and is the link into the node. The hover strip is always
+ * visible on a phone (no hover there) — see ./touch.ts.
  *
  * The `•••` itself is not drawn below 48rem, where there is no room for it,
  * so a phone reaches the same menu by HOLDING a finger on the row instead
  * (./longPress.ts, ./menu/door.ts). Both doors open one menu with one catalog;
  * neither device gets a verb the other does not.
  *
- * A row that cannot start yet says so twice and quietly: the mark column draws
- * the waiting glyph instead of the box (./Checkbox.tsx), and the row's own
+ * A row that cannot start yet says so twice and quietly: the glyph column draws
+ * the waiting hourglass instead of the mark (./marks.tsx), and the row's own
  * line and body dim. The dim is on those two rather than on the `<li>`,
  * because opacity compounds through a subtree — dimming the item would dim
  * every row nested under it, twice over for a blocked row under a blocked
  * row, and what is waiting is this node rather than everything filed beneath
- * it. The status checkbox beside it (./Checkbox.tsx)
- * reads the same stored done/doing the title tones with, and a row with no
- * mark shows no box at all — a bullet is not a task. The box stays
- * display-only: what ticks it is `Ctrl+Enter` in the row's own editor, and what
- * walks it round the other two answers is `Ctrl+Shift+Enter` — which is where
- * every other edit is made too (./edit/editing.tsx).
+ * it. The glyph reads the same stored done/doing the title tones with, and a
+ * row with no mark draws a bullet — a bullet is not a task. It stays
+ * display-only in the sense that matters: what ticks a mark is `Ctrl+Enter` in
+ * the row's own editor, and what walks it round the other two answers is
+ * `Ctrl+Shift+Enter` — which is where every other edit is made too
+ * (./edit/editing.tsx).
+ *
+ * TOP-LEVEL ROWS ARE SECTIONS (the quiet outline, human). A root of the file —
+ * or, on a zoomed page, a child of the subject — carries a heavier name, wears
+ * its rollup as part of that header rather than as a badge floated to the right,
+ * and STICKS to the top of the reading while its own branch scrolls past. It is
+ * the same row as any other and none of that is stored: `depth` is handed down
+ * this component's own recursion, which is the only thing that knows it.
  *
  * A row is EDITABLE in place. Click its title and the title span is replaced
  * by an input in the same cell — no second layout and no mode — and the keys
@@ -51,23 +59,23 @@
  * typed is still not a row that has changed — nothing is echoed, and what the
  * tree draws is the file.
  *
- * A note on a row is Workflowy-style: one dim line under the title, clamped
- * with an ellipsis; click (or tap) expands in place to the full note and see
- * links; click again or click away collapses (./note/expand.ts). The date
- * badge stays on the title line. Notes are not a switch — the only two this
- * tree answers to are what is FOLDED, which belongs to the browser
- * (./fold/memory.ts), and whether done rows are drawn, which also belongs to
- * the browser (./settings/done.ts) and has already been applied to the rows
- * handed here.
+ * A ROW IS ITS TITLE. What hangs under it is the open state — the properties
+ * run and the note (./NodeBody.tsx) — and what opens it is the pilcrow beside
+ * the title (./note/Mark.tsx), or, at `Cozy`, the clamped line itself. Where an
+ * untouched row STARTS is this browser's density preference
+ * (./settings/density.ts), which is the third thing this tree answers to
+ * alongside what is FOLDED (./fold/memory.ts) and whether done rows are drawn
+ * (./settings/done.ts, already applied to the rows handed here). The date badge
+ * stays on the title line.
  */
 
 import { isOverdue, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 
+import { Aside } from "./Aside.tsx"
 import { blockedIds, WAITING_DIM } from "./blocked.ts"
-import { Bullet } from "./Bullet.tsx"
-import { Checkbox } from "./Checkbox.tsx"
+import { Glyph } from "./Glyph.tsx"
 import { useDragging } from "./drag/dragging.ts"
 import { Handle } from "./drag/Handle.tsx"
 import { useSelection } from "./select/selection.ts"
@@ -85,7 +93,12 @@ import { setFolded } from "./fold/memory.ts"
 import { createFoldReading } from "./fold/reading.ts"
 import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
 import { focusedNode } from "./focus.ts"
+import { doneUnder } from "./hidden.ts"
+import { hotOf } from "./hot.ts"
+import { LAYER } from "./layer.ts"
+import { NoteMark } from "./note/Mark.tsx"
 import { createNoteExpand } from "./note/expand.ts"
+import { customEntries } from "./props/drawer.ts"
 import type { Editing } from "./props/editor.ts"
 import { PropEditor } from "./props/PropEditor.tsx"
 import { NodeBody } from "./NodeBody.tsx"
@@ -94,6 +107,7 @@ import { nodeMenuActions } from "./menu/actions.ts"
 import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
 import { useRouter } from "./router.tsx"
+import { density, showsPreview, startsOpen } from "./settings/density.ts"
 import { TESTID } from "./testids.ts"
 import { useToday } from "./today.tsx"
 import {
@@ -129,6 +143,12 @@ export function Tree(props: {
   // `MENU_CELL` is where this app learnt that). What the shorthands were for is
   // the browser's own list defaults — a vertical margin, which `my-0` kills,
   // and a 40px `padding-inline-start`, which the rail's own padding replaces.
+  //
+  // NO MEASURE ON THE COLUMN: the tree takes the pane it is given. It was capped
+  // at 80ch for one build and the human's eye rejected it on sight — a title
+  // longer than the cap ellipsized with empty pane beside it, which is text lost
+  // for nothing. ./touch.ts keeps the argument, and the 62ch that IS kept, on
+  // the note.
   return (
     <ul
       class={`my-0 list-none ${ROOT_RAIL}`}
@@ -143,7 +163,7 @@ export function Tree(props: {
           mints per PLACE holds each row across the frame, and only the
           bindings whose values actually moved re-run. */}
       <Key each={props.rows} by="key">
-        {(row) => <Branch row={row()} />}
+        {(row) => <Branch row={row()} depth={0} />}
       </Key>
     </ul>
   )
@@ -151,6 +171,12 @@ export function Tree(props: {
 
 function Branch(props: {
   readonly row: Row
+  /** How far in this row is, counted from the rows this tree was handed — so
+   *  depth 0 is a root of the file, or a child of the subject on a zoomed page.
+   *  It is not on `Row`, and it should not be: the walk that derives rows has no
+   *  view to have a top level OF, and this recursion is the one thing that
+   *  knows. It buys exactly one thing, which is what a SECTION is. */
+  readonly depth: number
 }) {
   // WHAT THIS PAGE IS NARROWED BY (./filter/narrowed.tsx): whether this row was
   // a match rather than an ancestor of one. A fact about the PAGE, not the row,
@@ -201,8 +227,27 @@ function Branch(props: {
   // of the one clock this app reads (./today.tsx).
   const today = useToday()
 
-  // Click/tap expand — local to this place, not a reading cell. No hover.
-  const note = createNoteExpand()
+  // Is this row OPEN — local to this place, not a reading cell. No hover. An
+  // untouched row is whatever this browser's density preference says
+  // (./settings/density.ts), read live, so a pick in the preferences panel
+  // unfolds the page under the reader rather than after a reload.
+  const note = createNoteExpand(() => startsOpen(density()))
+
+  /** Is this row a SECTION — a top-level node of what is being read? */
+  const section = () => props.depth === 0
+
+  /** Has this row anything to OPEN? Its note, which is what the pilcrow was
+   *  asked for — and its custom properties, because they moved into the open
+   *  state with it, and a node carrying `stage review` and no note would
+   *  otherwise have written a fact into a place with no door. The node's own
+   *  facts are not on the list: they are already on screen (the glyph, the date
+   *  badge) or on the node's own page. */
+  const openable = () => {
+    const shows = shown()
+    if (shows === undefined) return false
+    const desc = shows.node.desc
+    return (desc !== undefined && desc !== "") || customEntries(shows.node).length > 0
+  }
 
   /** Both doors to this row's `•••` menu, whether it is open, and the line all
    *  of that is about: the `•••` in the gutter, and — where that is not drawn,
@@ -393,6 +438,19 @@ function Branch(props: {
         // pointed at a row they are already typing in should not see the
         // highlight simply not appear.
         classList={{
+          // A SECTION holds its place at the top of the reading while its own
+          // branch scrolls past — `position: sticky` inside this row's own
+          // `<li>`, which is exactly the branch it heads, so it lets go the
+          // moment the next section arrives. The offset is the app bar's height
+          // (the page is what scrolls, `../styles.css`), and the layer is the
+          // one the outline's own overlays ride (./layer.ts) — under every piece
+          // of chrome, over the rows it covers.
+          [`sticky top-[var(--height-header,3rem)] py-1 ${LAYER.row}`]: section(),
+          // ...and an opaque backdrop, or the rows would read through it. NOT
+          // when this row is the caret's or is picked: those wear a wash of
+          // their own, and two backgrounds on one element is a race between two
+          // utilities rather than a decision.
+          "bg-paper": section() && !editing() && !picked(),
           "rounded-sm bg-accent/10": editing(),
           "rounded-sm ring-1 ring-accent/50": focused(),
           // A PICKED row wears the same accent wash the caret's row does —
@@ -468,22 +526,20 @@ function Branch(props: {
           </Show>
         </div>
 
-        {/* The bullet is the handle, which is Workflowy's own gesture — and it
-            is a WRAPPER rather than a prop on the bullet, because the same
-            bullet is drawn on a day page where there is nothing to reorder
-            (`./drag/Handle.tsx`). */}
+        {/* The glyph is the handle, which is Workflowy's own gesture — and it
+            is a WRAPPER rather than a prop on the glyph, because the same glyph
+            is drawn on a day page where there is nothing to reorder
+            (`./drag/Handle.tsx`). ONE cell: what the node is and the way into
+            it (./Glyph.tsx). */}
         <Handle row={props.row}>
-          <Bullet
+          <Glyph
             id={props.row.at.node.id}
+            status={props.row.status}
+            blocked={props.row.blocked}
             collapsed={hasChildren() && collapsed()}
             holding={editing()}
           />
         </Handle>
-        <Checkbox
-          status={props.row.status}
-          blocked={props.row.blocked}
-          id={props.row.at.node.id}
-        />
 
         <Switch>
           <Match when={props.row.kind === "dangling" ? props.row : undefined}>
@@ -514,7 +570,23 @@ function Branch(props: {
                 title={shows().node.title}
                 from={shows().file}
                 status={props.row.status}
-                progress={props.row.progress}
+                section={section()}
+                open={note.expanded()}
+                // The one fact a folded row may say (./hot.ts), plus what this
+                // row's own fold is holding back (./hidden.ts) — counted only
+                // while it is collapsed, because a walk of every subtree on
+                // every frame is the tree squared.
+                aside={
+                  <Aside
+                    hot={hotOf(shows().node, props.row.progress, props.row.status)}
+                    folded={collapsed() ? doneUnder(props.row) : undefined}
+                  />
+                }
+                mark={
+                  <Show when={openable()}>
+                    <NoteMark open={note.expanded()} onToggle={note.toggle} ref={note.setTrigger} />
+                  </Show>
+                }
                 date={shows().node.date}
                 overdue={isOverdue(shows().node, today())}
                 onEdit={clickTitle}
@@ -610,6 +682,9 @@ function Branch(props: {
                 <NodeBody
                   shows={shows()}
                   expanded={note.expanded()}
+                  // Whether a CLOSED row keeps the clamped line — the density
+                  // preference, arriving as the one thing it means here.
+                  preview={showsPreview(density())}
                   onToggle={note.toggle}
                   onEdit={() => editor.open(props.row, "desc")}
                   // The `×` on a `see` link the expanded note draws — one op,
@@ -647,7 +722,7 @@ function Branch(props: {
       <Show when={!collapsed() && props.row.children.length > 0}>
         <ul class={CHILD_INDENT} data-sweep="">
           <Key each={props.row.children} by="key">
-            {(child) => <Branch row={child()} />}
+            {(child) => <Branch row={child()} depth={props.depth + 1} />}
           </Key>
         </ul>
       </Show>

@@ -46,6 +46,7 @@ import type { BunPlugin } from "bun"
 
 import { fontCss, FONTS_DIR, HOSTED_WOFF2 } from "@olai/fonts/build"
 import { paletteCss } from "./client/theme/css.ts"
+import { sizeCss } from "./client/theme/sizes.ts"
 import { scaleCss } from "./client/theme/scale.ts"
 
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), "client")
@@ -104,13 +105,14 @@ const tailwindUtilities = async (): Promise<string> => {
 
 /**
  * The whole stylesheet, as bytes for the helper to hash, name and write: the
- * utilities, then the markdown scales, then the named palettes.
+ * utilities, then the markdown scales, then the type sizes, then the named
+ * palettes, then the faces.
  *
- * Both generated blocks are TypeScript tables that something else also reads —
- * `client/theme/palettes.ts` by the theme chips, `client/theme/scale.ts`
- * by the browser test that holds the rendered page to it — and a `.css` file
- * cannot import one, so they are composed in here rather than written into
- * `styles.css`.
+ * Every generated block is a TypeScript table that something else also reads —
+ * `client/theme/palettes.ts` by the theme chips, `client/theme/sizes.ts` by the
+ * Size row, `client/theme/scale.ts` by the browser test that holds the rendered
+ * page to it — and a `.css` file cannot import one, so they are composed in
+ * here rather than written into `styles.css`.
  * Their POSITION is not load-bearing — an unlayered rule beats the
  * `@layer theme` block Tailwind emits its own `:root` in wherever it is
  * written — they go last because that is the simplest composition. The one
@@ -122,7 +124,7 @@ const tailwindUtilities = async (): Promise<string> => {
  */
 const buildStylesheet = async (): Promise<ArrayBuffer> =>
   new Response(
-    `${await tailwindUtilities()}\n${scaleCss()}\n${paletteCss()}\n${fontCss()}`,
+    `${await tailwindUtilities()}\n${scaleCss()}\n${sizeCss()}\n${paletteCss()}\n${fontCss()}`,
   ).arrayBuffer()
 
 /**

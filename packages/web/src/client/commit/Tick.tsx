@@ -2,7 +2,7 @@
  * The box that says whether a file is going into this commit.
  *
  * A real `<input type="checkbox">` rather than the drawn square the mark column
- * uses (`../Checkbox.tsx`), and the difference is the whole reason this is a
+ * uses (`../marks.tsx`), and the difference is the whole reason this is a
  * second control rather than a reuse: that one is DISPLAY — a node's mark, which
  * a click cannot change — and this one is an input a person operates, so it
  * wants the platform's own keyboard, focus ring and screen-reader semantics

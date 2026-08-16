@@ -27,22 +27,44 @@ import { TAG_ATTRIBUTE } from "../filter/tag.ts"
 import { TESTID } from "../testids.ts"
 
 /**
- * The class a styled tag wears — the Workflowy-exact pill (#102): a subtle
- * rounded chip, not bold accent text.
+ * The class a styled tag wears.
  *
- * A complete string literal so Tailwind's content scan still finds every
- * utility when the markup is built as HTML rather than as a Solid element.
+ * IT IS NOT A PILL ANY MORE (the quiet outline, human). It was a rounded chip in
+ * accent ink on an accent wash (#102, Workflowy-exact), and on a vault where
+ * every third title carries two of them that is a line of boxes with words in
+ * between: the tag stopped being an annotation on the title and became the
+ * loudest thing in the row.
+ *
+ * The ruling is that tags stay INLINE, exactly where they are written, and are
+ * quieted by CONTRAST rather than by a container — dim ink, no background, no
+ * border, no radius, nothing to move them out of the sentence. They BRIGHTEN on
+ * hover and while the row is open, which is the whole of their affordance: a tag
+ * you are pointing at, or a row you have opened, is a tag you are about to use.
+ *
+ * `olai-tag` is here for that: the states are keyed on the row's TITLE SPAN
+ * (`../NodeLine.tsx`'s `TITLE_OPEN`), which no inline utility can express, so
+ * the ink and its two brightenings live in `../styles.css` beside the pointer
+ * rule that was already there. What stays in the utilities is the geometry.
+ *
+ * `whitespace-nowrap` is not tidiness: a tag is ONE token, and rendered markdown
+ * breaks words anywhere (`../styles.css`'s `.olai-md`) so that a pasted URL
+ * cannot widen a column. Without this, a row whose title ellipsizes broke
+ * `#design` after the sigil and dropped `design` onto a second line — the tag
+ * has to be one thing or be clipped, never half of each.
+ *
+ * A complete string literal so Tailwind's content scan still finds every utility
+ * when the markup is built as HTML rather than as a Solid element.
  *
  * WHETHER IT IS PRESSABLE IS NOT DECIDED HERE, and it cannot be: a title is
  * drawn on pages that can carry a filter and on pages that cannot (a day, the
  * agenda, a document), and this function is handed a string rather than a
  * route. The pointer and the hover live in `../styles.css`, keyed on the pane
- * saying it is narrowable — so a pill on a day page looks exactly as
- * decorative as it behaves. `../filter/tag.ts` declines the click on the same
- * condition, and the two are one fact spelled in one place (`App.tsx`).
+ * saying it is narrowable — so a tag on a day page looks exactly as decorative
+ * as it behaves. `../filter/tag.ts` declines the click on the same condition,
+ * and the two are one fact spelled in one place (`App.tsx`).
  */
 export const TAG_CLASS =
-  "mx-0.5 inline-block max-w-full rounded-sm bg-accent/15 px-1 py-px text-[0.8125rem] font-normal leading-snug text-accent"
+  "olai-tag inline whitespace-nowrap text-[0.8125rem] font-normal leading-snug"
 
 /** Subtrees where a `#…` sequence is not a tag: code is code, a link's text
  *  and href are not re-parsed for tags (a URL fragment is the sharpest case). */

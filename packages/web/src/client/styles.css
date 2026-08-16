@@ -116,28 +116,51 @@
  * block, because the scrollbars and the form controls are the browser's to
  * paint and that is how it is told which way. */
 
-/* In-place note expansion on a tree/day row. A short fade when motion is OK;
- * none under prefers-reduced-motion so the reflow is instant for readers who
- * asked for that (no rule at all in that case). */
-/* A `#tag` pill is PRESSABLE only where the press has somewhere to go.
+/* A `#tag` IN PLACE, quieted by contrast (`client/markdown/tags.ts` argues the
+ * ruling and carries the geometry). Three rules and they are one decision:
+ *
+ *   1. the ink is dimmer than the title around it, so a title with three tags
+ *      in it still reads as a title with three tags in it rather than as three
+ *      boxes and some words;
+ *   2. it BRIGHTENS to the accent under the pointer — the tag you are about to
+ *      press, said in the one way that costs no space;
+ *   3. and it brightens for every tag in a row that is OPEN, because a reader
+ *      who has opened a row is reading it rather than scanning past it, and the
+ *      accented pilcrow and the brightened tags are one thing saying so.
+ *
+ * The state in (3) is a class on the TITLE SPAN (`client/NodeLine.tsx`), and
+ * deliberately not the `data-note-open` the row's `<li>` already carries: rows
+ * NEST, so a descendant rule off the item would brighten every tag in the whole
+ * subtree of an opened parent. The title span holds exactly one row's words.
+ *
+ * These live here at all because no inline utility can be keyed on an ancestor,
+ * and the tag is built as an HTML string that belongs to no component anyway. */
+.olai-tag {
+  color: color-mix(in srgb, var(--color-muted) 80%, transparent);
+  transition: color 100ms ease-out;
+}
+
+.olai-title-open .olai-tag {
+  color: var(--color-accent);
+}
+
+/* ...and it is PRESSABLE only where the press has somewhere to go.
  *
  * Clicking one filters the page to it, and only two routes can carry a filter
  * (`client/routes.ts`) — so on a day page, the agenda, a document or the trash
- * the same pill is decoration, exactly as it was before the filter existed.
+ * the same tag is decoration, exactly as it was before the filter existed.
  * The pane says which it is (`data-narrowable` in `client/App.tsx`), and
  * `client/filter/tag.ts` declines the click on the same condition: one fact,
  * one place, drawn and answered consistently rather than looking pressable and
- * swallowing the press.
- *
- * Here rather than in the pill's own class list because the pill is built as an
- * HTML string by `client/markdown/tags.ts`, which is handed a title and knows
- * nothing about the route. */
-[data-narrowable="true"] [data-tag] {
+ * swallowing the press. The HOVER brightening is on the same condition for the
+ * same reason — a tag that lit up under a pointer that could not press it would
+ * be the promise the cursor rule exists to withhold. */
+[data-narrowable="true"] .olai-tag {
   cursor: pointer;
 }
 
-[data-narrowable="true"] [data-tag]:hover {
-  background-color: color-mix(in srgb, var(--color-accent) 25%, transparent);
+[data-narrowable="true"] .olai-tag:hover {
+  color: var(--color-accent);
 }
 
 /* A raised card on the desk — the month, and anything else that sits up off
@@ -148,6 +171,9 @@
     0 8px 20px -14px color-mix(in srgb, var(--color-ink) 22%, transparent);
 }
 
+/* The open state on a tree/day row. A short fade when motion is OK; none under
+ * prefers-reduced-motion so the reflow is instant for readers who asked for
+ * that (no rule at all in that case). */
 @media (prefers-reduced-motion: no-preference) {
   .olai-row-detail {
     animation: olai-row-detail-in 120ms ease-out;
@@ -467,7 +493,16 @@
 
 /* A title is phrasing on a row's baseline. The pipeline already flattens
  * blocks to phrasing (markdown/inline.ts); these rules are the belt that keeps
- * a future miss from growing a tree row into a multi-line layout. */
+ * a future miss from growing a tree row into a multi-line layout.
+ *
+ * `white-space: inherit` rather than the `normal` it was, and the difference is
+ * a bug this shipped with for one afternoon: a tree row's title ELLIPSIZES now
+ * (`client/NodeLine.tsx`), which is `white-space: nowrap` on the span — and a
+ * `normal` here handed every element inside it permission to wrap again. With
+ * `.olai-md`'s `overflow-wrap: anywhere` above (right for a pasted URL in a
+ * note, wrong inside one clipped line) a `#design` at the end of a long title
+ * broke after the sigil and put `design` on a second line. Inheriting is what
+ * the rule meant all along: a title wraps exactly as the box drawing it does. */
 .olai-md-inline {
   display: inline;
 }
@@ -477,7 +512,7 @@
   margin: 0;
   padding: 0;
   border: none;
-  white-space: normal;
+  white-space: inherit;
 }
 
 /* A picture is a file in the served directory, whatever size somebody saved

@@ -269,8 +269,10 @@ export default function App() {
                     from here up to the document may take an `overflow` other
                     than `visible` — the same condition the header's own
                     stickiness rests on, and the reason the two boxes above
-                    this one are plain flex containers. `main`'s
-                    `overflow-x-auto` is a SIBLING and is not on that path.
+                    this one are plain flex containers. `main` is a SIBLING and
+                    was not on that path, which is why it was free to be a
+                    scroll container until the outline grew a sticky thing of
+                    its own (see `main`'s own note below).
                   */}
                   <div class="relative min-h-[calc(100dvh-var(--height-header))] md:grid md:grid-cols-[var(--width-sidebar)_1fr]">
                     <Show when={desktop() && !sidebarOpen()}>
@@ -296,8 +298,29 @@ export default function App() {
                     </Show>
                     {/* Extra bottom pad on phone when the chat strip is up so
                         the last lines of a long page are not trapped under it. */}
+                    {/*
+                      `overflow-x-clip`, and the ONE letter of difference from
+                      the `auto` it was is load-bearing. `auto` makes this box a
+                      scroll container in BOTH axes, and a `position: sticky`
+                      descendant sticks to its nearest scrollport — which here
+                      is this box, whose height is its content's and which
+                      therefore never scrolls. So every sticky thing inside the
+                      page was inert, silently: the outline's section headings
+                      (`Tree.tsx`) simply did not stick, with nothing on screen
+                      to say why. `clip` clips without scrolling, so the
+                      scrollport is the DOCUMENT again — which is what this app
+                      scrolls, and what the header above already sticks to.
+
+                      What is given up is the sideways scrollbar this box used
+                      to grow for content wider than the pane, and nothing wants
+                      it: a fence, a table and a `.html` preview each scroll
+                      WITHIN themselves (`styles.css`), prose breaks anywhere,
+                      and a tree row's title ELLIPSIZES rather than pushing the
+                      line wider (`NodeLine.tsx`). The clip is the backstop for
+                      whatever is left.
+                    */}
                     <main
-                      class={`overflow-x-auto px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
+                      class={`overflow-x-clip px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
                         !desktop() && !chatOpen() ? "pb-16" : ""
                       }`}
                       // Whether a `#tag` in here is pressable — one fact, read

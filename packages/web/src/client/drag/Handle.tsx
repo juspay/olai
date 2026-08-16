@@ -2,12 +2,12 @@
  * The bullet, as something to pick a row up by.
  *
  * Workflowy's handle is the bullet itself, and so is olai's — but the bullet is
- * already a LINK to the node's own page (`../Bullet.tsx`), so this wraps it
+ * already a LINK to the node's own page (`../Glyph.tsx`), so this wraps it
  * rather than changing it: the press starts a gesture, and the click that
  * follows is swallowed only if that gesture turned out to be a drag. A press
  * that never travels is still the navigation it always was.
  *
- * It is a wrapper for a second reason worth stating: `Bullet` is drawn on a day
+ * It is a wrapper for a second reason worth stating: `Glyph` is drawn on a day
  * page too, where rows are a query rather than a tree and there is nothing to
  * reorder. Putting the pointer handler in the bullet would have made every
  * drawing of one draggable and then needed a prop to say when it is not.

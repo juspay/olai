@@ -157,17 +157,25 @@ test("no client file outside this module and the theme spells the circuit's read
   // review remembers: every stored value runs on `createPreference`, so the
   // primitives' read and watch are spelled here, in this test, and in the two
   // files whose first read belongs to the shell's boot script
-  // (`theme/state.ts`, `theme/fontState.ts`) and which therefore keep their
-  // own wiring (preference.ts says why) — and NOWHERE else. A hand-wired
-  // circuit has to read before it can do anything else, so this is the test a
-  // new one fails — the moment to reach for the factory instead. (The scan
-  // grips exactly what the ratified claim names: the read and the watch, not
-  // the write, whose callers outside the factory are the theme's own.)
+  // (`theme/state.ts`, `theme/fontState.ts`, `theme/sizeState.ts`) and which
+  // therefore keep their own wiring (preference.ts says why) — and NOWHERE
+  // else. A hand-wired circuit has to read before it can do anything else, so
+  // this is the test a new one fails — the moment to reach for the factory
+  // instead. (The scan grips exactly what the ratified claim names: the read
+  // and the watch, not the write, whose callers outside the factory are the
+  // theme's own.)
+  //
+  // The THIRD exception is the type size, and it is on the list for the same
+  // reason the first two are rather than by analogy: `<html data-size>` is what
+  // the sheet keys off, the shell's boot script writes it before any module
+  // exists, and a size taken up after the first paint would reflow the whole
+  // page under a reader who had just opened it.
   const allowed = new Set([
     "preference.ts",
     "preference.test.ts",
     "theme/state.ts",
     "theme/fontState.ts",
+    "theme/sizeState.ts",
   ])
   const client = import.meta.dir
   const offenders: Array<string> = []

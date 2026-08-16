@@ -1,37 +1,57 @@
 /**
- * What hangs under a node's title line: its note, see refs, and the document
- * it attaches.
+ * What hangs under a node's title: the open state, and the one line that is
+ * drawn whether it is open or not.
  *
  * The sibling of `NodeLine.tsx`, and for the same reason — a node is drawn in
  * three places (a row in a tree, an entry on a day, the heading of its own
  * page) and "what a node's body IS" must not be three hand-copied sequences
  * that a fourth thing under a node would have to be added to three times.
  *
+ * ## The open state, and its three layers
+ *
+ * A row is its title. Opening it adds exactly this, in this order (the quiet
+ * outline, human):
+ *
+ *   1. the TITLE LINE saying so — the pilcrow accents and the tags brighten,
+ *      which is `./note/Mark.tsx` and `./styles.css` and not this file's;
+ *   2. the PROPERTIES RUN — every custom property as dim `key value` pairs on
+ *      ONE wrapping line, dot-separated, read like a byline under a headline
+ *      (`./props/PropsDrawer.tsx`). Never a grid, never a table, never a form;
+ *   3. the NOTE, one step dimmer than the title and taking the full pane. The
+ *      brief asked for it to wrap near 62 characters; the human rejected that on
+ *      sight ("no need to wrap desc either. just take full width") and
+ *      `./touch.ts` keeps the argument for why a measure was wrong here.
+ *
+ * `see` follows as the references it is. The node's DOC is the one thing here
+ * that is not part of the open state: a document attached to a node is a second
+ * surface rather than a fact about it, and a node with a `doc` and no note has
+ * no pilcrow to open — so folding it away would put a whole document out of
+ * reach from the tree.
+ *
+ * ## Closed, which is two shapes and not one
+ *
+ * `preview` is the density preference arriving as a fact about this drawing
+ * (`./settings/density.ts`): at `Cozy` a closed row keeps the dim one-line clamp
+ * it has always had, and at `Compact` — the default — it draws nothing at all
+ * and the pilcrow beside the title is the whole of what says there is a note.
+ * The clamp stays pressable where it is drawn, because a reader whose eye is
+ * already on the note should not have to travel back to the mark to open it.
+ *
  * `zoomed` is one fact with two consequences, not two knobs: on the node's own
- * page the body is the page, so the note is read at page size and the document
- * is drawn in full rather than named and previewed. Everywhere else the note
- * is Workflowy-style: one dim line under the title, clamped with an ellipsis;
- * a click (or tap) expands it in place to the full multi-line desc plus see
- * links; click again or click away collapses.
+ * page the body IS the page, so the note is read at page size, the drawer draws
+ * the node's own facts as well as its properties, and the document is drawn in
+ * full rather than named and previewed. Row expansion does not apply to the
+ * subject.
  *
- * CLICKING IT PUTS THE CARET IN IT (human, 2026-08-11 — Workflowy-style,
- * superseding the textarea the 2026-08-09 plan resolved on), and WHICH click
- * is the reconciliation this needed. In Workflowy a note is always shown in
- * full and is always one click from the caret; there is no clamped state to
- * reconcile, because the clamp is olai's own compression of it. So the
- * faithful mapping is onto the EXPANDED note: the clamped line expands, as it
- * has since notes-single, and a click in the note you are now reading puts the
- * caret in it — one click from what Workflowy would have been showing you all
- * along.
+ * CLICKING AN OPEN NOTE PUTS THE CARET IN IT (human, 2026-08-11 —
+ * Workflowy-style, superseding the textarea the 2026-08-09 plan resolved on).
+ * In Workflowy a note is always shown in full and is always one click from the
+ * caret; the fold is olai's own compression of that, so the faithful mapping is
+ * onto the EXPANDED note — one click from what Workflowy would have been showing
+ * you all along. Clicking away still collapses; `Shift+Enter` is still one key
+ * from the title for a keyboard.
  *
- * The alternative — one click doing both — was tried and is worse, for a
- * reason the tests found rather than an argument: the expanded note is the
- * only place a row draws its `see` links and its rendered markdown, so a click
- * that went straight to source deleted a reading surface to save a click.
- * Clicking away still collapses, exactly as before; `Shift+Enter` is still one
- * key from the title for a keyboard.
- *
- * A FRAGMENT, not a box. Where the body sits relative to the bullet is the
+ * A FRAGMENT, not a box. Where the body sits relative to the glyph is the
  * caller's layout — a tree row indents past its toggle, a day entry past its
  * own — so this contributes its children to a container it does not own.
  */
@@ -54,13 +74,17 @@ export function NodeBody(props: {
   /** This is the node's own page. Forces the note full and the document inline;
    *  row expansion does not apply to the subject. */
   readonly zoomed?: boolean
-  /** Row note is open (click/tap). Ignored when zoomed. */
+  /** Row is open. Ignored when zoomed. */
   readonly expanded?: boolean
-  /** Click/tap the note to toggle open/closed. */
+  /** A CLOSED row draws the dim one-line clamp of its note. The density
+   *  preference's `cozy`, arriving as what it means here. */
+  readonly preview?: boolean
+  /** Click/tap the clamped line to open the row — the pilcrow's gesture, from
+   *  the other end of the note. */
   readonly onToggle?: () => void
-  /** Click/tap the note to put the CARET in it — the same gesture, one level
-   *  further: absent wherever a node is drawn read-only (a day page), which is
-   *  the same rule `NodeLine.onEdit` follows for the title. */
+  /** Click/tap the open note to put the CARET in it: absent wherever a node is
+   *  drawn read-only (a day page), which is the same rule `NodeLine.onEdit`
+   *  follows for the title. */
   readonly onEdit?: () => void
   /** Drop one of the node's `see` targets — the `×` beside each link
    *  (./NodeRefs.tsx), sent by whoever owns this node's edge editing
@@ -81,8 +105,9 @@ export function NodeBody(props: {
       when={zoomed()}
       fallback={
         <>
-          {/* Closed: one clamped gray line under the title. */}
-          <Show when={!open() && snippet()}>
+          {/* Closed at `cozy`: one clamped dim line under the title. At
+              `compact` there is nothing here and the pilcrow says it all. */}
+          <Show when={!open() && props.preview === true && snippet()}>
             {(line) => (
               <button
                 type="button"
@@ -93,7 +118,7 @@ export function NodeBody(props: {
                 title="show the full note"
                 onClick={(event) => {
                   event.stopPropagation()
-                  // Expand. A clamped line is not something anybody can type
+                  // Open. A clamped line is not something anybody can type
                   // into, so the caret belongs to the click after this one.
                   props.onToggle?.()
                 }}
@@ -103,9 +128,15 @@ export function NodeBody(props: {
             )}
           </Show>
 
-          {/* Open: full note + see; click the note to fold. */}
+          {/* Open: the run, then the note, then what this node sees. */}
           <Show when={open()}>
             <div class="olai-row-detail" data-open="true">
+              {/* Layer two. A ROW draws the CUSTOM properties only: its id, its
+                  mark and its date are already on screen — in the glyph, on the
+                  date badge, in the address — and repeating them here would put
+                  two spellings of one fact under one title. The node's own page
+                  is where the full drawer is (`always`). */}
+              <PropsDrawer node={props.shows.node} />
               <Show when={props.shows.node.desc}>
                 {(desc) => (
                   <div
@@ -116,8 +147,8 @@ export function NodeBody(props: {
                     onClick={(event) => {
                       event.stopPropagation()
                       // Already open: the click is the caret's. Folding back is
-                      // what clicking AWAY does (./note/expand.ts), which is
-                      // also what commits.
+                      // what the pilcrow does, and what clicking AWAY does
+                      // (./note/expand.ts), which is also what commits.
                       props.onEdit?.()
                     }}
                     onKeyDown={(event) => {
@@ -139,17 +170,8 @@ export function NodeBody(props: {
             </div>
           </Show>
 
-          {/* The properties, under the note and above the document — drawn on a
-              collapsed row too, because they are the node's own facts rather
-              than a detail of its prose: a reader scanning a tree for "which
-              lane is at review" must not have to open every row to see. On a
-              ROW they appear only when somebody has added one; the node's own
-              facts alone are not worth an `id` line under every bullet in the
-              vault (./props/PropsDrawer.tsx). */}
-          <PropsDrawer node={props.shows.node} />
-
-          {/* A doc reference is not densified with the note: it is always a
-              line under the node when the node carries one. */}
+          {/* A doc reference is not part of the fold: it is always a line under
+              the node when the node carries one (see this file's header). */}
           <Show when={docOf(props.shows)}>
             {(doc) => <DocRef file={doc()} />}
           </Show>
