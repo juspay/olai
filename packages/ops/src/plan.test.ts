@@ -79,6 +79,27 @@ const record = (nodes: ReadonlyArray<Node>, id: string): RegularNode => {
   return found as RegularNode
 }
 
+/** The set a plan leaves behind: every file re-serialized through the format's
+ *  own writer and re-parsed, which is the path a real write takes.
+ *
+ *  What needs it is any test whose subject is a SEQUENCE of writes. The
+ *  unarchive block uses it for the archive op's OWN output — a hand-written
+ *  archive that drifted from what `planArchive` writes would test a fixture
+ *  rather than the inverse — and the door-two block replays the sequence that
+ *  can legally mint a contradiction inside the archive. */
+const after = (set: OutlineSet, request: Request): OutlineSet => {
+  const texts = Object.fromEntries(
+    set.files.map((file) => [
+      file,
+      serializeOutline(nodesOf(derive(set.nodes), file).map((located) => located.node)),
+    ]),
+  )
+  for (const file of planned(set, request).files) {
+    texts[file.file] = serializeOutline(file.nodes)
+  }
+  return setOf(texts)
+}
+
 /** The children of a node, in the order the format sorts them — which is what
  *  a placement assertion is actually about. */
 const childOrder = (nodes: ReadonlyArray<Node>, parent: string): ReadonlyArray<string> =>
@@ -567,7 +588,7 @@ describe("done and doing", () => {
       "house.olai": [
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":true}`,
-        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","done":true}`,
         `{"id":"install","parent":"kitchen","ord":"a2","title":"install them"}`,
       ].join("\n"),
     })
@@ -593,24 +614,8 @@ describe("done and doing", () => {
     expect(result.nudge).toBeUndefined()
   })
 
-  // Policy, not an invariant. The write lands — "shipped, dropping the rest"
-  // is a real thing to mean — and the answer says what it noticed, naming the
-  // tasks that are still open. The BULLET among them is not one of them.
-  test("done over unfinished tasks lands, and says so", () => {
-    const set = setOf({
-      "a.olai": [
-        `{"id":"p","ord":"a0","title":"the trip"}`,
-        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","done":true}`,
-        `{"id":"c2","parent":"p","ord":"a1","title":"pack","todo":true}`,
-        `{"id":"c3","parent":"p","ord":"a2","title":"ferry times"}`,
-      ].join("\n"),
-    })
-    const result = planned(set, { op: "done", id: "p" })
-    expect(record(fileOf(result, "a.olai"), "p").done).toBe(STAMP)
-    expect(result.nudge).toContain("1 unfinished task")
-    expect(result.nudge).toContain("`pack`")
-    expect(result.nudge).not.toContain("ferry times")
-  })
+  // The nudge that used to say this is a refusal now (`done-over-open-work`,
+  // 2026-08-16); the whole of that gate is its own block below.
 
   // The other nudge, and the one that replaces the old escape hatch: finishing
   // the last open task under a parent is the moment to consider ticking the
@@ -645,6 +650,20 @@ describe("done and doing", () => {
       ].join("\n"),
     })
     expect(planned(already, { op: "done", id: "c1" }).nudge).toBeUndefined()
+
+    // And not while something DEEPER under the parent is open. The suggestion
+    // must never name a write the gate below would refuse: `the trip` cannot
+    // be marked done while `find the tickets` is todo, so suggesting it would
+    // be an invitation to a refusal.
+    const deeper = setOf({
+      "a.olai": [
+        `{"id":"p","ord":"a0","title":"the trip"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","doing":true}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"paperwork"}`,
+        `{"id":"g","parent":"c2","ord":"a0","title":"find the tickets","todo":true}`,
+      ].join("\n"),
+    })
+    expect(planned(deeper, { op: "done", id: "c1" }).nudge).toBeUndefined()
   })
 
   // A nudge is about a mark going ON, and only `done`: nothing is finished by
@@ -905,6 +924,538 @@ describe("starting what is blocked", () => {
       `{"id":"install","parent":"kitchen","ord":"a1","title":"install them","done":"2026-08-01","after":["order"]}`,
     )
     expect(refused(finished, { op: "doing", id: "install" }).message).toContain("Undo that first")
+  })
+})
+
+// ── done must not come to stand over open work ─────────────────────────
+
+/**
+ * `done-over-open-work` (the human, 2026-08-16), both doors.
+ *
+ * The state made unreachable is one state — a node storing `done` with
+ * unfinished tasks in the branch below it, which done-hiding sweeps off the
+ * page — and the two doors onto it are answered differently on purpose: the
+ * CLAIM (`set_done`) is refused, the ARRIVAL (a task turning up under a mark
+ * that has gone stale) re-opens what stood over it and says so.
+ */
+describe("done over open work: the claim is refused", () => {
+  const trip = (...records: ReadonlyArray<string>): OutlineSet =>
+    setOf({ "a.olai": [`{"id":"p","ord":"a0","title":"the trip"}`, ...records].join("\n") })
+
+  test("the refusal names the task, in both vocabularies, and nothing is written", () => {
+    const failure = refused(
+      trip(
+        `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","done":true}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"pack","todo":true}`,
+      ),
+      { op: "done", id: "p" },
+    )
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`the trip` holds 1 unfinished task")
+    // Title for the person, id and mark for the agent — {@link heldUp}'s shape.
+    expect(failure.message).toContain("`pack` (`c2`, todo)")
+    expect(failure.message).toContain("Done-hidden hides a done node WITH its subtree")
+    // The other half of the ruling: an unmarked bullet is not unfinished work,
+    // so clearing a mark is the second way out and the refusal says so.
+    expect(failure.message).toContain("take the mark off")
+  })
+
+  // The whole branch, which is exactly what the sweep takes: a task two levels
+  // down is hidden by a mark on the root as surely as a child is.
+  test("it sees the whole subtree — through a bullet, and through finished work", () => {
+    const deep = trip(
+      `{"id":"c1","parent":"p","ord":"a0","title":"paperwork"}`,
+      `{"id":"g1","parent":"c1","ord":"a0","title":"find the tickets","todo":true}`,
+      `{"id":"c2","parent":"p","ord":"a1","title":"the ferry","done":true}`,
+      `{"id":"g2","parent":"c2","ord":"a0","title":"reserve a cabin","doing":true}`,
+    )
+    const failure = refused(deep, { op: "done", id: "p" })
+    expect(failure.message).toContain("2 unfinished tasks")
+    expect(failure.message).toContain("`find the tickets` (`g1`, todo)")
+    // Under a done node already — and still named, because a second mark above
+    // would hide it harder and this gate is what stops the state being made.
+    expect(failure.message).toContain("`reserve a cabin` (`g2`, doing)")
+  })
+
+  // #90's creed, and the line the ruling drew explicitly: a node is a task
+  // because somebody said so. Nothing here is a task, so nothing blocks.
+  test("bullets never block it, however many there are", () => {
+    const notes = trip(
+      `{"id":"c1","parent":"p","ord":"a0","title":"ferry times"}`,
+      `{"id":"g1","parent":"c1","ord":"a0","title":"the 9:40 is cheapest"}`,
+      `{"id":"c2","parent":"p","ord":"a1","title":"what to take","done":true}`,
+    )
+    expect(record(fileOf(planned(notes, { op: "done", id: "p" }), "a.olai"), "p").done)
+      .toBe(STAMP)
+  })
+
+  // A placement is not containment (`@olai/format`'s `derive.ts`). The work the
+  // mirror draws keeps its own row where it really lives, so hiding this
+  // branch hides no work — and `add_mirror` is therefore not gated either.
+  test("a mirror of open work is a second view, not a second obligation", () => {
+    const set = setOf({
+      "a.olai": [
+        `{"id":"p","ord":"a0","title":"the trip"}`,
+        `{"id":"m","parent":"p","ord":"a0","mirror":"far"}`,
+      ].join("\n"),
+      "b.olai": [
+        `{"id":"far","ord":"a0","title":"renew the passport","todo":true}`,
+        `{"id":"under","parent":"far","ord":"a0","title":"find the old one","todo":true}`,
+      ].join("\n"),
+    })
+    expect(record(fileOf(planned(set, { op: "done", id: "p" }), "a.olai"), "p").done)
+      .toBe(STAMP)
+  })
+
+  // Archived work is over: nothing in an `Archive.olai` is open work, and
+  // nothing in one is hidden by a mark, so the gate does not run there — the
+  // same exemption blockedness takes at both ends of an arrow.
+  test("the archive is exempt", () => {
+    const set = setOf({
+      "Archive.olai": [
+        `{"id":"old","ord":"a0","title":"last year's trip"}`,
+        `{"id":"leg","parent":"old","ord":"a0","title":"the leg nobody did","todo":true}`,
+      ].join("\n"),
+    })
+    expect(record(fileOf(planned(set, { op: "done", id: "old" }), "Archive.olai"), "old").done)
+      .toBe(STAMP)
+  })
+
+  // Taking a mark off is never gated: the whole point of the refusal is that
+  // the state must be fixable, and undoing a `done` is one of the two fixes.
+  test("an undo is never refused, and neither is a mark that is not `done`", () => {
+    const open = trip(
+      `{"id":"c1","parent":"p","ord":"a0","title":"pack","todo":true}`,
+    )
+    const finished = trip(
+      `{"id":"c1","parent":"p","ord":"a0","title":"pack","todo":true}`,
+      `{"id":"c2","parent":"p","ord":"a1","title":"the trip itself","done":true}`,
+    )
+    expect(planned(open, { op: "todo", id: "p" }).summary).toBe("todo: the trip")
+    expect(record(
+      fileOf(planned(finished, { op: "done", id: "c2", undo: true }), "a.olai"),
+      "c2",
+    ).done).toBeUndefined()
+  })
+
+  // A refusal holding two hundred titles has buried the one that would have
+  // been read — the same argument `notFound` makes about listing every id.
+  test("the naming is capped, and says how many it did not name", () => {
+    const many = trip(
+      ...Array.from(
+        { length: 8 },
+        (_, at) => `{"id":"c${at}","parent":"p","ord":"a${at}","title":"leg ${at}","todo":true}`,
+      ),
+    )
+    const failure = refused(many, { op: "done", id: "p" })
+    expect(failure.message).toContain("8 unfinished tasks")
+    expect(failure.message).toContain("`leg 4`")
+    expect(failure.message).toContain("and 3 more")
+    expect(failure.message).not.toContain("`leg 5`")
+  })
+
+  // The same door, spelled in a capture: both halves written in one call, by
+  // one caller, who can simply write it differently — so it is refused rather
+  // than repaired, and nothing lands.
+  test("a capture cannot be born done over a task born under it", () => {
+    const failure = refused(house(), {
+      op: "add",
+      title: "the ferry",
+      parent: "kitchen",
+      mark: "done",
+      children: [
+        { title: "book it", mark: "todo" },
+        { title: "the 9:40 is cheapest" },
+      ],
+    })
+    expect(failure.message).toContain("captured done over 1 unfinished task")
+    expect(failure.message).toContain("`book it`")
+    expect(failure.message).not.toContain("9:40")
+    expect(failure.message).toContain("Nothing was written")
+  })
+
+  // The floor of the unrolled capture schema declares `children` as anything
+  // at all (`@olai/format`'s `writing.ts`: "it exists to be refused"), so a
+  // fourth level arrives typed `Capture` by a CAST and validated by nothing.
+  // Every rule here therefore has to let the nesting refusal speak first — a
+  // gate that walked that level would be reading unchecked JSON, and `null` in
+  // it is a crash rather than an answer.
+  test("a capture deeper than the schema's floor is refused, not walked", () => {
+    const tooDeep = {
+      op: "add",
+      title: "one",
+      parent: "kitchen",
+      mark: "done",
+      children: [{
+        title: "two",
+        children: [{
+          title: "three",
+          children: [{
+            // The last level the schema spells out. Its `children` is the one
+            // that accepts anything, so this is what an unvalidated level can
+            // actually hold — and the cast is how it arrives typed.
+            title: "four",
+            children: [null],
+          }],
+        }],
+      }],
+    } as unknown as Request
+    expect(refused(house(), tooDeep).message).toContain("nests at most 3 levels")
+  })
+
+  // A seed is a capture, so it meets the same door through the other verb.
+  test("a seeded outline cannot be born done over its own open work either", () => {
+    const failure = refused(house(), {
+      op: "create",
+      file: "trip.olai",
+      seed: {
+        title: "the trip",
+        mark: "done",
+        children: [{ title: "book the ferry", mark: "todo" }],
+      },
+    })
+    expect(failure.message).toContain("captured done over 1 unfinished task")
+    expect(failure.message).toContain("`book the ferry`")
+  })
+
+  test("a capture born done over bullets and finished work lands", () => {
+    const result = planned(house(), {
+      op: "add",
+      title: "the ferry",
+      parent: "kitchen",
+      mark: "done",
+      children: [
+        { title: "book it", mark: "done" },
+        { title: "the 9:40 is cheapest" },
+      ],
+    })
+    expect(record(fileOf(result, "house.olai"), "n1").done).toBe(STAMP)
+  })
+})
+
+describe("done over open work: the arrival re-opens what stood over it", () => {
+  /** `attic` is finished, and everything under it is finished with it. */
+  const shut = (...records: ReadonlyArray<string>): OutlineSet =>
+    setOf({
+      "a.olai": [
+        `{"id":"house","ord":"a0","title":"the house","done":"2026-08-01"}`,
+        `{"id":"attic","parent":"house","ord":"a0","title":"the attic","done":"2026-08-02"}`,
+        ...records,
+      ].join("\n"),
+    })
+
+  // THE INCIDENT ITSELF, one op wide: a task filed under a branch somebody
+  // called finished last week.
+  test("`set_todo` under a done ancestor takes the mark off it, and says so", () => {
+    const set = shut(`{"id":"leak","parent":"attic","ord":"a0","title":"the leak"}`)
+    const result = planned(set, { op: "todo", id: "leak" })
+    const nodes = fileOf(result, "a.olai")
+
+    expect(record(nodes, "leak").todo).toBe(true)
+    // EVERY done ancestor, root first: any one of them hides the branch alone.
+    expect(record(nodes, "attic").done).toBeUndefined()
+    expect(record(nodes, "house").done).toBeUndefined()
+    // A write to them, so they are stamped like any other write.
+    expect(record(nodes, "attic").changed).toBe(STAMP)
+    // Never silently: the answer says it, and so does the commit subject.
+    expect(result.nudge).toContain("`the house`, `the attic` were marked done")
+    expect(result.nudge).toContain("those marks are off now")
+    expect(result.summary).toBe("todo: the leak (reopened: the house, the attic)")
+  })
+
+  test("`set_doing` arrives the same way, and an undo never does", () => {
+    const set = shut(`{"id":"leak","parent":"attic","ord":"a0","title":"the leak","todo":true}`)
+    expect(record(fileOf(planned(set, { op: "doing", id: "leak" }), "a.olai"), "attic").done)
+      .toBeUndefined()
+    // Clearing a mark leaves a bullet, which is not unfinished work — so there
+    // is nothing to re-open for, and the ancestor keeps what it says.
+    expect(record(fileOf(planned(set, { op: "todo", id: "leak", undo: true }), "a.olai"), "attic")
+      .done).toBe("2026-08-02")
+  })
+
+  test("finishing work under a done ancestor changes nothing above it", () => {
+    const set = shut(`{"id":"leak","parent":"attic","ord":"a0","title":"the leak","todo":true}`)
+    const nodes = fileOf(planned(set, { op: "done", id: "leak" }), "a.olai")
+    expect(record(nodes, "leak").done).toBe(STAMP)
+    expect(record(nodes, "attic").done).toBe("2026-08-02")
+  })
+
+  // An ancestor that says nothing is not re-opened — there is nothing to take
+  // off it — and one that is `doing` keeps its mark: only `done` hides.
+  test("only the `done` marks come off, and only in the parent chain", () => {
+    const set = setOf({
+      "a.olai": [
+        `{"id":"house","ord":"a0","title":"the house","done":"2026-08-01"}`,
+        `{"id":"floor","parent":"house","ord":"a0","title":"the top floor","doing":true}`,
+        `{"id":"attic","parent":"floor","ord":"a0","title":"the attic"}`,
+        `{"id":"leak","parent":"attic","ord":"a0","title":"the leak"}`,
+        `{"id":"shed","ord":"a1","title":"the shed","done":"2026-08-01"}`,
+      ].join("\n"),
+    })
+    const nodes = fileOf(planned(set, { op: "todo", id: "leak" }), "a.olai")
+    expect(record(nodes, "house").done).toBeUndefined()
+    expect(record(nodes, "floor").doing).toBe(true)
+    expect(record(nodes, "attic").changed).toBeUndefined()
+    // Somewhere else entirely in the same file: untouched.
+    expect(record(nodes, "shed").done).toBe("2026-08-01")
+  })
+
+  // The door this incident walked through, in the shape that filed it: work
+  // captured under a root whose mark froze five days ago.
+  test("a capture that brings a task re-opens what it lands under", () => {
+    const result = planned(shut(), {
+      op: "add",
+      title: "re-slate the roof",
+      parent: "attic",
+      mark: "todo",
+    })
+    const nodes = fileOf(result, "a.olai")
+    expect(record(nodes, "n1").todo).toBe(true)
+    expect(record(nodes, "attic").done).toBeUndefined()
+    expect(result.summary).toContain("(reopened: the house, the attic)")
+    expect(result.nudge).toContain("marked done")
+  })
+
+  test("a capture of bullets and finished work leaves the branch shut", () => {
+    const result = planned(shut(), {
+      op: "add",
+      title: "what it looked like",
+      parent: "attic",
+      children: [{ title: "the beams are sound" }, { title: "photographed", mark: "done" }],
+    })
+    expect(record(fileOf(result, "a.olai"), "attic").done).toBe("2026-08-02")
+    expect(result.nudge).toBeUndefined()
+    expect(result.summary).toBe("capture: what it looked like (+2)")
+  })
+
+  // The mark may be anywhere in the captured tree: what arrives is the whole
+  // tree, and any unfinished task in it is work that would land hidden.
+  test("a task deep in a capture counts as much as the root's own mark", () => {
+    const result = planned(shut(), {
+      op: "add",
+      title: "the roof",
+      parent: "attic",
+      children: [{ title: "the slates", children: [{ title: "re-lay them", mark: "todo" }] }],
+    })
+    expect(record(fileOf(result, "a.olai"), "attic").done).toBeUndefined()
+  })
+
+  test("a move that lands unfinished work under a done ancestor re-opens it", () => {
+    const set = shut(
+      `{"id":"jobs","ord":"a1","title":"jobs"}`,
+      `{"id":"roof","parent":"jobs","ord":"a0","title":"the roof"}`,
+      `{"id":"slates","parent":"roof","ord":"a0","title":"re-lay the slates","todo":true}`,
+    )
+    const result = planned(set, { op: "move", id: "roof", parent: "attic" })
+    const nodes = fileOf(result, "a.olai")
+    expect(record(nodes, "roof").parent).toBe("attic")
+    // The moving node is a BULLET; what makes this an arrival of open work is
+    // the task underneath it, which travels with it.
+    expect(record(nodes, "attic").done).toBeUndefined()
+    expect(result.summary).toContain("(reopened:")
+  })
+
+  /** The three writes that reach `attic` without bringing it open work, and
+   *  the one assertion all three are about: the branch stays shut. One test
+   *  each, so a failure names which of the three it was. */
+  const untouched = (request: Request): void => {
+    const set = shut(
+      `{"id":"note","ord":"a1","title":"a note about the house"}`,
+      `{"id":"open","ord":"a2","title":"something open","todo":true}`,
+      `{"id":"first","parent":"attic","ord":"a0","title":"one","done":true}`,
+      `{"id":"second","parent":"attic","ord":"a1","title":"two","done":true}`,
+    )
+    expect(record(fileOf(planned(set, request), "a.olai"), "attic").done).toBe("2026-08-02")
+  }
+
+  // Nothing unfinished is arriving: a bullet and the done work under it.
+  test("a move of bullets leaves it alone", () => {
+    untouched({ op: "move", id: "note", parent: "attic" })
+  })
+
+  // A reorder among the same siblings arrives under nothing it was not
+  // already under, so an ancestor's mark is not this write's business.
+  test("a reorder leaves it alone", () => {
+    untouched({ op: "move", id: "second", before: "first" })
+  })
+
+  // A PLACEMENT is not containment, at this door exactly as at the other.
+  test("a placement of open work leaves it alone", () => {
+    untouched({ op: "mirror", target: "open", parent: "attic" })
+  })
+
+  // The arrival nobody would think to look for: a Backspace at the start of a
+  // line hands one row's children to the row above it, and the row above may
+  // be finished. The merged node's own mark goes to the archive with its
+  // record, so what this asks about is what it hands over.
+  test("a merge that hands unfinished rows to a finished sibling re-opens it", () => {
+    const set = setOf({
+      "a.olai": [
+        `{"id":"p","ord":"a0","title":"the trip"}`,
+        `{"id":"one","parent":"p","ord":"a0","title":"the ferry","done":"2026-08-01"}`,
+        `{"id":"two","parent":"p","ord":"a1","title":"the hotel"}`,
+        `{"id":"under","parent":"two","ord":"a0","title":"book it","todo":true}`,
+      ].join("\n"),
+    })
+    const result = planned(set, { op: "merge", id: "two" })
+    const nodes = fileOf(result, "a.olai")
+    expect(record(nodes, "under").parent).toBe("one")
+    expect(record(nodes, "one").done).toBeUndefined()
+    expect(result.nudge).toContain("`the ferry` was marked done")
+    // Named as it was READ, which is the row somebody watching just saw go
+    // from ticked to empty — the joined title is what it becomes.
+    expect(result.summary).toBe("merge: the ferrythe hotel (reopened: the ferry)")
+  })
+
+  test("a merge of bullets and finished rows leaves the sibling shut", () => {
+    const set = setOf({
+      "a.olai": [
+        `{"id":"p","ord":"a0","title":"the trip"}`,
+        `{"id":"one","parent":"p","ord":"a0","title":"the ferry","done":"2026-08-01"}`,
+        `{"id":"two","parent":"p","ord":"a1","title":"the hotel"}`,
+        `{"id":"under","parent":"two","ord":"a0","title":"which one it was"}`,
+      ].join("\n"),
+    })
+    const nodes = fileOf(planned(set, { op: "merge", id: "two" }), "a.olai")
+    expect(record(nodes, "one").done).toBe("2026-08-01")
+  })
+
+  // The archive exemption is about where a node LIVES, so it ends the moment
+  // the node stops living there — which is what `unarchive` is.
+  test("work coming back out of the archive re-opens what it comes back under", () => {
+    const set = setOf({
+      "a.olai": [
+        `{"id":"house","ord":"a0","title":"the house","done":"2026-08-01"}`,
+        `{"id":"attic","parent":"house","ord":"a0","title":"the attic","done":"2026-08-02"}`,
+      ].join("\n"),
+      "Archive.olai": [
+        `{"id":"roof","ord":"a0","title":"the roof"}`,
+        `{"id":"slates","parent":"roof","ord":"a0","title":"re-lay the slates","todo":true}`,
+      ].join("\n"),
+    })
+    const result = planned(set, { op: "unarchive", id: "roof", parent: "attic" })
+    const nodes = fileOf(result, "a.olai")
+    expect(record(nodes, "roof").parent).toBe("attic")
+    expect(record(nodes, "attic").done).toBeUndefined()
+    expect(result.summary).toContain("(reopened:")
+  })
+
+  /**
+   * THE HOLE grok found in the first round, replayed exactly.
+   *
+   * The archive is exempt at both doors, so the contradiction can legally be
+   * BORN in there — and `unarchive` used to carry it into the live set, where
+   * door two was only ever looking above the landing. It is an ops write that
+   * lands the hidden state, which is the one thing these gates promise cannot
+   * happen; the git-merge residual the docs carve out is a set that arrived
+   * some other way.
+   */
+  test("a contradiction born in the archive is re-opened on the way back out", () => {
+    const start = setOf({
+      "a.olai": [
+        `{"id":"jobs","ord":"a0","title":"jobs"}`,
+        `{"id":"roof","parent":"jobs","ord":"a0","title":"the roof"}`,
+        `{"id":"slates","parent":"roof","ord":"a0","title":"re-lay the slates","todo":true}`,
+      ].join("\n"),
+    })
+    // 1. Put it away. 2. Mark it done in there — legal, and refused nowhere,
+    // because work in an archive is over.
+    const away = after(start, { op: "archive", id: "roof" })
+    expect(record(fileOf(planned(away, { op: "done", id: "roof" }), "Archive.olai"), "roof").done)
+      .toBe(STAMP)
+    const shut = after(away, { op: "done", id: "roof" })
+
+    // 3. Take it back out. The mark that was true in the trash is false the
+    // moment it is live again, so it comes off — loudly, exactly as an
+    // ancestor's does.
+    const result = planned(shut, { op: "unarchive", id: "roof", parent: "jobs" })
+    const nodes = fileOf(result, "a.olai")
+    expect(record(nodes, "roof").parent).toBe("jobs")
+    expect(record(nodes, "roof").done).toBeUndefined()
+    expect(record(nodes, "roof").changed).toBe(STAMP)
+    // The work it was hiding came back with it, untouched.
+    expect(record(nodes, "slates").todo).toBe(true)
+    expect(result.nudge).toContain("`the roof` was marked done over work that is not finished")
+    expect(result.summary).toBe("unarchive: the roof (reopened: the roof)")
+  })
+
+  // Every one of them, not just the root: two claims hide the same task, and
+  // door one refuses both when they are made in the live set.
+  test("every done mark inside the restored subtree that hides work comes off", () => {
+    const set = setOf({
+      "a.olai": `{"id":"jobs","ord":"a0","title":"jobs"}`,
+      "Archive.olai": [
+        `{"id":"roof","ord":"a0","title":"the roof","done":"2026-08-01"}`,
+        `{"id":"slates","parent":"roof","ord":"a0","title":"the slates","done":"2026-08-02"}`,
+        `{"id":"lay","parent":"slates","ord":"a0","title":"re-lay them","todo":true}`,
+        `{"id":"gutter","parent":"roof","ord":"a1","title":"the gutter","done":"2026-08-03"}`,
+        `{"id":"note","parent":"gutter","ord":"a0","title":"cast iron, not plastic"}`,
+      ].join("\n"),
+    })
+    const result = planned(set, { op: "unarchive", id: "roof", parent: "jobs" })
+    const nodes = fileOf(result, "a.olai")
+    expect(record(nodes, "roof").done).toBeUndefined()
+    expect(record(nodes, "slates").done).toBeUndefined()
+    // `gutter` is done over a BULLET, which is not unfinished work — its claim
+    // is still true, so nothing touches it.
+    expect(record(nodes, "gutter").done).toBe("2026-08-03")
+    expect(result.summary).toBe("unarchive: the roof (reopened: the roof, the slates)")
+  })
+
+  // Both halves at once: the branch it lands under, and the branch itself.
+  test("the chain above and the marks inside are re-opened by one write", () => {
+    const set = setOf({
+      "a.olai": [
+        `{"id":"house","ord":"a0","title":"the house","done":"2026-08-01"}`,
+        `{"id":"attic","parent":"house","ord":"a0","title":"the attic","done":"2026-08-02"}`,
+      ].join("\n"),
+      "Archive.olai": [
+        `{"id":"roof","ord":"a0","title":"the roof","done":"2026-08-03"}`,
+        `{"id":"slates","parent":"roof","ord":"a0","title":"re-lay the slates","todo":true}`,
+      ].join("\n"),
+    })
+    const result = planned(set, { op: "unarchive", id: "roof", parent: "attic" })
+    const nodes = fileOf(result, "a.olai")
+    expect(record(nodes, "house").done).toBeUndefined()
+    expect(record(nodes, "attic").done).toBeUndefined()
+    expect(record(nodes, "roof").done).toBeUndefined()
+    // Outside-in, which is the order a reader walks them in.
+    expect(result.summary)
+      .toBe("unarchive: the roof (reopened: the house, the attic, the roof)")
+  })
+
+  // A restored branch whose own marks are honest is left exactly as it was —
+  // the archive does not restamp, and this must not either.
+  test("a restored subtree with nothing to contradict keeps every mark", () => {
+    const set = setOf({
+      "a.olai": `{"id":"jobs","ord":"a0","title":"jobs"}`,
+      "Archive.olai": [
+        `{"id":"roof","ord":"a0","title":"the roof","done":"2026-08-01"}`,
+        `{"id":"slates","parent":"roof","ord":"a0","title":"the slates","done":"2026-08-02"}`,
+      ].join("\n"),
+    })
+    const result = planned(set, { op: "unarchive", id: "roof", parent: "jobs" })
+    const nodes = fileOf(result, "a.olai")
+    expect(record(nodes, "roof").done).toBe("2026-08-01")
+    expect(record(nodes, "slates").done).toBe("2026-08-02")
+    expect(record(nodes, "roof").changed).toBeUndefined()
+    expect(result.nudge).toBeUndefined()
+    expect(result.summary).toBe("unarchive: the roof")
+  })
+
+  // ...and inside the archive itself, neither door runs: a `todo` filed under
+  // a done node in there is work that is over, filed where work that is over
+  // goes.
+  test("nothing is re-opened inside an archive", () => {
+    const set = setOf({
+      "Archive.olai": [
+        `{"id":"old","ord":"a0","title":"last year","done":"2026-01-01"}`,
+        `{"id":"leg","parent":"old","ord":"a0","title":"the leg nobody did"}`,
+      ].join("\n"),
+    })
+    const nodes = fileOf(planned(set, { op: "todo", id: "leg" }), "Archive.olai")
+    expect(record(nodes, "leg").todo).toBe(true)
+    expect(record(nodes, "old").done).toBe("2026-01-01")
   })
 })
 
@@ -1801,24 +2352,6 @@ describe("archive", () => {
 // ── unarchive ──────────────────────────────────────────────────────────
 
 describe("unarchive", () => {
-  /** The set a plan leaves behind: every file re-serialized through the
-   *  format's own writer and re-parsed, which is the path a real write takes.
-   *  What the unarchive tests need it for is the archive op's OWN output — a
-   *  hand-written archive that drifted from what `planArchive` writes would
-   *  test a fixture rather than the inverse. */
-  const after = (set: OutlineSet, request: Request): OutlineSet => {
-    const texts = Object.fromEntries(
-      set.files.map((file) => [
-        file,
-        serializeOutline(nodesOf(derive(set.nodes), file).map((located) => located.node)),
-      ]),
-    )
-    for (const file of planned(set, request).files) {
-      texts[file.file] = serializeOutline(file.nodes)
-    }
-    return setOf(texts)
-  }
-
   test("the subtree comes back out, where the recorded chain says it came from", () => {
     const set = after(house(), { op: "archive", id: "order" })
     const result = planned(set, { op: "unarchive", id: "order" })

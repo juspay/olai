@@ -31,19 +31,33 @@ Feature: Talking to the agent
     Then the tree eventually shows a node titled "water the plants"
 
   @scratch:chat
-  Scenario: A parent is marked like any other node
-    # A mark is a stored fact on whatever carries it. `kitchen` has three
-    # children, one of them still under way, and marking it done is an
-    # ordinary write — a claim about the branch, which somebody is allowed to
-    # make. Nothing derives a status any more, so there is nothing to refuse.
+  Scenario: A parent cannot be marked done over work nobody has finished
+    # A mark is a stored fact on whatever carries it, and one on a parent is a
+    # claim about the whole BRANCH — which is exactly why it has to be true
+    # when it is made: hiding what is done takes the subtree with the row, so a
+    # `done` here would sweep `install the cabinets` off the page while it is
+    # still under way. Refused where the person who asked for it is looking,
+    # in the ops layer's own words (`done-over-open-work`, 2026-08-16).
+    When I ask the agent "done kitchen"
+    Then the chat shows a refusal
+    And node "kitchen" is not done
+
+  @scratch:chat
+  Scenario: A parent is marked like any other node once the branch is finished
+    # The gate is about unfinished work and nothing else: `install the
+    # cabinets` is the only task under the branch, so finishing it is what the
+    # refusal above asks for — and the rollup's remark rides that write's own
+    # story, where the person who asked for it is looking, the same aside a
+    # keystroke gets under its row. Advice on a write that LANDED, never a
+    # reason one did not. `order the new cabinets` is a bullet, so it is not
+    # unfinished work and never was in the way.
+    When I ask the agent "done install"
+    Then node "install" is done
+    And the chat shows no refusal
+    And the chat says the write "marked done"
+    And the write's nudge says "every task under `kitchen remodel #home` is done now"
     When I ask the agent "done kitchen"
     Then node "kitchen" is done
-    And the chat shows no refusal
-    # ... and the rollup's remark rides the write's own story, where the person
-    # who asked for it is looking — the same aside a keystroke already gets
-    # under its row. Advice on a write that LANDED, never a reason one did not.
-    And the chat says the write "marked done"
-    And the write's nudge says "unfinished"
 
   @scratch:chat
   Scenario: A refused write shows its detail in chat

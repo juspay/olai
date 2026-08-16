@@ -168,7 +168,8 @@ export {
   tagText,
   titleParts,
   titleTagRe,
-  unfinishedUnder,
+  unfinished,
+  unfinishedWithin,
   withoutDone,
 } from "./derive.ts"
 export { Progress } from "./derive.ts"
