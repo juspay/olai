@@ -502,9 +502,9 @@ const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
     if (holds(at, held.clause) === held.negated) return null
   }
 
-  // Collected only for a node that has already PASSED every clause, so this
-  // walks the map of the few nodes a query selects rather than of every node it
-  // considers — and only at all for a query that named a `prop:`.
+  // Collected only for a node that has already PASSED every clause, so the map
+  // is walked for the few nodes a query selects rather than for every node it
+  // considers.
   const props = propsOf(at.node, filter)
 
   // A query of operators alone is carried by no field, and nothing below would
@@ -537,18 +537,16 @@ const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
  * The node's own spelling of every key a positive `prop:` clause selected it
  * on — {@link Match.props}, which argues the shape.
  *
- * EMPTY without allocating for the queries that are nearly all of them: a query
- * with no `prop:` in it never reaches the scan, and the constant is one array
- * every such answer shares rather than one per node considered.
+ * EMPTY for the queries that are nearly all of them, and cheaply: this is
+ * CALLED for every node the clauses let through, but a query with no `prop:` in
+ * it only walks its own clause list and never reaches the scan below.
  *
- * The scan is {@link holdsProp}'s, for the reason that one gives — keys are
+ * The scan is {@link propKeyOf}'s, for the reason that one gives — keys are
  * FOLDED, so `custom["pr"]` would find one spelling and miss the other — and
  * asking it again here rather than threading the answer out of the gate above
  * keeps `holds` a predicate. The cost is a second walk of a handful of entries,
  * on the nodes a query actually selected.
  */
-const NO_PROPS: ReadonlyArray<string> = []
-
 const propsOf = (node: RegularNode, filter: Extract<Filter, { kind: "asking" }>) => {
   const keys: Array<string> = []
   for (const held of filter.clauses) {
@@ -558,7 +556,7 @@ const propsOf = (node: RegularNode, filter: Extract<Filter, { kind: "asking" }>)
     // key the reader would see twice.
     if (key !== null && !keys.includes(key)) keys.push(key)
   }
-  return keys.length === 0 ? NO_PROPS : keys
+  return keys
 }
 
 /** The best a single word does across the four fields: the score it earns, and

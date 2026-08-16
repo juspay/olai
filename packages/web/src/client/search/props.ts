@@ -76,8 +76,17 @@ export const nodeProps = (hit: SearchHit): ReadonlyArray<NodeProp> => {
   // already the one that half wants — the query's for the matched keys, the
   // file's for the rest — and a comparator would have to invent a tie-break
   // between two keys that are equally the reason.
+  //
+  // `find`, because a key names AT MOST ONE entry (`customEntries` is keyed by
+  // the map's own keys) and the lead half is a lookup per named key, not a
+  // filter that happens to return one. A key the node does not carry drops out
+  // — the server names only keys it matched, and this is the row declining to
+  // invent a line if that ever stops being true.
   return [
-    ...matched.flatMap((key) => entries.filter((entry) => entry.key === key)),
+    ...matched.flatMap((key) => {
+      const entry = entries.find((one) => one.key === key)
+      return entry === undefined ? [] : [entry]
+    }),
     ...entries.filter((entry) => !entry.matched),
   ]
 }
