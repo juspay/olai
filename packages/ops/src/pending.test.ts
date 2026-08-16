@@ -23,12 +23,12 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import type { OutlineError, OutlineSet } from "@olai/format"
 import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
 import { codec } from "./codec.ts"
+import type { Store as OutlineStore } from "./deps.ts"
 import { gitIn, repoAt } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 import { COMMIT_TOOL, whyOf } from "./pending.ts"
@@ -90,7 +90,7 @@ const withRepo = <A>(
   }
 
   return Effect.gen(function*() {
-    const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store.make({
+    const store: OutlineStore = yield* Store.make({
       root: served,
       codec,
       watch: false,

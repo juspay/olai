@@ -34,22 +34,54 @@ import {
   type OutlineError,
 } from "./errors.ts"
 import { fileKind } from "./kinds.ts"
-import { isMirror, type Located, type Site, targetsOf } from "./node.ts"
+import { isMirror, type Located, type Site } from "./node.ts"
 import { didYouMean } from "./suggest.ts"
 import type { OutlineSet } from "./set.ts"
 
+/**
+ * A set, and the view it was JUDGED against.
+ *
+ * The two travel together for the reason {@link Derived} carries its own nodes
+ * ({@link ./derive.ts}): a caller holding one revision's set against another's
+ * indexes draws a plausible tree rather than failing, and a live store has two
+ * revisions in flight often enough to make that a real possibility rather than
+ * a theoretical one.
+ *
+ * It is what {@link validate} ANSWERS WITH, which is the whole of why it
+ * exists: the derivation every rule below was checked against used to be built,
+ * read six times and dropped at the door, so the next reader — the store
+ * publishing the snapshot, the planner judging the next keystroke — walked the
+ * corpus again for a value that had just been in hand. The pair is published,
+ * and a reader above reads the view the validator built rather than building a
+ * second one that is free to disagree with it.
+ *
+ * WHAT IT HIDES is where this earns its keep next. Every reader above — the
+ * planner, the query walks, the keystroke resolver, the per-file projection the
+ * wire is cut from — now names this pair and nothing else, so HOW the view came
+ * to exist is behind it: rebuilt from scratch today, patched from the previous
+ * revision when the patcher lands (`docs/brainstorming/model-indices.md`, slice
+ * 3). That is a change of one function inside this file, with no consumer of
+ * this type able to tell.
+ */
+export interface Reading {
+  readonly set: OutlineSet
+  readonly derived: Derived
+}
+
 export const validate = (
   set: OutlineSet,
-): Result.Result<OutlineSet, ReadonlyArray<OutlineError>> => {
+): Result.Result<Reading, ReadonlyArray<OutlineError>> => {
   const errors: Array<OutlineError> = []
   // One set of indexes, built once and shared by every rule below, so no two
   // of them can disagree about which record an id names or what hangs under it
-  // — and so the browser derives the tree from the same code.
+  // — and so the browser derives the tree from the same code. It LEAVES with
+  // the verdict ({@link Reading}) rather than being dropped here: the caller
+  // that publishes what this approves has no second corpus to walk.
   const derived = derive(set.nodes)
 
   reportDuplicateIds(set.nodes, derived, errors)
   checkParents(set.nodes, derived, errors)
-  checkTargets(set.nodes, derived, errors)
+  checkTargets(derived, errors)
   checkAfterAcyclic(set.nodes, derived, errors)
   checkMirrorContainment(set.nodes, derived, errors)
   checkDocs(set.nodes, set.documents, errors)
@@ -72,7 +104,7 @@ export const validate = (
   // stays on screen underneath it.
   return errors.length > 0
     ? Result.fail([...unreadable, ...found].sort(compareErrors))
-    : Result.succeed(set)
+    : Result.succeed({ set, derived })
 }
 
 // ── ids ────────────────────────────────────────────────────────────────
@@ -146,23 +178,55 @@ const checkParents = (
   )
 }
 
+/**
+ * Asked ONCE PER NAMED ID, of the index that is `targetsOf` read backwards
+ * ({@link Derived.namedBy}), rather than once per record of the corpus.
+ *
+ * `targetsOf` is still the format's own list of what a record points at — this
+ * rule reads the index derive built by asking it, so there is still exactly one
+ * list of edge fields, and the day a fourth relation arrives this rule sees it
+ * without being told. What changes is the direction: the question "does
+ * everything this names exist?" is the same question as "is this named id
+ * declared?", and the second one has as many answers as there are ids named,
+ * not as there are records.
+ *
+ * ERROR ORDER, which is the whole reason this waited for its own change
+ * (`check-targets-index`, deferred from #205). The report is SORTED before
+ * anyone sees it — by file, then line, then code ({@link ./errors.ts}'s
+ * `compareErrors`) — so the only findings this can reorder are two at the SAME
+ * site with the same code: one record naming two ids that nothing declares.
+ * Those used to come out in the order the record writes its fields; they now
+ * come out in the order the CORPUS first names those ids, which for a record
+ * naming ids nobody else names is the same order, and differs only when an
+ * earlier record named one of them first. Both are arbitrary and both are
+ * deterministic; what is preserved is what a reader spends — one finding per
+ * field per record, at that record's own site, naming the field it was written
+ * with.
+ *
+ * ONE thing is deliberately not preserved: a record naming the same unknown id
+ * TWICE IN ONE FIELD (`"after":["x","x"]`, which only a hand-edited file can
+ * hold — no op writes a repeat) used to be two identical findings and is now
+ * one. The index folds a record's fields, and two copies of one sentence at one
+ * site tell a reader nothing the first did not.
+ */
 const checkTargets = (
-  all: ReadonlyArray<Located>,
   derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
-  for (const located of all) {
-    // `targetsOf` is the format's own ({@link ./node.ts}), because the ops
-    // layer asks the same question backwards before it retires a record —
-    // "does anything still name this?" — and a second list of edge fields is a
-    // relation one of them would stop seeing.
-    for (const [field, id] of targetsOf(located.node)) {
-      if (derived.byId.has(id)) continue
-      errors.push({
-        code: "unknown-target",
-        ...siteOf(located),
-        message: `\`${field}\` names \`${id}\`, which no node declares${suggest(id, derived)}`,
-      })
+  for (const [id, namings] of derived.namedBy) {
+    if (derived.byId.has(id)) continue
+    // Once per unknown id rather than once per record naming it: the sentence
+    // is the same for every one of them, and the suggestion behind it walks
+    // every declared id in the set.
+    const said = suggest(id, derived)
+    for (const naming of namings) {
+      for (const field of naming.fields) {
+        errors.push({
+          code: "unknown-target",
+          ...siteOf(naming.at),
+          message: `\`${field}\` names \`${id}\`, which no node declares${said}`,
+        })
+      }
     }
   }
 }

@@ -3,6 +3,16 @@
     "olai": {
       "type": "http",
       "url": "http://127.0.0.1:7714/mcp"
+    },
+    "kolu": {
+      "type": "stdio",
+      "command": "kolu",
+      "args": [
+        "mcp"
+      ],
+      "env_vars": [
+        "PADI_SOCKET"
+      ]
     }
   }
 }

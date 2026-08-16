@@ -18,8 +18,7 @@
  * record is the same value it was.
  */
 
-import { codec, make as makeOps, type Ops } from "@olai/ops"
-import type { OutlineError, OutlineSet } from "@olai/format"
+import { codec, make as makeOps, type Ops, type Store as OutlineStore } from "@olai/ops"
 import type { DocumentEntry } from "@olai/surface"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
@@ -45,7 +44,7 @@ const withRuntime = <A>(
   use: (bound: {
     readonly wired: { readonly bound: Bound }
     readonly ops: Ops
-    readonly store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>>
+    readonly store: OutlineStore
   }) => Effect.Effect<A, unknown>,
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-runtime-")))
@@ -54,7 +53,7 @@ const withRuntime = <A>(
   }
 
   return Effect.gen(function*() {
-    const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store.make({
+    const store: OutlineStore = yield* Store.make({
       root,
       codec,
       watch: false,
@@ -136,6 +135,6 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
         )
         expect([...keys]).toEqual([["report.html"]])
         const set = yield* SubscriptionRef.get(store.snapshot)
-        expect(set?.value.documents).toEqual([{ file: "report.html", text: null }])
+        expect(set?.value.set.documents).toEqual([{ file: "report.html", text: null }])
       }),
   ))

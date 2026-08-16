@@ -47,14 +47,14 @@ import {
   type OutlineSet,
   type Placed,
   type Placement,
+  type Reading,
   type Subtree,
 } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 
-import { setOf } from "./fixtures.testlib.ts"
-import { index } from "./query.ts"
-import { asking, type Reading, TOOLS } from "./tools.ts"
+import { readingOf, setOf } from "./fixtures.testlib.ts"
+import { asking, TOOLS } from "./tools.ts"
 
 /** One house, and everything a read can carry: both marker kinds, a note, a
  *  date, both tag sigils, a placement with a parent and one without, a child
@@ -73,10 +73,7 @@ const EVERYTHING = (): OutlineSet =>
     ].join("\n"),
   }, [], { "torn.olai": "{ not a record" })
 
-const at = (): Reading => {
-  const set = EVERYTHING()
-  return { set, derived: index(set) }
-}
+const at = (): Reading => readingOf(EVERYTHING())
 
 /**
  * The read door, over that fixture — the SAME `asking` the ops layer builds

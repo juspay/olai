@@ -41,7 +41,6 @@ import {
   CreateRequest,
   DateRequest,
   DescRequest,
-  type Derived,
   MARKS,
   MarkRequest,
   MergeRequest,
@@ -52,8 +51,8 @@ import {
   PropRequest,
   type OpFailure,
   OutlineAnswer,
-  type OutlineSet,
   type PushResult,
+  type Reading,
   SearchAnswer,
   SearchRequest,
   SeeRequest,
@@ -71,17 +70,15 @@ import {
 
 import * as Query from "./query.ts"
 
-/** The set as a reader sees it: the files that were found, and the derivations
- *  every answer is computed from. One value, so a run of queries walks the tree
- *  once ({@link ./query.ts}).
- *
- *  TWO FIELDS, and both are pure functions of one snapshot — which is what
- *  lets `@olai/server`'s `edit.ts` and `context.ts` advertise themselves as
- *  pure over a Reading. */
-export interface Reading {
-  readonly set: OutlineSet
-  readonly derived: Derived
-}
+// `Reading` — the set a reader sees, paired with the derivation every answer
+// here is computed from — was declared in this file and is `@olai/format`'s
+// now: `validate` ANSWERS with the pair, so the floor is where it is made. It
+// is imported above like any other shape of the format's, and NOT re-exported,
+// which is this package's own rule two files over ({@link ./query.ts}: "a
+// consumer imports a shape from the floor it is declared on"). The one thing
+// this package does re-export from there is the write vocabulary, and the
+// reason is the exception that proves it — those carry names that are this
+// layer's (`Request`, `Applied`) rather than the format's.
 
 interface Described {
   readonly name: string
@@ -306,17 +303,17 @@ const MARK_TOOL = {
   done: {
     title: "Mark done",
     description:
-      "Mark a node done, or undo that with `undo: true`. The mark RECORDS THE INSTANT it is made — a local ISO datetime with this machine's UTC offset, written for you — so the node appears on that day's journal page; there is no way here to write a bare `true` or to choose the day, and `set_date` is what schedules a node for one. Works on any node, children or not — a mark is a stored fact, never computed from what hangs below. Done-hidden hides a done node WITH its subtree, so this is a claim about the whole branch; marking one over unfinished tasks is allowed and comes back with a `nudge` saying so.",
+      "Mark a node done, or undo that with `undo: true`. The mark RECORDS THE INSTANT it is made — a local ISO datetime with this machine's UTC offset, written for you — so the node appears on that day's journal page; there is no way here to write a bare `true` or to choose the day, and `set_date` is what schedules a node for one. Works on any node, children or not — a mark is a stored fact, never computed from what hangs below. Done-hidden hides a done node WITH its subtree, so this is a claim about the whole branch: it is REFUSED while the branch below holds a task that is not done, and the refusal names them (title, id and mark). Finish those first, or take the mark off the ones that are not happening — an unmarked bullet is not unfinished work, so bullets never stand in the way. That is the ONLY thing that gates this verb: the `after` order does not, because finishing out of order is sometimes simply what happened.",
   },
   doing: {
     title: "Mark doing",
     description:
-      "Mark a node as under way, or undo that with `undo: true`. Stored as `true` and not dated, and a date written here by hand would place the node nowhere: the journal reads a node's `date` and its `done` instant only, because the day work was picked up is a fact about the task rather than about the day. A node that is already done must be un-done first. THE ORDER IS A LAW FOR THIS VERB: a node whose `after` targets include a task that is not done cannot start, and the refusal names them — finish those, or start what is ready. `set_done` is not gated that way, because finishing out of order is sometimes simply what happened. Works on any node, children or not.",
+      "Mark a node as under way, or undo that with `undo: true`. Stored as `true` and not dated, and a date written here by hand would place the node nowhere: the journal reads a node's `date` and its `done` instant only, because the day work was picked up is a fact about the task rather than about the day. A node that is already done must be un-done first. THE ORDER IS A LAW FOR THIS VERB: a node whose `after` targets include a task that is not done cannot start, and the refusal names them — finish those, or start what is ready. `set_done` is not gated that way, because finishing out of order is sometimes simply what happened. Works on any node, children or not. IF AN ANCESTOR IS DONE, its `done` comes OFF — starting work under a branch somebody called finished says the branch is not finished; the write lands and the answer's `nudge` names every mark it took off.",
   },
   todo: {
     title: "Mark todo",
     description:
-      "Mark a node as work that has not started, or undo that with `undo: true`. Stored as `true` and not dated, and a date written here by hand would place the node nowhere: the journal reads a node's `date` and its `done` instant only, so `set_date` is what says which day a task is FOR. This is what makes a bullet a TASK: a node with no mark is not an unstarted task, it is not a task at all, so there is nothing to search for until someone says otherwise. Works on any node, children or not — a parent whose children are all notes is marked exactly like a leaf.",
+      "Mark a node as work that has not started, or undo that with `undo: true`. Stored as `true` and not dated, and a date written here by hand would place the node nowhere: the journal reads a node's `date` and its `done` instant only, so `set_date` is what says which day a task is FOR. This is what makes a bullet a TASK: a node with no mark is not an unstarted task, it is not a task at all, so there is nothing to search for until someone says otherwise. Works on any node, children or not — a parent whose children are all notes is marked exactly like a leaf. IF AN ANCESTOR IS DONE, its `done` comes OFF — done-hiding would sweep this new task off the page with the branch, and a mark that has gone stale is not a reason to refuse work somebody is filing; the write lands and the answer's `nudge` names every mark it took off.",
   },
 } as const satisfies Record<Status, { readonly title: string; readonly description: string }>
 
@@ -376,14 +373,14 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "create_outline",
     "Create an outline",
-    "Start a new outline file under the served directory. `file` is a relative `.olai` path (no absolute paths, no `..`); refused if that file already exists. This is how a brand-new outline is born: `add_node` only writes into outlines that are already loaded.\n\nSEED IT WITH EVERYTHING YOU ALREADY KNOW. `seed` is a whole capture — the same fields and the same nested `children` `add_node` takes — so a new outline and the dozen nodes in it are ONE call: one validation, one atomic write, one commit. A seed that is refused anywhere in its tree leaves NO file behind, which is why this beats creating an empty outline and filling it afterwards (that way, a refused second call leaves an empty outline nobody asked for). Create without a `seed` only when you genuinely do not know yet what goes in it; `add_node` fills it later, and takes the same `children`.\n\nONE FILENAME IS A CONVENTION rather than a choice: `Inbox.olai` at the ROOT is where a captured line goes when the directory has no inbox yet (`list_outlines` says how to look for one first, and how a directory that keeps its own elsewhere is found). Seed it with the line — one call, so a refused capture leaves no empty inbox behind.",
+    "Start a new outline file under the served directory. `file` is a relative `.olai` path (no absolute paths, no `..`); refused if that file already exists. This is how a brand-new outline is born: `add_node` only writes into outlines that are already loaded.\n\nSEED IT WITH EVERYTHING YOU ALREADY KNOW. `seed` is a whole capture — the same fields and the same nested `children` `add_node` takes — so a new outline and the dozen nodes in it are ONE call: one validation, one atomic write, one commit. A seed that is refused anywhere in its tree leaves NO file behind, which is why this beats creating an empty outline and filling it afterwards (that way, a refused second call leaves an empty outline nobody asked for). Create without a `seed` only when you genuinely do not know yet what goes in it; `add_node` fills it later, and takes the same `children`. A seed meets the same refusals a capture does, including the one that matters here: a node born `done` with an unfinished task born under it in the same call is refused, and no file is created.\n\nONE FILENAME IS A CONVENTION rather than a choice: `Inbox.olai` at the ROOT is where a captured line goes when the directory has no inbox yet (`list_outlines` says how to look for one first, and how a directory that keeps its own elsewhere is found). Seed it with the line — one call, so a refused capture leaves no empty inbox behind.",
     CreateRequest,
     { op: "create" },
   ),
   write(
     "add_node",
     "Add a node",
-    "Capture a new node, and — with `children` — everything under it. Give `parent` to put it under a node, or `file` to put it at the top level of an *existing* outline. It goes last among its siblings unless `before` or `after` names one. To start a brand-new outline file, use `create_outline` — whose `seed` takes this same shape, so a new outline and its contents are one call.\n\nUSE `children` WHENEVER YOU ALREADY KNOW MORE THAN ONE NODE — rooms and what is in them, a plan and its steps, a page of notes. Thirteen nodes is ONE call rather than thirteen: one validation, one atomic write, one commit, and nothing is written unless all of it is. The answer names every node it made in `captured` (id and title), which is how you mark, note or capture under one of them afterwards.\n\nWHEN NOBODY NAMED A PLACE — a line to keep, with no parent it obviously belongs under — the `file` is the directory's INBOX rather than whichever outline you read last. `list_outlines` says how to find it, and `create_outline` mints one when there is none.",
+    "Capture a new node, and — with `children` — everything under it. Give `parent` to put it under a node, or `file` to put it at the top level of an *existing* outline. It goes last among its siblings unless `before` or `after` names one. To start a brand-new outline file, use `create_outline` — whose `seed` takes this same shape, so a new outline and its contents are one call.\n\nUSE `children` WHENEVER YOU ALREADY KNOW MORE THAN ONE NODE — rooms and what is in them, a plan and its steps, a page of notes. Thirteen nodes is ONE call rather than thirteen: one validation, one atomic write, one commit, and nothing is written unless all of it is. The answer names every node it made in `captured` (id and title), which is how you mark, note or capture under one of them afterwards.\n\nWHEN NOBODY NAMED A PLACE — a line to keep, with no parent it obviously belongs under — the `file` is the directory's INBOX rather than whichever outline you read last. `list_outlines` says how to find it, and `create_outline` mints one when there is none.\n\nCAPTURING UNDER A FINISHED BRANCH IS NOT REFUSED. If what arrives carries a `todo` or `doing` mark anywhere in it and an ancestor is `done`, that ancestor's mark comes OFF — done-hiding would have swept the capture off the page — and the answer's `nudge` names every mark it took off. What IS refused is a capture that contradicts itself: a node born `done` with an unfinished task born under it in the same call.",
     AddRequest,
     { op: "add" },
   ),
@@ -419,7 +416,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "move_node",
     "Move a node",
-    "Reparent or reorder a node within its outline. `parent: null` puts it at top level; `before` / `after` place it among its new siblings. Outlines are independent trees, so this never crosses files — archiving is what does.",
+    "Reparent or reorder a node within its outline. `parent: null` puts it at top level; `before` / `after` place it among its new siblings. Outlines are independent trees, so this never crosses files — archiving is what does. Landing a subtree that holds an unfinished task under a `done` ancestor takes that ancestor's mark OFF, as `set_todo` does: the answer's `nudge` names what it re-opened.",
     MoveRequest,
     { op: "move" },
   ),
@@ -433,7 +430,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "merge_node",
     "Merge a node into the one above",
-    "Join a node into the sibling ABOVE it: the titles are concatenated with nothing between them, the notes are joined one blank line apart, the children move to the end of that sibling's own — and the merged node's record goes to `Archive.olai` keeping its id. One op, because a retitle plus N reparentings plus an archive can stop in the middle and leave the outline saying something nobody wrote.\n\nTHE ROW ABOVE IS NOT AN ARGUMENT: which sibling that is is a fact about the set, read where the write is judged, so the request re-plans cleanly when something else writes first. Refused when the node is first among its siblings (there is nothing above it) or when the row above is a MIRROR (a placement has no title to merge into).\n\nWHAT DOES NOT SURVIVE ON THE PAGE: the merged node's mark, date and edges. The format allows one mark per node and the survivor already has its own answer, so they go with the record into the archive — nothing is destroyed, `unarchive_node` brings it back with its id, and the answer's `nudge` says so whenever there was anything to say.",
+    "Join a node into the sibling ABOVE it: the titles are concatenated with nothing between them, the notes are joined one blank line apart, the children MOVE to the end of that sibling's own — an arrival, so if any of them is unfinished work and that sibling (or something above it) is `done`, that mark comes off and the `nudge` names it — and the merged node's record goes to `Archive.olai` keeping its id. One op, because a retitle plus N reparentings plus an archive can stop in the middle and leave the outline saying something nobody wrote.\n\nTHE ROW ABOVE IS NOT AN ARGUMENT: which sibling that is is a fact about the set, read where the write is judged, so the request re-plans cleanly when something else writes first. Refused when the node is first among its siblings (there is nothing above it) or when the row above is a MIRROR (a placement has no title to merge into).\n\nWHAT DOES NOT SURVIVE ON THE PAGE: the merged node's mark, date and edges. The format allows one mark per node and the survivor already has its own answer, so they go with the record into the archive — nothing is destroyed, `unarchive_node` brings it back with its id, and the answer's `nudge` says so whenever there was anything to say. What the merged node's own mark never does is reach the destination: only the children it hands over can re-open anything there (above), by the same rule `set_todo` and `move_node` follow.",
     MergeRequest,
     { op: "merge" },
   ),
@@ -447,7 +444,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "unarchive_node",
     "Unarchive a subtree",
-    "Take a node and everything under it back OUT of an `Archive.olai` — the inverse of `archive_node`. The subtree comes back intact with its ids, and it lands LAST among its new siblings (the archive does not record where in a row a node sat). Where it lands: by default the chain of ancestor titles the archive recorded above the node is matched against the live outlines beside the archive, and the call is refused — naming what it found — when that chain matches nowhere or more than one place; give `parent` (it goes under that node) or `file` (top level of that outline) to decide instead. An ancestor the removal leaves empty in the archive is tidied away, provided it is the bare title scaffold `archive_node` wrote and nothing still names it.",
+    "Take a node and everything under it back OUT of an `Archive.olai` — the inverse of `archive_node`. The subtree comes back intact with its ids, and it lands LAST among its new siblings (the archive does not record where in a row a node sat). Where it lands: by default the chain of ancestor titles the archive recorded above the node is matched against the live outlines beside the archive, and the call is refused — naming what it found — when that chain matches nowhere or more than one place; give `parent` (it goes under that node) or `file` (top level of that outline) to decide instead. An ancestor the removal leaves empty in the archive is tidied away, provided it is the bare title scaffold `archive_node` wrote and nothing still names it. Work in an archive is over, so nothing in one is unfinished — and that exemption ends HERE, in both directions. A subtree holding a `todo` or `doing` that comes back under a `done` ancestor takes that ancestor's mark off; and any `done` INSIDE what comes back, standing over unfinished work in it, comes off too — those marks were true while the branch was over and are false the moment it is live again. The answer's `nudge` names every one of them. Nothing is refused: the trash is not a place you can edit a mark, so a refusal would strand the subtree there.",
     UnarchiveRequest,
     { op: "unarchive" },
   ),
@@ -468,7 +465,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "add_mirror",
     "Place a mirror",
-    "Show a node that already exists in a SECOND place, without moving or copying it. The record written is a placement — `{id, parent, ord, mirror}` and nothing else — so the mirror has no title, no mark and no note of its own: it draws its target's, wherever the target lives, and edits go on landing at the target. It may cross outlines (a `parent` is same-file, a mirror is how a node appears in another file at all), and its target may itself be a mirror.\n\nTHIS IS HOW A CURATED LIST IS BUILT — a Now/Focus section is mirrors of the items that are live, so the entry and the item can never drift apart the way a re-typed copy does. Place it with `parent` (under a node) or `file` (top level of an outline), `before`/`after` among the siblings there; give `id` to keep a naming convention (`now-<item>`), or let it be minted — the answer's `id` names the placement either way, and that is what retires it. Refused if the placement would sit inside the subtree it shows, which would expand forever.",
+    "Show a node that already exists in a SECOND place, without moving or copying it. The record written is a placement — `{id, parent, ord, mirror}` and nothing else — so the mirror has no title, no mark and no note of its own: it draws its target's, wherever the target lives, and edits go on landing at the target. It may cross outlines (a `parent` is same-file, a mirror is how a node appears in another file at all), and its target may itself be a mirror.\n\nTHIS IS HOW A CURATED LIST IS BUILT — a Now/Focus section is mirrors of the items that are live, so the entry and the item can never drift apart the way a re-typed copy does. Place it with `parent` (under a node) or `file` (top level of an outline), `before`/`after` among the siblings there; give `id` to keep a naming convention (`now-<item>`), or let it be minted — the answer's `id` names the placement either way, and that is what retires it. Refused if the placement would sit inside the subtree it shows, which would expand forever.\n\nA PLACEMENT IS NOT CONTAINMENT, so this verb is not gated the way the ones that move work are: mirroring an unfinished task under a `done` branch is neither refused nor does it take that branch's mark off, because the work it draws keeps its own row where the node really lives and hiding a second view of something hides no work.",
     MirrorRequest,
     { op: "mirror" },
   ),

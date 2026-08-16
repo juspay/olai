@@ -112,13 +112,14 @@ Feature: The ⌘K palette writes
 
   Scenario: A write that landed with something to say says it here too
     # The rollup's nudge reaches the person who caused the write, in the other
-    # mood — which is what `data-tone` is for. `install` is ticked off over two
-    # tasks nobody finished.
-    Given I open the node "install"
+    # mood — which is what `data-tone` is for. `split the mint` is the last
+    # unfinished task under the herb bed, so ticking it off is the moment
+    # somebody might want to tick the branch — and now can.
+    Given I open the node "mint"
     When I press the palette shortcut
     And I choose "Complete" from the palette
-    Then the palette remarks "is done over 2 unfinished tasks"
-    And "house.olai" holds a node marked done titled "install the cabinets"
+    Then the palette remarks "every task under `the herb bed by the door` is done now"
+    And "garden.olai" holds a node marked done titled "split the mint"
 
   Scenario: Clearing a date from the palette removes the field
     Given I open the node "order"

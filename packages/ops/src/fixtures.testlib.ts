@@ -16,7 +16,9 @@
 
 import type { Context } from "./plan.ts"
 
-export { failureOf, setOf, STAMP_SHAPE } from "@olai/format/testlib"
+/** The pairing a snapshot carries, built from text — `@olai/format`'s, like
+ *  the set builder beside it, because the pairing is that package's. */
+export { failureOf, readingOf, setOf, STAMP_SHAPE } from "@olai/format/testlib"
 export { gitIn, repoAt, subjectsIn, writerOf } from "@olai/git/testlib"
 
 /** A planner context with no surprises in it: ids counted up from `n1`, and one

@@ -65,11 +65,12 @@ import {
   type LocatedRegular,
   nodeNamed,
   type OpFailure,
+  type Reading,
   siblingsOf,
   type Status,
   UsageFailure,
 } from "@olai/format"
-import { merging, notFound, type Reading, type Request } from "@olai/ops"
+import { merging, notFound, type Request } from "@olai/ops"
 import type { Edit } from "@olai/surface"
 import { Result } from "effect"
 

@@ -30,6 +30,7 @@ import {
   archiveBeside,
   bodyKind,
   chainOf,
+  countedChildren,
   isArchived,
   derive,
   type Derived,
@@ -53,11 +54,12 @@ import {
   shadowFor,
   siblingsOf,
   standingBefore,
-  type OutlineSet,
+  type Reading,
   type RegularNode,
   storedMarker,
   targetsOf,
-  unfinishedUnder,
+  unfinished,
+  unfinishedWithin,
   withCustom,
   UsageFailure,
   ValidationFailure,
@@ -67,8 +69,6 @@ import {
   type WriteRequest as Request,
 } from "@olai/format"
 import { Result } from "effect"
-
-import { index } from "./query.ts"
 
 /** One outline, as the records it will hold after the write. */
 export interface FilePlan {
@@ -129,18 +129,18 @@ type Planned = Result.Result<Plan, OpFailure>
  *  in the way rather than in the right. */
 type Draft<N> = { -readonly [K in keyof N]: N[K] }
 
+/** The set and its derivation are taken TOGETHER, as the one value the store
+ *  published ({@link Reading}), rather than as a set this planner derives from:
+ *  the view it plans against is the view the validator approved, so a write is
+ *  judged against the same corpus the reader who asked for it was looking at,
+ *  and the whole tree is not walked again per keystroke for an answer already
+ *  in hand. */
 export const plan = (
-  set: OutlineSet,
+  at: Reading,
   context: Context,
   request: Request,
 ): Planned => {
-  // `index`, not a fresh `derive`: the derivation is memoised per SET
-  // (`./query.ts`), and every caller of this has already read that set — a
-  // tool call to answer the request, the editor to resolve a keystroke. A
-  // second derivation per write is the whole corpus walked again for an answer
-  // already in hand, and the editor made that a per-keystroke cost.
-  const derived = index(set)
-  const scope = { set, derived, context }
+  const scope = { ...at, context }
 
   switch (request.op) {
     case "add":
@@ -219,9 +219,11 @@ export const plan = (
 
 // ── the shared middle ──────────────────────────────────────────────────
 
-interface Scope {
-  readonly set: OutlineSet
-  readonly derived: Derived
+/** The reading a plan is judged against, plus the two impure things an op
+ *  needs. It EXTENDS the pair rather than restating its halves: `plan` is
+ *  handed a `Reading` and spreads it in, so a second spelling of those two
+ *  fields is one the patcher could leave behind. */
+interface Scope extends Reading {
   readonly context: Context
 }
 
@@ -622,11 +624,29 @@ const planAdd = (
   })
   if (refused !== null) return Result.fail(refused)
 
+  // DOOR ONE, spelled in a capture: a tree that arrives already saying `done`
+  // over a task it is bringing with it.
+  //
+  // AFTER {@link emit}, and that order is load-bearing rather than incidental.
+  // The floor of the unrolled capture schema declares `children` as anything at
+  // all — deliberately, so the planner can refuse it by name (`@olai/format`'s
+  // `writing.ts`) — so a fourth level arrives typed `Capture` by a cast and
+  // checked by nothing. `emit` never touches it (it reads the length and
+  // refuses); a walk that ran first would be reading unvalidated JSON, where a
+  // `null` is a crash rather than an answer. Nothing has landed either way: a
+  // plan is returned whole or not at all, so "before anything is minted" was
+  // never what made a capture atomic.
+  const contradicts = capturedOverOpenWork(request)
+  if (contradicts !== undefined) return Result.fail(contradicts)
+
   // What came WITH the node the caller named. Only the commit line asks: the
   // answer says what it made whether that is one node or fifteen, and `(+0)`
   // would be a subject counting nothing.
   const under = minted.length - 1
-  return Result.succeed({
+  // DOOR TWO: the door the 2026-08-16 incident actually walked through, and
+  // the flow it matters most for — somebody writing down work that has just
+  // come up, under a branch somebody else called finished last week.
+  return Result.succeed(arriving(scope, { file, parent }, () => capturesOpenWork(request), {
     files: [
       { file, nodes: withOrds([...recordsOf(scope, file), ...minted], ords.success) },
     ],
@@ -637,7 +657,71 @@ const planAdd = (
       ? `capture: ${request.title}`
       : `capture: ${request.title} (+${under})`,
     captured: mintedOf(minted),
-  })
+  }))
+}
+
+/**
+ * The marked-but-unfinished nodes a capture is bringing with it, below the one
+ * given — the {@link unfinishedWithin} question asked of a tree that is not on
+ * disk yet, and the reason it cannot simply be that function: nothing here has
+ * an id or a parent link, so there is no derivation to walk.
+ *
+ * A capture's children are its own by construction — there is no placement in
+ * the shape and nothing minted here is a mirror — so the rule the other walk
+ * spends a line on does not arise.
+ */
+const capturedOpen = (capture: Capture): ReadonlyArray<Capture> => {
+  const open: Array<Capture> = []
+  const descend = (at: Capture): void => {
+    for (const child of at.children ?? []) {
+      if (unfinished(child.mark)) open.push(child)
+      descend(child)
+    }
+  }
+  descend(capture)
+  return open
+}
+
+/** Whether a capture holds work that is not finished, its own mark included —
+ *  what door two asks about an arriving tree, the way {@link holdsOpenWork}
+ *  asks it about one that already exists. */
+const capturesOpenWork = (capture: Capture): boolean =>
+  unfinished(capture.mark) || capturedOpen(capture).length > 0
+
+/**
+ * DOOR ONE, over a capture: a node born `done` with an unfinished task born
+ * under it in the same call.
+ *
+ * REFUSED rather than repaired, which is the door-one answer and not door
+ * two's, because nothing here is stale: both halves of the contradiction are
+ * being written in this one call, by this one caller, who can simply write it
+ * differently. There is no ancestor whose mark went quietly out of date — the
+ * `done` is a claim about a branch made in the same breath as the branch.
+ *
+ * Named by TITLE alone: the ids are minted by this same call, so there is
+ * nothing yet for a reader to look up or an agent to type.
+ */
+const capturedOverOpenWork = (capture: Capture): OpFailure | undefined => {
+  if (capture.mark === "done") {
+    const open = capturedOpen(capture)
+    if (open.length > 0) {
+      const one = open.length === 1
+      const named = capped(open, (child) => `\`${child.title}\``)
+      return new UsageFailure({
+        reason: `\`${capture.title}\` is captured done over ${open.length} ` +
+          `unfinished ${one ? "task" : "tasks"} in the same call: ${named}. ` +
+          `Done-hidden hides a done ` +
+          `node WITH its subtree, so the capture would land already invisible ` +
+          `— capture ${one ? "that one" : "those"} without a mark, or ` +
+          `\`${capture.title}\` without the \`done\`. Nothing was written.`,
+      })
+    }
+  }
+  for (const child of capture.children ?? []) {
+    const refused = capturedOverOpenWork(child)
+    if (refused !== undefined) return refused
+  }
+  return undefined
 }
 
 /** The records a write created, as the answer names them. */
@@ -891,6 +975,13 @@ const planMark = (
     if (held !== undefined) return Result.fail(held)
   }
 
+  // DOOR ONE ({@link sweepingOpenWork}): a `done` may not be written over
+  // unfinished work in the branch below it.
+  if (!undo && mark === "done") {
+    const sweeping = sweepingOpenWork(scope, file, node)
+    if (sweeping !== undefined) return Result.fail(sweeping)
+  }
+
   // Setting one mark CLEARS the others: a node carrying two is a record the
   // format rejects, so this is not tidiness — it is what makes the write valid.
   const next: Draft<RegularNode> = { ...node }
@@ -906,14 +997,20 @@ const planMark = (
 
   const note = nudged(scope, node, mark, undo)
 
-  return Result.succeed({
-    files: [{ file, nodes: replacing(recordsOf(scope, file), node.id, touched(scope, next)) }],
+  // DOOR TWO ({@link arriving}): this write is what MAKES the node unfinished
+  // work, so it is an arrival under whatever stands above it. The node's own
+  // parent chain, never its own mark — a node is not above itself.
+  return Result.succeed(arriving(scope, { file, parent: node.parent }, () => !undo && mark !== "done", {
+    files: [{
+      file,
+      nodes: replacing(recordsOf(scope, file), node.id, touched(scope, next)),
+    }],
     id: node.id,
     title: node.title,
     file,
     summary,
     ...(note === undefined ? {} : { nudge: note }),
-  })
+  }))
 }
 
 /**
@@ -996,25 +1093,31 @@ const heldUp = (scope: Scope, node: RegularNode): OpFailure | undefined => {
 }
 
 /**
- * What the rollup has to say about a mark that has just been written — and it
- * is a REMARK, never a refusal.
+ * What the rollup has to say about a `done` that has just been written — and
+ * it is a REMARK, never a refusal.
  *
- * A mark is a stored fact on the node that carries it, so nothing here can
- * make a write illegal: the two things a rollup notices are the two a person
- * usually wants noticed, and both arrive after the fact. That the FINISHING
- * verb only remarks while the STARTING verb refuses is argued one function up
- * ({@link heldUp}); this half of it stayed exactly as it was.
+ * ONE THING IS LEFT TO NOTICE, and it is the one worth noticing: the last
+ * unfinished task under a parent going done, which is the moment somebody
+ * might want to tick the parent too — and now can, whatever else hangs off it.
  *
- *   - a branch ticked done over tasks nobody finished. Sometimes exactly what
- *     was meant ("shipped, dropping the rest"), which is why it is said and
- *     not refused;
- *   - the last unfinished task under a parent going done, which is the moment
- *     somebody might want to tick the parent too — and now can, whatever else
- *     hangs off it.
+ * IT USED TO HAVE A SECOND ARM, and knowing which one it was is the whole
+ * history of this file's two gates: a branch ticked done over tasks nobody
+ * finished, said out loud and allowed, on the reading that "shipped, dropping
+ * the rest" is sometimes exactly what was meant. The human's 2026-08-16 ruling
+ * is that it must be a constraint instead, because what it was permitting was
+ * work vanishing off the page. That sentence is now {@link sweepingOpenWork}'s
+ * refusal, turned around — this function does not say it, because the write
+ * that would have earned it no longer lands.
  *
- * Deliberately not a load invariant. A set arrives from a git merge with
- * nobody to nudge, and a file that will not load is a worse answer to "these
- * two disagree" than a file that loads and says so.
+ * So the asymmetry one function up ({@link heldUp}) reads differently than it
+ * did: the finishing verb is still ungated by the ORDER, and remarks about it;
+ * what it is gated by is the branch below it, which is a different question
+ * about a different set of edges.
+ *
+ * Deliberately not a load invariant, and neither is either gate. A set arrives
+ * from a git merge with nobody to nudge and nobody to refuse, and a file that
+ * will not load is a worse answer to "these two disagree" than a file that
+ * loads and says so.
  */
 const nudged = (
   scope: Scope,
@@ -1024,38 +1127,348 @@ const nudged = (
 ): string | undefined => {
   if (undo || mark !== "done") return undefined
 
-  const said: Array<string> = []
-
-  // Both questions are the format's one answer, read twice: which child tasks
-  // are still open. A second walk here would be a second rule about what
-  // counts as unfinished, and the bullets are what it would get wrong.
-  const own = unfinishedUnder(scope.derived, node.id)
-  if (own.length > 0) {
-    said.push(
-      `\`${node.title}\` is done over ${own.length} unfinished ` +
-        `${own.length === 1 ? "task" : "tasks"}: ` +
-        `${own.map((child) => `\`${child.node.title}\``).join(", ")}. Done-hidden ` +
-        `hides the branch, so mark those too if they are finished.`,
-    )
-  }
-
   // The parent as it reads AFTER this write. The snapshot still calls the node
   // being marked unfinished, so "nothing else is open" is what is asked —
   // waiting for the write to land would be waiting for the moment to pass.
+  //
+  // The BRANCH under the parent, not its children, for the same reason
+  // {@link sweepingOpenWork} asks the deep question: a suggestion to mark a
+  // node done that the very next call would refuse is worse than no suggestion
+  // at all. The node being marked has nothing open under it — door one is what
+  // makes that true — so it is the only thing this has to look past.
   const above = node.parent === undefined
     ? undefined
     : scope.derived.byId.get(node.parent)?.node
-  if (
-    above !== undefined && !isMirror(above) && storedMarker(above) !== "done" &&
-    unfinishedUnder(scope.derived, above.id).every((child) => child.node.id === node.id)
-  ) {
-    said.push(
-      `every task under \`${above.title}\` is done now — mark it done too if ` +
-        `the branch is finished.`,
-    )
-  }
+  return above !== undefined && !isMirror(above) && storedMarker(above) !== "done" &&
+      unfinishedWithin(scope.derived, above.id).every((task) => task.node.id === node.id)
+    ? `every task under \`${above.title}\` is done now — mark it done too if ` +
+      `the branch is finished.`
+    : undefined
+}
 
-  return said.length === 0 ? undefined : said.join(" ")
+// ── done must not come to stand over open work ─────────────────────────
+
+/** How many unfinished tasks a refusal NAMES before it starts counting them
+ *  instead, for the reason {@link notFound} does not list every id in the set:
+ *  a refusal holding two hundred titles has buried the one that would have
+ *  been read. */
+const NAMED_AT_MOST = 5
+
+/** That list, written out: the first {@link NAMED_AT_MOST} named however the
+ *  caller names them, then how many it did not name. Two refusals spend this
+ *  cap — the same door, once over a set on disk and once over a capture — and
+ *  a cap that drifted between them would be two policies about one sentence. */
+const capped = <T>(all: ReadonlyArray<T>, name: (one: T) => string): string =>
+  all.slice(0, NAMED_AT_MOST).map(name).join(", ") +
+  (all.length > NAMED_AT_MOST ? `, and ${all.length - NAMED_AT_MOST} more` : "")
+
+/**
+ * DOOR ONE: what stands in the way of calling a branch finished — or
+ * `undefined`, which is nearly every node.
+ *
+ * THE TWO DOORS, and why they are answered differently. This function is one
+ * of them and {@link arriving} is the other, and the argument is here because
+ * it is one argument: they are the two ways into one state, exactly as
+ * {@link heldUp} and {@link nudged} are the two halves of one asymmetry.
+ *
+ * The state being made unreachable is one state: a node storing `done` with
+ * unfinished tasks anywhere in the branch below it. Done-hiding drops a done
+ * row WITH its subtree — deliberately, since a mark on a parent is a claim
+ * about the whole branch (docs/format.md's Status) — so that state is work
+ * that has vanished from the view whose whole job is showing what is left.
+ *
+ * It used to be reachable two ways, and the incident of 2026-08-16 walked
+ * through the second:
+ *
+ *   - **the done comes to the work.** `set_done` over a branch holding open
+ *     tasks. This was allowed-with-a-nudge, and the nudge is now the refusal's
+ *     own sentence ({@link sweepingOpenWork}).
+ *   - **the work comes to the done.** A task arriving under an ancestor that
+ *     was marked done when the branch really was finished — a capture, a
+ *     `set_todo`, a move, a merge, a return from the archive. Nobody marked
+ *     anything over anything; the ancestor's mark simply went stale, five days
+ *     of new children at a time ({@link arriving}).
+ *
+ * ONE DOOR REFUSES AND THE OTHER REPAIRS, which is the same asymmetry
+ * {@link heldUp} draws between finishing and starting, read at a different
+ * angle. `set_done` is a CLAIM about the branch, made now, by somebody looking
+ * at it: "this is finished" while three tasks under it are not is a claim that
+ * is false as it is made, the person is right there, and the refusal names
+ * what to do about it. An arriving task makes no claim about anything above
+ * it — a person capturing work into a branch is not commenting on the mark
+ * three levels up, and very often does not know it is there. Refusing them
+ * would be a capture flow that says no because of somebody else's stale
+ * sentence, and the price of that is not a fixed outline; it is work that
+ * never gets written down. So the ancestor's `done` comes OFF, because the
+ * arriving task is the newer and truer fact about the branch, and the answer
+ * says so out loud.
+ *
+ * NEITHER IS A LOAD INVARIANT, and that has not changed. A git merge can put a
+ * mark in one branch and a task under it in another and merge both cleanly; a
+ * set that arrives that way must still load, must still be readable, and must
+ * still be fixable — which is exactly what these two gates do to it the moment
+ * anybody writes. The format has nothing to say about a mark and the children
+ * under it (docs/format.md's Validation), and gains nothing to say here.
+ *
+ * ARCHIVED WORK IS EXEMPT AT BOTH DOORS, as everywhere else: a subtree put
+ * away in an `Archive.olai` is over, so nothing in it is open work and nothing
+ * in it hides any. It is one question — is the file this happens in an archive
+ * — asked once per door, because `parent` is same-file by the format and a
+ * node's whole ancestry therefore lives where the node does.
+ *
+ * A MIRROR IS NOT CONTAINMENT, at either door, and that is one rule read from
+ * both ends. `unfinishedWithin` never counts a placement and never walks into
+ * one, so a mirror of open work under a branch does not stop that branch being
+ * marked done; and the chain this walks upward is the canonical `parent` one,
+ * so a task DRAWN under a done node through a placement is not under it. Both
+ * follow from the format's own sentence — a mirror is a second view of a node,
+ * not a second obligation (`@olai/format`'s `derive.ts`) — and the reason it is
+ * the right sentence here is that hiding a placement hides no work: the node
+ * itself keeps its own row, wherever it really lives. `add_mirror` is
+ * therefore not gated at all, which is only consistent.
+ *
+ * ── AND THIS DOOR IN PARTICULAR ──
+ *
+ * The sentence is the nudge this replaces, turned around. It was policy —
+ * "sometimes exactly what was meant" — and the human's 2026-08-16 ruling is
+ * that it must be a constraint instead, because the thing it was permitting is
+ * work disappearing from the view that exists to show what is left. What is
+ * lost with it is the gesture "shipped, dropping the rest" in ONE call; what
+ * replaces it is two, and the refusal names every node the second one is
+ * about. A person who really means it clears those marks — which is a truer
+ * record of "not happening" than a `done` two levels up that nobody can see
+ * from the row.
+ *
+ * NAMED IN BOTH VOCABULARIES, exactly as {@link heldUp} names blockers: the
+ * TITLE for the person reading it, the ID for the agent that has to type it
+ * into the next call, and the mark each one carries — capped at
+ * {@link NAMED_AT_MOST}.
+ */
+const sweepingOpenWork = (
+  scope: Scope,
+  file: string,
+  node: RegularNode,
+): OpFailure | undefined => {
+  if (isArchived(file)) return undefined
+  const open = unfinishedWithin(scope.derived, node.id)
+  if (open.length === 0) return undefined
+
+  const one = open.length === 1
+  const named = capped(open, (task) => {
+    const mark = scope.derived.status.get(task.node.id)
+    return `\`${task.node.title}\` (\`${task.node.id}\`, ${mark})`
+  })
+  return new UsageFailure({
+    reason: `\`${node.title}\` holds ${open.length} unfinished ` +
+      `${one ? "task" : "tasks"}, so it cannot be marked done yet: ${named}. ` +
+      `Done-hidden hides a done node ` +
+      `WITH its subtree, so this would sweep ${one ? "it" : "them"} off the ` +
+      `page. Finish ${one ? "that" : "those"} first — or take the mark off ` +
+      `${one ? "it" : "them"} if ${one ? "it is" : "they are"} not happening, ` +
+      `since an unmarked bullet is not unfinished work.`,
+  })
+}
+
+/** Nothing stands above this place — the one spelling of it, shared so the
+ *  common case allocates nothing. */
+const NOTHING_ABOVE: ReadonlyArray<LocatedRegular> = []
+
+/**
+ * What door two DECIDES: the `done` marks standing over a place open work is
+ * about to arrive at — root first, and every one of them, because any one of
+ * them hides the branch on its own. {@link arriving} is what acts on it, and
+ * is the only caller: deciding and acting are one obligation, split here only
+ * so the walk can be read on its own.
+ *
+ * `parent` is where the arrival LANDS, and the chain asked about is that node
+ * and everything above it: the landing parent itself is the first thing that
+ * would hide what arrives. Absent when the arrival is at top level, where
+ * there is nothing above it at all.
+ *
+ * Canonical `parent` links, through `@olai/format`'s own walk, so a placement
+ * is not a way up — see the header above.
+ *
+ * The two guards below are the stance `ancestorsOf` itself takes and not live
+ * logic about anything a caller can send: a parent that is missing, or is a
+ * placement, is a set the VALIDATOR has already condemned, and every walk in
+ * this system still has to answer over one of those rather than throw. Reading
+ * them as reachable cases would be reading them wrong; deleting them would put
+ * an unchecked cast where the format keeps a check.
+ */
+const staleDoneAbove = (
+  scope: Scope,
+  file: string,
+  parent: string | undefined,
+): ReadonlyArray<LocatedRegular> => {
+  if (parent === undefined || isArchived(file)) return NOTHING_ABOVE
+  const at = scope.derived.byId.get(parent)
+  if (at === undefined || isMirror(at.node)) return NOTHING_ABOVE
+  const chain = [...ancestorsOf(scope.derived, parent), at as LocatedRegular]
+  const done = chain.filter((one) => storedMarker(one.node) === "done")
+  return done.length === 0 ? NOTHING_ABOVE : done
+}
+
+/**
+ * The `done` marks INSIDE a subtree that stand over unfinished work in it —
+ * the contradiction a restored branch can be carrying in its own luggage.
+ *
+ * THE HOLE THIS CLOSES (grok's review of #207). Both doors exempt the archive,
+ * for a reason that is right: work put away is over, so nothing in there is
+ * unfinished and nothing in there is hidden by a mark. But an exemption is a
+ * place where the state can legally be BORN — `set_done` on an archived branch
+ * over an archived `todo` is refused nowhere — and `unarchive` then carries it
+ * into the live set, where door two was only ever looking ABOVE the landing.
+ * The contradiction landed through an ops write, which is precisely what these
+ * gates promise cannot happen; the git-merge residual the docs carve out is a
+ * set that arrived some other way, not one this planner wrote.
+ *
+ * REOPENED RATHER THAN REFUSED, which is door two's answer and not door one's,
+ * for door two's reason plus one that is decisive on its own. The person is
+ * not making a claim: they are asking for their subtree back, and the marks in
+ * it went stale exactly as an ancestor's does — true while the branch was over,
+ * false the moment it is live again. The exemption is about where a node LIVES,
+ * so it ends here, and so does what it was protecting. And a refusal would be
+ * unfixable from the web: the trash is deliberately not a place you edit (no
+ * checkbox, no `•••`, one verb — `web/src/client/trash/TrashPage.tsx`), so
+ * "clear those marks first" is advice a person cannot take. Work would be
+ * stranded in the trash by the gate that exists to keep work visible.
+ *
+ * Every one of them, not just the root: `A` done over `B` done over `C` todo
+ * is two claims that hide `C`, and door one's own walk refuses both when they
+ * are made in the live set.
+ *
+ * Cycle-safe like every walk here, and it runs on `unarchive` alone — the one
+ * op that crosses out of the exemption.
+ */
+const contradictedWithin = (
+  scope: Scope,
+  id: string,
+): ReadonlyArray<LocatedRegular> => {
+  const at = scope.derived.byId.get(id)
+  if (at === undefined || isMirror(at.node)) return NOTHING_ABOVE
+  const found: Array<LocatedRegular> = []
+  const seen = new Set<string>()
+  const consider = (one: LocatedRegular): void => {
+    if (seen.has(one.node.id)) return
+    seen.add(one.node.id)
+    if (
+      storedMarker(one.node) === "done" &&
+      unfinishedWithin(scope.derived, one.node.id).length > 0
+    ) {
+      found.push(one)
+    }
+    for (const child of countedChildren(scope.derived, one.node.id)) consider(child)
+  }
+  consider(at as LocatedRegular)
+  return found.length === 0 ? NOTHING_ABOVE : found
+}
+
+/** Whether a subtree that is about to arrive somewhere holds work that is not
+ *  finished — the node's own mark, or any unfinished task below it. What
+ *  {@link arriving}'s `brings` is answered with when the thing arriving is
+ *  already in the set: a branch of bullets and done work lands under a
+ *  finished ancestor without contradicting it. */
+const holdsOpenWork = (scope: Scope, node: RegularNode): boolean =>
+  unfinished(storedMarker(node)) || unfinishedWithin(scope.derived, node.id).length > 0
+
+/**
+ * DOOR TWO, done to a plan: the whole obligation in one move.
+ *
+ * ONE FUNCTION BECAUSE IT IS ONE OBLIGATION, and it was four. Taking a stale
+ * `done` off is three things that must happen together or not at all — the
+ * mark comes off the record, the commit subject names what it took off, and
+ * the answer says so — and each of them was a separate call the five arrival
+ * sites each had to remember to make, off a shared `above` they each had to
+ * compute and each had to spell the empty case of.
+ *
+ * That shape is a rule held in the author's memory rather than in the code,
+ * and two of its three failure modes are SILENT: a site that rewrote the
+ * records and forgot the sentence takes a person's mark off without telling
+ * them — which is the exact half of the ruling that says this may never land
+ * quietly — and one that wrote the sentence without the rewrite says a thing
+ * that is not true of the file. The third loses the git record. Fused, none of
+ * the three is reachable: there is one place where the mark comes off, and it
+ * is the same expression that writes the other two.
+ *
+ * It takes the PLAN the write has already decided and hands back the plan it
+ * becomes, which is why it can own all three: the records are in `files`, the
+ * subject is `summary`, the sentence is `nudge`. A write with nothing arriving
+ * gets its own plan back, unchanged and unallocated.
+ *
+ * The `nudge` it finds is KEPT and this news goes in front of it: a merge that
+ * carried a mark off to the archive, or a `done` that finished the last task
+ * under a parent, still has its own thing to say, and the two are one field on
+ * one answer.
+ */
+const arriving = (
+  scope: Scope,
+  /** Where the open work LANDS: the outline it is written in, and the node it
+   *  hangs off — absent at top level, where nothing stands above it. Plus, for
+   *  the one arrival that can carry a contradiction of its own, the subtree
+   *  being restored ({@link contradictedWithin}). */
+  at: {
+    readonly file: string
+    readonly parent: string | undefined
+    readonly restoring?: string
+  },
+  /** Whether what is arriving holds work that is not finished. The caller's to
+   *  answer, because only the caller knows what is arriving — a subtree the
+   *  set already holds ({@link holdsOpenWork}) or a capture that is not on
+   *  disk yet ({@link capturesOpenWork}).
+   *
+   *  A THUNK, and that is about cost rather than taste. Answering it can mean
+   *  walking a whole arriving branch, while the question asked first below is
+   *  a handful of map lookups up the parent chain — and the chain says no on
+   *  nearly every write in a set, since a `done` ancestor is the rare thing
+   *  this exists to catch. Passed as a value, every move, merge and unarchive
+   *  in the system would pay for the subtree walk to learn nothing. */
+  brings: () => boolean,
+  plan: Plan,
+): Plan => {
+  // The two halves of one question — which `done` marks would stand over
+  // unfinished work once this write lands — asked outside-in. Above the
+  // landing, only when something unfinished is actually arriving; inside what
+  // arrives, which needs no such gate because a contradiction in there IS
+  // unfinished work in there.
+  const above = staleDoneAbove(scope, at.file, at.parent)
+  const inside = at.restoring === undefined
+    ? NOTHING_ABOVE
+    : contradictedWithin(scope, at.restoring)
+  const reopened = [
+    ...(above.length > 0 && brings() ? above : NOTHING_ABOVE),
+    ...inside,
+  ]
+  if (reopened.length === 0) return plan
+
+  const titles = reopened.map((one) => one.node.title)
+  const one = reopened.length === 1
+  // Stamped `changed` like any other write, because this IS a write to them.
+  const undone = new Set(reopened.map((one) => one.node.id))
+  const said = `${titles.map((title) => `\`${title}\``).join(", ")} ` +
+    `${one ? "was" : "were"} marked done over work that is not finished — ` +
+    `done-hidden would have swept it off the page, so ` +
+    `${one ? "that mark is" : "those marks are"} off now. Mark ` +
+    `${one ? "it" : "them"} done again when the branch really is finished.`
+
+  return {
+    ...plan,
+    files: plan.files.map((planned) =>
+      planned.file !== at.file ? planned : {
+        file: planned.file,
+        nodes: planned.nodes.map((record) => {
+          if (!undone.has(record.id)) return record
+          const next: Draft<RegularNode> = { ...(record as RegularNode) }
+          delete next.done
+          return touched(scope, next)
+        }),
+      }
+    ),
+    // The COMMIT says it too, which is the record that outlives the answer: a
+    // mark taken off a node nobody named belongs in the subject line, not only
+    // in a sentence the writer read once.
+    summary: `${plan.summary} (reopened: ${titles.join(", ")})`,
+    nudge: plan.nudge === undefined ? said : `${said} ${plan.nudge}`,
+  }
 }
 
 // ── title / desc / date ────────────────────────────────────────────────
@@ -1251,7 +1664,19 @@ const planMove = (
   // A mirror has no title of its own — it is a placement of a node that does —
   // so what the commit line calls it is the id it was named by.
   const title = isMirror(node) ? request.id : node.title
-  return Result.succeed({
+
+  // DOOR TWO: a subtree carrying unfinished work, landing somewhere new. Only
+  // when the PARENT changes — a reorder among the same siblings arrives under
+  // nothing it was not already under, and an ancestor's mark is not this
+  // write's business to touch over a keystroke that moved a row up one place.
+  // A MIRROR is never asked: it is a placement, and a placement is not
+  // containment, so moving one under a finished branch says nothing about
+  // where the work it draws actually lives.
+  const brings = () =>
+    parent !== node.parent && !isMirror(node) &&
+    holdsOpenWork(scope, node as RegularNode)
+
+  return Result.succeed(arriving(scope, { file, parent }, brings, {
     files: [
       {
         file,
@@ -1265,7 +1690,7 @@ const planMove = (
     title,
     file,
     summary: `move: ${title}`,
-  })
+  }))
 }
 
 const withParent = <N extends Node>(node: N, parent: string | undefined): N => {
@@ -1461,9 +1886,20 @@ const planMerge = (
       record.id === into.id ? merged : reparented.get(record.id) ?? record
     )
 
+  // DOOR TWO, at the arrival nobody would think to look for: the adopted rows
+  // move UNDER the survivor, so a branch somebody called finished can acquire
+  // an unfinished task by way of a Backspace at the start of a line. The
+  // merged node's own mark goes to the archive with its record, so it is the
+  // rows it hands over that this asks about — placements excluded, as
+  // everywhere.
+  const brings = () =>
+    adopted.some((child) =>
+      !isMirror(child.node) && holdsOpenWork(scope, child.node as RegularNode)
+    )
+
   const { existing, scaffold, buried } = buriedIn(scope, archive, node)
   const nudge = carriedOff(scope, node)
-  return Result.succeed({
+  return Result.succeed(arriving(scope, { file, parent: into.id }, brings, {
     files: [
       { file, nodes: keeps },
       { file: archive, nodes: [...existing, ...scaffold, buried] },
@@ -1473,7 +1909,7 @@ const planMerge = (
     file,
     summary: `merge: ${title}`,
     ...(nudge === undefined ? {} : { nudge }),
-  })
+  }))
 }
 
 /** What merging a node would produce: the row it joins, and the two texts that
@@ -1662,6 +2098,15 @@ const planCreate = (
     below: NESTING,
   })
   if (refused !== null) return Result.fail(refused)
+
+  // ...and the same DOOR ONE, in the same place in the sequence and for the
+  // same reason ({@link planAdd}): a seed is a capture, so a node born done
+  // over a task born under it is the same self-contradiction spelled through
+  // the other verb, and the nesting refusal speaks before anything walks the
+  // tree. There is no door two here — a brand-new outline has no ancestors for
+  // anything to arrive under.
+  const contradicts = capturedOverOpenWork(seed)
+  if (contradicts !== undefined) return Result.fail(contradicts)
 
   const under = minted.length - 1
   return Result.succeed({
@@ -2057,22 +2502,34 @@ const planUnarchive = (
     up = holder.parent
   }
 
-  const arriving = recordsOf(scope, destination)
+  const already = recordsOf(scope, destination)
   const reparented: Node = {
     ...withParent(node, parent),
-    ord: appendedOrd([arriving], parent),
+    ord: appendedOrd([already], parent),
   }
 
-  return Result.succeed({
-    files: [
-      { file, nodes: keeps.filter((record) => !dropped.has(record.id)) },
-      { file: destination, nodes: [...arriving, reparented, ...descendants] },
-    ],
-    id: node.id,
-    title: node.title,
-    file: destination,
-    summary: `unarchive: ${node.title}`,
-  })
+  // DOOR TWO, at the one arrival the archive itself sends, and the only one
+  // that has to be asked TWICE. What it comes back under may have been called
+  // finished in the meantime — and so may something inside it, since the
+  // archive is where such a mark can legally be written
+  // ({@link contradictedWithin}). The exemption is about where a node LIVES,
+  // so both halves of it stop the moment the node stops living there.
+  return Result.succeed(
+    arriving(scope, {
+      file: destination,
+      parent,
+      restoring: node.id,
+    }, () => holdsOpenWork(scope, node), {
+      files: [
+        { file, nodes: keeps.filter((record) => !dropped.has(record.id)) },
+        { file: destination, nodes: [...already, reparented, ...descendants] },
+      ],
+      id: node.id,
+      title: node.title,
+      file: destination,
+      summary: `unarchive: ${node.title}`,
+    }),
+  )
 }
 
 /**

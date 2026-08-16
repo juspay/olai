@@ -24,8 +24,13 @@
  * without a server, an agent or a socket.
  */
 
-import { isMirror, type LocatedRegular, type OpFailure } from "@olai/format"
-import { notANode, notFound, Query, type Reading } from "@olai/ops"
+import {
+  isMirror,
+  type LocatedRegular,
+  type OpFailure,
+  type Reading,
+} from "@olai/format"
+import { notANode, notFound, Query } from "@olai/ops"
 import type { NodeContext } from "@olai/surface"
 import { Result } from "effect"
 

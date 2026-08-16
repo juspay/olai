@@ -57,25 +57,25 @@ test("words are case-folded substrings, and every one must be in the same node",
 })
 
 test("a tag is found bare and as written", () => {
-  expect(selects("#home")).toEqual(["kitchen", "hinges", "herbs"])
+  expect(selects("#home")).toEqual(["herbs", "kitchen", "hinges"])
   // Bare, so it also reaches the word wherever else it appears.
-  expect(selects("home")).toEqual(["kitchen", "hinges", "herbs"])
+  expect(selects("home")).toEqual(["herbs", "kitchen", "hinges"])
   expect(selects("#outdoors")).toEqual(["garden"])
 })
 
 test("`is:` reads the mark the node STORES, never a derived one", () => {
-  expect(selects("is:done")).toEqual(["demo", "basil"])
-  expect(selects("is:doing")).toEqual(["kitchen", "order", "herbs"])
+  expect(selects("is:done")).toEqual(["basil", "demo"])
+  expect(selects("is:doing")).toEqual(["herbs", "kitchen", "order"])
   expect(selects("is:todo")).toEqual(["hinges"])
   // `install` has a done child and no mark of its own: a bullet is not a task,
   // and a rollup is not a status.
   expect(selects("is:marked")).toEqual([
+    "herbs",
+    "basil",
     "kitchen",
     "demo",
     "order",
     "hinges",
-    "herbs",
-    "basil",
   ])
 })
 
@@ -119,7 +119,7 @@ test("`date:` reads the two dates a journal reads — scheduled, and finished", 
 // so a node found by `date:2026-08-03` (a dated `done`) is also found by
 // `has:date`. Two answers to one word is the thing that would be wrong.
 test("`has:date` is the same walk `date:` reads, unbounded", () => {
-  expect(selects("has:date")).toEqual(["demo", "order", "basil"])
+  expect(selects("has:date")).toEqual(["basil", "demo", "order"])
   // `hinges` carries `todo:"2026-08-11"` and no `date` — a journal reads
   // neither a dated `doing` nor a dated `todo`, and neither does this.
   expect(selects("has:date")).not.toContain("hinges")
@@ -128,14 +128,14 @@ test("`has:date` is the same walk `date:` reads, unbounded", () => {
 test("a month and a year are prefixes; a range is two comparisons", () => {
   expect(selects("date:2026-08")).toEqual(["demo", "order"])
   expect(selects("date:2026-07")).toEqual(["basil"])
-  expect(selects("date:2026")).toEqual(["demo", "order", "basil"])
+  expect(selects("date:2026")).toEqual(["basil", "demo", "order"])
   expect(selects("date:2026-08-04..2026-08-20")).toEqual(["order"])
-  expect(selects("date:..2026-08-03")).toEqual(["demo", "basil"])
+  expect(selects("date:..2026-08-03")).toEqual(["basil", "demo"])
   expect(selects("date:2026-08-04..")).toEqual(["order"])
 })
 
 test("`-` negates whichever kind of token it is in front of", () => {
-  expect(selects("#home -is:done")).toEqual(["kitchen", "hinges", "herbs"])
+  expect(selects("#home -is:done")).toEqual(["herbs", "kitchen", "hinges"])
   expect(selects("cabinets -is:doing")).toEqual(["install"])
   expect(selects("is:done -basil")).toEqual(["demo"])
   // A bare `-` is a character somebody typed, not a negation of nothing — so
@@ -158,14 +158,14 @@ test("clauses and words compose", () => {
  */
 test("`prop:key` finds every node carrying that key", () => {
   expect(selects("prop:pr")).toEqual(["order"])
-  expect(selects("prop:agent")).toEqual(["order", "basil"])
+  expect(selects("prop:agent")).toEqual(["basil", "order"])
   expect(selects("prop:isbn")).toEqual([])
 })
 
 test("`prop:key=value` finds the nodes whose value is that", () => {
   // The query the design was written for: every lane this agent ran, out of
   // facts nobody had to re-parse by eye.
-  expect(selects("prop:agent=claude-opus")).toEqual(["order", "basil"])
+  expect(selects("prop:agent=claude-opus")).toEqual(["basil", "order"])
   expect(selects("prop:agent=codex")).toEqual([])
   // A LIST matches on any member — a fact can be several.
   expect(selects("prop:tags=walnut")).toEqual(["order"])
@@ -179,8 +179,8 @@ test("`prop:key=value` finds the nodes whose value is that", () => {
  * gives no key a spelling.
  */
 test("a key and a value are found however they were capitalised", () => {
-  expect(selects("prop:AGENT")).toEqual(["order", "basil"])
-  expect(selects("prop:Agent=Claude-Opus")).toEqual(["order", "basil"])
+  expect(selects("prop:AGENT")).toEqual(["basil", "order"])
+  expect(selects("prop:Agent=Claude-Opus")).toEqual(["basil", "order"])
 })
 
 /** It reads `custom` and nothing else — a field of the record is not a
@@ -293,8 +293,8 @@ test("a refusal quotes the token the way it was typed", () => {
   expect(refusalsOf("Date:Soon")?.[0]?.token).toBe("Date:Soon")
   expect(refusalsOf("-HAS:tags")?.[0]?.token).toBe("-HAS:tags")
   // ...while everything that MATCHES still folds, so the two cannot be confused.
-  expect(selects("IS:DONE")).toEqual(["demo", "basil"])
-  expect(selects("#HOME")).toEqual(["kitchen", "hinges", "herbs"])
+  expect(selects("IS:DONE")).toEqual(["basil", "demo"])
+  expect(selects("#HOME")).toEqual(["herbs", "kitchen", "hinges"])
   expect(selects("CABINETS")).toEqual(["order", "install"])
 })
 
@@ -314,7 +314,7 @@ test("what was put away stays put away until it is asked for", () => {
   expect(selects("is:archived")).toEqual(["gone"])
   expect(selects("#home is:archived")).toEqual(["gone"])
   // Saying it out loud is the same default said out loud.
-  expect(selects("#home -is:archived")).toEqual(["kitchen", "hinges", "herbs"])
+  expect(selects("#home -is:archived")).toEqual(["herbs", "kitchen", "hinges"])
 })
 
 // ── which field carried it ─────────────────────────────────────────────

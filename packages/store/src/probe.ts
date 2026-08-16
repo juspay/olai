@@ -2,10 +2,18 @@
  * The probe: the only source of truth about what is on disk.
  *
  * Re-list the tree, re-stat everything, diff against the stamp table, re-read
- * and re-decode ONLY what the stamps say changed. Nothing here is told what
- * happened — not by a watcher event, not by a write the store itself made — so
- * the probe is idempotent, and the state it produces converges on disk truth
- * after any disturbance whether every event lied or none arrived.
+ * and re-decode ONLY what the stamps say changed. Nothing here is BELIEVED
+ * about what happened — not a watcher event, not a write the store itself made
+ * — so the probe is idempotent, and the state it produces converges on disk
+ * truth after any disturbance whether every event lied or none arrived.
+ *
+ * A caller does get to say what it has just put on disk — a {@link Probe.run}
+ * takes that as an argument — and it is a promise rather than an instruction:
+ * the file is listed, statted and read exactly as it would have been, and the
+ * promised decode is taken only when the bytes that come back are the promised
+ * bytes. Everything above still learns what is on the disk; what it saves is
+ * decoding the same bytes twice into two values that a codec would then have to
+ * judge twice.
  *
  * The two halves of "what changed" are the two things a store can skip:
  *
@@ -56,8 +64,85 @@ export interface Found<F, E> {
   readonly removed: ReadonlyArray<string>
 }
 
+/**
+ * Whether two decoded sets are the SAME MAP: the same paths, IN THE SAME ORDER,
+ * each holding the very value the other holds.
+ *
+ * IDENTITY per entry, not equality — nothing in this package looks inside what
+ * a codec decoded to, so it has no way to compare two of them and no business
+ * trying. It is enough because identity is a promise this module makes and can
+ * keep: a file whose stamp did not move keeps the value it was cached with, and
+ * a file a write both decoded and read back holds the value it was promised
+ * with ({@link Probe.decode}). Nothing here ever hands out a fresh value for
+ * bytes it has already answered about.
+ *
+ * ORDER COUNTS, and that is not fussiness: a `Map` is ITERATED, a codec is
+ * handed the whole map, and what one makes of the order is inside a value this
+ * package refuses to look into. Answering a question about one map with a
+ * verdict about a differently-ordered one would be this package promising, on a
+ * codec's behalf, something only that codec can know — and this package's one
+ * promise about order is that it makes none ({@link Codec.validate}).
+ *
+ * It costs exactly the writes that change the KEY SET: a path that did not
+ * exist before is appended to the gate's candidate and comes back in the
+ * LISTING's place, so a create that sorts ahead of an existing file
+ * re-validates, and one that sorts behind does not. Every write to a file the
+ * set already holds leaves the order untouched, which is every keystroke.
+ *
+ * BELT, and olai's codec is the braces: a set assembled out of this map is put
+ * in path order by `assemble` itself, so for THAT codec a re-ordering could no
+ * longer change an answer. The belt stays because knowing that is knowing what
+ * is inside the value — which is the one thing this package will not do.
+ *
+ * It lives HERE rather than beside its one caller ({@link ./store.ts}'s
+ * `publish`, which spends a verdict on the set it was reached about): the
+ * caller asks the question, and this is the module whose answer to it means
+ * anything. A difference of any kind — a neighbour re-decoded by the same
+ * probe, a file that arrived, left or moved in the order, our own bytes
+ * overwritten by somebody else between a rename and the read — comes back
+ * `false`.
+ */
+export const sameDecoded = <F, E>(
+  one: Decoded<F, E>,
+  other: Decoded<F, E>,
+): boolean => {
+  if (one.size !== other.size) return false
+  // Walked in step rather than looked up, which is the whole of what makes this
+  // an answer about the MAP and not about its key set.
+  const theirs = other[Symbol.iterator]()
+  for (const [path, decoded] of one) {
+    const next = theirs.next()
+    // `done` cannot be reached past the size check above; it is here because
+    // the iterator's type says it can be, and a cast would be a claim about
+    // the runtime rather than a reading of it.
+    if (next.done === true) return false
+    const [theirPath, theirDecoded] = next.value
+    if (theirPath !== path || theirDecoded !== decoded) return false
+  }
+  return true
+}
+
 export interface Probe<F, E> {
-  readonly run: Effect.Effect<Found<F, E> | null, PlatformFailure>
+  /**
+   * Look, and say what moved — or `null` for a listing identical to the last.
+   *
+   * `promised` is what the CALLER has just put on disk ({@link Probe.decode}),
+   * and it is a promise rather than an instruction: every file is listed,
+   * statted and read exactly as it would have been, and a promised value is
+   * taken only where the bytes that come back are the promised bytes. A
+   * foreign writer who overwrote the file in the moment between a rename and
+   * this read is still what gets published, and this is still what decides.
+   *
+   * WHY IT IS AN ARGUMENT and not something the probe was told earlier: it is
+   * true of exactly one read, the one the caller is asking for here. Held as
+   * state it would be an obligation with a collection deadline — a probe
+   * landing in between would eat it silently, and a write that never got as
+   * far as renaming would leave it lying about — and neither of those is a
+   * thing a signature can say. As a parameter its lifetime is the call's.
+   */
+  readonly run: (
+    promised?: ReadonlyMap<string, Promised<F, E>>,
+  ) => Effect.Effect<Found<F, E> | null, PlatformFailure>
   /** What the last probe decoded, without going near the disk — empty before
    *  the first one. The write gate needs it: a commit validates the set it
    *  WOULD produce, which is this map with the changed files swapped in, and
@@ -71,6 +156,23 @@ export interface Probe<F, E> {
    *  whether it was pruned, never claimed by the codec, or spelled to climb out
    *  of the root altogether. */
   readonly holds: (path: string) => Effect.Effect<boolean>
+  /**
+   * Decode bytes a write is ABOUT to put on disk, as the promise {@link run}
+   * takes.
+   *
+   * The write gate decodes what it is about to write in order to validate the
+   * set it would make, and then renames the files and asks for a probe — which
+   * reads those same bytes back and would decode them a SECOND time, into a
+   * value equal to the one already in hand and not the same one. What that
+   * costs is not the decode: it is that the two sets are then two different
+   * values, so the codec has to judge the whole corpus again to say about the
+   * second what it just said about the first ({@link ./store.ts}'s `commit`).
+   *
+   * PURE, and the only way to make a {@link Promised}: the promise's whole
+   * content is "these bytes decode to this value", and a caller pairing the two
+   * by hand could pair them wrongly.
+   */
+  readonly decode: (path: string, contents: string) => Promised<F, E>
   /** Forget these files' stamps, so the next {@link run} re-reads them
    *  whatever the file system says about mtime and size.
    *
@@ -88,16 +190,25 @@ interface Cached<F, E> {
   readonly decoded: Result.Result<F, E>
 }
 
+/** One promise a write makes about a path: these bytes, decoded to this. The
+ *  probe reading that path either finds those exact bytes and takes the value,
+ *  or finds something else and decodes what it found ({@link Probe.decode}). */
+export interface Promised<F, E> {
+  readonly contents: string
+  readonly decoded: Result.Result<F, E>
+}
+
 export const make = <F, S, E>(
   disk: Disk,
   codec: Codec<F, S, E>,
 ): Effect.Effect<Probe<F, E>> =>
-  Effect.map(
+  Effect.gen(function*() {
     // `null`, not an empty map: an empty directory is a real answer that must
     // be published once, and only "has never been probed" may be indistinct
     // from it.
-    Ref.make<ReadonlyMap<string, Cached<F, E>> | null>(null),
-    (cache) => ({
+    const cache = yield* Ref.make<ReadonlyMap<string, Cached<F, E>> | null>(null)
+
+    return {
       current: Effect.map(
         Ref.get(cache),
         (cached) =>
@@ -117,80 +228,102 @@ export const make = <F, S, E>(
           return kept
         }),
 
-      run: Effect.gen(function*() {
-        const previous = yield* Ref.get(cache)
-        const stamps = yield* disk.listing(codec.match)
-
-        const stale = [...stamps].filter(([path, stamp]) => {
-          const cached = previous?.get(path)
-          return cached === undefined || !sameStamp(cached.stamp, stamp)
-        })
-        // Nothing new and nothing gone — so nothing the codec could say has
-        // changed. The size check is what catches a DELETION, which leaves no
-        // stale entry behind to be noticed by. Asked here, off the one diff,
-        // rather than by a second walk that would have to agree with it.
-        const settled = previous !== null && stale.length === 0 &&
-          previous.size === stamps.size
-        if (settled) return null
-
-        // ONE answer per stale file: what it decodes to, or `null` for one that
-        // was deleted between the stat and the read.
-        const fresh = new Map<string, Result.Result<F, E> | null>()
-        // The ones the codec answers for by NAME are answered first and never
-        // reach the disk at all — not at boot, not when they change
-        // ({@link Codec.byName}). Taken out of the list BEFORE the reads rather
-        // than resolved inside them: they need no file opened, so they should
-        // not be waiting on a permit from a pool that is there to bound how
-        // many files are open at once.
-        const opening: Array<string> = []
-        for (const [path] of stale) {
-          const named = codec.byName?.(path) ?? null
-          if (named === null) opening.push(path)
-          else fresh.set(path, named)
-        }
-        for (
-          const [path, contents] of yield* Effect.forEach(
-            opening,
-            (path) => Effect.map(disk.read(path), (contents) => [path, contents] as const),
-            { concurrency: 16 },
-          )
-        ) {
-          fresh.set(path, contents === null ? null : codec.decode(path, contents))
-        }
-
-        const next = new Map<string, Cached<F, E>>()
-        const changed: Array<string> = []
-        for (const [path, stamp] of stamps) {
-          const decoded = fresh.get(path)
-          if (decoded === undefined) {
-            // Not stale: keep what it decoded to, and the stamp that says so.
-            const cached = previous?.get(path)
-            if (cached !== undefined) next.set(path, { stamp, decoded: cached.decoded })
-            continue
-          }
-          // Read back as gone — it was deleted between the stat and the read.
-          // Leaving it out is what the next probe would conclude anyway, and it
-          // is a REMOVAL rather than a change, which the loop below sees.
-          if (decoded === null) continue
-          next.set(path, { stamp, decoded })
-          changed.push(path)
-        }
-        // Off the same map the decode loop just built, so "gone" cannot mean
-        // one thing here and another there: anything the last probe held that
-        // this one does not is removed, whether the listing lost it or the read
-        // did.
-        const removed: Array<string> = []
-        for (const path of previous?.keys() ?? []) {
-          if (!next.has(path)) removed.push(path)
-        }
-
-        yield* Ref.set(cache, next)
-        return {
-          files: new Map([...next].map(([path, { decoded }]) => [path, decoded])),
-          changed,
-          removed,
-        }
+      decode: (path: string, contents: string) => ({
+        contents,
+        decoded: codec.decode(path, contents),
       }),
-    }),
-  )
+
+      run: (promised) =>
+        Effect.gen(function*() {
+          const previous = yield* Ref.get(cache)
+          const stamps = yield* disk.listing(codec.match)
+
+          const stale = [...stamps].filter(([path, stamp]) => {
+            const cached = previous?.get(path)
+            return cached === undefined || !sameStamp(cached.stamp, stamp)
+          })
+          // Nothing new and nothing gone — so nothing the codec could say has
+          // changed. The size check is what catches a DELETION, which leaves no
+          // stale entry behind to be noticed by. Asked here, off the one diff,
+          // rather than by a second walk that would have to agree with it.
+          const settled = previous !== null && stale.length === 0 &&
+            previous.size === stamps.size
+          if (settled) return null
+
+          // ONE answer per stale file: what it decodes to, or `null` for one that
+          // was deleted between the stat and the read.
+          const fresh = new Map<string, Result.Result<F, E> | null>()
+          // The ones the codec answers for by NAME are answered first and never
+          // reach the disk at all — not at boot, not when they change
+          // ({@link Codec.byName}). Taken out of the list BEFORE the reads rather
+          // than resolved inside them: they need no file opened, so they should
+          // not be waiting on a permit from a pool that is there to bound how
+          // many files are open at once.
+          const opening: Array<string> = []
+          for (const [path] of stale) {
+            const named = codec.byName?.(path) ?? null
+            if (named === null) opening.push(path)
+            else fresh.set(path, named)
+          }
+          for (
+            const [path, contents] of yield* Effect.forEach(
+              opening,
+              (path) => Effect.map(disk.read(path), (contents) => [path, contents] as const),
+              { concurrency: 16 },
+            )
+          ) {
+            if (contents === null) {
+              fresh.set(path, null)
+              continue
+            }
+            // A file whose bytes are the ones this caller promised is not decoded
+            // again: the value that comes back is the value the write validated,
+            // and being the SAME value is what lets the gate publish that verdict
+            // rather than reaching a second one about a second set. Anything else
+            // — including this path holding something else now — decodes here as
+            // it always did.
+            const promise = promised?.get(path)
+            fresh.set(
+              path,
+              promise?.contents === contents
+                ? promise.decoded
+                : codec.decode(path, contents),
+            )
+          }
+
+          const next = new Map<string, Cached<F, E>>()
+          const changed: Array<string> = []
+          for (const [path, stamp] of stamps) {
+            const decoded = fresh.get(path)
+            if (decoded === undefined) {
+              // Not stale: keep what it decoded to, and the stamp that says so.
+              const cached = previous?.get(path)
+              if (cached !== undefined) next.set(path, { stamp, decoded: cached.decoded })
+              continue
+            }
+            // Read back as gone — it was deleted between the stat and the read.
+            // Leaving it out is what the next probe would conclude anyway, and it
+            // is a REMOVAL rather than a change, which the loop below sees.
+            if (decoded === null) continue
+            next.set(path, { stamp, decoded })
+            changed.push(path)
+          }
+          // Off the same map the decode loop just built, so "gone" cannot mean
+          // one thing here and another there: anything the last probe held that
+          // this one does not is removed, whether the listing lost it or the read
+          // did.
+          const removed: Array<string> = []
+          for (const path of previous?.keys() ?? []) {
+            if (!next.has(path)) removed.push(path)
+          }
+
+          yield* Ref.set(cache, next)
+          return {
+            files: new Map([...next].map(([path, { decoded }]) => [path, decoded])),
+            changed,
+            removed,
+          }
+        }),
+    }
+  })
 

@@ -25,7 +25,6 @@ import {
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
-  derive,
   type Derived,
   type Detail,
   errorLine,
@@ -83,35 +82,17 @@ import {
  * this package's.
  */
 
-// ── the index every query is asked of ──────────────────────────────────
-
-/**
- * The derivations, computed once for a run of queries.
- *
- * `derive` walks the whole set, and every answer below needs the same walk, so
- * the caller does it once and hands it down. That is also why only
- * {@link outlines} still takes the `OutlineSet` itself: it is the one answer
- * that reads something the derivations do not carry — which files were found,
- * and which of them did not parse.
- */
-export const index = (set: OutlineSet): Derived => {
-  const known = INDEXED.get(set)
-  if (known !== undefined) return known
-  const derived = derive(set.nodes)
-  INDEXED.set(set, derived)
-  return derived
-}
-
-/**
- * Memoised on the SET'S OWN IDENTITY, which is exactly the right key and needs
- * no invalidation: the store replaces the whole `OutlineSet` object when a
- * probe finds a change, so one object is one revision, forever. An agent that
- * lists the outlines and then searches three times used to walk the whole tree
- * four times; a write that follows those reads walked it once more.
- *
- * Weak, so a superseded revision is collectable the moment nothing holds it.
- */
-const INDEXED = new WeakMap<OutlineSet, Derived>()
+// ── where the index every query is asked of comes from ─────────────────
+//
+// NOT FROM HERE, which is the change worth naming: every answer below needs
+// the same walk, and this file used to make it behind a memo keyed on the set's
+// own identity — the right key for a derivation nobody carried, since the
+// validator built one, dropped it, and the first reader of the published set
+// built it again. The pair is published now (`@olai/format`'s `Reading`, which
+// is what `validate` answers with and what {@link ./deps.ts}'s store holds), so
+// the derivation arrives with the snapshot and the memo has nothing left to
+// save. A caller holding a bare set and no derivation is a test fixture, and it
+// says `derive(set.nodes)`.
 
 /**
  * One node, situated — the shape every read here answers with.

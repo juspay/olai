@@ -34,7 +34,7 @@
  * (`runtime.ts`) and needs no projection.
  */
 
-import type { OutlineSet } from "@olai/format"
+import { nodesOf, type Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, OutlineEntry } from "@olai/surface"
 
@@ -106,11 +106,11 @@ export interface Published {
  * rather than papered over.
  */
 const documentsOf = (
-  snapshot: Snapshot<OutlineSet>,
+  snapshot: Snapshot<Reading>,
   held: Change<DocumentEntry> | undefined,
 ): Pick<Published, "documents" | "unread"> => {
   const change = changeOf(
-    snapshot.value.documents,
+    snapshot.value.set.documents,
     (document) => document.file,
     (document) => ({ rev: snapshot.rev, text: document.text }),
     snapshot,
@@ -185,15 +185,16 @@ const changeOf = <S, T>(
  * outline the sidebar stopped showing because it broke.
  */
 export const publishedOf = (
-  snapshot: Snapshot<OutlineSet>,
+  snapshot: Snapshot<Reading>,
   published: Published | null,
 ): Published => {
-  const set = snapshot.value
+  const { set, derived } = snapshot.value
   // The set is FLAT and every record names its own file, so a file's slice is
-  // that grouping — taken in one pass rather than one filter per file, because
-  // this runs on every revision of a directory that can hold any number of
-  // both.
-  const byFile = Map.groupBy(set.nodes, (located) => located.file)
+  // that grouping — and the grouping is READ rather than made, through the
+  // format's own reader of it (`nodesOf`, over the `byFile` index the snapshot
+  // now carries), so "what does this outline hold" has one spelling here and at
+  // the writers. It used to be a `Map.groupBy` of every record, run on every
+  // revision of a directory that can hold any number of both.
   const broken = new Map(set.broken.map((file) => [file.file, file] as const))
 
   return {
@@ -202,7 +203,7 @@ export const publishedOf = (
       (file) => file,
       (file) => ({
         rev: snapshot.rev,
-        nodes: byFile.get(file) ?? [],
+        nodes: nodesOf(derived, file),
         broken: broken.get(file) ?? null,
       }),
       snapshot,

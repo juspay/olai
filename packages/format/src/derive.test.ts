@@ -24,7 +24,7 @@ import {
   tagText,
   titleParts,
   titleTagRe,
-  unfinishedUnder,
+  unfinishedWithin,
 
   withoutDone,
 } from "./derive.ts"
@@ -205,10 +205,11 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
   )).toEqual({ done: 0, total: 1 })
 })
 
-// The same list read the other way, and the reason it is one list: the ops
-// layer names these in a write-time nudge, and a second walk over the same
-// edges would be a second answer to "is a bullet unfinished".
-test("the unfinished ones are the child tasks that are not done", () => {
+// What a `done` on a node would be a claim about — and what the sweep that
+// honours it would take off the screen. The ops layer refuses a mark over this
+// list, so a second walk over the same edges would be a second answer to "is a
+// bullet unfinished".
+test("the unfinished ones are the tasks in the subtree that are not done", () => {
   const derived = derive(nodesOf(
     `{"id":"p","ord":"a","title":"p"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
@@ -220,8 +221,51 @@ test("the unfinished ones are the child tasks that are not done", () => {
   // `doing` and `todo` alike — both are tasks that are not done. Never the
   // note, which is not a task, and never the mirror, which is not a second
   // obligation.
-  expect(ids(unfinishedUnder(derived, "p"))).toEqual(["c2", "c3"])
-  expect(unfinishedUnder(derived, "c1")).toEqual([])
+  expect(ids(unfinishedWithin(derived, "p"))).toEqual(["c2", "c3"])
+  expect(unfinishedWithin(derived, "c1")).toEqual([])
+})
+
+// DEEP, and in outline order: hiding what is done drops the whole subtree, so
+// the question "what would this mark hide" is not a question about one level.
+// The bullet in the middle is walked THROUGH — it is not a task itself, and
+// the task under it is still a task.
+test("it descends the whole branch, through bullets and finished work alike", () => {
+  const derived = derive(nodesOf(
+    `{"id":"root","ord":"a","title":"root"}\n` +
+      `{"id":"near","parent":"root","ord":"a","title":"near","todo":true}\n` +
+      `{"id":"note","parent":"root","ord":"b","title":"a note"}\n` +
+      `{"id":"deep","parent":"note","ord":"a","title":"deep","doing":true}\n` +
+      `{"id":"shut","parent":"root","ord":"c","title":"shut","done":true}\n` +
+      `{"id":"under","parent":"shut","ord":"a","title":"under a done one","todo":true}`,
+  ))
+  // `under` is in the list even though the `done` on `shut` already hides it:
+  // a second mark above would hide it harder, and the state it is in is the
+  // one this gate exists to stop being made.
+  expect(ids(unfinishedWithin(derived, "root"))).toEqual(["near", "deep", "under"])
+})
+
+// A placement is not containment. The work a mirror draws lives at its target,
+// where its own row keeps it on screen, so it neither counts here nor is
+// walked into — and that holds for a mirror of a whole BRANCH too.
+test("a mirror is never counted and never walked through", () => {
+  const derived = derive(nodesOf(
+    `{"id":"here","ord":"a","title":"here"}\n` +
+      `{"id":"place","parent":"here","ord":"a","mirror":"there"}\n` +
+      `{"id":"there","ord":"b","title":"there","todo":true}\n` +
+      `{"id":"below","parent":"there","ord":"a","title":"below","todo":true}`,
+  ))
+  expect(unfinishedWithin(derived, "here")).toEqual([])
+  expect(ids(unfinishedWithin(derived, "there"))).toEqual(["below"])
+})
+
+// Every walk here answers over a set the validator would reject, this one
+// included: a parent loop must not hang the write that asks about it.
+test("a parent loop is walked once", () => {
+  const derived = derive(nodesOf(
+    `{"id":"a","parent":"b","ord":"a","title":"a","todo":true}\n` +
+      `{"id":"b","parent":"a","ord":"a","title":"b","todo":true}`,
+  ))
+  expect(ids(unfinishedWithin(derived, "a"))).toEqual(["b"])
 })
 
 // A mirror shows a node, so it shows that node's mark; a checkbox that
