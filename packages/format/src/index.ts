@@ -138,6 +138,10 @@ export {
   drawnFrom,
   follow,
   nodeNamed,
+  /** One file's records, in the order they are written — the reading of
+   *  `Derived.byFile` a writer needs, because a write re-emits the whole file
+   *  and a reordering would be a diff nobody asked for. */
+  nodesOf,
   progressOf,
   rowsOf,
   rowsUnder,
@@ -163,6 +167,7 @@ export { Progress } from "./derive.ts"
 export type {
   Derived,
   InTheWay,
+  Naming,
   Row,
   Situated,
   TagSigil,
@@ -315,7 +320,7 @@ export { ordBetween } from "./ord.ts"
  *  for them from the answer's, so a field left out of a hit is a field left out
  *  of the line on disk, decided once. A reader carrying its own copy answered a
  *  property `prop:` says the node does not carry. */
-export { heldCustom, nodesOf, nothing, serializeOutline } from "./write.ts"
+export { heldCustom, nothing, serializeOutline } from "./write.ts"
 
 export {
   BusyFailure,

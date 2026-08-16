@@ -32,11 +32,13 @@ import {
   biggestOf,
   changesOf,
   type Node,
+  nodesOf,
   type OutlineSet,
   type Sort,
 } from "@olai/format"
 
 import type { Plan } from "./plan.ts"
+import { index } from "./query.ts"
 
 /**
  * The one word for what this plan does to that set, or `undefined` when it does
@@ -53,19 +55,18 @@ import type { Plan } from "./plan.ts"
  * is exactly what the word means, and the alternative is a panel telling
  * somebody that a write which just made an outline changed nothing.
  *
- * Only the files the plan TOUCHES are compared — one walk of the set keeping
- * one or two outlines' records, and a comparison over those alone rather than
- * over the corpus. (The walk is the set's, because that is the shape the
- * snapshot has: `OutlineSet` is a flat list of located nodes, deliberately, and
- * every consumer that grouped it by file ended up flattening the groups back
- * out. `pending.ts` memoises its own cut of the same thing, and reusing it here
- * would trade this filtered pass for a grouping of every file in the corpus,
- * warm only when a commit survey has already run against this very snapshot.)
- * The comparison is sound because
- * the only op that moves a node between files is `archive`, and it plans both
- * ends — so a node that left one file is matched to the record that arrived in
- * the other, and reads as *archived* rather than as a departure and an unrelated
- * arrival.
+ * Only the files the plan TOUCHES are read — one lookup each, in the
+ * derivation the write was planned against. (The walk this used to be was the
+ * set's own: `OutlineSet` is a flat list of located nodes, deliberately, so
+ * "what does this outline hold" cost a pass over every node in the directory to
+ * keep one or two files' worth. `Derived.byFile` is that grouping, built with
+ * the rest of the derivation and warm for this exact snapshot — `index` is
+ * memoised on the set's identity and `plan` has already asked it, which is why
+ * this can reach for a derivation without paying for one.) The comparison is
+ * sound because the only op that moves a node between files is `archive`, and
+ * it plans both ends — so a node that left one file is matched to the record
+ * that arrived in the other, and reads as *archived* rather than as a departure
+ * and an unrelated arrival.
  */
 export const sortOfWrite = (
   before: OutlineSet,
@@ -88,14 +89,13 @@ export const sortOfWrite = (
     if (prior === undefined) return "created"
     return prior.text === doc.text ? undefined : "edited"
   }
-  const touched = new Set(files.map((planned) => planned.file))
-  const was = new Map<string, Array<Node>>()
-  for (const located of before.nodes) {
-    if (!touched.has(located.file)) continue
-    const nodes = was.get(located.file)
-    if (nodes === undefined) was.set(located.file, [located.node])
-    else nodes.push(located.node)
-  }
+  const derived = index(before)
+  const was = new Map<string, ReadonlyArray<Node>>(
+    files.map((planned) => [
+      planned.file,
+      nodesOf(derived, planned.file).map((located) => located.node),
+    ]),
+  )
   const now = new Map(files.map((planned) => [planned.file, planned.nodes]))
   const changes = changesOf(was, now)
   const change = changes.find((entry) => entry.id === about) ?? biggestOf(changes)

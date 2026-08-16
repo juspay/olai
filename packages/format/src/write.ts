@@ -41,7 +41,7 @@
  */
 
 import { type Custom, type CustomValue, customKeys } from "./custom.ts"
-import { isMirror, type Located, type Node } from "./node.ts"
+import { isMirror, type Node } from "./node.ts"
 
 /**
  * Which fields a record must carry WHATEVER it holds — docs/format.md's
@@ -197,21 +197,3 @@ export const heldCustom = (value: unknown): Custom => {
  */
 export const serializeOutline = (nodes: ReadonlyArray<Node>): string =>
   nodes.length === 0 ? "" : `${nodes.map(serializeNode).join("\n")}\n`
-
-/**
- * One file's nodes out of a flat set, in the order they are written.
- *
- * The set is flat ({@link ./set.ts}), so "what does `pantry.olai` contain" is
- * a filter — and every writer needs the same one, in the same order, because a
- * write re-emits the whole file and a reordering would be a diff nobody asked
- * for. `line` is the order: the records come back in the order they were read,
- * which is the order they are on disk.
- */
-export const nodesOf = (
-  nodes: ReadonlyArray<Located>,
-  file: string,
-): ReadonlyArray<Located> =>
-  nodes
-    .filter((located) => located.file === file)
-    .slice()
-    .sort((a, b) => a.line - b.line)
