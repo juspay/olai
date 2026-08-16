@@ -191,10 +191,16 @@ export const PICTURE_EXTENSIONS: ReadonlyArray<string> = [
   ".ico",
 ]
 
-export const isPicture = (path: string): boolean => {
+/** Whether a path ends in one of these suffixes, case-folded — the matching
+ *  RULE, held once for the two lists below it. Case-folding, exact suffix, no
+ *  dot boundary: two allowlists answering the same shape of question should not
+ *  be two chances to refine one of them and not the other. */
+const suffixed = (path: string, extensions: ReadonlyArray<string>): boolean => {
   const lower = path.toLowerCase()
-  return PICTURE_EXTENSIONS.some((extension) => lower.endsWith(extension))
+  return extensions.some((extension) => lower.endsWith(extension))
 }
+
+export const isPicture = (path: string): boolean => suffixed(path, PICTURE_EXTENSIONS)
 
 /**
  * The extensions a PAGE may fetch, beyond the pictures above — the parts a
@@ -247,9 +253,5 @@ const ASSET_EXTENSIONS: ReadonlyArray<string> = [
  * cannot import (`@olai/surface` carries the URL shape, `@olai/server`
  * answers it).
  */
-export const isAsset = (path: string): boolean => {
-  if (fileKind(path) === "hypertext") return true
-  if (isPicture(path)) return true
-  const lower = path.toLowerCase()
-  return ASSET_EXTENSIONS.some((extension) => lower.endsWith(extension))
-}
+export const isAsset = (path: string): boolean =>
+  fileKind(path) === "hypertext" || isPicture(path) || suffixed(path, ASSET_EXTENSIONS)

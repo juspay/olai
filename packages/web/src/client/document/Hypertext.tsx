@@ -84,8 +84,7 @@
  */
 
 import { mediaHref, type Reading, reported, sealedHello } from "@olai/surface"
-import { createEffect, on, onCleanup, onMount } from "solid-js"
-import { createSignal } from "solid-js"
+import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 
@@ -213,7 +212,7 @@ const PAGE_HEIGHT = "--page-height"
  */
 const VISIT = "olai-visit"
 
-export function Hypertext(props: { readonly file: string; readonly text: string }) {
+export function Hypertext(props: { readonly file: string; readonly rev: number }) {
   const [measured, setMeasured] = createSignal<string>()
   let frame: HTMLIFrameElement | undefined
 
@@ -358,13 +357,20 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
   // before the element is in the page, so it arrives with its address already
   // on it and costs exactly one load.
   //
-  // What this is watching is the file's own TEXT, which this component
-  // otherwise no longer reads: the bytes reach the frame over HTTP now, and
-  // what the collection's copy is good for is knowing that the file on disk
-  // MOVED. A new revision is a new document, so the walk-off budget starts over
-  // — what it bounds is one page bouncing, not a file's whole history.
+  // What this is watching is the REVISION, and this component reads nothing
+  // else of the entry: the bytes reach the frame over HTTP now, and what the
+  // collection's copy of them is good for is knowing that the file on disk
+  // MOVED. The revision says exactly that and says it in a number — a page that
+  // is rewritten with the bytes it already had does not move it, and a
+  // megabyte string does not have to be compared to find that out. A new
+  // revision is a new document, so the walk-off budget starts over: what it
+  // bounds is one page bouncing, not a file's whole history.
+  //
+  // The body still travels to get here, and that is named as a cost rather than
+  // hidden — see this PR's report; removing it is a change to the documents
+  // collection, not to this component.
   createEffect(
-    on(() => props.text, () => {
+    on(() => props.rev, () => {
       walkOffs = 0
       show()
     }, { defer: true }),

@@ -25,7 +25,7 @@ import type { Locator } from "playwright";
 // is not a constant is where this vault's files are. `mediaHref` is the other
 // half of the same contract: the address a preview frame is pointed at.
 import { isPicture } from "@olai/format";
-import { MEDIA_PREFIX, mediaHref, sealPolicy } from "@olai/surface";
+import { MEDIA_PREFIX, mediaHref, mediaTarget, sealPolicy } from "@olai/surface";
 
 import {
   DOCUMENT_EDIT,
@@ -149,13 +149,16 @@ Then(
       `${many} element(s) matching ${selector} to be drawn inside the preview ` +
         `by the page's own script`,
     );
-    const flat: string[] = [];
-    for (let at = 0; at < many; at += 1) {
-      const box = await drawn.nth(at).boundingBox();
-      if (box === null || box.width === 0 || box.height === 0) {
-        flat.push(`${selector}[${at}] is ${box === null ? "not rendered" : "0 by 0"}`);
-      }
-    }
+    const boxes = await Promise.all(
+      Array.from({ length: many }, (_, at) => drawn.nth(at).boundingBox()),
+    );
+    const flat = boxes
+      .map((box, at) =>
+        box === null || box.width === 0 || box.height === 0
+          ? `${selector}[${at}] is ${box === null ? "not rendered" : "0 by 0"}`
+          : null
+      )
+      .filter((one) => one !== null);
     assert.deepStrictEqual(
       flat,
       [],
@@ -222,13 +225,17 @@ Then(
 Then(
   "the preview draws no picture for {string}",
   async function (this: OlaiWorld, selectors: string) {
-    const wrong: string[] = [];
-    for (const selector of selectors.split(",").map((one) => one.trim())) {
-      const picture = await pictureIn(this, selector);
-      await this.page.waitForTimeout(POLL_TIMEOUT / 10);
-      const width = await drawn(picture);
-      if (width > 0) wrong.push(`${selector} drew ${width}px wide`);
-    }
+    const named = selectors.split(",").map((one) => one.trim());
+    const pictures = await Promise.all(named.map((one) => pictureIn(this, one)));
+    // ONCE, not once per selector: every one of these was asked for by the same
+    // page load, so one grace period covers the lot — and the four in the
+    // fixture used to cost four of them.
+    await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+    const widths = await Promise.all(pictures.map(drawn));
+    const wrong = named
+      .map((selector, at) => ({ selector, width: widths[at]! }))
+      .filter((one) => one.width > 0)
+      .map((one) => `${one.selector} drew ${one.width}px wide`);
     assert.deepStrictEqual(
       wrong,
       [],
@@ -314,16 +321,18 @@ const SLOW_PICTURE_MS = 750;
  * an experiment that proves nothing, since what is under test is a picture
  * arriving AFTER the page has been measured.
  *
- * Both halves are asked of the code that owns them — `MEDIA_PREFIX` for the
- * route and `@olai/format`'s `isPicture` for which of its files is a picture —
- * rather than written out here. A suffix list copied into a step is a second
- * list from the day it is written: this one had already lost `.bmp` and `.ico`,
- * which the route serves, so a fixture using either would have raced the
- * measurement this step exists to lose.
+ * Both halves are asked of the code that owns them — `mediaTarget` for which
+ * file of this vault a URL names, decoding and all, and `@olai/format`'s
+ * `isPicture` for whether that file is a picture — rather than written out here.
+ * A rule copied into a step is a second rule from the day it is written: an
+ * earlier draft of this one re-spelled the suffix list and had already lost
+ * `.bmp` and `.ico`, which the route serves, so a fixture using either would
+ * have raced the measurement this step exists to lose.
  */
-const heldBack = (world: OlaiWorld) => (url: URL): boolean =>
-  `${url.origin}` === world.baseUrl && url.pathname.startsWith(MEDIA_PREFIX) &&
-  isPicture(url.pathname);
+const heldBack = (world: OlaiWorld) => (url: URL): boolean => {
+  const target = mediaTarget(url.pathname);
+  return `${url.origin}` === world.baseUrl && target !== null && isPicture(target);
+};
 
 When("the vault's pictures are slow to arrive", async function (this: OlaiWorld) {
   await this.page.route(heldBack(this), async (route) => {
@@ -379,11 +388,11 @@ const untilHeights = async (
   describe: string,
   complain: (seen: Heights) => string,
 ): Promise<void> => {
-  // Resolved ONCE. Both are lazy handles that re-resolve at use, so hoisting
-  // them costs nothing and saves two `waitFor` round trips per tick — `inside`
-  // waits on the frame that `preview` just waited on.
+  // Resolved ONCE, and the frame is waited for ONCE: `inside` waits on the same
+  // element `preview` just waited on, so asking it here would be the same round
+  // trip twice on every tick. Both handles are lazy and re-resolve at use.
   const element = await preview(world);
-  const inner = await inside(world);
+  const inner = world.page.frameLocator(HYPERTEXT_PREVIEW);
   const reading = async (): Promise<Heights> => {
     // Independent reads of two different documents, so they go together rather
     // than one after the other.
@@ -780,13 +789,12 @@ const REFUSALS = {
   navigation: /unsafe (?:javascript )?attempt to initiate navigation|sandboxed/i,
 } as const;
 
-const REFUSED = (said: string): boolean =>
-  Object.values(REFUSALS).some((shape) => shape.test(said));
-
 Then(
   "the only complaints are the browser refusing what the file may not do",
   function (this: OlaiWorld) {
-    const others = this.errors.filter((said) => !REFUSED(said));
+    const others = this.errors.filter(
+      (said) => !Object.values(REFUSALS).some((shape) => shape.test(said)),
+    );
     assert.deepStrictEqual(
       others,
       [],

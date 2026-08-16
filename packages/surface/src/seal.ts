@@ -137,6 +137,15 @@
  * cannot import each other — which is the exact sentence this package's own
  * docstring opens with, and why `mediaHref`/`mediaTarget` are next door.
  *
+ * That argument covers the MESSAGE half exactly. The policy half ({@link
+ * sealPolicy}, {@link spellsHost}) has one consumer, the server, and by the
+ * rule above it could live there — it is here anyway, and deliberately: the
+ * sandbox argument is ONE argument spanning the header, the frame's attribute
+ * and the prefix, and splitting it would leave half a security narrative in
+ * each package with nothing saying they are one. It also keeps the fail-closed
+ * policy assertable with no browser and no server standing up
+ * (`./seal.test.ts`).
+ *
  * Pure, and its own module, so the rule can be READ and asserted without a
  * browser: `./seal.test.ts` is what says the policy has not been widened by
  * somebody who needed one embed to work.
@@ -388,10 +397,10 @@ export const spellsHost = (host: string): boolean => HOST.test(host)
  * SAME host and the SAME path, never a second place: `https://<this host>` is
  * either this app or somebody who has already taken this app's name.
  */
-const sourcesOn = (host: string): string | undefined =>
+const sourcesOn = (host: string): ReadonlyArray<string> =>
   spellsHost(host)
-    ? `http://${host}${MEDIA_PREFIX} https://${host}${MEDIA_PREFIX}`
-    : undefined
+    ? [`http://${host}${MEDIA_PREFIX}`, `https://${host}${MEDIA_PREFIX}`]
+    : []
 
 /**
  * The policy a served `.html` is answered with, as the header's value.
@@ -429,7 +438,7 @@ const sourcesOn = (host: string): string | undefined =>
 export const sealPolicy = (host: string): string => {
   const vault = sourcesOn(host)
   const from = (...keywords: ReadonlyArray<string>): string =>
-    [...(vault === undefined ? [] : [vault]), ...keywords].join(" ") || `'none'`
+    [...vault, ...keywords].join(" ") || `'none'`
   return `sandbox allow-scripts; ` +
     `default-src ${from()}; ` +
     `script-src ${from("'unsafe-inline'", "'unsafe-eval'")}; ` +

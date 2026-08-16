@@ -34,12 +34,6 @@ import { isAsset } from "@olai/format"
 
 export const MEDIA_PREFIX = "/media/"
 
-/** Segments of a served path, as the URL spells them. ONE place, because
- *  {@link mediaTarget} decodes exactly this and nothing else. Per segment, so a
- *  directory in the path stays a path rather than a run of `%2F`. */
-const encoded = (segments: ReadonlyArray<string>): string =>
-  segments.map(encodeURIComponent).join("/")
-
 /**
  * The URL a served file is fetched from — a picture a markdown document points
  * at, or the `.html` a preview frame is pointed AT.
@@ -52,7 +46,9 @@ const encoded = (segments: ReadonlyArray<string>): string =>
  * contract-kept-by-memory this file was written to prevent.
  */
 export const mediaHref = (file: string): string =>
-  MEDIA_PREFIX + encoded(file.split("/"))
+  // Per SEGMENT, so a directory in the path stays a path rather than a run of
+  // `%2F` — and it is exactly what {@link mediaTarget} decodes at the other end.
+  MEDIA_PREFIX + file.split("/").map(encodeURIComponent).join("/")
 
 /**
  * What a `/media/…` request names, as a path relative to the served directory

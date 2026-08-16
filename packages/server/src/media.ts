@@ -48,7 +48,7 @@
 
 import { fileKind } from "@olai/format"
 import { MEDIA_PREFIX, mediaTarget, SEAL, sealPolicy, spellsHost } from "@olai/surface"
-import { Effect, FileSystem } from "effect"
+import { Effect, FileSystem, Stream } from "effect"
 import {
   HttpRouter,
   HttpServerRequest,
@@ -83,7 +83,9 @@ export const mediaLayer = (root: string) =>
             const target = mediaTarget(request.url)
             if (target === null) return missing
 
-            if (fileKind(target) === "hypertext") return yield* page(disk, root, target, request)
+            if (fileKind(target) === "hypertext") {
+              return yield* page(disk, root, target, request.headers["host"] ?? "")
+            }
 
             // Handed to the engine as a path of its own, re-encoded because
             // that is what it takes: `mediaTarget` decoded the URL to judge it,
@@ -145,10 +147,9 @@ const page = (
   disk: FileSystem.FileSystem,
   root: string,
   target: string,
-  request: HttpServerRequest.HttpServerRequest,
+  host: string,
 ) =>
   Effect.gen(function*() {
-    const host = request.headers["host"] ?? ""
     // SAID OUT LOUD, because the failure is otherwise invisible: a host this
     // app will not spell gets a policy with no sources in it, which is a
     // preview that draws no picture and runs no script of the page's own — and
@@ -164,32 +165,28 @@ const page = (
         { host, file: target },
       )
     }
-    return yield* read(disk, root, target, host)
-  })
-
-/** The bytes, sealed — split out so the arm above reads as the one decision it
- *  is. */
-const read = (
-  disk: FileSystem.FileSystem,
-  root: string,
-  target: string,
-  host: string,
-) =>
-  disk.readFile(`${root}/${target}`).pipe(
-    Effect.map((bytes) => {
-      const body = new Uint8Array(PREFIX.length + bytes.length)
-      body.set(PREFIX)
-      body.set(bytes, PREFIX.length)
-      return HttpServerResponse.uint8Array(body, {
-        contentType: "text/html; charset=utf-8",
-        headers: {
-          "content-security-policy": sealPolicy(host),
-          "x-content-type-options": "nosniff",
-          "referrer-policy": "no-referrer",
-          "cache-control": "no-store",
-        },
-      })
-    }),
+    const bytes = yield* disk.readFile(`${root}/${target}`)
+    // TWO BUFFERS HANDED OVER, not one built out of both. The seal is a prefix,
+    // so the obvious shape is to allocate the sum and copy each half into it —
+    // which is a second whole copy of a file this app assumes can be megabytes,
+    // per open, per bounce and per revision, on a route that is answered
+    // `no-store` and so never comes from a cache. A stream of the two pieces is
+    // the same bytes in the same order for the same cost as the read alone.
+    //
+    // The file is still read WHOLE first, and that is deliberate rather than
+    // lazy: a read that fails has to become a 404 before any header is sent,
+    // and streaming the disk handle straight out would put that decision after
+    // the response had already started.
+    return HttpServerResponse.stream(Stream.fromIterable([PREFIX, bytes]), {
+      contentType: "text/html; charset=utf-8",
+      headers: {
+        "content-security-policy": sealPolicy(host),
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "no-referrer",
+        "cache-control": "no-store",
+      },
+    })
+  }).pipe(
     // A file that was listed a moment ago and cannot be read now is a file that
     // is not there, answered exactly like one that never was.
     Effect.orElseSucceed(() => missing),

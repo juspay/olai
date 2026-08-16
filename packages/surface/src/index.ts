@@ -562,7 +562,6 @@ export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
  *  it, for {@link ./media.ts}'s reason. See {@link ./seal.ts}. */
 export {
   type Reading,
-  type Report,
   reported,
   SEAL,
   sealedHello,
