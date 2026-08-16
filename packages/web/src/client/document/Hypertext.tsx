@@ -108,6 +108,7 @@ import { SaidLine } from "../edit/SaidLine.tsx"
 import type { Said } from "../edit/undoing.ts"
 import { useOpens } from "../opens.tsx"
 import { useRouter } from "../router.tsx"
+import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 
 /**
@@ -413,20 +414,40 @@ export function Hypertext(
    * is gone, and it goes silently. `html_previews.feature` holds that case, so
    * it is a known cost rather than something for a reader to discover.
    *
-   * AND IT NEEDS NO GESTURE, which is the one place this channel is more than
-   * the link it is modelled on. `[here](./here.md)` in rendered markdown
-   * reaches `../router.tsx`'s `followed` only when somebody presses it; this
-   * arrives whenever the page decides to send it, because a `postMessage` is
-   * not a press and nothing on this side can tell them apart. A page naming
-   * ITSELF is where that shows: the app re-navigates to the page already open,
-   * which does not re-key `DocumentPage`, so this element is never replaced and
-   * the sender is still there to send again — history a page can spend with no
-   * reader in it. Named here rather than left to be found; the PR's report
-   * carries it as owed work.
+   * AND A PAGE NAMING ITSELF IS REFUSED, which is the rule this channel needing
+   * no gesture forced.
+   *
+   * `[here](./here.md)` in rendered markdown reaches `../router.tsx`'s
+   * `followed` only when somebody presses it. This arrives whenever the page
+   * decides to send it, because a `postMessage` is not a press and nothing on
+   * this side can tell the two apart. Everywhere else that costs nothing: a
+   * message naming ANOTHER file navigates once and takes this element with it,
+   * so the sender is gone. A message naming THE FILE ALREADY SHOWN is the one
+   * that does not — the route is the page that is open, so `DocumentPage` does
+   * not re-key, this element is never replaced, and the sender is still sitting
+   * there able to send again. Unrefused, that is history a page can spend with
+   * no reader in it, and the tab's scroll with it: the same hazard class
+   * {@link WALK_OFFS} exists for ("no served file can put this tab in a reload
+   * loop"), on the channel that arrived after it.
+   *
+   * So the file being shown is not a file this can open. Asked through
+   * `fileNamed` rather than by reading the route's arms, because which routes
+   * name a file is `../routes.ts`'s answer and both of the ones this produces
+   * do — an outline can never BE the file shown here, but the comparison should
+   * not be the thing that knows it.
+   *
+   * SILENTLY, and that is the one place this parts company with a miss. A miss
+   * is a click this app could not answer, so the reader is owed the reason
+   * ({@link REFUSED}); a self-open names a page olai has and is DRAWING — the
+   * reader is looking at it. An alarm saying the link cannot be opened, over
+   * the very file it names, would be a refusal contradicted by the screen it is
+   * drawn on. A reader who clicks a link to the page they are on is already
+   * where it goes.
    */
   const open = (named: string, at?: string) => {
     const route = opens(named, at)
     if (route === undefined) return setRefused(REFUSED)
+    if (fileNamed(route) === props.file) return
     router.go(route)
   }
 

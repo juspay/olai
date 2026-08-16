@@ -908,6 +908,67 @@ When(
   },
 );
 
+/**
+ * A page that asks for ITSELF, over and over — the shape the self-open guard
+ * exists for.
+ *
+ * It posts rather than draws a link, because a script needs no reader: that is
+ * the whole hazard, and a scenario built on clicks would be measuring how fast
+ * a test can click rather than what an unattended page can spend. The prefix is
+ * spelled for the forger's reason, and the ADDRESS is built with `mediaHref` so
+ * the message names this file exactly as the seal's own handler would.
+ *
+ * It also carries a self-LINK, because the guard has to hold for the reader's
+ * half too: a page containing `<a href="itself.html">` is an ordinary thing to
+ * save, and the seal's in-page rule does not cover it — that rule is about a
+ * FRAGMENT, and this link has none.
+ */
+When(
+  "I rewrite {string} as a page that asks for itself",
+  function (this: OlaiWorld, file: string) {
+    const asking = `${FORGED_PREFIX}${mediaHref(file)}`;
+    this.writeServed(
+      file,
+      `<!doctype html>\n<html lang="en"><head><meta charset="utf-8">` +
+        `<title>Itself</title></head>\n<body><h1>Itself</h1>\n` +
+        `<p id="probe">a page that keeps asking for its own address</p>\n` +
+        `<p><a id="again" href="${file.split("/").pop()}">this very page</a></p>\n` +
+        `<script>\n` +
+        `  for (var i = 0; i < 12; i++) {\n` +
+        `    parent.postMessage(${JSON.stringify(asking)}, "*")\n` +
+        `  }\n` +
+        `</script>\n</body></html>\n`,
+    );
+  },
+);
+
+/** How many entries the reader could go back through — the ledger a page
+ *  spending history with no reader in it would grow. Read from the app's own
+ *  window, since `history.length` is the tab's. */
+When("I remember how much history there is", async function (this: OlaiWorld) {
+  this.historyWas = await this.page.evaluate(() => history.length);
+});
+
+Then(
+  "the history has grown by {int}",
+  async function (this: OlaiWorld, many: number) {
+    const was = this.historyWas;
+    assert.ok(was !== undefined, "nothing was remembered to compare against");
+    // Given a moment first: what this asserts is that entries did NOT arrive
+    // beyond the ones counted, and reading immediately would be reading before
+    // the messages could have landed.
+    await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+    const now = await this.page.evaluate(() => history.length);
+    assert.strictEqual(
+      now - was,
+      many,
+      `the tab went from ${was} history entries to ${now}, which is ` +
+        `${now - was} more rather than ${many} — a page asking for its own ` +
+        `address is spending the reader's back button`,
+    );
+  },
+);
+
 /** …and the same message from somewhere that is not the frame. The app
  *  identifies its sender by IDENTITY rather than by origin — every sandboxed
  *  frame in every tab posts as the same opaque `"null"` — so this is the case

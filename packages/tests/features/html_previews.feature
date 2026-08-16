@@ -945,6 +945,52 @@ Feature: A `.html` in the vault
     And the preview says it cannot open that link
 
   @scratch:good
+  Scenario: A page asking for its own address moves nothing
+    # THE GUARD THE HUMAN PICKED, and the reason it is the one that was needed.
+    #
+    # This channel needs no gesture — a `postMessage` is not a press, and
+    # nothing on the app's side can tell the two apart. Everywhere else that
+    # costs nothing: a message naming ANOTHER file navigates once and takes the
+    # frame with it, so the sender is gone. A message naming THE FILE ALREADY
+    # SHOWN is the one that does not — the route is the page that is open, so
+    # the page does not re-key, the frame is never replaced, and the sender is
+    # still sitting there able to send again. Unrefused, that is the reader's
+    # back button being spent by a script, and the same hazard class the
+    # walk-off budget exists for on the channel that arrived after it.
+    #
+    # So the file being shown is not a file this can open. Both halves are read:
+    # the script asking twelve times, and a reader clicking a link to the page
+    # they are already on — an ordinary thing to find in a saved page, and not
+    # covered by the seal's in-page rule, which is about a fragment.
+    Given I open the app
+    And I mark the page
+    When I rewrite "itself.html" as a page that asks for itself
+    # The ledger is read BEFORE the page is opened, so the twelve messages the
+    # page sends as it parses are inside what is being counted. Read after them
+    # it would be a baseline taken past the thing under test — which is what an
+    # earlier draft of this did, and it passed with the guard deleted.
+    And I remember how much history there is
+    And I click the page "itself.html"
+    Then the preview shows the heading "Itself"
+    # ONE entry, for the reader's own click on the sidebar — and none at all for
+    # the twelve the page asked for.
+    And the history has grown by 1
+    Then the address is "/doc/itself.html"
+    And the document open is "itself.html"
+    And the page has not reloaded
+    # …and the reader's half: a plain click at a link to this very page.
+    When I click "#again" inside the preview
+    Then the history has grown by 1
+    And the address is "/doc/itself.html"
+    And the preview shows the heading "Itself"
+    # NOTHING IS SAID about it, and that is the one place this parts company
+    # with a click the app could not answer. A miss is owed its reason; a
+    # self-open names a page olai has and is DRAWING — an alarm saying the link
+    # cannot be opened, over the very file it names, would be a refusal the
+    # screen it is drawn on contradicts.
+    And the preview says nothing about the link
+
+  @scratch:good
   Scenario: A page cannot navigate this app by naming a file the vault does not hold
     # THE HOSTILE CASE, and the reason the message is a lookup key rather than
     # an instruction. A previewed page runs its own JavaScript, so it can post

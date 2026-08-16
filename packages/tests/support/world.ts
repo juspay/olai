@@ -808,6 +808,13 @@ export class OlaiWorld extends World {
    *  asserted a pixel count would be asserting on all three. */
   scrolledTo?: number;
 
+  /** How many history entries the tab had when a scenario last looked — the
+   *  ledger a page navigating the app with no reader in it would grow. Same
+   *  arrangement as `scrolledTo` above and for the same reason: what the number
+   *  IS depends on how the scenario got here, so the scenario remembers it and
+   *  the step compares. */
+  historyWas?: number;
+
   /** Which fixture corpus this scenario's server is serving, from its
    *  `@corpus:<name>` or `@scratch:<name>` tag. See `support/hooks.ts`. */
   corpus!: string;
