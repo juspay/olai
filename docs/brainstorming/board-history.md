@@ -1,6 +1,6 @@
 # Where should the board's history live? (master is drowning)
 
-Status: brainstorming, opened 2026-08-16 on the human's problem statement: master's commit history is polluted with roadmap/board commits — ~40 in one day, drowning the code PRs. The human asked for creative ideas, not the four obvious ones (branch / separate repo / batch / filter). Those four are listed at the end for completeness; the interesting ideas come first.
+Status: partially ruled. 2026-08-16, same day as opening: the human ruled idea 2's first slice — lanes.olai is gitignored and untracked as of master db9ee8bd; it stays on disk and served, git just stops recording its twitches. The rest is still open. Originally opened on the human's problem statement: master's commit history is polluted with roadmap/board commits — ~40 in one day, drowning the code PRs. The human asked for creative ideas, not the four obvious ones (branch / separate repo / batch / filter). Those four are listed at the end for completeness; the interesting ideas come first.
 
 ## First, name the actual mistake
 
