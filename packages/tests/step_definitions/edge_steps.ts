@@ -150,8 +150,8 @@ Then(
 );
 
 /**
- * THIS TAB'S OWN RECEIPT for a write these four steps make with the pointer —
- * and why the disk is not one.
+ * THIS TAB'S OWN RECEIPT for a write the three steps below make with the
+ * pointer — and why the disk is not one.
  *
  * A write goes: the server writes the file, publishes the new set, and only
  * then answers the tab that asked (`packages/store/src/store.ts` — *rename
@@ -173,6 +173,12 @@ Then(
  * loop refused, an id nothing declares. Same shape as `support/caret.ts`'s
  * waits, and for its reason — a step that only knew the happy answer would
  * hang for fifteen seconds on a scenario whose whole point is the refusal.
+ *
+ * A sentence left over from the LAST write cannot end this wait: the surface
+ * clears its line before it sends (`editing.tsx`'s `write` — "cleared BEFORE
+ * the attempt … a write that takes a moment would otherwise sit under the last
+ * one's sentence"), and `world.press` has waited out a frame by the time any
+ * of these starts polling.
  */
 const drawnOrSaid = async (
   world: OlaiWorld,

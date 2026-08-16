@@ -35,7 +35,10 @@ interface Dropped {
 const droppedIn = (file: string): ReadonlyArray<Dropped> => {
   const pickles = new Map<string, { name: string; uri: string }>()
   const steps = new Map<string, string>()
-  const cases = new Map<string, { pickleId: string; steps: ReadonlyArray<{ id: string; pickleStepId?: string }> }>()
+  const cases = new Map<
+    string,
+    { pickleId: string; testSteps: ReadonlyArray<{ id: string; pickleStepId?: string }> }
+  >()
   const started = new Map<string, string>()
   const out: Array<Dropped> = []
 
@@ -64,7 +67,7 @@ const droppedIn = (file: string): ReadonlyArray<Dropped> => {
       if (result.status === "PASSED" || result.status === "SKIPPED") continue
       const test = cases.get(started.get(finished.testCaseStartedId) ?? "")
       const pickle = test === undefined ? undefined : pickles.get(test.pickleId)
-      const step = test?.steps.find((one) => one.id === finished.testStepId)
+      const step = test?.testSteps.find((one) => one.id === finished.testStepId)
       out.push({
         run: path.basename(file, ".ndjson"),
         scenario: pickle?.name ?? "(unknown scenario)",

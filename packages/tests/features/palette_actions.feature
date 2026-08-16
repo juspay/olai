@@ -247,10 +247,16 @@ Feature: The ⌘K palette writes
     # So: one write at a time, the date picker's rule. The remark below is the
     # assertion that matters twice over — it proves the first landed AND that
     # no refusal overwrote it.
+    #
+    # BOTH keys out before either is answered, which is the premise and not a
+    # detail: two sequential presses are two round trips to the browser, and on
+    # a loaded box the first capture can land in between — the box is re-primed
+    # to `+ ` by then, so the second Enter captures a BLANK line and the
+    # refusal for it overwrites the remark below. That is a different scenario,
+    # and a true one, but it is not this one.
     When I press the palette shortcut
     And I type "+ buy the walnut stain" into the palette
-    And I press "Enter" without waiting
-    And I press "Enter" without waiting
+    And I press "Enter" twice without waiting
     Then the palette remarks "captured “buy the walnut stain” to Inbox.olai"
     And "Inbox.olai" holds exactly 1 node titled "buy the walnut stain"
     And there should be no page errors

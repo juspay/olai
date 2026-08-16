@@ -41,14 +41,17 @@ mkdir -p "$out"
 
 # The busy loops go first and die with this script — a `trap` on EXIT rather
 # than a `kill` at the end, so an interrupted run does not leave the box
-# spinning for the next person.
+# spinning for the next person. BUSY=0 leaves nothing to kill and no trap,
+# which is not the same as a trap with no arguments.
 loops=""
 for _ in $(seq 1 "$busy"); do
   bash -c 'while :; do :; done' &
   loops="$loops $!"
 done
-# shellcheck disable=SC2064  # $loops is wanted as it is NOW, not at exit
-trap "kill $loops 2>/dev/null" EXIT INT TERM
+if [ -n "$loops" ]; then
+  # shellcheck disable=SC2064  # $loops is wanted as it is NOW, not at exit
+  trap "kill $loops 2>/dev/null" EXIT INT TERM
+fi
 
 # One suite's rounds, sequentially. Several of these run at once when SUITES>1.
 one_suite() {
