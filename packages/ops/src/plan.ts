@@ -57,6 +57,7 @@ import {
   type RegularNode,
   storedMarker,
   targetsOf,
+  unfinished,
   unfinishedWithin,
   withCustom,
   UsageFailure,
@@ -644,7 +645,7 @@ const planAdd = (
   // DOOR TWO: the door the 2026-08-16 incident actually walked through, and
   // the flow it matters most for — somebody writing down work that has just
   // come up, under a branch somebody else called finished last week.
-  return Result.succeed(arriving(scope, { file, parent }, capturesOpenWork(request), {
+  return Result.succeed(arriving(scope, { file, parent }, () => capturesOpenWork(request), {
     files: [
       { file, nodes: withOrds([...recordsOf(scope, file), ...minted], ords.success) },
     ],
@@ -672,7 +673,7 @@ const capturedOpen = (capture: Capture): ReadonlyArray<Capture> => {
   const open: Array<Capture> = []
   const descend = (at: Capture): void => {
     for (const child of at.children ?? []) {
-      if (child.mark !== undefined && child.mark !== "done") open.push(child)
+      if (unfinished(child.mark)) open.push(child)
       descend(child)
     }
   }
@@ -684,8 +685,7 @@ const capturedOpen = (capture: Capture): ReadonlyArray<Capture> => {
  *  what door two asks about an arriving tree, the way {@link holdsOpenWork}
  *  asks it about one that already exists. */
 const capturesOpenWork = (capture: Capture): boolean =>
-  (capture.mark !== undefined && capture.mark !== "done") ||
-  capturedOpen(capture).length > 0
+  unfinished(capture.mark) || capturedOpen(capture).length > 0
 
 /**
  * DOOR ONE, over a capture: a node born `done` with an unfinished task born
@@ -999,7 +999,7 @@ const planMark = (
   // DOOR TWO ({@link arriving}): this write is what MAKES the node unfinished
   // work, so it is an arrival under whatever stands above it. The node's own
   // parent chain, never its own mark — a node is not above itself.
-  return Result.succeed(arriving(scope, { file, parent: node.parent }, !undo && mark !== "done", {
+  return Result.succeed(arriving(scope, { file, parent: node.parent }, () => !undo && mark !== "done", {
     files: [{
       file,
       nodes: replacing(recordsOf(scope, file), node.id, touched(scope, next)),
@@ -1280,6 +1280,13 @@ const NOTHING_ABOVE: ReadonlyArray<LocatedRegular> = []
  *
  * Canonical `parent` links, through `@olai/format`'s own walk, so a placement
  * is not a way up — see the header above.
+ *
+ * The two guards below are the stance `ancestorsOf` itself takes and not live
+ * logic about anything a caller can send: a parent that is missing, or is a
+ * placement, is a set the VALIDATOR has already condemned, and every walk in
+ * this system still has to answer over one of those rather than throw. Reading
+ * them as reachable cases would be reading them wrong; deleting them would put
+ * an unchecked cast where the format keeps a check.
  */
 const staleDoneAbove = (
   scope: Scope,
@@ -1299,11 +1306,8 @@ const staleDoneAbove = (
  *  {@link arriving}'s `brings` is answered with when the thing arriving is
  *  already in the set: a branch of bullets and done work lands under a
  *  finished ancestor without contradicting it. */
-const holdsOpenWork = (scope: Scope, node: RegularNode): boolean => {
-  const own = storedMarker(node)
-  return (own !== undefined && own !== "done") ||
-    unfinishedWithin(scope.derived, node.id).length > 0
-}
+const holdsOpenWork = (scope: Scope, node: RegularNode): boolean =>
+  unfinished(storedMarker(node)) || unfinishedWithin(scope.derived, node.id).length > 0
 
 /**
  * DOOR TWO, done to a plan: the whole obligation in one move.
@@ -1342,12 +1346,19 @@ const arriving = (
   /** Whether what is arriving holds work that is not finished. The caller's to
    *  answer, because only the caller knows what is arriving — a subtree the
    *  set already holds ({@link holdsOpenWork}) or a capture that is not on
-   *  disk yet ({@link capturesOpenWork}). */
-  brings: boolean,
+   *  disk yet ({@link capturesOpenWork}).
+   *
+   *  A THUNK, and that is about cost rather than taste. Answering it can mean
+   *  walking a whole arriving branch, while the question asked first below is
+   *  a handful of map lookups up the parent chain — and the chain says no on
+   *  nearly every write in a set, since a `done` ancestor is the rare thing
+   *  this exists to catch. Passed as a value, every move, merge and unarchive
+   *  in the system would pay for the subtree walk to learn nothing. */
+  brings: () => boolean,
   plan: Plan,
 ): Plan => {
-  const above = brings ? staleDoneAbove(scope, at.file, at.parent) : NOTHING_ABOVE
-  if (above.length === 0) return plan
+  const above = staleDoneAbove(scope, at.file, at.parent)
+  if (above.length === 0 || !brings()) return plan
 
   const titles = above.map((one) => one.node.title)
   const one = above.length === 1
@@ -1581,7 +1592,8 @@ const planMove = (
   // A MIRROR is never asked: it is a placement, and a placement is not
   // containment, so moving one under a finished branch says nothing about
   // where the work it draws actually lives.
-  const brings = parent !== node.parent && !isMirror(node) &&
+  const brings = () =>
+    parent !== node.parent && !isMirror(node) &&
     holdsOpenWork(scope, node as RegularNode)
 
   return Result.succeed(arriving(scope, { file, parent }, brings, {
@@ -1800,9 +1812,10 @@ const planMerge = (
   // merged node's own mark goes to the archive with its record, so it is the
   // rows it hands over that this asks about — placements excluded, as
   // everywhere.
-  const brings = adopted.some((child) =>
-    !isMirror(child.node) && holdsOpenWork(scope, child.node as RegularNode)
-  )
+  const brings = () =>
+    adopted.some((child) =>
+      !isMirror(child.node) && holdsOpenWork(scope, child.node as RegularNode)
+    )
 
   const { existing, scaffold, buried } = buriedIn(scope, archive, node)
   const nudge = carriedOff(scope, node)
@@ -2420,7 +2433,7 @@ const planUnarchive = (
   // finished in the meantime. The exemption is about where a node LIVES, so it
   // stops the moment the node stops living in the archive.
   return Result.succeed(
-    arriving(scope, { file: destination, parent }, holdsOpenWork(scope, node), {
+    arriving(scope, { file: destination, parent }, () => holdsOpenWork(scope, node), {
       files: [
         { file, nodes: keeps.filter((record) => !dropped.has(record.id)) },
         { file: destination, nodes: [...already, reparented, ...descendants] },

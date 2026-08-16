@@ -1234,22 +1234,33 @@ describe("done over open work: the arrival re-opens what stood over it", () => {
     expect(result.summary).toContain("(reopened:")
   })
 
-  test("a move of bullets, a reorder, and a placement all leave it alone", () => {
+  /** The three writes that reach `attic` without bringing it open work, and
+   *  the one assertion all three are about: the branch stays shut. One test
+   *  each, so a failure names which of the three it was. */
+  const untouched = (request: Request): void => {
     const set = shut(
       `{"id":"note","ord":"a1","title":"a note about the house"}`,
       `{"id":"open","ord":"a2","title":"something open","todo":true}`,
       `{"id":"first","parent":"attic","ord":"a0","title":"one","done":true}`,
       `{"id":"second","parent":"attic","ord":"a1","title":"two","done":true}`,
     )
-    // Nothing unfinished is arriving.
-    expect(record(fileOf(planned(set, { op: "move", id: "note", parent: "attic" }), "a.olai"),
-      "attic").done).toBe("2026-08-02")
-    // A reorder among the same siblings arrives under nothing new.
-    expect(record(fileOf(planned(set, { op: "move", id: "second", before: "first" }), "a.olai"),
-      "attic").done).toBe("2026-08-02")
-    // A PLACEMENT is not containment, at this door exactly as at the other.
-    expect(record(fileOf(planned(set, { op: "mirror", target: "open", parent: "attic" }), "a.olai"),
-      "attic").done).toBe("2026-08-02")
+    expect(record(fileOf(planned(set, request), "a.olai"), "attic").done).toBe("2026-08-02")
+  }
+
+  // Nothing unfinished is arriving: a bullet and the done work under it.
+  test("a move of bullets leaves it alone", () => {
+    untouched({ op: "move", id: "note", parent: "attic" })
+  })
+
+  // A reorder among the same siblings arrives under nothing it was not
+  // already under, so an ancestor's mark is not this write's business.
+  test("a reorder leaves it alone", () => {
+    untouched({ op: "move", id: "second", before: "first" })
+  })
+
+  // A PLACEMENT is not containment, at this door exactly as at the other.
+  test("a placement of open work leaves it alone", () => {
+    untouched({ op: "mirror", target: "open", parent: "attic" })
   })
 
   // The arrival nobody would think to look for: a Backspace at the start of a

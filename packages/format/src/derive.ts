@@ -386,6 +386,27 @@ export const storedMarker = (node: LocatedRegular["node"]): Status | undefined =
   MARKS.find((mark) => node[mark] !== undefined)
 
 /**
+ * Whether a mark is work that is NOT finished — the ONE spelling of it.
+ *
+ * Every rule in this system that asks "is there still something to do here"
+ * asks exactly this: what blocks ({@link inPlay}), what a branch holds
+ * ({@link unfinishedWithin}), and — one package up — what an arriving subtree
+ * or capture brings with it. {@link inPlay}'s own note already warned that two
+ * spellings would be two chances to disagree about what unfinished work is,
+ * and there were four.
+ *
+ * A TYPE GUARD rather than a boolean, because the rule is a fact about the
+ * value and {@link InTheWay} already says so in its type: what is in the way
+ * is `Exclude<Status, "done">`. `undefined` — a node nobody marked — is not
+ * unfinished work; it is not work. The trap this is written against is
+ * spelling it `mark !== "done"`, which reads every plain bullet as something
+ * outstanding.
+ */
+export const unfinished = (
+  mark: Status | undefined,
+): mark is Exclude<Status, "done"> => mark !== undefined && mark !== "done"
+
+/**
  * The children of a node that are TASKS, each with the mark that makes it one.
  *
  * What a row's rollup is made of ({@link progressOf}, an annotation) and the
@@ -472,14 +493,14 @@ export const unfinishedWithin = (
   const open: Array<LocatedRegular> = []
   const seen = new Set<string>([id])
   // {@link counted} is what keeps the mirrors out, at every level rather than
-  // only the first — and the status lookup is the one its neighbour above
-  // makes, which is where "no mark means no task" is decided.
+  // only the first, and {@link unfinished} is where "no mark means no task" is
+  // decided — the same predicate blockedness reads, so the two cannot come to
+  // disagree about what is still outstanding.
   const descend = (at: string): void => {
     for (const child of counted(derived.children, at)) {
       if (seen.has(child.node.id)) continue
       seen.add(child.node.id)
-      const status = derived.status.get(child.node.id)
-      if (status !== undefined && status !== "done") open.push(child)
+      if (unfinished(derived.status.get(child.node.id))) open.push(child)
       descend(child.node.id)
     }
   }
@@ -613,7 +634,7 @@ const inPlay = (
   const at = nodeNamed(index, id)
   if (at === undefined || isArchived(at.file)) return undefined
   const mark = status.get(at.node.id)
-  return mark === undefined || mark === "done" ? undefined : { at, status: mark }
+  return unfinished(mark) ? { at, status: mark } : undefined
 }
 
 /** Which of these targets are still in the way, in the order they were named
