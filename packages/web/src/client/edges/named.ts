@@ -24,6 +24,29 @@
  * of a large outline re-runs on every frame the store publishes. Called inside
  * the caller's own memo, this reads the cheap field first and the set only when
  * there is something to look up.
+ *
+ * A TARGET NAMED TWICE IS NAMED ONCE, and that is decided here, at the read,
+ * because it is what the WRITE already says: `set_see` / `set_after` treat the
+ * field as a SET — re-adding a target the node already names is a silent no-op
+ * (`@olai/ops`'s `planEdges`) — so a file saying the same thing three times is
+ * saying it once, and the surfaces reading it say it once (ruled 2026-08-16,
+ * human). A `.olai` is plain text: nothing stops a hand or a merge from writing
+ * the repeat, and the validator does not refuse it.
+ *
+ * That makes the KEY honest, which is the half that broke. Both readers draw a
+ * link per target keyed by the target's id (`../NodeRefs.tsx`), and a key names
+ * a row only while a target appears once: three rows under one key are one
+ * element handed to the framework three times, and the next store frame's list
+ * reconciliation dies mid-draw taking the page with it — PR #202's crash, at
+ * the next list along. Keying by POSITION would close the crash and draw three
+ * identical pills for ever, which is the client disagreeing with the writer
+ * about what the file means.
+ *
+ * BY THE ID AS WRITTEN, not by the node it resolves to, for the same reason:
+ * that is the identity the write layer's own set is over. Two DIFFERENT ids
+ * standing at one node (a mirror named beside its target) are two things the
+ * file says, they key apart, and collapsing them here would be this read
+ * deciding something no writer has.
  */
 
 import { type Derived, nodeNamed, type RegularNode } from "@olai/format"
@@ -41,7 +64,9 @@ export const namedBy = (
   if (named === undefined || named.length === 0) return []
   const at = indexes()
   if (at === undefined) return []
-  return named.map((id) => {
+  // A `Set` keeps insertion order, so a repeat is dropped where the SECOND
+  // one stands and the list still reads as the file wrote it.
+  return [...new Set(named)].map((id) => {
     const found = nodeNamed(at, id)
     return {
       id,

@@ -305,6 +305,11 @@ export interface InTheWay {
  * validator's to report, and dropping the edge here would decide that quietly.
  *
  * A mirror is never a source of its own: it carries no edges.
+ *
+ * AND IT IS A SET, per source: what a node waits on is a list of nodes, each
+ * named once, in the order it was first named. That is the same claim the two
+ * paragraphs above make about spellings and about placements, carried to the
+ * case where the two arrive at one pair — see {@link edge}.
  */
 const orderings = (
   byId: ReadonlyMap<string, Located>,
@@ -316,7 +321,18 @@ const orderings = (
   const edge = (from: string, to: string): void => {
     const existing = after.get(from)
     if (existing === undefined) after.set(from, [to])
-    else existing.push(to)
+    // AN EDGE NAMED TWICE IS ONE EDGE. Both ends are already resolved to nodes
+    // above, so this is the last thing normalisation owes its readers: a field
+    // repeating a target (a `.olai` is plain text, and nothing refuses a hand
+    // that writes `after: [b, b]`), the two spellings of one arrow both
+    // written down, and two ids standing at one node through a mirror all
+    // arrive here as the same pair. What waits on what is a SET, and every
+    // reader takes it as one — the row a page draws keyed by the blocker's id
+    // (crashing the client on a repeat, `web/client/NodeRefs.tsx`), the
+    // `blocked by` tip, the walk the acyclicity rule and `set_after`'s
+    // loop refusal share. A duplicate would say the same node is in the way
+    // twice.
+    else if (!existing.includes(to)) existing.push(to)
   }
 
   for (const { node } of nodes) {
