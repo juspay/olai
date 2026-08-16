@@ -819,6 +819,35 @@ Then(
   },
 );
 
+/**
+ * How many boxes one file's change is drawn in — the count, because the shape
+ * this exists for is one file arriving as SEVERAL blocks.
+ *
+ * A polling `expect` rather than a bare `count()`: the two hunks arrive on the
+ * report AFTER the one that drew the first, so a count read the moment the
+ * first box appears is a count of one, every time, whether or not the second
+ * ever lands.
+ */
+Then(
+  "the chat shows {int} diffs of {string}",
+  async function (this: OlaiWorld, many: number, file: string) {
+    const boxes = this.page.locator(`${CHAT_DIFF}[data-path="${file}"]`);
+    await this.page.waitForFunction(
+      ([selector, wanted]) =>
+        document.querySelectorAll(selector as string).length === wanted,
+      [`${CHAT_DIFF}[data-path="${file}"]`, many] as const,
+      { timeout: HYDRATION_TIMEOUT },
+    );
+    assert.strictEqual(
+      await boxes.count(),
+      many,
+      `the panel drew a different number of boxes for "${file}" than the ${many} ` +
+        "blocks the agent sent. An edit reported as several hunks is several " +
+        "changes to one file, and each of them is a row",
+    );
+  },
+);
+
 Then("the chat shows no diff", async function (this: OlaiWorld) {
   assert.strictEqual(
     await this.page.locator(CHAT_DIFF).count(),

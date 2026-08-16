@@ -113,6 +113,26 @@ Feature: Talking to the agent
     And the diff shows the line "- a walnut worktop, ordered on the tenth" as added
 
   @scratch:chat
+  Scenario: An edit that landed in three places draws all three, and the page survives it
+    # The commonest thing a coding agent does, and it took the client down. An
+    # `Edit` is reported twice: the announcement's optimistic block, then the
+    # adapter's PostToolUse report, which walks `structuredPatch` and sends one
+    # `diff` block PER HUNK — every one of them carrying the same path. So three
+    # hunks of one file are three rows whose only name is the same name, and the
+    # list drawing them keyed on it: the second report handed the framework the
+    # same element three times, and its list reconciliation ran off the end of
+    # the array it was patching and died reading `remove` of undefined. A page
+    # that dies while an agent works takes the whole conversation with it.
+    #
+    # The count is the other half of the same bug and is why this asserts THREE
+    # boxes rather than "it did not break": two rows sharing a name is one of
+    # them silently dropped, which is the panel saying a file changed in one
+    # place when it changed in two.
+    When I ask the agent "hunks"
+    Then the chat shows 3 diffs of "notes.md"
+    And there should be no page errors
+
+  @scratch:chat
   Scenario: An outline the agent rewrote by hand is still never a text diff
     # The rule is about the FILE, not about the tool that wrote it: a `.olai`
     # is one line per node, so a text diff of one is a single enormous line.
