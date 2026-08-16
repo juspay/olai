@@ -387,6 +387,13 @@ export const outlines = (
    * "the answer is unchanged" something a reader can see rather than trust.
    * Each group holds its members in ENCOUNTER order, so a row's `roots` are
    * still in file order, exactly as the per-file scan gave them.
+   *
+   * It is grouped HERE rather than kept on {@link Derived} beside the other
+   * indexes, and that is a recorded opportunity rather than a settled place:
+   * per-file access over a flat set is a real axis, `Derived` is where it
+   * would live, and `siblingsOf` in the floor asks the same question the same
+   * way — so the second consumer is somebody else's change, and building the
+   * index at population one would mean plumbing it twice.
    */
   const byFile = Map.groupBy(derived.nodes, (located) => located.file)
   // ANNOTATED, so the row literals below are checked against the floor: a
@@ -408,13 +415,22 @@ export const outlines = (
     // No group at all is an outline holding no nodes: `files` lists it either
     // way, which is why a row is built from the list of FILES and the group
     // only looked up here.
-    const own = byFile.get(file) ?? []
+    //
+    // The mirrors drop ONCE, through a type guard, exactly as `countedChildren`
+    // drops them in the floor: a placement is neither counted nor a title, and
+    // that rule spelled twice — once for the count, once for the roots — is a
+    // rule that can come to disagree with itself. The guard is also what makes
+    // the titles below reachable without an assertion, which is the same trade
+    // the floor's comment names: saying the mirrors are gone is what deletes
+    // the cast.
+    const own = (byFile.get(file) ?? [])
+      .filter((located): located is LocatedRegular => !isMirror(located.node))
     return {
       file,
-      nodes: own.filter((located) => !isMirror(located.node)).length,
+      nodes: own.length,
       roots: own
-        .filter((located) => located.node.parent === undefined && !isMirror(located.node))
-        .map((located) => (located as LocatedRegular).node.title),
+        .filter((located) => located.node.parent === undefined)
+        .map((located) => located.node.title),
     }
   })
 }

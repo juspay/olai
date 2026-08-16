@@ -400,14 +400,23 @@ describe("the directory", () => {
       "shed.olai": `{"id":"shed","ord":"a0","title":"Shed"}`,
     }, [], { "torn.olai": `{"id":` })
 
+  /** The listing of ONE set — the set and the index it is asked through are
+   *  the same revision, which is the pairing {@link Derived} exists to keep:
+   *  two parameters would let a caller answer one revision out of another's
+   *  indexes, and the symptom would be a plausible answer rather than a
+   *  failure. Same shape as `at()` above, for the same reason. */
+  const listing = () => {
+    const set = DIRECTORY()
+    return outlines(set, index(set))
+  }
+
   test("a row per file, in the order the directory lists them", () => {
-    expect(outlines(DIRECTORY(), index(DIRECTORY())).map((row) => row.file))
+    expect(listing().map((row) => row.file))
       .toEqual(["house.olai", "empty.olai", "shed.olai", "torn.olai"])
   })
 
   test("a file's own regular nodes are counted, and its roots named in file order", () => {
-    const set = DIRECTORY()
-    expect(outlines(set, index(set))[0]).toEqual({
+    expect(listing()[0]).toEqual({
       file: "house.olai",
       nodes: 3,
       roots: ["Garden", "House"],
@@ -415,8 +424,7 @@ describe("the directory", () => {
   })
 
   test("an outline holding nothing says so, rather than saying nothing", () => {
-    const set = DIRECTORY()
-    expect(outlines(set, index(set))[1]).toEqual({
+    expect(listing()[1]).toEqual({
       file: "empty.olai",
       nodes: 0,
       roots: [],
@@ -424,8 +432,7 @@ describe("the directory", () => {
   })
 
   test("a file that did not parse carries its errors, and no count it could not take", () => {
-    const set = DIRECTORY()
-    expect(outlines(set, index(set))[3]).toEqual({
+    expect(listing()[3]).toEqual({
       file: "torn.olai",
       nodes: 0,
       roots: [],
