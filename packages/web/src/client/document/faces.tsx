@@ -27,6 +27,7 @@ import { createEffect, createMemo, type JSX, onCleanup } from "solid-js"
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { landingId, outlineOf } from "../markdown/render.ts"
+import { useRouter } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { Hypertext } from "./Hypertext.tsx"
 import { Toc } from "./Toc.tsx"
@@ -45,19 +46,6 @@ export interface Reading {
    *  (`@olai/surface`'s `DocumentEntry`). It moves when the file does and
    *  stays put when it does not. */
   readonly rev: number
-  /**
-   * WHERE IN THE PAGE to land, when the address named a place inside it —
-   * `#beds` on a `/doc/` URL (`../routes.ts`).
-   *
-   * Both kinds take it and both do something with it, by two mechanisms that
-   * have nothing in common: a `.html` is a document in a frame, so its own URL
-   * carries the fragment and the browser scrolls it; a `.md` is markup this app
-   * rendered, so the id in the page is not the id in the address and the face
-   * has to translate before it can look. That is exactly the shape this table
-   * exists for — one thing the page knows, two kinds answering it their own
-   * way — and it is why the field is here rather than a prop one face grew.
-   */
-  readonly at?: string
 }
 
 export interface Face {
@@ -77,6 +65,7 @@ export const FACES: Record<BodyKind, Face> = {
  *  page was before it could edit, in a component so the mode switch stays one
  *  `Show` rather than two trees interleaved. */
 function Rendered(props: Reading) {
+  const router = useRouter()
   // Empty until the markdown chunk lands, for the same reason the body is the
   // file's own text until then: there is nothing to make a contents out of
   // until something has read the headings. The `<Markdown>` under it is what
@@ -110,7 +99,7 @@ function Rendered(props: Reading) {
   // naming no id: the reader stays at the top of the page rather than being sent
   // somewhere arbitrary. A `.md` whose heading was renamed is exactly that case.
   createEffect(() => {
-    const at = props.at
+    const at = router.landing()
     if (at === undefined || !markdownReady()) return
     const id = landingId(props.text, props.file, at)
     const frame = requestAnimationFrame(() => {

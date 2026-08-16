@@ -75,17 +75,15 @@ import { consumeMinted } from "./minted.ts"
  * not have to know. Same spelling as ./Toc.tsx one level down, for the same
  * reason and against the same defect.
  */
-export function DocumentPage(
-  props: { readonly file: string; readonly at?: string },
-) {
+export function DocumentPage(props: { readonly file: string }) {
   return (
     <Show when={props.file} keyed>
-      {(file) => <OneDocument file={file} at={props.at} />}
+      {(file) => <OneDocument file={file} />}
     </Show>
   )
 }
 
-function OneDocument(props: { readonly file: string; readonly at?: string }) {
+function OneDocument(props: { readonly file: string }) {
   const document = useDocument(() => props.file)
   // WHICH FACE, off the file's own name — the format's registry answers what
   // kind of body this is, and ./faces.tsx answers what that kind looks like and
@@ -137,7 +135,6 @@ function OneDocument(props: { readonly file: string; readonly at?: string }) {
                 file={props.file}
                 text={served().text}
                 rev={served().rev}
-                at={props.at}
               />
             }
           >

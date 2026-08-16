@@ -581,6 +581,177 @@ Feature: A `.html` in the vault
     # what the two lines above already say.
     And the document is scrolled to the heading "Slats"
   @scratch:good
+  Scenario: Coming back to a section restores where the reader was, not the section
+    # A LANDING HAPPENS ONCE, and this is the scenario that says so. A browser
+    # applies a hash when you follow a link and does NOT re-apply it when you
+    # come back to that entry: on the way back the position it owes you is the
+    # one you left. This app read the fragment off the route on every render
+    # instead, so `popstate` set the route, the scroll memory put the reader
+    # back where they had scrolled to, and a frame later the page yanked them
+    # to the heading.
+    #
+    # So: land on a section, scroll AWAY from it, go somewhere else, come back.
+    # What is owed is the scroll position, and the fragment in the address —
+    # still there, still copyable — must not be spent a second time.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/beds.md" as:
+      """
+      # Beds
+
+      Prose at the top of the page, and plenty of it, so that landing on the
+      section below is a real scroll and scrolling away from it is another.
+
+      Prose line 1, filling the page.
+
+      Prose line 2, filling the page.
+
+      Prose line 3, filling the page.
+
+      Prose line 4, filling the page.
+
+      Prose line 5, filling the page.
+
+      Prose line 6, filling the page.
+
+      Prose line 7, filling the page.
+
+      Prose line 8, filling the page.
+
+      Prose line 9, filling the page.
+
+      Prose line 10, filling the page.
+
+      Prose line 11, filling the page.
+
+      Prose line 12, filling the page.
+
+      Prose line 13, filling the page.
+
+      Prose line 14, filling the page.
+
+      Prose line 15, filling the page.
+
+      Prose line 16, filling the page.
+
+      Prose line 17, filling the page.
+
+      Prose line 18, filling the page.
+
+      Prose line 19, filling the page.
+
+      Prose line 20, filling the page.
+
+      Prose line 21, filling the page.
+
+      Prose line 22, filling the page.
+
+      Prose line 23, filling the page.
+
+      Prose line 24, filling the page.
+
+      Prose line 25, filling the page.
+
+      Prose line 26, filling the page.
+
+      Prose line 27, filling the page.
+
+      Prose line 28, filling the page.
+
+      Prose line 29, filling the page.
+
+      Prose line 30, filling the page.
+
+      ## Slats
+
+      More prose under the heading, line 1.
+
+      More prose under the heading, line 2.
+
+      More prose under the heading, line 3.
+
+      More prose under the heading, line 4.
+
+      More prose under the heading, line 5.
+
+      More prose under the heading, line 6.
+
+      More prose under the heading, line 7.
+
+      More prose under the heading, line 8.
+
+      More prose under the heading, line 9.
+
+      More prose under the heading, line 10.
+
+      More prose under the heading, line 11.
+
+      More prose under the heading, line 12.
+
+      More prose under the heading, line 13.
+
+      More prose under the heading, line 14.
+
+      More prose under the heading, line 15.
+
+      More prose under the heading, line 16.
+
+      More prose under the heading, line 17.
+
+      More prose under the heading, line 18.
+
+      More prose under the heading, line 19.
+
+      More prose under the heading, line 20.
+
+      More prose under the heading, line 21.
+
+      More prose under the heading, line 22.
+
+      More prose under the heading, line 23.
+
+      More prose under the heading, line 24.
+
+      More prose under the heading, line 25.
+
+      More prose under the heading, line 26.
+
+      More prose under the heading, line 27.
+
+      More prose under the heading, line 28.
+
+      More prose under the heading, line 29.
+
+      More prose under the heading, line 30.
+      """
+    And I rewrite "notes/index.html" as:
+      """
+      <h1>Index</h1>
+      <p><a id="slats" href="beds.md#slats">the slats section</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/index.html"
+    Then the preview shows the heading "Index"
+    When I click "#slats" inside the preview
+    Then the document open is "notes/beds.md"
+    And the document is scrolled to the heading "Slats"
+    # The reader reads on, and scrolls somewhere of their own choosing.
+    When I scroll to the bottom of the page
+    And I remember where the page is scrolled
+    # …then goes elsewhere, and comes back.
+    And I click the page "notes/index.html"
+    Then the preview shows the heading "Index"
+    When I go back
+    Then the document open is "notes/beds.md"
+    # THE ASSERTION: where they left it, and it STAYS there — a re-applied
+    # landing would fire a frame after the restore, which is exactly what a
+    # single reading cannot catch.
+    And the page is scrolled where it was left
+    # …and the address still carries the section, because the fragment was
+    # never the thing that was wrong.
+    And the address carries the anchor "#slats"
+
+  @scratch:good
   Scenario: A page that sends the frame to its neighbour is left where it went
     # THE OTHER UNASKED-FOR NAVIGATION, and the last kept behaviour with no
     # scenario of its own. A click is not the only way a frame moves: a page can

@@ -361,7 +361,7 @@ export function Hypertext(
     //
     // AFTER the query, because that is the order an address has — the visit
     // counter belongs to this URL and the fragment to the document it names.
-    point(`${mediaHref(props.file)}?${VISIT}=${visits}${landing(props.at)}`)
+    point(`${mediaHref(props.file)}?${VISIT}=${visits}${landing(router.landing())}`)
   }
 
   /**
@@ -557,7 +557,7 @@ export function Hypertext(
     // Tracked, not read: the frame's height is what makes the arithmetic below
     // land where the reader will be looking.
     measured()
-    if (top === undefined || props.at === undefined || frame === undefined) return
+    if (top === undefined || router.landing() === undefined || frame === undefined) return
     const box = frame
     const painted = requestAnimationFrame(() => {
       box.scrollIntoView({ block: "start" })
@@ -605,7 +605,7 @@ export function Hypertext(
   // is scrolled to is a fact about its URL and this is the only way to change
   // one from out here.
   createEffect(
-    on(() => [props.rev, props.at], () => {
+    on(() => [props.rev, router.landing()], () => {
       walkOffs = 0
       show()
     }, { defer: true }),

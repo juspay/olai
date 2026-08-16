@@ -34,6 +34,29 @@ import { createScrollMemory } from "./scroll.ts"
 
 export interface Router {
   readonly route: () => Route
+  /**
+   * The place inside the page this NAVIGATION was asked to land on, or nothing
+   * — which is a different thing from the fragment the address carries, and the
+   * difference is the whole reason it is here.
+   *
+   * `route().at` is a FACT about where the reader is: it stays true while they
+   * are on that page, it is what a copied link carries, and it is still there
+   * an hour later. Landing is an ACT, and it happens once, on arrival. Reading
+   * the fact as though it were the act is what a browser is careful not to do:
+   * it applies a hash when you follow a link and NOT when you come back to that
+   * entry, because on the way back the position it owes you is the one you left.
+   *
+   * That is exactly what this app got wrong for a round. `popstate` sets the
+   * route, `scroll.restore` puts the window where the reader had scrolled to,
+   * and the page — re-rendering with the same `at` — scheduled a landing that
+   * fired a frame later and yanked them back to the heading. The fragment was
+   * never wrong; treating it as an instruction on every render was.
+   *
+   * So: set when this component causes a navigation, and CLEARED on `popstate`.
+   * A first paint counts as an arrival, so a typed address or a reload lands,
+   * which is a browser's own behaviour too.
+   */
+  readonly landing: () => string | undefined
   readonly go: (route: Route) => void
   /**
    * The same page, at a different address — history REPLACED rather than
@@ -94,8 +117,17 @@ const nameHere = (): string => {
 const here = (): string =>
   location.pathname + location.search + location.hash
 
+/** The place inside the page a route names, for the arms that can name one.
+ *  One reading, so `go` and the first paint cannot disagree about what an
+ *  address asked to land on. */
+const landingIn = (route: Route): string | undefined =>
+  route.kind === "document" ? route.at : undefined
+
 export const createRouter = (): Router => {
-  const [route, setRoute] = createSignal<Route>(routeOf(here()))
+  const first = routeOf(here())
+  const [route, setRoute] = createSignal<Route>(first)
+  // A first paint is an arrival, so an address typed or reloaded lands.
+  const [landing, setLanding] = createSignal<string | undefined>(landingIn(first))
 
   // The entry the reader landed on is named before anything can move, so
   // leaving it and coming back is a restore rather than a guess.
@@ -105,6 +137,9 @@ export const createRouter = (): Router => {
   // The back button is a first-class way to navigate, not an edge case: the
   // whole point of a route is that the browser's own history works.
   const onPopState = () => {
+    // A RESTORE, never an arrival: the position this entry is owed is the one
+    // the reader left it at, and `scroll.restore` below is what knows it.
+    setLanding(undefined)
     setRoute(routeOf(here()))
     // AFTER the route, and it has to be: Solid draws the page the new route
     // names while `setRoute` is still running, and a page that has not been
@@ -116,7 +151,9 @@ export const createRouter = (): Router => {
 
   return {
     route,
+    landing,
     go: (next) => {
+      setLanding(landingIn(next))
       history.pushState({ key: mintKey() } as Entry, "", hrefOf(next))
       setRoute(next)
       // A page you asked for, so: the top. Zooming out of the bottom of a long
@@ -133,6 +170,9 @@ export const createRouter = (): Router => {
       scroll.toTop()
     },
     replace: (next) => {
+      // Not an arrival either: this is the page the reader is already on, at a
+      // different address, and it deliberately does not move them.
+      setLanding(undefined)
       // The entry KEEPS its key: it is the same entry, so the scroll position
       // remembered against it is still the position of this page.
       history.replaceState({ key: nameHere() } as Entry, "", hrefOf(next))
