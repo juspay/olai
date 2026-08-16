@@ -154,10 +154,16 @@ interface Heights {
  * The poll is the world's own (`waitUntil`), not a second one written here; the
  * only thing this adds is the last reading, because "timed out waiting until
  * the frame fits its page" is a worse sentence than the two numbers. Same shape
- * as `theme_steps.ts` uses for the same reason. The predicate and the complaint
- * are each spelled ONCE and travel together — two copies of one condition, one
- * for the poll and one for the assertion, is a step that waits for something
- * other than what it checks.
+ * as `theme_steps.ts` uses for the same reason.
+ *
+ * `settled` is evaluated in exactly ONE place — the poll — and the failure path
+ * does not re-check it, it just reports. That is deliberate: an earlier draft
+ * waited on the predicate and then asserted the predicate again, which is one
+ * editor away from waiting for X and asserting Y, and a step that waits for
+ * something other than what it checks either passes on a value it never waited
+ * for or burns the whole timeout before failing anyway (opencode's review of
+ * this PR named the shape). With no second evaluation there is no second
+ * condition to drift from the first.
  */
 const untilHeights = async (
   world: OlaiWorld,
@@ -181,11 +187,12 @@ const untilHeights = async (
   };
 
   let seen = await reading();
-  await world
-    .waitUntil(async () => settled((seen = await reading())), describe)
-    // The timeout says it never held; the assertion below says what was there.
-    .catch(() => undefined);
-  assert.ok(settled(seen), complain(seen));
+  try {
+    await world.waitUntil(async () => settled((seen = await reading())), describe);
+  } catch {
+    // The timeout knows it never held; only this knows what was there instead.
+    assert.fail(complain(seen));
+  }
 };
 
 /** The viewport the bounds are written against: `dvh` in a browser with no
@@ -266,6 +273,89 @@ Then(
     );
   },
 );
+
+// ── walking the frame off its own document ─────────────────────────────
+
+/**
+ * A fixture that tries to leave, written HERE rather than in the feature
+ * because it needs the one thing a `.feature` file cannot spell: this server's
+ * address.
+ *
+ * A `<meta http-equiv="refresh">` is the walk-off that needs no script, and it
+ * needs an ABSOLUTE url — a sandboxed `srcdoc` document is an opaque origin, so
+ * a relative one has nothing to resolve against and simply does not fire (which
+ * is a trap worth naming: a fixture written with `url=/` would pass this
+ * scenario by never attacking it).
+ *
+ * The destination is THIS APP. Not for drama — it is the destination that makes
+ * the failure legible and needs no network: unsealed, the frame would load
+ * olai inside olai, and with `allow-scripts` on the context that page's
+ * JavaScript would run, in a document with no `default-src 'none'` over it.
+ * The seal cannot follow the frame there; `sandbox` can. That is the gap this
+ * scenario exists for.
+ */
+/** The two ways out, as the head and body each needs. A `refresh` goes in the
+ *  HEAD, where the parser keeps it and every browser honours it; a link is a
+ *  link. Both point at an ABSOLUTE address for the reason above. */
+const WALKS_OFF = {
+  "refreshing itself": (to: string) => ({
+    head: `<meta http-equiv="refresh" content="0;url=${to}/">`,
+    body: "",
+  }),
+  "a link the reader follows": (to: string) => ({
+    head: "",
+    body: `<a id="away" href="${to}/">follow me</a>`,
+  }),
+} as const;
+
+When(
+  "I rewrite {string} as a page that walks the frame off by {string}",
+  function (this: OlaiWorld, file: string, how: string) {
+    const walk = WALKS_OFF[how as keyof typeof WALKS_OFF];
+    assert.ok(walk !== undefined, `no such walk-off as "${how}"`);
+    const { head, body } = walk(this.baseUrl);
+    this.writeServed(
+      file,
+      `<!doctype html>\n<html lang="en"><head><meta charset="utf-8">${head}` +
+        `<title>Walk off</title></head>\n<body><h1>Walk off</h1>\n` +
+        `<p id="probe">the frame is on the sealed document</p>\n` +
+        `${body}\n</body></html>\n`,
+    );
+  },
+);
+
+When("I follow the link out of the preview", async function (this: OlaiWorld) {
+  const frame = await inside(this);
+  await frame.locator("#away").click();
+});
+
+// The app, INSIDE the preview — the thing that must never be there. Read as the
+// mount point rather than as a testid, because `#root` is in the shell's own
+// HTML from the first byte, so it is there before any hydration and cannot pass
+// by arriving late.
+Then("the app is not loaded inside the preview", async function (this: OlaiWorld) {
+  const frame = await inside(this);
+  // Given a moment to be wrong: the walk-off is a navigation, so asserting
+  // immediately would pass against a frame that simply had not left yet.
+  await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  assert.strictEqual(
+    await frame.locator("#root").count(),
+    0,
+    "this app is loaded inside the preview frame — the page walked the frame " +
+      "off `about:srcdoc`, where the seal's policy does not follow it, and " +
+      "nothing put the seal back",
+  );
+});
+
+// …and the positive half: it came home. The file's own markup is back in the
+// frame, which is what says the restore RAN rather than the navigation merely
+// having failed.
+Then("the preview is back on the sealed document", async function (this: OlaiWorld) {
+  const frame = await inside(this);
+  await frame
+    .locator("#probe")
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
 
 // ── the seal ───────────────────────────────────────────────────────────
 

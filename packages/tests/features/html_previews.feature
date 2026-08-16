@@ -92,6 +92,50 @@ Feature: A `.html` in the vault
     Then the preview shows the heading "Cabinet quote"
     And the page requested nothing off this server
 
+  # ── the frame stays on its own document ──────────────────────────────
+  #
+  # A `sandbox` attribute belongs to the browsing CONTEXT and survives every
+  # navigation; the seal's `<meta>` policy belongs to one DOCUMENT and dies with
+  # it. So a page that walks the frame off `about:srcdoc` — a `refresh`, a link
+  # — used to land somewhere unsealed and inert, because the empty sandbox
+  # barred scripts everywhere. It would now land somewhere unsealed where
+  # scripts RUN. The origin is still nobody's, so the vault is still out of
+  # reach, but "running in there is worth nothing" would stop being true.
+  #
+  # These two are that gap, closed and proved. The destination is this app,
+  # because unsealed the frame would load olai inside olai and run its
+  # JavaScript — the failure would be unmistakable — and because it needs no
+  # network. grok's review of PR #197 is what found this.
+
+  @scratch:good
+  Scenario: A page that refreshes itself away is not allowed to leave
+    Given I open the app
+    When I rewrite "runaway.html" as a page that walks the frame off by "refreshing itself"
+    And I click the page "runaway.html"
+    # The whole promise, read where the damage would be: the frame is not
+    # somewhere else. A page that re-arms its walk-off every time the markup is
+    # restored gets a bounded number of tries and then the empty seal, so this
+    # also says the answer terminates rather than ping-ponging forever.
+    Then the app is not loaded inside the preview
+    # …and the app around it is untouched, which is the half that was never at
+    # risk and is asserted anyway, because that is what a probe is for.
+    And the app's storage is untouched by the preview
+    And the app's page is untouched by the preview
+    And the address is "/doc/runaway.html"
+
+  @scratch:good
+  Scenario: A link out of a preview comes home to the sealed document
+    Given I open the app
+    When I rewrite "outbound.html" as a page that walks the frame off by "a link the reader follows"
+    And I click the page "outbound.html"
+    Then the preview shows the heading "Walk off"
+    When I follow the link out of the preview
+    # The positive half of the same mechanism: the file's own markup is BACK,
+    # which is what says the restore ran rather than the navigation having
+    # quietly failed and left everything where it was.
+    Then the preview is back on the sealed document
+    And the app is not loaded inside the preview
+
   # ── how tall the frame is ────────────────────────────────────────────
   #
   # The frame is the height of the page it holds. It was `70dvh` flat before —
@@ -136,6 +180,26 @@ Feature: A `.html` in the vault
     # The other half: a long page is read by scrolling THIS page, not by
     # scrolling a box inside it.
     And the preview is taller than the viewport
+
+  @scratch:good
+  Scenario: A page sized in viewport units does not inflate to the bound
+    # The measurement is taken INSIDE the box it sizes, so a page whose own
+    # height is a share of the viewport — `min-height: 100vh` on a wrapper, which
+    # is ordinary in a saved dashboard — reports a number that grows every time
+    # the frame acts on the last one. Measured before this was guarded: a page
+    # one screen tall came out at 1798px against a 1800px bound, so every such
+    # export rendered as a two-screen box. A height is accepted once per WIDTH
+    # now, and nothing under this policy can change a page's height at a fixed
+    # width, so the ladder has no rungs. Both reviews of PR #197 found this.
+    Given I open the app
+    When I rewrite "hero.html" as:
+      """
+      <h1>Hero</h1>
+      <div style="min-height:100vh;background:#fee">a wrapper sized in vh</div>
+      """
+    And I click the page "hero.html"
+    Then the preview shows the heading "Hero"
+    And the preview is shorter than the viewport
 
   @scratch:good
   Scenario: An enormous page is bounded, and the rest of it is still there

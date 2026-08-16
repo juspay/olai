@@ -54,12 +54,29 @@
  * WHAT THAT COST, said out loud rather than buried: the sandbox used to bar
  * execution too, so a `<script>` in a saved page was refused TWICE over, by two
  * independent mechanisms. It is refused once now, by (2). What did NOT change
- * is (1) and (3) — the two that decide the consequence. A script that somehow
- * ran here despite the policy would still be running in an origin that is
- * nobody's, with no network, unable to see or touch this app; that is the same
- * frame it was. The bar came down on "does foreign code execute", and it did
- * not come down at all on "can foreign code reach anything", which is what the
- * word isolation means here.
+ * is (1) — the mechanism that decides the consequence. A script that ran here
+ * despite the policy would still be running in an origin that is nobody's,
+ * unable to see or touch this app; that is the same frame it was.
+ *
+ * Note the shape of what (2) and (3) now share, because it is the honest cost:
+ * they are ONE STRING. A future edit that mangles {@link POLICY} so the meta
+ * does not bind takes down the script bar and the network bar together, and
+ * origin isolation is what is left. That is a real reduction in independence,
+ * and the mitigation is that the string is asserted twice — as a parsed
+ * directive SET here (`./sealed.test.ts`) and as the exact text the browser was
+ * handed (the e2e step imports {@link POLICY} rather than re-spelling it). Both
+ * reviews of this PR landed on that sentence; it is written here rather than
+ * softened.
+ *
+ * AND THE POLICY ONLY COVERS THIS DOCUMENT. A `<meta>` CSP binds the document
+ * it is in; the `sandbox` attribute binds the browsing CONTEXT and outlives
+ * every navigation in it. So the sentence "a script that ran in here could
+ * reach nothing" is true of a script running UNDER THIS POLICY, and a page that
+ * walks the frame off `about:srcdoc` — a `refresh`, a link — is no longer under
+ * it while `allow-scripts` still applies. That gap is closed on the element
+ * rather than here, because it is a fact about the frame: `./Hypertext.tsx`
+ * counts the documents it asked for and puts the seal back on one it did not.
+ * grok's review of this PR is what found it.
  *
  * `allow-scripts` WITH `allow-same-origin` is the combination that must never
  * be written: a document with both can reach into its own frame element and

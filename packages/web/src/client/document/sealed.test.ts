@@ -143,3 +143,18 @@ test("anything else the frame could say is not a height", () => {
 test("a fractional page gets the pixel it needs", () => {
   expect(reportedHeight(`${SAID}640.2`)).toBe(641)
 })
+
+// WHAT `Number` LETS THROUGH, pinned rather than assumed — opencode's review of
+// this PR asked for the stray-space case on the belief that it would be `NaN`
+// and fall out with the rest. It does not: `Number` trims, so a space is a
+// height, and `0x100` is 256. Written down because the surprise is worth one
+// test, and left LENIENT rather than tightened to a decimal regex for two
+// reasons. The sender is hash-pinned and posts `Math.max` of two integers, so
+// none of these spellings can arrive from it; and every one that gets through
+// is a number on its way into a CSS `clamp` between a heading and two screens,
+// which is the same place an honest height lands. The gate that matters is the
+// one above it — `event.source` — and it is identity, not syntax.
+test("a slack spelling of a number is still a number", () => {
+  expect(reportedHeight(`${SAID} 640`)).toBe(640)
+  expect(reportedHeight(`${SAID}0x100`)).toBe(256)
+})

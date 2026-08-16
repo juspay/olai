@@ -3,7 +3,7 @@
  *
  * One element: a frame holding the file's own markup behind the seal
  * (./sealed.ts, which is where the whole security argument is written and where
- * a reviewer should start). This file is the frame's own three decisions and
+ * a reviewer should start). This file is the frame's own four decisions and
  * nothing else.
  *
  * `srcdoc` rather than `src`, and that is the first of them. The body is
@@ -30,6 +30,25 @@
  * not it sends one at all. `70dvh` survives as that clamp's `var()` default,
  * which is the honest place for a guess.
  *
+ * The frame STAYS ON ITS OWN DOCUMENT, and that is the fourth decision — the
+ * one this component owes to the seal rather than to the reader. A `sandbox`
+ * attribute is a fact about the browsing CONTEXT and survives every navigation;
+ * a `<meta>` policy is a fact about one DOCUMENT and dies with it. So a page
+ * that walks the frame off `about:srcdoc` — a `<meta http-equiv="refresh">`, a
+ * link the reader clicks — used to land somewhere unsealed and harmless,
+ * because `sandbox=""` barred scripts everywhere; now it would land somewhere
+ * unsealed where scripts RUN, with no `default-src 'none'` over it. The origin
+ * would still be nobody's, so the vault is not reachable either way, but
+ * "running is worth nothing in there" would stop being true the moment the
+ * frame stopped being the sealed document.
+ *
+ * It cannot be asked where it is — an opaque origin answers nothing — so it is
+ * COUNTED instead. Every document this component puts in the frame is one it
+ * asked for; a `load` nobody asked for is the frame somewhere else, and the
+ * answer is to put the seal back ({@link WALK_OFFS} bounds the case where the
+ * page does it again the moment it is restored). Grok's review of this PR is
+ * what found the gap.
+ *
  * And it is drawn on WHITE, with a border. A saved page assumes a page's
  * ground: unstyled markup is black text, and the seal declares a light colour
  * scheme so the frame's own defaults follow. The border is what says the white
@@ -42,10 +61,33 @@
  * this file, so the two kinds of page answer the question in one place.
  */
 
-import { createMemo, createSignal, onCleanup, onMount } from "solid-js"
+import { createEffect, createMemo, createSignal, on, onCleanup, onMount } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { reportedHeight, sealed } from "./sealed.ts"
+
+/**
+ * How many times a page may walk the frame off its own document, per document
+ * shown, before this component stops putting the file back and gives the frame
+ * a sealed EMPTY one instead.
+ *
+ * A BUDGET, counted, with no clock in it — and the clock is what this is
+ * deliberately not. The tempting rule is "restore unless it happens again
+ * immediately, because a reader clicking a link is slower than a refresh": that
+ * rule ping-pongs forever against `content="2;…"`, which is slower than the
+ * threshold and just as automatic. A page that re-arms its own walk-off is
+ * unbounded under any timing rule and bounded under this one.
+ *
+ * What it costs is the reader who follows several links in one preview and
+ * finds the frame empty on the fourth; they reopen the page, which is one
+ * click, and the budget is fresh. What it buys is that no served file can put
+ * this tab in a reload loop, reparsing a megabyte on every bounce.
+ *
+ * The empty seal is the end state rather than the file, because the file is
+ * what keeps leaving: inert, sealed, and visibly not the document — which is
+ * the honest way to say "this page will not be shown without walking off".
+ */
+const WALK_OFFS = 3
 
 /**
  * WHAT THE FRAME REPORTS, as this element publishes it: one custom property
@@ -79,6 +121,52 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
   const [measured, setMeasured] = createSignal<string>()
   let frame: HTMLIFrameElement | undefined
 
+  // The width the accepted height was measured at, and the reason it is kept:
+  // a page may be sized in `vh`. `min-height: 100vh` on a wrapper is ordinary in
+  // a saved dashboard, and its height is then the FRAME's height — so accepting
+  // every report would be a ladder, each one taller because the last one made
+  // the frame taller, climbing until the clamp ate it. (Measured, before this
+  // guard: a one-screen `100vh` page came out at 1798px against a 1800px bound.)
+  //
+  // So a height is accepted ONCE PER WIDTH. Nothing under this seal can change a
+  // page's height at a fixed width — no script, no image, no web font, no fetch,
+  // all refused by the policy — so the only honest reason to re-measure is that
+  // the frame got wider or narrower and the text reflowed. That is exactly what
+  // this admits, and the vertical loop cannot form at all rather than being
+  // argued to converge.
+  let sizedAt: number | undefined
+  // Loads this component asked for. Every document it puts in the frame is one;
+  // a `load` with none outstanding is the frame somewhere nobody sent it.
+  let expected = 0
+  let walkOffs = 0
+
+  /** Put a document in the frame, and remember that its `load` is ours.
+   *
+   *  Imperative, and the reason is the restore: the markup that goes back after
+   *  a walk-off is the SAME string that is already in the attribute, and a
+   *  declarative binding compares and does nothing. Assigning `srcdoc` — even
+   *  the identical value — re-navigates the frame, which is what makes putting
+   *  the seal back possible at all. */
+  const show = (markup: string) => {
+    if (frame === undefined) return
+    expected += 1
+    // The height belonged to the document that is leaving.
+    sizedAt = undefined
+    setMeasured(undefined)
+    frame.srcdoc = markup
+  }
+
+  const loaded = () => {
+    if (expected > 0) {
+      expected -= 1
+      return
+    }
+    // Nobody asked for this document. The page walked the frame off its own
+    // markup, and whatever is under there now has no seal over it.
+    walkOffs += 1
+    show(walkOffs > WALK_OFFS ? sealed("") : source())
+  }
+
   // The message arrives on the WINDOW — there is no per-frame channel — so the
   // sender is identified by IDENTITY rather than by origin: a sandboxed frame
   // with no `allow-same-origin` posts as `"null"`, which every other such frame
@@ -94,15 +182,36 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
     const listen = (event: MessageEvent) => {
       if (event.source !== frame?.contentWindow) return
       const height = reportedHeight(event.data)
-      if (height !== undefined) setMeasured(`${height}px`)
+      if (height === undefined || frame.clientWidth === sizedAt) return
+      sizedAt = frame.clientWidth
+      setMeasured(`${height}px`)
     }
     window.addEventListener("message", listen)
     onCleanup(() => window.removeEventListener("message", listen))
   })
 
+  // DEFERRED, because the first document is put in by the `ref` below — before
+  // the element is in the page, so it arrives with its markup already on it and
+  // costs exactly one load. This is only the file changing on disk afterwards,
+  // and a new revision is a new document, so the walk-off budget starts over:
+  // what it bounds is one page bouncing, not a file's whole history.
+  createEffect(
+    on(source, (markup) => {
+      walkOffs = 0
+      show(markup)
+    }, { defer: true }),
+  )
+
   return (
     <iframe
-      ref={frame}
+      // The element, and its first document, in one step: assigning `srcdoc`
+      // here happens before insertion, so there is no `about:blank` load ahead
+      // of the sealed one and the count starts honest.
+      ref={(element) => {
+        frame = element
+        show(source())
+      }}
+      onLoad={loaded}
       // `allow-scripts` and NOTHING ELSE. What is absent is what matters:
       // without `allow-same-origin` the frame's origin is nobody's, so the one
       // script the policy admits (./sealed.ts) — and anything that somehow ran
@@ -117,7 +226,6 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
       // to that), so this is belt to that braces: were a directive ever
       // loosened, the request still would not carry which page a reader is on.
       referrerpolicy="no-referrer"
-      srcdoc={source()}
       // The frame is a document in the page, so it gets a name a screen reader
       // can announce — the path, which is what the heading above it says too.
       title={props.file}
