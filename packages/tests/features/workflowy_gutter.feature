@@ -123,3 +123,37 @@ Feature: Workflowy gutter
     Then the node "kitchen" is expanded
     And the node "install" is expanded
     And the children of "install" are shown
+
+  # ── the fold's receipt, and when it is somebody else's to give ────────
+  #
+  # A collapsed row usually carries the rollup too, and on most branches those
+  # are the same number twice — `3/4` already reports three finished tasks, so
+  # `+3 done` beside it is the second, dumber spelling of one fact. The human
+  # ruled on it after seeing both on one line: where the rollup says it, the
+  # fold says nothing. Both halves are here, because the rule is a COMPARISON
+  # and not "drop the count wherever there is a rollup" — the two numbers count
+  # different things, and the second scenario is the branch where they diverge.
+
+  Scenario: Where the rollup already counts it, the fold says nothing
+    # `compost` is two done children and nothing else: its rollup reads 2/2 and
+    # the fold would report the same two.
+    Given I open the outline "garden.olai"
+    And the node "compost" is expanded
+    When I collapse the node "compost"
+    Then the node "compost" is collapsed
+    And the node "compost" shows the progress "2/2"
+    And the node "compost" says nothing about folded finished rows
+
+  Scenario: Where the rollup cannot see it, the fold still says so
+    # `garden`'s rollup is 0/1 — `herbs` is the only child anybody marked — and
+    # five finished rows are hidden under the two unmarked children beside it.
+    # A rollup is one level deep on purpose (`@olai/format`'s `progressOf` says
+    # why: `3/5` beside a title is about the five rows drawn under it), so it is
+    # blind to exactly this, and the count is the only thing left saying that a
+    # branch reading 0/1 is not empty of finished work.
+    Given I open the outline "garden.olai"
+    And the node "garden" is expanded
+    When I collapse the node "garden"
+    Then the node "garden" is collapsed
+    And the node "garden" shows the progress "0/1"
+    And the node "garden" says it is folding "5" finished rows

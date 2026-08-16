@@ -33,7 +33,9 @@ An outline is a column of titles, so that is what it draws. Everything else a no
 
 It is a default and not a lock. The ¶ works at all three, and only rows you have not touched follow the setting — fold one at Open and it stays folded, open one at Compact and it stays open. Like every preference it belongs to this browser, reaches every tab of it, and is never sent anywhere: two machines reading the same vault are entitled to disagree about it, and it is one setting for the whole app rather than one per outline, because "I read a tree as a list of titles" is a fact about you and not about any one file.
 
-**One fact may ride beside a title**, in the same dim voice as the tags: how far the tasks under a branch have got (`3/5`), or `pr` on work that has shipped. A collapsed branch also says how much finished work it is holding back, because done rows recede and a fold over them should leave a receipt rather than hide them twice.
+**One fact may ride beside a title**, in the same dim voice as the tags: how far the tasks under a branch have got (`3/5`), or `pr` on work that has shipped.
+
+**A collapsed branch may add one more** — how much finished work went with the fold, since done rows recede and a fold over them should leave a receipt rather than hide them twice. It appears only when the rollup has not already said it: on most branches `3/4` has counted those three, and `+3 done` beside it is the same number a second time. Where you do see it, it is because the rollup could not see that far — a rollup is about the row's own children, and finished work can sit deeper than that or arrive through a mirror.
 
 **Top-level rows read as sections**: a heavier name, the rollup as part of that header, and they stay put under the app bar while their own branch scrolls past.
 

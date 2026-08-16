@@ -22,7 +22,7 @@
  * with three literals instead of a hand-built union.
  */
 
-import type { Status } from "@olai/format"
+import type { Progress, Status } from "@olai/format"
 
 /** As much of a row as counting needs. `Row` satisfies it. */
 export interface Branch {
@@ -39,4 +39,40 @@ export const doneUnder = (row: Branch): number => {
     count += doneUnder(child)
   }
   return count
+}
+
+/**
+ * ...and whether the fold should SAY it, which is a different question.
+ *
+ * A collapsed row usually carries the rollup too (`./hot.ts`), and on most
+ * branches those two are the same number twice: `3/4` already reports three
+ * finished tasks, so `+3 done` beside it is the second, dumber spelling of one
+ * fact — the redundancy this codebase keeps closing (`one-git-indicator`, the
+ * theme pill, the done pill). The human ruled it out on sight of the first
+ * build: where the rollup says it, the fold says nothing.
+ *
+ * IT IS NOT ALWAYS THE SAME NUMBER, which is the whole reason this is a
+ * comparison rather than "drop the count on any branch with a rollup". The two
+ * count different things:
+ *
+ *   - the ROLLUP is the row's own children and only those — `progressOf` is
+ *     deliberately one level deep, because `3/5` beside a title is about the
+ *     five rows drawn under it — and it never counts a mirror;
+ *   - this COUNT is every done row the fold hid, at every depth, mirrors
+ *     included, because that is what stopped being visible.
+ *
+ * So a branch whose finished work sits under an unmarked child, or arrives
+ * through a mirror, has a rollup that does not know about it — and there the
+ * count is the only thing that says so. `house.olai`'s `kitchen` is exactly
+ * that: `1/2` beside it, two done rows inside it.
+ */
+export const foldSays = (
+  /** How many done rows the fold hid — `undefined` on a row that is not
+   *  collapsed, which is not a fold and reports nothing. */
+  folded: number | undefined,
+  /** The rollup the same row is already drawing, when it draws one. */
+  rollup: Progress | undefined,
+): number | undefined => {
+  if (folded === undefined || folded === 0) return undefined
+  return rollup?.done === folded ? undefined : folded
 }

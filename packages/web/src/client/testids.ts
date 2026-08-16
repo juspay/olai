@@ -122,8 +122,10 @@ export const TESTID = {
    *  move because a second fact learnt to sit beside it. */
   hotFact: "hot-fact",
   /** On a COLLAPSED row: how many finished rows the fold is holding back
-   *  (`client/hidden.ts`). `data-done` is the count. Absent on an expanded row
-   *  and on a fold hiding nothing finished — a zero is not drawn. */
+   *  (`client/hidden.ts`). `data-done` is the count. Absent on an expanded row,
+   *  on a fold hiding nothing finished (a zero is not drawn), and — the case
+   *  worth knowing — on a fold whose ROLLUP already reports the same number,
+   *  since two spellings of one fact is one of them written twice. */
   foldedDone: "folded-done",
   desc: "desc",
   /** The pilcrow beside a title: the door to the row's open state
