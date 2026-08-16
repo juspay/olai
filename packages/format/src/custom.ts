@@ -104,10 +104,3 @@ export const withCustom = (
   }
   return next
 }
-
-/** Whether a map says anything at all. An EMPTY map is not written (./write.ts
- *  reads this), so a node whose last custom key was removed is a node with no
- *  `custom` field rather than one carrying `{}` — which would be the `[]`
- *  conflict-about-nothing one level in. */
-export const isEmptyCustom = (custom: Custom | undefined): boolean =>
-  custom === undefined || Object.keys(custom).length === 0

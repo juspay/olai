@@ -123,6 +123,35 @@ export const Found = Schema.Struct({
    *  the way right now is a question about marks, and this is what the record
    *  says. */
   after: RegularNode.fields.after,
+  /**
+   * The named facts this node carries that olai gives no meaning to — the
+   * record's own map, handed back VERBATIM, and what `set_prop` writes into.
+   * Absent for a node carrying none, which is the writer's own rule for
+   * absence rather than an empty map on every bullet in the vault.
+   *
+   * Here rather than on {@link Detail} alone, which is the whole of the change:
+   * a search hit is a {@link Found}, so a property answered only by `read_node`
+   * made "every lane at review" a query PLUS one read per hit — and an agent
+   * that has to read each hit to see the fact it searched by is doing by hand
+   * what the query already knew. `prop:agent=claude-opus` now answers with the
+   * `pr` beside it, in one call. Same for a child in a node's list and a row of
+   * a subtree, for the reason `see` and `after` are read there: an answer that
+   * situates a node says what that node carries.
+   *
+   * **The values travel WHOLE — not truncated, not reduced to their keys** —
+   * and that is a decision about wire cost, not an omission of one. A cut value
+   * is a value a reader cannot tell from a short one, and the first thing it
+   * would cut is the half of a URL that makes it a link; keys alone would hand
+   * back the question rather than the answer, and would make `custom` a list on
+   * one answer and a map on another, which is precisely the drift
+   * `./searching.ts`'s header exists to refuse. The size of an answer is the
+   * REQUEST'S dial — `limit` — and that one is exact, where a cut inside a
+   * value is a guess every reader has to second-guess. What a hit carries is
+   * already unbounded prose the reader wrote: `title`, and `path`, which is
+   * every ancestor's title. A property is a named fact and is smaller than
+   * both.
+   */
+  custom: RegularNode.fields.custom,
 })
 export type Found = typeof Found.Type
 
@@ -246,11 +275,9 @@ export const Detail = Schema.Struct({
   ...STAMPED,
   date: RegularNode.fields.date,
   desc: RegularNode.fields.desc,
-  /** The named facts this node carries that olai gives no meaning to — the
-   *  record's own map, handed back verbatim, and what `set_prop` writes into.
-   *  Absent for a node carrying none, which is the writer's own rule for
-   *  absence rather than an empty map on every bullet in the vault. */
-  custom: RegularNode.fields.custom,
+  // `custom` arrives with {@link Found}'s fields above, where it moved when
+  // hits were given it: one declaration, so a read of a node and a hit for the
+  // same node cannot answer different maps.
   /** The two STAMPS, when the node has them: when it was captured, and when it
    *  was last written. Both absent on a node written before olai stamped
    *  anything — nothing invents a past it did not see. */

@@ -9,11 +9,11 @@
  * field dropped from a search hit would fail nothing over there.
  */
 
-import type { OutlineSet } from "@olai/format"
+import { Found, type OutlineSet } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
 import { setOf } from "./fixtures.testlib.ts"
-import { detail, index, search } from "./query.ts"
+import { detail, index, search, subtree } from "./query.ts"
 
 /** A ledger: items in their sections, and a `Now` list made of placements —
  *  including one that CHAINS through another placement, which is the case
@@ -36,6 +36,32 @@ const LEDGER = (): OutlineSet =>
   })
 
 const at = () => index(LEDGER())
+
+/**
+ * EVERY field {@link Found} declares is one this layer actually fills.
+ *
+ * The floor's record fields are all OPTIONAL, so a field declared there and
+ * never produced by `foundOf` type-checks clean everywhere and is silently
+ * absent from every answer — which is precisely how a field once reached an
+ * agent through `search_nodes` and was dropped on the way to the palette
+ * (`@olai/format`'s `searching.ts` header). `carriedOf`'s list and `Found`'s
+ * are two hand-written lists of the same three fields; this is the cheap thing
+ * that fails when they stop agreeing, and it names the field when it does.
+ */
+test("a node carrying everything produces every field `Found` declares", () => {
+  const at = index(setOf({
+    "roadmap.olai": [
+      `{"id":"top","ord":"a0","title":"Top"}`,
+      `{"id":"all","parent":"top","ord":"a0","title":"carries everything","todo":true,` +
+      `"see":["top"],"after":["top"],"custom":{"pr":"https://github.com/juspay/olai/pull/192"}}`,
+    ].join("\n"),
+  }))
+  // A child in a node's list is a plain `Found` — no `matched`, which is the
+  // query's fact rather than the record's.
+  const carrying = detail(at, "top")?.children[0]
+  expect(carrying?.id).toBe("all")
+  expect(Object.keys(carrying ?? {}).sort()).toEqual(Object.keys(Found.fields).sort())
+})
 
 describe("the edges a node carries", () => {
   test("a search hit carries `after` and `see`, and omits what is not there", () => {
@@ -77,6 +103,86 @@ describe("the properties a node carries", () => {
 
   test("a node with no properties carries no map, rather than an empty one", () => {
     expect(detail(at(), "bugs")).not.toHaveProperty("custom")
+  })
+
+  /** THE HIT, which is the point of the field being on `Found` at all: a board
+   *  asking "every lane at review" is one call, not one call and a `read_node`
+   *  per row to see the fact the query already matched on.
+   *
+   *  Both ways of reaching the node in ONE test, because they are one path — a
+   *  word and a `prop:` clause select through the same `matching`, and what a
+   *  hit then carries is `foundOf`'s answer either way. What the second half
+   *  pins is the round trip the field exists to remove, not a second branch. */
+  test("a search hit answers the map, verbatim and uncut — found by word or by property", () => {
+    expect(search(at(), { text: "indicators" }).hits[0]).toMatchObject({
+      id: "git",
+      custom: { pr: "https://github.com/juspay/olai/pull/176", agent: "claude-opus" },
+    })
+    // The orchestration board's own query: select by the agent, and the answer
+    // already holds the PR.
+    const byProp = search(at(), { text: "prop:agent=claude-opus" }).hits
+    expect(byProp.map((hit) => hit.id)).toEqual(["git"])
+    expect(byProp[0]?.custom?.["pr"]).toBe("https://github.com/juspay/olai/pull/176")
+  })
+
+  test("a hit for a node carrying none says nothing, as its read does", () => {
+    const hit = search(at(), { text: "header" }).hits[0]
+    expect(hit).toMatchObject({ id: "sticky" })
+    expect(hit).not.toHaveProperty("custom")
+  })
+
+  test("a child in a node's list and a subtree row carry it, like `see`", () => {
+    // Every situated answer is built out of one `foundOf`, so this follows from
+    // the hit rather than being a second decision — the same shape the edge
+    // test above pins for `see` and `after`.
+    expect(detail(at(), "bugs")?.children.find((child) => child.id === "git"))
+      .toMatchObject({ custom: { agent: "claude-opus" } })
+    const walked = subtree(at(), "bugs", { depth: 1 })
+    expect(walked?.children.find((child) => child.id === "git"))
+      .toMatchObject({ custom: { agent: "claude-opus" } })
+    expect(walked?.children.find((child) => child.id === "sticky"))
+      .not.toHaveProperty("custom")
+  })
+
+  /**
+   * An answer and the GRAMMAR agree about what a node carries, which is one
+   * rule and not two.
+   *
+   * A key holding nothing is a key the file does not carry (`write.ts`'s
+   * `nothing`, read one map in by `prop:` already). The answer used to ask a
+   * different question — is the MAP empty — so a node written by hand with
+   * `{"custom":{"pr":""}}` reported `custom: {"pr": ""}` on a hit that
+   * `prop:pr` did not return. Same node, same query language, two answers.
+   */
+  test("a key holding nothing is carried by neither the hit nor `prop:`", () => {
+    const at = index(setOf({
+      "roadmap.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"","agent":"claude-opus"}}`,
+    }))
+    // The key `prop:` refuses is the key the answer leaves out…
+    expect(search(at, { text: "prop:pr" }).hits).toEqual([])
+    expect(search(at, { text: "lane" }).hits[0]?.custom).toEqual({ agent: "claude-opus" })
+    // …and a map with nothing but such keys is no map at all, exactly as it is
+    // no `custom` field on disk.
+    const bare = index(setOf({
+      "roadmap.olai": `{"id":"bare","ord":"a0","title":"a bare lane","custom":{"pr":""}}`,
+    }))
+    expect(search(bare, { text: "lane" }).hits[0]).not.toHaveProperty("custom")
+    expect(detail(bare, "bare")).not.toHaveProperty("custom")
+  })
+
+  /** A long value travels WHOLE. The wire-cost decision, pinned rather than
+   *  left to whoever next reads a hit and wonders whether it was cut: a value
+   *  cut at some length is one no reader can tell from a short one, and the
+   *  first casualty would be the half of a URL that makes it a link. The dial
+   *  on an answer's size is `limit`, and that one is exact. */
+  test("a long property is not truncated on a hit, and not reduced to its key", () => {
+    const long = `https://github.com/juspay/olai/pull/176#${"x".repeat(500)}`
+    const set = setOf({
+      "roadmap.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":${
+        JSON.stringify(long)
+      }}}`,
+    })
+    expect(search(index(set), { text: "lane" }).hits[0]?.custom).toEqual({ pr: long })
   })
 })
 

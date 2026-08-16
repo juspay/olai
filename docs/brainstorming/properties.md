@@ -58,7 +58,7 @@ Nothing can ask "which lanes are at review?" or "what PR is this node about?" �
 
 It writes only inside `custom` and structurally cannot touch anything else. One refusal remains, and it is about SHADOWING rather than reach: a custom key spelled like a field the record already has (`done`, `doing`, `todo`, `status`, `date`, `see`, `after`, `id`, `title`, `created`, `changed`, …) is turned toward the verb that writes that fact, because a node saying `done` twice with two meanings is a node no reader can trust.
 
-Reads carry them: `read_node` answers `custom` (and both stamps), and search learns
+Reads carry them: every read that situates a node answers `custom` — a search hit, a child in `read_node`'s list, a row of `read_subtree`, and `read_node` itself (which answers both stamps as well) — and search learns
 
     prop:pr                       # any node that is about a PR
     prop:agent=claude-opus        # every lane this agent ran
@@ -93,5 +93,7 @@ The ruling that stands deletes the migration entirely: nothing is rewritten, bec
 ## Open questions
 
 1. ~~Sort order in the drawer~~ — **answered**: the file's own order, which is alphabetical among custom keys. A record's key order is canonical so two files meaning the same thing are byte-identical, so "the order it was added in" is not a fact the file remembers; a drawer keeping it would re-sort itself under the reader after a reload.
-2. Do search HITS carry properties (like they carry `see`/`after`), or only `read_node`? Hits carrying them makes "list lanes at review" one query. **Still open** — `read_node` answers them, hits do not.
+2. ~~Do search HITS carry properties (like they carry `see`/`after`), or only `read_node`?~~ — **answered: they carry them, exactly the way `see`/`after` are carried.** The field moved onto `Found`, the situated node every read of the set answers with, so one declaration reaches a hit, a child in `read_node`'s list and a row of `read_subtree` — a hit and a read of the same node cannot answer different maps. "List lanes at review" is one query, and so is `prop:agent=X` answering with each lane's `pr` beside it.
+
+   The wire cost was the real question, and the answer is **whole values, not truncated and not reduced to keys**. Truncation makes a value a reader cannot tell from a short one and cuts URLs in the middle, which is where the board case lives; keys alone hand back the question rather than the answer, and would spell `custom` as a list on a hit and a map on a read. The size of an answer is `limit`'s to decide — a dial that is already there and already exact — and a hit carries `title` and `path` uncapped already, which are prose somebody typed, where a property is a named fact. Bounding a value belongs at the WRITE if anywhere (a property is not a document; `desc` is where prose goes), and cutting at the read while the write accepts anything is how a truncation marker becomes a lie the reader cannot detect. Not proposed here, and noted so the next reader does not take the absence for an oversight.
 3. When properties land, do the roadmap's existing **Now** blocks migrate in one sweep, or rot away naturally as lanes close? **Still open**, and now cheaper either way: nothing forces the question, since the old prose stays valid.

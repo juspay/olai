@@ -302,6 +302,9 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
       expect(said("read_node")).toContain(field)
     }
     expect(said("search_nodes")).toContain("`after`")
+    // …and that a hit answers the properties too, which is the whole reason to
+    // reach for one query instead of a query and a read per row.
+    expect(said("search_nodes")).toContain("`custom`")
     // …and the subtree read says where to go instead, since it walks none.
     expect(said("read_subtree")).toContain("`placed`")
   })
@@ -395,6 +398,44 @@ test("search and subtree carry a node's see so an agent can traverse", async () 
     })
     // A node with no see does not pretend to have one.
     expect(children.find((child) => child["id"] === "install")).not.toHaveProperty("see")
+  })
+})
+
+/**
+ * The same fence for `custom`, and it has to be HERE as well as in the ops
+ * layer: this is the only test that goes through the encoder, which is where a
+ * field produced by `foundOf` and unknown to the schema is silently DROPPED. It
+ * happened once, to `matched` (`@olai/format`'s `searching.ts` header), and
+ * `custom` is now on `Found` — one declaration both sides spread — so the drop
+ * cannot recur. This is what makes that a checked fact rather than a claim.
+ */
+test("search and subtree carry a node's properties, so a board is one query", async () => {
+  const PROPPED = [
+    `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+    `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets",` +
+    `"custom":{"pr":"https://github.com/juspay/olai/pull/179","agent":"claude-opus"}}`,
+    `{"id":"install","parent":"kitchen","ord":"a1","title":"install them"}`,
+    "",
+  ].join("\n")
+
+  await withTools({ "house.olai": PROPPED }, async ({ client }) => {
+    // Selected BY the property, and the answer already holds the other one —
+    // the read-per-hit this field exists to remove.
+    const hits = (await call(client, "search_nodes", { text: "prop:agent=claude-opus" }))
+      .structured
+    expect(hits["total"]).toBe(1)
+    expect((hits["hits"] as ReadonlyArray<unknown>)[0]).toMatchObject({
+      id: "order",
+      custom: { pr: "https://github.com/juspay/olai/pull/179", agent: "claude-opus" },
+    })
+
+    const tree = (await call(client, "read_subtree", { id: "kitchen", depth: 1 })).structured
+    const children = tree["children"] as ReadonlyArray<Record<string, unknown>>
+    expect(children.find((child) => child["id"] === "order")).toMatchObject({
+      custom: { agent: "claude-opus" },
+    })
+    // A node carrying no property does not answer an empty map.
+    expect(children.find((child) => child["id"] === "install")).not.toHaveProperty("custom")
   })
 })
 

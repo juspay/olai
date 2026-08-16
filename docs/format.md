@@ -53,13 +53,13 @@ Every field above is one this format declares, and the top level is **closed**: 
 
 **One open field rather than an open record.** Letting unknown top-level keys through would buy the same expressiveness by giving up the refusal that catches typos — and it would put `pr` and `title` in one namespace, where a key called `done` reads as a mark and is not one. Two namespaces in two places: which is which is a fact about where the key sits, not a rule to remember.
 
-**Nothing in olai reads a key in here.** That is the whole difference between a system field and a custom key. The journal reads `date`, the checkbox reads the marks, the blocking graph reads `after`; these are read by the person who wrote them, by `prop:` in a query ([search.md](search.md)), and by the drawer the web draws under a node's note.
+**Nothing in olai reads a key in here.** That is the whole difference between a system field and a custom key. The journal reads `date`, the checkbox reads the marks, the blocking graph reads `after`; these are read by the person who wrote them, by `prop:` in a query ([search.md](search.md)), and by the drawer the web draws under a node's note. Every read that situates a node hands the map back verbatim — a search hit as much as `read_node` — so the query that selects on a property answers with the rest of them beside it.
 
 **Written with `set_prop`** — `{id, key, value}`, and `null` (or `""`) removes it. A key spelled like a field this format already has (`done`, `date`, `see`, `title`, `id`, `created`, `changed`, or the word `status`) is refused toward the verb that writes that fact: the two namespaces are two places, so `{"done":true,"custom":{"done":"yesterday"}}` is a legal record and an unreadable one.
 
 **The stamps are not compared as changes.** Every write stamps `changed`, so a commit that named it would name it in every line beside the field somebody actually changed — and a write that changed nothing would report as a change, since the stamp would be the difference. What a reader is owed is what they wrote; when they wrote it is the log's own answer.
 
-**Keys are written alphabetically**, and a key holding nothing is not written at all — the same two rules the fields above follow, one level in. A map with no keys left is no `custom` field rather than `{}`.
+**Keys are written alphabetically**, and a key holding nothing is not written at all — the same two rules the fields above follow, one level in. A map with no keys left is no `custom` field rather than `{}`. **A read answers the same map a write would produce**, so a key holding nothing is absent from a hit and from `read_node` exactly as it is absent from the line on disk, and `prop:` — which asks the same question — cannot disagree with the answer beside it.
 
 ## Status
 
