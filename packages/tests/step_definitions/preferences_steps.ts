@@ -16,8 +16,13 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
 
+import {
+  DENSITY_KEY,
+  type Density,
+} from "@olai/web/src/client/settings/density.ts";
 import { DONE_HIDDEN_KEY } from "@olai/web/src/client/settings/done.ts";
 import { TESTID } from "@olai/web/src/client/testids.ts";
+import { SIZE_STORAGE_KEY } from "@olai/web/src/client/theme/sizes.ts";
 
 import {
   APP_HEADER,
@@ -243,18 +248,24 @@ Then("the preferences panel opens downward, clear of the bar", async function (t
   );
 });
 
-// ── the Done preference ────────────────────────────────────────────────
+// ── picking a segment, whichever row it is on ──────────────────────────
 
-/** Press one Done segment on a page. One spelling, because hide/show, the
- *  Prefs step, and the second-tab step are one circuit now — the outline pill
- *  that used to be a second door is gone. */
-const pickDone = async (
+/**
+ * Press one segment of one row, and wait for the panel to say it took.
+ *
+ * ONE spelling for every segmented row there is — Done, Notes, Size — because
+ * they are one control (`client/settings/Segmented.tsx`) and the wait is the
+ * subtle half: pressing and carrying on races the render, and each row having
+ * its own copy of that wait is how the third one gets it slightly wrong.
+ */
+const pickChoice = async (
   page: Page,
-  value: "hidden" | "visible",
+  pref: string,
+  value: string,
 ): Promise<void> => {
   await showPreferences(page);
   const choice = page.locator(
-    `${PREFS_ROW}[data-pref="done"] ${PREFS_CHOICE}[data-value="${value}"]`,
+    `${PREFS_ROW}[data-pref="${pref}"] ${PREFS_CHOICE}[data-value="${value}"]`,
   );
   await choice.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await choice.click();
@@ -262,8 +273,20 @@ const pickDone = async (
     .and(page.locator('[aria-pressed="true"]'))
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
     .catch(() => {
-      throw new Error(`Done never took "${value}"`);
+      throw new Error(`the ${pref} row never took "${value}"`);
     });
+};
+
+// ── the Done preference ────────────────────────────────────────────────
+
+/** Press one Done segment on a page. Hide/show, the Prefs step and the
+ *  second-tab step are one circuit — the outline pill that used to be a second
+ *  door is gone. */
+const pickDone = async (
+  page: Page,
+  value: "hidden" | "visible",
+): Promise<void> => {
+  await pickChoice(page, "done", value);
 };
 
 const asDone = (value: string): "hidden" | "visible" => {
@@ -344,6 +367,116 @@ Then(
       stored,
       state === "hidden" ? "true" : "false",
       `this browser keeps "${stored}" under ${DONE_HIDDEN_KEY}`,
+    );
+  },
+);
+
+// ── the Notes preference: how much of a row is drawn by default ────────
+
+/** The three words the Notes row offers, checked here rather than left to a
+ *  typo in a scenario: a `data-value` that matches nothing waits thirty seconds
+ *  and then says a segment was not visible. */
+const asDensity = (value: string): Density => {
+  const found = (["compact", "cozy", "open"] as const).find(
+    (one) => one === value,
+  );
+  if (found === undefined) {
+    throw new Error(`Notes is compact, cozy or open, not "${value}"`);
+  }
+  return found;
+};
+
+When(
+  "I set Notes to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "density", asDensity(value));
+  },
+);
+
+/** ...and then put the panel away, because the next step is about the TREE and
+ *  a portalled panel would sit on top of it. The trigger rather than Escape,
+ *  for the reason the Done twin gives. */
+When(
+  "I read the outline with Notes on {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "density", asDensity(value));
+    await this.press(this.page.locator(PREFS_TRIGGER));
+    await this.page
+      .locator(PREFS_PANEL)
+      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "a second tab sets Notes to {string}",
+  async function (this: OlaiWorld, value: string) {
+    const other = await this.context.newPage();
+    await other.goto("/");
+    await pickChoice(other, "density", asDensity(value));
+  },
+);
+
+Then(
+  "the Notes row explains that a row {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "density");
+    assert.ok(
+      hint.includes(expected),
+      `the Notes row says "${hint}", which does not say ${JSON.stringify(expected)}`,
+    );
+  },
+);
+
+Then(
+  "this browser has stored that notes are {string}",
+  async function (this: OlaiWorld, value: string) {
+    const stored = await this.stored(DENSITY_KEY);
+    assert.equal(
+      stored,
+      asDensity(value),
+      `this browser keeps "${stored}" under ${DENSITY_KEY}`,
+    );
+  },
+);
+
+// ── the Size preference: how big the page is set ───────────────────────
+
+When(
+  "I set Size to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "size", value);
+  },
+);
+
+/**
+ * The page's ROOT font size, which is the whole of what a size pick does: every
+ * length in this client is a `rem`, so this one number is the page.
+ *
+ * Read as pixels off the document rather than as the `rem` the table declares —
+ * that is what a reader gets, and it is what would stay at 16 if the sheet's
+ * blocks or the boot script's attribute stopped meeting.
+ */
+Then(
+  "the page is set at {string}",
+  async function (this: OlaiWorld, size: string) {
+    await this.waitUntil(
+      async () =>
+        (await this.page.evaluate(
+          () => getComputedStyle(document.documentElement).fontSize,
+        )) === size,
+      `the page to be set at ${size}`,
+    );
+  },
+);
+
+Then(
+  "this browser has stored the size {string}",
+  async function (this: OlaiWorld, value: string) {
+    const stored = await this.stored(SIZE_STORAGE_KEY);
+    assert.equal(
+      stored,
+      value,
+      `this browser keeps "${stored}" under ${SIZE_STORAGE_KEY}`,
     );
   },
 );

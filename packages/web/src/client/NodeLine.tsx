@@ -1,40 +1,71 @@
 /**
- * A node, on one line: its title, and the date it carries.
+ * A node, on one line: its title, the one fact allowed beside it, and the date
+ * it carries.
  *
  * The same promises wherever a node is drawn — a row in a tree, an entry on a
  * day: the title span is what carries `TESTID.nodeTitle`, it is what the mark
- * tones, and the rollup and date badges follow it in that order. Two copies of
- * that were two chances for one of them to start toning a wrapper instead, or
- * to move the testid, while both still compiled and only one browser test
- * noticed.
+ * tones, and whatever rides after it does so in the dim voice and in that
+ * order. Two copies of that were two chances for one of them to start toning a
+ * wrapper instead, or to move the testid, while both still compiled and only one
+ * browser test noticed.
  *
- * What a node cannot START yet is NOT on this line: it is answered in the mark
- * column (./Checkbox.tsx), because it is the same kind of fact as whether the
- * work has begun and a reader sorting rows is already looking there.
+ * ## The line, left to right
+ *
+ *   title (ellipsized) · the note's pilcrow · the aside · the date
+ *
+ * THE TITLE ELLIPSIZES rather than wrapping (the quiet outline, human): a row is
+ * a line, and a title that wrapped to three of them turned the column into
+ * paragraphs with bullets in front. What is cut off is on the element's own
+ * `title`, so nothing is unreadable — it is one hover, or one click into the
+ * editor, away.
+ *
+ * EVERYTHING AFTER IT SITS AGAINST IT, and nothing floats to the far right.
+ * They are `shrink-0` and they follow the words immediately, which is what makes
+ * them read as a byline rather than as a value column — the ruling that there is
+ * nothing table-shaped in this view (human). The DATE was the last thing still
+ * floating, and it stopped being tolerable when the column lost its measure and
+ * took the whole pane. What absorbs the rest of the line is a filler after them
+ * all, and it is not decoration: it is the click target that puts the caret in
+ * the title from anywhere along the row, which the title's own `flex-1` used to
+ * be before anything needed to sit next to the words.
+ *
+ * What a node cannot START yet is NOT on this line: it is answered in the glyph
+ * column (./Glyph.tsx), because it is the same kind of fact as whether the work
+ * has begun and a reader sorting rows is already looking there.
  *
  * A title is EDITABLE where a caller says so (`onEdit`), and the line itself is
  * what a click lands on: in a tree the title is replaced by an input in place
- * (./edit/RowEditor.tsx), so this component draws the read face of the same
- * spot rather than knowing anything about the editor.
+ * (./edit/RowEditor.tsx), so this component draws the read face of the same spot
+ * rather than knowing anything about the editor.
  *
- * The note itself is NOT on this line. It hangs under the title as its own
- * clamped one-line gray row (./NodeBody.tsx), Workflowy-style.
+ * The note itself is NOT on this line. It hangs under the title in the open
+ * state (./NodeBody.tsx), and the pilcrow here is the door to it.
  *
- * A FRAGMENT, not a box. The row it sits in belongs to whoever draws it — a
- * tree row also holds a fold toggle, and where that sits relative to the
- * bullet is the tree's business — so this contributes siblings to a flex
- * row it does not own.
+ * A FRAGMENT, not a box. The row it sits in belongs to whoever draws it — a tree
+ * row also holds a fold toggle, and where that sits relative to the glyph is the
+ * tree's business — so this contributes siblings to a flex row it does not own.
  */
 
-import type { Occasion, Progress, Status } from "@olai/format"
+import type { Occasion, Status } from "@olai/format"
 import { type JSX, Show } from "solid-js"
 
 import { DateBadge } from "./DateBadge.tsx"
 import { NodeTitle } from "./NodeTitle.tsx"
-import { ProgressBadge } from "./ProgressBadge.tsx"
 import { TESTID } from "./testids.ts"
 import { toneOf } from "./tone.ts"
 import { ROW_TITLE } from "./touch.ts"
+
+/** A TOP-LEVEL row is a section, and its name carries the weight of one
+ *  (./Tree.tsx says the rest of what a section is). Exported so the tree names
+ *  the same thing it asks for. */
+export const SECTION_TITLE = "font-semibold"
+
+/** The first of the open state's three layers: the TITLE LINE says the row is
+ *  open. What it does is brighten the `#tags` inside it (`./styles.css` — a tag
+ *  is HTML from `./markdown/tags.ts` and wears no utility of ours), and it is
+ *  keyed on the title SPAN rather than on the row's `<li>` because rows nest: a
+ *  rule off the item would light up every tag in an opened parent's subtree. */
+export const TITLE_OPEN = "olai-title-open"
 
 export function NodeLine(props: {
   readonly title: string
@@ -43,9 +74,17 @@ export function NodeLine(props: {
   readonly from: string
   /** Absent for a plain bullet, which is toned like the text it is. */
   readonly status: Status | undefined
-  /** Absent when nothing under the node is a task. Beside the title rather
-   *  than in the box: it is what the children say, not what this node is. */
-  readonly progress: Progress | undefined
+  /** This row is a section heading — a top-level node of the view. Heavier
+   *  name; everything else about a section is the tree's. */
+  readonly section?: boolean
+  /** This row is OPEN, which is a fact the title line draws: its tags brighten
+   *  ({@link TITLE_OPEN}). The pilcrow beside them says the same thing in its
+   *  own ink, and the two are one layer. */
+  readonly open?: boolean
+  /** The one fact allowed beside the title, already built (./Aside.tsx). */
+  readonly aside?: JSX.Element
+  /** The door to the note, when the node has one (./note/Mark.tsx). */
+  readonly mark?: JSX.Element
   readonly date?: string
   /** Which of the node's dates {@link date} is, for the one surface that
    *  collects more than one of them — a day page. Absent everywhere else,
@@ -74,28 +113,54 @@ export function NodeLine(props: {
 }) {
   return (
     <>
+      {/* `items-baseline` rather than the row's own `items-center`: the aside
+          and the pilcrow are TEXT beside text, and centring two different type
+          sizes against each other is what makes a fraction look pasted on. */}
       <span
-        class={`flex-1 ${ROW_TITLE} ${toneOf(props.status)}`}
+        class="flex min-w-0 flex-1 items-baseline gap-1.5"
         classList={{ "cursor-text": props.onEdit !== undefined }}
-        data-testid={TESTID.nodeTitle}
         onClick={(event) => props.onEdit?.(event)}
       >
-        {props.children}
-        <NodeTitle title={props.title} from={props.from} />
+        <span
+          class={`min-w-0 truncate ${ROW_TITLE} ${toneOf(props.status)}`}
+          classList={{
+            [SECTION_TITLE]: props.section === true,
+            [TITLE_OPEN]: props.open === true,
+          }}
+          data-testid={TESTID.nodeTitle}
+          // What the ellipsis took, for a pointer. The stored title, verbatim
+          // — the same string the editor would open on, never the rendering.
+          title={props.title}
+        >
+          {props.children}
+          <NodeTitle title={props.title} from={props.from} />
+        </span>
+        {/* The pilcrow hugs the TITLE, because it is about the title — "there
+            is more of this" — and the facts follow it. */}
+        {props.mark}
+        {props.aside}
+        {/* THE DATE RIDES HERE TOO, and it did not always: it was a sibling
+            outside this cell, which with a `flex-1` title meant the right edge
+            of the pane. That was tolerable while the column stopped at a
+            measure and is not now the tree takes the full width (`./touch.ts`)
+            — a badge a hand's width from the row it is about reads as a value
+            in a column, which is the shape this view has none of. Same rule as
+            the aside beside it: shrink-0, dim, straight after the words. */}
+        <Show when={props.date}>
+          {(date) => (
+            <DateBadge
+              date={date()}
+              occasion={props.occasion}
+              overdue={props.overdue}
+              onPick={props.onPickDate}
+            />
+          )}
+        </Show>
+        {/* The rest of the line, and it belongs to the title: a click anywhere
+            along a row opens its editor, exactly as it did when the title span
+            itself was the thing that stretched. */}
+        <span class="min-w-0 flex-1" aria-hidden="true" />
       </span>
-      <Show when={props.progress}>
-        {(progress) => <ProgressBadge progress={progress()} />}
-      </Show>
-      <Show when={props.date}>
-        {(date) => (
-          <DateBadge
-            date={date()}
-            occasion={props.occasion}
-            overdue={props.overdue}
-            onPick={props.onPickDate}
-          />
-        )}
-      </Show>
     </>
   )
 }

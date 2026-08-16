@@ -11,15 +11,19 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
+  APP_HEADER,
   BLOCKED,
   CHECKBOX,
   DATE,
   DESC,
+  FOLDED_DONE,
+  HOT_FACT,
   NODE,
   NODE_GUTTER,
   NODE_MENU,
   NODE_REF,
   nodeSelector,
+  NOTE_MARK,
   PROGRESS,
   readable,
   OUTLINE_TREE,
@@ -401,13 +405,25 @@ Then(
   },
 );
 
-// ── click / tap expand ─────────────────────────────────────────────────
+// ── the pilcrow: the door to a row's open state ────────────────────────
+//
+// A row is its title, so opening one is a press on the MARK beside that title
+// rather than on a note that is not drawn (`client/note/Mark.tsx`). At `Cozy`
+// the clamped line is a second door to the same state and the steps below still
+// reach the mark, because "open this row" is one act and a scenario about
+// something else should not have to know which density it is running under.
 
-/** The note control for a node: closed preview or open body. */
+const noteMark = (world: OlaiWorld, id: string) =>
+  world.within(id, NOTE_MARK);
+
+/** The note ITSELF, which is a different control from the mark: the clamped
+ *  line at `Cozy`, and the rendered body once the row is open. */
 const noteControl = (world: OlaiWorld, id: string) =>
   world.node(id).locator(DESC).first();
 
-const setNoteOpen = async (
+/** Press the pilcrow, whichever way the row is currently folded, and wait for
+ *  the row to say it moved. */
+const pressMark = async (
   world: OlaiWorld,
   id: string,
   open: boolean,
@@ -415,23 +431,140 @@ const setNoteOpen = async (
 ): Promise<void> => {
   const row = world.node(id).first();
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const current =
-    (await row.getAttribute("data-note-open")) === "true";
-  if (current === open) {
+  if ((await row.getAttribute("data-note-open")) === String(open)) {
     await world.waitForFrame();
     return;
   }
-  const control = noteControl(world, id);
-  await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await control.scrollIntoViewIfNeeded();
-  await world.press(control, gesture);
+  const mark = noteMark(world, id);
+  await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await mark.scrollIntoViewIfNeeded();
+  await world.press(mark, gesture);
   await world.waitUntil(
     async () =>
       (await world.node(id).first().getAttribute("data-note-open"))
         === String(open),
-    `the note of "${id}" is ${open ? "open" : "folded"}`,
+    `the row "${id}" is ${open ? "open" : "folded"}`,
   );
 };
+
+When(
+  "I open the note of {string}",
+  async function (this: OlaiWorld, id: string) {
+    await pressMark(this, id, true, "click");
+  },
+);
+
+When(
+  "I fold the note of {string}",
+  async function (this: OlaiWorld, id: string) {
+    await pressMark(this, id, false, "click");
+  },
+);
+
+When(
+  "I tap the pilcrow of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const mark = noteMark(this, id);
+    await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await mark.scrollIntoViewIfNeeded();
+    await this.press(mark, "tap");
+  },
+);
+
+/** The keyboard's half of the same door: a `<button>` answers Space when it
+ *  holds the caret, which is the only row-level focus this app has. */
+When(
+  "I press Space on the pilcrow of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const mark = noteMark(this, id);
+    await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await mark.focus();
+    await this.page.keyboard.press(" ");
+    await this.waitForFrame();
+  },
+);
+
+Then(
+  "the row {string} is open",
+  async function (this: OlaiWorld, id: string) {
+    await this.expectNodeAttribute(id, "data-note-open", "true");
+  },
+);
+
+Then(
+  "the row {string} is folded",
+  async function (this: OlaiWorld, id: string) {
+    await this.expectNodeAttribute(id, "data-note-open", "false");
+  },
+);
+
+Then(
+  "the node {string} shows a pilcrow",
+  async function (this: OlaiWorld, id: string) {
+    await noteMark(this, id)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the node {string} shows no pilcrow",
+  async function (this: OlaiWorld, id: string) {
+    // Asked of the row's own LINE, because rows nest and a child's mark is
+    // that child's business.
+    await drawsNothing(this, id, NOTE_MARK, "pilcrow");
+  },
+);
+
+/** The whole of what a folded row draws under its title, which at `Compact` is
+ *  nothing at all: no clamped line, no properties, no references. */
+Then(
+  "the node {string} draws nothing under its title",
+  async function (this: OlaiWorld, id: string) {
+    const own = this.node(id).first();
+    await own.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await own.locator(DESC).count()) === 0,
+      `the node "${id}" to draw no note under its title`,
+    );
+  },
+);
+
+// ── what may ride beside a title ───────────────────────────────────────
+
+Then(
+  "the node {string} shows the fact {string} holding {string}",
+  async function (this: OlaiWorld, id: string, key: string, value: string) {
+    const fact = this.node(id).first().locator(`${HOT_FACT}[data-key="${key}"]`);
+    await fact.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(readable(await fact.innerText()), `${key} ${value}`);
+  },
+);
+
+Then(
+  "the node {string} shows no inline fact",
+  async function (this: OlaiWorld, id: string) {
+    await drawsNothing(this, id, HOT_FACT, "inline fact");
+  },
+);
+
+Then(
+  "the node {string} says it is folding {string} finished rows",
+  async function (this: OlaiWorld, id: string, count: string) {
+    await this.expectAttribute(
+      `${nodeSelector(id)} ${FOLDED_DONE}`,
+      "data-done",
+      count,
+      `the fold on "${id}"`,
+    );
+  },
+);
+
+Then(
+  "the node {string} says nothing about folded finished rows",
+  async function (this: OlaiWorld, id: string) {
+    await drawsNothing(this, id, FOLDED_DONE, "folded-done count");
+  },
+);
 
 /** Press the note, and let the render settle. What the press DOES depends on
  *  the state it is in — a clamped line expands, an expanded note takes the
@@ -888,5 +1021,62 @@ When(
     // group-focus-within without a pointer hover, and `focusWithin` is where
     // that reasoning lives (support/world) — the `•••` is focused the same way.
     await this.focusWithin(id, TOGGLE);
+  },
+);
+
+// ── a section holds its place ──────────────────────────────────────────
+//
+// A TOP-LEVEL row is a section heading, and it is `position: sticky` inside its
+// own `<li>` — so it stays under the app bar for exactly as long as its own
+// branch is on screen and lets go when the next section arrives
+// (`client/Tree.tsx`). It is the third member of the family
+// `the_header_sticks` and `the_sidebar_sticks` opened, and it fails the same
+// way both of those did before they were pinned: silently, as a heading that
+// scrolled off with a page a reader is still reading the middle of.
+//
+// The tolerance is the sidebar's, and for its reason: the seam is two boxes
+// meeting, and sub-pixel layout puts them within a pixel of each other rather
+// than exactly on it.
+const SEAM_EDGE = 2;
+
+/** Where the app bar's bottom edge is — what "pinned under the header" is
+ *  measured against, asked of the bar rather than of `--height-header`, because
+ *  the token and the bar disagreeing is one of the things this can catch. */
+const headerSeam = async (world: OlaiWorld): Promise<number> => {
+  const header = await world.box(world.page.locator(APP_HEADER), "the app header");
+  return header.y + header.height;
+};
+
+Then(
+  "the section heading of {string} is pinned under the header",
+  async function (this: OlaiWorld, id: string) {
+    const seam = await headerSeam(this);
+    const line = await this.box(this.within(id, NODE_GUTTER), `the row "${id}"`);
+    assert.ok(
+      Math.abs(line.y - seam) <= SEAM_EDGE,
+      `the section heading of "${id}" is at y=${Math.round(line.y)} and the ` +
+        `header ends at ${Math.round(seam)} — in flow a heading leaves the ` +
+        "screen with the first flick of the wheel, and a reader in the middle " +
+        "of a long branch is then looking at rows with nothing saying which " +
+        "section they are in",
+    );
+  },
+);
+
+/** The negative half, and it is what makes the claim mean anything: a row that
+ *  is not a section does NOT hold the seam. Without it, a client that pinned
+ *  every row in the tree — or drew the whole outline inside the viewport —
+ *  would pass the assertion above. */
+Then(
+  "the row {string} is not pinned under the header",
+  async function (this: OlaiWorld, id: string) {
+    const seam = await headerSeam(this);
+    const line = await this.box(this.within(id, NODE_GUTTER), `the row "${id}"`);
+    assert.ok(
+      Math.abs(line.y - seam) > SEAM_EDGE,
+      `the row "${id}" is holding the seam at y=${Math.round(line.y)} — only a ` +
+        "top-level row is a section, and a tree that pinned every row would " +
+        "stack them all under the bar",
+    );
   },
 );

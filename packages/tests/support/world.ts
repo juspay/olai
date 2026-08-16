@@ -302,6 +302,16 @@ export const PROP_EDITOR_CANCEL = selector(TESTID.propEditorCancel);
  *  done. An annotation — the node's OWN mark is the checkbox. */
 export const PROGRESS = selector(TESTID.progress);
 export const DESC = selector(TESTID.desc);
+/** The pilcrow beside a title: the door to the row's open state. Drawn only on
+ *  a node that HAS one — a note, or a property somebody added — so its absence
+ *  is the assertion that a row has nothing under it. */
+export const NOTE_MARK = selector(TESTID.noteMark);
+/** The one FACT a folded row may show beside its title (`client/hot.ts`) —
+ *  `pr` on shipped work. The rollup is the other arm of that slot and keeps
+ *  `PROGRESS` above. */
+export const HOT_FACT = selector(TESTID.hotFact);
+/** On a collapsed row: how much finished work the fold is holding back. */
+export const FOLDED_DONE = selector(TESTID.foldedDone);
 export const TOGGLE = selector(TESTID.toggle);
 /** The `•••` trigger left of the collapse triangle. */
 export const NODE_MENU = selector(TESTID.nodeMenu);

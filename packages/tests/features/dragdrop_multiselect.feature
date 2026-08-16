@@ -145,7 +145,7 @@ Feature: Dragging rows, and picking several
     # a caret could sit in a textarea — where `Tab` is the field's — while the
     # bar still claimed rows were picked.
     When I pick the title of "handles"
-    And I click the note of "order"
+    And I open the note of "order"
     And I click the note of "order"
     Then the note of "order" is being typed
     And no rows are picked

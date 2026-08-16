@@ -10,7 +10,7 @@
  *
  * ROWS SAY IT DIFFERENTLY, and that is the split (resolved 2026-08-11, human):
  * a tree row is a title in a column of titles, so what it can afford is one
- * glyph in the mark column (`./Checkbox.tsx`) plus the dimming of the row —
+ * glyph in the mark column (`./marks.tsx`) plus the dimming of the row —
  * enough to sort the row, with the names an `aria-label`, a tip and a click
  * away. The page is where the node is READ, so it answers "waiting on what?"
  * outright, in the order the format promises, with every blocker at its own

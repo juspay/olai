@@ -4,13 +4,23 @@ Feature: Properties on a node, from the web
   record's one open field, `custom` (docs/format.md). An agent writes one with
   `set_prop`; this is the person's door onto the same op.
 
-  The drawer under a node's note is where they are read, and it leads with the
-  facts the node carries in fields of its own — its id, the mark it has, its
-  date — because those had nowhere on the page to be read at all. The `•••`
-  menu writes the custom half: add one, change what one holds, take one off.
-  Each is one edit at the same write gate the keys and the agent's tools go
-  through, so nothing is echoed — the drawer changes when the file says it
-  changed.
+  They are read in the row's OPEN STATE, above its note, as one wrapping
+  dot-separated run of dim `key value` pairs — never a grid, and never a form
+  (the quiet outline). A row draws its title, so a property is behind the
+  pilcrow with everything else; a node carrying one gets a pilcrow for it, even
+  with no note, because a fact written into a place with no door is a fact
+  nobody can read.
+
+  A ROW draws the CUSTOM keys only. The node's own facts — its id, the mark it
+  has, its date — are already on the row, in the glyph and on the date badge
+  and in the address, so repeating them under the title would put two spellings
+  of one fact on one screen. A page ABOUT one node still draws them all, which
+  is where the id is read.
+
+  The `•••` menu writes the custom half: add one, change what one holds, take
+  one off. Each is one edit at the same write gate the keys and the agent's
+  tools go through, so nothing is echoed — the run changes when the file says
+  it changed.
 
   `@scratch:` because these write the directory they are served — each
   scenario gets a private copy of it.
@@ -20,11 +30,12 @@ Feature: Properties on a node, from the web
     And I mark the page
 
   Scenario: A row draws no drawer until somebody has added a property
-    # The node's own facts are not worth an `id` line under every bullet in the
-    # vault; a page about one node is where they are always drawn.
+    # And no pilcrow either: the mark is a promise that there is something
+    # behind it, and `handles` has neither a note nor a property.
     Then the node "handles" shows no drawer
+    And the node "handles" shows no pilcrow
 
-  Scenario: Adding one writes it, and the drawer says so
+  Scenario: Adding one writes it, and the open row says so
     When I open the node menu of "handles"
     Then the node menu offers "Add property…"
     When I choose "Add property…" from the node menu
@@ -34,20 +45,31 @@ Feature: Properties on a node, from the web
     # and opening a panel has nothing to say.
     And the node menu of "handles" says nothing
     When I write the property "pr" holding "https://github.com/juspay/olai/pull/179"
+    # A ROW IS ITS TITLE, so the fact is behind the pilcrow the node has just
+    # earned — not under the bullet of every row in the vault.
+    Then the node "handles" shows a pilcrow
+    And the node "handles" shows no drawer
+    When I open the note of "handles"
     Then the node "handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/179"
     And "house.olai" holds the node "handles" with "pr" set to "https://github.com/juspay/olai/pull/179"
     And the property editor is closed
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: The drawer leads with the facts the node already carries
-    # Once there is a drawer at all, the id is in it — which is the whole reason
-    # the system half exists: an id is what every tool call takes and it was
-    # readable nowhere on the page.
+  Scenario: A row draws the custom keys, and the node's page draws them all
+    # THE SPLIT, both halves in one scenario because they are one decision. On
+    # a row the id would be a second spelling of what the bullet's link already
+    # is; on a page ABOUT the node it is the whole reason the system half
+    # exists, since an id is what every tool call takes.
     When I open the node menu of "handles"
     And I choose "Add property…" from the node menu
     And I write the property "stage" holding "review"
-    Then the node "handles" shows the property "id" holding "handles"
+    When I open the note of "handles"
+    Then the node "handles" shows the property "stage" holding "review"
+    And the node "handles" shows no property "id"
+    When I open the node "handles"
+    Then the zoomed node is "handles"
+    And the node "handles" shows the property "id" holding "handles"
     And the property "id" on "handles" is read-only
     And the node "handles" shows the property "stage" holding "review"
 
@@ -55,6 +77,7 @@ Feature: Properties on a node, from the web
     When I open the node menu of "handles"
     And I choose "Add property…" from the node menu
     And I write the property "stage" holding "review"
+    When I open the note of "handles"
     Then the node "handles" shows the property "stage" holding "review"
     When I open the node menu of "handles"
     Then the node menu offers "Edit stage…"
@@ -64,6 +87,7 @@ Feature: Properties on a node, from the web
     # calls an agent makes — so the key is not something this panel can type in.
     And the property editor's key is fixed
     When I write the property "stage" holding "addressing"
+    When I open the note of "handles"
     Then the node "handles" shows the property "stage" holding "addressing"
     And "house.olai" holds the node "handles" with "stage" set to "addressing"
     And there should be no page errors
@@ -72,15 +96,18 @@ Feature: Properties on a node, from the web
     When I open the node menu of "handles"
     And I choose "Add property…" from the node menu
     And I write the property "stage" holding "review"
+    When I open the note of "handles"
     Then the node "handles" shows the property "stage" holding "review"
     When I open the node menu of "handles"
     Then the node menu offers "Remove stage"
     When I choose "Remove stage" from the node menu
     Then the node "handles" shows no property "stage"
     And "house.olai" holds the node "handles" with no "stage"
-    # ...and the row is back to drawing nothing at all, rather than a drawer
-    # holding only the facts nobody asked to see.
+    # ...and the row is back to drawing nothing at all, rather than a run
+    # holding only the facts nobody asked to see — and it loses the pilcrow it
+    # had earned, because there is nothing behind it again.
     And the node "handles" shows no drawer
+    And the node "handles" shows no pilcrow
     And there should be no page errors
 
   Scenario: Leaving the editor writes nothing
@@ -105,6 +132,7 @@ Feature: Properties on a node, from the web
     Then the property editor is open
     And the property editor fits the screen
     When I write the property "pr" holding "https://github.com/juspay/olai/pull/179"
+    And I tap the pilcrow of "handles"
     Then the node "handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/179"
     And "house.olai" holds the node "handles" with "pr" set to "https://github.com/juspay/olai/pull/179"
     And there should be no page errors
@@ -132,6 +160,7 @@ Feature: Properties on a node, from the web
     And I open the node menu of "handles"
     And I choose "Add property…" from the node menu
     And I write the property "pr" holding "https://github.com/juspay/olai/pull/192"
+    When I open the note of "handles"
     Then the node "handles" shows the property "agent" holding "claude-opus"
 
     # The board's own query, asked by a person this time. The row draws both

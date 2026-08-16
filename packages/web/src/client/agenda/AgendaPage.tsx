@@ -17,7 +17,7 @@
  *     it looks is the format's `UPCOMING_DAYS`.
  *
  * An OCCURRENCE — a date with no mark — keeps its place in Today and Upcoming,
- * draws no checkbox (../Checkbox.tsx draws none for a node with no mark) and
+ * draws no checkbox (../Glyph.tsx draws a bullet for a node with no mark) and
  * wears a pill that never turns amber. It can never be in Overdue: a day
  * passing is not a failure of a bullet.
  *

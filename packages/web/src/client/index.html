@@ -23,15 +23,19 @@
          else does — what happens after a chip is pressed is
          src/client/theme/.
 
-         It deliberately knows no theme or font names: the sheet carries a
-         block per palette and per typeface, and the tables that generate
-         them live in one place each (src/client/theme/palettes.ts,
-         and @olai/fonts's catalog). A stored name no row offers is
-         forgotten by the app once it is up, which is the first moment
-         anything knows the lists. The keys are those tables'
-         THEME_STORAGE_KEY / FONT_STORAGE_KEY and the attributes are
-         THEME_ATTRIBUTE / FONT_ATTRIBUTE; theme/css.test.ts and
-         theme/fonts.test.ts hold this script to both.
+         THREE preferences ride it, and the third — the type SIZE — is the one
+         whose flash would be worst: a page that painted at 16px and reflowed to
+         18px would move every line under a reader who had just opened it.
+
+         It deliberately knows no theme, font or size names: the sheet carries a
+         block per palette, per typeface and per size, and the tables that
+         generate them live in one place each (src/client/theme/palettes.ts,
+         src/client/theme/sizes.ts, and @olai/fonts's catalog). A stored name no
+         row offers is forgotten by the app once it is up, which is the first
+         moment anything knows the lists. The keys are those tables'
+         THEME_STORAGE_KEY / FONT_STORAGE_KEY / SIZE_STORAGE_KEY and the
+         attributes are THEME_ATTRIBUTE / FONT_ATTRIBUTE / SIZE_ATTRIBUTE;
+         theme/css.test.ts and theme/fonts.test.ts hold this script to them.
 
          `setAttribute`, not `dataset.theme`: they are the same thing today,
          and the day a pref's name has a hyphen in it they are not. -->
@@ -41,6 +45,8 @@
         if (picked) document.documentElement.setAttribute("data-theme", picked);
         var face = localStorage.getItem("olai.font");
         if (face) document.documentElement.setAttribute("data-font", face);
+        var size = localStorage.getItem("olai.size");
+        if (size) document.documentElement.setAttribute("data-size", size);
       } catch {}
     </script>
     <!-- The browser chrome around an installed app: a phone's status bar, an

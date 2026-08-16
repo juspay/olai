@@ -48,7 +48,7 @@ Feature: Undo
     And the page has not reloaded
 
   Scenario: And so is a note
-    When I click the note of "order"
+    When I open the note of "order"
     And I click the note of "order"
     Then the note of "order" is being typed
     When I type " — measured twice"
@@ -62,7 +62,7 @@ Feature: Undo
   Scenario: Emptying a note is taken back too, and the note comes back
     # `null` is a real value for a note — "there is none" — and it has to
     # survive the round trip as one rather than collapsing into "no opinion".
-    When I click the note of "order"
+    When I open the note of "order"
     And I click the note of "order"
     Then the note of "order" is being typed
     When I select all and type ""

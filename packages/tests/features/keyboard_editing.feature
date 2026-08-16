@@ -249,12 +249,12 @@ Feature: Keyboard editing
 
   Scenario: Clicking the note you are reading puts the caret in it
     # The human's call over the textarea this shipped with, mapped onto olai's
-    # clamp: the clamped line expands (as it has since notes-single, and that
-    # expanded note is where a row draws its rendering and its see links), and
-    # a click in the note you are now reading puts the caret in it — one click
-    # from what Workflowy would have been showing all along. What you see while
-    # you are in it is the markdown SOURCE, the same trade the title takes.
-    When I click the note of "order"
+    # fold: the pilcrow opens the row (and that open note is where a row draws
+    # its rendering and its see links), and a click in the note you are now
+    # reading puts the caret in it — one click from what Workflowy would have
+    # been showing all along. What you see while you are in it is the markdown
+    # SOURCE, the same trade the title takes.
+    When I open the note of "order"
     Then the description of "order" renders bold text "walnut"
     When I click the note of "order"
     Then the note of "order" is being typed
@@ -262,11 +262,11 @@ Feature: Keyboard editing
     When I type " — measured twice"
     And I click away from the editor
     Then "house.olai" holds a node whose note ends "— measured twice"
-    # And clicking away is what it always was: the note folds back to its one
-    # clamped line, now with what was typed in it. Editing and expanding are
-    # ONE state — you leave both at once — and the full rendered note is the
-    # node's own page, which is where a note has always been the body.
-    And the description of "order" is a preview of "Two ways to go:"
+    # And clicking away is what it always was: the row folds back to its title.
+    # Editing and expanding are ONE state — you leave both at once — and the
+    # full rendered note is the node's own page, which is where a note has
+    # always been the body.
+    And the row "order" is folded
 
   Scenario: Shift+Enter writes the note, and the rendering comes back
     When I click the title of "handles"
@@ -275,11 +275,17 @@ Feature: Keyboard editing
     When I type "the alcove is **1830mm** wide"
     And I press "Shift+Enter"
     Then the note of "handles" is no longer being typed
-    # `Shift+Enter` writes a note without expanding the row's reading of it, so
-    # what comes back is the clamped line — the shape it had before the caret
-    # arrived, now with something in it.
-    And the description of "handles" is a preview of "the alcove is 1830mm wide"
+    # `Shift+Enter` writes a note without opening the row's reading of it, so
+    # what comes back is the shape the row had before the caret arrived — its
+    # title.
+    And the row "handles" is folded
     And "house.olai" holds a node whose note ends "wide"
+    # ...and once the caret leaves the row entirely, that title has a pilcrow
+    # beside it, because there is something behind one at last. Asked AFTER the
+    # click away on purpose: while the caret is in the line the title span is
+    # an input, and an input has nothing to hang a mark on.
+    When I click away from the editor
+    Then the node "handles" shows a pilcrow
 
   Scenario: A write that lands can have something to say
     # The ops layer's nudge — advice on a SUCCESS, never a refusal. It reaches

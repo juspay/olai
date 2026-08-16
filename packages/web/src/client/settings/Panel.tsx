@@ -12,7 +12,12 @@
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
- * theme, the typeface, and what this browser does with finished work. The layout
+ * theme, the typeface, how much of a row is drawn by default, and what this
+ * browser does with finished work. The DENSITY belongs here for exactly the
+ * reason the done preference does: it is a claim about the reader ("I read a
+ * tree as a list of titles") rather than about any one outline, so a switch
+ * bolted to the outline page would be a per-page control for a per-person fact —
+ * and would have to be drawn on the zoomed page and the day page too. The layout
  * values in `../layout/prefs.ts` are stored the same way and are deliberately
  * NOT here — a sidebar width is set by dragging the sidebar, and a panel
  * being open is set by the control that opens it. Copying them into a
@@ -31,12 +36,15 @@
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
+import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
 import { TESTID } from "../testids.ts"
 import { FontSelect } from "../theme/FontSelect.tsx"
 import { currentTypeface } from "../theme/fontState.ts"
+import { currentSize, currentTypeSize, pickSize } from "../theme/sizeState.ts"
+import { SIZES, type SizeName, sizeNamed } from "../theme/sizes.ts"
 import { ThemeChips } from "../theme/Chips.tsx"
 import { currentTheme } from "../theme/state.ts"
 
@@ -46,6 +54,20 @@ const DONE_CHOICES = [
   { value: "visible", label: "Visible" },
   { value: "hidden", label: "Hidden" },
 ] as const
+
+/** Size: the strip is the size TABLE, read (../theme/sizes.ts) — three sizes
+ *  that must not be spelled twice, since the sheet's blocks are generated from
+ *  the same rows. */
+const SIZE_CHOICES: ReadonlyArray<{ value: SizeName; label: string }> = SIZES
+  .map((size) => ({ value: size.name, label: size.label }))
+
+/** Notes: how much of a row this browser draws by default (./density.ts). The
+ *  words are the three the design names, in the order they open up. */
+const DENSITY_CHOICES: ReadonlyArray<{ value: Density; label: string }> = [
+  { value: "compact", label: "Compact" },
+  { value: "cozy", label: "Cozy" },
+  { value: "open", label: "Open" },
+]
 
 export function Panel(props: {
   /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
@@ -77,6 +99,29 @@ export function Panel(props: {
         <FontSelect />
       </Row>
 
+      {/* Under Font, because it is the other half of "how this page is set" —
+          and a segmented strip rather than a select, because three sizes are
+          three, and the whole page moves under the press so a reader judges it
+          by looking rather than by reading the option. */}
+      <Row label="Size" pref="size" hint={currentTypeSize().hint}>
+        <Segmented
+          choices={SIZE_CHOICES}
+          value={currentSize()}
+          onPick={(name) => {
+            const size = sizeNamed(name)
+            if (size !== undefined) pickSize(size)
+          }}
+        />
+      </Row>
+
+      <Row label="Notes" pref="density" hint={densityHint()}>
+        <Segmented
+          choices={DENSITY_CHOICES}
+          value={density()}
+          onPick={setDensity}
+        />
+      </Row>
+
       <Row label="Done" pref="done" hint={doneHint()}>
         <Segmented
           choices={DONE_CHOICES}
@@ -106,6 +151,25 @@ const themeHint = (): string =>
   `so a pick repaints all of them at once.`
 
 const fontHint = (): string => currentTypeface().hint
+
+/** What the density in force MEANS — the row's own promise (./Row.tsx): a
+ *  sentence read off the choice rather than a label describing the switch. Each
+ *  one ends by saying the fold is still there, because "Compact" reads as
+ *  "olai is hiding my notes" until somebody says what opens them. */
+const densityHint = (): string => {
+  switch (density()) {
+    case "compact":
+      return "A row is its title. A node with a note says so with a ¶ beside " +
+        "it — press that, or Space with it focused, to open the row."
+    case "cozy":
+      return "A row is its title and the first line of its note, clamped — " +
+        "the shape every row had before this switch existed. The ¶ opens the " +
+        "rest, with the node's properties."
+    case "open":
+      return "Every note you have not folded yourself is already open: the " +
+        "node's properties, then the note in full. The ¶ folds one back."
+  }
+}
 
 const doneHint = (): string =>
   doneHidden()

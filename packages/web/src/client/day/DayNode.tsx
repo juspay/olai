@@ -10,10 +10,11 @@
  * page is built from (`@olai/format`'s `situate`) — because they are the same
  * node and have no business reading differently in two places.
  *
- * The bullet is the link and the checkbox is the status, exactly as they are
- * in the tree: a day is a way of FINDING a node, and the node's own page is
- * where it is read. Notes match the tree too — one dim clamped line under the
- * title, click/tap expands in place (../note/expand.ts).
+ * The glyph is both the status and the link, exactly as it is in the tree
+ * (../Glyph.tsx): a day is a way of FINDING a node, and the node's own page is
+ * where it is read. The fold matches the tree too — a row is its title, the
+ * pilcrow beside it opens the note, and where an untouched row starts is this
+ * browser's density preference (../settings/density.ts).
  *
  * WHY a node is on this day is the one thing a day says that a tree row does
  * not have to. A node is here because it is scheduled for the day or because a
@@ -30,13 +31,17 @@
 import { type DayEntry, isOverdue } from "@olai/format"
 import { Show } from "solid-js"
 
+import { Aside } from "../Aside.tsx"
 import { blockedIds, WAITING_DIM } from "../blocked.ts"
 import { Breadcrumbs } from "../Breadcrumbs.tsx"
-import { Bullet } from "../Bullet.tsx"
-import { Checkbox } from "../Checkbox.tsx"
+import { Glyph } from "../Glyph.tsx"
+import { hotOf } from "../hot.ts"
+import { NoteMark } from "../note/Mark.tsx"
 import { createNoteExpand } from "../note/expand.ts"
 import { NodeBody } from "../NodeBody.tsx"
 import { NodeLine } from "../NodeLine.tsx"
+import { customEntries } from "../props/drawer.ts"
+import { density, showsPreview, startsOpen } from "../settings/density.ts"
 import { TESTID } from "../testids.ts"
 import { useToday } from "../today.tsx"
 import { GUTTER_GAP, PAST_BULLET } from "../touch.ts"
@@ -45,8 +50,15 @@ export function DayNode(props: {
   readonly dated: DayEntry
 }) {
   const node = () => props.dated.shows.node
-  const note = createNoteExpand()
+  const note = createNoteExpand(() => startsOpen(density()))
   const today = useToday()
+  /** Has this row anything to OPEN? The tree's rule, one file over
+   *  (`../Tree.tsx`), because it is one rule about a node and not two about two
+   *  surfaces. */
+  const openable = () => {
+    const desc = node().desc
+    return (desc !== undefined && desc !== "") || customEntries(node()).length > 0
+  }
 
   return (
     <li
@@ -67,11 +79,10 @@ export function DayNode(props: {
         class={`flex items-baseline ${GUTTER_GAP} ${WAITING_DIM(props.dated.blocked)}`}
         data-testid={TESTID.nodeGutter}
       >
-        <Bullet id={node().id} />
-        <Checkbox
+        <Glyph
+          id={node().id}
           status={props.dated.status}
           blocked={props.dated.blocked}
-          id={node().id}
         />
         {/* The date this row is HERE for, and which of the node's dates that
             is — not the `date` field, which for work finished on this day is
@@ -80,7 +91,15 @@ export function DayNode(props: {
           title={node().title}
           from={props.dated.shows.file}
           status={props.dated.status}
-          progress={props.dated.progress}
+          open={note.expanded()}
+          aside={
+            <Aside hot={hotOf(node(), props.dated.progress, props.dated.status)} />
+          }
+          mark={
+            <Show when={openable()}>
+              <NoteMark open={note.expanded()} onToggle={note.toggle} ref={note.setTrigger} />
+            </Show>
+          }
           date={props.dated.date}
           occasion={props.dated.occasion}
           overdue={isOverdue(node(), today())}
@@ -96,6 +115,7 @@ export function DayNode(props: {
         <NodeBody
           shows={props.dated.shows}
           expanded={note.expanded()}
+          preview={showsPreview(density())}
           onToggle={note.toggle}
         />
       </div>

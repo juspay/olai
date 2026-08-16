@@ -18,6 +18,25 @@ Feature: One place to set how this browser reads
   attribute on `<html>`, and a hint read off the choice in force. `fonts.feature`
   is the whole of what the select still promises.
 
+  The Size row is the second half of "how this page is set", and it is a root
+  font size: every length in this client is a `rem`, so one number moves the
+  rows, the gutter and the panels together. It rides the shell's boot script
+  beside the theme and the typeface, because a size taken up after the first
+  paint would reflow the whole page under somebody who had just opened it.
+
+  The Notes row is how much of a row is drawn by default — Compact, Cozy,
+  Open — and what it moves is `note_density.feature`'s subject. What is here is
+  that it is a preference like the others: it moves the page you are on,
+  follows you to the next one, is stored in this browser under one BROWSER-wide
+  key (not one per outline — "I read a tree as a list of titles" is a claim
+  about the reader), and reaches every tab of it.
+
+  Its three words need saying out loud, which is why one scenario below is
+  about the HINT rather than about the tree: Cozy is the shape every row had
+  before the fold existed, Open goes one step further than anything that did,
+  and Compact — the default, because a fold whose default is the old behaviour
+  is a feature nobody discovers — is the title alone.
+
   The Done row is the one switch. The floating pill that sat above the outline
   was a second door for the same preference — the same redundancy the theme
   pill used to be, and the same one `one-git-indicator` closed for the two git
@@ -180,3 +199,66 @@ Feature: One place to set how this browser reads
     And I watch what the page asks for
     And I set Done to "hidden"
     Then the page asked for nothing at all
+
+  # ── how much of a row is drawn ───────────────────────────────────────
+
+  Scenario: Notes moves the page you are reading, and is remembered
+    Given I open the outline "house.olai"
+    Then the row "order" is folded
+    When I set Notes to "open"
+    Then the Notes row explains that a row "already open"
+    And this browser has stored that notes are "open"
+    And the row "order" is open
+    When I reload the page
+    Then this browser has stored that notes are "open"
+    And the row "order" is open
+
+  Scenario: A density set in another tab lands in this one
+    # A preference belongs to the BROWSER, and a browser is more than one tab —
+    # the same `storage` event the theme and the done preference ride, which a
+    # reload scenario cannot ask about: deleting `followDensity` would pass
+    # every other Notes scenario here.
+    Given I open the outline "house.olai"
+    Then the row "order" is folded
+    When a second tab sets Notes to "open"
+    Then the row "order" is open
+    And there should be no page errors
+
+  # ── how big the page is set ──────────────────────────────────────────
+
+  Scenario: The page is set a notch above the browser's own size by default
+    # 18px rather than 16 (human: "I find the text to be too cramped"). Read as
+    # the pixels a reader actually gets, so this reddens if the sheet's blocks
+    # and the boot script's attribute ever stop meeting.
+    When I open the app
+    Then the page is set at "18px"
+
+  Scenario: Picking a size sets the whole page, and is remembered
+    Given I open the outline "house.olai"
+    When I set Size to "medium"
+    Then the page is set at "16px"
+    And this browser has stored the size "medium"
+    When I set Size to "larger"
+    Then the page is set at "20px"
+    When I reload the page
+    # THE PIN FOR THE BOOT READ. The shell's inline script puts the stored size
+    # on `<html>` while the document is still parsing, so the first paint is
+    # already at it — a size taken up by the bundle instead would reflow every
+    # line under a reader who had just opened the page.
+    Then the page is set at "20px"
+    And this browser has stored the size "larger"
+
+  Scenario: Each Notes mode says what you get, not what it is called
+    # THE FENCE FOR A QUIZ. Three adjectives on a segmented strip say which one
+    # is pressed and nothing about what the page will now do — and two of the
+    # three need saying out loud, because a reader arriving after the fold has
+    # no way to know which of them is the shape olai used to have. Cozy names
+    # itself as that shape; Open says it is about notes NOBODY HAS FOLDED, which
+    # is the difference between a default and a lock.
+    Given I open the outline "house.olai"
+    When I set Notes to "cozy"
+    Then the Notes row explains that a row "before this switch existed"
+    When I set Notes to "open"
+    Then the Notes row explains that a row "you have not folded yourself"
+    When I set Notes to "compact"
+    Then the Notes row explains that a row "A row is its title"

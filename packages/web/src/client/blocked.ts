@@ -1,6 +1,6 @@
 /**
  * How a row says it cannot start yet, in the two ways that are not the mark
- * column's (./Checkbox.tsx).
+ * column's (./marks.tsx).
  *
  * Both live here rather than at the three places a node is drawn — a tree row,
  * a day entry, and whatever draws one next — because they are one decision

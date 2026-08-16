@@ -5,7 +5,7 @@
  * start line of a page with no rows — with the same gutter arithmetic every
  * other row uses (`../touch.ts`), so the line a person is typing on sits
  * exactly where the line they are making it will sit. What it deliberately
- * does NOT have is a bullet that goes anywhere or a checkbox: those are
+ * does NOT have is a glyph that goes anywhere or says a mark: those are
  * affordances of a node, and there is no node here until this has a title and
  * gets committed.
  *
@@ -13,12 +13,12 @@
  * back should be able to tell an empty row that exists from one that is only
  * an editor, and the difference between a filled dot and an outline is exactly
  * that — nothing is claiming a record is there. Both spellings of the dot are
- * `Bullet.tsx`'s, so there is one place a bullet's size is decided.
+ * `marks.tsx`'s, so there is one place a bullet's size is decided.
  */
 
-import { DOT } from "../Bullet.tsx"
+import { DOT } from "../marks.tsx"
 import { TESTID } from "../testids.ts"
-import { CONTROL, CONTROL_SPACER, GUTTER_GAP, HOVER_CELL, HOVER_GUTTER } from "../touch.ts"
+import { CONTROL, GUTTER_GAP, HOVER_CELL, HOVER_GUTTER } from "../touch.ts"
 import type { Draft } from "./draft.ts"
 import { Said, TitleEditor } from "./RowEditor.tsx"
 
@@ -45,7 +45,6 @@ export function NewRow(props: {
         <span class={CONTROL} aria-hidden="true">
           <span class={`${DOT} border-[1.5px] border-muted`} />
         </span>
-        <span class={CONTROL_SPACER} aria-hidden="true" />
         <TitleEditor
           text={props.draft.text}
           onInput={props.onInput}
