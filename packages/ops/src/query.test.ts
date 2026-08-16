@@ -376,12 +376,12 @@ describe("a query is words and operators", () => {
 
 /**
  * What a listing says about a set of files — every arm of it in one fixture,
- * because the walk that produces them is now one pass over the nodes and a
- * lookup per file, and a lookup is a thing that can MISS.
+ * because a row is answered by a LOOKUP into the grouped nodes, and a lookup
+ * is a thing that can miss.
  *
- * The three cases that miss differently are all here: a file whose nodes are
- * in the walk, one that holds none at all (in `files`, absent from the tally),
- * and one that did not parse (answered before the tally is consulted).
+ * The three that miss differently are all here: a file whose nodes are in the
+ * grouping, one that holds none at all (in `files`, in no group), and one that
+ * did not parse (answered before the grouping is consulted).
  */
 describe("the directory", () => {
   const DIRECTORY = (): OutlineSet =>
@@ -400,43 +400,20 @@ describe("the directory", () => {
       "shed.olai": `{"id":"shed","ord":"a0","title":"Shed"}`,
     }, [], { "torn.olai": `{"id":` })
 
-  /** The listing of ONE set — the set and the index it is asked through are
-   *  the same revision, which is the pairing {@link Derived} exists to keep:
-   *  two parameters would let a caller answer one revision out of another's
-   *  indexes, and the symptom would be a plausible answer rather than a
-   *  failure. Same shape as `at()` above, for the same reason. */
-  const listing = () => {
+  /** The WHOLE listing in one assertion rather than four indexes into it: the
+   *  order is one of the claims, so a row pinned by position would be leaning
+   *  on a fact a sibling test owns. */
+  test("every file gets its row, in order, counted and titled by its own nodes", () => {
     const set = DIRECTORY()
-    return outlines(set, index(set))
-  }
-
-  test("a row per file, in the order the directory lists them", () => {
-    expect(listing().map((row) => row.file))
-      .toEqual(["house.olai", "empty.olai", "shed.olai", "torn.olai"])
-  })
-
-  test("a file's own regular nodes are counted, and its roots named in file order", () => {
-    expect(listing()[0]).toEqual({
-      file: "house.olai",
-      nodes: 3,
-      roots: ["Garden", "House"],
-    })
-  })
-
-  test("an outline holding nothing says so, rather than saying nothing", () => {
-    expect(listing()[1]).toEqual({
-      file: "empty.olai",
-      nodes: 0,
-      roots: [],
-    })
-  })
-
-  test("a file that did not parse carries its errors, and no count it could not take", () => {
-    expect(listing()[3]).toEqual({
-      file: "torn.olai",
-      nodes: 0,
-      roots: [],
-      unreadable: [expect.any(String)],
-    })
+    expect(outlines(set, index(set))).toEqual([
+      // Three regular nodes — the mirror is a placement, so it is neither
+      // counted nor a root — and the roots are in FILE order.
+      { file: "house.olai", nodes: 3, roots: ["Garden", "House"] },
+      { file: "empty.olai", nodes: 0, roots: [] },
+      { file: "shed.olai", nodes: 1, roots: ["Shed"] },
+      // The torn row carries `unreadable` BESIDE a zero and an empty list —
+      // the flat shape {@link OutlineSummary} holds knowingly.
+      { file: "torn.olai", nodes: 0, roots: [], unreadable: [expect.any(String)] },
+    ])
   })
 })

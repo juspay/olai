@@ -373,29 +373,31 @@ export const outlines = (
 ): ReadonlyArray<OutlineSummary> => {
   const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
   /**
-   * The nodes GROUPED BY FILE, once — not scanned once per file.
+   * Each file's own nodes, grouped once. The set is FLAT ({@link OutlineSet}
+   * says why), so "which nodes are this file's" is a scan of the whole list,
+   * and asking it per row cost files × nodes — on the first call an agent
+   * makes on a directory it has not seen.
    *
-   * The set is flat ({@link OutlineSet} says why), so "which nodes are this
-   * file's" is a scan of the whole list, and asking it per row made listing a
-   * directory cost files × nodes. Four outlines never noticed; four hundred
-   * over a few thousand nodes is the same answer arrived at far more slowly,
-   * on the FIRST call an agent makes on a directory it has not seen.
+   * `Map.groupBy` holds each group in ENCOUNTER order, which is what `roots`
+   * below stands on: a row's titles come out in file order, not the sibling
+   * (`ord`) order they would be in had anything sorted them.
    *
-   * `Map.groupBy` rather than a tally accumulated by hand: the grouping is the
-   * whole of what the walk decides, the runtime already ships it, and the row
-   * below is then the one this file has always written — which is what makes
-   * "the answer is unchanged" something a reader can see rather than trust.
-   * Each group holds its members in ENCOUNTER order, so a row's `roots` are
-   * still in file order, exactly as the per-file scan gave them.
+   * The mirrors drop HERE, once for the whole answer, as `countedChildren`
+   * drops them in the floor — a placement is neither counted nor a title, and
+   * that rule spelled once per use is a rule that can come to disagree with
+   * itself. Saying they are gone is also what lets the titles below be read
+   * without an assertion.
    *
-   * It is grouped HERE rather than kept on {@link Derived} beside the other
-   * indexes, and that is a recorded opportunity rather than a settled place:
-   * per-file access over a flat set is a real axis, `Derived` is where it
-   * would live, and `siblingsOf` in the floor asks the same question the same
-   * way — so the second consumer is somebody else's change, and building the
-   * index at population one would mean plumbing it twice.
+   * NOT a field on {@link Derived}, though this grouping is written three
+   * times in the tree: `siblingsOf` in the floor sorts what it groups,
+   * `publishedOf` and the pending walk ask it of an `OutlineSet` they never
+   * derive at all. Only the grouping itself is shared, and what shape a shared
+   * one should take is for the roadmap's `siblings-of-quadratic` to settle.
    */
-  const byFile = Map.groupBy(derived.nodes, (located) => located.file)
+  const byFile = Map.groupBy(
+    derived.nodes.filter((located): located is LocatedRegular => !isMirror(located.node)),
+    (located) => located.file,
+  )
   // ANNOTATED, so the row literals below are checked against the floor: a
   // field dropped from `OutlineSummary` fails HERE rather than only at the
   // table-driven decode. That is independent of what the rows hold, which is
@@ -412,19 +414,8 @@ export const outlines = (
         unreadable: errors.map(errorLine),
       }
     }
-    // No group at all is an outline holding no nodes: `files` lists it either
-    // way, which is why a row is built from the list of FILES and the group
-    // only looked up here.
-    //
-    // The mirrors drop ONCE, through a type guard, exactly as `countedChildren`
-    // drops them in the floor: a placement is neither counted nor a title, and
-    // that rule spelled twice — once for the count, once for the roots — is a
-    // rule that can come to disagree with itself. The guard is also what makes
-    // the titles below reachable without an assertion, which is the same trade
-    // the floor's comment names: saying the mirrors are gone is what deletes
-    // the cast.
-    const own = (byFile.get(file) ?? [])
-      .filter((located): located is LocatedRegular => !isMirror(located.node))
+    // No group at all is an outline holding no nodes of its own.
+    const own = byFile.get(file) ?? []
     return {
       file,
       nodes: own.length,
