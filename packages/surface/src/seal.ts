@@ -175,7 +175,7 @@ import { mediaPath, MEDIA_PREFIX } from "./media.ts"
  * The two ends of a `postMessage` have to agree on a shape, and the producer
  * here is text inside a script that no compiler reads. So the agreement is
  * THESE CONSTANTS, and both ends are in this module — {@link MEASURE} builds
- * the message out of them and {@link reported} takes it apart. Spelling one
+ * the message out of them and {@link heard} takes it apart. Spelling one
  * twice, once in the script and once in whatever parsed the result, is a rule
  * kept by memory across two files, and its failure mode is the worst kind:
  * nothing throws, no test goes red, the message simply stops being recognised
@@ -199,8 +199,8 @@ import { mediaPath, MEDIA_PREFIX } from "./media.ts"
  *
  * A TABLE rather than two loose constants, because the two are one thing — the
  * kinds of reading there are — and the receiver does not want a boolean it has
- * to re-decide at every use. {@link Reading} is the key, {@link reported}
- * returns it, and `Hypertext.tsx` files its accepted widths UNDER it: one name,
+ * to re-decide at every use. {@link Reading} is the key, {@link heard}
+ * carries it on a `reading` arm, and `Hypertext.tsx` files its accepted widths UNDER it: one name,
  * carried from the script that posts it to the record that remembers it, with
  * nothing projecting it into a flag and back on the way.
  */
@@ -240,10 +240,8 @@ export type Reading = keyof typeof READING
  */
 const HELLO = "olai:page-sealed"
 
-/** Whether a frame said the one thing every sealed document says first. The
- *  other end of {@link HELLO}, here for {@link reported}'s reason: the format
- *  is one thing and it has one owner. */
-export const sealedHello = (said: unknown): boolean => said === HELLO
+/** The other end of {@link HELLO} is {@link heard}, with the other two: what a
+ *  sealed frame may say is ONE vocabulary, and it is classified once. */
 
 /**
  * THE THIRD THING A SEALED PAGE MAY SAY: a reader clicked a link, and the
@@ -266,7 +264,7 @@ export const sealedHello = (said: unknown): boolean => said === HELLO
  *
  * NOTHING IN IT IS TRUSTED, and the receiving end is written on that
  * assumption: a page that runs script can post any string at all, so what
- * arrives is a LOOKUP KEY and never an instruction. {@link opening} decodes it
+ * arrives is a LOOKUP KEY and never an instruction. {@link heard} decodes it
  * through the vault's one URL decoder and hands back a path; `Hypertext.tsx`
  * then matches that path against the set of files this app is actually serving
  * and navigates using ITS OWN copy of the string. A path the vault does not
@@ -579,66 +577,82 @@ export const sealPolicy = (host: string): string => {
 }
 
 /**
- * The other end of {@link OPEN}: the file a sealed frame asked this app to open,
- * or nothing at all.
+ * EVERYTHING A SEALED FRAME CAN SAY, as one value with three arms.
  *
- * NOTHING is the answer to every message that was not one of ours, and to every
- * one of ours that named an address the vault's URL space does not admit —
- * anything outside `/media/`, a climb spelled either way, a segment smuggling a
- * separator or a NUL, a malformed escape. That judgement is not made here: it is
- * `./media.ts`'s {@link mediaPath}, which is the ONE decoder of this URL space
- * and already the guard the route stands behind. A second parse written for this
- * message would be a second traversal guard, and the one nobody thought to
- * attack is the one that would be wrong.
+ * It is one vocabulary on one channel, and it was three exported readers before
+ * — a boolean for the greeting, an optional report for a height, an optional
+ * path for a click — which the one receiver had to try in an order it was
+ * trusted to remember. Three parsers is three chances to be asked in the wrong
+ * order, and the rule that the prefixes do not overlap lived nowhere: no type
+ * held it, no test asserted the group, and a fourth message would have made a
+ * fourth reader and a fourth line at the call site.
  *
- * WHAT COMES BACK IS STILL NOT A FILE. It is a path shaped like one, from a
- * document that runs somebody else's JavaScript, and every hostile message that
- * gets this far gets this far honestly — `../` is refused, but `secrets.md` is a
- * perfectly well-formed path and this will hand it back. What makes that safe is
- * the step after it, and it is the receiver's rather than this module's: the
- * path is looked UP in the set of files this app is serving, and a lookup that
- * misses moves nothing. This is where the message stops being a URL; it is not
- * where it starts being trusted.
- *
- * Here beside the script that posts it for {@link reported}'s reason — a
- * message format is one thing with one owner — and pure like everything else in
- * this file, so `./seal.test.ts` can hand it what no real frame would send.
+ * As arms they cannot be spelled wrong. One function decides once, the decision
+ * is carried as a NAME, and the receiver switches on it — which is the same
+ * move `@olai/web`'s `Hypertext.tsx` makes with `Custody` a few lines from
+ * where it reads this, and for the same reason: a fact about what something IS
+ * belongs in the value, not in the order somebody asks about it.
  */
-export const opening = (said: unknown): string | undefined => {
-  if (typeof said !== "string" || !said.startsWith(OPEN)) return undefined
-  return mediaPath(said.slice(OPEN.length)) ?? undefined
-}
-
-/** What a sealed frame said: a height, and which reading it is. */
-export interface Report {
-  readonly height: number
-  readonly reading: Reading
-}
+export type Said =
+  /** The frame is a document this server sealed — {@link HELLO}. It proves less
+   *  than it looks like it proves, and the receiver says so at length. */
+  | { readonly kind: "hello" }
+  /** A page of this vault the reader clicked a link at — {@link OPEN}. Still
+   *  not a file: a path SHAPED like one, to be looked up. */
+  | { readonly kind: "open"; readonly file: string }
+  /** How tall the page says it is, and which of the two readings it is —
+   *  {@link READING}. A claim, clamped by CSS at the other end. */
+  | { readonly kind: "reading"; readonly reading: Reading; readonly height: number }
 
 /**
- * The other end of {@link READING}: what a sealed frame said, as a report — or
- * nothing, which is the answer to every message that was not one of ours and to
- * every one of ours that made no sense.
+ * What a frame said, as one of {@link Said}'s arms — or nothing, which is the
+ * answer to every message that was not one of ours and to every one of ours
+ * that made no sense.
  *
- * It lives HERE, beside the script whose output it reads, because the two are
+ * It lives HERE, beside the scripts whose output it reads, because the two are
  * one thing: a message format. Split across a module boundary it would be a
  * format nobody owns, kept in step by whoever remembers to change both sides.
  * Here it is also PURE and browser-free like everything else in this file, so
  * `./seal.test.ts` can hand it the hostile inputs a real frame never sends.
  *
- * Everything is checked because the sender is an opaque origin and nothing it
- * says is privileged. `Number` of a prefix-stripped tail rejects the empty
- * string as `0` and anything wordy as `NaN`, both of which fall out through the
- * same gate as a negative or an infinity. Rounded UP, because a fractional
- * layout truncated down is the last line of a page clipped by half a pixel.
+ * Everything is checked, because the sender is an opaque origin and nothing it
+ * says is privileged. Arm by arm:
  *
- * WHICH READING it is, is decided ONCE and then carried as a name. The two
- * prefixes are separate strings and neither is the other's, so a message is one
- * kind, the other, or nothing — and `settled` is never a claim the sender got to
- * make by spelling a number oddly.
+ *   - the GREETING is an identity, and only the exact string is it;
+ *   - an OPEN carries an address, and the judgement of what that address may
+ *     name is not made here — it is `./media.ts`'s {@link mediaPath}, the ONE
+ *     decoder of this URL space and already the guard the route stands behind,
+ *     so anything outside `/media/`, a climb spelled either way, a segment
+ *     smuggling a separator or a NUL, and a malformed escape all fall out
+ *     there. A second parse written for this message would be a second
+ *     traversal guard, and the one nobody thought to attack is the one that
+ *     would be wrong. WHAT COMES BACK IS STILL NOT A FILE: `secrets.md` is a
+ *     perfectly well-formed path and this hands it back. What makes that safe
+ *     is the step after it, and it is the receiver's — the path is looked UP in
+ *     the set of files the app is serving, and a lookup that misses moves
+ *     nothing. This is where the message stops being a URL; it is not where it
+ *     starts being trusted;
+ *   - a READING carries a number. `Number` of a prefix-stripped tail rejects
+ *     the empty string as `0` and anything wordy as `NaN`, both of which fall
+ *     out through the same gate as a negative or an infinity. Rounded UP,
+ *     because a fractional layout truncated down is the last line of a page
+ *     clipped by half a pixel. WHICH reading it is, is decided here and then
+ *     carried as a name: the two prefixes are separate strings and neither is
+ *     the other's, so `settled` is never a claim the sender got to make by
+ *     spelling a number oddly.
+ *
+ * The arms are tried in the order they are cheapest to refuse, and that order
+ * is not load-bearing: `./seal.test.ts` asserts that no one of the three
+ * prefixes begins another, which is what makes the classification a fact about
+ * the message rather than about this function's arm order.
  */
-export const reported = (said: unknown): Report | undefined => {
+export const heard = (said: unknown): Said | undefined => {
+  if (said === HELLO) return { kind: "hello" }
   if (typeof said !== "string") return undefined
+  if (said.startsWith(OPEN)) {
+    const file = mediaPath(said.slice(OPEN.length))
+    return file === null ? undefined : { kind: "open", file }
+  }
   const reading: Reading | undefined = said.startsWith(READING.settled)
     ? "settled"
     : said.startsWith(READING.arriving)
@@ -647,6 +661,6 @@ export const reported = (said: unknown): Report | undefined => {
   if (reading === undefined) return undefined
   const height = Number(said.slice(READING[reading].length))
   return Number.isFinite(height) && height > 0
-    ? { height: Math.ceil(height), reading }
+    ? { kind: "reading", reading, height: Math.ceil(height) }
     : undefined
 }

@@ -598,11 +598,10 @@ export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
  *  server that writes it and the browser that reads it, for {@link ./media.ts}'s
  *  reason. See {@link ./seal.ts}. */
 export {
-  opening,
+  heard,
   type Reading,
-  reported,
+  type Said,
   SEAL,
-  sealedHello,
   sealPolicy,
   spellsHost,
 } from "./seal.ts"

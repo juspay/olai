@@ -2,7 +2,7 @@ import { BODY_EXTS } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { mediaHref } from "./media.ts"
-import { opening, reported, SEAL, sealedHello, sealPolicy } from "./seal.ts"
+import { heard, SEAL, sealPolicy } from "./seal.ts"
 
 /** The host a served page was asked for on — the only thing the policy is
  *  built out of, and the value a request's `Host` header carries. */
@@ -206,16 +206,21 @@ const [ARRIVING, SETTLED] = ((): readonly [string, string] => {
 })()
 
 // THE HELLO, read out of the script that sends it for the reason every other
-// constant here is: the producer is text no compiler reads. It is the FIRST
-// thing the measure does — before the listeners, before any layout — because
-// what asks for it is the frame's `load`, and a greeting that waited for a
-// picture to arrive would be a greeting nobody heard in time.
+// constant here is: the producer is text no compiler reads.
+const HELLO = ((): string => {
+  const found = /parent\.postMessage\("([^"]*)", "\*"\)/.exec(SEAL)
+  if (found === null) throw new Error(`the measure sends no greeting: ${SEAL}`)
+  return found[1]!
+})()
+
+// It is the FIRST thing the measure does — before the listeners, before any
+// layout — because what asks for it is the frame's `load`, and a greeting that
+// waited for a picture to arrive would be a greeting nobody heard in time.
 test("a sealed document greets its embedder before it does anything else", () => {
-  const greeting = /parent\.postMessage\("([^"]*)", "\*"\)/.exec(SEAL)
-  if (greeting === null) throw new Error(`the measure sends no greeting: ${SEAL}`)
-  expect(sealedHello(greeting[1]!)).toBe(true)
+  expect(heard(HELLO)).toEqual({ kind: "hello" })
   // …first, and only then the listeners that do the measuring.
-  expect(SEAL.indexOf(greeting[0])).toBeLessThan(SEAL.indexOf("addEventListener"))
+  expect(SEAL.indexOf(`parent.postMessage("${HELLO}", "*")`))
+    .toBeLessThan(SEAL.indexOf("addEventListener"))
 })
 
 // …and nothing else is that greeting. The receiver keeps a whole page in the
@@ -234,19 +239,16 @@ test("only the greeting is the greeting", () => {
       "",
     ]
   ) {
-    expect(sealedHello(said)).toBe(false)
+    expect(heard(said)).not.toEqual({ kind: "hello" })
   }
 })
 
-// TWO READINGS, and neither prefix is the other's — which is what lets the
-// receiver decide which it is exactly once and then carry the NAME. A settled
+// TWO READINGS, and the frame's height arrives as one of them. A settled
 // reading is the one taken after the page's pictures have landed, and
 // `Hypertext.tsx` files its accepted widths under that name.
-test("the frame's two messages are the two the parser recognises", () => {
-  expect(reported(`${ARRIVING}640`)).toEqual({ height: 640, reading: "arriving" })
-  expect(reported(`${SETTLED}940`)).toEqual({ height: 940, reading: "settled" })
-  expect(SETTLED.startsWith(ARRIVING)).toBe(false)
-  expect(ARRIVING.startsWith(SETTLED)).toBe(false)
+test("the frame's two height messages are the two the parser recognises", () => {
+  expect(heard(`${ARRIVING}640`)).toEqual({ kind: "reading", reading: "arriving", height: 640 })
+  expect(heard(`${SETTLED}940`)).toEqual({ kind: "reading", reading: "settled", height: 940 })
 })
 
 // …and everything else is nothing. A sandboxed frame is an opaque origin and a
@@ -274,7 +276,7 @@ test("anything else the frame could say is not a height", () => {
       "olai:page-settled:640",
     ]
   ) {
-    expect(reported(said)).toBeUndefined()
+    expect(heard(said)).toBeUndefined()
   }
 })
 
@@ -312,17 +314,18 @@ test("the handler claims the kinds the registry says have pages", () => {
 // `mediaHref` rather than spelled, so this reads the same bijection the frame's
 // own `src` and every rewritten picture are built from.
 test("a page of this vault, clicked, arrives as the file it is", () => {
-  expect(opening(`${OPEN}${mediaHref("notes/second.html")}`)).toBe("notes/second.html")
+  expect(heard(`${OPEN}${mediaHref("notes/second.html")}`))
+    .toEqual({ kind: "open", file: "notes/second.html" })
   // A `.md` is on the list on purpose: the ROUTE refuses one (it is not an
   // asset), and a reader clicking a link to a note beside the page still means
   // that note's page. The two questions are different and this is the one about
   // where a reader may be taken.
-  expect(opening(`${OPEN}${mediaHref("notes/second.md")}`)).toBe("notes/second.md")
+  expect(heard(`${OPEN}${mediaHref("notes/second.md")}`))
+    .toEqual({ kind: "open", file: "notes/second.md" })
   // A name that needs escaping survives the trip, which is the whole reason the
   // pathname travels escaped rather than the frame decoding it first.
-  expect(opening(`${OPEN}${mediaHref("he said \"hi\"/a b.html")}`)).toBe(
-    `he said "hi"/a b.html`,
-  )
+  expect(heard(`${OPEN}${mediaHref("he said \"hi\"/a b.html")}`))
+    .toEqual({ kind: "open", file: `he said "hi"/a b.html` })
 })
 
 /**
@@ -359,22 +362,48 @@ test("anything else a frame could say is not a page to open", () => {
       `${OPEN}/media/%2e%2e/secret.html`,
       `${OPEN}/media/a%2fb.html`,
       `${OPEN}/media/second.html%00.olai`,
-      // Ours, and not this message.
+      // Ours, and not this message — heard as what they ARE, never as an open.
       "olai:page-sealed",
       "olai:page-height:640",
       // Somebody else's message that happens to be well formed.
       "some-other-app:open-page:/media/second.html",
     ]
   ) {
-    expect(opening(said)).toBeUndefined()
+    expect(heard(said)?.kind).not.toBe("open")
   }
+})
+
+/**
+ * THE WHOLE VOCABULARY IS DISJOINT, which is the invariant that used to live
+ * nowhere.
+ *
+ * When the three kinds were three exported parsers, this was a rule the one
+ * receiver kept by trying them in an order it was trusted to remember: nothing
+ * held it, and a fourth message could have quietly begun with one of the three
+ * and been classified by whichever arm was written first. `heard` decides once,
+ * so what has to be true is a property of the STRINGS — no one of them begins
+ * another — and that is what this asserts, over every pair, in both directions.
+ *
+ * Every constant is read out of the seal itself for the reason each of them is
+ * above: the producer is text no compiler reads.
+ */
+test("no one of the things a frame can say begins another", () => {
+  const vocabulary = { HELLO, ARRIVING, SETTLED, OPEN }
+  const overlaps: Array<string> = []
+  for (const [name, one] of Object.entries(vocabulary)) {
+    for (const [other, another] of Object.entries(vocabulary)) {
+      if (name === other) continue
+      if (one.startsWith(another)) overlaps.push(`${name} begins with ${other}`)
+    }
+  }
+  expect(overlaps).toEqual([])
 })
 
 // Rounded UP, and it matters at the last line: a browser lays out in fractions,
 // and a frame truncated to the pixel below its content clips a descender and
 // grows a scrollbar to show it.
 test("a fractional page gets the pixel it needs", () => {
-  expect(reported(`${ARRIVING}640.2`)?.height).toBe(641)
+  expect(heard(`${ARRIVING}640.2`)).toEqual({ kind: "reading", reading: "arriving", height: 641 })
 })
 
 // WHAT `Number` LETS THROUGH, pinned rather than assumed — opencode's review of
@@ -387,6 +416,6 @@ test("a fractional page gets the pixel it needs", () => {
 // The gate that matters is the one above it — `event.source` — and it is
 // identity, not syntax.
 test("a slack spelling of a number is still a number", () => {
-  expect(reported(`${ARRIVING} 640`)?.height).toBe(640)
-  expect(reported(`${ARRIVING}0x100`)?.height).toBe(256)
+  expect(heard(`${ARRIVING} 640`)).toMatchObject({ height: 640 })
+  expect(heard(`${ARRIVING}0x100`)).toMatchObject({ height: 256 })
 })

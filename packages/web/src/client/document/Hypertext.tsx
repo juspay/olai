@@ -97,7 +97,7 @@
  * this file, so the two kinds of page answer the question in one place.
  */
 
-import { mediaHref, opening, type Reading, reported, sealedHello } from "@olai/surface"
+import { heard, mediaHref, type Reading } from "@olai/surface"
 import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js"
 
 import { useRouter } from "../router.tsx"
@@ -394,7 +394,13 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
   onMount(() => {
     const listen = (event: MessageEvent) => {
       if (event.source !== frame?.contentWindow) return
-      if (sealedHello(event.data)) {
+      // WHAT WAS SAID, decided once and carried as a name (`seal.ts`'s `Said`).
+      // Three arms rather than three parsers tried in an order this file would
+      // have to be trusted to remember — the same move `Custody` above makes,
+      // for the same reason.
+      const said = heard(event.data)
+      if (said === undefined) return
+      if (said.kind === "hello") {
         // WHOSE greeting this is, decided by what the frame is holding rather
         // than by when it arrived (`Custody`'s table). A document says this
         // once, while it parses, so: the one in the frame has now spoken — or,
@@ -412,14 +418,11 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
       // there is no navigation of the FRAME's to record. What happens after is
       // the app's — usually this element unmounting with the page that held it,
       // and, for a page that named itself, no unmount at all (see `open`).
-      const wants = opening(event.data)
-      if (wants !== undefined) return open(wants)
-      const report = reported(event.data)
-      if (report === undefined) return
+      if (said.kind === "open") return open(said.file)
       const width = frame.clientWidth
-      if (acceptedAt[report.reading] === width) return
-      acceptedAt[report.reading] = width
-      setMeasured(`${report.height}px`)
+      if (acceptedAt[said.reading] === width) return
+      acceptedAt[said.reading] = width
+      setMeasured(`${said.height}px`)
     }
     window.addEventListener("message", listen)
     onCleanup(() => window.removeEventListener("message", listen))
