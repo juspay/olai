@@ -318,9 +318,22 @@ export default function App() {
                       and a tree row's title ELLIPSIZES rather than pushing the
                       line wider (`NodeLine.tsx`). The clip is the backstop for
                       whatever is left.
+
+                      `min-w-0` IS THE OTHER HALF OF THAT ONE LETTER, and
+                      leaving it out looked like a horizontal scrollbar across
+                      the whole window (human, on the branch). This box is a GRID
+                      ITEM in the `1fr` column, and `1fr` means
+                      `minmax(auto, 1fr)` — so the column refuses to go narrower
+                      than its content's MIN-CONTENT width unless the item says
+                      it may. A scroll container's min-content width is zero,
+                      which is what `overflow-x-auto` was quietly supplying;
+                      `clip` supplies nothing, so the column grew to fit the
+                      longest title, the document grew with it, and no title
+                      ever reached the width at which it would ellipsize. The
+                      two have to be written together.
                     */}
                     <main
-                      class={`overflow-x-clip px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
+                      class={`min-w-0 overflow-x-clip px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
                         !desktop() && !chatOpen() ? "pb-16" : ""
                       }`}
                       // Whether a `#tag` in here is pressable — one fact, read

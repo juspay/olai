@@ -1,13 +1,31 @@
 @corpus:good
 Feature: Workflowy gutter
-  The outline gutter matches Workflowy: a filled bullet, a gray halo when
+  The outline gutter matches Workflowy: ONE glyph cell, a gray halo when
   children are hidden, a hover-reveal `•••` menu and collapse triangle left of
-  the bullet. What that menu can DO to a node is `menu_verbs.feature` and how
-  its panel opens and shuts is `menu_panel.feature`; this is the gutter it
-  hangs in, and the reading verbs it has always had.
+  it. What that menu can DO to a node is `menu_verbs.feature` and how its panel
+  opens and shuts is `menu_panel.feature`; this is the gutter it hangs in, and
+  the reading verbs it has always had.
+
+  ONE CELL, not two (the quiet outline). The bullet and the status box used to
+  be separate columns, so every row in every tree spent two fixed widths before
+  its title to say one thing. They are merged: the glyph IS the mark when the
+  node carries one, the bullet when it does not, the hourglass when it cannot
+  start yet — and it is the link into the node in all three cases. What each
+  face means is `see_the_outline.feature`'s; that it is one control is this
+  feature's.
 
   Background:
     Given I open the outline "house.olai"
+
+  Scenario: The mark and the way into the node are one cell
+    # `order` carries `doing`, so its glyph is the half-filled box — and that
+    # same cell is the link to its page. A row with NO mark draws a bullet
+    # there instead, which is why "shows no checkbox" goes on meaning
+    # something.
+    Then the node "order" shows a doing checkbox
+    And the node "handles" shows no checkbox
+    When I click the bullet of "order"
+    Then the zoomed node is "order"
 
   Scenario: A collapsed parent shows the halo on its bullet
     Given the node "kitchen" is expanded
@@ -15,6 +33,23 @@ Feature: Workflowy gutter
     Then the node "kitchen" is collapsed
     And the node "kitchen" shows a collapsed halo
     And the children of "kitchen" are hidden
+    # ...and it says how much finished work went with them, rather than hiding
+    # it silently: done rows recede far enough that a fold over them has to
+    # leave a receipt. TWO, at every depth of what the fold hid — `demo`
+    # directly under it, and `basil` through the mirror of `herbs`, which is
+    # part of this branch's reading like any other row.
+    And the node "kitchen" says it is folding "2" finished rows
+
+  Scenario: A fold over nothing finished says nothing
+    Given the node "install" is expanded
+    When I collapse the node "install"
+    Then the node "install" is collapsed
+    # Three children, none of them done: a zero is not drawn.
+    And the node "install" says nothing about folded finished rows
+
+  Scenario: An expanded branch is hiding nothing, so it reports nothing
+    Given the node "kitchen" is expanded
+    Then the node "kitchen" says nothing about folded finished rows
 
   Scenario: Expanding clears the halo
     Given the node "kitchen" is expanded

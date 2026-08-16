@@ -102,11 +102,13 @@ Feature: See the outline
     Then the node "order" shows the date "2026-08-10"
     And the node "demo" shows no date
 
-  Scenario: A description is one clamped line under the title by default
-    # Full markdown is the zoomed page and click-to-expand — see
-    # note_density.feature. Here the outline only promises the default shape.
-    Then the description of "order" is a preview of "Two ways to go:"
-    And the description of "order" does not render as markdown blocks
+  Scenario: A row is its title, and a pilcrow says there is more
+    # The quiet outline's default: nothing under the title, and the mark beside
+    # it is the door. What the open state holds, and the two other densities,
+    # are note_density.feature's; here the outline only promises the shape a
+    # reader lands on.
+    Then the node "order" shows a pilcrow
+    And the node "order" draws nothing under its title
 
   Scenario: A hash-tag in a title is styled
     Then the title of "kitchen" styles the tag "home"

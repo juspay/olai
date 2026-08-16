@@ -90,7 +90,13 @@ export function PropEditor(props: {
           Property
           <input
             type="text"
-            class={`${TARGET} md:min-h-0 w-32 rounded border border-rule bg-paper px-2 py-1 font-mono text-xs text-ink read-only:text-muted`}
+            // NARROWER BELOW md, and it is arithmetic rather than taste: this
+            // form sits past the row's gutter on a 390pt screen, every width in
+            // it is a `rem`, and the type size is now a reader's choice
+            // (`../theme/sizes.ts`) — so at `Larger` a fixed 8rem key box put
+            // the value box a point off the edge. 6rem is what the old 8rem was
+            // in pixels at the size this app used to be nailed to.
+            class={`${TARGET} md:min-h-0 w-24 md:w-32 rounded border border-rule bg-paper px-2 py-1 font-mono text-xs text-ink read-only:text-muted`}
             data-testid={TESTID.propEditorKey}
             placeholder="key"
             autocomplete="off"
@@ -106,7 +112,13 @@ export function PropEditor(props: {
             onInput={(event) => setKey(event.currentTarget.value)}
           />
         </label>
-        <label class="flex flex-1 items-center gap-2 text-xs text-muted">
+        {/* `min-w-0` on the LABEL and not only on the box inside it: a flex
+            item's default `min-width: auto` is its content's min-content width,
+            so without this the label refused to shrink past the input's own
+            intrinsic size and carried the box off the right edge of a 390pt
+            screen — which the type-size preference made visible by making
+            every rem in here bigger. */}
+        <label class="flex min-w-0 flex-1 items-center gap-2 text-xs text-muted">
           holds
           <input
             type="text"

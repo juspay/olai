@@ -145,7 +145,7 @@ Feature: Zoom and navigate
     # TARGET's title, and clicking it is the same navigation a bullet is:
     # `/n/<id>`, no reload.
     Given I open the outline "house.olai"
-    When I click the note of "order"
+    When I open the note of "order"
     Then the node "order" sees "herbs" as "the herb bed by the door"
     Given I mark the page
     When I follow the see link to "herbs" on "order"
