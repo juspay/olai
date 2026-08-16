@@ -133,14 +133,87 @@ When(
   },
 );
 
+/** The third line, in the door that is NOT the palette. Four surfaces draw
+ *  `Result.tsx` over one `createNodeSearch`, and the properties reached one of
+ *  them first; this is the fence that keeps them reaching all of them. */
+Then(
+  "the edge panel hit {string} shows the property {string} holding {string}",
+  async function (this: OlaiWorld, title: string, key: string, value: string) {
+    const prop = (await panelOf(this))
+      .locator(EDGE_HIT)
+      .filter({ hasText: title })
+      .first()
+      .locator(`[data-testid="edge-hit-prop"][data-key="${key}"]`);
+    await prop.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal((await prop.innerText()).trim(), `${key} ${value}`);
+  },
+);
+
+/**
+ * THIS TAB'S OWN RECEIPT for a write the three steps below make with the
+ * pointer — and why the disk is not one.
+ *
+ * A write goes: the server writes the file, publishes the new set, and only
+ * then answers the tab that asked (`packages/store/src/store.ts` — *rename
+ * them all → re-probe and publish → the caller's post-publish hook*). So a
+ * step that polls the FILE has read a fact the server has and this tab has
+ * not — and everything the client does next turns on having been answered: the
+ * inverse ⌘Z spends is filed on the answer (`client/writes.ts` →
+ * `client/edit/undoing.ts`'s `record`), and a second write is dropped where it
+ * stands while the first is out (`client/edges/editing.tsx`'s `sending`, the
+ * date picker's rule).
+ *
+ * What this surface CAN say is the refs it draws. Nothing is echoed here — a
+ * reference appears and goes when the file says so, off the same snapshot
+ * every other reader is drawn from (`client/edges/editing.tsx`'s header) — so
+ * the list having changed is this tab having been told, one message ahead of
+ * the answer on the same wire.
+ *
+ * OR THE PAGE SAID WHY IT DID NOT, which is the other way any of these ends: a
+ * loop refused, an id nothing declares. Same shape as `support/caret.ts`'s
+ * waits, and for its reason — a step that only knew the happy answer would
+ * hang for fifteen seconds on a scenario whose whole point is the refusal.
+ *
+ * A sentence left over from the LAST write cannot end this wait: the surface
+ * clears its line before it sends (`editing.tsx`'s `write` — "cleared BEFORE
+ * the attempt … a write that takes a moment would otherwise sit under the last
+ * one's sentence"), and `world.press` has waited out a frame by the time any
+ * of these starts polling.
+ */
+const drawnOrSaid = async (
+  world: OlaiWorld,
+  changed: () => Promise<boolean>,
+  what: string,
+): Promise<void> => {
+  await world.waitUntil(
+    async () =>
+      (await changed()) || (await world.page.locator(EDGE_SAID).count()) > 0,
+    `${what}, or the page to say why it did not`,
+  );
+};
+
+/**
+ * Choose a hit, and wait for the panel to carry the write.
+ *
+ * A COUNT rather than the chip's own `data-ref`, because what this step is
+ * given is a TITLE and the chips are keyed by id. One more of them is the same
+ * claim, and it is the claim this panel can make about a write it just sent.
+ */
 When(
   "I choose {string} from the edge panel",
   async function (this: OlaiWorld, title: string) {
+    const held = (await panelOf(this)).locator(`${EDGE_HELD} ${EDGE_DROP}`);
+    const before = await held.count();
     const hit = (await panelOf(this))
       .locator(EDGE_HIT)
       .filter({ hasText: title })
       .first();
     await this.press(hit);
+    await drawnOrSaid(
+      this,
+      async () => (await held.count()) > before,
+      `the panel to draw ${JSON.stringify(title)} among what this node names`,
+    );
   },
 );
 
@@ -154,17 +227,35 @@ Then(
   },
 );
 
+/** The panel's own `×`. Waits for the chip to GO, for the reason the choose
+ *  above waits for one to arrive. */
 When(
   "I drop {string} in the edge panel",
   async function (this: OlaiWorld, target: string) {
-    await this.press(
-      (await panelOf(this)).locator(`${EDGE_DROP}[data-ref="${target}"]`).first(),
+    const chip = (await panelOf(this))
+      .locator(`${EDGE_DROP}[data-ref="${target}"]`)
+      .first();
+    await this.press(chip);
+    await drawnOrSaid(
+      this,
+      async () => (await chip.count()) === 0,
+      `the panel to stop drawing ${JSON.stringify(target)}`,
     );
   },
 );
 
-/** The `×` on a reference the PAGE draws, which is the other door onto the
- *  same op — and the one a person reading a node reaches for. */
+/**
+ * The `×` on a reference the PAGE draws, which is the other door onto the same
+ * op — and the one a person reading a node reaches for.
+ *
+ * This is the step that needed the receipt above. On a loaded box the suite
+ * dropped `⌘Z after a × puts the target back` three times in thirty runs
+ * (`../underload.sh`), because the scenario's next gate was the FILE and the
+ * chord after it reached a tab whose stack was still empty. ⌘Z then drew
+ * `nothing to undo` — and the write's own late answer wiped even that
+ * (`undoing.ts`'s `record` clears the said as it files the inverse), so the
+ * fifteen-second failure was over a page with nothing on it to say why.
+ */
 When(
   "I drop {string} from the drawn {string} of {string}",
   async function (
@@ -173,10 +264,14 @@ When(
     relation: string,
     id: string,
   ) {
-    await this.press(
-      this.node(id)
-        .locator(`${refsOf(relation)} ${REF_DROP}[data-ref="${target}"]`)
-        .first(),
+    const chip = this.node(id)
+      .locator(`${refsOf(relation)} ${REF_DROP}[data-ref="${target}"]`)
+      .first();
+    await this.press(chip);
+    await drawnOrSaid(
+      this,
+      async () => (await chip.count()) === 0,
+      `the row to stop drawing ${JSON.stringify(target)} among its \`${relation}\``,
     );
   },
 );

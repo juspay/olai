@@ -71,6 +71,7 @@ import {
 import { Completions } from "./Completions.tsx"
 import { useDerived } from "../derived.tsx"
 import { nodePlace } from "../search/place.ts"
+import { type NodeProp, nodeProps } from "../search/props.ts"
 import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
 import { useToday } from "../today.tsx"
@@ -90,6 +91,9 @@ export interface Choice {
   readonly hint?: string
   /** Where a node sits — the second line, for the `((` rows only. */
   readonly place?: string
+  /** The node's properties — the third line, for the `((` rows only. A tag
+   *  completion is not a node and has none. */
+  readonly props?: ReadonlyArray<NodeProp>
   readonly choose: () => void
 }
 
@@ -234,6 +238,7 @@ export const createCompletion = (field: {
           id: hit.id,
           label: hit.title,
           place: nodePlace(hit),
+          props: nodeProps(hit),
           choose: () => {
             replace(found, "")
             field.mirrored(hit.id)

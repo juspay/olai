@@ -150,6 +150,37 @@ When(
   },
 );
 
+/**
+ * The same key TWICE, both keys out before either can be answered.
+ *
+ * Two of the step above is not the same thing, and that is the whole reason
+ * this exists: each `press` is a round trip to the browser, and the write the
+ * first key starts is a round trip to a server on this same machine — so on a
+ * loaded box the answer can land in the GAP between the two presses, and the
+ * scenario stops being about what it says it is about.
+ *
+ * `A second Enter on the first capture is not a second write` is where that
+ * showed: with the first capture already landed, the palette has re-primed its
+ * box to `+ ` (`palette/Palette.tsx`'s `sendCapture`), so the second Enter is a
+ * capture of a BLANK line — refused in the ops layer's own words, over the
+ * remark the scenario is asserting on. Measured at 2 in 15 loaded runs, and it
+ * got MORE likely rather than less when this suite's port bands stopped being
+ * shared, because an exclusive band is a faster `freePortIn` and so a faster
+ * round trip to beat.
+ *
+ * Issued together, the two keydowns reach the page with no round trip between
+ * them, which is the claim `without waiting` was always making.
+ */
+When(
+  "I press {string} twice without waiting",
+  async function (this: OlaiWorld, key: string) {
+    await Promise.all([
+      this.page.keyboard.press(key),
+      this.page.keyboard.press(key),
+    ]);
+  },
+);
+
 // ── where in the line the caret is ─────────────────────────────────────
 
 /** The open title editor, waited for. Two of the keys mean different things

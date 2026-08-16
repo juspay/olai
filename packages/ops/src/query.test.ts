@@ -13,7 +13,7 @@ import { Found, type OutlineSet } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
 import { setOf } from "./fixtures.testlib.ts"
-import { detail, index, search, subtree } from "./query.ts"
+import { detail, index, outlines, search, subtree } from "./query.ts"
 
 /** A ledger: items in their sections, and a `Now` list made of placements —
  *  including one that CHAINS through another placement, which is the case
@@ -123,6 +123,29 @@ describe("the properties a node carries", () => {
     const byProp = search(at(), { text: "prop:agent=claude-opus" }).hits
     expect(byProp.map((hit) => hit.id)).toEqual(["git"])
     expect(byProp[0]?.custom?.["pr"]).toBe("https://github.com/juspay/olai/pull/176")
+  })
+
+  /**
+   * WHY the hit is here, when the reason is a property — the half `matched`
+   * cannot carry, and the reason it is a field of its own.
+   *
+   * Both halves on one hit is the case that settles the design: a query naming
+   * a word AND a property matched on both, and one slot would have had to drop
+   * whichever a precedence rule nobody asked for preferred.
+   */
+  test("a hit says which property carried it, beside which field carried the words", () => {
+    const [byProp] = search(at(), { text: "prop:agent=claude-opus" }).hits
+    expect(byProp?.matchedProps).toEqual(["agent"])
+    // No words in that query, so no field carried it — and `matched` still
+    // means exactly what it meant.
+    expect(byProp).not.toHaveProperty("matched")
+
+    const [both] = search(at(), { text: "indicators prop:pr" }).hits
+    expect(both).toMatchObject({ id: "git", matched: "title", matchedProps: ["pr"] })
+  })
+
+  test("a query that named no property leaves the field off entirely", () => {
+    expect(search(at(), { text: "indicators" }).hits[0]).not.toHaveProperty("matchedProps")
   })
 
   test("a hit for a node carrying none says nothing, as its read does", () => {
@@ -371,5 +394,49 @@ describe("a query is words and operators", () => {
     const answer = search(index(WORK()), { text: "is:done", limit: 1 })
     expect(answer.hits.map((hit) => hit.id)).toEqual(["book"])
     expect(answer.total).toBe(2)
+  })
+})
+
+/**
+ * What a listing says about a set of files — every arm of it in one fixture,
+ * because a row is answered by a LOOKUP into the grouped nodes, and a lookup
+ * is a thing that can miss.
+ *
+ * The three that miss differently are all here: a file whose nodes are in the
+ * grouping, one that holds none at all (in `files`, in no group), and one that
+ * did not parse (answered before the grouping is consulted).
+ */
+describe("the directory", () => {
+  const DIRECTORY = (): OutlineSet =>
+    setOf({
+      "house.olai": [
+        // Written out of `ord` order on purpose: the roots a listing shows are
+        // the file's, in the order the file writes them.
+        `{"id":"garden","ord":"a1","title":"Garden"}`,
+        `{"id":"house","ord":"a0","title":"House"}`,
+        `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","todo":true}`,
+        // A mirror is a placement: it is neither counted nor a root, even
+        // sitting at the top level of the file.
+        `{"id":"shown","ord":"a2","mirror":"paint"}`,
+      ].join("\n"),
+      "empty.olai": "",
+      "shed.olai": `{"id":"shed","ord":"a0","title":"Shed"}`,
+    }, [], { "torn.olai": `{"id":` })
+
+  /** The WHOLE listing in one assertion rather than four indexes into it: the
+   *  order is one of the claims, so a row pinned by position would be leaning
+   *  on a fact a sibling test owns. */
+  test("every file gets its row, in order, counted and titled by its own nodes", () => {
+    const set = DIRECTORY()
+    expect(outlines(set, index(set))).toEqual([
+      // Three regular nodes — the mirror is a placement, so it is neither
+      // counted nor a root — and the roots are in FILE order.
+      { file: "house.olai", nodes: 3, roots: ["Garden", "House"] },
+      { file: "empty.olai", nodes: 0, roots: [] },
+      { file: "shed.olai", nodes: 1, roots: ["Shed"] },
+      // The torn row carries `unreadable` BESIDE a zero and an empty list —
+      // the flat shape {@link OutlineSummary} holds knowingly.
+      { file: "torn.olai", nodes: 0, roots: [], unreadable: [expect.any(String)] },
+    ])
   })
 })

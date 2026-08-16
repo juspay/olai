@@ -303,8 +303,11 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
     }
     expect(said("search_nodes")).toContain("`after`")
     // …and that a hit answers the properties too, which is the whole reason to
-    // reach for one query instead of a query and a read per row.
+    // reach for one query instead of a query and a read per row — plus the
+    // other half of "why is this here", which is on the schema as a bare
+    // `string[]` and is taught nowhere else.
     expect(said("search_nodes")).toContain("`custom`")
+    expect(said("search_nodes")).toContain("`matchedProps`")
     // …and the subtree read says where to go instead, since it walks none.
     expect(said("read_subtree")).toContain("`placed`")
   })
@@ -427,6 +430,18 @@ test("search and subtree carry a node's properties, so a board is one query", as
     expect((hits["hits"] as ReadonlyArray<unknown>)[0]).toMatchObject({
       id: "order",
       custom: { pr: "https://github.com/juspay/olai/pull/179", agent: "claude-opus" },
+      // …and WHICH property put it there, through the encoder — the seam that
+      // once dropped `matched`, now carrying its sibling too.
+      matchedProps: ["agent"],
+    })
+
+    // Both halves of "why is this here" on one hit, since both can be true:
+    // the title carried the word, the map carried the key.
+    const both = (await call(client, "search_nodes", { text: "cabinets prop:pr" })).structured
+    expect((both["hits"] as ReadonlyArray<unknown>)[0]).toMatchObject({
+      id: "order",
+      matched: "title",
+      matchedProps: ["pr"],
     })
 
     const tree = (await call(client, "read_subtree", { id: "kitchen", depth: 1 })).structured

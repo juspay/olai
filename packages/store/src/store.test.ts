@@ -9,9 +9,10 @@
  *
  * Almost everything drives the probe through `refresh` with the watcher off,
  * because "the probe is the only source of truth" is exactly what makes that a
- * complete test: a watcher event and a `refresh` reach the same code. The one
- * test that turns the watcher on is the one about the watcher — that a burst of
- * writes lands as one update rather than five.
+ * complete test: a watcher event and a `refresh` reach the same code. The tests
+ * that turn the watcher on are the ones ABOUT the watcher — that a burst of
+ * writes lands as one update rather than five, and that a directory made after
+ * the store booted is watched rather than waited for.
  */
 
 import { NodeServices } from "@effect/platform-node"
@@ -565,6 +566,54 @@ test("the backstop notices a change with no watcher and nobody asking", () =>
         expect(snapshot?.rev).toBe(2)
       }),
     { watch: false, backstop: "50 millis" },
+  ))
+
+// The blind spot the pinned runtime ships with, and the one this package
+// closes itself: a recursive watch registers the tree it was ARMED on and
+// never follows a directory made afterwards. The `mkdir` is reported — so a
+// new folder's first note has always arrived — and then everything else that
+// lands in that folder is silent until the backstop sweeps a minute later.
+// That is how a new `orchestrator/` outline came to need manual touches before
+// it would load.
+//
+// Four writes, and each one is a level of the claim: a directory born after
+// boot, a SECOND file in it with no `mkdir` of its own to announce it, a
+// directory born inside THAT one, and a second file in it too — which is the
+// case that says the fix recurses rather than covering one generation.
+//
+// The backstop is left at its sixty-second default on purpose, and that is
+// what makes this a test of the WATCHER: `settled` gives up after five
+// seconds, so a pass can only mean somebody was watching directories that did
+// not exist when the store booted.
+test("a directory created after boot is watched, not waited for", () =>
+  withStore(
+    { "a.txt": "alpha" },
+    ({ settled, write }) =>
+      Effect.gen(function*() {
+        const holds = (path: string) => (snapshot: Store.Snapshot<Loaded> | null) =>
+          path in (snapshot?.value.text ?? {})
+
+        write("fresh/first.txt", "the first note in a folder that did not exist at boot")
+        yield* settled(holds("fresh/first.txt"))
+
+        write("fresh/second.txt", "the second, which no mkdir announces")
+        yield* settled(holds("fresh/second.txt"))
+
+        write("fresh/deeper/third.txt", "a folder inside the new folder")
+        yield* settled(holds("fresh/deeper/third.txt"))
+
+        write("fresh/deeper/fourth.txt", "and the same claim, one level down")
+        const snapshot = yield* settled(holds("fresh/deeper/fourth.txt"))
+
+        expect(snapshot?.value.text).toEqual({
+          "a.txt": "alpha",
+          "fresh/first.txt": "the first note in a folder that did not exist at boot",
+          "fresh/second.txt": "the second, which no mkdir announces",
+          "fresh/deeper/third.txt": "a folder inside the new folder",
+          "fresh/deeper/fourth.txt": "and the same claim, one level down",
+        })
+      }),
+    { watch: true },
   ))
 
 test("an edit reaches the snapshot with nobody asking", () =>

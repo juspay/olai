@@ -334,7 +334,7 @@
           <tr><td>Sync</td><td>Their cloud</td><td>git, or anything that moves files</td></tr>
           <tr><td>History</td><td>In-app version history</td><td><code>git log</code>; every edit is a reviewable commit</td></tr>
           <tr><td>Concurrent edits</td><td>Resolved by their server</td><td>Line-based git merges</td></tr>
-          <tr><td>Search</td><td>Keyword, in their app</td><td>The same query language everywhere — a box in the header, the ⌘K palette, a filter that narrows the outline in place, and an agent's own tools — with <code>is:done</code>, <code>has:desc</code>, <code>date:</code> and <code>-not</code> meaning one thing in all four, over files you can also grep yourself</td></tr>
+          <tr><td>Search</td><td>Keyword, in their app</td><td>The same query language everywhere — a box in the header, the ⌘K palette, a filter that narrows the outline in place, and an agent's own tools — with <code>is:done</code>, <code>has:desc</code>, <code>date:</code>, <code>prop:</code> and <code>-not</code> meaning one thing in all four, over files you can also grep yourself</td></tr>
           <tr><td>Programmatic access</td><td>Vendor API, where one exists</td><td>Any agent over ACP or MCP; any text tool</td></tr>
           <tr><td>Source</td><td>Proprietary</td><td><a href="https://github.com/juspay/olai">Open source</a> (AGPL-3.0)</td></tr>
         </tbody>
@@ -624,8 +624,10 @@ The corner unit is the **risky one** — see
         <code>has:see</code> ask what the record carries.
         <code>date:2026-08</code> takes a day, a month, a year or a range
         (<code>date:2026-08-01..2026-08-14</code>), reading the same two dates
-        the journal reads. <code>-</code> in front of any of them takes it back
-        out.</p>
+        the journal reads. <code>prop:pr</code> and
+        <code>prop:agent=claude-opus</code> ask after a property you put on a
+        node yourself — by key, or by key and value. <code>-</code> in front of
+        any of them takes it back out.</p>
         <p><strong>An operator it does not know is refused, not guessed at.</strong>
         <code>is:blocked</code> answers with the values <code>is:</code> takes
         rather than quietly searching for that text and finding nothing, and a

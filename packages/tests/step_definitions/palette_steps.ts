@@ -348,13 +348,40 @@ Then(
 
 // ── quick capture ──────────────────────────────────────────────────────
 
-/** The whole gesture, as a person makes it: the `+` prefix, the line, Enter. */
+/**
+ * The whole gesture, as a person makes it: the `+` prefix, the line, Enter —
+ * and then the palette's own answer, which is what makes a SECOND capture a
+ * gesture rather than a race.
+ *
+ * The palette takes ONE WRITE AT A TIME (`palette/Palette.tsx`'s `sending`,
+ * the date picker's rule), and a capture that arrives while the last one is
+ * still out is dropped where it stands: no write, no sentence, nothing on
+ * screen. The file having the first line does not close that window — the
+ * server writes, publishes and only then answers, so a scenario that reads the
+ * disk is reading a fact this TAB has not been told yet. Measured under load:
+ * `A second capture goes into the inbox that now exists` was one of the
+ * scenarios this suite dropped, on the second capture, as a fifteen-second
+ * wait for a line nobody had written.
+ *
+ * The answer is the slot, either mood — the remark a landed capture makes
+ * (`captured “…” to <file>`) or the ops layer's refusal — because both are set
+ * in the `.then` of the round trip and neither is there while it is out. The
+ * scenario next door already says this in words (`⌘Z takes back a capture`:
+ * *the palette's own line rather than the disk … it is said in the answer that
+ * files the inverse*); here it is the step's, so every caller gets it.
+ */
 When(
   "I capture {string} from the palette",
   async function (this: OlaiWorld, line: string) {
     const input = await fillPalette(this, `+ ${line}`);
     await input.press("Enter");
+    // The frame first: the send clears the slot synchronously, so a poll
+    // started before it would find the LAST capture's remark and stop there.
     await this.waitForFrame();
+    await this.waitUntil(
+      async () => (await this.page.locator(PALETTE_SAID).count()) > 0,
+      `the palette to say what came of capturing ${JSON.stringify(line)}`,
+    );
   },
 );
 

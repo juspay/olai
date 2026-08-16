@@ -80,7 +80,7 @@ import {
 import { opItems } from "./ops.ts"
 import { createCursor } from "../search/cursor.ts"
 import { createNodeSearch } from "../search/nodes.ts"
-import { Result } from "../search/Result.tsx"
+import { Result, type RowTestids } from "../search/Result.tsx"
 import { paletteOpen, setPaletteOpen } from "./open.ts"
 import { type Said, useUndo } from "../edit/undoing.ts"
 import { applied, applying } from "../writes.ts"
@@ -99,6 +99,14 @@ import { Shortcuts } from "./Shortcuts.tsx"
  * happens once, where it is true, and the arm below cannot be entered with a
  * row that has nothing to confirm.
  */
+/** What this door calls its rows — see `../search/Result.tsx`'s `RowTestids`
+ *  for why the three travel as one value. */
+const PALETTE_ROW: RowTestids = {
+  row: TESTID.paletteItem,
+  place: TESTID.paletteItemPlace,
+  prop: TESTID.paletteItemProp,
+}
+
 interface Asking {
   /** The verb's own words, on the button that goes ahead. */
   readonly label: string
@@ -686,9 +694,9 @@ export function Palette(props: {
                         label={item.label}
                         hint={item.hint}
                         place={item.place}
+                        props={item.props}
                         active={chosen() && index() === cursor.at()}
-                        testid={TESTID.paletteItem}
-                        placeTestid={TESTID.paletteItemPlace}
+                        testids={PALETTE_ROW}
                         id={item.id}
                         onHover={() => {
                           setChosen(true)

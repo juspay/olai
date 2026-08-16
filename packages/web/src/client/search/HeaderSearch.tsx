@@ -58,7 +58,14 @@ import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import { createCursor } from "./cursor.ts"
 import { createNodeSearch } from "./nodes.ts"
-import { Result } from "./Result.tsx"
+import { Result, type RowTestids } from "./Result.tsx"
+
+/** What this door calls its rows (`./Result.tsx`'s `RowTestids`). */
+const HEADER_ROW: RowTestids = {
+  row: TESTID.headerSearchItem,
+  place: TESTID.headerSearchItemPlace,
+  prop: TESTID.headerSearchItemProp,
+}
 
 export function HeaderSearch(props: {
   readonly go: (route: Route) => void
@@ -219,9 +226,9 @@ export function HeaderSearch(props: {
                       <Result
                         label={item.label}
                         place={item.place}
+                        props={item.props}
                         active={index() === cursor.at()}
-                        testid={TESTID.headerSearchItem}
-                        placeTestid={TESTID.headerSearchItemPlace}
+                        testids={HEADER_ROW}
                         id={item.id}
                         onHover={() => cursor.to(index())}
                         onSelect={() => open(index())}

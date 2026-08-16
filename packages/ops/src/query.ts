@@ -229,6 +229,10 @@ export const search = (
         // carried by no field, and answering "title" would be inventing a
         // reason. The format's own rule for absence, applied to an answer.
         ...(match.field === null ? {} : { matched: match.field }),
+        // …and the same rule for the other half of "why is this here", which is
+        // a separate field because both halves can be true at once. Empty for
+        // every query that named no property.
+        ...(match.props.length === 0 ? {} : { matchedProps: match.props }),
       }
       return {
         hit,
@@ -372,6 +376,32 @@ export const outlines = (
   derived: Derived,
 ): ReadonlyArray<OutlineSummary> => {
   const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
+  /**
+   * Each file's own nodes, grouped once. The set is FLAT ({@link OutlineSet}
+   * says why), so "which nodes are this file's" is a scan of the whole list,
+   * and asking it per row cost files × nodes — on the first call an agent
+   * makes on a directory it has not seen.
+   *
+   * `Map.groupBy` holds each group in ENCOUNTER order, which is what `roots`
+   * below stands on: a row's titles come out in file order, not the sibling
+   * (`ord`) order they would be in had anything sorted them.
+   *
+   * The mirrors drop HERE, once for the whole answer, as `countedChildren`
+   * drops them in the floor — a placement is neither counted nor a title, and
+   * that rule spelled once per use is a rule that can come to disagree with
+   * itself. Saying they are gone is also what lets the titles below be read
+   * without an assertion.
+   *
+   * NOT a field on {@link Derived}, though this grouping is written three
+   * times in the tree: `siblingsOf` in the floor sorts what it groups,
+   * `publishedOf` and the pending walk ask it of an `OutlineSet` they never
+   * derive at all. Only the grouping itself is shared, and what shape a shared
+   * one should take is for the roadmap's `siblings-of-quadratic` to settle.
+   */
+  const byFile = Map.groupBy(
+    derived.nodes.filter((located): located is LocatedRegular => !isMirror(located.node)),
+    (located) => located.file,
+  )
   // ANNOTATED, so the row literals below are checked against the floor: a
   // field dropped from `OutlineSummary` fails HERE rather than only at the
   // table-driven decode. That is independent of what the rows hold, which is
@@ -388,13 +418,14 @@ export const outlines = (
         unreadable: errors.map(errorLine),
       }
     }
-    const own = derived.nodes.filter((located) => located.file === file)
+    // No group at all is an outline holding no nodes of its own.
+    const own = byFile.get(file) ?? []
     return {
       file,
-      nodes: own.filter((located) => !isMirror(located.node)).length,
+      nodes: own.length,
       roots: own
-        .filter((located) => located.node.parent === undefined && !isMirror(located.node))
-        .map((located) => (located as LocatedRegular).node.title),
+        .filter((located) => located.node.parent === undefined)
+        .map((located) => located.node.title),
     }
   })
 }

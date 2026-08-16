@@ -8,7 +8,7 @@
  * requirements — a `refresh` a consumer holds should not ask them for a file
  * system.
  *
- * Three edges are handled here rather than upstairs, because all three are
+ * Four edges are handled here rather than upstairs, because all four are
  * facts about disks rather than about stores:
  *
  *   - Paths coming out are root-relative and spelled with `/`, whatever the
@@ -19,6 +19,12 @@
  *   - The walk PRUNES. See {@link pruned}: a served directory is a working
  *     tree, and the probe must not be at its most expensive exactly when git
  *     is busy.
+ *   - The walk also ARMS. A recursive watch does not follow a directory made
+ *     after it (see {@link Disk.watch}), and the walk is already the only
+ *     thing in here that looks at directories — so it tells the watcher about
+ *     the ones it has never seen. The two jobs share one descent because they
+ *     would otherwise be the same walk done twice, disagreeing about what is
+ *     pruned.
  *   - A file that has VANISHED between two syscalls is not an error. A probe
  *     races every writer on the machine; "it was listed, then it was not there"
  *     is the normal outcome of a `git checkout`, and the next probe is what
@@ -32,7 +38,17 @@
  * write. Same directory, because a rename across file systems is a copy.
  */
 
-import { Effect, FileSystem, Option, Path, type PlatformError, Stream } from "effect"
+import {
+  Effect,
+  Exit,
+  FileSystem,
+  Option,
+  Path,
+  type PlatformError,
+  Queue,
+  Scope,
+  Stream,
+} from "effect"
 
 import { PlatformFailure, ROOT_ITSELF } from "./errors.ts"
 
@@ -78,11 +94,21 @@ export interface Disk {
    *  something outside this process (the post-publish hook shelling out to
    *  git). Nothing inside the store uses it. */
   readonly resolve: (path: string) => string
-  /** "Something under the root moved." The event's own payload is DROPPED
-   *  here, at the edge, so nothing above can be tempted to believe it: the
-   *  pinned watcher discards null filenames of its own accord, inotify
-   *  overflows under bursts and FSEvents coalesces under git-sized loads. An
-   *  event means "probe soon" and the probe is what decides what happened. */
+  /**
+   * "Something under the root moved." The event's own payload is DROPPED
+   * here, at the edge, so nothing above can be tempted to believe it: the
+   * pinned watcher discards null filenames of its own accord, inotify
+   * overflows under bursts and FSEvents coalesces under git-sized loads. An
+   * event means "probe soon" and the probe is what decides what happened.
+   *
+   * It is not one watcher but one PER DIRECTORY THE ROOT'S CANNOT REACH, and
+   * that is a fact about the pinned runtime rather than about watching. See
+   * the arming block in {@link make}: a recursive watch registers the tree it
+   * is armed on and never follows a directory created afterwards, so the walk
+   * arms those as it finds them and their events arrive here beside the
+   * root's. Nothing above needs to know — an event still means "probe soon",
+   * and it is the probe that turns one into the other.
+   */
   readonly watch: Stream.Stream<void, PlatformFailure>
 }
 
@@ -121,6 +147,154 @@ export const make = (
       )
     }
 
+    // ── the watcher, and the tree it cannot see on its own ──────────────
+    //
+    // `fs.watch(root, { recursive: true })` registers the tree AS IT STANDS
+    // when it is armed, and the pinned runtime never follows a directory made
+    // afterwards: the `mkdir` is reported, and then every file that lands
+    // inside the new directory is silent. Both halves are measured
+    // (docs/brainstorming/watcher-fd-cost.md), and the second one is a real
+    // minute of nothing happening — make a folder in a served vault, put a
+    // note in it, and the page waits for the backstop. It is fixed upstream in
+    // a version this repo does not pin, which makes it this package's problem.
+    //
+    // The WALK is what closes it, because the walk is already the only thing
+    // in here that looks at directories: while somebody is watching, one it
+    // enters that nothing covers yet gets a watcher of its own. Three
+    // orderings carry the whole of the correctness:
+    //
+    //   - a directory's watcher is STARTED before its entries are listed, so a
+    //     file landing in it either wakes the new watcher or is in the listing
+    //     that follows — the argument the store's boot makes about the root,
+    //     one level down. Started, not proven armed: `cover` returns when the
+    //     watching fiber is FORKED, and the subscription that reaches
+    //     `fs.watch` happens on that fiber afterwards. A file landing in the
+    //     gap between the two can miss both, and that one is the backstop's;
+    //   - the tree under a new directory needs no special case. Its own
+    //     subdirectories are `mkdir`s, reported by the watcher just armed on
+    //     their parent, and the walk that follows arms them in turn;
+    //   - the FIRST walk with a watcher live only RECORDS what it finds,
+    //     because that tree is the one the root's recursive watch already
+    //     holds and arming a second watcher over every directory of it would
+    //     double a descriptor cost the runtime already charges too much for.
+    //     In practice that walk is the store's boot `refresh`, forked right
+    //     behind the watcher — so the window a directory can be born into and
+    //     be MISTAKEN for one of the covered is one LISTING wide, which on a
+    //     large tree is the longer of the two delays this file has. The `wake`
+    //     offered at arm time does not shorten it; what it buys is the other
+    //     case, where boot's walk beat the watcher into being and the seeding
+    //     would otherwise wait on whatever event came next. Either way, a
+    //     window is what the backstop owns.
+    //
+    // A directory that leaves the tree gives its watcher up, and that is
+    // hygiene rather than a second fix: the pinned runtime registers a watch
+    // BY PATH, process-wide and for good, so a path that has been watched once
+    // and is then removed and made again is a handle on an inode nobody can
+    // reach — measured, and no spelling of the same path gets a live one back.
+    // Nothing in here can close that, so the backstop keeps it, exactly as it
+    // kept the whole of this before. What releasing buys is that the set stays
+    // the size of the tree rather than of every directory the tree ever had.
+    let covering: Covering | null = null
+
+    /** Arm a watcher on a directory the root's own does not reach — nothing
+     *  while nothing is watching, which is what keeps `watch: false` free, and
+     *  nothing left behind by one that could not be armed, so the next walk is
+     *  free to try again. */
+    const cover = (directory: string): Effect.Effect<void> =>
+      Effect.suspend(() => {
+        const live = covering
+        if (live === null || live.covered.has(directory)) return Effect.void
+        if (!live.seeded) {
+          live.covered.set(directory, null)
+          return Effect.void
+        }
+        return Effect.gen(function*() {
+          const scope = yield* Scope.fork(live.scope)
+          live.covered.set(directory, scope)
+          yield* Stream.runForEach(
+            fs.watch(absolute(directory), { recursive: true }),
+            () => Queue.offer(live.wake, undefined),
+          ).pipe(
+            // However it ends, the path stops counting as covered, so the NEXT
+            // walk arms it again rather than the map remembering a watcher
+            // nobody has. That matters for the one failure this change makes
+            // more likely and not less: a new directory now costs descriptors,
+            // so a transient EMFILE is exactly the arm that should be retried,
+            // and a map entry left behind is a directory never watched again
+            // for the life of the process. Guarded on identity, because a path
+            // that left and came back has a newer scope in the map and this
+            // fibre must not take it out. (The scope itself is released with
+            // the watch stream rather than here — closing it from the fibre
+            // living in it is not worth the reasoning, and it is empty.)
+            Effect.onExit(() =>
+              Effect.sync(() => {
+                if (live.covered.get(directory) === scope) live.covered.delete(directory)
+              })
+            ),
+            // Failing is not news. Losing one of these costs latency and
+            // nothing else — the set on screen still converges, at the
+            // backstop's sixty seconds rather than at a settle delay — which
+            // is the trade the store already makes for the root's watcher,
+            // made again one level down. The usual way to lose one is a
+            // directory that was there when the walk read its parent and is
+            // not there now, and the walk that notices drops it anyway.
+            Effect.ignore,
+            Effect.forkIn(scope),
+          )
+        })
+      })
+
+    /** What the walk found, made into what the watcher covers: a directory
+     *  that is no longer there gives its watcher up, and the first walk to
+     *  reach here is the seeding one described above. */
+    const reconcile = (visited: ReadonlySet<string>): Effect.Effect<void> =>
+      Effect.suspend(() => {
+        const live = covering
+        if (live === null) return Effect.void
+        const gone: Array<Scope.Closeable> = []
+        for (const [directory, scope] of live.covered) {
+          if (visited.has(directory)) continue
+          live.covered.delete(directory)
+          if (scope !== null) gone.push(scope)
+        }
+        live.seeded = true
+        return Effect.forEach(gone, (scope) => Scope.close(scope, Exit.void), {
+          discard: true,
+        })
+      })
+
+    const watch = Stream.unwrap(Effect.gen(function*() {
+      // One pending wake is as many as there can be: every event on this
+      // stream says the same word, and the settle delay upstairs would
+      // collapse a queue of them into one probe anyway.
+      const wake = yield* Queue.make<void>({ capacity: 1, strategy: "sliding" })
+      const live: Covering = {
+        covered: new Map(),
+        wake,
+        // The stream's own scope, so every watcher the walk arms is released
+        // when this one is — including on the store's retry after a watcher
+        // failed, which starts the whole arrangement again from empty.
+        scope: yield* Effect.scope,
+        seeded: false,
+      }
+      covering = live
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          if (covering === live) covering = null
+        })
+      )
+      // Ask for the seeding walk now, so what it records is the tree this
+      // watcher was armed on rather than whatever is there a minute later.
+      yield* Queue.offer(wake, undefined)
+
+      return Stream.merge(
+        Stream.map(fs.watch(root, { recursive: true }), () => undefined),
+        Stream.fromQueue(wake),
+      ).pipe(
+        Stream.mapError((cause) => new PlatformFailure({ path: ROOT_ITSELF, cause })),
+      )
+    }))
+
     const listing = (match: (path: string) => boolean) =>
       Effect.gen(function*() {
         // Walked a directory at a time rather than with one recursive read,
@@ -132,9 +306,17 @@ export const make = (
         // `match` cannot help; it is asked about files, and by then the cost
         // has been paid.
         const stamps = new Map<string, Stamp>()
+        /** Every directory this walk entered — what the watcher's own set is
+         *  reconciled against once the walk has come back whole. */
+        const visited = new Set<string>()
 
         const descend = (directory: string): Effect.Effect<void, PlatformFailure> =>
           Effect.gen(function*() {
+            visited.add(directory)
+            // Started before the entries are read, so a file landing here in
+            // between wakes the new watcher rather than falling into the gap.
+            // Best-effort-before — {@link cover} says how far that reaches.
+            yield* cover(directory)
             const entries = yield* entriesOf(directory)
 
             // One stat per entry, concurrently, because this is latency in
@@ -169,6 +351,10 @@ export const make = (
           })
 
         yield* descend("")
+        // Only on a walk that came back whole: one that failed has half a tree
+        // in `visited`, and reconciling against it would disarm the half it
+        // never reached.
+        yield* reconcile(visited)
         return stamps
       })
 
@@ -177,11 +363,6 @@ export const make = (
         Effect.catchIf(vanished, () => Effect.succeed(null)),
         Effect.mapError((cause) => new PlatformFailure({ path, cause })),
       )
-
-    const watch = fs.watch(root, { recursive: true }).pipe(
-      Stream.map(() => undefined),
-      Stream.mapError((cause) => new PlatformFailure({ path: ROOT_ITSELF, cause })),
-    )
 
     let staged = 0
     const stage = (path: string, contents: string) =>
@@ -207,6 +388,27 @@ export const make = (
 
     return { listing, read, watch, stage, publish, discard, resolve: absolute }
   })
+
+/**
+ * What one live watcher needs the walk to keep current for it.
+ *
+ * `covered` is every directory something is watching, mapped to the watcher
+ * the walk armed on it — or `null` for one the root's own recursive watch
+ * already holds, which is every directory the seeding walk found. `seeded` is
+ * false only until that walk comes back. See the arming block in {@link make};
+ * this exists as a type rather than four `let`s so that "there is a watcher"
+ * and "there is not" is ONE thing to test.
+ */
+interface Covering {
+  readonly covered: Map<string, Scope.Closeable | null>
+  /** Where an armed watcher's events go, to be merged into {@link Disk.watch}
+   *  beside the root's own. */
+  readonly wake: Queue.Queue<void>
+  /** The watch stream's scope: every armed watcher is forked into a child of
+   *  it, so they all end when the stream does. */
+  readonly scope: Scope.Scope
+  seeded: boolean
+}
 
 /** Directories the walk does not enter.
  *
