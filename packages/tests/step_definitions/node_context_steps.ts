@@ -183,9 +183,7 @@ Then("the node {string} is focused", async function (this: OlaiWorld, id: string
     async () => {
       const box = await row.boundingBox();
       if (box === null) return false;
-      const view = this.page.viewportSize();
-      if (view === null) return false;
-      return box.y + box.height > 0 && box.y < view.height;
+      return box.y + box.height > 0 && box.y < this.viewport().height;
     },
     `"${id}" to be on the screen, not merely lit up`,
   );

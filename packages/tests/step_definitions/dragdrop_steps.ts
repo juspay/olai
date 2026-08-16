@@ -430,8 +430,7 @@ const SHORT_WINDOW = { width: 1_100, height: 260 };
  * gesture that scrolled once and stopped.
  */
 const holdAtTheEdge = async (world: OlaiWorld, x: number): Promise<void> => {
-  const view = world.page.viewportSize();
-  assert.ok(view !== null, "this scenario has no viewport size");
+  const view = world.viewport();
   await world.page.mouse.move(x, view.height - AT_THE_EDGE, { steps: 10 });
   await world.waitUntil(
     async () => (await world.page.evaluate(() => window.scrollY)) > 0,

@@ -147,7 +147,7 @@ When("I leave the property editor", async function (this: OlaiWorld) {
  * cannot reach is what is off the screen (opencode's nit, review of #179).
  */
 Then("the property editor fits the screen", async function (this: OlaiWorld) {
-  const width = this.page.viewportSize()?.width ?? 0;
+  const width = this.viewport().width;
   for (
     const [name, selector] of [
       ["the key box", PROP_EDITOR_KEY],

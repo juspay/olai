@@ -1255,8 +1255,7 @@ export class OlaiWorld extends World {
    */
   async tapAway(): Promise<void> {
     const tree = await this.box(this.page.locator(OUTLINE_TREE).first(), "the outline tree");
-    const view = this.page.viewportSize();
-    assert.ok(view !== null, "this scenario has no viewport size");
+    const view = this.viewport();
     // Clear of the bottom of the screen, where a phone keeps the agent's strip.
     const at = { x: view.width - 12, y: Math.min(tree.y + tree.height + 24, view.height - 80) };
     const panels = this.page.locator(NODE_MENU_PANEL);
@@ -1594,6 +1593,22 @@ export class OlaiWorld extends World {
     await this.page.evaluate((key) => {
       (window as unknown as Record<string, unknown>)[key] = true;
     }, NO_RELOAD_MARK);
+  }
+
+  /** How big the WINDOW is — the other half of {@link box}, and the thing
+   *  every "is it on screen" assertion is measured against.
+   *
+   *  Playwright answers `null` when a context was made with no viewport at
+   *  all, which no context here is (`support/hooks.ts` gives every one of them
+   *  an explicit size). So the null is not a case to carry — it is a fact
+   *  about a suite that has been mis-set up, and the honest thing to do with
+   *  it is fail saying so. Nine step files had each written that same two-line
+   *  ask-and-assert for itself, which is well past the three or four that put
+   *  a helper here rather than in a step file. */
+  viewport(): { readonly width: number; readonly height: number } {
+    const size = this.page.viewportSize();
+    assert.ok(size !== null, "this scenario has no viewport size");
+    return size;
   }
 
   /** Where something is on screen, and how big.

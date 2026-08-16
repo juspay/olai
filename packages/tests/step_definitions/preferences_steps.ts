@@ -230,8 +230,7 @@ Then("the preferences panel opens downward, clear of the bar", async function (t
     "the whole panel is inside the header's own 3rem, which is a panel that " +
       "has been clipped rather than one that was portalled out",
   );
-  const viewport = this.page.viewportSize();
-  assert.ok(viewport !== null, "this scenario has no viewport size");
+  const viewport = this.viewport();
   assert.ok(
     panel.x >= -1 && panel.x + panel.width <= viewport.width + 1,
     `the panel spans x=${Math.round(panel.x)}..` +
