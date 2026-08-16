@@ -34,6 +34,7 @@ import {
   MARKS,
   type Node,
   type Status,
+  type TargetField,
   targetsOf,
 } from "./node.ts"
 
@@ -161,27 +162,33 @@ export interface Derived {
  * The fields come in {@link targetsOf}'s declaration order, without repeats:
  * `after: ["b", "b"]` is one relation written twice, and a reader listing it
  * twice would be reporting the file's shape rather than what it means.
+ *
+ * `TargetField` rather than `string`, because the format owns that list and an
+ * open type here would be a second, wider vocabulary for it — the same thing
+ * {@link targetsOf} exists to stop one level down.
  */
 export interface Naming {
   readonly at: Located
-  readonly fields: ReadonlyArray<string>
+  readonly fields: ReadonlyArray<TargetField>
 }
 
 export const derive = (nodes: ReadonlyArray<Located>): Derived => {
-  // ONE walk, four tables. They are separable — none of them reads what
-  // another builds — and building them apart would be four passes over the
-  // corpus to answer four questions about a record already in hand.
+  // `Map.groupBy` is the language's own group-by-key, and grouping by file is
+  // exactly that — a hand-rolled accumulator here would be a second spelling
+  // of a built-in (the same note #198 took). The three tables below are not
+  // that shape: one keeps the FIRST claim rather than every one, one skips the
+  // records with no key at all, and one keys a record by every id it names —
+  // so they share one walk, since none of them reads what another builds and
+  // splitting them is three passes to ask three things about a record already
+  // in hand.
+  const byFile = Map.groupBy(nodes, (located) => located.file)
+
   const byId = new Map<string, Located>()
-  const byFile = new Map<string, Array<Located>>()
   const children = new Map<string, Array<Located>>()
   const namedBy = new Map<string, Array<Naming>>()
 
   for (const located of nodes) {
     if (!byId.has(located.node.id)) byId.set(located.node.id, located)
-
-    const own = byFile.get(located.file)
-    if (own === undefined) byFile.set(located.file, [located])
-    else own.push(located)
 
     const parent = located.node.parent
     if (parent !== undefined) {
@@ -203,9 +210,9 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   }
 
   // Sorted rather than trusted: a set assembled file by file already arrives
-  // this way, and the promise is about what the index MEANS — the records in
-  // the order they are on disk — not about how the caller happened to build
-  // the list it handed over.
+  // this way (and `Map.groupBy` keeps encounter order), but the promise is
+  // about what the index MEANS — the records in the order they are on disk —
+  // not about how the caller happened to build the list it handed over.
   for (const own of byFile.values()) own.sort(byLine)
   // `ord` is a fractional index over base62, so plain string comparison IS the
   // sort; file order breaks ties rather than leaving them to the engine.
@@ -235,9 +242,15 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
  *  a handful of ids does not exist, and a `Map` per edge-bearing record is an
  *  allocation this walk pays for the whole corpus. */
 const namings = (
-  targets: ReadonlyArray<readonly [field: string, id: string]>,
-): ReadonlyArray<{ readonly target: string; readonly fields: Array<string> }> => {
-  const folded: Array<{ readonly target: string; readonly fields: Array<string> }> = []
+  targets: ReadonlyArray<readonly [field: TargetField, id: string]>,
+): ReadonlyArray<{
+  readonly target: string
+  readonly fields: Array<TargetField>
+}> => {
+  const folded: Array<{
+    readonly target: string
+    readonly fields: Array<TargetField>
+  }> = []
   for (const [field, target] of targets) {
     const found = folded.find((one) => one.target === target)
     if (found === undefined) folded.push({ target, fields: [field] })

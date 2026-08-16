@@ -297,9 +297,16 @@ export const ID_SHAPE = /^[A-Za-z0-9_-]+$/
 export const EDGE_FIELDS = ["after", "blocks", "see"] as const
 export type EdgeField = (typeof EDGE_FIELDS)[number]
 
+/** Every field a record can NAME another record with: the edge fields, and the
+ *  one a placement points with. The closed list {@link targetsOf} answers in
+ *  and {@link ./derive.ts}'s reverse index carries — `string` there would be a
+ *  second, open vocabulary for the closed one this file already owns, which is
+ *  the failure `targetsOf` itself is written against one level down. */
+export type TargetField = EdgeField | "mirror"
+
 /** The answer for a record that points at nothing, which is nearly every
  *  record: ONE list, shared. See {@link targetsOf}'s last paragraph. */
-const NOTHING_NAMED: ReadonlyArray<readonly [field: string, id: string]> = []
+const NOTHING_NAMED: ReadonlyArray<readonly [field: TargetField, id: string]> = []
 
 /**
  * Every id this record POINTS AT, and the field it pointed with — in
@@ -327,9 +334,9 @@ const NOTHING_NAMED: ReadonlyArray<readonly [field: string, id: string]> = []
  */
 export const targetsOf = (
   node: Node,
-): ReadonlyArray<readonly [field: string, id: string]> => {
+): ReadonlyArray<readonly [field: TargetField, id: string]> => {
   if (isMirror(node)) return [["mirror", node.mirror] as const]
-  let named: Array<readonly [field: string, id: string]> | undefined
+  let named: Array<readonly [field: TargetField, id: string]> | undefined
   for (const field of EDGE_FIELDS) {
     const ids = node[field]
     if (ids === undefined) continue
