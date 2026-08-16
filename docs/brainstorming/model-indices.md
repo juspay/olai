@@ -8,6 +8,8 @@ How this started: PR #198 fixed `list_outlines`, which was re-scanning every nod
 
 olai keeps everything in memory and re-reads only changed files — that part is right. But its computed view (`Derived`, `format/src/derive.ts`) has lookup tables for only two questions (node-by-id, children-by-parent) and answers everything else — including "what's in this file?", asked on every keystroke — by scanning the whole flat array. And the view itself is thrown away and rebuilt from scratch **three times per edit**: once to validate the write, once to publish it, and once in the browser. Emanote's answer to both: keep an index per hot question, and when one file changes, swap that one file's entries in the indexes and leave everything else standing (`Source/Patch.hs:75-166`). That swap — patching instead of rebuilding — is direction C.
 
+One correction to the first draft, and it shrinks the project: **the wire is already incremental.** The `outlines` Surface collection (see the Surface entry in the scan below, and `docs/brainstorming/outlines-as-collection.md`) is keyed by file and served with batched deltas — a probe tick that touched three files sends one coalesced `{upserts, removes}` frame naming those three, not the corpus. The client folds those frames into a per-file keyed store incrementally too. The whole-corpus work that remains is exactly one thing, appearing three times: the `derive()` call itself — in validate, in publish, and in the browser's `derived` memo (`web/src/client/outlines.ts`), which flattens every file's entry and re-derives from scratch on any change. C is about that call, and only that call.
+
 ## What C means for olai, concretely
 
 ### 1. `Derived` becomes a set of real indexes — including the reverse ones
@@ -33,6 +35,8 @@ When file F changes:
 
 The dirty set for a *title edit* — the keystroke case, the overwhelmingly common one — is one node, usually with no mirrors and no incoming edges. That's the whole win: today's cost per keystroke is proportional to the vault; under C it's proportional to what the edit actually touched.
 
+The delta the patcher consumes should not be a new shape: Surface's collection-delta frame — `{upserts: [file, entry][], removes: key[]}` — is already the one vocabulary in which "what changed" travels this system, server to client. The patcher taking exactly that frame means the server (which knows which files a probe tick moved) and the client (which receives that as a wire frame) call one function with one input type, and nothing new is invented.
+
 ### 3. The honest hard parts
 
 - **Duplicate ids.** `byId` is first-claim-wins, and "first" is a fact about corpus order. If the winning claim is deleted, the next claimant must be promoted — which means the index has to *remember the losers*: `byId` becomes id → ordered list of claimants, with the head as the answer. That's the tax incrementality charges: indexes must keep information a from-scratch rebuild gets for free.
@@ -46,9 +50,9 @@ The old direction B (compute once per edit, not three times) is not a separate p
 
 - **Validate** patches the current view with the proposed change and validates the patch's dirty set (plus the global checks when edges/ids changed).
 - **Publish** *is* that patched view — no second computation.
-- **The wire** ships the per-file delta (the file's new nodes) instead of implying "recompute everything," and the **client** applies the same patch function to its copy. Third computation gone.
+- **The browser** needs no protocol change at all: the delta frames it wants are already arriving (the `outlines` collection), and its per-file store already applies them incrementally. The one change is inside `web/src/client/outlines.ts` — the `derived` memo stops calling `derive()` over the flattened corpus and folds the frame into the previous `Derived` with the same patch function the server uses. Third computation gone, wire untouched.
 
-This changes what goes over the wire, which the e2e suite's revision assertions may feel — that's a cost to schedule, not a surprise to discover.
+One real wrinkle the wire's design hands us: entries carry their `rev` *per file*, and an unchanged neighbour deliberately keeps its older number (the cross-file consistency paragraph in `outlines-as-collection.md`). A patched client-side `Derived` therefore spans entries at mixed revs — exactly as the current flatten-and-rederive does, so this is not new unsoundness, but the patcher's contract should say it out loud rather than inherit it silently.
 
 ### 5. The safety line: an oracle, not trust
 
@@ -58,36 +62,51 @@ The from-scratch `derive` doesn't go away. It becomes the oracle:
 
 That's a property test over generated edit sequences (create/edit/move/delete/mirror/edge, across files, with duplicate ids on purpose). It's cheap to write, it's merciless, and it's the difference between "incremental and probably right" and "incremental and provably the same view." The patcher is also allowed to *bail*: any case it finds hairy (a duplicate-id promotion, an edge flood) may fall back to full `derive` — correctness by oracle, performance by common case. Emanote does the same thing morally: its search index doesn't patch, it invalidates and lazily rebuilds.
 
-## The TypeScript ecosystem scan
+## The ecosystem scan
 
-The question was whether someone has already built the machine we're describing. Short answer: the *ideas* are productized, but nothing drops in at the layer olai needs. What exists, from closest-in-spirit to furthest:
+The question was whether someone has already built the machine we're describing. Short answer: the closest thing is already in the house, and the external options are who to steal ideas from, not what to import.
 
-- **[d2ts](https://github.com/electric-sql/d2ts)** (ElectricSQL) — differential dataflow in TypeScript: you write a pipeline of `map`/`filter`/`join`/`reduce` over keyed streams, feed it changes, and outputs update incrementally instead of re-running. This is the real version of what C hand-rolls. Costs: explicitly **alpha**; and mirror-chain resolution is recursive, which is differential dataflow's awkward corner (`iterate` exists, but it's the hard part of the API). Rebasing `derive` onto a dataflow graph is a bigger rewrite than writing the patcher by hand.
-- **[TanStack DB](https://tanstack.com/db/latest)** — a reactive client store whose live queries are incrementally maintained *by d2ts* ([sub-millisecond updates on 100k-row collections](https://tanstack.com/blog/tanstack-db-0.5-query-driven-sync)). Proof the approach carries production weight in TS. But it wants to *be* the store (collections + queries as the app's data layer), where olai's store is `.olai` files with its own format semantics — adopting it would mean expressing marks/mirrors/edges as its collections and queries. Worth a spike if we ever want live queries generally; too big a bite as the fix for `Derived`.
-- **[Materialite](https://github.com/vlcn-io/materialite)** (vlcn / Matt Wonlaw) — the same differential-dataflow idea, earlier and smaller; effectively research code (author says APIs unsettled, bugs remain; quiet since mid-2024). Its lineage flowed into Zero. Read it for ideas, don't depend on it.
+- **@kolu/surface — the framework olai's client is built on, and the scan's missing first entry.** Surface's spec vocabulary is Cells, Collections, Streams and Events, and two of its features are load-bearing for C:
+  - A collection can serve a **batched snapshot-then-delta stream** (`CollectionDeltasMsg`: one `snapshot` frame, then coalesced `{upserts, removes}` frames). olai's `outlines` member already uses it — this is why the wire is per-file today, and why C's delta type should just *be* this frame.
+  - **Derived collections** (`derived.collection(...)`) come with a reconciler and per-key `equals`, publishing only the keys whose values actually changed — server-side incremental view maintenance at the member level, already shipped and tested (`collectionDeltas.test.ts`, `assertCellConverges.ts`).
+  - The Solid client layer (`useCollection`, keyed subscription roots) gives **per-key fine-grained reactivity**: a delta frame updates only the touched keys' signals. So the "diff-aware client reactivity" the external libraries sell is already installed — SolidJS memos over Surface's keyed store.
+  What Surface does *not* have is anything that knows olai's format semantics — mirrors, marks, cross-file edges, duplicate-id precedence. The patcher is the piece between Surface's delta frames and `Derived`, and it's ours to write either way.
+- **[d2ts](https://github.com/electric-sql/d2ts)** (ElectricSQL) — differential dataflow in TypeScript: pipelines of `map`/`filter`/`join`/`reduce` over keyed streams whose outputs update incrementally. The real, general version of what C hand-rolls. Costs: explicitly **alpha**; mirror-chain resolution is recursive, which is differential dataflow's awkward corner (`iterate`); and rebasing `derive` onto a dataflow graph is a bigger rewrite than the patcher.
+- **[TanStack DB](https://tanstack.com/db/latest)** — a reactive client store whose live queries are incrementally maintained *by d2ts* ([sub-millisecond updates on 100k-row collections](https://tanstack.com/blog/tanstack-db-0.5-query-driven-sync)). Proof the approach carries production weight in TS — but its collections+live-queries+sync shape is, seen from here, a parallel universe's Surface: adopting it would duplicate the framework the client already stands on.
+- **[Materialite](https://github.com/vlcn-io/materialite)** (vlcn / Matt Wonlaw) — the same differential-dataflow idea, earlier and smaller; effectively research code (author says APIs unsettled, bugs remain; quiet since mid-2024). Read for ideas, don't depend on.
 - **[Rocicorp Zero](https://zero.rocicorp.dev/)** — a full sync engine whose ZQL queries are incrementally maintained on both ends. The most complete IVM system in TS, and the wrongest fit: it brings a database, a cache server, and a replication protocol. Instructive precedent only.
-- **[signia](https://signia.tldraw.dev/)** (tldraw) — reactive signals where derived values receive *diffs* of their inputs and can update incrementally ("filter only the changed items"). Born from exactly our shape of problem (large derived immutable collections at tldraw). It's a reactivity layer, though: it hands you the wiring for "recompute from a diff," but the diff-applying logic — the patcher — is still yours to write. Could matter later if the client wants fine-grained redraws.
-- **[TinyBase](https://tinybase.org/)** — tiny reactive in-memory store with incrementally-maintained indexes, relationships and queries. Lovely, but it owns the data model (tables/rows/cells); olai's model is nodes-in-outlines with format semantics TinyBase can't know. Wrong layer.
-- **Plain `Map`s + a hand-written patch function** — the emanote answer transliterated (emanote's `ixset-typed` is itself just "several maps kept consistent"). No dependency, no model mismatch, exactly as much machinery as `Derived` needs, testable against the oracle. **This is the recommendation.** The libraries above are who to steal ideas from, not what to import — with d2ts/TanStack DB as the thing to revisit if the query surface ever grows past "the six maps in `Derived`."
+- **[signia](https://signia.tldraw.dev/)** (tldraw) — reactive signals where derived values receive *diffs* of their inputs and can update incrementally. Born from exactly our shape of problem — but it's the reactivity wiring, and Solid-over-Surface already provides that wiring here; the diff-applying logic would still be ours.
+- **[TinyBase](https://tinybase.org/)** — tiny reactive in-memory store with incrementally-maintained indexes, relationships and queries. Lovely, but it owns the data model (tables/rows/cells); wrong layer, same duplicate-the-framework objection as TanStack DB.
+- **Plain `Map`s + a hand-written patch function speaking Surface's delta vocabulary** — the emanote answer transliterated (emanote's `ixset-typed` is itself just "several maps kept consistent"), with the delta type the wire already uses. No dependency, no model mismatch, exactly as much machinery as `Derived` needs, testable against the oracle. **This is the recommendation.**
 
 (Side note for the search palette: full-text is its own world — [MiniSearch](https://github.com/lucaong/minisearch) maintains a search index with per-document add/remove, which is the incremental answer *there* if the scan in `matching` ever hurts. Separate document, as before.)
+
+## What could upstream to kolu
+
+Ruled in the same breath (2026-08-16): where the Hickey/Lowy cut exposes a generic mechanism, upstreaming it to kolu's Surface is on the table. The cut is clean here — mechanism vs. policy:
+
+- **The mechanism** — "fold a collection's snapshot-then-delta stream into a derived value, incrementally, with a bail-to-recompute escape hatch" — knows nothing about olai. It's a client-side combinator Surface doesn't have yet: today `useCollection` gives per-key signals, and any *whole-collection* derived value (olai's `derived` memo) is left to recompute from a flatten. Something like `useCollection.fold(init, patch, recompute)` — snapshot frame calls `recompute`, delta frames call `patch`, and a patch that declines falls back to `recompute` — is the Surface-shaped half of slice 4, useful to any Surface app with a corpus-shaped derived value. The server-side dual (a `derived.collection` reconciler that consumes upstream *deltas* instead of recomputing-then-diffing by `equals`) is the same idea one layer down.
+- **The policy** — what the fold *does*: mirrors, marks, cross-file edges, duplicate-id precedence — is olai's format semantics, stays in `@olai/format`, and is exactly the volatile part Lowy says not to hand the framework.
+
+Practically: build the patcher in olai first (slices 3–4), and if the fold combinator comes out as free of olai as it looks, offer it upstream as a small PR — the same route `precompress-upstream` took. Upstreaming is a consequence of the design being right, not a prerequisite for any slice.
 
 ## How C lands: four slices, each shippable
 
 1. **The index shape.** Add `byFile`, `mirrorsOf`, `edgesTo` to `Derived`, built in the same single pass as today's tables; convert every by-file and reverse-lookup scan to index reads. Still full rebuild per edit. (This is old direction A, now C's first commit — and grok's #198 warning about a "blind" shared helper is answered the same way: the grouping lives inside `Derived`, always paired with its revision.)
 2. **One computation per edit.** Thread the validated view through to publish instead of recomputing. (Old direction B, now C's plumbing.)
-3. **The patcher.** `patch(derived, fileDelta)` in `format/`, with the oracle property test and the bail-to-rebuild escape hatch. Server uses it; the browser still rebuilds.
-4. **Patches on the wire.** The client applies the same patcher to the same deltas; the third computation and the corpus-shaped payload both go away.
+3. **The patcher.** `patch(derived, delta)` in `format/`, taking Surface's collection-delta frame shape, with the oracle property test and the bail-to-rebuild escape hatch. Server uses it; the browser still rebuilds.
+4. **The browser joins.** Swap the client's `derived` memo from flatten-and-`derive` to the same patcher over the delta frames it already receives. No wire change — the outlines-as-collection work already paid that cost; this slice is one module's internals plus the mixed-revs contract said out loud. If the generic fold combinator (previous section) proves itself here, it's the upstream candidate.
 
-Each slice is a PR with its own evidence; slice 3 is where the property test earns its keep; slice 4 is the one that touches protocol and e2e assumptions and should be its own conversation.
+Each slice is a PR with its own evidence; slice 3 is where the property test earns its keep; slice 4 turned out to be the smallest, not the biggest — the opposite of what the first draft assumed, and the outlines-as-collection redesign is why.
 
 ## Open questions
 
 1. Copy-on-write mechanics: hand-cloned `Map`s per touched table, or an immutable-map dependency? (Hand-cloned is the default; measure before importing anything.)
 2. Is "re-run cycle checks when edges changed" enough forever, or does an edge-heavy future (agents wiring DAGs constantly) eventually want true incremental cycle detection?
-3. Slice 4's wire change: what exactly do the e2e suite's revision assertions assume about publish payloads?
-4. The benchmark from the first draft still deserves to exist — a generated 1,000-file vault against the keystroke path — not to decide *whether* (that's ruled) but to give each slice a before/after number.
+3. Should the patcher's contract about mixed per-entry `rev`s (slice 4's wrinkle) stay "same as today, said out loud," or does anything downstream actually want a consistent-cut guarantee it never had?
+4. Could slice 2 go further and serve derived facts through Surface's own `derived.collection` reconciler (per-key equals doing the only-changed-keys publish)? Probably a later refinement — the patcher has to exist first either way.
+5. The benchmark from the first draft still deserves to exist — a generated 1,000-file vault against the keystroke path — not to decide *whether* (that's ruled) but to give each slice a before/after number.
 
 ## Relation to the roadmap
 
-The ruling makes this the plan of record. `siblings-of-quadratic` becomes slice 1's PR. Slices 2–4 become roadmap items when the human says dispatch — this document is the argument, not the ledger.
+The ruling makes this the plan of record. `siblings-of-quadratic` becomes slice 1's PR. Slices 2–4 become roadmap items when the human says dispatch — this document is the argument, not the ledger. Prior art in this repo: `docs/brainstorming/outlines-as-collection.md`, which is slice 4's enabling work, already merged.
