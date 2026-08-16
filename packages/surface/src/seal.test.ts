@@ -122,10 +122,15 @@ test("a host that is not one gets no sources at all", () => {
     ]
   ) {
     const directives = policy(host)
+    // Nothing may be fetched at all…
     expect(directives["default-src"]).toEqual(["'none'"])
-    expect(directives["script-src"]).toEqual(["'none'", "'unsafe-inline'", "'unsafe-eval'"])
-    // Inline scripts still run, and that is not an oversight: what fails closed
-    // here is the NETWORK, and what may compute was settled by the sandbox.
+    // …while inline scripts still run, and that is not an oversight: what fails
+    // closed here is the NETWORK, and what may compute was settled by the
+    // sandbox. The vault is LEFT OUT of these two rather than replaced by
+    // `'none'`, which is a source a browser IGNORES beside another one — a
+    // policy that would read as a refusal and behave as a permission.
+    expect(directives["script-src"]).toEqual(["'unsafe-inline'", "'unsafe-eval'"])
+    expect(directives["style-src"]).toEqual(["'unsafe-inline'"])
     // The whole string is the one every refused host gets, which is the
     // assertion a directive set alone cannot make: nothing of the host survived
     // anywhere in it, in any directive, escaped or otherwise.

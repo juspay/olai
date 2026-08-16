@@ -92,8 +92,9 @@
  * may be asked for, the route decides what may be answered, and neither is
  * trusted to be the other. The one weakness a path-restricted source has — a
  * redirect drops the path and leaves the origin — is answered by what is at the
- * end of this one: a static file engine over the served directory with no index
- * and no fallback, which has nowhere to redirect anybody to.
+ * end of this one: a read of one file under the served directory for a page,
+ * and a static file engine with no index and no fallback for everything else.
+ * Neither has anywhere to redirect anybody to; both answer a file or a 404.
  *
  * AND `form-action 'none'`, which is here because `default-src` does NOT cover
  * it. Most directives fall back; `form-action` never has — so a
@@ -396,16 +397,23 @@ const sourcesOn = (host: string): string | undefined =>
  *      `Hypertext.tsx` counts. `form-action` and `base-uri` are the two
  *      outgoing paths `default-src` does not cover, spelled above.
  *
- * A host this refuses to spell gets the same policy with every source replaced
- * by `'none'` — a page that draws nothing rather than a page that fetches
- * anywhere, which is the failure this direction is supposed to have.
+ * A host this refuses to spell gets the same policy with the vault LEFT OUT of
+ * every list — a page that fetches nothing rather than a page that fetches
+ * anywhere, which is the failure this direction is supposed to have. Left out
+ * rather than replaced by `'none'`, because `'none'` is only a source list when
+ * it is the WHOLE of one: a browser ignores it beside any other source, so
+ * `script-src 'none' 'unsafe-inline'` is a policy that reads as a refusal and
+ * behaves as a permission. An empty list is spelled `'none'` and nothing else
+ * is.
  */
 export const sealPolicy = (host: string): string => {
-  const vault = sourcesOn(host) ?? `'none'`
+  const vault = sourcesOn(host)
+  const from = (...keywords: ReadonlyArray<string>): string =>
+    [...(vault === undefined ? [] : [vault]), ...keywords].join(" ") || `'none'`
   return `sandbox allow-scripts; ` +
-    `default-src ${vault}; ` +
-    `script-src ${vault} 'unsafe-inline' 'unsafe-eval'; ` +
-    `style-src ${vault} 'unsafe-inline'; ` +
+    `default-src ${from()}; ` +
+    `script-src ${from("'unsafe-inline'", "'unsafe-eval'")}; ` +
+    `style-src ${from("'unsafe-inline'")}; ` +
     `frame-src 'none'; form-action 'none'; base-uri 'none'`
 }
 
