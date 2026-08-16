@@ -414,6 +414,18 @@ export const make = <F, S, E>(
           // these bytes, this value — which is what makes the set it finds the
           // same set as this one rather than an equal one, and so lets the
           // verdict reached here be the published one.
+          //
+          // ONE KIND OF WRITE CANNOT DO THAT, and it is a corner rather than a
+          // case: a file the codec answers for BY NAME ({@link Codec.byName})
+          // decodes here from its BYTES, because that is what a write has, and
+          // comes back from the probe as whatever the name alone says — a
+          // different value, so the verdict is not spent and the set is judged
+          // twice. It is correct either way and it is unreachable in the tree
+          // that has one: olai's only body-writing ops take a `.md`, and the
+          // kind it answers for by name is `.html`. Naming it here rather than
+          // guarding it, because the guard would have to decide what a gate
+          // validates for a file the set holds no bytes of, and nothing is
+          // asking.
           const candidate = new Map(yield* probe.current)
           const promised = new Map<string, Probe.Promised<F, E>>()
           for (const change of write.changes) {
