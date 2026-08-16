@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 
 import { expect, test } from "bun:test"
 
-import { MEASURE, MEASURE_SHA256, SEAL, sealed } from "./sealed.ts"
+import { SEAL, sealed } from "./sealed.ts"
 
 /** The policy the seal carries, read back the way a browser reads it: every
  *  directive, with its source list. Parsed rather than matched, because what
@@ -17,6 +17,17 @@ const policy = (): Record<string, ReadonlyArray<string>> => {
     if (name !== undefined && name !== "") directives[name] = sources
   }
   return directives
+}
+
+/** …and the hash a browser would take of the script it carries, read the same
+ *  way: out of the MARKUP. A test that hashed the module's own constant would
+ *  prove the constant and nothing else — the browser does not see the constant,
+ *  it sees the bytes between these two tags, and a seal that assembled them
+ *  wrongly would pass that test and refuse the script. */
+const scriptHash = (): string => {
+  const written = /<script>([\s\S]*)<\/script>/.exec(SEAL)
+  if (written === null) throw new Error(`no script in the seal: ${SEAL}`)
+  return createHash("sha256").update(written[1]!, "utf8").digest("base64")
 }
 
 // THE POLICY, as the whole set of directives rather than as tokens it must not
@@ -45,25 +56,15 @@ test("the seal is the strictest policy there is, plus inline styles and one hash
     // only way to match a hash is to be the bytes it was taken over. A
     // `'unsafe-inline'` or a `'self'` in here would be the whole difference
     // between "one script of ours" and "whatever the file brought".
-    "script-src": [`'sha256-${MEASURE_SHA256}'`],
+    //
+    // COMPUTED, not quoted, and that is the second thing this one assertion
+    // says: the digest is taken from the seal's own `<script>`, so the policy
+    // and the script it admits cannot drift. The failure that hides otherwise
+    // is silent out in the world — an editor tidies a space in the measure, the
+    // browser refuses a script that no longer matches its hash, and the only
+    // symptom is a preview quietly back on its fallback height.
+    "script-src": [`'sha256-${scriptHash()}'`],
   })
-})
-
-// THE HASH ITSELF, recomputed. The constant is written down because the seal
-// has to be a string the parser reads immediately and Web Crypto's digest is a
-// promise — so the one thing that can go wrong is the two drifting: an editor
-// tidies a space in the measure, the browser refuses a script that no longer
-// matches, and the only symptom out there is a preview quietly back on its
-// fallback height. This is the assertion that turns that into a failing test.
-test("the policy admits the measure by its own hash", () => {
-  expect(createHash("sha256").update(MEASURE, "utf8").digest("base64")).toBe(MEASURE_SHA256)
-})
-
-// …and that the script the hash covers is the one the seal actually carries,
-// byte for byte. Hashing the constant proves the constant; this proves the
-// markup, which is what the browser sees.
-test("the seal carries exactly the script it hashed", () => {
-  expect(SEAL).toContain(`<script>${MEASURE}</script>`)
 })
 
 // The ORDER, which is the whole of whether the policy binds: a `<meta>` CSP is

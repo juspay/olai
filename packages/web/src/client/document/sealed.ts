@@ -121,11 +121,12 @@
  * would surface as a console error on a page whose whole point is that its
  * console is quiet apart from the refusal.
  *
- * Exported so `./sealed.test.ts` can hash it. The hash below is over these
- * exact bytes — a space added in here is a script the browser refuses, and the
- * test is what says so before a reader finds out.
+ * Module-private, and the hash below is over these exact bytes — a space added
+ * in here is a script the browser refuses. What guards that is `./sealed.test.ts`,
+ * which does not read this constant: it digests the script out of {@link SEAL},
+ * because the constant is not what a browser hashes, the markup is.
  */
-export const MEASURE = `(function () {
+const MEASURE = `(function () {
   var post = function () {
     var page = document.documentElement, body = document.body
     parent.postMessage({
@@ -146,12 +147,12 @@ export const MEASURE = `(function () {
  * Written down rather than computed, because the seal has to be a plain string
  * a browser reads at parse time and the Web Crypto digest is a promise — a
  * policy that arrived one microtask after the markup is no policy. So the
- * constant is the source of truth for the browser and `./sealed.test.ts`
- * recomputes it from {@link MEASURE} on every run: the two can be wrong
- * together only if somebody edits both, which is the point at which they meant
- * it.
+ * constant is the source of truth for the browser, and `./sealed.test.ts`
+ * digests the seal's own `<script>` and asserts the policy names exactly that.
+ * A stale number here fails there, before a reader finds out by getting a
+ * preview quietly back on its fallback height.
  */
-export const MEASURE_SHA256 = "XsBd2vyP9efw0etFdKhC4Emwxe3tSLUCfbPcQvMEv/o="
+const MEASURE_SHA256 = "XsBd2vyP9efw0etFdKhC4Emwxe3tSLUCfbPcQvMEv/o="
 
 /**
  * What is put in front of the file's own markup.
