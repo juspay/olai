@@ -5,14 +5,15 @@ Feature: A `.html` in the vault
   listed in the sidebar under the folder it lives in, with a glyph of its own,
   and it has a page at its own address that shows what the file says.
 
-  It SHOWS it and never runs it. The markup is drawn in a frame with every
-  sandbox restriction on and the strictest content policy there is in front of
-  it, so a script in somebody's saved page cannot reach this app's origin and
-  nothing in the file can fetch anything from anywhere. That is the promise
-  worth testing, so the fixture is hostile: `report.html` tries to rewrite its
-  own paragraph, write `localStorage`, set a cookie, mark the app's DOM and
-  navigate the tab away. All four must fail, and the last two scenarios are
-  where that is read.
+  It SHOWS the file and never runs it. The markup is drawn in a frame whose
+  origin is nobody's — sandboxed with no `allow-same-origin` — behind the
+  strictest content policy there is, which admits exactly one script by its
+  hash: olai's own tape measure, which is how the frame comes to be the height
+  of the page it holds. A script in somebody's saved page matches no hash, runs
+  nowhere, and could reach nothing if it did. That is the promise worth testing,
+  so the fixture is hostile: `report.html` tries to rewrite its own paragraph,
+  write `localStorage`, set a cookie, mark the app's DOM and navigate the tab
+  away. All four must fail, and the last two scenarios are where that is read.
 
   @corpus:good
   Scenario: A `.html` is listed in the sidebar and opens as a page
@@ -53,13 +54,14 @@ Feature: A `.html` in the vault
 
   @corpus:good
   Scenario: The frame the markup is drawn in is sealed
-    # The two mechanisms, as facts on the element and in the markup rather than
-    # as an outcome that could be true by luck. `sandbox=""` is EVERY
-    # restriction — no scripts, and no `allow-same-origin`, so the frame's
+    # The mechanisms, as facts on the element and in the markup rather than as
+    # an outcome that could be true by luck. The sandbox has ONE token and the
+    # one that is absent is the point — no `allow-same-origin`, so the frame's
     # origin is nobody's — and the policy in front of the markup refuses every
-    # fetch there is. A reviewer attacking this reads these two lines first.
+    # fetch there is and every script but the one it names by hash. A reviewer
+    # attacking this reads these two lines first.
     When I open the page "report.html"
-    Then the preview is sandboxed with no scripts and no same-origin
+    Then the preview is sandboxed into nobody's origin
     And the preview's markup is sealed with a policy that fetches nothing
 
   @corpus:good
@@ -89,6 +91,66 @@ Feature: A `.html` in the vault
     When I open the page "report.html"
     Then the preview shows the heading "Cabinet quote"
     And the page requested nothing off this server
+
+  # ── how tall the frame is ────────────────────────────────────────────
+  #
+  # The frame is the height of the page it holds. It was `70dvh` flat before —
+  # two thirds of a screen for every file, which is a guess that is wrong in
+  # both directions at once: a receipt sat above a screenful of white, and an
+  # article got a scrollbar inside the page's own scrollbar. Nothing inside a
+  # sandboxed frame could measure it, so the seal now admits exactly one script
+  # by its hash and that script's whole job is to report the height out.
+  #
+  # These three scenarios are written against pages of a KNOWN height (a `div`
+  # with a `height` on it, so the number is the fixture's rather than the
+  # font's) and each reads the height of the document inside the frame for
+  # itself — the client believes what arrives over `postMessage`, and the
+  # question every one of these asks is whether that number was the truth.
+
+  @scratch:good
+  Scenario: A short page gets a short frame
+    Given I open the app
+    When I rewrite "receipt.html" as:
+      """
+      <h1>Receipt</h1>
+      <p>Two runs of shaker fronts, £4,180 fitted.</p>
+      """
+    And I click the page "receipt.html"
+    Then the preview shows the heading "Receipt"
+    And the preview is as tall as the page it shows
+    # The half that was the complaint: a three-line file no longer claims a
+    # screenful. Under the old fixed `70dvh` this line failed.
+    And the preview is shorter than the viewport
+
+  @scratch:good
+  Scenario: A page taller than the screen gets a frame taller than the screen
+    Given I open the app
+    When I rewrite "article.html" as:
+      """
+      <h1>Article</h1>
+      <div style="height:1200px;background:#eef">a long page</div>
+      """
+    And I click the page "article.html"
+    Then the preview shows the heading "Article"
+    And the preview is as tall as the page it shows
+    # The other half: a long page is read by scrolling THIS page, not by
+    # scrolling a box inside it.
+    And the preview is taller than the viewport
+
+  @scratch:good
+  Scenario: An enormous page stops at the bound and scrolls inside it
+    Given I open the app
+    When I rewrite "atlas.html" as:
+      """
+      <h1>Atlas</h1>
+      <div style="height:8000px;background:#efe">a very long page</div>
+      """
+    And I click the page "atlas.html"
+    Then the preview shows the heading "Atlas"
+    # A measured height is still a number from an untrusted frame, and even an
+    # honest one can be absurd. Two screens is where growing stops and the old
+    # behaviour — the page scrolling inside its own frame — takes over.
+    And the preview stops at two viewports and scrolls the rest
 
   @scratch:good
   Scenario: A `.html` dropped into the directory joins the sidebar

@@ -18,6 +18,10 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+// The policy the client actually writes, not a copy of it — see the step that
+// reads it, and `sealed.ts`'s own note on why it is a named constant.
+import { POLICY as SEAL_POLICY } from "@olai/web/src/client/document/sealed.ts";
+
 import {
   DOCUMENT_EDIT,
   HYDRATION_TIMEOUT,
@@ -120,22 +124,125 @@ Then(
   },
 );
 
+// ── how tall the frame is ──────────────────────────────────────────────
+
+/**
+ * The two heights every step below compares, read as a pair.
+ *
+ * `frame` is the preview element's own CONTENT box out here — `clientHeight`,
+ * so the seal's border is not counted as page. `page` is the height of the
+ * document INSIDE it, taken independently of the tape measure that reported it:
+ * the client believes a number that came over `postMessage`, and the whole
+ * question is whether that number was the truth.
+ *
+ * Read as a POLL, because it is one. The height arrives a frame or two after
+ * the preview draws — the seal's script measures on `DOMContentLoaded` and the
+ * message crosses the frame boundary — so a step that read once would be
+ * reading the `70dvh` fallback and calling it a measurement.
+ */
+const ROUNDING_PX = 2;
+
+const bothHeights = async (
+  world: OlaiWorld,
+  settled: (frame: number, page: number) => boolean,
+): Promise<{ frame: number; page: number }> => {
+  const deadline = Date.now() + POLL_TIMEOUT;
+  let seen = { frame: 0, page: 0 };
+  for (;;) {
+    const element = await preview(world);
+    const inner = await inside(world);
+    seen = {
+      frame: await element.evaluate((node) => (node as HTMLElement).clientHeight),
+      page: await inner
+        .locator("body")
+        .evaluate(() => document.documentElement.offsetHeight),
+    };
+    if (settled(seen.frame, seen.page) || Date.now() > deadline) return seen;
+    await world.page.waitForTimeout(100);
+  }
+};
+
+/** The viewport the bounds are written in: `dvh` in a browser with no address
+ *  bar in motion is exactly the page's own height. */
+const viewport = (world: OlaiWorld): number => {
+  const size = world.page.viewportSize();
+  if (size === null) throw new Error("the page has no viewport to measure against");
+  return size.height;
+};
+
+Then("the preview is as tall as the page it shows", async function (this: OlaiWorld) {
+  const seen = await bothHeights(this, (frame, page) => Math.abs(frame - page) <= ROUNDING_PX);
+  assert.ok(
+    Math.abs(seen.frame - seen.page) <= ROUNDING_PX,
+    `the frame is ${seen.frame}px tall and the page inside it is ${seen.page}px — ` +
+      `the frame is still a guess rather than the height of what it shows`,
+  );
+});
+
+Then("the preview is shorter than the viewport", async function (this: OlaiWorld) {
+  const tall = viewport(this);
+  const seen = await bothHeights(this, (frame) => frame < tall);
+  assert.ok(
+    seen.frame < tall,
+    `a page of ${seen.page}px got a frame of ${seen.frame}px, which is the whole ` +
+      `viewport (${tall}px) or more — a short page is claiming a screenful`,
+  );
+});
+
+Then("the preview is taller than the viewport", async function (this: OlaiWorld) {
+  const tall = viewport(this);
+  const seen = await bothHeights(this, (frame) => frame > tall);
+  assert.ok(
+    seen.frame > tall,
+    `a page of ${seen.page}px got a frame of only ${seen.frame}px against a ` +
+      `${tall}px viewport — a long page is being folded back into a box`,
+  );
+});
+
+// The BOUND, and the behaviour past it, in one step because they are one fact:
+// the frame stops growing at two screens and the page carries on inside it. A
+// step that only checked the cap would pass on a frame that had silently
+// dropped the rest of the document.
+Then(
+  "the preview stops at two viewports and scrolls the rest",
+  async function (this: OlaiWorld) {
+    const bound = viewport(this) * 2;
+    const seen = await bothHeights(
+      this,
+      (frame, page) => frame <= bound + ROUNDING_PX && page > frame,
+    );
+    assert.ok(
+      seen.frame <= bound + ROUNDING_PX,
+      `the frame grew to ${seen.frame}px, past the two-viewport bound of ${bound}px — ` +
+        `an enormous file can make an enormous element`,
+    );
+    assert.ok(
+      seen.page > seen.frame,
+      `the frame is ${seen.frame}px and the page in it measures only ${seen.page}px — ` +
+        `the page it is supposed to be scrolling is not there`,
+    );
+  },
+);
+
 // ── the seal ───────────────────────────────────────────────────────────
 
 Then(
-  "the preview is sandboxed with no scripts and no same-origin",
+  "the preview is sandboxed into nobody's origin",
   async function (this: OlaiWorld) {
     const frame = await preview(this);
-    // The ATTRIBUTE, exactly as written: an empty `sandbox` is every
-    // restriction on, and the two that matter are named in the message because
-    // they are the two a well-meaning patch adds ("just to make this one page
-    // work"). `null` here is a frame with no sandbox at all, which is the
-    // one-character regression this step exists for.
+    // The ATTRIBUTE, exactly as written. `allow-scripts` is there so the seal's
+    // own tape measure can run (`sealed.ts` argues it); `allow-same-origin` is
+    // the one that must never join it, because a document with BOTH can reach
+    // its own frame element and take the sandbox off. Asserted as an equality
+    // rather than as "does not contain same-origin", so any third token is a
+    // failure too — the regressions here are all one word added by somebody
+    // making one page work.
     assert.strictEqual(
       await frame.getAttribute("sandbox"),
-      "",
-      "the preview frame's sandbox is not the empty one — allow-scripts or " +
-        "allow-same-origin would let a served file into this app's origin",
+      "allow-scripts",
+      "the preview frame's sandbox is not the sealed one — another token, and " +
+        "`allow-same-origin` above all, would let a served file into this " +
+        "app's origin",
     );
   },
 );
@@ -150,9 +257,20 @@ Then(
       "the seal does not open the markup — a meta policy after the file's own " +
         "content is a policy the parser ignores",
     );
+    // The exact policy the client writes, imported rather than re-spelled, for
+    // the reason every selector in `world.ts` is imported: a widening made over
+    // there would still read as sealed over here. The unit test beside it
+    // (`sealed.test.ts`) is what says the policy is the strict one; this says
+    // the strict one is what the browser was actually handed.
     assert.ok(
-      srcdoc.includes(`content="default-src 'none'; style-src 'unsafe-inline'"`),
-      `the policy in front of the markup is not the sealed one: ${srcdoc.slice(0, 200)}`,
+      srcdoc.includes(`content="${SEAL_POLICY}"`),
+      `the policy in front of the markup is not the sealed one: ${srcdoc.slice(0, 240)}`,
+    );
+    assert.ok(
+      !/script-src[^"]*'unsafe-inline'/.test(srcdoc),
+      "the policy admits inline scripts wholesale — the seal admits exactly " +
+        "one script, by hash, and that is the difference between running our " +
+        "tape measure and running the file's",
     );
   },
 );
@@ -175,18 +293,30 @@ Then("the app's storage is untouched by the preview", async function (this: Olai
  * The BROWSER's own words, and the only console error a page with a preview on
  * it is allowed to carry.
  *
- * `report.html` has a script; the frame refuses to run it; Chromium says so on
- * the console, and the suite's error listener records every console error there
- * is. So "there should be no page errors" is the wrong question on these pages —
- * and the right one is stronger than the question it replaces, because it reads
- * the refusal as EVIDENCE: nothing else went wrong, and the thing that was
- * supposed to be stopped was stopped, said by the browser rather than by us.
+ * `report.html` has a script; the seal's policy refuses to run it; Chromium
+ * says so on the console, and the suite's error listener records every console
+ * error there is. So "there should be no page errors" is the wrong question on
+ * these pages — and the right one is stronger than the question it replaces,
+ * because it reads the refusal as EVIDENCE: nothing else went wrong, and the
+ * thing that was supposed to be stopped was stopped, said by the browser rather
+ * than by us.
  *
- * Matched loosely (the shape of the sentence, not the sentence) so a Chromium
- * that rewords its message fails on the wording of THIS assertion rather than
- * on a security regression that never happened.
+ * It is the CONTENT POLICY's refusal now rather than the sandbox's ("blocked
+ * script execution … because the document's frame is sandboxed"), because the
+ * sandbox admits scripts so the seal's own tape measure can run and the policy
+ * is what names the single script allowed to be one. Both wordings are matched:
+ * which mechanism says no is the argument in `sealed.ts`, and this step's job
+ * is that SOMETHING did — a run where neither sentence appears is a run where
+ * the file's script executed.
+ *
+ * Matched loosely (the shape of the sentence, not the sentence — Chromium's
+ * current one is "Executing inline script violates the following Content
+ * Security Policy directive …") so a browser that rewords its message fails on
+ * the wording of THIS assertion rather than on a security regression that never
+ * happened.
  */
-const REFUSED = /blocked script execution/i;
+const REFUSED =
+  /inline script[\s\S]*content security policy|blocked script execution/i;
 
 Then(
   "the only complaint is the browser refusing the file's script",
