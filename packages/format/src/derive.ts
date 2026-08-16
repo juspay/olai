@@ -120,9 +120,15 @@ export interface Derived {
    * The question it answers is the one a scan answers today: what else does
    * this node's mark reach? A placement three files away shows a status it
    * does not store, and nothing but a walk of the whole set could find it.
-   * Each id once, in corpus order.
+   *
+   * A SET, in corpus order, and the container is the promise: what asks this
+   * wants to know WHICH records to look at again, and a record filed twice is
+   * still one record to look at. `after` next door is an array for the
+   * opposite reason — it keeps what a record wrote, repeats included, because
+   * a reader says those targets back. One shape for each meaning, rather than
+   * one shape and a comment saying which of the two this one is.
    */
-  readonly mirrorsOf: ReadonlyMap<string, ReadonlyArray<string>>
+  readonly mirrorsOf: ReadonlyMap<string, ReadonlySet<string>>
   /**
    * id → the nodes whose ordering edges LAND on it: {@link Derived.after} read
    * backwards.
@@ -130,13 +136,15 @@ export interface Derived {
    * In terms of nodes at both ends for the same reason `after` is, and by the
    * same act: the canonicalisation happens before either map gets a key, so
    * the forward reading and the reverse one cannot disagree about whether two
-   * records mean one edge. Each id once, in `after`'s own promised order.
+   * records mean one edge.
    *
    * What it answers is the half {@link Derived.blocked} cannot be asked: that
    * index says what a node is waiting on, and this says who was waiting on IT
-   * — which is what has to be looked at again when its mark flips.
+   * — which is what has to be looked at again when its mark flips. A SET for
+   * the reason {@link Derived.mirrorsOf} is one, in `after`'s own promised
+   * order.
    */
-  readonly edgesTo: ReadonlyMap<string, ReadonlyArray<string>>
+  readonly edgesTo: ReadonlyMap<string, ReadonlySet<string>>
   /**
    * id → the records that NAME it, and the fields they name it with:
    * {@link targetsOf} read backwards, in corpus order.
@@ -234,23 +242,23 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   }
 }
 
-/** One record's {@link targetsOf}, folded by TARGET — the fold {@link
- *  Derived.namedBy} files under that target, so a record naming an id with two
- *  fields is one entry with two fields.
+/** An id a record names, and the fields it names it with — {@link Naming}'s
+ *  other half, before the record is attached to it. */
+interface Named {
+  readonly target: string
+  readonly fields: Array<TargetField>
+}
+
+/** One record's {@link targetsOf}, folded by TARGET, so a record naming an id
+ *  with two fields becomes one {@link Naming} carrying two.
  *
  *  A list searched linearly rather than a keyed map: a record naming more than
  *  a handful of ids does not exist, and a `Map` per edge-bearing record is an
  *  allocation this walk pays for the whole corpus. */
 const namings = (
   targets: ReadonlyArray<readonly [field: TargetField, id: string]>,
-): ReadonlyArray<{
-  readonly target: string
-  readonly fields: Array<TargetField>
-}> => {
-  const folded: Array<{
-    readonly target: string
-    readonly fields: Array<TargetField>
-  }> = []
+): ReadonlyArray<Named> => {
+  const folded: Array<Named> = []
   for (const [field, target] of targets) {
     const found = folded.find((one) => one.target === target)
     if (found === undefined) folded.push({ target, fields: [field] })
@@ -262,15 +270,6 @@ const namings = (
 /** The order the records are on disk — {@link Derived.byFile}'s promise, and
  *  the only comparator here that is not about meaning. */
 const byLine = (a: Located, b: Located): number => a.line - b.line
-
-/** The insertion-ordered members of a keyed set, as the arrays every index here
- *  answers in. {@link Derived.mirrorsOf} and {@link Derived.edgesTo} are
- *  collected as sets because both promise each id ONCE — a record naming the
- *  same target twice is one thing to look at again, not two. */
-const listed = (
-  sets: ReadonlyMap<string, ReadonlySet<string>>,
-): ReadonlyMap<string, ReadonlyArray<string>> =>
-  new Map([...sets].map(([key, members]) => [key, [...members]]))
 
 /**
  * One file's records, in the order they are written.
@@ -320,9 +319,11 @@ export const siblingsOf = (
   parent === undefined
     // The file's own records, not the corpus: the roots of one outline used to
     // cost a walk of every node in the directory, and this is asked on every
-    // draw, every structural edit and every undo. `filter` hands back a fresh
-    // array, so the sort below never reorders the index itself.
-    ? (derived.byFile.get(file) ?? [])
+    // draw, every structural edit and every undo. Through {@link nodesOf}
+    // rather than the index directly, so "what does this outline hold" has one
+    // spelling here and at the writers. `filter` hands back a fresh array, so
+    // the sort never reorders the index itself.
+    ? nodesOf(derived, file)
       .filter((located) => located.node.parent === undefined)
       .sort(byOrd)
     : (derived.children.get(parent) ?? []).filter((located) => located.file === file)
@@ -366,11 +367,11 @@ const resolutions = (
   byId: ReadonlyMap<string, Located>,
 ): {
   readonly status: ReadonlyMap<string, Status>
-  readonly mirrorsOf: ReadonlyMap<string, ReadonlyArray<string>>
+  readonly mirrorsOf: ReadonlyMap<string, ReadonlySet<string>>
 } => {
   const index = { byId }
   const status = new Map<string, Status>()
-  const standing = new Map<string, Set<string>>()
+  const mirrorsOf = new Map<string, Set<string>>()
   for (const located of nodes) {
     const found = follow(index, located)
     if (found.kind !== "found") continue
@@ -379,11 +380,11 @@ const resolutions = (
     // Only a MIRROR stands for something: a regular record resolves to itself,
     // and filing it under its own id would say every node mirrors itself.
     if (!isMirror(located.node)) continue
-    const mirrors = standing.get(found.shows.node.id)
-    if (mirrors === undefined) standing.set(found.shows.node.id, new Set([located.node.id]))
+    const mirrors = mirrorsOf.get(found.shows.node.id)
+    if (mirrors === undefined) mirrorsOf.set(found.shows.node.id, new Set([located.node.id]))
     else mirrors.add(located.node.id)
   }
-  return { status, mirrorsOf: listed(standing) }
+  return { status, mirrorsOf }
 }
 
 /** What a record claims about itself, which IS its status — and `undefined`
@@ -517,18 +518,18 @@ const orderings = (
   nodes: ReadonlyArray<Located>,
 ): {
   readonly after: ReadonlyMap<string, ReadonlyArray<string>>
-  readonly edgesTo: ReadonlyMap<string, ReadonlyArray<string>>
+  readonly edgesTo: ReadonlyMap<string, ReadonlySet<string>>
 } => {
   const index = { byId }
   const named = (id: string): string => nodeNamed(index, id)?.node.id ?? id
   const after = new Map<string, Array<string>>()
-  const into = new Map<string, Set<string>>()
+  const edgesTo = new Map<string, Set<string>>()
   const edge = (from: string, to: string): void => {
     const existing = after.get(from)
     if (existing === undefined) after.set(from, [to])
     else existing.push(to)
-    const sources = into.get(to)
-    if (sources === undefined) into.set(to, new Set([from]))
+    const sources = edgesTo.get(to)
+    if (sources === undefined) edgesTo.set(to, new Set([from]))
     else sources.add(from)
   }
 
@@ -540,7 +541,7 @@ const orderings = (
     if (isMirror(node)) continue
     for (const target of node.blocks ?? []) edge(named(target), node.id)
   }
-  return { after, edgesTo: listed(into) }
+  return { after, edgesTo }
 }
 
 /**

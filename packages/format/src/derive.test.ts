@@ -36,6 +36,14 @@ const statusesOf = (contents: string): ReadonlyMap<string, Status> =>
 const ids = (nodes: ReadonlyArray<Located>): ReadonlyArray<string> =>
   nodes.map((located) => located.node.id)
 
+/** A reverse index's members as a LIST — spread rather than compared as a set,
+ *  because those indexes promise an order as well as a membership and
+ *  `toEqual` over a `Set` would only read the second. */
+const members = (
+  index: ReadonlyMap<string, ReadonlySet<string>>,
+  id: string,
+): ReadonlyArray<string> => [...(index.get(id) ?? [])]
+
 /** The regular records of a fixture, for the functions that read a node's own
  *  stored fields rather than a whole set. */
 const regulars = (contents: string): ReadonlyArray<RegularNode> =>
@@ -634,7 +642,7 @@ test("a mirror is filed under the node its chain ends at, not the hop before", (
     "a.olai": `{"id":"x","ord":"a","title":"the real one"}`,
     "b.olai": `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"x"}`,
   }))
-  expect(derived.mirrorsOf.get("x")).toEqual(["m1", "m2"])
+  expect(members(derived.mirrorsOf, "x")).toEqual(["m1", "m2"])
   expect(derived.mirrorsOf.has("m2")).toBe(false)
 })
 
@@ -657,7 +665,7 @@ test("a node's mirrors are listed once each", () => {
     "b.olai": `{"id":"m","ord":"a","mirror":"x"}`,
     "c.olai": `{"id":"m","ord":"a","mirror":"x"}`,
   }))
-  expect(derived.mirrorsOf.get("x")).toEqual(["m"])
+  expect(members(derived.mirrorsOf, "x")).toEqual(["m"])
 })
 
 // `edgesTo` is `after` reversed, and reversed by the same act that built it:
@@ -676,7 +684,7 @@ test("the ordering graph reversed says who was waiting on a node", () => {
   // Both spellings land at the NODE, in `after`'s own promised order — the
   // node's own `after` first, then what points back at it — and the placement
   // collects nothing.
-  expect(derived.edgesTo.get("x")).toEqual(["a", "e"])
+  expect(members(derived.edgesTo, "x")).toEqual(["a", "e"])
   expect(derived.edgesTo.has("m")).toBe(false)
   expect(derived.edgesTo.has("a")).toBe(false)
 })
@@ -690,7 +698,7 @@ test("a target names each node waiting on it once", () => {
       `{"id":"a","ord":"b","title":"a","todo":true,"after":["x","x"]}`,
   ))
   expect(derived.after.get("a")).toEqual(["x", "x"])
-  expect(derived.edgesTo.get("x")).toEqual(["a"])
+  expect(members(derived.edgesTo, "x")).toEqual(["a"])
 })
 
 // `namedBy` is the format's own `targetsOf` read backwards, and it is RAW —
