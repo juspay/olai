@@ -20,17 +20,26 @@ const policy = (): Record<string, ReadonlyArray<string>> => {
 }
 
 /**
- * Every script element the seal carries, found the way a BROWSER finds them:
- * case-blind, and tolerant of attributes and of space in the closing tag.
+ * Every script element the seal carries, found the way a BROWSER finds them.
  *
- * That is the point rather than pedantry. A parser reads `<SCRIPT>` and
- * `<script defer>` as script elements; a lowercase-only pattern reads neither.
- * On a file whose whole subject is which scripts may run, a matcher that can
- * look straight past one is precisely the wrong blind spot to own — a seal that
- * somehow carried `<SCRIPT>anything</SCRIPT>` beside the tape measure would
- * hash the measure, pass, and say nothing at all about the other one. CodeQL's
- * `js/bad-tag-filter` flagged the lowercase version on this PR; this is that
- * fix, and the test below is what stops it coming back.
+ * Three ways a tag can be spelled, and a parser accepts all three:
+ *
+ *   - CASE. `<SCRIPT>` is a script element; so is `<ScRiPt>`. Hence `i`.
+ *   - ATTRIBUTES on the open tag: `<script type="module">`, `<script defer>`.
+ *   - JUNK ON THE CLOSE TAG, which is the surprising one. After `</script` the
+ *     tokeniser consumes anything up to the `>` as ignored attributes, so
+ *     `</script foo="bar">` and `</script\t\n bar>` both END the script — while
+ *     `</scriptish>` does not, which is why the junk has to begin with
+ *     whitespace rather than being any run of non-`>`.
+ *
+ * That is the point rather than pedantry. On a file whose whole subject is
+ * which scripts may run, a matcher that can look straight past a script element
+ * is precisely the wrong blind spot to own — a seal that somehow carried
+ * `<SCRIPT>anything</SCRIPT>` beside the tape measure would have had the
+ * measure hashed, the assertion passed, and nothing said at all about the other
+ * one. CodeQL's `js/bad-tag-filter` flagged the case blindness on this PR and
+ * then the close-tag one; this is both fixes, and the test below is what stops
+ * either coming back.
  *
  * Nothing in the APP does this, and that is worth saying because it is the
  * stronger answer to the same question: `./sealed.ts` never parses or filters
@@ -41,7 +50,8 @@ const policy = (): Record<string, ReadonlyArray<string>> => {
  * read back what this module built, and nowhere else.
  */
 const scriptsIn = (markup: string): ReadonlyArray<string> =>
-  [...markup.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)].map((found) => found[1]!)
+  [...markup.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script(?:\s[^>]*)?>/gi)]
+    .map((found) => found[1]!)
 
 /** …and the hash a browser would take of the one script it carries, read out of
  *  the MARKUP. A test that hashed the module's own constant would prove the
@@ -104,11 +114,20 @@ test("the seal is the strictest policy there is, plus inline styles and one hash
 // you expected.
 test("the seal carries exactly one script, however a tag is spelled", () => {
   expect(scriptsIn(SEAL)).toHaveLength(1)
+  // Case, on both tags.
   expect(scriptsIn("<SCRIPT>alert(1)</SCRIPT>")).toEqual(["alert(1)"])
   expect(scriptsIn("<ScRiPt>alert(1)</sCrIpT>")).toEqual(["alert(1)"])
-  expect(scriptsIn(`<script type="module" >a</script >`)).toEqual(["a"])
-  // …and it does not invent one out of something that merely starts the same.
+  // Attributes on the open tag.
+  expect(scriptsIn(`<script type="module">a</script>`)).toEqual(["a"])
+  // …and junk on the CLOSE tag, which a tokeniser eats and a careless pattern
+  // does not: each of these ends the script.
+  expect(scriptsIn("<script>a</script >")).toEqual(["a"])
+  expect(scriptsIn("<script>a</script\t\n bar>")).toEqual(["a"])
+  expect(scriptsIn(`<script>a</script foo="bar">`)).toEqual(["a"])
+  // …while neither of these is a script at all, so neither is invented out of
+  // something that merely starts the same way.
   expect(scriptsIn("<scriptish>a</scriptish>")).toEqual([])
+  expect(scriptsIn("<script>a</scriptish>")).toEqual([])
 })
 
 // The ORDER, which is the whole of whether the policy binds: a `<meta>` CSP is
