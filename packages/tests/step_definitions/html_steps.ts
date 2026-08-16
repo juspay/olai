@@ -24,7 +24,8 @@ import type { Locator } from "playwright";
 // the HOST the request was made to, because the one thing the policy says that
 // is not a constant is where this vault's files are. `mediaHref` is the other
 // half of the same contract: the address a preview frame is pointed at.
-import { mediaHref, sealPolicy } from "@olai/surface";
+import { isPicture } from "@olai/format";
+import { MEDIA_PREFIX, mediaHref, sealPolicy } from "@olai/surface";
 
 import {
   DOCUMENT_EDIT,
@@ -301,9 +302,9 @@ Then("the preview reached nothing off this server", function (this: OlaiWorld) {
  * `route` rather than a slower fixture, because size is not the knob — a bigger
  * file is still a race, just with different odds.
  *
- * WHICH addresses are held is read off the route both ends spell rather than
- * written out here (`@olai/surface`'s `mediaHref`), so a route moved over there
- * is a step that follows it rather than one that quietly holds nothing.
+ * WHICH addresses are held is read off the two things that own the answer
+ * rather than written out here (below), so a route or an allowlist moved over
+ * there is a step that follows it rather than one that quietly holds nothing.
  */
 const SLOW_PICTURE_MS = 750;
 
@@ -311,14 +312,18 @@ const SLOW_PICTURE_MS = 750;
  * PICTURES ONLY, which the route no longer is: it answers the page itself now,
  * and holding that back too would delay the document and its picture equally —
  * an experiment that proves nothing, since what is under test is a picture
- * arriving AFTER the page has been measured. Read as the address a picture of
- * this vault has (`@olai/surface`'s `mediaHref`, the same function the frame is
- * pointed with), so a route moved over there is a step that follows it rather
- * than one that quietly holds nothing.
+ * arriving AFTER the page has been measured.
+ *
+ * Both halves are asked of the code that owns them — `MEDIA_PREFIX` for the
+ * route and `@olai/format`'s `isPicture` for which of its files is a picture —
+ * rather than written out here. A suffix list copied into a step is a second
+ * list from the day it is written: this one had already lost `.bmp` and `.ico`,
+ * which the route serves, so a fixture using either would have raced the
+ * measurement this step exists to lose.
  */
 const heldBack = (world: OlaiWorld) => (url: URL): boolean =>
-  url.pathname.startsWith(mediaHref("")) && /\.(?:png|jpe?g|gif|webp|avif)$/i.test(url.pathname) &&
-  `${url.origin}` === world.baseUrl;
+  `${url.origin}` === world.baseUrl && url.pathname.startsWith(MEDIA_PREFIX) &&
+  isPicture(url.pathname);
 
 When("the vault's pictures are slow to arrive", async function (this: OlaiWorld) {
   await this.page.route(heldBack(this), async (route) => {
@@ -624,23 +629,33 @@ const pointedAt = async (world: OlaiWorld): Promise<string> => {
   // which is the same thing the browser did with it.
   const at = src === null ? null : new URL(src, world.baseUrl);
   assert.ok(
-    at !== null && at.origin === world.baseUrl && at.pathname.startsWith(mediaHref("")),
+    at !== null && at.origin === world.baseUrl && at.pathname.startsWith(MEDIA_PREFIX),
     `the preview frame is not pointed at this server's media route: ${src}`,
   );
   return at.href;
 };
 
+/** What the preview's own address answers, asked for again rather than read
+ *  out of the frame: a frame in an opaque origin cannot be asked what its
+ *  headers or its bytes were. Two steps below want that response and neither
+ *  should have to remember that finding the address comes first. */
+const answered = async (world: OlaiWorld) => {
+  const answer = await world.page.request.get(await pointedAt(world));
+  assert.strictEqual(
+    answer.status(),
+    200,
+    `the preview's own address answers ${answer.status()}`,
+  );
+  return answer;
+};
+
 Then(
   "the preview's response is sealed with a policy that fetches only this vault",
   async function (this: OlaiWorld) {
-    const src = await pointedAt(this);
     // The RESPONSE, because that is where the seal is now: a `<meta>` policy
     // cannot carry `sandbox`, and `sandbox` is the directive that makes this
     // address safe for a reader who types it instead of opening the preview.
-    // Asked for again rather than read out of the frame, because a frame in an
-    // opaque origin cannot be asked what its headers were.
-    const answer = await this.page.request.get(src);
-    assert.strictEqual(answer.status(), 200, `the preview's own address answers ${answer.status()}`);
+    const answer = await answered(this);
     // The exact policy the server writes, computed by the server's own function
     // rather than re-spelled, for the reason every selector in `world.ts` is
     // imported: a widening made over there would still read as sealed over
@@ -702,7 +717,7 @@ Then(
  *  — the element is refused by the policy, and the file on disk is what the
  *  reader is shown. */
 Then("the preview was handed the file whole", async function (this: OlaiWorld) {
-  const body = await (await this.page.request.get(await pointedAt(this))).text();
+  const body = await (await answered(this)).text();
   assert.ok(
     body.includes(`<base href="https://example.invalid/vault/"`),
     "the file's own `<base>` is not in the bytes the browser was handed — the " +

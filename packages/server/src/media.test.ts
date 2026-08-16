@@ -17,14 +17,10 @@
  */
 
 import { expect, test } from "bun:test"
-import { Effect } from "effect"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
-import { collector, findSaid } from "@olai/log/testlib"
-
-import { serve } from "./serve.ts"
-import { served, SERVER_LAYERS } from "./serve.testlib.ts"
+import { served, withServing } from "./serve.testlib.ts"
 
 /** A one-pixel PNG, so "a picture is served" is a real decode rather than a
  *  file with a picture's name. */
@@ -54,25 +50,11 @@ const vault = (): string => {
   return root
 }
 
-/** A real server over that directory, and its address. The port is asked for
- *  as `0`, so the process is the only thing that knows which one it got — read
- *  off the `serving` line, the same reading `listener.test.ts` does. */
-const withVault = (body: (url: string) => Promise<void>): Promise<void> => {
-  const { layer, said } = collector()
-  return Effect.gen(function*() {
-    yield* serve({
-      root: vault(),
-      port: 0,
-      host: "127.0.0.1",
-      clientDist: served(),
-      allowedOrigins: [],
-      commits: "off",
-    })
-    const url = findSaid(said, "serving")?.annotations.url
-    expect(typeof url).toBe("string")
-    yield* Effect.promise(() => body(String(url)))
-  }).pipe(Effect.scoped, Effect.provide(SERVER_LAYERS), Effect.provide(layer), Effect.runPromise)
-}
+/** A real server over that directory, and its address — the package's own
+ *  helper (`./serve.testlib.ts`), which is where "stand a server up and find
+ *  out where it bound" is spelled for every test that needs it. */
+const withVault = (body: (url: string) => Promise<void>): Promise<void> =>
+  withServing({ root: vault() }, (url) => body(url))
 
 // THE PAGE, as the browser gets it: the seal in front, the file after it, and
 // the policy on the response. Every line here is one of the mechanisms
