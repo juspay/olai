@@ -60,25 +60,27 @@ export interface Change<T> {
 export interface Published {
   readonly outlines: Change<OutlineEntry>
   readonly documents: Change<DocumentEntry>
-}
-
-/** A revision's documents, split by WHO publishes them — see
- *  {@link splitBodies}. */
-export interface Split {
-  /** What goes to the collection now, as it stands. */
-  readonly send: Change<DocumentEntry>
-  /** The paths whose body has to be READ before it can be published
-   *  (`./bodies.ts`), in this revision's own order. */
-  readonly read: ReadonlyArray<string>
+  /**
+   * The paths this revision moved whose BODY the set does not keep — what the
+   * body reader has to read before anyone can be handed one (`./bodies.ts`).
+   *
+   * It is here, beside the two collections, because it is the third thing one
+   * revision is: what to publish, what to drop, and what somebody still has to
+   * fetch. A caller deriving it by walking `documents.upserts` for a `null`
+   * would be re-asking a question this file has already answered — and the
+   * answer would have to agree with the one below, which decides what the
+   * collection is NOT told.
+   */
+  readonly unread: ReadonlyArray<string>
 }
 
 /**
- * A revision's documents, split by who publishes them.
+ * A revision's documents, split by WHO publishes them.
  *
  * An entry carrying its text is sent as it is. An entry saying `null` is a body
- * the set does not keep, and it is the OTHER half's: writing that value to a
+ * the set does not keep, and it is the body reader's: writing that value to a
  * key somebody is showing would blank the page and re-fill it a moment later,
- * where the body reader replaces it in one frame.
+ * where the reader replaces it in one frame.
  *
  * A key this revision INTRODUCES is sent anyway, `null` and all, and that is
  * not an exception but the other thing an upsert does: it is how the collection
@@ -87,20 +89,21 @@ export interface Split {
  * nothing to blank — and a reader who subscribed to the key before it existed
  * is already being watched, so the body follows on this same revision.
  *
- * `before` is what the wire held BEFORE this revision, which is the only thing
- * that can say whether a key is new. Absent — the first revision — every key is.
+ * `held` is what the wire had BEFORE this revision, which is the only thing
+ * that can say whether a key is new. `null` — the first revision — makes every
+ * key new, which is what it is.
  */
-export const splitBodies = (
+const bodiesApart = (
   documents: Change<DocumentEntry>,
-  before: Change<DocumentEntry> | undefined,
-): Split => ({
-  send: {
+  held: Change<DocumentEntry> | undefined,
+): Pick<Published, "documents" | "unread"> => ({
+  documents: {
     ...documents,
     upserts: documents.upserts.filter(([path, entry]) =>
-      entry.text !== null || before?.entries.has(path) !== true
+      entry.text !== null || held?.entries.has(path) !== true
     ),
   },
-  read: documents.upserts.flatMap(([path, entry]) => entry.text === null ? [path] : []),
+  unread: documents.upserts.flatMap(([path, entry]) => entry.text === null ? [path] : []),
 })
 
 /**
@@ -180,11 +183,14 @@ export const publishedOf = (
       snapshot,
       published?.outlines,
     ),
-    documents: changeOf(
-      set.documents,
-      (document) => document.file,
-      (document) => ({ rev: snapshot.rev, text: document.text }),
-      snapshot,
+    ...bodiesApart(
+      changeOf(
+        set.documents,
+        (document) => document.file,
+        (document) => ({ rev: snapshot.rev, text: document.text }),
+        snapshot,
+        published?.documents,
+      ),
       published?.documents,
     ),
   }

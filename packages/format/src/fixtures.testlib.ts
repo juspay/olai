@@ -19,7 +19,7 @@
 import { Result } from "effect"
 
 import type { OutlineError } from "./errors.ts"
-import { fileKind, isKept } from "./kinds.ts"
+import { unkept } from "./kinds.ts"
 import type { Located } from "./node.ts"
 import { parseOutline } from "./parse.ts"
 import { assemble, type DecodedFile, type Outline, type OutlineSet } from "./set.ts"
@@ -54,10 +54,9 @@ export const nodesOf = (
 export const setOf = (
   files: Record<string, string>,
   /** The BODIED files served alongside. A bare path is one whose text no test
-   *  cares about; `[path, text]` is one whose text it does — and a kind the set
-   *  does not KEEP (a `.html`: ./kinds.ts) is `null` either way, because that
-   *  is what a load produces for one and a fixture that said otherwise would be
-   *  a test written against a set nobody can serve. */
+   *  cares about; `[path, text]` is one whose text it does — and a file the set
+   *  holds the PATH of and not the content ({@link unkept}, a `.html`) may only
+   *  be named bare, because a load can never produce one carrying text. */
   documents: ReadonlyArray<string | readonly [file: string, text: string]> = [],
   broken: Record<string, string> = {},
 ): OutlineSet =>
@@ -69,9 +68,21 @@ export const setOf = (
       ),
       ...documents.map((document) => {
         const [file, said] = typeof document === "string" ? [document, ""] : document
-        const kind = fileKind(file)
-        const text = kind !== null && !isKept(kind) ? null : said
-        return [file, Result.succeed<DecodedFile>({ file, text })] as const
+        // THROWN, like an unparsable outline above and for the same reason: a
+        // fixture that says a `.html` holds text is a test written against a
+        // set nobody can serve, and quietly dropping the text would let it pass
+        // for the wrong reason. The type cannot say this — the constraint is
+        // between a path's SPELLING and a field — so the fixture says it.
+        if (unkept(file) && said !== "") {
+          throw new Error(
+            `fixture \`${file}\` is a file the set holds the path of and not the ` +
+              `content, so it cannot be given text: name it bare.`,
+          )
+        }
+        return [
+          file,
+          Result.succeed<DecodedFile>({ file, text: unkept(file) ? null : said }),
+        ] as const
       }),
       ...Object.entries(broken).map(
         ([file, contents]) => [file, Result.fail(failureOf(contents, file))] as const,

@@ -19,10 +19,10 @@ import {
   bodyKind,
   type DecodedFile,
   fileKind,
-  isKept,
   type OutlineError,
   type OutlineSet,
   parseOutline,
+  unkept,
   validate,
 } from "@olai/format"
 import type { Codec } from "@olai/store"
@@ -37,16 +37,11 @@ export const codec: Codec<DecodedFile, OutlineSet, ReadonlyArray<OutlineError>> 
    *  when one of them changes, and not held for the life of the process.
    *
    *  WHICH files those are is the registry's answer again (`@olai/format`'s
-   *  `kinds.ts`), asked of the kind this path already is. What a reader who
+   *  `unkept`, which every layer that asks this asks). What a reader who
    *  OPENS one gets is a body read then and there and kept by nobody
    *  (`@olai/server`'s `bodies.ts`); what the SET gets is the path, which is
    *  all a `doc` reference was ever checked against. */
-  byName: (path) => {
-    const kind = fileKind(path)
-    return kind === null || isKept(kind)
-      ? null
-      : Result.succeed({ file: path, text: null })
-  },
+  byName: (path) => unkept(path) ? Result.succeed({ file: path, text: null }) : null,
 
   /** A BODIED file decodes to its text, verbatim: what it says is interpreted
    *  at view time, so there is nothing to parse here and nothing that can fail.

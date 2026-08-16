@@ -150,16 +150,9 @@ export const fileKind = (path: string): FileKind | null => {
 export const holdsText = (kind: FileKind): kind is BodyKind =>
   FILE_KINDS[kind].holds === "text"
 
-/**
- * Whether the loaded set keeps this kind's content, or only the path of a file
- * that has one — {@link Claim.kept}, read the way `holdsText` reads `holds`.
- *
- * Asked of a KIND rather than of a path, because every caller already has one:
- * the codec has just asked what a file is, and the store's probe asks this
- * through the codec. A path that no kind claims is not part of the set at all
- * and there is nothing here to ask about it.
- */
-export const isKept = (kind: FileKind): boolean => FILE_KINDS[kind].kept
+/** Whether the loaded set keeps this kind's content, or only the path of a file
+ *  that has one — {@link Claim.kept}, read the way `holdsText` reads `holds`. */
+const isKept = (kind: FileKind): boolean => FILE_KINDS[kind].kept
 
 /** The bodied file a path names, or `null` — `fileKind` with the outlines
  *  taken out, for the readers that only ever wanted the drawable ones (the
@@ -167,6 +160,25 @@ export const isKept = (kind: FileKind): boolean => FILE_KINDS[kind].kept
 export const bodyKind = (path: string): BodyKind | null => {
   const kind = fileKind(path)
   return kind !== null && holdsText(kind) ? kind : null
+}
+
+/**
+ * Whether the set holds this file's PATH AND NOT ITS CONTENT — by name, which
+ * is the form every caller wants: a `.html` is `true`, an outline and a
+ * document are `false`, and so is a file no kind claims, since the set is not
+ * holding that at all.
+ *
+ * One question with one name, because three layers that cannot see each other
+ * ask it and each of them was deriving it in two steps: the codec, which
+ * decodes such a file from its name (`@olai/ops`); the server, which reads the
+ * body when a reader opens it and must answer for a KEY that may be no file at
+ * all; and this package's own fixtures, which must produce the set a load
+ * really produces. `bodyKind` is the same move one row up ({@link fileKind} +
+ * {@link holdsText}); this is {@link fileKind} + {@link Claim.kept}.
+ */
+export const unkept = (path: string): boolean => {
+  const kind = fileKind(path)
+  return kind !== null && !isKept(kind)
 }
 
 /**

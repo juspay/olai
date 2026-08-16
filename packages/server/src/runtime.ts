@@ -16,6 +16,11 @@
  *     subscriptions to the same ref would let a reader see a manifest naming a
  *     revision whose entries had not been written yet, from a server that knew
  *     both.
+ *
+ *     One thing a revision names is NOT published from here, and it is the one
+ *     the server does not hold: a body the set keeps only the path of goes to
+ *     `./bodies.ts`, which reads the file when a reader opens it and publishes
+ *     it on that reader's own key.
  *   - the CONVERSATION is the chat's: a cell for where it stands, a collection
  *     for the rows, and the procedures. The collection is deliberately
  *     server-authored — `readAll` is the transcript itself and the writes come
@@ -43,7 +48,7 @@
  * the wire.
  */
 
-import { bodyKind, isKept, NOTHING_PENDING } from "@olai/format"
+import { NOTHING_PENDING, unkept } from "@olai/format"
 import { type Ops, Query, type Request, type Status } from "@olai/ops"
 import type {
   CommitRequest,
@@ -87,7 +92,6 @@ import {
   type Change as CollectionChange,
   type Published,
   publishedOf,
-  splitBodies,
 } from "./published.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
@@ -487,10 +491,6 @@ export const bind = (
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(null)
                   const revision = publishedOf(snapshot, held)
-                  // What the wire held BEFORE this revision, which is the only
-                  // thing that can say whether a key is NEW — read before the
-                  // assignment below takes it away.
-                  const before = held
                   held = revision
                   const collections = published?.collections
                   apply(collections?.outlines, revision.outlines)
@@ -498,14 +498,15 @@ export const bind = (
                   // THAT key (there is no `deltas` verb here) — which is a
                   // reader with the document open, and nobody else.
                   //
-                  // SPLIT by who publishes it ({@link splitBodies}, which owns
-                  // the rule): an entry carrying its text goes out as it is,
-                  // and a body the set does not keep goes to the reader below,
-                  // which reads the file and publishes that same key with the
-                  // bytes in it.
-                  const documents = splitBodies(revision.documents, before?.documents)
-                  apply(collections?.documents, documents.send)
-                  bodies.moved(documents.read)
+                  // …and the ones whose BODY is not in the revision go to the
+                  // reader, which reads each file and publishes that same key
+                  // with the bytes in it. Which those are is the projection's
+                  // own answer ({@link publishedOf}) rather than a second walk
+                  // over the entries here, for the reason every other line in
+                  // this block is one statement: two answers to "what is this
+                  // revision" is how they come to disagree.
+                  apply(collections?.documents, revision.documents)
+                  bodies.moved(revision.unread)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
@@ -569,11 +570,9 @@ export const bind = (
             // YET, which the framework lets a reader subscribe to and which
             // this asks about for the same reason: the read finds nothing now,
             // the path is watched, and the file appearing is a revision that
-            // moves it. Asked of the FORMAT (which kinds are kept) rather than
-            // of the entry, because that is the one question an absent entry
-            // cannot answer.
-            const kind = bodyKind(key)
-            if (kind !== null && !isKept(kind)) bodies.opened(key)
+            // moves it. Asked of the FORMAT rather than of the entry, because
+            // that is the one question an absent entry cannot answer.
+            if (unkept(key)) bodies.opened(key)
             return undefined
           },
           upsert: () => {},
