@@ -58,6 +58,26 @@ export const SearchHit = Schema.Struct({
    *  The four are `./filter.ts`'s own list, because which fields a word is
    *  looked for in is the matcher's fact and this is only where it is reported. */
   matched: Schema.optionalKey(Schema.Literals(SEARCH_FIELDS)),
+  /**
+   * The custom keys a `prop:` clause selected this node on, in the node's own
+   * spelling. ABSENT for every query that named no property.
+   *
+   * A SIBLING of `matched` rather than a fifth value of it, ruled on this PR
+   * and argued where the matcher produces it (`./filter.ts`'s `Match.props`).
+   * The short of it: the two can both be true at once — `cabinets
+   * prop:agent=claude-opus` matched on the title AND on the agent — so one slot
+   * would have to drop whichever a precedence rule nobody asked for preferred;
+   * `matched`'s four values are a CLOSED list of places a word is looked for,
+   * weighted against each other, where a property key is an open namespace
+   * somebody invented; and `matched` being absent already MEANS "the query
+   * named no words", which a fifth value would quietly stop meaning.
+   *
+   * What it is FOR is the row: a hit carries the whole `custom` map, and this
+   * says which of those keys is the answer to "why is this here" — so a reader
+   * sees the property they searched by first rather than hunting it in a line
+   * of others.
+   */
+  matchedProps: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export type SearchHit = typeof SearchHit.Type
 

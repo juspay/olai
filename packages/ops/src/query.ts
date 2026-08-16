@@ -229,6 +229,10 @@ export const search = (
         // carried by no field, and answering "title" would be inventing a
         // reason. The format's own rule for absence, applied to an answer.
         ...(match.field === null ? {} : { matched: match.field }),
+        // …and the same rule for the other half of "why is this here", which is
+        // a separate field because both halves can be true at once. Empty for
+        // every query that named no property.
+        ...(match.props.length === 0 ? {} : { matchedProps: match.props }),
       }
       return {
         hit,

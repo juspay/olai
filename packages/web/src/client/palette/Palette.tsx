@@ -686,9 +686,11 @@ export function Palette(props: {
                         label={item.label}
                         hint={item.hint}
                         place={item.place}
+                        props={item.props}
                         active={chosen() && index() === cursor.at()}
                         testid={TESTID.paletteItem}
                         placeTestid={TESTID.paletteItemPlace}
+                        propTestid={TESTID.paletteItemProp}
                         id={item.id}
                         onHover={() => {
                           setChosen(true)

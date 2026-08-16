@@ -445,6 +445,28 @@ const highOf = (value: string): string =>
 export interface Match {
   readonly field: SearchField | null
   readonly score: number
+  /**
+   * The custom keys a POSITIVE `prop:` clause selected this node on, in the
+   * node's OWN spelling — empty for every query that named none.
+   *
+   * A SECOND field beside {@link field} rather than a fifth value of it, and
+   * the reason is that they answer different questions which can both be true
+   * at once: `cabinets prop:agent=claude-opus` matched on the title AND on the
+   * agent property, and one slot could only report whichever a precedence rule
+   * nobody asked for happened to prefer. {@link field} is also the CLOSED list
+   * of four places a WORD is looked for, weighted for tie-breaking; a property
+   * key is an open namespace somebody invented, and putting the two in one
+   * union is the same collapse `custom` itself exists to refuse
+   * (docs/brainstorming/properties.md). The absence of `field` still means
+   * exactly what it meant — the query named no words.
+   *
+   * The NODE'S spelling, not the query's, because the query's is folded
+   * (`prop:PR` finds a key written `pr`) and a reader of this wants to look the
+   * key up in the map the hit carries. Which is also why NEGATED clauses are
+   * left out: a node selected by `-prop:agent` was not selected ON `agent` —
+   * it is here because it carries no such key at all.
+   */
+  readonly props: ReadonlyArray<string>
 }
 
 /** One node the query selected, with why. */
@@ -480,10 +502,15 @@ const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
     if (holds(at, held.clause) === held.negated) return null
   }
 
+  // Collected only for a node that has already PASSED every clause, so this
+  // walks the map of the few nodes a query selects rather than of every node it
+  // considers — and only at all for a query that named a `prop:`.
+  const props = propsOf(at.node, filter)
+
   // A query of operators alone is carried by no field, and nothing below would
   // read the haystacks — which are four allocations and up to three case-folds
   // of a whole note, per node of the set. `is:done` is exactly that query.
-  if (filter.terms.length === 0) return { field: null, score: 0 }
+  if (filter.terms.length === 0) return { field: null, score: 0, props }
 
   const hay = haystacksOf(at.node)
   let score = 0
@@ -503,7 +530,35 @@ const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
       field = hit.field
     }
   }
-  return { field, score }
+  return { field, score, props }
+}
+
+/**
+ * The node's own spelling of every key a positive `prop:` clause selected it
+ * on — {@link Match.props}, which argues the shape.
+ *
+ * EMPTY without allocating for the queries that are nearly all of them: a query
+ * with no `prop:` in it never reaches the scan, and the constant is one array
+ * every such answer shares rather than one per node considered.
+ *
+ * The scan is {@link holdsProp}'s, for the reason that one gives — keys are
+ * FOLDED, so `custom["pr"]` would find one spelling and miss the other — and
+ * asking it again here rather than threading the answer out of the gate above
+ * keeps `holds` a predicate. The cost is a second walk of a handful of entries,
+ * on the nodes a query actually selected.
+ */
+const NO_PROPS: ReadonlyArray<string> = []
+
+const propsOf = (node: RegularNode, filter: Extract<Filter, { kind: "asking" }>) => {
+  const keys: Array<string> = []
+  for (const held of filter.clauses) {
+    if (held.negated || held.clause.kind !== "prop") continue
+    const key = propKeyOf(node, held.clause)
+    // Reported once however many clauses name it: `prop:pr prop:pr=x` is one
+    // key the reader would see twice.
+    if (key !== null && !keys.includes(key)) keys.push(key)
+  }
+  return keys.length === 0 ? NO_PROPS : keys
 }
 
 /** The best a single word does across the four fields: the score it earns, and
@@ -549,7 +604,7 @@ const holds = (at: LocatedRegular, clause: Clause): boolean => {
       ? datesOf(at.node).length > 0
       : carries(at.node, clause.field)
   }
-  if (clause.kind === "prop") return holdsProp(at.node, clause)
+  if (clause.kind === "prop") return propKeyOf(at.node, clause) !== null
   // The same two fields the journal reads (./dates.ts): what the node is
   // scheduled for, and when it was finished. A filter that disagreed with the
   // day page about what a date means would be a third answer to a question
@@ -558,7 +613,15 @@ const holds = (at: LocatedRegular, clause: Clause): boolean => {
 }
 
 /**
- * Does this node carry the custom property the clause names?
+ * Does this node carry the custom property the clause names — and under WHICH
+ * of its own spellings? `null` for one that does not.
+ *
+ * A KEY RATHER THAN A BOOLEAN because two callers want two different halves of
+ * one scan: {@link holds} asks only whether, and {@link propsOf} needs the key
+ * the node actually wrote so a reader can look it up in the map the hit
+ * carries. Answering the second from a second scan would be this file holding
+ * two definitions of "does `prop:PR` match a key written `pr`", which is the
+ * one thing the folding rule below must not have.
  *
  * FOLDED on both halves, key and value, which is this grammar's rule rather
  * than a new one: the tokenizer folds every token, `#Home` finds `#home`, and a
@@ -574,20 +637,20 @@ const holds = (at: LocatedRegular, clause: Clause): boolean => {
  * A LIST value matches on any member — a fact can be several, and the whole
  * list as one string has no spelling a person would type.
  */
-const holdsProp = (
+const propKeyOf = (
   node: RegularNode,
   clause: Extract<Clause, { kind: "prop" }>,
-): boolean => {
+): string | null => {
   for (const [key, value] of Object.entries(customOf(node))) {
     if (key.toLowerCase() !== clause.key) continue
     // A key holding NOTHING is a key the file does not carry (./write.ts), so
     // `prop:x` is false for it — the same rule `has:` reads, one map in.
     if (nothing(value)) continue
-    if (clause.value === null) return true
+    if (clause.value === null) return key
     const held = typeof value === "string" ? [value] : value
-    if (held.some((one) => one.toLowerCase() === clause.value)) return true
+    if (held.some((one) => one.toLowerCase() === clause.value)) return key
   }
-  return false
+  return null
 }
 
 /** Whether a record carries a field — the WRITER's own rule for absence

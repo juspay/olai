@@ -118,3 +118,36 @@ Feature: Properties on a node, from the web
     And the node menu does not offer "Remove date"
     And the node menu does not offer "Remove id"
     And the node menu offers "Change date…"
+
+  Scenario: A search result carries the properties, and says which one answered
+    # The scenario PR #192 could not write. It put the whole `custom` map on a
+    # hit and deliberately left the row alone, because "should a reader SEE a
+    # hit's properties" was a product question nobody had ruled — so there was
+    # nothing on screen to assert. It is ruled now, and this is the loop it
+    # bought: write a fact on a node, then ask the header box for it and get the
+    # fact back on the row, without opening anything.
+    When I open the node menu of "handles"
+    And I choose "Add property…" from the node menu
+    And I write the property "agent" holding "claude-opus"
+    And I open the node menu of "handles"
+    And I choose "Add property…" from the node menu
+    And I write the property "pr" holding "https://github.com/juspay/olai/pull/192"
+    Then the node "handles" shows the property "agent" holding "claude-opus"
+
+    # The board's own query, asked by a person this time. The row draws both
+    # properties — a hit carries the whole map — and marks the one the query
+    # named, which leads so a narrow panel ellipsizes the others instead.
+    When I search the header for "prop:agent=claude-opus"
+    Then the header search lists the node "choose the handles"
+    And the header search result "choose the handles" shows the property "agent" holding "claude-opus"
+    And the header search result "choose the handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/192"
+    And the header search result "choose the handles" marks "agent" as why it matched
+    And there should be no page errors
+
+  Scenario: A node carrying no property draws no third line
+    # The drawer's rule on a row, kept on a result row for the drawer's own
+    # reason: a list of titles must not grow a line to say nothing.
+    When I search the header for "cabinets"
+    Then the header search lists the node "order the new cabinets"
+    And the header search result "order the new cabinets" shows no properties
+    And there should be no page errors

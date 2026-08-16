@@ -37,6 +37,7 @@ import type { OlaiWorld } from "../support/world.ts";
 
 const HEADER_SEARCH = `[data-testid="header-search"]`;
 const HEADER_SEARCH_ITEM = `[data-testid="header-search-item"]`;
+const HEADER_SEARCH_ITEM_PROP = `[data-testid="header-search-item-prop"]`;
 const CHAT_PILL_TEXT = `[data-testid="chat-pill-text"]`;
 
 // ── desktop sidebar ────────────────────────────────────────────────────
@@ -261,6 +262,61 @@ Then(
       .filter({ hasText: title })
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+/** One `key value` pair on a result row — the third line PR #192 left off and
+ *  this one draws. Scoped to the row, so "the hit for THIS node says it". */
+const searchRowProp = (
+  world: OlaiWorld,
+  title: string,
+  key: string,
+) =>
+  world.page
+    .locator(HEADER_SEARCH_ITEM)
+    .filter({ hasText: title })
+    .first()
+    .locator(`${HEADER_SEARCH_ITEM_PROP}[data-key="${key}"]`);
+
+Then(
+  "the header search result {string} shows the property {string} holding {string}",
+  async function (this: OlaiWorld, title: string, key: string, value: string) {
+    const prop = searchRowProp(this, title, key);
+    await prop.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal((await prop.innerText()).trim(), `${key} ${value}`);
+  },
+);
+
+Then(
+  "the header search result {string} marks {string} as why it matched",
+  async function (this: OlaiWorld, title: string, key: string) {
+    const prop = searchRowProp(this, title, key);
+    await prop.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(
+      await prop.getAttribute("data-matched"),
+      "true",
+      `"${key}" is drawn on the row for "${title}" but not as the reason it is there`,
+    );
+    // …and it LEADS, because a line that has to be ellipsized shows its front.
+    const first = this.page
+      .locator(HEADER_SEARCH_ITEM)
+      .filter({ hasText: title })
+      .first()
+      .locator(HEADER_SEARCH_ITEM_PROP)
+      .first();
+    assert.equal(await first.getAttribute("data-key"), key);
+  },
+);
+
+Then(
+  "the header search result {string} shows no properties",
+  async function (this: OlaiWorld, title: string) {
+    const row = this.page
+      .locator(HEADER_SEARCH_ITEM)
+      .filter({ hasText: title })
+      .first();
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(await row.locator(HEADER_SEARCH_ITEM_PROP).count(), 0);
   },
 );
 

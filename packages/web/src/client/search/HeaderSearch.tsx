@@ -219,9 +219,11 @@ export function HeaderSearch(props: {
                       <Result
                         label={item.label}
                         place={item.place}
+                        props={item.props}
                         active={index() === cursor.at()}
                         testid={TESTID.headerSearchItem}
                         placeTestid={TESTID.headerSearchItemPlace}
+                        propTestid={TESTID.headerSearchItemProp}
                         id={item.id}
                         onHover={() => cursor.to(index())}
                         onSelect={() => open(index())}

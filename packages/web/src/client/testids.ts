@@ -654,6 +654,8 @@ export const TESTID = {
   paletteCapture: "palette-capture",
   /** The second line of a result row: where the node lives. */
   paletteItemPlace: "palette-item-place",
+  /** One `key value` pair on a palette node row's third line. */
+  paletteItemProp: "palette-item-prop",
   /** What a write the palette made had to say — a refusal in the ops layer's
    *  own words, or a remark about one that landed. `data-tone` says which,
    *  because the mood is a fact and the colour is a styling decision. */
@@ -683,6 +685,8 @@ export const TESTID = {
   headerSearchResults: "header-search-results",
   headerSearchItem: "header-search-item",
   headerSearchItemPlace: "header-search-item-place",
+  /** One `key value` pair on a header result row's third line. */
+  headerSearchItemProp: "header-search-item-prop",
   headerSearchError: "header-search-error",
   /** Refusal from a `>` ask that the palette surfaces instead of swallowing. */
   paletteAskError: "palette-ask-error",

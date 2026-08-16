@@ -23,6 +23,7 @@ import type { Edit, SearchHit } from "@olai/surface"
 
 import type { Route } from "../routes.ts"
 import { nodePlace } from "../search/place.ts"
+import { type HitProp, hitProps } from "../search/props.ts"
 
 export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
@@ -76,6 +77,10 @@ export interface PaletteItem {
    * place gets a line of its own and both are ellipsized.
    */
   readonly place?: string
+  /** The node's properties, on a THIRD line — matched ones first
+   *  (`../search/props.ts`). Only a node row has any; a shell command has
+   *  nothing to say about itself that its label does not already say. */
+  readonly props?: ReadonlyArray<HitProp>
   readonly action: PaletteAction
   /** Lowercase haystack for simple substring filter. */
   readonly search: string
@@ -167,6 +172,7 @@ export const nodeItem = (hit: SearchHit): PaletteItem => ({
   id: `node-${hit.id}`,
   label: hit.title,
   place: nodePlace(hit),
+  props: hitProps(hit),
   action: { kind: "route", route: { kind: "node", id: hit.id } },
   // Never filtered locally: the server already decided these match.
   search: "",

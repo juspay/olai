@@ -329,6 +329,55 @@ test("the field a match is reported under is the highest-weighted one that held 
   expect(marked?.match.field).toBe(null)
 })
 
+// ── which PROPERTY carried it ──────────────────────────────────────────
+
+/**
+ * The other half of "why is this here", and a SEPARATE half — the ruling this
+ * change was made to record (`./searching.ts`'s `matchedProps`).
+ *
+ * `field` names one of four places a WORD is looked for; this names a key
+ * somebody invented. They can both be true of one hit, which is the whole
+ * reason there are two of them.
+ */
+const propsOf = (text: string): ReadonlyArray<string> =>
+  matching(derived, parseFilter(text))[0]?.match.props ?? []
+
+test("a `prop:` clause names the key it selected on, beside the field the words did", () => {
+  const [both] = matching(derived, parseFilter("cabinets prop:agent"))
+  // BOTH, from one hit: the title carried the word and the map carried the key.
+  expect(both?.match.field).toBe("title")
+  expect(both?.match.props).toEqual(["agent"])
+})
+
+test("a query that names no property says so with an empty list", () => {
+  expect(propsOf("cabinets")).toEqual([])
+  expect(propsOf("is:todo")).toEqual([])
+})
+
+test("every positive clause is named, once, however many times it is asked", () => {
+  expect(propsOf("prop:agent prop:pr")).toEqual(["agent", "pr"])
+  // `prop:pr prop:pr=…` is one key a reader would otherwise see twice.
+  expect(propsOf("prop:pr prop:pr=https://github.com/juspay/olai/pull/176"))
+    .toEqual(["pr"])
+})
+
+/** The NODE's spelling, not the query's. The query is folded — `prop:PR` finds
+ *  a key written `pr` — and a reader of this wants to look the key up in the
+ *  map the hit carries, which is keyed the way the file wrote it. */
+test("the key is reported as the NODE spells it, whatever was typed", () => {
+  expect(propsOf("prop:AGENT")).toEqual(["agent"])
+  expect(propsOf("prop:Agent=Claude-Opus")).toEqual(["agent"])
+})
+
+/** A node selected by a NEGATED clause was not selected ON that key — it is
+ *  here because it carries no such key at all, and a row that pointed at
+ *  `agent` would be drawing a lie the matcher never told. */
+test("a negated clause names nothing, because nothing carried it", () => {
+  const [hit] = matching(derived, parseFilter("is:done -prop:agent"))
+  expect(hit?.at.node.id).toBe("demo")
+  expect(hit?.match.props).toEqual([])
+})
+
 // ── scope ──────────────────────────────────────────────────────────────
 
 test("a scope narrows to one outline, or to one node and everything beneath it", () => {

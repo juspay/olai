@@ -1,0 +1,71 @@
+/**
+ * WHICH properties a hit shows, and in what order — the third line of
+ * {@link ./Result.tsx}.
+ *
+ * Beside the row rather than in `palette/`, for the reason `./place.ts` is and
+ * word for word: it is a fact about a SEARCH HIT, every door onto the one
+ * search draws it, and two spellings of it would be two answers to "what does
+ * this node say about itself" in the same panel. Its own module rather than an
+ * export of the component, so a unit test of the ordering does not have to
+ * compile a `.tsx`.
+ *
+ * ## Why the row draws them at all
+ *
+ * PR #192 put the whole `custom` map on a hit and deliberately left the row
+ * alone, because "should a reader SEE a hit's properties" was a product
+ * question nobody had ruled. It is ruled now, and yes: a lane board asking
+ * `prop:agent=claude-opus` is a person's question as much as an agent's, and a
+ * row that answered it with a bare title made the reader open each hit to find
+ * the fact they had just searched by.
+ *
+ * ## Matched first, and that is the whole of the ordering
+ *
+ * The keys a `prop:` clause selected this node on lead, in the order the query
+ * named them; the rest follow in the FILE's own order, which is alphabetical
+ * (`customEntries`). So `prop:agent=claude-opus` puts `agent` at the front of
+ * every row, where a line that has to be ellipsized still shows it — the same
+ * argument `./place.ts` makes for putting the nearest ancestor first, and for
+ * the same reason: what survives a narrow panel is the front.
+ *
+ * A query that named no property leaves every key where the file has it. There
+ * is no second sort — "most interesting property" is not a fact this app has,
+ * and inventing a ranking would be inventing an answer.
+ *
+ * WHICH keys matched is the SERVER's (`matchedProps`), not re-derived here from
+ * the query text. The browser holds `parseFilter` and could read the clauses
+ * itself, and that is exactly the second implementation the search doctrine
+ * forbids: folding, and negation in particular, would have to be re-decided —
+ * a node selected by `-prop:agent` was not selected ON `agent`, and a row that
+ * highlighted it would be drawing a lie the matcher never told.
+ */
+
+import type { SearchHit } from "@olai/surface"
+
+import { customEntries } from "../props/drawer.ts"
+
+/** One property as the row draws it: what the drawer's line holds, plus
+ *  whether it is why this hit is on screen. */
+export interface HitProp {
+  readonly key: string
+  readonly value: string
+  /** Selected on by a `prop:` clause — drawn in the reading ink rather than the
+   *  muted one, so the eye lands on the answer to "why is this here". */
+  readonly matched: boolean
+}
+
+export const hitProps = (hit: SearchHit): ReadonlyArray<HitProp> => {
+  const matched = hit.matchedProps ?? []
+  const entries = customEntries(hit).map((entry) => ({
+    key: entry.key,
+    value: entry.value,
+    matched: matched.includes(entry.key),
+  }))
+  // A stable partition rather than a sort: within each half the order is
+  // already the one that half wants — the query's for the matched keys, the
+  // file's for the rest — and a comparator would have to invent a tie-break
+  // between two keys that are equally the reason.
+  return [
+    ...matched.flatMap((key) => entries.filter((entry) => entry.key === key)),
+    ...entries.filter((entry) => !entry.matched),
+  ]
+}
