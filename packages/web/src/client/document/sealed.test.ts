@@ -19,15 +19,41 @@ const policy = (): Record<string, ReadonlyArray<string>> => {
   return directives
 }
 
-/** …and the hash a browser would take of the script it carries, read the same
- *  way: out of the MARKUP. A test that hashed the module's own constant would
- *  prove the constant and nothing else — the browser does not see the constant,
- *  it sees the bytes between these two tags, and a seal that assembled them
- *  wrongly would pass that test and refuse the script. */
+/**
+ * Every script element the seal carries, found the way a BROWSER finds them:
+ * case-blind, and tolerant of attributes and of space in the closing tag.
+ *
+ * That is the point rather than pedantry. A parser reads `<SCRIPT>` and
+ * `<script defer>` as script elements; a lowercase-only pattern reads neither.
+ * On a file whose whole subject is which scripts may run, a matcher that can
+ * look straight past one is precisely the wrong blind spot to own — a seal that
+ * somehow carried `<SCRIPT>anything</SCRIPT>` beside the tape measure would
+ * hash the measure, pass, and say nothing at all about the other one. CodeQL's
+ * `js/bad-tag-filter` flagged the lowercase version on this PR; this is that
+ * fix, and the test below is what stops it coming back.
+ *
+ * Nothing in the APP does this, and that is worth saying because it is the
+ * stronger answer to the same question: `./sealed.ts` never parses or filters
+ * markup — it prepends a policy and hands the file over whole, so how a tag is
+ * spelled cannot get anything past it — and the markdown side allowlists on a
+ * parsed tree (`../markdown/sanitise.ts` through `rehype-sanitize`), where the
+ * parser has already normalised case. This matcher exists so that a test can
+ * read back what this module built, and nowhere else.
+ */
+const scriptsIn = (markup: string): ReadonlyArray<string> =>
+  [...markup.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)].map((found) => found[1]!)
+
+/** …and the hash a browser would take of the one script it carries, read out of
+ *  the MARKUP. A test that hashed the module's own constant would prove the
+ *  constant and nothing else — the browser does not see the constant, it sees
+ *  the bytes between the tags, and a seal that assembled them wrongly would
+ *  pass that test and refuse the script. */
 const scriptHash = (): string => {
-  const written = /<script>([\s\S]*)<\/script>/.exec(SEAL)
-  if (written === null) throw new Error(`no script in the seal: ${SEAL}`)
-  return createHash("sha256").update(written[1]!, "utf8").digest("base64")
+  const found = scriptsIn(SEAL)
+  if (found.length !== 1) {
+    throw new Error(`the seal carries ${found.length} scripts, not one: ${SEAL}`)
+  }
+  return createHash("sha256").update(found[0]!, "utf8").digest("base64")
 }
 
 // THE POLICY, as the whole set of directives rather than as tokens it must not
@@ -65,6 +91,24 @@ test("the seal is the strictest policy there is, plus inline styles and one hash
     // symptom is a preview quietly back on its fallback height.
     "script-src": [`'sha256-${scriptHash()}'`],
   })
+})
+
+// ONE script, and a matcher that cannot be fooled by how a tag is spelled.
+//
+// The first line is the claim that matters — the policy above admits exactly
+// one script by hash, so a seal carrying two would be a seal with something in
+// it nobody hashed. The rest is the regression guard for the CodeQL alert that
+// asked for this: a lowercase-only pattern satisfies the first line and fails
+// every one after it, which is the whole difference between counting the
+// scripts in a document and counting the ones that happen to be spelled the way
+// you expected.
+test("the seal carries exactly one script, however a tag is spelled", () => {
+  expect(scriptsIn(SEAL)).toHaveLength(1)
+  expect(scriptsIn("<SCRIPT>alert(1)</SCRIPT>")).toEqual(["alert(1)"])
+  expect(scriptsIn("<ScRiPt>alert(1)</sCrIpT>")).toEqual(["alert(1)"])
+  expect(scriptsIn(`<script type="module" >a</script >`)).toEqual(["a"])
+  // …and it does not invent one out of something that merely starts the same.
+  expect(scriptsIn("<scriptish>a</scriptish>")).toEqual([])
 })
 
 // The ORDER, which is the whole of whether the policy binds: a `<meta>` CSP is
