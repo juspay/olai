@@ -36,6 +36,7 @@ import {
   type LocatedRegular,
   MARKS,
   matching,
+  nodesOf,
   nothing,
   type OutlineSet,
   type OutlineSummary,
@@ -332,23 +333,40 @@ const placedUnder = (derived: Derived, id: string): ReadonlyArray<Placed> =>
  * By what each one SHOWS rather than by what it names, so a chain counts: a
  * mirror of a mirror of `order` is a place `order` is drawn, and an agent
  * retiring the Now entry for it should find it whether the ledger pointed
- * straight at the node or at another placement of it. `follow` is the format's
- * own resolution of that chain, cycle-safe, so this cannot be a second answer to
- * what a mirror shows.
+ * straight at the node or at another placement of it.
+ *
+ * A LOOKUP, in the index that IS that question: {@link Derived.mirrorsOf} is
+ * `follow` read backwards over the whole set, filed under the node each chain
+ * ends at, and built with the rest of the derivation. This used to walk every
+ * node in the directory and resolve every placement in it — per `read_node`,
+ * which is the first call an agent makes about anything. `follow` still decides
+ * what a mirror shows; this simply stopped asking it once per record to find
+ * the few records it had already been asked about.
+ *
+ * ONE PLACEMENT PER ID, which is the one thing that changed and is worth
+ * saying out loud. The index holds mirror IDS, and `byId` is first-claim-wins,
+ * so two mirror records sharing an id come back as the single record that id
+ * means. The old walk reported both. That set is one the validator refuses
+ * (duplicate ids), every other index in `Derived` already collapses duplicates
+ * exactly this way, and `remove_mirror` takes an ID — so a second entry named
+ * a record no write could reach. It is the duplicate-id rule §3 of
+ * docs/brainstorming/model-indices.md names, arriving here first.
  */
 const placementsOf = (
   derived: Derived,
   id: string,
 ): ReadonlyArray<Placement> =>
-  derived.nodes.flatMap((located) => {
-    if (!isMirror(located.node)) return []
-    const found = follow(derived, located)
-    if (found.kind !== "found" || found.shows.node.id !== id) return []
+  [...(derived.mirrorsOf.get(id) ?? [])].flatMap((mirror) => {
+    // Never absent: every id in the index came off a record of this same set,
+    // and `byId` holds one for each. Guarded because the type says it may be,
+    // and inventing a placement would be worse than dropping one.
+    const at = derived.byId.get(mirror)
+    if (at === undefined) return []
     return [{
-      id: located.node.id,
-      file: located.file,
-      line: located.line,
-      ...(located.node.parent === undefined ? {} : { parent: located.node.parent }),
+      id: at.node.id,
+      file: at.file,
+      line: at.line,
+      ...(at.node.parent === undefined ? {} : { parent: at.node.parent }),
     }]
   })
 
@@ -400,16 +418,15 @@ export const outlines = (
    * itself. Saying they are gone is also what lets the titles below be read
    * without an assertion.
    *
-   * NOT a field on {@link Derived}, though this grouping is written three
-   * times in the tree: `siblingsOf` in the floor sorts what it groups,
-   * `publishedOf` and the pending walk ask it of an `OutlineSet` they never
-   * derive at all. Only the grouping itself is shared, and what shape a shared
-   * one should take is for the roadmap's `siblings-of-quadratic` to settle.
+   * A FIELD on {@link Derived} now, which is what `siblings-of-quadratic`
+   * settled: this used to group the corpus itself, under a note deferring the
+   * question to that item. `byFile` is that grouping, built once with the rest
+   * of the derivation this function is already holding, and in LINE order —
+   * which is stricter than the encounter order `roots` stands on, so the
+   * answer is unchanged. What is left here is the mirror drop, which is this
+   * answer's own rule rather than the index's: `byFile` holds RECORDS, because
+   * a writer re-emitting a file needs the placements too.
    */
-  const byFile = Map.groupBy(
-    derived.nodes.filter((located): located is LocatedRegular => !isMirror(located.node)),
-    (located) => located.file,
-  )
   // ANNOTATED, so the row literals below are checked against the floor: a
   // field dropped from `OutlineSummary` fails HERE rather than only at the
   // table-driven decode. That is independent of what the rows hold, which is
@@ -426,8 +443,9 @@ export const outlines = (
         unreadable: errors.map(errorLine),
       }
     }
-    // No group at all is an outline holding no nodes of its own.
-    const own = byFile.get(file) ?? []
+    // No entry at all is an outline holding no nodes of its own.
+    const own = nodesOf(derived, file)
+      .filter((located): located is LocatedRegular => !isMirror(located.node))
     return {
       file,
       nodes: own.length,

@@ -34,6 +34,8 @@ import {
   MARKS,
   type Node,
   type Status,
+  type TargetField,
+  targetsOf,
 } from "./node.ts"
 
 /** What a node's checkbox shows, re-exported rather than declared: it is one
@@ -87,30 +89,196 @@ export interface Derived {
    *  and a promise is what keeps that from shuffling when an unrelated file
    *  gains an edge. */
   readonly blocked: ReadonlyMap<string, ReadonlyArray<InTheWay>>
+  /**
+   * file → the records written in it, in LINE order — the order they are on
+   * disk, which is the order a writer re-emits them in.
+   *
+   * The set stays flat ({@link ./set.ts}); this is the same records read the
+   * other way, not a second copy of them. It is here rather than in a helper
+   * beside `Derived` because a grouping of one revision's nodes handed to a
+   * reader holding another's is a plausible answer about the wrong corpus —
+   * the same reason `nodes` travels with its indexes at all. Every question
+   * that used to be a filter over the whole set — what does this outline hold,
+   * which of its records are roots, what does a page draw — is a lookup here,
+   * and asking it stopped costing the corpus.
+   *
+   * A file holding nothing is ABSENT rather than mapped to an empty list, and
+   * so is a file that did not parse: which files EXIST is the set's answer
+   * ({@link ./set.ts}'s `files`), never this map's, and `?? []` is how every
+   * reader here already spells nothing.
+   *
+   * It does NOT claim every by-file grouping in the tree. Two of them —
+   * `publishedOf` in `@olai/server` and the pending walk in `@olai/ops` — hold
+   * an `OutlineSet` and never derive at all, so reaching for this would mean
+   * building a whole derivation to group a corpus. They stay as they are, and
+   * saying so here is what keeps that a ruling rather than an oversight.
+   */
+  readonly byFile: ReadonlyMap<string, ReadonlyArray<Located>>
+  /**
+   * node id → the mirrors STANDING FOR it: {@link follow} read backwards.
+   *
+   * CHAINS FOLLOWED, which is what makes it the reverse of that walk rather
+   * than of the `mirror` field — a mirror of a mirror of `x` shows `x`, so `x`
+   * is where it is filed, and the record in the middle collects nothing. A
+   * chain that dangles or closes a loop shows no node and is filed nowhere,
+   * exactly as {@link Derived.status} leaves it out.
+   *
+   * The question it answers is the one a scan answers today: what else does
+   * this node's mark reach? A placement three files away shows a status it
+   * does not store, and nothing but a walk of the whole set could find it.
+   *
+   * A SET, in corpus order, and the container is the promise: what asks this
+   * wants to know WHICH records to look at again, and a record filed twice is
+   * still one record to look at. `after` next door holds each target once too
+   * (#203), but it stays an ARRAY because its order is a promise a reader
+   * spends — the one blocker a row has room for is the first of that list —
+   * while nothing reads these two in order. Membership is the whole answer
+   * here, so the container says so.
+   */
+  readonly mirrorsOf: ReadonlyMap<string, ReadonlySet<string>>
+  /**
+   * id → the nodes whose ordering edges LAND on it: {@link Derived.after} read
+   * backwards.
+   *
+   * In terms of nodes at both ends for the same reason `after` is, and by the
+   * same act: the canonicalisation happens before either map gets a key, so
+   * the forward reading and the reverse one cannot disagree about whether two
+   * records mean one edge.
+   *
+   * What it answers is the half {@link Derived.blocked} cannot be asked: that
+   * index says what a node is waiting on, and this says who was waiting on IT
+   * — which is what has to be looked at again when its mark flips. A SET for
+   * the reason {@link Derived.mirrorsOf} is one, in `after`'s own promised
+   * order.
+   */
+  readonly edgesTo: ReadonlyMap<string, ReadonlySet<string>>
+  /**
+   * id → the records that NAME it, and the fields they name it with:
+   * {@link targetsOf} read backwards, in corpus order.
+   *
+   * RAW, and that is the point of it being a third reverse index rather than a
+   * reading of the two above. Those two are about MEANING — a mirror chain
+   * followed to its end, `blocks` normalised into `after` — and they are what a
+   * recomputation follows. This one is about what the records SAY, which is
+   * what a refusal has to quote: an `after` naming a placement is named at the
+   * placement, and `see` (which no derivation reads at all) is named here too.
+   * Answering "does anything still point at this record" out of the canonical
+   * maps would miss all three, and it is the question the ops layer asks before
+   * it takes a record away.
+   */
+  readonly namedBy: ReadonlyMap<string, ReadonlyArray<Naming>>
+}
+
+/**
+ * A record that names an id, and the fields it names it with — one entry per
+ * RECORD, so a node naming the same id twice (`after` it and `see` it) is one
+ * dependent with two fields rather than two dependents.
+ *
+ * The fields come in {@link targetsOf}'s declaration order, without repeats:
+ * `after: ["b", "b"]` is one relation written twice, and a reader listing it
+ * twice would be reporting the file's shape rather than what it means.
+ *
+ * `TargetField` rather than `string`, because the format owns that list and an
+ * open type here would be a second, wider vocabulary for it — the same thing
+ * {@link targetsOf} exists to stop one level down.
+ */
+export interface Naming {
+  readonly at: Located
+  readonly fields: ReadonlyArray<TargetField>
 }
 
 export const derive = (nodes: ReadonlyArray<Located>): Derived => {
+  // `Map.groupBy` is the language's own group-by-key, and grouping by file is
+  // exactly that — a hand-rolled accumulator here would be a second spelling
+  // of a built-in (the same note #198 took). The three tables below are not
+  // that shape: one keeps the FIRST claim rather than every one, one skips the
+  // records with no key at all, and one keys a record by every id it names —
+  // so they share one walk, since none of them reads what another builds and
+  // splitting them is three passes to ask three things about a record already
+  // in hand.
+  const byFile = Map.groupBy(nodes, (located) => located.file)
+
   const byId = new Map<string, Located>()
+  const children = new Map<string, Array<Located>>()
+  const namedBy = new Map<string, Array<{ at: Located; fields: Array<TargetField> }>>()
+
   for (const located of nodes) {
     if (!byId.has(located.node.id)) byId.set(located.node.id, located)
+
+    const parent = located.node.parent
+    if (parent !== undefined) {
+      const siblings = children.get(parent)
+      if (siblings === undefined) children.set(parent, [located])
+      else siblings.push(located)
+    }
+
+    // Asked once per record, and nearly every record names nothing — which is
+    // why `targetsOf` answers that with a shared empty list.
+    for (const [field, target] of targetsOf(located.node)) {
+      const naming = namedBy.get(target)
+      // A record naming one id with two fields is ONE dependent carrying both,
+      // and the entry to add the second field to is the LAST one — entries are
+      // appended as the walk reaches each record, so an entry already filed by
+      // the record in hand can only be the one on the end. That is what makes
+      // the fold free: no per-record scratch map, no search.
+      const held = naming?.[naming.length - 1]
+      if (held?.at === located) {
+        if (!held.fields.includes(field)) held.fields.push(field)
+      } else if (naming === undefined) {
+        namedBy.set(target, [{ at: located, fields: [field] }])
+      } else {
+        naming.push({ at: located, fields: [field] })
+      }
+    }
   }
 
-  const children = new Map<string, Array<Located>>()
-  for (const located of nodes) {
-    const parent = located.node.parent
-    if (parent === undefined) continue
-    const siblings = children.get(parent)
-    if (siblings === undefined) children.set(parent, [located])
-    else siblings.push(located)
-  }
+  // Sorted rather than trusted: a set assembled file by file already arrives
+  // this way (and `Map.groupBy` keeps encounter order), but the promise is
+  // about what the index MEANS — the records in the order they are on disk —
+  // not about how the caller happened to build the list it handed over.
+  for (const own of byFile.values()) own.sort(byLine)
   // `ord` is a fractional index over base62, so plain string comparison IS the
   // sort; file order breaks ties rather than leaving them to the engine.
   for (const siblings of children.values()) siblings.sort(byOrd)
 
-  const status = statuses(nodes, byId)
-  const after = orderings(byId, nodes)
-  return { nodes, byId, children, status, after, blocked: blockage(byId, status, after) }
+  const { status, mirrorsOf } = resolutions(nodes, byId)
+  const { after, edgesTo } = orderings(byId, nodes)
+  return {
+    nodes,
+    byId,
+    children,
+    status,
+    after,
+    blocked: blockage(byId, status, after),
+    byFile,
+    mirrorsOf,
+    edgesTo,
+    namedBy,
+  }
 }
+
+/** The order the records are on disk — {@link Derived.byFile}'s promise, and
+ *  the only comparator here that is not about meaning. */
+const byLine = (a: Located, b: Located): number => a.line - b.line
+
+/**
+ * One file's records, in the order they are written.
+ *
+ * A WRITER's question, answered here because the answer is an index read now
+ * rather than a filter: a write re-emits the whole file, so it needs the
+ * records in the order they are on disk, which is exactly what
+ * {@link Derived.byFile} promises. It moved out of `./write.ts` with its
+ * argument — a flat list of every node in the directory used to be all it had
+ * to work from, and a writer touching one outline walked the corpus for it.
+ *
+ * `Pick`, so a caller building one file's records has no reason to hold a
+ * whole derivation — and so the day a patcher hands over a partial view, this
+ * says which part of it it reads.
+ */
+export const nodesOf = (
+  derived: Pick<Derived, "byFile">,
+  file: string,
+): ReadonlyArray<Located> => derived.byFile.get(file) ?? []
 
 /**
  * Sibling order, as the format defines it: `ord` is a fractional index over
@@ -139,8 +307,14 @@ export const siblingsOf = (
   parent: string | undefined,
 ): ReadonlyArray<Located> =>
   parent === undefined
-    ? derived.nodes
-      .filter((located) => located.file === file && located.node.parent === undefined)
+    // The file's own records, not the corpus: the roots of one outline used to
+    // cost a walk of every node in the directory, and this is asked on every
+    // draw, every structural edit and every undo. Through {@link nodesOf}
+    // rather than the index directly, so "what does this outline hold" has one
+    // spelling here and at the writers. `filter` hands back a fresh array, so
+    // the sort never reorders the index itself.
+    ? nodesOf(derived, file)
+      .filter((located) => located.node.parent === undefined)
       .sort(byOrd)
     : (derived.children.get(parent) ?? []).filter((located) => located.file === file)
 
@@ -164,25 +338,43 @@ export const countedChildren = (
 ): ReadonlyArray<LocatedRegular> => counted(derived.children, id)
 
 /**
- * Every node's status: the mark it stores, and nothing else.
+ * What every record RESOLVES TO, read both ways in one walk.
  *
- * A mirror stands for its target's, because that is what it shows — which for
- * a plain bullet is nothing. That is the ONLY hop, and it is a placement
+ * Forwards it is the status: the mark a node stores, and nothing else. A
+ * mirror stands for its target's, because that is what it shows — which for a
+ * plain bullet is nothing. That is the ONLY hop, and it is a placement
  * question rather than a rollup: {@link follow} already answers it, cycle-safe,
  * for a set the validator has condemned as well as for one it has not.
+ *
+ * Backwards it is {@link Derived.mirrorsOf}: the same {@link follow} answer
+ * filed under the node it landed on. One walk rather than two, and not only
+ * for the cost — a second walk would be a second chance to disagree about
+ * where a chain ends, and a mirror filed under one node while it shows another
+ * is exactly the stale placement this index exists to find.
  */
-const statuses = (
+const resolutions = (
   nodes: ReadonlyArray<Located>,
   byId: ReadonlyMap<string, Located>,
-): ReadonlyMap<string, Status> => {
+): {
+  readonly status: ReadonlyMap<string, Status>
+  readonly mirrorsOf: ReadonlyMap<string, ReadonlySet<string>>
+} => {
   const index = { byId }
   const status = new Map<string, Status>()
+  const mirrorsOf = new Map<string, Set<string>>()
   for (const located of nodes) {
     const found = follow(index, located)
-    const mark = found.kind === "found" ? storedMarker(found.shows.node) : undefined
+    if (found.kind !== "found") continue
+    const mark = storedMarker(found.shows.node)
     if (mark !== undefined) status.set(located.node.id, mark)
+    // Only a MIRROR stands for something: a regular record resolves to itself,
+    // and filing it under its own id would say every node mirrors itself.
+    if (!isMirror(located.node)) continue
+    const mirrors = mirrorsOf.get(found.shows.node.id)
+    if (mirrors === undefined) mirrorsOf.set(found.shows.node.id, new Set([located.node.id]))
+    else mirrors.add(located.node.id)
   }
-  return status
+  return { status, mirrorsOf }
 }
 
 /** What a record claims about itself, which IS its status — and `undefined`
@@ -310,27 +502,47 @@ export interface InTheWay {
  * named once, in the order it was first named. That is the same claim the two
  * paragraphs above make about spellings and about placements, carried to the
  * case where the two arrive at one pair — see {@link edge}.
+ *
+ * BOTH DIRECTIONS, filed as the edge is made. {@link Derived.edgesTo} is this
+ * map reversed — and to be exact about what that buys, since a later pass over
+ * a finished `after` would reverse ids that are already canonical and could
+ * not disagree with it: what it buys is that the reverse is written where the
+ * edge is known, so there is no second place holding a rule about how an edge
+ * is filed. It is a set for the reason the forward reading is one, arrived at
+ * from the other end: a source that named a target three ways is one node to
+ * look at again.
  */
 const orderings = (
   byId: ReadonlyMap<string, Located>,
   nodes: ReadonlyArray<Located>,
-): ReadonlyMap<string, ReadonlyArray<string>> => {
+): {
+  readonly after: ReadonlyMap<string, ReadonlyArray<string>>
+  readonly edgesTo: ReadonlyMap<string, ReadonlySet<string>>
+} => {
   const index = { byId }
   const named = (id: string): string => nodeNamed(index, id)?.node.id ?? id
   const after = new Map<string, Array<string>>()
-  /** File one edge, ONCE. Both ends are resolved to nodes before they get
-   *  here, so a field repeating a target (a `.olai` is plain text, and nothing
-   *  refuses a hand that writes `after: [b, b]`), the two spellings of one
-   *  arrow both written down, and two ids standing at one node through a
-   *  mirror all arrive as the same pair — and each of them is one edge. Every
-   *  reader takes this as a set: the row a page draws keyed by the blocker's
-   *  id (a repeat crashes the client, `web/client/NodeRefs.tsx`), the `blocked
-   *  by` tip, the walk the acyclicity rule and `set_after`'s loop refusal
-   *  share. A duplicate would say one node is in the way twice. */
+  const edgesTo = new Map<string, Set<string>>()
+  /** File one edge, ONCE, in both directions. Both ends are resolved to nodes
+   *  before they get here, so a field repeating a target (a `.olai` is plain
+   *  text, and nothing refuses a hand that writes `after: [b, b]`), the two
+   *  spellings of one arrow both written down, and two ids standing at one
+   *  node through a mirror all arrive as the same pair — and each of them is
+   *  one edge. Every reader takes this as a set: the row a page draws keyed by
+   *  the blocker's id (a repeat crashes the client,
+   *  `web/client/NodeRefs.tsx`), the `blocked by` tip, the walk the acyclicity
+   *  rule and `set_after`'s loop refusal share. A duplicate would say one node
+   *  is in the way twice — and, read backwards, that one node has to be looked
+   *  at twice when the other's mark flips. The reverse is a `Set` for that
+   *  reason, so the two directions cannot disagree about how many edges a pair
+   *  of records means. */
   const edge = (from: string, to: string): void => {
     const existing = after.get(from)
     if (existing === undefined) after.set(from, [to])
     else if (!existing.includes(to)) existing.push(to)
+    const sources = edgesTo.get(to)
+    if (sources === undefined) edgesTo.set(to, new Set([from]))
+    else sources.add(from)
   }
 
   for (const { node } of nodes) {
@@ -341,7 +553,7 @@ const orderings = (
     if (isMirror(node)) continue
     for (const target of node.blocks ?? []) edge(named(target), node.id)
   }
-  return after
+  return { after, edgesTo }
 }
 
 /**

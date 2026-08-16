@@ -228,6 +228,33 @@ describe("placements", () => {
     expect(detail(at(), "bugs")).not.toHaveProperty("mirrors")
   })
 
+  /**
+   * ONE PLACEMENT PER ID, on a set the validator refuses.
+   *
+   * Two mirror records claiming `dupe` is a duplicate-id error, so this asks
+   * what a CONDEMNED set looks like — which is a real question, because a
+   * reader draws one beside the errors. The answer is the record that id
+   * means: `byId` is first-claim-wins, the format's one rule for duplicates,
+   * and `mirrors` is read out of an index keyed by id like every other. Two
+   * entries here would name a record `remove_mirror` could never reach, since
+   * that verb takes an ID and one of the two would always be the other.
+   *
+   * The rule is §3 of docs/brainstorming/model-indices.md — the tax an index
+   * charges for answering by id — and this is where it first shows.
+   */
+  test("two placements sharing an id are the one record that id means", () => {
+    const condemned = index(setOf({
+      "a.olai": [
+        `{"id":"node","ord":"a0","title":"the node"}`,
+        `{"id":"dupe","ord":"a1","mirror":"node"}`,
+      ].join("\n"),
+      "b.olai": `{"id":"dupe","ord":"a0","mirror":"node"}`,
+    }))
+    expect(detail(condemned, "node")?.mirrors).toEqual([
+      { id: "dupe", file: "a.olai", line: 2 },
+    ])
+  })
+
   /** WHAT IS ON THE LIST — the question the ledger is read with, and the one
    *  the ops layer could not answer at all before the 2026-08-11 review. */
   test("`placed` lists what a curated list holds, in sibling order", () => {
