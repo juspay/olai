@@ -202,7 +202,8 @@ export type Wrote = typeof Wrote.Type
  *   - `tool` — a tool call, foldable, updated in place by its own id, carrying
  *     what it CHANGED in whichever of the two vocabularies applies: a
  *     {@link FileDiff} per file it rewrote directly, or the node-level
- *     {@link Wrote} story of a write that went through the ops layer.
+ *     {@link Wrote} story of a write that went through the ops layer — and,
+ *     when a subagent made it, which `Agent` call it was made inside.
  *   - `ask` — a question the agent asked, as a form to answer: the options it
  *     offered, the boxes it left, and — once it has been answered — what was
  *     chosen. The turn is blocked on it while `ask.outcome` is `null`.
@@ -262,6 +263,18 @@ export const ChatEntry = Schema.Struct({
    *  The protocol's follow-along locations, which is what lets a reader see
    *  WHERE an agent is without unfolding anything. */
   locations: Schema.optionalKey(Schema.Array(Schema.String)),
+  /** `tool` only: the row of the `Agent` call this one was made INSIDE, when a
+   *  subagent made it — by that row's own key, so the panel looks the frame up
+   *  rather than mapping an id onto one.
+   *
+   *  It is what makes a turn with several agents in it READABLE. A subagent's
+   *  tool calls reach olai on the same flat feed as the main agent's, so
+   *  without this the panel drew them in one column, in one voice, and a
+   *  reader had no way to know that three agents had been spawned at all — let
+   *  alone which of them was the one grepping. The panel draws a row that has
+   *  it in a lane, indented behind a rail, under the frame it names. Absent for
+   *  the main agent's own calls, which are most of them. */
+  parent: Schema.optionalKey(Schema.String),
   /** `refusal` only: the refusal itself, so the panel draws what it carries —
    *  a validation report's rows, each at its own `file:line` — rather than
    *  printing a sentence about them. */

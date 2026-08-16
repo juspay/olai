@@ -28,6 +28,16 @@
  * The other half of "one spelling" is {@link nothing}: an optional field that
  * holds nothing is not written at all, so no writer can put `null`, `[]` or `""`
  * into a file where the format says the field is simply absent.
+ *
+ * THAT HALF OUTGREW "writing", and the header should say so rather than leave
+ * a reader to discover it. {@link nothing} and {@link heldCustom} — the same
+ * rule for the one field with an inside — are what "absent" MEANS in this
+ * format, and three readers ask them: this file, so nothing absent reaches a
+ * file; `./filter.ts`, so `has:` and `prop:` do not find what a file would not
+ * hold; and `@olai/ops`, so an ANSWER leaves out exactly what the line on disk
+ * leaves out. They are the only things here on the package's surface, and they
+ * are on it because a second copy of the rule is how a value becomes a thing to
+ * search for and no thing to write.
  */
 
 import { type Custom, type CustomValue, customKeys } from "./custom.ts"
@@ -127,7 +137,7 @@ export const serializeNode = (node: Node): string => {
   const record: Record<string, unknown> = {}
   for (const field of ORDER) {
     const value = field === "custom"
-      ? tidy((node as Record<string, unknown>)[field])
+      ? heldCustom((node as Record<string, unknown>)[field])
       : (node as Record<string, unknown>)[field]
     if (required.has(field) || !nothing(value)) record[field] = value
   }
@@ -135,8 +145,14 @@ export const serializeNode = (node: Node): string => {
 }
 
 /**
- * The `custom` map as it is written: canonical key order, and no key holding
- * nothing.
+ * The `custom` map a record actually HOLDS: canonical key order, and no key
+ * holding nothing.
+ *
+ * EMPTY for a record that holds none, which is `./custom.ts`'s `customOf`
+ * convention and not a second one — and it means this function answers only
+ * what the map holds, leaving "does that amount to anything" to {@link nothing}
+ * above, which already says an empty map is nothing. A caller asks the two in
+ * sequence; neither answers the other's question.
  *
  * The one field whose VALUE has an inside, so the two rules above it — one
  * spelling of absence, one spelling of a record — have to be applied one level
@@ -144,12 +160,25 @@ export const serializeNode = (node: Node): string => {
  * says, and a map that came back from JSON in whatever order somebody's editor
  * left it would make two equal files differ byte for byte.
  *
- * Pruned BEFORE the emptiness test above, which is the order that matters: a
- * map whose every key held nothing must not reach disk as `{"custom":{}}`.
+ * EXPORTED, alongside {@link nothing} and for the same reason its header gives.
+ * That one is on the package's surface because `has:` (./filter.ts) asks the
+ * same question from the other end, and a second answer to it would let a
+ * `desc` of `""` be a note to search for and no note to write. This is that
+ * sentence one map in, with a third end now asking: `@olai/ops` hands a node's
+ * map back on every hit and every read, and it was answering the map RAW — so a
+ * node carrying `{"custom":{"pr":""}}` reported `custom: {"pr": ""}` on a hit
+ * while `prop:pr`, which asks `nothing` of each value, correctly found nothing.
+ * One node, one query language, two answers. A read hands back what the file
+ * would hold by asking the module that decides what the file holds, rather than
+ * by carrying its own copy of the rule.
+ *
+ * Pruning happens BEFORE that test, which is the order that matters: a map
+ * whose every key held nothing comes back `{}` here, so `nothing` calls it
+ * nothing, and it reaches neither disk as `{"custom":{}}` nor an answer as one.
  */
-const tidy = (value: unknown): unknown => {
-  if (value === undefined || value === null || typeof value !== "object") return value
-  if (Array.isArray(value)) return value
+export const heldCustom = (value: unknown): Custom => {
+  if (value === undefined || value === null || typeof value !== "object") return {}
+  if (Array.isArray(value)) return {}
   const custom = value as Custom
   const out: Record<string, CustomValue> = {}
   for (const key of customKeys(custom)) {

@@ -119,6 +119,44 @@ describe("tool calls", () => {
       "in between",
     ])
   })
+
+  test("a subagent's call names the row of the Agent frame, not its id", () => {
+    // The panel looks the frame UP by what this field says, so what it says
+    // has to be a key of this collection — the same rule `ask` rows follow in
+    // the other direction. An id here would be a mapping somebody has to keep
+    // in step for nothing.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { title: "find the call sites" })
+    transcript.tool("call-1", { title: "Grep", parent: "toolu_01AGENT" })
+
+    expect(rows(transcript)[1]).toMatchObject({ parent: "tool:toolu_01AGENT" })
+    expect(transcript.entries().get("tool:toolu_01AGENT")).toBeDefined()
+  })
+
+  test("the main agent's own calls are in nobody's lane", () => {
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep" })
+    expect(rows(transcript)[0]?.parent).toBeUndefined()
+  })
+
+  test("a completion that forgets the agent does not take the row out of its lane", () => {
+    // The adapter stamps the attribution on a subagent's announcement and on
+    // most of what follows, and it has shapes that carry only a status. A row
+    // that read one of those as "no agent now" would step out of its lane at
+    // the moment the call finished — which is the moment a reader looks.
+    const transcript = new Transcript()
+    transcript.tool("call-1", {
+      title: "Grep",
+      status: "in_progress",
+      parent: "toolu_01AGENT",
+    })
+    transcript.tool("call-1", { status: "completed" })
+
+    expect(rows(transcript)[0]).toMatchObject({
+      status: "completed",
+      parent: "tool:toolu_01AGENT",
+    })
+  })
 })
 
 describe("questions", () => {

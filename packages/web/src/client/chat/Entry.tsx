@@ -35,6 +35,15 @@
  * enters the cache, and the text this component hands over is THROTTLED, so a
  * message re-renders a few times a second however fast the tokens land. What
  * that costs is bounded by the clock instead of by the agent.
+ *
+ * WHAT SEPARATES ONE ROW FROM THE NEXT is deliberately not here. A row used to
+ * carry its own bottom margin, which was fine until something had to draw a
+ * line ALONGSIDE a run of rows — a subagent's lane ({@link ./Transcript.tsx})
+ * — and found the gaps between them were somebody else's and had to be
+ * cancelled out by a matching negative. Two numbers in two files, one of them
+ * in a file that has no idea the other exists, and a spacing tweak here would
+ * have broken a rail over there with nothing to catch it. The list owns the
+ * gap now, because the list is what has rows to put gaps between.
  */
 
 import { nodeNamed } from "@olai/format"
@@ -121,7 +130,7 @@ export function Entry(props: {
 
   return (
     <div
-      class="mb-2 min-w-0"
+      class="min-w-0"
       data-testid={TESTID.chatEntry}
       data-kind={props.entry.kind}
       data-entry-id={props.entry.id}

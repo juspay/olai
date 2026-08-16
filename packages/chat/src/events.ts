@@ -75,6 +75,21 @@ export type AgentEvent =
     readonly wrote: Wrote | undefined
     /** Where it is working: the follow-along file locations. */
     readonly locations: ReadonlyArray<string> | undefined
+    /**
+     * WHO made it: the `Agent` call this one was made inside, by that call's
+     * own id — or `undefined` for a call the main agent made itself.
+     *
+     * The protocol has no such field, and that is the whole reason this one
+     * exists: a subagent's calls arrive on the same flat feed as everything
+     * else, so without it a turn that spawned three agents is drawn as one
+     * agent doing everything, and the reader cannot tell that the other three
+     * were ever there ({@link ./interpret.ts}'s `parentToolUseIn`).
+     *
+     * `undefined` reads as "unchanged" here like every field beside it, which
+     * costs nothing: a call is made where it is made, so nothing ever needs
+     * saying twice and nothing ever needs taking back.
+     */
+    readonly parent: string | undefined
   }
   /**
    * The agent asked a person something, and the turn is stopped until it is

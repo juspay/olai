@@ -93,8 +93,8 @@ export const allowedWithoutAsking = (
  * The programmatic name of a tool, out of a `_meta` the Claude Code adapter
  * puts it in.
  *
- * The one thing read out of an agent-specific `_meta` extension, and it is read
- * because the protocol proper does not carry it where it is needed: a
+ * Read out of an agent-specific `_meta` extension because the protocol proper
+ * does not carry it where it is needed: a
  * `session/request_permission` describes the call it is about with a DISPLAY
  * title, and "which tool is this" is the question the answer turns on. Every
  * `tool_call` the adapter emits carries the name here, and the adapter emits
@@ -105,11 +105,53 @@ export const allowedWithoutAsking = (
  */
 export const toolNameIn = (
   meta: { readonly [key: string]: unknown } | null | undefined,
+): string | null => stringIn(meta, "toolName")
+
+// ── which agent made a call ────────────────────────────────────────────
+
+/**
+ * The Agent call a tool call was made INSIDE — by the id of the `Agent`/`Task`
+ * call that spawned the subagent — or `null` for a call the main agent made
+ * itself.
+ *
+ * The second thing read out of that `_meta`, and it is there for the same
+ * reason the first one is: the protocol proper carries no notion of WHO made a
+ * call. Every `tool_call` arrives on one flat feed, so a subagent's `Bash` and
+ * the main agent's `Bash` are the same frame with the same shape — and a panel
+ * drawing them in one column is saying something false about the conversation,
+ * namely that one agent did all of it.
+ *
+ * The adapter knows better, and says so: it keeps a registry of the tasks it
+ * has seen start (`liveBackgroundTasks`, keyed by the subagent's own agent id)
+ * and stamps the spawning call's id onto every frame that comes out of one —
+ * the streamed `tool_call`, the `tool_call_update` that completes it, the
+ * permission request in between.
+ *
+ * A frame that says nothing here is the main agent's own, which is the losing
+ * direction this can afford: an agent that is not that adapter has no
+ * subagents as far as this panel is concerned, and the transcript looks exactly
+ * as it did before anything was read.
+ */
+export const parentToolUseIn = (
+  meta: { readonly [key: string]: unknown } | null | undefined,
+): string | null => stringIn(meta, "parentToolUseId")
+
+/** One field of the adapter's own corner of a `_meta`, when it is a non-empty
+ *  string and `null` for everything else — an absent `_meta`, an absent
+ *  `claudeCode`, a field of some other type, the empty string. The two readers
+ *  above are the same narrowing over two names, and a frame carries either,
+ *  both or neither: a subagent's terminal output arrives with a `claudeCode`
+ *  holding only the parent, and a plan exit's with only the name. */
+const stringIn = (
+  meta: { readonly [key: string]: unknown } | null | undefined,
+  field: string,
 ): string | null => {
-  const claude = meta?.["claudeCode"] as { readonly toolName?: unknown } | undefined
-  return typeof claude?.toolName === "string" && claude.toolName !== ""
-    ? claude.toolName
-    : null
+  const claude = meta?.["claudeCode"] as
+    | { readonly [key: string]: unknown }
+    | null
+    | undefined
+  const value = claude?.[field]
+  return typeof value === "string" && value !== "" ? value : null
 }
 
 // ── steering a turn that is already running ────────────────────────────

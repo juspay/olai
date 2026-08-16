@@ -122,7 +122,6 @@ export {
   customOf,
   customText,
   CustomValue,
-  isEmptyCustom,
   withCustom,
 } from "./custom.ts"
 export type { HasCustom } from "./custom.ts"
@@ -309,7 +308,14 @@ export { composed, MESSAGE_PREFIX } from "./message.ts"
 export { didYouMean, nearestId } from "./suggest.ts"
 
 export { ordBetween } from "./ord.ts"
-export { nodesOf, serializeOutline } from "./write.ts"
+/** `nothing` and `heldCustom` are the writer's two rules about absence — one
+ *  for a field, one for the field with an inside — on the surface because an
+ *  ANSWER asks exactly what a file asks. `./filter.ts` reaches for them from the
+ *  query's end for the reason `nothing`'s own header gives; `@olai/ops` reaches
+ *  for them from the answer's, so a field left out of a hit is a field left out
+ *  of the line on disk, decided once. A reader carrying its own copy answered a
+ *  property `prop:` says the node does not carry. */
+export { heldCustom, nodesOf, nothing, serializeOutline } from "./write.ts"
 
 export {
   BusyFailure,

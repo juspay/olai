@@ -39,7 +39,11 @@ The refusal reaches **every door**. The filter parses for itself and draws its o
 
 **Archived nodes are out of every reading unless the query says `is:archived`.** What was put away should stay put away until somebody asks, and now there is a way to ask.
 
-Title hits outrank id, tag and note; a field that starts with the word beats one that buries it; a done node loses ties. Hits carry `file:line`, the ancestor titles, the mark if the node has one, and the node's own `see` / `after` edges — plus `matched`, which field carried the words, absent for a query that named none. Mirrors are never hits — a placement is a second view of a node, not a node.
+Title hits outrank id, tag and note; a field that starts with the word beats one that buries it; a done node loses ties. Hits carry `file:line`, the ancestor titles, the mark if the node has one, the node's own `see` / `after` edges, and its `custom` properties — plus `matched`, which field carried the words, absent for a query that named none. Mirrors are never hits — a placement is a second view of a node, not a node.
+
+**A hit carries the properties, so a board is one query.** `prop:agent=claude-opus` answers with each lane's `pr` beside it; `prop:source=inbox` answers with whatever else those nodes were tagged with. Selecting by a property and then reading each hit back to see the fact you selected on was one call plus one per row, which is the shape a query already knew the answer to. The same map reaches a child in `read_node`'s list and a row of `read_subtree`, for the reason `see` and `after` do: one situated node, one set of fields, wherever it is answered.
+
+**The values travel whole** — not cut at a length, not reduced to their keys. A cut value is one no reader can tell from a short one, and the first thing it would cut is the half of a URL that makes it a link; keys alone would hand back the question instead of the answer, and would make `custom` a list on a hit and a map on a read, under one name. The dial on an answer's size is `limit` on the request, and that one is exact — a hit already carries `title` and `path`, which are unbounded prose somebody typed, and a property is a named fact smaller than either.
 
 `search_nodes` also takes a SCOPE: `file` is one outline, `under` is a node and everything beneath it. Those are the two scopes a page can be, so an agent can ask exactly the question a person asks by filtering one.
 

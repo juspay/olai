@@ -33,7 +33,7 @@ An unknown reference is nearly always a misspelling, so an error about one ends 
 
 The derivations are exported for exactly this reason: the browser draws the tree with the same code the validator judged it with.
 
-`src/custom.ts` is the record's one OPEN field, and the reason it is one field rather than an open record: the top level stays closed, so a key this format has no meaning for is still a `bad-record` naming it — which is what catches a typo'd `titel` — while `custom` takes any key a person wants. Two namespaces in two places, so which is which is a fact about where a key sits rather than a rule to remember. Beside it in `src/node.ts` is `shadowFor`, keyed by the record's own field names: a custom key spelled like a field is refused toward the verb that writes that fact, and a field added to the format without a sentence there is a compile error.
+`src/custom.ts` is the record's one OPEN field, and the reason it is one field rather than an open record: the top level stays closed, so a key this format has no meaning for is still a `bad-record` naming it — which is what catches a typo'd `titel` — while `custom` takes any key a person wants. Two namespaces in two places, so which is which is a fact about where a key sits rather than a rule to remember. Beside it in `src/node.ts` is `shadowFor`, keyed by the record's own field names: a custom key spelled like a field is refused toward the verb that writes that fact, and a field added to the format without a sentence there is a compile error. What the map HOLDS — pruned of keys holding nothing, keys sorted — is `src/write.ts`'s `heldCustom`, beside `nothing` and on the surface for the same reason: a file, a `prop:` query and an ANSWER all ask that question, and three copies of the rule is how a key becomes a thing to search for and no thing to write.
 
 `src/filter.ts` is the newest of them and the one whose placement is worth arguing: it says what a QUERY means — the words, the operators (`is:`, `has:`, `date:`, `-`), which nodes they select, and `keeping`, the row transform that narrows a tree to the matches with their ancestors, sibling of `withoutDone`. It is here rather than beside the search procedure in `@olai/ops` because the browser's filter runs on every keystroke over rows it already holds and cannot be a caller of that procedure — so the alternative was a client-side predicate written to the same paragraph, which is exactly how `is:done` comes to mean one thing to an agent and another to the box a person types in. One matcher, four callers; `Query.search` calls it as its gate and keeps the ranking.
 
@@ -80,7 +80,7 @@ It is never a text diff, and that is the format paying for itself in the other d
 | declaration | what answers with it |
 |---|---|
 | `Site` | not a read at all — the `{file, line}` under all of them, `src/node.ts` |
-| `Found` | every read. One node SITUATED — id, title, a `Site`, mark, ancestor titles, the edges it writes |
+| `Found` | every read. One node SITUATED — id, title, a `Site`, mark, ancestor titles, the edges it writes, and the `custom` properties it carries |
 | `OutlineSummary`, `OutlineAnswer` | `list_outlines` — a count and the top-level titles, per file |
 | `Detail`, `NodeAnswer` | `read_node` — the record, its tags, its children, its stamps, and a placement from both ends (`mirrors`, `placed`) |
 | `Subtree`, `SubtreeAnswer` | `read_subtree` — nested, and saying where a walk stopped |

@@ -24,6 +24,7 @@ import {
   modelNameIn,
   modelPickerIn,
   NEW_SESSION_META,
+  parentToolUseIn,
   STEER_METHOD,
   STEER_WHEN_IDLE,
   steerTaken,
@@ -205,6 +206,42 @@ describe("steering a turn that is already running", () => {
     // Truthy is not the word: an agent answering `outcome: true` said
     // something, and it did not say `injected`.
     expect(steerTaken({ outcome: true })).toBe(false)
+  })
+})
+
+describe("which agent made a call", () => {
+  test("a subagent's frame names the Agent call that spawned it", () => {
+    // What the adapter stamps onto every frame that comes out of a spawned
+    // task: the id of the `Agent`/`Task` tool call it was started by.
+    expect(parentToolUseIn({ claudeCode: { parentToolUseId: "toolu_01AGENT" } }))
+      .toBe("toolu_01AGENT")
+  })
+
+  test("the two readings of one `_meta` are independent", () => {
+    // A frame carries either, both or neither, and the adapter sends all three
+    // shapes: a streamed subagent `tool_call` carries the name AND the parent,
+    // its terminal output carries only the parent, and a plan exit only the
+    // name. Neither reader may need the other to be there.
+    const both = { claudeCode: { toolName: "Bash", parentToolUseId: "toolu_01AGENT" } }
+    expect(toolNameIn(both)).toBe("Bash")
+    expect(parentToolUseIn(both)).toBe("toolu_01AGENT")
+    expect(toolNameIn({ claudeCode: { parentToolUseId: "toolu_01AGENT" } })).toBeNull()
+    expect(parentToolUseIn({ claudeCode: { toolName: "Bash" } })).toBeNull()
+  })
+
+  test("a frame that says nothing is the main agent's own", () => {
+    // The losing direction this can afford: an agent that is not that adapter
+    // has no subagents as far as the panel is concerned, and the transcript
+    // looks exactly as it did before any of this was read.
+    expect(parentToolUseIn(undefined)).toBeNull()
+    expect(parentToolUseIn(null)).toBeNull()
+    expect(parentToolUseIn({})).toBeNull()
+    expect(parentToolUseIn({ someOtherAgent: { parentToolUseId: "x" } })).toBeNull()
+    expect(parentToolUseIn({ claudeCode: {} })).toBeNull()
+    expect(parentToolUseIn({ claudeCode: { parentToolUseId: "" } })).toBeNull()
+    expect(parentToolUseIn({ claudeCode: { parentToolUseId: 7 } })).toBeNull()
+    expect(parentToolUseIn({ claudeCode: null })).toBeNull()
+    expect(parentToolUseIn({ claudeCode: "toolu_01AGENT" })).toBeNull()
   })
 })
 
