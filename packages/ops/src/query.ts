@@ -367,11 +367,58 @@ export const subtree = (
 
 // ── the directory ──────────────────────────────────────────────────────
 
+/** What a listing has to say about one file, tallied as the nodes go past:
+ *  how many are its own, and the titles of the ones at its top level. */
+interface Tally {
+  nodes: number
+  readonly roots: Array<string>
+}
+
+/**
+ * The nodes counted into their files — ONE walk of the set, not one per file.
+ *
+ * The set is flat ({@link OutlineSet} says why), so "which nodes are this
+ * file's" is a scan, and asking it once per file makes listing a directory
+ * cost files × nodes with three scans per row: the file's own records, then
+ * the regular ones among them, then the roots among those. Four outlines never
+ * noticed; four hundred outlines over a few thousand nodes is the same answer
+ * arrived at a thousand times more slowly, and `list_outlines` is the FIRST
+ * call an agent makes on a directory it has not seen.
+ *
+ * The grouping is not kept on {@link Derived} beside the other indexes,
+ * because this is the only answer that wants it — every other walk here is
+ * keyed by id or by parent, both of which are already indexed, and a per-file
+ * map computed for every revision would be a fourth index carried for one
+ * caller.
+ *
+ * ORDER IS THE WALK'S, and that is what keeps the answer identical: roots come
+ * out in the order `derived.nodes` holds them — file order, as the old
+ * per-file filter also gave — rather than in sibling (`ord`) order, which is
+ * a different list whenever a root has been moved.
+ */
+const tallied = (derived: Derived): ReadonlyMap<string, Tally> => {
+  const byFile = new Map<string, Tally>()
+  for (const located of derived.nodes) {
+    // A mirror is a placement rather than a node, so it neither counts nor
+    // titles a row — the same rule {@link OutlineSummary}'s `nodes` states.
+    if (isMirror(located.node)) continue
+    let own = byFile.get(located.file)
+    if (own === undefined) {
+      own = { nodes: 0, roots: [] }
+      byFile.set(located.file, own)
+    }
+    own.nodes += 1
+    if (located.node.parent === undefined) own.roots.push(located.node.title)
+  }
+  return byFile
+}
+
 export const outlines = (
   set: OutlineSet,
   derived: Derived,
 ): ReadonlyArray<OutlineSummary> => {
   const broken = new Map(set.broken.map((entry) => [entry.file, entry.errors]))
+  const counted = tallied(derived)
   // ANNOTATED, so the row literals below are checked against the floor: a
   // field dropped from `OutlineSummary` fails HERE rather than only at the
   // table-driven decode. That is independent of what the rows hold, which is
@@ -388,13 +435,14 @@ export const outlines = (
         unreadable: errors.map(errorLine),
       }
     }
-    const own = derived.nodes.filter((located) => located.file === file)
+    // Absent for a file that holds no nodes at all — an outline can be empty,
+    // and `files` lists it either way, which is why the row is built from the
+    // list of FILES and only looked up here.
+    const own = counted.get(file)
     return {
       file,
-      nodes: own.filter((located) => !isMirror(located.node)).length,
-      roots: own
-        .filter((located) => located.node.parent === undefined && !isMirror(located.node))
-        .map((located) => (located as LocatedRegular).node.title),
+      nodes: own?.nodes ?? 0,
+      roots: own?.roots ?? [],
     }
   })
 }

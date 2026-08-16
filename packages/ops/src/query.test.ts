@@ -13,7 +13,7 @@ import { Found, type OutlineSet } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
 import { setOf } from "./fixtures.testlib.ts"
-import { detail, index, search, subtree } from "./query.ts"
+import { detail, index, outlines, search, subtree } from "./query.ts"
 
 /** A ledger: items in their sections, and a `Now` list made of placements —
  *  including one that CHAINS through another placement, which is the case
@@ -371,5 +371,65 @@ describe("a query is words and operators", () => {
     const answer = search(index(WORK()), { text: "is:done", limit: 1 })
     expect(answer.hits.map((hit) => hit.id)).toEqual(["book"])
     expect(answer.total).toBe(2)
+  })
+})
+
+/**
+ * What a listing says about a set of files — every arm of it in one fixture,
+ * because the walk that produces them is now one pass over the nodes and a
+ * lookup per file, and a lookup is a thing that can MISS.
+ *
+ * The three cases that miss differently are all here: a file whose nodes are
+ * in the walk, one that holds none at all (in `files`, absent from the tally),
+ * and one that did not parse (answered before the tally is consulted).
+ */
+describe("the directory", () => {
+  const DIRECTORY = (): OutlineSet =>
+    setOf({
+      "house.olai": [
+        // Written out of `ord` order on purpose: the roots a listing shows are
+        // the file's, in the order the file writes them.
+        `{"id":"garden","ord":"a1","title":"Garden"}`,
+        `{"id":"house","ord":"a0","title":"House"}`,
+        `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","todo":true}`,
+        // A mirror is a placement: it is neither counted nor a root, even
+        // sitting at the top level of the file.
+        `{"id":"shown","ord":"a2","mirror":"paint"}`,
+      ].join("\n"),
+      "empty.olai": "",
+      "shed.olai": `{"id":"shed","ord":"a0","title":"Shed"}`,
+    }, [], { "torn.olai": `{"id":` })
+
+  test("a row per file, in the order the directory lists them", () => {
+    expect(outlines(DIRECTORY(), index(DIRECTORY())).map((row) => row.file))
+      .toEqual(["house.olai", "empty.olai", "shed.olai", "torn.olai"])
+  })
+
+  test("a file's own regular nodes are counted, and its roots named in file order", () => {
+    const set = DIRECTORY()
+    expect(outlines(set, index(set))[0]).toEqual({
+      file: "house.olai",
+      nodes: 3,
+      roots: ["Garden", "House"],
+    })
+  })
+
+  test("an outline holding nothing says so, rather than saying nothing", () => {
+    const set = DIRECTORY()
+    expect(outlines(set, index(set))[1]).toEqual({
+      file: "empty.olai",
+      nodes: 0,
+      roots: [],
+    })
+  })
+
+  test("a file that did not parse carries its errors, and no count it could not take", () => {
+    const set = DIRECTORY()
+    expect(outlines(set, index(set))[3]).toEqual({
+      file: "torn.olai",
+      nodes: 0,
+      roots: [],
+      unreadable: [expect.any(String)],
+    })
   })
 })
