@@ -169,9 +169,15 @@ export function Result(props: {
               >
                 {/* The drawer's pairing: mono key, reading-face value. A
                     MATCHED key is drawn in the reading ink instead of the
-                    muted one — the row's answer to "why is this here" — which
-                    is a weight change rather than a colour, so it survives a
-                    reader who cannot tell the two hues apart. */}
+                    muted one — the row's answer to "why is this here."
+
+                    That is a LUMINANCE step (`text-ink` against `text-muted`),
+                    not a change of weight and not a hue: it reads for somebody
+                    who cannot separate two colours, and does not for somebody
+                    who cannot separate two greys. Which is why it is the second
+                    signal rather than the only one — ORDER is the first, and it
+                    survives everything, including a line ellipsized down to its
+                    first pair (`./props.ts` puts the matched keys in front). */}
                 <span
                   class={`font-mono ${prop.matched ? "text-ink" : "text-muted"}`}
                 >
