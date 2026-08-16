@@ -13,7 +13,7 @@ import { Found, type OutlineSet } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
 import { setOf } from "./fixtures.testlib.ts"
-import { detail, index, search, subtree } from "./query.ts"
+import { detail, index, outlines, search, subtree } from "./query.ts"
 
 /** A ledger: items in their sections, and a `Now` list made of placements —
  *  including one that CHAINS through another placement, which is the case
@@ -394,5 +394,49 @@ describe("a query is words and operators", () => {
     const answer = search(index(WORK()), { text: "is:done", limit: 1 })
     expect(answer.hits.map((hit) => hit.id)).toEqual(["book"])
     expect(answer.total).toBe(2)
+  })
+})
+
+/**
+ * What a listing says about a set of files — every arm of it in one fixture,
+ * because a row is answered by a LOOKUP into the grouped nodes, and a lookup
+ * is a thing that can miss.
+ *
+ * The three that miss differently are all here: a file whose nodes are in the
+ * grouping, one that holds none at all (in `files`, in no group), and one that
+ * did not parse (answered before the grouping is consulted).
+ */
+describe("the directory", () => {
+  const DIRECTORY = (): OutlineSet =>
+    setOf({
+      "house.olai": [
+        // Written out of `ord` order on purpose: the roots a listing shows are
+        // the file's, in the order the file writes them.
+        `{"id":"garden","ord":"a1","title":"Garden"}`,
+        `{"id":"house","ord":"a0","title":"House"}`,
+        `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","todo":true}`,
+        // A mirror is a placement: it is neither counted nor a root, even
+        // sitting at the top level of the file.
+        `{"id":"shown","ord":"a2","mirror":"paint"}`,
+      ].join("\n"),
+      "empty.olai": "",
+      "shed.olai": `{"id":"shed","ord":"a0","title":"Shed"}`,
+    }, [], { "torn.olai": `{"id":` })
+
+  /** The WHOLE listing in one assertion rather than four indexes into it: the
+   *  order is one of the claims, so a row pinned by position would be leaning
+   *  on a fact a sibling test owns. */
+  test("every file gets its row, in order, counted and titled by its own nodes", () => {
+    const set = DIRECTORY()
+    expect(outlines(set, index(set))).toEqual([
+      // Three regular nodes — the mirror is a placement, so it is neither
+      // counted nor a root — and the roots are in FILE order.
+      { file: "house.olai", nodes: 3, roots: ["Garden", "House"] },
+      { file: "empty.olai", nodes: 0, roots: [] },
+      { file: "shed.olai", nodes: 1, roots: ["Shed"] },
+      // The torn row carries `unreadable` BESIDE a zero and an empty list —
+      // the flat shape {@link OutlineSummary} holds knowingly.
+      { file: "torn.olai", nodes: 0, roots: [], unreadable: [expect.any(String)] },
+    ])
   })
 })
