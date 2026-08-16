@@ -483,23 +483,55 @@ test("create_outline mints a file through the same tool surface as every other w
 })
 
 /**
- * Marking a parent, all the way through. It used to be the refusal this whole
- * error taxonomy was built around; it is now an ordinary write, and what the
- * agent gets back instead is the NUDGE — the one task still open under the
- * branch it just ticked, as part of the answer rather than as a reason nothing
- * happened.
+ * Marking a parent over open work, all the way through — the agent's half of
+ * `done-over-open-work` (2026-08-16).
+ *
+ * It was the refusal this whole error taxonomy was built around; then #90 made
+ * it an ordinary write with a nudge; it is a refusal again, and this time for
+ * the opposite reason. #90's was structural — a stored mark contradicting a
+ * derived one — and this one is about what the mark DOES: done-hiding takes
+ * the branch, so a `done` over unfinished work is work off the page. Only
+ * `install` counts: `demo` is done, and `order` carries no mark at all, so it
+ * is a bullet rather than an unstarted task.
  */
-test("marking a parent lands, and the answer carries what the rollup noticed", async () => {
+test("marking a parent over unfinished work is refused, with the tasks as data", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
     const answer = await call(client, "set_done", { id: "kitchen" })
-    expect(answer.isError).toBe(false)
-    // Only `install` is unfinished: `demo` is done, and `order` carries no mark
-    // at all, so it is a bullet rather than an unstarted task.
-    expect(answer.structured["nudge"]).toContain("`install them`")
-    expect(answer.structured["nudge"]).not.toContain("order the cabinets")
+    expect(answer.isError).toBe(true)
+    expect(answer.structured["kind"]).toBe("usage")
+    expect(String(answer.structured["reason"])).toContain("`install them` (`install`, doing)")
+    expect(String(answer.structured["reason"])).not.toContain("order the cabinets")
+    expect(refusals).toEqual(["done: UsageFailure"])
+    // Nothing was written: a refusal is an answer, never a half-write.
+    expect(read("house.olai")).toBe(HOUSE)
+  })
+})
+
+/**
+ * The other door, through the same face: an agent files work under a branch
+ * whose `done` has gone stale, and the mark comes off rather than the write
+ * being refused — with the news riding the `nudge` field the answer already
+ * has, so no agent has to read it out of prose.
+ */
+test("filing work under a finished branch re-opens it, and the answer says so", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
+    // `order` is the bullet, so this is the first thing that makes the branch
+    // unfinished — and `demo` above it is where the stale mark sits.
+    const shut = await call(client, "set_done", { id: "order" })
+    expect(shut.isError).toBe(false)
+
+    const filed = await call(client, "add_node", {
+      parent: "order",
+      title: "chase the delivery date",
+      mark: "todo",
+    })
+    expect(filed.isError).toBe(false)
+    expect(String(filed.structured["nudge"])).toContain("`order the cabinets` was marked done")
+    expect(String(filed.structured["summary"])).toContain("(reopened: order the cabinets)")
     expect(refusals).toEqual([])
-    expect(read("house.olai")).toContain(`"id":"kitchen"`)
-    expect(read("house.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
+    // The stale mark is off the file, and the new work is in it.
+    expect(read("house.olai")).not.toContain(`"done":${JSON.stringify(STAMP)}`)
+    expect(read("house.olai")).toContain("chase the delivery date")
   })
 })
 

@@ -388,16 +388,17 @@ export const storedMarker = (node: LocatedRegular["node"]): Status | undefined =
 /**
  * The children of a node that are TASKS, each with the mark that makes it one.
  *
- * The whole of what children add up to, in one place, because the two things
- * anyone asks of it are two readings of this one list: how far along they are
- * ({@link progressOf}, an annotation) and which of them are still open
- * ({@link unfinishedUnder}, what a write-time nudge names). A second walk over
- * the same edges — the ops layer had one — is one computation in two copies,
- * free to disagree about whether a bullet counts.
+ * What a row's rollup is made of ({@link progressOf}, an annotation) and the
+ * first level of what {@link unfinishedWithin} walks — one decision about what
+ * counts as a task under a node, so a second walk over the same edges cannot
+ * disagree about whether a bullet is one.
  *
- * Only the node's own children: a deep count would answer a question no row is
- * asking. And never a mirror, which is a second view of a node rather than a
- * second obligation.
+ * Only the node's own children, because a ROLLUP is about the row it sits on:
+ * `3/5` beside a title counts the five things drawn under it, not the fifty
+ * below those. The gate that has to see the whole branch descends through this
+ * one level at a time ({@link unfinishedWithin}) rather than being handed a
+ * deep count here. And never a mirror, which is a second view of a node rather
+ * than a second obligation.
  */
 const tasksUnder = (
   derived: Derived,
@@ -439,15 +440,52 @@ export const progressOf = (derived: Derived, id: string): Progress | undefined =
   return { done, total: tasks.length }
 }
 
-/** The same list read the other way: the child tasks that are NOT done. A
- *  bullet is never among them — it is not a task, so there is nothing under it
- *  to finish — which is the rule a caller must not re-decide, and the reason
- *  this is here rather than at the one site that names them. */
-export const unfinishedUnder = (
+/**
+ * Every task in a node's SUBTREE that is not done — what a `done` on it would
+ * be a claim about, and what done-hiding would take off the screen with it.
+ *
+ * A bullet is never among them: it is not a task, so there is nothing under it
+ * to finish. That is the rule no caller may re-decide, and it is why this lives
+ * here rather than at the write that names them. A mirror is never among them
+ * either, and never walked into — a placement is a second VIEW of a node, not a
+ * second obligation, so the work it draws stays on screen at the node's own
+ * row whatever happens to the branch the placement sits in.
+ *
+ * DEEP, which is the 2026-08-16 change and the whole of `done-over-open-work`.
+ * It was the node's own children, on the reading that a nudge names what a
+ * person can see under the row they just ticked. But hiding is not one level:
+ * `withoutDone` drops a done row WITH its whole subtree, so a mark on a root is
+ * a claim about everything below it, and a gate that looked one level down
+ * would let a task two levels down be swept away by a write it never saw. The
+ * question this answers is exactly the one the sweep asks.
+ *
+ * In outline order — parent before child, siblings by `ord` — because a
+ * refusal that names them is read as a list of places to go.
+ *
+ * Cycle-safe like every walk here: a parent loop is a set the validator
+ * rejects, and this still has to answer over one.
+ */
+export const unfinishedWithin = (
   derived: Derived,
   id: string,
-): ReadonlyArray<LocatedRegular> =>
-  tasksUnder(derived, id).flatMap((task) => task.status === "done" ? [] : [task.at])
+): ReadonlyArray<LocatedRegular> => {
+  const open: Array<LocatedRegular> = []
+  const seen = new Set<string>([id])
+  // {@link counted} is what keeps the mirrors out, at every level rather than
+  // only the first — and the status lookup is the one its neighbour above
+  // makes, which is where "no mark means no task" is decided.
+  const descend = (at: string): void => {
+    for (const child of counted(derived.children, at)) {
+      if (seen.has(child.node.id)) continue
+      seen.add(child.node.id)
+      const status = derived.status.get(child.node.id)
+      if (status !== undefined && status !== "done") open.push(child)
+      descend(child.node.id)
+    }
+  }
+  descend(id)
+  return open
+}
 
 // ── what cannot start yet ──────────────────────────────────────────────
 
