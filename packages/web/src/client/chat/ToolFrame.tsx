@@ -41,11 +41,11 @@
 import { fileKind } from "@olai/format"
 import type { ChatEntry } from "@olai/surface"
 import { Key } from "@solid-primitives/keyed"
-import { Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { Diff } from "./Diff.tsx"
-import { isUnfolded, toggleFold } from "./folds.ts"
+import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
 import { Wrote } from "./Wrote.tsx"
 
@@ -68,6 +68,33 @@ const TONE: Record<string, string> = {
 export function ToolFrame(props: { readonly entry: ChatEntry }) {
   const open = () => isUnfolded(props.entry.id)
   const status = () => props.entry.status ?? "pending"
+  /**
+   * The blocks of change this call reported, each carrying the NAME that
+   * identifies it ({@link ./folds.ts}'s `diffKey`).
+   *
+   * The name is minted HERE, once, and used for both things a block has an
+   * identity for: the key the list below is drawn by, and the key its trim is
+   * remembered under. Two mintings would be two answers to "which block is
+   * this", free to disagree — and the crash this shape exists to prevent was
+   * exactly one of them being wrong.
+   *
+   * It carries the block's PLACE in the report, because a path does not name a
+   * block: the adapter reports an `Edit` as one `diff` per hunk of the patch,
+   * all under one path, so an edit that landed in three places is three blocks
+   * with one name between them. `<Key>` answers a repeated key with the SAME
+   * element repeated, which is a thing no list of DOM nodes may contain — the
+   * framework's reconciliation walks off the end of the array it is patching
+   * and throws mid-draw, taking the page with it.
+   *
+   * A memo, so the fresh objects are minted when the blocks move and not on
+   * every unrelated frame of the call.
+   */
+  const blocks = createMemo(() =>
+    (props.entry.diffs ?? []).map((diff, at) => ({
+      key: diffKey(props.entry.id, at, diff.path),
+      diff,
+    }))
+  )
   /** There is something to unfold when there is either half of a body. A frame
    *  with neither is one line and nothing to press. */
   const body = () =>
@@ -126,24 +153,30 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
       <Show when={props.entry.wrote}>
         {(wrote) => <Wrote wrote={wrote()} />}
       </Show>
-      {/* Keyed BY PATH rather than by position, the way every other list in
-          this app is keyed: a call is reported twice, and the second report
-          carries the same blocks in a fresh array — under `<For>` that is a
-          new object at the same index, which remounts the row and throws away
-          what it owns while a reader is looking at it. The rule the frame
-          itself follows, one list down. */}
-      <Key each={props.entry.diffs} by="path">
-        {(diff) => (
+      {/* Keyed BY THE BLOCK'S OWN NAME, the way every other list in this app is
+          keyed: a call is reported twice, and the second report carries the
+          blocks in a fresh array — under `<For>` that is a new object at the
+          same index, which remounts the row and throws away what it owns while
+          a reader is looking at it. The rule the frame itself follows, one list
+          down.
+
+          The name is the call, the place and the path, and it used to be the
+          path alone. That read as the same rule and was not: a path names a
+          FILE, and one call reports several blocks about one file — so three
+          hunks of one edit were three rows answering to one key, and the list
+          drew one element three times. See `blocks` above. */}
+      <Key each={blocks()} by="key">
+        {(block) => (
           /* Which SHAPE a change is drawn in is decided by the FILE and not by
              the tool: an outline is one line per node, so a text diff of one is
              a single enormous line — the rule the Commit panel has always had,
              and it holds for an agent's own `Edit` as much as for an olai
              write. */
           <Show
-            when={fileKind(diff().path) === "outline"}
-            fallback={<Diff call={props.entry.id} diff={diff()} />}
+            when={fileKind(block().diff.path) === "outline"}
+            fallback={<Diff id={block().key} diff={block().diff} />}
           >
-            <OutlineDiff call={props.entry.id} diff={diff()} />
+            <OutlineDiff id={block().key} diff={block().diff} />
           </Show>
         )}
       </Key>
