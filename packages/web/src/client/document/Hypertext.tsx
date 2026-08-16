@@ -13,7 +13,12 @@
  * which means a second route on the server, a second path guard on it, and a
  * second answer to "which files may be fetched" beside `/media/`'s. `srcdoc`
  * has none of that: there is no address, so there is nothing to guess, nothing
- * to traverse, and nothing an unauthenticated fetch could reach.
+ * to traverse, and nothing an unauthenticated fetch could reach. The file's own
+ * PICTURES do come off `/media/`, and that is the same route rather than a
+ * second one: this component hands the seal the origin and the file's path, and
+ * the seal points the file's relative addresses at the route markdown's
+ * pictures already travel (./sealed.ts, which argues why re-basing rather than
+ * rewriting is what a preview may safely do to somebody's markup).
  *
  * The HEIGHT is the page's OWN, and it is measured rather than assumed. It used
  * to be `70dvh` flat, because a frame sizes to its content only if something
@@ -64,7 +69,7 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { reportedHeight, sealed } from "./sealed.ts"
+import { type Framed, type Reading, reported, sealed } from "./sealed.ts"
 
 /**
  * How many times a page may walk the frame off its own document, per document
@@ -106,6 +111,14 @@ const WALK_OFFS = 3
 const PAGE_HEIGHT = "--page-height"
 
 export function Hypertext(props: { readonly file: string; readonly text: string }) {
+  // WHERE THIS FRAME IS, as the seal's two inputs. `location.origin` is the one
+  // thing the seal cannot say for itself and the reason it takes an argument at
+  // all: a `<meta>` policy has no keyword for "the origin that embedded me",
+  // and `'self'` inside an opaque origin matches nothing. Read HERE, at the
+  // only call site, so `./sealed.ts` stays a pure module a test can hand a
+  // hostile origin to.
+  const framed = (): Framed => ({ origin: location.origin, file: props.file })
+
   // The SEALED text, memoised — and it is the seal that has to be inside the
   // memo, not just the body. A collection entry is a fresh object on every
   // revision the server publishes, so without a memo the file would be copied
@@ -116,25 +129,44 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
   // property moves on every message the frame sends, which would concatenate a
   // megabyte and throw it away on each one. A memo CACHES, so the effect's
   // re-read is a pointer compare and the seal is built once per revision.
-  const source = createMemo(() => sealed(props.text))
+  const source = createMemo(() => sealed(props.text, framed()))
 
   const [measured, setMeasured] = createSignal<string>()
   let frame: HTMLIFrameElement | undefined
 
-  // The width the accepted height was measured at, and the reason it is kept:
-  // a page may be sized in `vh`. `min-height: 100vh` on a wrapper is ordinary in
-  // a saved dashboard, and its height is then the FRAME's height — so accepting
-  // every report would be a ladder, each one taller because the last one made
-  // the frame taller, climbing until the clamp ate it. (Measured, before this
-  // guard: a one-screen `100vh` page came out at 1798px against a 1800px bound.)
+  // The widths the accepted heights were measured at, and the reason they are
+  // kept: a page may be sized in `vh`. `min-height: 100vh` on a wrapper is
+  // ordinary in a saved dashboard, and its height is then the FRAME's height —
+  // so accepting every report would be a ladder, each one taller because the
+  // last one made the frame taller, climbing until the clamp ate it. (Measured,
+  // before this guard: a one-screen `100vh` page came out at 1798px against a
+  // 1800px bound.)
   //
-  // So a height is accepted ONCE PER WIDTH. Nothing under this seal can change a
-  // page's height at a fixed width — no script, no image, no web font, no fetch,
-  // all refused by the policy — so the only honest reason to re-measure is that
-  // the frame got wider or narrower and the text reflowed. That is exactly what
-  // this admits, and the vertical loop cannot form at all rather than being
-  // argued to converge.
-  let sizedAt: number | undefined
+  // So a height is accepted ONCE PER WIDTH, PER KIND — and there are two kinds
+  // because there are two moments a page's height is honestly different. A
+  // reflow at a new width is one, and it was the only one while the seal
+  // refused every fetch there was. A page whose PICTURES have arrived is the
+  // other: an `<img>` is a zero-tall box until its bytes land, so the reading
+  // taken when the document parsed is short by however tall the pictures turn
+  // out to be, and the frame's own `load` is when there is nothing left to wait
+  // for (`./sealed.ts` tags that reading, and argues why the tag has to come
+  // from in there rather than be guessed out here).
+  //
+  // TWO RUNGS, then, not an open ladder: at one width this accepts at most one
+  // measurement and at most one settled reading, both of which the frame sends
+  // once. A `vh` page can therefore climb exactly the difference the second
+  // reading sees and then stops, whatever else arrives — including from a
+  // document that walked off the seal and is running its own script, which is
+  // the only sender that could ever repeat a message on purpose.
+  //
+  // ONE RECORD, filed under the reading the frame named (`./sealed.ts`'s
+  // `Reading`), rather than a variable per kind. Two variables would be two
+  // things a new document has to remember to clear, and the rule that they
+  // clear together would live in whoever remembered to write both lines; here
+  // the whole record is replaced and the rule is the assignment. It is also
+  // what the sentence above says, spelled the same way in the code: one
+  // accepted width per reading.
+  let acceptedAt: Partial<Record<Reading, number>> = {}
   // Loads this component asked for. Every document it puts in the frame is one;
   // a `load` with none outstanding is the frame somewhere nobody sent it.
   let expected = 0
@@ -150,8 +182,8 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
   const show = (markup: string) => {
     if (frame === undefined) return
     expected += 1
-    // The height belonged to the document that is leaving.
-    sizedAt = undefined
+    // The heights belonged to the document that is leaving.
+    acceptedAt = {}
     setMeasured(undefined)
     frame.srcdoc = markup
   }
@@ -164,7 +196,7 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
     // Nobody asked for this document. The page walked the frame off its own
     // markup, and whatever is under there now has no seal over it.
     walkOffs += 1
-    show(walkOffs > WALK_OFFS ? sealed("") : source())
+    show(walkOffs > WALK_OFFS ? sealed("", framed()) : source())
   }
 
   // The message arrives on the WINDOW — there is no per-frame channel — so the
@@ -181,10 +213,12 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
   onMount(() => {
     const listen = (event: MessageEvent) => {
       if (event.source !== frame?.contentWindow) return
-      const height = reportedHeight(event.data)
-      if (height === undefined || frame.clientWidth === sizedAt) return
-      sizedAt = frame.clientWidth
-      setMeasured(`${height}px`)
+      const report = reported(event.data)
+      if (report === undefined) return
+      const width = frame.clientWidth
+      if (acceptedAt[report.reading] === width) return
+      acceptedAt[report.reading] = width
+      setMeasured(`${report.height}px`)
     }
     window.addEventListener("message", listen)
     onCleanup(() => window.removeEventListener("message", listen))
@@ -222,9 +256,11 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
       // DIFFERENCE between this component and a page that runs somebody's
       // JavaScript in this app's origin.
       sandbox="allow-scripts"
-      // Nothing is fetched from in there (the seal's `default-src 'none'` sees
-      // to that), so this is belt to that braces: were a directive ever
-      // loosened, the request still would not carry which page a reader is on.
+      // The one thing fetched from in there is a picture of this vault, off
+      // this same server (the seal's `img-src`), and nothing else is fetched at
+      // all. This is belt to those braces: the picture request does not carry
+      // which page a reader is on, and were a directive ever loosened, neither
+      // would whatever the loosening admitted.
       referrerpolicy="no-referrer"
       // The frame is a document in the page, so it gets a name a screen reader
       // can announce — the path, which is what the heading above it says too.

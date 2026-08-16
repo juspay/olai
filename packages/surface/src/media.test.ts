@@ -6,9 +6,10 @@
  * past. These are the ways past it that a URL can spell.
  */
 
+import { pictureOf } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { mediaHref, mediaTarget } from "./media.ts"
+import { mediaBase, mediaHref, mediaTarget } from "./media.ts"
 
 test("a picture under the root is what the route names", () => {
   expect(mediaTarget("/media/shot.png")).toBe("shot.png")
@@ -58,4 +59,58 @@ test("the href a picture is fetched from reads back as the picture", () => {
   for (const file of ["shot.png", "notes/art/a b.png", "a#b.png", "a?b.png"]) {
     expect(mediaTarget(mediaHref(file))).toBe(file)
   }
+})
+
+// ── the base a sealed preview resolves against ─────────────────────────
+
+test("a file's base is its own directory, and a root file's is the route", () => {
+  expect(mediaBase("report.html")).toBe("/media/")
+  expect(mediaBase("notes/report.html")).toBe("/media/notes/")
+  expect(mediaBase("a/b/c/deep.html")).toBe("/media/a/b/c/")
+  // A directory name is somebody's, and it lands in an HTML attribute at the
+  // other end (`sealed.ts`): the same per-segment encoding the whole route is
+  // built on is what makes that safe as well as correct.
+  expect(mediaBase(`he said "hi"/report.html`)).toBe("/media/he%20said%20%22hi%22/")
+})
+
+/**
+ * THE TWO WRITERS AGREE, which is the claim the preview is built on.
+ *
+ * A picture beside a `.md` is REWRITTEN — `@olai/format` resolves the address
+ * and {@link mediaHref} spells the URL. A picture beside a `.html` is not
+ * touched at all; the browser resolves it against {@link mediaBase}. Two
+ * mechanisms, and the promise is that they land on the same byte — so it is
+ * asserted here, against the browser's own resolver, rather than described in
+ * a PR.
+ */
+test("a preview's base lands where the markdown rewrite would have", () => {
+  const HOST = "http://olai.test"
+  for (
+    const [from, src] of [
+      ["report.html", "art/shot.png"],
+      ["notes/report.html", "art/shot.png"],
+      ["notes/report.html", "./shot.png"],
+      ["notes/deep/report.html", "../art/shot.png"],
+      ["notes/report.html", "art/a b.png"],
+    ] as const
+  ) {
+    const rewritten = mediaHref(pictureOf(from, src)!)
+    const resolved = new URL(src, HOST + mediaBase(from))
+    expect(resolved.href).toBe(HOST + rewritten)
+  }
+})
+
+// …and the ONE address where they do not, named rather than left to be
+// discovered: a `..` that climbs past the served root is CLAMPED for a
+// document (`resolveRelative` drops it, so the root's own file is drawn) and
+// REFUSED for a preview (the URL parser normalises the climb out of `/media/`,
+// which is outside the seal's `img-src` and outside this route). Both stay
+// inside the vault; the preview simply draws a subset of what the document
+// beside it may. It is asserted so that a change to either side has to come
+// past this test and say which answer it meant.
+test("a climb past the root is clamped for a document and refused for a preview", () => {
+  expect(mediaHref(pictureOf("report.html", "../outside.png")!)).toBe("/media/outside.png")
+  expect(new URL("../outside.png", `http://olai.test${mediaBase("report.html")}`).pathname)
+    .toBe("/outside.png")
+  expect(mediaTarget("/outside.png")).toBeNull()
 })

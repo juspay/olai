@@ -360,7 +360,11 @@
     a build wrote — is listed and previewed the same way, and is read rather
     than edited. It is drawn in a sandboxed frame with the strictest content
     policy there is in front of it: nothing in the file runs, nothing in it can
-    reach the app around it, and nothing in it fetches anything from anywhere.
+    reach the app around it, and the only thing it may fetch is a picture out
+    of your own directory — the same pictures, off the same route, a markdown
+    note beside it draws. A remote image, an inlined one, or an address
+    climbing out of the vault is refused before the request is made, so a saved
+    page cannot tell anybody else's server what you are reading.
     Exactly one script runs in there and it is olai's own, admitted by its
     hash and doing one job — reporting how tall the page is, so the frame is
     the height of what it holds instead of a fixed slice of the screen.</p>

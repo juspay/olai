@@ -29,15 +29,56 @@
  *      script below, in which case it is not their script, it is ours. The file
  *      cannot get the hash to match by reading it, either: matching it means
  *      being it.
- *   3. WHAT MAY BE FETCHED: nothing. `default-src 'none'` is the strictest
- *      directive there is — no image, no font, no stylesheet, no frame, no
- *      `fetch`, no `<form>` action, nothing over the network at all. The one
- *      exception is `style-src 'unsafe-inline'`, and it is what makes the
- *      preview worth having: a saved page's whole appearance is its own
- *      `<style>` block and its `style=` attributes, and inline CSS inside an
- *      opaque origin with every fetching directive at `'none'` cannot reach
- *      anything — a `url()` in it is an image request, and image requests are
- *      refused.
+ *   3. WHAT MAY BE FETCHED: the pictures of this vault, and nothing else in the
+ *      world. `default-src 'none'` is still the ground under everything — no
+ *      font, no stylesheet, no frame, no `fetch`, nothing over the network at
+ *      all — and it has exactly two exceptions, both of
+ *      them named. `style-src 'unsafe-inline'` is the older one, and it is what
+ *      makes the preview worth having: a saved page's whole appearance is its
+ *      own `<style>` block and its `style=` attributes. {@link mediaOn} is
+ *      the newer one, and it is a PATH rather than a scheme or a host —
+ *      `img-src <this app's origin>/media/`, the route that already answers a
+ *      markdown document's `![](shot.png)` and answers a picture under the
+ *      served directory or a 404 (`@olai/surface`'s `mediaTarget` is the guard
+ *      at that end, and `@olai/server`'s `media.ts` is the route). What that
+ *      admits is no more than the bytes any `.md` in the same
+ *      directory could already draw — a subset, in fact, since a `..` past the
+ *      root is clamped for a document and refused here (`@olai/surface`'s
+ *      `media.test.ts` holds both halves of that) — and this is the whole of
+ *      the widening: no remote host, no `data:`, no `'self'` (which would be
+ *      the app's own API surface, and is nothing here anyway — an opaque origin
+ *      matches no `'self'`), and nothing outside the served directory, because
+ *      the route at the other end of that path decodes, refuses `..` and demands a
+ *      picture extension before it opens a file. TWO GUARDS, then, and they are
+ *      independent: the policy decides what may be asked for, the route decides
+ *      what may be answered, and neither is trusted to be the other. That is
+ *      also the answer to the one weakness a path-restricted source has — a
+ *      redirect drops the path and leaves only the origin — since what is at
+ *      the end of this one is a static file engine over the served directory
+ *      with no index and no fallback, which has nowhere to redirect anybody
+ *      to.
+ *
+ *      AND `form-action 'none'`, which is here because `default-src` does NOT
+ *      cover it. That is the surprise worth writing down rather than assuming:
+ *      most directives fall back to `default-src`, and `form-action` is one of
+ *      the few that never has — so a `<form action="https://collector/">` in a
+ *      saved page was covered only by the SANDBOX (no `allow-forms`, so a
+ *      submit is blocked), which is a fact about the element rather than about
+ *      the markup. Everything else in this list is refused by the policy
+ *      itself; leaving one outgoing path to be caught by the attribute alone
+ *      would make the seal's promise — "nothing in the file reaches anywhere
+ *      but this vault's pictures" — true by an argument the reader has to make
+ *      elsewhere. It is now refused twice, and the policy is self-sufficient.
+ *      (opencode's review of this PR asked for exactly this.)
+ *
+ *      Which of the two speaks is worth knowing, because a reader will go
+ *      looking for the refusal and find the wrong sentence: Chromium checks the
+ *      sandbox flag FIRST, so what the console says today is "Blocked form
+ *      submission … because the form's frame is sandboxed" and the directive is
+ *      never reached. That is the point of having it — the second bar is for
+ *      the day the first one is not there, and `features/html_previews.feature`
+ *      reads the outcome (nothing left this server, the frame stayed put)
+ *      rather than either mechanism's wording.
  *
  * WHY A SCRIPT AT ALL, since the previous version of this file had none and
  * said so proudly. Because the frame's HEIGHT could not otherwise be an answer.
@@ -59,14 +100,16 @@
  * unable to see or touch this app; that is the same frame it was.
  *
  * Note the shape of what (2) and (3) now share, because it is the honest cost:
- * they are ONE STRING. A future edit that mangles {@link POLICY} so the meta
+ * they are ONE STRING. A future edit that mangles {@link policyOf} so the meta
  * does not bind takes down the script bar and the network bar together, and
  * origin isolation is what is left. That is a real reduction in independence,
  * and the mitigation is that the string is asserted twice — as a parsed
  * directive SET here (`./sealed.test.ts`) and as the exact text the browser was
- * handed (the e2e step imports {@link POLICY} rather than re-spelling it). Both
- * reviews of this PR landed on that sentence; it is written here rather than
- * softened.
+ * handed (the e2e step calls {@link policyOf} rather than re-spelling it). Both
+ * reviews of the PR that admitted the script landed on that sentence; it is
+ * written here rather than softened. What the picture directive adds to it is
+ * one more thing that string is load-bearing for, and one more reason the
+ * mangled-policy case fails a test rather than a reader.
  *
  * AND THE POLICY ONLY COVERS THIS DOCUMENT. A `<meta>` CSP binds the document
  * it is in; the `sandbox` attribute binds the browsing CONTEXT and outlives
@@ -96,16 +139,66 @@
  * the one that was taken, and the token that was contemplated is the one this
  * file forbids in the paragraph above.
  *
- * WHAT IT ALSO COSTS, unchanged from before: a `.html` that draws its pictures
- * from files beside it shows them as broken, because `img-src` is `'none'` and
- * a relative URL inside an opaque-origin frame has nothing to resolve against
- * anyway. The fix, when somebody wants it, is the one markdown already has —
- * rewrite each relative `src` to the `/media/…` route, which means parsing the
- * markup rather than handing it over whole. That is a different PR with a
- * different argument, and doing it badly is how a preview becomes a way of
- * serving files nobody meant to serve. Until then the promise is exact: what
- * you see is the file's own text and the file's own styling, and nothing else
- * was fetched.
+ * HOW A PICTURE COMES TO DRAW, which is what this file's previous version left
+ * as a cost and named the wrong fix for. It said: rewrite each relative `src`
+ * to `/media/…`, "which means parsing the markup rather than handing it over
+ * whole", and warned in the same sentence that doing it badly is how a preview
+ * becomes a way of serving files nobody meant to serve. The warning was right
+ * and the fix was the dangerous half of it. A rewrite of somebody's markup
+ * needs a tokeniser that agrees with the browser's about what an `<img>` even
+ * IS — inside a comment, inside `<script>`, inside `<template>`, with an
+ * unquoted attribute, spelled `<img/src=…>` — and every place the two disagree
+ * is a place where what was checked is not what runs. This app owns no such
+ * tokeniser and is not going to grow one for a preview.
+ *
+ * So the address is not rewritten. WHAT THE ADDRESS RESOLVES AGAINST is, and
+ * that is one element the seal already had a place for: `<base href>`, pointing
+ * at `/media/<this file's own directory>/` on this app's origin. Every relative
+ * URL in the file then resolves under the media route — an
+ * `<img src="art/shot.png">` in `notes/report.html` becomes
+ * `/media/notes/art/shot.png`, which is the exact URL the markdown beside it
+ * would have been rewritten to — and every address that is NOT vault-relative
+ * resolves somewhere it will not be answered. `https://tracker/pixel.png` is a
+ * host that is not this one and `data:…` is a scheme that is not this one; both
+ * are refused by `img-src` with no request made at all.
+ *
+ * A `..` is the case that deserves saying exactly rather than briskly, because
+ * WHERE THE CLIMB LANDS is what decides which of the two guards answers it. The
+ * URL parser normalises it before anything is fetched, and then either it has
+ * left the route — `../../../etc/passwd.png` from a base one directory deep is
+ * `/etc/passwd.png`, outside `img-src`, refused by the browser — or it has not,
+ * and a climb still under `/media/` has BY CONSTRUCTION named a file of this
+ * vault: `notes/../art/shot.png` is `art/shot.png`, the same address the
+ * markdown beside it would have resolved to. That one is a request, and the
+ * route is what answers it: a picture that is there, or a 404. Neither is a
+ * byte that was not already this reader's.
+ *
+ * The file is still handed over BYTE FOR BYTE; nothing is parsed, stripped or
+ * re-encoded; and the seal is still a prefix.
+ *
+ * It also covers what a rewrite would have had to chase one at a time. A
+ * `srcset` with its comma-separated candidates and descriptors, a
+ * `<picture><source>`, a `background: url(…)` in the page's own `<style>` — all
+ * of them are relative URLs, so all of them resolve exactly where an `<img
+ * src>` does, under the same directive. A rewriting pass would have had to
+ * learn each of those grammars, and the CSS one is a parser of its own.
+ *
+ * That element is also why the file's own `<base>` cannot take this over: a
+ * document's base is the FIRST `<base href>` in tree order, and the seal is in
+ * front of every byte of the file. (`./sealed.test.ts` and the probe fixture
+ * both assert it, because "ours is first" is a fact about the prefix that a
+ * later edit could quietly lose.)
+ *
+ * What it costs is stated as plainly as the old cost was. A relative LINK in a
+ * saved page now resolves under `/media/` too, so a click on one is a 404
+ * rather than the address it meant — it was already not that address (a
+ * `srcdoc` document had nothing to resolve against, and the click walked the
+ * frame off, which is what the load count in `./Hypertext.tsx` exists to
+ * catch), and a 404 is the more inert of the two wrong answers. And a page may
+ * now name any picture in the vault, not only the ones beside it, exactly as
+ * any `.md` in the same directory already can. It cannot say what it found:
+ * there is no script, and the only fetch it has is a picture request to this
+ * same server.
  *
  * Pure, and its own module, so the rule can be READ and asserted without a
  * browser: `./sealed.test.ts` is what says the policy has not been widened by
@@ -113,13 +206,16 @@
  * script and the directive that admits it cannot drift apart.
  */
 
+import { mediaBase, MEDIA_PREFIX } from "@olai/surface"
+
 /**
- * WHAT THE FRAME SAYS, and the whole of it: this prefix, then a number.
+ * WHAT THE FRAME SAYS, and the whole of it: one of these two prefixes, then a
+ * number.
  *
  * The two ends of a `postMessage` have to agree on a shape, and the producer
- * here is text inside a script that no compiler reads. So the agreement is ONE
- * CONSTANT, and both ends are in this module — {@link MEASURE} builds the
- * message out of it and {@link reportedHeight} takes it apart. Spelling it
+ * here is text inside a script that no compiler reads. So the agreement is
+ * THESE CONSTANTS, and both ends are in this module — {@link MEASURE} builds
+ * the message out of them and {@link reported} takes it apart. Spelling one
  * twice, once in the script and once in whatever parsed the result, is a rule
  * kept by memory across two files, and its failure mode is the worst kind:
  * nothing throws, no test goes red, the message simply stops being recognised
@@ -130,8 +226,32 @@
  * would put its key names in the same two places the tag would have been —
  * spelled in the script's text, spelled again in the parser — and buy nothing:
  * the receiver has to validate every byte either way.
+ *
+ * TWO of them, since pictures draw. A height read while the page is still
+ * arriving is a height with holes in it: an `<img>` that has not loaded is a
+ * zero-tall box, so the page under it is short by however much the pictures
+ * turn out to be. `load` is the moment there are no holes left, and the
+ * receiver has to be able to tell that reading from the ones before it —
+ * `./Hypertext.tsx` accepts one of EACH per width, which is what keeps a page
+ * sized in `vh` from climbing its own ladder (the argument is over there, where
+ * the counting is). Two prefixes rather than a field, for the reason there is a
+ * prefix at all: it is the smallest difference that survives the trip.
+ *
+ * A TABLE rather than two loose constants, because the two are one thing — the
+ * kinds of reading there are — and the receiver does not want a boolean it has
+ * to re-decide at every use. {@link Reading} is the key, {@link reported}
+ * returns it, and `./Hypertext.tsx` files its accepted widths UNDER it: one
+ * name, carried from the script that posts it to the record that remembers it,
+ * with nothing projecting it into a flag and back on the way.
  */
-const REPORT = "olai:page-height:"
+const READING = {
+  arriving: "olai:page-height:",
+  settled: "olai:page-loaded:",
+} as const
+
+/** Which of the two a message is: taken while the page may still be arriving,
+ *  or after its `load`, when there is nothing left to wait for. */
+export type Reading = keyof typeof READING
 
 /**
  * The one program allowed to run in there: a tape measure.
@@ -153,43 +273,56 @@ const REPORT = "olai:page-height:"
  * unguarded, because every path into `post` runs at `DOMContentLoaded` or
  * later, and by then there is a body.
  *
- * ONE mechanism does the measuring, and that is deliberate: a `ResizeObserver`
- * on the root box. It delivers a callback the moment it starts observing, which
- * is the first measurement, and again whenever that box changes — which is how
- * a page reflowing into a narrower window gets a frame that follows it. The
- * `load` event is not a second answer, because under this policy there is
- * nothing left for it to wait for: no image, font or stylesheet may be fetched
- * at all (`default-src 'none'`), so nothing can arrive between
- * `DOMContentLoaded` and `load` to move a line — and anything that somehow did
- * would resize the root box, which is the observer's whole job.
+ * TWO mechanisms do the measuring now, and they answer different questions. A
+ * `ResizeObserver` on the root box is the first: it delivers a callback the
+ * moment it starts observing, which is the first measurement, and again
+ * whenever that box changes — which is how a page reflowing into a narrower
+ * window gets a frame that follows it.
  *
- * `load` earns its place in one case only, and it is the case where the
- * observer does not exist: a browser without `ResizeObserver` gets one reading
- * at `DOMContentLoaded` and one more when everything has settled, which is the
- * best a page can do without one. Guarded rather than assumed, because an
- * exception thrown in here would surface as a console error on a page whose
- * whole point is that its console is quiet apart from the refusal.
+ * `load` is the second, and it is what pictures made necessary. It used to be
+ * unnecessary and this file said so at length: under the old policy nothing
+ * could be fetched at all, so nothing could arrive between `DOMContentLoaded`
+ * and `load` to move a line. An `<img src="art/shot.png">` is exactly such a
+ * thing — a box with no height until its bytes arrive — so the page's real
+ * height is not knowable until the pictures are in. That reading is TAGGED
+ * differently ({@link READING}'s `settled`), because the receiver cannot tell
+ * "the page grew because its pictures landed" from "the page grew because I
+ * made the frame taller and it is measured in `vh`", and it may only act on
+ * the first of those.
+ *
+ * It also does the job the old `load` handler did for a browser with no
+ * `ResizeObserver` — one reading at `DOMContentLoaded`, one more when
+ * everything has settled, which is the best a page can do without one. Guarded
+ * rather than assumed, because an exception thrown in here would surface as a
+ * console error on a page whose whole point is that its console is quiet apart
+ * from the refusals.
  *
  * Module-private, and the hash below is over these exact bytes — a space added
- * in here is a script the browser refuses. What guards that is `./sealed.test.ts`,
- * which does not read this constant: it digests the script out of {@link SEAL},
- * because the constant is not what a browser hashes, the markup is.
+ * in here is a script the browser refuses. What guards that is
+ * `./sealed.test.ts`, which does not read this constant: it digests the script
+ * out of a {@link sealed} with no file at all, because the constant is not what
+ * a browser hashes, the markup is.
  */
 const MEASURE = `(function () {
-  var post = function () {
+  var post = function (tag) {
     var page = document.documentElement
     parent.postMessage(
-      ${JSON.stringify(REPORT)} + Math.max(page.offsetHeight, document.body.scrollHeight),
+      tag + Math.max(page.offsetHeight, document.body.scrollHeight),
       "*"
     )
   }
+  var measure = function () {
+    post(${JSON.stringify(READING.arriving)})
+  }
   addEventListener("DOMContentLoaded", function () {
     if (typeof ResizeObserver === "function") {
-      new ResizeObserver(post).observe(document.documentElement)
+      new ResizeObserver(measure).observe(document.documentElement)
     } else {
-      post()
-      addEventListener("load", post)
+      measure()
     }
+    addEventListener("load", function () {
+      post(${JSON.stringify(READING.settled)})
+    })
   })
 })()`
 
@@ -204,7 +337,89 @@ const MEASURE = `(function () {
  * A stale number here fails there, before a reader finds out by getting a
  * preview quietly back on its fallback height.
  */
-const MEASURE_SHA256 = "us4k2KZhMs4F9qCA92R9shtdt2l8m461Oktfzwk7ZqU="
+const MEASURE_SHA256 = "woiCkKb0lFGJnVWaR6Vi4/Qsyk6TJMDz/bl1xCenCNc="
+
+/**
+ * WHERE A SEALED FRAME IS: the two facts about this app that reach a served
+ * file, and the only two.
+ *
+ * `origin` is this app's own — where the pictures are, and the one thing a
+ * `<meta>` policy cannot say for itself. There is no keyword for "the page that
+ * embedded me": `'self'` inside an opaque origin matches nothing, so the origin
+ * has to be SPELLED, which means it has to be handed in. It comes from
+ * `location.origin` at the one call site (`./Hypertext.tsx`) and this module
+ * stays pure and testable, which is the same trade every other decision here
+ * makes.
+ *
+ * `file` is the served path of the `.html` being shown, and what it decides is
+ * one thing: which directory a relative address in that file is relative TO.
+ * Same rule as a markdown picture (`@olai/format`'s `pictureOf` resolves beside
+ * the file the markdown was written in), reached by a different mechanism.
+ */
+export interface Framed {
+  readonly origin: string
+  readonly file: string
+}
+
+/**
+ * The one place a sealed frame may fetch from, as a CSP source and as the base
+ * of every relative address in the file — or NOTHING, for an origin this
+ * refuses to spell.
+ *
+ * Fail-closed, and that is the whole reason this is a function with a test
+ * rather than one interpolation. The origin is the only value from outside that
+ * lands unescaped inside a policy string and inside an HTML attribute, and both
+ * of those have exits: a `;` would open a directive of somebody's choosing, a
+ * `"` would close the attribute and start a tag. It cannot happen — the caller
+ * hands over `location.origin`, which a browser builds itself — and it is
+ * checked anyway, because "cannot happen" is a claim about a call site that a
+ * later edit can move. What a refused origin gets is not a mangled seal or a
+ * throw: it is the seal exactly as it was before pictures drew at all, with no
+ * `img-src` and no `<base>`, which is a preview that is missing something
+ * rather than a page that is missing a guard.
+ *
+ * A scheme, a host or a bracketed IPv6 literal, an optional port, and NOTHING
+ * ELSE — no path, no credentials, no query, so nothing that could carry a
+ * separator either language cares about. That is exactly the shape of an
+ * `origin`.
+ *
+ * AN ALLOWLIST RATHER THAN A PARSE, and the difference matters enough to write
+ * down because the tempting edit is `new URL(origin).origin === origin`. A URL
+ * parser is not this check: it is built to accept what browsers accept, and the
+ * forbidden-host set it enforces does not include `;` — so `http://a;b` parses,
+ * round-trips as its own origin, and would carry a directive of somebody's
+ * choosing straight into the policy. What is wanted here is the small set of
+ * shapes this app is served on, named, and nothing else.
+ */
+const ORIGIN = /^https?:\/\/(?:[a-z0-9.-]+|\[[0-9a-f:.]+\])(?::\d{1,5})?$/i
+
+/**
+ * A media URL on this app's own origin — the route itself for the policy's
+ * source, the file's own directory for its base — or NOTHING, for an origin
+ * this refuses to spell.
+ *
+ * ONE GATE, and that is why both callers come through here rather than each
+ * testing the origin for itself: the `img-src` and the `<base>` are two halves
+ * of one decision (a frame may draw this vault's pictures, or it may not), and
+ * two spellings of the check are two chances for a later edit to move one and
+ * leave the other. A seal with a base and no directive is a page asking for
+ * pictures it may not have; a directive with no base is a permission nothing
+ * uses.
+ *
+ * The PATH is `@olai/surface`'s in both cases ({@link MEDIA_PREFIX},
+ * {@link mediaBase}), and what this module adds is the origin — the part that
+ * package cannot know. A path-only base would resolve against the embedder's
+ * document, and the seal would rather say where it means than inherit it.
+ *
+ * A file path with a `.` or a `..` in it cannot arrive here — these are the
+ * paths a directory walk found — and if one did, the failure is closed rather
+ * than open: the URL parser normalises the segment away, the base lands
+ * somewhere that is not under `/media/`, and every relative address in the file
+ * is then refused by `img-src`. A preview with no pictures, not a preview with
+ * the wrong ones.
+ */
+const mediaOn = (origin: string, path: string): string | undefined =>
+  ORIGIN.test(origin) ? origin + path : undefined
 
 /**
  * What is put in front of the file's own markup.
@@ -228,36 +443,67 @@ const MEASURE_SHA256 = "us4k2KZhMs4F9qCA92R9shtdt2l8m461Oktfzwk7ZqU="
  * black text on the frame's own white ground, unreadable, with the file itself
  * blameless. A page that styles itself paints over this and is unaffected.
  *
- * The measure goes LAST of the four and still in front of every byte of the
- * file, so it is admitted by the policy above it and installed before the
- * file's own markup — including any `<script>` of its own, which the policy
- * refuses — has been parsed.
+ * Then the BASE, which is the addressing decision ({@link mediaOn}, at the
+ * file's own directory) and belongs in front of the file for a second reason
+ * beyond the parser's: a document's base is the first `<base href>` in tree
+ * order, so a saved page carrying one
+ * of its own — a real thing, since "save page as" writes them — finds ours
+ * already there. It is omitted entirely for a refused origin, and then the file
+ * has nothing to resolve against, which is where this preview started.
  *
- * {@link POLICY} is named apart from the markup that carries it because two
+ * The measure goes LAST and still in front of every byte of the file, so it is
+ * admitted by the policy above it and installed before the file's own markup —
+ * including any `<script>` of its own, which the policy refuses — has been
+ * parsed.
+ *
+ * {@link policyOf} is named apart from the markup that carries it because two
  * places read it and neither should re-spell it: `./sealed.test.ts` asserts the
  * whole set of directives, and the e2e step that reads the frame's `srcdoc` out
- * of a real browser (`packages/tests/step_definitions/html_steps.ts`) imports
- * it for the same reason the testids are imported — a policy widened here would
+ * of a real browser (`packages/tests/step_definitions/html_steps.ts`) calls it
+ * for the same reason the testids are imported — a policy widened here would
  * otherwise still read as sealed over there.
  */
-export const POLICY =
-  `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${MEASURE_SHA256}'`
-
-export const SEAL = "<!doctype html>" +
-  `<meta http-equiv="Content-Security-Policy" content="${POLICY}">` +
-  `<meta name="color-scheme" content="light">` +
-  `<script>${MEASURE}</script>`
-
-/** The file's markup, sealed — VERBATIM after the prefix, because the point of
- *  showing a `.html` is showing what it says. Nothing is stripped, rewritten or
- *  re-encoded: what makes that safe is the frame it is drawn in and the policy
- *  above it, not an edit to somebody else's file. */
-export const sealed = (markup: string): string => SEAL + markup
+export const policyOf = (origin: string): string => {
+  const pictures = mediaOn(origin, MEDIA_PREFIX)
+  return `default-src 'none'; style-src 'unsafe-inline'; ` +
+    `script-src 'sha256-${MEASURE_SHA256}'; form-action 'none'` +
+    (pictures === undefined ? "" : `; img-src ${pictures}`)
+}
 
 /**
- * The other end of {@link REPORT}: what a sealed frame said, as a height — or
- * nothing, which is the answer to every message that was not one of ours and
- * to every one of ours that made no sense.
+ * The file's markup, sealed — VERBATIM after the prefix, because the point of
+ * showing a `.html` is showing what it says. Nothing is stripped, rewritten or
+ * re-encoded, pictures included: what makes that safe is the frame it is drawn
+ * in, the policy above it and the base beside that, not an edit to somebody
+ * else's file.
+ *
+ * ONE builder, and the prefix has no name of its own. There used to be a
+ * `sealOf` beside this that built the seal alone, and nothing in the app called
+ * it: this function called it, and a test read it. Two exported names for one
+ * string is one more thing to keep in step for nothing — the seal alone is
+ * `sealed("", where)`, which is also what `./Hypertext.tsx` shows a page that
+ * keeps walking off, and it says what it is at the call site.
+ */
+export const sealed = (markup: string, where: Framed): string => {
+  const base = mediaOn(where.origin, mediaBase(where.file))
+  return "<!doctype html>" +
+    `<meta http-equiv="Content-Security-Policy" content="${policyOf(where.origin)}">` +
+    `<meta name="color-scheme" content="light">` +
+    (base === undefined ? "" : `<base href="${base}">`) +
+    `<script>${MEASURE}</script>` +
+    markup
+}
+
+/** What a sealed frame said: a height, and which reading it is. */
+export interface Report {
+  readonly height: number
+  readonly reading: Reading
+}
+
+/**
+ * The other end of {@link READING}: what a sealed frame said, as a report — or
+ * nothing, which is the answer to every message that was not one of ours and to
+ * every one of ours that made no sense.
  *
  * It lives HERE, beside the script whose output it reads, because the two are
  * one thing: a message format. Split across a module boundary it would be a
@@ -270,9 +516,22 @@ export const sealed = (markup: string): string => SEAL + markup
  * string as `0` and anything wordy as `NaN`, both of which fall out through the
  * same gate as a negative or an infinity. Rounded UP, because a fractional
  * layout truncated down is the last line of a page clipped by half a pixel.
+ *
+ * WHICH READING it is, is decided ONCE and then carried as a name. The two
+ * prefixes are separate strings and neither is the other's, so a message is one
+ * kind, the other, or nothing — and `settled` is never a claim the sender got to
+ * make by spelling a number oddly.
  */
-export const reportedHeight = (said: unknown): number | undefined => {
-  if (typeof said !== "string" || !said.startsWith(REPORT)) return undefined
-  const height = Number(said.slice(REPORT.length))
-  return Number.isFinite(height) && height > 0 ? Math.ceil(height) : undefined
+export const reported = (said: unknown): Report | undefined => {
+  if (typeof said !== "string") return undefined
+  const reading: Reading | undefined = said.startsWith(READING.settled)
+    ? "settled"
+    : said.startsWith(READING.arriving)
+    ? "arriving"
+    : undefined
+  if (reading === undefined) return undefined
+  const height = Number(said.slice(READING[reading].length))
+  return Number.isFinite(height) && height > 0
+    ? { height: Math.ceil(height), reading }
+    : undefined
 }

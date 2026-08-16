@@ -23,10 +23,38 @@ import { isPicture } from "@olai/format"
 
 export const MEDIA_PREFIX = "/media/"
 
-/** The URL a served picture is fetched from. Encoded per segment, so a
+/** Segments of a served path, as the URL spells them. ONE place, because the
+ *  two shapes below are the same encoding asked at two lengths — and because
+ *  `mediaTarget` decodes exactly this and nothing else. Per segment, so a
  *  directory in the path stays a path rather than a run of `%2F`. */
+const encoded = (segments: ReadonlyArray<string>): string =>
+  segments.map(encodeURIComponent).join("/")
+
+/** The URL a served picture is fetched from. */
 export const mediaHref = (file: string): string =>
-  MEDIA_PREFIX + file.split("/").map(encodeURIComponent).join("/")
+  MEDIA_PREFIX + encoded(file.split("/"))
+
+/**
+ * The URL a served file's own DIRECTORY is fetched under — trailing slash and
+ * all, which is what makes it a base rather than a name.
+ *
+ * The second reader of this route, and the reason it is spelled here rather
+ * than at that reader: a sealed `.html` preview (`@olai/web`'s
+ * `client/document/sealed.ts`) hands its frame a `<base href>` pointing at this
+ * URL, so every relative address the file wrote resolves onto the media route
+ * instead of nowhere. That is the same bijection {@link mediaHref} is one half
+ * of — a URL this module writes and `mediaTarget` reads back — and a second
+ * spelling of it, in a package that cannot import this one, is exactly the
+ * contract-kept-by-memory this file was written to prevent.
+ *
+ * A file at the root gets the bare prefix; there is no directory to name and no
+ * empty segment to invent (`/media//…` is two segments to `mediaTarget`, and
+ * the empty one is refused).
+ */
+export const mediaBase = (file: string): string => {
+  const directory = file.split("/").slice(0, -1)
+  return MEDIA_PREFIX + (directory.length === 0 ? "" : `${encoded(directory)}/`)
+}
 
 /**
  * What a `/media/…` request names, as a path relative to the served directory
