@@ -41,8 +41,11 @@
  *      markdown document's `![](shot.png)` and answers a picture under the
  *      served directory or a 404 (`@olai/surface`'s `mediaTarget` is the guard
  *      at that end, and `@olai/server`'s `media.ts` is the route).
- *      What that admits is the same set of bytes any `.md` in the same
- *      directory could already draw, and this is the whole of the widening: no
+ *      What that admits is no more than the bytes any `.md` in the same
+ *      directory could already draw (a subset, in fact: a `..` past the root is
+ *      clamped for a document and refused here — `@olai/surface`'s
+ *      `media.test.ts` holds both halves of that), and this is the whole of the
+ *      widening: no
  *      remote host, no `data:`, no `'self'` (which would be the app's own API
  *      surface, and is nothing here anyway — an opaque origin matches no
  *      `'self'`), and nothing outside the served directory, because the route
@@ -171,7 +174,7 @@
  * script and the directive that admits it cannot drift apart.
  */
 
-import { MEDIA_PREFIX } from "@olai/surface"
+import { mediaBase, MEDIA_PREFIX } from "@olai/surface"
 
 /**
  * WHAT THE FRAME SAYS, and the whole of it: one of these two prefixes, then a
@@ -334,6 +337,14 @@ export interface Framed {
  * ELSE — no path, no credentials, no query, so nothing that could carry a
  * separator either language cares about. That is exactly the shape of an
  * `origin`.
+ *
+ * AN ALLOWLIST RATHER THAN A PARSE, and the difference matters enough to write
+ * down because the tempting edit is `new URL(origin).origin === origin`. A URL
+ * parser is not this check: it is built to accept what browsers accept, and the
+ * forbidden-host set it enforces does not include `;` — so `http://a;b` parses,
+ * round-trips as its own origin, and would carry a directive of somebody's
+ * choosing straight into the policy. What is wanted here is the small set of
+ * shapes this app is served on, named, and nothing else.
  */
 const ORIGIN = /^https?:\/\/(?:[a-z0-9.-]+|\[[0-9a-f:.]+\])(?::\d{1,5})?$/i
 
@@ -341,22 +352,23 @@ const picturesOn = (origin: string): string | undefined =>
   ORIGIN.test(origin) ? origin + MEDIA_PREFIX : undefined
 
 /**
- * What every relative address in the file resolves against: the media route,
- * at the directory the file itself lives in.
+ * What every relative address in the file resolves against: the media route, at
+ * the directory the file itself lives in.
  *
- * Per segment through `encodeURIComponent`, which is what makes a file name
- * safe to put in an attribute as much as it is what makes it a URL: a directory
- * called `he said "hi"` comes out as `he%20said%20%22hi%22` and cannot end the
- * `href` it is inside. (`@olai/surface`'s `mediaHref` encodes the same way for
- * the same route; it takes a whole file path and this takes a directory, so the
- * shared thing between them is the route's prefix rather than a call.)
+ * The URL is `@olai/surface`'s ({@link mediaBase}) rather than this module's,
+ * and that is the whole of the decision here. What a `/media/…` URL looks like
+ * is one bijection with two ends — the client writes it, the server reads it
+ * back — and it is spelled in the package whose job is the contract both ends
+ * speak, beside the `mediaHref` a markdown picture is rewritten to and the
+ * `mediaTarget` the route decodes. A second spelling over here would be that
+ * contract kept by memory in a third place, and its failure is the silent
+ * direction: a base this module encoded differently is a preview whose pictures
+ * quietly stop drawing, or an address the route reads more loosely than the
+ * seal writes it.
  *
- * A TRAILING SLASH on every segment, including none for a file at the root, so
- * the base names a directory. Without it the last segment would be a file name
- * that every relative address replaces — `art/shot.png` beside `notes/x.html`
- * would resolve as `/media/art/shot.png` instead of `/media/notes/art/shot.png`
- * — which is not an escape (it is still under the route, still a picture, still
- * inside the vault) but is silently the wrong picture.
+ * What this module adds is the ORIGIN, which is the part `@olai/surface` cannot
+ * know: a path-only base would resolve against the embedder's document, and the
+ * seal would rather say where it means than inherit it.
  *
  * A path with a `.` or a `..` in it cannot arrive here — these are the paths a
  * directory walk found — and if one did, the failure is closed rather than
@@ -365,14 +377,8 @@ const picturesOn = (origin: string): string | undefined =>
  * refused by `img-src`. A preview with no pictures, not a preview with the
  * wrong ones.
  */
-const baseOf = (where: Framed): string | undefined => {
-  const pictures = picturesOn(where.origin)
-  if (pictures === undefined) return undefined
-  return pictures +
-    where.file.split("/").slice(0, -1)
-      .map((segment) => `${encodeURIComponent(segment)}/`)
-      .join("")
-}
+const baseOf = (where: Framed): string | undefined =>
+  ORIGIN.test(where.origin) ? where.origin + mediaBase(where.file) : undefined
 
 /**
  * What is put in front of the file's own markup.
@@ -422,21 +428,29 @@ export const policyOf = (origin: string): string => {
     (pictures === undefined ? "" : `; img-src ${pictures}`)
 }
 
-export const sealOf = (where: Framed): string => {
+/**
+ * The file's markup, sealed — VERBATIM after the prefix, because the point of
+ * showing a `.html` is showing what it says. Nothing is stripped, rewritten or
+ * re-encoded, pictures included: what makes that safe is the frame it is drawn
+ * in, the policy above it and the base beside that, not an edit to somebody
+ * else's file.
+ *
+ * ONE builder, and the prefix has no name of its own. There used to be a
+ * `sealOf` beside this that built the seal alone, and nothing in the app called
+ * it: this function called it, and a test read it. Two exported names for one
+ * string is one more thing to keep in step for nothing — the seal alone is
+ * `sealed("", where)`, which is also what `./Hypertext.tsx` shows a page that
+ * keeps walking off, and it says what it is at the call site.
+ */
+export const sealed = (markup: string, where: Framed): string => {
   const base = baseOf(where)
   return "<!doctype html>" +
     `<meta http-equiv="Content-Security-Policy" content="${policyOf(where.origin)}">` +
     `<meta name="color-scheme" content="light">` +
     (base === undefined ? "" : `<base href="${base}">`) +
-    `<script>${MEASURE}</script>`
+    `<script>${MEASURE}</script>` +
+    markup
 }
-
-/** The file's markup, sealed — VERBATIM after the prefix, because the point of
- *  showing a `.html` is showing what it says. Nothing is stripped, rewritten or
- *  re-encoded, pictures included: what makes that safe is the frame it is drawn
- *  in, the policy above it and the base beside that, not an edit to somebody
- *  else's file. */
-export const sealed = (markup: string, where: Framed): string => sealOf(where) + markup
 
 /** What a sealed frame said: a height, and whether it was said after the page's
  *  pictures had landed. */

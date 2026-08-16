@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 
 import { expect, test } from "bun:test"
 
-import { type Framed, policyOf, reported, sealed, sealOf } from "./sealed.ts"
+import { type Framed, policyOf, reported, sealed } from "./sealed.ts"
 
 /** One frame, as the two facts the seal is given about it: this app's origin,
  *  and the served path of the file being shown. Both are inputs now, so every
@@ -12,7 +12,7 @@ const WHERE: Framed = { origin: "http://127.0.0.1:4173", file: "notes/report.htm
 
 /** The seal that frame gets, which is what a browser is handed in front of the
  *  file. */
-const SEAL = sealOf(WHERE)
+const SEAL = sealed("", WHERE)
 
 /** The policy the seal carries, read back the way a browser reads it: every
  *  directive, with its source list. Parsed rather than matched, because what
@@ -182,9 +182,15 @@ test("the file's own markup is carried through untouched", () => {
 
 // The empty file, which a vault has more of than anyone expects (a `touch`, a
 // build that wrote nothing): still a sealed document rather than a blank string
-// the parser would take as "no policy".
+// the parser would take as "no policy". It is the same string `./Hypertext.tsx`
+// shows a page that will not stop walking off its own document, so what is
+// asserted is that an empty file gets the whole seal and nothing less.
 test("an empty file is still sealed", () => {
-  expect(sealed("", WHERE)).toBe(SEAL)
+  const out = sealed("", WHERE)
+  expect(out.startsWith("<!doctype html>")).toBe(true)
+  expect(policy(out)).toEqual(policy())
+  expect(scriptsIn(out)).toHaveLength(1)
+  expect(baseIn(out)).toBe("http://127.0.0.1:4173/media/notes/")
 })
 
 // ── what a relative address resolves against ───────────────────────────
@@ -197,9 +203,9 @@ test("an empty file is still sealed", () => {
 // the wrong one.
 test("a relative address resolves beside the file, on the media route", () => {
   expect(baseIn(SEAL)).toBe("http://127.0.0.1:4173/media/notes/")
-  expect(baseIn(sealOf({ ...WHERE, file: "report.html" })))
+  expect(baseIn(sealed("", { ...WHERE, file: "report.html" })))
     .toBe("http://127.0.0.1:4173/media/")
-  expect(baseIn(sealOf({ ...WHERE, file: "a/b/c/deep.html" })))
+  expect(baseIn(sealed("", { ...WHERE, file: "a/b/c/deep.html" })))
     .toBe("http://127.0.0.1:4173/media/a/b/c/")
 })
 
@@ -210,7 +216,7 @@ test("a relative address resolves beside the file, on the media route", () => {
 // so a directory with a quote in its name is a directory whose pictures draw
 // rather than a hole in the seal.
 test("a hostile directory name cannot break out of the base", () => {
-  const seal = sealOf({ ...WHERE, file: `he said "hi"/<b>&/report.html` })
+  const seal = sealed("", { ...WHERE, file: `he said "hi"/<b>&/report.html` })
   expect(baseIn(seal)).toBe("http://127.0.0.1:4173/media/he%20said%20%22hi%22/%3Cb%3E%26/")
   // The whole prefix, not just the href: no stray tag, no stray attribute, and
   // still exactly one script.
@@ -260,7 +266,7 @@ test("an origin that is not one gets no pictures and no base", () => {
       "",
     ]
   ) {
-    const seal = sealOf({ ...WHERE, origin })
+    const seal = sealed("", { ...WHERE, origin })
     expect(policy(seal)["img-src"]).toBeUndefined()
     expect(baseIn(seal)).toBeUndefined()
     // …and nothing else moved: the refusal is the old seal, not a mangled one.
@@ -282,8 +288,8 @@ test("the origins this app is actually served on are spelled", () => {
       "http://[::1]:3000",
     ]
   ) {
-    expect(policy(sealOf({ ...WHERE, origin }))["img-src"]).toEqual([`${origin}/media/`])
-    expect(baseIn(sealOf({ ...WHERE, origin }))).toBe(`${origin}/media/notes/`)
+    expect(policy(sealed("", { ...WHERE, origin }))["img-src"]).toEqual([`${origin}/media/`])
+    expect(baseIn(sealed("", { ...WHERE, origin }))).toBe(`${origin}/media/notes/`)
   }
 })
 
