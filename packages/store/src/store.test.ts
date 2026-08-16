@@ -323,6 +323,35 @@ test("`body` answers null for a file that is not there", () =>
       expect(yield* store.body("gone.blob")).toBeNull()
     })))
 
+// MEMBERSHIP IS THE PROBE'S, enforced rather than promised. A caller reaching
+// this with a path off a wire must not be able to name a file the walk pruned,
+// a file no codec claims, or a climb out of the root — none of them are in the
+// table the probe keeps, so none of them are opened, and each answers the same
+// `null` a file that is gone already answers.
+test("`body` reads a file of the SET, and nothing else on the disk", () =>
+  withStore(
+    {
+      "a.txt": "alpha",
+      "big.blob": "the whole saved page",
+      // Pruned by the walk, claimable by the codec's `match` — the case a
+      // suffix test alone would let through.
+      ".git/objects/secret.blob": "not part of any set",
+      // Claimed by nothing, so not in the table however readable it is.
+      "README": "not ours",
+    },
+    ({ store, root }) =>
+      Effect.gen(function*() {
+        expect(yield* store.body("big.blob")).toBe("the whole saved page")
+        expect(yield* store.body(".git/objects/secret.blob")).toBeNull()
+        expect(yield* store.body("README")).toBeNull()
+        // The climb, spelled as a path that WOULD resolve on this disk: the
+        // file is really there and really readable, and it is not in the set.
+        fs.writeFileSync(path.join(root, "..", "olai-outside.blob"), "somebody else's")
+        expect(yield* store.body("../olai-outside.blob")).toBeNull()
+        fs.rmSync(path.join(root, "..", "olai-outside.blob"))
+      }),
+  ))
+
 // A served directory is somebody's working tree. The walk does not enter the
 // machine-owned corners of one — which is both a correctness statement (nothing
 // in there is anyone's outline) and the reason a probe stays cheap while git is

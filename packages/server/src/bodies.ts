@@ -38,6 +38,12 @@
  * `keys`-style member for "who holds this key" upstream is what would replace
  * it, and until one exists the bound is the whole of the eviction story.
  *
+ * The set is the SERVER's rather than one connection's, so the number is paths
+ * across every reader at once, and what a closed tab leaves behind is a path
+ * whose file is re-read on the revisions that touch it until sixteen newer
+ * opens have pushed it out. That is the cost of not knowing when a reader
+ * leaves, and it is bytes read and dropped rather than bytes held.
+ *
  * ONE failure is quieter than it used to be, and it is a trade rather than an
  * oversight: a `.html` that cannot be READ (not gone — unreadable) reaches the
  * log, and the reader sees the page it already had, with no body under the

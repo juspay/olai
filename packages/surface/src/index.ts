@@ -179,13 +179,22 @@ export const DocumentEntry = Schema.Struct({
    * `kinds.ts`) — and it is admitted by this schema because that projection is
    * typed by it.
    *
-   * A READER is not shown one. A per-key `get` for a body the server does not
-   * hold answers nothing until the file has been read, which is the framework's
-   * own held-open-on-absent path: a browser waits one read rather than being
-   * told the body is missing, and a one-shot reader (an agent's
-   * `resources/read`, which takes the first frame and leaves) is handed the
-   * file rather than a `null`. The other way every entry could travel — the
+   * A reader ASKING FOR ONE is not shown it. A per-key `get` for a body the
+   * server does not hold answers nothing until the file has been read, which is
+   * the framework's own held-open-on-absent path: a browser waits one read
+   * rather than being told the body is missing, and a one-shot reader (an
+   * agent's `resources/read`, which takes the first frame and leaves) is handed
+   * the file rather than a `null`. The other way every entry could travel — the
    * batched `deltas` verb — is exactly what this collection does not have.
+   *
+   * ONE frame can still carry it, and it is worth being exact about which: the
+   * upsert that ANNOUNCES a key, for a file that has just appeared in the
+   * directory. That frame is how a collection says its membership changed, and
+   * it reaches anyone already subscribed to that key — which can only be a
+   * reader who asked for a file before it existed. It says what it says: the
+   * file is here, its body is not yet. A reader folds it the way it folds an
+   * entry that has not arrived, and hears the body on a later frame or on its
+   * next read.
    */
   text: Schema.NullOr(Schema.String),
 })

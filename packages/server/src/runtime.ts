@@ -48,7 +48,7 @@
  * the wire.
  */
 
-import { NOTHING_PENDING, unkept } from "@olai/format"
+import { NOTHING_PENDING } from "@olai/format"
 import { type Ops, Query, type Request, type Status } from "@olai/ops"
 import type {
   CommitRequest,
@@ -565,14 +565,15 @@ export const bind = (
            */
           readOne: (key) => {
             const entry = held?.documents.entries.get(key)
-            if (entry !== undefined && entry.text !== null) return entry
-            // A body this server does not hold — or a key that is not there
-            // YET, which the framework lets a reader subscribe to and which
-            // this asks about for the same reason: the read finds nothing now,
-            // the path is watched, and the file appearing is a revision that
-            // moves it. Asked of the FORMAT rather than of the entry, because
-            // that is the one question an absent entry cannot answer.
-            if (unkept(key)) bodies.opened(key)
+            // A KEY THE SET DOES NOT HOLD is nobody's to read. The framework
+            // lets a reader subscribe to a key before it exists, and answering
+            // that by reaching for the disk would be this server reading a path
+            // because somebody named one — off a suffix test, since an entry
+            // that is not there cannot say what kind of file it would be. The
+            // entry IS the membership answer, and it is right here.
+            if (entry === undefined) return undefined
+            if (entry.text !== null) return entry
+            bodies.opened(key)
             return undefined
           },
           upsert: () => {},

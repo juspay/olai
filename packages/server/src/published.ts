@@ -64,18 +64,22 @@ export interface Published {
    * The paths this revision moved whose BODY the set does not keep — what the
    * body reader has to read before anyone can be handed one (`./bodies.ts`).
    *
-   * It is here, beside the two collections, because it is the third thing one
-   * revision is: what to publish, what to drop, and what somebody still has to
-   * fetch. A caller deriving it by walking `documents.upserts` for a `null`
-   * would be re-asking a question this file has already answered — and the
-   * answer would have to agree with the one below, which decides what the
-   * collection is NOT told.
+   * It is here, beside the two collections, because it is the OTHER HALF of the
+   * decision below: an upsert this revision withholds from the collection is
+   * exactly a body somebody else owes a reader, and the two are decided in one
+   * pass so they cannot come to disagree about which those are.
    */
   readonly unread: ReadonlyArray<string>
 }
 
 /**
- * A revision's documents, split by WHO publishes them.
+ * The documents half of a revision: what the collection is told, and what is
+ * owed to the body reader.
+ *
+ * ONE function over ONE reading of the previous revision, which is the whole
+ * reason it is not two: the slice and the split both need "what the wire had
+ * before this", and two callers passing that separately are two callers who can
+ * pass different things.
  *
  * An entry carrying its text is sent as it is. An entry saying `null` is a body
  * the set does not keep, and it is the body reader's: writing that value to a
@@ -85,26 +89,36 @@ export interface Published {
  * A key this revision INTRODUCES is sent anyway, `null` and all, and that is
  * not an exception but the other thing an upsert does: it is how the collection
  * learns its MEMBERSHIP changed, which is what puts a new file in the sidebar.
- * Nobody can be showing a file that did not exist a moment ago, so there is
- * nothing to blank — and a reader who subscribed to the key before it existed
- * is already being watched, so the body follows on this same revision.
- *
- * `held` is what the wire had BEFORE this revision, which is the only thing
- * that can say whether a key is new. `null` — the first revision — makes every
- * key new, which is what it is.
+ * A reader cannot be SHOWING a file that did not exist a moment ago; one that
+ * subscribed to the key before it existed is holding an empty subscription and
+ * folds this the way it folds one that has not arrived (`@olai/surface`'s
+ * `DocumentEntry`), and asks again on the next revision it hears about.
  */
-const bodiesApart = (
-  documents: Change<DocumentEntry>,
+const documentsOf = (
+  snapshot: Snapshot<OutlineSet>,
   held: Change<DocumentEntry> | undefined,
-): Pick<Published, "documents" | "unread"> => ({
-  documents: {
-    ...documents,
-    upserts: documents.upserts.filter(([path, entry]) =>
-      entry.text !== null || held?.entries.has(path) !== true
-    ),
-  },
-  unread: documents.upserts.flatMap(([path, entry]) => entry.text === null ? [path] : []),
-})
+): Pick<Published, "documents" | "unread"> => {
+  const change = changeOf(
+    snapshot.value.documents,
+    (document) => document.file,
+    (document) => ({ rev: snapshot.rev, text: document.text }),
+    snapshot,
+    held,
+  )
+  // One pass, two lists: what to send, and what somebody has to read. A file is
+  // in exactly one of them unless it is BOTH new and bodyless, which is a key
+  // announced and a body owed — see above.
+  const upserts: Array<readonly [string, DocumentEntry]> = []
+  const unread: Array<string> = []
+  for (const [path, entry] of change.upserts) {
+    if (entry.text !== null) upserts.push([path, entry])
+    else {
+      unread.push(path)
+      if (held?.entries.has(path) !== true) upserts.push([path, entry])
+    }
+  }
+  return { documents: { ...change, upserts }, unread }
+}
 
 /**
  * One collection's slice of a revision: an entry per source, and the deltas.
@@ -183,15 +197,6 @@ export const publishedOf = (
       snapshot,
       published?.outlines,
     ),
-    ...bodiesApart(
-      changeOf(
-        set.documents,
-        (document) => document.file,
-        (document) => ({ rev: snapshot.rev, text: document.text }),
-        snapshot,
-        published?.documents,
-      ),
-      published?.documents,
-    ),
+    ...documentsOf(snapshot, published?.documents),
   }
 }

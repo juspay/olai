@@ -148,7 +148,8 @@ export interface Store<S, E> {
     write: Write,
   ) => Effect.Effect<Result.Result<Rev, E>, StaleWrite | PlatformFailure>
   /**
-   * One file's text, read NOW and kept by nobody — `null` if it is not there.
+   * ONE FILE OF THE SET, read NOW and kept by nobody — `null` for a path the
+   * last probe did not find.
    *
    * The read that is not the probe's, and the one place that is not a
    * contradiction: it does not decide what the set holds, it does not touch a
@@ -157,11 +158,17 @@ export interface Store<S, E> {
    * file's PATH, and whoever actually wants its content asks here, once, and
    * lets it go.
    *
-   * So the two readers cannot disagree about what is SERVED, which is the
-   * property that mattered: membership is the probe's answer and this can only
-   * be asked about a path. What it can be newer than is the revision the asker
-   * had — the file may have moved since — and that resolves itself, because a
-   * file that moved is a file the probe is about to report as changed.
+   * MEMBERSHIP IS STILL THE PROBE'S, and that is enforced here rather than
+   * promised: the path is looked up in the last probe's own table before
+   * anything is opened. So a caller cannot reach a file the walk pruned, a file
+   * no codec claims, or a name spelled to climb out of the root — none of them
+   * are in the table, and all of them answer `null`, which is the same answer a
+   * caller already handles for a file that is gone. A path that arrived over a
+   * wire names nothing on its own.
+   *
+   * What it CAN be is newer than the revision the asker had — the file may have
+   * moved since — and that resolves itself, because a file that moved is a file
+   * the probe is about to report as changed.
    */
   readonly body: (path: string) => Effect.Effect<string | null, PlatformFailure>
   /** Absolute, platform-spelled — what a post-publish hook hands to something
@@ -476,5 +483,11 @@ export const make = <F, S, E>(
     // between the read and the watch is invisible until the backstop.
     yield* refresh
 
-    return { snapshot, errors, refresh, commit, body: disk.read, resolve: disk.resolve }
+    const body = (path: string) =>
+      Effect.flatMap(
+        probe.holds(path),
+        (found) => found ? disk.read(path) : Effect.succeed(null),
+      )
+
+    return { snapshot, errors, refresh, commit, body, resolve: disk.resolve }
   })

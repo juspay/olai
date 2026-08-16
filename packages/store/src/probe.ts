@@ -64,6 +64,13 @@ export interface Probe<F, E> {
    *  asking the disk again for the files it is not touching would be a second
    *  read of the same bytes with a race in between. */
   readonly current: Effect.Effect<Decoded<F, E>>
+  /** Whether the last probe FOUND this file — membership, answered without
+   *  copying the table {@link current} would hand over. It is what makes an
+   *  on-demand read of one file ({@link Store.body}) a read of the SET rather
+   *  than of the disk: a path nothing listed is not a file of this store,
+   *  whether it was pruned, never claimed by the codec, or spelled to climb out
+   *  of the root altogether. */
+  readonly holds: (path: string) => Effect.Effect<boolean>
   /** Forget these files' stamps, so the next {@link run} re-reads them
    *  whatever the file system says about mtime and size.
    *
@@ -99,6 +106,9 @@ export const make = <F, S, E>(
           ),
       ),
 
+      holds: (path: string) =>
+        Effect.map(Ref.get(cache), (cached) => cached?.has(path) === true),
+
       forget: (paths: Iterable<string>) =>
         Ref.update(cache, (cached) => {
           if (cached === null) return null
@@ -124,29 +134,29 @@ export const make = <F, S, E>(
         if (settled) return null
 
         // ONE answer per stale file: what it decodes to, or `null` for one that
-        // was deleted between the stat and the read. A file the codec can
-        // decode from its NAME never reaches the disk at all — not at boot, not
-        // when it changes — and is otherwise a stale file like any other, so it
-        // is the same answer arrived at without a read ({@link Codec.byName}).
-        const fresh = new Map(
-          yield* Effect.forEach(
-            stale,
-            ([path]) => {
-              const named = codec.byName?.(path) ?? null
-              return named !== null
-                ? Effect.succeed([path, named] as const)
-                : Effect.map(
-                  disk.read(path),
-                  (contents) =>
-                    [
-                      path,
-                      contents === null ? null : codec.decode(path, contents),
-                    ] as const,
-                )
-            },
+        // was deleted between the stat and the read.
+        const fresh = new Map<string, Result.Result<F, E> | null>()
+        // The ones the codec answers for by NAME are answered first and never
+        // reach the disk at all — not at boot, not when they change
+        // ({@link Codec.byName}). Taken out of the list BEFORE the reads rather
+        // than resolved inside them: they need no file opened, so they should
+        // not be waiting on a permit from a pool that is there to bound how
+        // many files are open at once.
+        const opening: Array<string> = []
+        for (const [path] of stale) {
+          const named = codec.byName?.(path) ?? null
+          if (named === null) opening.push(path)
+          else fresh.set(path, named)
+        }
+        for (
+          const [path, contents] of yield* Effect.forEach(
+            opening,
+            (path) => Effect.map(disk.read(path), (contents) => [path, contents] as const),
             { concurrency: 16 },
-          ),
-        )
+          )
+        ) {
+          fresh.set(path, contents === null ? null : codec.decode(path, contents))
+        }
 
         const next = new Map<string, Cached<F, E>>()
         const changed: Array<string> = []

@@ -18,7 +18,7 @@
  * record is the same value it was.
  */
 
-import { codec, make as makeOps } from "@olai/ops"
+import { codec, make as makeOps, type Ops } from "@olai/ops"
 import type { OutlineError, OutlineSet } from "@olai/format"
 import type { DocumentEntry } from "@olai/surface"
 import * as Store from "@olai/store"
@@ -30,19 +30,30 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "./fault.ts"
-import { bind, gitWiring, writerAt } from "./runtime.ts"
+import { type Bound, bind, gitWiring, writerAt } from "./runtime.ts"
 
-/** Every member whose answer records WHO asked, as the wire spells them. A
- *  LITERAL rather than a derivation, deliberately: the thing under test is that
- *  a list somebody maintains by hand still says what they think it says, and a
- *  second derivation of it would agree with the first by construction. */
-const RECORDS_THE_WRITER = ["surface/git/commit", "surface/ops/run"]
-
-test("a face served under another writer differs by exactly the members that record one", async () => {
+/** One bound runtime over a directory of `files`, torn down with the scope —
+ *  the boot every test here needs and neither one is about. `watchFault` is
+ *  not ceremony: the runtime's `done` REJECTS when it is closed, so something
+ *  has to hold that catch or the teardown is an unhandled rejection the runner
+ *  attributes to whichever test happened to be running.
+ *
+ *  It yields the OPS layer beside the runtime because one test rebinds the
+ *  handlers against it; nothing else about the boot differs between them. */
+const withRuntime = <A>(
+  files: Readonly<Record<string, string>>,
+  use: (bound: {
+    readonly wired: { readonly bound: Bound }
+    readonly ops: Ops
+    readonly store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>>
+  }) => Effect.Effect<A, unknown>,
+): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-runtime-")))
-  fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"a"}\n`)
+  for (const [file, contents] of Object.entries(files)) {
+    fs.writeFileSync(path.join(root, file), contents)
+  }
 
-  await Effect.gen(function*() {
+  return Effect.gen(function*() {
     const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store.make({
       root,
       codec,
@@ -57,27 +68,36 @@ test("a face served under another writer differs by exactly the members that rec
       writer: "web",
       git: gitWiring(ops, yield* SubscriptionRef.make(0)),
     })
-    // The runtime's `done` REJECTS when it is closed, so something has to hold
-    // that catch or the teardown here is an unhandled rejection the runner
-    // attributes to whichever test happened to be running — `fault.ts`'s job,
-    // and the same pair every other test that binds a runtime keeps.
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
-
-    const agent = writerAt(wired.bound, ops, "mcp")
-
-    // The RECORD is the group's, exactly — which is also what `restrictHandlers`
-    // asserts before any face binds, so a mis-derived tag is a boot crash rather
-    // than a hole. Said here too because this is where the tags are derived.
-    expect(Object.keys(agent).sort()).toEqual(Object.keys(wired.bound.handlers).sort())
-
-    const rebound = Object.keys(wired.bound.handlers).filter(
-      (tag) => agent[tag] !== wired.bound.handlers[tag],
-    )
-    expect(rebound.sort()).toEqual(RECORDS_THE_WRITER)
+    return yield* use({ wired, ops, store })
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
-})
+}
+
+/** Every member whose answer records WHO asked, as the wire spells them. A
+ *  LITERAL rather than a derivation, deliberately: the thing under test is that
+ *  a list somebody maintains by hand still says what they think it says, and a
+ *  second derivation of it would agree with the first by construction. */
+const RECORDS_THE_WRITER = ["surface/git/commit", "surface/ops/run"]
+
+const OUTLINE = `{"id":"a","ord":"a0","title":"a"}\n`
+
+test("a face served under another writer differs by exactly the members that record one", () =>
+  withRuntime({ "a.olai": OUTLINE }, ({ wired, ops }) =>
+    Effect.gen(function*() {
+      const agent = writerAt(wired.bound, ops, "mcp")
+
+      // The RECORD is the group's, exactly — which is also what `restrictHandlers`
+      // asserts before any face binds, so a mis-derived tag is a boot crash rather
+      // than a hole. Said here too because this is where the tags are derived.
+      expect(Object.keys(agent).sort()).toEqual(Object.keys(wired.bound.handlers).sort())
+
+      const rebound = Object.keys(wired.bound.handlers).filter(
+        (tag) => agent[tag] !== wired.bound.handlers[tag],
+      )
+      expect(rebound.sort()).toEqual(RECORDS_THE_WRITER)
+    })))
 
 /**
  * A body the set does not keep, from the outside: the same `get` a browser
@@ -91,50 +111,31 @@ test("a face served under another writer differs by exactly the members that rec
  * which takes the first frame and leaves), and the process does not go on
  * holding it.
  */
-test("opening a `.html` reads its body onto that key, and nothing holds it", async () => {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-bodies-")))
-  fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"a"}\n`)
-  fs.writeFileSync(path.join(root, "report.html"), "<h1>Cabinet quote</h1>\n")
+test("opening a `.html` reads its body onto that key, and nothing holds it", () =>
+  withRuntime(
+    { "a.olai": OUTLINE, "report.html": "<h1>Cabinet quote</h1>\n" },
+    ({ wired, store }) =>
+      Effect.gen(function*() {
+        const get = wired.bound.handlers["surface/documents/get"]
+        if (get === undefined) throw new Error("the documents collection has no `get`")
 
-  await Effect.gen(function*() {
-    const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store.make({
-      root,
-      codec,
-      watch: false,
-      settle: "10 millis",
-    })
-    const ops = makeOps({ store, root, commits: "off" })
-    const wired = yield* bind({
-      store,
-      chat: null,
-      ops,
-      writer: "web",
-      git: gitWiring(ops, yield* SubscriptionRef.make(0)),
-    })
-    const runtime = yield* watchFault(wired.bound)
-    yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
-    yield* Effect.addFinalizer(() => runtime.stopped)
+        const frames = yield* Stream.runCollect(
+          Stream.take(get({ key: "report.html" }) as Stream.Stream<DocumentEntry>, 1),
+        )
+        expect([...frames]).toEqual([{ rev: 1, text: "<h1>Cabinet quote</h1>\n" }])
 
-    const get = wired.bound.handlers["surface/documents/get"]
-    if (get === undefined) throw new Error("the documents collection has no `get`")
-
-    const frames = yield* Stream.runCollect(
-      Stream.take(get({ key: "report.html" }) as Stream.Stream<DocumentEntry>, 1),
-    )
-    expect([...frames]).toEqual([{ rev: 1, text: "<h1>Cabinet quote</h1>\n" }])
-
-    // …and the projection is where it was: a path, and no bytes. This is the
-    // assertion the whole change is for.
-    const keys = yield* Stream.runCollect(
-      Stream.take(
-        wired.bound.handlers["surface/documents/keys"]?.({}) as Stream.Stream<
-          ReadonlyArray<string>
-        >,
-        1,
-      ),
-    )
-    expect([...keys]).toEqual([["report.html"]])
-    const set = yield* SubscriptionRef.get(store.snapshot)
-    expect(set?.value.documents).toEqual([{ file: "report.html", text: null }])
-  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
-})
+        // …and the projection is where it was: a path, and no bytes. This is the
+        // assertion the whole change is for.
+        const keys = yield* Stream.runCollect(
+          Stream.take(
+            wired.bound.handlers["surface/documents/keys"]?.({}) as Stream.Stream<
+              ReadonlyArray<string>
+            >,
+            1,
+          ),
+        )
+        expect([...keys]).toEqual([["report.html"]])
+        const set = yield* SubscriptionRef.get(store.snapshot)
+        expect(set?.value.documents).toEqual([{ file: "report.html", text: null }])
+      }),
+  ))

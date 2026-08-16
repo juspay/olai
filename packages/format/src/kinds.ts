@@ -150,10 +150,6 @@ export const fileKind = (path: string): FileKind | null => {
 export const holdsText = (kind: FileKind): kind is BodyKind =>
   FILE_KINDS[kind].holds === "text"
 
-/** Whether the loaded set keeps this kind's content, or only the path of a file
- *  that has one — {@link Claim.kept}, read the way `holdsText` reads `holds`. */
-const isKept = (kind: FileKind): boolean => FILE_KINDS[kind].kept
-
 /** The bodied file a path names, or `null` — `fileKind` with the outlines
  *  taken out, for the readers that only ever wanted the drawable ones (the
  *  page a `/doc/…` address opens, the link a markdown file makes). */
@@ -166,7 +162,8 @@ export const bodyKind = (path: string): BodyKind | null => {
  * Whether the set holds this file's PATH AND NOT ITS CONTENT — by name, which
  * is the form every caller wants: a `.html` is `true`, an outline and a
  * document are `false`, and so is a file no kind claims, since the set is not
- * holding that at all.
+ * holding that at all. It is the ONLY reader of the `kept` column, the way
+ * `bodyKind` is the only reader of `holds` outside {@link holdsText}.
  *
  * One question with one name, because three layers that cannot see each other
  * ask it and each of them was deriving it in two steps: the codec, which
@@ -178,7 +175,7 @@ export const bodyKind = (path: string): BodyKind | null => {
  */
 export const unkept = (path: string): boolean => {
   const kind = fileKind(path)
-  return kind !== null && !isKept(kind)
+  return kind !== null && !FILE_KINDS[kind].kept
 }
 
 /**
