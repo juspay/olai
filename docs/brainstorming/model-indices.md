@@ -1,59 +1,78 @@
-# The model wants indices: why every lookup walks every node
+# Why do lookups walk every node? (the case for indices)
 
-Status: brainstorming, opened 2026-08-16. Trigger: PR #198 fixed `list_outlines` walking O(files × nodes), and the same day surfaced `siblingsOf` doing the same thing (roadmap: `siblings-of-quadratic`). The human's question, verbatim: *"Why all these individual lookups? Aren't we mapping the data to in-memory, and keeping it in sync as files change, similar to how emanote does?"* This doc answers what olai actually does today, what emanote does, and where the real gap is. Receipts throughout; nothing here is a decision.
+Status: brainstorming, opened 2026-08-16.
+
+How this started: PR #198 fixed `list_outlines`, which was re-scanning every node of every file, three times per file. The same day we found a second helper (`siblingsOf`) with the same problem, and the human asked the bigger question: *"Why all these individual lookups? Aren't we mapping the data to in-memory, and keeping it in sync as files change, similar to how emanote does?"*
+
+This document answers that with evidence from both codebases. Nothing here is a decision.
 
 ## What olai does today
 
-The good news first: olai **is** an in-memory model kept in sync with files. The store's probe re-lists and stats on every watcher event but re-reads and re-decodes only stale files (`store/src/probe.ts:104-160`, per-file decode cache with mtime+size stamps). Reads and writes within one revision share one derivation via a `WeakMap<OutlineSet, Derived>` keyed on set identity (`ops/src/query.ts:95-110`).
+First, the part that's fine: **olai does keep everything in memory, and it does stay in sync with files.** When a file changes on disk, only that file is re-read and re-parsed; unchanged files reuse their cached parse (`store/src/probe.ts:104-160`). And within one revision of the data, reads and writes share one computed view instead of each computing their own (`ops/src/query.ts:95-110`).
 
-The bad news is everything above the file parse:
+The problem is what happens *after* parsing. Two problems, really:
 
-**1. Two indices exist; the by-file index doesn't.** `Derived` (`format/src/derive.ts:54-90`) holds the flat `nodes` array plus five maps — but only `byId` and `children` (parent → children) are lookups; the rest are marks/edges. `OutlineSet` itself is deliberately flat (`format/src/set.ts:1-16` argues grouping by file "would be the same fact twice"). Consequence: **every "what is in this file" question is a corpus scan.** The scan table, hot sites first:
+### Problem 1: almost nothing is indexed
 
-| site | shape | when it runs |
+All nodes from all files live in one flat array. On top of that array, olai computes a view called `Derived` (`format/src/derive.ts:54-90`), which contains exactly two lookup tables: node-by-id, and children-by-parent.
+
+There is **no table from a file to its nodes**. So every question of the form "what's in this file?" is answered by walking the entire array and checking each node's `.file`. And that question is asked constantly:
+
+| where | what it does | how often |
 |---|---|---|
-| `siblingsOf` (`derive.ts:136`) roots branch | filter all nodes by file + sort | every page render, every structural keystroke, every undo, 6 sites per write in `plan.ts` |
-| `matching` (`filter.ts:676`) | walk all nodes | every palette keystroke, every `search_nodes` |
-| `nodesOf` (`write.ts:209`) | filter all nodes by file + sort | per rewritten file, every write |
-| `sorted.ts:93` | walk all nodes | every write (commit message) |
-| `dependents` (`plan.ts:2762`) | full scan × `targetsOf` | every remove/archive |
-| `plan.ts:2143` | candidates × nodes loop | writes with candidate files (the #198 shape, still live) |
-| `TrashPage.tsx:51` | files × nodes | trash page (the #198 shape, still live) |
+| `siblingsOf` (`derive.ts:136`) | walks all nodes to find a file's roots | every page render, every structural edit, every undo, and 6 places on every write |
+| `matching` (`filter.ts:676`) | walks all nodes | every keystroke in the search palette |
+| `nodesOf` (`write.ts:209`) | walks all nodes to find a file's lines | every write |
+| `sorted.ts:93` | walks all nodes | every write (builds the commit message) |
+| `dependents` (`plan.ts:2762`) | walks all nodes, checks each one's links | every remove/archive |
+| `plan.ts:2143` | walks all nodes once *per candidate file* | some writes — the exact shape #198 fixed elsewhere |
+| trash page (`TrashPage.tsx:51`) | walks all nodes once *per file* | opening the trash — again the #198 shape |
 
-**2. Derivation is never incremental, and runs three times per keystroke-batch.** One draft commit costs: a full listing+stat sweep; `codec.validate` doing a whole-corpus `assemble` + `derive` + 6 rule passes on the candidate; a second full sweep after staging; `publish` doing a **second** whole-corpus assemble+derive+rules; then the browser flatMaps every file back into one array and re-runs `derive` over the entire corpus a third time (`web/src/client/outlines.ts:68-89`). Only the wire is per-file-incremental (`published.ts:80-98` reuses unchanged files' entries). ≈2 server derives + 1 client derive + 2 stat sweeps, per keystroke-batch. The revision-keyed memo cannot help: the two validate-derives run over a set that doesn't exist yet.
+### Problem 2: the computed view is rebuilt from scratch, three times per edit
+
+When you type one character and it commits, here is what actually runs:
+
+1. The server validates the change: it reassembles the flat array from **every** file and recomputes `Derived` over **all** nodes, plus six validation passes. (Whole corpus, even though one file changed.)
+2. After the write lands, the server publishes: it reassembles and recomputes **again**, over everything. (Second whole-corpus pass.)
+3. The browser receives the update and recomputes its own `Derived` over **all** nodes a third time (`web/src/client/outlines.ts:68-89`).
+
+Plus two full "list and stat every file" sweeps along the way. Only the file *parsing* step is incremental. So: one small edit ≈ three whole-corpus recomputations. The caching that exists can't help here, because it's keyed on "this exact revision of the data," and steps 1 and 2 each run on data that isn't a published revision yet.
 
 ## What emanote does
 
-Emanote's `Model` (`Emanote/Model/Type.hs:53-91`) is a bag of **ixset-typed** indexed sets. Notes carry seven indices — source route, every wikilink spelling, html route, xml route, every ancestor folder, parent folder, slugs (`Model/Note.hs:80-108`). Rels are indexed by source *and* by unresolved target, which is what makes backlinks an index union instead of a scan (`Model/Graph.hs:195-199`).
+Emanote keeps one in-memory `Model` (`Emanote/Model/Type.hs:53-91`) built out of **indexed sets** (the `ixset-typed` library). A note is findable seven different ways without scanning: by its source path, by every spelling of a wikilink that could point to it, by its output URL, by its feed URL, by every ancestor folder, by its parent folder, and by its aliases. Links are indexed both by *source* and by *target* — which is why "what links here?" (backlinks) is an index lookup, not a scan (`Model/Graph.hs:195-199`).
 
-**Sync is per-file, not per-corpus.** unionmount streams per-file changes; each becomes one `Model -> Model` transformer (`Source/Dynamic.hs:58-100`, `Source/Patch.hs:75-166`): parse the one file, `updateIx` its note, swap its rels/tasks in the index (`Type.hs:156-169`). A deleted Lua filter re-parses only its dependents via a hand-maintained reverse-dep map. Nothing above the changed file is rebuilt — with two honest exceptions: the Stork search index is invalidated whole and rebuilt lazily on first read, and the folgezettel tree is recomputed whole per update (the one O(notes × links) eager pass).
+When a file changes, emanote does **not** rebuild the model. The file-watcher hands it one file; it parses that one file and swaps that one entry (and its links) in the indexed sets (`Source/Patch.hs:75-166`, `Type.hs:156-169`). Everything else stays put.
 
-**And emanote still scans where it chose not to index**: tag queries rebuild the whole tag→notes map on every call (`Model/Meta.hs:81-83` — tags can be cascade-inherited, so a pure `ixFun` can't express them), and path-glob queries walk `Ix.toList`. ~24 full-traversal sites exist.
+Two honest exceptions, and they matter:
 
-## The gap, distilled
+- The **full-text search index** is thrown away on any change and lazily rebuilt the first time someone searches. (The search engine can't update incrementally, so emanote doesn't try.)
+- The **notebook tree** shown in the sidebar is recomputed whole on every change — the one deliberately-expensive pass.
+- And **tag queries scan**: emanote rebuilds the whole tag→notes map on every tag query, because inherited tags can't be expressed as a pure index. About 24 scan-everything call sites exist in emanote too.
 
-The difference is not "in-memory vs not" — both are in-memory and file-synced. It is two specific things:
+So even emanote's answer isn't "index everything, recompute nothing." It's: **index the questions you ask constantly; let rare or awkward questions stay expensive.**
 
-1. **Indices follow queries.** Emanote indexed exactly what its hot paths ask (route, link, ancestor); olai's hot paths ask *by file* on every keystroke and no such index exists. This is the cheap half of the gap.
-2. **The unit of recomputation.** Emanote's unit is the changed file; olai's is the corpus, ×3. This is the expensive half — and emanote's own exceptions (Stork, folgezettel, tags) show full incrementality is not a religion even there. The lesson is subtler: *make the common change cheap, let the rare expensive thing be lazy or accepted.*
+## The gap, in one paragraph
 
-## Directions (none decided)
+Both systems keep the data in memory and in sync with files. The difference is (1) emanote has a lookup table for each of its hot questions, olai has tables for two questions and scans for the rest — including the by-file question it asks on every keystroke; and (2) emanote's unit of recomputation is *the changed file*, olai's is *the whole corpus, three times over*.
 
-**A. Grow `Derived` by one map.** `byFile: Map<string, Located[]>` (line-sorted), built in the same pass `derive` already makes. Kills the entire scan table's by-file rows including `siblingsOf`, `nodesOf`, the trash page, and `plan.ts:2143`. Does nothing about the ×3 rebuild. This is likely what `siblings-of-quadratic` becomes — grok's #198 review warned "do not close that item by extracting blindly"; this direction is the non-blind extraction: the grouping moves *into* `Derived` where it's paired with its revision, instead of being a fourth ad-hoc `Map.groupBy`.
+## Possible directions (none decided)
 
-**B. Derive once per revision, not thrice.** Thread the validate-time `Derived` through to publish instead of recomputing; ship the client something it doesn't have to re-derive, or accept the client derive (it's once per revision, memoized, and the vault is small — measure). Smaller win than it looks if A lands, because A makes each derive cheaper too.
+**A. Add one lookup table.** Give `Derived` a `byFile` map (file → its nodes, in line order), built during the same pass that already builds the other tables. This single change eliminates every by-file scan in the table above — `siblingsOf`, `nodesOf`, the trash page, the per-candidate loop. It does nothing about the triple rebuild. This is probably what the existing roadmap item `siblings-of-quadratic` should become. (Grok's #198 review warned against extracting the grouping "blindly" into a shared helper; putting it *inside* `Derived`, where it's always paired with the right revision of the data, is the non-blind version.)
 
-**C. The emanote shape: patch, don't rebuild.** Per-file transformers over `Derived`: on one file's change, splice its nodes out of `byFile`/`byId`/`children` and its edges out of `after`/`blocked`, splice the new parse in. Honest costs: `after` edges cross files (a node in `roadmap.olai` can block one in `lanes.olai`), first-claim-wins `byId` collisions make deletes order-sensitive, and the 6 validation rule passes are corpus-global today. This is real architecture, and TypeScript has no ixset-typed — but plain `Map`s keyed by what queries ask get most of the value, as A demonstrates in miniature.
+**B. Compute the view once per edit, not three times.** Pass the validation step's computed view through to the publish step instead of recomputing; decide whether the browser's third computation is acceptable (it's once per edit and the vault is small) or should also be eliminated. Worth less than it looks if A lands, since A also makes each computation cheaper.
 
-**D. Do nothing above A and measure.** The repo's own doctrine (`siblings-of-quadratic`: "measure before fixing"). #198's numbers said 44ms at 800 files for the *worst* offender — the vault today is 4 files. The case for B/C is about where olai is going (agents hammering `search_nodes`, lanes multiplying files), not where it is.
+**C. Go full emanote: patch the view instead of rebuilding it.** When one file changes, remove that file's entries from the tables and splice the new ones in. This is the real architecture change, and it has real costs: "waits-on" edges cross files (a node in one file can block a node in another), duplicate-id handling depends on order, and the six validation passes are whole-corpus by nature. TypeScript has no `ixset-typed`, but plain `Map`s keyed by what we actually ask cover most of it — direction A is this idea in miniature.
+
+**D. Just do A, then measure.** The repo's own rule ("measure before fixing"). #198's worst case was 44ms at 800 files — and the vault today has 4 files. The argument for B and C is about where olai is *going* (agents hammering search, lanes multiplying files), not where it is.
 
 ## Open questions
 
-1. What vault size makes the ×3 rebuild *felt*? A generated 1k-file benchmark (the #198 script's method) against the keystroke path would answer it in an afternoon.
-2. If C is ever taken: does validation stay corpus-global (rules like id-uniqueness are), and does that cap the win at "derive is incremental but validate isn't"?
-3. Does the wire change under B (client stops deriving), and is that worth coupling the browser to `Derived`'s shape?
-4. Is `matching` (the palette scan) fine forever? Emanote says search is the thing you *don't* index incrementally (Stork: invalidate + lazy rebuild). A by-word index is a different doc.
+1. At what vault size does the triple rebuild become something a person feels? A generated 1,000-file benchmark against the keystroke path (using #198's measurement method) would answer this in an afternoon.
+2. If C is ever taken: validation rules like "ids are unique" inherently look at everything — does that cap the win at "the view updates incrementally but validation still doesn't"?
+3. For B: does removing the browser's recomputation mean changing what goes over the wire, and is that coupling worth it?
+4. Is the search-palette scan fine forever? Emanote's answer for search was: don't index incrementally — invalidate and lazily rebuild. A word-index for olai search would be its own document.
 
 ## Relation to the roadmap
 
-`siblings-of-quadratic` stays open and likely becomes direction A's PR. `outlines-quadratic` (done, #198) was this doc's trigger. Anything ruled here becomes nodes; this doc is the argument, not the ledger.
+`siblings-of-quadratic` stays open and likely becomes direction A's PR. `outlines-quadratic` (#198, merged) was the trigger. Any direction ruled here becomes roadmap items; this document is the argument, not the ledger.
