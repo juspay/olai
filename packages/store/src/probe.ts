@@ -80,15 +80,19 @@ export interface Found<F, E> {
  * handed the whole map, and what one makes of the order is inside a value this
  * package refuses to look into. Answering a question about one map with a
  * verdict about a differently-ordered one would be this package promising, on a
- * codec's behalf, something only that codec can know. It costs exactly the
- * writes that change the KEY SET — a path that did not exist before is appended
- * to the gate's candidate and comes back in the LISTING's place, so a create
- * re-validates — and nothing else: a write to a file the set already holds
- * leaves the order untouched. (olai's codec is the case in point. Its
- * `assemble` walks this map, so the set's file order is the map's, and that
- * order is what `list_outlines` answers with and what a search tie breaks on.
- * A create of `Archive.olai` beside `house.olai` published the two in the wrong
- * order until this comparison counted it.)
+ * codec's behalf, something only that codec can know — and this package's one
+ * promise about order is that it makes none ({@link Codec.validate}).
+ *
+ * It costs exactly the writes that change the KEY SET: a path that did not
+ * exist before is appended to the gate's candidate and comes back in the
+ * LISTING's place, so a create that sorts ahead of an existing file
+ * re-validates, and one that sorts behind does not. Every write to a file the
+ * set already holds leaves the order untouched, which is every keystroke.
+ *
+ * BELT, and olai's codec is the braces: a set assembled out of this map is put
+ * in path order by `assemble` itself, so for THAT codec a re-ordering could no
+ * longer change an answer. The belt stays because knowing that is knowing what
+ * is inside the value — which is the one thing this package will not do.
  *
  * It lives HERE rather than beside its one caller ({@link ./store.ts}'s
  * `publish`, which spends a verdict on the set it was reached about): the

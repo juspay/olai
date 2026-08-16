@@ -48,7 +48,7 @@ test("every file the set lists gets an entry, at the set's revision", () => {
     NOTHING_HELD,
   )
 
-  expect([...outlines.entries.keys()]).toEqual(["house.olai", "empty.olai"])
+  expect([...outlines.entries.keys()]).toEqual(["empty.olai", "house.olai"])
   expect(outlines.entries.get("house.olai")).toEqual({
     rev: 7,
     nodes: setOf({ "house.olai": HOUSE }).nodes,

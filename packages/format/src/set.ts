@@ -40,7 +40,9 @@ export const BrokenFile = Schema.Struct({
 export type BrokenFile = typeof BrokenFile.Type
 
 export const OutlineSet = Schema.Struct({
-  /** Every `.olai` found, in path order — including any that hold no nodes
+  /** Every `.olai` found, in path order — put there by {@link assemble} rather
+   *  than inherited from whoever handed the files over, so the order is the
+   *  same whichever caller assembled the set. Including any that hold no nodes
    *  and any that did not parse, which is why this is not derived from
    *  `nodes`. */
   files: Schema.Array(Schema.String),
@@ -94,6 +96,20 @@ const isDocument = (decoded: DecodedFile): decoded is Document => "text" in deco
  * place in `files` (the sidebar lists it; a fix will fill it in) or in
  * `documents`, and its errors go to `broken`. Only its nodes are missing, and
  * that is the whole of what one unreadable file costs the set.
+ *
+ * IN PATH ORDER, and it sorts for itself rather than inheriting that from
+ * whoever built the map. {@link OutlineSet.files} promises it, `nodes` follows
+ * it file by file, and every reader spends it: `list_outlines` answers in it,
+ * a search tie breaks on it, the sidebar draws it. Until #208 the promise held
+ * only because the one caller in the tree walks a directory in sorted order —
+ * so a caller that built its map any other way got a set that broke the
+ * promise silently, and the write gate was exactly such a caller: it assembles
+ * the last probe's files with the written ones swapped in, which puts a path
+ * that did not exist before at the END of the map and, for a file sorting
+ * first, at the wrong end of the published list. Sorting here makes the
+ * documented order a fact about `assemble` rather than a fact about its
+ * callers, and makes the set a function of the map's ENTRIES rather than of the
+ * order they were put in.
  */
 export const assemble = (
   files: ReadonlyMap<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>>,
@@ -108,7 +124,12 @@ export const assemble = (
   // NAME's answer — a file that would not decode has no value to ask, and it
   // still has to keep its place. WHAT IT HOLDS is the VALUE's answer, and the
   // value is the only thing that has it.
-  for (const [path, decoded] of files) {
+  //
+  // The paths are put in order FIRST, so every list below comes out in it and
+  // none of them has to be sorted afterwards — `nodes` in particular could not
+  // be, since its order is file order and then line order within a file.
+  for (const path of [...files.keys()].sort()) {
+    const decoded = files.get(path)!
     if (Result.isFailure(decoded)) {
       broken.push({ file: path, errors: decoded.failure })
       if (bodyKind(path) !== null) documents.push({ file: path, text: "" })

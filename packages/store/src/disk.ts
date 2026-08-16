@@ -336,8 +336,11 @@ export const make = (
             )
 
             // Depth-first, in sorted order, so the map reads down the tree the
-            // way a listing of it does — which is the order `files` promises
-            // and the sidebar shows.
+            // way a listing of it does. It is the walk's order and nothing
+            // above is entitled to it ({@link Codec.validate} used to say
+            // otherwise): a set whose own answer has an order puts its files in
+            // it for itself, because the write gate assembles a map this walk
+            // never produced.
             for (const [path, info] of found) {
               if (info === null) continue
               if (info.type === "Directory") {

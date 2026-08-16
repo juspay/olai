@@ -8,11 +8,11 @@ import { assemble, type DecodedFile } from "./set.ts"
 
 type Decoded = Result.Result<DecodedFile, ReadonlyArray<OutlineError>>
 
-/** What the store hands over: one decoded file per path, in the order it found
- *  them, each either decoded or failed. A `Map` rather than a record, because
- *  the reader's order is part of the answer — `files` is documented as "every
- *  `.olai` found, in path order" — and it is the caller's iteration order that
- *  carries it. */
+/** What the store hands over: one decoded file per path, each either decoded
+ *  or failed. A `Map` rather than a record because that is the shape the codec
+ *  seam passes — and its ORDER is deliberately not the answer: `files` is
+ *  documented as "every `.olai` found, in path order", and `assemble` puts them
+ *  in it rather than trusting whoever built the map to have done so. */
 const decoded = (files: Record<string, Decoded>): ReadonlyMap<string, Decoded> =>
   new Map(Object.entries(files))
 
@@ -53,6 +53,31 @@ test("assemble sorts decoded files into outlines, their nodes, and documents", (
     .toEqual(["home.olai:1", "work.olai:1", "work.olai:2"])
 })
 
+// PATH ORDER is `assemble`'s promise and not its caller's, which is what makes
+// it true of every caller. The one in the tree that does not walk a directory
+// is the write gate: it assembles what the last probe held with the files it is
+// about to write swapped in, so a path that did not exist before sits at the
+// END of that map — and until #208 a created `Archive.olai` was published after
+// the `house.olai` it sorts before, which `list_outlines` answers with and a
+// search tie breaks on.
+test("files, nodes and documents come out in path order, whatever order the map holds", () => {
+  const set = assemble(decoded({
+    "zeta.olai": outline("zeta.olai", `{"id":"z","ord":"a","title":"z"}`),
+    "notes/zebra.md": document("notes/zebra.md", "z\n"),
+    "Archive.olai": outline("Archive.olai", `{"id":"arch","ord":"a","title":"arch"}`),
+    "notes/apple.md": document("notes/apple.md", "a\n"),
+    "middle.olai": outline("middle.olai", `{"id":"mid","ord":"a","title":"mid"}`),
+  }))
+  expect(set.files).toEqual(["Archive.olai", "middle.olai", "zeta.olai"])
+  // `nodes` follows it file by file, which is why the sort is done to the paths
+  // before anything is built rather than to the lists afterwards.
+  expect(ids(set.nodes)).toEqual(["arch", "mid", "z"])
+  expect(set.documents.map((one) => one.file)).toEqual([
+    "notes/apple.md",
+    "notes/zebra.md",
+  ])
+})
+
 // `files` is not derived from `nodes`, and this is the case that proves it: an
 // empty `.olai` is a file of the set the sidebar shows and a file a writer may
 // append to, not a file that is missing.
@@ -61,7 +86,9 @@ test("an outline holding no nodes is still one of the set's files", () => {
     "empty.olai": outline("empty.olai", ``),
     "a.olai": outline("a.olai", `{"id":"a","ord":"a","title":"a"}`),
   }))
-  expect(set.files).toEqual(["empty.olai", "a.olai"])
+  // In PATH order, which is `assemble`'s own doing rather than the order this
+  // fixture happens to name them in.
+  expect(set.files).toEqual(["a.olai", "empty.olai"])
   expect(ids(set.nodes)).toEqual(["a"])
 })
 
@@ -86,7 +113,7 @@ test("a file that did not decode keeps its place and carries its errors", () => 
     "bad.olai": unreadable("bad.olai", `{"id":"b","ord":"a",title:"b"}`),
   }))
 
-  expect(set.files).toEqual(["good.olai", "bad.olai"])
+  expect(set.files).toEqual(["bad.olai", "good.olai"])
   expect(ids(set.nodes)).toEqual(["a"])
   expect(set.broken.map((file) => file.file)).toEqual(["bad.olai"])
   expect(set.broken[0]?.errors.map((error) => `${error.file}:${error.line} ${error.code}`))

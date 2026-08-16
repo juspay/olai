@@ -221,8 +221,8 @@ describe("placements", () => {
     // `git` is placed twice: directly by `focus-git`, and through it by
     // `now-git`, which mirrors the mirror. Both are places `git` is drawn.
     expect(detail(at(), "git")?.mirrors).toEqual([
-      { id: "now-git", file: "roadmap.olai", line: 3, parent: "now" },
       { id: "focus-git", file: "focus.olai", line: 2, parent: "focus" },
+      { id: "now-git", file: "roadmap.olai", line: 3, parent: "now" },
     ])
     expect(detail(at(), "sticky")?.mirrors).toEqual([
       { id: "now-sticky", file: "roadmap.olai", line: 2, parent: "now" },
@@ -461,10 +461,12 @@ describe("the directory", () => {
   test("every file gets its row, in order, counted and titled by its own nodes", () => {
     const set = DIRECTORY()
     expect(outlines(set, derivedOf(set))).toEqual([
+      // In PATH order, which is the set's ({@link ../../format/src/set.ts}'s
+      // `assemble` puts it there) and what the sidebar shows.
+      { file: "empty.olai", nodes: 0, roots: [] },
       // Three regular nodes — the mirror is a placement, so it is neither
       // counted nor a root — and the roots are in FILE order.
       { file: "house.olai", nodes: 3, roots: ["Garden", "House"] },
-      { file: "empty.olai", nodes: 0, roots: [] },
       { file: "shed.olai", nodes: 1, roots: ["Shed"] },
       // The torn row carries `unreadable` BESIDE a zero and an empty list —
       // the flat shape {@link OutlineSummary} holds knowingly.

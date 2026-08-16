@@ -52,7 +52,19 @@ export interface Codec<F, S, E> {
    * codec with no such kind omits this and pays nothing.
    */
   readonly byName?: (path: string) => Result.Result<F, E> | null
-  /** The whole set, in path order, each file decoded or failed. */
+  /**
+   * The whole set, each file decoded or failed.
+   *
+   * NO ORDER IS PROMISED, and the correction is one this package owed: it used
+   * to say "in path order", which was true of the map a PROBE builds — the
+   * walk is depth-first through sorted entries — and never true of the one the
+   * write gate builds, which is the last probe's map with the written files
+   * swapped in, so a path that did not exist before sits at the end of it. A
+   * codec that reads this map in order and publishes what it read would have
+   * published two different orders for one directory depending on which of the
+   * two called it, which is exactly what olai's did until #208. A codec whose
+   * answer has an order imposes that order itself.
+   */
   readonly validate: (
     files: ReadonlyMap<string, Result.Result<F, E>>,
   ) => Result.Result<S, E>
