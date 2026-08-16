@@ -54,6 +54,14 @@ import type { OutlineSet } from "./set.ts"
  * corpus again for a value that had just been in hand. The pair is published,
  * and a reader above reads the view the validator built rather than building a
  * second one that is free to disagree with it.
+ *
+ * WHAT IT HIDES is where this earns its keep next. Every reader above — the
+ * planner, the query walks, the keystroke resolver, the per-file projection the
+ * wire is cut from — now names this pair and nothing else, so HOW the view came
+ * to exist is behind it: rebuilt from scratch today, patched from the previous
+ * revision when the patcher lands (`docs/brainstorming/model-indices.md`, slice
+ * 3). That is a change of one function inside this file, with no consumer of
+ * this type able to tell.
  */
 export interface Reading {
   readonly set: OutlineSet

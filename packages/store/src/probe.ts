@@ -64,6 +64,36 @@ export interface Found<F, E> {
   readonly removed: ReadonlyArray<string>
 }
 
+/**
+ * Whether two decoded sets are the SAME SET: the same paths, each holding the
+ * very value the other holds.
+ *
+ * IDENTITY per entry, not equality — nothing in this package looks inside what
+ * a codec decoded to, so it has no way to compare two of them and no business
+ * trying. It is enough because identity is a promise this module makes and can
+ * keep: a file whose stamp did not move keeps the value it was cached with, and
+ * a file a write both decoded and read back holds the value it was promised
+ * with ({@link Probe.decode}). Nothing here ever hands out a fresh value for
+ * bytes it has already answered about.
+ *
+ * So it lives HERE rather than beside its one caller ({@link ./store.ts}'s
+ * `publish`, which spends a verdict on the set it was reached about): the
+ * caller asks the question, and this is the module whose answer to it means
+ * anything. A difference of any kind — a neighbour re-decoded by the same
+ * probe, a file that arrived or left, our own bytes overwritten by somebody
+ * else between a rename and the read — comes back `false`.
+ */
+export const sameDecoded = <F, E>(
+  one: Decoded<F, E>,
+  other: Decoded<F, E>,
+): boolean => {
+  if (one.size !== other.size) return false
+  for (const [path, decoded] of one) {
+    if (other.get(path) !== decoded) return false
+  }
+  return true
+}
+
 export interface Probe<F, E> {
   readonly run: Effect.Effect<Found<F, E> | null, PlatformFailure>
   /** What the last probe decoded, without going near the disk — empty before
