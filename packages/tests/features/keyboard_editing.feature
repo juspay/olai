@@ -275,11 +275,15 @@ Feature: Keyboard editing
     Then the note of "handles" is no longer being typed
     # `Shift+Enter` writes a note without opening the row's reading of it, so
     # what comes back is the shape the row had before the caret arrived — its
-    # title — now with a pilcrow beside it, because there is something behind
-    # one at last.
+    # title.
     And the row "handles" is folded
-    And the node "handles" shows a pilcrow
     And "house.olai" holds a node whose note ends "wide"
+    # ...and once the caret leaves the row entirely, that title has a pilcrow
+    # beside it, because there is something behind one at last. Asked AFTER the
+    # click away on purpose: while the caret is in the line the title span is
+    # an input, and an input has nothing to hang a mark on.
+    When I click away from the editor
+    Then the node "handles" shows a pilcrow
 
   Scenario: A write that lands can have something to say
     # The ops layer's nudge — advice on a SUCCESS, never a refusal. It reaches

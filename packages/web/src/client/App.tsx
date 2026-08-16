@@ -332,8 +332,18 @@ export default function App() {
                       ever reached the width at which it would ellipsize. The
                       two have to be written together.
                     */}
+                    {/*
+                      A COLUMN: the page's own chrome (a banner, the filter
+                      box), then the page, which fills what is left. It was a
+                      block, and the page filled the pane with `min-height:
+                      100%` — a circular percentage against an auto-height
+                      parent, which resolved to a height computed WITHOUT the
+                      box and overflowed the pane by exactly the filter bar
+                      (`edit/Editable.tsx` has the rest of it). A flex fill says
+                      the same thing with nothing circular in it.
+                    */}
                     <main
-                      class={`min-w-0 overflow-x-clip px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
+                      class={`flex min-w-0 flex-col overflow-x-clip px-4 pt-4 ${CLEARANCE} md:px-12 md:py-8 lg:pl-16 lg:pr-12 ${
                         !desktop() && !chatOpen() ? "pb-16" : ""
                       }`}
                       // Whether a `#tag` in here is pressable — one fact, read

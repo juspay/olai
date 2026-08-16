@@ -97,14 +97,27 @@ export function Editable(props: {
     <SelectionProvider value={selection}>
       <DraggingProvider value={dragging}>
         <EditorProvider editor={editor}>
-          {/* `min-h-full` so the box reaches the foot of the pane: the page
-              below a short outline is the sweep's largest surface, and a
-              wrapper that stopped at the last row would leave a reader nothing
-              to press. `data-sweep` is `../drag/sweeping.ts`'s `SWEEP`, spelled
-              as a literal for the reason that constant gives (a JSX spread
-              would put every attribute of this box on Solid's runtime spread
-              path) and held to that name by `../claims.test.ts`. */}
-          <div class="min-h-full" data-sweep="" onPointerDown={sweeping.begin}>
+          {/* `grow` so the box reaches the foot of the pane: the page below a
+              short outline is the sweep's largest surface, and a wrapper that
+              stopped at the last row would leave a reader nothing to press.
+
+              IT WAS `min-h-full`, and that is a CIRCULAR percentage: the pane
+              is auto-height, so `100%` resolved against a height the pane had
+              already computed WITHOUT this box, and the box came out exactly
+              one FilterBar too tall — overflowing the pane by that much. The
+              pane used to be a scroll container, which hid it; the moment it
+              stopped being one (`../App.tsx` says why, for the sticky section
+              headings) those pixels became scrollable overflow on the DOCUMENT,
+              and the sidebar's own sticky offset was clamped by them — a
+              directory pinned six pixels above the header, which is what the
+              suite caught. A flex fill asks the same question with no
+              circularity in it, so the pane is now a column (`../App.tsx`).
+
+              `data-sweep` is `../drag/sweeping.ts`'s `SWEEP`, spelled as a
+              literal for the reason that constant gives (a JSX spread would put
+              every attribute of this box on Solid's runtime spread path) and
+              held to that name by `../claims.test.ts`. */}
+          <div class="grow" data-sweep="" onPointerDown={sweeping.begin}>
             {props.children}
           </div>
           <DropLine landing={dragging.landing()} />
