@@ -21,49 +21,26 @@
  */
 
 import { STALE_PROCESS_CLOSE_CODE } from "@kolu/surface-app"
-import { collector, findSaid, type Logged } from "@olai/log/testlib"
+import { findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import * as http from "node:http"
 
-import { serve } from "./serve.ts"
-import { served, SERVER_LAYERS } from "./serve.testlib.ts"
+import { served, withServing } from "./serve.testlib.ts"
 
 /** How long a socket may take to be answered, and a line to be said, before
  *  either is a hang. Generous: what is being told apart is "refused" from
  *  "never", not a fast refusal from a slow one. */
 const BOUND_MS = 10_000
 
-/** A real server on an OS-chosen port, and everything it said. The address is
- *  read off the `serving` line because that IS the interface — the port was
- *  asked for as `0`, so the process is the only thing that knows which one it
- *  got — the same reading `serve.test.ts` and the e2e harness do. */
+/** A real server on an OS-chosen port, and everything it said — the package's
+ *  own helper (`./serve.testlib.ts`), which owns where the address comes from:
+ *  the port is asked for as `0`, so the process is the only thing that knows
+ *  which one it got, and it says so on the `serving` line. A directory with
+ *  something valid in it is all this test asks of the one it serves. */
 const withServer = (
   body: (url: string, said: ReadonlyArray<Logged>) => Promise<void>,
-): Promise<void> => {
-  const { layer, said } = collector()
-
-  return Effect.gen(function*() {
-    yield* serve({
-      root: served(),
-      port: 0,
-      host: "127.0.0.1",
-      clientDist: served(),
-      allowedOrigins: [],
-      // A real server against a temp directory; committing to whatever
-      // repository happens to contain it is not this test's to do.
-      commits: "off",
-    })
-    const url = findSaid(said, "serving")?.annotations.url
-    expect(typeof url).toBe("string")
-    yield* Effect.promise(() => body(String(url), said))
-  }).pipe(
-    Effect.scoped,
-    Effect.provide(SERVER_LAYERS),
-    Effect.provide(layer),
-    Effect.runPromise,
-  )
-}
+): Promise<void> => withServing({ root: served() }, body)
 
 /** Where the listener serves the surface. Its own copy on purpose: a test that
  *  imported the path would agree with the server by construction, and this one

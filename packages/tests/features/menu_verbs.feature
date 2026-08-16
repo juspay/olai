@@ -102,30 +102,41 @@ Feature: The ••• menu writes
     And I choose "Mark doing" from the node menu
     Then the node menu of "install" says "`install the cabinets` comes after 1 unfinished task, so it cannot start yet: `order the new cabinets` (`order`, doing). Finish that first — or start what is ready."
     And the node "install" has no status
-    # And the other two verbs are untouched: finishing out of order is
-    # sometimes true, and filing work is not starting it.
+    # And filing work is not starting it, so `Mark todo` goes through.
     When I open the node menu of "install"
     And I choose "Mark todo" from the node menu
     Then the node "install" has status "todo"
+
+  Scenario: The menu will not tick off a branch that holds unfinished work either
+    # The other gate, at the same door (`done-over-open-work`, 2026-08-16):
+    # done-hiding takes the subtree with the row, so `Complete` here would sweep
+    # two `todo` children off the page. Refused in the ops layer's own words,
+    # which is the whole of HACKING.md's parity rule — one gate, three faces.
     When I open the node menu of "install"
     And I choose "Complete" from the node menu
-    Then the node "install" has status "done"
+    Then the node menu of "install" says "`install the cabinets` holds 2 unfinished tasks, so it cannot be marked done yet: `pick the hinges` (`hinges`, todo), `pick the knobs` (`knobs`, todo). Done-hidden hides a done node WITH its subtree, so this would sweep them off the page. Finish those first — or take the mark off them if they are not happening, since an unmarked bullet is not unfinished work."
+    And the node "install" has no status
 
   Scenario: A write that landed with something to say says it here too
     # The rollup's nudge reaches the person who caused the write, exactly as it
     # reaches an agent that did — in the other mood, which is what `data-tone`
-    # is for. `install` is ticked off over two tasks nobody finished.
-    When I open the node menu of "install"
+    # is for. `pick the hinges` is the last unfinished task under `install the
+    # cabinets` once `pick the knobs` has stopped being one, so ticking it off
+    # is the moment somebody might want to tick the branch.
+    When I open the node menu of "knobs"
+    And I choose "Clear mark" from the node menu
+    Then the node "knobs" has no status
+    When I open the node menu of "hinges"
     And I choose "Complete" from the node menu
-    Then the node "install" has status "done"
-    And the node menu of "install" remarks "is done over 2 unfinished tasks"
+    Then the node "hinges" has status "done"
+    And the node menu of "hinges" remarks "every task under `install the cabinets` is done now"
 
   Scenario: A mirror marks the node it shows
     # The same rule the checkbox and Ctrl+Enter follow: what a node SAYS is
     # edited on the node, wherever the reader is standing.
     When I open the node menu of "kitchen-herbs"
-    And I choose "Complete" from the node menu
-    Then "garden.olai" holds a node marked done titled "the herb bed by the door"
+    And I choose "Mark todo" from the node menu
+    Then "garden.olai" holds a node marked todo titled "the herb bed by the door"
 
   Scenario: Only a dated row offers to clear a date
     When I open the node menu of "install"

@@ -1,0 +1,11 @@
+/* The page's own look, in a file beside it — the half of a saved page that a
+   preview refusing to fetch its parts leaves as unstyled text. */
+body { font-family: system-ui, sans-serif; margin: 2rem; color: #14532d; }
+h1 { margin: 0 0 .25rem; font-size: 1.4rem; }
+#probe { color: #4d7c0f; font-weight: 600; margin: 0 0 1.25rem; }
+#chart { display: flex; align-items: flex-end; gap: 18px; height: 220px; }
+.bar { width: 56px; background: #14532d; border-radius: 3px 3px 0 0; position: relative; }
+.bar span { position: absolute; top: -1.35rem; left: 0; width: 100%; text-align: center;
+            font-size: .8rem; color: #365314; }
+.bar em { position: absolute; bottom: -1.5rem; left: 0; width: 100%; text-align: center;
+          font-style: normal; font-size: .8rem; color: #4b5563; }

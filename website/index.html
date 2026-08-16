@@ -357,17 +357,24 @@
     path box, or from a bare calendar day — pressing one creates that day's
     note where your vault already keeps them.</p>
     <p>A <code>.html</code> file in the directory — a saved article, a report
-    a build wrote — is listed and previewed the same way, and is read rather
-    than edited. It is drawn in a sandboxed frame with the strictest content
-    policy there is in front of it: nothing in the file runs, nothing in it can
-    reach the app around it, and the only thing it may fetch is a picture out
-    of your own directory — the same pictures, off the same route, a markdown
-    note beside it draws. A remote image, an inlined one, or an address
-    climbing out of the vault is refused before the request is made, so a saved
-    page cannot tell anybody else's server what you are reading.
-    Exactly one script runs in there and it is olai's own, admitted by its
-    hash and doing one job — reporting how tall the page is, so the frame is
-    the height of what it holds instead of a fixed slice of the screen.</p>
+    a build wrote, a dashboard something exported — is listed and previewed the
+    same way, and is read rather than edited. <strong>The page works</strong>:
+    its own JavaScript runs, its own stylesheet paints, and a relative link
+    opens the file next to it. It runs in a sandboxed frame whose origin is
+    nobody's, so nothing in there can reach the app around it — no cookies, no
+    storage, no reading the page it sits in — and every fetch it makes is
+    answered by one place: your own directory, on this server. A remote image,
+    an inlined one, a form posting somewhere, or an address climbing out of the
+    vault is refused before the request is made, so a saved page that merely
+    carries somebody else's addresses reaches nobody. (A page that goes out of
+    its way to leave — a script navigating its own frame — can, once; no
+    browser gives a page's embedder a way to stop that. olai brings the frame
+    back when a document does not identify itself as one of your own files,
+    which bounds how far a page can drag it — but a page that runs code can
+    claim to be one of yours, so that is a limit on looping and not a proof of
+    where the frame is.) One extra script rides along, olai's own, doing one job:
+    reporting how tall the page is, so the frame is the height of what it holds
+    instead of a fixed slice of the screen.</p>
     <div class="cols">
       <div>
         <pre><code># Cabinet specs
@@ -477,6 +484,13 @@ The corner unit is the **risky one** — see
         <em>nothing should decide on your behalf that finished work is not
         finished</em>. ⌘Enter takes the <code>done</code> off, and the walk
         carries on from there.</p>
+        <p>A <code>done</code> on a parent is a claim about the whole branch,
+        because hiding what is finished takes the subtree with the row. So the
+        claim has to be true: ticking off a branch that still holds an
+        unfinished task is refused, naming them — and filing new work under a
+        branch somebody called finished last week takes that mark back off
+        instead of turning you away. Nobody’s note goes quietly missing under
+        a sentence that has gone stale.</p>
       </div>
     </div>
   </div>

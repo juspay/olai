@@ -587,7 +587,19 @@ export {
 export { type Applied, Anchor, Edit } from "./edit.ts"
 
 /** The one HTTP address both ends spell — see {@link ./media.ts}. */
-export { MEDIA_PREFIX, mediaBase, mediaHref, mediaTarget } from "./media.ts"
+export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
+
+/** What a served `.html` is answered with, and how tall it says it is — the
+ *  other contract between the server that writes it and the browser that reads
+ *  it, for {@link ./media.ts}'s reason. See {@link ./seal.ts}. */
+export {
+  type Reading,
+  reported,
+  SEAL,
+  sealedHello,
+  sealPolicy,
+  spellsHost,
+} from "./seal.ts"
 
 /** What a search asks and answers on the wire — see {@link ./search.ts}. */
 export { Refusal, SearchAnswer, SearchHit, SearchRequest } from "./search.ts"

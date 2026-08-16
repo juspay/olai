@@ -5,11 +5,12 @@
     <!--
       A BASE OF ITS OWN, which is the first probe and the quietest one. "Save
       page as" writes these, so it is the ordinary case as well as the attack:
-      if this one were the document's base, every relative address below would
-      resolve at somebody else's server and the cabinet handle would be a
-      request to `example.invalid`. A document's base is the FIRST `<base href>`
-      in tree order and the seal is in front of every byte of this file, so
-      olai's wins — the evidence is that the handle draws at all.
+      if this one were honoured, every relative address below would resolve at
+      somebody else's server and the cabinet handle would be a request to
+      `example.invalid`. The seal refuses the ELEMENT — `base-uri 'none'` on
+      the response — so this file's addresses go on resolving beside the file
+      itself, where a page served at its own URL resolves them. The evidence is
+      that the handle draws at all.
     -->
     <base href="https://example.invalid/vault/" />
     <title>Cabinet quote</title>
@@ -26,10 +27,10 @@
 
     <!--
       THE PICTURE PROBE. A saved page draws pictures out of the directory it
-      was saved into, and the seal points every relative address at the media
-      route so that the FIRST of these — and only the first — is a file this
-      vault meant to serve. Every other line is an address that must reach
-      nothing at all, and `features/html_previews.feature` reads each one:
+      was saved into, and a page served at its own address resolves them beside
+      itself, so the FIRST of these — and only the first — is a file this vault
+      meant to serve. Every other line is an address that must reach nothing at
+      all, and `features/html_previews.feature` reads each one:
 
         - `art/handle.png` is beside this file, so it draws;
         - `../outside.png` is a real picture one directory ABOVE the served
@@ -41,15 +42,16 @@
         - a remote host, which is the privacy rule: a page full of somebody
           else's images tells their server what this reader is reading;
         - a `data:` picture, which is the widening that reads as harmless and
-          is how "just this one scheme" gets into an `img-src`.
+          is how "just this one scheme" gets into a policy.
 
       Not one of these reaches the network: the policy refuses each of them
       before a request is made, which is what "the page requested nothing off
       this server" reads. The one address that WOULD reach it — a file inside
-      the vault that is not a picture — is the guard at the other END of the
-      route, and it is probed in a scenario of its own, because a page that
-      404s is a page with an ordinary console error on it and that would blunt
-      the assertion that the only complaints here are refusals.
+      the vault that is not something a page is made of — is the guard at the
+      other END of the route, and it is probed in a scenario of its own,
+      because a page that 404s is a page with an ordinary console error on it
+      and that would blunt the assertion that the only complaints here are
+      refusals.
     -->
     <img id="mine" src="art/handle.png" alt="a cabinet handle" />
     <img id="up" src="../outside.png" alt="" />
@@ -62,26 +64,72 @@
     />
 
     <!--
-      THE SCRIPT PROBE. Everything below is what a hostile (or merely careless)
-      saved page would do if the preview handed it to the browser unsealed. It
-      must all fail, and the scenario in features/html_previews.feature reads
-      the evidence that it did:
+      THE SCRIPT PROBE, and since 2026-08-16 it probes the opposite thing.
 
-        - the paragraph is left saying "the script did not run", because the
-          rewrite below never happens;
-        - nothing is written into the app's localStorage or cookie jar;
-        - the app's own DOM is unmarked.
+      The page's own JavaScript RUNS now — a saved dashboard, an exported
+      report, a page that draws itself are the ordinary contents of a vault,
+      and a preview that showed them blank was showing the wrong thing. So the
+      first line below is EVIDENCE THAT IT RAN, read in the scenario as the
+      paragraph's text.
 
-      A page that scripts is not exotic — every "save page as" in every browser
-      produces one — so this is the ordinary case, not the adversarial edge.
+      Every line after it is a thing the script must not be able to do, and the
+      point of the fixture is that running changes none of them: the frame's
+      origin is nobody's, so this app's storage, cookie jar and DOM are out of
+      reach, and the sandbox has no `allow-top-navigation`, so the tab stays
+      where the reader put it. The paragraph names whichever one got through, so
+      a preview that had lost its sandbox says so in its own words rather than
+      only in an assertion somewhere else.
+
+      WHICH WAY THE PROBE LEANS is the part worth reading twice, because the
+      first version of it leaned the wrong way. Each capability is CLAIMED
+      before it is attempted and the claim is taken back only when the attempt
+      throws. Written the other way — claim it on success — a probe reports
+      nothing at all about an attempt whose success would end this document,
+      and the tab probe is exactly that: it used to run AFTER the paragraph was
+      written, so a tab that really navigated would have left the paragraph
+      reading "reached nothing" and a forbidden capability would have looked
+      like a refusal. Leaning this way, the only mistake a probe can make is to
+      name something the file could not actually do — which fails the scenario
+      loudly instead of quietly passing it. (opencode's review of this PR asked
+      for it. All four refusals do throw in Chromium today, the blocked
+      top-navigation included, which is why the paragraph reads as it does.)
     -->
     <p id="probe">the script did not run</p>
     <script>
-      document.getElementById("probe").textContent = "the script ran"
-      try { localStorage.setItem("olai.pwned", "yes") } catch (error) {}
-      try { document.cookie = "olai-pwned=yes; path=/" } catch (error) {}
-      try { parent.document.body.setAttribute("data-pwned", "yes") } catch (error) {}
-      try { top.location.replace("/pwned") } catch (error) {}
+      // EVERY PROBE IS OPTIMISTIC, and that is the shape rather than a
+      // flourish: each one claims the capability BEFORE trying it and takes
+      // the claim back only when the attempt is refused. A probe written the
+      // other way round — push on success — cannot report a capability whose
+      // refusal is silent or whose success ends the document, and a forbidden
+      // thing would then read as "reached nothing", which is what this
+      // paragraph is asserted to say. Written this way a probe can only be
+      // wrong in the safe direction: it names something the file could not
+      // actually do, and the scenario fails loudly.
+      var reached = []
+      var refused = function (what, attempt) {
+        reached.push(what)
+        try {
+          attempt()
+        } catch (error) {
+          reached.pop()
+        }
+      }
+      refused("localStorage", function () {
+        localStorage.setItem("olai.pwned", "yes")
+      })
+      refused("the cookie jar", function () {
+        document.cookie = "olai-pwned=yes; path=/"
+        if (document.cookie.indexOf("pwned") === -1) throw new Error("no cookie")
+      })
+      refused("the app's page", function () {
+        parent.document.body.setAttribute("data-pwned", "yes")
+      })
+      refused("the tab", function () {
+        top.location.replace("/pwned")
+      })
+      document.getElementById("probe").textContent = reached.length === 0
+        ? "the script ran and reached nothing"
+        : "the script reached " + reached.join(", ")
     </script>
   </body>
 </html>

@@ -186,14 +186,21 @@ Feature: An agent olai did not start
     When the terminal agent tries to mark "nowhere" done
     Then the terminal agent was refused with the kind "not-found"
 
-  Scenario: Marking a branch tells the agent what is still open under it
-    # A mark is a stored fact on any node, so this lands — and the answer says
-    # what the rollup noticed, because "done over an unfinished task" is worth
-    # knowing and is not worth refusing. Advice, in the answer to a write that
-    # happened.
+  Scenario: A branch cannot be marked done over what is still open under it
+    # A mark is a stored fact on any node — and a `done` on a parent is a claim
+    # about the whole BRANCH, because done-hiding takes the subtree with the
+    # row. So this one would sweep `install the cabinets` off the page while it
+    # is still under way, and it is refused as DATA: the kind travels
+    # structured, the tasks are named in the sentence (`done-over-open-work`).
+    When the terminal agent tries to mark "kitchen" done
+    Then the terminal agent was refused with the kind "usage"
+    And node "kitchen" is not done
+    # And once the branch really is finished the mark lands — with the rollup's
+    # remark about the row above, which is advice on a write that happened.
+    When the terminal agent marks "install" done
+    Then the terminal agent was told "every task under `kitchen remodel #home` is done now"
     When the terminal agent marks "kitchen" done
     Then node "kitchen" is done
-    And the terminal agent was told "install the cabinets"
 
   Scenario: It reads the outlines as nodes, with file and line
     # A hit says where it is, so the agent can act on it without ever reading

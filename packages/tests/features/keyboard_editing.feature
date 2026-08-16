@@ -209,14 +209,16 @@ Feature: Keyboard editing
     And there should be no page errors
 
   Scenario: Only the STARTING verb refuses — finishing out of order still lands
-    # The asymmetry, from the keyboard. `install` waits on `order`, which is
+    # The asymmetry, from the keyboard. `hinges` waits on `order`, which is
     # `doing`. `Ctrl+Enter` ticks it off anyway, because the world outruns the
     # plan and a tool that will not record what happened is a tool that gets
-    # lied to. Only the instruction — start this now — is refused.
-    When I click the title of "install"
+    # lied to. Only the instruction — start this now — is refused. (What
+    # `Ctrl+Enter` IS refused over is what hangs below the row rather than what
+    # it waits on: done_over_open_work.feature.)
+    When I click the title of "hinges"
     And I press "Control+Enter"
-    Then the node "install" has status "done"
-    And "house.olai" holds a node marked done titled "install the cabinets"
+    Then the node "hinges" has status "done"
+    And "house.olai" holds a node marked done titled "pick the hinges"
 
   Scenario: The walk at a mirror lands on the node it shows
     # The mark rule the checkbox and Ctrl+Enter already follow, for the key that
@@ -373,7 +375,16 @@ Feature: Keyboard editing
     # And the mark is the other way round: it is a fact about the node, so the
     # write lands in the file that node lives in — the same one `set_done` on
     # that node would write.
-    When I click the title of "kitchen-herbs"
+    #
+    # `split the mint` is finished first, in the outline it lives in: the branch
+    # the placement shows still holds it, and a `done` over unfinished work is
+    # refused wherever you are standing (done_over_open_work.feature).
+    Given I open the outline "garden.olai"
+    When I click the title of "mint"
+    And I press "Control+Enter"
+    Then the node "mint" has status "done"
+    When I open the outline "house.olai"
+    And I click the title of "kitchen-herbs"
     And I press "Control+Enter"
     Then the node "kitchen-herbs" has status "done"
     And "garden.olai" holds a node marked done titled "the herb bed by the door"

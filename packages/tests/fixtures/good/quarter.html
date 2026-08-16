@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Q3 — cabinet shop</title>
+    <!--
+      A page whose parts are FILES BESIDE IT, which is the shape a saved
+      dashboard or an exported report actually has: a stylesheet and a script
+      next door, fetched by the browser off the same route the page itself came
+      from. Neither is inline, on purpose — an inline script proves the policy
+      admits `'unsafe-inline'` and nothing about whether the ROUTE serves the
+      parts a page is made of.
+
+      Under the seal this file was written for, both of these were dead: the
+      route answered pictures only, so the stylesheet 404'd, and the policy
+      named one script by hash, so this one was refused. What the scenario
+      reads is that the bars below exist at all and that they wear the colour
+      the stylesheet gives them.
+    -->
+    <link rel="stylesheet" href="data/report.css" />
+  </head>
+  <body>
+    <h1>Q3 fitting revenue</h1>
+    <p id="probe">this page has not been built yet</p>
+    <div id="chart"></div>
+    <script src="data/chart.js"></script>
+  </body>
+</html>

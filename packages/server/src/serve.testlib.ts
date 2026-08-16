@@ -21,7 +21,7 @@
  * the sentence explaining each of them is.
  */
 
-import { collector, type Logged } from "@olai/log/testlib"
+import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { NodeHttpServer, NodeServices } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
 import * as fs from "node:fs"
@@ -98,3 +98,38 @@ export const withServe = async <A>(
     Effect.runPromise,
   )
 }
+
+/**
+ * The same server, plus the ADDRESS it bound — for the tests that speak to it
+ * over a socket rather than only reading what it said.
+ *
+ * Where the URL comes from is the fact this exists to hold: the port is asked
+ * for as `0`, so the process is the only thing that knows which one it got, and
+ * it announces it on the `serving` line. That IS the interface — the e2e
+ * harness reads the same line — and it was spelled out in two test files
+ * before, each rebuilding {@link withServe}'s whole frame around it to add one
+ * lookup. Written once here, a test that drives a real socket says which
+ * directory it wants and gets an address.
+ *
+ * A THROW rather than an assertion, because this is a helper and not a test: a
+ * server that bound nothing has nothing for the body to talk to, and every
+ * caller would otherwise repeat the same check to find that out.
+ */
+export const withServing = <A>(
+  options: {
+    readonly root: string
+    readonly commits?: "off" | "manual" | "auto"
+  },
+  body: (url: string, said: ReadonlyArray<Logged>) => Promise<A>,
+): Promise<A> =>
+  withServe(options, (said) => {
+    const url = findSaid(said, "serving")?.annotations.url
+    if (typeof url !== "string") {
+      throw new Error(
+        `the server never said where it was serving, so there is nothing to ask: ${
+          JSON.stringify(said)
+        }`,
+      )
+    }
+    return body(url, said)
+  })
