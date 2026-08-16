@@ -864,13 +864,20 @@ const edgesOf = (
 
 /** The text a document holds, as the edit that would put it back — and nothing
  *  for a path the reading does not hold, whose write the ops layer is about to
- *  refuse in its own words. */
+ *  refuse in its own words.
+ *
+ *  A body the SET DOES NOT KEEP (`@olai/format`'s `kinds.ts`) answers nothing
+ *  here for the same reason and by the same rule: there is no text in this
+ *  reading to put back. It is not a case that arises — this edit is a `.md`'s
+ *  and the kinds that are not kept are the ones no op writes — and it is
+ *  spelled rather than assumed, because the alternative is an undo carrying an
+ *  empty file. */
 const documentTextOf = (
   at: Reading,
   edit: Extract<Edit, { verb: "doc" }>,
 ): ReadonlyArray<Edit> => {
   const document = at.set.documents.find((entry) => entry.file === edit.file)
-  if (document === undefined) return []
+  if (document === undefined || document.text === null) return []
   return [{ verb: "doc", file: edit.file, text: document.text, was: edit.text }]
 }
 

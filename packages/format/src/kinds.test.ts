@@ -7,6 +7,7 @@ import {
   fileKind,
   type FileKind,
   OUTLINE_EXT,
+  unkept,
 } from "./kinds.ts"
 import { inboxIn } from "./node.ts"
 
@@ -93,6 +94,23 @@ test("a bodied file is a claimed file whose content is text, and nothing else", 
   // page that draws one is a tree rather than a rendering.
   expect(bodyKind("plan.olai")).toBeNull()
   expect(bodyKind("README")).toBeNull()
+})
+
+// What one loaded directory COSTS to hold, file by file, spelled as the answers
+// for the same reason `bodyKind`'s are: three layers that cannot see each other
+// branch on this (the store's probe, which does not read what nothing will keep;
+// the codec that decodes such a file from its name; the server that reads the
+// body when a reader opens it), and a loop over `kept` would re-run the one line
+// this is here to pin. Hypertext is the one that is not kept, and it is the one
+// that can be megabytes.
+test("hypertext is the one kind the set holds the path of and not the content", () => {
+  expect(unkept("report.html")).toBe(true)
+  expect(unkept("notes/cabinets.md")).toBe(false)
+  expect(unkept("plan.olai")).toBe(false)
+  // A file no kind claims is not in the set at all, so there is nothing the set
+  // is declining to hold — and the server asks this of a KEY, which may be
+  // anything a caller subscribed to.
+  expect(unkept("README")).toBe(false)
 })
 
 // The two suffixes the ops layer mints paths with come off the table rather than

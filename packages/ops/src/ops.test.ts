@@ -151,6 +151,40 @@ const gitLog = (root: string): ReadonlyArray<string> =>
     .trim()
     .split("\n")
 
+// ── what one load holds ────────────────────────────────────────────────
+
+// The codec's seam and the store's, read from the outside as the SET a real
+// directory produces: every bodied file is in it, a document brings its text,
+// and a `.html` brings its path and a `null` where the bytes used to be. That
+// last one is the whole memory claim — a vault of saved pages costs paths — and
+// the reference below is the other half of it: `doc` is still checked, so the
+// set is still valid or not for the same reasons it was.
+test("a `.html` joins the set as a path; a `.md` brings its text", () =>
+  withOps(
+    {
+      "house.olai": `${HOUSE}{"id":"quote","ord":"b0","title":"quote","doc":"notes.md"}\n`,
+      "notes.md": "# cabinets\n",
+      "report.html": "<h1>Cabinet quote</h1>\n",
+    },
+    (fixture) =>
+      Effect.gen(function*() {
+        const set = yield* fixture.set()
+        expect(set.documents).toEqual([
+          { file: "notes.md", text: "# cabinets\n" },
+          { file: "report.html", text: null },
+        ])
+        // The set loaded, which is what says the `doc` above resolved against
+        // the documents found: a reference is checked against PATHS, and those
+        // are the half this keeps for every bodied file.
+        expect(set.broken).toEqual([])
+        // And the bytes are still there for whoever asks for them — read from
+        // the disk on demand, held by nobody.
+        expect(yield* Effect.orDie(fixture.store.body("report.html"))).toBe(
+          "<h1>Cabinet quote</h1>\n",
+        )
+      }),
+  ))
+
 // ── the write path ─────────────────────────────────────────────────────
 
 test("a mark lands on disk as bytes the parser reads back", () =>

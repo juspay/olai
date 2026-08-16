@@ -45,12 +45,14 @@ export const OutlineSet = Schema.Struct({
    *  `nodes`. */
   files: Schema.Array(Schema.String),
   nodes: Schema.Array(Located),
-  /** Every BODIED file found — each `.md` and each `.html` — with its text.
-   *  Documents are part of the set because `doc` points into them: a reference
-   *  the validator cannot see is one it cannot check. Their text rides along
-   *  because it is the same kind of thing a note is — content of the directory,
-   *  read by the same probe and published in the same revision
-   *  ({@link ./documents.ts}). The field keeps the name it has on the wire. */
+  /** Every BODIED file found — each `.md` and each `.html` — with its text, or
+   *  with `null` for a body the set does not keep ({@link ./documents.ts}).
+   *  Every one of them is HERE, whichever it is, because `doc` points into
+   *  them: a reference the validator cannot see is one it cannot check, and
+   *  what checking one needs is the path. A document's text rides along beside
+   *  it because it is the same kind of thing a note is — content of the
+   *  directory, read by the same probe and published in the same revision. The
+   *  field keeps the name it has on the wire. */
   documents: Schema.Array(Document),
   /** The files above that did not parse. Their nodes are absent from `nodes`,
    *  which is exactly what makes the rest of the set renderable. */

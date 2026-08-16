@@ -21,10 +21,11 @@
  * `@olai/tests`' `kinds.test.ts` is what says nobody spelled a suffix outside
  * this file.
  *
- * **A table is not a framework.** The fields below are exactly the two things
- * the kinds already share — what a file is CALLED, and whether its content is
- * a tree of records or a body carried verbatim — and nothing was added for a
- * type that does not exist. A fact only one kind has (where
+ * **A table is not a framework.** The fields below are exactly the three
+ * things the kinds already share — what a file is CALLED, whether its content
+ * is a tree of records or a body carried verbatim, and whether the loaded set
+ * keeps that content or only the path — and nothing was added for a type that
+ * does not exist. A fact only one kind has (where
  * an archive goes, which files a `doc` may point at, what a day's note is
  * named) stays where that kind's rule lives, because a column that is `null`
  * for two of three rows is a union wearing a table's clothes.
@@ -38,7 +39,7 @@
  * grep for it.
  */
 
-/** What is true of a kind of served file, for every kind, in the two respects
+/** What is true of a kind of served file, for every kind, in the three respects
  *  all of them have an answer to. */
 interface Claim {
   /** The suffix that claims a file, matched exactly as it is written here — a
@@ -55,6 +56,28 @@ interface Claim {
    * is a directory full of errors about a file nobody meant as records.
    */
   readonly holds: "nodes" | "text"
+  /**
+   * Whether the loaded set KEEPS what the file holds, or keeps only its path
+   * and reads the content when somebody asks for it.
+   *
+   * The question every kind has an answer to is "what does one loaded
+   * directory cost to hold", and the answer is not the same for all three. An
+   * outline's records ARE the set — every rule reads them, so they are kept. A
+   * document's text is what a conditional write is judged against and what a
+   * writer must reproduce, so it is kept too. A `.html` is the one file olai
+   * only ever SHOWS: nothing validates it, no op writes it, no rule reads it,
+   * and a saved page with its pictures inlined is megabytes. Keeping it bought
+   * nothing and cost the directory's whole content in resident memory, for as
+   * long as the process ran.
+   *
+   * So it is here, beside `holds`, rather than in whatever reads a directory:
+   * three layers that cannot see each other branch on it — the store's probe,
+   * which does not read what nothing will keep; the codec, which decodes such
+   * a file from its NAME (`@olai/ops`); and the server, which reads the body
+   * when a reader opens it. What they must not disagree about is which files
+   * those are.
+   */
+  readonly kept: boolean
 }
 
 /**
@@ -64,8 +87,9 @@ interface Claim {
  * document: prose beside the outlines, which a node may attach and a day may
  * be named for. `.html` is hypertext: a page somebody saved or a tool built,
  * sitting in the vault with everything else — olai SHOWS it and never writes
- * it, so it has no editor, no create verb, and `write_document` refuses it by
- * asking for a document (`@olai/ops`).
+ * it, so it has no editor, no create verb, `write_document` refuses it by
+ * asking for a document (`@olai/ops`), and its body is the one content the set
+ * does not keep ({@link Claim.kept}).
  *
  * The third is called hypertext rather than "page" because the client already
  * calls what is on screen a page (`@olai/web`'s `page.ts`), and one word for
@@ -74,9 +98,9 @@ interface Claim {
  * vault that wants the other one can say so when somebody actually has one.
  */
 export const FILE_KINDS = {
-  outline: { ext: ".olai", holds: "nodes" },
-  document: { ext: ".md", holds: "text" },
-  hypertext: { ext: ".html", holds: "text" },
+  outline: { ext: ".olai", holds: "nodes", kept: true },
+  document: { ext: ".md", holds: "text", kept: true },
+  hypertext: { ext: ".html", holds: "text", kept: false },
 } as const satisfies Record<string, Claim>
 
 /** What a served file can be. Derived from the table rather than declared
@@ -132,6 +156,26 @@ export const holdsText = (kind: FileKind): kind is BodyKind =>
 export const bodyKind = (path: string): BodyKind | null => {
   const kind = fileKind(path)
   return kind !== null && holdsText(kind) ? kind : null
+}
+
+/**
+ * Whether the set holds this file's PATH AND NOT ITS CONTENT — by name, which
+ * is the form every caller wants: a `.html` is `true`, an outline and a
+ * document are `false`, and so is a file no kind claims, since the set is not
+ * holding that at all. It is the ONLY reader of the `kept` column, the way
+ * `bodyKind` is the only reader of `holds` outside {@link holdsText}.
+ *
+ * One question with one name, because three layers that cannot see each other
+ * ask it and each of them was deriving it in two steps: the codec, which
+ * decodes such a file from its name (`@olai/ops`); the server, which reads the
+ * body when a reader opens it and must answer for a KEY that may be no file at
+ * all; and this package's own fixtures, which must produce the set a load
+ * really produces. `bodyKind` is the same move one row up ({@link fileKind} +
+ * {@link holdsText}); this is {@link fileKind} + {@link Claim.kept}.
+ */
+export const unkept = (path: string): boolean => {
+  const kind = fileKind(path)
+  return kind !== null && !FILE_KINDS[kind].kept
 }
 
 /**

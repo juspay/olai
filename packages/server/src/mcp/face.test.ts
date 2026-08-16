@@ -60,13 +60,20 @@ const BODY_MARKER = "BODY-THAT-MUST-NOT-TRAVEL"
  *  as tens of kilobytes in an answer that should be two file names. */
 const MANUAL = `# Manual\n\n${`${BODY_MARKER} filler filler filler.\n`.repeat(1200)}`
 
-/** A directory with two outlines and one large document, thrown away with the
- *  test. */
+/** A saved page, of the shape that made the set expensive to hold: markup with
+ *  its picture inlined. The server keeps this file's PATH and reads its bytes
+ *  when somebody asks for them — an agent included, which is what the item read
+ *  below is about. */
+const SAVED = `<h1>Saved</h1>\n<p>${BODY_MARKER} inlined.</p>\n`
+
+/** A directory with two outlines, one large document and one saved page, thrown
+ *  away with the test. */
 const served = (): string => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-face-"))
   fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
   fs.writeFileSync(path.join(root, "garden.olai"), GARDEN)
   fs.writeFileSync(path.join(root, "manual.md"), MANUAL)
+  fs.writeFileSync(path.join(root, "saved.html"), SAVED)
   return root
 }
 
@@ -277,7 +284,10 @@ test("reading the documents collection costs the PATHS, not the bodies", async (
   await withFace(async ({ client }) => {
     const text = await textOf(client, "surface://collections/documents")
 
-    expect(JSON.parse(text)).toEqual(["manual.md"])
+    // Every BODIED file, `.html` included — the key set is what the sidebar and
+    // an agent both read, and a file whose body the server does not keep is
+    // still a file it serves.
+    expect(JSON.parse(text)).toEqual(["manual.md", "saved.html"])
     // The same fence as the outlines one, on the member that motivated the rule.
     // `manifest` used to carry these bodies whole; the collection is what
     // `snapshot-scale` cut them into, and this is the assertion that says the
@@ -298,5 +308,22 @@ test("one document item is that document's body, fetched only when asked", async
     // agent can read it. One `resources/read` of one key, and nothing else.
     expect(entry.text).toContain(BODY_MARKER)
     expect(entry.text.length).toBeGreaterThan(10_000)
+  })
+})
+
+// The same read, of the file whose body the server does NOT keep — and the
+// sharp edge it walks. A `resources/read` is ONE SHOT: it takes the first frame
+// of the item and leaves. So a server that answered "here is the key, the body
+// is coming" would hand an agent an empty document and call it the file. It
+// answers nothing until the read has landed instead, and the first frame is the
+// page.
+test("one saved page is read from disk for the agent that asks for it", async () => {
+  await withFace(async ({ client }) => {
+    const entry = await readJson(
+      client,
+      "surface://collections/documents/saved.html",
+    ) as { text: string | null }
+
+    expect(entry.text).toBe(SAVED)
   })
 })
