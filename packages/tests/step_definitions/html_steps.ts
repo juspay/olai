@@ -1,5 +1,5 @@
 /**
- * A `.html` in the vault: the row, the page, and the seal around the markup.
+ * A `.html` in the vault: the row, the page, and the seal around the file.
  *
  * Most of these read INSIDE the frame, through Playwright's `frameLocator`,
  * and that is the point rather than an inconvenience: what the file says is in
@@ -8,22 +8,23 @@
  * feature exists to forbid.
  *
  * The two "untouched" steps are the probe's other end. `report.html`'s script
- * tries to write `localStorage`, set a cookie and mark the app's `<body>`; each
- * is read from the APP's side, because that is the origin that would have been
- * reached and the only place the damage would show. They are deliberately
- * asserted after a step that has already seen the preview draw — an empty
- * storage is trivially true of a page that never loaded.
+ * RUNS now, and tries to write `localStorage`, set a cookie and mark the app's
+ * `<body>`; each is read from the APP's side, because that is the origin that
+ * would have been reached and the only place the damage would show. They are
+ * deliberately asserted after a step that has already seen the preview draw —
+ * an empty storage is trivially true of a page that never loaded.
  */
 
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
-// The policy the client actually writes, not a copy of it — see the step that
-// reads it, and `sealed.ts`'s own note on why it is a named function. It takes
-// this app's origin now, because the one thing the policy says that is not a
-// constant is where the pictures are.
-import { policyOf } from "@olai/web/src/client/document/sealed.ts";
+// The policy the server actually writes, not a copy of it — see the step that
+// reads it, and `seal.ts`'s own note on why it is a named function. It takes
+// the HOST the request was made to, because the one thing the policy says that
+// is not a constant is where this vault's files are. `mediaHref` is the other
+// half of the same contract: the address a preview frame is pointed at.
+import { mediaHref, sealPolicy } from "@olai/surface";
 
 import {
   DOCUMENT_EDIT,
@@ -123,6 +124,42 @@ Then(
       colour,
       "rgb(20, 83, 45)",
       "the heading is not wearing the colour the file's own stylesheet gives it",
+    );
+  },
+);
+
+/**
+ * WHAT THE PAGE'S OWN SCRIPT DREW, which is the ruling of 2026-08-16 read as a
+ * fact on a screen rather than as a policy string.
+ *
+ * A page that builds its own content is the ordinary saved dashboard, and under
+ * the old seal it drew NOTHING — the script was refused by hash, so the file
+ * was a heading over an empty box. So the assertion is not "the script ran": it
+ * is that the elements it created are there and each has a real box, because an
+ * element appended by a script that could not style it is as invisible as one
+ * that was never appended.
+ */
+Then(
+  "the preview drew {int} boxes for {string}",
+  async function (this: OlaiWorld, many: number, selector: string) {
+    const drawn = (await inside(this)).locator(selector);
+    await this.waitUntil(
+      async () => (await drawn.count()) === many,
+      `${many} element(s) matching ${selector} to be drawn inside the preview ` +
+        `by the page's own script`,
+    );
+    const flat: string[] = [];
+    for (let at = 0; at < many; at += 1) {
+      const box = await drawn.nth(at).boundingBox();
+      if (box === null || box.width === 0 || box.height === 0) {
+        flat.push(`${selector}[${at}] is ${box === null ? "not rendered" : "0 by 0"}`);
+      }
+    }
+    assert.deepStrictEqual(
+      flat,
+      [],
+      "the page's script appended elements that take up no room at all — it " +
+        "ran far enough to build them and not far enough to size them",
     );
   },
 );
@@ -272,14 +309,21 @@ Then("the preview reached nothing off this server", function (this: OlaiWorld) {
  */
 const SLOW_PICTURE_MS = 750;
 
-const picturesFrom = (world: OlaiWorld): string => {
-  const source = /img-src (\S+)/.exec(policyOf(world.baseUrl));
-  assert.ok(source !== null, "the seal's policy no longer names where pictures come from");
-  return `${source[1]}**`;
-};
+/**
+ * PICTURES ONLY, which the route no longer is: it answers the page itself now,
+ * and holding that back too would delay the document and its picture equally —
+ * an experiment that proves nothing, since what is under test is a picture
+ * arriving AFTER the page has been measured. Read as the address a picture of
+ * this vault has (`@olai/surface`'s `mediaHref`, the same function the frame is
+ * pointed with), so a route moved over there is a step that follows it rather
+ * than one that quietly holds nothing.
+ */
+const heldBack = (world: OlaiWorld) => (url: URL): boolean =>
+  url.pathname.startsWith(mediaHref("")) && /\.(?:png|jpe?g|gif|webp|avif)$/i.test(url.pathname) &&
+  `${url.origin}` === world.baseUrl;
 
 When("the vault's pictures are slow to arrive", async function (this: OlaiWorld) {
-  await this.page.route(picturesFrom(this), async (route) => {
+  await this.page.route(heldBack(this), async (route) => {
     await new Promise((wake) => setTimeout(wake, SLOW_PICTURE_MS));
     await route.continue();
   });
@@ -499,21 +543,41 @@ When(
   },
 );
 
-// The app, INSIDE the preview — the thing that must never be there. Read as the
-// mount point rather than as a testid, because `#root` is in the shell's own
-// HTML from the first byte, so it is there before any hydration and cannot pass
-// by arriving late.
+/**
+ * The app, INSIDE the preview — the thing that must never be left there. Read
+ * as the mount point rather than as a testid, because `#root` is in the shell's
+ * own HTML from the first byte, so it is there before any hydration and cannot
+ * pass by arriving late.
+ *
+ * Read as a SETTLED state rather than as a snapshot, and that is what the new
+ * rule cost this step. A document the frame arrived at by itself is given a
+ * moment to say it is one of this vault's before it is replaced (the file's own
+ * scripts run now, so a relative link to a sibling page is a navigation that
+ * must be allowed to stand — `Hypertext.tsx` argues the whole of it), so a
+ * frame bouncing off a page that keeps leaving passes through the destination
+ * briefly on each bounce. What a reader is owed is where it ENDS UP and that it
+ * ends up anywhere at all: the three lines below are "give it time to be
+ * wrong", "it comes home, or empties" and "and it stays there", which together
+ * say more than one reading at one moment did — a frame ping-ponging forever
+ * fails the second, and one that came home and left again fails the third.
+ */
 Then("the app is not loaded inside the preview", async function (this: OlaiWorld) {
   const frame = await inside(this);
-  // Given a moment to be wrong: the walk-off is a navigation, so asserting
-  // immediately would pass against a frame that simply had not left yet.
+  const app = frame.locator("#root");
   await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  await this.waitUntil(
+    async () => (await app.count()) === 0,
+    "the preview frame to stop being this app — the page walked the frame off " +
+      "to somewhere the seal's policy does not follow it, and nothing put the " +
+      "file back",
+  );
+  await this.page.waitForTimeout(POLL_TIMEOUT / 20);
   assert.strictEqual(
-    await frame.locator("#root").count(),
+    await app.count(),
     0,
     "this app is loaded inside the preview frame — the page walked the frame " +
-      "off `about:srcdoc`, where the seal's policy does not follow it, and " +
-      "nothing put the seal back",
+      "off again after being brought back, and the budget that is supposed to " +
+      "bound that did not",
   );
 });
 
@@ -550,69 +614,102 @@ Then(
   },
 );
 
+/** The address the preview frame is pointed at, as the browser holds it — the
+ *  file's own URL on the media route, plus the visit counter the component
+ *  navigates with. Read off the element rather than rebuilt here, because half
+ *  of what these steps assert is that it IS this app's address. */
+const pointedAt = async (world: OlaiWorld): Promise<string> => {
+  const src = await (await preview(world)).getAttribute("src");
+  // Written as a path by the component and resolved here against this server,
+  // which is the same thing the browser did with it.
+  const at = src === null ? null : new URL(src, world.baseUrl);
+  assert.ok(
+    at !== null && at.origin === world.baseUrl && at.pathname.startsWith(mediaHref("")),
+    `the preview frame is not pointed at this server's media route: ${src}`,
+  );
+  return at.href;
+};
+
 Then(
-  "the preview's markup is sealed with a policy that fetches only pictures",
+  "the preview's response is sealed with a policy that fetches only this vault",
   async function (this: OlaiWorld) {
-    const frame = await preview(this);
-    const srcdoc = (await frame.getAttribute("srcdoc")) ?? "";
-    assert.ok(
-      srcdoc.startsWith("<!doctype html>"),
-      "the seal does not open the markup — a meta policy after the file's own " +
-        "content is a policy the parser ignores",
-    );
-    // The exact policy the client writes, computed by the client's own function
+    const src = await pointedAt(this);
+    // The RESPONSE, because that is where the seal is now: a `<meta>` policy
+    // cannot carry `sandbox`, and `sandbox` is the directive that makes this
+    // address safe for a reader who types it instead of opening the preview.
+    // Asked for again rather than read out of the frame, because a frame in an
+    // opaque origin cannot be asked what its headers were.
+    const answer = await this.page.request.get(src);
+    assert.strictEqual(answer.status(), 200, `the preview's own address answers ${answer.status()}`);
+    // The exact policy the server writes, computed by the server's own function
     // rather than re-spelled, for the reason every selector in `world.ts` is
     // imported: a widening made over there would still read as sealed over
-    // here. The unit test beside it (`sealed.test.ts`) is what says the policy
-    // is the strict one — every directive, including that `img-src` is one path
-    // on this origin and not a scheme, a host or `'self'`; this says the strict
-    // one is what the browser was actually handed, at the address this server
-    // is really on.
+    // here. The unit test beside it (`@olai/surface`'s `seal.test.ts`) is what
+    // says the policy is the strict one — every directive, including that its
+    // one source is this route on this host and not a scheme, a host or
+    // `'self'`; this says the strict one is what the browser was actually
+    // handed, at the address this server is really on.
+    assert.strictEqual(
+      answer.headers()["content-security-policy"],
+      sealPolicy(new URL(this.baseUrl).host),
+      "the policy the preview's own address answers with is not the sealed one",
+    );
+    const body = await answer.text();
     assert.ok(
-      srcdoc.includes(`content="${policyOf(this.baseUrl)}"`),
-      `the policy in front of the markup is not the sealed one: ${srcdoc.slice(0, 240)}`,
+      body.startsWith("<!doctype html>"),
+      "the seal does not open the response — a document that fell into quirks " +
+        "mode is a page drawn wrong for a reason nobody can find",
     );
   },
 );
 
 /**
  * WHAT A RELATIVE ADDRESS IN THE FILE RESOLVES AGAINST, read as the browser's
- * own answer rather than as the attribute that produced it.
+ * own answer rather than as the mechanism that produced it.
  *
  * `document.baseURI` INSIDE the frame is the whole assertion: it is the value
- * every `<img src="art/shot.png">` in there is resolved against, after the
- * parser has taken every `<base>` in the document into account and picked the
- * first. `report.html` carries one of its own pointing at `example.invalid`, so
- * a seal that arrived second — or was left out — fails here with that address
- * in the message.
+ * every `<img src="art/shot.png">` and every `<a href="other.html">` in there
+ * is resolved against. Served at its own address, a page's base is that address
+ * — which is what makes a relative link land on the file beside it instead of
+ * on a URL that was never meant to be one.
  *
- * The file's own base is then asserted to be STILL THERE in the markup, which
- * is the other half of the promise: nothing was stripped or rewritten to make
- * this work. What moved is what the addresses resolve against, not the file.
+ * `report.html` carries a `<base>` of its own pointing at `example.invalid`, so
+ * this is also where the seal's `base-uri 'none'` is read: honoured, that
+ * element would move every relative address in the file to somebody else's
+ * server, and this step would fail with that address in the message.
  */
 Then(
-  "the preview resolves the file's addresses under {string}",
-  async function (this: OlaiWorld, route: string) {
-    const frame = await preview(this);
+  "the preview resolves the file's addresses beside {string}",
+  async function (this: OlaiWorld, file: string) {
     const base = await (await inside(this))
       .locator("body")
       .evaluate(() => document.baseURI);
     assert.strictEqual(
-      base,
-      `${this.baseUrl}${route}`,
-      "a relative address in the previewed file does not resolve on this " +
-        "server's media route — so either the seal's base is missing, or the " +
-        "file's own base won",
-    );
-    const srcdoc = (await frame.getAttribute("srcdoc")) ?? "";
-    assert.ok(
-      srcdoc.includes(`<base href="https://example.invalid/vault/"`),
-      "the file's own `<base>` is not in the markup the browser was handed — " +
-        "the seal is a prefix, and a preview that edited the file to make its " +
-        "pictures work would be lying about what is on disk",
+      // The visit counter the frame navigates with is part of the address and
+      // is not part of what resolves against it — a query belongs to the URL
+      // that carries it.
+      base.split("?")[0],
+      `${this.baseUrl}${mediaHref(file)}`,
+      "a relative address in the previewed file does not resolve beside the " +
+        "file itself — so either the frame is not on the file's own address, " +
+        "or the file's own `<base>` won",
     );
   },
 );
+
+/** …and the other half of that promise: the file's own `<base>` is STILL THERE
+ *  in the bytes. Nothing was stripped or rewritten to make the addresses work
+ *  — the element is refused by the policy, and the file on disk is what the
+ *  reader is shown. */
+Then("the preview was handed the file whole", async function (this: OlaiWorld) {
+  const body = await (await this.page.request.get(await pointedAt(this))).text();
+  assert.ok(
+    body.includes(`<base href="https://example.invalid/vault/"`),
+    "the file's own `<base>` is not in the bytes the browser was handed — the " +
+      "seal is a prefix, and a preview that edited the file to make its " +
+      "pictures work would be lying about what is on disk",
+  );
+});
 
 // ── what the script could not do ───────────────────────────────────────
 
@@ -632,37 +729,40 @@ Then("the app's storage is untouched by the preview", async function (this: Olai
  * The BROWSER's own words, and the only console errors a page with a preview on
  * it is allowed to carry.
  *
- * `report.html` has a script and four addresses it may not fetch; the seal's
- * policy refuses every one of them; Chromium says so on the console, and the
- * suite's error listener records every console error there is. So "there should
- * be no page errors" is the wrong question on these pages — and the right one
- * is stronger than the question it replaces, because it reads the refusals as
- * EVIDENCE: nothing else went wrong, and the things that were supposed to be
- * stopped were stopped, said by the browser rather than by us.
+ * `report.html` carries four addresses it may not fetch, a `<base>` it may not
+ * set and a tab it may not navigate; the seal refuses every one of them;
+ * Chromium says so on the console, and the suite's error listener records every
+ * console error there is. So "there should be no page errors" is the wrong
+ * question on these pages — and the right one is stronger than the question it
+ * replaces, because it reads the refusals as EVIDENCE: nothing else went wrong,
+ * and the things that were supposed to be stopped were stopped, said by the
+ * browser rather than by us.
  *
- * The script one is the CONTENT POLICY's refusal now rather than the sandbox's
- * ("blocked script execution … because the document's frame is sandboxed"),
- * because the sandbox admits scripts so the seal's own tape measure can run and
- * the policy is what names the single script allowed to be one. Both wordings
- * are matched: which mechanism says no is the argument in `sealed.ts`, and this
- * step's job is that SOMETHING did — a run where neither sentence appears is a
- * run where the file's script executed.
+ * THE SCRIPT ONE IS GONE, and its absence is the whole of the ruling of
+ * 2026-08-16 read from the console: the file's own script is supposed to run
+ * now, so a browser complaining that it refused one would be a preview that had
+ * not been fixed. What proves it ran is the paragraph it rewrites, in the
+ * scenario that reads it.
  *
  * Matched loosely (the shape of the sentence, not the sentence — Chromium's
- * current ones are "Executing inline script violates the following Content
- * Security Policy directive …" and "Refused to load the image '…' because it
- * violates the following Content Security Policy directive: img-src …") so a
- * browser that rewords its message fails on the wording of THIS assertion
- * rather than on a security regression that never happened.
+ * current ones are "Refused to load the image '…' because it violates the
+ * following Content Security Policy directive: default-src …" and "Setting the
+ * document's base URI to '…' violates the following Content Security Policy
+ * directive: base-uri 'none'") so a browser that rewords its message fails on
+ * the wording of THIS assertion rather than on a security regression that never
+ * happened.
  *
- * Both kinds are required to have HAPPENED, not merely tolerated. A pattern
+ * The first two are required to have HAPPENED, not merely tolerated. A pattern
  * that only permits a message is one the fixture can satisfy by losing its
  * teeth — the picture probes could be deleted, or quietly start drawing, and an
- * allowance would say nothing either way.
+ * allowance would say nothing either way. The navigation one is tolerated
+ * rather than required: the sandbox refuses it before any policy is consulted,
+ * and how a browser words THAT is not something this suite should pin.
  */
 const REFUSALS = {
-  script: /inline script[\s\S]*content security policy|blocked script execution/i,
   picture: /(?:loading|refused to load) the image[\s\S]*content security policy/i,
+  base: /(?:refused to set|setting) the document's base uri/i,
+  navigation: /unsafe (?:javascript )?attempt to initiate navigation|sandboxed/i,
 } as const;
 
 const REFUSED = (said: string): boolean =>
@@ -679,15 +779,17 @@ Then(
         others.join("\n  "),
     );
     assert.ok(
-      this.errors.some((said) => REFUSALS.script.test(said)),
-      "the browser never refused the script in `report.html` — either the frame " +
-        "stopped being sandboxed, or the fixture stopped carrying a script",
-    );
-    assert.ok(
       this.errors.some((said) => REFUSALS.picture.test(said)),
       "the browser never refused a picture in `report.html` — either the policy " +
         "stopped naming which addresses a preview may fetch, or the fixture " +
         "stopped carrying the ones it may not",
+    );
+    assert.ok(
+      this.errors.some((said) => REFUSALS.base.test(said)),
+      "the browser never refused `report.html`'s own `<base>` — so either " +
+        "`base-uri 'none'` has left the policy, and a saved page may point " +
+        "every address in itself at the server it came from, or the fixture " +
+        "stopped carrying one",
     );
   },
 );

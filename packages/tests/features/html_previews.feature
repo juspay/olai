@@ -5,25 +5,26 @@ Feature: A `.html` in the vault
   listed in the sidebar under the folder it lives in, with a glyph of its own,
   and it has a page at its own address that shows what the file says.
 
-  It SHOWS the file and never runs it. The markup is drawn in a frame whose
-  origin is nobody's — sandboxed with no `allow-same-origin` — behind the
-  strictest content policy there is, which admits exactly one script by its
-  hash: olai's own tape measure, which is how the frame comes to be the height
-  of the page it holds. A script in somebody's saved page matches no hash, runs
-  nowhere, and could reach nothing if it did. That is the promise worth testing,
-  so the fixture is hostile: `report.html` tries to rewrite its own paragraph,
-  write `localStorage`, set a cookie, mark the app's DOM and navigate the tab
-  away. All four must fail, and the last two scenarios are where that is read.
+  It SHOWS the file, and the file RUNS. That is the rule from 2026-08-16, and it
+  replaced the opposite one: the seal used to admit exactly one script by its
+  hash — olai's own tape measure — so a saved dashboard or a page that draws
+  itself was a heading over an empty box. What has not changed by one inch is
+  where it runs: a frame whose origin is nobody's, sandboxed with no
+  `allow-same-origin`, so there are no cookies, no storage and no reach into the
+  app around it. So the fixture is hostile in both directions now: `report.html`
+  rewrites its own paragraph (and must), then tries to write `localStorage`, set
+  a cookie, mark the app's DOM and navigate the tab away (and must fail at every
+  one). The paragraph it leaves behind is where both halves are read.
 
-  Its PICTURES draw, and that is the one thing the frame may fetch. A relative
-  address in the file resolves against the media route at the file's own
-  directory — the same route, the same allowlist and the same traversal guard a
-  markdown document's `![](shot.png)` already goes through — so a picture
-  beside the file is drawn and everything else is refused before a request is
-  made: a climb out of the vault, the same climb spelled `%2e%2e`, a remote
-  host, a `data:` URI. `report.html` carries one of each, and it carries a
-  `<base>` of its own trying to move the lot to somebody else's server. The
-  scenarios below read every one of those as evidence rather than as a promise.
+  What the seal is FOR, now that it is not for stopping code, is stopping BYTES.
+  The file is served at its own address on the media route, behind a content
+  policy on the RESPONSE whose every fetching directive names one place: this
+  vault, on this host. So a relative address in the file resolves beside the
+  file — a picture draws, and a link opens the page next door — while a climb
+  out of the vault, the same climb spelled `%2e%2e`, a remote host, a `data:`
+  URI and a `<base>` pointing at somebody else's server are all refused before a
+  request is made. `report.html` carries one of each. The scenarios below read
+  every one of those as evidence rather than as a promise.
 
   @corpus:good
   Scenario: A `.html` is listed in the sidebar and opens as a page
@@ -36,9 +37,11 @@ Feature: A `.html` in the vault
     # A route, not a reload: the page answered in place, exactly as a document's
     # link does.
     And the page has not reloaded
-    # Not "no page errors": a preview of a file WITH a script in it carries one,
-    # and it is the browser saying it refused to run the thing. That refusal is
-    # evidence, so it is asserted as such rather than filtered away.
+    # Not "no page errors": a preview of this file carries several, and every
+    # one of them is the browser saying it refused an address the file may not
+    # have. Those refusals are evidence, so they are asserted as such rather
+    # than filtered away — and the one that is NOT there any more is the script,
+    # which is the whole of the new rule read from the console.
     And the only complaints are the browser refusing what the file may not do
 
   @corpus:good
@@ -63,39 +66,107 @@ Feature: A `.html` in the vault
     Then there is a way to edit this page
 
   @corpus:good
-  Scenario: The frame the markup is drawn in is sealed
-    # The mechanisms, as facts on the element and in the markup rather than as
+  Scenario: The frame the file is drawn in is sealed
+    # The mechanisms, as facts on the element and on the response rather than as
     # an outcome that could be true by luck. The sandbox has ONE token and the
     # one that is absent is the point — no `allow-same-origin`, so the frame's
-    # origin is nobody's — and the policy in front of the markup refuses every
-    # script but the one it names by hash and every fetch but a picture on this
-    # server's own media route. A reviewer attacking this reads these three
-    # lines first.
+    # origin is nobody's — and the policy the file is answered with says the
+    # same thing a second time (so a reader who types the address is in an
+    # opaque origin too) and names one place anything may be fetched from. A
+    # reviewer attacking this reads these three lines first.
     When I open the page "report.html"
     Then the preview is sandboxed into nobody's origin
-    And the preview's markup is sealed with a policy that fetches only pictures
-    # …and the addressing decision that goes with it, in front of the file for
-    # the same reason the policy is: the first `<base href>` in a document is
-    # the document's, and `report.html` carries one of its own pointing at
-    # somebody else's server.
-    And the preview resolves the file's addresses under "/media/"
+    And the preview's response is sealed with a policy that fetches only this vault
+    # …and the addressing decision that goes with it. A page served at its own
+    # address resolves its own relative addresses beside itself; `report.html`
+    # carries a `<base>` of its own pointing at somebody else's server, and the
+    # policy refuses the element rather than the file being edited to drop it.
+    And the preview resolves the file's addresses beside "report.html"
+    And the preview was handed the file whole
 
   @corpus:good
-  Scenario: A script in a served `.html` cannot run, and cannot touch the app
-    # The probe. `report.html`'s script would rewrite this paragraph if it ran,
-    # so the paragraph is the evidence — read INSIDE the frame, where the script
-    # would have run, rather than out here where nothing would have happened
-    # either way.
+  Scenario: A script in a served `.html` runs, and still cannot touch the app
+    # The probe, and it reads the opposite thing it used to. `report.html`'s
+    # script rewrites this paragraph, so the paragraph is the evidence that the
+    # file's own JavaScript ran — read INSIDE the frame, where it ran, rather
+    # than out here where nothing would have happened either way. The rest of
+    # the sentence is the script's own account of what it could NOT do.
     When I open the page "report.html"
-    Then the preview says "the script did not run"
-    # ...and the other three, read from the app's side: the origin the script
-    # tried to write into.
+    Then the preview says "the script ran and reached nothing"
+    # ...and the same three, read from the app's side: the origin the script
+    # tried to write into, and the address it tried to take the tab to.
     And the app's storage is untouched by the preview
     And the app's page is untouched by the preview
     And the address is "/doc/report.html"
-    # The browser's own account of the same fact, from the other side: it says
-    # out loud that it refused to run the script, and nothing else went wrong.
+    # The browser's own account, from the other side: it refused the addresses
+    # and the base, said so, and nothing else went wrong — and nothing in there
+    # complains about a script, because a script running is what is supposed to
+    # happen now.
     And the only complaints are the browser refusing what the file may not do
+
+  @scratch:good
+  Scenario: A page that draws itself with its own script draws
+    # The ruling, as the thing a reader sees. Under the old seal this fixture
+    # was a heading over an empty box: the script matched no hash and the
+    # browser refused it, so the bars below were never created. A saved
+    # dashboard, an exported report and a chart a build wrote are all this
+    # shape, which is why "shown but never run" was the wrong rule.
+    Given I open the app
+    When I rewrite "chart.html" as:
+      """
+      <h1>Sales</h1>
+      <div id="chart"></div>
+      <script>
+        var bars = [40, 120, 80]
+        var chart = document.getElementById("chart")
+        for (var i = 0; i < bars.length; i++) {
+          var bar = document.createElement("div")
+          bar.className = "bar"
+          bar.style.width = "60px"
+          bar.style.height = bars[i] + "px"
+          bar.style.margin = "0 0 8px 0"
+          bar.style.background = "#14532d"
+          chart.appendChild(bar)
+        }
+      </script>
+      """
+    And I click the page "chart.html"
+    Then the preview shows the heading "Sales"
+    And the preview drew 3 boxes for ".bar"
+    # …and the frame is the height of what the script drew, which is the other
+    # half of the same fact: the measurement is taken after the page builds
+    # itself, not before.
+    And the preview is as tall as the page it shows
+
+  @scratch:good
+  Scenario: A relative link opens the page beside it, inside the frame
+    # What giving the file a real address bought, and the bug it closes:
+    # `html-preview-relative-links` on the roadmap. Under the old seal a
+    # relative link resolved against a `<base>` at the media route's directory,
+    # which was an address the route would not answer — so a click was a 404.
+    # Served at its own path, the file's neighbours are its neighbours, and the
+    # page that opens is sealed exactly as the one that linked to it.
+    Given I open the app
+    When I rewrite "notes/first.html" as:
+      """
+      <h1>First</h1>
+      <p><a id="next" href="second.html">the next page</a></p>
+      """
+    And I rewrite "notes/second.html" as:
+      """
+      <h1>Second</h1>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/first.html"
+    Then the preview shows the heading "First"
+    When I click "#next" inside the preview
+    # The page beside it, in the frame, and STILL THERE — a document this
+    # server sealed says so as it parses, so the frame is not brought home from
+    # it the way it is brought home from a stranger's page (the two scenarios
+    # below this one).
+    Then the preview shows the heading "Second"
+    And the preview resolves the file's addresses beside "notes/second.html"
+    And the app's page is untouched by the preview
 
   @corpus:good
   Scenario: The preview draws the file's own picture
@@ -134,10 +205,12 @@ Feature: A `.html` in the vault
     # The guard at the OTHER end of the route, and the only address in this
     # feature that the policy lets through to the server: `finishes.md` is
     # inside the served directory, so it is under `/media/` and passes the
-    # `img-src` path — and the route answers a picture or nothing at all. Both
-    # halves are read, because the promise is not "the picture did not draw"
-    # (an `<img>` at a document would not draw either) but "the file was never
-    # served".
+    # policy's path — and the route answers a page, a picture or one of the
+    # parts a page draws with, and nothing else ever. A `.md` has a page of its
+    # own, so handing it over raw here would be a second way to read it with no
+    # argument for the first. Both halves are read, because the promise is not
+    # "the picture did not draw" (an `<img>` at a document would not draw
+    # either) but "the file was never served".
     Given I open the app
     When I rewrite "greedy.html" as:
       """
@@ -162,7 +235,8 @@ Feature: A `.html` in the vault
     # What this scenario reads is the OUTCOME, not which of the two said no:
     # the click happens, nothing leaves this server, and the frame is still on
     # the document the seal put there. That the policy carries the directive at
-    # all is `sealed.ts`'s own test, where the whole directive set is asserted.
+    # all is `@olai/surface`'s `seal.test.ts`, where the whole directive set is
+    # asserted.
     Given I open the app
     When I rewrite "form.html" as:
       """
@@ -209,20 +283,25 @@ Feature: A `.html` in the vault
     And the preview is as tall as the page it shows
     And the preview is taller than the viewport
 
-  # ── the frame stays on its own document ──────────────────────────────
+  # ── the frame comes home ─────────────────────────────────────────────
   #
   # A `sandbox` attribute belongs to the browsing CONTEXT and survives every
-  # navigation; the seal's `<meta>` policy belongs to one DOCUMENT and dies with
-  # it. So a page that walks the frame off `about:srcdoc` — a `refresh`, a link
-  # — used to land somewhere unsealed and inert, because the empty sandbox
-  # barred scripts everywhere. It would now land somewhere unsealed where
-  # scripts RUN. The origin is still nobody's, so the vault is still out of
-  # reach, but "running in there is worth nothing" would stop being true.
+  # navigation; the seal's policy belongs to one RESPONSE and does not. So a
+  # page that walks the frame off the vault — a `refresh`, a link to a stranger
+  # — lands somewhere with no `default-src` over it, where its script may fetch
+  # whatever it likes. The origin is still nobody's, so this app and this vault
+  # are still out of reach; what is lost is the privacy half of the promise,
+  # which is the half a preview makes.
   #
-  # These two are that gap, closed and proved. The destination is this app,
-  # because unsealed the frame would load olai inside olai and run its
-  # JavaScript — the failure would be unmistakable — and because it needs no
-  # network. grok's review of PR #197 is what found this.
+  # These two are that gap, closed and proved. Two kinds of unasked-for
+  # navigation exist now and only one of them is a walk-off: a file of this
+  # vault greets the app as it parses, so the scenario above this section stays
+  # where the link took it, while a page that says nothing is replaced by the
+  # file — a bounded number of times, and then by nothing at all. The
+  # destination here is this app, because unsealed the frame would load olai
+  # inside olai and run its JavaScript — the failure would be unmistakable —
+  # and because it needs no network. grok's review of PR #197 is what found
+  # this.
 
   @scratch:good
   Scenario: A page that refreshes itself away is not allowed to leave
@@ -258,9 +337,9 @@ Feature: A `.html` in the vault
   # The frame is the height of the page it holds. It was `70dvh` flat before —
   # two thirds of a screen for every file, which is a guess that is wrong in
   # both directions at once: a receipt sat above a screenful of white, and an
-  # article got a scrollbar inside the page's own scrollbar. Nothing inside a
-  # sandboxed frame could measure it, so the seal now admits exactly one script
-  # by its hash and that script's whole job is to report the height out.
+  # article got a scrollbar inside the page's own scrollbar. Nothing outside a
+  # frame can measure what is in it, so the seal prepends a tape measure whose
+  # whole job is to report the page's height back out.
   #
   # These three scenarios are written against pages of a KNOWN height (a `div`
   # with a `height` on it, so the number is the fixture's rather than the

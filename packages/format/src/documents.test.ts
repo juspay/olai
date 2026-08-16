@@ -3,6 +3,7 @@ import { expect, test } from "bun:test"
 import {
   docOf,
   bodiedOf,
+  isAsset,
   isPicture,
   pictureOf,
   resolveRelative,
@@ -120,4 +121,23 @@ test("only picture extensions are pictures, case-insensitively", () => {
   expect(isPicture("a/plan.olai")).toBe(false)
   expect(isPicture("a/notes.md")).toBe(false)
   expect(isPicture("png")).toBe(false)
+})
+
+// The other allowlist, one step wider, and the difference between the two is
+// the subject: markdown may name a PICTURE, and the media route may answer
+// anything a previewed page is made of. `.svg` is out of both — an SVG is a
+// document that can script — and the set's own files are out of this one
+// because they have pages of their own.
+test("a page and the parts it draws with are assets, and nothing else is", () => {
+  expect(isAsset("notes/report.html")).toBe(true)
+  expect(isAsset("a/shot.png")).toBe(true)
+  expect(isAsset("a/page.CSS")).toBe(true)
+  expect(isAsset("a/chart.js")).toBe(true)
+  expect(isAsset("a/chart.mjs")).toBe(true)
+  expect(isAsset("a/text.woff2")).toBe(true)
+  expect(isAsset("a/logo.svg")).toBe(false)
+  expect(isAsset("a/notes.md")).toBe(false)
+  expect(isAsset("a/plan.olai")).toBe(false)
+  expect(isAsset("a/data.json")).toBe(false)
+  expect(isAsset("js")).toBe(false)
 })
