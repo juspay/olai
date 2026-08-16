@@ -393,6 +393,52 @@ test("blocks is the same edge, and both halves land in one answer", () => {
   expect(derived.blocked.has("b")).toBe(false)
 })
 
+// AN EDGE NAMED TWICE IS ONE EDGE — the last thing normalisation owes the
+// readers of this graph, and the three ways a set can say one arrow twice.
+// Nothing refuses any of them: a `.olai` is plain text, the validator asks
+// whether a target EXISTS, and both fields are legal spellings of the same
+// claim. What reads it takes it as a set — the `blocked by` row a page draws
+// keyed by the blocker's id, the tip, the walk the acyclicity rule shares —
+// and a repeat there says one node is in the way twice.
+test("an edge named twice, however it is spelled, is one edge", () => {
+  // The FIELD, repeating a target, which is what a hand or a merge writes.
+  const repeated = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","todo":true,"after":["b","b","b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}`,
+  ))
+  expect(repeated.after.get("a")).toEqual(["b"])
+  expect(waiting(repeated, "a")).toEqual(["b doing"])
+
+  // BOTH SPELLINGS of one arrow, each written once. Neither record is wrong,
+  // and `a after b` is what the pair means.
+  const both = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","todo":true,"after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true,"blocks":["a"]}`,
+  ))
+  expect(both.after.get("a")).toEqual(["b"])
+  expect(waiting(both, "a")).toEqual(["b doing"])
+
+  // TWO IDS STANDING AT ONE NODE: naming a placement names the node it shows,
+  // so an `after` naming both is naming one target — and the pair is one edge
+  // only because both ends are resolved before they are compared.
+  const mirrored = derive(nodesOfFiles({
+    "a.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["b","b-here"]}\n` +
+      `{"id":"b-here","ord":"b","mirror":"b"}`,
+    "b.olai": `{"id":"b","ord":"a","title":"b","doing":true}`,
+  }))
+  expect(mirrored.after.get("a")).toEqual(["b"])
+  expect(waiting(mirrored, "a")).toEqual(["b doing"])
+
+  // The ORDER a repeat is dropped in is the order the set first named it:
+  // what survives is the whole list, minus the second saying of one thing.
+  const ordered = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","todo":true,"after":["c","b","c"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}\n` +
+      `{"id":"c","ord":"c","title":"c","todo":true}`,
+  ))
+  expect(ordered.after.get("a")).toEqual(["c", "b"])
+})
+
 // Work that was put away is over: it blocks nothing, because a node waiting on
 // it would wait forever, and it is not blocked either, because the archive is
 // read as history rather than as a plate. Both ends, one rule.
@@ -513,6 +559,20 @@ test("a node's own after targets come before anything that blocks it", () => {
       `{"id":"subject","ord":"c","title":"subject","todo":true,"after":["own"]}`,
   ))
   expect(waiting(derived, "subject")).toEqual(["own doing", "early doing"])
+
+  // AND THE PROMISE SURVIVES A PAIR THAT SAYS ONE EDGE BOTH WAYS. `own` is
+  // named twice here — by the subject's own `after` and by its own `blocks`,
+  // one file, both legal — so the second pass meets an edge the first already
+  // filed. That is where the two rules meet: the collapse keeps the position
+  // the FIRST saying earned, rather than moving the pair to where the `blocks`
+  // was read or naming `own` twice with `early` between the two.
+  const paired = derive(nodesOf(
+    `{"id":"early","ord":"a","title":"early","doing":true,"blocks":["subject"]}\n` +
+      `{"id":"own","ord":"b","title":"own","doing":true,"blocks":["subject"]}\n` +
+      `{"id":"subject","ord":"c","title":"subject","todo":true,"after":["own"]}`,
+  ))
+  expect(paired.after.get("subject")).toEqual(["own", "early"])
+  expect(waiting(paired, "subject")).toEqual(["own doing", "early doing"])
 })
 
 // Blockedness is read off the same index wherever a node is drawn: a row, a

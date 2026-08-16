@@ -305,6 +305,11 @@ export interface InTheWay {
  * validator's to report, and dropping the edge here would decide that quietly.
  *
  * A mirror is never a source of its own: it carries no edges.
+ *
+ * AND IT IS A SET, per source: what a node waits on is a list of nodes, each
+ * named once, in the order it was first named. That is the same claim the two
+ * paragraphs above make about spellings and about placements, carried to the
+ * case where the two arrive at one pair — see {@link edge}.
  */
 const orderings = (
   byId: ReadonlyMap<string, Located>,
@@ -313,10 +318,19 @@ const orderings = (
   const index = { byId }
   const named = (id: string): string => nodeNamed(index, id)?.node.id ?? id
   const after = new Map<string, Array<string>>()
+  /** File one edge, ONCE. Both ends are resolved to nodes before they get
+   *  here, so a field repeating a target (a `.olai` is plain text, and nothing
+   *  refuses a hand that writes `after: [b, b]`), the two spellings of one
+   *  arrow both written down, and two ids standing at one node through a
+   *  mirror all arrive as the same pair — and each of them is one edge. Every
+   *  reader takes this as a set: the row a page draws keyed by the blocker's
+   *  id (a repeat crashes the client, `web/client/NodeRefs.tsx`), the `blocked
+   *  by` tip, the walk the acyclicity rule and `set_after`'s loop refusal
+   *  share. A duplicate would say one node is in the way twice. */
   const edge = (from: string, to: string): void => {
     const existing = after.get(from)
     if (existing === undefined) after.set(from, [to])
-    else existing.push(to)
+    else if (!existing.includes(to)) existing.push(to)
   }
 
   for (const { node } of nodes) {
