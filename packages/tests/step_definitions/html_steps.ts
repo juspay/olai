@@ -294,18 +294,16 @@ Then("the preview reached nothing off this server", function (this: OlaiWorld) {
  * zero-tall box until its bytes land — so whether the first measurement is
  * correct depends entirely on whether the picture beat it. Over a loopback
  * socket with a one-kilobyte PNG it usually does, which means an unheld run
- * would pass whether or not the second reading (`./sealed.ts`'s settled report)
- * existed at all. Held for longer than a first layout takes, the order is the
+ * would pass whether or not the second reading (`@olai/surface`'s `seal.ts`
+ * tags it `settled`) existed at all. Held for longer than a first layout takes, the order is the
  * one every real page with a photograph in it sees: measure, then arrive.
  *
  * `route` rather than a slower fixture, because size is not the knob — a bigger
  * file is still a race, just with different odds.
  *
- * WHICH addresses are held is read out of the seal's own policy rather than
- * spelled here: the `img-src` source IS the route a preview's pictures travel,
- * so this holds back exactly what the client says a frame may fetch, and a
- * route moved over there is a step that follows it rather than one that quietly
- * holds nothing.
+ * WHICH addresses are held is read off the route both ends spell rather than
+ * written out here (`@olai/surface`'s `mediaHref`), so a route moved over there
+ * is a step that follows it rather than one that quietly holds nothing.
  */
 const SLOW_PICTURE_MS = 750;
 
@@ -483,10 +481,11 @@ Then(
  * address.
  *
  * A `<meta http-equiv="refresh">` is the walk-off that needs no script, and it
- * needs an ABSOLUTE url — a sandboxed `srcdoc` document is an opaque origin, so
- * a relative one has nothing to resolve against and simply does not fire (which
- * is a trap worth naming: a fixture written with `url=/` would pass this
- * scenario by never attacking it).
+ * needs an ABSOLUTE url for a reason that CHANGED with this rule and still
+ * holds: a served page has a real address now, so `url=/` would resolve — onto
+ * this server's own root, which is not where the frame has to be stopped from
+ * going. The attack this scenario is about is the frame leaving the vault, so
+ * the fixture has to name somewhere outside it.
  *
  * The destination is THIS APP. Not for drama — it is the destination that makes
  * the failure legible and needs no network: unsealed, the frame would load
@@ -598,7 +597,8 @@ Then(
   async function (this: OlaiWorld) {
     const frame = await preview(this);
     // The ATTRIBUTE, exactly as written. `allow-scripts` is there so the seal's
-    // own tape measure can run (`sealed.ts` argues it); `allow-same-origin` is
+    // own tape measure and the FILE's own scripts can run (`@olai/surface`'s
+    // `seal.ts` argues it); `allow-same-origin` is
     // the one that must never join it, because a document with BOTH can reach
     // its own frame element and take the sandbox off. Asserted as an equality
     // rather than as "does not contain same-origin", so any third token is a

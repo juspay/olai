@@ -133,6 +133,54 @@ const WALK_OFFS = 3
 const SAYS_HELLO = 300
 
 /**
+ * WHOSE DOCUMENT IS IN THE FRAME, as ONE value with four states.
+ *
+ * Three facts drive everything below — is a navigation this component caused
+ * still in flight, has the document in the frame said {@link sealedHello}, and
+ * is a question outstanding about a document that arrived on its own — and they
+ * were three loose variables (a counter, a boolean and a timer handle) whose
+ * joint validity was kept by the ORDER of the arms that read them. Every one of
+ * them is about the same thing, so every one of them had to be cleared together
+ * at four call sites, and two of their illegal combinations were reachable:
+ *
+ *   - a counter that could exceed one. Two pointings with no load between them
+ *     is ONE navigation (the second aborts the first), so the second load never
+ *     comes and the count never returns to zero — after which every walk-off
+ *     reads as a document this component asked for, and the guard is deaf;
+ *   - a greeting with nothing to belong to. A hello delivered AFTER its own
+ *     document's load — the case {@link SAYS_HELLO} exists for — was recorded as
+ *     a greeting for the NEXT load, which the next walk-off then spent to look
+ *     like a page of this vault.
+ *
+ * As states they cannot be spelled. There is at most one navigation in flight
+ * because assigning `src` aborts the last one, so `asked` is a state and not a
+ * number; and a greeting is attributed to a DOCUMENT — `spoke` says whether the
+ * one in the frame has already said its piece, so the next hello is known to be
+ * the next document's rather than guessed to be.
+ *
+ * The whole rule, which is the transition table and nothing else:
+ *
+ * | state              | a load arrives                    | a hello arrives      |
+ * |--------------------|-----------------------------------|----------------------|
+ * | `asked`            | ours → `showing`                  | this document's      |
+ * | `showing` (¬spoke) | nobody asked → `stray`            | this document's      |
+ * | `showing` (spoke)  | nobody asked → `stray`            | the NEXT document's  |
+ * | `greeted`          | a sealed page of this vault, kept | ignored (one each)   |
+ * | `stray`            | it walked off again → `stray`     | answers the question |
+ */
+type Custody =
+  /** A navigation this component caused is in flight; the next load is ours. */
+  | { readonly at: "asked"; readonly spoke: boolean }
+  /** The document in the frame is the one that was asked for. */
+  | { readonly at: "showing"; readonly spoke: boolean }
+  /** A document nobody asked for has greeted, and its load has not arrived yet:
+   *  a file of this vault, reached by a link inside the preview. */
+  | { readonly at: "greeted" }
+  /** A document nobody asked for has loaded without greeting. The timer is what
+   *  puts the file back if it never does. */
+  | { readonly at: "stray"; readonly until: ReturnType<typeof setTimeout> }
+
+/**
  * WHAT THE FRAME REPORTS, as this element publishes it: one custom property
  * holding a CSS length, or nothing at all before a page has measured itself.
  *
@@ -198,35 +246,29 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
   // clear together would live in whoever remembered to write both lines; here
   // the whole record is replaced and the rule is the assignment.
   let acceptedAt: Partial<Record<Reading, number>> = {}
-  // Loads this component asked for. Every document it points the frame at is
-  // one; a `load` with none outstanding is the frame somewhere nobody sent it.
-  let expected = 0
   let walkOffs = 0
   let visits = 0
-  // A greeting in hand and not yet spent: the one thing every document this
-  // server seals says first (`@olai/surface`'s `sealedHello`), which arrives
-  // while its document is still parsing and therefore normally before the
-  // `load` that asks about it. Each load SPENDS one, so it is an answer about
-  // the document that just arrived and never about the one before it.
-  let hailed = false
-  // A navigation nobody asked for whose document has not greeted us yet, and
-  // the timer that will put the file back if it never does. Held so the message
-  // listener can call it off and so an unmount does not leave a timer holding a
-  // dead element.
-  let unclaimed: ReturnType<typeof setTimeout> | undefined
+  // Whose document is in the frame ({@link Custody}, where the whole rule is a
+  // table). Before the first pointing there is nothing in there and nothing has
+  // been asked for, which is the same answer this gives to every question:
+  // a load now would be one nobody asked for.
+  let custody: Custody = { at: "showing", spoke: true }
+
+  /** Move to the next state, letting go of the old one's timer. ONE assignment,
+   *  so "the question is off when we leave the state that asked it" is
+   *  mechanical rather than four remembered lines. */
+  const stand = (next: Custody) => {
+    if (custody.at === "stray") clearTimeout(custody.until)
+    custody = next
+  }
 
   /** Point the frame somewhere, and remember that its `load` is ours. The
    *  heights and the pending question belonged to the document that is
    *  leaving. */
   const point = (url: string) => {
     if (frame === undefined) return
-    expected += 1
     fresh()
-    // Nothing said by the document that is leaving carries over to the one
-    // being asked for.
-    hailed = false
-    clearTimeout(unclaimed)
-    unclaimed = undefined
+    stand({ at: "asked", spoke: false })
     frame.src = url
   }
 
@@ -245,34 +287,28 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
 
   /** Put the file back, or — once the budget is out — nothing at all. */
   const bring = () => {
-    unclaimed = undefined
     walkOffs += 1
     if (walkOffs > WALK_OFFS) point("about:blank")
     else show()
   }
 
   const loaded = () => {
-    // Every load spends the greeting that came with it, whoever asked for the
-    // document: an unspent one would answer for the NEXT load, which is exactly
-    // the walk-off this is here to catch.
-    const ours = hailed
-    hailed = false
-    if (expected > 0) {
-      expected -= 1
-      return
-    }
+    // The document this component asked for. Whether its hello has landed yet
+    // is carried across, so a greeting still in flight is not mistaken later
+    // for the NEXT document's.
+    if (custody.at === "asked") return stand({ at: "showing", spoke: custody.spoke })
     // Nobody asked for this document: the page walked the frame off, or the
-    // reader followed a link out of it. Which of those it is, is a question
-    // only the document can answer — everything this server seals greets its
-    // embedder while it parses — and either way this is a new page, so the
+    // reader followed a link out of it. Either way it is a new page, so the
     // heights of the old one go.
     fresh()
-    // A file of this vault, reached by a link inside the preview. That is the
-    // feature, not the walk-off: it is sealed exactly as the file that linked
-    // to it is, so it stays, and it keeps its own height.
-    if (ours) return
-    clearTimeout(unclaimed)
-    unclaimed = setTimeout(bring, SAYS_HELLO)
+    // A file of this vault, reached by a link inside the preview — it greeted
+    // while it parsed. That is the feature, not the walk-off: it is sealed
+    // exactly as the file that linked to it is, so it stays and it keeps its
+    // own height.
+    if (custody.at === "greeted") return stand({ at: "showing", spoke: true })
+    // Nothing said it was one of ours. It has {@link SAYS_HELLO} to say so
+    // before the file goes back.
+    stand({ at: "stray", until: setTimeout(bring, SAYS_HELLO) })
   }
 
   // The message arrives on the WINDOW — there is no per-frame channel — so the
@@ -290,14 +326,15 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
     const listen = (event: MessageEvent) => {
       if (event.source !== frame?.contentWindow) return
       if (sealedHello(event.data)) {
-        // Either it arrived while its document was parsing, in which case the
-        // `load` about to be delivered will spend it — or it arrived after that
-        // load, and what it answers is the question already waiting.
-        if (unclaimed === undefined) hailed = true
-        else {
-          clearTimeout(unclaimed)
-          unclaimed = undefined
-        }
+        // WHOSE greeting this is, decided by what the frame is holding rather
+        // than by when it arrived (`Custody`'s table). A document says this
+        // once, while it parses, so: the one in the frame has now spoken — or,
+        // if it already had, this is the NEXT document arriving on its own, and
+        // its load is what will find that out.
+        if (custody.at === "stray") stand({ at: "showing", spoke: true })
+        else if (custody.at === "greeted") return
+        else if (custody.spoke) stand({ at: "greeted" })
+        else stand({ ...custody, spoke: true })
         return
       }
       const report = reported(event.data)
@@ -311,7 +348,11 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
     onCleanup(() => window.removeEventListener("message", listen))
   })
 
-  onCleanup(() => clearTimeout(unclaimed))
+  // A pending question outlives nothing: an unmounted component must not leave
+  // a timer holding a dead element.
+  onCleanup(() => {
+    if (custody.at === "stray") clearTimeout(custody.until)
+  })
 
   // DEFERRED, because the first document is pointed at by the `ref` below —
   // before the element is in the page, so it arrives with its address already

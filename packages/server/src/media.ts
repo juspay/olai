@@ -47,7 +47,7 @@
  */
 
 import { fileKind } from "@olai/format"
-import { MEDIA_PREFIX, mediaTarget, SEAL, sealPolicy } from "@olai/surface"
+import { MEDIA_PREFIX, mediaTarget, SEAL, sealPolicy, spellsHost } from "@olai/surface"
 import { Effect, FileSystem } from "effect"
 import {
   HttpRouter,
@@ -147,6 +147,34 @@ const page = (
   target: string,
   request: HttpServerRequest.HttpServerRequest,
 ) =>
+  Effect.gen(function*() {
+    const host = request.headers["host"] ?? ""
+    // SAID OUT LOUD, because the failure is otherwise invisible: a host this
+    // app will not spell gets a policy with no sources in it, which is a
+    // preview that draws no picture and runs no script of the page's own — and
+    // nothing on screen, in the console or in the log would say why. It cannot
+    // happen behind an ordinary browser; it can happen behind something that
+    // rewrites `Host`, and that operator is exactly who needs the sentence.
+    if (!spellsHost(host)) {
+      yield* Effect.annotateLogs(
+        Effect.logWarning(
+          "a preview was asked for on a host this server will not spell, so its " +
+            "policy allows nothing to be fetched at all",
+        ),
+        { host, file: target },
+      )
+    }
+    return yield* read(disk, root, target, host)
+  })
+
+/** The bytes, sealed — split out so the arm above reads as the one decision it
+ *  is. */
+const read = (
+  disk: FileSystem.FileSystem,
+  root: string,
+  target: string,
+  host: string,
+) =>
   disk.readFile(`${root}/${target}`).pipe(
     Effect.map((bytes) => {
       const body = new Uint8Array(PREFIX.length + bytes.length)
@@ -155,7 +183,7 @@ const page = (
       return HttpServerResponse.uint8Array(body, {
         contentType: "text/html; charset=utf-8",
         headers: {
-          "content-security-policy": sealPolicy(request.headers["host"] ?? ""),
+          "content-security-policy": sealPolicy(host),
           "x-content-type-options": "nosniff",
           "referrer-policy": "no-referrer",
           "cache-control": "no-store",

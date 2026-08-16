@@ -221,8 +221,13 @@ export const isPicture = (path: string): boolean => {
  *
  * The `.html` itself is NOT here: which suffix is hypertext is `./kinds.ts`'s
  * single answer, and {@link isAsset} asks it there.
+ *
+ * Module-private, unlike {@link PICTURE_EXTENSIONS} beside it, because nothing
+ * outside needs the LIST — the route asks {@link isAsset} a question and gets a
+ * yes or a no. A second exported list would be a second thing to keep in step
+ * for no reader.
  */
-export const ASSET_EXTENSIONS: ReadonlyArray<string> = [
+const ASSET_EXTENSIONS: ReadonlyArray<string> = [
   ".css",
   ".js",
   ".mjs",

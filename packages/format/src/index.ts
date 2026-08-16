@@ -80,7 +80,6 @@ export {
 } from "./kinds.ts"
 export type { BodyKind, FileKind } from "./kinds.ts"
 export {
-  ASSET_EXTENSIONS,
   bodiedOf,
   docOf,
   Document,

@@ -248,8 +248,12 @@ export const sealedHello = (said: unknown): boolean => said === HELLO
  * therefore report the frame's current height back to the frame, pinning a
  * short page at whatever it was first given. `body.scrollHeight` is the max'd-in
  * second reading for the page that sets `html { height: 100% }` and overflows
- * it — unguarded, because every path into `post` runs at `DOMContentLoaded` or
- * later, and by then there is a body.
+ * it — GUARDED, and the guard is the new rule's doing. It used to rest on
+ * "every path into `post` runs at `DOMContentLoaded` or later, and by then
+ * there is a body", which was true when nothing in the page could run: a page
+ * whose own script does `document.body.remove()` — or replaces the document
+ * with `document.write` — has no body afterwards, and an exception thrown in
+ * here would land on the console of somebody else's page as ours.
  *
  * TWO mechanisms do the measuring, and they answer different questions. A
  * `ResizeObserver` on the root box is the first: it delivers a callback the
@@ -273,8 +277,9 @@ const MEASURE = `(function () {
   parent.postMessage(${JSON.stringify(HELLO)}, "*")
   var post = function (tag) {
     var page = document.documentElement
+    var body = document.body
     parent.postMessage(
-      tag + Math.max(page.offsetHeight, document.body.scrollHeight),
+      tag + Math.max(page.offsetHeight, body ? body.scrollHeight : 0),
       "*"
     )
   }
@@ -359,6 +364,21 @@ export const SEAL = `<!doctype html>` +
 const HOST = /^(?:[a-z0-9.-]+|\[[0-9a-f:.]+\])(?::\d{1,5})?$/i
 
 /**
+ * Whether this module will spell a host into a policy at all — the same
+ * question {@link sealPolicy} asks, exported so the SERVER can say out loud
+ * that it refused one.
+ *
+ * A refused host is not an error to fail on: the page is still served, and
+ * still sealed, with nothing it may fetch. But it is a page that draws no
+ * pictures and runs no scripts of its own for a reason nobody can see from the
+ * outside, and "most errors should surface to the user at some level" is this
+ * repository's own rule (HACKING.md). One rule, one owner, asked twice —
+ * rather than the route re-deriving what a host looks like and drifting from
+ * the policy it is reporting on.
+ */
+export const spellsHost = (host: string): boolean => HOST.test(host)
+
+/**
  * BOTH SCHEMES, on the one host, and it is not a widening: it is the same route
  * named twice because this process cannot see which of the two the browser
  * used. olai listens on plain HTTP; a reader may still reach it through
@@ -369,7 +389,7 @@ const HOST = /^(?:[a-z0-9.-]+|\[[0-9a-f:.]+\])(?::\d{1,5})?$/i
  * either this app or somebody who has already taken this app's name.
  */
 const sourcesOn = (host: string): string | undefined =>
-  HOST.test(host)
+  spellsHost(host)
     ? `http://${host}${MEDIA_PREFIX} https://${host}${MEDIA_PREFIX}`
     : undefined
 

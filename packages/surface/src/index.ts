@@ -567,6 +567,7 @@ export {
   SEAL,
   sealedHello,
   sealPolicy,
+  spellsHost,
 } from "./seal.ts"
 
 /** What a search asks and answers on the wire — see {@link ./search.ts}. */
