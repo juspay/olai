@@ -352,8 +352,13 @@ const EDITED = {
  * page-breaking half uncovered.
  *
  * The hunks are the three the {@link EDITED} rewrite is made of, each carrying
- * only its own lines — which is what the helper produces: a hunk's `oldText`
- * and `newText` are that hunk's lines and nothing else.
+ * its own WINDOW of the file rather than only the lines that moved — which is
+ * what the helper produces. It walks the hunk's lines and sorts them by their
+ * marker: a `-` line goes to `oldText`, a `+` line to `newText`, and a CONTEXT
+ * line — neither — is pushed to BOTH. So a block's two sides are that hunk
+ * whole, the unchanged rows around the change included and identical on each
+ * side. The second hunk here is the one that shows it: the tiles line is on
+ * both sides, and the lights line is added under it.
  */
 const EDITED_HUNKS = [
   {
@@ -1193,7 +1198,11 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       sessionId,
       update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
     })
-    say(`rewrote \`${file}\` in two places.`)
+    // COUNTED off the fixture rather than written out, because the number is
+    // the thing this verb is about: a sentence saying two while three blocks
+    // went out is the scenario contradicting itself in the one place a reader
+    // looks to see what happened.
+    say(`rewrote \`${file}\` in ${EDITED_HUNKS.length} places.`)
     respond(id, { stopReason: "end_turn" })
     return
   }
