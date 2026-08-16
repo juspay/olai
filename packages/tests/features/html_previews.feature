@@ -313,6 +313,88 @@ Feature: A `.html` in the vault
     And the preview is at the anchor "#beds"
 
   @scratch:good
+  Scenario: A section is on screen even when the reader arrives from halfway down
+    # THE HOST WINDOW LANDS TOO, which is the half a frame cannot do for itself.
+    #
+    # A `.html` preview is sized to its content, so the browser's own scroll to
+    # the fragment inside the frame moves nothing when the page fits: the anchor
+    # sits some way down a frame taller than the window. Everything about the
+    # address can be right while the reader is looking at the top of the file —
+    # or, worse, at whatever the PREVIOUS page happened to be scrolled to, which
+    # is what this app did for one round when it skipped its own scroll-to-top
+    # for an address that named a section.
+    #
+    # So the scenario starts SCROLLED DOWN a tall page. If the window is left
+    # where it was, the new preview is drawn under a viewport already halfway
+    # down it; if the window goes to the top and stops, the section is still
+    # below the fold. Both are failures here, which is what makes this catch its
+    # own revert.
+    #
+    # THE FIXTURE IS SIZED ON PURPOSE: the page is tall enough to put the anchor
+    # well below one screen and SHORT enough to fit inside the frame's own
+    # clamp, so the browser's scroll inside the frame moves nothing and the
+    # window is the only thing that can land. A taller page would overflow the
+    # frame, the inner scroll would do the work, and this would pass with the
+    # host's half deleted — which it did, when the fixture was first written.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/deep.html" as:
+      """
+      <h1>Deep</h1>
+      <div style="height:1200px">a long stretch before the section</div>
+      <h2 id="beds">Beds</h2>
+      <div style="height:300px">a short stretch after it</div>
+      """
+    And I rewrite "notes/from.html" as:
+      """
+      <h1>From</h1>
+      <div style="height:1600px">a long stretch, so this page scrolls</div>
+      <p><a id="deep" href="deep.html#beds">the section over there</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/from.html"
+    Then the preview shows the heading "From"
+    # …and the reader is halfway down it when they press the link.
+    When I scroll to the bottom of the page
+    And I click "#deep" inside the preview
+    Then the document open is "notes/deep.html"
+    And the address carries the anchor "#beds"
+    # THE ASSERTION THIS SCENARIO EXISTS FOR: the section is in the window, not
+    # merely named by the address and not merely scrolled to inside a frame that
+    # is itself off screen.
+    And the section "beds" is on screen
+
+  @scratch:good
+  Scenario: A fragment naming nothing leaves the reader at the top
+    # The other form of the same skip. A cross-file link whose anchor names no
+    # id in the page it opens has nothing to land on — and the written rule is
+    # that the reader is left at the TOP, which is what a browser does with the
+    # same address. Left to itself the window would keep the previous page's
+    # scroll, so "no landing happened" would be indistinguishable from "the page
+    # is scrolled somewhere arbitrary".
+    Given I open the app
+    When I rewrite "notes/plain.html" as:
+      """
+      <h1>Plain</h1>
+      <div style="height:2200px">no section by that name anywhere in here</div>
+      """
+    And I rewrite "notes/from.html" as:
+      """
+      <h1>From</h1>
+      <div style="height:1600px">a long stretch, so this page scrolls</div>
+      <p><a id="nowhere" href="plain.html#nosuchthing">a section that is not there</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/from.html"
+    Then the preview shows the heading "From"
+    When I scroll to the bottom of the page
+    And I click "#nowhere" inside the preview
+    Then the document open is "notes/plain.html"
+    # The page opened, and the reader is at the top of it rather than wherever
+    # the page they came from had been scrolled to.
+    And the page is scrolled to the top
+
+  @scratch:good
   Scenario: An in-page anchor is still the frame's own jump
     # The half that did NOT change, and the one the rule above is a comparison
     # against: `#top` names a place in the document the reader is already

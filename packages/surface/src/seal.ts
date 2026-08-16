@@ -275,6 +275,55 @@ const HELLO = "olai:page-sealed"
 const OPEN = "olai:open-page:"
 
 /**
+ * THE FOURTH THING A SEALED PAGE MAY SAY: where the anchor it was pointed at
+ * ended up.
+ *
+ * It exists because of a gap only the frame can close. A `.html` opened at
+ * `#beds` gets the fragment on its own URL, so the browser inside the frame
+ * does the scrolling — and that is the whole answer only when the page is
+ * TALLER than the box it is drawn in, because then there is somewhere to
+ * scroll. The frame is sized to its content (`Hypertext.tsx` clamps the
+ * measured height), so the ordinary case is a page that FITS: the browser
+ * scrolls nothing, the anchor sits wherever it naturally falls inside the
+ * frame, and a reader sent to a section three screens down is looking at the
+ * top of the file.
+ *
+ * The host cannot work out where that is. The origin in there is nobody's, so
+ * the element's position is not readable from out here by any means — and the
+ * embedder's own scroll is the only thing that can bring it into view. So the
+ * frame says where it is, ONCE, after `load`, and only when its own URL named
+ * an anchor it actually found.
+ *
+ * RELATIVE TO THE FRAME'S OWN VIEWPORT (`getBoundingClientRect().top`), which
+ * is the reading that is correct in both cases at once: a page that fits
+ * reports the anchor's offset inside the box, and a page that scrolled itself
+ * reports roughly zero, because the browser has already put it at the top.
+ * The embedder adds that to where the frame is and needs to know nothing about
+ * which case it is in.
+ *
+ * SAID AGAIN EVERY TIME THE PAGE IS MEASURED, and that is not belt and braces —
+ * it is the whole of what makes the number true. The first reading is taken
+ * while the frame is still the embedder's `70dvh` guess, so the page overflows
+ * a box it is about to stop overflowing: the browser has scrolled the anchor to
+ * the top and the answer is nearly zero. Then the embedder applies the measured
+ * height, the frame grows, the page stops scrolling inside it, and the anchor is
+ * suddenly a thousand pixels down. Nothing in here knows the resize is coming —
+ * the `ResizeObserver` above is what NOTICES it, and it is already watching the
+ * one box whose size changes. So the anchor rides along with the height, and the
+ * last thing the embedder hears describes the geometry the reader is looking at.
+ * (Measured, not reasoned: reported once at `load`, it said 273 for an anchor
+ * that ended up at 1297.)
+ *
+ * NOT A HEIGHT, so it is not one of {@link READING}'s: it may be zero and it
+ * may be negative, and folding it into the height parser would mean widening
+ * a gate that exists to refuse exactly those. A number that says "scroll here"
+ * is still a CLAIM from an opaque origin — the worst it can do is move this
+ * tab's own scrollbar, which the reader undoes with a flick, and the receiver
+ * only acts on it while it is waiting for a landing it asked for.
+ */
+const LANDED = "olai:page-landed:"
+
+/**
  * The tape measure: the first of the two programs olai puts into somebody
  * else's page ({@link FOLLOW} is the other, and they are as separate as they
  * look — one measures, one listens for a click, and neither knows about the
@@ -341,6 +390,7 @@ const MEASURE = `(function () {
   }
   var measure = function () {
     post(${JSON.stringify(READING.arriving)})
+    landed()
   }
   addEventListener("DOMContentLoaded", function () {
     if (typeof ResizeObserver === "function") {
@@ -350,8 +400,24 @@ const MEASURE = `(function () {
     }
     addEventListener("load", function () {
       post(${JSON.stringify(READING.settled)})
+      landed()
     })
   })
+  var landed = function () {
+    var named = location.hash.slice(1)
+    if (named === "") return
+    var found = null
+    try {
+      found = document.getElementById(decodeURIComponent(named))
+    } catch (_) {
+      found = document.getElementById(named)
+    }
+    if (found === null) return
+    parent.postMessage(
+      ${JSON.stringify(LANDED)} + Math.round(found.getBoundingClientRect().top),
+      "*"
+    )
+  }
 })()`
 
 /**
@@ -632,6 +698,10 @@ export type Said =
   /** How tall the page says it is, and which of the two readings it is —
    *  {@link READING}. A claim, clamped by CSS at the other end. */
   | { readonly kind: "reading"; readonly reading: Reading; readonly height: number }
+  /** Where the anchor the frame was pointed at ended up, measured from the
+   *  frame's own top — {@link LANDED}. May be zero, may be negative; the
+   *  embedder adds it to where the frame is. */
+  | { readonly kind: "landed"; readonly top: number }
 
 /**
  * What a frame said, as one of {@link Said}'s arms — or nothing, which is the
@@ -701,6 +771,22 @@ export const heard = (said: unknown): Said | undefined => {
     const hash = address.indexOf("#")
     const at = hash === -1 ? undefined : decoded(address.slice(hash + 1))
     return at === undefined ? { kind: "open", file } : { kind: "open", file, at }
+  }
+  if (said.startsWith(LANDED)) {
+    // FINITE is the gate, and it is a wider one than a height's on purpose:
+    // this number is an offset rather than a size, so zero is the ordinary
+    // answer for a page the browser scrolled to its own anchor, and a negative
+    // one is what a page scrolled past it honestly reports.
+    //
+    // Which is exactly why the EMPTY tail has to be refused here and does not
+    // over there: `Number("")` is `0`, and a height parser gets that for free
+    // by demanding a positive number while an offset parser would read a
+    // message carrying no number at all as a perfectly good landing at the top.
+    const tail = said.slice(LANDED.length)
+    const top = Number(tail)
+    return tail.trim() !== "" && Number.isFinite(top)
+      ? { kind: "landed", top }
+      : undefined
   }
   const reading: Reading | undefined = said.startsWith(READING.settled)
     ? "settled"

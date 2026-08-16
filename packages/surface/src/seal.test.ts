@@ -505,3 +505,27 @@ test("a clicked link's fragment arrives beside the file it names", () => {
   expect(heard(`${OPEN}${mediaHref("notes/second.html")}#/../secrets.md`))
     .toEqual({ kind: "open", file: "notes/second.html", at: "/../secrets.md" })
 })
+
+// WHERE THE ANCHOR ENDED UP, which is a number and deliberately not a height:
+// zero is the ordinary answer for a page the browser scrolled to its own anchor,
+// and a negative one is honest for a page scrolled past it. The height parser
+// refuses both on purpose, so folding this into it would have meant widening the
+// gate that exists to catch a page measuring itself as nothing.
+test("a frame says where its anchor landed, zero and negative included", () => {
+  const LANDED = ((): string => {
+    const found = /parent\.postMessage\(\n?\s*"([^"]*)" \+ Math\.round/.exec(SEAL)
+    if (found === null) throw new Error(`the measure reports no anchor: ${SEAL}`)
+    return found[1]!
+  })()
+  expect(heard(`${LANDED}1298`)).toEqual({ kind: "landed", top: 1298 })
+  expect(heard(`${LANDED}0`)).toEqual({ kind: "landed", top: 0 })
+  expect(heard(`${LANDED}-40`)).toEqual({ kind: "landed", top: -40 })
+  // …and nothing that is not a number is one.
+  for (const said of [`${LANDED}`, `${LANDED}down`, `${LANDED}Infinity`]) {
+    expect(heard(said)).toBeUndefined()
+  }
+  // It is its own kind, never a height: the two prefixes are near neighbours
+  // (`page-landed` beside `page-loaded`) and this is what says a browser reading
+  // one as the other would be caught.
+  expect(heard(`${LANDED}1298`)?.kind).not.toBe("reading")
+})

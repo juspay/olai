@@ -29,7 +29,7 @@
 import { createContext, createSignal, type JSX, onCleanup, useContext } from "solid-js"
 
 import { ours } from "./press.ts"
-import { fileNamed, hrefOf, landsWithin, type Route, routeIn, routeOf } from "./routes.ts"
+import { fileNamed, hrefOf, type Route, routeIn, routeOf } from "./routes.ts"
 import { createScrollMemory } from "./scroll.ts"
 
 export interface Router {
@@ -122,11 +122,15 @@ export const createRouter = (): Router => {
       // A page you asked for, so: the top. Zooming out of the bottom of a long
       // outline used to land mid-page, at a line nobody chose.
       //
-      // …UNLESS the address named a place inside the page, which is the one
-      // case where the top is not what was asked for: the page lands on the
-      // section itself (`./routes.ts`'s `landsWithin`), and a jump to the top
-      // after it would undo the landing a frame later.
-      if (!landsWithin(next)) scroll.toTop()
+      // ALWAYS, even when the address names a place INSIDE the page. This is
+      // the base every landing starts from and it is what makes the two cases
+      // agree: a fragment that finds its section moves down from here a frame
+      // later, and one that finds nothing leaves the reader at the top, which
+      // is what a browser does with the same address. Skipping it — which this
+      // did for one round — left the reader wherever the PREVIOUS page had
+      // been scrolled to, so a landing that never happened was invisible and a
+      // landing that did happen started from a lie.
+      scroll.toTop()
     },
     replace: (next) => {
       // The entry KEEPS its key: it is the same entry, so the scroll position

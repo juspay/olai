@@ -127,10 +127,6 @@ export const hrefOf = (route: Route): string => {
   return path + narrowing(route.filter)
 }
 
-/** The `?q=…` a filtered page wears — and nothing at all for an unfiltered
- *  one, so the ordinary address is exactly the address it always was. Whitespace
- *  becomes `+` through `URLSearchParams`, which reads better in the bar than
- *  `%20` and decodes back identically. */
 /**
  * The `#…` a document address wears when it names a place inside the page —
  * and nothing at all when it does not, so the ordinary address is exactly the
@@ -144,6 +140,10 @@ export const hrefOf = (route: Route): string => {
 const landing = (at: string | undefined): string =>
   at === undefined || at === "" ? "" : `#${encodeURIComponent(at)}`
 
+/** The `?q=…` a filtered page wears — and nothing at all for an unfiltered
+ *  one, so the ordinary address is exactly the address it always was. Whitespace
+ *  becomes `+` through `URLSearchParams`, which reads better in the bar than
+ *  `%20` and decodes back identically. */
 const narrowing = (filter: string | undefined): string =>
   filter === undefined || filter.trim() === ""
     ? ""
@@ -171,24 +171,6 @@ const filterIn = (search: string): string | undefined => {
 
 const spell = (file: string): string =>
   file.split("/").map(encodeURIComponent).join("/")
-
-/**
- * Whether an address names a place INSIDE the page it opens, rather than the
- * page itself.
- *
- * The router moves the page on every navigation — "a page you asked for, so:
- * the top" — and that is right for every address that names a page and wrong
- * for one that names a section in it: the reader asked for the section, and a
- * jump to the top afterwards would undo the landing the page is about to do.
- * So the router asks this before it scrolls, and the page does the rest
- * (`./document/faces.tsx` for a `.md`, the frame's own URL for a `.html`).
- *
- * Asked HERE rather than spelled at the router, because which arms can carry a
- * place inside themselves is a fact about the address vocabulary — the same
- * reason `filterOf` and `narrowable` live here.
- */
-export const landsWithin = (route: Route): boolean =>
-  route.kind === "document" && route.at !== undefined
 
 /** The file a route names, for the two that name one — what a link publishes
  *  as `data-file`, and the sidebar's own answer to "is this entry the page I

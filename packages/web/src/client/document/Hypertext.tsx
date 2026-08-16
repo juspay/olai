@@ -275,6 +275,11 @@ export function Hypertext(
   // that vanished on its own is one a reader can miss by looking away, and the
   // next thing this frame does is the honest moment for it to go.
   const [refused, setRefused] = createSignal<Said>()
+  // Where the frame said its anchor ended up, measured from the frame's own
+  // top (`seal.ts`'s `LANDED`), or nothing when no landing was asked for or the
+  // page had no such id. A SIGNAL rather than a scroll done on arrival, for the
+  // reason the effect below gives.
+  const [landedAt, setLandedAt] = createSignal<number>()
   const router = useRouter()
   const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
@@ -339,6 +344,7 @@ export function Hypertext(
     acceptedAt = {}
     setMeasured(undefined)
     setRefused(undefined)
+    setLandedAt(undefined)
   }
 
   /** The file itself, at its own address on the media route — a fresh URL every
@@ -489,6 +495,26 @@ export function Hypertext(
       // the app's — usually this element unmounting with the page that held it,
       // and, for a page that named itself, no unmount at all (see `open`).
       if (said.kind === "open") return open(said.file, said.at)
+      // WHERE THE ANCHOR ENDED UP, and the host window's half of landing on it.
+      //
+      // The frame scrolls ITSELF to the fragment on its own URL, which lands
+      // the reader only when the page in there overflows the box it is drawn
+      // in. Sized to its content, it usually does not — so the anchor sits some
+      // way down a frame that is taller than the window, and the page around it
+      // has to move for the reader to see it. That is this window's job and
+      // nothing in the frame can do it.
+      //
+      // The frame is put at the top first (`scrollIntoView`, which obeys the
+      // sticky header through the stylesheet's `scroll-padding-top` rather than
+      // this file knowing how tall a header is), and then the page moves down
+      // by what the frame reported. Composed that way round, the platform's own
+      // rule about the header still applies and the offset is added on top of
+      // it.
+      //
+      // ONLY WHILE A LANDING WAS ASKED FOR: an unasked-for number moves
+      // nothing, so a page that has walked off cannot scroll this tab around by
+      // posting one.
+      if (said.kind === "landed") return setLandedAt(said.top)
       const width = frame.clientWidth
       if (acceptedAt[said.reading] === width) return
       acceptedAt[said.reading] = width
@@ -496,6 +522,48 @@ export function Hypertext(
     }
     window.addEventListener("message", listen)
     onCleanup(() => window.removeEventListener("message", listen))
+  })
+
+  /**
+   * THE HOST WINDOW'S HALF OF LANDING ON A SECTION.
+   *
+   * The frame scrolls ITSELF to the fragment on its own URL, and that lands the
+   * reader only when the page in there overflows the box it is drawn in. Sized
+   * to its content, it usually does not — so the anchor sits some way down a
+   * frame taller than the window, and the page AROUND it has to move. Nothing
+   * inside an opaque origin can do that, which is why the frame reports where
+   * the anchor ended up (`seal.ts`'s `LANDED`) and this does the scrolling.
+   *
+   * The frame goes to the top first, and then the page moves down by what was
+   * reported. `scrollIntoView` for the first half rather than arithmetic,
+   * because it obeys the stylesheet's `scroll-padding-top` — so the sticky
+   * header is accounted for by the rule that already states it, and this file
+   * never learns how tall a header is.
+   *
+   * IT WAITS FOR THE HEIGHT, and that is why this is an effect over two signals
+   * rather than a scroll done when the message arrives. The report lands beside
+   * the settled height, and until that height is applied the frame is still the
+   * `70dvh` guess: a page too short to scroll that far clamps the scroll, and
+   * then grows underneath the reader, leaving them a screen above the section.
+   * Measured, not reasoned — the first draft did the scroll on arrival and put
+   * the anchor 170px below the fold. Tracking `measured()` makes the last run
+   * the one with the geometry the reader actually sees.
+   *
+   * ONLY WHILE A LANDING WAS ASKED FOR: an unasked-for number moves nothing, so
+   * a page that has walked off cannot scroll this tab around by posting one.
+   */
+  createEffect(() => {
+    const top = landedAt()
+    // Tracked, not read: the frame's height is what makes the arithmetic below
+    // land where the reader will be looking.
+    measured()
+    if (top === undefined || props.at === undefined || frame === undefined) return
+    const box = frame
+    const painted = requestAnimationFrame(() => {
+      box.scrollIntoView({ block: "start" })
+      if (top !== 0) scrollBy({ top, behavior: "instant" })
+    })
+    onCleanup(() => cancelAnimationFrame(painted))
   })
 
   // A pending question outlives nothing: an unmounted component must not leave

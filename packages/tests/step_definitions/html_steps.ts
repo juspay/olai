@@ -629,6 +629,85 @@ Then(
   },
 );
 
+/**
+ * THE SECTION IS ON SCREEN — the assertion a landing is actually about, and the
+ * one an address and a frame's own hash between them do not make.
+ *
+ * A `.html` preview is a frame sized to its content, so the browser's own scroll
+ * inside it moves nothing when the page fits: the anchor sits some way down a
+ * frame taller than the window, and everything about the address can be right
+ * while the reader is looking at the top of the file. So this reads the one
+ * thing that cannot be true by luck — where the anchor is in THIS window — by
+ * asking the frame for its own position and adding the frame's.
+ *
+ * The tolerance is a viewport rather than a pixel: what a reader is owed is that
+ * the section is in front of them, and exactly where a browser puts an anchor
+ * under a sticky header is a styling decision this should not pin.
+ */
+Then(
+  "the section {string} is on screen",
+  async function (this: OlaiWorld, anchor: string) {
+    const element = await preview(this);
+    const inner = this.page.frameLocator(HYPERTEXT_PREVIEW);
+    await inner.locator("body").waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(async () => {
+      const [frameTop, insideTop, tall] = await Promise.all([
+        element.evaluate((node) => node.getBoundingClientRect().top),
+        inner.locator("body").evaluate(
+          (_body, id) =>
+            document.getElementById(id)?.getBoundingClientRect().top ?? null,
+          anchor,
+        ),
+        this.page.evaluate(() => window.innerHeight),
+      ]);
+      if (insideTop === null) return false;
+      const where = frameTop + insideTop;
+      return where >= 0 && where < tall;
+    }, `the section ${JSON.stringify(anchor)} to be inside the window`);
+  },
+);
+
+/** …and the other end of a landing that had nothing to land on: the reader is
+ *  at the top, which is what a browser does with a fragment naming no id. A
+ *  wait rather than a read, because the page arrives before the frame inside it
+ *  does and a landing that WOULD have fired fires a frame later. */
+Then("the page is scrolled to the top", async function (this: OlaiWorld) {
+  await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  const where = await this.page.evaluate(() => window.scrollY);
+  assert.ok(
+    where < 40,
+    `the page is scrolled to ${where}px — a link whose anchor names nothing ` +
+      `should leave the reader at the top rather than wherever the page they ` +
+      `came from was`,
+  );
+});
+
+/** Where the window is, so a scenario can say it did not move — or moved to
+ *  where it was left. Kept on the world for the same reason
+ *  `I scroll to the bottom of the page` keeps its own. */
+When("I remember where the page is scrolled", async function (this: OlaiWorld) {
+  this.scrolledTo = await this.page.evaluate(() => window.scrollY);
+});
+
+Then("the page is scrolled where it was left", async function (this: OlaiWorld) {
+  const was = this.scrolledTo;
+  assert.ok(was !== undefined && was > 0, "nothing was remembered to compare against");
+  await this.waitUntil(async () => {
+    const now = await this.page.evaluate(() => window.scrollY);
+    return Math.abs(now - was) < 40;
+  }, `the page to be back at ${was}px`);
+  // …and it STAYS there, which is the half a snapshot cannot make: a landing
+  // that re-fired would do it a frame later, after the restore had already put
+  // the reader back.
+  await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  const settled = await this.page.evaluate(() => window.scrollY);
+  assert.ok(
+    Math.abs(settled - was) < 40,
+    `the page was restored to ${was}px and then moved to ${settled}px — ` +
+      `something re-applied the address's anchor on a history restore`,
+  );
+});
+
 /** WHAT THE PREVIEW SAID about a click it could not answer, through the suite's
  *  one reader of every said-line in this client (`support/said.ts`): the words,
  *  and the MOOD as a `data-` fact rather than a colour. A refusal in the aside
