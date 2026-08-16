@@ -29,12 +29,14 @@ const expectValid = (
     )
   }
   // The set comes back as it went in — the validator judges, it does not
-  // reshape, so what the browser subscribes to is what the reader found.
-  expect(result.success).toBe(set)
-  expect(result.success.files.length).toBe(
+  // reshape, so what the browser subscribes to is what the reader found. What
+  // is added is the derivation the rules were run over, paired with it.
+  expect(result.success.set).toBe(set)
+  expect(result.success.derived.nodes).toBe(set.nodes)
+  expect(result.success.set.files.length).toBe(
     Object.keys(files).length + Object.keys(broken).length,
   )
-  return result.success
+  return result.success.set
 }
 
 const only = (errors: ReadonlyArray<OutlineError>): OutlineError => {
@@ -189,6 +191,52 @@ test("a dangling target is reported for mirror, after, blocks and see alike", ()
     "see",
     "mirror",
   ])
+})
+
+/** The `[line, field]` of every finding, in the order the report holds them —
+ *  which is what the three tests below are about. */
+const sites = (
+  errors: ReadonlyArray<OutlineError>,
+): ReadonlyArray<readonly [number, string]> =>
+  errors.map((error) => [error.line, error.message.replace(/^`(\w+)`.*$/, "$1")] as const)
+
+// The ORDER two findings at ONE site come out in, which is the whole of what
+// moved when this rule stopped walking every record and started answering from
+// the reverse index (`check-targets-index`, deferred from #205 and taken in
+// #208). The report is sorted by file, line and code, so a difference can only
+// show up between findings that tie on all three — two unknown targets on one
+// record — and it shows up exactly when an EARLIER record already named one of
+// them, since that is what puts its id first among the index's keys. The test
+// above is the common case, where nothing else names them and the order is the
+// record's own fields; this is the case that moved.
+test("two unknown targets on one record come out in the order the corpus first names them", () => {
+  const errors = errorsOf({
+    "a.olai": `{"id":"a","ord":"a","title":"a","see":["zz"]}\n` +
+      `{"id":"b","ord":"b","title":"b","after":["aa"],"see":["zz"]}`,
+  })
+  // `zz` is named on line 1, so it is the first key; `b` names it with `see`
+  // and `aa` with `after`, and its two findings follow that rather than the
+  // order the record writes its fields in (which would put `after` first).
+  expect(sites(errors)).toEqual([[1, "see"], [2, "see"], [2, "after"]])
+})
+
+// The fold is per RECORD and per FIELD: what it collapses is a repeat, never a
+// relation. Both halves are pinned, because the index one of them comes from
+// keys a record by every id it names and could have collapsed either.
+test("one unknown id named with two fields is one finding per field", () => {
+  const errors = errorsOf({
+    "a.olai": `{"id":"a","ord":"a","title":"a","after":["gone"],"see":["gone"]}`,
+  })
+  expect(sites(errors)).toEqual([[1, "after"], [1, "see"]])
+})
+
+test("the same unknown id named twice in one field is one finding, not two", () => {
+  // Only a hand-edited file can hold this — no op writes a repeat — and two
+  // copies of one sentence at one site tell a reader nothing the first did not.
+  const errors = errorsOf({
+    "a.olai": `{"id":"a","ord":"a","title":"a","after":["gone","gone"]}`,
+  })
+  expect(sites(errors)).toEqual([[1, "after"]])
 })
 
 // `after` is the ordering constraint the views schedule by; a loop in it means

@@ -9,8 +9,8 @@
  * manifest, not in an outline's slice, so nothing carries the corpus.
  */
 
-import type { OutlineSet } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import type { OutlineSet, Reading } from "@olai/format"
+import { readingOf, setOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
 import { expect, test } from "bun:test"
 
@@ -26,9 +26,11 @@ const revision = (
   value: OutlineSet,
   moved: { changed?: ReadonlyArray<string>; removed?: ReadonlyArray<string> } = {},
   rev = 1,
-): Snapshot<OutlineSet> => ({
+): Snapshot<Reading> => ({
   rev,
-  value,
+  // The pair the store publishes: a snapshot carries the set AND the view the
+  // validator judged it against, and this projection reads both halves.
+  value: readingOf(value),
   changed: moved.changed ?? [...value.files, ...value.documents.map((d) => d.file)],
   removed: moved.removed ?? [],
 })
@@ -46,7 +48,7 @@ test("every file the set lists gets an entry, at the set's revision", () => {
     NOTHING_HELD,
   )
 
-  expect([...outlines.entries.keys()]).toEqual(["house.olai", "empty.olai"])
+  expect([...outlines.entries.keys()]).toEqual(["empty.olai", "house.olai"])
   expect(outlines.entries.get("house.olai")).toEqual({
     rev: 7,
     nodes: setOf({ "house.olai": HOUSE }).nodes,

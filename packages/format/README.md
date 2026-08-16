@@ -18,6 +18,8 @@ Validation is two phases, and the seam is load-bearing rather than tidy.
 
 `parseOutline` sees one line at a time and checks everything a single line can answer alone — shape, id spelling, ISO dates, the two exclusivity rules. `validate` sees the whole set and owns every rule that needs to know what else exists: parents, mirror targets, `after` cycles, documents.
 
+What `validate` ANSWERS with is a `Reading`: the set, and the one `Derived` its rules were run over. Every rule needs the same indexes, so it builds them once and shares them — and used to drop them at the door, which meant the next reader of an approved set (the store publishing it, the planner judging the next keystroke) walked the corpus again for a value that had just been in hand. The two travel together for the reason `Derived` carries its own nodes: a caller holding one revision's set against another's indexes draws a plausible tree rather than failing.
+
 A file is decoded whole or not at all. The set-wide rules then run over the files that DID parse, and what happens to the one that did not is the error scope (resolved 2026-08-09, and the reason `validate` is handed each file's `Result` rather than only the successes):
 
 - if the survivors are clean, the set is accepted with that file's errors embedded in it (`OutlineSet.broken`). The browser renders them in that one outline's place and everything else stays live;

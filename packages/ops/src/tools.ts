@@ -41,7 +41,6 @@ import {
   CreateRequest,
   DateRequest,
   DescRequest,
-  type Derived,
   MARKS,
   MarkRequest,
   MergeRequest,
@@ -52,8 +51,8 @@ import {
   PropRequest,
   type OpFailure,
   OutlineAnswer,
-  type OutlineSet,
   type PushResult,
+  type Reading,
   SearchAnswer,
   SearchRequest,
   SeeRequest,
@@ -71,17 +70,15 @@ import {
 
 import * as Query from "./query.ts"
 
-/** The set as a reader sees it: the files that were found, and the derivations
- *  every answer is computed from. One value, so a run of queries walks the tree
- *  once ({@link ./query.ts}).
- *
- *  TWO FIELDS, and both are pure functions of one snapshot — which is what
- *  lets `@olai/server`'s `edit.ts` and `context.ts` advertise themselves as
- *  pure over a Reading. */
-export interface Reading {
-  readonly set: OutlineSet
-  readonly derived: Derived
-}
+// `Reading` — the set a reader sees, paired with the derivation every answer
+// here is computed from — was declared in this file and is `@olai/format`'s
+// now: `validate` ANSWERS with the pair, so the floor is where it is made. It
+// is imported above like any other shape of the format's, and NOT re-exported,
+// which is this package's own rule two files over ({@link ./query.ts}: "a
+// consumer imports a shape from the floor it is declared on"). The one thing
+// this package does re-export from there is the write vocabulary, and the
+// reason is the exception that proves it — those carry names that are this
+// layer's (`Request`, `Applied`) rather than the format's.
 
 interface Described {
   readonly name: string

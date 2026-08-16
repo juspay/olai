@@ -63,6 +63,12 @@
 
 export { parseOutline } from "./parse.ts"
 export { validate } from "./validate.ts"
+/** What a validated set IS: the files that were found, and the one derivation
+ *  they were judged against. It is `validate`'s answer rather than a shape
+ *  assembled by whoever holds both, so the view a reader reads is the view the
+ *  rules ran over — the pairing `Derived` already makes about its own nodes,
+ *  made once more one layer up. */
+export type { Reading } from "./validate.ts"
 
 export { assemble, BrokenFile, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"

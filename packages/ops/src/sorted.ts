@@ -67,14 +67,13 @@ import type { Plan } from "./plan.ts"
  */
 export const sortOfWrite = (
   before: OutlineSet,
-  /** The derivation of `before`, HANDED IN rather than reached for. This could
-   *  call `index` itself — it is memoised on the set's identity and the plan
-   *  has already asked for it — but then the dependency would live in a
-   *  paragraph arguing the memo is warm, and the caller that owns the snapshot
-   *  is the one that knows. The direction matters beyond tidiness: slice 2 of
-   *  the model-indices plan is *thread the validated view through instead of
-   *  recomputing it*, and a helper reaching into a module-level memo is work
-   *  that slice would have to undo. */
+  /** The derivation of `before`, HANDED IN rather than reached for. There is
+   *  nothing left to reach for: slice 2 threaded the validated view through, so
+   *  the snapshot carries the pair and the memo this could once have called
+   *  (`query.ts`'s `index`) is gone. The parameter was the direction that
+   *  change went in, and it is now the only way to be handed a derivation of
+   *  the set beside it — which is also the guarantee, since the caller that
+   *  owns the snapshot is the one that knows the two belong together. */
   derived: Derived,
   /** The plan itself, rather than the three pieces of it this reads: it already
    *  carries what would be written and which node (or document) the write was

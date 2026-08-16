@@ -50,16 +50,16 @@ import {
   type CommitResult,
   changesOf,
   composed,
+  type Derived,
   fileKind,
   type GitState,
   type How,
   type LastCommit,
   type Node,
+  nodesOf,
   NOTHING_PENDING,
-  parseOutline,
-  type Located,
   type Other,
-  type OutlineSet,
+  parseOutline,
   type Pending,
   type PushResult,
   type Reason,
@@ -515,12 +515,20 @@ export const make = (options: Options): Committing => {
       }
 
       const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
-      const set = snapshot?.value ?? null
+      const at = snapshot?.value ?? null
 
-      // ONE pass over the set for all of it, MEMOISED on the set — see
-      // {@link byFile}. Under `manual` something is nearly always dirty, so
-      // this no longer early-returns the way per-write `auto` did.
-      const { broken, known, served } = byFile(set)
+      // The revision, cut the three ways the walk below reads it: what each
+      // outline holds, which files the set knows, which of them did not parse.
+      // Taken fresh on every survey, because none of the three is a walk: the
+      // first is a LOOKUP in the index the validator built and the snapshot
+      // carries, and the other two are sets over the FILE LIST. They used to be
+      // one memoised value, and the memo was for the first one — a walk of
+      // every record in the corpus, run on every write and every thirty-second
+      // sweep. Slice 2 made it a lookup, and a cache for two sets of file names
+      // is machinery outliving its reason.
+      const served: Pick<Derived, "byFile"> = at?.derived ?? { byFile: new Map() }
+      const known = new Set(at?.set.files ?? [])
+      const broken = new Set((at?.set.broken ?? []).map((entry) => entry.file))
 
       // A file that cannot be read on ONE side is dropped from BOTH, and that
       // is the whole reason `unreadable` exists rather than being a silent
@@ -529,7 +537,7 @@ export const make = (options: Options): Committing => {
       // with one real cause, which is that somebody's file does not parse.
       const unreadable = new Set<string>()
       const readable = survey.outlines.filter((one) => {
-        if (set === null || broken.has(one.file)) {
+        if (at === null || broken.has(one.file)) {
           unreadable.add(one.file)
           return false
         }
@@ -574,7 +582,7 @@ export const make = (options: Options): Committing => {
         // A dirty file the set does not list has left the disk, and an absent
         // `after` side is exactly how that reads: every node in it is gone.
         if (known.has(one.file)) {
-          after.set(one.file, (served.get(one.file) ?? []).map((located) => located.node))
+          after.set(one.file, nodesOf(served, one.file).map((located) => located.node))
         }
       })
 
@@ -1012,39 +1020,3 @@ export const commitDoors = (face: CommitFace): string => {
  *  for who is asking — minus the one that is not a face a person can start:
  *  `chat-agent` is a session `olai web` spawns, not something with a `--help`. */
 export type CommitFace = Exclude<Writer, "chat-agent">
-
-/** One revision of the set, cut the three ways {@link Committing.pending} needs
- *  it: nodes by file, which files are known, which did not parse. */
-interface ByFile {
-  readonly served: ReadonlyMap<string, ReadonlyArray<Located>>
-  readonly known: ReadonlySet<string>
-  readonly broken: ReadonlySet<string>
-}
-
-/**
- * Memoised on the SET'S OWN IDENTITY — the same key `query.ts`' `index` uses,
- * and right for the same reason: the store replaces the whole `OutlineSet`
- * object when a probe finds a change, so one object is one revision forever and
- * there is nothing to invalidate.
- *
- * It earns the memo now in a way it did not before. Under per-write `auto` a
- * clean tree made `detail` return early and this never ran; under `manual` —
- * the default on both faces — something is nearly always waiting, so the walk
- * ran on every write AND on every thirty-second sweep, over a corpus that had
- * usually not moved at all. Weak, so a superseded revision is collectable the
- * moment nothing holds it.
- */
-const BY_FILE = new WeakMap<OutlineSet, ByFile>()
-
-const byFile = (set: OutlineSet | null): ByFile => {
-  if (set === null) return { served: new Map(), known: new Set(), broken: new Set() }
-  const known = BY_FILE.get(set)
-  if (known !== undefined) return known
-  const cut: ByFile = {
-    served: Map.groupBy(set.nodes, (located) => located.file),
-    known: new Set(set.files),
-    broken: new Set(set.broken.map((entry) => entry.file)),
-  }
-  BY_FILE.set(set, cut)
-  return cut
-}

@@ -26,8 +26,7 @@
  * the shape of a thing that wants to be structural instead.
  */
 
-import type { OutlineError, OutlineSet } from "@olai/format"
-import { codec } from "@olai/ops"
+import { codec, type Store as OutlineStore } from "@olai/ops"
 import * as Store from "@olai/store"
 import { Effect } from "effect"
 import { resolve } from "node:path"
@@ -38,7 +37,7 @@ export interface Directory {
   /** The directory, resolved. Resolved rather than as typed: it is what every
    *  path answer downstream is relative to, and what the log says we opened. */
   readonly root: string
-  readonly store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>>
+  readonly store: OutlineStore
 }
 
 /** Open `root` as an outline store, with the log annotated for everything the

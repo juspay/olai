@@ -25,8 +25,8 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
-import { type FailureKind, type OutlineError, type OutlineSet } from "@olai/format"
-import { codec, make as makeOps, TOOLS } from "@olai/ops"
+import { type FailureKind, type OutlineSet } from "@olai/format"
+import { codec, make as makeOps, type Store as OutlineStore, TOOLS } from "@olai/ops"
 import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
@@ -78,7 +78,7 @@ const withTools = <A>(
   }
 
   return Effect.gen(function*() {
-    const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store.make({
+    const store: OutlineStore = yield* Store.make({
       root,
       codec,
       watch: false,
@@ -134,7 +134,7 @@ const withTools = <A>(
           Effect.runPromise(
             Effect.map(SubscriptionRef.get(store.snapshot), (snapshot) => {
               if (snapshot === null) throw new Error("the fixture directory never loaded")
-              return snapshot.value
+              return snapshot.value.set
             }),
           ),
       })

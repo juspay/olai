@@ -9,11 +9,16 @@
  * field dropped from a search hit would fail nothing over there.
  */
 
-import { Found, type OutlineSet } from "@olai/format"
+import { type Derived, Found, type OutlineSet } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
-import { setOf } from "./fixtures.testlib.ts"
-import { detail, index, outlines, search, subtree } from "./query.ts"
+import { readingOf, setOf } from "./fixtures.testlib.ts"
+import { detail, outlines, search, subtree } from "./query.ts"
+
+/** The derivation these walks are asked of: the half of a fixture READING they
+ *  read. Production never builds one — `validate` pairs the set with the view
+ *  it judged, and every caller is handed the pair. */
+const derivedOf = (set: OutlineSet): Derived => readingOf(set).derived
 
 /** A ledger: items in their sections, and a `Now` list made of placements —
  *  including one that CHAINS through another placement, which is the case
@@ -35,7 +40,7 @@ const LEDGER = (): OutlineSet =>
     ].join("\n"),
   })
 
-const at = () => index(LEDGER())
+const at = () => derivedOf(LEDGER())
 
 /**
  * EVERY field {@link Found} declares is one this layer actually fills.
@@ -49,7 +54,7 @@ const at = () => index(LEDGER())
  * that fails when they stop agreeing, and it names the field when it does.
  */
 test("a node carrying everything produces every field `Found` declares", () => {
-  const at = index(setOf({
+  const at = derivedOf(setOf({
     "roadmap.olai": [
       `{"id":"top","ord":"a0","title":"Top"}`,
       `{"id":"all","parent":"top","ord":"a0","title":"carries everything","todo":true,` +
@@ -178,7 +183,7 @@ describe("the properties a node carries", () => {
    * `prop:pr` did not return. Same node, same query language, two answers.
    */
   test("a key holding nothing is carried by neither the hit nor `prop:`", () => {
-    const at = index(setOf({
+    const at = derivedOf(setOf({
       "roadmap.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"","agent":"claude-opus"}}`,
     }))
     // The key `prop:` refuses is the key the answer leaves out…
@@ -186,7 +191,7 @@ describe("the properties a node carries", () => {
     expect(search(at, { text: "lane" }).hits[0]?.custom).toEqual({ agent: "claude-opus" })
     // …and a map with nothing but such keys is no map at all, exactly as it is
     // no `custom` field on disk.
-    const bare = index(setOf({
+    const bare = derivedOf(setOf({
       "roadmap.olai": `{"id":"bare","ord":"a0","title":"a bare lane","custom":{"pr":""}}`,
     }))
     expect(search(bare, { text: "lane" }).hits[0]).not.toHaveProperty("custom")
@@ -205,7 +210,7 @@ describe("the properties a node carries", () => {
         JSON.stringify(long)
       }}}`,
     })
-    expect(search(index(set), { text: "lane" }).hits[0]?.custom).toEqual({ pr: long })
+    expect(search(derivedOf(set), { text: "lane" }).hits[0]?.custom).toEqual({ pr: long })
   })
 })
 
@@ -216,8 +221,8 @@ describe("placements", () => {
     // `git` is placed twice: directly by `focus-git`, and through it by
     // `now-git`, which mirrors the mirror. Both are places `git` is drawn.
     expect(detail(at(), "git")?.mirrors).toEqual([
-      { id: "now-git", file: "roadmap.olai", line: 3, parent: "now" },
       { id: "focus-git", file: "focus.olai", line: 2, parent: "focus" },
+      { id: "now-git", file: "roadmap.olai", line: 3, parent: "now" },
     ])
     expect(detail(at(), "sticky")?.mirrors).toEqual([
       { id: "now-sticky", file: "roadmap.olai", line: 2, parent: "now" },
@@ -243,7 +248,7 @@ describe("placements", () => {
    * charges for answering by id — and this is where it first shows.
    */
   test("two placements sharing an id are the one record that id means", () => {
-    const condemned = index(setOf({
+    const condemned = derivedOf(setOf({
       "a.olai": [
         `{"id":"node","ord":"a0","title":"the node"}`,
         `{"id":"dupe","ord":"a1","mirror":"node"}`,
@@ -309,21 +314,21 @@ describe("the tags a node carries", () => {
   // of them a node carries — and this is the shape an agent reads off
   // `read_node`, which nothing on the wire side would notice losing.
   test("a node read reports its tags as they are written", () => {
-    expect(detail(index(TAGGED()), "call")?.tags).toEqual([
+    expect(detail(derivedOf(TAGGED()), "call")?.tags).toEqual([
       "@alice",
       "#alice/onboarding",
     ])
   })
 
   test("a node with none reports an empty list rather than nothing", () => {
-    expect(detail(index(TAGGED()), "plain")?.tags).toEqual([])
+    expect(detail(derivedOf(TAGGED()), "plain")?.tags).toEqual([])
   })
 
   // The index's own half of the same contract: a tag is searchable BARE and as
   // written, so a bare word still finds it and a sigil narrows to one
   // namespace.
   test("a tag is found by its name and by its written form", () => {
-    const set = index(TAGGED())
+    const set = derivedOf(TAGGED())
     expect(search(set, { text: "alice" }).hits.map((hit) => hit.id)).toEqual(["call"])
     expect(search(set, { text: "@alice" }).hits.map((hit) => hit.id)).toEqual(["call"])
     expect(search(set, { text: "#alice" }).hits.map((hit) => hit.id)).toEqual(["call"])
@@ -354,7 +359,7 @@ describe("a query is words and operators", () => {
     })
 
   const ids = (query: Parameters<typeof search>[1]): ReadonlyArray<string> =>
-    search(index(WORK()), query).hits.map((hit) => hit.id)
+    search(derivedOf(WORK()), query).hits.map((hit) => hit.id)
 
   test("an operator gates the words, and the two compose", () => {
     expect(ids({ text: "is:done" })).toEqual(["book", "paint"])
@@ -376,24 +381,24 @@ describe("a query is words and operators", () => {
   // failure the refusals were written to prevent. Three of the four doors read
   // it from here.
   test("a refused query carries the reason to whoever asked", () => {
-    const answer = search(index(WORK()), { text: "is:blocked trip" })
+    const answer = search(derivedOf(WORK()), { text: "is:blocked trip" })
     expect(answer.refusals).toEqual([{
       token: "is:blocked",
       reason: "is: takes one of done, doing, todo, marked, archived",
     }])
     // As TYPED — an agent that echoed the folded token back to a person would
     // be quoting them wrongly.
-    expect(search(index(WORK()), { text: "is:BLOCKED" }).refusals?.[0]?.token)
+    expect(search(derivedOf(WORK()), { text: "is:BLOCKED" }).refusals?.[0]?.token)
       .toBe("is:BLOCKED")
   })
 
   // An empty query and a refused one both answer with no hits, and only one of
   // them has anything to say about it: there is no question to have refused.
   test("a query nobody typed carries no refusal", () => {
-    const answer = search(index(WORK()), { text: "  " })
+    const answer = search(derivedOf(WORK()), { text: "  " })
     expect(answer).toEqual({ hits: [], total: 0 })
     expect(answer).not.toHaveProperty("refusals")
-    expect(search(index(WORK()), { text: "trip" })).not.toHaveProperty("refusals")
+    expect(search(derivedOf(WORK()), { text: "trip" })).not.toHaveProperty("refusals")
   })
 
   test("the archive is out of it unless the query says so", () => {
@@ -408,9 +413,9 @@ describe("a query is words and operators", () => {
   })
 
   test("a hit says which field carried the words — and says nothing when none did", () => {
-    expect(search(index(WORK()), { text: "flights" }).hits[0])
+    expect(search(derivedOf(WORK()), { text: "flights" }).hits[0])
       .toMatchObject({ id: "book", matched: "title" })
-    const marked = search(index(WORK()), { text: "is:todo" }).hits[0]
+    const marked = search(derivedOf(WORK()), { text: "is:todo" }).hits[0]
     expect(marked).toMatchObject({ id: "pack" })
     expect(marked).not.toHaveProperty("matched")
   })
@@ -418,7 +423,7 @@ describe("a query is words and operators", () => {
   test("a finished node still loses ties, and the total is still uncapped", () => {
     // `book` and `paint` both match on their title; `book` is written first
     // and both are done, so order is the file's and the count is honest.
-    const answer = search(index(WORK()), { text: "is:done", limit: 1 })
+    const answer = search(derivedOf(WORK()), { text: "is:done", limit: 1 })
     expect(answer.hits.map((hit) => hit.id)).toEqual(["book"])
     expect(answer.total).toBe(2)
   })
@@ -455,11 +460,13 @@ describe("the directory", () => {
    *  on a fact a sibling test owns. */
   test("every file gets its row, in order, counted and titled by its own nodes", () => {
     const set = DIRECTORY()
-    expect(outlines(set, index(set))).toEqual([
+    expect(outlines(set, derivedOf(set))).toEqual([
+      // In PATH order, which is the set's ({@link ../../format/src/set.ts}'s
+      // `assemble` puts it there) and what the sidebar shows.
+      { file: "empty.olai", nodes: 0, roots: [] },
       // Three regular nodes — the mirror is a placement, so it is neither
       // counted nor a root — and the roots are in FILE order.
       { file: "house.olai", nodes: 3, roots: ["Garden", "House"] },
-      { file: "empty.olai", nodes: 0, roots: [] },
       { file: "shed.olai", nodes: 1, roots: ["Shed"] },
       // The torn row carries `unreadable` BESIDE a zero and an empty list —
       // the flat shape {@link OutlineSummary} holds knowingly.
