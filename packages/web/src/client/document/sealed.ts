@@ -40,16 +40,15 @@
  *      `img-src <this app's origin>/media/`, the route that already answers a
  *      markdown document's `![](shot.png)` and answers a picture under the
  *      served directory or a 404 (`@olai/surface`'s `mediaTarget` is the guard
- *      at that end, and `@olai/server`'s `media.ts` is the route).
- *      What that admits is no more than the bytes any `.md` in the same
- *      directory could already draw (a subset, in fact: a `..` past the root is
- *      clamped for a document and refused here — `@olai/surface`'s
- *      `media.test.ts` holds both halves of that), and this is the whole of the
- *      widening: no
- *      remote host, no `data:`, no `'self'` (which would be the app's own API
- *      surface, and is nothing here anyway — an opaque origin matches no
- *      `'self'`), and nothing outside the served directory, because the route
- *      at the other end of that path decodes, refuses `..` and demands a
+ *      at that end, and `@olai/server`'s `media.ts` is the route). What that
+ *      admits is no more than the bytes any `.md` in the same
+ *      directory could already draw — a subset, in fact, since a `..` past the
+ *      root is clamped for a document and refused here (`@olai/surface`'s
+ *      `media.test.ts` holds both halves of that) — and this is the whole of
+ *      the widening: no remote host, no `data:`, no `'self'` (which would be
+ *      the app's own API surface, and is nothing here anyway — an opaque origin
+ *      matches no `'self'`), and nothing outside the served directory, because
+ *      the route at the other end of that path decodes, refuses `..` and demands a
  *      picture extension before it opens a file. TWO GUARDS, then, and they are
  *      independent: the policy decides what may be asked for, the route decides
  *      what may be answered, and neither is trusted to be the other. That is
@@ -204,9 +203,22 @@ import { mediaBase, MEDIA_PREFIX } from "@olai/surface"
  * sized in `vh` from climbing its own ladder (the argument is over there, where
  * the counting is). Two prefixes rather than a field, for the reason there is a
  * prefix at all: it is the smallest difference that survives the trip.
+ *
+ * A TABLE rather than two loose constants, because the two are one thing — the
+ * kinds of reading there are — and the receiver does not want a boolean it has
+ * to re-decide at every use. {@link Reading} is the key, {@link reported}
+ * returns it, and `./Hypertext.tsx` files its accepted widths UNDER it: one
+ * name, carried from the script that posts it to the record that remembers it,
+ * with nothing projecting it into a flag and back on the way.
  */
-const REPORT = "olai:page-height:"
-const SETTLED = "olai:page-loaded:"
+const READING = {
+  arriving: "olai:page-height:",
+  settled: "olai:page-loaded:",
+} as const
+
+/** Which of the two a message is: taken while the page may still be arriving,
+ *  or after its `load`, when there is nothing left to wait for. */
+export type Reading = keyof typeof READING
 
 /**
  * The one program allowed to run in there: a tape measure.
@@ -240,7 +252,7 @@ const SETTLED = "olai:page-loaded:"
  * and `load` to move a line. An `<img src="art/shot.png">` is exactly such a
  * thing — a box with no height until its bytes arrive — so the page's real
  * height is not knowable until the pictures are in. That reading is TAGGED
- * differently ({@link SETTLED}), because the receiver cannot otherwise tell
+ * differently ({@link READING}'s `settled`), because the receiver cannot tell
  * "the page grew because its pictures landed" from "the page grew because I
  * made the frame taller and it is measured in `vh`", and it may only act on
  * the first of those.
@@ -253,10 +265,10 @@ const SETTLED = "olai:page-loaded:"
  * from the refusals.
  *
  * Module-private, and the hash below is over these exact bytes — a space added
- * in here is a script the browser refuses. What guards that is `./sealed.test.ts`,
- * which does not read this constant: it digests the script out of a
- * {@link sealOf}, because the constant is not what a browser hashes, the markup
- * is.
+ * in here is a script the browser refuses. What guards that is
+ * `./sealed.test.ts`, which does not read this constant: it digests the script
+ * out of a {@link sealed} with no file at all, because the constant is not what
+ * a browser hashes, the markup is.
  */
 const MEASURE = `(function () {
   var post = function (tag) {
@@ -267,7 +279,7 @@ const MEASURE = `(function () {
     )
   }
   var measure = function () {
-    post(${JSON.stringify(REPORT)})
+    post(${JSON.stringify(READING.arriving)})
   }
   addEventListener("DOMContentLoaded", function () {
     if (typeof ResizeObserver === "function") {
@@ -276,7 +288,7 @@ const MEASURE = `(function () {
       measure()
     }
     addEventListener("load", function () {
-      post(${JSON.stringify(SETTLED)})
+      post(${JSON.stringify(READING.settled)})
     })
   })
 })()`
@@ -452,17 +464,16 @@ export const sealed = (markup: string, where: Framed): string => {
     markup
 }
 
-/** What a sealed frame said: a height, and whether it was said after the page's
- *  pictures had landed. */
+/** What a sealed frame said: a height, and which reading it is. */
 export interface Report {
   readonly height: number
-  readonly settled: boolean
+  readonly reading: Reading
 }
 
 /**
- * The other end of {@link REPORT} and {@link SETTLED}: what a sealed frame
- * said, as a report — or nothing, which is the answer to every message that was
- * not one of ours and to every one of ours that made no sense.
+ * The other end of {@link READING}: what a sealed frame said, as a report — or
+ * nothing, which is the answer to every message that was not one of ours and to
+ * every one of ours that made no sense.
  *
  * It lives HERE, beside the script whose output it reads, because the two are
  * one thing: a message format. Split across a module boundary it would be a
@@ -476,17 +487,21 @@ export interface Report {
  * same gate as a negative or an infinity. Rounded UP, because a fractional
  * layout truncated down is the last line of a page clipped by half a pixel.
  *
- * WHICH PREFIX is asked as a pair of independent tests rather than as a
- * fallthrough, because the two are separate strings and neither is the other's
- * prefix — a message is one kind, the other, or nothing, and `settled` is never
- * a claim the sender got to make by spelling a number oddly.
+ * WHICH READING it is, is decided ONCE and then carried as a name. The two
+ * prefixes are separate strings and neither is the other's, so a message is one
+ * kind, the other, or nothing — and `settled` is never a claim the sender got to
+ * make by spelling a number oddly.
  */
 export const reported = (said: unknown): Report | undefined => {
   if (typeof said !== "string") return undefined
-  const settled = said.startsWith(SETTLED)
-  if (!settled && !said.startsWith(REPORT)) return undefined
-  const height = Number(said.slice((settled ? SETTLED : REPORT).length))
+  const reading: Reading | undefined = said.startsWith(READING.settled)
+    ? "settled"
+    : said.startsWith(READING.arriving)
+    ? "arriving"
+    : undefined
+  if (reading === undefined) return undefined
+  const height = Number(said.slice(READING[reading].length))
   return Number.isFinite(height) && height > 0
-    ? { height: Math.ceil(height), settled }
+    ? { height: Math.ceil(height), reading }
     : undefined
 }

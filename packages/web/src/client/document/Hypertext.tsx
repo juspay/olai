@@ -69,7 +69,7 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { type Framed, reported, sealed } from "./sealed.ts"
+import { type Framed, type Reading, reported, sealed } from "./sealed.ts"
 
 /**
  * How many times a page may walk the frame off its own document, per document
@@ -158,8 +158,15 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
   // reading sees and then stops, whatever else arrives — including from a
   // document that walked off the seal and is running its own script, which is
   // the only sender that could ever repeat a message on purpose.
-  let sizedAt: number | undefined
-  let settledAt: number | undefined
+  //
+  // ONE RECORD, filed under the reading the frame named (`./sealed.ts`'s
+  // `Reading`), rather than a variable per kind. Two variables would be two
+  // things a new document has to remember to clear, and the rule that they
+  // clear together would live in whoever remembered to write both lines; here
+  // the whole record is replaced and the rule is the assignment. It is also
+  // what the sentence above says, spelled the same way in the code: one
+  // accepted width per reading.
+  let acceptedAt: Partial<Record<Reading, number>> = {}
   // Loads this component asked for. Every document it puts in the frame is one;
   // a `load` with none outstanding is the frame somewhere nobody sent it.
   let expected = 0
@@ -175,9 +182,8 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
   const show = (markup: string) => {
     if (frame === undefined) return
     expected += 1
-    // The height belonged to the document that is leaving.
-    sizedAt = undefined
-    settledAt = undefined
+    // The heights belonged to the document that is leaving.
+    acceptedAt = {}
     setMeasured(undefined)
     frame.srcdoc = markup
   }
@@ -210,9 +216,8 @@ export function Hypertext(props: { readonly file: string; readonly text: string 
       const report = reported(event.data)
       if (report === undefined) return
       const width = frame.clientWidth
-      if (width === (report.settled ? settledAt : sizedAt)) return
-      if (report.settled) settledAt = width
-      else sizedAt = width
+      if (acceptedAt[report.reading] === width) return
+      acceptedAt[report.reading] = width
       setMeasured(`${report.height}px`)
     }
     window.addEventListener("message", listen)

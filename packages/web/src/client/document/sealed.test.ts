@@ -301,7 +301,7 @@ test("the origins this app is actually served on are spelled", () => {
 // thing no type can catch is the two ends drifting apart; a literal copied into
 // this file would drift with them and go on passing. Everything below is built
 // from what the seal actually says.
-const [SAID, SETTLED] = ((): readonly [string, string] => {
+const [ARRIVING, SETTLED] = ((): readonly [string, string] => {
   const found = [...SEAL.matchAll(/\bpost\(\s*"([^"]*)"\s*\)/g)].map(
     (one) => JSON.parse(`"${one[1]!}"`) as string,
   )
@@ -311,15 +311,15 @@ const [SAID, SETTLED] = ((): readonly [string, string] => {
   return [found[0]!, found[1]!]
 })()
 
-// TWO KINDS, and neither is the other's prefix — which is what lets the
-// receiver ask two independent questions instead of stripping and re-testing.
-// A settled reading is the one taken after the page's pictures have landed, and
-// `./Hypertext.tsx` is what does something different with it.
+// TWO READINGS, and neither prefix is the other's — which is what lets the
+// receiver decide which it is exactly once and then carry the NAME. A settled
+// reading is the one taken after the page's pictures have landed, and
+// `./Hypertext.tsx` files its accepted widths under that name.
 test("the frame's two messages are the two the parser recognises", () => {
-  expect(reported(`${SAID}640`)).toEqual({ height: 640, settled: false })
-  expect(reported(`${SETTLED}940`)).toEqual({ height: 940, settled: true })
-  expect(SETTLED.startsWith(SAID)).toBe(false)
-  expect(SAID.startsWith(SETTLED)).toBe(false)
+  expect(reported(`${ARRIVING}640`)).toEqual({ height: 640, reading: "arriving" })
+  expect(reported(`${SETTLED}940`)).toEqual({ height: 940, reading: "settled" })
+  expect(SETTLED.startsWith(ARRIVING)).toBe(false)
+  expect(ARRIVING.startsWith(SETTLED)).toBe(false)
 })
 
 // …and everything else is nothing. A sandboxed frame is an opaque origin and a
@@ -335,13 +335,13 @@ test("anything else the frame could say is not a height", () => {
       null,
       42,
       { olai: "page-height", height: 640 },
-      SAID,
+      ARRIVING,
       SETTLED,
-      `${SAID}tall`,
+      `${ARRIVING}tall`,
       `${SETTLED}tall`,
-      `${SAID}0`,
-      `${SAID}-40`,
-      `${SAID}Infinity`,
+      `${ARRIVING}0`,
+      `${ARRIVING}-40`,
+      `${ARRIVING}Infinity`,
       // Literal on purpose: being the WRONG prefix is what this case is.
       "some-other-app:page-height:640",
       "olai:page-settled:640",
@@ -355,7 +355,7 @@ test("anything else the frame could say is not a height", () => {
 // and a frame truncated to the pixel below its content clips a descender and
 // grows a scrollbar to show it.
 test("a fractional page gets the pixel it needs", () => {
-  expect(reported(`${SAID}640.2`)?.height).toBe(641)
+  expect(reported(`${ARRIVING}640.2`)?.height).toBe(641)
 })
 
 // WHAT `Number` LETS THROUGH, pinned rather than assumed — opencode's review of
@@ -369,6 +369,6 @@ test("a fractional page gets the pixel it needs", () => {
 // which is the same place an honest height lands. The gate that matters is the
 // one above it — `event.source` — and it is identity, not syntax.
 test("a slack spelling of a number is still a number", () => {
-  expect(reported(`${SAID} 640`)?.height).toBe(640)
-  expect(reported(`${SAID}0x100`)?.height).toBe(256)
+  expect(reported(`${ARRIVING} 640`)?.height).toBe(640)
+  expect(reported(`${ARRIVING}0x100`)?.height).toBe(256)
 })
