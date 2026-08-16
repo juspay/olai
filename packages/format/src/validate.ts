@@ -34,7 +34,7 @@ import {
   type OutlineError,
 } from "./errors.ts"
 import { fileKind } from "./kinds.ts"
-import { isMirror, type Located, type Site, targetsOf } from "./node.ts"
+import { isMirror, type Located, type Site } from "./node.ts"
 import { didYouMean } from "./suggest.ts"
 import type { OutlineSet } from "./set.ts"
 
@@ -81,7 +81,7 @@ export const validate = (
 
   reportDuplicateIds(set.nodes, derived, errors)
   checkParents(set.nodes, derived, errors)
-  checkTargets(set.nodes, derived, errors)
+  checkTargets(derived, errors)
   checkAfterAcyclic(set.nodes, derived, errors)
   checkMirrorContainment(set.nodes, derived, errors)
   checkDocs(set.nodes, set.documents, errors)
@@ -178,23 +178,55 @@ const checkParents = (
   )
 }
 
+/**
+ * Asked ONCE PER NAMED ID, of the index that is `targetsOf` read backwards
+ * ({@link Derived.namedBy}), rather than once per record of the corpus.
+ *
+ * `targetsOf` is still the format's own list of what a record points at — this
+ * rule reads the index derive built by asking it, so there is still exactly one
+ * list of edge fields, and the day a fourth relation arrives this rule sees it
+ * without being told. What changes is the direction: the question "does
+ * everything this names exist?" is the same question as "is this named id
+ * declared?", and the second one has as many answers as there are ids named,
+ * not as there are records.
+ *
+ * ERROR ORDER, which is the whole reason this waited for its own change
+ * (`check-targets-index`, deferred from #205). The report is SORTED before
+ * anyone sees it — by file, then line, then code ({@link ./errors.ts}'s
+ * `compareErrors`) — so the only findings this can reorder are two at the SAME
+ * site with the same code: one record naming two ids that nothing declares.
+ * Those used to come out in the order the record writes its fields; they now
+ * come out in the order the CORPUS first names those ids, which for a record
+ * naming ids nobody else names is the same order, and differs only when an
+ * earlier record named one of them first. Both are arbitrary and both are
+ * deterministic; what is preserved is what a reader spends — one finding per
+ * field per record, at that record's own site, naming the field it was written
+ * with.
+ *
+ * ONE thing is deliberately not preserved: a record naming the same unknown id
+ * TWICE IN ONE FIELD (`"after":["x","x"]`, which only a hand-edited file can
+ * hold — no op writes a repeat) used to be two identical findings and is now
+ * one. The index folds a record's fields, and two copies of one sentence at one
+ * site tell a reader nothing the first did not.
+ */
 const checkTargets = (
-  all: ReadonlyArray<Located>,
   derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
-  for (const located of all) {
-    // `targetsOf` is the format's own ({@link ./node.ts}), because the ops
-    // layer asks the same question backwards before it retires a record —
-    // "does anything still name this?" — and a second list of edge fields is a
-    // relation one of them would stop seeing.
-    for (const [field, id] of targetsOf(located.node)) {
-      if (derived.byId.has(id)) continue
-      errors.push({
-        code: "unknown-target",
-        ...siteOf(located),
-        message: `\`${field}\` names \`${id}\`, which no node declares${suggest(id, derived)}`,
-      })
+  for (const [id, namings] of derived.namedBy) {
+    if (derived.byId.has(id)) continue
+    // Once per unknown id rather than once per record naming it: the sentence
+    // is the same for every one of them, and the suggestion behind it walks
+    // every declared id in the set.
+    const said = suggest(id, derived)
+    for (const naming of namings) {
+      for (const field of naming.fields) {
+        errors.push({
+          code: "unknown-target",
+          ...siteOf(naming.at),
+          message: `\`${field}\` names \`${id}\`, which no node declares${said}`,
+        })
+      }
     }
   }
 }
