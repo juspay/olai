@@ -106,6 +106,12 @@ export interface Derived {
    * so is a file that did not parse: which files EXIST is the set's answer
    * ({@link ./set.ts}'s `files`), never this map's, and `?? []` is how every
    * reader here already spells nothing.
+   *
+   * It does NOT claim every by-file grouping in the tree. Two of them —
+   * `publishedOf` in `@olai/server` and the pending walk in `@olai/ops` — hold
+   * an `OutlineSet` and never derive at all, so reaching for this would mean
+   * building a whole derivation to group a corpus. They stay as they are, and
+   * saying so here is what keeps that a ruling rather than an oversight.
    */
   readonly byFile: ReadonlyMap<string, ReadonlyArray<Located>>
   /**
@@ -193,7 +199,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
 
   const byId = new Map<string, Located>()
   const children = new Map<string, Array<Located>>()
-  const namedBy = new Map<string, Array<Naming>>()
+  const namedBy = new Map<string, Array<{ at: Located; fields: Array<TargetField> }>>()
 
   for (const located of nodes) {
     if (!byId.has(located.node.id)) byId.set(located.node.id, located)
@@ -206,14 +212,22 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
     }
 
     // Asked once per record, and nearly every record names nothing — which is
-    // why `targetsOf` answers that with a shared empty list and why this stops
-    // there rather than folding one.
-    const targets = targetsOf(located.node)
-    if (targets.length === 0) continue
-    for (const { target, fields } of namings(targets)) {
+    // why `targetsOf` answers that with a shared empty list.
+    for (const [field, target] of targetsOf(located.node)) {
       const naming = namedBy.get(target)
-      if (naming === undefined) namedBy.set(target, [{ at: located, fields }])
-      else naming.push({ at: located, fields })
+      // A record naming one id with two fields is ONE dependent carrying both,
+      // and the entry to add the second field to is the LAST one — entries are
+      // appended as the walk reaches each record, so an entry already filed by
+      // the record in hand can only be the one on the end. That is what makes
+      // the fold free: no per-record scratch map, no search.
+      const held = naming?.[naming.length - 1]
+      if (held?.at === located) {
+        if (!held.fields.includes(field)) held.fields.push(field)
+      } else if (naming === undefined) {
+        namedBy.set(target, [{ at: located, fields: [field] }])
+      } else {
+        naming.push({ at: located, fields: [field] })
+      }
     }
   }
 
@@ -240,31 +254,6 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
     edgesTo,
     namedBy,
   }
-}
-
-/** An id a record names, and the fields it names it with — {@link Naming}'s
- *  other half, before the record is attached to it. */
-interface Named {
-  readonly target: string
-  readonly fields: Array<TargetField>
-}
-
-/** One record's {@link targetsOf}, folded by TARGET, so a record naming an id
- *  with two fields becomes one {@link Naming} carrying two.
- *
- *  A list searched linearly rather than a keyed map: a record naming more than
- *  a handful of ids does not exist, and a `Map` per edge-bearing record is an
- *  allocation this walk pays for the whole corpus. */
-const namings = (
-  targets: ReadonlyArray<readonly [field: TargetField, id: string]>,
-): ReadonlyArray<Named> => {
-  const folded: Array<Named> = []
-  for (const [field, target] of targets) {
-    const found = folded.find((one) => one.target === target)
-    if (found === undefined) folded.push({ target, fields: [field] })
-    else if (!found.fields.includes(field)) found.fields.push(field)
-  }
-  return folded
 }
 
 /** The order the records are on disk — {@link Derived.byFile}'s promise, and
@@ -509,9 +498,12 @@ export interface InTheWay {
  * A mirror is never a source of its own: it carries no edges.
  *
  * BOTH DIRECTIONS, filed as the edge is made. {@link Derived.edgesTo} is this
- * map reversed, and reversing it here rather than in a later pass is what
- * makes the two readings one canonicalisation: an edge that resolved through a
- * placement resolved once, before either map had a key for it.
+ * map reversed — and to be exact about what that buys, since a later pass over
+ * a finished `after` would reverse ids that are already canonical and could
+ * not disagree with it: what it buys is that the reverse is written where the
+ * edge is known, so there is no second place holding a rule about how an edge
+ * is filed. The cost is one `Set` operation inside a walk that was happening
+ * anyway.
  */
 const orderings = (
   byId: ReadonlyMap<string, Located>,

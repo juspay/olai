@@ -4,6 +4,7 @@ import {
   blockersOf,
   countedChildren,
   derive,
+  type Derived,
   /** The reading of `byFile`, under a name the fixture builder below has not
    *  already taken — that one turns TEXT into records, this one asks a
    *  derivation what one file holds. */
@@ -43,6 +44,14 @@ const members = (
   index: ReadonlyMap<string, ReadonlySet<string>>,
   id: string,
 ): ReadonlyArray<string> => [...(index.get(id) ?? [])]
+
+/** What `namedBy` says about an id, as `record field,field` per namer — one
+ *  string rather than a nested literal, so what an assertion is about is the
+ *  records and their reasons rather than the shape they arrive in. */
+const namers = (derived: Derived, id: string): ReadonlyArray<string> =>
+  (derived.namedBy.get(id) ?? []).map((one) =>
+    `${one.at.node.id} ${one.fields.join(",")}`
+  )
 
 /** The regular records of a fixture, for the functions that read a node's own
  *  stored fields rather than a whole set. */
@@ -717,14 +726,12 @@ test("a record is filed under the id it wrote, not the node that id means", () =
   ))
   // One entry per RECORD, with the fields in declaration order: a node naming
   // the same id twice is one dependent with two reasons, not two dependents.
-  expect((derived.namedBy.get("m") ?? []).map((one) => `${one.at.node.id} ${one.fields}`))
-    .toEqual(["a after,see", "b blocks"])
+  expect(namers(derived, "m")).toEqual(["a after,see", "b blocks"])
   // `see` is in here and in nothing else — no derivation reads it, and a
   // reverse index that left it out would let a write land that should not.
   expect(derived.edgesTo.has("m")).toBe(false)
   // The placement's own claim on the node it shows is an entry like any other.
-  expect((derived.namedBy.get("x") ?? []).map((one) => `${one.at.node.id} ${one.fields}`))
-    .toEqual(["m mirror"])
+  expect(namers(derived, "x")).toEqual(["m mirror"])
 })
 
 // One field naming an id twice is still one field: a reader listing it twice
@@ -734,9 +741,7 @@ test("a field naming the same id twice is named once", () => {
     `{"id":"x","ord":"a","title":"x"}\n` +
       `{"id":"a","ord":"b","title":"a","after":["x","x"],"see":["x"]}`,
   ))
-  expect((derived.namedBy.get("x") ?? []).map((one) => one.fields)).toEqual([
-    ["after", "see"],
-  ])
+  expect(namers(derived, "x")).toEqual(["a after,see"])
 })
 
 // ── the drawable tree ──────────────────────────────────────────────────

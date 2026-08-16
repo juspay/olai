@@ -36,6 +36,7 @@ import {
   type LocatedRegular,
   MARKS,
   matching,
+  nodesOf,
   nothing,
   type OutlineSet,
   type OutlineSummary,
@@ -392,16 +393,15 @@ export const outlines = (
    * itself. Saying they are gone is also what lets the titles below be read
    * without an assertion.
    *
-   * NOT a field on {@link Derived}, though this grouping is written three
-   * times in the tree: `siblingsOf` in the floor sorts what it groups,
-   * `publishedOf` and the pending walk ask it of an `OutlineSet` they never
-   * derive at all. Only the grouping itself is shared, and what shape a shared
-   * one should take is for the roadmap's `siblings-of-quadratic` to settle.
+   * A FIELD on {@link Derived} now, which is what `siblings-of-quadratic`
+   * settled: this used to group the corpus itself, under a note deferring the
+   * question to that item. `byFile` is that grouping, built once with the rest
+   * of the derivation this function is already holding, and in LINE order —
+   * which is stricter than the encounter order `roots` stands on, so the
+   * answer is unchanged. What is left here is the mirror drop, which is this
+   * answer's own rule rather than the index's: `byFile` holds RECORDS, because
+   * a writer re-emitting a file needs the placements too.
    */
-  const byFile = Map.groupBy(
-    derived.nodes.filter((located): located is LocatedRegular => !isMirror(located.node)),
-    (located) => located.file,
-  )
   // ANNOTATED, so the row literals below are checked against the floor: a
   // field dropped from `OutlineSummary` fails HERE rather than only at the
   // table-driven decode. That is independent of what the rows hold, which is
@@ -418,8 +418,9 @@ export const outlines = (
         unreadable: errors.map(errorLine),
       }
     }
-    // No group at all is an outline holding no nodes of its own.
-    const own = byFile.get(file) ?? []
+    // No entry at all is an outline holding no nodes of its own.
+    const own = nodesOf(derived, file)
+      .filter((located): located is LocatedRegular => !isMirror(located.node))
     return {
       file,
       nodes: own.length,

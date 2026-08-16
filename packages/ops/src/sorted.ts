@@ -31,6 +31,7 @@
 import {
   biggestOf,
   changesOf,
+  type Derived,
   type Node,
   nodesOf,
   type OutlineSet,
@@ -38,7 +39,6 @@ import {
 } from "@olai/format"
 
 import type { Plan } from "./plan.ts"
-import { index } from "./query.ts"
 
 /**
  * The one word for what this plan does to that set, or `undefined` when it does
@@ -60,16 +60,22 @@ import { index } from "./query.ts"
  * set's own: `OutlineSet` is a flat list of located nodes, deliberately, so
  * "what does this outline hold" cost a pass over every node in the directory to
  * keep one or two files' worth. `Derived.byFile` is that grouping, built with
- * the rest of the derivation and warm for this exact snapshot — `index` is
- * memoised on the set's identity and `plan` has already asked it, which is why
- * this can reach for a derivation without paying for one.) The comparison is
- * sound because the only op that moves a node between files is `archive`, and
- * it plans both ends — so a node that left one file is matched to the record
- * that arrived in the other, and reads as *archived* rather than as a departure
- * and an unrelated arrival.
+ * the rest of the derivation.) The comparison is sound because the only op that
+ * moves a node between files is `archive`, and it plans both ends — so a node
+ * that left one file is matched to the record that arrived in the other, and
+ * reads as *archived* rather than as a departure and an unrelated arrival.
  */
 export const sortOfWrite = (
   before: OutlineSet,
+  /** The derivation of `before`, HANDED IN rather than reached for. This could
+   *  call `index` itself — it is memoised on the set's identity and the plan
+   *  has already asked for it — but then the dependency would live in a
+   *  paragraph arguing the memo is warm, and the caller that owns the snapshot
+   *  is the one that knows. The direction matters beyond tidiness: slice 2 of
+   *  the model-indices plan is *thread the validated view through instead of
+   *  recomputing it*, and a helper reaching into a module-level memo is work
+   *  that slice would have to undo. */
+  derived: Derived,
   /** The plan itself, rather than the three pieces of it this reads: it already
    *  carries what would be written and which node (or document) the write was
    *  ABOUT, so a fourth thing a plan learns to say is not a fourth argument
@@ -89,7 +95,6 @@ export const sortOfWrite = (
     if (prior === undefined) return "created"
     return prior.text === doc.text ? undefined : "edited"
   }
-  const derived = index(before)
   const was = new Map<string, ReadonlyArray<Node>>(
     files.map((planned) => [
       planned.file,

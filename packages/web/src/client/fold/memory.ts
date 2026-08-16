@@ -170,16 +170,18 @@ const homeOf = (
 }
 
 /** file → the ids the served set says it declares. The other half of
- *  {@link pruned}, and the only thing the derivation is asked for here. */
-export const idsByFile = (derived: Derived): ReadonlyMap<string, ReadonlySet<string>> => {
-  const out = new Map<string, Set<string>>()
-  for (const located of derived.nodes) {
-    const ids = out.get(located.file)
-    if (ids === undefined) out.set(located.file, new Set([located.node.id]))
-    else ids.add(located.node.id)
-  }
-  return out
-}
+ *  {@link pruned}, and the only thing the derivation is asked for here.
+ *
+ *  Read off `byFile` rather than grouped again: the derivation already carries
+ *  the records of each file, so what is left here is turning them into ids —
+ *  which is this module's question, and the only part of it the floor has no
+ *  opinion about. */
+export const idsByFile = (derived: Derived): ReadonlyMap<string, ReadonlySet<string>> =>
+  new Map(
+    [...derived.byFile].map((
+      [file, own],
+    ) => [file, new Set(own.map((located) => located.node.id))]),
+  )
 
 /**
  * ...and the one above, remembered for as long as the derivation it is of.

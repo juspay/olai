@@ -111,6 +111,12 @@ export {
   targetsOf,
 } from "./node.ts"
 export type { LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
+/** Which field a record NAMED another record with. On the surface because two
+ *  exported shapes already answer in it — `targetsOf` above, and the reverse
+ *  index's `Naming` — and a consumer that can use a value but cannot name its
+ *  type is a leak rather than a decision. `EdgeField` stays off the surface
+ *  because nothing exported speaks it. */
+export type { TargetField } from "./node.ts"
 
 /** The one OPEN field on a record: named facts olai gives no meaning to. A
  *  consumer reads a key through these rather than reaching into `node.custom`,
