@@ -132,14 +132,26 @@ const REPORT = "olai:page-height:"
  * while `scrollHeight` is `max(content, viewport)` and would therefore report
  * the frame's current height back to the frame, pinning a short page at
  * whatever it was first given. `body.scrollHeight` is the max'd-in second
- * reading for the page that sets `html { height: 100% }` and overflows it.
+ * reading for the page that sets `html { height: 100% }` and overflows it —
+ * unguarded, because every path into `post` runs at `DOMContentLoaded` or
+ * later, and by then there is a body.
  *
- * Measured again on `load` (pictures are refused, but a font metric or a late
- * stylesheet can still move a line) and on every resize of the root box, which
- * is how a page reflowing into a narrower window gets a frame that follows it.
- * The observer is guarded rather than assumed: an exception thrown in here
- * would surface as a console error on a page whose whole point is that its
- * console is quiet apart from the refusal.
+ * ONE mechanism does the measuring, and that is deliberate: a `ResizeObserver`
+ * on the root box. It delivers a callback the moment it starts observing, which
+ * is the first measurement, and again whenever that box changes — which is how
+ * a page reflowing into a narrower window gets a frame that follows it. The
+ * `load` event is not a second answer, because under this policy there is
+ * nothing left for it to wait for: no image, font or stylesheet may be fetched
+ * at all (`default-src 'none'`), so nothing can arrive between
+ * `DOMContentLoaded` and `load` to move a line — and anything that somehow did
+ * would resize the root box, which is the observer's whole job.
+ *
+ * `load` earns its place in one case only, and it is the case where the
+ * observer does not exist: a browser without `ResizeObserver` gets one reading
+ * at `DOMContentLoaded` and one more when everything has settled, which is the
+ * best a page can do without one. Guarded rather than assumed, because an
+ * exception thrown in here would surface as a console error on a page whose
+ * whole point is that its console is quiet apart from the refusal.
  *
  * Module-private, and the hash below is over these exact bytes — a space added
  * in here is a script the browser refuses. What guards that is `./sealed.test.ts`,
@@ -148,16 +160,19 @@ const REPORT = "olai:page-height:"
  */
 const MEASURE = `(function () {
   var post = function () {
-    var page = document.documentElement, body = document.body
+    var page = document.documentElement
     parent.postMessage(
-      ${JSON.stringify(REPORT)} + Math.max(page.offsetHeight, body ? body.scrollHeight : 0),
+      ${JSON.stringify(REPORT)} + Math.max(page.offsetHeight, document.body.scrollHeight),
       "*"
     )
   }
-  addEventListener("load", post)
   addEventListener("DOMContentLoaded", function () {
-    post()
-    if (typeof ResizeObserver === "function") new ResizeObserver(post).observe(document.documentElement)
+    if (typeof ResizeObserver === "function") {
+      new ResizeObserver(post).observe(document.documentElement)
+    } else {
+      post()
+      addEventListener("load", post)
+    }
   })
 })()`
 
@@ -172,7 +187,7 @@ const MEASURE = `(function () {
  * A stale number here fails there, before a reader finds out by getting a
  * preview quietly back on its fallback height.
  */
-const MEASURE_SHA256 = "wLCFaN9yrbDA5UnaRV1OMYb8sxZxJtLPz90rPRRJVPQ="
+const MEASURE_SHA256 = "us4k2KZhMs4F9qCA92R9shtdt2l8m461Oktfzwk7ZqU="
 
 /**
  * What is put in front of the file's own markup.

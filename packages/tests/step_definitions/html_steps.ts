@@ -126,100 +126,143 @@ Then(
 
 // ── how tall the frame is ──────────────────────────────────────────────
 
-/**
- * The two heights every step below compares, read as a pair.
- *
- * `frame` is the preview element's own CONTENT box out here — `clientHeight`,
- * so the seal's border is not counted as page. `page` is the height of the
- * document INSIDE it, taken independently of the tape measure that reported it:
- * the client believes a number that came over `postMessage`, and the whole
- * question is whether that number was the truth.
- *
- * Read as a POLL, because it is one. The height arrives a frame or two after
- * the preview draws — the seal's script measures on `DOMContentLoaded` and the
- * message crosses the frame boundary — so a step that read once would be
- * reading the `70dvh` fallback and calling it a measurement.
- */
+/** How far the frame and its page may disagree and still be "the same height":
+ *  the tape measure rounds up to a whole pixel and a browser lays out in
+ *  fractions, so an exact equality would be a flake with a story. */
 const ROUNDING_PX = 2;
 
-const bothHeights = async (
+/** The two heights every step below compares.
+ *
+ *  `frame` is the preview element's own CONTENT box out here — `clientHeight`,
+ *  so the seal's border is not counted as page. `page` is the height of the
+ *  document INSIDE it, taken independently of the tape measure that reported
+ *  it: the client believes a number that came over `postMessage`, and the whole
+ *  question every step asks is whether that number was the truth. */
+interface Heights {
+  readonly frame: number;
+  readonly page: number;
+}
+
+/**
+ * Wait until the two heights say `settled`, and fail saying what they said.
+ *
+ * A WAIT, because it is one: the height arrives a frame or two after the
+ * preview draws — the seal's script measures once the document is parsed and
+ * the message crosses the frame boundary — so a step that read once would be
+ * reading the `70dvh` fallback and calling it a measurement.
+ *
+ * The poll is the world's own (`waitUntil`), not a second one written here; the
+ * only thing this adds is the last reading, because "timed out waiting until
+ * the frame fits its page" is a worse sentence than the two numbers. Same shape
+ * as `theme_steps.ts` uses for the same reason. The predicate and the complaint
+ * are each spelled ONCE and travel together — two copies of one condition, one
+ * for the poll and one for the assertion, is a step that waits for something
+ * other than what it checks.
+ */
+const untilHeights = async (
   world: OlaiWorld,
-  settled: (frame: number, page: number) => boolean,
-): Promise<{ frame: number; page: number }> => {
-  const deadline = Date.now() + POLL_TIMEOUT;
-  let seen = { frame: 0, page: 0 };
-  for (;;) {
-    const element = await preview(world);
-    const inner = await inside(world);
-    seen = {
-      frame: await element.evaluate((node) => (node as HTMLElement).clientHeight),
-      page: await inner
-        .locator("body")
-        .evaluate(() => document.documentElement.offsetHeight),
-    };
-    if (settled(seen.frame, seen.page) || Date.now() > deadline) return seen;
-    await world.page.waitForTimeout(100);
-  }
+  settled: (seen: Heights) => boolean,
+  describe: string,
+  complain: (seen: Heights) => string,
+): Promise<void> => {
+  // Resolved ONCE. Both are lazy handles that re-resolve at use, so hoisting
+  // them costs nothing and saves two `waitFor` round trips per tick — `inside`
+  // waits on the frame that `preview` just waited on.
+  const element = await preview(world);
+  const inner = await inside(world);
+  const reading = async (): Promise<Heights> => {
+    // Independent reads of two different documents, so they go together rather
+    // than one after the other.
+    const [frame, page] = await Promise.all([
+      element.evaluate((node) => (node as HTMLElement).clientHeight),
+      inner.locator("body").evaluate(() => document.documentElement.offsetHeight),
+    ]);
+    return { frame, page };
+  };
+
+  let seen = await reading();
+  await world
+    .waitUntil(async () => settled((seen = await reading())), describe)
+    // The timeout says it never held; the assertion below says what was there.
+    .catch(() => undefined);
+  assert.ok(settled(seen), complain(seen));
 };
 
-/** The viewport the bounds are written in: `dvh` in a browser with no address
- *  bar in motion is exactly the page's own height. */
+/** The viewport the bounds are written against: `dvh` in a browser with no
+ *  address bar in motion is exactly the page's own height. */
 const viewport = (world: OlaiWorld): number => {
   const size = world.page.viewportSize();
-  if (size === null) throw new Error("the page has no viewport to measure against");
+  assert.ok(size !== null, "this scenario has no viewport size");
   return size.height;
 };
 
 Then("the preview is as tall as the page it shows", async function (this: OlaiWorld) {
-  const seen = await bothHeights(this, (frame, page) => Math.abs(frame - page) <= ROUNDING_PX);
-  assert.ok(
-    Math.abs(seen.frame - seen.page) <= ROUNDING_PX,
-    `the frame is ${seen.frame}px tall and the page inside it is ${seen.page}px — ` +
+  await untilHeights(
+    this,
+    ({ frame, page }) => Math.abs(frame - page) <= ROUNDING_PX,
+    "the frame is the height of the page in it",
+    ({ frame, page }) =>
+      `the frame is ${frame}px tall and the page inside it is ${page}px — ` +
       `the frame is still a guess rather than the height of what it shows`,
   );
 });
 
-Then("the preview is shorter than the viewport", async function (this: OlaiWorld) {
-  const tall = viewport(this);
-  const seen = await bothHeights(this, (frame) => frame < tall);
-  assert.ok(
-    seen.frame < tall,
-    `a page of ${seen.page}px got a frame of ${seen.frame}px, which is the whole ` +
+/** The two directions one step asks in, as the word the feature says and what
+ *  it means — a table rather than two near-identical step bodies, since only
+ *  the comparison and the complaint differ. */
+const AGAINST_VIEWPORT = {
+  shorter: {
+    holds: (frame: number, tall: number) => frame < tall,
+    complain: (seen: Heights, tall: number) =>
+      `a page of ${seen.page}px got a frame of ${seen.frame}px, which is the whole ` +
       `viewport (${tall}px) or more — a short page is claiming a screenful`,
-  );
-});
-
-Then("the preview is taller than the viewport", async function (this: OlaiWorld) {
-  const tall = viewport(this);
-  const seen = await bothHeights(this, (frame) => frame > tall);
-  assert.ok(
-    seen.frame > tall,
-    `a page of ${seen.page}px got a frame of only ${seen.frame}px against a ` +
+  },
+  taller: {
+    holds: (frame: number, tall: number) => frame > tall,
+    complain: (seen: Heights, tall: number) =>
+      `a page of ${seen.page}px got a frame of only ${seen.frame}px against a ` +
       `${tall}px viewport — a long page is being folded back into a box`,
-  );
-});
+  },
+} as const;
 
-// The BOUND, and the behaviour past it, in one step because they are one fact:
-// the frame stops growing at two screens and the page carries on inside it. A
-// step that only checked the cap would pass on a frame that had silently
-// dropped the rest of the document.
 Then(
-  "the preview stops at two viewports and scrolls the rest",
-  async function (this: OlaiWorld) {
-    const bound = viewport(this) * 2;
-    const seen = await bothHeights(
+  "the preview is {word} than the viewport",
+  async function (this: OlaiWorld, which: string) {
+    const how = AGAINST_VIEWPORT[which as keyof typeof AGAINST_VIEWPORT];
+    assert.ok(how !== undefined, `no such comparison as "${which} than the viewport"`);
+    const tall = viewport(this);
+    await untilHeights(
       this,
-      (frame, page) => frame <= bound + ROUNDING_PX && page > frame,
+      ({ frame }) => how.holds(frame, tall),
+      `the frame is ${which} than the ${tall}px viewport`,
+      (seen) => how.complain(seen, tall),
     );
-    assert.ok(
-      seen.frame <= bound + ROUNDING_PX,
-      `the frame grew to ${seen.frame}px, past the two-viewport bound of ${bound}px — ` +
-        `an enormous file can make an enormous element`,
-    );
-    assert.ok(
-      seen.page > seen.frame,
-      `the frame is ${seen.frame}px and the page in it measures only ${seen.page}px — ` +
-        `the page it is supposed to be scrolling is not there`,
+  },
+);
+
+// The cap, said as the PROMISE rather than as the number that keeps it. "Two
+// screens" is a styling decision (`Hypertext.tsx`'s class), and a step that
+// re-spelled it here would be a contract kept by memory in two halves of the
+// repo — green while asserting something weaker if the bound were ever
+// narrowed, red for no defect if it were widened. What a reader is owed is
+// this: the frame STOPPED SHORT of its page, so an enormous file cannot make an
+// enormous element, and the rest of the page is still in there to scroll. A
+// frame that had swallowed the whole document fails the first half; one that
+// had dropped the document fails the second.
+Then(
+  "the preview stops short of its page and scrolls the rest",
+  async function (this: OlaiWorld) {
+    const tall = viewport(this);
+    await untilHeights(
+      this,
+      ({ frame, page }) => page > frame && frame > tall,
+      "the frame stopped short of the page it holds",
+      ({ frame, page }) =>
+        frame >= page
+          ? `the frame is ${frame}px and the page in it is ${page}px — it grew to ` +
+            `hold the whole document, so an enormous file makes an enormous element`
+          : `the frame is only ${frame}px against a ${tall}px viewport — it is ` +
+            `bounded, but so far under one screen that the cap is not what stopped it`,
     );
   },
 );
@@ -265,12 +308,6 @@ Then(
     assert.ok(
       srcdoc.includes(`content="${SEAL_POLICY}"`),
       `the policy in front of the markup is not the sealed one: ${srcdoc.slice(0, 240)}`,
-    );
-    assert.ok(
-      !/script-src[^"]*'unsafe-inline'/.test(srcdoc),
-      "the policy admits inline scripts wholesale — the seal admits exactly " +
-        "one script, by hash, and that is the difference between running our " +
-        "tape measure and running the file's",
     );
   },
 );

@@ -138,7 +138,7 @@ Feature: A `.html` in the vault
     And the preview is taller than the viewport
 
   @scratch:good
-  Scenario: An enormous page stops at the bound and scrolls inside it
+  Scenario: An enormous page is bounded, and the rest of it is still there
     Given I open the app
     When I rewrite "atlas.html" as:
       """
@@ -148,9 +148,11 @@ Feature: A `.html` in the vault
     And I click the page "atlas.html"
     Then the preview shows the heading "Atlas"
     # A measured height is still a number from an untrusted frame, and even an
-    # honest one can be absurd. Two screens is where growing stops and the old
-    # behaviour — the page scrolling inside its own frame — takes over.
-    And the preview stops at two viewports and scrolls the rest
+    # honest one can be absurd. Past the bound the growing stops and the old
+    # behaviour — the page scrolling inside its own frame — takes over. Where
+    # exactly it stops is a styling decision and is not named here; that it
+    # stops, and that nothing was dropped when it did, is the promise.
+    And the preview stops short of its page and scrolls the rest
 
   @scratch:good
   Scenario: A `.html` dropped into the directory joins the sidebar

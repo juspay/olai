@@ -95,21 +95,28 @@ test("an empty file is still sealed", () => {
   expect(sealed("")).toBe(SEAL)
 })
 
-// THE MESSAGE, from both ends. The script is text in a string, so nothing type
-// checks that what it builds is what `reportedHeight` takes apart — this pair
-// of assertions is what does, and the first one is the whole reason the parser
-// lives in `sealed.ts` rather than in the component that calls it.
+// THE MESSAGE, from both ends, and the prefix taken from the SCRIPT rather
+// than written out here — which is the whole point of the exercise. The
+// producer is text in a template literal that no compiler reads, so the one
+// thing no type can catch is the two ends drifting apart; a literal copied into
+// this file would drift with them and go on passing. Everything below is built
+// from what the seal actually says.
+const SAID = ((): string => {
+  const written = /parent\.postMessage\(\s*"([^"]*)"/.exec(SEAL)
+  if (written === null) throw new Error(`the measure does not post a message: ${SEAL}`)
+  return JSON.parse(`"${written[1]!}"`) as string
+})()
+
 test("the frame's own message is one the parser recognises", () => {
-  const said = /parent\.postMessage\(\s*("[^"]*")/.exec(SEAL)
-  if (said === null) throw new Error(`the measure does not post a message: ${SEAL}`)
-  expect(reportedHeight(`${JSON.parse(said[1]!)}640`)).toBe(640)
+  expect(reportedHeight(`${SAID}640`)).toBe(640)
 })
 
 // …and everything else is nothing. A sandboxed frame is an opaque origin and a
 // message from one is a claim, so the cases below are not exotic — they are
-// what a receiver that skipped a check would let through: somebody else's
-// well-formed message, a height that is not a number, a page that measured
-// itself as nothing at all, and the two numeric values that are not lengths.
+// what a receiver that skipped a check would let through: a message that is not
+// a string at all, the object shape this used to send, a height that is not a
+// number, a page that measured itself as nothing, the two numeric values that
+// are not lengths, and somebody else's message that happens to be well formed.
 test("anything else the frame could say is not a height", () => {
   for (
     const said of [
@@ -117,11 +124,12 @@ test("anything else the frame could say is not a height", () => {
       null,
       42,
       { olai: "page-height", height: 640 },
-      "olai:page-height:",
-      "olai:page-height:tall",
-      "olai:page-height:0",
-      "olai:page-height:-40",
-      "olai:page-height:Infinity",
+      SAID,
+      `${SAID}tall`,
+      `${SAID}0`,
+      `${SAID}-40`,
+      `${SAID}Infinity`,
+      // Literal on purpose: being the WRONG prefix is what this case is.
       "some-other-app:page-height:640",
     ]
   ) {
@@ -133,5 +141,5 @@ test("anything else the frame could say is not a height", () => {
 // and a frame truncated to the pixel below its content clips a descender and
 // grows a scrollbar to show it.
 test("a fractional page gets the pixel it needs", () => {
-  expect(reportedHeight("olai:page-height:640.2")).toBe(641)
+  expect(reportedHeight(`${SAID}640.2`)).toBe(641)
 })
