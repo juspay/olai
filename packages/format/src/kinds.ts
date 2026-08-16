@@ -179,6 +179,32 @@ export const unkept = (path: string): boolean => {
 }
 
 /**
+ * EVERY registered suffix, as the strings themselves.
+ *
+ * {@link fileKind} is this question wherever a function can be called, and
+ * wherever one can be called it is the answer. This is the same list for the
+ * one caller that cannot call anything: the click handler `@olai/surface`'s
+ * `seal.ts` puts inside a previewed page is TEXT in a template literal, running
+ * in a frame with no imports and no module system, and what it has to decide
+ * about the link under the reader's finger is whether that address names a file
+ * this app has a page for. So the list is interpolated into the script and the
+ * decision stays the registry's — as against a `.html` written out over there,
+ * which is the second answer this file exists to prevent.
+ *
+ * EVERY kind rather than the bodied ones, and that is the whole of what the
+ * click handler needs to know: all three have a page. A `.md` and a `.html` are
+ * read at `/doc/`, an outline is a tree at `/o/`, and WHICH of those a path
+ * opens at is not a question a frame can answer or needs to — the app looks the
+ * path up in the list it belongs to and routes it there (`@olai/web`'s
+ * `page.ts`). So the frame claims a click by whether olai draws that kind of
+ * file at all, which is exactly this table's own question.
+ *
+ * Same terms as {@link OUTLINE_EXT} and {@link DOCUMENT_EXT} below, and the same
+ * one reason: a caller that needs the SPELLING rather than the verdict.
+ */
+export const FILE_EXTS: ReadonlyArray<string> = CLAIMS.map(([, claim]) => claim.ext)
+
+/**
  * The outline's suffix, by name.
  *
  * Two things that are not `fileKind` need the string itself and cannot get it

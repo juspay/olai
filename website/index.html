@@ -359,8 +359,9 @@
     <p>A <code>.html</code> file in the directory — a saved article, a report
     a build wrote, a dashboard something exported — is listed and previewed the
     same way, and is read rather than edited. <strong>The page works</strong>:
-    its own JavaScript runs, its own stylesheet paints, and a relative link
-    opens the file next to it. It runs in a sandboxed frame whose origin is
+    its own JavaScript runs, its own stylesheet paints, and a link to another
+    file of your vault opens that file's own page in olai — the address, the
+    heading and the sidebar entry a click in the directory would have given you. It runs in a sandboxed frame whose origin is
     nobody's, so nothing in there can reach the app around it — no cookies, no
     storage, no reading the page it sits in — and every fetch it makes is
     answered by one place: your own directory, on this server. A remote image,
@@ -372,9 +373,12 @@
     back when a document does not identify itself as one of your own files,
     which bounds how far a page can drag it — but a page that runs code can
     claim to be one of yours, so that is a limit on looping and not a proof of
-    where the frame is.) One extra script rides along, olai's own, doing one job:
-    reporting how tall the page is, so the frame is the height of what it holds
-    instead of a fixed slice of the screen.</p>
+    where the frame is.) One extra script rides along, olai's own, doing two
+    jobs: reporting how tall the page is, so the frame is the height of what it
+    holds instead of a fixed slice of the screen, and noticing when you click a
+    link at another file of your vault, so that opens as a page here rather than
+    inside the frame. It hands the address out and never navigates; olai looks
+    it up in the files it is serving before it goes anywhere.</p>
     <div class="cols">
       <div>
         <pre><code># Cabinet specs

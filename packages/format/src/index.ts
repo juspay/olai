@@ -72,13 +72,16 @@ export type { Reading } from "./validate.ts"
 
 export { assemble, BrokenFile, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
-/** WHICH files a served directory is made of — one table, and the two suffixes
- *  the ops layer mints paths with. The table is exported whole because the
- *  surfaces that DRAW a kind hold a `Record` over it, and the sweep that says
- *  nobody spelled a suffix elsewhere has to read the list itself. */
+/** WHICH files a served directory is made of — one table, the two suffixes the
+ *  ops layer mints paths with, and every suffix as a list for the one reader that
+ *  runs where no function of this package can be called. The table is
+ *  exported whole because the surfaces that DRAW a kind hold a `Record` over it,
+ *  and the sweep that says nobody spelled a suffix elsewhere has to read the
+ *  list itself. */
 export {
   bodyKind,
   DOCUMENT_EXT,
+  FILE_EXTS,
   FILE_KINDS,
   fileKind,
   holdsText,

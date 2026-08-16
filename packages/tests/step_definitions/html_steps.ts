@@ -27,11 +27,13 @@ import type { Locator } from "playwright";
 import { isPicture } from "@olai/format";
 import { MEDIA_PREFIX, mediaHref, mediaTarget, sealPolicy } from "@olai/surface";
 
+import { saysThat } from "../support/said.ts";
 import {
   DOCUMENT_EDIT,
   HYDRATION_TIMEOUT,
   HYPERTEXT_LINK,
   HYPERTEXT_PREVIEW,
+  HYPERTEXT_SAID,
   POLL_TIMEOUT,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -557,6 +559,228 @@ When(
 );
 
 /**
+ * …and it is STILL on that page a moment later, which is the assertion a
+ * snapshot cannot make.
+ *
+ * A document the frame reached on its own is given `SAYS_HELLO` to identify
+ * itself before the file is put back (`Hypertext.tsx`), so a frame that was
+ * going to be brought home has been brought home by the time this reads. The
+ * grace is the same `POLL_TIMEOUT / 10` every other "did NOT happen" step in
+ * this file waits, and it is an order of magnitude past that budget.
+ *
+ * The heading is read and COMPARED rather than waited for, so a frame that was
+ * restored fails here immediately and says which page it is on instead — where
+ * waiting for a heading that is never coming would burn the whole timeout and
+ * report nothing but its absence.
+ */
+Then(
+  "the preview stays on the heading {string}",
+  async function (this: OlaiWorld, text: string) {
+    const frame = await inside(this);
+    const heading = frame.locator("h1").first();
+    await heading.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+    assert.strictEqual(
+      (await heading.textContent())?.trim(),
+      text,
+      "the preview did not stay on the page the frame reached — a document of " +
+        "this vault greets as it parses, so it should have been kept rather " +
+        "than replaced by the file that sent it",
+    );
+  },
+);
+
+/** The place inside the page THE APP'S OWN ADDRESS names — the half of a
+ *  fragment that makes a section a thing a reader can copy out of the bar and
+ *  send. Read separately from the path, because `the address is` compares
+ *  pathnames and would pass over a fragment that never arrived. */
+Then(
+  "the address carries the anchor {string}",
+  async function (this: OlaiWorld, anchor: string) {
+    await this.waitUntil(
+      async () => (await this.page.evaluate(() => location.hash)) === anchor,
+      `the app's address to carry ${anchor}`,
+    );
+  },
+);
+
+/**
+ * WHERE THE DOCUMENT PAGE IS SCROLLED TO, as the heading nearest the top of the
+ * viewport.
+ *
+ * The `.md` landing cannot be read the way the frame's is: there is no inner
+ * `location.hash` to ask, because the app scrolled its own page to an element
+ * whose id it had to translate first (`markdown/render.ts`'s `landingId`). So
+ * what is read is the OUTCOME a reader would see — the heading they are looking
+ * at — which is also the assertion that survives the id scheme changing.
+ *
+ * A tolerance, because `scrollIntoView` lands the element at the top of the
+ * viewport and the sticky header sits over the first few pixels of it.
+ */
+Then(
+  "the document is scrolled to the heading {string}",
+  async function (this: OlaiWorld, text: string) {
+    const heading = this.documentBody().locator("h1, h2, h3", { hasText: text }).first();
+    await heading.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(async () => {
+      const top = await heading.evaluate((node) => node.getBoundingClientRect().top);
+      return Math.abs(top) < 160;
+    }, `the heading ${JSON.stringify(text)} to be at the top of the page`);
+  },
+);
+
+/**
+ * THE SECTION IS ON SCREEN — the assertion a landing is actually about, and the
+ * one an address and a frame's own hash between them do not make.
+ *
+ * A `.html` preview is a frame sized to its content, so the browser's own scroll
+ * inside it moves nothing when the page fits: the anchor sits some way down a
+ * frame taller than the window, and everything about the address can be right
+ * while the reader is looking at the top of the file. So this reads the one
+ * thing that cannot be true by luck — where the anchor is in THIS window — by
+ * asking the frame for its own position and adding the frame's.
+ *
+ * The tolerance is a viewport rather than a pixel: what a reader is owed is that
+ * the section is in front of them, and exactly where a browser puts an anchor
+ * under a sticky header is a styling decision this should not pin.
+ */
+Then(
+  "the section {string} is on screen",
+  async function (this: OlaiWorld, anchor: string) {
+    const element = await preview(this);
+    const inner = this.page.frameLocator(HYPERTEXT_PREVIEW);
+    await inner.locator("body").waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(async () => {
+      const [frameTop, insideTop, tall] = await Promise.all([
+        element.evaluate((node) => node.getBoundingClientRect().top),
+        inner.locator("body").evaluate(
+          (_body, id) =>
+            document.getElementById(id)?.getBoundingClientRect().top ?? null,
+          anchor,
+        ),
+        this.page.evaluate(() => window.innerHeight),
+      ]);
+      if (insideTop === null) return false;
+      const where = frameTop + insideTop;
+      return where >= 0 && where < tall;
+    }, `the section ${JSON.stringify(anchor)} to be inside the window`);
+  },
+);
+
+/** …and the other end of a landing that had nothing to land on: the reader is
+ *  at the top, which is what a browser does with a fragment naming no id. A
+ *  wait rather than a read, because the page arrives before the frame inside it
+ *  does and a landing that WOULD have fired fires a frame later. */
+Then("the page is scrolled to the top", async function (this: OlaiWorld) {
+  await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  const where = await this.page.evaluate(() => window.scrollY);
+  assert.ok(
+    where < 40,
+    `the page is scrolled to ${where}px — a link whose anchor names nothing ` +
+      `should leave the reader at the top rather than wherever the page they ` +
+      `came from was`,
+  );
+});
+
+/** Where the window is, so a scenario can say it did not move — or moved to
+ *  where it was left. Kept on the world for the same reason
+ *  `I scroll to the bottom of the page` keeps its own. */
+When("I remember where the page is scrolled", async function (this: OlaiWorld) {
+  this.scrolledTo = await this.page.evaluate(() => window.scrollY);
+});
+
+Then("the page is scrolled where it was left", async function (this: OlaiWorld) {
+  const was = this.scrolledTo;
+  assert.ok(was !== undefined && was > 0, "nothing was remembered to compare against");
+  await this.waitUntil(async () => {
+    const now = await this.page.evaluate(() => window.scrollY);
+    return Math.abs(now - was) < 40;
+  }, `the page to be back at ${was}px`);
+  // …and it STAYS there, which is the half a snapshot cannot make: a landing
+  // that re-fired would do it a frame later, after the restore had already put
+  // the reader back.
+  await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  const settled = await this.page.evaluate(() => window.scrollY);
+  assert.ok(
+    Math.abs(settled - was) < 40,
+    `the page was restored to ${was}px and then moved to ${settled}px — ` +
+      `something re-applied the address's anchor on a history restore`,
+  );
+});
+
+/** WHAT THE PREVIEW SAID about a click it could not answer, through the suite's
+ *  one reader of every said-line in this client (`support/said.ts`): the words,
+ *  and the MOOD as a `data-` fact rather than a colour. A refusal in the aside
+ *  tone would be a reason-nothing-happened a screen reader is not interrupted
+ *  for, which is the distinction that helper exists to hold. */
+Then(
+  "the preview says it cannot open that link",
+  async function (this: OlaiWorld) {
+    await saysThat(
+      this,
+      HYPERTEXT_SAID,
+      "does not serve",
+      "preview's refusal",
+      "alarm",
+    );
+  },
+);
+
+/** …and the other half: nothing was said at all, which is what every click this
+ *  app CAN answer leaves behind. Asserted after something on the new page has
+ *  been waited for, so it is a fact about the page that arrived. */
+Then("the preview says nothing about the link", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(HYPERTEXT_SAID).count(),
+    0,
+    "the preview drew a refusal about a click it answered perfectly well",
+  );
+});
+
+/** No preview at all on this page — which is what an OUTLINE looks like: a
+ *  different page shape entirely, not a `.html` page with an empty frame on it.
+ *  Read after something on the new page has been waited for, so "not there" is
+ *  a fact about the page that arrived rather than about one still arriving. */
+Then("there is no preview on this page", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(HYPERTEXT_PREVIEW).count(),
+    0,
+    "a preview frame is still on the page, so this is not the page the link opened",
+  );
+});
+
+/** WHERE IN ITS PAGE the frame is, as the frame's own `location.hash` — the
+ *  half of "a link with a fragment is left to the frame" that a heading cannot
+ *  say. Read inside the frame, because a fragment is not part of `baseURI` and
+ *  nothing out here can see it. */
+Then(
+  "the preview is at the anchor {string}",
+  async function (this: OlaiWorld, anchor: string) {
+    const frame = await inside(this);
+    await this.waitUntil(
+      async () => (await frame.locator("body").evaluate(() => location.hash)) === anchor,
+      `the preview to be at ${anchor}`,
+    );
+  },
+);
+
+/** A modified click on something in the preview — the press a reader makes when
+ *  they want the BROWSER's behaviour rather than this app's, which is the one
+ *  `press.ts`'s rule (and the copy of it the seal ships) refuses to claim.
+ *  Given a moment afterwards for the same reason the plain click is: what the
+ *  scenario asserts is that something did NOT happen. */
+When(
+  "I {word}-click {string} inside the preview",
+  async function (this: OlaiWorld, modifier: string, selector: string) {
+    const frame = await inside(this);
+    await frame.locator(selector).first().click({
+      modifiers: [modifier === "meta" ? "Meta" : modifier === "shift" ? "Shift" : "Alt"],
+    });
+    await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  },
+);
+
+/**
  * The app, INSIDE the preview — the thing that must never be left there. Read
  * as the mount point rather than as a testid, because `#root` is in the shell's
  * own HTML from the first byte, so it is there before any hydration and cannot
@@ -603,6 +827,163 @@ Then("the preview is back on the sealed document", async function (this: OlaiWor
     .locator("#probe")
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
+
+// ── a link that opens a page of this vault ─────────────────────────────
+
+/** The directory column's own answer to "which file is open" — `aria-current`,
+ *  which is what the entry's wash is drawn from (`Sidebar.tsx`) and what a
+ *  screen reader announces. Read here rather than inferred from the address,
+ *  because the ask was that a link inside a preview lands EXACTLY where the
+ *  sidebar's own click lands, and the marked entry is the half of that the URL
+ *  cannot say. */
+Then(
+  "the sidebar marks the page {string} as the one open",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    const entry = this.hypertextLink(file);
+    await entry.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(
+      async () => (await entry.getAttribute("aria-current")) === "page",
+      `the sidebar entry for ${file} to be the one marked as open`,
+    );
+  },
+);
+
+/**
+ * THE FORGER: a page that posts this app's own messages at it, which any
+ * previewed file can do because its scripts run.
+ *
+ * The prefix is SPELLED here, and that is the one place in this suite where
+ * spelling a wire constant is the right thing rather than the usual mistake —
+ * for `fake-acp-agent.ts`' reason, which is the same reason: an adversary has no
+ * access to olai's constants, and a fixture that derived the message from the
+ * implementation under test would agree with it by construction and prove
+ * nothing about a hostile page that guesses.
+ *
+ * A guess that guessed WRONG would make every assertion in that scenario vacuous
+ * — a stream of unrecognised strings moving nothing, for the wrong reason — so
+ * the fixture carries its own teeth: `#honest` sends one well-formed message
+ * naming a file this vault really holds, and the scenario watches it land. Only
+ * the ADDRESS in it is built rather than spelled (`mediaHref`), because that is
+ * the bijection both ends of this app already agree on and is not what is being
+ * forged.
+ *
+ * WHAT IS FORGED, and each is a different way through: a page of the right shape
+ * that is not there, a climb out of the vault, a climb spelled inside it, one of
+ * the APP's own addresses (the shape a page reaching for a route would try), a
+ * bare path with no route at all, and a well-formed name for a file no directory
+ * holds.
+ */
+const FORGED_PREFIX = "olai:open-page:";
+
+const FORGERIES: ReadonlyArray<string> = [
+  `${FORGED_PREFIX}${mediaHref("nowhere.html")}`,
+  `${FORGED_PREFIX}${MEDIA_PREFIX}../../etc/hostname`,
+  `${FORGED_PREFIX}${MEDIA_PREFIX}notes/../../secrets.md`,
+  `${FORGED_PREFIX}/doc/finishes.md`,
+  `${FORGED_PREFIX}finishes.md`,
+  `${FORGED_PREFIX}${mediaHref("Daily/nothing.md")}`,
+];
+
+When(
+  "I rewrite {string} as a page that posts forged addresses at the app",
+  function (this: OlaiWorld, file: string) {
+    this.writeServed(
+      file,
+      `<!doctype html>\n<html lang="en"><head><meta charset="utf-8">` +
+        `<title>Forger</title></head>\n<body><h1>Forger</h1>\n` +
+        `<p id="probe">nothing of this page's should move the app</p>\n` +
+        `<button id="honest" type="button">the one that is real</button>\n` +
+        `<script>\n` +
+        `  ${JSON.stringify(FORGERIES)}.forEach(function (said) {\n` +
+        `    parent.postMessage(said, "*")\n` +
+        `  })\n` +
+        `  document.getElementById("honest").addEventListener("click", function () {\n` +
+        `    parent.postMessage(${JSON.stringify(FORGED_PREFIX)} + ${
+          JSON.stringify(mediaHref("finishes.md"))
+        }, "*")\n` +
+        `  })\n` +
+        `</script>\n</body></html>\n`,
+    );
+  },
+);
+
+/**
+ * A page that asks for ITSELF, over and over — the shape the self-open guard
+ * exists for.
+ *
+ * It posts rather than draws a link, because a script needs no reader: that is
+ * the whole hazard, and a scenario built on clicks would be measuring how fast
+ * a test can click rather than what an unattended page can spend. The prefix is
+ * spelled for the forger's reason, and the ADDRESS is built with `mediaHref` so
+ * the message names this file exactly as the seal's own handler would.
+ *
+ * It also carries a self-LINK, because the guard has to hold for the reader's
+ * half too: a page containing `<a href="itself.html">` is an ordinary thing to
+ * save, and the seal's in-page rule does not cover it — that rule is about a
+ * FRAGMENT, and this link has none.
+ */
+When(
+  "I rewrite {string} as a page that asks for itself",
+  function (this: OlaiWorld, file: string) {
+    const asking = `${FORGED_PREFIX}${mediaHref(file)}`;
+    this.writeServed(
+      file,
+      `<!doctype html>\n<html lang="en"><head><meta charset="utf-8">` +
+        `<title>Itself</title></head>\n<body><h1>Itself</h1>\n` +
+        `<p id="probe">a page that keeps asking for its own address</p>\n` +
+        `<p><a id="again" href="${file.split("/").pop()}">this very page</a></p>\n` +
+        `<script>\n` +
+        `  for (var i = 0; i < 12; i++) {\n` +
+        `    parent.postMessage(${JSON.stringify(asking)}, "*")\n` +
+        `  }\n` +
+        `</script>\n</body></html>\n`,
+    );
+  },
+);
+
+/** How many entries the reader could go back through — the ledger a page
+ *  spending history with no reader in it would grow. Read from the app's own
+ *  window, since `history.length` is the tab's. */
+When("I remember how much history there is", async function (this: OlaiWorld) {
+  this.historyWas = await this.page.evaluate(() => history.length);
+});
+
+Then(
+  "the history has grown by {int}",
+  async function (this: OlaiWorld, many: number) {
+    const was = this.historyWas;
+    assert.ok(was !== undefined, "nothing was remembered to compare against");
+    // Given a moment first: what this asserts is that entries did NOT arrive
+    // beyond the ones counted, and reading immediately would be reading before
+    // the messages could have landed.
+    await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+    const now = await this.page.evaluate(() => history.length);
+    assert.strictEqual(
+      now - was,
+      many,
+      `the tab went from ${was} history entries to ${now}, which is ` +
+        `${now - was} more rather than ${many} — a page asking for its own ` +
+        `address is spending the reader's back button`,
+    );
+  },
+);
+
+/** …and the same message from somewhere that is not the frame. The app
+ *  identifies its sender by IDENTITY rather than by origin — every sandboxed
+ *  frame in every tab posts as the same opaque `"null"` — so this is the case
+ *  that check exists for, sent from the app's own window at a file the vault
+ *  really holds. */
+When(
+  "something other than the preview asks the app to open {string}",
+  async function (this: OlaiWorld, file: string) {
+    await this.page.evaluate(
+      (said: string) => window.postMessage(said, "*"),
+      `${FORGED_PREFIX}${mediaHref(file)}`,
+    );
+    await this.page.waitForTimeout(POLL_TIMEOUT / 10);
+  },
+);
 
 // ── the seal ───────────────────────────────────────────────────────────
 

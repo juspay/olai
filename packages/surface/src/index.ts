@@ -586,17 +586,27 @@ export {
  *  onto ops requests total. */
 export { type Applied, Anchor, Edit } from "./edit.ts"
 
-/** The one HTTP address both ends spell — see {@link ./media.ts}. */
+/** What a reader meant by a press — one rule, because the app answers a click
+ *  in three places and the seal ships a fourth into somebody else's page. See
+ *  {@link ./press.ts}. */
+export { ours, type Press } from "./press.ts"
+
+/** The one HTTP address both ends spell — see {@link ./media.ts}. `mediaTarget`
+ *  is what the ROUTE may answer, and it is the only half either end needs: the
+ *  decoder under it (`mediaPath`, which admits files the route refuses) stays
+ *  inside this package, where its one caller is, because an export of it is a
+ *  way to ask the traversal guard a question and ignore the allowlist. */
 export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
 
-/** What a served `.html` is answered with, and how tall it says it is — the
- *  other contract between the server that writes it and the browser that reads
- *  it, for {@link ./media.ts}'s reason. See {@link ./seal.ts}. */
+/** What a served `.html` is answered with, how tall it says it is, and which
+ *  page of this vault it says a reader clicked — the other contract between the
+ *  server that writes it and the browser that reads it, for {@link ./media.ts}'s
+ *  reason. See {@link ./seal.ts}. */
 export {
+  heard,
   type Reading,
-  reported,
+  type Said,
   SEAL,
-  sealedHello,
   sealPolicy,
   spellsHost,
 } from "./seal.ts"

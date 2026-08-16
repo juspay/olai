@@ -54,11 +54,29 @@
  * It cannot be asked where it is — an opaque origin answers nothing — so it is
  * COUNTED, and now also LISTENED FOR. Every document this component points the
  * frame at is one it asked for; a `load` nobody asked for is a navigation, and
- * there are two kinds of those now. A relative link to a sibling file of the
- * vault is one, and it is a FEATURE — it is answered by this same route, so the
- * seal is over it and its tape measure reports. A jump to somebody else's server
- * is the other, and nothing reports. So an unasked-for load is given
- * {@link SAYS_HELLO} to identify itself, and the file goes back if it does not.
+ * there are two kinds of those. A page of this vault arrived at from inside the
+ * frame is one — a script assigning `location`, a `refresh` naming a neighbour,
+ * a link carrying a fragment — and it is a FEATURE: it is answered by this same
+ * route, so the seal is over it and its tape measure reports. A jump to somebody
+ * else's server is the other, and nothing reports. Both halves are held by
+ * `html_previews.feature`: the walk-off scenarios read the file coming BACK,
+ * and a page sending the frame to its own neighbour reads it being LEFT there —
+ * the same mechanism asserted saying no and saying yes, which is what stops a
+ * change that answered navigations rather than clicks from passing. So an unasked-for load is
+ * given {@link SAYS_HELLO} to identify itself, and the file goes back if it does
+ * not.
+ *
+ * A LINK THE READER CLICKS AT A PAGE OF THIS VAULT IS NEITHER, and that is the
+ * decision this component gained last. It is not a walk-off, and it is no longer
+ * a navigation at all: the seal's own handler claims that click before the frame
+ * moves and posts the address out here instead (`seal.ts`'s `FOLLOW` and
+ * `OPEN`), and {@link Hypertext}'s `open` navigates THE APP to that file's page.
+ * The reader lands where clicking it in the sidebar lands — same address, same
+ * heading, same entry lit in the column — because it is the same route, and this
+ * element is unmounted along with the page that held it. What the frame said is
+ * a lookup key in this app's own file list and never anything more; the argument
+ * for why that is the only safe reading of it is where the message is defined,
+ * and the enforcement of it is `open` below.
  *
  * THAT TEST IS FORGEABLE, and it is written down here rather than left to be
  * discovered: a page that has walked off can post the same message, because it
@@ -83,9 +101,14 @@
  * this file, so the two kinds of page answer the question in one place.
  */
 
-import { mediaHref, type Reading, reported, sealedHello } from "@olai/surface"
-import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js"
+import { heard, mediaHref, type Reading } from "@olai/surface"
+import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
 
+import { SaidLine } from "../edit/SaidLine.tsx"
+import type { Said } from "../edit/undoing.ts"
+import { useOpens } from "../opens.tsx"
+import { useRouter } from "../router.tsx"
+import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 
 /**
@@ -212,8 +235,54 @@ const PAGE_HEIGHT = "--page-height"
  */
 const VISIT = "olai-visit"
 
-export function Hypertext(props: { readonly file: string; readonly rev: number }) {
+/**
+ * WHAT A DROPPED CLICK SAYS, and the whole of what it may say.
+ *
+ * A refusal in the two moods this client has (`../edit/SaidLine.tsx`), and it
+ * is the alarm one, because that is what the tone MEANS here: it is the reason
+ * nothing happened, and a reader who does not notice it believes a link is
+ * broken rather than pointing somewhere this directory does not serve.
+ *
+ * IT DOES NOT QUOTE THE PATH, which is the one decision in it. The string that
+ * missed came from a document running somebody else's JavaScript, and echoing
+ * it would let that page put words of its own choosing into this app's chrome —
+ * text, safely escaped, and still a sentence the app appears to be saying. The
+ * whole discipline of this feature is that nothing a frame says reaches the
+ * reader as the app's own words, and a message is not the place to make the
+ * first exception. What the reader is owed is why the click did nothing, and
+ * that is a fact about the DIRECTORY rather than about the string.
+ *
+ * A CONSTANT, because there is exactly one reason to draw it: the lookup
+ * missed. Anything else the frame says is either answered or ignored.
+ */
+const REFUSED: Said = {
+  tone: "alarm",
+  text: "That link points at a file this directory does not serve, so there is no page to open.",
+}
+
+/** The `#…` the frame's own address wears, or nothing — encoded for the reason
+ *  `../routes.ts` encodes the other end: an id in a saved page is whatever its
+ *  author wrote, and it lands in a URL. */
+const landing = (at: string | undefined): string =>
+  at === undefined || at === "" ? "" : `#${encodeURIComponent(at)}`
+
+export function Hypertext(
+  props: { readonly file: string; readonly rev: number; readonly at?: string },
+) {
   const [measured, setMeasured] = createSignal<string>()
+  // What the last click could not be answered with, or nothing. It is CLEARED
+  // by the next pointing rather than by a timer ({@link fresh}), which is the
+  // rule `../edit/UndoSaid.tsx` states for the same kind of line: a refusal
+  // that vanished on its own is one a reader can miss by looking away, and the
+  // next thing this frame does is the honest moment for it to go.
+  const [refused, setRefused] = createSignal<Said>()
+  // Where the frame said its anchor ended up, measured from the frame's own
+  // top (`seal.ts`'s `LANDED`), or nothing when no landing was asked for or the
+  // page had no such id. A SIGNAL rather than a scroll done on arrival, for the
+  // reason the effect below gives.
+  const [landedAt, setLandedAt] = createSignal<number>()
+  const router = useRouter()
+  const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
 
   // The widths the accepted heights were measured at, and the reason they are
@@ -275,13 +344,111 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
   const fresh = () => {
     acceptedAt = {}
     setMeasured(undefined)
+    setRefused(undefined)
+    setLandedAt(undefined)
   }
 
   /** The file itself, at its own address on the media route — a fresh URL every
    *  time, for {@link VISIT}'s reason. */
   const show = () => {
     visits += 1
-    point(`${mediaHref(props.file)}?${VISIT}=${visits}`)
+    // THE FRAGMENT RIDES ON THE FRAME'S OWN URL, which is the whole of what
+    // landing on a section costs for this kind of file. A `.html` is a document
+    // in there with whatever ids its author wrote, so the browser does the
+    // scrolling — the same thing it would do if the reader had typed the
+    // address. Nothing here looks for the id, and nothing has to: a fragment
+    // naming nothing leaves the frame at the top of the page, which is a
+    // browser's own answer and the right one.
+    //
+    // AFTER the query, because that is the order an address has — the visit
+    // counter belongs to this URL and the fragment to the document it names.
+    point(`${mediaHref(props.file)}?${VISIT}=${visits}${landing(router.landing())}`)
+  }
+
+  /**
+   * OPEN A PAGE OF THIS VAULT, because a reader clicked a link to it inside the
+   * preview — and the whole of what "because" is worth here.
+   *
+   * What arrives is a path from a document running somebody else's JavaScript,
+   * so it is a LOOKUP KEY and nothing else: it is handed to the page model
+   * (`../opens.tsx`, `../page.ts`'s `opensAt`), which answers with the route
+   * that draws that file — its `/doc/` page for a `.md` or a `.html`, its `/o/`
+   * page for an outline — or with nothing, and nothing moves nothing.
+   *
+   * THAT MEMBERSHIP IS THE WHOLE GUARANTEE — one question, asked by the module
+   * that answers it for every other address in this app, and there is no second
+   * one hiding behind it. In particular, navigating with the string the LIST
+   * holds rather than with the one that arrived buys nothing: the two are `===`
+   * equal strings, so there is no copy and nothing is laundered. Anything that
+   * reads as a further guard here is ceremony, and ceremony makes the real test
+   * harder to see.
+   *
+   * WHICH PAGE is deliberately not decided here either. This component knows
+   * that a path either opens somewhere or does not; that a `.md` is read at
+   * `/doc/` while an outline is a tree at `/o/` is the page model's, and a
+   * preview frame is the last place that should hold a second copy of it.
+   *
+   * A MISS MOVES NOTHING, deliberately, and the tempting alternative is worth
+   * naming because it looks kinder: navigating anyway would let this app's own
+   * "no such document" screen say what happened. It would also put an arbitrary
+   * string from a sandboxed frame into the URL bar, which is a capability, and
+   * the sentence on screen would be about a file the reader never named.
+   *
+   * BUT IT SAYS SO. A click that does nothing and explains nothing is what
+   * HACKING's error rule is about — the reader pressed a link, the page did not
+   * move, and nothing on screen accounts for it — so the miss draws a refusal
+   * in the voice every other refused act in this client speaks
+   * ({@link REFUSED}). Moving nothing is still the answer; being silent about
+   * it was never part of the argument.
+   *
+   * WHAT A MISS COSTS, because a dead click is not free. The two ends of this
+   * disagree about what the vault holds, in one direction. The seal claims a
+   * click by SUFFIX under `/media/` — the ROUTE's world, whose guard is lexical
+   * and will serve any `.html` it can find on disk. This list is the STORE's
+   * world, and the store's walk prunes dot-directories and `node_modules`
+   * (`@olai/store`'s `disk.ts`). So a `.html` under a pruned directory is
+   * servable and unlistable at once: the click is claimed and then dropped,
+   * where before this change the frame would have drawn it. Nothing became
+   * unreachable that was reachable — `../page.ts` refuses those paths too, so
+   * olai has no page for such a file either — but the FRAME's rendering of it
+   * is gone, and it goes silently. `html_previews.feature` holds that case, so
+   * it is a known cost rather than something for a reader to discover.
+   *
+   * AND A PAGE NAMING ITSELF IS REFUSED, which is the rule this channel needing
+   * no gesture forced.
+   *
+   * `[here](./here.md)` in rendered markdown reaches `../router.tsx`'s
+   * `followed` only when somebody presses it. This arrives whenever the page
+   * decides to send it, because a `postMessage` is not a press and nothing on
+   * this side can tell the two apart. Everywhere else that costs nothing: a
+   * message naming ANOTHER file navigates once and takes this element with it,
+   * so the sender is gone. A message naming THE FILE ALREADY SHOWN is the one
+   * that does not — the route is the page that is open, so `DocumentPage` does
+   * not re-key, this element is never replaced, and the sender is still sitting
+   * there able to send again. Unrefused, that is history a page can spend with
+   * no reader in it, and the tab's scroll with it: the same hazard class
+   * {@link WALK_OFFS} exists for ("no served file can put this tab in a reload
+   * loop"), on the channel that arrived after it.
+   *
+   * So the file being shown is not a file this can open. Asked through
+   * `fileNamed` rather than by reading the route's arms, because which routes
+   * name a file is `../routes.ts`'s answer and both of the ones this produces
+   * do — an outline can never BE the file shown here, but the comparison should
+   * not be the thing that knows it.
+   *
+   * SILENTLY, and that is the one place this parts company with a miss. A miss
+   * is a click this app could not answer, so the reader is owed the reason
+   * ({@link REFUSED}); a self-open names a page olai has and is DRAWING — the
+   * reader is looking at it. An alarm saying the link cannot be opened, over
+   * the very file it names, would be a refusal contradicted by the screen it is
+   * drawn on. A reader who clicks a link to the page they are on is already
+   * where it goes.
+   */
+  const open = (named: string, at?: string) => {
+    const route = opens(named, at)
+    if (route === undefined) return setRefused(REFUSED)
+    if (fileNamed(route) === props.file) return
+    router.go(route)
   }
 
   /** Put the file back, or — once the budget is out — nothing at all. */
@@ -324,7 +491,13 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
   onMount(() => {
     const listen = (event: MessageEvent) => {
       if (event.source !== frame?.contentWindow) return
-      if (sealedHello(event.data)) {
+      // WHAT WAS SAID, decided once and carried as a name (`seal.ts`'s `Said`).
+      // Three arms rather than three parsers tried in an order this file would
+      // have to be trusted to remember — the same move `Custody` above makes,
+      // for the same reason.
+      const said = heard(event.data)
+      if (said === undefined) return
+      if (said.kind === "hello") {
         // WHOSE greeting this is, decided by what the frame is holding rather
         // than by when it arrived (`Custody`'s table). A document says this
         // once, while it parses, so: the one in the frame has now spoken — or,
@@ -336,15 +509,82 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
         else stand({ ...custody, spoke: true })
         return
       }
-      const report = reported(event.data)
-      if (report === undefined) return
+      // A PAGE OF THIS VAULT, asked for from inside the frame. The frame has
+      // already declined to navigate itself (`seal.ts`'s `FOLLOW`), so nothing
+      // loaded and nothing walked off, and custody is deliberately untouched:
+      // there is no navigation of the FRAME's to record. What happens after is
+      // the app's — usually this element unmounting with the page that held it,
+      // and, for a page that named itself, no unmount at all (see `open`).
+      if (said.kind === "open") return open(said.file, said.at)
+      // WHERE THE ANCHOR ENDED UP, and the host window's half of landing on it.
+      //
+      // The frame scrolls ITSELF to the fragment on its own URL, which lands
+      // the reader only when the page in there overflows the box it is drawn
+      // in. Sized to its content, it usually does not — so the anchor sits some
+      // way down a frame that is taller than the window, and the page around it
+      // has to move for the reader to see it. That is this window's job and
+      // nothing in the frame can do it.
+      //
+      // The frame is put at the top first (`scrollIntoView`, which obeys the
+      // sticky header through the stylesheet's `scroll-padding-top` rather than
+      // this file knowing how tall a header is), and then the page moves down
+      // by what the frame reported. Composed that way round, the platform's own
+      // rule about the header still applies and the offset is added on top of
+      // it.
+      //
+      // ONLY WHILE A LANDING WAS ASKED FOR: an unasked-for number moves
+      // nothing, so a page that has walked off cannot scroll this tab around by
+      // posting one.
+      if (said.kind === "landed") return setLandedAt(said.top)
       const width = frame.clientWidth
-      if (acceptedAt[report.reading] === width) return
-      acceptedAt[report.reading] = width
-      setMeasured(`${report.height}px`)
+      if (acceptedAt[said.reading] === width) return
+      acceptedAt[said.reading] = width
+      setMeasured(`${said.height}px`)
     }
     window.addEventListener("message", listen)
     onCleanup(() => window.removeEventListener("message", listen))
+  })
+
+  /**
+   * THE HOST WINDOW'S HALF OF LANDING ON A SECTION.
+   *
+   * The frame scrolls ITSELF to the fragment on its own URL, and that lands the
+   * reader only when the page in there overflows the box it is drawn in. Sized
+   * to its content, it usually does not — so the anchor sits some way down a
+   * frame taller than the window, and the page AROUND it has to move. Nothing
+   * inside an opaque origin can do that, which is why the frame reports where
+   * the anchor ended up (`seal.ts`'s `LANDED`) and this does the scrolling.
+   *
+   * The frame goes to the top first, and then the page moves down by what was
+   * reported. `scrollIntoView` for the first half rather than arithmetic,
+   * because it obeys the stylesheet's `scroll-padding-top` — so the sticky
+   * header is accounted for by the rule that already states it, and this file
+   * never learns how tall a header is.
+   *
+   * IT WAITS FOR THE HEIGHT, and that is why this is an effect over two signals
+   * rather than a scroll done when the message arrives. The report lands beside
+   * the settled height, and until that height is applied the frame is still the
+   * `70dvh` guess: a page too short to scroll that far clamps the scroll, and
+   * then grows underneath the reader, leaving them a screen above the section.
+   * Measured, not reasoned — the first draft did the scroll on arrival and put
+   * the anchor 170px below the fold. Tracking `measured()` makes the last run
+   * the one with the geometry the reader actually sees.
+   *
+   * ONLY WHILE A LANDING WAS ASKED FOR: an unasked-for number moves nothing, so
+   * a page that has walked off cannot scroll this tab around by posting one.
+   */
+  createEffect(() => {
+    const top = landedAt()
+    // Tracked, not read: the frame's height is what makes the arithmetic below
+    // land where the reader will be looking.
+    measured()
+    if (top === undefined || router.landing() === undefined || frame === undefined) return
+    const box = frame
+    const painted = requestAnimationFrame(() => {
+      box.scrollIntoView({ block: "start" })
+      if (top !== 0) scrollBy({ top, behavior: "instant" })
+    })
+    onCleanup(() => cancelAnimationFrame(painted))
   })
 
   // A pending question outlives nothing: an unmounted component must not leave
@@ -379,15 +619,38 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
   // the body, which is the head member `../document/documents.tsx` argues
   // should be measured rather than guessed at. It is this PR's standing
   // deferral.
+  // …and the SECTION is watched beside it, for the case the revision cannot
+  // cover: the page is keyed by FILE (`./DocumentPage.tsx`), so arriving at
+  // another place inside the file already open is the same element being asked
+  // for a different landing. The frame is re-pointed, because where a document
+  // is scrolled to is a fact about its URL and this is the only way to change
+  // one from out here.
   createEffect(
-    on(() => props.rev, () => {
+    on(() => [props.rev, router.landing()], () => {
       walkOffs = 0
       show()
     }, { defer: true }),
   )
 
   return (
-    <iframe
+    <>
+      {/* WHAT A CLICK COULD NOT DO, above the frame it was clicked in.
+          `RowEditor.tsx` draws a write's refusal under the row it was typed
+          in; this is the same placement rule for a surface with no row — the
+          reader's eyes are on the preview, so the line goes against its top
+          edge, where the link they just pressed is. It is not pinned over the
+          page like the undo's, because unlike an undo this refusal HAS
+          somewhere to belong. */}
+      <Show when={refused()}>
+        {(said) => (
+          <SaidLine
+            said={said()}
+            class="mb-2 text-[0.8125rem] leading-snug"
+            testid={TESTID.hypertextSaid}
+          />
+        )}
+      </Show>
+      <iframe
       // The element, and its first address, in one step: assigning `src` here
       // happens before insertion, so there is no `about:blank` load ahead of
       // the sealed one and the count starts honest.
@@ -453,6 +716,7 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
       // a keyboard up, and the two disagree by however tall the keyboard is.
       class="block h-[clamp(6rem,var(--page-height,70dvh),200dvh)] w-full rounded border border-rule bg-white"
       data-testid={TESTID.hypertextPreview}
-    />
+      />
+    </>
   )
 }

@@ -44,8 +44,9 @@ import { Rail } from "./layout/Rail.tsx"
 import { only } from "./narrow.ts"
 import { NodePage } from "./NodePage.tsx"
 import { Nothing } from "./Nothing.tsx"
+import { OpensProvider } from "./opens.tsx"
 import { createOutlines } from "./outlines.ts"
-import { fileOf, pageOf, rowsFor } from "./page.ts"
+import { fileOf, opensAt, pageOf, rowsFor } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
@@ -88,18 +89,23 @@ export default function App() {
   // (`./routes.ts`).
   const opened = createMemo(router.route, undefined, { equals: samePage })
 
+  // WHAT THE DIRECTORY HOLDS, as one value: the outlines, the bodied files and
+  // the ones that would not parse. A memo rather than an object built inside
+  // `page` below, because two readers want it now — the page model, and the
+  // lookup a `.html` preview asks when a reader clicks a link inside it
+  // (`./opens.tsx`) — and a second copy assembled beside the frame would be a
+  // second answer to "does this directory hold that file".
+  const found = createMemo(() => ({
+    files: outlines.files(),
+    documents: documents.paths(),
+    broken: outlines.broken(),
+  }))
+
   const page = createMemo(() => {
     const indexes = outlines.derived()
-    return indexes === undefined ? undefined : pageOf(
-      indexes,
-      {
-        files: outlines.files(),
-        documents: documents.paths(),
-        broken: outlines.broken(),
-      },
-      opened(),
-      today(),
-    )
+    return indexes === undefined
+      ? undefined
+      : pageOf(indexes, found(), opened(), today())
   })
 
   // ONE READING OF WHAT IS OWED, and it is not the agenda page's.
@@ -219,6 +225,9 @@ export default function App() {
           is what `./derived.tsx`'s own header rules out. */}
       <RouterProvider router={router}>
       <DerivedProvider derived={outlines.derived()}>
+      {/* Where a vault PATH opens, for the one surface handed one rather than an
+          address: a link clicked inside a `.html` preview (./opens.tsx). */}
+      <OpensProvider opens={(path, at) => opensAt(found(), path, at)}>
       <Connection readout={connectionReadout()} />
       <ChatPanel />
       <Palette
@@ -468,6 +477,7 @@ export default function App() {
           </Switch>
         </div>
       </div>
+      </OpensProvider>
       </DerivedProvider>
       </RouterProvider>
     </UndoContext.Provider>

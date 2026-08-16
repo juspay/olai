@@ -61,9 +61,9 @@
  * allowed to exist.
  *
  * WHAT IS STILL PREPENDED, and it is much less than it was: a doctype, a colour
- * scheme and the tape measure ({@link SEAL}). No policy — that is a header now.
- * No `<base>` — the document has a real URL to resolve against, which is the
- * whole of point 3 below.
+ * scheme, the tape measure and the link handler ({@link SEAL}). No policy — that
+ * is a header now. No `<base>` — the document has a real URL to resolve against,
+ * which is the whole of point 3 below.
  *
  * RELATIVE ADDRESSES RESOLVE THEMSELVES. This is what a real URL is worth. A
  * `srcdoc` document has no address, so `art/shot.png` in it resolved against
@@ -72,8 +72,21 @@
  * file 404 (`html-preview-relative-links` on the roadmap). Served at
  * `/media/notes/report.html`, the file's own URL is its base: `art/shot.png` is
  * `/media/notes/art/shot.png` and `other.html` is `/media/notes/other.html`,
- * both of them files of this vault, answered by this same route. The vault's
- * own shape is the URL space, so nothing has to be rewritten to agree with it.
+ * both of them files of this vault. The vault's own shape is the URL space, so
+ * nothing has to be rewritten to agree with it.
+ *
+ * AND THE TWO PART COMPANY AT THE CLICK, which is the rest of that bug and what
+ * {@link OPEN} is for. The picture is FETCHED — it is a part the page draws
+ * itself with, so it travels this route and the policy above is the whole of
+ * what governs it. The link is not: `other.html` is a file olai has a PAGE for,
+ * and a reader following it wants that page — its address, its heading, its
+ * entry lit in the directory column — rather than the neighbour drawn inside a
+ * frame that is still, by every other sign in the app, `report.html`. So the
+ * handler below claims that one click, hands the address out, and the app
+ * navigates. Nothing about the seal moves an inch to make that work: the frame
+ * gets no origin, no channel back and no privilege it did not have. It gets to
+ * SAY something, over the same `postMessage` it already says its height on, and
+ * to be believed exactly as far as a lookup in this app's own list of files.
  *
  * `base-uri 'none'` is what keeps that true. A saved page carries a `<base
  * href>` of its own often enough that it is the ordinary case rather than the
@@ -151,7 +164,10 @@
  * somebody who needed one embed to work.
  */
 
-import { MEDIA_PREFIX } from "./media.ts"
+import { FILE_EXTS } from "@olai/format"
+
+import { mediaPath, MEDIA_PREFIX } from "./media.ts"
+import { ours } from "./press.ts"
 
 /**
  * WHAT THE FRAME SAYS, and the whole of it: one of these two prefixes, then a
@@ -160,7 +176,7 @@ import { MEDIA_PREFIX } from "./media.ts"
  * The two ends of a `postMessage` have to agree on a shape, and the producer
  * here is text inside a script that no compiler reads. So the agreement is
  * THESE CONSTANTS, and both ends are in this module — {@link MEASURE} builds
- * the message out of them and {@link reported} takes it apart. Spelling one
+ * the message out of them and {@link heard} takes it apart. Spelling one
  * twice, once in the script and once in whatever parsed the result, is a rule
  * kept by memory across two files, and its failure mode is the worst kind:
  * nothing throws, no test goes red, the message simply stops being recognised
@@ -184,8 +200,8 @@ import { MEDIA_PREFIX } from "./media.ts"
  *
  * A TABLE rather than two loose constants, because the two are one thing — the
  * kinds of reading there are — and the receiver does not want a boolean it has
- * to re-decide at every use. {@link Reading} is the key, {@link reported}
- * returns it, and `Hypertext.tsx` files its accepted widths UNDER it: one name,
+ * to re-decide at every use. {@link Reading} is the key, {@link heard}
+ * carries it on a `reading` arm, and `Hypertext.tsx` files its accepted widths UNDER it: one name,
  * carried from the script that posts it to the record that remembers it, with
  * nothing projecting it into a flag and back on the way.
  */
@@ -225,13 +241,93 @@ export type Reading = keyof typeof READING
  */
 const HELLO = "olai:page-sealed"
 
-/** Whether a frame said the one thing every sealed document says first. The
- *  other end of {@link HELLO}, here for {@link reported}'s reason: the format
- *  is one thing and it has one owner. */
-export const sealedHello = (said: unknown): boolean => said === HELLO
+/** The other end of {@link HELLO} is {@link heard}, with the other two: what a
+ *  sealed frame may say is ONE vocabulary, and it is classified once. */
 
 /**
- * The tape measure: the one program olai puts into somebody else's page.
+ * THE THIRD THING A SEALED PAGE MAY SAY: a reader clicked a link, and the
+ * address it names is a file of this vault that olai has a page for.
+ *
+ * It is a MESSAGE rather than a navigation because of what the click means. A
+ * saved page linking to `other.html` beside it is naming a file of the vault,
+ * and this app has a page for that file — its own address, its own heading, its
+ * entry lit in the directory column. Following it inside the frame renders the
+ * neighbour and leaves every one of those saying the file the reader has just
+ * left, which is a preview pretending to be a browser. So the frame hands the
+ * address OUT and the app navigates: the reader lands exactly where clicking
+ * that file in the sidebar lands, because it is the same route.
+ *
+ * `postMessage` is the only way out of an opaque origin and the channel this
+ * seal already speaks (the greeting and the heights above it), so it is the
+ * channel — kolu's own iframe renderer documents the same shape for the same
+ * reason. What travels is the PATHNAME the browser resolved, percent-escapes
+ * and all, exactly as it would have fetched it.
+ *
+ * NOTHING IN IT IS TRUSTED, and the receiving end is written on that
+ * assumption: a page that runs script can post any string at all, so what
+ * arrives is a LOOKUP KEY and never an instruction. {@link heard} decodes it
+ * through the vault's one URL decoder and hands back a path; `Hypertext.tsx`
+ * then matches that path against the set of files this app is actually serving
+ * and navigates using ITS OWN copy of the string. A path the vault does not
+ * hold moves nothing — no address, no page, no screen that says the frame
+ * named it — which is the difference between a lookup and an instruction.
+ */
+const OPEN = "olai:open-page:"
+
+/**
+ * THE FOURTH THING A SEALED PAGE MAY SAY: where the anchor it was pointed at
+ * ended up.
+ *
+ * It exists because of a gap only the frame can close. A `.html` opened at
+ * `#beds` gets the fragment on its own URL, so the browser inside the frame
+ * does the scrolling — and that is the whole answer only when the page is
+ * TALLER than the box it is drawn in, because then there is somewhere to
+ * scroll. The frame is sized to its content (`Hypertext.tsx` clamps the
+ * measured height), so the ordinary case is a page that FITS: the browser
+ * scrolls nothing, the anchor sits wherever it naturally falls inside the
+ * frame, and a reader sent to a section three screens down is looking at the
+ * top of the file.
+ *
+ * The host cannot work out where that is. The origin in there is nobody's, so
+ * the element's position is not readable from out here by any means — and the
+ * embedder's own scroll is the only thing that can bring it into view. So the
+ * frame says where it is, ONCE, after `load`, and only when its own URL named
+ * an anchor it actually found.
+ *
+ * RELATIVE TO THE FRAME'S OWN VIEWPORT (`getBoundingClientRect().top`), which
+ * is the reading that is correct in both cases at once: a page that fits
+ * reports the anchor's offset inside the box, and a page that scrolled itself
+ * reports roughly zero, because the browser has already put it at the top.
+ * The embedder adds that to where the frame is and needs to know nothing about
+ * which case it is in.
+ *
+ * SAID AGAIN EVERY TIME THE PAGE IS MEASURED, and that is not belt and braces —
+ * it is the whole of what makes the number true. The first reading is taken
+ * while the frame is still the embedder's `70dvh` guess, so the page overflows
+ * a box it is about to stop overflowing: the browser has scrolled the anchor to
+ * the top and the answer is nearly zero. Then the embedder applies the measured
+ * height, the frame grows, the page stops scrolling inside it, and the anchor is
+ * suddenly a thousand pixels down. Nothing in here knows the resize is coming —
+ * the `ResizeObserver` above is what NOTICES it, and it is already watching the
+ * one box whose size changes. So the anchor rides along with the height, and the
+ * last thing the embedder hears describes the geometry the reader is looking at.
+ * (Measured, not reasoned: reported once at `load`, it said 273 for an anchor
+ * that ended up at 1297.)
+ *
+ * NOT A HEIGHT, so it is not one of {@link READING}'s: it may be zero and it
+ * may be negative, and folding it into the height parser would mean widening
+ * a gate that exists to refuse exactly those. A number that says "scroll here"
+ * is still a CLAIM from an opaque origin — the worst it can do is move this
+ * tab's own scrollbar, which the reader undoes with a flick, and the receiver
+ * only acts on it while it is waiting for a landing it asked for.
+ */
+const LANDED = "olai:page-landed:"
+
+/**
+ * The tape measure: the first of the two programs olai puts into somebody
+ * else's page ({@link FOLLOW} is the other, and they are as separate as they
+ * look — one measures, one listens for a click, and neither knows about the
+ * other).
  *
  * It says {@link HELLO} and then reports the page's own height, and does
  * nothing else — no DOM of its own, no state, no reply channel. An iframe does not size to its
@@ -294,6 +390,7 @@ const MEASURE = `(function () {
   }
   var measure = function () {
     post(${JSON.stringify(READING.arriving)})
+    landed()
   }
   addEventListener("DOMContentLoaded", function () {
     if (typeof ResizeObserver === "function") {
@@ -303,7 +400,123 @@ const MEASURE = `(function () {
     }
     addEventListener("load", function () {
       post(${JSON.stringify(READING.settled)})
+      landed()
     })
+  })
+  var landed = function () {
+    var named = location.hash.slice(1)
+    if (named === "") return
+    var found = null
+    try {
+      found = document.getElementById(decodeURIComponent(named))
+    } catch (_) {
+      found = document.getElementById(named)
+    }
+    if (found === null) return
+    parent.postMessage(
+      ${JSON.stringify(LANDED)} + Math.round(found.getBoundingClientRect().top),
+      "*"
+    )
+  }
+})()`
+
+/**
+ * The second program olai puts into somebody else's page: the one that notices
+ * a reader clicking a link at a page of this vault, and hands the address out
+ * instead of following it.
+ *
+ * WHICH CLICKS IT CLAIMS — five conditions, each with what holds it named at
+ * the end of its own bullet, because they are not all held by the same kind of
+ * test and a reader auditing this should not have to guess which:
+ *
+ *   - a PLAIN left click, and nothing modified — which is not a rule this file
+ *     states. It is `./press.ts`'s `ours`, the app's one answer to what a reader
+ *     meant by a press, INTERPOLATED here as its own source: the frame has no
+ *     module system, so a function cannot be imported into it, but it can be
+ *     shipped. One definition, read by the client and carried into the page,
+ *     rather than the second hand-typed spelling this was — whose drift had no
+ *     symptom in the direction that matters (a press this app has decided is
+ *     not its own, still claimed in the frame). WHAT HOLDS IT: `./seal.test.ts`
+ *     runs the shipped text against the function over every combination of the
+ *     six facts a press has — which pins what the RULE answers, and cannot pin
+ *     that this handler is what asks it. A modified click is read in a real
+ *     browser by `html_previews.feature` on the app's side only, since which
+ *     modifier opens a tab is the platform's decision and not olai's;
+ *   - a click the PAGE has not already answered. Bubble phase and
+ *     `defaultPrevented`, so a saved page that routes its own links keeps them.
+ *     Capturing would take clicks off a page that had already decided what they
+ *     mean, to send them somewhere the page never asked for. WHAT HOLDS IT: the
+ *     scenario where a page prevents its own link's default and neither the app
+ *     nor the frame moves — which is the one assertion that tells the two
+ *     phases apart, since a capturing handler would see the press first, find
+ *     nothing prevented, and navigate the app out from under the page;
+ *   - THIS VAULT's address space and no other: the document's own scheme and
+ *     host, under the media route. A link to a stranger is not ours to answer —
+ *     it walks the frame off and comes home, which is the behaviour that was
+ *     already there and is deliberately untouched. WHAT HOLDS IT: the two
+ *     walk-off scenarios;
+ *   - a file olai has a PAGE for, by suffix ({@link FILE_EXTS} — every kind the
+ *     registry claims: a `.html`, a `.md`, and an outline beside them). WHICH
+ *     page is not asked here and could not be: a `.md` and a `.html` are read at
+ *     `/doc/` and an outline is a tree at `/o/`, and the app routes the path to
+ *     whichever list holds it. Everything else under the route is a part a page
+ *     draws ITSELF with — a picture, a stylesheet, a font — and a link to one is
+ *     a link to a file, which the frame goes on following exactly as it did.
+ *     WHAT HOLDS IT: the suffix list is asserted against the registry, and a
+ *     link at a `.png` is followed by the frame in a scenario of its own;
+ *   - NO IN-PAGE ANCHOR. `#top` is a jump inside the document the reader is
+ *     already looking at, and there is nothing for the app to do with one: the
+ *     frame keeps it, because a page scrolling itself is not a navigation.
+ *     `other.html#beds` IS one — it names another file and a place inside it —
+ *     and it is claimed, fragment and all, because the `/doc/` page can land on
+ *     a section now (`@olai/web`'s `routes.ts` carries it, and the two faces do
+ *     the landing by two different mechanisms). Same document is the whole
+ *     test, which is why it is a comparison against `location.pathname` rather
+ *     than a look at whether there is a hash at all. WHAT HOLDS IT: one
+ *     scenario clicks a fragment link AT THE FILE NEXT DOOR and reads both
+ *     halves — the app arriving at the neighbour's address WITH the anchor on
+ *     it, and the page landing on the section — and another clicks an in-page
+ *     `#top` and reads the app staying exactly where it was.
+ *
+ * A `.md` is on that list on purpose, and it is the one judgement call here. The
+ * media route REFUSES a `.md` — it is not an `isAsset`, so the frame following
+ * such a link gets a 404 today, which is a dead click at the end of a link
+ * somebody wrote in their own vault. The click never reaches the network now: it
+ * names a note, and a note has a page. What makes the two consistent rather than
+ * contradictory is that they answer different questions — what a browser may be
+ * SERVED, and what a reader may be TAKEN to.
+ *
+ * `new URL` rather than string arithmetic, because resolving `../other.html`
+ * against the document's own address is the browser's job and it is already
+ * done: an anchor's `href` property IS the resolved absolute URL. The `try` is
+ * for the one element that has an `href` which is not a string — an `<a>` in
+ * SVG, whose `href` is an `SVGAnimatedString` — and it falls out as a link this
+ * does not claim.
+ */
+const FOLLOW = `(function () {
+  var pages = ${JSON.stringify(FILE_EXTS)}
+  var ours = ${ours.toString()}
+  addEventListener("click", function (event) {
+    if (!ours(event)) return
+    var node = event.target
+    var link = node && node.closest ? node.closest("a") : null
+    if (!link) return
+    var at
+    try {
+      at = new URL(link.href)
+    } catch (_) {
+      return
+    }
+    if (at.protocol !== location.protocol || at.host !== location.host) return
+    if (at.hash !== "" && at.pathname === location.pathname) return
+    var path = at.pathname
+    if (!path.startsWith(${JSON.stringify(MEDIA_PREFIX)})) return
+    for (var i = 0; i < pages.length; i++) {
+      if (!path.endsWith(pages[i])) continue
+      event.preventDefault()
+      parent.postMessage(${JSON.stringify(OPEN)} + path + at.hash, "*")
+      return
+    }
   })
 })()`
 
@@ -328,9 +541,18 @@ const MEASURE = `(function () {
  * black text on the frame's own white ground, unreadable, with the file itself
  * blameless. A page that styles itself paints over this and is unaffected.
  *
- * Then the measure, in front of every byte of the file so it is installed
- * before the file's own markup has been parsed — and beside the file's own
- * scripts now rather than instead of them.
+ * Then the two programs olai puts in there — the tape measure and the link
+ * handler — in front of every byte of the file, so both are installed before the
+ * file's own markup has been parsed, and beside the file's own scripts now
+ * rather than instead of them. ONE `<script>` element holding both, joined by
+ * the `;` two adjacent parenthesised expressions need: they are two subjects and
+ * one prefix, and a second element would be a second thing for a reader auditing
+ * what this app injects to have to find.
+ *
+ * The MEASURE is first, and one line of it depends on that: the greeting is the
+ * earliest thing a sealed document says, and a click handler installed ahead of
+ * it would put a statement in front of the sentence every embedder is waiting
+ * on.
  *
  * WHAT THIS COSTS, said out loud: the response is no longer the file byte for
  * byte, it is this prefix and then the file byte for byte. Nothing of the
@@ -344,7 +566,7 @@ const MEASURE = `(function () {
  */
 export const SEAL = `<!doctype html>` +
   `<meta name="color-scheme" content="light">` +
-  `<script>${MEASURE}</script>`
+  `<script>${MEASURE};${FOLLOW}</script>`
 
 /**
  * The one place a sealed page may fetch from, as a CSP source — or NOTHING,
@@ -446,36 +668,126 @@ export const sealPolicy = (host: string): string => {
     `frame-src 'none'; form-action 'none'; base-uri 'none'`
 }
 
-/** What a sealed frame said: a height, and which reading it is. */
-export interface Report {
-  readonly height: number
-  readonly reading: Reading
-}
+/**
+ * EVERYTHING A SEALED FRAME CAN SAY, as one value with three arms.
+ *
+ * It is one vocabulary on one channel, and it was three exported readers before
+ * — a boolean for the greeting, an optional report for a height, an optional
+ * path for a click — which the one receiver had to try in an order it was
+ * trusted to remember. Three parsers is three chances to be asked in the wrong
+ * order, and the rule that the prefixes do not overlap lived nowhere: no type
+ * held it, no test asserted the group, and a fourth message would have made a
+ * fourth reader and a fourth line at the call site.
+ *
+ * As arms they cannot be spelled wrong. One function decides once, the decision
+ * is carried as a NAME, and the receiver switches on it — which is the same
+ * move `@olai/web`'s `Hypertext.tsx` makes with `Custody` a few lines from
+ * where it reads this, and for the same reason: a fact about what something IS
+ * belongs in the value, not in the order somebody asks about it.
+ */
+export type Said =
+  /** The frame is a document this server sealed — {@link HELLO}. It proves less
+   *  than it looks like it proves, and the receiver says so at length. */
+  | { readonly kind: "hello" }
+  /** A page of this vault the reader clicked a link at — {@link OPEN}. Still
+   *  not a file: a path SHAPED like one, to be looked up. `at` is the place
+   *  inside it the link named, when it named one; it is not checked against
+   *  anything here, because which ids a page has is not knowable until it has
+   *  been drawn. */
+  | { readonly kind: "open"; readonly file: string; readonly at?: string }
+  /** How tall the page says it is, and which of the two readings it is —
+   *  {@link READING}. A claim, clamped by CSS at the other end. */
+  | { readonly kind: "reading"; readonly reading: Reading; readonly height: number }
+  /** Where the anchor the frame was pointed at ended up, measured from the
+   *  frame's own top — {@link LANDED}. May be zero, may be negative; the
+   *  embedder adds it to where the frame is. */
+  | { readonly kind: "landed"; readonly top: number }
 
 /**
- * The other end of {@link READING}: what a sealed frame said, as a report — or
- * nothing, which is the answer to every message that was not one of ours and to
- * every one of ours that made no sense.
+ * What a frame said, as one of {@link Said}'s arms — or nothing, which is the
+ * answer to every message that was not one of ours and to every one of ours
+ * that made no sense.
  *
- * It lives HERE, beside the script whose output it reads, because the two are
+ * It lives HERE, beside the scripts whose output it reads, because the two are
  * one thing: a message format. Split across a module boundary it would be a
  * format nobody owns, kept in step by whoever remembers to change both sides.
  * Here it is also PURE and browser-free like everything else in this file, so
  * `./seal.test.ts` can hand it the hostile inputs a real frame never sends.
  *
- * Everything is checked because the sender is an opaque origin and nothing it
- * says is privileged. `Number` of a prefix-stripped tail rejects the empty
- * string as `0` and anything wordy as `NaN`, both of which fall out through the
- * same gate as a negative or an infinity. Rounded UP, because a fractional
- * layout truncated down is the last line of a page clipped by half a pixel.
+ * Everything is checked, because the sender is an opaque origin and nothing it
+ * says is privileged. Arm by arm:
  *
- * WHICH READING it is, is decided ONCE and then carried as a name. The two
- * prefixes are separate strings and neither is the other's, so a message is one
- * kind, the other, or nothing — and `settled` is never a claim the sender got to
- * make by spelling a number oddly.
+ *   - the GREETING is an identity, and only the exact string is it;
+ *   - an OPEN carries an address, and the judgement of what that address may
+ *     name is not made here — it is `./media.ts`'s {@link mediaPath}, the ONE
+ *     decoder of this URL space and already the guard the route stands behind,
+ *     so anything outside `/media/`, a climb spelled either way, a segment
+ *     smuggling a separator or a NUL, and a malformed escape all fall out
+ *     there. A second parse written for this message would be a second
+ *     traversal guard, and the one nobody thought to attack is the one that
+ *     would be wrong. WHAT COMES BACK IS STILL NOT A FILE: `secrets.md` is a
+ *     perfectly well-formed path and this hands it back. What makes that safe
+ *     is the step after it, and it is the receiver's — the path is looked UP in
+ *     the set of files the app is serving, and a lookup that misses moves
+ *     nothing. This is where the message stops being a URL; it is not where it
+ *     starts being trusted;
+ *   - a READING carries a number. `Number` of a prefix-stripped tail rejects
+ *     the empty string as `0` and anything wordy as `NaN`, both of which fall
+ *     out through the same gate as a negative or an infinity. Rounded UP,
+ *     because a fractional layout truncated down is the last line of a page
+ *     clipped by half a pixel. WHICH reading it is, is decided here and then
+ *     carried as a name: the two prefixes are separate strings and neither is
+ *     the other's, so `settled` is never a claim the sender got to make by
+ *     spelling a number oddly.
+ *
+ * The arms are tried in the order they are cheapest to refuse, and that order
+ * is not load-bearing: `./seal.test.ts` asserts that no one of the three
+ * prefixes begins another, which is what makes the classification a fact about
+ * the message rather than about this function's arm order.
  */
-export const reported = (said: unknown): Report | undefined => {
+/** A fragment as the page will look for it — the escaping undone, and nothing
+ *  at all for an empty one or a malformed escape. Neither is a place in a page,
+ *  and a frame that sends one has said nothing rather than said something
+ *  wrong. */
+const decoded = (fragment: string): string | undefined => {
+  if (fragment === "") return undefined
+  try {
+    return decodeURIComponent(fragment)
+  } catch {
+    return undefined
+  }
+}
+
+export const heard = (said: unknown): Said | undefined => {
+  if (said === HELLO) return { kind: "hello" }
   if (typeof said !== "string") return undefined
+  if (said.startsWith(OPEN)) {
+    const address = said.slice(OPEN.length)
+    const file = mediaPath(address)
+    if (file === null) return undefined
+    // The fragment is cut off the END, which is where an address keeps it —
+    // `mediaPath` has already stopped reading at the same `#`, so the two
+    // halves are taken from one string by one rule rather than parsed twice.
+    const hash = address.indexOf("#")
+    const at = hash === -1 ? undefined : decoded(address.slice(hash + 1))
+    return at === undefined ? { kind: "open", file } : { kind: "open", file, at }
+  }
+  if (said.startsWith(LANDED)) {
+    // FINITE is the gate, and it is a wider one than a height's on purpose:
+    // this number is an offset rather than a size, so zero is the ordinary
+    // answer for a page the browser scrolled to its own anchor, and a negative
+    // one is what a page scrolled past it honestly reports.
+    //
+    // Which is exactly why the EMPTY tail has to be refused here and does not
+    // over there: `Number("")` is `0`, and a height parser gets that for free
+    // by demanding a positive number while an offset parser would read a
+    // message carrying no number at all as a perfectly good landing at the top.
+    const tail = said.slice(LANDED.length)
+    const top = Number(tail)
+    return tail.trim() !== "" && Number.isFinite(top)
+      ? { kind: "landed", top }
+      : undefined
+  }
   const reading: Reading | undefined = said.startsWith(READING.settled)
     ? "settled"
     : said.startsWith(READING.arriving)
@@ -484,6 +796,6 @@ export const reported = (said: unknown): Report | undefined => {
   if (reading === undefined) return undefined
   const height = Number(said.slice(READING[reading].length))
   return Number.isFinite(height) && height > 0
-    ? { height: Math.ceil(height), reading }
+    ? { kind: "reading", reading, height: Math.ceil(height) }
     : undefined
 }

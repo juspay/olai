@@ -56,8 +56,22 @@
 export type Route =
   /** One outline. `null` is "whichever was found first" — the bare `/`. */
   | { readonly kind: "outline"; readonly file: string | null; readonly filter?: string }
-  /** One document, by its path. */
-  | { readonly kind: "document"; readonly file: string }
+  /**
+   * One document, by its path — and optionally by a place INSIDE it.
+   *
+   * `at` is a heading's own id, the thing a `#` in an address has always
+   * meant, and it is on this arm alone because it is the only page made of
+   * prose: a `.md` renders headings that `rehype-slug` gives ids to, and a
+   * `.html` is a document with whatever ids its author wrote. The tree pages
+   * have nothing of the kind — a row's address is a node id and it has a route
+   * of its own (`/n/`) — so a fragment there would be a part of an address
+   * that meant nothing, which is worse than not carrying one.
+   *
+   * WITHOUT the `#`, because that character is the address's punctuation
+   * rather than part of the name: {@link hrefOf} writes it and {@link routeOf}
+   * strips it, the same division `filter` gets with `?q=`.
+   */
+  | { readonly kind: "document"; readonly file: string; readonly at?: string }
   | { readonly kind: "node"; readonly id: string; readonly filter?: string }
   /** One day of the journal, by its ISO date. */
   | { readonly kind: "day"; readonly date: string }
@@ -106,10 +120,25 @@ export const hrefOf = (route: Route): string => {
   if (route.kind === "today") return TODAY
   if (route.kind === "agenda") return AGENDA
   if (route.kind === "trash") return TRASH
-  if (route.kind === "document") return DOCUMENT_PREFIX + spell(route.file)
+  if (route.kind === "document") {
+    return DOCUMENT_PREFIX + spell(route.file) + landing(route.at)
+  }
   const path = route.file === null ? "/" : OUTLINE_PREFIX + spell(route.file)
   return path + narrowing(route.filter)
 }
+
+/**
+ * The `#…` a document address wears when it names a place inside the page —
+ * and nothing at all when it does not, so the ordinary address is exactly the
+ * address it always was.
+ *
+ * ENCODED as one component, because an id is somebody's heading run through
+ * `rehype-slug` — or, in a `.html`, whatever its author wrote — and neither is
+ * promised to be free of characters an address gives its own meaning to. The
+ * safe ones survive untouched, so the common case reads as it is written.
+ */
+const landing = (at: string | undefined): string =>
+  at === undefined || at === "" ? "" : `#${encodeURIComponent(at)}`
 
 /** The `?q=…` a filtered page wears — and nothing at all for an unfiltered
  *  one, so the ordinary address is exactly the address it always was. Whitespace
@@ -119,6 +148,19 @@ const narrowing = (filter: string | undefined): string =>
   filter === undefined || filter.trim() === ""
     ? ""
     : `?${new URLSearchParams({ [FILTER_KEY]: filter }).toString()}`
+
+/** The place inside a page an address names, or `undefined` for one that names
+ *  none — the other end of {@link landing}. A malformed escape is a fragment
+ *  nobody could have written, so it names nothing rather than throwing on the
+ *  way to a page that would have drawn fine without it. */
+const landed = (fragment: string): string | undefined => {
+  if (fragment === "") return undefined
+  try {
+    return decodeURIComponent(fragment)
+  } catch {
+    return undefined
+  }
+}
 
 /** The filter an address carries, or `undefined` — one reading, so the parser
  *  below and anything that later wants it cannot disagree about a blank one. */
@@ -172,9 +214,15 @@ export const routeIn = (href: string): Route | null =>
  * location.search`; a bare path parses exactly as it did before.
  */
 export const routeOf = (address: string): Route => {
-  const cut = address.indexOf("?")
-  const pathname = cut === -1 ? address : address.slice(0, cut)
-  const filter = cut === -1 ? undefined : filterIn(address.slice(cut + 1))
+  // THE FRAGMENT COMES OFF FIRST, because it is last in the address: a `#` ends
+  // the query, so cutting on `?` before it would leave `#beds` inside the
+  // filter and a page narrowed by a word nobody typed.
+  const hash = address.indexOf("#")
+  const whole = hash === -1 ? address : address.slice(0, hash)
+  const at = hash === -1 ? undefined : landed(address.slice(hash + 1))
+  const cut = whole.indexOf("?")
+  const pathname = cut === -1 ? whole : whole.slice(0, cut)
+  const filter = cut === -1 ? undefined : filterIn(whole.slice(cut + 1))
   const narrowed = filter === undefined ? {} : { filter }
   return pathname.startsWith(NODE_PREFIX)
     ? {
@@ -186,6 +234,7 @@ export const routeOf = (address: string): Route => {
     ? {
       kind: "document",
       file: decodeURIComponent(pathname.slice(DOCUMENT_PREFIX.length)),
+      ...(at === undefined ? {} : { at }),
     }
     : pathname.startsWith(DAY_PREFIX)
     ? { kind: "day", date: decodeURIComponent(pathname.slice(DAY_PREFIX.length)) }

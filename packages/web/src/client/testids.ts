@@ -254,6 +254,12 @@ export const TESTID = {
    *  file is asked inside the frame, which is the point — nothing in there can
    *  reach a testid out here. */
   hypertextPreview: "hypertext-preview",
+  /** What the preview SAID about a click it could not answer — the line drawn
+   *  when a link inside the frame names a file this directory does not serve.
+   *  A refusal, in the same voice every other refused act in this client speaks
+   *  (`edit/SaidLine.tsx`), so a scenario reads its `data-tone` rather than a
+   *  colour. */
+  hypertextSaid: "hypertext-said",
   /** The way into a document's editor: the quiet control on the page header
    *  that turns the rendered body into its source. */
   documentEdit: "document-edit",

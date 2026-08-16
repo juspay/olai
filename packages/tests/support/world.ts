@@ -174,6 +174,7 @@ export const HYPERTEXT_LINK = selector(TESTID.hypertextLink);
 /** A `.html` file's page: the sandboxed frame its markup is drawn in, and the
  *  only element of that page this app owns. */
 export const HYPERTEXT_PREVIEW = selector(TESTID.hypertextPreview);
+export const HYPERTEXT_SAID = selector(TESTID.hypertextSaid);
 /** One document, as a page: `/doc/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the
@@ -816,6 +817,13 @@ export class OlaiWorld extends World {
    *  depends on the fixture, the window and the stylesheet, and a step that
    *  asserted a pixel count would be asserting on all three. */
   scrolledTo?: number;
+
+  /** How many history entries the tab had when a scenario last looked — the
+   *  ledger a page navigating the app with no reader in it would grow. Same
+   *  arrangement as `scrolledTo` above and for the same reason: what the number
+   *  IS depends on how the scenario got here, so the scenario remembers it and
+   *  the step compares. */
+  historyWas?: number;
 
   /** Which fixture corpus this scenario's server is serving, from its
    *  `@corpus:<name>` or `@scratch:<name>` tag. See `support/hooks.ts`. */

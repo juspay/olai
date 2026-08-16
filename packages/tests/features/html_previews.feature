@@ -165,14 +165,25 @@ Feature: A `.html` in the vault
     # itself, not before.
     And the preview is as tall as the page it shows
 
+  # ── a link to a page beside it opens that page ───────────────────────
+  #
+  # `html-preview-relative-links`, finished. A folder holds two pages and one
+  # links to the other; clicking that link opens the other page IN OLAI — the
+  # app's own address, its own heading, its own entry lit in the directory
+  # column — which is exactly where clicking that file in the sidebar lands.
+  #
+  # #206 gave the file a real address, which made the neighbour RENDER inside
+  # the frame while every other sign in the app went on saying the file the
+  # reader had left. That was honest scope and it was not the ask. What claims
+  # the click now is a handler the seal puts in the page: it recognises a link
+  # at a file of this vault that olai has a page for, refuses to follow it, and
+  # posts the address out. Nothing about the seal moved to make that work — the
+  # frame gets no origin and no channel back, only the `postMessage` it already
+  # reports its height on, and what it says is a LOOKUP KEY in this app's own
+  # list of files (`@olai/surface`'s `seal.ts`, `Hypertext.tsx`).
+
   @scratch:good
-  Scenario: A relative link opens the page beside it, inside the frame
-    # What giving the file a real address bought, and the bug it closes:
-    # `html-preview-relative-links` on the roadmap. Under the old seal a
-    # relative link resolved against a `<base>` at the media route's directory,
-    # which was an address the route would not answer — so a click was a 404.
-    # Served at its own path, the file's neighbours are its neighbours, and the
-    # page that opens is sealed exactly as the one that linked to it.
+  Scenario: A relative link opens the page beside it, in olai
     Given I open the app
     When I rewrite "notes/first.html" as:
       """
@@ -186,14 +197,830 @@ Feature: A `.html` in the vault
     And I expand the folder "notes"
     And I click the page "notes/first.html"
     Then the preview shows the heading "First"
+    Given I mark the page
     When I click "#next" inside the preview
-    # The page beside it, in the frame, and STILL THERE — a document this
-    # server sealed says so as it parses, so the frame is not brought home from
-    # it the way it is brought home from a stranger's page (the two scenarios
-    # below this one).
-    Then the preview shows the heading "Second"
+    # THE ASK, read on the APP rather than inside the frame — three readings of
+    # one navigation, because the complaint about what #206 shipped was that the
+    # frame moved and none of these did.
+    Then the document open is "notes/second.html"
+    And the address is "/doc/notes/second.html"
+    And the sidebar marks the page "notes/second.html" as the one open
+    # …and nothing was said, because nothing went wrong: the refusal below is
+    # drawn for a click this app could not answer, never for one it could.
+    And the preview says nothing about the link
+    # A route, not a reload: answered in place, exactly as the sidebar's own
+    # click is.
+    And the page has not reloaded
+    # …and it is the page beside it that opened, drawn behind its own seal at
+    # its own address.
+    And the preview shows the heading "Second"
     And the preview resolves the file's addresses beside "notes/second.html"
-    And the app's page is untouched by the preview
+
+  @scratch:good
+  Scenario: A link to an outline beside the page opens the outline
+    # THE THIRD KIND, and the one that goes to a different page shape. A vault
+    # is outlines as well as prose, so a saved page sitting in one can link at
+    # `house.olai` beside it — and an outline is not read at `/doc/` like the
+    # other two, it is a TREE at `/o/`. Which page a path opens at is not a
+    # question the frame can answer or needs to: the seal claims the click
+    # because the registry claims the suffix, and the app looks the path up in
+    # whichever list holds it (`page.ts`'s `opensAt`).
+    #
+    # So this is the same host-revalidates shape as the other two, against the
+    # OUTLINES membership list instead of the documents one — and the proof it
+    # really is a different page is that the preview is gone, rather than a
+    # frame sitting there with an outline in it.
+    Given I open the app
+    And I mark the page
+    When I rewrite "atlas.html" as:
+      """
+      <h1>Atlas</h1>
+      <p><a id="tree" href="house.olai">the house outline</a></p>
+      """
+    And I click the page "atlas.html"
+    Then the preview shows the heading "Atlas"
+    When I click "#tree" inside the preview
+    Then the address is "/o/house.olai"
+    And the outline list is shown
+    # A route, not a reload — the same in-place navigation the sidebar's own
+    # click on that outline makes.
+    And the page has not reloaded
+    # …and this is the outline's page rather than a preview showing an outline.
+    And there is no preview on this page
+
+  @scratch:good
+  Scenario: A link to a note beside the page opens the note
+    # The other kind of file olai has a page for, and the one judgement call in
+    # this rule. The media route REFUSES a `.md` — it is not a part a page draws
+    # itself with, and a note has a page of its own — so this link is a 404 in
+    # the frame and has always been a dead click. It never reaches the network
+    # now: it names a note, and a note has a page, which is where the reader
+    # meant to go. The two rules answer different questions — what a browser may
+    # be SERVED, and where a reader may be TAKEN.
+    Given I open the app
+    When I rewrite "notes/index.html" as:
+      """
+      <h1>Index</h1>
+      <p><a id="note" href="palette.md">the palette note</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/index.html"
+    Then the preview shows the heading "Index"
+    When I click "#note" inside the preview
+    Then the document open is "notes/palette.md"
+    And the address is "/doc/notes/palette.md"
+
+  @scratch:good
+  Scenario: A link carrying a fragment opens the page AND lands on the section
+    # THE CARVE-OUT IS GONE, and this is what replaced it. `other.html#beds`
+    # names two things — a file olai has a page for, and a place inside it — and
+    # until the `/doc/` page could land on a section the honest answer was to
+    # leave the whole click to the frame. It can now, so the link carries: the
+    # app opens the neighbour's page AND arrives at the section.
+    #
+    # Both halves are read, because either alone passes for the wrong reason. An
+    # app that navigated and ignored the anchor would satisfy the address; a
+    # frame scrolled to `#beds` with the app still on `first.html` is the old
+    # behaviour, which is exactly what this replaces.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/first.html" as:
+      """
+      <h1>First</h1>
+      <p><a id="deep" href="second.html#beds">the next page, at its beds</a></p>
+      """
+    And I rewrite "notes/second.html" as:
+      """
+      <h1>Second</h1>
+      <p style="height:1200px">a long page</p>
+      <h2 id="beds">Beds</h2>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/first.html"
+    Then the preview shows the heading "First"
+    When I click "#deep" inside the preview
+    # The app moved, and its address carries the place inside the page — which
+    # is what makes the section a thing a reader can copy out of the bar and
+    # send, rather than a scroll position this tab happens to be at.
+    Then the document open is "notes/second.html"
+    And the address is "/doc/notes/second.html"
+    And the address carries the anchor "#beds"
+    And the page has not reloaded
+    # …and the page landed there. For a `.html` that is the frame's own URL
+    # carrying the fragment, so the browser does the scrolling — the same thing
+    # it would do for a reader who typed the address.
+    And the preview shows the heading "Second"
+    And the preview is at the anchor "#beds"
+
+  @scratch:good
+  Scenario: A section is on screen even when the reader arrives from halfway down
+    # THE HOST WINDOW LANDS TOO, which is the half a frame cannot do for itself.
+    #
+    # A `.html` preview is sized to its content, so the browser's own scroll to
+    # the fragment inside the frame moves nothing when the page fits: the anchor
+    # sits some way down a frame taller than the window. Everything about the
+    # address can be right while the reader is looking at the top of the file —
+    # or, worse, at whatever the PREVIOUS page happened to be scrolled to, which
+    # is what this app did for one round when it skipped its own scroll-to-top
+    # for an address that named a section.
+    #
+    # So the scenario starts SCROLLED DOWN a tall page. If the window is left
+    # where it was, the new preview is drawn under a viewport already halfway
+    # down it; if the window goes to the top and stops, the section is still
+    # below the fold. Both are failures here, which is what makes this catch its
+    # own revert.
+    #
+    # THE FIXTURE IS SIZED ON PURPOSE: the page is tall enough to put the anchor
+    # well below one screen and SHORT enough to fit inside the frame's own
+    # clamp, so the browser's scroll inside the frame moves nothing and the
+    # window is the only thing that can land. A taller page would overflow the
+    # frame, the inner scroll would do the work, and this would pass with the
+    # host's half deleted — which it did, when the fixture was first written.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/deep.html" as:
+      """
+      <h1>Deep</h1>
+      <div style="height:1200px">a long stretch before the section</div>
+      <h2 id="beds">Beds</h2>
+      <div style="height:300px">a short stretch after it</div>
+      """
+    And I rewrite "notes/from.html" as:
+      """
+      <h1>From</h1>
+      <div style="height:1600px">a long stretch, so this page scrolls</div>
+      <p><a id="deep" href="deep.html#beds">the section over there</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/from.html"
+    Then the preview shows the heading "From"
+    # …and the reader is halfway down it when they press the link.
+    When I scroll to the bottom of the page
+    And I click "#deep" inside the preview
+    Then the document open is "notes/deep.html"
+    And the address carries the anchor "#beds"
+    # THE ASSERTION THIS SCENARIO EXISTS FOR: the section is in the window, not
+    # merely named by the address and not merely scrolled to inside a frame that
+    # is itself off screen.
+    And the section "beds" is on screen
+
+  @scratch:good
+  Scenario: A fragment naming nothing leaves the reader at the top
+    # The other form of the same skip. A cross-file link whose anchor names no
+    # id in the page it opens has nothing to land on — and the written rule is
+    # that the reader is left at the TOP, which is what a browser does with the
+    # same address. Left to itself the window would keep the previous page's
+    # scroll, so "no landing happened" would be indistinguishable from "the page
+    # is scrolled somewhere arbitrary".
+    Given I open the app
+    When I rewrite "notes/plain.html" as:
+      """
+      <h1>Plain</h1>
+      <div style="height:2200px">no section by that name anywhere in here</div>
+      """
+    And I rewrite "notes/from.html" as:
+      """
+      <h1>From</h1>
+      <div style="height:1600px">a long stretch, so this page scrolls</div>
+      <p><a id="nowhere" href="plain.html#nosuchthing">a section that is not there</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/from.html"
+    Then the preview shows the heading "From"
+    When I scroll to the bottom of the page
+    And I click "#nowhere" inside the preview
+    Then the document open is "notes/plain.html"
+    # The page opened, and the reader is at the top of it rather than wherever
+    # the page they came from had been scrolled to.
+    And the page is scrolled to the top
+
+  @scratch:good
+  Scenario: An in-page anchor is still the frame's own jump
+    # The half that did NOT change, and the one the rule above is a comparison
+    # against: `#top` names a place in the document the reader is already
+    # looking at, so there is nothing for the app to do with it. A page
+    # scrolling itself is not a navigation, and the test is the document rather
+    # than the presence of a hash — which is why the handler compares pathnames
+    # instead of asking whether there is a fragment at all.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/long.html" as:
+      """
+      <h1>Long</h1>
+      <p><a id="down" href="#end">jump to the end</a></p>
+      <p style="height:1200px">a long page</p>
+      <h2 id="end">End</h2>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/long.html"
+    Then the preview shows the heading "Long"
+    When I click "#down" inside the preview
+    # The frame jumped inside itself…
+    Then the preview is at the anchor "#end"
+    # …and the app did not move at all: no navigation, no history, no address.
+    And the address is "/doc/notes/long.html"
+    And the document open is "notes/long.html"
+    And the page has not reloaded
+
+  @scratch:good
+  Scenario: A link into a note's section opens the note at that heading
+    # THE OTHER MECHANISM, and the one that needed real work. A `.md` is markup
+    # this app renders, and `rehype-slug` gives `## Beds` the id `beds` — which
+    # is then moved into the block's own namespace, because a page can hold a
+    # document, a note per row and a day's notes, and two of them opening
+    # `## Shape` would otherwise answer for each other. So the id in the address
+    # is not the id in the page, and a browser looking for `beds` would find
+    # nothing and leave the reader at the top.
+    #
+    # `render.ts`'s `landingId` is the one translation between the two, and the
+    # face does the looking — which is what this reads: the note opens, the
+    # address carries the section, and the heading the link named is the one on
+    # screen.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/beds.md" as:
+      """
+      # Beds
+
+      Prose at the top of the page, line 1 of it.
+
+      Prose at the top of the page, line 2 of it.
+
+      Prose at the top of the page, line 3 of it.
+
+      Prose at the top of the page, line 4 of it.
+
+      Prose at the top of the page, line 5 of it.
+
+      Prose at the top of the page, line 6 of it.
+
+      Prose at the top of the page, line 7 of it.
+
+      Prose at the top of the page, line 8 of it.
+
+      Prose at the top of the page, line 9 of it.
+
+      Prose at the top of the page, line 10 of it.
+
+      Prose at the top of the page, line 11 of it.
+
+      Prose at the top of the page, line 12 of it.
+
+      Prose at the top of the page, line 13 of it.
+
+      Prose at the top of the page, line 14 of it.
+
+      Prose at the top of the page, line 15 of it.
+
+      Prose at the top of the page, line 16 of it.
+
+      Prose at the top of the page, line 17 of it.
+
+      Prose at the top of the page, line 18 of it.
+
+      Prose at the top of the page, line 19 of it.
+
+      Prose at the top of the page, line 20 of it.
+
+      Prose at the top of the page, line 21 of it.
+
+      Prose at the top of the page, line 22 of it.
+
+      Prose at the top of the page, line 23 of it.
+
+      Prose at the top of the page, line 24 of it.
+
+      Prose at the top of the page, line 25 of it.
+
+      Prose at the top of the page, line 26 of it.
+
+      Prose at the top of the page, line 27 of it.
+
+      Prose at the top of the page, line 28 of it.
+
+      Prose at the top of the page, line 29 of it.
+
+      Prose at the top of the page, line 30 of it.
+
+      ## Slats
+
+      More prose, under the heading the link named — line 1.
+
+      More prose, under the heading the link named — line 2.
+
+      More prose, under the heading the link named — line 3.
+
+      More prose, under the heading the link named — line 4.
+
+      More prose, under the heading the link named — line 5.
+
+      More prose, under the heading the link named — line 6.
+
+      More prose, under the heading the link named — line 7.
+
+      More prose, under the heading the link named — line 8.
+
+      More prose, under the heading the link named — line 9.
+
+      More prose, under the heading the link named — line 10.
+
+      More prose, under the heading the link named — line 11.
+
+      More prose, under the heading the link named — line 12.
+
+      More prose, under the heading the link named — line 13.
+
+      More prose, under the heading the link named — line 14.
+
+      More prose, under the heading the link named — line 15.
+
+      More prose, under the heading the link named — line 16.
+
+      More prose, under the heading the link named — line 17.
+
+      More prose, under the heading the link named — line 18.
+
+      More prose, under the heading the link named — line 19.
+
+      More prose, under the heading the link named — line 20.
+
+      More prose, under the heading the link named — line 21.
+
+      More prose, under the heading the link named — line 22.
+
+      More prose, under the heading the link named — line 23.
+
+      More prose, under the heading the link named — line 24.
+
+      More prose, under the heading the link named — line 25.
+
+      More prose, under the heading the link named — line 26.
+
+      More prose, under the heading the link named — line 27.
+
+      More prose, under the heading the link named — line 28.
+
+      More prose, under the heading the link named — line 29.
+
+      More prose, under the heading the link named — line 30.
+      """
+    And I rewrite "notes/index.html" as:
+      """
+      <h1>Index</h1>
+      <p><a id="slats" href="beds.md#slats">the slats section</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/index.html"
+    Then the preview shows the heading "Index"
+    When I click "#slats" inside the preview
+    Then the document open is "notes/beds.md"
+    And the address is "/doc/notes/beds.md"
+    And the address carries the anchor "#slats"
+    # The section the link named is the one the reader is looking at — read as
+    # the page's own scroll rather than as the address, since the address is
+    # what the two lines above already say.
+    And the document is scrolled to the heading "Slats"
+  @scratch:good
+  Scenario: Coming back to a section restores where the reader was, not the section
+    # A LANDING HAPPENS ONCE, and this is the scenario that says so. A browser
+    # applies a hash when you follow a link and does NOT re-apply it when you
+    # come back to that entry: on the way back the position it owes you is the
+    # one you left. This app read the fragment off the route on every render
+    # instead, so `popstate` set the route, the scroll memory put the reader
+    # back where they had scrolled to, and a frame later the page yanked them
+    # to the heading.
+    #
+    # So: land on a section, scroll AWAY from it, go somewhere else, come back.
+    # What is owed is the scroll position, and the fragment in the address —
+    # still there, still copyable — must not be spent a second time.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/beds.md" as:
+      """
+      # Beds
+
+      Prose at the top of the page, and plenty of it, so that landing on the
+      section below is a real scroll and scrolling away from it is another.
+
+      Prose line 1, filling the page.
+
+      Prose line 2, filling the page.
+
+      Prose line 3, filling the page.
+
+      Prose line 4, filling the page.
+
+      Prose line 5, filling the page.
+
+      Prose line 6, filling the page.
+
+      Prose line 7, filling the page.
+
+      Prose line 8, filling the page.
+
+      Prose line 9, filling the page.
+
+      Prose line 10, filling the page.
+
+      Prose line 11, filling the page.
+
+      Prose line 12, filling the page.
+
+      Prose line 13, filling the page.
+
+      Prose line 14, filling the page.
+
+      Prose line 15, filling the page.
+
+      Prose line 16, filling the page.
+
+      Prose line 17, filling the page.
+
+      Prose line 18, filling the page.
+
+      Prose line 19, filling the page.
+
+      Prose line 20, filling the page.
+
+      Prose line 21, filling the page.
+
+      Prose line 22, filling the page.
+
+      Prose line 23, filling the page.
+
+      Prose line 24, filling the page.
+
+      Prose line 25, filling the page.
+
+      Prose line 26, filling the page.
+
+      Prose line 27, filling the page.
+
+      Prose line 28, filling the page.
+
+      Prose line 29, filling the page.
+
+      Prose line 30, filling the page.
+
+      ## Slats
+
+      More prose under the heading, line 1.
+
+      More prose under the heading, line 2.
+
+      More prose under the heading, line 3.
+
+      More prose under the heading, line 4.
+
+      More prose under the heading, line 5.
+
+      More prose under the heading, line 6.
+
+      More prose under the heading, line 7.
+
+      More prose under the heading, line 8.
+
+      More prose under the heading, line 9.
+
+      More prose under the heading, line 10.
+
+      More prose under the heading, line 11.
+
+      More prose under the heading, line 12.
+
+      More prose under the heading, line 13.
+
+      More prose under the heading, line 14.
+
+      More prose under the heading, line 15.
+
+      More prose under the heading, line 16.
+
+      More prose under the heading, line 17.
+
+      More prose under the heading, line 18.
+
+      More prose under the heading, line 19.
+
+      More prose under the heading, line 20.
+
+      More prose under the heading, line 21.
+
+      More prose under the heading, line 22.
+
+      More prose under the heading, line 23.
+
+      More prose under the heading, line 24.
+
+      More prose under the heading, line 25.
+
+      More prose under the heading, line 26.
+
+      More prose under the heading, line 27.
+
+      More prose under the heading, line 28.
+
+      More prose under the heading, line 29.
+
+      More prose under the heading, line 30.
+      """
+    And I rewrite "notes/index.html" as:
+      """
+      <h1>Index</h1>
+      <p><a id="slats" href="beds.md#slats">the slats section</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/index.html"
+    Then the preview shows the heading "Index"
+    When I click "#slats" inside the preview
+    Then the document open is "notes/beds.md"
+    And the document is scrolled to the heading "Slats"
+    # The reader reads on, and scrolls somewhere of their own choosing.
+    When I scroll to the bottom of the page
+    And I remember where the page is scrolled
+    # …then goes elsewhere, and comes back.
+    And I click the page "notes/index.html"
+    Then the preview shows the heading "Index"
+    When I go back
+    Then the document open is "notes/beds.md"
+    # THE ASSERTION: where they left it, and it STAYS there — a re-applied
+    # landing would fire a frame after the restore, which is exactly what a
+    # single reading cannot catch.
+    And the page is scrolled where it was left
+    # …and the address still carries the section, because the fragment was
+    # never the thing that was wrong.
+    And the address carries the anchor "#slats"
+
+  @scratch:good
+  Scenario: A page that sends the frame to its neighbour is left where it went
+    # THE OTHER UNASKED-FOR NAVIGATION, and the last kept behaviour with no
+    # scenario of its own. A click is not the only way a frame moves: a page can
+    # assign `location`, or carry a `<meta http-equiv="refresh">`, and when what
+    # it names is a file of THIS VAULT that navigation is a FEATURE rather than
+    # a walk-off — the neighbour is answered by the same route behind the same
+    # seal, so it greets while it parses and the frame is left where it went.
+    #
+    # The click handler cannot be what keeps it: this is not a click, so
+    # `FOLLOW` never sees it. What keeps it is the greeting (`Hypertext.tsx`'s
+    # `Custody`) — and that mechanism was only ever exercised by pages walking
+    # off to a STRANGER, where the assertion is the opposite one, that the file
+    # comes back. This is the half that says the same mechanism can say yes, and
+    # it is the case this PR most needed to hold: a change that made the app
+    # answer navigations rather than clicks would pass every other scenario here
+    # and break this one.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/second.html" as:
+      """
+      <h1>Second</h1>
+      """
+    And I rewrite "notes/sender.html" as:
+      """
+      <h1>Sender</h1>
+      <script>location.href = "second.html"</script>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/sender.html"
+    # The frame went where the page sent it…
+    Then the preview shows the heading "Second"
+    # …to the neighbour's own address on the media route, which is what says it
+    # arrived behind the seal rather than anywhere else — being sealed is why it
+    # could greet at all.
+    And the preview resolves the file's addresses beside "notes/second.html"
+    # …and it STAYS, which is the whole promise: a document that says nothing is
+    # replaced by the file after a short grace, so a frame still here afterwards
+    # is one whose greeting was heard.
+    And the preview stays on the heading "Second"
+    # The app never moved. This was the FRAME's navigation, not a click handed
+    # out, and nothing about it is the app's to answer.
+    And the address is "/doc/notes/sender.html"
+    And the document open is "notes/sender.html"
+    And the page has not reloaded
+
+  @scratch:good
+  Scenario: A click the page has already answered is not the seal's to claim
+    # WHY THE HANDLER IS ON THE BUBBLE, pinned rather than described. The seal's
+    # click handler refuses a press whose default is already prevented — that is
+    # `press.ts`'s rule, shipped — and the only way that can be true of a page
+    # that answers its own links is if the handler runs AFTER the page's own.
+    #
+    # This scenario is what tells the two apart. Registered at the capture
+    # phase, the seal would see the click first, find nothing prevented, claim
+    # it and navigate the app; on the bubble it sees a press the page has
+    # already taken and leaves it alone. A saved page that routes its own links
+    # keeps them, and the unit product over `ours` cannot say so — it knows what
+    # the rule answers, not which listener asks it.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/spa.html" as:
+      """
+      <h1>Spa</h1>
+      <p><a id="own" href="second.html">handled by this page</a></p>
+      <p id="probe">not yet</p>
+      <script>
+        document.getElementById("own").addEventListener("click", function (event) {
+          event.preventDefault()
+          document.getElementById("probe").textContent = "this page answered it"
+        })
+      </script>
+      """
+    And I rewrite "notes/second.html" as:
+      """
+      <h1>Second</h1>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/spa.html"
+    Then the preview shows the heading "Spa"
+    When I click "#own" inside the preview
+    # The page's own handler ran…
+    Then the preview says "this page answered it"
+    # …and neither the app nor the frame moved: the press was the page's.
+    And the address is "/doc/notes/spa.html"
+    And the page has not reloaded
+    And the preview shows the heading "Spa"
+
+  @scratch:good
+  Scenario: A modified click is the browser's business, not olai's
+    # The other half of the same rule, in a real browser rather than in a truth
+    # table: a modified click is a reader asking for the BROWSER's own
+    # behaviour, and no surface in this app claims one.
+    #
+    # What the browser then does with it is not asserted, and that is deliberate
+    # rather than a gap: which modifier opens a tab is a platform's decision (on
+    # Linux this one is a plain navigation, so the frame follows the link), and
+    # a scenario that pinned the frame's fate would be asserting Chromium's
+    # keyboard conventions rather than olai's rule. What is olai's rule, and all
+    # of it, is that the APP does not answer this press — which is exactly what
+    # would break if the seal's handler stopped consulting `ours`.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/first.html" as:
+      """
+      <h1>First</h1>
+      <p><a id="next" href="second.html">the next page</a></p>
+      """
+    And I rewrite "notes/second.html" as:
+      """
+      <h1>Second</h1>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/first.html"
+    Then the preview shows the heading "First"
+    When I meta-click "#next" inside the preview
+    Then the address is "/doc/notes/first.html"
+    And the document open is "notes/first.html"
+    And the page has not reloaded
+
+  @scratch:good
+  Scenario: A link at anything else in the vault is still the frame's to follow
+    # The scope, read as what did NOT change. A link to a part a page draws
+    # itself with — a picture, a stylesheet, a font — names a file olai has no
+    # page for, so the handler leaves the click alone and the frame follows it
+    # exactly as it did before any of this: it lands on something that is not a
+    # sealed document, says nothing, and the file is put back. That is #206's
+    # walk-off story, untouched, and this is the line that says a click on a
+    # link olai cannot answer was not quietly turned into a dead one.
+    Given I open the app
+    And I mark the page
+    When I rewrite "gallery.html" as:
+      """
+      <h1>Gallery</h1>
+      <p><a id="shot" href="art/handle.png">the picture itself</a></p>
+      """
+    And I click the page "gallery.html"
+    Then the preview shows the heading "Gallery"
+    When I click "#shot" inside the preview
+    # The app did not move — this was never its click…
+    Then the address is "/doc/gallery.html"
+    And the page has not reloaded
+    # …and the frame went, found something that does not greet, and was brought
+    # home to the file, which is where the reader can see it.
+    And the preview shows the heading "Gallery"
+
+  @scratch:good
+  Scenario: A link to a page the route serves and the directory does not list is dropped
+    # THE SEAM THIS CHANGE COSTS, pinned rather than left to be met. The two ends
+    # disagree about what the vault holds, and they disagree in one direction:
+    # the seal claims a click by SUFFIX under `/media/`, which is the ROUTE's
+    # world, and the route's guard is lexical — it serves any `.html` it finds on
+    # disk. The app's list is the STORE's world, and the store's walk skips
+    # dot-directories and `node_modules` (`@olai/store`'s `disk.ts`). So this
+    # file is servable and unlistable at once, and the click is claimed and then
+    # dropped.
+    #
+    # Nothing became unreachable: `/doc/` refuses that path too, so olai has no
+    # page for it either. What is lost is the FRAME drawing it, which is what
+    # #206 did — and losing it silently is why this scenario exists. Both halves
+    # are read, because "the click did nothing" alone would also be true of a
+    # file that simply is not there.
+    Given I open the app
+    And I mark the page
+    When I rewrite "node_modules/handbook/index.html" as:
+      """
+      <h1>Vendored</h1>
+      """
+    And I rewrite "vendor.html" as:
+      """
+      <h1>Vendor</h1>
+      <p><a id="vendored" href="node_modules/handbook/index.html">the vendored handbook</a></p>
+      """
+    And I click the page "vendor.html"
+    Then the preview shows the heading "Vendor"
+    # It is not in the directory the app draws — the pages listed are the ones
+    # the store walked, and the pruned one is not among them…
+    And the pages listed are "quarter.html, report.html, vendor.html"
+    # …and the route serves it all the same, which is the half that makes this a
+    # seam rather than a missing file.
+    And requesting "/media/node_modules/handbook/index.html" answers 200
+    When I click "#vendored" inside the preview
+    # The click was claimed by the seal — so the frame did not follow it — and
+    # then dropped by the app, which holds no page for that path.
+    Then the address is "/doc/vendor.html"
+    And the page has not reloaded
+    And the preview shows the heading "Vendor"
+    # …and the reader is TOLD, which is the half a dropped click owes them:
+    # the page did not move and nothing else on screen would account for it.
+    # HACKING's rule is that an error surfaces somewhere in the UX, and a
+    # click this app claimed and could not answer is one.
+    And the preview says it cannot open that link
+
+  @scratch:good
+  Scenario: A page asking for its own address moves nothing
+    # THE GUARD THE HUMAN PICKED, and the reason it is the one that was needed.
+    #
+    # This channel needs no gesture — a `postMessage` is not a press, and
+    # nothing on the app's side can tell the two apart. Everywhere else that
+    # costs nothing: a message naming ANOTHER file navigates once and takes the
+    # frame with it, so the sender is gone. A message naming THE FILE ALREADY
+    # SHOWN is the one that does not — the route is the page that is open, so
+    # the page does not re-key, the frame is never replaced, and the sender is
+    # still sitting there able to send again. Unrefused, that is the reader's
+    # back button being spent by a script, and the same hazard class the
+    # walk-off budget exists for on the channel that arrived after it.
+    #
+    # So the file being shown is not a file this can open. Both halves are read:
+    # the script asking twelve times, and a reader clicking a link to the page
+    # they are already on — an ordinary thing to find in a saved page, and not
+    # covered by the seal's in-page rule, which is about a fragment.
+    Given I open the app
+    And I mark the page
+    When I rewrite "itself.html" as a page that asks for itself
+    # The ledger is read BEFORE the page is opened, so the twelve messages the
+    # page sends as it parses are inside what is being counted. Read after them
+    # it would be a baseline taken past the thing under test — which is what an
+    # earlier draft of this did, and it passed with the guard deleted.
+    And I remember how much history there is
+    And I click the page "itself.html"
+    Then the preview shows the heading "Itself"
+    # ONE entry, for the reader's own click on the sidebar — and none at all for
+    # the twelve the page asked for.
+    And the history has grown by 1
+    Then the address is "/doc/itself.html"
+    And the document open is "itself.html"
+    And the page has not reloaded
+    # …and the reader's half: a plain click at a link to this very page.
+    When I click "#again" inside the preview
+    Then the history has grown by 1
+    And the address is "/doc/itself.html"
+    And the preview shows the heading "Itself"
+    # NOTHING IS SAID about it, and that is the one place this parts company
+    # with a click the app could not answer. A miss is owed its reason; a
+    # self-open names a page olai has and is DRAWING — an alarm saying the link
+    # cannot be opened, over the very file it names, would be a refusal the
+    # screen it is drawn on contradicts.
+    And the preview says nothing about the link
+
+  @scratch:good
+  Scenario: A page cannot navigate this app by naming a file the vault does not hold
+    # THE HOSTILE CASE, and the reason the message is a lookup key rather than
+    # an instruction. A previewed page runs its own JavaScript, so it can post
+    # this app anything at all: a page that is not there, a climb out of the
+    # vault, one of the app's own addresses, a bare path. Each is decoded
+    # through the vault's one URL decoder and then MATCHED against the files
+    # this app is serving, and the route is built from the string that list
+    # holds — so a miss moves nothing, and nothing a frame said ever reaches the
+    # address bar.
+    #
+    # The last two lines are the fixture's teeth and the residue, in one act. A
+    # forged prefix that no longer matched the seal's would make every line
+    # above vacuous, so the page also sends one WELL-FORMED message naming a
+    # file this vault really holds, and that one does open its page — which is
+    # no more than the page could have done by drawing a link and is exactly as
+    # far as this channel goes.
+    Given I open the app
+    When I rewrite "forger.html" as a page that posts forged addresses at the app
+    And I click the page "forger.html"
+    Then the preview shows the heading "Forger"
+    And the address is "/doc/forger.html"
+    And the document open is "forger.html"
+    # …and neither does a well-formed message from something that is not the
+    # frame: the sender is identified by IDENTITY, since every sandboxed frame
+    # on the internet posts from the same opaque origin.
+    When something other than the preview asks the app to open "finishes.md"
+    Then the address is "/doc/forger.html"
+    When I click "#honest" inside the preview
+    Then the address is "/doc/finishes.md"
+    And the document open is "finishes.md"
 
   @corpus:good
   Scenario: The preview draws the file's own picture

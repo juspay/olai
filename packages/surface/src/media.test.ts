@@ -9,7 +9,7 @@
 import { pictureOf } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { mediaHref, mediaTarget } from "./media.ts"
+import { mediaHref, mediaPath, mediaTarget } from "./media.ts"
 
 test("a file under the root is what the route names", () => {
   expect(mediaTarget("/media/shot.png")).toBe("shot.png")
@@ -67,6 +67,51 @@ test("anything that is not a page or one of its parts is not served", () => {
   expect(mediaTarget("/media/notes/.env")).toBeNull()
   expect(mediaTarget("/media/")).toBeNull()
   expect(mediaTarget("/media/art/")).toBeNull()
+})
+
+// ── the same address, asked the other question ─────────────────────────
+
+/**
+ * THE DECODER WITHOUT THE ALLOWLIST, which is the whole difference between the
+ * two exports and the reason the split exists.
+ *
+ * A click inside a preview asks which FILE OF THE VAULT an address names, not
+ * what the route may answer, and the two are deliberately not the same list: a
+ * `.md` has a page of its own and is never served raw, so the route refuses it
+ * and a reader following a link to it should still land on that page
+ * (`./seal.ts`'s `FOLLOW`). Every other line of the guard is shared, which is
+ * the point of it being one function — so the cases below are the same climbs
+ * as above, asked of the caller that has no allowlist behind it.
+ */
+test("a path is decoded and guarded whether or not the route would answer it", () => {
+  // The route's own answer, unchanged, and the same one this gives.
+  expect(mediaPath("/media/report.html")).toBe("report.html")
+  expect(mediaPath("/media/notes/art/shot.png")).toBe("notes/art/shot.png")
+  // …and the files the ROUTE refuses, which a click may still name. This is the
+  // one divergence, and it is the reason for the split.
+  expect(mediaPath("/media/notes.md")).toBe("notes.md")
+  expect(mediaTarget("/media/notes.md")).toBeNull()
+  expect(mediaPath("/media/plan.olai")).toBe("plan.olai")
+  // The guard itself is not relaxed by an inch: every climb, every smuggled
+  // separator and every malformed escape falls the same way it does above.
+  for (
+    const url of [
+      "/media/../secret.md",
+      "/media/%2e%2e/secret.md",
+      "/media/notes/../../secret.md",
+      "/media/a/./notes.md",
+      "/media//notes.md",
+      "/media/a%2fb.md",
+      "/media/a%5cb.md",
+      "/media/notes.md%00.olai",
+      "/media/%zz.md",
+      "/media/",
+      "/doc/notes.md",
+      "",
+    ]
+  ) {
+    expect(mediaPath(url)).toBeNull()
+  }
 })
 
 test("a request that is not this route's is not this route's", () => {
