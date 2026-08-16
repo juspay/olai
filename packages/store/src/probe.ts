@@ -65,8 +65,8 @@ export interface Found<F, E> {
 }
 
 /**
- * Whether two decoded sets are the SAME SET: the same paths, each holding the
- * very value the other holds.
+ * Whether two decoded sets are the SAME MAP: the same paths, IN THE SAME ORDER,
+ * each holding the very value the other holds.
  *
  * IDENTITY per entry, not equality — nothing in this package looks inside what
  * a codec decoded to, so it has no way to compare two of them and no business
@@ -76,20 +76,44 @@ export interface Found<F, E> {
  * with ({@link Probe.decode}). Nothing here ever hands out a fresh value for
  * bytes it has already answered about.
  *
- * So it lives HERE rather than beside its one caller ({@link ./store.ts}'s
+ * ORDER COUNTS, and that is not fussiness: a `Map` is ITERATED, a codec is
+ * handed the whole map, and what one makes of the order is inside a value this
+ * package refuses to look into. Answering a question about one map with a
+ * verdict about a differently-ordered one would be this package promising, on a
+ * codec's behalf, something only that codec can know. It costs exactly the
+ * writes that change the KEY SET — a path that did not exist before is appended
+ * to the gate's candidate and comes back in the LISTING's place, so a create
+ * re-validates — and nothing else: a write to a file the set already holds
+ * leaves the order untouched. (olai's codec is the case in point. Its
+ * `assemble` walks this map, so the set's file order is the map's, and that
+ * order is what `list_outlines` answers with and what a search tie breaks on.
+ * A create of `Archive.olai` beside `house.olai` published the two in the wrong
+ * order until this comparison counted it.)
+ *
+ * It lives HERE rather than beside its one caller ({@link ./store.ts}'s
  * `publish`, which spends a verdict on the set it was reached about): the
  * caller asks the question, and this is the module whose answer to it means
  * anything. A difference of any kind — a neighbour re-decoded by the same
- * probe, a file that arrived or left, our own bytes overwritten by somebody
- * else between a rename and the read — comes back `false`.
+ * probe, a file that arrived, left or moved in the order, our own bytes
+ * overwritten by somebody else between a rename and the read — comes back
+ * `false`.
  */
 export const sameDecoded = <F, E>(
   one: Decoded<F, E>,
   other: Decoded<F, E>,
 ): boolean => {
   if (one.size !== other.size) return false
+  // Walked in step rather than looked up, which is the whole of what makes this
+  // an answer about the MAP and not about its key set.
+  const theirs = other[Symbol.iterator]()
   for (const [path, decoded] of one) {
-    if (other.get(path) !== decoded) return false
+    const next = theirs.next()
+    // `done` cannot be reached past the size check above; it is here because
+    // the iterator's type says it can be, and a cast would be a claim about
+    // the runtime rather than a reading of it.
+    if (next.done === true) return false
+    const [theirPath, theirDecoded] = next.value
+    if (theirPath !== path || theirDecoded !== decoded) return false
   }
   return true
 }

@@ -351,6 +351,28 @@ test("creating an empty outline is a zero-byte file the sidebar can list", () =>
       expect((yield* fixture.set()).files).toContain("empty.olai")
     })))
 
+// The published set is in LISTING order, which is path order — what
+// `list_outlines` answers with and what a search tie breaks on. A create is the
+// one write that can put a file at the FRONT of that order, and it is the case
+// where the gate's own candidate map disagrees with the listing: the candidate
+// is what the last probe held with the new path appended, so a file sorting
+// before an existing one lands last there and first here. The gate must not
+// publish the candidate's order for the listing's.
+test("a created file sorting before an existing one is published in path order", () =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      yield* run(fixture, { op: "create", file: "Archive.olai" })
+      expect((yield* fixture.set()).files).toEqual(["Archive.olai", "house.olai"])
+      // And the flat node list follows the same order, which is what a search
+      // tie reads: every record of the earlier file comes first.
+      const set = yield* fixture.set()
+      expect(set.nodes.map((located) => located.file)).toEqual(
+        [...set.nodes].sort((one, two) => one.file.localeCompare(two.file)).map((
+          located,
+        ) => located.file),
+      )
+    })))
+
 test("archiving writes both files, and the set stays valid across them", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
     Effect.gen(function*() {
