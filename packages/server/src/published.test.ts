@@ -9,8 +9,8 @@
  * manifest, not in an outline's slice, so nothing carries the corpus.
  */
 
-import { derive, type OutlineSet, type Reading } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import type { OutlineSet, Reading } from "@olai/format"
+import { readingOf, setOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
 import { expect, test } from "bun:test"
 
@@ -29,8 +29,8 @@ const revision = (
 ): Snapshot<Reading> => ({
   rev,
   // The pair the store publishes: a snapshot carries the set AND the view the
-  // validator judged it against, and this projection reads the set half.
-  value: { set: value, derived: derive(value.nodes) },
+  // validator judged it against, and this projection reads both halves.
+  value: readingOf(value),
   changed: moved.changed ?? [...value.files, ...value.documents.map((d) => d.file)],
   removed: moved.removed ?? [],
 })

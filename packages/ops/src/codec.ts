@@ -69,7 +69,14 @@ export const codec: Codec<DecodedFile, Reading, ReadonlyArray<OutlineError>> = {
    *  set AND the derivation the rules were run over — because the store's `S`
    *  is whatever the codec says a validated set is, and the alternative is
    *  every reader above deriving the corpus a second time from a value that had
-   *  just been built and dropped inside this call. */
+   *  just been built and dropped inside this call.
+   *
+   *  THIS is the expensive validation the write gate pays for once rather than
+   *  twice ({@link ../../store/src/store.ts}'s `commit`, which says how): one
+   *  call here is the whole corpus derived and six whole-set rules run over it,
+   *  so it used to be that walk twice per keystroke. The store states the
+   *  property generically because it must; the argument for olai is
+   *  `docs/brainstorming/model-indices.md`, slice 2. */
   validate: (files) => validate(assemble(files)),
 
   /** The store's own failure — the directory would not be listed, a file would

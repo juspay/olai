@@ -53,7 +53,6 @@ import {
   shadowFor,
   siblingsOf,
   standingBefore,
-  type OutlineSet,
   type Reading,
   type RegularNode,
   storedMarker,
@@ -218,9 +217,11 @@ export const plan = (
 
 // ── the shared middle ──────────────────────────────────────────────────
 
-interface Scope {
-  readonly set: OutlineSet
-  readonly derived: Derived
+/** The reading a plan is judged against, plus the two impure things an op
+ *  needs. It EXTENDS the pair rather than restating its halves: `plan` is
+ *  handed a `Reading` and spreads it in, so a second spelling of those two
+ *  fields is one the patcher could leave behind. */
+interface Scope extends Reading {
   readonly context: Context
 }
 

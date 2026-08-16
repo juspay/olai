@@ -18,11 +18,13 @@
 
 import { Result } from "effect"
 
+import { derive } from "./derive.ts"
 import type { OutlineError } from "./errors.ts"
 import { unkept } from "./kinds.ts"
 import type { Located } from "./node.ts"
 import { parseOutline } from "./parse.ts"
 import { assemble, type DecodedFile, type Outline, type OutlineSet } from "./set.ts"
+import type { Reading } from "./validate.ts"
 
 /** The default fixture file name. Named once so a test that cares about paths
  *  can say so, and one that does not need never mention it. */
@@ -90,6 +92,24 @@ export const setOf = (
       ),
     ]),
   )
+
+/**
+ * A set and its derivation, paired the way {@link ./validate.ts}'s `Reading`
+ * is — what the validator answers with and what the store publishes.
+ *
+ * Here rather than in a package above, for the reason {@link setOf} is: the
+ * pairing is this package's, so a fixture that builds one by hand belongs where
+ * the type is declared. Four such copies were living in two packages above
+ * before this existed.
+ *
+ * It is the one thing no production caller does: `validate` makes the pair, and
+ * a reader is handed it. A test that starts from TEXT is the one place the two
+ * halves are put together deliberately.
+ */
+export const readingOf = (set: OutlineSet): Reading => ({
+  set,
+  derived: derive(set.nodes),
+})
 
 /** One file's worth of JSONL that must NOT parse, and the errors it produces —
  *  the other half of the fixture contract above: a fixture meant to stand in

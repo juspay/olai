@@ -9,11 +9,16 @@
  * field dropped from a search hit would fail nothing over there.
  */
 
-import { Found, type OutlineSet } from "@olai/format"
+import { type Derived, Found, type OutlineSet } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
-import { derivedOf, setOf } from "./fixtures.testlib.ts"
+import { readingOf, setOf } from "./fixtures.testlib.ts"
 import { detail, outlines, search, subtree } from "./query.ts"
+
+/** The derivation these walks are asked of: the half of a fixture READING they
+ *  read. Production never builds one — `validate` pairs the set with the view
+ *  it judged, and every caller is handed the pair. */
+const derivedOf = (set: OutlineSet): Derived => readingOf(set).derived
 
 /** A ledger: items in their sections, and a `Now` list made of placements —
  *  including one that CHAINS through another placement, which is the case

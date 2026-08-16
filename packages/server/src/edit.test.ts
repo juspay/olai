@@ -19,13 +19,12 @@
  */
 
 import {
-  derive,
   INBOX,
   type OpFailure,
   type OutlineSet,
   type Reading,
 } from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { readingOf, setOf } from "@olai/format/testlib"
 import type { Request } from "@olai/ops"
 import type { Edit } from "@olai/surface"
 import { expect, test } from "bun:test"
@@ -43,10 +42,8 @@ const HOUSE = [
   `{"id":"echo","ord":"a2","mirror":"order"}`,
 ].join("\n")
 
-const reading = (set: OutlineSet = setOf({ "house.olai": HOUSE })): Reading => ({
-  set,
-  derived: derive(set.nodes),
-})
+const reading = (set: OutlineSet = setOf({ "house.olai": HOUSE })): Reading =>
+  readingOf(set)
 
 /** The request, or a refusal quoted well enough to fix the test without a
  *  debugger. */

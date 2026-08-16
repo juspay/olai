@@ -14,23 +14,12 @@
  * Not a suite: `bun test` collects only `*.test.ts`.
  */
 
-import { derive, type Derived, type OutlineSet, type Reading } from "@olai/format"
-
 import type { Context } from "./plan.ts"
 
-export { failureOf, setOf, STAMP_SHAPE } from "@olai/format/testlib"
+/** The pairing a snapshot carries, built from text — `@olai/format`'s, like
+ *  the set builder beside it, because the pairing is that package's. */
+export { failureOf, readingOf, setOf, STAMP_SHAPE } from "@olai/format/testlib"
 export { gitIn, repoAt, subjectsIn, writerOf } from "@olai/git/testlib"
-
-/** A set's derivation, and the two of them paired — what a test holding only a
- *  set has to build for itself.
- *
- *  NOTHING IN THE TREE DOES THIS: `validate` pairs the set with the view it
- *  judged and the store publishes the pair, so a planner and a query are handed
- *  a `Reading` that already exists. A fixture starts from text, which is the
- *  one place the two halves are put together by hand. */
-export const derivedOf = (set: OutlineSet): Derived => derive(set.nodes)
-
-export const reading = (set: OutlineSet): Reading => ({ set, derived: derivedOf(set) })
 
 /** A planner context with no surprises in it: ids counted up from `n1`, and one
  *  fixed instant. Both of the impure things an op needs, made boring.

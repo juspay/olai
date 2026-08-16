@@ -50,15 +50,16 @@ import {
   type CommitResult,
   changesOf,
   composed,
+  type Derived,
   fileKind,
   type GitState,
   type How,
   type LastCommit,
   type Node,
+  nodesOf,
   NOTHING_PENDING,
-  parseOutline,
-  type Located,
   type Other,
+  parseOutline,
   type Pending,
   type PushResult,
   type Reason,
@@ -525,7 +526,7 @@ export const make = (options: Options): Committing => {
       // every record in the corpus, run on every write and every thirty-second
       // sweep. Slice 2 made it a lookup, and a cache for two sets of file names
       // is machinery outliving its reason.
-      const served = at?.derived.byFile ?? new Map<string, ReadonlyArray<Located>>()
+      const served: Pick<Derived, "byFile"> = at?.derived ?? { byFile: new Map() }
       const known = new Set(at?.set.files ?? [])
       const broken = new Set((at?.set.broken ?? []).map((entry) => entry.file))
 
@@ -581,7 +582,7 @@ export const make = (options: Options): Committing => {
         // A dirty file the set does not list has left the disk, and an absent
         // `after` side is exactly how that reads: every node in it is gone.
         if (known.has(one.file)) {
-          after.set(one.file, (served.get(one.file) ?? []).map((located) => located.node))
+          after.set(one.file, nodesOf(served, one.file).map((located) => located.node))
         }
       })
 

@@ -41,9 +41,9 @@ interface Loaded {
 
 let decodes: Array<string> = []
 /** One entry per {@link Codec.validate} call, naming the set it was asked
- *  about. A codec whose validation is expensive — olai's derives the whole
- *  corpus — makes "how many times per write" a number worth pinning, and the
- *  gate's answer is once. */
+ *  about. A codec whose validation is expensive — and the one this repo has
+ *  builds a view of the whole corpus — makes "how many times per write" a
+ *  number worth pinning, and the gate's answer is once. */
 let validations: Array<ReadonlyArray<string>> = []
 /** Fired inside `decode`, once, then disarmed: the one place a test can reach
  *  BETWEEN the write gate's validation and the probe that follows its rename,
@@ -781,7 +781,7 @@ test("a commit that changes no length in the same second still publishes", () =>
 // The gate judges the set it is ABOUT to write, and then publishes what it
 // wrote. Those used to be two questions to the codec about two equal sets, and
 // for a codec whose validation builds a view of the whole corpus that is the
-// corpus walked twice per keystroke (docs/brainstorming/model-indices.md).
+// corpus walked twice per write.
 // It is one question now, and these three say what that rests on: the verdict
 // is reused only about the very files it was reached about, and the bytes on
 // disk are still what decides what those are.

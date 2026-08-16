@@ -34,7 +34,7 @@
  * (`runtime.ts`) and needs no projection.
  */
 
-import type { Reading } from "@olai/format"
+import { nodesOf, type Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, OutlineEntry } from "@olai/surface"
 
@@ -190,12 +190,11 @@ export const publishedOf = (
 ): Published => {
   const { set, derived } = snapshot.value
   // The set is FLAT and every record names its own file, so a file's slice is
-  // that grouping — and the grouping is READ rather than made, off the
-  // derivation the snapshot now carries (`@olai/format`'s `Derived.byFile`,
-  // which is the same one-pass group-by this file used to do for itself). It
-  // runs on every revision of a directory that can hold any number of both, so
-  // "the same walk, one revision later" was the whole of the cost.
-  const byFile = derived.byFile
+  // that grouping — and the grouping is READ rather than made, through the
+  // format's own reader of it (`nodesOf`, over the `byFile` index the snapshot
+  // now carries), so "what does this outline hold" has one spelling here and at
+  // the writers. It used to be a `Map.groupBy` of every record, run on every
+  // revision of a directory that can hold any number of both.
   const broken = new Map(set.broken.map((file) => [file.file, file] as const))
 
   return {
@@ -204,7 +203,7 @@ export const publishedOf = (
       (file) => file,
       (file) => ({
         rev: snapshot.rev,
-        nodes: byFile.get(file) ?? [],
+        nodes: nodesOf(derived, file),
         broken: broken.get(file) ?? null,
       }),
       snapshot,

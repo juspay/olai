@@ -53,7 +53,7 @@ import {
 import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 
-import { reading, setOf } from "./fixtures.testlib.ts"
+import { readingOf, setOf } from "./fixtures.testlib.ts"
 import { asking, TOOLS } from "./tools.ts"
 
 /** One house, and everything a read can carry: both marker kinds, a note, a
@@ -73,7 +73,7 @@ const EVERYTHING = (): OutlineSet =>
     ].join("\n"),
   }, [], { "torn.olai": "{ not a record" })
 
-const at = (): Reading => reading(EVERYTHING())
+const at = (): Reading => readingOf(EVERYTHING())
 
 /**
  * The read door, over that fixture — the SAME `asking` the ops layer builds

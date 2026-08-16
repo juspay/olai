@@ -324,14 +324,6 @@ export const make = <F, S, E>(
     // than one probe wide when the codec refused what one of them found.
     const moved = yield* Ref.make(NOTHING_MOVED)
 
-    /** Ask the codec about a decoded set, and keep the answer WITH the set it
-     *  is about ({@link Judged}). Every verdict in this file is made here, so
-     *  there is no way to end up holding one whose subject is a guess. */
-    const judge = (files: Probe.Decoded<F, E>): Judged<F, S, E> => ({
-      files,
-      outcome: options.codec.validate(files),
-    })
-
     /** Validate, then move the two refs to match — and say which way it went,
      *  because the write gate has to branch on it and re-reading the refs to
      *  find out would be the same question asked twice.
@@ -345,10 +337,10 @@ export const make = <F, S, E>(
     ): Effect.Effect<Result.Result<Snapshot<S>, E>> =>
       Effect.gen(function*() {
         const since = yield* Ref.updateAndGet(moved, (before) => absorb(before, found))
-        const { outcome } = already !== undefined &&
+        const outcome = already !== undefined &&
             Probe.sameDecoded(already.files, found.files)
-          ? already
-          : judge(found.files)
+          ? already.outcome
+          : options.codec.validate(found.files)
         if (Result.isFailure(outcome)) {
           // The snapshot stays where it is, so what moved is still owed to
           // whoever reads the next one: `since` is kept rather than cleared.
@@ -380,7 +372,7 @@ export const make = <F, S, E>(
      *  below already holds it. */
     const cycle = Effect.tapError(
       Effect.flatMap(
-        probe.run,
+        probe.run(),
         (found) => found === null ? Effect.void : Effect.asVoid(publish(found)),
       ),
       // The store's OTHER kind of error, published on the channel the codec's
@@ -418,17 +410,23 @@ export const make = <F, S, E>(
           // the changed files swapped in. Decoding here rather than after the
           // rename is what makes a refusal free.
           //
-          // THROUGH THE PROBE, which is what makes the set below the same set
-          // the re-probe finds rather than an equal one ({@link
-          // Probe.decode}) — and so lets this verdict be the published one.
+          // Each decode is kept as the PROMISE the re-probe is handed below —
+          // these bytes, this value — which is what makes the set it finds the
+          // same set as this one rather than an equal one, and so lets the
+          // verdict reached here be the published one.
           const candidate = new Map(yield* probe.current)
+          const promised = new Map<string, Probe.Promised<F, E>>()
           for (const change of write.changes) {
-            candidate.set(
-              change.path,
-              yield* probe.decode(change.path, change.contents),
-            )
+            const promise = probe.decode(change.path, change.contents)
+            candidate.set(change.path, promise.decoded)
+            promised.set(change.path, promise)
           }
-          const judged = judge(candidate)
+          // The verdict and the set it is about, made together and spent
+          // together ({@link Judged}).
+          const judged: Judged<F, S, E> = {
+            files: candidate,
+            outcome: options.codec.validate(candidate),
+          }
           if (Result.isFailure(judged.outcome)) return Result.fail(judged.outcome.failure)
 
           // Every file staged before any is renamed: a write that cannot be
@@ -448,12 +446,13 @@ export const make = <F, S, E>(
           // cannot see — so the changed files are re-read because we say so,
           // not because a stat noticed.
           yield* probe.forget(write.changes.map((change) => change.path))
-          const reread = yield* probe.run
-          // The verdict rides along, still carrying the set it is about: what
-          // came back is that same set unless something else moved the tree in
-          // the meantime, and then it is judged again. This is the publish that
-          // used to be a second validation of the set this gate had just
-          // approved.
+          // Handed the promises this write made, so what it reads back is the
+          // set already judged rather than an equal one. The verdict rides
+          // along too, still carrying that set — and if something else moved
+          // the tree in the meantime the two no longer match and it is judged
+          // again. This is the publish that used to be a second validation of
+          // the set this gate had just approved.
+          const reread = yield* probe.run(promised)
           const published = reread === null
             ? Result.succeed(current)
             : yield* publish(reread, judged)

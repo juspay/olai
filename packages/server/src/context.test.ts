@@ -12,13 +12,8 @@
  * same id.
  */
 
-import {
-  derive,
-  type OpFailure,
-  type OutlineSet,
-  type Reading,
-} from "@olai/format"
-import { setOf } from "@olai/format/testlib"
+import { type OpFailure, type OutlineSet, type Reading } from "@olai/format"
+import { readingOf, setOf } from "@olai/format/testlib"
 import type { NodeContext } from "@olai/surface"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
@@ -33,10 +28,8 @@ const HOUSE = [
   `{"id":"echo","ord":"a2","mirror":"order"}`,
 ].join("\n")
 
-const reading = (set: OutlineSet = setOf({ "house.olai": HOUSE })): Reading => ({
-  set,
-  derived: derive(set.nodes),
-})
+const reading = (set: OutlineSet = setOf({ "house.olai": HOUSE })): Reading =>
+  readingOf(set)
 
 const resolved = (ids: ReadonlyArray<string>): ReadonlyArray<NodeContext> => {
   const outcome = contextFor(reading(), ids)
