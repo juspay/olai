@@ -398,14 +398,19 @@ const MEASURE = `(function () {
  *     a link to a file, which the frame goes on following exactly as it did.
  *     WHAT HOLDS IT: the suffix list is asserted against the registry, and a
  *     link at a `.png` is followed by the frame in a scenario of its own;
- *   - NO FRAGMENT. `#top` on a link is an in-page anchor and must stay one, and
- *     `other.html#beds` is an anchor this app cannot land on — the same call
- *     `routeIn` makes about a link in rendered markdown (`@olai/web`'s
- *     `routes.ts`), for the same reason: a plain navigation that visibly does
- *     not land somewhere is better than a page pretending it did. WHAT HOLDS
- *     IT: a scenario that clicks a fragment link AT THE FILE NEXT DOOR — the
- *     case every other condition here would claim — and reads both halves, the
- *     app staying put and the frame arriving at the anchor.
+ *   - NO IN-PAGE ANCHOR. `#top` is a jump inside the document the reader is
+ *     already looking at, and there is nothing for the app to do with one: the
+ *     frame keeps it, because a page scrolling itself is not a navigation.
+ *     `other.html#beds` IS one — it names another file and a place inside it —
+ *     and it is claimed, fragment and all, because the `/doc/` page can land on
+ *     a section now (`@olai/web`'s `routes.ts` carries it, and the two faces do
+ *     the landing by two different mechanisms). Same document is the whole
+ *     test, which is why it is a comparison against `location.pathname` rather
+ *     than a look at whether there is a hash at all. WHAT HOLDS IT: one
+ *     scenario clicks a fragment link AT THE FILE NEXT DOOR and reads both
+ *     halves — the app arriving at the neighbour's address WITH the anchor on
+ *     it, and the page landing on the section — and another clicks an in-page
+ *     `#top` and reads the app staying exactly where it was.
  *
  * A `.md` is on that list on purpose, and it is the one judgement call here. The
  * media route REFUSES a `.md` — it is not an `isAsset`, so the frame following
@@ -437,13 +442,13 @@ const FOLLOW = `(function () {
       return
     }
     if (at.protocol !== location.protocol || at.host !== location.host) return
-    if (at.hash !== "") return
+    if (at.hash !== "" && at.pathname === location.pathname) return
     var path = at.pathname
     if (!path.startsWith(${JSON.stringify(MEDIA_PREFIX)})) return
     for (var i = 0; i < pages.length; i++) {
       if (!path.endsWith(pages[i])) continue
       event.preventDefault()
-      parent.postMessage(${JSON.stringify(OPEN)} + path, "*")
+      parent.postMessage(${JSON.stringify(OPEN)} + path + at.hash, "*")
       return
     }
   })
@@ -619,8 +624,11 @@ export type Said =
    *  than it looks like it proves, and the receiver says so at length. */
   | { readonly kind: "hello" }
   /** A page of this vault the reader clicked a link at — {@link OPEN}. Still
-   *  not a file: a path SHAPED like one, to be looked up. */
-  | { readonly kind: "open"; readonly file: string }
+   *  not a file: a path SHAPED like one, to be looked up. `at` is the place
+   *  inside it the link named, when it named one; it is not checked against
+   *  anything here, because which ids a page has is not knowable until it has
+   *  been drawn. */
+  | { readonly kind: "open"; readonly file: string; readonly at?: string }
   /** How tall the page says it is, and which of the two readings it is —
    *  {@link READING}. A claim, clamped by CSS at the other end. */
   | { readonly kind: "reading"; readonly reading: Reading; readonly height: number }
@@ -667,12 +675,32 @@ export type Said =
  * prefixes begins another, which is what makes the classification a fact about
  * the message rather than about this function's arm order.
  */
+/** A fragment as the page will look for it — the escaping undone, and nothing
+ *  at all for an empty one or a malformed escape. Neither is a place in a page,
+ *  and a frame that sends one has said nothing rather than said something
+ *  wrong. */
+const decoded = (fragment: string): string | undefined => {
+  if (fragment === "") return undefined
+  try {
+    return decodeURIComponent(fragment)
+  } catch {
+    return undefined
+  }
+}
+
 export const heard = (said: unknown): Said | undefined => {
   if (said === HELLO) return { kind: "hello" }
   if (typeof said !== "string") return undefined
   if (said.startsWith(OPEN)) {
-    const file = mediaPath(said.slice(OPEN.length))
-    return file === null ? undefined : { kind: "open", file }
+    const address = said.slice(OPEN.length)
+    const file = mediaPath(address)
+    if (file === null) return undefined
+    // The fragment is cut off the END, which is where an address keeps it —
+    // `mediaPath` has already stopped reading at the same `#`, so the two
+    // halves are taken from one string by one rule rather than parsed twice.
+    const hash = address.indexOf("#")
+    const at = hash === -1 ? undefined : decoded(address.slice(hash + 1))
+    return at === undefined ? { kind: "open", file } : { kind: "open", file, at }
   }
   const reading: Reading | undefined = said.startsWith(READING.settled)
     ? "settled"

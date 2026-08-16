@@ -382,7 +382,7 @@ export default function App() {
                           )}
                         </Match>
                         <Match when={only(open(), "document")}>
-                          {(open) => <DocumentPage file={open().file} />}
+                          {(open) => <DocumentPage file={open().file} at={open().at} />}
                         </Match>
                         <Match when={only(open(), "day")}>
                           {(open) => (

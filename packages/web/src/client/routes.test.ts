@@ -33,6 +33,11 @@ const ROUTES: ReadonlyArray<Route> = [
   { kind: "outline", file: null, filter: "#home -is:done" },
   { kind: "node", id: "kitchen", filter: "date:2026-08-01..2026-08-14" },
   { kind: "node", id: "kitchen", filter: "a query with  spaces & an ampersand" },
+  // …and a document at a place INSIDE it, which is the other thing an address
+  // here carries. A `#` that could not be read back is a link into a section
+  // that lands at the top of the page the moment it is reloaded or shared.
+  { kind: "document", file: "garden.md", at: "beds" },
+  { kind: "document", file: "notes/report.html", at: "Q3 revenue" },
 ]
 
 test("every route survives being written to a URL and read back", () => {
@@ -196,11 +201,34 @@ test("a link on the page is a route only when it names a document's page", () =>
   }
 })
 
-// A fragment is left to the browser on purpose: what it names on a rendered
-// page is an id minted per BLOCK, so claiming the click would be this app
-// promising an anchor it does not land on.
-test("a document link carrying a fragment is left to the browser", () => {
+// A fragment in RENDERED MARKDOWN is still left to the browser, and that is now
+// a narrower statement than it was: the `/doc/` page can land on a section (the
+// route carries one, and the two faces do the landing), but `routeIn` reads an
+// href written in somebody's file, where `#beds` means the id the MARKDOWN has
+// and the page's own ids are minted per block. Claiming it here would need the
+// same translation the face does, at a point that has no rendering to ask.
+test("a document link in markdown carrying a fragment is left to the browser", () => {
   expect(routeIn("/doc/garden.md#beds")).toBeNull()
+})
+
+// The two halves an address keeps apart. A `#` ends the query, so a filter and
+// a fragment on one address must not bleed into each other — read the wrong way
+// round, `?q=is:done#beds` narrows a page by a word nobody typed.
+test("a fragment and a filter are read as themselves", () => {
+  expect(routeOf("/doc/garden.md#beds")).toEqual({
+    kind: "document",
+    file: "garden.md",
+    at: "beds",
+  })
+  expect(routeOf("/o/house.olai?q=is:done#beds")).toEqual({
+    kind: "outline",
+    file: "house.olai",
+    filter: "is:done",
+  })
+  // An empty fragment names no place, and neither does one that cannot be
+  // decoded — both are a page that draws fine without one.
+  expect(routeOf("/doc/garden.md#")).toEqual({ kind: "document", file: "garden.md" })
+  expect(routeOf("/doc/garden.md#%zz")).toEqual({ kind: "document", file: "garden.md" })
 })
 
 // `/n/` with nothing after it is a node route for an id nothing declares —

@@ -42,7 +42,7 @@ export type Page =
    *  and a body travels to whoever opens one — so what is decided here is that
    *  the address names a document the directory HAS, and the reading of it
    *  belongs to the page that draws it. */
-  | { readonly kind: "document"; readonly file: string }
+  | { readonly kind: "document"; readonly file: string; readonly at?: string }
   | { readonly kind: "node"; readonly zoomed: Zoomed }
   /** One day, whatever it holds: every node with a date on it — scheduled for
    *  it or marked on it — grouped by the outline it lives in. An empty
@@ -120,8 +120,14 @@ export const pageOf = (
   if (route.kind === "node") return { kind: "node", zoomed: zoom(derived, route.id) }
 
   if (route.kind === "document") {
+    // The place inside the page rides along UNCHECKED, and deliberately: which
+    // ids a document has is not known until it has been rendered, so this model
+    // would have to hold the body to judge one. The page that draws it looks
+    // for the id and stays where it is when there is none, which is what a
+    // browser does with a fragment naming nothing.
+    const at = route.at === undefined ? {} : { at: route.at }
     return found.documents.includes(route.file)
-      ? { kind: "document", file: route.file }
+      ? { kind: "document", file: route.file, ...at }
       // Asked of `bodyKind` rather than `fileKind`: this address opens the files
       // that HAVE a page, so `/doc/plan.olai` is a reader who meant a document
       // and not a screen that says "no outline named plan.olai" about an outline

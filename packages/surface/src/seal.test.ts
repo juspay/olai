@@ -290,7 +290,7 @@ test("anything else the frame could say is not a height", () => {
  * copied into this file would drift with it and go on passing.
  */
 const OPEN = ((): string => {
-  const found = /parent\.postMessage\("([^"]*)" \+ path, "\*"\)/.exec(SEAL)
+  const found = /parent\.postMessage\("([^"]*)" \+ path \+ at\.hash, "\*"\)/.exec(SEAL)
   if (found === null) throw new Error(`the seal's link handler posts nothing: ${SEAL}`)
   return found[1]!
 })()
@@ -480,4 +480,28 @@ test("a fractional page gets the pixel it needs", () => {
 test("a slack spelling of a number is still a number", () => {
   expect(heard(`${ARRIVING} 640`)).toMatchObject({ height: 640 })
   expect(heard(`${ARRIVING}0x100`)).toMatchObject({ height: 256 })
+})
+
+// THE PLACE INSIDE THE PAGE, carried on the same message as the file. A link at
+// `other.html#beds` names two things — which file, and where in it — and both
+// have to survive the trip, because the app can land on a section now and a
+// fragment dropped in transit is a reader put at the top of a document they
+// were sent into the middle of.
+test("a clicked link's fragment arrives beside the file it names", () => {
+  expect(heard(`${OPEN}${mediaHref("notes/second.html")}#beds`))
+    .toEqual({ kind: "open", file: "notes/second.html", at: "beds" })
+  // Escaped on the way out and read back as written, since an id in somebody's
+  // saved page is whatever its author typed.
+  expect(heard(`${OPEN}${mediaHref("notes/second.html")}#Q3%20revenue`))
+    .toEqual({ kind: "open", file: "notes/second.html", at: "Q3 revenue" })
+  // A fragment that names no place is no fragment: the file still opens, at its
+  // top, which is what a browser does with the same address.
+  expect(heard(`${OPEN}${mediaHref("notes/second.html")}#`))
+    .toEqual({ kind: "open", file: "notes/second.html" })
+  expect(heard(`${OPEN}${mediaHref("notes/second.html")}#%zz`))
+    .toEqual({ kind: "open", file: "notes/second.html" })
+  // …and a fragment cannot smuggle a second path in: the file is decided by
+  // what is before the `#`, by the same decoder the route stands behind.
+  expect(heard(`${OPEN}${mediaHref("notes/second.html")}#/../secrets.md`))
+    .toEqual({ kind: "open", file: "notes/second.html", at: "/../secrets.md" })
 })

@@ -22,11 +22,11 @@
  */
 
 import type { BodyKind } from "@olai/format"
-import { createMemo, type JSX } from "solid-js"
+import { createEffect, createMemo, type JSX, onCleanup } from "solid-js"
 
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
-import { outlineOf } from "../markdown/render.ts"
+import { landingId, outlineOf } from "../markdown/render.ts"
 import { TESTID } from "../testids.ts"
 import { Hypertext } from "./Hypertext.tsx"
 import { Toc } from "./Toc.tsx"
@@ -45,6 +45,19 @@ export interface Reading {
    *  (`@olai/surface`'s `DocumentEntry`). It moves when the file does and
    *  stays put when it does not. */
   readonly rev: number
+  /**
+   * WHERE IN THE PAGE to land, when the address named a place inside it —
+   * `#beds` on a `/doc/` URL (`../routes.ts`).
+   *
+   * Both kinds take it and both do something with it, by two mechanisms that
+   * have nothing in common: a `.html` is a document in a frame, so its own URL
+   * carries the fragment and the browser scrolls it; a `.md` is markup this app
+   * rendered, so the id in the page is not the id in the address and the face
+   * has to translate before it can look. That is exactly the shape this table
+   * exists for — one thing the page knows, two kinds answering it their own
+   * way — and it is why the field is here rather than a prop one face grew.
+   */
+  readonly at?: string
 }
 
 export interface Face {
@@ -71,6 +84,41 @@ function Rendered(props: Reading) {
   const headings = createMemo(() =>
     markdownReady() ? outlineOf(props.text, props.file) : [],
   )
+
+  // LAND ON THE SECTION the address named, once there is a page to land in.
+  //
+  // The id in the address is the heading's own (`#beds`) and the id in the page
+  // is that inside this block's namespace (`../markdown/render.ts` mints it, and
+  // `landingId` is the one translation between them) — so a browser cannot do
+  // this for us: it would look for `beds`, find nothing, and leave the reader at
+  // the top of a document they were sent into the middle of.
+  //
+  // An EFFECT rather than a call, because everything it needs arrives on its own
+  // schedule: the markdown chunk is fetched (`markdownReady`), the body is drawn
+  // from it, and the text itself can be replaced under an open page by a file
+  // that moved on disk. Re-running is harmless — the same fragment finds the
+  // same element and scrolls to where it already is.
+  //
+  // ON THE NEXT FRAME, which is the one thing here that is not obvious and was
+  // measured rather than reasoned: scrolling inside the effect lands on the
+  // element's position BEFORE the layout around it has settled — the contents
+  // above the body appears in the same update — and the reader ends up several
+  // hundred pixels short of the heading they asked for. A frame later the page
+  // has been laid out and the element is where it will stay.
+  //
+  // NOTHING FOUND IS NOTHING DONE, which is what a browser does with a fragment
+  // naming no id: the reader stays at the top of the page rather than being sent
+  // somewhere arbitrary. A `.md` whose heading was renamed is exactly that case.
+  createEffect(() => {
+    const at = props.at
+    if (at === undefined || !markdownReady()) return
+    const id = landingId(props.text, props.file, at)
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ block: "start" })
+    })
+    onCleanup(() => cancelAnimationFrame(frame))
+  })
+
   return (
     <>
       <Toc file={props.file} headings={headings()} />

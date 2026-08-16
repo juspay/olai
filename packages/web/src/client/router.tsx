@@ -29,7 +29,7 @@
 import { createContext, createSignal, type JSX, onCleanup, useContext } from "solid-js"
 
 import { ours } from "./press.ts"
-import { fileNamed, hrefOf, type Route, routeIn, routeOf } from "./routes.ts"
+import { fileNamed, hrefOf, landsWithin, type Route, routeIn, routeOf } from "./routes.ts"
 import { createScrollMemory } from "./scroll.ts"
 
 export interface Router {
@@ -87,10 +87,12 @@ const nameHere = (): string => {
   return key
 }
 
-/** The whole address this app reads — path AND query, because the filter rides
- *  in the query (`./routes.ts`). Said once, so the boot read and the back
- *  button cannot read different halves of the same bar. */
-const here = (): string => location.pathname + location.search
+/** The whole address this app reads — path, query AND fragment, because the
+ *  filter rides in the query and a document may name a place inside itself
+ *  (`./routes.ts`). Said once, so the boot read and the back button cannot read
+ *  different halves of the same bar. */
+const here = (): string =>
+  location.pathname + location.search + location.hash
 
 export const createRouter = (): Router => {
   const [route, setRoute] = createSignal<Route>(routeOf(here()))
@@ -119,7 +121,12 @@ export const createRouter = (): Router => {
       setRoute(next)
       // A page you asked for, so: the top. Zooming out of the bottom of a long
       // outline used to land mid-page, at a line nobody chose.
-      scroll.toTop()
+      //
+      // …UNLESS the address named a place inside the page, which is the one
+      // case where the top is not what was asked for: the page lands on the
+      // section itself (`./routes.ts`'s `landsWithin`), and a jump to the top
+      // after it would undo the landing a frame later.
+      if (!landsWithin(next)) scroll.toTop()
     },
     replace: (next) => {
       // The entry KEEPS its key: it is the same entry, so the scroll position

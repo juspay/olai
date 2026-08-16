@@ -232,7 +232,15 @@ const PAGE_HEIGHT = "--page-height"
  */
 const VISIT = "olai-visit"
 
-export function Hypertext(props: { readonly file: string; readonly rev: number }) {
+/** The `#…` the frame's own address wears, or nothing — encoded for the reason
+ *  `../routes.ts` encodes the other end: an id in a saved page is whatever its
+ *  author wrote, and it lands in a URL. */
+const landing = (at: string | undefined): string =>
+  at === undefined || at === "" ? "" : `#${encodeURIComponent(at)}`
+
+export function Hypertext(
+  props: { readonly file: string; readonly rev: number; readonly at?: string },
+) {
   const [measured, setMeasured] = createSignal<string>()
   const router = useRouter()
   const opens = useOpens()
@@ -303,7 +311,17 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
    *  time, for {@link VISIT}'s reason. */
   const show = () => {
     visits += 1
-    point(`${mediaHref(props.file)}?${VISIT}=${visits}`)
+    // THE FRAGMENT RIDES ON THE FRAME'S OWN URL, which is the whole of what
+    // landing on a section costs for this kind of file. A `.html` is a document
+    // in there with whatever ids its author wrote, so the browser does the
+    // scrolling — the same thing it would do if the reader had typed the
+    // address. Nothing here looks for the id, and nothing has to: a fragment
+    // naming nothing leaves the frame at the top of the page, which is a
+    // browser's own answer and the right one.
+    //
+    // AFTER the query, because that is the order an address has — the visit
+    // counter belongs to this URL and the fragment to the document it names.
+    point(`${mediaHref(props.file)}?${VISIT}=${visits}${landing(props.at)}`)
   }
 
   /**
@@ -359,8 +377,8 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
    * reader in it. Named here rather than left to be found; the PR's report
    * carries it as owed work.
    */
-  const open = (named: string) => {
-    const route = opens(named)
+  const open = (named: string, at?: string) => {
+    const route = opens(named, at)
     if (route === undefined) return
     router.go(route)
   }
@@ -429,7 +447,7 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
       // there is no navigation of the FRAME's to record. What happens after is
       // the app's — usually this element unmounting with the page that held it,
       // and, for a page that named itself, no unmount at all (see `open`).
-      if (said.kind === "open") return open(said.file)
+      if (said.kind === "open") return open(said.file, said.at)
       const width = frame.clientWidth
       if (acceptedAt[said.reading] === width) return
       acceptedAt[said.reading] = width
@@ -471,8 +489,14 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
   // the body, which is the head member `../document/documents.tsx` argues
   // should be measured rather than guessed at. It is this PR's standing
   // deferral.
+  // …and the SECTION is watched beside it, for the case the revision cannot
+  // cover: the page is keyed by FILE (`./DocumentPage.tsx`), so arriving at
+  // another place inside the file already open is the same element being asked
+  // for a different landing. The frame is re-pointed, because where a document
+  // is scrolled to is a fact about its URL and this is the only way to change
+  // one from out here.
   createEffect(
-    on(() => props.rev, () => {
+    on(() => [props.rev, props.at], () => {
       walkOffs = 0
       show()
     }, { defer: true }),

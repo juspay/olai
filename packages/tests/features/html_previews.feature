@@ -268,18 +268,17 @@ Feature: A `.html` in the vault
     And the address is "/doc/notes/palette.md"
 
   @scratch:good
-  Scenario: A link carrying a fragment stays the frame's, even at the file next door
-    # THE CARVE-OUT, which is load-bearing and was the one kept behaviour with
-    # no scenario. `other.html#beds` names a file olai has a page for, so every
-    # other rule here would claim it — and it must not be claimed, because what
-    # a fragment names is an anchor inside the rendered page and olai's own
-    # `/doc/` page cannot land on one. It is the same call `routeIn` makes about
-    # a link in rendered markdown, and `docs/format.md` states it as part of the
-    # closed bug.
+  Scenario: A link carrying a fragment opens the page AND lands on the section
+    # THE CARVE-OUT IS GONE, and this is what replaced it. `other.html#beds`
+    # names two things — a file olai has a page for, and a place inside it — and
+    # until the `/doc/` page could land on a section the honest answer was to
+    # leave the whole click to the frame. It can now, so the link carries: the
+    # app opens the neighbour's page AND arrives at the section.
     #
-    # So the assertion is BOTH halves: the app did not move, and the frame did.
-    # Either alone passes for the wrong reason — an app that stayed put because
-    # the click did nothing at all would look identical from out here.
+    # Both halves are read, because either alone passes for the wrong reason. An
+    # app that navigated and ignored the anchor would satisfy the address; a
+    # frame scrolled to `#beds` with the app still on `first.html` is the old
+    # behaviour, which is exactly what this replaces.
     Given I open the app
     And I mark the page
     When I rewrite "notes/first.html" as:
@@ -297,16 +296,205 @@ Feature: A `.html` in the vault
     And I click the page "notes/first.html"
     Then the preview shows the heading "First"
     When I click "#deep" inside the preview
-    # The app is where it was: this click was never its to answer.
-    Then the address is "/doc/notes/first.html"
-    And the document open is "notes/first.html"
+    # The app moved, and its address carries the place inside the page — which
+    # is what makes the section a thing a reader can copy out of the bar and
+    # send, rather than a scroll position this tab happens to be at.
+    Then the document open is "notes/second.html"
+    And the address is "/doc/notes/second.html"
+    And the address carries the anchor "#beds"
     And the page has not reloaded
-    # …and the frame went, which is the half that says the click was not merely
-    # swallowed — the neighbour is in there, at the anchor the link named, which
-    # is the thing olai's own page could not have done.
+    # …and the page landed there. For a `.html` that is the frame's own URL
+    # carrying the fragment, so the browser does the scrolling — the same thing
+    # it would do for a reader who typed the address.
     And the preview shows the heading "Second"
     And the preview is at the anchor "#beds"
 
+  @scratch:good
+  Scenario: An in-page anchor is still the frame's own jump
+    # The half that did NOT change, and the one the rule above is a comparison
+    # against: `#top` names a place in the document the reader is already
+    # looking at, so there is nothing for the app to do with it. A page
+    # scrolling itself is not a navigation, and the test is the document rather
+    # than the presence of a hash — which is why the handler compares pathnames
+    # instead of asking whether there is a fragment at all.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/long.html" as:
+      """
+      <h1>Long</h1>
+      <p><a id="down" href="#end">jump to the end</a></p>
+      <p style="height:1200px">a long page</p>
+      <h2 id="end">End</h2>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/long.html"
+    Then the preview shows the heading "Long"
+    When I click "#down" inside the preview
+    # The frame jumped inside itself…
+    Then the preview is at the anchor "#end"
+    # …and the app did not move at all: no navigation, no history, no address.
+    And the address is "/doc/notes/long.html"
+    And the document open is "notes/long.html"
+    And the page has not reloaded
+
+  @scratch:good
+  Scenario: A link into a note's section opens the note at that heading
+    # THE OTHER MECHANISM, and the one that needed real work. A `.md` is markup
+    # this app renders, and `rehype-slug` gives `## Beds` the id `beds` — which
+    # is then moved into the block's own namespace, because a page can hold a
+    # document, a note per row and a day's notes, and two of them opening
+    # `## Shape` would otherwise answer for each other. So the id in the address
+    # is not the id in the page, and a browser looking for `beds` would find
+    # nothing and leave the reader at the top.
+    #
+    # `render.ts`'s `landingId` is the one translation between the two, and the
+    # face does the looking — which is what this reads: the note opens, the
+    # address carries the section, and the heading the link named is the one on
+    # screen.
+    Given I open the app
+    And I mark the page
+    When I rewrite "notes/beds.md" as:
+      """
+      # Beds
+
+      Prose at the top of the page, line 1 of it.
+
+      Prose at the top of the page, line 2 of it.
+
+      Prose at the top of the page, line 3 of it.
+
+      Prose at the top of the page, line 4 of it.
+
+      Prose at the top of the page, line 5 of it.
+
+      Prose at the top of the page, line 6 of it.
+
+      Prose at the top of the page, line 7 of it.
+
+      Prose at the top of the page, line 8 of it.
+
+      Prose at the top of the page, line 9 of it.
+
+      Prose at the top of the page, line 10 of it.
+
+      Prose at the top of the page, line 11 of it.
+
+      Prose at the top of the page, line 12 of it.
+
+      Prose at the top of the page, line 13 of it.
+
+      Prose at the top of the page, line 14 of it.
+
+      Prose at the top of the page, line 15 of it.
+
+      Prose at the top of the page, line 16 of it.
+
+      Prose at the top of the page, line 17 of it.
+
+      Prose at the top of the page, line 18 of it.
+
+      Prose at the top of the page, line 19 of it.
+
+      Prose at the top of the page, line 20 of it.
+
+      Prose at the top of the page, line 21 of it.
+
+      Prose at the top of the page, line 22 of it.
+
+      Prose at the top of the page, line 23 of it.
+
+      Prose at the top of the page, line 24 of it.
+
+      Prose at the top of the page, line 25 of it.
+
+      Prose at the top of the page, line 26 of it.
+
+      Prose at the top of the page, line 27 of it.
+
+      Prose at the top of the page, line 28 of it.
+
+      Prose at the top of the page, line 29 of it.
+
+      Prose at the top of the page, line 30 of it.
+
+      ## Slats
+
+      More prose, under the heading the link named — line 1.
+
+      More prose, under the heading the link named — line 2.
+
+      More prose, under the heading the link named — line 3.
+
+      More prose, under the heading the link named — line 4.
+
+      More prose, under the heading the link named — line 5.
+
+      More prose, under the heading the link named — line 6.
+
+      More prose, under the heading the link named — line 7.
+
+      More prose, under the heading the link named — line 8.
+
+      More prose, under the heading the link named — line 9.
+
+      More prose, under the heading the link named — line 10.
+
+      More prose, under the heading the link named — line 11.
+
+      More prose, under the heading the link named — line 12.
+
+      More prose, under the heading the link named — line 13.
+
+      More prose, under the heading the link named — line 14.
+
+      More prose, under the heading the link named — line 15.
+
+      More prose, under the heading the link named — line 16.
+
+      More prose, under the heading the link named — line 17.
+
+      More prose, under the heading the link named — line 18.
+
+      More prose, under the heading the link named — line 19.
+
+      More prose, under the heading the link named — line 20.
+
+      More prose, under the heading the link named — line 21.
+
+      More prose, under the heading the link named — line 22.
+
+      More prose, under the heading the link named — line 23.
+
+      More prose, under the heading the link named — line 24.
+
+      More prose, under the heading the link named — line 25.
+
+      More prose, under the heading the link named — line 26.
+
+      More prose, under the heading the link named — line 27.
+
+      More prose, under the heading the link named — line 28.
+
+      More prose, under the heading the link named — line 29.
+
+      More prose, under the heading the link named — line 30.
+      """
+    And I rewrite "notes/index.html" as:
+      """
+      <h1>Index</h1>
+      <p><a id="slats" href="beds.md#slats">the slats section</a></p>
+      """
+    And I expand the folder "notes"
+    And I click the page "notes/index.html"
+    Then the preview shows the heading "Index"
+    When I click "#slats" inside the preview
+    Then the document open is "notes/beds.md"
+    And the address is "/doc/notes/beds.md"
+    And the address carries the anchor "#slats"
+    # The section the link named is the one the reader is looking at — read as
+    # the page's own scroll rather than as the address, since the address is
+    # what the two lines above already say.
+    And the document is scrolled to the heading "Slats"
   @scratch:good
   Scenario: A page that sends the frame to its neighbour is left where it went
     # THE OTHER UNASKED-FOR NAVIGATION, and the last kept behaviour with no

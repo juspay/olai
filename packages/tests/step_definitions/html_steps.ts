@@ -588,6 +588,45 @@ Then(
   },
 );
 
+/** The place inside the page THE APP'S OWN ADDRESS names — the half of a
+ *  fragment that makes a section a thing a reader can copy out of the bar and
+ *  send. Read separately from the path, because `the address is` compares
+ *  pathnames and would pass over a fragment that never arrived. */
+Then(
+  "the address carries the anchor {string}",
+  async function (this: OlaiWorld, anchor: string) {
+    await this.waitUntil(
+      async () => (await this.page.evaluate(() => location.hash)) === anchor,
+      `the app's address to carry ${anchor}`,
+    );
+  },
+);
+
+/**
+ * WHERE THE DOCUMENT PAGE IS SCROLLED TO, as the heading nearest the top of the
+ * viewport.
+ *
+ * The `.md` landing cannot be read the way the frame's is: there is no inner
+ * `location.hash` to ask, because the app scrolled its own page to an element
+ * whose id it had to translate first (`markdown/render.ts`'s `landingId`). So
+ * what is read is the OUTCOME a reader would see — the heading they are looking
+ * at — which is also the assertion that survives the id scheme changing.
+ *
+ * A tolerance, because `scrollIntoView` lands the element at the top of the
+ * viewport and the sticky header sits over the first few pixels of it.
+ */
+Then(
+  "the document is scrolled to the heading {string}",
+  async function (this: OlaiWorld, text: string) {
+    const heading = this.documentBody().locator("h1, h2, h3", { hasText: text }).first();
+    await heading.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(async () => {
+      const top = await heading.evaluate((node) => node.getBoundingClientRect().top);
+      return Math.abs(top) < 160;
+    }, `the heading ${JSON.stringify(text)} to be at the top of the page`);
+  },
+);
+
 /** No preview at all on this page — which is what an OUTLINE looks like: a
  *  different page shape entirely, not a `.html` page with an empty frame on it.
  *  Read after something on the new page has been waited for, so "not there" is

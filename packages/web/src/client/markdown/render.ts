@@ -159,6 +159,33 @@ export const renderToTree = (
   return tree
 }
 
+/**
+ * The id a rendered block ACTUALLY carries for a heading somebody named — the
+ * translation between an address's fragment and the DOM.
+ *
+ * They are not the same string, and the difference is this module's own doing:
+ * `rehype-slug` gives `## Beds` the id `beds`, and then {@link rewrite}'s `mint`
+ * moves every id into the block's namespace, so what is on the page is
+ * `md-1f2e3d-beds`. That is not decoration — a page can hold a document, a note
+ * per row and a day's own notes, and two of them opening `## Shape` would
+ * otherwise answer for each other.
+ *
+ * Which leaves an address written by a person — `notes/beds.md#beds`, a link in
+ * somebody's saved page, a URL a reader sent — naming the id the MARKDOWN has
+ * rather than the id the PAGE has. This is the one function that knows both,
+ * and it belongs here for that reason: the namespace is derived from the same
+ * key the render is cached under, so a caller cannot compute it and this cannot
+ * disagree with what was drawn.
+ *
+ * A STRING rather than a lookup, so it is honest about what it does not know:
+ * whether the page has that heading at all is a question for the DOM, and the
+ * caller that asks is the one that can also decide what to do when the answer
+ * is no (`../document/faces.tsx` stays where it is, which is what a browser
+ * does with a fragment naming nothing).
+ */
+export const landingId = (source: string, from: string, at: string): string =>
+  `${idsFor(keyFor("block", from, source))}-${at}`
+
 /** Stringify a tree the pipeline already ran — titles finish their own walk. */
 export const hastToHtml = (tree: Root): string => pipelineNow().htmlOf(tree)
 
