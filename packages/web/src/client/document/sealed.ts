@@ -141,6 +141,13 @@
  * and outside the policy. The file is still handed over BYTE FOR BYTE; nothing
  * is parsed, stripped or re-encoded; and the seal is still a prefix.
  *
+ * It also covers what a rewrite would have had to chase one at a time. A
+ * `srcset` with its comma-separated candidates and descriptors, a
+ * `<picture><source>`, a `background: url(…)` in the page's own `<style>` — all
+ * of them are relative URLs, so all of them resolve exactly where an `<img
+ * src>` does, under the same directive. A rewriting pass would have had to
+ * learn each of those grammars, and the CSS one is a parser of its own.
+ *
  * That element is also why the file's own `<base>` cannot take this over: a
  * document's base is the FIRST `<base href>` in tree order, and the seal is in
  * front of every byte of the file. (`./sealed.test.ts` and the probe fixture
