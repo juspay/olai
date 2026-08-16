@@ -76,6 +76,7 @@ export {
   FILE_KINDS,
   fileKind,
   holdsText,
+  isKept,
   OUTLINE_EXT,
 } from "./kinds.ts"
 export type { BodyKind, FileKind } from "./kinds.ts"

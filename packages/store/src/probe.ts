@@ -16,6 +16,10 @@
  *     tell it nothing happened. That is what makes a backstop every sixty
  *     seconds free.
  *
+ * A third thing is skipped one step earlier, and it is not about what changed:
+ * a file the codec decodes from its NAME ({@link Codec.byName}) is stamped and
+ * diffed like every other, and never opened.
+ *
  * A decode FAILURE is cached exactly like a success: the same bytes fail the
  * same way, and re-deriving that on every probe would make a broken file the
  * most expensive one in the directory.
@@ -119,9 +123,20 @@ export const make = <F, S, E>(
           previous.size === stamps.size
         if (settled) return null
 
+        // What the codec can answer from the NAME is answered here, and those
+        // files are not read at all — not at boot, not when they change. They
+        // are stale like any other file (their stamp moved, so they are
+        // `changed` below and a consumer publishing per file hears about it);
+        // what they are not is opened. See {@link Codec.byName}.
+        const named = new Map(
+          stale.flatMap(([path]) => {
+            const decoded = codec.byName?.(path) ?? null
+            return decoded === null ? [] : [[path, decoded] as const]
+          }),
+        )
         const reread = new Map(
           yield* Effect.forEach(
-            stale,
+            stale.filter(([path]) => !named.has(path)),
             ([path]) =>
               Effect.map(disk.read(path), (contents) => [path, contents] as const),
             { concurrency: 16 },
@@ -131,6 +146,12 @@ export const make = <F, S, E>(
         const next = new Map<string, Cached<F, E>>()
         const changed: Array<string> = []
         for (const [path, stamp] of stamps) {
+          const decoded = named.get(path)
+          if (decoded !== undefined) {
+            next.set(path, { stamp, decoded })
+            changed.push(path)
+            continue
+          }
           const contents = reread.get(path)
           if (contents === undefined) {
             // Unchanged: keep what it decoded to, and the stamp that says so.

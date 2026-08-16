@@ -41,8 +41,16 @@ interface Loaded {
 
 let decodes: Array<string> = []
 
+/** What a `.blob` decodes to: the fact that it is there, and no bytes. A
+ *  codec's answer for a file whose content the set does not want to hold — see
+ *  {@link Codec.byName} — and a value a test can read out of the set to say the
+ *  file was claimed without being opened. */
+const NOT_READ = "(not read)"
+
 const codec: Codec<string, Loaded, ReadonlyArray<string>> = {
-  match: (path) => path.endsWith(".txt"),
+  match: (path) => path.endsWith(".txt") || path.endsWith(".blob"),
+
+  byName: (path) => (path.endsWith(".blob") ? Result.succeed(NOT_READ) : null),
 
   decode: (path, contents) => {
     decodes.push(path)
@@ -258,6 +266,61 @@ test("only the file whose stamp moved is read again", () =>
       const snapshot = yield* snapshotOf(store)
       expect(snapshot?.rev).toBe(2)
       expect(snapshot?.value.text).toEqual({ "a.txt": "alpha", "b.txt": "beta, revised" })
+    })))
+
+// ── the files that are not read ────────────────────────────────────────
+//
+// A set can hold a file it does not want to hold the BYTES of, and `byName` is
+// how a codec says so. These four are the whole contract: such a file is in the
+// set, it is never opened, it moves like any other file, and its content is
+// there for whoever actually asks.
+
+test("a file the codec decodes from its name is in the set and never read", () =>
+  withStore(
+    { "a.txt": "alpha", "big.blob": "megabytes of somebody's saved page" },
+    ({ store }) =>
+      Effect.gen(function*() {
+        const snapshot = yield* snapshotOf(store)
+        expect(snapshot?.value.text).toEqual({
+          "a.txt": "alpha",
+          "big.blob": NOT_READ,
+        })
+        // The other half, and the one that is about memory: `decode` is what a
+        // read leads to, and it was never reached for this file.
+        expect(decodes).toEqual(["a.txt"])
+      }),
+  ))
+
+test("a file that is not read still MOVES like every other file", () =>
+  withStore({ "big.blob": "before" }, ({ store, write, settled }) =>
+    Effect.gen(function*() {
+      decodes = []
+      write("big.blob", "after — a different length, so the stamp moved")
+      yield* store.refresh
+
+      // Named as changed, so a consumer that publishes per file hears about it
+      // — which is what lets a reader with the page open be handed the new
+      // bytes — and still not opened by the probe.
+      const snapshot = yield* settled((at) => at?.rev === 2)
+      expect(snapshot?.changed).toEqual(["big.blob"])
+      expect(decodes).toEqual([])
+    })))
+
+test("`body` reads one file's text on demand, and keeps nothing", () =>
+  withStore({ "big.blob": "the whole saved page" }, ({ store }) =>
+    Effect.gen(function*() {
+      expect(yield* store.body("big.blob")).toBe("the whole saved page")
+      // Twice, because "kept by nobody" means the second ask is another read
+      // of the disk rather than a cache — and it says what the disk says now.
+      expect(yield* store.body("big.blob")).toBe("the whole saved page")
+      // Nothing about asking put the text into the set.
+      expect((yield* snapshotOf(store))?.value.text).toEqual({ "big.blob": NOT_READ })
+    })))
+
+test("`body` answers null for a file that is not there", () =>
+  withStore({ "a.txt": "alpha" }, ({ store }) =>
+    Effect.gen(function*() {
+      expect(yield* store.body("gone.blob")).toBeNull()
     })))
 
 // A served directory is somebody's working tree. The walk does not enter the

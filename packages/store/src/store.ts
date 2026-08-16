@@ -21,6 +21,13 @@
  *      LEFT WHERE IT IS and the errors published beside it. A broken file must
  *      not blank a page that was reading fine a second ago.
  *
+ * ONE thing does not travel that loop, and it is named where it lives
+ * ({@link Store.body}): the bytes of a file the codec decodes from its NAME
+ * ({@link Codec.byName}). The set holds such a file's path, the probe never
+ * opens it, and a consumer that wants its content reads it on demand and keeps
+ * nothing — which is how a store over a directory of megabyte files costs the
+ * size of what it validates rather than the size of what it serves.
+ *
  * The two `SubscriptionRef`s are independent because last-good data and
  * what-is-wrong-now are two independent facts, and they map onto surface's
  * stream and cell. `SubscriptionRef.changes` is current-value-then-updates,
@@ -140,6 +147,23 @@ export interface Store<S, E> {
   readonly commit: (
     write: Write,
   ) => Effect.Effect<Result.Result<Rev, E>, StaleWrite | PlatformFailure>
+  /**
+   * One file's text, read NOW and kept by nobody — `null` if it is not there.
+   *
+   * The read that is not the probe's, and the one place that is not a
+   * contradiction: it does not decide what the set holds, it does not touch a
+   * stamp, and nothing above stores what it returns. It exists for the file a
+   * codec decodes from its name ({@link Codec.byName}) — the set holds that
+   * file's PATH, and whoever actually wants its content asks here, once, and
+   * lets it go.
+   *
+   * So the two readers cannot disagree about what is SERVED, which is the
+   * property that mattered: membership is the probe's answer and this can only
+   * be asked about a path. What it can be newer than is the revision the asker
+   * had — the file may have moved since — and that resolves itself, because a
+   * file that moved is a file the probe is about to report as changed.
+   */
+  readonly body: (path: string) => Effect.Effect<string | null, PlatformFailure>
   /** Absolute, platform-spelled — what a post-publish hook hands to something
    *  outside this process. */
   readonly resolve: (path: string) => string
@@ -452,5 +476,5 @@ export const make = <F, S, E>(
     // between the read and the watch is invisible until the backstop.
     yield* refresh
 
-    return { snapshot, errors, refresh, commit, resolve: disk.resolve }
+    return { snapshot, errors, refresh, commit, body: disk.read, resolve: disk.resolve }
   })

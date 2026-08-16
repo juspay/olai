@@ -19,6 +19,7 @@
 import { Result } from "effect"
 
 import type { OutlineError } from "./errors.ts"
+import { fileKind, isKept } from "./kinds.ts"
 import type { Located } from "./node.ts"
 import { parseOutline } from "./parse.ts"
 import { assemble, type DecodedFile, type Outline, type OutlineSet } from "./set.ts"
@@ -52,8 +53,11 @@ export const nodesOf = (
  */
 export const setOf = (
   files: Record<string, string>,
-  /** The `.md` files served alongside. A bare path is a document whose text no
-   *  test cares about; `[path, text]` is one whose text it does. */
+  /** The BODIED files served alongside. A bare path is one whose text no test
+   *  cares about; `[path, text]` is one whose text it does — and a kind the set
+   *  does not KEEP (a `.html`: ./kinds.ts) is `null` either way, because that
+   *  is what a load produces for one and a fixture that said otherwise would be
+   *  a test written against a set nobody can serve. */
   documents: ReadonlyArray<string | readonly [file: string, text: string]> = [],
   broken: Record<string, string> = {},
 ): OutlineSet =>
@@ -64,7 +68,9 @@ export const setOf = (
           [file, Result.succeed<DecodedFile>(outlineOf(contents, file))] as const,
       ),
       ...documents.map((document) => {
-        const [file, text] = typeof document === "string" ? [document, ""] : document
+        const [file, said] = typeof document === "string" ? [document, ""] : document
+        const kind = fileKind(file)
+        const text = kind !== null && !isKept(kind) ? null : said
         return [file, Result.succeed<DecodedFile>({ file, text })] as const
       }),
       ...Object.entries(broken).map(

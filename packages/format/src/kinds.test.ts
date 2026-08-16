@@ -6,6 +6,7 @@ import {
   FILE_KINDS,
   fileKind,
   type FileKind,
+  isKept,
   OUTLINE_EXT,
 } from "./kinds.ts"
 import { inboxIn } from "./node.ts"
@@ -93,6 +94,19 @@ test("a bodied file is a claimed file whose content is text, and nothing else", 
   // page that draws one is a tree rather than a rendering.
   expect(bodyKind("plan.olai")).toBeNull()
   expect(bodyKind("README")).toBeNull()
+})
+
+// What one loaded directory COSTS to hold, kind by kind, spelled as the answers
+// for the same reason `bodyKind`'s are: three layers that cannot see each other
+// branch on this (the store's probe, which does not read what nothing will keep;
+// the codec that decodes such a file from its name; the server that reads the
+// body when a reader opens it), and a loop over `kept` would re-run the one line
+// this is here to pin. Hypertext is the one that is not kept, and it is the one
+// that can be megabytes.
+test("every kind's content is kept but hypertext's, which is read when it is wanted", () => {
+  expect(isKept("outline")).toBe(true)
+  expect(isKept("document")).toBe(true)
+  expect(isKept("hypertext")).toBe(false)
 })
 
 // The two suffixes the ops layer mints paths with come off the table rather than

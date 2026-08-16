@@ -146,9 +146,15 @@ export type OutlineEntry = typeof OutlineEntry.Type
  * a `documents` array on {@link Manifest} — every served document's full text
  * in the FIRST frame of every subscription, ~124 KB of a ~212 KB snapshot for
  * this project's own `docs/`, and O(corpus) for a directory of thousands.
- * Nothing about the SET changed: the server still reads and validates every
- * document, because `doc` references have to be checkable (`docs/format.md`).
- * What changed is when a body travels — when someone opens it.
+ * What changed then was when a body travels — when someone opens it — and
+ * nothing about the SET: it went on holding every body it had read.
+ *
+ * It does not any more, and that is the second half of the same idea: a `.html`
+ * is served from a read of its own and its bytes are kept by nobody
+ * (`@olai/format`'s `kinds.ts` decides which kinds, `@olai/server`'s
+ * `bodies.ts` does the reading), so this entry's `text` can be `null` — see
+ * below. What is unchanged, and load-bearing, is that the server still holds
+ * every served PATH and validates every `doc` against it (`docs/format.md`).
  *
  * `rev` is the set's revision at the moment this entry was published, for the
  * reason {@link OutlineEntry}'s is: a body now arrives on its own frame, so
@@ -162,9 +168,26 @@ export type OutlineEntry = typeof OutlineEntry.Type
  */
 export const DocumentEntry = Schema.Struct({
   rev: Schema.Int,
-  /** Verbatim, exactly as on disk — markdown or markup, interpreted at view
-   *  time by whichever face this kind of file is drawn with. */
-  text: Schema.String,
+  /**
+   * Verbatim, exactly as on disk — markdown or markup, interpreted at view
+   * time by whichever face this kind of file is drawn with.
+   *
+   * `null` is a STATE and not an absence, the way {@link Manifest}'s is: this
+   * file is served and its body is not here. It is what a server holding only
+   * the PATH of a `.html` says about one to itself — the set does not keep a
+   * saved page's bytes for the life of the process (`@olai/format`'s
+   * `kinds.ts`) — and it is admitted by this schema because that projection is
+   * typed by it.
+   *
+   * A READER is not shown one. A per-key `get` for a body the server does not
+   * hold answers nothing until the file has been read, which is the framework's
+   * own held-open-on-absent path: a browser waits one read rather than being
+   * told the body is missing, and a one-shot reader (an agent's
+   * `resources/read`, which takes the first frame and leaves) is handed the
+   * file rather than a `null`. The other way every entry could travel — the
+   * batched `deltas` verb — is exactly what this collection does not have.
+   */
+  text: Schema.NullOr(Schema.String),
 })
 export type DocumentEntry = typeof DocumentEntry.Type
 

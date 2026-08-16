@@ -20,10 +20,11 @@
 
 import { codec, make as makeOps } from "@olai/ops"
 import type { OutlineError, OutlineSet } from "@olai/format"
+import type { DocumentEntry } from "@olai/surface"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, test } from "bun:test"
-import { Effect, SubscriptionRef } from "effect"
+import { Effect, Stream, SubscriptionRef } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -75,5 +76,65 @@ test("a face served under another writer differs by exactly the members that rec
       (tag) => agent[tag] !== wired.bound.handlers[tag],
     )
     expect(rebound.sort()).toEqual(RECORDS_THE_WRITER)
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
+})
+
+/**
+ * A body the set does not keep, from the outside: the same `get` a browser
+ * opens, driven through the bound handler.
+ *
+ * ONE frame is the whole contract, and which one it is matters. The projection
+ * holds a `null` for this file — the server has its path and not its bytes —
+ * and that is NOT what a reader is handed: the subscription is held open, the
+ * file is read BECAUSE this subscription asked, and the first thing to arrive
+ * is the body. A reader gets what it always got (a one-shot reader included,
+ * which takes the first frame and leaves), and the process does not go on
+ * holding it.
+ */
+test("opening a `.html` reads its body onto that key, and nothing holds it", async () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-bodies-")))
+  fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"a"}\n`)
+  fs.writeFileSync(path.join(root, "report.html"), "<h1>Cabinet quote</h1>\n")
+
+  await Effect.gen(function*() {
+    const store: Store.Store<OutlineSet, ReadonlyArray<OutlineError>> = yield* Store.make({
+      root,
+      codec,
+      watch: false,
+      settle: "10 millis",
+    })
+    const ops = makeOps({ store, root, commits: "off" })
+    const wired = yield* bind({
+      store,
+      chat: null,
+      ops,
+      writer: "web",
+      git: gitWiring(ops, yield* SubscriptionRef.make(0)),
+    })
+    const runtime = yield* watchFault(wired.bound)
+    yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
+    yield* Effect.addFinalizer(() => runtime.stopped)
+
+    const get = wired.bound.handlers["surface/documents/get"]
+    if (get === undefined) throw new Error("the documents collection has no `get`")
+
+    const frames = yield* Stream.runCollect(
+      Stream.take(get({ key: "report.html" }) as Stream.Stream<DocumentEntry>, 1),
+    )
+    expect([...frames]).toEqual([{ rev: 1, text: "<h1>Cabinet quote</h1>\n" }])
+
+    // …and the projection is where it was: a path, and no bytes. This is the
+    // assertion the whole change is for.
+    const keys = yield* Stream.runCollect(
+      Stream.take(
+        wired.bound.handlers["surface/documents/keys"]?.({}) as Stream.Stream<
+          ReadonlyArray<string>
+        >,
+        1,
+      ),
+    )
+    expect([...keys]).toEqual([["report.html"]])
+    const set = yield* SubscriptionRef.get(store.snapshot)
+    expect(set?.value.documents).toEqual([{ file: "report.html", text: null }])
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
 })

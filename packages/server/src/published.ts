@@ -14,6 +14,12 @@
  * twice rather than being two loops that could come to disagree about what a
  * changed file is.
  *
+ * A body the SET does not keep passes through as what the set says about it: a
+ * key, and a `null` where its text would be (`@olai/format`'s `kinds.ts`). This
+ * file invents nothing about that and reads nothing off a disk — the entry is
+ * the set's own answer projected, as every other entry here is, and the read
+ * that fills one in belongs to whoever a reader asked (`./bodies.ts`).
+ *
  * The per-tick CHANGE is not diffed here either: the store hands over the paths
  * its probe re-decoded and the paths its listing lost ({@link Snapshot}), and
  * this maps them onto each collection's verbs — a changed path is an upsert of
@@ -55,6 +61,47 @@ export interface Published {
   readonly outlines: Change<OutlineEntry>
   readonly documents: Change<DocumentEntry>
 }
+
+/** A revision's documents, split by WHO publishes them — see
+ *  {@link splitBodies}. */
+export interface Split {
+  /** What goes to the collection now, as it stands. */
+  readonly send: Change<DocumentEntry>
+  /** The paths whose body has to be READ before it can be published
+   *  (`./bodies.ts`), in this revision's own order. */
+  readonly read: ReadonlyArray<string>
+}
+
+/**
+ * A revision's documents, split by who publishes them.
+ *
+ * An entry carrying its text is sent as it is. An entry saying `null` is a body
+ * the set does not keep, and it is the OTHER half's: writing that value to a
+ * key somebody is showing would blank the page and re-fill it a moment later,
+ * where the body reader replaces it in one frame.
+ *
+ * A key this revision INTRODUCES is sent anyway, `null` and all, and that is
+ * not an exception but the other thing an upsert does: it is how the collection
+ * learns its MEMBERSHIP changed, which is what puts a new file in the sidebar.
+ * Nobody can be showing a file that did not exist a moment ago, so there is
+ * nothing to blank — and a reader who subscribed to the key before it existed
+ * is already being watched, so the body follows on this same revision.
+ *
+ * `before` is what the wire held BEFORE this revision, which is the only thing
+ * that can say whether a key is new. Absent — the first revision — every key is.
+ */
+export const splitBodies = (
+  documents: Change<DocumentEntry>,
+  before: Change<DocumentEntry> | undefined,
+): Split => ({
+  send: {
+    ...documents,
+    upserts: documents.upserts.filter(([path, entry]) =>
+      entry.text !== null || before?.entries.has(path) !== true
+    ),
+  },
+  read: documents.upserts.flatMap(([path, entry]) => entry.text === null ? [path] : []),
+})
 
 /**
  * One collection's slice of a revision: an entry per source, and the deltas.
