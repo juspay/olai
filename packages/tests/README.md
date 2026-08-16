@@ -298,6 +298,15 @@ Both were measured under load, and both failed fifteen seconds later on a file t
 
 None of the four mistakes is fixed by a longer timeout, and a step that needed one was asking the wrong question. This one is the sharpest case: the gesture was *lost*, so the fifteen seconds are the budget and not the latency, and a minute would fail the same way.
 
+**What the four are worth, measured** (2026-08-16, 32-core box, five suites at once, six rounds each — thirty full runs both sides):
+
+| | drops | runs that dropped something |
+|---|---|---|
+| before | 27 | 20 of 30 |
+| after | 6 | 6 of 30 |
+
+The seventeen port drops went to zero, and so did the four faces of the disk-as-receipt mistake. What is left is **one** scenario this suite has not answered — `A rename staged by hand reads as a rename` waits thirty seconds for the commit pill to say `waiting`, and the diagnostic re-read after the timeout finds the value already correct, so the question is that step's budget against how fast a `.git` change can reach the page and not a lost event. Named here rather than guessed at.
+
 ## The scripted agent
 
 `agent/fake-acp-agent.ts` is a deterministic ACP agent: line-delimited JSON-RPC on stdio, just enough of the protocol to be indistinguishable from a real one as far as the server's client is concerned. Every server this suite spawns is pointed at it, for the same reason the Chromium flags are not branched on `CI` — a server configured differently for one feature than for another is a class of bug that only reproduces where it is hardest to see.
