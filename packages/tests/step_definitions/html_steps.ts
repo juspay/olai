@@ -17,7 +17,7 @@
 
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
-import type { FrameLocator } from "playwright";
+import type { Locator } from "playwright";
 
 // The policy the client actually writes, not a copy of it — see the step that
 // reads it, and `sealed.ts`'s own note on why it is a named function. It takes
@@ -142,35 +142,34 @@ Then(
  * is the width of a picture that actually decoded, and zero for everything
  * else.
  */
-const drawn = (frame: FrameLocator, selector: string) =>
-  frame.locator(selector).first().evaluate(async (node) => {
-    const picture = node as HTMLImageElement;
+const drawn = (picture: Locator) =>
+  picture.evaluate(async (node) => {
+    const image = node as HTMLImageElement;
     try {
-      await picture.decode();
-      return picture.naturalWidth;
+      await image.decode();
+      return image.naturalWidth;
     } catch {
       return 0;
     }
   });
 
-/** …and the wait that has to come first: an `<img>` is in the DOM the moment
- *  the document parses, so reading its width straight away would be reading it
- *  before the fetch it is about could possibly have finished. */
-const pictureIn = async (world: OlaiWorld, selector: string) => {
-  const frame = await inside(world);
-  await frame
-    .locator(selector)
-    .first()
-    .waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
-  return frame;
+/** The `<img>` itself, once it is in the DOM — which is the wait that has to
+ *  come first: an `<img>` is there the moment the document parses, so reading
+ *  its width straight away would be reading it before the fetch it is about
+ *  could possibly have finished. Resolved ONCE and handed to {@link drawn}, so
+ *  a step that reads a picture twice looks it up once. */
+const pictureIn = async (world: OlaiWorld, selector: string): Promise<Locator> => {
+  const picture = (await inside(world)).locator(selector).first();
+  await picture.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  return picture;
 };
 
 Then(
   "the preview draws its picture {string}",
   async function (this: OlaiWorld, selector: string) {
-    const frame = await pictureIn(this, selector);
+    const picture = await pictureIn(this, selector);
     await this.waitUntil(
-      async () => (await drawn(frame, selector)) > 0,
+      async () => (await drawn(picture)) > 0,
       `the picture ${selector} inside the preview to be decoded`,
     );
   },
@@ -187,9 +186,9 @@ Then(
   async function (this: OlaiWorld, selectors: string) {
     const wrong: string[] = [];
     for (const selector of selectors.split(",").map((one) => one.trim())) {
-      const frame = await pictureIn(this, selector);
+      const picture = await pictureIn(this, selector);
       await this.page.waitForTimeout(POLL_TIMEOUT / 10);
-      const width = await drawn(frame, selector);
+      const width = await drawn(picture);
       if (width > 0) wrong.push(`${selector} drew ${width}px wide`);
     }
     assert.deepStrictEqual(

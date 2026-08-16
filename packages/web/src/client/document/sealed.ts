@@ -35,7 +35,7 @@
  *      over the network at all — and it has exactly two exceptions, both of
  *      them named. `style-src 'unsafe-inline'` is the older one, and it is what
  *      makes the preview worth having: a saved page's whole appearance is its
- *      own `<style>` block and its `style=` attributes. {@link picturesOn} is
+ *      own `<style>` block and its `style=` attributes. {@link mediaOn} is
  *      the newer one, and it is a PATH rather than a scheme or a host —
  *      `img-src <this app's origin>/media/`, the route that already answers a
  *      markdown document's `![](shot.png)` and answers a picture under the
@@ -360,37 +360,33 @@ export interface Framed {
  */
 const ORIGIN = /^https?:\/\/(?:[a-z0-9.-]+|\[[0-9a-f:.]+\])(?::\d{1,5})?$/i
 
-const picturesOn = (origin: string): string | undefined =>
-  ORIGIN.test(origin) ? origin + MEDIA_PREFIX : undefined
-
 /**
- * What every relative address in the file resolves against: the media route, at
- * the directory the file itself lives in.
+ * A media URL on this app's own origin — the route itself for the policy's
+ * source, the file's own directory for its base — or NOTHING, for an origin
+ * this refuses to spell.
  *
- * The URL is `@olai/surface`'s ({@link mediaBase}) rather than this module's,
- * and that is the whole of the decision here. What a `/media/…` URL looks like
- * is one bijection with two ends — the client writes it, the server reads it
- * back — and it is spelled in the package whose job is the contract both ends
- * speak, beside the `mediaHref` a markdown picture is rewritten to and the
- * `mediaTarget` the route decodes. A second spelling over here would be that
- * contract kept by memory in a third place, and its failure is the silent
- * direction: a base this module encoded differently is a preview whose pictures
- * quietly stop drawing, or an address the route reads more loosely than the
- * seal writes it.
+ * ONE GATE, and that is why both callers come through here rather than each
+ * testing the origin for itself: the `img-src` and the `<base>` are two halves
+ * of one decision (a frame may draw this vault's pictures, or it may not), and
+ * two spellings of the check are two chances for a later edit to move one and
+ * leave the other. A seal with a base and no directive is a page asking for
+ * pictures it may not have; a directive with no base is a permission nothing
+ * uses.
  *
- * What this module adds is the ORIGIN, which is the part `@olai/surface` cannot
- * know: a path-only base would resolve against the embedder's document, and the
- * seal would rather say where it means than inherit it.
+ * The PATH is `@olai/surface`'s in both cases ({@link MEDIA_PREFIX},
+ * {@link mediaBase}), and what this module adds is the origin — the part that
+ * package cannot know. A path-only base would resolve against the embedder's
+ * document, and the seal would rather say where it means than inherit it.
  *
- * A path with a `.` or a `..` in it cannot arrive here — these are the paths a
- * directory walk found — and if one did, the failure is closed rather than
- * open: the URL parser normalises the segment away, the base lands somewhere
- * that is not under `/media/`, and every relative address in the file is then
- * refused by `img-src`. A preview with no pictures, not a preview with the
- * wrong ones.
+ * A file path with a `.` or a `..` in it cannot arrive here — these are the
+ * paths a directory walk found — and if one did, the failure is closed rather
+ * than open: the URL parser normalises the segment away, the base lands
+ * somewhere that is not under `/media/`, and every relative address in the file
+ * is then refused by `img-src`. A preview with no pictures, not a preview with
+ * the wrong ones.
  */
-const baseOf = (where: Framed): string | undefined =>
-  ORIGIN.test(where.origin) ? where.origin + mediaBase(where.file) : undefined
+const mediaOn = (origin: string, path: string): string | undefined =>
+  ORIGIN.test(origin) ? origin + path : undefined
 
 /**
  * What is put in front of the file's own markup.
@@ -414,9 +410,10 @@ const baseOf = (where: Framed): string | undefined =>
  * black text on the frame's own white ground, unreadable, with the file itself
  * blameless. A page that styles itself paints over this and is unaffected.
  *
- * Then the BASE, which is the addressing decision ({@link baseOf}) and belongs
- * in front of the file for a second reason beyond the parser's: a document's
- * base is the first `<base href>` in tree order, so a saved page carrying one
+ * Then the BASE, which is the addressing decision ({@link mediaOn}, at the
+ * file's own directory) and belongs in front of the file for a second reason
+ * beyond the parser's: a document's base is the first `<base href>` in tree
+ * order, so a saved page carrying one
  * of its own — a real thing, since "save page as" writes them — finds ours
  * already there. It is omitted entirely for a refused origin, and then the file
  * has nothing to resolve against, which is where this preview started.
@@ -434,7 +431,7 @@ const baseOf = (where: Framed): string | undefined =>
  * otherwise still read as sealed over there.
  */
 export const policyOf = (origin: string): string => {
-  const pictures = picturesOn(origin)
+  const pictures = mediaOn(origin, MEDIA_PREFIX)
   return `default-src 'none'; style-src 'unsafe-inline'; ` +
     `script-src 'sha256-${MEASURE_SHA256}'` +
     (pictures === undefined ? "" : `; img-src ${pictures}`)
@@ -455,7 +452,7 @@ export const policyOf = (origin: string): string => {
  * keeps walking off, and it says what it is at the call site.
  */
 export const sealed = (markup: string, where: Framed): string => {
-  const base = baseOf(where)
+  const base = mediaOn(where.origin, mediaBase(where.file))
   return "<!doctype html>" +
     `<meta http-equiv="Content-Security-Policy" content="${policyOf(where.origin)}">` +
     `<meta name="color-scheme" content="light">` +
