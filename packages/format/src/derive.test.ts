@@ -4,6 +4,11 @@ import {
   blockersOf,
   countedChildren,
   derive,
+  type Derived,
+  /** The reading of `byFile`, under a name the fixture builder below has not
+   *  already taken — that one turns TEXT into records, this one asks a
+   *  derivation what one file holds. */
+  nodesOf as recordsOf,
   type Progress,
   progressOf,
   type Row,
@@ -31,6 +36,22 @@ const statusesOf = (contents: string): ReadonlyMap<string, Status> =>
 
 const ids = (nodes: ReadonlyArray<Located>): ReadonlyArray<string> =>
   nodes.map((located) => located.node.id)
+
+/** A reverse index's members as a LIST — spread rather than compared as a set,
+ *  because those indexes promise an order as well as a membership and
+ *  `toEqual` over a `Set` would only read the second. */
+const members = (
+  index: ReadonlyMap<string, ReadonlySet<string>>,
+  id: string,
+): ReadonlyArray<string> => [...(index.get(id) ?? [])]
+
+/** What `namedBy` says about an id, as `record field,field` per namer — one
+ *  string rather than a nested literal, so what an assertion is about is the
+ *  records and their reasons rather than the shape they arrive in. */
+const namers = (derived: Derived, id: string): ReadonlyArray<string> =>
+  (derived.namedBy.get(id) ?? []).map((one) =>
+    `${one.at.node.id} ${one.fields.join(",")}`
+  )
 
 /** The regular records of a fixture, for the functions that read a node's own
  *  stored fields rather than a whole set. */
@@ -310,6 +331,30 @@ test("a duplicated id resolves to the record that claimed it first", () => {
   expect(across.byId.size).toBe(1)
 })
 
+// The set is flat and carries every file's records; `byFile` is that same list
+// read the other way. What it promises is DISK order, because the reader that
+// needs it most is a WRITER — a write re-emits the whole file, and a
+// reordering here would be a diff nobody asked for.
+test("a file's records come back in line order, whatever order the set is in", () => {
+  const nodes = nodesOfFiles({
+    "a.olai": `{"id":"a1","ord":"b","title":"one"}\n` +
+      `{"id":"a2","ord":"a","title":"two"}\n` +
+      `{"id":"m","parent":"a1","ord":"a","mirror":"b1"}`,
+    "b.olai": `{"id":"b1","ord":"a","title":"elsewhere"}`,
+  })
+  // Handed over backwards: the promise is about what the index MEANS, not
+  // about the order the caller happened to build its list in.
+  const derived = derive([...nodes].reverse())
+  // A placement is a RECORD, so it is here — this index is about what the file
+  // holds, and `ord` order is a different list (`siblingsOf` sorts for that).
+  expect(ids(recordsOf(derived, "a.olai"))).toEqual(["a1", "a2", "m"])
+  expect(ids(recordsOf(derived, "b.olai"))).toEqual(["b1"])
+  // A file with nothing of its own is ABSENT rather than mapped to an empty
+  // list: which files exist is the set's answer, never this map's.
+  expect(derived.byFile.has("c.olai")).toBe(false)
+  expect(recordsOf(derived, "c.olai")).toEqual([])
+})
+
 // ── what cannot start yet ──────────────────────────────────────────────
 
 /** What one node is waiting on, as `id status` per blocker — the two facts a
@@ -391,6 +436,52 @@ test("blocks is the same edge, and both halves land in one answer", () => {
   // The graph itself, as the validator's cycle check reads it.
   expect(derived.after.get("a")).toEqual(["b", "c"])
   expect(derived.blocked.has("b")).toBe(false)
+})
+
+// AN EDGE NAMED TWICE IS ONE EDGE — the last thing normalisation owes the
+// readers of this graph, and the three ways a set can say one arrow twice.
+// Nothing refuses any of them: a `.olai` is plain text, the validator asks
+// whether a target EXISTS, and both fields are legal spellings of the same
+// claim. What reads it takes it as a set — the `blocked by` row a page draws
+// keyed by the blocker's id, the tip, the walk the acyclicity rule shares —
+// and a repeat there says one node is in the way twice.
+test("an edge named twice, however it is spelled, is one edge", () => {
+  // The FIELD, repeating a target, which is what a hand or a merge writes.
+  const repeated = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","todo":true,"after":["b","b","b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}`,
+  ))
+  expect(repeated.after.get("a")).toEqual(["b"])
+  expect(waiting(repeated, "a")).toEqual(["b doing"])
+
+  // BOTH SPELLINGS of one arrow, each written once. Neither record is wrong,
+  // and `a after b` is what the pair means.
+  const both = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","todo":true,"after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true,"blocks":["a"]}`,
+  ))
+  expect(both.after.get("a")).toEqual(["b"])
+  expect(waiting(both, "a")).toEqual(["b doing"])
+
+  // TWO IDS STANDING AT ONE NODE: naming a placement names the node it shows,
+  // so an `after` naming both is naming one target — and the pair is one edge
+  // only because both ends are resolved before they are compared.
+  const mirrored = derive(nodesOfFiles({
+    "a.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["b","b-here"]}\n` +
+      `{"id":"b-here","ord":"b","mirror":"b"}`,
+    "b.olai": `{"id":"b","ord":"a","title":"b","doing":true}`,
+  }))
+  expect(mirrored.after.get("a")).toEqual(["b"])
+  expect(waiting(mirrored, "a")).toEqual(["b doing"])
+
+  // The ORDER a repeat is dropped in is the order the set first named it:
+  // what survives is the whole list, minus the second saying of one thing.
+  const ordered = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","todo":true,"after":["c","b","c"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}\n` +
+      `{"id":"c","ord":"c","title":"c","todo":true}`,
+  ))
+  expect(ordered.after.get("a")).toEqual(["c", "b"])
 })
 
 // Work that was put away is over: it blocks nothing, because a node waiting on
@@ -513,6 +604,20 @@ test("a node's own after targets come before anything that blocks it", () => {
       `{"id":"subject","ord":"c","title":"subject","todo":true,"after":["own"]}`,
   ))
   expect(waiting(derived, "subject")).toEqual(["own doing", "early doing"])
+
+  // AND THE PROMISE SURVIVES A PAIR THAT SAYS ONE EDGE BOTH WAYS. `own` is
+  // named twice here — by the subject's own `after` and by its own `blocks`,
+  // one file, both legal — so the second pass meets an edge the first already
+  // filed. That is where the two rules meet: the collapse keeps the position
+  // the FIRST saying earned, rather than moving the pair to where the `blocks`
+  // was read or naming `own` twice with `early` between the two.
+  const paired = derive(nodesOf(
+    `{"id":"early","ord":"a","title":"early","doing":true,"blocks":["subject"]}\n` +
+      `{"id":"own","ord":"b","title":"own","doing":true,"blocks":["subject"]}\n` +
+      `{"id":"subject","ord":"c","title":"subject","todo":true,"after":["own"]}`,
+  ))
+  expect(paired.after.get("subject")).toEqual(["own", "early"])
+  expect(waiting(paired, "subject")).toEqual(["own doing", "early doing"])
 })
 
 // Blockedness is read off the same index wherever a node is drawn: a row, a
@@ -591,6 +696,114 @@ test("a loop closing through a mirror is one loop in the graph", () => {
   // a placement that carries no edges of its own.
   expect(derived.after.get("x")).toEqual(["y"])
   expect(derived.after.get("y")).toEqual(["x"])
+})
+
+// ── read backwards ─────────────────────────────────────────────────────
+
+// `mirrorsOf` is `follow` reversed, and following the CHAIN is what makes it
+// that rather than a reverse of the `mirror` field: a mirror of a mirror of
+// `x` shows `x`, so `x` is where it is filed, and the record in the middle
+// collects nothing. One walk builds both directions — a second would be a
+// second chance to disagree about where a chain ends, and a placement filed
+// under one node while it shows another is exactly what this exists to find.
+test("a mirror is filed under the node its chain ends at, not the hop before", () => {
+  const derived = derive(nodesOfFiles({
+    "a.olai": `{"id":"x","ord":"a","title":"the real one"}`,
+    "b.olai": `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"x"}`,
+  }))
+  expect(members(derived.mirrorsOf, "x")).toEqual(["m1", "m2"])
+  expect(derived.mirrorsOf.has("m2")).toBe(false)
+})
+
+// The two ways a chain fails are the two ways it shows no node — and a node
+// that shows itself is not standing in for anything. `status` leaves all three
+// out; so does this, for the same reason.
+test("a chain that shows no node, and a node that shows itself, are filed nowhere", () => {
+  const derived = derive(nodesOf(
+    `{"id":"gone","ord":"a","mirror":"nobody"}\n` +
+      `{"id":"loop","ord":"b","mirror":"loop"}\n` +
+      `{"id":"plain","ord":"c","title":"plain"}`,
+  ))
+  expect(derived.mirrorsOf.size).toBe(0)
+})
+
+// A duplicated id is one node — `byId` says so — so it is one entry here too.
+test("a node's mirrors are listed once each", () => {
+  const derived = derive(nodesOfFiles({
+    "a.olai": `{"id":"x","ord":"a","title":"x"}`,
+    "b.olai": `{"id":"m","ord":"a","mirror":"x"}`,
+    "c.olai": `{"id":"m","ord":"a","mirror":"x"}`,
+  }))
+  expect(members(derived.mirrorsOf, "x")).toEqual(["m"])
+})
+
+// `edgesTo` is `after` reversed, and reversed by the same act that built it:
+// both maps get their keys AFTER the edge has been resolved to nodes, so the
+// forward reading and the reverse one cannot disagree about whether two
+// records mean one edge.
+test("the ordering graph reversed says who was waiting on a node", () => {
+  const derived = derive(nodesOf(
+    `{"id":"x","ord":"a","title":"x","doing":true,"blocks":["e"]}\n` +
+      `{"id":"m","ord":"b","mirror":"x"}\n` +
+      `{"id":"a","ord":"c","title":"a","todo":true,"after":["m"]}\n` +
+      `{"id":"e","ord":"d","title":"e","todo":true}`,
+  ))
+  expect(derived.after.get("a")).toEqual(["x"])
+  expect(derived.after.get("e")).toEqual(["x"])
+  // Both spellings land at the NODE, in `after`'s own promised order — the
+  // node's own `after` first, then what points back at it — and the placement
+  // collects nothing.
+  expect(members(derived.edgesTo, "x")).toEqual(["a", "e"])
+  expect(derived.edgesTo.has("m")).toBe(false)
+  expect(derived.edgesTo.has("a")).toBe(false)
+})
+
+// One relation written twice is one relation, and BOTH readings say so — which
+// is the point of filing the reverse as the edge is made rather than in a later
+// pass. #203 made the forward map a set per source; a reverse built separately
+// could have gone on counting the repeat, and then "who is waiting on x" and
+// "what is x waiting on" would disagree about how many edges two records mean.
+test("a target named twice is one edge, read forwards and backwards", () => {
+  const derived = derive(nodesOf(
+    `{"id":"x","ord":"a","title":"x","doing":true}\n` +
+      `{"id":"a","ord":"b","title":"a","todo":true,"after":["x","x"]}`,
+  ))
+  expect(derived.after.get("a")).toEqual(["x"])
+  expect(members(derived.edgesTo, "x")).toEqual(["a"])
+})
+
+// `namedBy` is the format's own `targetsOf` read backwards, and it is RAW —
+// what the records SAY, before a chain is followed or `blocks` is normalised
+// into `after`. That is the point of it being a third index rather than a
+// reading of the two above: the ops layer refuses to retire a placement
+// something still names, and the canonical maps have filed every one of those
+// edges at the node the placement shows, where a refusal about the PLACEMENT
+// could never find them.
+test("a record is filed under the id it wrote, not the node that id means", () => {
+  const derived = derive(nodesOf(
+    `{"id":"x","ord":"a","title":"x"}\n` +
+      `{"id":"m","ord":"b","mirror":"x"}\n` +
+      `{"id":"a","ord":"c","title":"a","after":["m"],"see":["m"]}\n` +
+      `{"id":"b","ord":"d","title":"b","blocks":["m"]}`,
+  ))
+  // One entry per RECORD, with the fields in declaration order: a node naming
+  // the same id twice is one dependent with two reasons, not two dependents.
+  expect(namers(derived, "m")).toEqual(["a after,see", "b blocks"])
+  // `see` is in here and in nothing else — no derivation reads it, and a
+  // reverse index that left it out would let a write land that should not.
+  expect(derived.edgesTo.has("m")).toBe(false)
+  // The placement's own claim on the node it shows is an entry like any other.
+  expect(namers(derived, "x")).toEqual(["m mirror"])
+})
+
+// One field naming an id twice is still one field: a reader listing it twice
+// would be reporting the shape of the file rather than what it means.
+test("a field naming the same id twice is named once", () => {
+  const derived = derive(nodesOf(
+    `{"id":"x","ord":"a","title":"x"}\n` +
+      `{"id":"a","ord":"b","title":"a","after":["x","x"],"see":["x"]}`,
+  ))
+  expect(namers(derived, "x")).toEqual(["a after,see"])
 })
 
 // ── the drawable tree ──────────────────────────────────────────────────

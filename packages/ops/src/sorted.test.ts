@@ -15,6 +15,7 @@ import { Result } from "effect"
 
 import { setOf, steady } from "./fixtures.testlib.ts"
 import { plan } from "./plan.ts"
+import { index } from "./query.ts"
 import { sortOfWrite } from "./sorted.ts"
 
 const KITCHEN = [
@@ -35,7 +36,9 @@ const sorting = (set: OutlineSet, request: Request): Sort | undefined => {
       `expected \`${request.op}\` to plan, and it refused: ${planned.failure.message}`,
     )
   }
-  return sortOfWrite(set, planned.success)
+  // The same derivation the plan was judged against — `index` is memoised on
+  // the set's identity, which is how the real caller hands it on too.
+  return sortOfWrite(set, index(set), planned.success)
 }
 
 describe("what a write is called", () => {

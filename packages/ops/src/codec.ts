@@ -22,6 +22,7 @@ import {
   type OutlineError,
   type OutlineSet,
   parseOutline,
+  unkept,
   validate,
 } from "@olai/format"
 import type { Codec } from "@olai/store"
@@ -29,6 +30,18 @@ import { Result } from "effect"
 
 export const codec: Codec<DecodedFile, OutlineSet, ReadonlyArray<OutlineError>> = {
   match: (path) => fileKind(path) !== null,
+
+  /** A file whose content the set does not KEEP decodes to its path and
+   *  nothing else, and the store never reads it — which is the whole of what
+   *  this member buys: a vault of saved pages is not read at boot, not re-read
+   *  when one of them changes, and not held for the life of the process.
+   *
+   *  WHICH files those are is the registry's answer again (`@olai/format`'s
+   *  `unkept`, which every layer that asks this asks). What a reader who
+   *  OPENS one gets is a body read then and there and kept by nobody
+   *  (`@olai/server`'s `bodies.ts`); what the SET gets is the path, which is
+   *  all a `doc` reference was ever checked against. */
+  byName: (path) => unkept(path) ? Result.succeed({ file: path, text: null }) : null,
 
   /** A BODIED file decodes to its text, verbatim: what it says is interpreted
    *  at view time, so there is nothing to parse here and nothing that can fail.

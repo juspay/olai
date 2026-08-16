@@ -224,6 +224,31 @@ Feature: A `.html` in the vault
     And requesting "/media/finishes.md" answers 404
 
   @scratch:good
+  Scenario: A `.html` rewritten under an open page shows what it says now
+    # The half of "read when it is opened" that a memory change could quietly
+    # break. The set holds this file's PATH and not its bytes, so the body on
+    # screen was read because this reader asked for it — and the file moving on
+    # disk has to reach that reader anyway, exactly as an outline's change does.
+    # A server that only ever read a body once would pass every other scenario
+    # in this feature and fail here.
+    Given I open the app
+    And I mark the page
+    When I rewrite "live.html" as:
+      """
+      <h1>Before</h1>
+      """
+    And I click the page "live.html"
+    Then the preview shows the heading "Before"
+    When I rewrite "live.html" as:
+      """
+      <h1>After</h1>
+      """
+    # No reload and no second click: the frame is redrawn from a body the
+    # server read again because somebody was watching this file.
+    Then the preview shows the heading "After"
+    And the page has not reloaded
+
+  @scratch:good
   Scenario: A form in a saved page cannot post anywhere
     # The other way a page reaches somebody else's server without a script, and
     # the one this feature was missing: a `<form action>` and a click. It is

@@ -14,6 +14,12 @@
  * twice rather than being two loops that could come to disagree about what a
  * changed file is.
  *
+ * A body the SET does not keep passes through as what the set says about it: a
+ * key, and a `null` where its text would be (`@olai/format`'s `kinds.ts`). This
+ * file invents nothing about that and reads nothing off a disk — the entry is
+ * the set's own answer projected, as every other entry here is, and the read
+ * that fills one in belongs to whoever a reader asked (`./bodies.ts`).
+ *
  * The per-tick CHANGE is not diffed here either: the store hands over the paths
  * its probe re-decoded and the paths its listing lost ({@link Snapshot}), and
  * this maps them onto each collection's verbs — a changed path is an upsert of
@@ -54,6 +60,75 @@ export interface Change<T> {
 export interface Published {
   readonly outlines: Change<OutlineEntry>
   readonly documents: Change<DocumentEntry>
+  /**
+   * The paths this revision moved whose BODY the set does not keep — what the
+   * body reader has to read before anyone can be handed one (`./bodies.ts`).
+   *
+   * It is here, beside the two collections, because it is the OTHER HALF of the
+   * decision below: an upsert this revision withholds from the collection is
+   * exactly a body somebody else owes a reader, and the two are decided in one
+   * pass so they cannot come to disagree about which those are.
+   */
+  readonly unread: ReadonlyArray<string>
+}
+
+/**
+ * The documents half of a revision: what the collection is told, and what is
+ * owed to the body reader.
+ *
+ * ONE function over ONE reading of the previous revision, which is the whole
+ * reason it is not two: the slice and the split both need "what the wire had
+ * before this", and two callers passing that separately are two callers who can
+ * pass different things.
+ *
+ * An entry carrying its text is sent as it is. An entry saying `null` is a body
+ * the set does not keep, and it is the body reader's: writing that value to a
+ * key somebody is showing would blank the page and re-fill it a moment later,
+ * where the reader replaces it in one frame.
+ *
+ * A key this revision INTRODUCES is sent anyway, `null` and all, and that is
+ * not an exception but the other thing an upsert does: it is how the collection
+ * learns its MEMBERSHIP changed, which is what puts a new file in the sidebar.
+ * A reader cannot be SHOWING a file that did not exist a moment ago, so there
+ * is nothing to blank.
+ *
+ * WHO CAN SEE THAT `null`, exactly: only a reader holding a `get` open on the
+ * key ACROSS the file's birth — and it stays what they hold, because a body is
+ * read for whoever ASKED (`./bodies.ts`, and the ask is `readOne`), and this
+ * frame is not an ask. No consumer here is in that position, which is why it is
+ * left alone rather than answered with a read of every new `.html` in a
+ * `git pull`: the browser's subscription is CREATED from the key set — the page
+ * model refuses a path the directory does not hold (`@olai/web`'s `page.ts`),
+ * so the file appearing is what mounts the page that subscribes — and an MCP
+ * client reads afresh on every `notifications/resources/updated` rather than
+ * holding one stream open. A raw client that did hold one would see this frame
+ * and no body until it opened the key again. That is a known edge, written down
+ * rather than papered over.
+ */
+const documentsOf = (
+  snapshot: Snapshot<OutlineSet>,
+  held: Change<DocumentEntry> | undefined,
+): Pick<Published, "documents" | "unread"> => {
+  const change = changeOf(
+    snapshot.value.documents,
+    (document) => document.file,
+    (document) => ({ rev: snapshot.rev, text: document.text }),
+    snapshot,
+    held,
+  )
+  // One pass, two lists: what to send, and what somebody has to read. A file is
+  // in exactly one of them unless it is BOTH new and bodyless, which is a key
+  // announced and a body owed — see above.
+  const upserts: Array<readonly [string, DocumentEntry]> = []
+  const unread: Array<string> = []
+  for (const [path, entry] of change.upserts) {
+    if (entry.text !== null) upserts.push([path, entry])
+    else {
+      unread.push(path)
+      if (held?.entries.has(path) !== true) upserts.push([path, entry])
+    }
+  }
+  return { documents: { ...change, upserts }, unread }
 }
 
 /**
@@ -133,12 +208,6 @@ export const publishedOf = (
       snapshot,
       published?.outlines,
     ),
-    documents: changeOf(
-      set.documents,
-      (document) => document.file,
-      (document) => ({ rev: snapshot.rev, text: document.text }),
-      snapshot,
-      published?.documents,
-    ),
+    ...documentsOf(snapshot, published?.documents),
   }
 }

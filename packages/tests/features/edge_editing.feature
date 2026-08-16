@@ -182,6 +182,82 @@ Feature: Writing a node's edges — `see` and `after`
     And the node "order" draws no "see"
     And there should be no page errors
 
+  # ── a file that names one target twice ──────────────────────────────
+
+  Scenario: A target named twice draws ONE link, and the page survives the frame
+    # A `.olai` is plain text and a hand-edited one can say the same thing twice.
+    # What it MEANS is the write layer's own answer: `set_see` and `set_after`
+    # treat these fields as SETS — re-adding a target the node already names is
+    # a silent no-op — so a file naming one target three times names it once,
+    # and the page draws one link (ruled by the human, 2026-08-16).
+    #
+    # Which is not a cosmetic question, and this is the half that took a page
+    # down. The row is keyed by the TARGET id, honest only while a target
+    # appears once: three links under one key are ONE element handed to the
+    # framework three times, and the next store frame's list reconciliation runs
+    # off the end of the array it is patching and dies reading `remove` of
+    # undefined — mid-draw, the whole page, the identical stack #202 fixed for
+    # the chat panel's diff blocks.
+    #
+    # So the write lands with the page already open on the node: the row holds
+    # one link and the frame brings three, which is the smallest shape that
+    # crashes.
+    When I open the node "order"
+    Then the node "order" sees "herbs" as "the herb bed by the door"
+    # Marked HERE rather than in the Background: opening a node's page is a
+    # navigation, so the mark that outlives this write has to be planted on the
+    # document the write arrives at.
+    Given I mark the page
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","see":["herbs","herbs","herbs"]}
+      {"id":"walnut","parent":"order","ord":"a0","title":"walnut, six week lead time"}
+      """
+    # The new row is what makes this a REPRODUCTION rather than a photograph of
+    # the page as it already was: it is asked for first, so the frame carrying
+    # the repeated target has demonstrably reached the open page before anything
+    # below is asked. A page that died drawing that frame takes this step with
+    # it.
+    Then the node "walnut" is shown
+    And the node "order" sees exactly "the herb bed by the door"
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A dependency named twice is one dependency, drawn and DERIVED
+    # The same file shape on the other writable field, and it reaches one row
+    # further: `after` is drawn twice on a node's page — the FIELD, as the node
+    # declares it, and `blocked by`, which the set derives from it. Both are the
+    # same labelled row of links, so both were the same crash, and the second
+    # one is not fixed by reading the field as a set: `blocks` is folded into
+    # the ordering graph there, and an edge named twice — by one field naming a
+    # target twice, or by both spellings naming it once — was two edges to the
+    # same node.
+    #
+    # `hinges` declares `after: [handles, order]` and only `order` is in its way
+    # (`handles` carries no mark, so it is not work and never blocks). The
+    # rewrite says `order` three times over: the FIELD row must still read both
+    # targets once each, in the order the file names them, and the derived row
+    # must still name one blocker.
+    When I open the node "hinges"
+    Then the node "hinges" comes after "choose the handles, order the new cabinets"
+    And the node "hinges" is blocked by exactly "order"
+    Given I mark the page
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05"}
+      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","after":["order"]}
+      {"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}
+      {"id":"hinges","parent":"install","ord":"a1","title":"pick the hinges","todo":"2026-08-11","after":["handles","order","order","order"]}
+      {"id":"brass","parent":"hinges","ord":"a0","title":"brass, or nothing"}
+      """
+    Then the node "brass" is shown
+    And the node "hinges" comes after "choose the handles, order the new cabinets"
+    And the node "hinges" is blocked by exactly "order"
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: The panel's hits carry properties too, like every other door onto the search
     # FOUR surfaces draw one row (`client/search/Result.tsx`) over one
     # `createNodeSearch`: the ⌘K palette, the header's box, the `((` widget and

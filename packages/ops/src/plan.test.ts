@@ -1709,7 +1709,7 @@ describe("merge", () => {
         return rest as Node
       }))
     expect(unstamped(fileOf(back, "house.olai")))
-      .toBe(unstamped(nodesOf(before.nodes, "house.olai").map((at) => at.node)))
+      .toBe(unstamped(nodesOf(derive(before.nodes), "house.olai").map((at) => at.node)))
     expect(record(fileOf(back, "house.olai"), "order").changed).toBe(STAMP)
   })
 })
@@ -1810,7 +1810,7 @@ describe("unarchive", () => {
     const texts = Object.fromEntries(
       set.files.map((file) => [
         file,
-        serializeOutline(nodesOf(set.nodes, file).map((located) => located.node)),
+        serializeOutline(nodesOf(derive(set.nodes), file).map((located) => located.node)),
       ]),
     )
     for (const file of planned(set, request).files) {
@@ -1988,7 +1988,7 @@ describe("unarchive", () => {
    */
   /** One archive's records, read off the set the plan produced. */
   const archived = (set: OutlineSet): ReadonlyArray<Node> =>
-    nodesOf(set.nodes, "Archive.olai").map((located) => located.node)
+    nodesOf(derive(set.nodes), "Archive.olai").map((located) => located.node)
 
   test("the signpost the archive minted above a node is not restorable", () => {
     const set = after(house(), { op: "archive", id: "order" })

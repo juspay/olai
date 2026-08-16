@@ -176,3 +176,79 @@ test("a file that did not move keeps the entry it was published with", () => {
   )
   expect(second.documents.upserts).toEqual([])
 })
+
+// The other kind of bodied file, and the whole memory claim as a projection:
+// what the set holds for a `.html` is a path and a `null`, so what the wire
+// holds is a key and a `null`. The bytes are not here, they are not in the
+// entry the next revision builds, and they are not in the map a fresh
+// subscriber is snapshotted from — they are read when a reader opens the key
+// (`./bodies.ts`).
+test("a `.html` is a key of the collection with no body in it", () => {
+  const { documents } = publishedOf(
+    revision(
+      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"]),
+      {},
+      4,
+    ),
+    NOTHING_HELD,
+  )
+
+  expect([...documents.entries.keys()]).toEqual(["notes.md", "report.html"])
+  expect(documents.entries.get("report.html")).toEqual({ rev: 4, text: null })
+  // The `.md` beside it is untouched by any of this: its text is the set's and
+  // travels the same way it always did.
+  expect(documents.entries.get("notes.md")).toEqual({ rev: 4, text: "# hello" })
+})
+
+// ── who publishes a body ───────────────────────────────────────────────
+
+// The split, and the two things it has to get right at once. A body the set
+// does not keep is NOT written to a key somebody may be showing — that would
+// blank the page and re-fill it a moment later, where the body reader replaces
+// it in one frame — and a key this revision INTRODUCES is written anyway,
+// because an upsert is also how the collection learns its membership changed.
+// A `.html` dropped into the directory that never reached the sidebar is what
+// the second half of this is written against.
+test("a bodyless entry is upserted only when its key is new", () => {
+  const first = publishedOf(
+    revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"])),
+    NOTHING_HELD,
+  )
+  // Born: the key is announced, `null` and all, which is how the sidebar learns
+  // there is a file — and the body is owed to whoever opens it.
+  expect(first.documents.upserts.map(([path]) => path)).toEqual([
+    "notes.md",
+    "report.html",
+  ])
+  expect(first.unread).toEqual(["report.html"])
+
+  // The same file, changed under a reader who has it open: the body reader
+  // publishes it, and the collection is told nothing in the meantime.
+  const second = publishedOf(
+    revision(
+      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"]),
+      { changed: ["report.html"] },
+      2,
+    ),
+    first,
+  )
+  expect(second.documents.upserts).toEqual([])
+  expect(second.unread).toEqual(["report.html"])
+  // The ENTRY is still there whichever half publishes it: `readAll` is what a
+  // fresh subscription reads, and a key missing from it is a file the sidebar
+  // stopped showing.
+  expect(second.documents.entries.get("report.html")).toEqual({ rev: 2, text: null })
+
+  // A file that LEAVES is a remove like any other — nothing about a body the
+  // set does not keep changes what a departure is.
+  const gone = publishedOf(
+    revision(
+      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]]),
+      { changed: [], removed: ["report.html"] },
+      3,
+    ),
+    second,
+  )
+  expect(gone.documents.removes).toEqual(["report.html"])
+  expect(gone.unread).toEqual([])
+})

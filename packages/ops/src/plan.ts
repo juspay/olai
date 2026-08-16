@@ -458,7 +458,7 @@ const freshId = (scope: Scope, taken: ReadonlySet<string>): string => {
 
 /** One file's records, in file order. */
 const recordsOf = (scope: Scope, file: string): ReadonlyArray<Node> =>
-  nodesOf(scope.set.nodes, file).map((located) => located.node)
+  nodesOf(scope.derived, file).map((located) => located.node)
 
 /** The same records with one replaced, matched by id. */
 const replacing = (
@@ -2027,11 +2027,12 @@ const planUnarchive = (
   // The archive after the removal, with the empty scaffold above the node
   // tidied away — deepest first, stopping at the first ancestor that still
   // holds anything, carries more than a scaffold record does, or is named by
-  // something. "Named" reads the format's own `targetsOf` over the whole set,
-  // in ONE pass and only when there is a candidate at all — an edge written
-  // from anywhere, the returning subtree included, keeps its target. The
-  // child counts are one pass too, decremented as ancestors drop, so the walk
-  // never re-scans the one file in a set that grows without bound.
+  // something. "Named" is a lookup in `namedBy` — the format's own `targetsOf`
+  // read backwards, built with the rest of the derivation — so a relation
+  // added later still cannot slip past it, and an edge written from anywhere,
+  // the returning subtree included, keeps its target. The child counts are one
+  // pass, decremented as ancestors drop, so the walk never re-scans the one
+  // file in a set that grows without bound.
   const byId = new Map(keeps.map((record) => [record.id, record]))
   const holding = new Map<string, number>()
   for (const record of keeps) {
@@ -2039,19 +2040,15 @@ const planUnarchive = (
       holding.set(record.parent, (holding.get(record.parent) ?? 0) + 1)
     }
   }
-  let named: ReadonlySet<string> | undefined
   const dropped = new Set<string>()
   let up = node.parent
   while (up !== undefined) {
     const holder = byId.get(up)
     if (holder === undefined) break
-    named ??= new Set(
-      scope.derived.nodes.flatMap((at) => targetsOf(at.node).map(([, id]) => id)),
-    )
     if (
       (holding.get(holder.id) ?? 0) > 0 ||
       !bareScaffold(holder) ||
-      named.has(holder.id)
+      scope.derived.namedBy.has(holder.id)
     ) break
     dropped.add(holder.id)
     if (holder.parent !== undefined) {
@@ -2552,10 +2549,11 @@ const shownTitle = (scope: Scope, target: string): string =>
  * a NEIGHBOUR of the thing the caller asked to remove. A refusal that teaches
  * the wrong lesson is worse than one that teaches none.
  *
- * It is still not re-validation: {@link dependents} is a lookup over the
- * snapshot's own records, the same kind of thing the containment walk is, and
- * it reads the format's `targetsOf` so a relation added later cannot slip past
- * it. The validator remains the backstop for everything else.
+ * It is still not re-validation: {@link dependents} is a lookup in the
+ * snapshot's own derivation, the same kind of thing the containment walk is,
+ * and the index it reads is the format's `targetsOf` reversed, so a relation
+ * added later cannot slip past it. The validator remains the backstop for
+ * everything else.
  */
 const planUnmirror = (
   scope: Scope,
@@ -2615,9 +2613,15 @@ const planUnmirror = (
  * A mirror is addressable like any other record, so anything may name one: a
  * second placement chained onto it, or an `after` / `blocks` / `see` written at
  * it. WHICH fields those are is the format's answer rather than a list kept
- * here (`targetsOf`) — a list of edge fields in this file is one a fourth
- * relation would silently fall out of, and the write it should have refused
- * would land.
+ * here — `Derived.namedBy` is `targetsOf` reversed over the whole set — and a
+ * list of edge fields in this file is one a fourth relation would silently fall
+ * out of, with the write it should have refused landing.
+ *
+ * RAW, which is why it is that index and not the canonical reverse ones beside
+ * it: what a refusal has to quote is what the records SAY. An `after` written
+ * at this placement resolves, in `edgesTo`, to the node the placement shows —
+ * so asking there would find nothing to refuse, about the one record whose
+ * removal is the reason to ask.
  *
  * `parent` is not among them because a mirror cannot be one: the validator
  * refuses a record whose parent is a placement, so no set this planner is ever
@@ -2759,17 +2763,14 @@ const planCreateDocument = (
 }
 
 const dependents = (scope: Scope, id: string): ReadonlyArray<string> =>
-  scope.derived.nodes.flatMap((located) => {
-    if (located.node.id === id) return []
-    const naming = [
-      ...new Set(
-        targetsOf(located.node)
-          .filter(([, target]) => target === id)
-          .map(([field]) => field),
-      ),
-    ]
-    return naming.length === 0 ? [] : [
-      `\`${located.node.id}\` (${naming.map((field) => `\`${field}\``).join(", ")}, ` +
-      `${located.file}:${located.line})`,
-    ]
-  })
+  // `namedBy` is the format's own `targetsOf` read backwards, built with the
+  // rest of the derivation — so a relation added later still cannot slip past
+  // this, and asking the question stopped costing a walk of the corpus. A
+  // record naming ITSELF is not a dependent of itself: it goes when it goes.
+  (scope.derived.namedBy.get(id) ?? [])
+    .filter((naming) => naming.at.node.id !== id)
+    .map((naming) =>
+      `\`${naming.at.node.id}\` (${
+        naming.fields.map((field) => `\`${field}\``).join(", ")
+      }, ${naming.at.file}:${naming.at.line})`
+    )

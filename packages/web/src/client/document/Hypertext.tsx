@@ -366,9 +366,19 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
   // revision is a new document, so the walk-off budget starts over: what it
   // bounds is one page bouncing, not a file's whole history.
   //
-  // The body still travels to get here, and that is named as a cost rather than
-  // hidden — see this PR's report; removing it is a change to the documents
-  // collection, not to this component.
+  // WHAT ASKING COSTS, named rather than hidden, and it went up when the set
+  // stopped keeping a `.html`'s bytes (#204): the body is read from disk when a
+  // reader opens the file, and this page is that reader. So a preview causes one
+  // whole-file read that nobody draws — the frame fetches the same file over
+  // HTTP — and the page waits for that read before the element exists at all.
+  // What it buys is this effect: the server re-reads a watched file when it
+  // moves, which is the only way this component learns the file changed.
+  //
+  // Closing it is a change to the WIRE, not to this component: the collection
+  // would have to be able to say "this path is at revision N" without carrying
+  // the body, which is the head member `../document/documents.tsx` argues
+  // should be measured rather than guessed at. It is this PR's standing
+  // deferral.
   createEffect(
     on(() => props.rev, () => {
       walkOffs = 0

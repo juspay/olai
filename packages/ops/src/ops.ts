@@ -291,7 +291,12 @@ export const make = (options: Options): Ops => {
         // the two readings this write is made of, which are both still in
         // hand. A reader that DRAWS a write rather than logging one needs a
         // word it can switch on, and the summary above is a commit subject.
-        const sort = sortOfWrite(snapshot.value as OutlineSet, planned.success)
+        const set = snapshot.value as OutlineSet
+        // The derivation `plan` was just judged against, handed on rather than
+        // reached for a second time: `index` is memoised on the set's identity,
+        // so this is the same value, and passing it is what keeps the classifier
+        // free of an opinion about whether a memo is warm.
+        const sort = sortOfWrite(set, index(set), planned.success)
         return {
           ...about,
           rev: written.success,

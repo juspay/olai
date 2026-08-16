@@ -16,6 +16,11 @@
  *     subscriptions to the same ref would let a reader see a manifest naming a
  *     revision whose entries had not been written yet, from a server that knew
  *     both.
+ *
+ *     One thing a revision names is NOT published from here, and it is the one
+ *     the server does not hold: a body the set keeps only the path of goes to
+ *     `./bodies.ts`, which reads the file when a reader opens it and publishes
+ *     it on that reader's own key.
  *   - the CONVERSATION is the chat's: a cell for where it stands, a collection
  *     for the rows, and the procedures. The collection is deliberately
  *     server-authored — `readAll` is the transcript itself and the writes come
@@ -77,9 +82,10 @@ import {
   type SurfaceHandlers,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
-import { Duration, Effect, Result, Stream, SubscriptionRef } from "effect"
+import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
 
 import type { Change, Chat } from "@olai/chat"
+import * as Bodies from "./bodies.ts"
 import { contextFor } from "./context.ts"
 import { inverseOf, requestFor } from "./edit.ts"
 import {
@@ -273,8 +279,12 @@ export const writerAt = (
 
 export const bind = (
   wiring: Wiring,
-): Effect.Effect<{ readonly bound: Bound; readonly publish: Publishers }> =>
-  Effect.sync(() => {
+): Effect.Effect<
+  { readonly bound: Bound; readonly publish: Publishers },
+  never,
+  Scope.Scope
+> =>
+  Effect.gen(function*() {
     // Seeded empty and filled by `connect`: `SubscriptionRef.changes` delivers
     // the current value before any update, so peeking at the ref here as well
     // would be the same read twice with a window between them.
@@ -293,6 +303,29 @@ export const bind = (
      *  value rather than a fresh map per call: `readAll` is asked on every
      *  subscribe, and nothing may write to what it hands back. */
     const NOTHING_YET = new Map<string, never>()
+    /**
+     * The bodies the set does NOT keep, read when a reader opens one — see
+     * {@link ./bodies.ts}, which owns the whole arrangement.
+     *
+     * It publishes straight onto the collection, which for a member with no
+     * `deltas` verb is exactly the sockets subscribed to that one key: the
+     * reader who opened the file. The entry it replaces is the one the last
+     * revision published, so the `rev` a body arrives under is the revision
+     * that named the file rather than whatever moment the read finished — and
+     * a file that left the set while it was being read publishes nothing.
+     *
+     * `held` is not touched. That is the memory claim in one line: the body
+     * goes to the wire and the projection goes on holding a path.
+     */
+    const bodies = yield* Bodies.make({
+      read: wiring.store.body,
+      publish: (path, text) => {
+        const entry = held?.documents.entries.get(path)
+        if (entry === undefined) return
+        published?.collections.documents.upsert(path, { rev: entry.rev, text })
+      },
+    })
+
     /** The surface's own write face, once there is one to publish through —
      *  filled the moment `implementSurface` returns. The connector installs
      *  synchronously, so the FIRST revision is written before this exists; that
@@ -464,7 +497,16 @@ export const bind = (
                   // A document's upsert reaches only the sockets that asked for
                   // THAT key (there is no `deltas` verb here) — which is a
                   // reader with the document open, and nobody else.
+                  //
+                  // …and the ones whose BODY is not in the revision go to the
+                  // reader, which reads each file and publishes that same key
+                  // with the bytes in it. Which those are is the projection's
+                  // own answer ({@link publishedOf}) rather than a second walk
+                  // over the entries here, for the reason every other line in
+                  // this block is one statement: two answers to "what is this
+                  // revision" is how they come to disagree.
                   apply(collections?.documents, revision.documents)
+                  bodies.moved(revision.unread)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
@@ -498,6 +540,42 @@ export const bind = (
         // the upserts above have been moving.
         documents: {
           readAll: () => held?.documents.entries ?? NOTHING_YET,
+          /**
+           * A per-key `get` is somebody OPENING this file, and it is the one
+           * moment the server learns that — which is what makes it the place a
+           * body the set does not keep is read. An entry that carries its text
+           * is answered as it is, and nothing is read at all.
+           *
+           * An entry that does NOT is answered with NOTHING, and the read
+           * starts: the framework holds such a subscription open and delivers
+           * the key's first frame when one arrives, which is this read landing
+           * ({@link ./bodies.ts}). So the first thing any reader sees is the
+           * body — a browser draws the heading and then the file, exactly as it
+           * did when the wait was a wire round trip, and a ONE-SHOT reader (an
+           * agent's `resources/read`, which takes the first frame and leaves)
+           * is handed the file rather than a `null` it would report as an empty
+           * document.
+           *
+           * That is why the `null` this projection holds does not travel. It is
+           * the SERVER's own word for "the path is here and the body is not",
+           * and the wire's entry admits it because this map is typed by that
+           * schema — but the one member that could publish every entry
+           * (`deltas`) is deliberately absent from this collection, and this is
+           * the only other way out.
+           */
+          readOne: (key) => {
+            const entry = held?.documents.entries.get(key)
+            // A KEY THE SET DOES NOT HOLD is nobody's to read. The framework
+            // lets a reader subscribe to a key before it exists, and answering
+            // that by reaching for the disk would be this server reading a path
+            // because somebody named one — off a suffix test, since an entry
+            // that is not there cannot say what kind of file it would be. The
+            // entry IS the membership answer, and it is right here.
+            if (entry === undefined) return undefined
+            if (entry.text !== null) return entry
+            bodies.opened(key)
+            return undefined
+          },
           upsert: () => {},
           remove: () => {},
         },

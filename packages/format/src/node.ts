@@ -297,6 +297,17 @@ export const ID_SHAPE = /^[A-Za-z0-9_-]+$/
 export const EDGE_FIELDS = ["after", "blocks", "see"] as const
 export type EdgeField = (typeof EDGE_FIELDS)[number]
 
+/** Every field a record can NAME another record with: the edge fields, and the
+ *  one a placement points with. The closed list {@link targetsOf} answers in
+ *  and {@link ./derive.ts}'s reverse index carries — `string` there would be a
+ *  second, open vocabulary for the closed one this file already owns, which is
+ *  the failure `targetsOf` itself is written against one level down. */
+export type TargetField = EdgeField | "mirror"
+
+/** The answer for a record that points at nothing, which is nearly every
+ *  record: ONE list, shared. See {@link targetsOf}'s last paragraph. */
+const NOTHING_NAMED: ReadonlyArray<readonly [field: TargetField, id: string]> = []
+
 /**
  * Every id this record POINTS AT, and the field it pointed with — in
  * declaration order, so two readings answer the same.
@@ -313,15 +324,26 @@ export type EdgeField = (typeof EDGE_FIELDS)[number]
  * which is the same reason it is a separate shape rather than an optional field.
  * `parent` is deliberately not here: it is same-file placement rather than a
  * bare reference, and it has its own rules and its own error codes.
+ *
+ * A record pointing at NOTHING — which is nearly every record — allocates
+ * nothing: it shares one empty list. That is not a micro-optimisation for its
+ * own sake, it is what lets `derive` ask this of every node in the directory
+ * to build its reverse index. The `flatMap` this replaced allocated four
+ * arrays per record whether or not the record carried a single edge, which on
+ * a vault-sized set is most of the cost of the derivation.
  */
 export const targetsOf = (
   node: Node,
-): ReadonlyArray<readonly [field: string, id: string]> =>
-  isMirror(node)
-    ? [["mirror", node.mirror] as const]
-    : EDGE_FIELDS.flatMap((field) =>
-      (node[field] ?? []).map((id) => [field, id] as const)
-    )
+): ReadonlyArray<readonly [field: TargetField, id: string]> => {
+  if (isMirror(node)) return [["mirror", node.mirror] as const]
+  let named: Array<readonly [field: TargetField, id: string]> | undefined
+  for (const field of EDGE_FIELDS) {
+    const ids = node[field]
+    if (ids === undefined) continue
+    for (const id of ids) (named ??= []).push([field, id] as const)
+  }
+  return named ?? NOTHING_NAMED
+}
 
 /** Where work that is over is put away: one `Archive.olai` per directory,
  *  beside the outline it left. The same rule as the racket reference, so a

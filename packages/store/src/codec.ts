@@ -34,6 +34,24 @@ export interface Codec<F, S, E> {
    *  root and use `/`, so a codec's rules read the same on every platform. */
   readonly match: (path: string) => boolean
   readonly decode: (path: string, contents: string) => Result.Result<F, E>
+  /**
+   * What a file decodes to from its NAME ALONE — or `null` for one whose bytes
+   * the codec needs, which is every file when this member is absent.
+   *
+   * The store reads a file because the codec is about to be shown it, so this
+   * is the one question that can stop the read happening at all: a path this
+   * answers for is STATTED like every other file of the set — it is listed, it
+   * is stamped, it is `changed` when it moves and gone when it goes — and its
+   * contents are never opened. Everything else about it is unchanged, which is
+   * what makes this a statement about COST rather than about membership
+   * ({@link match} owns that one).
+   *
+   * It exists because a set can hold a file it does not want to hold the bytes
+   * of. olai's is hypertext: a saved page is megabytes, nothing in the set
+   * reads it, and the reader who opens one is served by a read of its own. A
+   * codec with no such kind omits this and pays nothing.
+   */
+  readonly byName?: (path: string) => Result.Result<F, E> | null
   /** The whole set, in path order, each file decoded or failed. */
   readonly validate: (
     files: ReadonlyMap<string, Result.Result<F, E>>,

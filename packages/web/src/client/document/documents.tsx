@@ -61,6 +61,28 @@ import {
 
 import { olai } from "../wire.ts"
 
+/**
+ * One bodied file's entry once its BODY is here — which is the only state a
+ * page has anything to draw from.
+ *
+ * The wire's entry admits `text: null` — the server saying it holds this file's
+ * PATH and not its body (`@olai/surface`'s `DocumentEntry`: a `.html`, whose
+ * bytes no longer sit in the served set). ONE frame really carries it, and this
+ * fold is what makes that harmless: a body ASKED FOR arrives as a body (the
+ * server answers a per-key `get` with nothing at all until it has read the
+ * file), but the upsert that ANNOUNCES a key — a `.html` that has just appeared
+ * in the directory — says `null`, and it reaches anyone already subscribed to
+ * that key.
+ *
+ * Folding it here is what keeps that a fact about the SERVER rather than
+ * something every page has to know: a null and a missing entry are "the body is
+ * not here" said two ways, and a page that told them apart would be drawing a
+ * spinner for the width of a disk read. So it collapses into the `undefined`
+ * every consumer already handles, once, here — and everything above this line
+ * takes a `text` that is a string.
+ */
+export type Served = DocumentEntry & { readonly text: string }
+
 export interface Documents {
   /** Every `.md` the directory holds, by path. ARRIVAL order, deliberately:
    *  the sidebar's tree sorts each of its own levels (`../fileTree.ts`) and the
@@ -68,12 +90,17 @@ export interface Documents {
    *  corpus-sized list every time one file arrives would be work nobody reads. */
   readonly paths: Accessor<ReadonlyArray<string>>
   /** One document's body, for as long as the calling owner lives. `undefined`
-   *  while it is still on the way — the normal first state — and also what a
+   *  while it is still on the way — the normal first state, and the one a body
+   *  being read from disk shares with it ({@link Served}) — and also what a
    *  set being edited answers for a `doc` naming a file that is no longer
    *  there (a valid set cannot produce that: `doc` is validated against the
    *  documents found). */
-  readonly read: (file: Accessor<string>) => Accessor<DocumentEntry | undefined>
+  readonly read: (file: Accessor<string>) => Accessor<Served | undefined>
 }
+
+/** Whether an entry is one a page can draw — see {@link Served}. */
+const arrived = (entry: DocumentEntry | undefined): entry is Served =>
+  entry !== undefined && entry.text !== null
 
 export const createDocuments = (): Documents => {
   const [paths, setPaths] = createSignal<ReadonlyArray<string>>([])
@@ -120,7 +147,10 @@ export const createDocuments = (): Documents => {
         held(path, 1)
         onCleanup(() => held(path, -1))
       })
-      return () => entries.byKey(file())?.()
+      return () => {
+        const entry = entries.byKey(file())?.()
+        return arrived(entry) ? entry : undefined
+      }
     },
   }
 }
@@ -145,7 +175,7 @@ export function DocumentsProvider(props: {
 /** One served document, by its path — see {@link Documents.read}. */
 export const useDocument = (
   file: () => string,
-): Accessor<DocumentEntry | undefined> => {
+): Accessor<Served | undefined> => {
   const read = useContext(DocumentsContext)
   if (read === undefined) {
     throw new Error("a document reference outside <DocumentsProvider>")

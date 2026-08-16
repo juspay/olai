@@ -48,24 +48,38 @@ import { isMirror, type Located } from "./node.ts"
  * the `documents` collection an MCP client already addresses by URI, and a
  * rename would break an external contract to relabel a field.
  *
- * The TEXT is part of the SET, and that is the decision this field records. A
- * document is read by the same probe, cached against the same stamp and
+ * A DOCUMENT's text is part of the SET, and that is the decision this field
+ * records. It is read by the same probe, cached against the same stamp and
  * published in the same revision as every outline, so an edit reaches an open
  * page through the machinery that was already there — no second read path and
  * no fetch to invalidate — and there is exactly one answer to "what does this
  * directory say right now".
  *
- * What that does NOT decide is when a body crosses a wire. A transport serving
+ * HYPERTEXT's is `null`, and that is the other decision it records: the set
+ * keeps the path and not the body (`./kinds.ts`'s `kept`, which owns the
+ * argument). A `.html` is the one file olai only shows — nothing validates it,
+ * no op writes it — so the set never needed its bytes, while a vault of saved
+ * pages made them the largest thing in the process. The body is read when a
+ * reader opens the file and is kept by nobody.
+ *
+ * `null` is therefore a STATE and not an absence, the way the manifest's is
+ * (`@olai/surface`): "this file is served, and its body is not here". An
+ * unreadable file is a different answer again — it is in `broken`, and
+ * `writable` (`@olai/ops`) refuses to write over what the set could not read.
+ *
+ * What none of that decides is when a body crosses a wire. A transport serving
  * a directory of thousands of files cannot put every one of them in a
  * first frame, and olai's does not: `@olai/surface` publishes the documents as
  * a collection read one key at a time. This type is what the validator and the
  * view are handed, which is the whole loaded set, because a `doc` reference has
- * to be checkable against what is actually served.
+ * to be checkable against what is actually served — and checking one needs the
+ * PATHS, which is the half of this the set still holds for every bodied file.
  */
 export const Document = Schema.Struct({
   file: Schema.String,
-  /** Verbatim, exactly as on disk. Markdown is interpreted at view time. */
-  text: Schema.String,
+  /** Verbatim, exactly as on disk — or `null` for a body the set does not keep
+   *  (see above). Markdown is interpreted at view time. */
+  text: Schema.NullOr(Schema.String),
 })
 export type Document = typeof Document.Type
 

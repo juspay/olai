@@ -311,19 +311,46 @@ Then(
 
 // ── what the page draws ────────────────────────────────────────────────
 
+/** Every link one relation's row draws, in DOM order and counting repeats —
+ *  what both steps below ask, and the reason they ask it as a whole list
+ *  rather than as a membership: a row drawing one target twice reads as a row
+ *  drawing two, and a step that only looked for the target would pass over it.
+ */
+const rowReads = async (
+  world: OlaiWorld,
+  id: string,
+  relation: string,
+  titles: string,
+): Promise<void> => {
+  const row = world.node(id).locator(refsOf(relation)).first();
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await world.waitUntil(
+    async () =>
+      (await row.locator(NODE_REF).allInnerTexts()).map(oneLine).join(", ") ===
+        titles,
+    `the \`${relation}\` row of "${id}" to read ${JSON.stringify(titles)}`,
+  );
+};
+
 /** The `after` a node DECLARES, in order — deliberately not `blocked by`,
  *  which is derived and names only what is still in the way. */
 Then(
   "the node {string} comes after {string}",
   async function (this: OlaiWorld, id: string, titles: string) {
-    const row = this.node(id).locator(AFTER_REFS).first();
-    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.waitUntil(
-      async () =>
-        (await row.locator(NODE_REF).allInnerTexts()).map(oneLine).join(", ") ===
-          titles,
-      `the \`after\` row of "${id}" to read ${JSON.stringify(titles)}`,
-    );
+    await rowReads(this, id, "after", titles);
+  },
+);
+
+/** The `see` row, whole — the sibling of the step above over the same helper,
+ *  and its own words for the same reason the directory-side steps are two: a
+ *  relation is read in the reader's language, not as a field name in a slot.
+ *  Distinct from `sees {string} as {string}` beside it (`navigation_steps.ts`),
+ *  which asks about ONE target's link and its title; this one asks what the
+ *  row draws ALTOGETHER, which is the question a repeated target raises. */
+Then(
+  "the node {string} sees exactly {string}",
+  async function (this: OlaiWorld, id: string, titles: string) {
+    await rowReads(this, id, "see", titles);
   },
 );
 
