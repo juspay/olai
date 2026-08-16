@@ -8,7 +8,7 @@
  * requirements — a `refresh` a consumer holds should not ask them for a file
  * system.
  *
- * Three edges are handled here rather than upstairs, because all three are
+ * Four edges are handled here rather than upstairs, because all four are
  * facts about disks rather than about stores:
  *
  *   - Paths coming out are root-relative and spelled with `/`, whatever the
@@ -163,10 +163,13 @@ export const make = (
     // enters that nothing covers yet gets a watcher of its own. Three
     // orderings carry the whole of the correctness:
     //
-    //   - a directory is armed BEFORE its entries are listed, so a file
-    //     landing in it either wakes the new watcher or is in the listing that
-    //     follows — the argument the store's boot makes about the root, one
-    //     level down;
+    //   - a directory's watcher is STARTED before its entries are listed, so a
+    //     file landing in it either wakes the new watcher or is in the listing
+    //     that follows — the argument the store's boot makes about the root,
+    //     one level down. Started, not proven armed: `cover` returns when the
+    //     watching fiber is FORKED, and the subscription that reaches
+    //     `fs.watch` happens on that fiber afterwards. A file landing in the
+    //     gap between the two can miss both, and that one is the backstop's;
     //   - the tree under a new directory needs no special case. Its own
     //     subdirectories are `mkdir`s, reported by the watcher just armed on
     //     their parent, and the walk that follows arms them in turn;
@@ -174,10 +177,14 @@ export const make = (
     //     because that tree is the one the root's recursive watch already
     //     holds and arming a second watcher over every directory of it would
     //     double a descriptor cost the runtime already charges too much for.
-    //     That walk is asked for the moment the watcher is armed (`wake`
-    //     below), so the window in which a directory can be born and mistaken
-    //     for one of those is a settle delay wide — and the backstop is what
-    //     owns everything that falls into a window.
+    //     In practice that walk is the store's boot `refresh`, forked right
+    //     behind the watcher — so the window a directory can be born into and
+    //     be MISTAKEN for one of the covered is one LISTING wide, which on a
+    //     large tree is the longer of the two delays this file has. The `wake`
+    //     offered at arm time does not shorten it; what it buys is the other
+    //     case, where boot's walk beat the watcher into being and the seeding
+    //     would otherwise wait on whatever event came next. Either way, a
+    //     window is what the backstop owns.
     //
     // A directory that leaves the tree gives its watcher up, and that is
     // hygiene rather than a second fix: the pinned runtime registers a watch
@@ -190,7 +197,9 @@ export const make = (
     let covering: Covering | null = null
 
     /** Arm a watcher on a directory the root's own does not reach — nothing
-     *  while nothing is watching, which is what keeps `watch: false` free. */
+     *  while nothing is watching, which is what keeps `watch: false` free, and
+     *  nothing left behind by one that could not be armed, so the next walk is
+     *  free to try again. */
     const cover = (directory: string): Effect.Effect<void> =>
       Effect.suspend(() => {
         const live = covering
@@ -206,13 +215,29 @@ export const make = (
             fs.watch(absolute(directory), { recursive: true }),
             () => Queue.offer(live.wake, undefined),
           ).pipe(
-            // Losing one of these costs latency and nothing else — the set on
-            // screen still converges, at the backstop's sixty seconds rather
-            // than at a settle delay — which is the trade the store already
-            // makes for the root's watcher, made again one level down. The
-            // usual way to lose one is a directory that was there when the
-            // walk read its parent and is not there now, and the walk that
-            // notices closes this scope anyway.
+            // However it ends, the path stops counting as covered, so the NEXT
+            // walk arms it again rather than the map remembering a watcher
+            // nobody has. That matters for the one failure this change makes
+            // more likely and not less: a new directory now costs descriptors,
+            // so a transient EMFILE is exactly the arm that should be retried,
+            // and a map entry left behind is a directory never watched again
+            // for the life of the process. Guarded on identity, because a path
+            // that left and came back has a newer scope in the map and this
+            // fibre must not take it out. (The scope itself is released with
+            // the watch stream rather than here — closing it from the fibre
+            // living in it is not worth the reasoning, and it is empty.)
+            Effect.onExit(() =>
+              Effect.sync(() => {
+                if (live.covered.get(directory) === scope) live.covered.delete(directory)
+              })
+            ),
+            // Failing is not news. Losing one of these costs latency and
+            // nothing else — the set on screen still converges, at the
+            // backstop's sixty seconds rather than at a settle delay — which
+            // is the trade the store already makes for the root's watcher,
+            // made again one level down. The usual way to lose one is a
+            // directory that was there when the walk read its parent and is
+            // not there now, and the walk that notices drops it anyway.
             Effect.ignore,
             Effect.forkIn(scope),
           )
@@ -288,8 +313,9 @@ export const make = (
         const descend = (directory: string): Effect.Effect<void, PlatformFailure> =>
           Effect.gen(function*() {
             visited.add(directory)
-            // BEFORE the entries are read, so a file landing here in between
-            // wakes the watcher rather than falling into the gap.
+            // Started before the entries are read, so a file landing here in
+            // between wakes the new watcher rather than falling into the gap.
+            // Best-effort-before — {@link cover} says how far that reaches.
             yield* cover(directory)
             const entries = yield* entriesOf(directory)
 
