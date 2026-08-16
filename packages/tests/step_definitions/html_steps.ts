@@ -27,11 +27,13 @@ import type { Locator } from "playwright";
 import { isPicture } from "@olai/format";
 import { MEDIA_PREFIX, mediaHref, mediaTarget, sealPolicy } from "@olai/surface";
 
+import { saysThat } from "../support/said.ts";
 import {
   DOCUMENT_EDIT,
   HYDRATION_TIMEOUT,
   HYPERTEXT_LINK,
   HYPERTEXT_PREVIEW,
+  HYPERTEXT_SAID,
   POLL_TIMEOUT,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -626,6 +628,35 @@ Then(
     }, `the heading ${JSON.stringify(text)} to be at the top of the page`);
   },
 );
+
+/** WHAT THE PREVIEW SAID about a click it could not answer, through the suite's
+ *  one reader of every said-line in this client (`support/said.ts`): the words,
+ *  and the MOOD as a `data-` fact rather than a colour. A refusal in the aside
+ *  tone would be a reason-nothing-happened a screen reader is not interrupted
+ *  for, which is the distinction that helper exists to hold. */
+Then(
+  "the preview says it cannot open that link",
+  async function (this: OlaiWorld) {
+    await saysThat(
+      this,
+      HYPERTEXT_SAID,
+      "does not serve",
+      "preview's refusal",
+      "alarm",
+    );
+  },
+);
+
+/** …and the other half: nothing was said at all, which is what every click this
+ *  app CAN answer leaves behind. Asserted after something on the new page has
+ *  been waited for, so it is a fact about the page that arrived. */
+Then("the preview says nothing about the link", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(HYPERTEXT_SAID).count(),
+    0,
+    "the preview drew a refusal about a click it answered perfectly well",
+  );
+});
 
 /** No preview at all on this page — which is what an OUTLINE looks like: a
  *  different page shape entirely, not a `.html` page with an empty frame on it.

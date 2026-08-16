@@ -205,6 +205,9 @@ Feature: A `.html` in the vault
     Then the document open is "notes/second.html"
     And the address is "/doc/notes/second.html"
     And the sidebar marks the page "notes/second.html" as the one open
+    # …and nothing was said, because nothing went wrong: the refusal below is
+    # drawn for a click this app could not answer, never for one it could.
+    And the preview says nothing about the link
     # A route, not a reload: answered in place, exactly as the sidebar's own
     # click is.
     And the page has not reloaded
@@ -682,6 +685,11 @@ Feature: A `.html` in the vault
     Then the address is "/doc/vendor.html"
     And the page has not reloaded
     And the preview shows the heading "Vendor"
+    # …and the reader is TOLD, which is the half a dropped click owes them:
+    # the page did not move and nothing else on screen would account for it.
+    # HACKING's rule is that an error surfaces somewhere in the UX, and a
+    # click this app claimed and could not answer is one.
+    And the preview says it cannot open that link
 
   @scratch:good
   Scenario: A page cannot navigate this app by naming a file the vault does not hold

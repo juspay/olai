@@ -102,8 +102,10 @@
  */
 
 import { heard, mediaHref, type Reading } from "@olai/surface"
-import { createEffect, createSignal, on, onCleanup, onMount } from "solid-js"
+import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
 
+import { SaidLine } from "../edit/SaidLine.tsx"
+import type { Said } from "../edit/undoing.ts"
 import { useOpens } from "../opens.tsx"
 import { useRouter } from "../router.tsx"
 import { TESTID } from "../testids.ts"
@@ -232,6 +234,31 @@ const PAGE_HEIGHT = "--page-height"
  */
 const VISIT = "olai-visit"
 
+/**
+ * WHAT A DROPPED CLICK SAYS, and the whole of what it may say.
+ *
+ * A refusal in the two moods this client has (`../edit/SaidLine.tsx`), and it
+ * is the alarm one, because that is what the tone MEANS here: it is the reason
+ * nothing happened, and a reader who does not notice it believes a link is
+ * broken rather than pointing somewhere this directory does not serve.
+ *
+ * IT DOES NOT QUOTE THE PATH, which is the one decision in it. The string that
+ * missed came from a document running somebody else's JavaScript, and echoing
+ * it would let that page put words of its own choosing into this app's chrome —
+ * text, safely escaped, and still a sentence the app appears to be saying. The
+ * whole discipline of this feature is that nothing a frame says reaches the
+ * reader as the app's own words, and a message is not the place to make the
+ * first exception. What the reader is owed is why the click did nothing, and
+ * that is a fact about the DIRECTORY rather than about the string.
+ *
+ * A CONSTANT, because there is exactly one reason to draw it: the lookup
+ * missed. Anything else the frame says is either answered or ignored.
+ */
+const REFUSED: Said = {
+  tone: "alarm",
+  text: "That link points at a file this directory does not serve, so there is no page to open.",
+}
+
 /** The `#…` the frame's own address wears, or nothing — encoded for the reason
  *  `../routes.ts` encodes the other end: an id in a saved page is whatever its
  *  author wrote, and it lands in a URL. */
@@ -242,6 +269,12 @@ export function Hypertext(
   props: { readonly file: string; readonly rev: number; readonly at?: string },
 ) {
   const [measured, setMeasured] = createSignal<string>()
+  // What the last click could not be answered with, or nothing. It is CLEARED
+  // by the next pointing rather than by a timer ({@link fresh}), which is the
+  // rule `../edit/UndoSaid.tsx` states for the same kind of line: a refusal
+  // that vanished on its own is one a reader can miss by looking away, and the
+  // next thing this frame does is the honest moment for it to go.
+  const [refused, setRefused] = createSignal<Said>()
   const router = useRouter()
   const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
@@ -305,6 +338,7 @@ export function Hypertext(
   const fresh = () => {
     acceptedAt = {}
     setMeasured(undefined)
+    setRefused(undefined)
   }
 
   /** The file itself, at its own address on the media route — a fresh URL every
@@ -353,6 +387,13 @@ export function Hypertext(
    * string from a sandboxed frame into the URL bar, which is a capability, and
    * the sentence on screen would be about a file the reader never named.
    *
+   * BUT IT SAYS SO. A click that does nothing and explains nothing is what
+   * HACKING's error rule is about — the reader pressed a link, the page did not
+   * move, and nothing on screen accounts for it — so the miss draws a refusal
+   * in the voice every other refused act in this client speaks
+   * ({@link REFUSED}). Moving nothing is still the answer; being silent about
+   * it was never part of the argument.
+   *
    * WHAT A MISS COSTS, because a dead click is not free. The two ends of this
    * disagree about what the vault holds, in one direction. The seal claims a
    * click by SUFFIX under `/media/` — the ROUTE's world, whose guard is lexical
@@ -379,7 +420,7 @@ export function Hypertext(
    */
   const open = (named: string, at?: string) => {
     const route = opens(named, at)
-    if (route === undefined) return
+    if (route === undefined) return setRefused(REFUSED)
     router.go(route)
   }
 
@@ -503,7 +544,24 @@ export function Hypertext(
   )
 
   return (
-    <iframe
+    <>
+      {/* WHAT A CLICK COULD NOT DO, above the frame it was clicked in.
+          `RowEditor.tsx` draws a write's refusal under the row it was typed
+          in; this is the same placement rule for a surface with no row — the
+          reader's eyes are on the preview, so the line goes against its top
+          edge, where the link they just pressed is. It is not pinned over the
+          page like the undo's, because unlike an undo this refusal HAS
+          somewhere to belong. */}
+      <Show when={refused()}>
+        {(said) => (
+          <SaidLine
+            said={said()}
+            class="mb-2 text-[0.8125rem] leading-snug"
+            testid={TESTID.hypertextSaid}
+          />
+        )}
+      </Show>
+      <iframe
       // The element, and its first address, in one step: assigning `src` here
       // happens before insertion, so there is no `about:blank` load ahead of
       // the sealed one and the count starts honest.
@@ -569,6 +627,7 @@ export function Hypertext(
       // a keyboard up, and the two disagree by however tall the keyboard is.
       class="block h-[clamp(6rem,var(--page-height,70dvh),200dvh)] w-full rounded border border-rule bg-white"
       data-testid={TESTID.hypertextPreview}
-    />
+      />
+    </>
   )
 }

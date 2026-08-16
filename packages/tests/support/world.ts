@@ -174,6 +174,7 @@ export const HYPERTEXT_LINK = selector(TESTID.hypertextLink);
 /** A `.html` file's page: the sandboxed frame its markup is drawn in, and the
  *  only element of that page this app owns. */
 export const HYPERTEXT_PREVIEW = selector(TESTID.hypertextPreview);
+export const HYPERTEXT_SAID = selector(TESTID.hypertextSaid);
 /** One document, as a page: `/doc/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
 /** The rendered markdown of a document — on its own page, or inline under the
