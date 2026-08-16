@@ -587,10 +587,11 @@ export {
 export { type Applied, Anchor, Edit } from "./edit.ts"
 
 /** The one HTTP address both ends spell — see {@link ./media.ts}. `mediaTarget`
- *  is what the ROUTE may answer; `mediaPath` is the decoder under it, for the
- *  reader that asks which file of the vault an address names without asking
- *  whether it may be served. */
-export { MEDIA_PREFIX, mediaHref, mediaPath, mediaTarget } from "./media.ts"
+ *  is what the ROUTE may answer, and it is the only half either end needs: the
+ *  decoder under it (`mediaPath`, which admits files the route refuses) stays
+ *  inside this package, where its one caller is, because an export of it is a
+ *  way to ask the traversal guard a question and ignore the allowlist. */
+export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
 
 /** What a served `.html` is answered with, how tall it says it is, and which
  *  page of this vault it says a reader clicked — the other contract between the

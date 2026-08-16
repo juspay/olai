@@ -147,7 +147,7 @@ export function RouterProvider(
 export const useRouter = (): Router => {
   const router = useContext(RouterContext)
   if (router === undefined) {
-    throw new Error("a <Link> outside the router — wrap the page in <RouterProvider>")
+    throw new Error("a navigator outside the router — wrap the page in <RouterProvider>")
   }
   return router
 }

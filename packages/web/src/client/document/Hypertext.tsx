@@ -307,33 +307,51 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
    * preview — and the whole of what "because" is worth here.
    *
    * What arrives is a path from a document running somebody else's JavaScript,
-   * so it is a LOOKUP KEY and nothing else. It is matched against the paths this
-   * app is serving ({@link useDocumentPaths} — the same list `../page.ts`
-   * decides a `/doc/` address against), and the route is built from the string
-   * THAT LIST holds rather than from the one that arrived. The two are equal by
-   * construction, which is the point: it makes it mechanical, rather than
-   * argued, that nothing a frame said reaches the address bar. A hostile page
-   * can post any string it likes; the most it can do with one is name a file the
-   * reader could have clicked in the sidebar anyway.
+   * so it is a LOOKUP KEY and nothing else: it is looked up in the paths this
+   * app is serving ({@link useDocumentPaths} — the same list `../page.ts` asks
+   * the same question of before it will draw a `/doc/` address), and a path
+   * that is not in there names no page and moves nothing.
+   *
+   * THAT MEMBERSHIP IS THE WHOLE GUARANTEE, and saying so is worth a line
+   * because the first draft of this dressed it up: it navigated with the string
+   * the LIST held rather than the one that arrived, as if that were a second
+   * guard. It is not — the two are `===` equal strings, so there is no copy,
+   * nothing is laundered, and the ceremony only made the real test harder to
+   * see. One question, asked the way the page model asks it.
    *
    * A MISS MOVES NOTHING, deliberately, and the tempting alternative is worth
    * naming because it looks kinder: navigating anyway would let this app's own
    * "no such document" screen say what happened. It would also put an arbitrary
    * string from a sandboxed frame into the URL bar, which is a capability, and
-   * the sentence on screen would be about a file the reader never named. A dead
-   * click on a link to a file the vault does not hold is the honest answer, and
-   * the file it points at is not there for anybody else to click either.
+   * the sentence on screen would be about a file the reader never named.
    *
-   * A link to the page ALREADY OPEN is left to do exactly what such a link does
-   * anywhere in this app — a history entry naming the page you are on — because
-   * a `[here](./here.md)` in a rendered document does the same thing through
-   * `../router.tsx`'s `followed`, and a preview is not the place to invent a
-   * second rule about self-links.
+   * WHAT A MISS COSTS, because a dead click is not free. The two ends of this
+   * disagree about what the vault holds, in one direction. The seal claims a
+   * click by SUFFIX under `/media/` — the ROUTE's world, whose guard is lexical
+   * and will serve any `.html` it can find on disk. This list is the STORE's
+   * world, and the store's walk prunes dot-directories and `node_modules`
+   * (`@olai/store`'s `disk.ts`). So a `.html` under a pruned directory is
+   * servable and unlistable at once: the click is claimed and then dropped,
+   * where before this change the frame would have drawn it. Nothing became
+   * unreachable that was reachable — `../page.ts` refuses those paths too, so
+   * olai has no page for such a file either — but the FRAME's rendering of it
+   * is gone, and it goes silently. `html_previews.feature` holds that case, so
+   * it is a known cost rather than something for a reader to discover.
+   *
+   * AND IT NEEDS NO GESTURE, which is the one place this channel is more than
+   * the link it is modelled on. `[here](./here.md)` in rendered markdown
+   * reaches `../router.tsx`'s `followed` only when somebody presses it; this
+   * arrives whenever the page decides to send it, because a `postMessage` is
+   * not a press and nothing on this side can tell them apart. A page naming
+   * ITSELF is where that shows: the app re-navigates to the page already open,
+   * which does not re-key `DocumentPage`, so this element is never replaced and
+   * the sender is still there to send again — history a page can spend with no
+   * reader in it. Named here rather than left to be found; the PR's report
+   * carries it as owed work.
    */
   const open = (named: string) => {
-    const file = held().find((path) => path === named)
-    if (file === undefined) return
-    router.go({ kind: "document", file })
+    if (!held().includes(named)) return
+    router.go({ kind: "document", file: named })
   }
 
   /** Put the file back, or — once the budget is out — nothing at all. */
@@ -388,11 +406,12 @@ export function Hypertext(props: { readonly file: string; readonly rev: number }
         else stand({ ...custody, spoke: true })
         return
       }
-      // A LINK THE READER FOLLOWED, at a page this app can show. The frame has
-      // already declined to navigate itself (`seal.ts`'s `FOLLOW`), so this is
-      // the whole of what the click does — and the frame's custody is untouched
-      // by design: nothing loaded, nothing walked off, and the element is about
-      // to be replaced by the next page's own anyway.
+      // A PAGE OF THIS VAULT, asked for from inside the frame. The frame has
+      // already declined to navigate itself (`seal.ts`'s `FOLLOW`), so nothing
+      // loaded and nothing walked off, and custody is deliberately untouched:
+      // there is no navigation of the FRAME's to record. What happens after is
+      // the app's — usually this element unmounting with the page that held it,
+      // and, for a page that named itself, no unmount at all (see `open`).
       const wants = opening(event.data)
       if (wants !== undefined) return open(wants)
       const report = reported(event.data)

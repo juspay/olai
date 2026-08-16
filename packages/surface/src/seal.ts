@@ -420,9 +420,9 @@ const FOLLOW = `(function () {
     if (at.protocol !== location.protocol || at.host !== location.host) return
     if (at.hash !== "") return
     var path = at.pathname
-    if (path.lastIndexOf(${JSON.stringify(MEDIA_PREFIX)}, 0) !== 0) return
+    if (!path.startsWith(${JSON.stringify(MEDIA_PREFIX)})) return
     for (var i = 0; i < pages.length; i++) {
-      if (path.slice(-pages[i].length) !== pages[i]) continue
+      if (!path.endsWith(pages[i])) continue
       event.preventDefault()
       parent.postMessage(${JSON.stringify(OPEN)} + path, "*")
       return

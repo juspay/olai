@@ -84,7 +84,9 @@ import { olai } from "../wire.ts"
 export type Served = DocumentEntry & { readonly text: string }
 
 export interface Documents {
-  /** Every `.md` the directory holds, by path. ARRIVAL order, deliberately:
+  /** Every BODIED file the directory holds — every `.md` and every `.html`,
+   *  which is what the collection is keyed by (`@olai/surface`) — by path.
+   *  ARRIVAL order, deliberately:
    *  the sidebar's tree sorts each of its own levels (`../fileTree.ts`) and the
    *  page model only asks whether a path is in here, so an order imposed on a
    *  corpus-sized list every time one file arrives would be work nobody reads. */

@@ -262,6 +262,48 @@ Feature: A `.html` in the vault
     And the preview shows the heading "Gallery"
 
   @scratch:good
+  Scenario: A link to a page the route serves and the directory does not list is dropped
+    # THE SEAM THIS CHANGE COSTS, pinned rather than left to be met. The two ends
+    # disagree about what the vault holds, and they disagree in one direction:
+    # the seal claims a click by SUFFIX under `/media/`, which is the ROUTE's
+    # world, and the route's guard is lexical — it serves any `.html` it finds on
+    # disk. The app's list is the STORE's world, and the store's walk skips
+    # dot-directories and `node_modules` (`@olai/store`'s `disk.ts`). So this
+    # file is servable and unlistable at once, and the click is claimed and then
+    # dropped.
+    #
+    # Nothing became unreachable: `/doc/` refuses that path too, so olai has no
+    # page for it either. What is lost is the FRAME drawing it, which is what
+    # #206 did — and losing it silently is why this scenario exists. Both halves
+    # are read, because "the click did nothing" alone would also be true of a
+    # file that simply is not there.
+    Given I open the app
+    And I mark the page
+    When I rewrite "node_modules/handbook/index.html" as:
+      """
+      <h1>Vendored</h1>
+      """
+    And I rewrite "vendor.html" as:
+      """
+      <h1>Vendor</h1>
+      <p><a id="vendored" href="node_modules/handbook/index.html">the vendored handbook</a></p>
+      """
+    And I click the page "vendor.html"
+    Then the preview shows the heading "Vendor"
+    # It is not in the directory the app draws — the pages listed are the ones
+    # the store walked, and the pruned one is not among them…
+    And the pages listed are "quarter.html, report.html, vendor.html"
+    # …and the route serves it all the same, which is the half that makes this a
+    # seam rather than a missing file.
+    And requesting "/media/node_modules/handbook/index.html" answers 200
+    When I click "#vendored" inside the preview
+    # The click was claimed by the seal — so the frame did not follow it — and
+    # then dropped by the app, which holds no page for that path.
+    Then the address is "/doc/vendor.html"
+    And the page has not reloaded
+    And the preview shows the heading "Vendor"
+
+  @scratch:good
   Scenario: A page cannot navigate this app by naming a file the vault does not hold
     # THE HOSTILE CASE, and the reason the message is a lookup key rather than
     # an instruction. A previewed page runs its own JavaScript, so it can post
