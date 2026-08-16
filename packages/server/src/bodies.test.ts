@@ -134,13 +134,16 @@ test("only the last few opened files stay watched", () =>
         fixture.bodies.opened("second.html")
         yield* fixture.took(2)
 
-        // `first` is named FIRST, so a re-read of it would be taken before the
-        // one that follows — and the assertion below is read once that one has
-        // come back.
+        // BOTH files move. Only `second.html` is still watched — opening it
+        // pushed `first.html` out, the bound here being one — so only its body
+        // is read again, and the third read is what the assertion waits for.
+        //
+        // Nothing is inferred from a timeout: `moved` offers in the order it is
+        // given, and the reader takes one path at a time, so a re-read of
+        // `first.html` would have been taken BEFORE the third read and would
+        // appear in the list below.
         fixture.bodies.moved(["first.html", "second.html"])
         yield* fixture.took(3)
-        // The stalest of the two was dropped when the second arrived, so only
-        // the newer one was read again.
         expect(fixture.reads).toEqual(["first.html", "second.html", "second.html"])
       }),
     { watching: 1 },

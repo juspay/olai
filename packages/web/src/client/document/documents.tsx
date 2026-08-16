@@ -67,14 +67,19 @@ import { olai } from "../wire.ts"
  *
  * The wire's entry admits `text: null` — the server saying it holds this file's
  * PATH and not its body (`@olai/surface`'s `DocumentEntry`: a `.html`, whose
- * bytes no longer sit in the served set). Nothing sends one today, because the
- * server answers a per-key `get` for such a file with nothing at all until it
- * has read it, so what arrives here is the body. This fold is what makes that a
- * fact about the SERVER rather than something every page has to know: a null
- * would be "the entry has not arrived" said twice, one frame apart, and a page
- * that told the two apart would be drawing a spinner for the width of a disk
- * read. So it collapses into the `undefined` every consumer already handles,
- * once, here — and everything above this line takes a `text` that is a string.
+ * bytes no longer sit in the served set). ONE frame really carries it, and this
+ * fold is what makes that harmless: a body ASKED FOR arrives as a body (the
+ * server answers a per-key `get` with nothing at all until it has read the
+ * file), but the upsert that ANNOUNCES a key — a `.html` that has just appeared
+ * in the directory — says `null`, and it reaches anyone already subscribed to
+ * that key.
+ *
+ * Folding it here is what keeps that a fact about the SERVER rather than
+ * something every page has to know: a null and a missing entry are "the body is
+ * not here" said two ways, and a page that told them apart would be drawing a
+ * spinner for the width of a disk read. So it collapses into the `undefined`
+ * every consumer already handles, once, here — and everything above this line
+ * takes a `text` that is a string.
  */
 export type Served = DocumentEntry & { readonly text: string }
 
