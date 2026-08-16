@@ -16,15 +16,9 @@ lanes.olai tracks ongoing work, each entry is a mirror of the item being worked 
   
 Everything goes through Kolu: never run, resume, or message an agent outside its Kolu terminal (no headless claude -p, no --resume in a background shell, no side channels) — if the terminal can't receive your instruction, stop and ask the human.
 
-Use `kolu` CLI <https://kolu.dev/terminal-ui/> to spawn a toplevel Kolu terminal in their own worktree under $PWD/.worktrees/<name>. Use AskUserQuestion to ask the human as to which agent to spawn (eg: Grok, Codex). The agent must be spawned in YOLO mode (--dangerously-skip-permissions for Claude). Each of these agent will be responsible for their own PR.
+Drive Kolu through its MCP server, per the kolu skill: <https://github.com/juspay/kolu/blob/master/agents/.apm/skills/kolu/SKILL.md>. Spawn each task a toplevel terminal in its own worktree under $PWD/.worktrees/<name>. Use AskUserQuestion to ask the human as to which agent to spawn (eg: Grok, Codex). The agent must be spawned in YOLO mode (--dangerously-skip-permissions for Claude). Each of these agent will be responsible for their own PR.
   
-You must babysit every spawned terminal until their PRs get merged. Nothing notifies you: at spawn, arm `kolu debrief` as a detached background command. Babysit every spawned terminal with a self-re-arming watcher, detached in the background at spawn time:
-
-```
-until kolu debrief <id> --timeout 3500000; do :; done
-```
-
-A timeout re-arms itself instead of silently orphaning the lane; the loop ends only when a real report lands (or the terminal is gone). One watcher per terminal, armed at spawn, alive until the terminal is killed. A live lane without a live watcher is a defect — audit `kolu ls` against your watchers whenever you touch the board.
+You must babysit every spawned terminal until its PR merges. Supervision is Kolu-MCP-native: one standing watch subscription covers every lane terminal — its event queue is durable and acknowledged, so a missed wake costs a redelivery, never a loss — and a single monitor process is the doorbell that wakes you. On every wake: drain the queue, land each event on the board before working it, and work each event to a flipped mark plus a dispatched next step (or an explicit block). No turn ends with an unread event or an unsupervised live lane.
   
 Keep your $PWD synced with latest `master` (or `main`).
   
