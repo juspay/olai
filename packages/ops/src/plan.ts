@@ -30,6 +30,7 @@ import {
   archiveBeside,
   bodyKind,
   chainOf,
+  countedChildren,
   isArchived,
   derive,
   type Derived,
@@ -1092,25 +1093,31 @@ const heldUp = (scope: Scope, node: RegularNode): OpFailure | undefined => {
 }
 
 /**
- * What the rollup has to say about a mark that has just been written — and it
- * is a REMARK, never a refusal.
+ * What the rollup has to say about a `done` that has just been written — and
+ * it is a REMARK, never a refusal.
  *
- * A mark is a stored fact on the node that carries it, so nothing here can
- * make a write illegal: the two things a rollup notices are the two a person
- * usually wants noticed, and both arrive after the fact. That the FINISHING
- * verb only remarks while the STARTING verb refuses is argued one function up
- * ({@link heldUp}); this half of it stayed exactly as it was.
+ * ONE THING IS LEFT TO NOTICE, and it is the one worth noticing: the last
+ * unfinished task under a parent going done, which is the moment somebody
+ * might want to tick the parent too — and now can, whatever else hangs off it.
  *
- *   - a branch ticked done over tasks nobody finished. Sometimes exactly what
- *     was meant ("shipped, dropping the rest"), which is why it is said and
- *     not refused;
- *   - the last unfinished task under a parent going done, which is the moment
- *     somebody might want to tick the parent too — and now can, whatever else
- *     hangs off it.
+ * IT USED TO HAVE A SECOND ARM, and knowing which one it was is the whole
+ * history of this file's two gates: a branch ticked done over tasks nobody
+ * finished, said out loud and allowed, on the reading that "shipped, dropping
+ * the rest" is sometimes exactly what was meant. The human's 2026-08-16 ruling
+ * is that it must be a constraint instead, because what it was permitting was
+ * work vanishing off the page. That sentence is now {@link sweepingOpenWork}'s
+ * refusal, turned around — this function does not say it, because the write
+ * that would have earned it no longer lands.
  *
- * Deliberately not a load invariant. A set arrives from a git merge with
- * nobody to nudge, and a file that will not load is a worse answer to "these
- * two disagree" than a file that loads and says so.
+ * So the asymmetry one function up ({@link heldUp}) reads differently than it
+ * did: the finishing verb is still ungated by the ORDER, and remarks about it;
+ * what it is gated by is the branch below it, which is a different question
+ * about a different set of edges.
+ *
+ * Deliberately not a load invariant, and neither is either gate. A set arrives
+ * from a git merge with nobody to nudge and nobody to refuse, and a file that
+ * will not load is a worse answer to "these two disagree" than a file that
+ * loads and says so.
  */
 const nudged = (
   scope: Scope,
@@ -1301,6 +1308,61 @@ const staleDoneAbove = (
   return done.length === 0 ? NOTHING_ABOVE : done
 }
 
+/**
+ * The `done` marks INSIDE a subtree that stand over unfinished work in it —
+ * the contradiction a restored branch can be carrying in its own luggage.
+ *
+ * THE HOLE THIS CLOSES (grok's review of #207). Both doors exempt the archive,
+ * for a reason that is right: work put away is over, so nothing in there is
+ * unfinished and nothing in there is hidden by a mark. But an exemption is a
+ * place where the state can legally be BORN — `set_done` on an archived branch
+ * over an archived `todo` is refused nowhere — and `unarchive` then carries it
+ * into the live set, where door two was only ever looking ABOVE the landing.
+ * The contradiction landed through an ops write, which is precisely what these
+ * gates promise cannot happen; the git-merge residual the docs carve out is a
+ * set that arrived some other way, not one this planner wrote.
+ *
+ * REOPENED RATHER THAN REFUSED, which is door two's answer and not door one's,
+ * for door two's reason plus one that is decisive on its own. The person is
+ * not making a claim: they are asking for their subtree back, and the marks in
+ * it went stale exactly as an ancestor's does — true while the branch was over,
+ * false the moment it is live again. The exemption is about where a node LIVES,
+ * so it ends here, and so does what it was protecting. And a refusal would be
+ * unfixable from the web: the trash is deliberately not a place you edit (no
+ * checkbox, no `•••`, one verb — `web/src/client/trash/TrashPage.tsx`), so
+ * "clear those marks first" is advice a person cannot take. Work would be
+ * stranded in the trash by the gate that exists to keep work visible.
+ *
+ * Every one of them, not just the root: `A` done over `B` done over `C` todo
+ * is two claims that hide `C`, and door one's own walk refuses both when they
+ * are made in the live set.
+ *
+ * Cycle-safe like every walk here, and it runs on `unarchive` alone — the one
+ * op that crosses out of the exemption.
+ */
+const contradictedWithin = (
+  scope: Scope,
+  id: string,
+): ReadonlyArray<LocatedRegular> => {
+  const at = scope.derived.byId.get(id)
+  if (at === undefined || isMirror(at.node)) return NOTHING_ABOVE
+  const found: Array<LocatedRegular> = []
+  const seen = new Set<string>()
+  const consider = (one: LocatedRegular): void => {
+    if (seen.has(one.node.id)) return
+    seen.add(one.node.id)
+    if (
+      storedMarker(one.node) === "done" &&
+      unfinishedWithin(scope.derived, one.node.id).length > 0
+    ) {
+      found.push(one)
+    }
+    for (const child of countedChildren(scope.derived, one.node.id)) consider(child)
+  }
+  consider(at as LocatedRegular)
+  return found.length === 0 ? NOTHING_ABOVE : found
+}
+
 /** Whether a subtree that is about to arrive somewhere holds work that is not
  *  finished — the node's own mark, or any unfinished task below it. What
  *  {@link arriving}'s `brings` is answered with when the thing arriving is
@@ -1341,8 +1403,14 @@ const holdsOpenWork = (scope: Scope, node: RegularNode): boolean =>
 const arriving = (
   scope: Scope,
   /** Where the open work LANDS: the outline it is written in, and the node it
-   *  hangs off — absent at top level, where nothing stands above it. */
-  at: { readonly file: string; readonly parent: string | undefined },
+   *  hangs off — absent at top level, where nothing stands above it. Plus, for
+   *  the one arrival that can carry a contradiction of its own, the subtree
+   *  being restored ({@link contradictedWithin}). */
+  at: {
+    readonly file: string
+    readonly parent: string | undefined
+    readonly restoring?: string
+  },
   /** Whether what is arriving holds work that is not finished. The caller's to
    *  answer, because only the caller knows what is arriving — a subtree the
    *  set already holds ({@link holdsOpenWork}) or a capture that is not on
@@ -1357,16 +1425,28 @@ const arriving = (
   brings: () => boolean,
   plan: Plan,
 ): Plan => {
+  // The two halves of one question — which `done` marks would stand over
+  // unfinished work once this write lands — asked outside-in. Above the
+  // landing, only when something unfinished is actually arriving; inside what
+  // arrives, which needs no such gate because a contradiction in there IS
+  // unfinished work in there.
   const above = staleDoneAbove(scope, at.file, at.parent)
-  if (above.length === 0 || !brings()) return plan
+  const inside = at.restoring === undefined
+    ? NOTHING_ABOVE
+    : contradictedWithin(scope, at.restoring)
+  const reopened = [
+    ...(above.length > 0 && brings() ? above : NOTHING_ABOVE),
+    ...inside,
+  ]
+  if (reopened.length === 0) return plan
 
-  const titles = above.map((one) => one.node.title)
-  const one = above.length === 1
+  const titles = reopened.map((one) => one.node.title)
+  const one = reopened.length === 1
   // Stamped `changed` like any other write, because this IS a write to them.
-  const undone = new Set(above.map((one) => one.node.id))
+  const undone = new Set(reopened.map((one) => one.node.id))
   const said = `${titles.map((title) => `\`${title}\``).join(", ")} ` +
-    `${one ? "was" : "were"} marked done, and this is unfinished work under ` +
-    `${one ? "it" : "them"} — done-hidden would have swept it off the page, so ` +
+    `${one ? "was" : "were"} marked done over work that is not finished — ` +
+    `done-hidden would have swept it off the page, so ` +
     `${one ? "that mark is" : "those marks are"} off now. Mark ` +
     `${one ? "it" : "them"} done again when the branch really is finished.`
 
@@ -2428,12 +2508,18 @@ const planUnarchive = (
     ord: appendedOrd([already], parent),
   }
 
-  // DOOR TWO, at the one arrival the archive itself sends: work that was put
-  // away comes back, and what it comes back UNDER may have been called
-  // finished in the meantime. The exemption is about where a node LIVES, so it
-  // stops the moment the node stops living in the archive.
+  // DOOR TWO, at the one arrival the archive itself sends, and the only one
+  // that has to be asked TWICE. What it comes back under may have been called
+  // finished in the meantime — and so may something inside it, since the
+  // archive is where such a mark can legally be written
+  // ({@link contradictedWithin}). The exemption is about where a node LIVES,
+  // so both halves of it stop the moment the node stops living there.
   return Result.succeed(
-    arriving(scope, { file: destination, parent }, () => holdsOpenWork(scope, node), {
+    arriving(scope, {
+      file: destination,
+      parent,
+      restoring: node.id,
+    }, () => holdsOpenWork(scope, node), {
       files: [
         { file, nodes: keeps.filter((record) => !dropped.has(record.id)) },
         { file: destination, nodes: [...already, reparented, ...descendants] },

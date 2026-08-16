@@ -974,6 +974,51 @@ test("unarchive_node takes back what archive_node put away", async () => {
   })
 })
 
+/**
+ * The archive's exemption, and where it ends — the hole grok found in #207,
+ * driven through the face an agent actually talks to.
+ *
+ * Both gates skip archived writes, deliberately: work put away is over. So the
+ * contradiction can be MINTED in there (step 2 below is refused nowhere), and
+ * `unarchive_node` is the write that would otherwise carry it into the live
+ * set — where a `done` over a `todo` is exactly the state that vanishes from
+ * the page. It comes back out repaired, and the answer says which mark it took
+ * off.
+ */
+test("a done mark minted in the archive is re-opened when the subtree comes back", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
+    // `install` is `doing`, so `kitchen` cannot be marked done in the live set
+    // — that is door one, and the refusal is asserted above. Put it away and
+    // the same write goes through.
+    const away = await call(client, "archive_node", { id: "install" })
+    expect(away.isError).toBe(false)
+    const shut = await call(client, "set_done", { id: "install" })
+    expect(shut.isError).toBe(false)
+    expect(read("Archive.olai")).toContain(`"id":"install"`)
+
+    // Now the branch is done in the trash with nothing unfinished under it, so
+    // give it something: a task filed under it, still inside the archive.
+    const filed = await call(client, "add_node", {
+      parent: "install",
+      title: "chase the fitter",
+      mark: "todo",
+    })
+    expect(filed.isError).toBe(false)
+    // Nothing was re-opened in there: the archive is exempt at both doors.
+    expect(String(filed.structured["nudge"] ?? "")).not.toContain("marked done")
+
+    const back = await call(client, "unarchive_node", { id: "install" })
+    expect(back.isError).toBe(false)
+    expect(String(back.structured["nudge"]))
+      .toContain("`install them` was marked done over work that is not finished")
+    expect(String(back.structured["summary"])).toContain("(reopened: install them)")
+    // The mark is off in the live file, and the work it was hiding is on the
+    // page with it.
+    expect(read("house.olai")).toContain("chase the fitter")
+    expect(read("house.olai")).not.toContain(`"id":"install","parent":"kitchen","ord":"a2","done"`)
+  })
+})
+
 /** The other half of ledger-complete: a dependency, written from the node that
  *  waits, read back off the node, and refused when it would close a loop. */
 test("set_after writes a dependency, and a loop is refused naming it", async () => {

@@ -520,9 +520,10 @@ export const unfinishedWithin = (
  *
  * `Exclude<Status, "done">` says the whole rule in the type: what is in the way
  * is unfinished WORK. A node with no status is absent from this shape entirely
- * — it is not a task, so there is nothing under it to finish — which is the
- * same sentence {@link unfinishedUnder} says about children, about the other
- * kind of edge.
+ * — it is not a task, so there is nothing under it to finish — which is not a
+ * second sentence but the same one, since {@link unfinished} is the predicate
+ * both this and {@link unfinishedWithin} are built from, about the two
+ * different kinds of edge.
  */
 export interface InTheWay {
   readonly at: LocatedRegular

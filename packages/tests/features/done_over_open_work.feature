@@ -85,7 +85,7 @@ Feature: A finished branch cannot hide unfinished work
     # Not refused, and not quiet: the checkbox above empties in front of you and
     # the line under the row says which mark came off and why.
     And the node "frames" has no status
-    And the nudge says "`the cold frames` was marked done, and this is unfinished work under it — done-hidden would have swept it off the page, so that mark is off now. Mark it done again when the branch really is finished."
+    And the nudge says "`the cold frames` was marked done over work that is not finished — done-hidden would have swept it off the page, so that mark is off now. Mark it done again when the branch really is finished."
     # And the proof that this was worth doing: with finished work hidden, the
     # row that was just filed is still on the page. Under the old rule the whole
     # branch went with the stale mark, and this is the row that would have gone.
