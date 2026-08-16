@@ -47,6 +47,15 @@ export interface NodeRef {
 export function NodeRefs(props: {
   /** What the relation is called, in the reader's words: `see`, `blocked by`. */
   readonly label: string
+  /**
+   * The targets, EACH ONCE — a link is keyed by the id it opens (below), so a
+   * target named twice would be one element drawn twice and the page would die
+   * on the next frame. It is the caller's to hand over a set because it is the
+   * caller who knows what a repeat MEANS: the two writable fields are sets to
+   * the ops layer, so `./edges/named.ts` reads them as one, and the derived
+   * `blocked by` is one edge per blocker in the ordering graph itself
+   * (`@olai/format`). Neither is this row's decision to make.
+   */
   readonly refs: ReadonlyArray<NodeRef>
   /** What the whole row is, for the browser tests: `see-refs`, `blocked`. */
   readonly testid: TestId
@@ -76,7 +85,9 @@ export function NodeRefs(props: {
             the refs are minted fresh on every frame the store publishes, and
             `<For>` compares by reference — so every link's DOM would be torn
             down and rebuilt on each frame rather than the title binding
-            updating. Keyed by the id, which is what a ref IS. */}
+            updating. Keyed by the id, which is what a ref IS — honest exactly
+            while each target appears once, which is what `refs` promises
+            above and why that promise is written down there. */}
         <Key each={props.refs} by="id">
           {(ref) => (
             <span class="inline-flex items-baseline gap-0.5">

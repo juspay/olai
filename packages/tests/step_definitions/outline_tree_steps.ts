@@ -18,6 +18,7 @@ import {
   NODE,
   NODE_GUTTER,
   NODE_MENU,
+  NODE_REF,
   nodeSelector,
   PROGRESS,
   readable,
@@ -684,6 +685,33 @@ Then(
       .locator(BLOCKED)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+/**
+ * The WHOLE derived list, ids and count, in the order `Derived.blocked`
+ * promises — and the drawn row counted against it.
+ *
+ * Its own step beside the membership one above rather than a stricter version
+ * of it, because they answer different questions and both are asked: `~=` is
+ * right for "this blocker is among them", and blind to a list naming one
+ * blocker twice — which is exactly the shape that took a page down (a repeated
+ * `after` target, or one edge spelled both ways round). So this one compares
+ * the attribute WHOLE, and then counts the links the `blocked by` row draws:
+ * the fact and the affordance come off one list, and a step that asked only
+ * the attribute would pass over a row that drew it twice.
+ */
+Then(
+  "the node {string} is blocked by exactly {string}",
+  async function (this: OlaiWorld, id: string, blockers: string) {
+    await this.expectNodeAttribute(id, "data-blocked", blockers);
+    const named = blockers.split(" ").filter((one) => one.length > 0).length;
+    await this.waitUntil(
+      async () =>
+        (await this.node(id).locator(BLOCKED).first().locator(NODE_REF).count()) ===
+          named,
+      `the \`blocked by\` row of "${id}" to draw ${named} link(s)`,
+    );
   },
 );
 

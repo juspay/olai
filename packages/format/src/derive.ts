@@ -129,10 +129,11 @@ export interface Derived {
    *
    * A SET, in corpus order, and the container is the promise: what asks this
    * wants to know WHICH records to look at again, and a record filed twice is
-   * still one record to look at. `after` next door is an array for the
-   * opposite reason — it keeps what a record wrote, repeats included, because
-   * a reader says those targets back. One shape for each meaning, rather than
-   * one shape and a comment saying which of the two this one is.
+   * still one record to look at. `after` next door holds each target once too
+   * (#203), but it stays an ARRAY because its order is a promise a reader
+   * spends — the one blocker a row has room for is the first of that list —
+   * while nothing reads these two in order. Membership is the whole answer
+   * here, so the container says so.
    */
   readonly mirrorsOf: ReadonlyMap<string, ReadonlySet<string>>
   /**
@@ -497,13 +498,19 @@ export interface InTheWay {
  *
  * A mirror is never a source of its own: it carries no edges.
  *
+ * AND IT IS A SET, per source: what a node waits on is a list of nodes, each
+ * named once, in the order it was first named. That is the same claim the two
+ * paragraphs above make about spellings and about placements, carried to the
+ * case where the two arrive at one pair — see {@link edge}.
+ *
  * BOTH DIRECTIONS, filed as the edge is made. {@link Derived.edgesTo} is this
  * map reversed — and to be exact about what that buys, since a later pass over
  * a finished `after` would reverse ids that are already canonical and could
  * not disagree with it: what it buys is that the reverse is written where the
  * edge is known, so there is no second place holding a rule about how an edge
- * is filed. The cost is one `Set` operation inside a walk that was happening
- * anyway.
+ * is filed. It is a set for the reason the forward reading is one, arrived at
+ * from the other end: a source that named a target three ways is one node to
+ * look at again.
  */
 const orderings = (
   byId: ReadonlyMap<string, Located>,
@@ -516,10 +523,23 @@ const orderings = (
   const named = (id: string): string => nodeNamed(index, id)?.node.id ?? id
   const after = new Map<string, Array<string>>()
   const edgesTo = new Map<string, Set<string>>()
+  /** File one edge, ONCE, in both directions. Both ends are resolved to nodes
+   *  before they get here, so a field repeating a target (a `.olai` is plain
+   *  text, and nothing refuses a hand that writes `after: [b, b]`), the two
+   *  spellings of one arrow both written down, and two ids standing at one
+   *  node through a mirror all arrive as the same pair — and each of them is
+   *  one edge. Every reader takes this as a set: the row a page draws keyed by
+   *  the blocker's id (a repeat crashes the client,
+   *  `web/client/NodeRefs.tsx`), the `blocked by` tip, the walk the acyclicity
+   *  rule and `set_after`'s loop refusal share. A duplicate would say one node
+   *  is in the way twice — and, read backwards, that one node has to be looked
+   *  at twice when the other's mark flips. The reverse is a `Set` for that
+   *  reason, so the two directions cannot disagree about how many edges a pair
+   *  of records means. */
   const edge = (from: string, to: string): void => {
     const existing = after.get(from)
     if (existing === undefined) after.set(from, [to])
-    else existing.push(to)
+    else if (!existing.includes(to)) existing.push(to)
     const sources = edgesTo.get(to)
     if (sources === undefined) edgesTo.set(to, new Set([from]))
     else sources.add(from)
