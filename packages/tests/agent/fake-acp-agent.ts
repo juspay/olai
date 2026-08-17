@@ -97,7 +97,7 @@
  * run down with it. A directory of its own is what makes that unrepresentable.
  */
 
-import { existsSync, rmSync, statSync } from "node:fs"
+import { existsSync, readFileSync, rmSync, statSync } from "node:fs"
 import { basename } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
@@ -289,6 +289,23 @@ const MODEL_ROWS = [
   { value: "haiku", name: "Fake Haiku" },
   { value: "opus[1m]", name: "Fake Opus (1M context)" },
 ]
+
+/**
+ * THE PIN this agent boots on — its `settings.json`, in effect.
+ *
+ * A dot-file in the served directory, read at every session open, like
+ * {@link forgotten} and for the same reason: a scenario has to be able to move
+ * it BETWEEN boots, which is exactly what a redeployed container does when
+ * somebody edits its settings. Absent, it is `fake-model-1`, which is what
+ * every scenario that never touches it sees.
+ */
+const pinnedModel = (): string => {
+  try {
+    return readFileSync(`${cwd}/.agent-pin`, "utf8").trim() || "fake-model-1"
+  } catch {
+    return "fake-model-1"
+  }
+}
 
 let currentModel = "fake-model-1"
 
@@ -1530,8 +1547,8 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       sessionId = "fake-session-1"
       // A fresh conversation is on whatever the picker says it is picking, and
       // what it is picking is the pin.
-      currentModel = "fake-model-1"
-      liveModel = "fake-model-1"
+      currentModel = pinnedModel()
+      liveModel = currentModel
       // ... and has spent nothing in a window of its own.
       used = 0
       size = 200_000
@@ -1555,8 +1572,8 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       // `chat-model-reverts-on-restart` is about, and what the real adapter
       // does on every resume when `settings.json` names a model. Whatever this
       // conversation was switched to is gone unless somebody says otherwise.
-      currentModel = "fake-model-1"
-      liveModel = "fake-model-1"
+      currentModel = pinnedModel()
+      liveModel = currentModel
       // A different conversation is a different context. The client empties
       // what it was showing when the session goes, so nothing is drawn about
       // this one until its first turn reports.

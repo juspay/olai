@@ -155,6 +155,17 @@ When(
   },
 );
 
+/** Move the model the agent PINS — its `settings.json`, in effect, which is
+ *  the thing a redeploy edits. Read at every session open, so a scenario arms
+ *  it between two boots and the next one comes up on it. The same dot-file
+ *  idiom as the two above, and not an edit either. */
+When(
+  "the agent's pinned model becomes {string}",
+  function (this: OlaiWorld, model: string) {
+    fs.writeFileSync(path.join(this.scratch(), ".agent-pin"), model);
+  },
+);
+
 When("I cancel the turn", async function (this: OlaiWorld) {
   const cancel = this.page.locator(CHAT_CANCEL);
   await cancel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

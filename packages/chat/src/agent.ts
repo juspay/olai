@@ -752,8 +752,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           .onNotification(methods.client.session.update, (context) => {
             onUpdate(context.params)
           })
-          // The CLI's own message, forwarded verbatim because `session/new`
-          // asked for it (`OPEN_SESSION_META`). Asking and then not listening is
+          // The CLI's own message, forwarded verbatim because the call that
+          // OPENED this conversation asked for it (`OPEN_SESSION_META`, on
+          // `session/new` and `session/load` both — the adapter reads the
+          // subscription off whichever one made the session, and asking at
+          // `new` alone left every restored conversation silent).
+          // Asking and then not listening is
           // what this used to do, which is why the header could name a model
           // the session had stopped running. Custom method, so the SDK wants a
           // parser: there is nothing to validate beyond "it is an object", and

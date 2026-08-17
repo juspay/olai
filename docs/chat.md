@@ -27,7 +27,7 @@ The note lives with this machine's other state (`~/.local/state/olai/`, or where
 
 Under the conversation's title, the header names the model — because a turn's cost and character depend on it and nothing else on screen says.
 
-It names the model the agent is **running**, which is not always the one the session was started on: `/model` is handled inside the CLI the adapter wraps, so the adapter never learns of it and its own picker goes on reporting the starting model for the life of the session. What the header follows instead is the CLI's own message, forwarded because olai asked for it at `session/new`.
+It names the model the agent is **running**, which is not always the one the session was started on: `/model` is handled inside the CLI the adapter wraps, so the adapter never learns of it and its own picker goes on reporting the starting model for the life of the session. What the header follows instead is the CLI's own message, forwarded because olai asks for it whenever it opens a conversation — a new one and a stored one alike.
 
 Two consequences, both of them the adapter's shape rather than a choice:
 
