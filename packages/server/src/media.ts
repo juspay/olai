@@ -48,7 +48,8 @@
 
 import { fileKind } from "@olai/format"
 import { MEDIA_PREFIX, mediaTarget, SEAL, sealPolicy, spellsHost } from "@olai/surface"
-import { Effect, FileSystem, Stream } from "effect"
+import { vanished } from "@olai/store"
+import { Effect, FileSystem, type PlatformError, Stream } from "effect"
 import {
   HttpRouter,
   HttpServerRequest,
@@ -115,6 +116,39 @@ const served = (target: string): string =>
  *  it is a constant, and a preview of a megabyte file should not pay for
  *  re-encoding half a kilobyte of ours. */
 const PREFIX = new TextEncoder().encode(SEAL)
+
+/**
+ * Whether a failed read is one an OPERATOR is owed a line about: the file is
+ * THERE and will not open.
+ *
+ * The reader is owed nothing either way — every way a file is not available is
+ * one 404 (see the header) — so this decides the LOG and only the log. It
+ * exists because this route is the only process left that ever opens a saved
+ * page for a person: the preview asked for the body over the wire as well until
+ * the head member replaced it, and the reader that answered logged what the disk
+ * said (`./bodies.ts`). That sentence needed a new home, and this is it.
+ *
+ * TWO reasons are not owed a line, and the second is the sharp one:
+ *
+ *   - `NotFound` is the ordinary miss, and it is `@olai/store`'s own reading of
+ *     it ({@link vanished}) rather than a second spelling — the probe asks the
+ *     identical question about the identical shape, and two spellings would
+ *     disagree the day a platform renames the reason.
+ *   - `BadResource` is what the platform says when a path COMPONENT is not a
+ *     directory or the target is one — `/media/notes/finishes.md/x.html`, which
+ *     is a URL anybody can type and which this route claims (the guard is
+ *     lexical and the suffix is `.html`). That is a miss too: the path names no
+ *     file. Logging it would let anyone who can reach the port write to this
+ *     server's log as often as they like, with a path of their choosing in it,
+ *     which is the one thing a log line derived from a request must not be.
+ *
+ * What is left is a file the directory really holds and the process cannot read:
+ * a permission bit, an I/O error, a resource in use. Bounded by what is on the
+ * disk rather than by what a stranger asks for, and exactly the failure this
+ * app's never-silently-ignore rule is about.
+ */
+const willNotOpen = (failure: PlatformError.PlatformError): boolean =>
+  !vanished(failure) && failure.reason._tag !== "BadResource"
 
 /**
  * A served `.html`, as the response a preview frame is pointed at.
@@ -223,7 +257,27 @@ const page = (
       },
     })
   }).pipe(
-    // A file that was listed a moment ago and cannot be read now is a file that
-    // is not there, answered exactly like one that never was.
+    // …AND IT IS SAID OUT LOUD when the file is THERE and will not open. That
+    // used to be somebody else's line: the preview asked for this file's body
+    // over the wire as well, and the reader that answered logged what the disk
+    // said (`./bodies.ts`). It does not ask any more — a preview costs a
+    // revision now — so the only process left that ever opens a saved page for
+    // a person is this route, and a permission bit nobody can see is exactly
+    // the failure this app's log rule exists for. It is `bodies.ts`'s sentence,
+    // deliberately: one story, told the same way, wherever the read happened.
+    //
+    // A file that is not THERE says nothing at all — see {@link willNotOpen},
+    // which is the whole of the judgement and where the reasons are argued.
+    Effect.tapError((failure) =>
+      willNotOpen(failure)
+        ? Effect.annotateLogs(
+          Effect.logWarning(`olai server: ${failure.message}`),
+          { file: target },
+        )
+        : Effect.void
+    ),
+    // A file that cannot be read is answered exactly like one that never was:
+    // which of the ways it is missing is not the reader's business, and saying
+    // would describe the disk to anybody who can reach the port.
     Effect.orElseSucceed(() => missing),
   )

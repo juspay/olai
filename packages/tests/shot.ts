@@ -1,6 +1,9 @@
 import { chromium } from "playwright"
+
+import { BROWSER_ARGS } from "./support/browser.ts"
+
 const url = process.argv[2]
-const b = await chromium.launch({ args: ["--no-sandbox", "--disable-gpu", "--headless=new"] })
+const b = await chromium.launch({ args: [...BROWSER_ARGS] })
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } })
 await p.goto(url)
 await p.waitForSelector('[data-testid="outline-list"]')

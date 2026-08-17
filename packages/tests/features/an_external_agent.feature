@@ -272,3 +272,21 @@ Feature: An agent olai did not start
     # ...and a query it CAN read carries no refusal at all.
     When the terminal agent searches for "cabinets"
     Then the terminal agent was refused nothing
+
+  Scenario: A saved page's body is still handed to the reader that asks for one
+    # THE OTHER SIDE OF THE PREVIEW'S DIET. A `.html` under an open page stopped
+    # crossing the websocket, because the page draws a frame that fetches the
+    # file over HTTP and what it needs from the wire is only the file's
+    # revision. That is a change to what ONE reader asks for, and this is what
+    # says it was only that: an agent has no frame, so the door it reads a body
+    # through has to go on answering with the file.
+    #
+    # It is the same collection and the same key the browser subscribes to,
+    # reached the way a `.mcp.json` client reaches it.
+    When I rewrite "quote.html" as:
+      """
+      <h1>Quote</h1>
+      <p>the joiner invoiced for the cabinets</p>
+      """
+    And the terminal agent reads the file "quote.html"
+    Then the terminal agent was handed "the joiner invoiced for the cabinets"

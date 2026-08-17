@@ -409,3 +409,66 @@ Then("the terminal agent was refused nothing", function (this: OlaiWorld) {
     "a readable query carried a refusal",
   );
 });
+
+// ── what it may READ ───────────────────────────────────────────────────
+
+/**
+ * A body, over the door a body is asked for through — the one consumer the
+ * preview's change was measured against.
+ *
+ * A `.html`'s bytes stopped crossing the websocket when the browser stopped
+ * asking for them: a preview draws a frame that fetches the file over HTTP, so
+ * what it needs from the wire is the file's REVISION and nothing more
+ * (`@olai/surface`'s `Head`). That is a change to what one READER asks for, and
+ * this is the assertion that it was only that: an agent has no frame, so a
+ * `resources/read` of the same file must still be answered with the file.
+ *
+ * It is a raw `resources/read` rather than a tool call because that is what the
+ * surface publishes — `surface://collections/<member>/<key>`, the same URI a
+ * `.mcp.json` client reaches — and going through the tool table would be
+ * testing a door this member does not have.
+ */
+When(
+  "the terminal agent reads the file {string}",
+  async function (this: OlaiWorld, file: string) {
+    const uri = `surface://collections/documents/${file}`;
+    // UNTIL THE KEY IS THERE, because a scenario writes the file a moment
+    // before asking for it and the directory is published on the store's own
+    // clock. A `resources/read` of a key the collection does not hold is
+    // refused rather than held open — which is the right answer to a path that
+    // is not there, and the wrong one to a path that is about to be. Waiting
+    // here rather than in the scenario keeps the sentence a person reads about
+    // what an agent may READ.
+    let refusal = "nothing was said";
+    try {
+      await this.waitUntil(async () => {
+        const answered = await agentOf(this).call("resources/read", { uri });
+        if (answered.error !== undefined) {
+          refusal = `${answered.error.message} (${answered.error.code})`;
+          return false;
+        }
+        const contents = (answered.result?.["contents"] ??
+          []) as ReadonlyArray<{ readonly text?: string }>;
+        this.resourceRead = contents[0]?.text ?? "";
+        return true;
+      }, `${uri} to be readable`);
+    } catch {
+      throw new Error(
+        `${uri} was never readable — the last refusal was: ${refusal}`,
+      );
+    }
+  },
+);
+
+Then(
+  "the terminal agent was handed {string}",
+  function (this: OlaiWorld, said: string) {
+    const read = this.resourceRead ?? "";
+    assert.ok(
+      read.includes(said),
+      `what the agent read was ${JSON.stringify(read)}, which does not carry ` +
+        `${JSON.stringify(said)} — the reader with no frame of its own still ` +
+        "needs the body",
+    );
+  },
+);

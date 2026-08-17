@@ -97,6 +97,19 @@ One section per run, against a directory the driver has just re-copied and a ser
 
 `SECTION=` on its own lists the sections; `SECTION=<name>` runs one against a server you are already running (`BASE` says where).
 
+## Measuring what a session costs the wire
+
+```bash
+just build-client
+nix develop .#e2e -c bash
+cd packages/tests
+LABEL=after PORT=7802 bash wire.sh
+```
+
+`wire.ts` / `wire.sh` are the same kind of thing as `evidence.ts` one section up — not part of the suite, never run by `just e2e` — and they answer the question a screenshot cannot: how many bytes a session cost, and down which of the two wires. It opens the app, opens a saved page of a megabyte, rewrites it three times while it is on screen and then opens a note, counting every websocket frame the tab was delivered and every byte fetched off `/media/`.
+
+`ROOT=` is the knob it exists for: the driver imports nothing of olai, so pointing it at a second worktree measures THAT branch's server through the same session, and the two numbers are comparable. That is how `preview-body-not-shipped`'s were taken — a previewed page's body used to cross the socket as well as the route, so the same session read 3.9 MB on the socket before and about 50 kB after (which is the note, and only the note).
+
 ## Making it flake on purpose
 
 ```bash
@@ -140,6 +153,14 @@ Every server this harness spawns runs with `--no-commit`: a scratch corpus is a 
 Like `@kolu` and `@agent-stored`, it needs `@scratch:<corpus>` — what a server commits to is decided when it is started, and a `@corpus:` server is running for every other scenario in the run. The `Before` hook says so by name.
 
 One of those scenarios goes the whole way rather than reading chrome: it asks the agent for a write under a broken git and opens the tool call's detail, which is the op's own reply as the reader gets it. That is the only assertion in the suite that follows one field (`Applied.why`) from the ops layer, through the internal MCP server and the transcript, onto a screen.
+
+## What the server SENT, as against what the page drew
+
+**`@wire`** keeps every websocket frame the tab was delivered, for the scenario's life, so a step can say what the server chose to send this reader — `the websocket carried "…"` and its negative. Nothing else in the suite can answer that: `world.requests` is what the page FETCHED, and the surface's traffic makes no requests at all.
+
+It is a tag rather than the default because unlike the request and error recorders it retains PAYLOADS — a transcript's token-by-token deltas, a document's whole body — and two scenarios ask — the pair below. A scenario that forgets it does not quietly pass a negative over an empty list: `world.socketCarried` throws, the way `world.requestsWatched` does for the same class of mistake. It also throws on a probe string carrying a character the framing escapes, since the frames are raw and such a probe would be absent whether or not the body was sent.
+
+The two scenarios it exists for are the halves of one rule (`html_previews.feature`): a previewed `.html`'s body must never cross the socket — the frame fetches the file over HTTP — while a `.md`'s body must, because that reader has no other way to have it.
 
 ## A phone, and the two things it changes
 

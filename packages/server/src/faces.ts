@@ -165,10 +165,21 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * for the same reason it is absent from {@link MCP}, inverted: a render-
  * shaped consumer genuinely needs the "has this directory ever loaded" bit that
  * a request-shaped one gets for free by blocking on the first frame.
+ *
+ * `heads` is a THIRD of that kind, and the sharpest: it is here and absent from
+ * {@link MCP} because it answers a question only a render-shaped consumer asks.
+ * A tab keeps a `.html` on screen and has to notice the file moving underneath
+ * it without ever wanting what it now says (the frame fetches that over HTTP),
+ * which is a subscription no request-shaped reader has an analogue of. An agent
+ * reads a body when it wants one and hears about the change on
+ * `notifications/resources/updated` for the key it already holds; a second
+ * resource carrying the revision it would then read anyway is a URI published
+ * for nobody. It costs nothing to add the day something asks.
  */
 export const BROWSER: ExposeMap<typeof surface.spec> = {
   outlines: "resource",
   documents: "resource",
+  heads: "resource",
   transcript: "resource",
   errors: "resource",
   manifest: "resource",

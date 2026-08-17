@@ -4,7 +4,7 @@
  * `/doc/<file>` opens any file whose content is a body (`@olai/format`'s
  * registry: a `.md` today, a `.html` beside it), and what changes between them
  * is not the page — same address, same heading, same "the directory does not
- * hold that" screen — but what the body is DRAWN AS, and whether the reader may
+ * hold that" screen — but what the file is DRAWN AS, and whether the reader may
  * write it. Those are exactly two facts, so they are two fields, and the table
  * is a `Record` over `BodyKind`: a kind added to the registry with a body is a
  * compile error here, naming the one thing a new kind of file cannot inherit.
@@ -15,44 +15,68 @@
  * and the page they disagree in is the one where a reader is offered an editor
  * for a file the ops layer will refuse to write.
  *
- * `edits` is not a preference. `write_document` takes a `.md` and nothing else
- * (`@olai/ops`), so a page offering Edit for a `.html` would be a door onto a
- * refusal; the flag is that fact, said where the page can read it, rather than
- * a decision this file is making on its own.
+ * WHAT A FACE IS HANDED is the file and nothing else ({@link Reading}), and
+ * that is the decision this table gained last. Each face asks the wire for what
+ * it draws from — a document's body, a saved page's revision — through the one
+ * module that owns both members (`./documents.tsx`), so a face cannot be handed
+ * a value it does not read, and what a kind costs this tab is a fact about that
+ * kind's own component rather than about a props type shared with another.
  */
 
 import type { BodyKind } from "@olai/format"
-import { createEffect, createMemo, type JSX, onCleanup } from "solid-js"
+import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
 
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { landingId, outlineOf } from "../markdown/render.ts"
 import { useRouter } from "../router.tsx"
 import { TESTID } from "../testids.ts"
+import { useDocument } from "./documents.tsx"
 import { Hypertext } from "./Hypertext.tsx"
 import { Toc } from "./Toc.tsx"
 
-/** What a reading face is handed: the file's path, the entry the collection
- *  holds for it, and both halves of that entry. A face takes what it draws
- *  FROM — the markdown face reads `text`, the hypertext face reads neither
- *  (its frame fetches the file over HTTP) and watches `rev` to know the file on
- *  disk moved. Both are passed to both, because which of them a kind uses is
- *  that kind's business and this table's job is only to say which component
- *  draws it. */
+/**
+ * What a reading face is handed: THE FILE, and nothing else.
+ *
+ * It used to be handed the body as well, and that is the field this type lost
+ * on purpose. A face draws from what it draws from — the markdown face from
+ * the document's text, the hypertext face from a frame that fetches the file
+ * over HTTP and from the revision that says the file moved — and those are two
+ * different members of the wire (`@olai/surface`: `documents`, `heads`). A
+ * props type carrying both meant handing each face a value it does not read,
+ * which for the hypertext face was an empty string standing in for bytes this
+ * tab never asked for: a body-shaped hole that a future face could read and
+ * quietly draw as an empty document.
+ *
+ * So each face ASKS, through the one module that owns both members
+ * (`./documents.tsx`), and a face's cost on the wire is a fact about the face
+ * rather than about this table's props. That is what makes a preview cost a
+ * revision: `Hypertext` reads a head and never opens a body, and nothing here
+ * can hand it one by accident.
+ */
 export interface Reading {
   readonly file: string
-  readonly text: string
-  /** Which revision of the directory this body was published in
-   *  (`@olai/surface`'s `DocumentEntry`). It moves when the file does and
-   *  stays put when it does not. */
-  readonly rev: number
 }
 
 export interface Face {
-  /** The reading face: the body, drawn however this kind of file is drawn. */
+  /** The reading face: the file, drawn however this kind of file is drawn. */
   readonly reads: (props: Reading) => JSX.Element
-  /** Whether this kind's page offers the WRITING face — the Edit control, the
-   *  draft and the conflict story (`./DocEditor.tsx`). */
+  /**
+   * Whether this kind's page offers the WRITING face — the Edit control, the
+   * draft and the conflict story (`./DocEditor.tsx`).
+   *
+   * It is also what decides whether the PAGE asks for the body
+   * (`./DocumentPage.tsx`), and the two are one question rather than two: the
+   * page holds the body for the editor's sake — a draft is a change to a text,
+   * judged against the text it was read from — and for nothing else, since the
+   * reading face fetches whatever it draws for itself. A face that does not
+   * edit is a page that opens no body, which is why a `.html` preview costs
+   * this tab a revision and not a megabyte.
+   *
+   * `edits` is not a preference. `write_document` takes a `.md` and nothing
+   * else (`@olai/ops`), so a page offering Edit for a `.html` would be a door
+   * onto a refusal.
+   */
   readonly edits: boolean
 }
 
@@ -63,15 +87,28 @@ export const FACES: Record<BodyKind, Face> = {
 
 /** A document's reading face: the contents, then the body — exactly what the
  *  page was before it could edit, in a component so the mode switch stays one
- *  `Show` rather than two trees interleaved. */
+ *  `Show` rather than two trees interleaved.
+ *
+ *  IT ASKS FOR THE BODY ITSELF, which is what it draws from ({@link Reading}).
+ *  The page above it asks for one too, for the editor's sake, and that is one
+ *  subscription rather than two: interest is counted per PATH by the module
+ *  that owns the member (`./documents.tsx`), so two readers of one document
+ *  share its stream. Nothing arrives until it arrives — the body is a frame
+ *  behind the heading on a fresh open, which is what a `<Show>` and no
+ *  placeholder mean here as they did when the page held it. */
 function Rendered(props: Reading) {
   const router = useRouter()
+  const served = useDocument(() => props.file)
+  /** The body, or the empty document there is nothing to draw yet — every
+   *  reader below wants a string and none of them can do anything useful with
+   *  a body that has not landed. */
+  const text = () => served()?.text ?? ""
   // Empty until the markdown chunk lands, for the same reason the body is the
   // file's own text until then: there is nothing to make a contents out of
   // until something has read the headings. The `<Markdown>` under it is what
   // asks for the chunk; this memo re-runs when it arrives (../markdown/chunk.ts).
   const headings = createMemo(() =>
-    markdownReady() ? outlineOf(props.text, props.file) : [],
+    markdownReady() ? outlineOf(text(), props.file) : [],
   )
 
   // LAND ON THE SECTION the address named, once there is a page to land in.
@@ -101,21 +138,25 @@ function Rendered(props: Reading) {
   createEffect(() => {
     const at = router.landing()
     if (at === undefined || !markdownReady()) return
-    const id = landingId(props.text, props.file, at)
+    const id = landingId(text(), props.file, at)
     const frame = requestAnimationFrame(() => {
       document.getElementById(id)?.scrollIntoView({ block: "start" })
     })
     onCleanup(() => cancelAnimationFrame(frame))
   })
 
+  // NOTHING UNTIL THE BODY IS HERE, which is the page's old gate moved down to
+  // the face that needs it. No placeholder: a "reading…" line under a heading
+  // that is already drawn would be a spinner for one frame, and an empty
+  // rendering would be a document that says nothing where one says something.
   return (
-    <>
+    <Show when={served() !== undefined}>
       <Toc file={props.file} headings={headings()} />
       <Markdown
-        source={props.text}
+        source={text()}
         from={props.file}
         testid={TESTID.documentBody}
       />
-    </>
+    </Show>
   )
 }

@@ -98,6 +98,12 @@ export const BACKSTOP_TIMEOUT = 90_000;
  *  scale so `hooks.ts` and this file cannot drift. */
 export const SERVER_START_TIMEOUT = HYDRATION_TIMEOUT;
 
+/** What a probe for `OlaiWorld.socketCarried` may be made of: printable ASCII,
+ *  no `"` and no `\`. Those are the characters no text encoding this wire could
+ *  use would rewrite, which is what makes "it is not in the raw frames" mean
+ *  "it was not sent" rather than "it was spelled differently in there". */
+const PLAIN_PROBE = /^[\x20-\x21\x23-\x5B\x5D-\x7E]*$/;
+
 /** Cucumber's outer kill-timeout. DERIVED, so the relationship
  *  `POLL_TIMEOUT < HYDRATION_TIMEOUT < setDefaultTimeout` holds structurally:
  *  raising either inner budget can never leave the outer envelope too tight to
@@ -819,6 +825,76 @@ export class OlaiWorld extends World {
    *  works by never testing it. */
   refused: Array<{ readonly url: string; readonly why: string }> = [];
 
+  /**
+   * Every frame the WEBSOCKET delivered to this tab, as text — or `undefined`
+   * for a scenario that did not ask to be recorded (`@wire`, `hooks.ts`).
+   *
+   * The other wire, and the one nothing else here can see: `requests` is what
+   * the page FETCHED, and everything a served file's content does afterwards
+   * comes down one long-lived socket that makes no requests at all. A claim
+   * about what the server chose to SEND a reader has to be made against this.
+   *
+   * It is the whole payload rather than a parse of it, deliberately. What a
+   * step asks is whether some text was in what arrived — a document's body,
+   * usually — and decoding the framing to answer that would be this suite
+   * holding a second implementation of the protocol, which would go on passing
+   * after the real one changed shape. A binary frame is decoded as UTF-8 for
+   * the same reason: the question is about text that either is or is not in
+   * those bytes.
+   *
+   * BY REQUEST, unlike its two neighbours, and that is the one thing about it
+   * worth a sentence. `requests` and `errors` are small records; this is every
+   * byte the socket delivered, retained for the scenario's life — a
+   * transcript's token-by-token deltas, a document's whole body — and two
+   * scenarios in the suite ask about it. So it is armed by a tag, and the
+   * absence of the tag is a THROW rather than an empty list ({@link
+   * socketCarried}), because the load-bearing assertion here is a negative one
+   * and a negative over nothing recorded passes for the wrong reason.
+   */
+  socketFrames?: string[];
+
+  /**
+   * Whether anything the socket delivered carried this text — see {@link
+   * socketFrames}.
+   *
+   * TWO ways this could quietly say "no" are refused rather than documented.
+   *
+   * A scenario that never armed the recorder throws, in `requestsWatched`'s
+   * voice and for its reason.
+   *
+   * And a probe this cannot honestly look for throws too. The frames are raw,
+   * so a probe only appears in them if the encoding carrying it left it alone —
+   * `"a \"quote\""` is not in a JSON frame however squarely the body was sent,
+   * and a "never carried" assertion over such a probe is a sentence about
+   * nothing. What is admitted is therefore narrower than any one encoding's
+   * rule and deliberately so: PRINTABLE ASCII with no `"` and no `\`
+   * ({@link PLAIN_PROBE}), which no text encoding this wire could use escapes.
+   * A conservative test is the right shape here because the assertion it guards
+   * is a negative — being refused a probe costs a scenario one rewording, and
+   * accepting one costs a passing test that proves nothing. Non-ASCII is
+   * refused for that reason rather than because JSON escapes it (JSON does not):
+   * whether `é` survives a frame is the encoder's business, and this is not the
+   * place to find out.
+   */
+  socketCarried(text: string): boolean {
+    const frames = this.socketFrames;
+    if (frames === undefined) {
+      throw new Error(
+        "nothing recorded what the socket delivered; a scenario asking about " +
+          "the wire has to carry the @wire tag",
+      );
+    }
+    if (!PLAIN_PROBE.test(text)) {
+      throw new Error(
+        `${JSON.stringify(text)} is not a probe this can look for: only plain ` +
+          "printable ASCII without a quote or a backslash is certain to appear " +
+          "in a raw frame verbatim, so anything else would be absent from the " +
+          "recording whether or not the server sent it",
+      );
+    }
+    return frames.some((frame) => frame.includes(text));
+  }
+
   /** How far down the page a scenario deliberately scrolled, so a later step
    *  can claim the page came back to exactly there. A number the SCENARIO
    *  chose to remember rather than one written down here: how tall a page is
@@ -889,6 +965,10 @@ export class OlaiWorld extends World {
    *  them would share them across scenarios. */
   toolsOffered: string[] = [];
   toolAnswer?: Record<string, unknown>;
+  /** …and what a `resources/read` handed back, as its text. The other half of
+   *  what an agent may reach: the tools are what it can DO and the resources
+   *  are what it can SEE, and a body is one of those. */
+  resourceRead?: string;
   /** What that server has printed, as a box the spawn listener appends to
    *  for the life of the child. A string field that was assigned after boot
    *  dropped the stale-tab line when it arrived in the gap between "serving"
