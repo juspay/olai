@@ -109,6 +109,7 @@ const CALLS: Record<string, ReadonlyArray<unknown>> = {
     { text: "is:open" },
     { text: "" },
     { text: "date:today" },
+    { text: `"paint the hall" OR nothing-is-called-this` },
   ],
   read_node: [{ id: "house" }, { id: "paint" }, { id: "shed" }],
   read_subtree: [{ id: "house", depth: 1 }, { id: "house" }, { id: "shed" }],
@@ -187,6 +188,10 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   // door that read a clock of its own would answer this with nothing.
   expect(searches[3]?.["hits"]).toMatchObject([{ id: "paint" }])
   expect(searches[3]).not.toHaveProperty("refusals")
+  // A quoted PHRASE and an `OR` group reach this door too — the tool's own
+  // `text` prose spells both, and a schema that decoded the words and not
+  // these would be the door advertising a grammar it does not answer.
+  expect(searches[4]?.["hits"]).toMatchObject([{ id: "paint", matched: "title" }])
 
   const [house, paint, gone] = of("read_node")
   expect(house).toMatchObject({

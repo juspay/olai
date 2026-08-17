@@ -658,6 +658,17 @@ The corner unit is the **risky one** — see
         <code>prop:agent=claude-opus</code> ask after a property you put on a
         node yourself — by key, or by key and value. <code>-</code> in front of
         any of them takes it back out.</p>
+        <p><strong>Quote a phrase, or say <code>OR</code>.</strong>
+        <code>"kitchen remodel"</code> is one substring where two words are
+        two, so quoting is how the order of the words gets into a query — and a
+        quoted token is <em>text</em> rather than an operator, which is the only
+        way to search for the note that explains what <code>is:done</code>
+        means. <code>walnut OR birch</code> is either one; it joins the tokens
+        on each side of it and binds <em>tighter</em> than the space between
+        two tokens, so <code>#home kitchen OR bathroom</code> is
+        <code>#home</code> and one of the other two rather than every bathroom
+        in the directory. In capitals, because <code>or</code> is a word people
+        write.</p>
         <p><strong>An operator it does not know is refused, not guessed at.</strong>
         <code>is:open</code> answers with the values <code>is:</code> takes
         rather than quietly searching for that text and finding nothing, and a

@@ -232,6 +232,21 @@ Feature: An agent olai did not start
     Then the terminal agent found exactly "order, install"
     When the terminal agent searches for "cabinets" under "install"
     Then the terminal agent found exactly "install"
+    # A phrase and a group reach this door through the same one grammar, so an
+    # agent can ask for the line a person quoted — and for either of two
+    # things, which is the query that used to be two calls.
+    When the terminal agent searches for '"the new cabinets"'
+    Then the terminal agent found exactly "order"
+    When the terminal agent searches for "counters OR cabinets"
+    Then the terminal agent found exactly "order, install, demo"
+    # A group takes a CLAUSE as readily as a word, including the one whose value
+    # is a word for a day — counted from the server's own clock, the one a
+    # `done` is stamped with. Every date in this fixture is in the past and
+    # stays there, so what this selects is the finished node plus whatever is
+    # under way: `install` carries a dated `doing`, which is on no day at all,
+    # and is here on the mark rather than on the date.
+    When the terminal agent searches for "date:..today OR is:doing"
+    Then the terminal agent found exactly "install, demo"
 
   Scenario: An operator it gets wrong is refused with the reason, not with silence
     # The fourth door onto the same grammar, and the one where silence is
@@ -245,6 +260,15 @@ Feature: An agent olai did not start
     # the caller wrongly.
     When the terminal agent searches for "is:OPEN"
     Then the terminal agent was refused "is:OPEN" and told "done, doing, todo, marked, blocked, archived"
+    # ...and the same contract on the refusal that is a QUOTE rather than an
+    # operator, where "as typed" is the whole of what an agent has to echo back
+    # to a person: capitals and opening quote both survive the trip.
+    When the terminal agent searches for '"The New'
+    Then the terminal agent found exactly ""
+    And the terminal agent was refused '"The New' and told "a phrase runs from one"
+    # An empty phrase is refused rather than answered with the directory.
+    When the terminal agent searches for '""'
+    Then the terminal agent was refused '""' and told "no words in it"
     # ...and a query it CAN read carries no refusal at all.
     When the terminal agent searches for "cabinets"
     Then the terminal agent was refused nothing

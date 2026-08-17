@@ -33,8 +33,12 @@ import { TARGET_BOX } from "../touch.ts"
 import type { Narrowing } from "./narrowing.ts"
 
 /** What the box says when it is empty — the whole grammar in one line, because
- *  an operator language nobody is told about is a feature nobody uses. */
-const PLACEHOLDER = "filter — words, #tag, is:done, has:desc, date:last-week, -not"
+ *  an operator language nobody is told about is a feature nobody uses. The two
+ *  compositions go early rather than last: a box this narrow clips its end, and
+ *  what survives a clip is the front (`../search/place.ts` makes the same
+ *  argument about a row). */
+const PLACEHOLDER =
+  `filter — words, "a phrase", a OR b, #tag, is:done, has:desc, date:last-week, -not`
 
 export function FilterBar(props: {
   readonly narrowing: Narrowing

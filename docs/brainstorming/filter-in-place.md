@@ -38,13 +38,17 @@ What this buys, structurally rather than aspirationally: `is:done` means one thi
 ## The grammar
 
 ```
-query   := token (WS token)*
-token   := ["-"] (clause | term)
+query   := group (WS group)*
+group   := token (WS "OR" WS token)*
+token   := ["-"] (clause | term | phrase)
 clause  := name ":" value        name ∈ { is, has, date }
 term    := a word — case-folded substring over title, id, tag, note
+phrase  := '"' text '"' — the same substring, spaces and all
 ```
 
-Every token must hold. Terms are ANDed as they already are ("every word must appear somewhere in the same node"), and clauses join the same conjunction. A leading `-` negates whichever it is in front of.
+Every group must hold, and a group holds when ANY of its tokens does. Terms are ANDed as they already were — "every word must appear somewhere in the same node" is now every GROUP, since `OR` is what joins two tokens into one — and clauses join the same conjunction. A leading `-` negates whichever it is in front of.
+
+The `group` line and the `phrase` line are `search-quoting-or`'s, and they are the whole of what it added: `OR` binds TIGHTER than the space, so the conjunction on the first line is the one that was always there and a token nobody joined is a group of one. The argument for that way round, and for the quoting rules, is under "What is not in the grammar" below, where both were deferred.
 
 ### `is:` — the stored mark
 
@@ -86,8 +90,9 @@ A WEEK RUNS MONDAY TO SUNDAY, read off the same `weekdayOf` the calendar grid la
 
 ### What is not in the grammar, and why
 
-- **Quoted phrases** (`"pick the hinges"`) — deferred. Every word already has to appear in the same node, which covers most of what quoting is for, and the tokenizer that supports quoting is a different tokenizer.
-- **`OR`** — deferred. A grammar with one binding level is a grammar a reader can hold; adding disjunction without parentheses is a trap and adding parentheses is a parser.
+- **Quoted phrases** (`"pick the hinges"`) — deferred here, **landed since** (`search-quoting-or`), and the stated cost was exactly right: the tokenizer that supports quoting IS a different tokenizer, and it is the only thing that changed. One `split(/\s+/)` became a scan that a quote can tell not to end a token, and the substring scan — already looking for a case-folded substring — was not touched at all: a phrase is a term whose word holds a space. What the deferral did not see is the second thing quoting buys, which turned out to be the reason to ship it with `OR` rather than after it. A grammar that claims spellings needs a way to ask for the TEXT of one, and there was none: `"is:done"` finds the note in which somebody wrote that down, and `"OR"` is the word in capitals for a note that shouts it. The rule is a quote at the FRONT of the token, and that is all the front decides: a quote opens a region wherever it sits and the region must be closed, which is how `prop:stage="in review"` writes a value that has a space — and why `36"` is refused rather than read as an inch mark, one term this costs and names.
+- **`OR`** — deferred here on the trap, **landed since** with the trap avoided rather than accepted. The deferral was right that parentheses are a parser and that one binding level is what a reader can hold. What it missed is that there are two ways to add disjunction without them, and only ONE of them is the trap: `OR` binding LOOSER than the implicit AND is the reading where `#home kitchen OR bathroom` quietly widens to every bathroom in the directory, arriving with no `#home` about it. Binding TIGHTER — `OR` joins the tokens on either side of it, the groups are ANDed exactly as adjacent tokens always were — is the reading somebody typing that line means, and it leaves the grammar with the same one conjunction it had, over groups instead of tokens. A token nobody joined is a group of one, which is why nothing else in the parse or the matcher moved. Negation stayed a TOKEN's, and that plus a second binding level turns out to be exactly enough for both of De Morgan's readings without a parenthesis anywhere: `-a -b` is "neither" (`NOT (a OR b)`, two groups that must both hold) and `-a OR -b` is "not both" (`NOT (a AND b)`, one group either half satisfies). A group-level `-` would have been a second spelling of one of the two.
+- **Three refusals came with them**, and they are one contract: `"pick the` is not closed at the end of the line on the reader's behalf (that would be picking one of two different queries), `kitchen OR` is a joiner missing one of its two sides, and `""` is refused for `prop:stage=`'s reason from the other end — an empty needle is inside every node ever written, so the query that silently finds none has a twin that loudly finds all.
 - **`>` (nested ancestry)** — deferred, and `>` is already spoken for: the ⌘K palette reads a leading `>` as an ask rather than a lookup.
 - **`is:blocked`** — deferred here, **landed since** ([search.md](../search.md)), and the deferral's stated cost is worth reading against what it actually was. It was: every clause is a test of the RECORD, so the predicate takes a located node and nothing else; a derived-fact operator is the first one that needs the whole set, and that is a signature change rather than a new row in a table. That is exactly what it cost — `matchOf` and `holds` take the `Derived` every caller of `matching` was already handing over, and the clause is one lookup in the index the views draw blockedness from. Nothing was paid in advance.
 
@@ -189,7 +194,7 @@ A `#tag` in a title becomes a real affordance: a pill that says it is pressable,
 ## Deferred, named
 
 - Changed-since dates (`changed:7d`) — the relative words landed (`search-relative-dates`); a question about HISTORY is a different one, and nothing in the format answers it.
-- Quoted phrases, `OR`, and the `>` ancestry operator.
+- ~~Quoted phrases~~ and ~~`OR`~~ — **landed** (`search-quoting-or`), struck rather than removed so the list still says what this design deferred; what each cost is above. The `>` ancestry operator is still deferred, and `>` is still spoken for by the palette.
 - ~~`is:blocked`~~ — **landed**, and the entry is struck rather than removed so the list still says what this design deferred (the cost it named, and what it turned out to be, is above).
 - Filtering the day, agenda and trash pages.
 - Starred / saved searches and named shortcuts (viewing-web.md's own Open list).
