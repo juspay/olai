@@ -354,13 +354,15 @@ export const targetsOf = (
  *  field for it, and there is not going to be one, for the reason no derived
  *  state is stored. It lives here rather than in ./kinds.ts because it is a
  *  fact about ONE kind — which outline a directory puts its finished work in —
- *  and the registry holds only what every kind has an answer to. Three rules in
- *  three packages read it: the op that moves a subtree there;
- *  blockedness, which exempts what has been put away at both ends of an arrow
- *  (./derive.ts); and ./changes.ts, which is what tells a cross-file move that
- *  landed here (*archived*) from one that did not (*moved*). Two spellings
- *  would be two answers about the same file — and the third reader makes that
- *  permanent, since a commit message cannot be corrected after the fact. */
+ *  and the registry holds only what every kind has an answer to. Four rules
+ *  read it: the op that moves a subtree there; blockedness, which exempts what
+ *  has been put away at both ends of an arrow (./derive.ts); ./changes.ts,
+ *  which is what tells a cross-file move that landed here (*archived*) from one
+ *  that did not (*moved*); and ./dates.ts, which leaves the archive out of
+ *  every date reading, because what was put away is drawn on the trash page and
+ *  nowhere else (ruled 2026-08-17). Two spellings would be two answers about
+ *  the same file — and the commit-message reader makes that permanent, since a
+ *  subject cannot be corrected after the fact. */
 export const ARCHIVE = `Archive${OUTLINE_EXT}`
 
 export const isArchived = (file: string): boolean =>

@@ -992,13 +992,19 @@ export interface Scope {
    * doors that leave it alone are asking about the DIRECTORY, where an archive
    * is a place a reader has to name before they are shown it.
    *
-   * `true` is for THE TRASH, and now for nothing else: it is the one page that
-   * draws what was put away (ruled 2026-08-17, human; a day and the agenda used
-   * to, and ./dates.ts is where they stopped). The filter over that page tests
-   * the rows in front of somebody, and the trash IS the archive — a matcher
-   * applying the default there would take away every row and leave the reader
-   * nothing to read the absence by. The flag is that page saying what it is
-   * showing, never a permission to widen a search of the directory.
+   * `true` is for a caller whose scope ALREADY HOLDS what was put away, and it
+   * says nothing about which page that is — the flag is the caller answering
+   * for its own corner of the set, never a permission to widen a search of the
+   * directory. The filter over a page is the caller there, and it passes `true`
+   * where the rows in front of somebody are archived ones: the trash, which IS
+   * the archive, and a zoom onto an archived node, which is where an
+   * `is:archived` hit lands. A matcher applying the default to either would
+   * take every row off the screen and leave nothing to read the absence by.
+   *
+   * That was three pages until 2026-08-17, when the human ruled that what is
+   * put away is drawn on the trash and nowhere else; a day and the agenda drew
+   * archived rows until ./dates.ts stopped them, and the caller narrowed with
+   * them (`@olai/web`'s `filter/narrowing.ts`).
    */
   readonly archived?: boolean | undefined
 }

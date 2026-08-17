@@ -31,7 +31,14 @@
  * other's sigil would be the widget inventing tags the set does not hold.
  */
 
-import { type Derived, isMirror, mayHoldTag, type TagSigil, titleParts } from "@olai/format"
+import {
+  type Derived,
+  isArchived,
+  isMirror,
+  mayHoldTag,
+  type TagSigil,
+  titleParts,
+} from "@olai/format"
 
 /** One tag of the set, and how much of it there is. */
 export interface Tag {
@@ -57,6 +64,14 @@ const LIMIT = 8
  * follows: a placement has no title of its own, so a tag counted through one
  * would be the same node's tag counted twice.
  *
+ * WHAT WAS PUT AWAY IS SKIPPED TOO, and the count is why (ruled 2026-08-17:
+ * archived nodes are drawn on the trash page and nowhere else). This number is
+ * a promise about rows — `#kitchen 7` beside a name a reader is about to type,
+ * and pressing that tag filters the page they are on. Counting the archive
+ * would promise seven and draw four, and would go on offering a tag whose every
+ * user is in the trash. The tag is still WRITABLE, exactly as any word is: this
+ * list is what the set has used, not what a title may say.
+ *
  * ONE WALK PER DERIVATION, kept in a `WeakMap` keyed on the derivation itself.
  * The alternative — a memo in the component — walks the whole set again every
  * time a `TitleEditor` mounts, and one mounts per row the caret is moved to; a
@@ -79,7 +94,7 @@ export const tagsOf = (derived: Derived | undefined): ReadonlyArray<Tag> => {
 const walk = (derived: Derived): ReadonlyArray<Tag> => {
   const counts = new Map<string, Tag>()
   for (const located of derived.nodes) {
-    if (isMirror(located.node)) continue
+    if (isMirror(located.node) || isArchived(located.file)) continue
     // The format's own cheap negative first: `titleParts` runs a global regex
     // and allocates a part per segment, and most titles hold no sigil at all.
     if (!mayHoldTag(located.node.title)) continue

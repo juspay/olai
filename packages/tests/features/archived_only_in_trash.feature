@@ -79,36 +79,24 @@ Feature: What is put away is on the Trash and nowhere else
     And there should be no page errors
 
   @scratch:good
-  Scenario: The Trash is where it went, and a word typed there finds it
+  Scenario: The Trash is where it went, and `is:archived` still reaches it
+    # The other half of the ruling: what went is the DEFAULT presence, never the
+    # way to ask. How the Trash lists a pile is `trash.feature`'s, and how a
+    # query searches within it is `filter_everywhere.feature`'s — what is this
+    # feature's is that the row is THERE while it is nowhere else, and that the
+    # operator naming the archive still answers from a page drawing none of it.
     Given I open the outline "house.olai"
     When I open the node menu of "order"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
     And I open the Trash
     Then the Trash lists the node "order"
-    # The one page whose filter is told the archive is in scope: it IS the
-    # archive, so a plain word searches what is in front of the reader.
-    When I filter the page by "cabinets"
-    Then the Trash lists the node "order"
-    And the filter found "1 of 2"
-    And there should be no page errors
-
-  @scratch:good
-  Scenario: `is:archived` still reaches it, from a page that draws none of it
-    # The other half of the ruling. What went is the default presence: the
-    # operator that names the archive answers with the node from any door, and
-    # the hit opens the node's own page.
-    Given I open the outline "house.olai"
-    When I open the node menu of "order"
-    And I choose "Move to Trash" from the node menu
-    And I choose "Move to Trash" from the node menu
-    And I open the day "2026-08-10"
+    When I open the day "2026-08-10"
     Then the day lists "catch-up"
     # On the day itself there is nothing archived to find — the page draws none
     # of it, and a filter narrows the page rather than re-asking its question.
     When I filter the page by "is:archived"
     Then the filter found "no matches"
-    And the day does not say it is empty
     When I clear the filter
     And I press the palette shortcut
     And I type "is:archived" into the palette

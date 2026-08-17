@@ -9,7 +9,7 @@
 
 import { expect, test } from "bun:test"
 import { derive } from "@olai/format"
-import { nodesOf } from "@olai/format/testlib"
+import { nodesOf, nodesOfFiles } from "@olai/format/testlib"
 
 import { matchTags, tagsOf } from "./tags.ts"
 
@@ -35,6 +35,24 @@ test("a tag is counted once per node that writes it, mirrors excluded", () => {
   // `order` carries `#home` and is drawn twice; the count is of NODES.
   const home = tagsOf(HOUSE).find((tag) => tag.name === "home")
   expect(home?.count).toBe(2)
+})
+
+// What was put away is out of the vocabulary AND out of the count (ruled
+// 2026-08-17: archived nodes are drawn on the trash page and nowhere else). The
+// number beside a name is a promise about rows, and pressing the name filters a
+// page that draws none of the archive — so a count that included it would
+// promise rows the reader cannot be shown.
+test("what is in the trash is not counted, and a tag only it used is not offered", () => {
+  const withArchive = derive(nodesOfFiles({
+    "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+    "Archive.olai": [
+      `{"id":"old","ord":"a0","title":"the old kitchen #home"}`,
+      `{"id":"gone","ord":"a1","title":"the old boiler #boiler"}`,
+    ].join("\n"),
+  }))
+  const tags = tagsOf(withArchive)
+  expect(written(tags)).toEqual(["#home"])
+  expect(tags.find((tag) => tag.name === "home")?.count).toBe(1)
 })
 
 test("no set is no tags rather than a throw", () => {

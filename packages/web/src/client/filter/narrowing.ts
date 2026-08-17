@@ -116,14 +116,24 @@ export const createNarrowing = (source: {
   const query = createMemo(() => parseFilter(source.text(), source.today()))
   const active = createMemo(() => query().kind !== "nothing")
 
+  // The one thing the matcher is told about the QUESTION rather than asked
+  // about the answer — the file header says why, and why it is read off the
+  // page rather than off its kind.
+  //
+  // A MEMO OF ITS OWN, so the scan below does not track the page. What the page
+  // draws is a fresh value on every revision the store publishes, on every
+  // navigation and on every flip of the done preference — and the whole of what
+  // this reading takes from it is a boolean that is constant for three of the
+  // five shapes ({@link showsArchived}). Read inline, every one of those frames
+  // re-ran the matcher over the entire set to arrive at the same answer.
+  const archived = createMemo(() => showsArchived(source.visible()))
+
   const matched = createMemo(() => {
     const indexes = source.derived()
     if (indexes === undefined || !active()) return NOTHING_MATCHED
-    // The one thing the matcher is told about the QUESTION rather than asked
-    // about the answer — the file header says why, and why it is read off the
-    // page rather than off its kind.
-    const scope = { archived: showsArchived(source.visible()) }
-    return new Set(matching(indexes, query(), scope).map(({ at }) => at.node.id))
+    return new Set(
+      matching(indexes, query(), { archived: archived() }).map(({ at }) => at.node.id),
+    )
   })
 
   // The ONE guard that is load-bearing: narrowing by an empty set is an empty
@@ -215,9 +225,14 @@ const narrowed = (drawn: Drawn, matched: ReadonlySet<string>): Drawn => {
  * scan, because a trash drawing no archived row is a trash drawing no row. And
  * a TREE can be one node's: `/n/<id>` on a node somebody put away, which is
  * exactly where an `is:archived` hit lands when it is clicked (docs/search.md —
- * the ruling took away the default presence, not the reachability). An outline
- * never holds one, since an archive's own address opens the trash instead
- * (`../page.ts`).
+ * the ruling took away the default presence, not the reachability). An
+ * outline's own tree is a live file, since an archive's address opens the trash
+ * instead (`../page.ts`) — with one gap that is not this file's to close: a
+ * MIRROR still resolves to a node that was archived after it was placed
+ * (`@olai/format`'s `follow`, which the ops layer keeps resolving on purpose),
+ * so a placement can draw an archived row on a live page. What that row should
+ * be is a ruling about the SET rather than about a filter, and it is filed as
+ * one (docs/search.md, docs/brainstorming/editing-web.md's Open).
  *
  * A DAY AND THE AGENDA ANSWER NO, and they answer it by construction rather
  * than by a rule kept here: the walk those pages are built from leaves archived

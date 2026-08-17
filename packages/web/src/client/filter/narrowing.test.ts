@@ -306,9 +306,12 @@ test("a tree page draws nothing more for the archive being in scope", () => {
 // by name.
 test("a zoom onto an archived node is searched like the pile it is in", () => {
   const zoomed = zoom(derived, "old-kitchen")
+  // Named rather than defaulted to an empty tree: a fixture whose archive stopped
+  // holding this node should fail here, not as a mystifying empty page below.
+  if (zoomed.kind !== "node") throw new Error(`the archive has no \`old-kitchen\``)
   const inArchive: Drawn = {
     kind: "tree",
-    rows: zoomed.kind === "node" ? rowsUnder(derived, zoomed.shows, zoomed.trail) : [],
+    rows: rowsUnder(derived, zoomed.shows, zoomed.trail),
   }
   const reading = narrowing(inArchive, "grout")
   expect(flat(rowsIn(reading))).toEqual(["grout"])
