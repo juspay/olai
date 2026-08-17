@@ -36,6 +36,7 @@ import {
 import { fileKind } from "./kinds.ts"
 import { isMirror, type Located, type Site } from "./node.ts"
 import { patch, type SetDelta } from "./patch.ts"
+import { byPath } from "./paths.ts"
 import { didYouMean } from "./suggest.ts"
 import type { OutlineSet } from "./set.ts"
 
@@ -454,7 +455,10 @@ const rotateToEarliest = (
   cycle.forEach((step, index) => {
     const best = cycle[at]
     if (best === undefined) return
-    if (step.file < best.file || (step.file === best.file && step.line < best.line)) {
+    // CORPUS ORDER, which is the set's own path order and not a string compare
+    // ({@link ./paths.ts}): the earliest step of a loop is the one a reader
+    // meets first walking the directory.
+    if (byPath(step.file, best.file) < 0 || (step.file === best.file && step.line < best.line)) {
       at = index
     }
   })

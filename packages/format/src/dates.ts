@@ -64,6 +64,7 @@ import {
 } from "./derive.ts"
 import { fileKind } from "./kinds.ts"
 import { isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
+import { byPath } from "./paths.ts"
 
 /** How many characters of an ISO value name the day, and the month. A
  *  datetime is a day plus a time, so the day is the prefix they share. */
@@ -500,7 +501,7 @@ export const dailyNotePathFor = (
     if (date === null) continue
     if (
       example === null || date > example.date ||
-      (date === example.date && file < example.file)
+      (date === example.date && byPath(file, example.file) < 0)
     ) {
       example = { file, date }
     }

@@ -171,6 +171,20 @@ nix:
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
+# What a keystroke costs the tab, on a generated vault: the client's derived
+# memo timed as it was (flatten the corpus and derive it) against as it is
+# (patch the held view with the file that moved). A LEG rather than a scratch
+# file, because slice 3 of `model-indices` ran its numbers as a one-off and a
+# benchmark nobody can re-run is a number nobody can check — and deliberately
+# NOT a dependency of `check`, since a timing that fails a lane on a busy
+# machine teaches nobody anything.
+#
+# `--conditions browser` is load-bearing: without it Bun resolves SolidJS's
+# server build, whose memos never re-run, and every arm reports an empty loop.
+# Size it with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS / OLAI_BENCH_EDITS.
+bench: install
+    {{ nix_shell }} bun --conditions browser packages/web/src/client/deriving.bench.ts
+
 # The browser tests: Cucumber features driven through Playwright against the
 # nix-built binary, which is what a user actually runs. `nix` is a dependency
 # as well as the shell so the binary is an already-realised lookup here rather
