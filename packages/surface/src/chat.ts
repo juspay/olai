@@ -144,6 +144,28 @@ export const NodeContext = Schema.Struct({
   /** The canonical ancestor titles, outermost first. Empty at the top level of
    *  an outline, which is the answer rather than a gap in it. */
   path: Found.fields.path,
+  /**
+   * WHETHER IT WAS PUT AWAY — present and `true` for a node in an archive,
+   * absent for every other one, which is the format's own rule for a field that
+   * holds nothing.
+   *
+   * A node that is archived can be named on a message: it is reachable at every
+   * door that asks for it (`is:archived`, #226's ruling — what went is the
+   * DEFAULT presence, never the way to ask), the `•••` menu on a Trash row
+   * offers "Ask agent" like any other, and the chat composer's `@` list will
+   * complete one for a query that says so. "Why did we put this away?" is a
+   * fair question and refusing it would be olai deciding which of somebody's
+   * own rows they may ask about.
+   *
+   * What is NOT fair is handing an agent a node that reads like live work. The
+   * agent's tools do not refuse a write into an archive, so an id with a title
+   * and an ancestry and nothing else said about it is an invitation to tick off
+   * something that was thrown away. The `file:line` does carry `Archive.olai`,
+   * but a path convention is a thing to notice rather than a thing that was
+   * said, and this is the one fact about a node in context that changes what
+   * the agent should DO with it.
+   */
+  archived: Schema.optionalKey(Schema.Boolean),
 })
 export type NodeContext = typeof NodeContext.Type
 

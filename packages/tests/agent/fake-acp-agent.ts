@@ -1405,22 +1405,29 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // sees the right title has proof the id crossed the wire and resolved: no
   // spelling of the prompt that lost it could produce that sentence.
   if (verb === "context") {
-    const named = [...text.matchAll(/^Node in context: `([^`]+)`/gm)].map(
-      (match) => match[1] ?? "",
+    // The id, and the REST of its line — which carries the one thing on it that
+    // is not a fact about where the node is but about what to do with it: a
+    // node that was put away says `; archived`, because nothing refuses a write
+    // into an archive and a row that read like live work would be worked on.
+    const named = [...text.matchAll(/^Node in context: `([^`]+)`(.*)$/gm)].map(
+      (match) => ({ id: match[1] ?? "", said: match[2] ?? "" }),
     )
     if (named.length === 0) {
       say("no node in context.")
       respond(id, { stopReason: "end_turn" })
       return
     }
-    for (const node of named) {
+    for (const { id: node, said } of named) {
       const read = await useTool("read_node", { id: node })
       const found = read["structuredContent"] as { title?: string } | undefined
       // A SENTENCE the browser could not have written on its own — the chip on
       // the message carries the title too, so a scenario matching the bare
       // title would pass on a build that never put the node in the prompt at
       // all. (It did, until a sabotage run said so.)
-      say(`\`${node}\` is the node titled ${found?.title ?? "?"}.\n`)
+      say(
+        `\`${node}\` is the node titled ${found?.title ?? "?"}` +
+          `${said.includes("; archived") ? ", and it was put away" : ""}.\n`,
+      )
     }
     respond(id, { stopReason: "end_turn" })
     return

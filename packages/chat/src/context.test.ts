@@ -50,6 +50,22 @@ describe("the line a node arrives on", () => {
       "under house › kitchen remodel",
     )
   })
+
+  // A node in an archive can be NAMED — the composer's `@` list completes one
+  // for a query that says `is:archived`, and a Trash row's `•••` arms one like
+  // any other. What it must not do is arrive reading like live work: no tool
+  // refuses a write into an archive, so the line says which it is.
+  test("a node that was put away says so, after where it sits", () => {
+    expect(lineFor({ ...ORDER, file: "Archive.olai", line: 1, archived: true }))
+      .toBe(
+        "Node in context: `order` — order the new cabinets (Archive.olai:1; under kitchen remodel; archived)",
+      )
+  })
+
+  test("...and every other node says nothing at all about it", () => {
+    expect(lineFor(ORDER)).not.toContain("archived")
+    expect(lineFor({ ...ORDER, archived: false })).not.toContain("archived")
+  })
 })
 
 describe("what the agent is prompted with", () => {
