@@ -173,6 +173,21 @@ Then("the agenda is empty", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+/** The other side of it, for a page a FILTER emptied. "Nothing is due." is a
+ *  claim about the AGENDA; a query that selected none of it is a claim about
+ *  the query, and the bar is where that one is made. A page saying both would
+ *  be telling the reader nothing is late while three things are. */
+Then("the agenda does not say it is empty", async function (this: OlaiWorld) {
+  await this.page
+    .locator(AGENDA_PAGE)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(
+    await this.page.locator(AGENDA_EMPTY).count(),
+    0,
+    "the agenda says nothing is due over a page a filter narrowed to nothing",
+  );
+});
+
 // ── the days ahead ─────────────────────────────────────────────────────
 
 Then("the upcoming days are tomorrow", async function (this: OlaiWorld) {

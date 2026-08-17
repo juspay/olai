@@ -46,12 +46,63 @@ Then(
   },
 );
 
+/** Gone from the page — what a filter takes rows away with. Polled for the row
+ *  to GO, because narrowing re-renders and reading the count once races the
+ *  frame that dropped it (the outline's own `is not shown` does the same). */
+Then(
+  "the Trash does not list the node {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.page
+      .locator(trashRow(id))
+      .waitFor({ state: "detached", timeout: POLL_TIMEOUT })
+      .catch(() => undefined);
+    assert.strictEqual(
+      await this.page.locator(`${trashRow(id)}:visible`).count(),
+      0,
+      `"${id}" is in the Trash, and this step says it should not be drawn`,
+    );
+  },
+);
+
+/** SELECTED by the query, rather than kept as the scaffold that leads to one —
+ *  the outline tree's distinction (`filter_steps.ts`), asked of a pile. A trash
+ *  row is not a `node` testid, which is why these two steps exist beside the
+ *  tree's rather than being the same ones. */
+Then(
+  "the Trash row {string} is a match",
+  async function (this: OlaiWorld, id: string) {
+    await this.expectAttribute(trashRow(id), "data-match", "true", `row \`${id}\``);
+  },
+);
+
+Then(
+  "the Trash row {string} is context",
+  async function (this: OlaiWorld, id: string) {
+    await this.expectAttribute(trashRow(id), "data-match", "false", `row \`${id}\``);
+  },
+);
+
 Then("the Trash is empty", async function (this: OlaiWorld) {
   // The empty line is the assertion, not a zero row count: a trash that
   // failed to draw at all has no rows either.
   await this.page
     .locator(TRASH_EMPTY)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/** The other side of it, for a page a FILTER emptied: "the Trash is empty" is a
+ *  claim about the archive, and a query that found nothing in it is a claim
+ *  about the query — which the bar makes. Saying both would be the page
+ *  telling the reader their archive had been emptied by a search. */
+Then("the Trash does not say it is empty", async function (this: OlaiWorld) {
+  await this.page
+    .locator(TRASH_PAGE)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(
+    await this.page.locator(TRASH_EMPTY).count(),
+    0,
+    "the Trash says it is empty over a page a filter narrowed to nothing",
+  );
 });
 
 When(

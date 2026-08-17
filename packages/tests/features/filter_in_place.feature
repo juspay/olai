@@ -352,27 +352,22 @@ Feature: Filtering the outline in place
     And the node "handles" is not shown
     And the filter found "2 of 3"
 
-  Scenario: There is no filter on a page that cannot carry one
-    # A day is a query already, and its address spells a date rather than a
-    # narrowing. Drawing a box there would promise something the URL has
-    # nowhere to keep.
-    Given I open the day "2026-08-10"
+  Scenario: There is no filter on the one page that cannot carry one
+    # A document is PROSE, and this grammar selects nodes — so `/doc/` is the
+    # one address with no `?q=` on it, and drawing a box there would promise
+    # something neither the URL nor the matcher has anywhere to put. Every other
+    # page draws one (`filter_everywhere.feature`).
+    Given I open the document "finishes.md"
     Then there is no filter bar
 
-  Scenario: A tag on a page that cannot be filtered is decoration, and looks it
-    # Titles are drawn on pages with no filter to fill — a day, the agenda, a
-    # document — and the pill is the same markup there. It must not look
-    # pressable and then swallow the press: the pane says whether a tag in it
-    # is live, the stylesheet draws the cursor on that, and the listener
-    # declines on the same condition.
-    #
-    # On a day page the only tag is inside an ancestry crumb, which is a link —
-    # so the press goes where the crumb goes, exactly as it did before tags
-    # were pressable anywhere. What must NOT happen is a filter: the address
-    # carries no `?q=`, here or on the page it lands on.
+  Scenario: A tag is pressable exactly where the page can keep a filter
+    # The pane says whether a tag in it is live, the stylesheet draws the cursor
+    # on that fact, and the listener declines on the same condition — so a pill
+    # never looks pressable and then swallows the press. That claim used to have
+    # a second half about the pages with no filter to fill; the pages have one
+    # now, and where the press lands on each of them is
+    # `filter_everywhere.feature`.
     Given I open the outline "house.olai"
     Then tags on this page are pressable
     When I open the day "2026-08-10"
-    Then tags on this page are decoration
-    When I press the tag "#home"
-    Then the address is exactly "/n/kitchen"
+    Then tags on this page are pressable

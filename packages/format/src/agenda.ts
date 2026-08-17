@@ -44,6 +44,7 @@ import {
   byOutline,
   type Dated,
   datedByDay,
+  datedIn,
   type DayEntry,
   type DayGroup,
   dayOf,
@@ -51,6 +52,7 @@ import {
   groupedOn,
 } from "./dates.ts"
 import { type Derived, storedMarker } from "./derive.ts"
+import { keepingDated } from "./filter.ts"
 import type { RegularNode } from "./node.ts"
 
 /**
@@ -181,12 +183,52 @@ export interface Owed {
  * on a mark means three things are late, not three files are.
  */
 export const owedOf = (agenda: Agenda): Owed => ({
-  overdue: nodesIn(agenda.overdue),
-  today: nodesIn(agenda.today),
+  overdue: datedIn(agenda.overdue),
+  today: datedIn(agenda.today),
 })
 
-const nodesIn = (groups: ReadonlyArray<DayGroup>): number =>
-  groups.reduce((total, group) => total + group.nodes.length, 0)
+/**
+ * The same agenda narrowed to what a query selected — every section, and the
+ * days inside the third.
+ *
+ * The agenda is a page like the others, so the filter over it is
+ * {@link keepingDated} applied three times rather than a rule of its own: one
+ * definition of what a filtered day-group list is, wherever one is drawn
+ * (docs/search.md's "which pages filter").
+ *
+ * A DAY THAT HAS NOTHING LEFT LEAVES UPCOMING, which is this module's own
+ * standing rule read once more: a day is listed exactly when there is something
+ * owed on it ({@link aheadOf}), and a heading over no rows would be the page
+ * promising a day that the query did not find anything on. The three sections
+ * disappear the same way, because a section is drawn only when it holds
+ * something (`@olai/web`'s `AgendaPage`).
+ *
+ * Nothing is re-derived: this is the answer {@link agendaOf} already gave, with
+ * rows taken out of it. So what the mark beside the page counts (`owedOf`, over
+ * the UNFILTERED reading) cannot be changed by somebody typing in a box — the
+ * filter is a question about the open page, and what is owed is a fact about
+ * the directory.
+ */
+export const keepingOwed = (
+  agenda: Agenda,
+  matched: ReadonlySet<string>,
+): Agenda => ({
+  overdue: keepingDated(agenda.overdue, matched),
+  today: keepingDated(agenda.today, matched),
+  upcoming: agenda.upcoming.flatMap((day) => {
+    const groups = keepingDated(day.groups, matched)
+    return groups.length === 0 ? [] : [{ ...day, groups }]
+  }),
+})
+
+/** How many ROWS an agenda draws, over all three sections — what a filter bar
+ *  counts, where {@link owedOf} counts what is NEWS. Upcoming is in this one
+ *  and out of that one for the same reason it is drawn on the page and absent
+ *  from the mark: a reader counting the rows in front of them is counting every
+ *  row in front of them. */
+export const owedIn = (agenda: Agenda): number =>
+  datedIn(agenda.overdue) + datedIn(agenda.today) +
+  agenda.upcoming.reduce((total, day) => total + datedIn(day.groups), 0)
 
 /** Every day the set has anything on, and what it has on it. */
 type Days = ReadonlyMap<string, ReadonlyArray<Dated>>

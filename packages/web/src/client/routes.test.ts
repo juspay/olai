@@ -26,10 +26,17 @@ const ROUTES: ReadonlyArray<Route> = [
   { kind: "today" },
   { kind: "agenda" },
   { kind: "trash" },
-  // ...and the same two pages, narrowed. The filter is part of the address, so
-  // it is part of the round trip: a query the app writes into the bar and
-  // cannot read back is a page that loses its filter on reload.
+  // ...and the same pages, narrowed. The filter is part of the address, so it
+  // is part of the round trip: a query the app writes into the bar and cannot
+  // read back is a page that loses its filter on reload.
   { kind: "outline", file: "house.olai", filter: "is:done" },
+  // The four that grew one under `search-everywhere`. A day and the agenda are
+  // date questions and the trash is read-only, and neither of those is a reason
+  // not to be able to look through what they are showing.
+  { kind: "day", date: "2026-08-10", filter: "is:todo" },
+  { kind: "today", filter: "#home" },
+  { kind: "agenda", filter: "is:blocked" },
+  { kind: "trash", filter: "hinges" },
   { kind: "outline", file: null, filter: "#home -is:done" },
   { kind: "node", id: "kitchen", filter: "date:2026-08-01..2026-08-14" },
   { kind: "node", id: "kitchen", filter: "a query with  spaces & an ampersand" },
@@ -91,9 +98,9 @@ test("a filtered page spells it in the query", () => {
 })
 
 // Narrowing is asked of the module that knows which routes may carry one: a
-// filter typed on a day page has nowhere to go, and spreading it on anyway
+// filter typed on a document page has nowhere to go, and spreading it on anyway
 // would mint an address `hrefOf` drops and `routeOf` never returns.
-test("only the two tree routes take a filter, and a blank one takes it off", () => {
+test("every route but a document's takes a filter, and a blank one takes it off", () => {
   expect(narrowedTo({ kind: "node", id: "kitchen" }, "#home")).toEqual({
     kind: "node",
     id: "kitchen",
@@ -102,6 +109,16 @@ test("only the two tree routes take a filter, and a blank one takes it off", () 
   expect(narrowedTo({ kind: "day", date: "2026-08-10" }, "#home")).toEqual({
     kind: "day",
     date: "2026-08-10",
+    filter: "#home",
+  })
+  expect(narrowedTo({ kind: "trash" }, "hinges")).toEqual({
+    kind: "trash",
+    filter: "hinges",
+  })
+  // The one page this grammar has nothing to say about: prose is not nodes.
+  expect(narrowedTo({ kind: "document", file: "finishes.md" }, "#home")).toEqual({
+    kind: "document",
+    file: "finishes.md",
   })
   // Cleared. What matters is the ADDRESS, which is where the one-spelling rule
   // actually bites: two routes for the same unfiltered page are one string in
@@ -128,7 +145,9 @@ test("two addresses for one page are the same page, whatever narrows them", () =
 test("what a page is narrowed by is read off the route", () => {
   expect(filterOf({ kind: "node", id: "kitchen", filter: "#home" })).toBe("#home")
   expect(filterOf({ kind: "node", id: "kitchen" })).toBe("")
+  expect(filterOf({ kind: "trash", filter: "hinges" })).toBe("hinges")
   expect(filterOf({ kind: "trash" })).toBe("")
+  expect(filterOf({ kind: "document", file: "finishes.md" })).toBe("")
 })
 
 // `/trash` spells no file for the agenda's reason: which archives exist is the

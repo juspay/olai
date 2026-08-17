@@ -28,6 +28,22 @@
  * rescheduling is a `date`, and the place to change one is the row where the
  * node actually lives. A page whose whole content is derived would otherwise be
  * offering to edit a thing that is not there.
+ *
+ * ## The filter takes rows out of it, and takes nothing off the entry
+ *
+ * The three sections are narrowed by the box above (`../filter/narrowing.ts`),
+ * which is `keepingOwed` over the answer this page was already handed — so a
+ * section left with nothing simply stops being drawn, exactly as an empty one
+ * always did, and a day in Upcoming with nothing left leaves the same way.
+ *
+ * What does NOT move is the mark in the directory column: what is owed is a
+ * fact about the directory and the filter is a question about the open page, so
+ * the entry goes on saying "3 overdue" over a page narrowed to one of them
+ * (`./owed.ts` counts the unnarrowed reading, in `../App.tsx`).
+ *
+ * "Nothing is due." is not said over a filtered page either — it is a claim
+ * about the agenda, where "no matches" is a claim about the query, and the bar
+ * is where that one is made.
  */
 
 import { type Agenda, nothingDue } from "@olai/format"
@@ -36,6 +52,7 @@ import { type JSX, Show } from "solid-js"
 
 import { CRUMB } from "../Breadcrumbs.tsx"
 import { DayGroups } from "../day/DayGroups.tsx"
+import { useNarrowed } from "../filter/narrowed.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 
@@ -45,6 +62,7 @@ export function AgendaPage(props: {
    *  verbatim, like every other date in this app. */
   readonly today: string
 }) {
+  const narrowed = useNarrowed()
   return (
     <section data-testid={TESTID.agendaPage} data-date={props.today}>
       <header class="mb-4 flex items-baseline gap-2">
@@ -53,8 +71,9 @@ export function AgendaPage(props: {
       </header>
 
       {/* Said once, as the one condition it is: nothing is late, nothing is on
-          today, and nothing is coming. */}
-      <Show when={nothingDue(props.agenda)}>
+          today, and nothing is coming. Never over a filter, which empties this
+          page for a reason of its own and says so in its own words. */}
+      <Show when={nothingDue(props.agenda) && !narrowed.active()}>
         <p class="text-muted" data-testid={TESTID.agendaEmpty}>
           Nothing is due.
         </p>

@@ -22,35 +22,49 @@
  * re-creates `Archive.olai` on first use, so a directory with no archive
  * file and one whose archives hold nothing are the same fact, and both are
  * drawn the same way.
+ *
+ * ## It can be looked THROUGH, which is not the same as edited
+ *
+ * The filter box narrows this page like any other, and the one thing that had
+ * to be said out loud for it to work is that the archive is IN SCOPE here: a
+ * query normally leaves what was put away alone unless it says `is:archived`
+ * (docs/search.md), and a matcher applying that rule to the page that IS the
+ * archive would take away every row and give the reader nothing to read it by.
+ * So the scope is the page (`../filter/narrowing.ts`), and a word typed here
+ * searches what is in front of somebody. Read-only is a fact about this page's
+ * VERBS — one, Put back — and never about looking through a pile of it.
+ *
+ * The rows narrow as a tree does, ancestors kept: a matching row keeps its
+ * subtree, the scaffold above it stays as the context that says where the pile
+ * came from, and an archive with nothing left drops out the way an empty one
+ * does. "The Trash is empty." is not said over a filter — that is a claim about
+ * the archive, and the bar makes the other one.
  */
 
-import { isMirror, type Row, rowsOf } from "@olai/format"
+import { isMirror, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, Match, Show, Switch } from "solid-js"
+import { Match, Show, Switch } from "solid-js"
 
-import { useDerived } from "../derived.tsx"
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
+import { useNarrowed } from "../filter/narrowed.tsx"
 import { NodeTitle } from "../NodeTitle.tsx"
+import type { TrashGroup } from "../page.ts"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
 
 export function TrashPage(props: {
-  /** Every archive the directory holds, in path order (`page.ts`). */
+  /** Every archive the directory holds, in path order (`page.ts`) — including
+   *  the ones that hold nothing, which is what decides whether a heading is
+   *  worth drawing: that is a fact about the DIRECTORY, so a filter narrowing
+   *  the page to one pile does not take the file name off it. */
   readonly files: ReadonlyArray<string>
+  /** The archives with rows in them, narrowed by whatever is in the box
+   *  (`../filter/narrowing.ts`). */
+  readonly groups: ReadonlyArray<TrashGroup>
 }) {
-  const derived = useDerived()
-
-  // Only the archives with anything in them: an archive emptied by put-backs
-  // draws nothing, exactly like one that never existed — and "the trash is
-  // empty" is then simply this list being empty, not a second predicate.
-  const groups = createMemo(() => {
-    const indexes = derived()
-    return indexes === undefined ? [] : props.files
-      .map((file) => ({ file, rows: rowsOf(indexes, file) }))
-      .filter((group) => group.rows.length > 0)
-  })
+  const narrowed = useNarrowed()
 
   return (
     <div data-testid={TESTID.trashPage} class="mx-auto max-w-3xl">
@@ -62,14 +76,16 @@ export function TrashPage(props: {
         </p>
       </header>
       <Show
-        when={groups().length > 0}
+        when={props.groups.length > 0}
         fallback={
-          <p class="text-muted" data-testid={TESTID.trashEmpty}>
-            The Trash is empty.
-          </p>
+          <Show when={!narrowed.active()}>
+            <p class="text-muted" data-testid={TESTID.trashEmpty}>
+              The Trash is empty.
+            </p>
+          </Show>
         }
       >
-        <Key each={groups()} by="file">
+        <Key each={props.groups} by="file">
           {(group) => (
             <section data-testid={TESTID.trashGroup} data-file={group().file}>
               {/* One archive is the ordinary case and needs no heading; a
@@ -105,6 +121,7 @@ function Branch(props: {
   readonly row: Row
 }) {
   const undo = useUndo()
+  const narrowed = useNarrowed()
   /** The line under this row, and the six seconds it lasts — the same
    *  receptacle the `•••` menu's line rides on (`../saying.ts`), which is
    *  where the three rules around it live now that two surfaces keep them. */
@@ -128,7 +145,17 @@ function Branch(props: {
   }
 
   return (
-    <li data-testid={TESTID.trashRow} data-node-id={props.row.at.node.id}>
+    <li
+      data-testid={TESTID.trashRow}
+      data-node-id={props.row.at.node.id}
+      // Whether the filter SELECTED this row or kept it as the scaffold that
+      // leads to one — the tree's own fact (`../Tree.tsx`), said the same way
+      // and asked of the node the row SHOWS, because a placement in a pile
+      // matches by what it stands for.
+      data-match={narrowed.active()
+        ? String(narrowed.matched().has(shownRecord(props.row).node.id))
+        : undefined}
+    >
       <div class="group flex min-h-6 items-baseline gap-2 py-0.5">
         <span class="select-none text-muted" aria-hidden="true">
           {isMirror(props.row.at.node) ? "⇢" : "•"}

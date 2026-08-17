@@ -216,6 +216,47 @@ const narrow = async (page: Page, query: string) => {
 const said = async (page: Page, locator: string) =>
   (await page.locator(locator).first().textContent().catch(() => null)) ?? "(nothing)"
 
+// ── the same filter over the pages that are a query already ────────────
+
+const DAY_PAGE = '[data-testid="day-page"]'
+const AGENDA_PAGE = '[data-testid="agenda-page"]'
+const TRASH_PAGE = '[data-testid="trash-page"]'
+
+/** The rows of a day or of the agenda, under the file each was found in — flat
+ *  rows that carry their own ancestry, which is why a filtered one keeps
+ *  nothing as context. */
+const listed = async (page: Page, within: string) =>
+  (await page.locator(`${within} [data-testid="day-group"]`).evaluateAll((groups) =>
+    groups.flatMap((group) => [
+      `  ${group.getAttribute("data-file")}`,
+      ...[...group.querySelectorAll('[data-testid="node"]')].map((one) =>
+        `    ${one.querySelector('[data-testid="node-title"]')?.textContent?.trim() ?? ""}`
+      ),
+    ])
+  )).join("\n") || "  (nothing)"
+
+/** What the directory column says is owed — the sentence the entry announces,
+ *  read off the mark rather than off the page, because the whole claim is that
+ *  the two are answering different questions. */
+const owed = async (page: Page) =>
+  (await page.locator('[data-testid="agenda-link"]').first().getAttribute("title")) ??
+    "(nothing owed)"
+
+/** The pile in the trash, indented, with a `*` on the rows the query SELECTED
+ *  — the rest is the scaffold of ancestor titles the archive wrote to remember
+ *  where things hung. */
+const piled = async (page: Page) =>
+  (await page.locator(`${TRASH_PAGE} [data-testid="trash-row"]`).evaluateAll((rows) =>
+    rows.map((one) => {
+      let depth = 0
+      for (let up = one.parentElement; up !== null; up = up.parentElement) {
+        if (up.matches('[data-testid="trash-row"]')) depth += 1
+      }
+      const hit = one.getAttribute("data-match") === "true" ? "*" : " "
+      return `${hit} ${"  ".repeat(depth)}${one.textContent?.split("Put back")[0]?.trim() ?? ""}`
+    })
+  )).join("\n") || "  (nothing)"
+
 const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
   /**
    * `set_doing` refusing what the order forbids, on the web's two mark-walking
@@ -347,6 +388,68 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
     console.log(await drawn(page))
     await shot(page, "filtered-by-the-tag")
+  },
+
+  /**
+   * The same box on the three pages that ignored it until `search-everywhere`:
+   * a day, the agenda, and the trash.
+   *
+   * The shots are the half a transcript cannot show — that these are the SAME
+   * bar over pages made of different things — and the listings are the half a
+   * screenshot cannot: which rows the query selected, and on the trash which
+   * ones are the scaffold that leads to one.
+   */
+  "filter-every-page": async (page) => {
+    await page.goto(`${BASE}/d/2026-08-10`)
+    await page.locator(DAY_PAGE).first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  the day whole:\n${await listed(page, DAY_PAGE)}`)
+    await shot(page, "day-unfiltered")
+    await narrow(page, "cabinets")
+    // A day's rows are flat and already carry their ancestry, so there is
+    // nothing to keep as context: what is left is exactly what matched — and
+    // the other outline's heading goes with its row.
+    console.log(`  filtered by "cabinets":\n${await listed(page, DAY_PAGE)}`)
+    console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
+    console.log(`  the address:  ${new URL(page.url()).pathname}${new URL(page.url()).search}`)
+    await shot(page, "day-filtered")
+
+    await page.goto(`${BASE}/agenda`)
+    await page.locator(AGENDA_PAGE).first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  the agenda whole:\n${await listed(page, AGENDA_PAGE)}`)
+    await shot(page, "agenda-unfiltered")
+    console.log(`  the entry beside it: ${await owed(page)}`)
+    // A query nothing on the page answers: the sections go, the page does NOT
+    // say "Nothing is due." (that is a claim about the agenda, where "no
+    // matches" is a claim about the query) — and the mark in the column does
+    // not move, because a filter is a question about the open page and what is
+    // late is a fact about the directory.
+    await narrow(page, "bathroom")
+    console.log(`  filtered by "bathroom":\n${await listed(page, AGENDA_PAGE)}`)
+    console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
+    console.log(`  the page says: ${await said(page, '[data-testid="agenda-empty"]')}`)
+    console.log(`  the entry still: ${await owed(page)}`)
+    await shot(page, "agenda-filtered")
+
+    // The trash needs something in it first — and it is the page the archive
+    // rule had to except: a query normally leaves what was put away alone.
+    await page.goto(`${BASE}/o/house.olai`)
+    await page.locator('[data-testid="outline-tree"]').first().waitFor()
+    await openMenu(page, "install")
+    await page.locator('[data-testid="node-menu-panel"] >> text=Move to Trash').first().click()
+    await page.locator('[data-testid="node-menu-panel"] >> text=Move to Trash').first().click()
+    await page.waitForTimeout(SETTLE)
+    await page.goto(`${BASE}/trash`)
+    await page.locator(TRASH_PAGE).first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  what was put away:\n${await piled(page)}`)
+    await shot(page, "trash-unfiltered")
+    await narrow(page, "hinges")
+    console.log(`  filtered by "hinges" — * is a match, the rest is the scaffold:`)
+    console.log(await piled(page))
+    console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
+    await shot(page, "trash-filtered")
   },
 
   "a-fold-does-not-hide-a-match": async (page) => {

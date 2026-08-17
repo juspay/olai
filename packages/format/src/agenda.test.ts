@@ -1,7 +1,16 @@
 import { expect, test } from "bun:test"
 
-import { agendaOf, isOverdue, nothingDue, owedOf, UPCOMING_DAYS } from "./agenda.ts"
+import {
+  agendaOf,
+  isOverdue,
+  keepingOwed,
+  nothingDue,
+  owedIn,
+  owedOf,
+  UPCOMING_DAYS,
+} from "./agenda.ts"
 import { derive, type Derived } from "./derive.ts"
+import { matching, parseFilter } from "./filter.ts"
 import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import { type Located, type RegularNode } from "./node.ts"
 
@@ -324,4 +333,58 @@ test("the archive keeps its place, for the reason a day page keeps it", () => {
   expect(agendaOf(archived, TODAY).overdue.map((group) => group.file)).toEqual([
     "Archive.olai",
   ])
+})
+
+// ── the agenda, narrowed ───────────────────────────────────────────────
+//
+// The filter over the page (`@olai/web`), which is this answer with rows taken
+// out of it rather than a second reading: what is owed does not change because
+// somebody typed in a box, and the mark beside the page goes on counting the
+// unnarrowed one.
+
+/** The ids a query selects here — the page's own scope, so what was put away is
+ *  in it (the agenda does not exclude the archive either). */
+const selecting = (text: string): ReadonlySet<string> =>
+  new Set(
+    matching(SET, parseFilter(text, TODAY), { archived: true }).map(
+      ({ at }) => at.node.id,
+    ),
+  )
+
+test("every section narrows, and one left with nothing stops being a section", () => {
+  const agenda = agendaOf(SET, TODAY)
+  expect(listed(agenda.overdue)).toEqual(["permit", "posts"])
+  expect(listed(agenda.today)).toEqual(["birthday", "ferry"])
+
+  const ferry = keepingOwed(agenda, selecting("ferry"))
+  expect(ferry.overdue).toEqual([])
+  expect(listed(ferry.today)).toEqual(["ferry"])
+  expect(ferry.upcoming).toEqual([])
+  // Nothing was re-derived: what is owed is unchanged, which is what the mark
+  // in the directory column counts.
+  expect(owedOf(agenda)).toEqual({ overdue: 2, today: 2 })
+})
+
+test("a day in Upcoming with nothing left leaves it, heading and all", () => {
+  const agenda = agendaOf(SET, TODAY)
+  expect(agenda.upcoming.map((day) => day.date)).toEqual([
+    "2026-08-14",
+    "2026-08-20",
+  ])
+  const packing = keepingOwed(agenda, selecting("pack"))
+  expect(packing.upcoming.map((day) => day.date)).toEqual(["2026-08-14"])
+  expect(listed(packing.upcoming[0]!.groups)).toEqual(["pack"])
+  // A query nothing on the page answers empties all three.
+  const none = keepingOwed(agenda, selecting("nothing-is-called-this"))
+  expect(nothingDue(none)).toBe(true)
+})
+
+/** How many rows the PAGE draws, which is the second number in the filter
+ *  bar's "1 of 6" — Upcoming included, where `owedOf` leaves it out because a
+ *  task due next Tuesday is not news today. */
+test("what an agenda draws is every row of all three sections", () => {
+  const agenda = agendaOf(SET, TODAY)
+  expect(owedIn(agenda)).toBe(6)
+  expect(owedIn(keepingOwed(agenda, selecting("ferry")))).toBe(1)
+  expect(owedIn({ overdue: [], today: [], upcoming: [] })).toBe(0)
 })

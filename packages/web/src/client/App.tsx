@@ -46,7 +46,7 @@ import { NodePage } from "./NodePage.tsx"
 import { Nothing } from "./Nothing.tsx"
 import { OpensProvider } from "./opens.tsx"
 import { createOutlines } from "./outlines.ts"
-import { fileOf, opensAt, pageOf, rowsFor } from "./page.ts"
+import { drawnBy, fileOf, NOTHING_DRAWN, opensAt, pageOf } from "./page.ts"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
@@ -144,28 +144,60 @@ export default function App() {
   const noted = (month: string): ReadonlySet<string> =>
     dailyNoteDays(documents.paths(), month)
 
-  // The page's rows at three stages, and each one is read by somebody:
-  // everything the page holds, what this READER looks at (the done
+  // WHAT THE OPEN PAGE DRAWS, at three stages, and each one is read by
+  // somebody: everything the page holds, what this READER looks at (the done
   // preference), and what the query left of that. The order is argued in
   // `./filter/narrowing.ts` — a preference about the reader goes before a
   // question about the page.
-  const allRows = createMemo(() => {
+  //
+  // One value rather than one per page kind, because the filter now runs on
+  // every page that draws nodes and the three stages are the same three
+  // wherever it is (`./page.ts`'s `Drawn`).
+  const allDrawn = createMemo(() => {
     const indexes = outlines.derived()
-    return indexes === undefined ? [] : rowsFor(indexes, page())
+    return indexes === undefined
+      ? NOTHING_DRAWN
+      : drawnBy(indexes, page(), agenda())
   })
-  const shownRows = createMemo(() => visible(allRows()))
+
+  // The preference reaches the TREE pages and no others, which is where it has
+  // always reached: a day and the agenda answer a date question and the trash
+  // is what was put away, and hiding finished work inside any of the three
+  // would be this switch deciding something none of those pages was asked. The
+  // same value comes back untouched for them, which is also how the count of
+  // held-back matches knows to be zero (`./filter/narrowing.ts`).
+  //
+  // THE SAME VALUE comes back when nothing is hidden, identity and all —
+  // `visible` returns the very array it was given in that case, and this hands
+  // the whole reading straight back rather than rewrapping it. That is what
+  // `./filter/narrowing.ts`'s count of held-back matches tests, and a fresh
+  // wrapper per frame would make it walk the page twice to prove it was zero.
+  const shownDrawn = createMemo(() => {
+    const drawn = allDrawn()
+    if (drawn.kind !== "tree") return drawn
+    const rows = visible(drawn.rows)
+    return rows === drawn.rows ? drawn : { kind: "tree" as const, rows }
+  })
 
   const narrowing = createNarrowing({
     derived: outlines.derived,
     text: () => filterOf(router.route()),
-    all: allRows,
-    visible: shownRows,
+    all: allDrawn,
+    visible: shownDrawn,
     // The one clock this tab has (./clock.ts), which is what `date:today` in
     // the box counts from — and it moves, so a page left open past midnight
     // narrows to the new day rather than to the one it was opened on.
     today,
   })
-  const rows = narrowing.rows
+
+  // The narrowed page, by the arm each pane draws. `only` rather than a field
+  // per shape on the reading: which arm is live is decided by the address, one
+  // memo up, and asking for the wrong one is a page drawing nothing rather than
+  // a page drawing something else.
+  const rows = () => only(narrowing.drawn(), "tree")?.rows ?? []
+  const dayGroups = () => only(narrowing.drawn(), "day")?.groups ?? []
+  const owed = () => only(narrowing.drawn(), "agenda")?.agenda
+  const archives = () => only(narrowing.drawn(), "trash")?.groups ?? []
 
   /** Typing in the filter box, and pressing a `#tag`, are the same act: the
    *  address of this page changes, and the entry is REPLACED rather than
@@ -388,8 +420,8 @@ export default function App() {
                       // press.
                       onClick={(event) => {
                         // ...and only where the press has somewhere to go. A
-                        // day page draws tags too and its address has nowhere
-                        // to keep a filter, so the press is left alone rather
+                        // document draws tags in its own prose and its address
+                        // keeps no filter, so the press is left alone rather
                         // than claimed and dropped — the same condition the
                         // pill's own cursor is drawn on (`styles.css`).
                         const tag = narrowable(router.route())
@@ -409,16 +441,20 @@ export default function App() {
                       <Show when={problems().length > 0}>
                         <Banner errors={problems()} />
                       </Show>
-                      {/* The filter, on the two routes that may carry one
-                          (./routes.ts). Above the page rather than inside each
-                          of them, because an outline and a zoomed node are the
-                          same kind of page narrowed the same way — and the
+                      {/* The filter, on every page that draws nodes. Above the
+                          page rather than inside each of them, because they are
+                          narrowed the same way by the same box — and the
                           provider wraps everything below so a row can ask
-                          whether it matched without being told. */}
+                          whether it matched without being told.
+
+                          Asked of what the page DRAWS rather than of the route,
+                          which is the same list said the way that cannot go
+                          stale: `none` is a page a query has nothing to narrow
+                          (./page.ts), so the box appears exactly where it can
+                          do something — never over a document, and never over
+                          an address that named no file. */}
                       <NarrowedProvider narrowed={narrowing}>
-                      <Show
-                        when={open().kind === "outline" || open().kind === "node"}
-                      >
+                      <Show when={narrowing.drawn().kind !== "none"}>
                         <FilterBar narrowing={narrowing} onType={narrow} />
                       </Show>
                       <Switch>
@@ -445,7 +481,7 @@ export default function App() {
                           {(open) => (
                             <DayPage
                               date={open().date}
-                              groups={open().groups}
+                              groups={dayGroups()}
                               notes={open().notes}
                               today={today()}
                             />
@@ -455,11 +491,16 @@ export default function App() {
                           {(open) => (
                             // The reading is the app's (above), not the arm's —
                             // the same value the entry in the column is marked
-                            // from. `Show` because it is typed for the frame
-                            // before the first snapshot; this page is not drawn
-                            // in that frame (nothing is), so the fallback is a
-                            // promise about the code rather than a sight.
-                            <Show when={agenda()}>
+                            // from, narrowed by whatever is in the box. The
+                            // ENTRY is marked from the unnarrowed one: a filter
+                            // is a question about the open page, and what is
+                            // owed is a fact about the directory.
+                            //
+                            // `Show` because it is typed for the frame before
+                            // the first snapshot; this page is not drawn in that
+                            // frame (nothing is), so the fallback is a promise
+                            // about the code rather than a sight.
+                            <Show when={owed()}>
                               {(reading) => (
                                 <AgendaPage agenda={reading()} today={open().date} />
                               )}
@@ -467,7 +508,9 @@ export default function App() {
                           )}
                         </Match>
                         <Match when={only(open(), "trash")}>
-                          {(open) => <TrashPage files={open().files} />}
+                          {(open) => (
+                            <TrashPage files={open().files} groups={archives()} />
+                          )}
                         </Match>
                         <Match when={only(open(), "nothing")}>
                           {(nothing) => (

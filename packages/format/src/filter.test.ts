@@ -1,8 +1,10 @@
 import { expect, test } from "bun:test"
 
+import { datedIn, datedOn, type DayGroup } from "./dates.ts"
 import { derive, type Derived, type Row, rowsOf } from "./derive.ts"
 import {
   keeping,
+  keepingDated,
   matchedIn,
   matching,
   parseFilter,
@@ -898,6 +900,32 @@ test("what was put away stays put away until it is asked for", () => {
   expect(selects("#home -is:archived")).toEqual(["herbs", "kitchen", "hinges"])
 })
 
+/**
+ * ...unless the caller's scope IS what was put away, which is the one door that
+ * says so: the filter over a page, on a page that is already drawing archived
+ * rows (the trash, and a day that collects one). The default is a rule about
+ * searching a DIRECTORY; a page has decided already, and a matcher overruling
+ * it takes rows off a screen with nothing to read the absence by.
+ */
+test("a scope that is already the archive is answered rather than overruled", () => {
+  const home = parseFilter("#home", TODAY)
+  expect(matching(derived, home, { archived: true }).map(({ at }) => at.node.id))
+    .toEqual(["gone", "herbs", "kitchen", "hinges"])
+  // The operator goes on meaning what it means there — and its negation still
+  // takes what was put away back out.
+  const archived = parseFilter("#home is:archived", TODAY)
+  expect(matching(derived, archived, { archived: true }).map(({ at }) => at.node.id))
+    .toEqual(["gone"])
+  const live = parseFilter("#home -is:archived", TODAY)
+  expect(matching(derived, live, { archived: true }).map(({ at }) => at.node.id))
+    .toEqual(["herbs", "kitchen", "hinges"])
+  // And it composes with the other two scopes rather than replacing them.
+  expect(
+    matching(derived, home, { archived: true, file: "Archive.olai" })
+      .map(({ at }) => at.node.id),
+  ).toEqual(["gone"])
+})
+
 // ── which field carried it ─────────────────────────────────────────────
 
 test("the field a match is reported under is the highest-weighted one that held it", () => {
@@ -1041,4 +1069,50 @@ test("the count is of PLACES, which is what a reader counts on the screen", () =
   // `kitchen`, `hinges`, and the mirror of `herbs` under `kitchen` — three
   // rows on screen for two nodes plus a placement.
   expect(matchedIn(house, matched)).toBe(3)
+})
+
+// ── the day, narrowed ──────────────────────────────────────────────────
+//
+// The other shape a filtered page can be, and the one that needs no ancestors
+// kept: a day's rows are flat and each already carries the trail that says what
+// it is about, so a filter over one is exactly the rows that matched.
+
+/** What a day draws, as `file/id` per row — the same pair a day's own `<Key>`
+ *  is built on, because a day crosses files and an id alone would not say
+ *  which one a row came from. */
+const listed = (groups: ReadonlyArray<DayGroup>): ReadonlyArray<string> =>
+  groups.flatMap((group) =>
+    group.nodes.map((one) => `${group.file}/${one.shows.node.id}`)
+  )
+
+const onDay = (day: string): ReadonlyArray<DayGroup> => datedOn(derived, day)
+
+const idsOf = (text: string): ReadonlySet<string> =>
+  new Set(matching(derived, parseFilter(text, TODAY), { archived: true }).map(
+    ({ at }) => at.node.id,
+  ))
+
+test("a filtered day keeps what matched and nothing as context", () => {
+  const tenth = onDay("2026-08-10")
+  expect(listed(tenth)).toEqual(["house.olai/order"])
+  expect(listed(keepingDated(tenth, idsOf("cabinets")))).toEqual([
+    "house.olai/order",
+  ])
+  // The node's ANCESTORS are not on the day and are not put there by matching
+  // one of them: `kitchen` is the crumb above the row, not a row.
+  expect(listed(keepingDated(tenth, idsOf("kitchen remodel")))).toEqual([])
+})
+
+test("an outline with nothing left is not a heading over no rows", () => {
+  const tenth = onDay("2026-08-10")
+  expect(tenth.map((group) => group.file)).toEqual(["house.olai"])
+  expect(keepingDated(tenth, idsOf("nothing-is-called-this"))).toEqual([])
+})
+
+test("how many rows a day draws is how many entries it holds, not how many files", () => {
+  const third = onDay("2026-08-03")
+  expect(third.map((group) => group.file)).toEqual(["house.olai"])
+  expect(datedIn(third)).toBe(1)
+  expect(datedIn(onDay("2026-08-10"))).toBe(1)
+  expect(datedIn([])).toBe(0)
 })

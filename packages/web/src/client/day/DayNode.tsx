@@ -34,6 +34,7 @@ import { Show } from "solid-js"
 import { Aside } from "../Aside.tsx"
 import { blockedIds, WAITING_DIM } from "../blocked.ts"
 import { Breadcrumbs } from "../Breadcrumbs.tsx"
+import { useNarrowed } from "../filter/narrowed.tsx"
 import { Glyph } from "../Glyph.tsx"
 import { hotOf } from "../hot.ts"
 import { NoteMark } from "../note/Mark.tsx"
@@ -52,6 +53,7 @@ export function DayNode(props: {
   const node = () => props.dated.shows.node
   const note = createNoteExpand(() => startsOpen(density()))
   const today = useToday()
+  const narrowed = useNarrowed()
   /** Has this row anything to OPEN? The tree's rule, one file over
    *  (`../Tree.tsx`), because it is one rule about a node and not two about two
    *  surfaces. */
@@ -69,6 +71,12 @@ export function DayNode(props: {
       data-file={props.dated.shows.file}
       data-note-open={note.expanded() ? "true" : "false"}
       data-blocked={blockedIds(props.dated.blocked)}
+      // Whether the filter SELECTED this row, said the way a tree row says it
+      // (../Tree.tsx) and absent on an unfiltered page. On these pages it is
+      // always `true` when it is there at all, and that is the claim rather
+      // than a redundancy: a day and the agenda draw no context rows, because
+      // every row already carries its own ancestry in the crumb above it.
+      data-match={narrowed.active() ? "true" : undefined}
     >
       {/* A root has no ancestry, and an empty trail is nothing to draw. */}
       <Show when={props.dated.trail.length > 0}>

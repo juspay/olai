@@ -137,11 +137,23 @@ Recorded as reversible: it is one line in `App.tsx`'s `narrow`, and the e2e that
 
 `routes.ts` grows a `filter?: string` on those two arms only, and `routeOf` takes the address rather than the pathname, so the bijection its test holds covers the query string. The other five routes do not carry one: a document is prose, `/trash` is read-only, and `/agenda` / `/d/` / `/today` are date questions whose filter would be a second date question. Deferred, and it is a real gap — filtering a day page is a sensible thing to want.
 
+**Landed** (`search-everywhere`), and the two reasons given here did not survive being written down. A day and the agenda ARE date questions, and a filter over one is not a second one: it is "which of the things on this day", a narrowing of the answer rather than another way to ask for it — and the operators people actually type there (`is:blocked`, `#home`, a word) have nothing to do with dates. `/trash` being read-only is a fact about its VERBS, of which it has one; looking through a pile is not editing it. So the rule inverted, and `narrowable` is now the one exclusion rather than a list of two: **a document is the only page this grammar has nothing to say about**, because it selects nodes and a document is prose.
+
+What it cost, against what the deferral implied. `routes.ts` was one line (`route.kind !== "document"`) plus a `filter?` on four more arms. The reading (`filter/narrowing.ts`) took one switch instead of a second implementation, over a new value in the page model — `Drawn`, what the open page has PUT ON THE SCREEN, which is a different question from `Page` (what the address turned out to name) and the one a filter actually asks. Four shapes, because there are four: a tree, a day's groups, an agenda's three sections, an archive's trees. The format grew two prunes beside `keeping` (`keepingDated`, `keepingOwed`) and one count (`datedIn`, which `owedOf` then stopped spelling for itself).
+
+Three decisions were the whole of the design work, and each is where a per-page rule would have crept in:
+
+- **The archive.** `matching` excludes archived nodes unless the query says `is:archived`, and on the trash that rule would have taken away every row on the page — the matcher overruling a page about what the page is showing. So `Scope` grew `archived`, and the filter passes it ALWAYS rather than per page: the scope of this door is the page, the page has already decided what it draws, and on a page showing none the flag changes nothing. A day gets the same benefit for free, and it needed it — a day collects dated nodes wherever they were filed, archive included (`dates.ts`).
+- **A day's note.** It goes while a filter is on. A note is a document, which is exactly the page kind that takes no filter, so it can never be a match; drawing it beside no rows would be answering a question nobody asked.
+- **Which sentence a page says when it is empty.** "Nothing is on this day", "Nothing is due.", "The Trash is empty." are claims about the day, the agenda and the archive; "no matches" is a claim about the query. The pages keep the first and the bar keeps the second, which is the division `OutlinePage`'s "write its first line" already had.
+
+And one thing that did NOT move: what is owed. The mark beside Agenda in the column counts the unnarrowed reading, because a filter is a question about the open page and late work is a fact about the directory.
+
 ## The filter and the two things it composes with
 
 ### Zoom
 
-The filter is scoped to the rows the page draws: an outline's roots, or a zoomed node's children. That IS Workflowy's "downstream" scoping, and it falls out of the address rather than being implemented — the page decides its own rows, the filter prunes them.
+The filter is scoped to the rows the page draws: an outline's roots, or a zoomed node's children. That IS Workflowy's "downstream" scoping, and it falls out of the address rather than being implemented — the page decides its own rows, the filter prunes them. (Which is also why the filter reached the other three pages for a switch rather than a rewrite: the page has always decided, and every page here is a query already.)
 
 **Zooming clears the filter**, because a zoom is a navigation and `router.go` builds the route for the page being asked for. Clicking a bullet means "show me that node", not "show me that node, still narrowed by what I typed on the last page". Back returns to the filtered address, which is where the filter is kept rather than lost.
 
@@ -185,17 +197,21 @@ The one real difference is which HALF each kind of hit satisfies. An exact hit s
 
 A bar above the tree on the two tree pages: the input, a count, a clear `×`, and — when the query holds one — the refusal line. The count is the honest version: how many rows matched, of how many the page draws, and how many matches the done-preference is holding back.
 
+(Since `search-everywhere`: above every page that draws nodes, and the condition it is drawn on is what the page DRAWS rather than which route is open — `Drawn`'s `none` arm is a page a query has nothing to narrow, which is a document, a file that would not parse, or an address that named nothing. So the box appears exactly where it can do something.)
+
 It is NOT the header's search box. Those are two different questions — "take me to a node anywhere in the directory" and "narrow what is in front of me" — and one box answering both would have to guess which was meant. The header box gains the operators anyway, because it is a caller of the same reading.
 
 A `#tag` in a title becomes a real affordance: a pill that says it is pressable, and pressing it sets this page's filter to that tag. The pill is drawn into HTML by `markdown/tags.ts` and reaches the page through `innerHTML`, so the press is answered by ONE delegated listener on the main pane — the same placement, and for the same reason, as the listener that answers a link inside rendered markdown (`router.tsx`'s `followed`). The row's own title click must therefore decline a click that landed on a pill, or one press would both filter the page and open an editor on the row.
 
 **Only where the press has somewhere to go.** Titles are drawn on pages that cannot carry a filter — a day, the agenda, a document — and the pill there is the same markup, because `markdown/tags.ts` is handed a string and knows nothing about the route. So the PANE says whether a tag in it is live (`data-narrowable`), the stylesheet draws the cursor and the hover from that, and the listener declines on the same condition: one fact, read by the thing that promises and by the thing that answers, rather than a pill that looks pressable and a press that is swallowed.
 
+(Since `search-everywhere` the list of such pages is down to the document, which draws no pills at all — `markdown/tags.ts` styles TITLES, and a document is a body. The machinery stays, because the condition is still a real one and is still read in two places; what changed is that a tag in a title is now live wherever a title is drawn. A tag inside an ancestry crumb is the one that still does not filter, and for the reason it never did: the crumb is a link, the tag walk skips anchors, and one press is one act.)
+
 ## Deferred, named
 
 - Changed-since dates (`changed:7d`) — the relative words landed (`search-relative-dates`); a question about HISTORY is a different one, and nothing in the format answers it.
 - ~~Quoted phrases~~ and ~~`OR`~~ — **landed** (`search-quoting-or`), struck rather than removed so the list still says what this design deferred; what each cost is above. The `>` ancestry operator is still deferred, and `>` is still spoken for by the palette.
 - ~~`is:blocked`~~ — **landed**, and the entry is struck rather than removed so the list still says what this design deferred (the cost it named, and what it turned out to be, is above).
-- Filtering the day, agenda and trash pages.
+- ~~Filtering the day, agenda and trash pages.~~ — **landed** (`search-everywhere`), struck rather than removed so the list still says what this design deferred; what it cost, and which of the two reasons for deferring it were wrong, is under "Where the filter lives: the address" above.
 - Starred / saved searches and named shortcuts (viewing-web.md's own Open list).
 - A keyboard chord that focuses the filter box.

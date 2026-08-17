@@ -1,9 +1,9 @@
 import type { BrokenFile } from "@olai/format"
-import { derive, type Located } from "@olai/format"
+import { agendaOf, derive, type Located } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { only } from "./narrow.ts"
-import { fileOf, type Page, pageOf, rowsFor } from "./page.ts"
+import { type Drawn, drawnBy, fileOf, type Page, pageOf, rowsFor } from "./page.ts"
 import type { Route } from "./routes.ts"
 
 const located = (file: string, line: number, node: Located["node"]): Located => ({
@@ -12,7 +12,10 @@ const located = (file: string, line: number, node: Located["node"]): Located => 
   node,
 })
 
-const SET = derive([
+/** The records, kept beside the derivation they make: one case below derives a
+ *  SECOND set out of them, with an archive in it, because what the trash draws
+ *  is a question about files this directory does not otherwise have. */
+const NODES: ReadonlyArray<Located> = [
   located("house.olai", 1, { id: "kitchen", ord: "a0", title: "kitchen" }),
   located("house.olai", 2, {
     id: "install",
@@ -35,7 +38,8 @@ const SET = derive([
     title: "herbs",
     date: "2026-08-10T09:00",
   }),
-])
+]
+const SET = derive(NODES)
 const FILES = ["garden.olai", "house.olai"]
 /** The paths, the way the app holds them: a document's TEXT travels to the tab
  *  that opens one, so it is no business of the page model.
@@ -283,4 +287,71 @@ test("a page with nothing to draw has no rows", () => {
   expect(rowsFor(SET, pageAt({ kind: "outline", file: "shed.olai" }))).toEqual([])
   expect(rowsFor(SET, pageAt({ kind: "day", date: "2026-08-10" }))).toEqual([])
   expect(rowsFor(SET, undefined)).toEqual([])
+})
+
+// ── what the page DRAWS, which is what a filter narrows ────────────────
+//
+// `Page` is which page the address named; `Drawn` is what that page put on the
+// screen, in the one shape the filter can prune and count (`filter/
+// narrowing.ts`). One arm per shape, and `none` for a page a query has nothing
+// to say about — which is also what the filter box is drawn on the absence of,
+// so these two cases are what keeps the box off a document.
+
+/** The agenda, as the app hands it over: one reading of the set at today. */
+const OWED = agendaOf(SET, TODAY)
+
+const drawnAt = (route: Route, files = FILES, set = SET): Drawn =>
+  drawnBy(set, pageOf(set, { files, documents: DOCUMENTS, broken: READABLE }, route, TODAY), OWED)
+
+test("an outline and a zoomed node are one shape: the tree they draw", () => {
+  const outline = drawnAt({ kind: "outline", file: "house.olai" })
+  expect(outline.kind === "tree" ? outline.rows.map((row) => row.at.node.id) : [])
+    .toEqual(["kitchen"])
+  const zoomed = drawnAt({ kind: "node", id: "kitchen" })
+  expect(zoomed.kind === "tree" ? zoomed.rows.map((row) => row.at.node.id) : [])
+    .toEqual(["install", "herbs-here"])
+})
+
+test("a day draws the groups it was answered with, and the agenda the reading it was handed", () => {
+  const day = drawnAt({ kind: "day", date: "2026-08-10" })
+  expect(day.kind === "day" ? day.groups.map((group) => group.file) : [])
+    .toEqual(["garden.olai", "house.olai"])
+  // The one reading, not a second `agendaOf` under the page model — the entry
+  // in the directory column is marked from the very same value (`App.tsx`).
+  const agenda = drawnAt({ kind: "agenda" })
+  expect(agenda.kind === "agenda" ? agenda.agenda : undefined).toBe(OWED)
+})
+
+test("the trash draws each archive that has something in it, and no others", () => {
+  const set = derive([
+    ...NODES,
+    located("Archive.olai", 1, { id: "old", ord: "a0", title: "the old kitchen" }),
+    located("Archive.olai", 2, {
+      id: "tiles",
+      parent: "old",
+      ord: "a0",
+      title: "choose the tiles",
+    }),
+  ])
+  const drawn = drawnAt(
+    { kind: "trash" },
+    ["Archive.olai", ...FILES, "wing/Archive.olai"],
+    set,
+  )
+  // `wing/Archive.olai` holds nothing, so it is not a heading over no rows —
+  // which is also what makes "the trash is empty" this list being empty.
+  expect(drawn.kind === "trash" ? drawn.groups.map((group) => group.file) : [])
+    .toEqual(["Archive.olai"])
+  expect(
+    drawn.kind === "trash"
+      ? drawn.groups.flatMap((group) => group.rows.map((row) => row.at.node.id))
+      : [],
+  ).toEqual(["old"])
+})
+
+test("a page a query has nothing to say about draws none of it", () => {
+  expect(drawnAt({ kind: "document", file: "notes/finishes.md" }))
+    .toEqual({ kind: "none" })
+  expect(drawnAt({ kind: "outline", file: "shed.olai" })).toEqual({ kind: "none" })
+  expect(drawnBy(SET, undefined, OWED)).toEqual({ kind: "none" })
 })

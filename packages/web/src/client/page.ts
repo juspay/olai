@@ -22,7 +22,15 @@
  * a file's tree is and what is dated a given day; this picks the arm.
  */
 
-import type { BrokenFile, DayGroup, Derived, FileKind, Row, Zoomed } from "@olai/format"
+import type {
+  Agenda,
+  BrokenFile,
+  DayGroup,
+  Derived,
+  FileKind,
+  Row,
+  Zoomed,
+} from "@olai/format"
 import {
   dailyNotesOn,
   bodyKind,
@@ -261,3 +269,101 @@ export const rowsFor = (
   }
   return []
 }
+
+/** One archive, and the rows it holds — the trash's own group, and named for
+ *  `DayGroup` because it is the same shape and the same idea: a file heading
+ *  and what is under it. What makes it the trash's rather than the sidebar's is
+ *  that the file is an `Archive.olai` (`isArchived`). */
+export interface TrashGroup {
+  readonly file: string
+  readonly rows: ReadonlyArray<Row>
+}
+
+/**
+ * WHAT THE OPEN PAGE DRAWS — in the one shape a filter can narrow and count.
+ *
+ * `Page` says which page the address turned out to name; this says what that
+ * page has PUT ON THE SCREEN, which is a different question and the one the
+ * filter asks. Every page here is a query already — an outline is the tree of a
+ * file, a day is every node on a date, the agenda is the same dates read
+ * forward, the trash is every archive — and narrowing one is taking rows out of
+ * an answer somebody is looking at. So the filter never re-asks the page's
+ * question: it is handed the answer and prunes it (`filter/narrowing.ts`).
+ *
+ * FOUR SHAPES rather than one, because there are four and pretending otherwise
+ * would cost more than it saved: a tree nests and keeps ancestors, a day and
+ * the agenda are flat rows already carrying their own ancestry, and the trash
+ * is a tree per archive. `none` is a page a filter has nothing to narrow — a
+ * document (prose, which this grammar says nothing about), a file that would
+ * not parse, an address that named nothing — and it is what the filter bar is
+ * drawn on the absence of, so the box appears exactly where it can do
+ * something.
+ */
+export type Drawn =
+  /** An outline's roots, or a zoomed node's children — one shape, because a
+   *  file is the widest zoom there is. */
+  | { readonly kind: "tree"; readonly rows: ReadonlyArray<Row> }
+  | { readonly kind: "day"; readonly groups: ReadonlyArray<DayGroup> }
+  | { readonly kind: "agenda"; readonly agenda: Agenda }
+  | { readonly kind: "trash"; readonly groups: ReadonlyArray<TrashGroup> }
+  | { readonly kind: "none" }
+
+/** Nothing to narrow, as one value: `none` carries nothing, so a fresh object
+ *  per frame would be a new value every revision for every page that has no
+ *  filter — and the memo over it would publish on each one. Public for the
+ *  frame before the set has been read at all (`./App.tsx`), which is the same
+ *  nothing. */
+export const NOTHING_DRAWN: Drawn = { kind: "none" }
+
+/**
+ * The page's own answer, whichever page it is.
+ *
+ * The AGENDA arrives as an argument rather than being read here, and that is
+ * the same division `page.ts` already keeps for it: what is owed is one reading
+ * of the set at today, held in `App.tsx` because the directory column marks it
+ * on every screen, and a second `agendaOf` under the page model would be the
+ * second derivation those two are forbidden to have.
+ *
+ * `undefined` for the frame before that reading exists draws an empty agenda
+ * rather than `none`: the page is the agenda, it simply has nothing yet, and
+ * `none` would take the filter box off the screen for a frame.
+ */
+export const drawnBy = (
+  derived: Derived,
+  page: Page | undefined,
+  agenda: Agenda | undefined,
+): Drawn => {
+  if (page === undefined) return NOTHING_DRAWN
+  if (page.kind === "outline" || page.kind === "node") {
+    return { kind: "tree", rows: rowsFor(derived, page) }
+  }
+  if (page.kind === "day") return { kind: "day", groups: page.groups }
+  if (page.kind === "agenda") {
+    return { kind: "agenda", agenda: agenda ?? NOTHING_OWED }
+  }
+  if (page.kind === "trash") return { kind: "trash", groups: archivesOf(derived, page) }
+  return NOTHING_DRAWN
+}
+
+/** An agenda nobody has read yet. The three empty sections a page draws nothing
+ *  from — never a claim, which is the rule every readout of what is owed keeps
+ *  (`agenda/owed.ts`). */
+const NOTHING_OWED: Agenda = { overdue: [], today: [], upcoming: [] }
+
+/**
+ * The archives the trash draws, each with its rows.
+ *
+ * ONLY THE ONES WITH ANYTHING IN THEM: an archive emptied by put-backs draws
+ * nothing, exactly like one that never existed — so "the trash is empty" is
+ * this list being empty rather than a second predicate. It was the trash page's
+ * own memo and moved here for the reason the day's groups are on the page
+ * model: what a page draws is decided in one place, and the filter has to be
+ * able to prune and count it without re-deriving it.
+ */
+const archivesOf = (
+  derived: Derived,
+  page: Extract<Page, { kind: "trash" }>,
+): ReadonlyArray<TrashGroup> =>
+  page.files
+    .map((file) => ({ file, rows: rowsOf(derived, file) }))
+    .filter((group) => group.rows.length > 0)
