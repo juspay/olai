@@ -273,6 +273,7 @@ const said = async (page: Page, locator: string) =>
 
 // ── the same filter over the pages that are a query already ────────────
 
+const OUTLINE_TREE = '[data-testid="outline-tree"]'
 const DAY_PAGE = '[data-testid="day-page"]'
 const AGENDA_PAGE = '[data-testid="agenda-page"]'
 const TRASH_PAGE = '[data-testid="trash-page"]'
@@ -489,12 +490,9 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
 
     // The trash needs something in it first — and it is the page the archive
     // rule had to except: a query normally leaves what was put away alone.
-    await page.goto(`${BASE}/o/house.olai`)
-    await page.locator('[data-testid="outline-tree"]').first().waitFor()
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
     await putAway(page, "install")
-    await page.goto(`${BASE}/trash`)
-    await page.locator(TRASH_PAGE).first().waitFor()
-    await page.waitForTimeout(400)
+    await opened(page, "/trash", TRASH_PAGE)
     console.log(`  what was put away:\n${await piled(page)}`)
     await shot(page, "trash-unfiltered")
     await narrow(page, "hinges")
@@ -531,7 +529,7 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     // names how many rows go with it. Spelled out rather than through
     // `putAway`, for the one thing that helper cannot do — photograph the
     // question between the two presses.
-    await opened(page, "/o/house.olai", '[data-testid="outline-tree"]')
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
     await openMenu(page, "order")
     await page.locator(TRASH_VERB).first().click()
     await shot(page, "the-confirm-names-what-goes")

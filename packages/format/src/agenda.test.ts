@@ -322,26 +322,15 @@ test("nothing due is nothing counted", () => {
 
 test("nothing put away is owed: the archive is the trash's and no page else's", () => {
   // The 2026-08-17 ruling, read on the page it was reported against. A node in
-  // an archive still says `todo` and still names a day that has gone — and it
-  // is on no section here, because putting something away is the reader saying
-  // they are done looking at it. The one door left to it is `is:archived`
+  // an archive still says `todo` and still names a day — and it is on no
+  // section here, because putting something away is the reader saying they are
+  // done looking at it. The one door left to it is `is:archived`
   // (docs/search.md), and the one page is the trash.
-  const archived: Derived = derive(
-    nodesOfFiles({
-      "Archive.olai": `{"id":"gate","ord":"a0","title":"the old gate","todo":true,"date":"2026-08-01"}`,
-    }),
-  )
-  const agenda = agendaOf(archived, TODAY)
-  expect(agenda.overdue).toEqual([])
-  expect(nothingDue(agenda)).toBe(true)
-  // And the mark outside the page counts what the page draws, which is nothing.
-  expect(owedOf(agenda)).toEqual({ overdue: 0, today: 0 })
-})
-
-test("an archived node is out of every section, not only the late one", () => {
-  // One archive holding one of each: slipped, due today, coming up. The
-  // exclusion is the bucketed walk's (./dates.ts), so it cannot reach one
-  // section and miss another.
+  //
+  // ONE OF EACH — slipped, due today, coming up — because the exclusion is the
+  // bucketed walk's (./dates.ts) and so cannot reach one section and miss
+  // another. A fixture holding only the late one would pass under a rule that
+  // had been written three times and got one of them wrong.
   const archived: Derived = derive(
     nodesOfFiles({
       "Archive.olai": [
@@ -351,7 +340,11 @@ test("an archived node is out of every section, not only the late one", () => {
       ].join("\n"),
     }),
   )
-  expect(nothingDue(agendaOf(archived, TODAY))).toBe(true)
+  const agenda = agendaOf(archived, TODAY)
+  expect(agenda.overdue).toEqual([])
+  expect(nothingDue(agenda)).toBe(true)
+  // And the mark outside the page counts what the page draws, which is nothing.
+  expect(owedOf(agenda)).toEqual({ overdue: 0, today: 0 })
 })
 
 // ── the agenda, narrowed ───────────────────────────────────────────────

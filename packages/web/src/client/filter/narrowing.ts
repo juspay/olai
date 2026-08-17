@@ -120,13 +120,23 @@ export const createNarrowing = (source: {
   // about the answer — the file header says why, and why it is read off the
   // page rather than off its kind.
   //
+  // ASKED OF THE UNFILTERED PAGE, which is the one thing about it the done
+  // preference may not decide. An archive is mostly finished work, so a zoom
+  // into one is the page where hiding `done` can take away every row — and
+  // asked of what was LEFT, this would answer "no archive here", the matcher
+  // would leave the whole archive out, and the bar would say "0 of 0" with
+  // nothing about the matches being held back. That sentence
+  // ({@link Narrowing.hiddenAsDone}) is measured against `all()`, so what
+  // decides its candidate set is measured against `all()` too. Which pages draw
+  // archived rows is a fact about the PAGE; what a reader hides is not.
+  //
   // A MEMO OF ITS OWN, so the scan below does not track the page. What the page
-  // draws is a fresh value on every revision the store publishes, on every
-  // navigation and on every flip of the done preference — and the whole of what
-  // this reading takes from it is a boolean that is constant for three of the
-  // five shapes ({@link showsArchived}). Read inline, every one of those frames
-  // re-ran the matcher over the entire set to arrive at the same answer.
-  const archived = createMemo(() => showsArchived(source.visible()))
+  // draws is a fresh value on every revision the store publishes and on every
+  // navigation — and the whole of what this reading takes from it is a boolean
+  // that is constant for three of the five shapes ({@link showsArchived}). Read
+  // inline, every one of those frames re-ran the matcher over the entire set to
+  // arrive at the same answer.
+  const archived = createMemo(() => showsArchived(source.all()))
 
   const matched = createMemo(() => {
     const indexes = source.derived()

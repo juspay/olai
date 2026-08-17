@@ -198,8 +198,9 @@ test("a day keeps the rows that matched, and drops the outline that has none", (
  */
 test("a day draws no archived row, so no query finds one on it", () => {
   const whole = dayOf("2026-08-14")
-  expect(narrowing(whole, "shims").shown()).toBe(0)
-  expect(datedIds(narrowing(whole, "shims").drawn())).toEqual([])
+  const sought = narrowing(whole, "shims")
+  expect(sought.shown()).toBe(0)
+  expect(datedIds(sought.drawn())).toEqual([])
   // The operator says the same thing from either side: nothing to select, and
   // nothing for its negation to take away.
   expect(narrowing(whole, "is:archived").shown()).toBe(0)
@@ -355,3 +356,47 @@ const datedIds = (drawn: Drawn): ReadonlyArray<string> =>
 
 const flat = (rows: ReadonlyArray<Row>): ReadonlyArray<string> =>
   rows.flatMap((row) => [row.at.node.id, ...flat(row.children)])
+
+// ── the two prunings, on the one page that is inside an archive ────────
+
+/**
+ * The done preference must not decide which pages the ARCHIVE is in scope for.
+ *
+ * A zoom onto archived work is a tree, and an archive is mostly finished work —
+ * so a reader who hides `done` can be looking at a page whose every root is
+ * hidden. Asked of the page AFTER that pruning, the archive scope reads `false`
+ * there, the matcher then leaves the whole archive out, and the bar says "0 of
+ * 0" with nothing about the matches the preference is holding back — which is
+ * the one sentence `hiddenAsDone` exists to make instead of a mystery.
+ *
+ * Which pages draw archived rows is a fact about the PAGE, so it is asked of
+ * the unfiltered one (`source.all()`), which is what `hiddenAsDone` measures
+ * against too.
+ */
+const FINISHED = derive(nodesOfFiles({
+  "Archive.olai": [
+    `{"id":"old-bath","ord":"a0","title":"bathroom #home","done":"2026-08-01"}`,
+    `{"id":"taps","parent":"old-bath","ord":"a0","title":"the taps #home","done":"2026-08-02"}`,
+  ].join("\n"),
+}))
+
+test("hiding finished work does not take the archive out of a zoom's scope", () => {
+  const rows = rowsOf(FINISHED, "Archive.olai")
+  // A PLAIN WORD, which is the half of the grammar this is about: `is:archived`
+  // opens the archive by NAMING it, whatever a caller's scope says, so the
+  // operator could never have shown this hole.
+  const reading = createRoot(() =>
+    createNarrowing({
+      derived: () => FINISHED,
+      text: () => "#home",
+      all: () => ({ kind: "tree", rows }),
+      // Every root of this pile is done, so the reader who hides finished work
+      // is looking at an empty page — with two matches behind it.
+      visible: () => ({ kind: "tree", rows: withoutDone(rows) }),
+      today: () => TODAY,
+    })
+  )
+  expect(rowsIn(reading)).toEqual([])
+  expect(reading.shown()).toBe(0)
+  expect(reading.hiddenAsDone()).toBe(2)
+})
