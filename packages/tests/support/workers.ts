@@ -19,10 +19,10 @@
  * hundred ports. So a band is CLAIMED here rather than computed
  * ({@link heldBand}), and the id is only where the search starts.
  *
- * Ports and env live here. The count lives in `parallelism.js` — cucumber-js
- * loads `cucumber.js` with Node's ESM loader, which cannot import TypeScript,
- * so the profile imports the JS file and this module re-exports it. One
- * formula, two loaders.
+ * Ports and env live here. The count lives in `parallelism.js` — the profile
+ * `cucumber.js` is loaded by cucumber-js's own ESM loader rather than by the
+ * suite's, so it imports plain JS and this module re-exports it. One formula,
+ * two loaders, and the profile does not depend on whose loader it got.
  */
 
 import * as fs from "node:fs";

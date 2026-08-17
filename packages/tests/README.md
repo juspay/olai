@@ -51,6 +51,8 @@ It takes the same argv, so the harness cannot tell the difference — but it ser
 
 Bun hosts the runner. Bun executes `.ts` directly, so there is no tsx, no ts-node and no build step between a step definition and the browser — which is also why the dev shell needs no node.
 
+It hosts it because the `test` script names cucumber's entry file (`bun ./node_modules/@cucumber/cucumber/bin/cucumber.js`) rather than the `cucumber-js` bin. The bin is a shebang file that says `#!/usr/bin/env node`, and `bun run` executes a package script's argv rather than interpreting it — so the shebang is resolved against PATH. Bun supplies a `node`-to-bun shim there, but only when the host has no node of its own; a machine that has one hands the suite to it, and `nix develop` appends the host's PATH rather than replacing it, so being inside `.#e2e` does not save you. The symptom was the whole suite dying before its first scenario with `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`: node refusing the raw-TypeScript `@kolu/*` sources. `runner.test.ts` pins the spelling.
+
 ## Environment
 
 Which server the suite drives is two decisions, not one — **who owns the process** and **where it is** — so it is two variables. Set exactly one of them; setting both, or neither, fails at `BeforeAll` and says which to pick.
