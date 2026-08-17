@@ -819,6 +819,31 @@ export class OlaiWorld extends World {
    *  works by never testing it. */
   refused: Array<{ readonly url: string; readonly why: string }> = [];
 
+  /**
+   * Every frame the WEBSOCKET delivered to this tab, as text, collected by the
+   * same hook.
+   *
+   * The other wire, and the one nothing else here can see: `requests` is what
+   * the page FETCHED, and everything a served file's content does afterwards
+   * comes down one long-lived socket that makes no requests at all. A claim
+   * about what the server chose to SEND a reader has to be made against this.
+   *
+   * It is the whole payload rather than a parse of it, deliberately. What a
+   * step asks is whether some text was in what arrived — a document's body,
+   * usually — and decoding the framing to answer that would be this suite
+   * holding a second implementation of the protocol, which would go on passing
+   * after the real one changed shape. A binary frame is decoded as UTF-8 for
+   * the same reason: the question is about text that either is or is not in
+   * those bytes.
+   */
+  socketFrames: string[] = [];
+
+  /** Whether anything the socket delivered carried this text — see
+   *  {@link socketFrames}. */
+  socketCarried(text: string): boolean {
+    return this.socketFrames.some((frame) => frame.includes(text));
+  }
+
   /** How far down the page a scenario deliberately scrolled, so a later step
    *  can claim the page came back to exactly there. A number the SCENARIO
    *  chose to remember rather than one written down here: how tall a page is
@@ -889,6 +914,10 @@ export class OlaiWorld extends World {
    *  them would share them across scenarios. */
   toolsOffered: string[] = [];
   toolAnswer?: Record<string, unknown>;
+  /** …and what a `resources/read` handed back, as its text. The other half of
+   *  what an agent may reach: the tools are what it can DO and the resources
+   *  are what it can SEE, and a body is one of those. */
+  resourceRead?: string;
   /** What that server has printed, as a box the spawn listener appends to
    *  for the life of the child. A string field that was assigned after boot
    *  dropped the stale-tab line when it arrived in the gap between "serving"

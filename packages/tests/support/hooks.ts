@@ -890,6 +890,7 @@ Before(
     this.errors = [];
     this.requests = [];
     this.refused = [];
+    this.socketFrames = [];
     // ONE listener, recording everything: which of those left this server, and
     // which arrived after a step started watching, are both questions asked of
     // the same list afterwards (see `world.offSite` / `world.watchRequests`).
@@ -905,6 +906,20 @@ Before(
       this.refused.push({
         url: request.url(),
         why: request.failure()?.errorText ?? "no reason given",
+      });
+    });
+    // …and the OTHER wire: what the surface delivered down the socket. It makes
+    // no requests, so nothing in the two lists above can see it, and "what did
+    // the server send this reader" is a question only this can answer
+    // (`world.socketCarried`). Registered per SOCKET because a tab that
+    // reconnects opens another one, and the recording is of the tab.
+    this.page.on("websocket", (socket) => {
+      socket.on("framereceived", (frame) => {
+        this.socketFrames.push(
+          typeof frame.payload === "string"
+            ? frame.payload
+            : frame.payload.toString("utf8"),
+        );
       });
     });
     this.page.on("pageerror", (error) => {

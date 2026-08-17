@@ -254,3 +254,68 @@ test("a bodyless entry is upserted only when its key is new", () => {
   expect(gone.documents.removes).toEqual(["report.html"])
   expect(gone.unread).toEqual([])
 })
+
+// ── the heads ──────────────────────────────────────────────────────────
+
+// The other slice of the same list, and the property the wire promises about
+// it: the same keys as `documents`, at the same revisions, with no body on any
+// of them. A reader takes its FILE LIST from here, so a head missing for a file
+// the directory holds is a file the sidebar stops listing.
+test("every bodied file has a head, and it is that file's revision alone", () => {
+  const { documents, heads } = publishedOf(
+    revision(
+      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"]),
+      {},
+      4,
+    ),
+    NOTHING_HELD,
+  )
+
+  expect([...heads.entries.keys()]).toEqual([...documents.entries.keys()])
+  expect(heads.entries.get("notes.md")).toEqual({ rev: 4 })
+  expect(heads.entries.get("report.html")).toEqual({ rev: 4 })
+  // An outline is not a bodied file: it has an entry of its own, with its own
+  // revision on it.
+  expect(heads.entries.has("house.olai")).toBe(false)
+})
+
+// The half `documents` cannot do, and the reason this member exists. A `.html`
+// that changed is withheld from the documents collection — the body reader
+// replaces that entry in one frame, and writing a `null` over an open key would
+// blank the page — so a reader watching for "this file moved" heard nothing
+// there unless somebody read the file. The head has no body to withhold.
+test("a `.html` that changed is upserted here even though its body is not", () => {
+  const first = publishedOf(
+    revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"])),
+    NOTHING_HELD,
+  )
+  expect(first.heads.upserts.map(([path]) => path)).toEqual([
+    "notes.md",
+    "report.html",
+  ])
+
+  const second = publishedOf(
+    revision(
+      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"]),
+      { changed: ["report.html"] },
+      2,
+    ),
+    first,
+  )
+  expect(second.documents.upserts).toEqual([])
+  expect(second.heads.upserts).toEqual([["report.html", { rev: 2 }]])
+  // …and the file NOBODY touched keeps the number it was published with, so a
+  // reader watching it is not woken by the directory's clock.
+  expect(second.heads.entries.get("notes.md")).toEqual({ rev: 1 })
+
+  const gone = publishedOf(
+    revision(
+      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]]),
+      { changed: [], removed: ["report.html"] },
+      3,
+    ),
+    second,
+  )
+  expect(gone.heads.removes).toEqual(["report.html"])
+  expect(gone.heads.entries.has("report.html")).toBe(false)
+})

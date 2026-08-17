@@ -504,6 +504,13 @@ export const bind = (
                   // this block is one statement: two answers to "what is this
                   // revision" is how they come to disagree.
                   apply(collections?.documents, revision.documents)
+                  // …and the HEAD of every bodied file that moved reaches
+                  // every tab, on the one batched stream this member has and
+                  // `documents` deliberately does not. It carries no body, so
+                  // there is nothing here to withhold and nobody to read a
+                  // file for: this is how a `.html` under an open preview
+                  // learns it changed (`@olai/surface`'s `Head`).
+                  apply(collections?.heads, revision.heads)
                   bodies.moved(revision.unread)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
@@ -574,6 +581,22 @@ export const bind = (
             bodies.opened(key)
             return undefined
           },
+          upsert: () => {},
+          remove: () => {},
+        },
+        /**
+         * The same keys, one revision each and no body — and the simplest
+         * member in this block, which is the point of it existing.
+         *
+         * There is no `readOne` and nothing to read from a disk: a head is
+         * already in the projection, so a subscription is answered out of the
+         * map like an outline's is. What that buys is at the OTHER end — a tab
+         * showing a `.html` watches this instead of the body it never draws,
+         * so the file is not read, the bytes do not cross the wire, and the
+         * path never enters the watch set at all ({@link ./bodies.ts}).
+         */
+        heads: {
+          readAll: () => held?.heads.entries ?? NOTHING_YET,
           upsert: () => {},
           remove: () => {},
         },

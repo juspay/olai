@@ -1079,12 +1079,12 @@ Feature: A `.html` in the vault
 
   @scratch:good
   Scenario: A `.html` rewritten under an open page shows what it says now
-    # The half of "read when it is opened" that a memory change could quietly
-    # break. The set holds this file's PATH and not its bytes, so the body on
-    # screen was read because this reader asked for it — and the file moving on
+    # The half of "shown, never kept" that a memory or a wire change could
+    # quietly break. The set holds this file's PATH and not its bytes, so the
+    # page on screen was fetched by the frame itself — and the file moving on
     # disk has to reach that reader anyway, exactly as an outline's change does.
-    # A server that only ever read a body once would pass every other scenario
-    # in this feature and fail here.
+    # A server that only ever answered for this file once would pass every other
+    # scenario in this feature and fail here.
     Given I open the app
     And I mark the page
     When I rewrite "live.html" as:
@@ -1097,10 +1097,63 @@ Feature: A `.html` in the vault
       """
       <h1>After</h1>
       """
-    # No reload and no second click: the frame is redrawn from a body the
-    # server read again because somebody was watching this file.
+    # No reload and no second click: the frame is re-pointed because the file's
+    # REVISION moved, which is the one thing this page asks the wire for.
     Then the preview shows the heading "After"
     And the page has not reloaded
+
+  @scratch:good
+  Scenario: A previewed page's body reaches the frame and never the tab
+    # The two wires, and the rule between them. The frame fetches this file over
+    # HTTP from `/media/` and draws what it fetched; the SOCKET's business is
+    # only that the file moved, which it says in a number. So every word of this
+    # file must be on screen and none of it may ever have crossed the websocket
+    # — and that is a claim about an edit as much as about an open, because the
+    # change has to arrive without the body arriving with it.
+    #
+    # It used to cross twice, and the unread copy went FIRST: the page opened
+    # the document's body to learn its revision, and the frame was not created
+    # until that copy had landed. For a saved dashboard of a megabyte that was
+    # two full transfers, serialized, per open and per edit.
+    Given I open the app
+    And I mark the page
+    When I rewrite "live.html" as:
+      """
+      <h1>First reading</h1>
+      <p id="probe">the cabinets came to four thousand</p>
+      """
+    And I click the page "live.html"
+    Then the preview shows the heading "First reading"
+    And the preview says "the cabinets came to four thousand"
+    When I rewrite "live.html" as:
+      """
+      <h1>Second reading</h1>
+      <p id="probe">the cabinets came to five thousand</p>
+      """
+    Then the preview shows the heading "Second reading"
+    And the preview says "the cabinets came to five thousand"
+    And the page has not reloaded
+    # Both readings of the file, and neither of them on the socket.
+    And the websocket never carried "the cabinets came to four thousand"
+    And the websocket never carried "the cabinets came to five thousand"
+
+  @scratch:good
+  Scenario: A note's body still travels to the reader who opens one
+    # The other half of the same rule, and the one a fix aimed at the preview
+    # could break without any scenario noticing: a `.md` is drawn FROM its body,
+    # so the socket is the only way that reader can have it. It is here rather
+    # than in `documents.feature` because it is not a claim about documents —
+    # it is the second half of the claim above, and the pair is the rule.
+    Given I open the app
+    When I rewrite "ledger.md" as:
+      """
+      # Ledger
+
+      The joiner invoiced for **cabinets** and nothing else.
+      """
+    And I open the document "ledger.md"
+    Then the document renders bold text "cabinets"
+    And the websocket carried "The joiner invoiced for"
 
   @scratch:good
   Scenario: A form in a saved page cannot post anywhere

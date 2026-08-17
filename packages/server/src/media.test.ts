@@ -148,3 +148,30 @@ test("a request whose host is not a host gets a policy that fetches nothing", as
     expect(policy).not.toContain("img-src *")
   })
 })
+
+// A `.html` THAT IS THERE AND WILL NOT OPEN, which is a different failure from
+// a file that is not there and is now this route's alone to answer for. The
+// preview stopped asking for the body over the wire (`@olai/surface`'s `Head`),
+// so nothing else in this process ever opens a saved page for a person: what a
+// reader gets is the same 404 every other miss gets — which of the ways a file
+// is unavailable is not their business — and what an OPERATOR gets is a line in
+// the log, because a permission bit nobody can see is exactly what the
+// never-silently-ignore rule is about.
+//
+// Root can read a 0000 file, so the assertion is skipped there rather than
+// inverted (`@olai/chat`'s `memory.test.ts` makes the same call).
+test("a page that cannot be read is a 404, like one that is not there", async () => {
+  if (typeof process.getuid === "function" && process.getuid() === 0) return
+  const root = vault()
+  const shut = path.join(root, "notes", "shut.html")
+  fs.writeFileSync(shut, "<h1>Shut</h1>\n")
+  fs.chmodSync(shut, 0o000)
+  try {
+    await withServing({ root }, async (url) => {
+      const answer = await fetch(`${url}/media/notes/shut.html`)
+      expect(answer.status).toBe(404)
+    })
+  } finally {
+    fs.chmodSync(shut, 0o600)
+  }
+})

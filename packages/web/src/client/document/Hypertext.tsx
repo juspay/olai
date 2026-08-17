@@ -597,28 +597,31 @@ export function Hypertext(
   // before the element is in the page, so it arrives with its address already
   // on it and costs exactly one load.
   //
-  // What this is watching is the REVISION, and this component reads nothing
-  // else of the entry: the bytes reach the frame over HTTP now, and what the
-  // collection's copy of them is good for is knowing that the file on disk
-  // MOVED. The revision says exactly that and says it in a number — a page that
-  // is rewritten with the bytes it already had does not move it, and a
-  // megabyte string does not have to be compared to find that out. A new
-  // revision is a new document, so the walk-off budget starts over: what it
-  // bounds is one page bouncing, not a file's whole history.
+  // What this is watching is the REVISION, and it is the ONLY thing this page
+  // asks the wire for: the bytes reach the frame over HTTP, and what a reader
+  // needs from the socket is that the file on disk MOVED. The revision says
+  // exactly that and says it in a number — a page rewritten with the bytes it
+  // already had does not move it, and a megabyte string does not have to be
+  // compared to find that out. A new revision is a new document, so the
+  // walk-off budget starts over: what it bounds is one page bouncing, not a
+  // file's whole history.
   //
-  // WHAT ASKING COSTS, named rather than hidden, and it went up when the set
-  // stopped keeping a `.html`'s bytes (#204): the body is read from disk when a
-  // reader opens the file, and this page is that reader. So a preview causes one
-  // whole-file read that nobody draws — the frame fetches the same file over
-  // HTTP — and the page waits for that read before the element exists at all.
-  // What it buys is this effect: the server re-reads a watched file when it
-  // moves, which is the only way this component learns the file changed.
+  // WHAT ASKING COSTS, named rather than hidden: a path and an integer, off a
+  // stream the sidebar's file list is already arriving on (`@olai/surface`'s
+  // `heads`). It used to cost the whole file over the websocket — the body was
+  // the only frame that carried a revision, so this page opened the document's
+  // body to learn a number, and the frame it drew was not created until that
+  // unread copy had landed. Two full transfers of a saved dashboard,
+  // serialized. That was PR #206's standing deferral and it is closed here; the
+  // shape it named — "this path is at revision N", with no body on it — is the
+  // member this reads.
   //
-  // Closing it is a change to the WIRE, not to this component: the collection
-  // would have to be able to say "this path is at revision N" without carrying
-  // the body, which is the head member `../document/documents.tsx` argues
-  // should be measured rather than guessed at. It is this PR's standing
-  // deferral.
+  // IT IS ALSO NO LONGER BOUNDED. A body was re-read only while the server was
+  // watching the path, and it watched the sixteen most recently opened paths
+  // across every reader at once (`@olai/server`'s `bodies.ts`), so sixteen
+  // newer opens anywhere could leave this frame showing what the file said when
+  // it was opened. A head moves on every revision, for every file, to every
+  // tab: nothing ages out, because there is nothing to read.
   // …and the SECTION is watched beside it, for the case the revision cannot
   // cover: the page is keyed by FILE (`./DocumentPage.tsx`), so arriving at
   // another place inside the file already open is the same element being asked

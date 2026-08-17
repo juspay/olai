@@ -19,11 +19,11 @@
  */
 
 import { codec, make as makeOps, type Ops, type Store as OutlineStore } from "@olai/ops"
-import type { DocumentEntry } from "@olai/surface"
+import type { DocumentEntry, Head } from "@olai/surface"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, test } from "bun:test"
-import { Effect, Stream, SubscriptionRef } from "effect"
+import { Effect, Fiber, Stream, SubscriptionRef } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -38,27 +38,43 @@ import { type Bound, bind, gitWiring, writerAt } from "./runtime.ts"
  *  attributes to whichever test happened to be running.
  *
  *  It yields the OPS layer beside the runtime because one test rebinds the
- *  handlers against it; nothing else about the boot differs between them. */
+ *  handlers against it; nothing else about the boot differs between them, and
+ *  the `reads` list because one of them is about a read that must not happen. */
 const withRuntime = <A>(
   files: Readonly<Record<string, string>>,
   use: (bound: {
     readonly wired: { readonly bound: Bound }
     readonly ops: Ops
     readonly store: OutlineStore
+    /** The directory this runtime is serving, for the one test that rewrites a
+     *  file underneath it. */
+    readonly root: string
+    /** Every path whose BODY was read off the disk for a reader, in order —
+     *  `@olai/store`'s `body`, which is the one door `./bodies.ts` may use.
+     *  Recorded rather than mocked: the real read still happens. */
+    readonly reads: ReadonlyArray<string>
   }) => Effect.Effect<A, unknown>,
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-runtime-")))
   for (const [file, contents] of Object.entries(files)) {
     fs.writeFileSync(path.join(root, file), contents)
   }
+  const reads: Array<string> = []
 
   return Effect.gen(function*() {
-    const store: OutlineStore = yield* Store.make({
+    const opened: OutlineStore = yield* Store.make({
       root,
       codec,
       watch: false,
       settle: "10 millis",
     })
+    const store: OutlineStore = {
+      ...opened,
+      body: (path) => {
+        reads.push(path)
+        return opened.body(path)
+      },
+    }
     const ops = makeOps({ store, root, commits: "off" })
     const wired = yield* bind({
       store,
@@ -70,7 +86,7 @@ const withRuntime = <A>(
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
-    return yield* use({ wired, ops, store })
+    return yield* use({ wired, ops, store, reads, root })
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
 }
 
@@ -136,5 +152,47 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
         expect([...keys]).toEqual([["report.html"]])
         const set = yield* SubscriptionRef.get(store.snapshot)
         expect(set?.value.set.documents).toEqual([{ file: "report.html", text: null }])
+      }),
+  ))
+
+/**
+ * The other way to watch one file, and the reason it exists: a reader learns
+ * the file MOVED and the file is never opened.
+ *
+ * This is the browser's shape for a `.html` since the preview stopped reading a
+ * body it does not draw. The frame fetches the file over HTTP from `/media/`,
+ * so what the socket owes this reader is a number — and the assertion that
+ * matters is the negative one: the store's `body` is not called at all, which
+ * is what says the bytes were neither read from the disk nor sent.
+ */
+test("a reader watching a head is told the file moved, and no body is read", () =>
+  withRuntime(
+    { "a.olai": OUTLINE, "report.html": "<h1>Before</h1>\n" },
+    ({ wired, store, root, reads }) =>
+      Effect.gen(function*() {
+        const get = wired.bound.handlers["surface/heads/get"]
+        if (get === undefined) throw new Error("the heads collection has no `get`")
+
+        // TWO frames: the one this subscription opens with, and the one the
+        // rewrite below produces. Collected on a fiber of its own, because the
+        // second one cannot arrive until the probe has run.
+        const watching = yield* Effect.forkChild(
+          Stream.runCollect(
+            Stream.take(get({ key: "report.html" }) as Stream.Stream<Head>, 2),
+          ),
+        )
+
+        fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
+        yield* store.refresh
+
+        const frames = [...yield* Fiber.join(watching)]
+        // A head and nothing else — no `text` key at all, not even a `null`.
+        expect(frames.map((frame) => Object.keys(frame))).toEqual([["rev"], ["rev"]])
+        expect(frames[0]?.rev).toBeLessThan(frames[1]?.rev ?? 0)
+
+        // THE POINT. The file changed under a reader who is watching it, and
+        // nothing opened it: no body was read, so none was sent, and the path
+        // never entered the watch set (`./bodies.ts`).
+        expect(reads).toEqual([])
       }),
   ))

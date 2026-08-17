@@ -7,11 +7,12 @@
  * file at a time. Nothing is decided in this file except which slice a record
  * belongs to, and the record already says (`located.file`, `document.file`).
  *
- * TWO collections come out of it, and they are the same shape: an outline file
- * is a key and a document is a key. That is what keeps a body off the first
- * frame — a reader takes the key set and asks for the one document it is
- * showing — and it is why the slicing rule below is written ONCE and applied
- * twice rather than being two loops that could come to disagree about what a
+ * THREE collections come out of it, and they are the same shape: an outline
+ * file is a key, a document is a key, and a document's HEAD is that same key
+ * with the body left off. That is what keeps a body off the first frame — a
+ * reader takes the key set and asks for the one document it is showing — and
+ * it is why the slicing rule below is written ONCE and applied three times
+ * rather than being three loops that could come to disagree about what a
  * changed file is.
  *
  * A body the SET does not keep passes through as what the set says about it: a
@@ -36,7 +37,7 @@
 
 import { nodesOf, type Reading } from "@olai/format"
 import type { Snapshot } from "@olai/store"
-import type { DocumentEntry, OutlineEntry } from "@olai/surface"
+import type { DocumentEntry, Head, OutlineEntry } from "@olai/surface"
 
 /** Which paths a revision moved — the store's own diff, and the only part of a
  *  snapshot the slicing rule below reads. Named rather than taken as the whole
@@ -61,6 +62,18 @@ export interface Published {
   readonly outlines: Change<OutlineEntry>
   readonly documents: Change<DocumentEntry>
   /**
+   * The same files as {@link documents}, one revision each and no body
+   * (`@olai/surface`'s `Head`).
+   *
+   * ONE PASS BUILDS BOTH, off one list, through the same rule — which is what
+   * the wire's promise that these two key sets are the same key set rests on
+   * (a reader takes its file list from the heads). Two `changeOf` calls over
+   * `set.documents` rather than one, because they are two collections with two
+   * held revisions of their own; one list and one `keyOf`, because they are
+   * two slices of one fact.
+   */
+  readonly heads: Change<Head>
+  /**
    * The paths this revision moved whose BODY the set does not keep — what the
    * body reader has to read before anyone can be handed one (`./bodies.ts`).
    *
@@ -73,13 +86,13 @@ export interface Published {
 }
 
 /**
- * The documents half of a revision: what the collection is told, and what is
- * owed to the body reader.
+ * The documents half of a revision: what the two collections keyed by a bodied
+ * file are told, and what is owed to the body reader.
  *
  * ONE function over ONE reading of the previous revision, which is the whole
- * reason it is not two: the slice and the split both need "what the wire had
- * before this", and two callers passing that separately are two callers who can
- * pass different things.
+ * reason it is not three: the slice, the head and the split all need "what the
+ * wire had before this", and callers passing that separately are callers who
+ * can pass different things.
  *
  * An entry carrying its text is sent as it is. An entry saying `null` is a body
  * the set does not keep, and it is the body reader's: writing that value to a
@@ -107,14 +120,29 @@ export interface Published {
  */
 const documentsOf = (
   snapshot: Snapshot<Reading>,
-  held: Change<DocumentEntry> | undefined,
-): Pick<Published, "documents" | "unread"> => {
+  held: Published | null,
+): Pick<Published, "documents" | "heads" | "unread"> => {
+  const documents = snapshot.value.set.documents
+  const keyOf = (document: (typeof documents)[number]) => document.file
   const change = changeOf(
-    snapshot.value.set.documents,
-    (document) => document.file,
+    documents,
+    keyOf,
     (document) => ({ rev: snapshot.rev, text: document.text }),
     snapshot,
-    held,
+    held?.documents,
+  )
+  // THE HEAD OF EVERY ONE OF THEM, withheld from nobody. This is the half a
+  // reader watches for "the file moved": it carries no body, so there is
+  // nothing to blank and nothing to wait for, and the arm below that keeps a
+  // bodyless `null` off an open key has no counterpart here. It is also the
+  // only place a `.html`'s change reaches a browser now — the body it used to
+  // ride on is not asked for at all (`@olai/web`'s `documents.tsx`).
+  const heads = changeOf(
+    documents,
+    keyOf,
+    () => ({ rev: snapshot.rev }),
+    snapshot,
+    held?.heads,
   )
   // One pass, two lists: what to send, and what somebody has to read. A file is
   // in exactly one of them unless it is BOTH new and bodyless, which is a key
@@ -125,10 +153,10 @@ const documentsOf = (
     if (entry.text !== null) upserts.push([path, entry])
     else {
       unread.push(path)
-      if (held?.entries.has(path) !== true) upserts.push([path, entry])
+      if (held?.documents.entries.has(path) !== true) upserts.push([path, entry])
     }
   }
-  return { documents: { ...change, upserts }, unread }
+  return { documents: { ...change, upserts }, heads, unread }
 }
 
 /**
@@ -209,6 +237,6 @@ export const publishedOf = (
       snapshot,
       published?.outlines,
     ),
-    ...documentsOf(snapshot, published?.documents),
+    ...documentsOf(snapshot, published),
   }
 }

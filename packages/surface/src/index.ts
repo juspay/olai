@@ -23,6 +23,13 @@
  *     is opened (the per-key `get`). No `deltas` — the batched verb is a push
  *     of every entry, which for documents is every body, which is the thing
  *     this collection exists to stop sending.
+ *   - `heads` is that same key set with the bodies taken out — one revision per
+ *     bodied file — and it is where a reader goes to learn a file MOVED
+ *     without asking what it now says. It is the member `documents` cannot be:
+ *     cheap enough per entry to carry `deltas`, so one stream tells a tab about
+ *     every file at once. A previewed `.html` is the case it was built for —
+ *     its frame fetches the file over HTTP and reads no body off the wire at
+ *     all.
  *   - `manifest` is a CELL: the set-wide facts that belong to no one file, and
  *     the answer to "is there a set at all". Its `null` is the state a
  *     collection cannot express — an empty snapshot means "this directory has
@@ -201,6 +208,36 @@ export const DocumentEntry = Schema.Struct({
 export type DocumentEntry = typeof DocumentEntry.Type
 
 /**
+ * One bodied file's HEAD: which revision of the directory its file is at, and
+ * nothing else. {@link DocumentEntry} with the body taken out.
+ *
+ * It exists because "the file on disk MOVED" and "here is what it says" are
+ * two different questions, and until this member there was one way to ask
+ * both. A `.html`'s page draws from a frame that fetches the file over HTTP
+ * (`./seal.ts`), so the only thing it wants from the wire is the first
+ * question — and asking it through {@link DocumentEntry} sent a saved page's
+ * megabytes to a tab that drew none of them, on every open and on every edit,
+ * ahead of the fetch that actually drew it. That was PR #206's standing
+ * deferral, and this is the member it named.
+ *
+ * `rev` is {@link OutlineEntry}'s and {@link DocumentEntry}'s, unchanged and on
+ * purpose: it MOVES when the file does and stays put when it does not, so a
+ * reader watching it is watching this one file rather than the directory's
+ * clock. A page rewritten with the bytes it already had does not move it —
+ * nothing re-decoded it — and a megabyte string never has to be compared to
+ * find that out.
+ *
+ * There is no `file` field, for {@link DocumentEntry}'s reason: the KEY is the
+ * path. And there is no second fact in here waiting to be useful — a head that
+ * grew a size, a modified time or a hash would be a second answer to a question
+ * `rev` already answers, kept in step by hand.
+ */
+export const Head = Schema.Struct({
+  rev: Schema.Int,
+})
+export type Head = typeof Head.Type
+
+/**
  * Whether there is a set at all, and nothing else.
  *
  * `null` is a state, not an absence, and it is the one thing the collections
@@ -377,6 +414,35 @@ export const surface = defineSurface({
       keySchema: Schema.String,
       schema: DocumentEntry,
       verbs: ["keys", "get"],
+    },
+    /**
+     * The same files as {@link documents}, one HEAD each and no body — see
+     * {@link Head}.
+     *
+     * `deltas` here, and the omission next door, are the same decision read
+     * twice. The batched verb is a push of every entry, which for `documents`
+     * is every body and is exactly what that collection exists to stop
+     * sending; for this one it is a path and an integer per bodied file, which
+     * is what the key set already costs. So the cheap member takes the cheap
+     * verb, and a tab watching one file for changes opens no stream of its own:
+     * it reads the entry it wants out of the one snapshot-then-delta stream the
+     * sidebar's paths already arrive on.
+     *
+     * WHICH IS WHY THE KEY SET IS THE SAME KEY SET, and not merely similar: a
+     * reader takes its file list from HERE (`@olai/web`'s `documents.tsx`), so
+     * a head missing for a file the directory holds is a file the sidebar
+     * stops listing. Both slices are built in one pass over one list on the
+     * server (`@olai/server`'s `published.ts`), which is what makes that an
+     * invariant rather than a coincidence two loops have to keep.
+     *
+     * Read-only on the wire, like every other file-shaped member: what a head
+     * says is what the disk said.
+     */
+    heads: {
+      /** Root-relative, `/`-spelled — {@link documents}' own keys. */
+      keySchema: Schema.String,
+      schema: Head,
+      verbs: ["keys", "get", "deltas"],
     },
     /** The conversation. `deltas` is the whole point — see {@link ./chat.ts}:
      *  one subscription carries both the history a late joiner needs and the

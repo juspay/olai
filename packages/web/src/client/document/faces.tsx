@@ -4,10 +4,11 @@
  * `/doc/<file>` opens any file whose content is a body (`@olai/format`'s
  * registry: a `.md` today, a `.html` beside it), and what changes between them
  * is not the page — same address, same heading, same "the directory does not
- * hold that" screen — but what the body is DRAWN AS, and whether the reader may
- * write it. Those are exactly two facts, so they are two fields, and the table
- * is a `Record` over `BodyKind`: a kind added to the registry with a body is a
- * compile error here, naming the one thing a new kind of file cannot inherit.
+ * hold that" screen — but what the body is DRAWN AS, whether the reader may
+ * write it, and what the page has to have in hand before it draws at all.
+ * Those are exactly three facts, so they are three fields, and the table is a
+ * `Record` over `BodyKind`: a kind added to the registry with a body is a
+ * compile error here, naming the things a new kind of file cannot inherit.
  *
  * The alternative is what this replaces before it could be written: a `Show`
  * per kind in `./DocumentPage.tsx`, with the Edit control gated by a second
@@ -32,19 +33,23 @@ import { TESTID } from "../testids.ts"
 import { Hypertext } from "./Hypertext.tsx"
 import { Toc } from "./Toc.tsx"
 
-/** What a reading face is handed: the file's path, the entry the collection
- *  holds for it, and both halves of that entry. A face takes what it draws
- *  FROM — the markdown face reads `text`, the hypertext face reads neither
- *  (its frame fetches the file over HTTP) and watches `rev` to know the file on
- *  disk moved. Both are passed to both, because which of them a kind uses is
- *  that kind's business and this table's job is only to say which component
- *  draws it. */
+/** What a reading face is handed: the file's path, which revision of the
+ *  directory it is at, and its body. A face takes what it draws FROM — the
+ *  markdown face reads `text`, the hypertext face reads neither (its frame
+ *  fetches the file over HTTP) and watches `rev` to know the file on disk
+ *  moved. Both are passed to both, because which of them a kind uses is that
+ *  kind's business and this table's job is only to say which component draws
+ *  it. */
 export interface Reading {
   readonly file: string
+  /** The file's body, as the wire published it — and the EMPTY STRING for a
+   *  face that draws without one ({@link Face.needs}), which is the honest
+   *  value for bytes this tab never asked the server for. It is not a body
+   *  that happens to be empty: a face needing one is never drawn until it has
+   *  arrived, and a face needing none never reads this. */
   readonly text: string
-  /** Which revision of the directory this body was published in
-   *  (`@olai/surface`'s `DocumentEntry`). It moves when the file does and
-   *  stays put when it does not. */
+  /** Which revision of the directory this file is at (`@olai/surface`'s
+   *  `Head`). It moves when the file does and stays put when it does not. */
   readonly rev: number
 }
 
@@ -54,11 +59,33 @@ export interface Face {
   /** Whether this kind's page offers the WRITING face — the Edit control, the
    *  draft and the conflict story (`./DocEditor.tsx`). */
   readonly edits: boolean
+  /**
+   * WHAT THE PAGE WAITS FOR before it draws this face — the file's BODY, or
+   * only its HEAD, which is to say the fact that the file moved.
+   *
+   * It is a fact about the FACE and not about the file, which is why it is
+   * here and not in the format's registry: a `.html`'s bytes are perfectly
+   * readable and an agent reads them (`@olai/server`'s `bodies.ts`); what is
+   * true is that this component draws none of them, because the frame it puts
+   * on screen fetches the file over HTTP for itself (`./Hypertext.tsx`).
+   *
+   * It is load-bearing on the WIRE, which is the reason it exists at all. A
+   * page only asks for what its face needs (`./DocumentPage.tsx`), so
+   * `needs: "head"` is the difference between a preview costing a number and a
+   * preview costing the whole file over the websocket — a copy nothing drew,
+   * ahead of the copy that did. PR #206 deferred that; this field is where it
+   * is decided.
+   *
+   * `edits` implies `"body"`, and that is an implication rather than a second
+   * field: an editor is a draft over the text, so a writable face that did not
+   * wait for one would open a caret onto nothing.
+   */
+  readonly needs: "body" | "head"
 }
 
 export const FACES: Record<BodyKind, Face> = {
-  document: { reads: Rendered, edits: true },
-  hypertext: { reads: Hypertext, edits: false },
+  document: { reads: Rendered, edits: true, needs: "body" },
+  hypertext: { reads: Hypertext, edits: false, needs: "head" },
 }
 
 /** A document's reading face: the contents, then the body — exactly what the

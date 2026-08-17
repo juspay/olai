@@ -15,11 +15,20 @@
  * table (./faces.tsx). A page per kind would have been four copies of the parts
  * that are the same, and the first one to drift would do it silently.
  *
- * The page is handed a PATH and reads the body itself (../document/documents.tsx),
- * which is the shape of the wire: the directory's paths are known to every tab,
- * and a body travels to the tab that opens it. So the heading is on screen the
- * moment the route resolves, and the text follows — one frame later on a fresh
- * open, not at all if the reader moves on first.
+ * The page is handed a PATH and reads what its face needs itself
+ * (../document/documents.tsx), which is the shape of the wire: the directory's
+ * paths and revisions are known to every tab, and a BODY travels to the tab
+ * that opens it. So the heading is on screen the moment the route resolves,
+ * and the text follows — one frame later on a fresh open, not at all if the
+ * reader moves on first.
+ *
+ * WHAT IT ASKS FOR is the face's decision and not this page's (./faces.tsx's
+ * `needs`), and it is a wire cost rather than a nicety. The markdown face draws
+ * the body, so the page waits for one. The hypertext face draws a frame that
+ * fetches the file over HTTP for itself, so the page asks for the file's HEAD —
+ * the revision, which is how it learns the file moved — and for no body at all.
+ * Asking for one anyway is what made a previewed saved page cross the wire
+ * twice, the first copy gating the second (PR #206's deferral).
  *
  * The heading is the path, in the same voice a day page names its date: what
  * is IN the document is the document's own business, and a `# Title` on its
@@ -45,13 +54,13 @@
  */
 
 import { bodyKind } from "@olai/format"
-import { createSignal, Show } from "solid-js"
+import { createMemo, createSignal, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
 import { TESTID } from "../testids.ts"
 import { DocEditor } from "./DocEditor.tsx"
-import { useDocument } from "./documents.tsx"
-import { FACES } from "./faces.tsx"
+import { useDocument, useHead } from "./documents.tsx"
+import { FACES, type Reading } from "./faces.tsx"
 import { consumeMinted } from "./minted.ts"
 
 /**
@@ -84,15 +93,37 @@ export function DocumentPage(props: { readonly file: string }) {
 }
 
 function OneDocument(props: { readonly file: string }) {
-  const document = useDocument(() => props.file)
   // WHICH FACE, off the file's own name — the format's registry answers what
-  // kind of body this is, and ./faces.tsx answers what that kind looks like and
-  // whether it can be written. A path this page model let through is a file the
-  // directory HOLDS, so it is a bodied kind by construction; the fallback is
-  // the markdown one because that is what a `/doc/` address meant before there
-  // was a second kind, and a blank page would be a worse answer than a
-  // rendering of the text.
+  // kind of body this is, and ./faces.tsx answers what that kind looks like,
+  // whether it can be written, and what this page must have before it draws
+  // one. A path this page model let through is a file the directory HOLDS, so
+  // it is a bodied kind by construction; the fallback is the markdown one
+  // because that is what a `/doc/` address meant before there was a second
+  // kind, and a blank page would be a worse answer than a rendering of the
+  // text.
   const face = () => FACES[bodyKind(props.file) ?? "document"]
+  const head = useHead(() => props.file)
+  // THE BODY, AND ONLY FOR A FACE THAT DRAWS FROM ONE. This is the whole of
+  // what the preview costs the wire: a face that needs the head alone names no
+  // file here, so no per-key subscription opens, the server is never told this
+  // reader opened the file, and a saved page's bytes stay on the disk they are
+  // fetched from over HTTP (../document/documents.tsx).
+  const document = useDocument(() =>
+    face().needs === "body" ? props.file : undefined
+  )
+  /** What this page has in hand, or nothing while it is still on the way —
+   *  the head for every face, and the body as well for a face that draws from
+   *  one. The empty string is what a face that needs no body is handed, and it
+   *  never reads it ({@link Reading.text}). */
+  const reading = createMemo<Reading | undefined>(() => {
+    const rev = head()
+    if (rev === undefined) return undefined
+    if (face().needs === "head") return { file: props.file, rev, text: "" }
+    const served = document()
+    return served === undefined
+      ? undefined
+      : { file: props.file, rev, text: served.text }
+  })
   // Fresh per page mount — and a page is one FILE (see above), so navigating
   // anywhere else, another document included, closes the editor and the draft
   // goes with it: a draft is an editor's, never a file's.
@@ -102,7 +133,10 @@ function OneDocument(props: { readonly file: string }) {
     <section data-testid={TESTID.documentPage} data-file={props.file}>
       <header class="mb-4 flex items-baseline justify-between gap-2">
         <h1 class="m-0 font-mono text-sm text-muted">{props.file}</h1>
-        <Show when={face().edits && document() !== undefined && !editing()}>
+        {/* A writable face waits for the body, so what the reading holds is
+            the draft the editor would open on: one condition, not two that
+            could come apart. */}
+        <Show when={face().edits && reading() !== undefined && !editing()}>
           <button
             type="button"
             class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
@@ -113,13 +147,13 @@ function OneDocument(props: { readonly file: string }) {
           </button>
         </Show>
       </header>
-      {/* No placeholder: the body of a document this directory HAS is on its
-          way, and a "reading…" line under a heading that is already drawn
-          would be a spinner for one frame. A path the directory does not have
-          never reaches this page — the page model answers that with its own
-          screen (../page.ts). */}
-      <Show when={document()}>
-        {(served) => (
+      {/* No placeholder: what this directory HAS is on its way, and a
+          "reading…" line under a heading that is already drawn would be a
+          spinner for one frame. A path the directory does not have never
+          reaches this page — the page model answers that with its own screen
+          (../page.ts). */}
+      <Show when={reading()}>
+        {(reading) => (
           <Show
             when={editing()}
             fallback={
@@ -133,14 +167,14 @@ function OneDocument(props: { readonly file: string }) {
               <Dynamic
                 component={face().reads}
                 file={props.file}
-                text={served().text}
-                rev={served().rev}
+                text={reading().text}
+                rev={reading().rev}
               />
             }
           >
             <DocEditor
               file={props.file}
-              served={served().text}
+              served={reading().text}
               onDone={() => setEditing(false)}
             />
           </Show>

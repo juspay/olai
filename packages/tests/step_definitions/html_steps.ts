@@ -297,6 +297,41 @@ Then("the preview reached nothing off this server", function (this: OlaiWorld) {
 });
 
 /**
+ * WHAT THE SERVER SENT THIS READER, as against what it drew.
+ *
+ * The two steps below are one claim read from both ends, and they are about
+ * the WEBSOCKET rather than about the screen: a preview draws a file whose
+ * bytes it fetched over HTTP, so those bytes have no business on the socket as
+ * well — while a note draws a body the socket is the ONLY way to get, so that
+ * one had better be on it. Before the head member existed, both were sent both
+ * ways, and the copy nobody drew arrived first and gated the frame.
+ *
+ * It reads the raw frames (`world.socketCarried`) rather than parsing them: the
+ * question is whether some text was in what arrived, and a second
+ * implementation of the framing here would go on passing after the real one
+ * moved. What a scenario passes in is a sentence out of the FIXTURE, so the
+ * step is about that file rather than about a shape this suite invented.
+ */
+Then(
+  "the websocket never carried {string}",
+  function (this: OlaiWorld, text: string) {
+    assert.ok(
+      !this.socketCarried(text),
+      `the socket delivered "${text}" to this tab — a body the page draws from ` +
+        "a fetch of its own, sent a second time down the wire",
+    );
+  },
+);
+
+Then("the websocket carried {string}", function (this: OlaiWorld, text: string) {
+  assert.ok(
+    this.socketCarried(text),
+    `nothing the socket delivered carried "${text}" — the reader who genuinely ` +
+      "needs a body is not being sent one",
+  );
+});
+
+/**
  * A vault whose pictures take a moment, which is what makes the height
  * scenario an experiment rather than a race.
  *
