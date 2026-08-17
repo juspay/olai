@@ -100,14 +100,35 @@ Feature: Filtering the outline in place
     And the node "order" is not shown
     And the filter found "1 of 10"
 
+  Scenario: `is:blocked` narrows the page to what is waiting on something
+    # The one DERIVED value in the grammar, and the reason it is worth having:
+    # `hinges` waits on `order`, which is still `doing`, so this page already
+    # dims it and writes its `blocked by` line — and the filter is that same
+    # reading rather than a second one written to the same paragraph.
+    # `install` carries an `after` of its own and is here only as the ancestry:
+    # it is a plain bullet, and a bullet is not being told it cannot start.
+    Given I open the outline "house.olai"
+    When I filter the page by "is:blocked"
+    Then the node "hinges" is a match
+    And the node "install" is context
+    And the node "order" is not shown
+    And the filter found "1 of 10"
+    # ...and negated, it is everything that can be got on with — `hinges` is
+    # still drawn, because a matching row keeps its whole subtree, and it is
+    # drawn as CONTEXT, which is the distinction this page is made of.
+    When I filter the page by "-is:blocked"
+    Then the node "order" is a match
+    And the node "install" is a match
+    And the node "hinges" is context
+
   Scenario: A known operator with an unknown value is refused, not guessed at
     # The silent-error rule, in the one place a query language invites one: a
-    # filter that quietly searched for the TEXT `is:blocked` would answer with
+    # filter that quietly searched for the TEXT `is:open` would answer with
     # an empty page and no reason. The reader is told which values the operator
     # takes instead.
     Given I open the outline "house.olai"
-    When I filter the page by "is:blocked"
-    Then the filter refuses "is:blocked" and says "done, doing, todo, marked, archived"
+    When I filter the page by "is:open"
+    Then the filter refuses "is:open" and says "done, doing, todo, marked, blocked, archived"
     And the outline has 0 rows
 
   Scenario: A date no calendar could hold is refused too
@@ -121,12 +142,12 @@ Feature: Filtering the outline in place
 
   Scenario: The refusal quotes the reader, not the folded token
     # The words are matched case-folded; the refusal is quoted as TYPED. Telling
-    # somebody who wrote `is:BLOCKED` that they wrote `is:blocked` is the
+    # somebody who wrote `is:OPEN` that they wrote `is:open` is the
     # refusal misquoting the reader — the same defect class the refusal exists
     # to prevent, and the one none of the four doors had a scenario for.
     Given I open the outline "house.olai"
-    When I filter the page by "is:BLOCKED"
-    Then the filter refuses "is:BLOCKED" and says "done, doing, todo, marked, archived"
+    When I filter the page by "is:OPEN"
+    Then the filter refuses "is:OPEN" and says "done, doing, todo, marked, blocked, archived"
     # ...while a query that MATCHES still folds, so the two cannot be confused.
     When I filter the page by "IS:DONE"
     Then the node "demo" is a match
@@ -134,11 +155,11 @@ Feature: Filtering the outline in place
   Scenario: The header's box refuses the same operator, in the same words
     # One grammar, four doors. The filter parses for itself; the header box,
     # the ⌘K palette and an agent ask the server — and a door that answered
-    # `is:blocked` with an empty list and no reason would be the one place a
+    # `is:open` with an empty list and no reason would be the one place a
     # typo looks exactly like an empty directory.
     Given I open the outline "house.olai"
-    When I search the header for "is:blocked"
-    Then the search refuses "is:blocked" and says "done, doing, todo, marked, archived"
+    When I search the header for "is:open"
+    Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, archived"
 
   Scenario: The ⌘K palette refuses it too, in its own row
     # The third door. It reads the same `createNodeSearch` primitive the header
@@ -147,8 +168,8 @@ Feature: Filtering the outline in place
     # two different pieces of news.
     Given I open the outline "house.olai"
     When I press the palette shortcut
-    And I type "is:blocked" into the palette
-    Then the search refuses "is:blocked" and says "done, doing, todo, marked, archived"
+    And I type "is:open" into the palette
+    Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, archived"
 
   Scenario: Pressing a `#tag` filters the page by it
     # The gesture the tags have been decorative for since title-markdown. It is

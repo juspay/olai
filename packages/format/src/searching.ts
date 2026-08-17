@@ -87,10 +87,10 @@ export const SearchAnswer = Schema.Struct({
    *  of ninety" is sayable. */
   total: Schema.Int,
   /** What the grammar could not read, in its own words — a known operator with
-   *  an unknown value (`is:blocked`). ABSENT for every query it could read.
+   *  an unknown value (`is:open`). ABSENT for every query it could read.
    *
    *  It travels rather than being swallowed because a door that answered
-   *  `is:blocked` with an empty list and no reason is the silent failure
+   *  `is:open` with an empty list and no reason is the silent failure
    *  HACKING.md forbids: the reader typed an operator, and the honest answer is
    *  which values it takes. The filter over the tree draws its own because it
    *  parses for itself; these are for the three doors that ask the server. */
@@ -120,6 +120,7 @@ export const SearchRequest = Schema.Struct({
     description:
       "What to look for. Case-folded substring WORDS — every word must appear somewhere in the same node — composed with OPERATORS:\n" +
       "- `is:done` / `is:doing` / `is:todo` — the mark the node stores (never a derived one). `is:marked` is any of the three; `is:archived` reaches what was put away.\n" +
+      "- `is:blocked` — the node is WAITING: something it must come after is a task that is not finished. Derived, and the same derivation the app draws a blocked row with, so it reads the ORDERING GRAPH rather than the field — an edge spelled `blocks` on the other record counts, and a node can be blocked while carrying no `after` of its own (`has:after` is the question about the field). A node with no mark is not blocked (a bullet is not work), a target with no mark blocks nothing, and archived work is out of it at both ends. `-is:blocked` takes the waiting ones back out.\n" +
       "- `has:desc` / `has:date` / `has:see` / `has:after` / `has:doc` — a field the record carries.\n" +
       "- `date:2026-08-10`, `date:2026-08`, `date:2026`, `date:2026-08-01..2026-08-14`, `date:..2026-08-10`, `date:2026-08-10..` — the two dates a journal reads: what the node is scheduled for, and when it was finished.\n" +
       "- `prop:pr` / `prop:agent=claude-opus` — a CUSTOM property the node carries, by key or by key and value. Reads the `custom` map only: a field is not a property, so `prop:done` and `prop:date=…` match nothing. A list value matches on any member.\n" +

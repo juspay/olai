@@ -644,14 +644,18 @@ The corner unit is the **risky one** — see
         whose children are all ticked is not <code>is:done</code> unless
         somebody ticked it. <code>has:desc</code>, <code>has:date</code>,
         <code>has:see</code> ask what the record carries.
-        <code>date:2026-08</code> takes a day, a month, a year or a range
+        <code>is:blocked</code> is the one that is <em>derived</em> — the node
+        is waiting, because something it must come after is a task nobody has
+        finished, which is the same reading that dims the row and writes its
+        <code>blocked by</code> line. <code>date:2026-08</code> takes a day,
+        a month, a year or a range
         (<code>date:2026-08-01..2026-08-14</code>), reading the same two dates
         the journal reads. <code>prop:pr</code> and
         <code>prop:agent=claude-opus</code> ask after a property you put on a
         node yourself — by key, or by key and value. <code>-</code> in front of
         any of them takes it back out.</p>
         <p><strong>An operator it does not know is refused, not guessed at.</strong>
-        <code>is:blocked</code> answers with the values <code>is:</code> takes
+        <code>is:open</code> answers with the values <code>is:</code> takes
         rather than quietly searching for that text and finding nothing, and a
         date no calendar could hold — <code>date:2026-13</code> — is refused on
         the same terms rather than answered with an empty page. The refusal

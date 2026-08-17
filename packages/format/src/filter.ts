@@ -35,6 +35,7 @@ import { Schema } from "effect"
 import {
   ancestorsOf,
   type Derived,
+  isBlocked,
   mayHoldTag,
   type Row,
   storedMarker,
@@ -110,10 +111,13 @@ const positionBonus = (haystack: string, needle: string): number => {
 
 // ── the grammar ────────────────────────────────────────────────────────
 
-/** The marks `is:` selects on, plus the two questions that are not a mark:
- *  `marked` (any of the three — what makes `is:marked -is:done` sayable) and
- *  `archived` (below). */
-const IS_VALUES = ["done", "doing", "todo", "marked", "archived"] as const
+/** The marks `is:` selects on, plus the three questions that are not a mark:
+ *  `marked` (any of the three — what makes `is:marked -is:done` sayable),
+ *  `blocked` (the one DERIVED value here) and `archived` (below). Which of
+ *  them is answered by what is {@link being}, and that is a switch, so a value
+ *  added to this list is a compile error there rather than a query that finds
+ *  nothing. */
+const IS_VALUES = ["done", "doing", "todo", "marked", "blocked", "archived"] as const
 type IsValue = (typeof IS_VALUES)[number]
 
 /** The optional fields of a record `has:` asks about. One row per field a
@@ -180,7 +184,7 @@ interface Held {
  */
 export const Refusal = Schema.Struct({
   /** AS TYPED, case and all. A refusal that quoted the folded token would be
-   *  telling somebody who wrote `is:BLOCKED` that they wrote something else —
+   *  telling somebody who wrote `is:OPEN` that they wrote something else —
    *  the refusal misquoting the reader, which is the defect it exists to
    *  prevent (see {@link parseFilter}). */
   token: Schema.String,
@@ -236,8 +240,8 @@ export type Filter =
  *
  * CASE IS FOLDED FOR MATCHING AND NOT FOR QUOTING. The words and the operator
  * values are compared folded, so `is:DONE` and `#Home` work; a REFUSAL quotes
- * the token exactly as it was typed. Telling somebody who typed `is:BLOCKED`
- * that they typed `is:blocked` is the refusal misquoting the reader, which is
+ * the token exactly as it was typed. Telling somebody who typed `is:OPEN`
+ * that they typed `is:open` is the refusal misquoting the reader, which is
  * the same defect class the refusal exists to prevent — the split is why the
  * fold happens per token here rather than to the whole string on the way in.
  */
@@ -489,9 +493,21 @@ export interface Scope {
  *
  * The order of the gates is the order of their cost: a query that is not
  * ASKING decides before anything is read, the archive is a filename, the
- * clauses are field tests, and the words are the only thing that scans text.
+ * clauses are a field test or an index lookup, and the words are the only
+ * thing that scans text.
+ *
+ * THE DERIVATION IS A PARAMETER because one clause is not about the record:
+ * `is:blocked` is a question about the SET (what this node waits on, and
+ * whether that is still unfinished work), and the answer is an index every
+ * caller of {@link matching} already holds. Named as the cost of this operator
+ * in docs/brainstorming/filter-in-place.md when it was deferred, and it is the
+ * whole of it — a lookup at the gate, no walk.
  */
-const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
+const matchOf = (
+  derived: Derived,
+  at: LocatedRegular,
+  filter: Filter,
+): Match | null => {
   // Neither an empty box nor a query the grammar could not read selects
   // anything — and neither of them HAS terms to be tempted by, which is what
   // the union above is for.
@@ -499,7 +515,7 @@ const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
   if (!filter.speaksOfArchive && isArchived(at.file)) return null
 
   for (const held of filter.clauses) {
-    if (holds(at, held.clause) === held.negated) return null
+    if (holds(derived, at, held.clause) === held.negated) return null
   }
 
   // Collected only for a node that has already PASSED every clause, so the map
@@ -583,16 +599,45 @@ const wordHit = (
   return field === null ? null : { field, score }
 }
 
-const holds = (at: LocatedRegular, clause: Clause): boolean => {
-  if (clause.kind === "is") {
-    if (clause.value === "archived") return isArchived(at.file)
+/**
+ * What `is:` asks of one node — a SWITCH over the value's own type, for the
+ * reason {@link clauseOf} is one: three of these six are answered by three
+ * different things, and the chain of `if`s this replaced ended in a comparison
+ * against the stored mark. So a value added to {@link IS_VALUES} that is not a
+ * mark fell through to `mark === "whatever"` and quietly selected nothing —
+ * the silent empty answer this file's whole refusal arm exists to prevent,
+ * arriving by a path no refusal can see. Now it is a compile error here, which
+ * is the second place (with {@link teaching}) a new value has to say something.
+ */
+const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean => {
+  switch (value) {
+    case "archived":
+      return isArchived(at.file)
+    // THE ONE DERIVED VALUE, and it is the index the views draw from rather
+    // than a second reading of `after`: the same answer that puts the `blocked
+    // by` line on a node's page and the dim on a row, so a query cannot find a
+    // node the app does not draw as waiting, or miss one it does. What
+    // blockedness IS — which targets stand in the way, and which sources can
+    // be said to be waiting at all — is `./derive.ts`'s `blockage` and is not
+    // restated here. Including the part nobody has to pay for: the derivation
+    // is of the whole SET, so this reaches across files exactly as the screen
+    // does.
+    case "blocked":
+      return isBlocked(derived, at.node.id)
+    case "marked":
+      return storedMarker(at.node) !== undefined
     // The STORED mark, never a derived one: a parent whose children are all
     // ticked is not `is:done` unless somebody ticked it (docs/format.md's
     // Status, and the `not-every-node-a-task` ruling behind it).
-    const mark = storedMarker(at.node)
-    if (clause.value === "marked") return mark !== undefined
-    return mark === clause.value
+    case "done":
+    case "doing":
+    case "todo":
+      return storedMarker(at.node) === value
   }
+}
+
+const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean => {
+  if (clause.kind === "is") return being(derived, at, clause.value)
   // `has:date` is `date:` WITH NO BOUNDS rather than a test of the `date`
   // field, and the one exception in the table is deliberate: a reader who can
   // find a node with `date:2026-08-03` and then not find it with `has:date`
@@ -682,7 +727,7 @@ export const matching = (
     if (isMirror(located.node)) continue
     const at = located as LocatedRegular
     if (!inScope(at)) continue
-    const match = matchOf(at, filter)
+    const match = matchOf(derived, at, filter)
     if (match !== null) out.push({ at, match })
   }
   return out

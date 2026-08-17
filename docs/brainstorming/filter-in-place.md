@@ -81,11 +81,11 @@ Deferred, explicitly: **relative dates** (`date:today`, `date:7d`, Workflowy's `
 - **Quoted phrases** (`"pick the hinges"`) — deferred. Every word already has to appear in the same node, which covers most of what quoting is for, and the tokenizer that supports quoting is a different tokenizer.
 - **`OR`** — deferred. A grammar with one binding level is a grammar a reader can hold; adding disjunction without parentheses is a trap and adding parentheses is a parser.
 - **`>` (nested ancestry)** — deferred, and `>` is already spoken for: the ⌘K palette reads a leading `>` as an ask rather than a lookup.
-- **`is:blocked`** — deferred. Blockedness is DERIVED (`blockersOf`), which makes it a different kind of operator from every other one here, and `edges-ui`'s blocked-derivation is the item that owns it. The deferral has a stated cost: every clause today is a test of the RECORD, so the predicate takes a located node and nothing else. A derived-fact operator is the first one that would need the whole set, and that is a signature change rather than a new row in a table. Named here so the day it lands nobody is surprised — and not paid for in advance, because a parameter nothing reads is a knob.
+- **`is:blocked`** — deferred here, **landed since** ([search.md](../search.md)), and the deferral's stated cost is worth reading against what it actually was. It was: every clause is a test of the RECORD, so the predicate takes a located node and nothing else; a derived-fact operator is the first one that needs the whole set, and that is a signature change rather than a new row in a table. That is exactly what it cost — `matchOf` and `holds` take the `Derived` every caller of `matching` was already handing over, and the clause is one lookup in the index the views draw blockedness from. Nothing was paid in advance.
 
 ### Refusals reach every door
 
-The filter parses for itself, so it draws its own. The other three ask the server — and a refusal generated at the bottom and dropped in the middle would make `is:blocked` an empty list with no reason in exactly the three places a person is least able to guess why. So the answer carries `refusals`: through `Query.search`, onto the wire, and into a row of its own in the ⌘K palette and under the header box. That row is separate from the "the call failed" row for the reason that one is separate from the palette's `>` ask: a refused CALL and a refused QUERY are two pieces of news.
+The filter parses for itself, so it draws its own. The other three ask the server — and a refusal generated at the bottom and dropped in the middle would make `is:open` an empty list with no reason in exactly the three places a person is least able to guess why. So the answer carries `refusals`: through `Query.search`, onto the wire, and into a row of its own in the ⌘K palette and under the header box. That row is separate from the "the call failed" row for the reason that one is separate from the palette's `>` ask: a refused CALL and a refused QUERY are two pieces of news.
 
 ### Refusals — a colon is not always an operator
 
@@ -94,7 +94,7 @@ Two rules, and the split is the whole of it:
 - a token whose left side is one of the three operator NAMES and whose value is not understood — `is:open` (a mark this format stopped having), `date:soon`, `date:2026-13` — is a **refusal**. It is reported, the reader is shown what the operator takes, and the filter matches nothing. Never silently downgraded to a substring term: a query that quietly finds nothing is the silent-error the HACKING doctrine forbids;
 - a token with a colon whose left side is anything else — `TODO:`, `note:x`, `http://example.com` — is an ordinary **substring term**. Colons occur in prose, and refusing them would break searching for the words people write.
 
-A refusal quotes the token **as typed**. The words and the operator values are compared case-folded, so `IS:DONE` works — but `is:BLOCKED` refused as "you typed `is:blocked`" is the refusal misquoting the reader, which is the defect it exists to prevent, one turn in. So the fold is per token and for matching only.
+A refusal quotes the token **as typed**. The words and the operator values are compared case-folded, so `IS:DONE` works — but `is:OPEN` refused as "you typed `is:open`" is the refusal misquoting the reader, which is the defect it exists to prevent, one turn in. So the fold is per token and for matching only.
 
 An **impossible date** is refused on the same terms, and it needed saying because the shape regex alone accepts it: `date:2026-13` is well-formed and can never contain a validated day. It is also the worst kind to swallow, since it sorts between December and January and so reads as a window. The bound is 1–12 and 1–31 — what is impossible in ANY month. `date:2026-02-30` is accepted and matches nothing, and that is the deliberate line: telling it from `2026-01-30` needs a calendar, and the whole date stance here (the same one that makes a month's upper bound `-31`) is that a comparison over text answers without inventing one.
 
@@ -182,7 +182,7 @@ A `#tag` in a title becomes a real affordance: a pill that says it is pressable,
 
 - Relative and changed-since dates (`date:today`, `changed:7d`).
 - Quoted phrases, `OR`, and the `>` ancestry operator.
-- `is:blocked` — it belongs with `edges-ui`'s blocked-derivation.
+- ~~`is:blocked`~~ — **landed**, and the entry is struck rather than removed so the list still says what this design deferred (the cost it named, and what it turned out to be, is above).
 - Filtering the day, agenda and trash pages.
 - Starred / saved searches and named shortcuts (viewing-web.md's own Open list).
 - A keyboard chord that focuses the filter box.
