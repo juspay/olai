@@ -1,5 +1,5 @@
 /**
- * What a query MEANS — the one matcher, four callers.
+ * What a query MEANS — the one matcher, five callers.
  *
  * A query is words and operators; this file says which nodes they select, and
  * which rows survive when a tree is narrowed to them. It is here, at the bottom

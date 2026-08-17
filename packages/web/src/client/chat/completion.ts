@@ -265,10 +265,28 @@ export const unnamed = (text: string, id: string, caret: number): Written => {
   return { text: out + text.slice(read), caret: moved }
 }
 
+/**
+ * What a sentence puts AFTER a name rather than in it — trimmed off the end of
+ * a word, never out of the middle of one.
+ *
+ * `look at @hinges, then the doors` is the sentence this exists for. The word
+ * ends at whitespace, so without this the comma is part of it, `@hinges,` names
+ * nothing, and the chip goes out from under a person who only wrote a comma —
+ * the one thing the "delete the word and the chip goes" rule must not do by
+ * accident.
+ *
+ * TRAILING ONLY, and only these, which is the convention every terminal and
+ * chat client already applies to a URL at the end of a sentence. It is why the
+ * rule is safe for the other kind of name: a path's dots and slashes are inside
+ * it (`@notes/cabinets.md` keeps every character), and an id's own alphabet
+ * holds none of these, so `@order-2` is still `order-2` and never `order`.
+ */
+const AFTER_A_NAME = /[,.;:!?)\]}'"]+$/
+
 /** Every `@word` in a message, in the order it says them — where a `@` OPENS a
  *  word (the format's own rule, the trigger's) and the word ends where a query
- *  ends, at whitespace. One walk, so the two readers above cannot come to
- *  disagree about what a word is, or with the list that wrote one. */
+ *  ends, at whitespace, less whatever the sentence put after it. One walk, so
+ *  the two readers above cannot come to disagree about what a word is. */
 const namesOf = (
   text: string,
 ): ReadonlyArray<{ readonly at: number; readonly word: string }> => {
@@ -277,9 +295,12 @@ const namesOf = (
     if (text[at] !== "@" || !tagOpensAt(text, at)) continue
     const rest = text.slice(at + 1)
     const end = rest.search(/\s/)
-    const word = end === -1 ? rest : rest.slice(0, end)
-    found.push({ at, word })
-    at += word.length
+    const said = end === -1 ? rest : rest.slice(0, end)
+    found.push({ at, word: said.replace(AFTER_A_NAME, "") })
+    // Past the whole of what was written, punctuation included: what was
+    // trimmed is not part of the name and is not somewhere another `@` can
+    // open either.
+    at += said.length
   }
   return found
 }

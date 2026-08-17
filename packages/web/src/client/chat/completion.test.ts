@@ -219,3 +219,24 @@ test("a caret before what came out does not move", () => {
   expect(unnamed("here @hinges there", "hinges", 4))
     .toEqual({ text: "here there", caret: 4 })
 })
+
+test("a sentence's own punctuation is not part of the name", () => {
+  // `look at @hinges, then the doors` is the sentence this is for: without it
+  // the comma is part of the word, so the chip goes out from under somebody who
+  // only wrote a comma.
+  expect(namedIn("look at @hinges, then the doors", TAKEN)).toEqual(["hinges"])
+  expect(namedIn("is @hinges? and @order.", TAKEN)).toEqual(["hinges", "order"])
+  expect(namedIn("(@hinges)", TAKEN)).toEqual(["hinges"])
+})
+
+test("...and what is trimmed is only ever at the END", () => {
+  // A path's own dots and slashes are inside it, and an id's alphabet holds
+  // none of these — which is what makes one rule safe for both kinds of name.
+  expect(namedIn("read @order-2, please", TAKEN)).toEqual(["order-2"])
+  expect(namedIn("read @order.2", TAKEN)).toEqual([])
+})
+
+test("the `×` leaves the punctuation, which was the sentence's and not the name's", () => {
+  expect(unnamed("look at @hinges, then", "hinges", 21))
+    .toEqual({ text: "look at , then", caret: 14 })
+})

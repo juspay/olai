@@ -105,6 +105,11 @@ Feature: Typing @ in the chat completes a node of the directory
     # ...and putting the word back is putting the node back, without the list.
     When I type "look at @hinges again" into the chat
     Then the composer is armed with "hinges"
+    # ...and a comma after it is the sentence's, not the name's: a chip that went
+    # out from under somebody who only typed punctuation would be the one thing
+    # this rule must never do by accident.
+    When I type "look at @hinges, then the doors" into the chat
+    Then the composer is armed with "hinges"
 
   @scratch:chat
   Scenario: The chip's × takes the word out of the sentence

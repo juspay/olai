@@ -110,8 +110,14 @@ export type Ask = typeof Ask.Type
  * `chat.send`): a browser knows which row was clicked and nothing else that will
  * still be true when the server reads it. Everything below is the SET's answer,
  * read at the moment the turn is accepted — so the agent is never told a title
- * that disagrees with the file, and a node archived between arming and sending
- * refuses the send rather than naming something that has moved.
+ * that disagrees with the file, and a node the set no longer declares between
+ * arming and sending refuses the send rather than naming something that is gone.
+ *
+ * A node ARCHIVED between the two is not that, and this paragraph used to say it
+ * was: archiving moves a record with its id intact, so it resolves, and it is
+ * meant to — what was put away is reachable at every door that asks for it
+ * (2026-08-17's ruling took the default presence, never the way to ask). What it
+ * carries is the fact that says which it is; see `archived` below.
  *
  * The fields ARE `@olai/format`'s `Found`'s, five of them, taken off that
  * declaration rather than spelled again (`reading.ts`, the floor both this spec
