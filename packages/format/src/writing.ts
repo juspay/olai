@@ -72,6 +72,17 @@ const Anchor = {
  * `children` is described with exactly the same ones. A child that could carry
  * less than the node above it would make "capture this subtree" mean something
  * different depending on where in the subtree you stood.
+ *
+ * **The edges and the properties are here for that same sentence read forwards**
+ * (`olai-batch-verbs`). A capture used to say what a node IS — its title, its
+ * note, its date, its mark — and nothing about what it POINTS AT or what it
+ * KNOWS, so a subtree arrived and then thirteen more calls wired it: one
+ * `set_after` per dependency, one `set_prop` per fact, each its own round trip
+ * and its own revision. {@link props}, {@link see} and {@link waitsOn} are those
+ * verbs' own payloads, spelled at capture time, so a subtree arrives WITH its
+ * edges and its facts in one plan, one validation and one all-or-none rename.
+ * Nothing about the writes changes: the same planner writes them, and the same
+ * refusals turn them away.
  */
 const CAPTURE = {
   title: Title,
@@ -98,6 +109,47 @@ const CAPTURE = {
     Schema.String.annotate({
       description:
         "A chosen id (`[A-Za-z0-9_-]+`), unique across the set. Absent mints one.",
+    }),
+  ),
+  /**
+   * The named facts this node is BORN carrying — `set_prop`'s map, written at
+   * capture time instead of one call per key.
+   *
+   * A map rather than a list of `{key, value}` pairs, because that is what a
+   * record's `custom` IS and what `set_prop` writes into. No `null` arm: there
+   * is nothing on a node being born to take off, so the shape cannot spell the
+   * removal and the planner has one fewer thing to refuse (`""` is still
+   * absence, which is the writer's own rule rather than a second one).
+   */
+  props: Schema.optionalKey(
+    Schema.Record(Schema.String, Schema.String).annotate({
+      description:
+        "Named facts this node is born with — the map `set_prop` writes into, several keys at once, with that verb's own refusal for a key spelled like a field the format already has. A key holding an empty string is a key the file does not carry.",
+    }),
+  ),
+  /** The free cross-references this node is born with — `set_see`'s list.
+   *  Same targets as {@link waitsOn} below, and the same forward references. */
+  see: Schema.optionalKey(
+    Schema.Array(Schema.String).annotate({
+      description:
+        "Free cross-references this node is born with — `set_see`'s list. Each names a node in the loaded set OR another node in THIS capture, by a chosen `id`, wherever it sits in the tree and including one declared LATER. An unknown target refuses the whole capture, with the closest id that exists.",
+    }),
+  ),
+  /**
+   * The ordering edges this node is born with — `set_after`'s list.
+   *
+   * `waitsOn` AND NOT `after`, which is the one place this vocabulary bends and
+   * the bend is forced: at the top of a capture `after` already names the
+   * SIBLING the node is placed after ({@link Anchor}), and it is a string where
+   * this is a list. Two meanings for one word, differing by how deep in the tree
+   * you are standing, is exactly the trap {@link CAPTURE} exists to prevent — so
+   * the edge list takes the name `set_after`'s own title gives it ("what a node
+   * waits on") and the anchor keeps the word it has always had.
+   */
+  waitsOn: Schema.optionalKey(
+    Schema.Array(Schema.String).annotate({
+      description:
+        "The ids this node must come AFTER — `set_after`'s edges, written at capture time. Same targets as `see`: a node in the loaded set, or one in this capture named by its chosen `id`, forward references included. Spelled `waitsOn` rather than `after` because at the top of a capture `after` already names the SIBLING this node is placed after. An edge that would close a loop is refused NAMING the loop.",
     }),
   ),
 } as const
@@ -675,6 +727,198 @@ export const AfterRequest = Schema.Struct({
 })
 
 /**
+ * SEVERAL FIELDS OF ONE NODE, in one write.
+ *
+ * The narrow half of the batching pair ({@link ApplyRequest} is the wide one),
+ * and it exists because the common shape of an agent's edit is not a batch of
+ * unrelated ops at all: it is one node, four facts. `set_title` then `set_desc`
+ * then `set_prop` then `set_done` is four round trips, four revisions and four
+ * pending rows for a gesture a person would call one.
+ *
+ * **It is the single verbs, folded — not a fifth way to write a node.** Every
+ * field below is planned as exactly the request that field's own verb takes,
+ * against the set as the fields before it left it, so every refusal arrives
+ * word for word: a shadowed property key, an unknown `after` target answered
+ * with the closest id, an edge that would close a loop named as a loop, and the
+ * done-over-open-work gate refusing precisely as `set_done` would. There is no
+ * second planner here and therefore no second policy.
+ *
+ * **The order is fixed and it is a decision** — `title`, `desc`, `date`,
+ * `props`, `after`, and the MARK LAST. A mark is a claim about the node as it
+ * now stands, so it is judged against the node this call has finished making:
+ * `{mark: "doing", after: ["order"]}` is a caller saying "start this" and "this
+ * waits on `order`" in one breath, and it is REFUSED, because the edge is in
+ * place by the time the mark is asked for. The other order would have landed a
+ * `doing` and drawn it blocked a frame later, which is the state `set_doing`'s
+ * own gate exists to make unreachable.
+ *
+ * **`null` removes, everywhere it is spellable** — the note, the date, one
+ * property, and the mark, which is the one new spelling: `mark: null` takes off
+ * whatever mark the node carries, where `set_done`/`set_doing`/`set_todo` each
+ * need to be told which one it is to undo it. A node carrying none is refused,
+ * as taking a mark off a node that has none has always been.
+ */
+export const UpdateRequest = Schema.Struct({
+  op: Schema.Literal("update"),
+  id: Id,
+  title: Schema.optionalKey(Title),
+  desc: Schema.optionalKey(
+    Schema.NullOr(Schema.String).annotate({
+      description: "The note, replaced whole. Markdown, stored verbatim; `null` removes it.",
+    }),
+  ),
+  date: Schema.optionalKey(
+    Schema.NullOr(Schema.String).annotate({
+      description:
+        "ISO date (`2026-08-10`) or datetime, scheduling the node; `null` clears it.",
+    }),
+  ),
+  /** MERGED per key, which is `set_prop`'s own semantics repeated: this is not
+   *  the node's whole map. A key not named here is left exactly as it is. */
+  props: Schema.optionalKey(
+    Schema.Record(Schema.String, Schema.NullOr(Schema.String)).annotate({
+      description:
+        "Properties to write, MERGED key by key — exactly as one `set_prop` per key would, and in the same words when one is refused. A key not named here is left alone; `null` (or `\"\"`) removes the one it names. A key spelled like a field the format already has is refused toward the verb that writes that fact.",
+    }),
+  ),
+  /** REPLACED, and it is the one field here that could plausibly have been
+   *  incremental. See the tool's own description for the argument. */
+  after: Schema.optionalKey(
+    Schema.Array(Schema.String).annotate({
+      description:
+        "What this node must come AFTER, as the WHOLE list — this REPLACES the node's `after` rather than adding to it, and `[]` clears it. Written that way because every other field here is the field's whole value; `set_after` is the incremental verb, taking `add` / `remove`. The difference against what the node holds now is what is actually written, so the refusals are that verb's: an unknown target is answered with the closest id that exists, and an edge that would close a loop is refused NAMING the loop.",
+    }),
+  ),
+  /** LAST in the fold, whatever order the caller wrote the fields in. */
+  mark: Schema.optionalKey(
+    Schema.NullOr(Status).annotate({
+      description:
+        "The mark, written exactly as `set_done` / `set_doing` / `set_todo` writes it — `done` records the instant, the other two store `true`. `null` takes off whatever mark the node carries. Applied LAST, after every other field here, so it is judged against the node this call has finished making: asking for `doing` in the same breath as an `after` edge on an unfinished task is refused, as `set_doing` refuses it.",
+    }),
+  ),
+})
+
+/**
+ * One batched arm: a request schema with its TOP-LEVEL prose taken off.
+ *
+ * {@link TERSE} one level up, made for the same reason and paid for by the same
+ * measurement. Sixteen request schemas inside one array schema is sixteen more
+ * copies of every field sentence in the FIRST frame of every agent session, and
+ * every one of those sentences is already in that frame — on the tool that takes
+ * the request, where the agent reads it. Measured on this repo's own surface:
+ * this one schema is 14.1 kB of `tools/list` with the prose and 5.9 kB without,
+ * against a whole tool list that was 44 kB before this feature.
+ *
+ * TOP LEVEL ONLY: a capture's `children` keeps its own nested prose, including
+ * the sentence at the floor of the unrolling that says a fourth level is a
+ * second call. That one is not a description a reader can find elsewhere; it is
+ * a refusal, written where it will be met.
+ */
+const arm = <F extends Schema.Struct.Fields>(schema: Schema.Struct<F>): Schema.Struct<F> =>
+  Schema.Struct(
+    Object.fromEntries(
+      Object.entries(schema.fields).map((
+        [name, field],
+      ) => [name, (field as Schema.Top).annotate({ description: undefined })]),
+    ) as unknown as F,
+  )
+
+/**
+ * Every verb {@link ApplyRequest} may carry, as the union it switches on.
+ *
+ * THE ARMS ARE THE REQUESTS THEMSELVES, not tagged copies of them: each schema
+ * above already carries the `op` literal that names it, so a batched
+ * `set_done` and a called `set_done` decode against one declaration. A parallel
+ * list of "batch forms" is the drift this whole file is arranged to prevent —
+ * it would be sixteen shapes free to fall behind the sixteen they mirror. What
+ * {@link arm} takes off is the PROSE and nothing else, so the two still decode
+ * identically and are still one declaration.
+ *
+ * **WHAT IS LEFT OUT, and why it is exactly four.** The file ops —
+ * `create_outline`, `create_document`, `write_document` — are the writes whose
+ * subject is a FILE rather than a node, and the tool surface's own sentence is
+ * that everything there is about nodes. Each is already atomic over the thing it
+ * makes (a `create` with a seed that is refused leaves no file behind; a
+ * document is one text, whole), so a batch buys them nothing but a way to make a
+ * mistyped path part of somebody else's transaction. `apply` itself is the
+ * fourth, for a plainer reason: a batch of batches is one flat batch with an
+ * index nobody can name.
+ *
+ * `update` IS in, and that is the pair working: a batch of `update`s is the
+ * shape "reconcile these five lanes" actually has.
+ */
+const BATCHED = [
+  arm(AddRequest),
+  arm(MarkRequest),
+  arm(TitleRequest),
+  arm(DescRequest),
+  arm(DateRequest),
+  arm(PropRequest),
+  arm(UpdateRequest),
+  arm(MoveRequest),
+  arm(SplitRequest),
+  arm(MergeRequest),
+  arm(ArchiveRequest),
+  arm(UnarchiveRequest),
+  arm(SeeRequest),
+  arm(MirrorRequest),
+  arm(UnmirrorRequest),
+  arm(AfterRequest),
+] as const
+
+/**
+ * How many ops one batch may run.
+ *
+ * A CAP, and — like {@link NESTING} — one this file would rather not have had.
+ * Nothing about folding the planner wants a limit: the plan is one plan however
+ * long the run, and the write is one write. What has a limit is what a REFUSAL
+ * can usefully say. A batch is all-or-nothing, so the whole of a thousand-op run
+ * is undone by its last op, and the sentence explaining that is a sentence about
+ * a plan nobody can hold in their head. A hundred is well past the thirteen
+ * calls this feature was filed for and well short of that.
+ *
+ * It lives beside the schema that quotes it, and `@olai/ops`' `plan.ts` reads it
+ * to refuse — the same arrangement `NESTING` has, and for the same reason: the
+ * limit is a refusal that names the number rather than a truncation nobody sees.
+ */
+export const BATCH_AT_MOST = 100
+
+/**
+ * SEVERAL OPS, one write.
+ *
+ * The wide half of the batching pair. Where {@link UpdateRequest} folds the
+ * fields of one node, this folds whole verbs over whole outlines: mark these
+ * four done, move that one, hang a property on each of the five it left behind.
+ *
+ * **ALL OR NOTHING, and that is the entire product.** The ops are planned in
+ * the order given, each against the set as the ops before it left it — so an op
+ * may name a node an earlier op created, retitle what an earlier op moved, or
+ * mark what an earlier op captured — and the whole run produces ONE plan, which
+ * the write gate validates once, renames once and stamps with one revision. Any
+ * refusal anywhere aborts everything: nothing is written, the file on disk is
+ * byte for byte what it was, and the answer names the INDEX of the op that
+ * refused with that verb's own refusal underneath it.
+ *
+ * That is the property a caller cannot build for itself. Thirteen calls in a
+ * loop is thirteen revisions, and the seventh refusing leaves six on disk with
+ * nothing to say which six — the half-captured outline `add_node`'s `children`
+ * was built to make impossible, at the scale of a lane rather than a subtree.
+ *
+ * **It is not a transaction language.** There is no rollback verb, no
+ * condition, no branch and nothing to read mid-batch: the ops are the ops the
+ * agent already has, in a list. What it buys is atomicity and a round trip, and
+ * a caller that wants to LOOK at something between two writes is a caller
+ * making two calls, correctly.
+ */
+export const ApplyRequest = Schema.Struct({
+  op: Schema.Literal("apply"),
+  ops: Schema.Array(Schema.Union([...BATCHED])).annotate({
+    description:
+      `The ops, in the order they are applied — at most ${BATCH_AT_MOST} of them. Each is exactly what its own tool takes, plus the \`op\` tag that names the verb: \`{"op":"done","id":"order"}\`, \`{"op":"prop","id":"lane","key":"pr","value":"…"}\`, \`{"op":"add","parent":"plan","title":"…"}\`. Each op sees the set as the ops before it left it, so a later one may name what an earlier one created. Any refusal aborts the whole list.`,
+  }),
+})
+
+/**
  * Every ask above, as one union — what a writer sends and what the planner
  * switches on.
  *
@@ -704,8 +948,16 @@ export const WriteRequest = Schema.Union([
   AfterRequest,
   WriteDocumentRequest,
   CreateDocumentRequest,
+  UpdateRequest,
+  ApplyRequest,
 ])
 export type WriteRequest = typeof WriteRequest.Type
+
+/** One op of a batch — {@link BATCHED} as a type, so the planner's fold names
+ *  what it is folding rather than re-narrowing the whole write union at every
+ *  step. It is a strict subset of {@link WriteRequest}, which is what makes the
+ *  fold able to call the one planner. */
+export type BatchedRequest = typeof ApplyRequest.Type["ops"][number]
 
 /** One node a capture brought into being. The id matters most when nobody
  *  chose it: a minted id is unguessable, and a caller that just wrote thirteen

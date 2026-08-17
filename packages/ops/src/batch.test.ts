@@ -1,0 +1,568 @@
+/**
+ * The three verbs that make one write out of several: an enriched capture,
+ * `apply` and `update`.
+ *
+ * A file of its own rather than three more blocks in {@link ./plan.test.ts},
+ * which is already three thousand lines of one op at a time — and because what
+ * is under test here is a different claim. That file asks what each op DECIDES;
+ * this one asks whether a run of them decides what the same ops decide one at a
+ * time, which is the whole promise of batching: identical refusals, identical
+ * records, one plan.
+ *
+ * Value in, value out, like its neighbour — the planner is pure, so the fold
+ * over it is too. What only holds against a real disk (one revision, a refused
+ * batch leaving the file untouched) is {@link ./ops.test.ts}'s.
+ */
+
+import {
+  BATCH_AT_MOST,
+  type BatchedRequest,
+  type Node,
+  type OpFailure,
+  type OutlineSet,
+  type RegularNode,
+  type WriteRequest as Request,
+} from "@olai/format"
+import { describe, expect, test } from "bun:test"
+import { Result } from "effect"
+
+import { readingOf, setOf, STAMP, steady } from "./fixtures.testlib.ts"
+import { plan, type Plan } from "./plan.ts"
+
+const KITCHEN = [
+  `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+  `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01"}`,
+  `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","todo":true}`,
+  `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","todo":true}`,
+  `{"id":"loose","ord":"a1","title":"a node with no children"}`,
+].join("\n")
+
+const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
+
+const planning = (set: OutlineSet, request: Request): Result.Result<Plan, OpFailure> =>
+  plan(readingOf(set), steady(), request)
+
+const planned = (set: OutlineSet, request: Request): Plan => {
+  const outcome = planning(set, request)
+  if (Result.isFailure(outcome)) {
+    throw new Error(
+      `expected \`${request.op}\` to plan, and it refused: ` +
+        `${outcome.failure._tag} — ${outcome.failure.message}`,
+    )
+  }
+  return outcome.success
+}
+
+const refused = (set: OutlineSet, request: Request): OpFailure => {
+  const outcome = planning(set, request)
+  if (Result.isSuccess(outcome)) {
+    throw new Error(`expected \`${request.op}\` to be refused, and it planned`)
+  }
+  return outcome.failure
+}
+
+const fileOf = (result: Plan, file: string): ReadonlyArray<Node> => {
+  const found = result.files.find((entry) => entry.file === file)
+  if (found === undefined) {
+    throw new Error(
+      `the plan does not write \`${file}\`; it writes ${
+        result.files.map((entry) => entry.file).join(", ") || "nothing"
+      }`,
+    )
+  }
+  return found.nodes
+}
+
+const record = (nodes: ReadonlyArray<Node>, id: string): RegularNode => {
+  const found = nodes.find((node) => node.id === id)
+  if (found === undefined) throw new Error(`no record \`${id}\` in the plan`)
+  return found as RegularNode
+}
+
+/** A batch, spelled once so the tests below read as the list of ops they are
+ *  about rather than as an envelope. */
+const batch = (...ops: ReadonlyArray<BatchedRequest>): Request => ({ op: "apply", ops })
+
+// ── a capture that arrives wired ───────────────────────────────────────
+
+describe("a capture carries its edges and its facts", () => {
+  test("a child waits on a sibling declared LATER in the same call", () => {
+    // The whole point of the second pass: `step-1` is named by `step-2` three
+    // lines before the request declares it, which is how a plan is written by
+    // anybody who thinks in order rather than in dependency order.
+    const result = planned(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "wire the lane",
+      children: [
+        { id: "step-2", title: "fit them", waitsOn: ["step-1"] },
+        { id: "step-1", title: "order them" },
+      ],
+    })
+    const nodes = fileOf(result, "house.olai")
+    expect(record(nodes, "step-2").after).toEqual(["step-1"])
+    expect(record(nodes, "step-1").after).toBeUndefined()
+    // And the answer names every node it made, so the caller need not search
+    // for the ids it did not choose.
+    expect(result.captured).toEqual([
+      { id: "n1", title: "wire the lane" },
+      { id: "step-2", title: "fit them" },
+      { id: "step-1", title: "order them" },
+    ])
+  })
+
+  test("edges may name nodes the set already holds, and `see` alongside", () => {
+    const result = planned(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "fit the worktop",
+      waitsOn: ["install"],
+      see: ["order"],
+    })
+    expect(record(fileOf(result, "house.olai"), "n1")).toMatchObject({
+      after: ["install"],
+      see: ["order"],
+    })
+  })
+
+  test("properties are written through the same writer `set_prop` reaches", () => {
+    const result = planned(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "lane",
+      // The empty value is the writer's own rule for absence, not a second one:
+      // a key holding nothing is a key the file does not carry.
+      props: { pr: "https://x/1", agent: "claude-opus", blank: "" },
+    })
+    expect(record(fileOf(result, "house.olai"), "n1").custom)
+      .toEqual({ pr: "https://x/1", agent: "claude-opus" })
+  })
+
+  test("a target named twice is named once", () => {
+    const result = planned(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "lane",
+      waitsOn: ["order", "order", "install"],
+    })
+    expect(record(fileOf(result, "house.olai"), "n1").after).toEqual(["order", "install"])
+  })
+
+  test("a `props` key spelled like a field is refused in `set_prop`'s words", () => {
+    const failure = refused(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "lane",
+      props: { done: "yesterday" },
+    })
+    // Word for word what `set_prop` says about the same key — the one sentence,
+    // reached through one function.
+    expect(failure.message).toBe(
+      refused(house(), { op: "prop", id: "order", key: "done", value: "yesterday" }).message,
+    )
+  })
+
+  test("an unknown target is refused with the closest id — the minted ones included", () => {
+    const stray = refused(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "lane",
+      waitsOn: ["instal"],
+    })
+    expect(stray._tag).toBe("NotFoundFailure")
+    expect(stray.message).toContain("`instal` is not a node in the loaded set")
+    expect(stray.message).toContain("install")
+
+    // …and a typo of a SIBLING this same call is minting is corrected to that
+    // sibling, which the set's own ids could never have offered.
+    const near = refused(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "lane",
+      children: [
+        { id: "measure-up", title: "measure up" },
+        { title: "cut", waitsOn: ["measure-ip"] },
+      ],
+    })
+    expect(near.message).toContain("measure-up")
+  })
+
+  test("a loop drawn entirely inside the capture is refused naming it", () => {
+    const failure = refused(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "lane",
+      children: [
+        { id: "a", title: "a", waitsOn: ["b"] },
+        { id: "b", title: "b", waitsOn: ["a"] },
+      ],
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("closes a loop")
+    expect(failure.message).toMatch(/`a` → `b` → `a`|`b` → `a` → `b`/)
+  })
+
+  test("a loop closing through the set is refused naming it, as `set_after` would", () => {
+    // `install` after `order` already; a capture that `order` waits on closes
+    // the ring through two nodes the set holds and one it is minting.
+    const wired = setOf({
+      "house.olai": KITCHEN.replace(
+        `"title":"install them","todo":true}`,
+        `"title":"install them","todo":true,"after":["order"]}`,
+      ),
+    })
+    const failure = refused(wired, {
+      op: "apply",
+      ops: [
+        { op: "add", parent: "kitchen", id: "worktop", title: "worktop", waitsOn: ["install"] },
+        { op: "after", id: "order", add: ["worktop"] },
+      ],
+    })
+    expect(failure.message).toContain("closes a loop")
+    expect(failure.message).toContain("`order` → `worktop` → `install` → `order`")
+  })
+
+  test("a seed carries them too — a new outline arrives wired", () => {
+    const result = planned(house(), {
+      op: "create",
+      file: "lane.olai",
+      seed: {
+        title: "lane",
+        props: { agent: "claude-opus" },
+        children: [
+          { id: "s2", title: "second", waitsOn: ["s1"] },
+          { id: "s1", title: "first" },
+        ],
+      },
+    })
+    const nodes = fileOf(result, "lane.olai")
+    expect(record(nodes, "n1").custom).toEqual({ agent: "claude-opus" })
+    expect(record(nodes, "s2").after).toEqual(["s1"])
+  })
+
+  test("a capture may arrive `doing` and blocked — the discovery, not the instruction", () => {
+    // `set_doing` refuses a node the set ALREADY says cannot start. There is no
+    // already about a node being born, and `set_after` on a started node is
+    // refused nowhere, so the pair written in one breath lands.
+    const result = planned(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "fit the worktop",
+      mark: "doing",
+      waitsOn: ["order"],
+    })
+    expect(record(fileOf(result, "house.olai"), "n1")).toMatchObject({
+      doing: true,
+      after: ["order"],
+    })
+  })
+})
+
+// ── apply ──────────────────────────────────────────────────────────────
+
+describe("apply", () => {
+  test("several ops become one plan, one file, one subject", () => {
+    const result = planned(
+      house(),
+      batch(
+        { op: "done", id: "order" },
+        { op: "prop", id: "install", key: "pr", value: "https://x/1" },
+        { op: "title", id: "loose", title: "renamed" },
+      ),
+    )
+    expect(result.files).toHaveLength(1)
+    const nodes = fileOf(result, "house.olai")
+    // Every op's work is in the ONE file the plan writes — the last plan to
+    // touch a path is that path, finished.
+    expect(record(nodes, "order").done).toBe(STAMP)
+    expect(record(nodes, "install").custom).toEqual({ pr: "https://x/1" })
+    expect(record(nodes, "loose").title).toBe("renamed")
+    expect(result.summary).toContain("apply: 3 ops")
+    expect(result.summary).toContain("done: order the cabinets")
+    // The answer names the LAST op's subject, which is the one the run ended on.
+    expect(result.id).toBe("loose")
+  })
+
+  test("a later op names a node an earlier one created", () => {
+    const result = planned(
+      house(),
+      batch(
+        { op: "add", parent: "kitchen", id: "worktop", title: "fit the worktop" },
+        { op: "after", id: "worktop", add: ["install"] },
+        { op: "prop", id: "worktop", key: "agent", value: "claude-opus" },
+      ),
+    )
+    expect(record(fileOf(result, "house.olai"), "worktop")).toMatchObject({
+      after: ["install"],
+      custom: { agent: "claude-opus" },
+    })
+    expect(result.captured).toEqual([{ id: "worktop", title: "fit the worktop" }])
+  })
+
+  test("a refusal anywhere aborts everything, naming the index and the kind", () => {
+    const failure = refused(
+      house(),
+      batch(
+        { op: "done", id: "order" },
+        { op: "done", id: "nowhere" },
+        { op: "done", id: "install" },
+      ),
+    )
+    expect(failure.message).toContain("`ops[1]` (`done`)")
+    expect(failure.message).toContain("nothing in this batch was written")
+    // The verb's own refusal is underneath it, and so is its KIND: a batch
+    // whose second op named a missing id is a `not-found`, not a `usage`.
+    expect(failure._tag).toBe("NotFoundFailure")
+    expect(failure.message).toContain("`nowhere` is not a node in the loaded set")
+    expect((failure as { named?: string }).named).toBe("nowhere")
+  })
+
+  test("the done-over-open-work gate refuses exactly as `set_done` would", () => {
+    const alone = refused(house(), { op: "done", id: "kitchen" })
+    const batched = refused(house(), batch({ op: "done", id: "kitchen" }))
+    expect(batched.message).toBe(`\`ops[0]\` (\`done\`) was refused, so nothing in ` +
+      `this batch was written: ${alone.message}`)
+    expect(alone.message).toContain("holds 2 unfinished tasks")
+  })
+
+  test("a batch that finishes the branch first may then mark it done", () => {
+    // The same gate, walked through legally: door one looks at the set as the
+    // ops before it left it, so the two children going done is what lets the
+    // parent go done in the same call.
+    const result = planned(
+      house(),
+      batch(
+        { op: "done", id: "order" },
+        { op: "done", id: "install" },
+        { op: "done", id: "kitchen" },
+      ),
+    )
+    expect(record(fileOf(result, "house.olai"), "kitchen").done).toBe(STAMP)
+  })
+
+  test("`set_doing` after `set_after` in one batch meets the same gate", () => {
+    const failure = refused(
+      house(),
+      batch(
+        { op: "after", id: "loose", add: ["order"] },
+        { op: "doing", id: "loose" },
+      ),
+    )
+    expect(failure.message).toContain("`ops[1]` (`doing`)")
+    expect(failure.message).toContain("comes after 1 unfinished task")
+  })
+
+  test("an empty list and an over-long one are both refused", () => {
+    expect(refused(house(), batch()).message).toContain("give at least one op")
+    const many = Array.from(
+      { length: BATCH_AT_MOST + 1 },
+      (): BatchedRequest => ({ op: "title", id: "loose", title: "x" }),
+    )
+    expect(refused(house(), batch(...many)).message)
+      .toContain(`at most ${BATCH_AT_MOST} ops`)
+  })
+
+  test("the nudges of every op ride one answer", () => {
+    // Door two, twice: two tasks arriving under a branch marked done.
+    const done = setOf({
+      "house.olai": KITCHEN.replace(
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel","done":"2026-08-01"}`,
+      ),
+    })
+    const result = planned(
+      done,
+      batch(
+        { op: "add", parent: "kitchen", title: "chase the fitter", mark: "todo" },
+        { op: "add", parent: "kitchen", title: "chase the joiner", mark: "todo" },
+      ),
+    )
+    // The first re-opens it; the second finds nothing left to re-open, so the
+    // sentence is said once rather than twice.
+    expect(result.nudge).toContain("`Kitchen remodel` was marked done")
+    expect(result.nudge?.match(/marked done over work/g)).toHaveLength(1)
+    expect(record(fileOf(result, "house.olai"), "kitchen").done).toBeUndefined()
+  })
+
+  test("an op after an archive is planned against the file the archive made", () => {
+    // `archive` mints an `Archive.olai` that the set has never held, so the
+    // reading the NEXT op is judged against carries a file the derivation was
+    // not built from. That is the one case the fold's patched view has to get
+    // right — and the proof is that the second op can name the node that has
+    // just moved into it.
+    const result = planned(
+      house(),
+      batch(
+        { op: "archive", id: "order" },
+        { op: "title", id: "order", title: "order the walnut cabinets" },
+      ),
+    )
+    expect(result.files.map((one) => one.file).sort()).toEqual([
+      "Archive.olai",
+      "house.olai",
+    ])
+    expect(record(fileOf(result, "Archive.olai"), "order").title)
+      .toBe("order the walnut cabinets")
+    expect(fileOf(result, "house.olai").some((one) => one.id === "order")).toBe(false)
+  })
+
+  test("a batch that touches two outlines plans both", () => {
+    const two = setOf({
+      "house.olai": KITCHEN,
+      "shed.olai": `{"id":"shed","ord":"a0","title":"Shed"}`,
+    })
+    const result = planned(
+      two,
+      batch(
+        { op: "title", id: "loose", title: "renamed" },
+        { op: "add", parent: "shed", title: "a rake" },
+      ),
+    )
+    expect(result.files.map((one) => one.file).sort()).toEqual(["house.olai", "shed.olai"])
+  })
+})
+
+// ── update ─────────────────────────────────────────────────────────────
+
+describe("update", () => {
+  test("several fields of one node, in one plan", () => {
+    const result = planned(house(), {
+      op: "update",
+      id: "order",
+      title: "order the cabinets #kitchen",
+      desc: "from the joiner",
+      date: "2026-08-20",
+      props: { pr: "https://x/1" },
+      mark: "done",
+    })
+    expect(record(fileOf(result, "house.olai"), "order")).toMatchObject({
+      title: "order the cabinets #kitchen",
+      desc: "from the joiner",
+      date: "2026-08-20",
+      custom: { pr: "https://x/1" },
+      done: STAMP,
+      changed: STAMP,
+    })
+    // The subject names the node as this call LEFT it, which is the new title.
+    expect(result.summary).toBe(
+      "update: order the cabinets #kitchen (title, note, date, `pr`, done)",
+    )
+    expect(result.title).toBe("order the cabinets #kitchen")
+  })
+
+  test("`null` removes the note, the date and one property", () => {
+    const rich = setOf({
+      "house.olai": KITCHEN.replace(
+        `{"id":"loose","ord":"a1","title":"a node with no children"}`,
+        `{"id":"loose","ord":"a1","title":"a node with no children","date":"2026-08-01",` +
+          `"desc":"a note","custom":{"pr":"https://x/1","agent":"claude-opus"}}`,
+      ),
+    })
+    const result = planned(rich, {
+      op: "update",
+      id: "loose",
+      desc: null,
+      date: null,
+      props: { pr: null },
+    })
+    const node = record(fileOf(result, "house.olai"), "loose")
+    expect(node.desc).toBeUndefined()
+    expect(node.date).toBeUndefined()
+    // MERGED, not replaced: the key nobody named is still there.
+    expect(node.custom).toEqual({ agent: "claude-opus" })
+  })
+
+  test("`after` REPLACES — what the list leaves out comes off", () => {
+    const wired = setOf({
+      "house.olai": KITCHEN.replace(
+        `"title":"install them","todo":true}`,
+        `"title":"install them","todo":true,"after":["order","demo"]}`,
+      ),
+    })
+    const result = planned(wired, { op: "update", id: "install", after: ["order"] })
+    expect(record(fileOf(result, "house.olai"), "install").after).toEqual(["order"])
+
+    const cleared = planned(wired, { op: "update", id: "install", after: [] })
+    expect(record(fileOf(cleared, "house.olai"), "install").after).toBeUndefined()
+  })
+
+  test("`after` carries `set_after`'s refusals — unknown, loop, and no-op", () => {
+    expect(refused(house(), { op: "update", id: "install", after: ["nowhere"] })._tag)
+      .toBe("NotFoundFailure")
+
+    const wired = setOf({
+      "house.olai": KITCHEN.replace(
+        `"title":"install them","todo":true}`,
+        `"title":"install them","todo":true,"after":["order"]}`,
+      ),
+    })
+    expect(refused(wired, { op: "update", id: "order", after: ["install"] }).message)
+      .toContain("`order` → `install` → `order`")
+    // A list identical to what is there changes nothing, and is turned away
+    // rather than written — `set_after`'s own no-op refusal, word for word.
+    expect(refused(wired, { op: "update", id: "install", after: ["order"] }).message)
+      .toBe(refused(wired, { op: "after", id: "install", add: ["order"] }).message)
+    // …and the emptiest no-op of all, `[]` over a node that has none, is the
+    // same verb saying there is nothing here to change.
+    expect(refused(house(), { op: "update", id: "install", after: [] }).message)
+      .toContain("at least one target to change on this node's `after`")
+  })
+
+  test("the mark is applied LAST, so an edge written beside it is already there", () => {
+    const failure = refused(house(), {
+      op: "update",
+      id: "loose",
+      mark: "doing",
+      after: ["order"],
+    })
+    expect(failure.message).toContain("comes after 1 unfinished task")
+    expect(failure.message).toContain("`order the cabinets`")
+    // And nothing about the field ORDER in the request changes that: the fold
+    // is fixed, not read off the JSON.
+    expect(
+      refused(house(), { op: "update", id: "loose", after: ["order"], mark: "doing" }).message,
+    ).toBe(failure.message)
+  })
+
+  test("`mark: null` takes off whatever mark is there, and refuses when none is", () => {
+    const result = planned(house(), { op: "update", id: "order", mark: null })
+    expect(record(fileOf(result, "house.olai"), "order").todo).toBeUndefined()
+    expect(result.summary).toBe("update: order the cabinets (un-todo)")
+
+    expect(refused(house(), { op: "update", id: "loose", mark: null }).message)
+      .toContain("carries no mark, so there is none to take off")
+  })
+
+  test("a shadowed property key is refused in `set_prop`'s own words, undressed", () => {
+    const failure = refused(house(), { op: "update", id: "order", props: { done: "x" } })
+    expect(failure.message).toBe(
+      refused(house(), { op: "prop", id: "order", key: "done", value: "x" }).message,
+    )
+    // No index: the caller wrote fields, not a list, so there is nothing to
+    // point at.
+    expect(failure.message).not.toContain("ops[")
+  })
+
+  test("an unknown id is answered before any field is read", () => {
+    const failure = refused(house(), { op: "update", id: "nowhere", title: "x" })
+    expect(failure._tag).toBe("NotFoundFailure")
+    expect(failure.message).toContain("`nowhere` is not a node in the loaded set")
+  })
+
+  test("a call with no field to write is refused", () => {
+    expect(refused(house(), { op: "update", id: "order" }).message)
+      .toContain("give at least one field to write")
+  })
+
+  test("the whole node is stamped once, not once per field", () => {
+    const result = planned(house(), {
+      op: "update",
+      id: "order",
+      title: "renamed",
+      desc: "a note",
+    })
+    // One `changed`, because the fold writes one record — and it is the same
+    // instant the planner's context minted for the whole call.
+    expect(record(fileOf(result, "house.olai"), "order").changed).toBe(STAMP)
+  })
+})

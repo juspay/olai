@@ -185,6 +185,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       "add_mirror",
       "add_node",
+      "apply",
       "archive_node",
       "commit",
       "create_document",
@@ -208,6 +209,7 @@ test("the tool list is reads and writes, and no file access at all", async () =>
       "set_todo",
       "split_node",
       "unarchive_node",
+      "update",
       "write_document",
     ])
 
@@ -777,7 +779,21 @@ test("both capture tools advertise children as a finite nested schema, no $ref",
       for (let level = 0; level < 3; level++) {
         at = nested(at)
         expect(Object.keys((at as { properties: object })?.properties ?? {}).sort())
-          .toEqual(["children", "date", "desc", "id", "mark", "title"])
+          .toEqual([
+            "children",
+            "date",
+            "desc",
+            "id",
+            "mark",
+            // The three `olai-batch-verbs` added: a captured node carries what
+            // it POINTS AT and what it KNOWS, at every level, so a subtree
+            // arrives with its edges and its facts rather than with thirteen
+            // calls behind it.
+            "props",
+            "see",
+            "title",
+            "waitsOn",
+          ])
       }
       // The floor: the field is still there — an Effect struct drops a key it
       // does not declare, and a capture that lost its deepest level quietly
@@ -1036,5 +1052,139 @@ test("set_after writes a dependency, and a loop is refused naming it", async () 
     expect(loop.isError).toBe(true)
     expect(loop.structured["kind"]).toBe("usage")
     expect(String(loop.structured["reason"])).toContain("`order` → `install` → `order`")
+  })
+})
+
+// ── the three batching verbs, through the client ───────────────────────
+
+/**
+ * What an agent actually receives for a batch: one answer, one revision, and —
+ * when a batch is refused — an `isError` naming which op it was.
+ *
+ * The ops layer's own tests prove the fold decides what the single verbs decide
+ * (`@olai/ops`' `batch.test.ts`). What is only true here is the SHAPE the agent
+ * sees: the adapter's schema bridge accepted a union inside an array, the
+ * discriminator each op carries survived the round trip, and the refusal arrives
+ * as structured detail rather than as prose to parse.
+ */
+test("`apply` runs a list of ops as one write, and names the op that refused", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read, refusals }) => {
+    const done = await call(client, "apply", {
+      ops: [
+        { op: "done", id: "order" },
+        { op: "prop", id: "install", key: "pr", value: "https://x/1" },
+        { op: "add", parent: "kitchen", id: "worktop", title: "fit the worktop" },
+        // An op naming what an op three lines above it created — the property
+        // the fold exists for.
+        { op: "after", id: "worktop", add: ["install"] },
+      ],
+    })
+    expect(done.isError).toBe(false)
+    expect(done.structured["did"]).toBe("apply")
+    expect(String(done.structured["summary"])).toContain("apply: 4 ops")
+    // One revision for the whole run: the load is 1, so this is 2.
+    expect(done.structured["rev"]).toBe(2)
+    expect(done.structured["captured"]).toEqual([{ id: "worktop", title: "fit the worktop" }])
+
+    const text = read("house.olai") ?? ""
+    expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
+    expect(text).toContain(`"custom":{"pr":"https://x/1"}`)
+    expect(text).toContain(`"after":["install"]`)
+
+    // And a batch that cannot finish finishes nothing.
+    const before = read("house.olai")
+    const stopped = await call(client, "apply", {
+      ops: [
+        { op: "title", id: "order", title: "renamed" },
+        { op: "done", id: "nowhere" },
+      ],
+    })
+    expect(stopped.isError).toBe(true)
+    expect(stopped.structured["kind"] as FailureKind).toBe("not-found")
+    expect(String(stopped.structured["reason"])).toContain("`ops[1]` (`done`)")
+    expect(stopped.structured["named"]).toBe("nowhere")
+    expect(read("house.olai")).toBe(before)
+    expect(refusals).toEqual(["apply: NotFoundFailure"])
+  })
+})
+
+test("`update` writes several fields of one node, and the mark goes last", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
+    const written = await call(client, "update", {
+      id: "order",
+      title: "order the cabinets #kitchen",
+      desc: "from the joiner",
+      props: { pr: "https://x/1", agent: "claude-opus" },
+      mark: "done",
+    })
+    expect(written.isError).toBe(false)
+    expect(written.structured["title"]).toBe("order the cabinets #kitchen")
+    expect(String(written.structured["summary"]))
+      .toBe("update: order the cabinets #kitchen (title, note, `pr`, `agent`, done)")
+    expect(written.structured["rev"]).toBe(2)
+
+    const text = read("house.olai") ?? ""
+    expect(text).toContain(`"custom":{"agent":"claude-opus","pr":"https://x/1"}`)
+    expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
+
+    // The properties MERGE: a second call naming one key leaves the other
+    // standing, and `null` takes one off.
+    const merged = await call(client, "update", { id: "order", props: { pr: null } })
+    expect(merged.isError).toBe(false)
+    expect(read("house.olai")).toContain(`"custom":{"agent":"claude-opus"}`)
+
+    // The mark is applied after the edge, so this pair is refused — `install`
+    // is `doing`, which is unfinished work standing in the way.
+    const blocked = await call(client, "update", {
+      id: "kitchen",
+      mark: "doing",
+      after: ["install"],
+    })
+    expect(blocked.isError).toBe(true)
+    expect(blocked.structured["kind"] as FailureKind).toBe("usage")
+    expect(String(blocked.structured["reason"])).toContain("it cannot start yet")
+    // Neither half landed: `kitchen` has no edge and no mark.
+    expect(read("house.olai")).not.toContain(`"after":["install"]`)
+  })
+})
+
+test("a capture arrives with its edges and its properties, forward references included", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
+    const captured = await call(client, "add_node", {
+      parent: "kitchen",
+      title: "worktop",
+      props: { agent: "claude-opus" },
+      children: [
+        { id: "cut", title: "cut it", waitsOn: ["measure"], see: ["order"] },
+        { id: "measure", title: "measure up" },
+      ],
+    })
+    expect(captured.isError).toBe(false)
+    expect(captured.structured["rev"]).toBe(2)
+    const text = read("house.olai") ?? ""
+    expect(text).toContain(`"after":["measure"]`)
+    expect(text).toContain(`"see":["order"]`)
+    expect(text).toContain(`"custom":{"agent":"claude-opus"}`)
+
+    // The refusals are the edge verbs' own, met at capture time.
+    const loop = await call(client, "add_node", {
+      parent: "kitchen",
+      title: "ring",
+      children: [
+        { id: "x", title: "x", waitsOn: ["y"] },
+        { id: "y", title: "y", waitsOn: ["x"] },
+      ],
+    })
+    expect(loop.isError).toBe(true)
+    expect(String(loop.structured["reason"])).toContain("closes a loop")
+
+    const shadowed = await call(client, "add_node", {
+      parent: "kitchen",
+      title: "shadow",
+      props: { done: "yesterday" },
+    })
+    expect(shadowed.isError).toBe(true)
+    expect(String(shadowed.structured["reason"]))
+      .toContain("a node already says `done` with a field of its own")
   })
 })

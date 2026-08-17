@@ -79,11 +79,25 @@ export type { Previous } from "./validate.ts"
 
 export { assemble, BrokenFile, nodesIn, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
-/** What a delta says: files upserted, files gone — Surface's own
- *  collection-delta frame, which is the vocabulary "what changed" already
- *  travels this system in. `patch` itself is not exported: applying one is
- *  `validate`'s business until the browser joins in, and a second caller of it
- *  would be a second view free to disagree with the validated one. */
+/**
+ * What a delta says: files upserted, files gone — Surface's own
+ * collection-delta frame, which is the vocabulary "what changed" already
+ * travels this system in.
+ *
+ * `patch` rode below this line for as long as the only view anybody held was a
+ * VALIDATED one: applying a delta was `validate`'s business, and a second
+ * caller of it would have been a second view free to disagree with the one the
+ * rules were run over. What crossed the line is a caller that holds no view at
+ * all — `@olai/ops`' batch fold, which plans op two against the set op one
+ * would leave and then throws that set away. It is speculative by construction:
+ * nothing draws it, nothing is published at it, and the only set that reaches
+ * disk is validated by the gate exactly once, as every write is. The rule the
+ * old sentence was protecting is intact — one VALIDATED view, from one
+ * validation — and the patcher is held to `derive` by this module's own
+ * property test either way, so what the export buys is a corpus-sized walk per
+ * op that nobody needed.
+ */
+export { patch } from "./patch.ts"
 export type { SetDelta } from "./patch.ts"
 /** WHICH files a served directory is made of — one table, the two suffixes the
  *  ops layer mints paths with, and every suffix as a list for the one reader that
@@ -330,7 +344,10 @@ export {
 export {
   AddRequest,
   AfterRequest,
+  ApplyRequest,
   ArchiveRequest,
+  BATCH_AT_MOST,
+  type BatchedRequest,
   type Capture,
   CreateDocumentRequest,
   CreateRequest,
@@ -348,6 +365,7 @@ export {
   TitleRequest,
   UnarchiveRequest,
   UnmirrorRequest,
+  UpdateRequest,
   WriteDocumentRequest,
   WriteRequest,
   WriteResult,
