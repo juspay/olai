@@ -52,6 +52,7 @@ import { Palette } from "./palette/Palette.tsx"
 import { createRouter, followed, RouterProvider } from "./router.tsx"
 import { filterOf, narrowable, narrowedTo, samePage } from "./routes.ts"
 import { runAsync } from "./run.ts"
+import { ServedProvider } from "./served.tsx"
 import { visible } from "./settings/done.ts"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
@@ -228,6 +229,12 @@ export default function App() {
       {/* Where a vault PATH opens, for the one surface handed one rather than an
           address: a link clicked inside a `.html` preview (./opens.tsx). */}
       <OpensProvider opens={(path, at) => opensAt(found(), path, at)}>
+      {/* What the directory HOLDS, by path — the sidebar's two key sets as one
+          list. It wraps the whole app for the chat panel's sake: the composer
+          completes a path into a message when somebody types `@`, and it is
+          five levels under here inside whichever chat shell this viewport
+          draws (`./served.tsx`). */}
+      <ServedProvider outlines={found().files} documents={found().documents}>
       <Connection readout={connectionReadout()} />
       <ChatPanel />
       <Palette
@@ -477,6 +484,7 @@ export default function App() {
           </Switch>
         </div>
       </div>
+      </ServedProvider>
       </OpensProvider>
       </DerivedProvider>
       </RouterProvider>

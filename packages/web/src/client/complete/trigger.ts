@@ -131,7 +131,13 @@ export interface Written {
  */
 export const written = (
   text: string,
-  trigger: Trigger,
+  /** WHERE THE SPAN STARTS, which is all this needs of a trigger — a
+   *  {@link Trigger} satisfies it, and so does the chat composer's own
+   *  ({@link ../chat/completion.ts}), which completes a file path into a
+   *  message through this same function. Taking the narrower thing is what
+   *  lets the second caller reuse the rule rather than respell it, and there
+   *  is only one arithmetic here worth having two copies of. */
+  trigger: { readonly from: number },
   insert: string,
   caret: number,
 ): Written => {

@@ -914,8 +914,16 @@ export const TESTID = {
   /** The button that opens the WHOLE command list. Drawn only when the agent
    *  offers commands. */
   chatCommands: "chat-commands",
-  chatSlashMenu: "chat-slash-menu",
-  chatSlashCommand: "chat-slash-command",
+  /** The shortlist over the message box: the agent's commands under a `/`, the
+   *  served directory's files under an `@`. `data-kind` says which of the two
+   *  — `command` or `path` — so a scenario names the list rather than guessing
+   *  from what is in it. Absent whenever nothing is armed, which includes a
+   *  trigger whose query matches nothing at all. */
+  chatCompletion: "chat-completion",
+  /** One row of it. `data-value` is the command's name or the file's path —
+   *  what taking the row is about, and what it writes into the message;
+   *  `data-active` is which one Enter would take. */
+  chatCompletionRow: "chat-completion-row",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]
