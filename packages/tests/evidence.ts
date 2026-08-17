@@ -294,6 +294,9 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
         // `2026-13` sorts between December and January and so reads as a
         // window rather than as nonsense.
         ["date:2026-13", "a date no calendar could hold"],
+        // A relative word the vocabulary does not hold, held to the same
+        // contract: the twelve are named rather than the text searched for.
+        ["date:tomorrowish", "a relative word the grammar does not know"],
         // Matched folded, quoted as typed: telling somebody who wrote
         // `is:BLOCKED` that they wrote `is:blocked` is the refusal misquoting
         // the reader.

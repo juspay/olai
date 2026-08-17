@@ -305,23 +305,20 @@ test("a relative word composes with a range at either end", () => {
 test("a relative word the grammar does not know is refused, and names them all", () => {
   const refused = refusalsOf("date:tomorrowish")
   expect(refused?.map((one) => one.token)).toEqual(["date:tomorrowish"])
-  for (
-    const word of [
-      "today",
-      "yesterday",
-      "tomorrow",
-      "this-week",
-      "last-week",
-      "next-week",
-      "this-month",
-      "last-month",
-      "next-month",
-      "this-year",
-      "last-year",
-      "next-year",
-    ]
-  ) {
-    expect(refused?.[0]?.reason).toContain(word)
+  // In full, generatively: the three day words, and the two lists the other
+  // nine are the product of — so any of the twelve can be written off the
+  // sentence, without a line nobody reads to the end.
+  expect(refused?.[0]?.reason).toContain("today, yesterday, tomorrow")
+  expect(refused?.[0]?.reason).toContain("this- / last- / next- with week, month, year")
+  // ...and the words it teaches are the words it takes. Read off the same
+  // sentence, so a table that grew a value nobody taught fails here.
+  for (const word of ["today", "yesterday", "tomorrow"]) {
+    expect(relativeSpan(word, TODAY)).not.toBeNull()
+  }
+  for (const step of ["this", "last", "next"]) {
+    for (const unit of ["week", "month", "year"]) {
+      expect(relativeSpan(`${step}-${unit}`, TODAY)).not.toBeNull()
+    }
   }
   expect(selects("date:tomorrowish")).toEqual([])
   // Quoted as typed, like every other refusal.

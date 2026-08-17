@@ -42,7 +42,7 @@ import {
   titleParts,
 } from "./derive.ts"
 import { customOf } from "./custom.ts"
-import { isRealDay, shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
+import { shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
 import { datesOf, dayOf, monthOf } from "./dates.ts"
 import { nothing } from "./write.ts"
 import {
@@ -359,7 +359,7 @@ const teaching = (name: Operator, value: string): string => {
       return `has: takes one of ${HAS_FIELDS.join(", ")}`
     case "date":
       return "date: takes a day, month or year (2026-08-10, 2026-08, 2026), " +
-        `a relative word (${RELATIVE_WORDS.join(", ")}), ` +
+        `a relative word (${RELATIVE_TEACHING}), ` +
         "or a range of either (2026-08-01..2026-08-14, ..2026-08-10, last-week..)"
     case "prop":
       // The one operator whose values are not a list this file holds — any key
@@ -392,19 +392,31 @@ const RELATIVE_DAYS = { today: 0, yesterday: -1, tomorrow: 1 } as const
 const RELATIVE_UNITS = ["week", "month", "year"] as const
 type RelativeUnit = (typeof RELATIVE_UNITS)[number]
 
+/** Is the word after the prefix one of them? A type guard, {@link isOperator}'s
+ *  shape, so the switch below is one the compiler checks. */
+const isUnit = (name: string): name is RelativeUnit =>
+  (RELATIVE_UNITS as ReadonlyArray<string>).includes(name)
+
 /** How far each prefix steps, in whole units of whatever it is prefixing. */
 const RELATIVE_STEPS = { this: 0, last: -1, next: 1 } as const
 
-/** Every relative word, in the order they are taught: the three day words,
- *  then each unit's three. Built from the tables above rather than listed a
- *  second time, so a word added to one of them teaches itself in the refusal
- *  ({@link teaching}) exactly as an `is:` value does. */
-const RELATIVE_WORDS: ReadonlyArray<string> = [
-  ...Object.keys(RELATIVE_DAYS),
-  ...RELATIVE_UNITS.flatMap((unit) =>
-    Object.keys(RELATIVE_STEPS).map((step) => `${step}-${unit}`)
-  ),
-]
+/**
+ * The vocabulary as a refusal says it: the day words listed, and the other
+ * nine as the two lists they are the product of.
+ *
+ * IN FULL, which is this file's rule for what a refusal teaches — nothing is
+ * elided, and a reader can write any of the twelve off this sentence. It is
+ * generative rather than enumerated because that is what the words ARE: three
+ * prefixes over three units, and spelling out nine of them makes a line
+ * nobody reads to the end out of one somebody can. `prop:` teaches its shape
+ * for the same reason.
+ *
+ * Built from the tables above rather than written beside them, so a prefix or
+ * a unit added to one teaches itself exactly as an `is:` value does.
+ */
+const RELATIVE_TEACHING = `${Object.keys(RELATIVE_DAYS).join(", ")}, or ${
+  Object.keys(RELATIVE_STEPS).map((step) => `${step}-`).join(" / ")
+} with ${RELATIVE_UNITS.join(", ")}`
 
 /** An inclusive span of days, both ends spelled out. What every `date:` value
  *  — absolute or relative — is read into before it becomes a clause. */
@@ -441,7 +453,12 @@ interface Span {
  * this grammar answering a date question out of thin air.
  */
 export const relativeSpan = (word: string, today: string): Span | null => {
-  if (!isRealDay(today)) return null
+  // Which weekday the reader is standing on — and, since it is `null` for text
+  // that names no day, whether there is a day to count from at all. One
+  // question, because a second validity check here would be a second answer to
+  // what a day is.
+  const standing = weekdayOf(today)
+  if (standing === null) return null
 
   const near = RELATIVE_DAYS[word as keyof typeof RELATIVE_DAYS]
   if (near !== undefined) {
@@ -459,7 +476,7 @@ export const relativeSpan = (word: string, today: string): Span | null => {
 
   if (unit === "week") {
     // Back to this week's Monday, then a whole number of weeks from there.
-    const monday = shiftDay(today, -weekdayOf(today)! + step * 7)
+    const monday = shiftDay(today, step * 7 - standing)
     return { from: monday, to: shiftDay(monday, 6) }
   }
   const whole = unit === "month"

@@ -104,7 +104,12 @@ const answerOf = (
  */
 const CALLS: Record<string, ReadonlyArray<unknown>> = {
   list_outlines: [{}],
-  search_nodes: [{ text: "hall" }, { text: "is:blocked" }, { text: "" }],
+  search_nodes: [
+    { text: "hall" },
+    { text: "is:blocked" },
+    { text: "" },
+    { text: "date:today" },
+  ],
   read_node: [{ id: "house" }, { id: "paint" }, { id: "shed" }],
   read_subtree: [{ id: "house", depth: 1 }, { id: "house" }, { id: "shed" }],
 }
@@ -176,6 +181,13 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   // A query the grammar could not read carries the reason rather than an
   // empty list with nothing to say.
   expect(searches[1]?.["refusals"]).toBeArrayOfSize(1)
+  // And a relative word is counted from THIS LAYER'S CLOCK — the one a `done`
+  // is stamped with, which is what the door hands the grammar. `paint` was
+  // finished at the fixture clock's own instant, so `date:today` finds it; a
+  // door that passed the instant instead of the day it falls on would refuse
+  // the query, and a door that read a second clock would answer with nothing.
+  expect(searches[3]?.["hits"]).toMatchObject([{ id: "paint" }])
+  expect(searches[3]).not.toHaveProperty("refusals")
 
   const [house, paint, gone] = of("read_node")
   expect(house).toMatchObject({

@@ -103,11 +103,14 @@ Feature: Filtering the outline in place
     When I filter the page by "date:..today"
     Then the node "order" is a match
     And the node "demo" is a match
-    And the filter found "2 of 10"
+    # Three, not two: the herb bed is mirrored into this outline, and the row
+    # showing `basil` (sown in July) is a match wherever it is drawn — the same
+    # rule every other filter here follows.
+    And the filter found "3 of 10"
     # A relative word at the other end of a range, and nothing here is
     # scheduled beyond today.
     When I filter the page by "date:tomorrow.."
-    Then the filter found "0 of 10"
+    Then the filter found "no matches"
 
   Scenario: A word the relative vocabulary does not hold is refused
     # The same contract every unknown value is held to: `date:tomorrowish` is
