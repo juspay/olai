@@ -102,8 +102,10 @@ export type AgentEvent =
      * frame, which arrives when the agent is sent out.
      *
      * `undefined` is "unchanged" like everything beside it, and it is load
-     * bearing here: the beats that follow a spawn carry the agent's KIND
-     * without repeating that it is one, and its completion carries neither.
+     * bearing here: most of what follows a spawn — its heartbeats, its
+     * completion — says nothing about being one, and a row that read that
+     * silence as "not a spawn now" would lose the face at the moment the
+     * agent came back.
      */
     readonly spawned: Spawned | undefined
   }

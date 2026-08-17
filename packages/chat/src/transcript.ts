@@ -266,11 +266,12 @@ export class Transcript {
     const parent = move.parent === undefined ? current?.parent : toolKey(move.parent)
     // ... and what this call STARTED, which is the one field here that is
     // sticky a level DOWN as well as at the top. The fact arrives split across
-    // frames — the spawn says it is one and carries the arguments the agent
-    // was sent with, the beats that follow name the agent's kind and say
-    // nothing about being a spawn, the completion says neither — so a report
-    // that answered about the spawn without naming a kind would take back a
-    // kind an earlier frame already gave.
+    // frames because the ARGUMENTS DO: the adapter announces the call as the
+    // tool use starts, refines it once they have finished parsing, and sends a
+    // frame with no `rawInput` at all when the input would not serialize.
+    // Every one of those is honestly a spawn and some of them honestly name no
+    // kind — so a later report that said only "this is a spawn" would take
+    // back a kind an earlier frame already gave.
     //
     // A SPREAD, so the rule is the same one word deeper rather than a second
     // rule: an absent field is "unchanged" inside this object exactly as an

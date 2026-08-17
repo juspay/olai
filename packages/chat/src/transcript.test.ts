@@ -160,11 +160,12 @@ describe("tool calls", () => {
 
   test("a call that spawned an agent goes on having spawned one", () => {
     // The other end of the same rule, and it is sticky a level DOWN as well.
-    // The fact arrives split across frames: the spawn says it IS one and
-    // carries the arguments, the beats that follow name the kind and say
-    // nothing about being a spawn, the completion says neither. A row that
-    // took the last word literally would stop being a spawn — or keep being
-    // one with the kind of agent taken back off it.
+    // The fact arrives split across frames because the ARGUMENTS do: the call
+    // is announced as the tool use starts, refined once they have parsed, and
+    // sent with no arguments at all when the input would not serialize — and
+    // its completion says nothing about being a spawn either. A row that took
+    // the last word literally would stop being a spawn, or keep being one with
+    // the kind of agent taken back off it.
     const transcript = new Transcript()
     transcript.tool("toolu_01AGENT", {
       title: "explore the outline",

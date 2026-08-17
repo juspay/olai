@@ -130,7 +130,7 @@ None of this is anything you turn on, and there is nothing to fold: a turn that 
 
 ### An agent that has not reported back yet
 
-**A rail drops out of the call that sent an agent out, at the moment it sends one**, and it says the agent is starting — before the agent has done anything at all:
+**A rail drops out of the call that sent an agent out, at the moment it sends one**, and it says the agent is working — which is already true before it has done anything you can see:
 
 ```
 · read every note                        ↳ Explore
