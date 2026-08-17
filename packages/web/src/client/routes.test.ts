@@ -33,6 +33,10 @@ const ROUTES: ReadonlyArray<Route> = [
   { kind: "outline", file: null, filter: "#home -is:done" },
   { kind: "node", id: "kitchen", filter: "date:2026-08-01..2026-08-14" },
   { kind: "node", id: "kitchen", filter: "a query with  spaces & an ampersand" },
+  // A quoted phrase is the query that puts a `"` — and the spaces it exists to
+  // keep — into the address. A narrowed page is a link somebody sends, so the
+  // quotes have to survive the trip both ways.
+  { kind: "outline", file: "house.olai", filter: `"pick the hinges" OR knobs` },
   // …and a document at a place INSIDE it, which is the other thing an address
   // here carries. A `#` that could not be read back is a link into a section
   // that lands at the top of the page the moment it is reloaded or shared.

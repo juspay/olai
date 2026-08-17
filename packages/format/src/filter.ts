@@ -548,10 +548,13 @@ const alternativeOf = (
  * The lazier half is {@link matchOf}'s: a group that holds no word never asks
  * for a haystack, so a query of operators alone still folds nothing.
  */
-const inCostOrder = (groups: ReadonlyArray<Group>): ReadonlyArray<Group> => [
-  ...groups.filter((group) => group.every((one) => one.kind === "clause")),
-  ...groups.filter((group) => group.some((one) => one.kind === "term")),
-]
+const inCostOrder = (groups: ReadonlyArray<Group>): ReadonlyArray<Group> => {
+  // The second list is the COMPLEMENT of the first rather than its own test, so
+  // every group lands in exactly one of them by construction — which is what
+  // makes this a reordering rather than a filter that could quietly drop one.
+  const wordless = (group: Group) => group.every((one) => one.kind === "clause")
+  return [...groups.filter(wordless), ...groups.filter((group) => !wordless(group))]
+}
 
 /**
  * The value an operator takes, read — or `null` for one it does not.
@@ -1029,16 +1032,21 @@ const matchOf = (
  */
 const propsOf = (node: RegularNode, filter: Extract<Filter, { kind: "asking" }>) => {
   const keys: Array<string> = []
-  for (const one of filter.groups.flat()) {
-    if (one.kind !== "clause" || one.negated || one.clause.kind !== "prop") continue
-    // ASKED AGAIN rather than remembered from the gate, which is what makes an
-    // alternative honest: a node in a group like `prop:pr OR cabinets` may be
-    // here on the word alone, and naming a key it does not carry would be the
-    // row drawing a lie. `null` says so.
-    const key = propKeyOf(node, one.clause)
-    // Reported once however many clauses name it: `prop:pr prop:pr=x` is one
-    // key the reader would see twice.
-    if (key !== null && !keys.includes(key)) keys.push(key)
+  // The groups walked NESTED rather than flattened: this runs for every node a
+  // query selects, and `flat()` would allocate an array per hit — including for
+  // the queries that name no property at all, which are nearly all of them.
+  for (const group of filter.groups) {
+    for (const one of group) {
+      if (one.kind !== "clause" || one.negated || one.clause.kind !== "prop") continue
+      // ASKED AGAIN rather than remembered from the gate, which is what makes
+      // an alternative honest: a node in a group like `prop:pr OR cabinets` may
+      // be here on the word alone, and naming a key it does not carry would be
+      // the row drawing a lie. `null` says so.
+      const key = propKeyOf(node, one.clause)
+      // Reported once however many clauses name it: `prop:pr prop:pr=x` is one
+      // key the reader would see twice.
+      if (key !== null && !keys.includes(key)) keys.push(key)
+    }
   }
   return keys
 }
