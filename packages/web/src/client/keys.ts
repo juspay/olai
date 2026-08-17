@@ -36,7 +36,13 @@
  * unit-testable with no window: pass `platform` to pin Apple vs not.
  */
 
-export type KeyAction = "palette" | "sidebar" | "chat" | "undo" | "redo"
+export type KeyAction =
+  | "palette"
+  | "sidebar"
+  | "chat"
+  | "undo"
+  | "redo"
+  | "closePane"
 
 export interface KeyMatch {
   readonly action: KeyAction
@@ -93,6 +99,11 @@ export const CHORDS: ReadonlyArray<
   { key: "j", action: "chat", whileEditing: false },
   { key: "z", action: "undo", whileEditing: false },
   { key: "z", action: "redo", whileEditing: false, shift: true },
+  // The browser owns bare ⌘W / Ctrl+W (close the tab). This is the
+  // equivalent we can actually receive: the same letter, with Shift, so
+  // a pane is not a tab. The close button and the palette row are the
+  // pointer faces of the same verb.
+  { key: "w", action: "closePane", whileEditing: true, shift: true },
 ]
 
 /**
@@ -402,6 +413,21 @@ const halves = (at: Caret): boolean =>
  */
 export type ListAction = "next" | "prev" | "take" | "dismiss"
 
+/**
+ * Focus among panes. Alt+Left / Alt+Right, and nothing else — Alt+Shift
+ * is already the row's move, so a shifted arrow is not a focus step.
+ */
+export type PaneAction = "focusLeft" | "focusRight"
+
+export const paneKey = (event: KeyboardEvent): PaneAction | null => {
+  if (!event.altKey || event.shiftKey || event.ctrlKey || event.metaKey) {
+    return null
+  }
+  if (event.key === "ArrowLeft") return "focusLeft"
+  if (event.key === "ArrowRight") return "focusRight"
+  return null
+}
+
 export const listKey = (event: KeyboardEvent): ListAction | null => {
   if (event.key === "Escape") return "dismiss"
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return null
@@ -448,6 +474,15 @@ export const SHORTCUTS: ReadonlyArray<{
       { keys: "⌘J / Ctrl+J", what: "show or hide the agent" },
       { keys: "⌘Z / Ctrl+Z", what: "take back your last edit on this outline" },
       { keys: "⌘⇧Z / Ctrl+⇧Z", what: "put it back" },
+      { keys: "⌘⇧W / Ctrl+⇧W", what: "close the focused pane" },
+    ],
+  },
+  {
+    group: "Among panes",
+    keys: [
+      { keys: "Alt+← / Alt+→", what: "move focus to the pane on that side" },
+      { keys: "Alt+click", what: "open a link in the pane to the right" },
+      { keys: "Alt+Shift+click", what: "open it in a new pane to the right" },
     ],
   },
   {

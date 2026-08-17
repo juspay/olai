@@ -8,6 +8,7 @@ import {
   type ListAction,
   listKey,
   matchKey,
+  paneKey,
   selectKey,
   SHORTCUTS,
 } from "./keys.ts"
@@ -319,6 +320,13 @@ test("every editing key is written down for a person", () => {
 test("the reference names the same chords the matcher answers", () => {
   const anywhere = SHORTCUTS.find((group) => group.group === "Anywhere")
   expect(anywhere?.keys.length).toBe(CHORDS.length)
+})
+
+test("Alt+Left and Alt+Right move pane focus, and Shift keeps them the row's", () => {
+  expect(paneKey(key("ArrowLeft", { alt: true }))).toBe("focusLeft")
+  expect(paneKey(key("ArrowRight", { alt: true }))).toBe("focusRight")
+  expect(paneKey(key("ArrowLeft", { alt: true, shift: true }))).toBeNull()
+  expect(paneKey(key("ArrowLeft"))).toBeNull()
 })
 
 // ── the list layer ─────────────────────────────────────────────────────

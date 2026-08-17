@@ -107,6 +107,7 @@ import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-
 import { SaidLine } from "../edit/SaidLine.tsx"
 import type { Said } from "../edit/undoing.ts"
 import { useOpens } from "../opens.tsx"
+import { usePane } from "../pane/context.tsx"
 import { useRouter } from "../router.tsx"
 import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
@@ -287,6 +288,12 @@ export function Hypertext(props: { readonly file: string }) {
   // reason the effect below gives.
   const [landedAt, setLandedAt] = createSignal<number>()
   const router = useRouter()
+  const pane = usePane()
+  const here = () => pane?.index ?? router.workspace().focus
+  const landingAt = () => {
+    const land = router.landing()
+    return land !== undefined && land.index === here() ? land.at : undefined
+  }
   const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
 
@@ -367,7 +374,7 @@ export function Hypertext(props: { readonly file: string }) {
     //
     // AFTER the query, because that is the order an address has — the visit
     // counter belongs to this URL and the fragment to the document it names.
-    point(`${mediaHref(props.file)}?${VISIT}=${visits}${landing(router.landing())}`)
+    point(`${mediaHref(props.file)}?${VISIT}=${visits}${landing(landingAt())}`)
   }
 
   /**
@@ -453,7 +460,8 @@ export function Hypertext(props: { readonly file: string }) {
     const route = opens(named, at)
     if (route === undefined) return setRefused(REFUSED)
     if (fileNamed(route) === props.file) return
-    router.go(route)
+    if (pane === undefined) router.go(route)
+    else router.goIn(pane.index, route)
   }
 
   /** Put the file back, or — once the budget is out — nothing at all. */
@@ -583,7 +591,7 @@ export function Hypertext(props: { readonly file: string }) {
     // Tracked, not read: the frame's height is what makes the arithmetic below
     // land where the reader will be looking.
     measured()
-    if (top === undefined || router.landing() === undefined || frame === undefined) return
+    if (top === undefined || landingAt() === undefined || frame === undefined) return
     const box = frame
     const painted = requestAnimationFrame(() => {
       box.scrollIntoView({ block: "start" })
@@ -637,7 +645,7 @@ export function Hypertext(props: { readonly file: string }) {
   // stopped being true the cost is one re-pointing at the file already shown,
   // which is what a walk-off already does and what the budget above bounds.
   createEffect(
-    on(() => [rev(), router.landing()], () => {
+    on(() => [rev(), landingAt()], () => {
       walkOffs = 0
       show()
     }, { defer: true }),

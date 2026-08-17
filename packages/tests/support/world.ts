@@ -275,6 +275,13 @@ export const FILTER_CLEAR = selector(TESTID.filterClear);
  *  scenario asserts on the WORDS: a query that quietly found nothing is what
  *  this line exists to make impossible. */
 export const FILTER_REFUSAL = selector(TESTID.filterRefusal);
+export const PANE = selector(TESTID.pane);
+export const PANE_RAIL = selector(TESTID.paneRail);
+export const PANE_HEADER = selector(TESTID.paneHeader);
+export const PANE_CLOSE = selector(TESTID.paneClose);
+export const PANE_RESIZE = selector(TESTID.paneResize);
+export const PANE_TABS = selector(TESTID.paneTabs);
+export const PANE_TAB = selector(TESTID.paneTab);
 /** The same refusal on the two doors that ask the SERVER for it — the ⌘K
  *  palette and the header box. One name, because it is one sentence about one
  *  grammar; where each door draws it is that door’s own business. */

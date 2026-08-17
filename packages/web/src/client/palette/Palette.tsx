@@ -84,7 +84,8 @@ import { Result, type RowTestids } from "../search/Result.tsx"
 import { paletteOpen, setPaletteOpen } from "./open.ts"
 import { type Said, useUndo } from "../edit/undoing.ts"
 import { applied, applying } from "../writes.ts"
-import { isEditingTarget, listKey, matchKey } from "../keys.ts"
+import { isEditingTarget, listKey, matchKey, paneKey } from "../keys.ts"
+import { useRouter } from "../router.tsx"
 import { Shortcuts } from "./Shortcuts.tsx"
 
 /**
@@ -138,6 +139,7 @@ export function Palette(props: {
   // handed down as two props — same object, one access path.
   const undo = useUndo()
   const derived = useDerived()
+  const router = useRouter()
   const [keys, setKeys] = createSignal(false)
   const [query, setQuery] = createSignal("")
   // WHICH row Enter takes, and the arrows that walk it — the one cursor every
@@ -318,6 +320,7 @@ export function Palette(props: {
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
     else if (action.kind === "toggle-chat") toggleChat()
     else if (action.kind === "reset-widths") resetPanelWidths()
+    else if (action.kind === "close-pane") router.close()
     close()
   }
 
@@ -509,6 +512,12 @@ export function Palette(props: {
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
+      const pane = paneKey(event)
+      if (pane !== null) {
+        event.preventDefault()
+        router.stepFocus(pane === "focusLeft" ? -1 : 1)
+        return
+      }
       const match = matchKey(event)
       if (match === null) {
         if (paletteOpen() && topmost() && event.key === "Escape") {
@@ -543,6 +552,7 @@ export function Palette(props: {
       // Escape keeps abandoning.
       if (match.action === "undo") undo.undo()
       if (match.action === "redo") undo.redo()
+      if (match.action === "closePane") router.close()
     }
     window.addEventListener("keydown", onKey)
     onCleanup(() => window.removeEventListener("keydown", onKey))

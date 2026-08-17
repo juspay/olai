@@ -705,6 +705,26 @@ export const TESTID = {
   /** A known operator with an unknown value, in the grammar's own words —
    *  never a query that quietly found nothing. */
   filterRefusal: "filter-refusal",
+
+  // ── split panes ──────────────────────────────────────────────────────
+  /** One pane of a split workspace. `data-pane` is its index, `data-focused`
+   *  whether it is the one keyboard and the palette act on, `data-href` the
+   *  route it is showing. A lone page is still a pane of one. */
+  pane: "pane",
+  /** The labelled rail a pane collapses to — present instead of the page,
+   *  never as well as. Click expands. */
+  paneRail: "pane-rail",
+  /** The thin bar above a pane when more than one is open: drag to reorder,
+   *  the close control, the label. Absent on a lone page. */
+  paneHeader: "pane-header",
+  /** Close this pane. Closing the second-to-last returns to a plain page. */
+  paneClose: "pane-close",
+  /** The drag divider between two expanded panes. */
+  paneResize: "pane-resize",
+  /** Narrow screens: the tab strip the pane list projects to. Same URL. */
+  paneTabs: "pane-tabs",
+  /** One tab of that strip. `data-pane` is which, `aria-current` the focused. */
+  paneTab: "pane-tab",
   /** The SAME refusal, on the two doors that ask the server for it — the ⌘K
    *  palette and the header box. One name for both, because it is one sentence
    *  about one grammar; where it is drawn is each door's own business. */
