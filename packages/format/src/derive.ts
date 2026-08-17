@@ -750,8 +750,8 @@ export const blockersOf = (
  * is a node with no entry — so the presence of a key IS the answer, with no
  * array minted to have its length read. That matters because the caller is
  * `filter.ts`'s `is:blocked`, which asks this of every node of the directory,
- * on every keystroke of the filter box, and whose negation (`-is:blocked`, what
- * can be started) is the form that touches nearly all of them.
+ * on every keystroke of the filter box — and whose negation is the form that
+ * touches nearly all of them, since almost nothing is waiting.
  */
 export const isBlocked = (derived: Derived, id: string): boolean =>
   derived.blocked.has(id)

@@ -101,6 +101,14 @@ describe("the edges a node carries", () => {
   test("`is:blocked` reaches an agent as the derivation the page draws", () => {
     expect(search(at(), { text: "is:blocked" }).hits.map((hit) => hit.id))
       .toEqual(["sticky"])
+    // And the negation through the same door. Named rather than enumerated:
+    // what the clause has to get right is that `sticky` LEAVES and `git` —
+    // unfinished work with nothing in its way, the blocker itself — stays. A
+    // list of every other node in the fixture would break for reasons that
+    // have nothing to do with blockedness.
+    const free = search(at(), { text: "-is:blocked" }).hits.map((hit) => hit.id)
+    expect(free).not.toContain("sticky")
+    expect(free).toContain("git")
   })
 })
 
