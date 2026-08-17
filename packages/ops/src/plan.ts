@@ -641,22 +641,37 @@ const planAdd = (
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
   const ord = ordFor(ords.success, id)
 
-  const built = captured(scope, into, request, { id, parent, ord, below: NESTING })
+  // ANCHORED: this capture's root carries a placement, so its own `after` names
+  // the sibling it lands after and is the caller's business rather than
+  // {@link misplacedAfter}'s. Every node below it is the other case.
+  const built = captured(scope, into, request, { id, parent, ord, below: NESTING }, true)
   if (Result.isFailure(built)) return Result.fail(built.failure)
   const minted = built.success
 
   // DOOR ONE, spelled in a capture: a tree that arrives already saying `done`
   // over a task it is bringing with it.
   //
-  // AFTER {@link emit}, and that order is load-bearing rather than incidental.
-  // The floor of the unrolled capture schema declares `children` as anything at
-  // all — deliberately, so the planner can refuse it by name (`@olai/format`'s
-  // `writing.ts`) — so a fourth level arrives typed `Capture` by a cast and
-  // checked by nothing. `emit` never touches it (it reads the length and
-  // refuses); a walk that ran first would be reading unvalidated JSON, where a
-  // `null` is a crash rather than an answer. Nothing has landed either way: a
-  // plan is returned whole or not at all, so "before anything is minted" was
-  // never what made a capture atomic.
+  // AFTER {@link emit}, and that order is a REQUIREMENT rather than a
+  // preference. The floor of the unrolled capture schema declares `children` as
+  // anything at all — deliberately, so the planner can refuse it by name
+  // (`@olai/format`'s `writing.ts`) — so a fourth level arrives typed `Capture`
+  // by a cast and checked by nothing. This walk reads `mark` off every
+  // descendant, so run first it would dereference that level, where a `null` is
+  // a crash rather than an answer; `emit` refuses the depth before it can.
+  // ({@link misplacedAfter} runs first and is the exception that shows the
+  // rule: it guards the entry instead, because what it teaches is worth
+  // hearing before anything else.)
+  //
+  // AFTER {@link wiring} is a different kind of decision and is one: nothing
+  // makes it necessary — wiring resolves edges and this reads marks, and
+  // neither can change the other's answer — so what the order fixes is which
+  // refusal a capture that trips BOTH gets. It gets wiring's. An unknown target
+  // or a loop is a fact about a name the caller typed, and can be corrected
+  // where it was typed; a `done` over open work is a judgement about the shape
+  // of the tree, and is the message worth arriving at second because acting on
+  // it means rewriting the capture. Nothing has landed either way: a plan is
+  // returned whole or not at all, so "before anything is minted" was never what
+  // made a capture atomic.
   const contradicts = capturedOverOpenWork(request)
   if (contradicts !== undefined) return Result.fail(contradicts)
 
@@ -667,6 +682,11 @@ const planAdd = (
   // DOOR TWO: the door the 2026-08-16 incident actually walked through, and
   // the flow it matters most for — somebody writing down work that has just
   // come up, under a branch somebody else called finished last week.
+  //
+  // It asks the REQUEST rather than the records `wiring` just produced, and
+  // that stays correct for one reason worth pinning: what door two wants is
+  // whether the arriving tree holds an unfinished MARK, and wiring writes only
+  // `see` and `after`. The two record sets differ by edges alone.
   return Result.succeed(arriving(scope, { file, parent }, () => capturesOpenWork(request), {
     files: [
       { file, nodes: withOrds([...recordsOf(scope, file), ...minted], ords.success) },
@@ -989,9 +1009,68 @@ const captured = (
   into: Minting,
   capture: Capture,
   at: At & { readonly below: number },
+  /** Whether the ROOT of this capture has a placement anchor — true for
+   *  `add_node`, whose `after` at the top level names the sibling it lands
+   *  after, and false for a seed, whose file has no other rows to land among.
+   *  It decides one thing only: whether the root's own `after` is a word this
+   *  call means or {@link misplacedAfter}'s footgun. */
+  anchored: boolean,
 ): Result.Result<ReadonlyArray<RegularNode>, OpFailure> => {
+  const bent = misplacedAfter(capture, anchored, at.below)
+  if (bent !== undefined) return Result.fail(bent)
   const refused = emit(scope, into, capture, at)
   return refused !== null ? Result.fail(refused) : wiring(scope, into)
+}
+
+/**
+ * `after` written where it means nothing — the bend {@link Capture}'s `waitsOn`
+ * pays for, caught rather than dropped.
+ *
+ * A capture spells its ordering edges `waitsOn`, because at `add_node`'s top
+ * level `after` is the placement anchor. Below that level `after` is not a
+ * field at all, and an Effect struct DROPS a key it does not declare — so an
+ * agent that has read `set_after`, or that is looking at the anchor one line
+ * up, writes `after` on a child, loses the whole dependency and is told the
+ * capture succeeded. A silent half-write is the one outcome this layer refuses
+ * outright, so the schema declares the key ({@link Capture}'s `after`) purely
+ * to make it REFUSABLE, and this is where it is refused: by name, pointing at
+ * the word that works.
+ *
+ * WALKED FIRST, before anything is minted, for what it teaches: an agent that
+ * misspelled the edge field wants to hear THAT, not a refusal about an id it
+ * named somewhere else. Going first is what makes the DEPTH BOUND below part of
+ * this function rather than a nicety — the door-one walk can descend blindly
+ * because `emit` has already refused a fourth level by the time it runs, and
+ * this one cannot. Below {@link NESTING} the schema validated nothing
+ * ({@link ../../format/src/writing.ts}'s `childrenOf`, whose floor accepts an
+ * array of anything at all), so a node down there is raw JSON: its `children`
+ * may be a number, and `for…of` over a number throws where a refusal belongs.
+ * The walk therefore stops exactly where the schema stopped, and `emit` refuses
+ * the depth a moment later in its own words.
+ */
+const misplacedAfter = (
+  capture: Capture,
+  anchored: boolean,
+  /** How many further generations the SCHEMA vouched for. */
+  below: number,
+): OpFailure | undefined => {
+  if (!anchored && capture.after !== undefined) {
+    return new UsageFailure({
+      reason: `\`${capture.title}\` carries \`after\`, which is not what a captured node ` +
+        `says about its edges — write \`waitsOn\` instead, with the same ids. ` +
+        `\`after\` at the top of a capture names the SIBLING the node is placed ` +
+        `after, so a node further down has no use for the word and this one was ` +
+        `about to be dropped. Nothing was written.`,
+    })
+  }
+  // The floor of what the schema checked. Everything the walk has touched so
+  // far is a decoded node; one level further is not, and is `emit`'s to refuse.
+  if (below === 0) return undefined
+  for (const child of capture.children ?? []) {
+    const bent = misplacedAfter(child, false, below - 1)
+    if (bent !== undefined) return bent
+  }
+  return undefined
 }
 
 const wiring = (
@@ -1255,24 +1334,18 @@ const planMark = (
  * "waiting on something somebody is doing" and "waiting on something nobody
  * has picked up" are different positions to be in.
  *
- * NOT the capture path, and that WAS a property of the format rather than a
- * choice: a node born marked had no `after` edges of its own, because the
- * capture schema's `after` is a sibling ANCHOR and nothing else in it could
- * name an edge. A capture could not arrive blocked. `olai-batch-verbs` gave a
- * capture `waitsOn`, so now it can — and it is still not gated, which makes
- * this the SAME choice as the paragraph below rather than a hole opened beside
- * it. A capture that says "this is under way" and "this waits on that" in one
- * breath is the discovery, not the instruction: the two facts are being written
- * down together by somebody who knows both, exactly as `set_doing` followed by
- * `set_after` writes them down one after the other and is refused nowhere. What
- * this verb refuses is being told to START something the set ALREADY says
- * cannot, and there is no already about a node that does not exist yet. The row
- * lands, drawn blocked, saying what it is waiting for — which is what the
- * drawing has always been for.
+ * NOT A CAPTURE, which may be born `doing` with `waitsOn` naming an unfinished
+ * task and is not refused. The rule this is an instance of is the one below: a
+ * gate on STARTING is a gate on the instruction, never on the pair of facts. A
+ * capture states both at once, by a caller that knows both, which is the
+ * discovery — the same thing `set_doing` followed by `set_after` states in two
+ * calls and is refused nowhere. What is refused is being told to start
+ * something the set ALREADY says cannot start, and a node that does not exist
+ * yet has no already. The row lands, drawn blocked, saying what it waits for.
  *
- * `apply` does not soften it either, and by construction: the ops in a batch are
- * planned in order against what the ops before them left, so
- * `[set_after, set_doing]` meets this gate exactly as the two calls do.
+ * NOT SOFTENED BY `apply`, and by construction rather than by a rule of its
+ * own: a batch plans each op against what the ops before it left, so
+ * `[set_after, set_doing]` meets this gate exactly as those two calls do.
  *
  * NOT `set_after` EITHER, and that one is a choice. Wiring an edge onto a node
  * that is already `doing` leaves a started row waiting on something, and that
@@ -2311,7 +2384,10 @@ const planCreate = (
     parent: undefined,
     ord: nextOrd(null),
     below: NESTING,
-  })
+    // …which is also why the seed is NOT anchored: with no siblings to land
+    // among there is no placement, so `after` on a seed's root is the same
+    // misspelling it is on any child, and is refused the same way.
+  }, false)
   if (Result.isFailure(built)) return Result.fail(built.failure)
   const minted = built.success
 
@@ -3105,12 +3181,44 @@ const planUpdate = (
   const ops: Array<BatchedRequest> = []
   const wrote: Array<string> = []
 
+  // A CONDITION ON A WRITE THAT IS NOT HAPPENING is a caller that mis-typed one
+  // of the two fields, and it is refused rather than ignored — the whole reason
+  // `was` is spelled here at all is that a conditional silently going missing is
+  // the failure this shape had to close.
+  const was = request.was ?? {}
+  for (const field of ["title", "desc"] as const) {
+    if (was[field] !== undefined && request[field] === undefined) {
+      return Result.fail(
+        new UsageFailure({
+          reason: `\`was.${field}\` says what this write expects \`${field}\` to hold, ` +
+            `but this call does not write \`${field}\` — give the new value too, or ` +
+            `drop the condition. Nothing was written.`,
+        }),
+      )
+    }
+  }
+
   if (request.title !== undefined) {
-    ops.push({ op: "title", id, title: request.title })
+    ops.push({
+      op: "title",
+      id,
+      title: request.title,
+      // `set_title`'s OWN field, handed straight through — so the condition is
+      // tested inside the plan and therefore on every attempt the write gate
+      // makes, which is the whole point of it living there rather than here.
+      ...(was.title === undefined ? {} : { was: was.title }),
+    })
     wrote.push("title")
   }
   if (request.desc !== undefined) {
-    ops.push({ op: "desc", id, desc: request.desc })
+    ops.push({
+      op: "desc",
+      id,
+      desc: request.desc,
+      // `null` is a real answer here — "expects no note at all" — which is why
+      // the test is on the key being present, exactly as `set_desc`'s is.
+      ...(was.desc === undefined ? {} : { was: was.desc }),
+    })
     wrote.push("note")
   }
   if (request.date !== undefined) {

@@ -160,6 +160,35 @@ const CAPTURE = {
         "The ids this node must come AFTER — `set_after`'s edges, written at capture time. Same targets as `see`: a node in the loaded set, or one in this capture named by its chosen `id`, forward references included. Spelled `waitsOn` rather than `after` because at the top of a capture `after` already names the SIBLING this node is placed after. An edge that would close a loop is refused NAMING the loop.",
     }),
   ),
+  /**
+   * THE BENT WORD, DECLARED SO IT CAN BE REFUSED.
+   *
+   * {@link waitsOn} is `after` under another name, and the bend is what makes
+   * this field necessary: an agent that has read `set_after`, or that is
+   * looking at the anchor one level up, writes `after` on a child and means the
+   * edge list. An Effect struct DROPS a key it does not declare, so without
+   * this the dependency would vanish and the call would report success — a
+   * capture that silently lost half of what it said. It is the same trap
+   * {@link childrenOf} spells at the floor of the unrolling, and it gets the
+   * same answer: the field is declared, it accepts anything, and `@olai/ops`'
+   * `plan.ts` refuses it BY NAME, pointing at the word that works.
+   *
+   * `Unknown` rather than an array of ids, because nothing here is going to be
+   * read: what arrives is whatever the host sent, and it is being turned away
+   * rather than interpreted.
+   *
+   * AT `add_node`'S ROOT IT IS OVERRIDDEN and means the placement anchor
+   * ({@link Anchor} is spread after {@link ROOT}), which is the whole collision
+   * this exists to make loud one level down. `create_outline`'s seed has no
+   * anchor — the first row of an empty file has no siblings — so its root gets
+   * this one, and refuses, which is right for the same reason.
+   */
+  after: Schema.optionalKey(
+    Schema.Unknown.annotate({
+      description:
+        "NOT the edge list — write `waitsOn`. Anything here refuses the whole call, because `after` is the SIBLING anchor at the top of a capture and a child has no anchor.",
+    }),
+  ),
 } as const
 
 /**
@@ -272,6 +301,13 @@ const childrenOf = (below: number) =>
 const childAt = (below: number): Schema.Codec<Capture> =>
   Schema.Struct({
     ...TERSE,
+    // The ONE field whose prose survives the stripping, and it survives for the
+    // reason the floor's does: it is not a description a reader can find
+    // elsewhere, it is a REFUSAL, and this is where it will be met. `after`
+    // means the sibling anchor one level up and nothing at all down here, so a
+    // child is exactly where an agent writes it meaning the edge list
+    // ({@link CAPTURE}'s `after`).
+    after: CAPTURE.after,
     children: childrenOf(below),
   }) as unknown as Schema.Codec<Capture>
 
@@ -581,9 +617,11 @@ export const CreateRequest = Schema.Struct({
     Seed.annotate({
       description:
         "What the new outline is born holding — a capture, exactly as `add_node` takes " +
-        "one: a title, optional note/date/mark/id, and `children` nesting the same " +
-        "way. So a new outline and everything in it is ONE call, and a seed that is " +
-        "refused leaves no file behind. Absent creates the outline empty.",
+        "one: a title, optional note/date/mark/id, the `props` / `see` / `waitsOn` a " +
+        "node is born carrying, and `children` nesting the same way, with the same " +
+        "forward references. So a new outline, everything in it AND the order its steps " +
+        "happen in is ONE call, and a seed that is refused leaves no file behind. Absent " +
+        "creates the outline empty.",
     }),
   ),
 })
@@ -782,6 +820,25 @@ export const AfterRequest = Schema.Struct({
  * whatever mark the node carries, where `set_done`/`set_doing`/`set_todo` each
  * need to be told which one it is to undo it. A node carrying none is refused,
  * as taking a mark off a node that has none has always been.
+ *
+ * **AND THE CONDITIONAL WRITE COMES WITH IT** ({@link Was}), which is the one
+ * field here that had to be carried forward rather than left out. This shape's
+ * whole claim is that it is the single verbs folded, so a field one of those
+ * verbs has and this one cannot spell is a hole in the claim — and it is the
+ * one hole that is UNSAFE rather than merely inconvenient. An Effect struct
+ * silently drops a key it does not declare, so an agent moving from
+ * `set_title {id, title, was}` to `update {id, title, desc, was}` would have
+ * been handed exactly what it asked for minus the guard it asked for, with
+ * nothing anywhere saying so — the `children`-at-the-floor trap
+ * ({@link childrenOf}) wearing another verb's clothes.
+ *
+ * It covers `title` and `desc` and NOTHING ELSE, and the rule is not this
+ * shape's invention: those are the two verbs that have a `was`. `set_date`,
+ * `set_prop` and `set_after` do not — {@link PropRequest} argues at length why
+ * a property is not a thing anybody replaces after reading it — so a `was` for
+ * one of them here would be a conditional form this table does not have. A
+ * `was` naming a field this call is not writing is refused too: a condition on
+ * a write that is not happening is a caller that has mis-typed one of the two.
  */
 export const UpdateRequest = Schema.Struct({
   op: Schema.Literal("update"),
@@ -814,6 +871,31 @@ export const UpdateRequest = Schema.Struct({
         "What this node must come AFTER, as the WHOLE list — this REPLACES the node's `after` rather than adding to it, and `[]` clears it. Written that way because every other field here is the field's whole value; `set_after` is the incremental verb, taking `add` / `remove`. The difference against what the node holds now is what is actually written, so the refusals are that verb's: an unknown target is answered with the closest id that exists, and an edge that would close a loop is refused NAMING the loop.",
     }),
   ),
+  /** What this write expects to find — {@link TitleRequest}'s and
+   *  {@link DescRequest}'s own field, per field, because a call that writes two
+   *  of them may be conditional on either. Nested rather than flattened into
+   *  `titleWas` / `descWas`: the condition is ABOUT a field, so it is spelled
+   *  under the field's own name, and one more conditional field later is one
+   *  more key here rather than one more spelling convention. */
+  was: Schema.optionalKey(
+    Schema.Struct({
+      title: Schema.optionalKey(
+        Schema.String.annotate({
+          description: Was("putting back a title you read a moment ago"),
+        }),
+      ),
+      desc: Schema.optionalKey(
+        Schema.NullOr(Schema.String).annotate({
+          description: Was(
+            "putting back a note you read a moment ago; `null` expects none",
+          ),
+        }),
+      ),
+    }).annotate({
+      description:
+        "What this write expects those fields to hold RIGHT NOW, checked before anything is written and on every retry — `set_title`'s and `set_desc`'s `was`, per field. Supply the half you read; the write is refused, naming what is there, if anything else has been written since. Only `title` and `desc` take one, because only those two verbs have one. A `was` for a field this call is not writing is refused.",
+    }),
+  ),
   /** LAST in the fold, whatever order the caller wrote the fields in. */
   mark: Schema.optionalKey(
     Schema.NullOr(Status).annotate({
@@ -827,12 +909,14 @@ export const UpdateRequest = Schema.Struct({
  * One batched arm: a request schema with its TOP-LEVEL prose taken off.
  *
  * {@link stripped} over a whole request rather than over one field table, and
- * paid for by a measurement: sixteen request schemas inside one array schema is
- * sixteen more copies of every field sentence in the FIRST frame of every agent
+ * paid for by a measurement: the sixteen request schemas of {@link BATCHED},
+ * inside one array schema, are sixteen more copies of every field sentence they
+ * carry in the FIRST frame of every agent
  * session, and every one of those sentences is already in that frame — on the
  * tool that takes the request, where the agent reads it. On this repo's own
  * surface the `apply` schema is 14.1 kB of `tools/list` with the prose and
- * 5.9 kB without, against a whole tool list that was 44 kB before this feature.
+ * 5.9 kB without, against a whole tool list that was 44.1 kB before this
+ * feature and is 64.2 kB after it.
  *
  * TOP LEVEL ONLY: a capture's `children` keeps its own nested prose, including
  * the sentence at the floor of the unrolling that says a fourth level is a
@@ -849,7 +933,7 @@ const arm = <F extends Schema.Struct.Fields>(schema: Schema.Struct<F>): Schema.S
  * above already carries the `op` literal that names it, so a batched
  * `set_done` and a called `set_done` decode against one declaration. A parallel
  * list of "batch forms" is the drift this whole file is arranged to prevent —
- * it would be sixteen shapes free to fall behind the sixteen they mirror. What
+ * it would be sixteen shapes free to fall behind the sixteen they mirror (sixteen SCHEMAS, carrying eighteen verbs — the three marks share one request, as they do everywhere else). What
  * {@link arm} takes off is the PROSE and nothing else, so the two still decode
  * identically and are still one declaration.
  *

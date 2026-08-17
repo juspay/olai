@@ -786,14 +786,19 @@ describe("apply, against a real directory", () => {
     withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         const before = fixture.read("house.olai")
+        // The three are chosen so op 2 can only refuse for a reason ops 0 and 1
+        // MADE. `install` arrives `doing` and `order` arrives a bullet, so
+        // against the set this call was handed, `kitchen` holds exactly one
+        // unfinished task and it is `install`. Op 0 finishes it; op 1 turns the
+        // bullet into a task, which is unfinished work that did not exist a
+        // moment ago; op 2 is refused NAMING THAT — a sentence no
+        // implementation that planned each op against the arriving set could
+        // produce, since `order` is not work there at all.
         const outcome = yield* Effect.result(fixture.ops.run({
           op: "apply",
           ops: [
-            // Two that would land…
-            { op: "done", id: "order" },
-            { op: "title", id: "demo", title: "renamed" },
-            // …and one that cannot: `install` is `doing`, so the branch above
-            // it holds unfinished work.
+            { op: "done", id: "install" },
+            { op: "todo", id: "order" },
             { op: "done", id: "kitchen" },
           ],
         }, "mcp"))
@@ -802,6 +807,9 @@ describe("apply, against a real directory", () => {
         if (Result.isFailure(outcome)) {
           expect(outcome.failure.message).toContain("`ops[2]` (`done`)")
           expect(outcome.failure.message).toContain("holds 1 unfinished task")
+          expect(outcome.failure.message).toContain("`order the cabinets` (`order`, todo)")
+          // …and NOT the one the arriving set would have named.
+          expect(outcome.failure.message).not.toContain("`install them`")
         }
         // Nothing landed — not the two ops that would have, not a stamp, not a
         // rewritten line. The bytes are the bytes.

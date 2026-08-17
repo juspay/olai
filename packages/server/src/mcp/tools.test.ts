@@ -780,6 +780,12 @@ test("both capture tools advertise children as a finite nested schema, no $ref",
         at = nested(at)
         expect(Object.keys((at as { properties: object })?.properties ?? {}).sort())
           .toEqual([
+            // Declared PURELY to be refused: `after` means the sibling anchor
+            // at a capture's top level and nothing below it, and an Effect
+            // struct drops a key it does not declare — so a child spelling it
+            // for the edge list would lose the dependency under a call that
+            // reported success. The planner refuses it by name instead.
+            "after",
             "children",
             "date",
             "desc",
@@ -1251,6 +1257,65 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
     const update = tools.find((tool) => tool.name === "update")
     expect(JSON.stringify(update?.inputSchema)).not.toContain("$ref")
     expect(Object.keys(update?.inputSchema.properties ?? {}).sort())
-      .toEqual(["after", "date", "desc", "id", "mark", "props", "title"])
+      .toEqual(["after", "date", "desc", "id", "mark", "props", "title", "was"])
   })
 })
+
+/**
+ * The two refusals this feature owed a live agent, through the real client.
+ *
+ * Both are the same failure mode — an Effect struct DROPS a key it does not
+ * declare — met from the two directions this PR opened it: a `was` an agent
+ * carries over from `set_title`, and an `after` an agent writes on a captured
+ * child because the anchor one level up spells it that way. Neither may be
+ * silently swallowed, so both are declared purely to be refused, and this is
+ * the level at which "declared" has to be true: the adapter's schema bridge is
+ * what decides whether the key survives the wire.
+ */
+test("a `was` and a bent `after` reach the planner instead of vanishing", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
+    // The conditional an agent migrating from `set_title` brings with it. It is
+    // CHECKED — this one holds, so the write lands.
+    const held = await call(client, "update", {
+      id: "order",
+      title: "order the walnut cabinets",
+      was: { title: "order the cabinets" },
+    })
+    expect(held.isError).toBe(false)
+    expect(read("house.olai")).toContain("order the walnut cabinets")
+
+    // …and this one does not, so nothing lands — where before the field would
+    // have been dropped and the write would have gone through regardless.
+    const stale = await call(client, "update", {
+      id: "order",
+      title: "renamed again",
+      desc: "a note",
+      was: { title: "order the cabinets" },
+    })
+    expect(stale.isError).toBe(true)
+    expect(stale.structured["kind"] as FailureKind).toBe("usage")
+    expect(String(stale.structured["reason"])).toContain("has been retitled since")
+    expect(read("house.olai")).not.toContain("renamed again")
+    expect(read("house.olai")).not.toContain("a note")
+
+    // A condition on a field this call does not write is a mis-typed call.
+    const idle = await call(client, "update", {
+      id: "order",
+      desc: "x",
+      was: { title: "anything" },
+    })
+    expect(idle.isError).toBe(true)
+    expect(String(idle.structured["reason"])).toContain("`was.title`")
+
+    // And the bent word on a captured child, refused rather than dropped.
+    const bent = await call(client, "add_node", {
+      parent: "kitchen",
+      title: "lane",
+      children: [{ title: "cut", after: ["order"] }],
+    })
+    expect(bent.isError).toBe(true)
+    expect(String(bent.structured["reason"])).toContain("write `waitsOn` instead")
+    expect(read("house.olai")).not.toContain(`"title":"lane"`)
+  })
+})
+

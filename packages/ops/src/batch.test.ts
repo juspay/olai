@@ -18,10 +18,10 @@ import {
   ApplyRequest,
   BATCH_AT_MOST,
   type BatchedRequest,
-  type Node,
-  type OpFailure,
+  derive,
+  nodesOf,
   type OutlineSet,
-  type RegularNode,
+  serializeOutline,
   WriteRequest,
   type WriteRequest as Request,
 } from "@olai/format"
@@ -43,6 +43,26 @@ const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
 /** A batch, spelled once so the tests below read as the list of ops they are
  *  about rather than as an envelope. */
 const batch = (...ops: ReadonlyArray<BatchedRequest>): Request => ({ op: "apply", ops })
+
+/** The set ONE op leaves behind, through the same writer and parser a real
+ *  write goes through — `plan.test.ts`'s helper of the same name, and here for
+ *  the one thing this suite needs it for: comparing a batched refusal against
+ *  the single verb run over the set the ops before it really produced. Anything
+ *  less is a comparison against a set the batch was never judged on. */
+const after = (set: OutlineSet, request: Request): OutlineSet => {
+  const texts = Object.fromEntries(
+    set.files.map((file) => [
+      file,
+      serializeOutline(
+        nodesOf(derive(set.nodes), file).map((located) => located.node),
+      ),
+    ]),
+  )
+  for (const file of planned(set, request).files) {
+    texts[file.file] = serializeOutline(file.nodes)
+  }
+  return setOf(texts)
+}
 
 // ── a capture that arrives wired ───────────────────────────────────────
 
@@ -146,6 +166,66 @@ describe("a capture carries its edges and its facts", () => {
       ],
     })
     expect(near.message).toContain("measure-up")
+  })
+
+  test("`after` on a captured node is REFUSED, not dropped, naming the bend", () => {
+    // The footgun `waitsOn` costs: an agent that has read `set_after`, or that
+    // is looking at the anchor one level up, writes `after` on a child. An
+    // Effect struct drops a key it does not declare, so the whole dependency
+    // would have vanished under a call that reported success — which is why the
+    // schema declares the key purely to make it refusable.
+    const failure = refused(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "lane",
+      children: [{ title: "cut", after: ["order"] } as unknown as never],
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`cut` carries `after`")
+    expect(failure.message).toContain("write `waitsOn` instead")
+    expect(failure.message).toContain("Nothing was written.")
+
+    // At `add_node`'s ROOT the same word is the placement anchor and means
+    // exactly what it says, so it is not refused — which is the collision this
+    // whole bend exists for.
+    const placed = planned(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "lane",
+      after: "demo",
+    })
+    expect(record(fileOf(placed, "house.olai"), "n1").title).toBe("lane")
+
+    // A SEED's root has no siblings to be placed among, so there `after` is the
+    // misspelling again and is refused like any child's.
+    const seeded = refused(house(), {
+      op: "create",
+      file: "lane.olai",
+      seed: { title: "lane", after: ["order"] } as unknown as never,
+    })
+    expect(seeded.message).toContain("write `waitsOn` instead")
+  })
+
+  test("the walk that finds it stops where the schema stopped", () => {
+    // Below `NESTING` the schema vouched for nothing: a fourth level is an
+    // array of ANYTHING, so a node down there may carry a `children` that is a
+    // number, and walking into it would throw where a refusal belongs. The walk
+    // is bounded to what was decoded and `emit` answers the depth instead — in
+    // its own words, which is the sentence worth reading anyway.
+    const failure = refused(house(), {
+      op: "add",
+      parent: "kitchen",
+      title: "deep",
+      children: [{
+        title: "one",
+        children: [{
+          title: "two",
+          children: [{ title: "three", children: 5 } as unknown as never],
+        }],
+      }],
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("nests at most 3 levels of `children`")
   })
 
   test("a loop drawn entirely inside the capture is refused naming it", () => {
@@ -284,6 +364,27 @@ describe("apply", () => {
     expect(batched.message).toBe(`\`ops[0]\` (\`done\`) was refused, so nothing in ` +
       `this batch was written: ${alone.message}`)
     expect(alone.message).toContain("holds 2 unfinished tasks")
+  })
+
+  test("…and identically when the batch is what MADE the work unfinished", () => {
+    // The test above pins the message against a set the batch did not change,
+    // which any implementation that forgot to fold would also pass. This one
+    // cannot be passed that way: `loose` holds nothing at all until op 0 files
+    // a task under it, and op 1's refusal has to NAME that task — so the gate
+    // is demonstrably reading the set op 0 left rather than the set the call
+    // arrived at.
+    const filed = { op: "add", parent: "loose", id: "chase", title: "chase it", mark: "todo" }
+    const batched = refused(house(), batch(filed as BatchedRequest, { op: "done", id: "loose" }))
+    expect(batched.message).toContain("`chase it` (`chase`, todo)")
+
+    // And it is the single verb's sentence, word for word — asserted against
+    // `set_done` run alone over the set that capture really leaves, which is
+    // the only comparison that says "identical" about a moving target.
+    const alone = refused(after(house(), filed as Request), { op: "done", id: "loose" })
+    expect(batched.message).toBe(
+      `\`ops[1]\` (\`done\`) was refused, so nothing in this batch was written: ` +
+        alone.message,
+    )
   })
 
   test("a batch that finishes the branch first may then mark it done", () => {
@@ -492,6 +593,50 @@ describe("update", () => {
 
     expect(refused(house(), { op: "update", id: "loose", mark: null }).message)
       .toContain("carries no mark, so there is none to take off")
+  })
+
+  test("`was` is `set_title`'s and `set_desc`'s, per field, and is CHECKED", () => {
+    const rich = setOf({
+      "house.olai": KITCHEN.replace(
+        `{"id":"loose","ord":"a1","title":"a node with no children"}`,
+        `{"id":"loose","ord":"a1","title":"a node with no children","desc":"a note"}`,
+      ),
+    })
+    // The condition holds, so the write lands — both fields, one plan.
+    const landed = planned(rich, {
+      op: "update",
+      id: "loose",
+      title: "renamed",
+      desc: "a better note",
+      was: { title: "a node with no children", desc: "a note" },
+    })
+    expect(record(fileOf(landed, "house.olai"), "loose")).toMatchObject({
+      title: "renamed",
+      desc: "a better note",
+    })
+
+    // It does not, so NOTHING lands — and the sentence is the single verb's,
+    // word for word, which is the guarantee this field exists to keep.
+    const stale = refused(rich, {
+      op: "update",
+      id: "loose",
+      title: "renamed",
+      desc: "a better note",
+      was: { title: "something else" },
+    })
+    expect(stale.message).toBe(
+      refused(rich, { op: "title", id: "loose", title: "renamed", was: "something else" })
+        .message,
+    )
+    // `null` is a real condition on a note — "expects none" — so a node that
+    // HAS one is refused by it.
+    expect(refused(rich, { op: "update", id: "loose", desc: "x", was: { desc: null } }).message)
+      .toBe(refused(rich, { op: "desc", id: "loose", desc: "x", was: null }).message)
+
+    // A condition on a field this call does not write is a mis-typed call, not
+    // a silent no-op.
+    expect(refused(rich, { op: "update", id: "loose", desc: "x", was: { title: "y" } }).message)
+      .toContain("`was.title` says what this write expects")
   })
 
   test("a shadowed property key is refused in `set_prop`'s own words, undressed", () => {
