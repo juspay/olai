@@ -101,7 +101,7 @@
  * this file, so the two kinds of page answer the question in one place.
  */
 
-import { heard, mediaHref, type Reading } from "@olai/surface"
+import { heard, mediaHref } from "@olai/surface"
 import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
 
 import { SaidLine } from "../edit/SaidLine.tsx"
@@ -111,6 +111,7 @@ import { useRouter } from "../router.tsx"
 import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { useHead } from "./documents.tsx"
+import { rungs } from "./rungs.ts"
 
 /**
  * How many times a page may walk the frame off the vault without identifying
@@ -290,35 +291,13 @@ export function Hypertext(props: { readonly file: string }) {
   const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
 
-  // The widths the accepted heights were measured at, and the reason they are
-  // kept: a page may be sized in `vh`. `min-height: 100vh` on a wrapper is
-  // ordinary in a saved dashboard, and its height is then the FRAME's height —
-  // so accepting every report would be a ladder, each one taller because the
-  // last one made the frame taller, climbing until the clamp ate it. (Measured,
-  // before this guard: a one-screen `100vh` page came out at 1798px against a
-  // 1800px bound.)
-  //
-  // So a height is accepted ONCE PER WIDTH, PER KIND — and there are two kinds
-  // because there are two moments a page's height is honestly different. A
-  // reflow at a new width is one. A page whose PICTURES have arrived is the
-  // other: an `<img>` is a zero-tall box until its bytes land, so the reading
-  // taken when the document parsed is short by however tall the pictures turn
-  // out to be, and the frame's own `load` is when there is nothing left to wait
-  // for (`seal.ts` tags that reading, and argues why the tag has to come from
-  // in there rather than be guessed out here).
-  //
-  // TWO RUNGS, then, not an open ladder: at one width this accepts at most one
-  // measurement and at most one settled reading. A page that draws itself with
-  // its own script is the case the new rule adds, and it needs nothing new:
-  // whatever it draws is drawn before its `load`, and the `ResizeObserver` in
-  // the measure reports the box it drew.
-  //
-  // ONE RECORD, filed under the reading the frame named (`seal.ts`'s
-  // `Reading`), rather than a variable per kind. Two variables would be two
-  // things a new document has to remember to clear, and the rule that they
-  // clear together would live in whoever remembered to write both lines; here
-  // the whole record is replaced and the rule is the assignment.
-  let acceptedAt: Partial<Record<Reading, number>> = {}
+  // Which height reports this frame acts on: at most one arriving reading and
+  // at most one settled one PER WIDTH, which is what keeps a page sized in `vh`
+  // from climbing a ladder of its own making. The rule and the whole argument
+  // for it are `./rungs.ts`, held there rather than here because this client
+  // has no harness that mounts this component and a rule with a state machine
+  // in it should be checkable without driving a browser.
+  const heights = rungs()
   let walkOffs = 0
   let visits = 0
   // Whose document is in the frame ({@link Custody}, where the whole rule is a
@@ -347,7 +326,7 @@ export function Hypertext(props: { readonly file: string }) {
 
   /** The heights belonged to the document that is leaving. */
   const fresh = () => {
-    acceptedAt = {}
+    heights.fresh()
     setMeasured(undefined)
     setRefused(undefined)
     setLandedAt(undefined)
@@ -541,9 +520,7 @@ export function Hypertext(props: { readonly file: string }) {
       // nothing, so a page that has walked off cannot scroll this tab around by
       // posting one.
       if (said.kind === "landed") return setLandedAt(said.top)
-      const width = frame.clientWidth
-      if (acceptedAt[said.reading] === width) return
-      acceptedAt[said.reading] = width
+      if (!heights.takes(said.reading, frame.clientWidth)) return
       setMeasured(`${said.height}px`)
     }
     window.addEventListener("message", listen)

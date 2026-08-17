@@ -1215,6 +1215,103 @@ Feature: A `.html` in the vault
     And the preview is as tall as the page it shows
     And the preview is taller than the viewport
 
+  @scratch:good
+  Scenario: A picture that arrives after the page has loaded does not move the frame
+    # The other side of the rule above, and the COST of it — named in #201's
+    # report as bounded and correctly deferred, and now held rather than
+    # described. Two rungs is at most one arriving reading and one settled one
+    # per width, so a picture that lands after `load` is refused a third: the
+    # frame keeps the height it had and the page scrolls inside it, under the
+    # stylesheet's bounds.
+    #
+    # That is a decision and not an oversight. The frame cannot tell "I grew
+    # because my pictures landed" from "I grew because you made me taller and I
+    # am measured in `vh`" — they are the same message — so a frame that
+    # followed the late picture would follow a `vh` page up its own ladder.
+    # `rungs.test.ts` counts the rungs; this is a browser agreeing about what
+    # they cost.
+    #
+    # `loading="lazy"` is what puts a picture on the far side of `load`: a lazy
+    # image does not hold the event, so `load` fires — and the settled reading
+    # is taken — while the picture is still in flight. Held back by the route
+    # for the same reason as above: unheld this is a race that usually resolves
+    # the wrong way and would pass either way.
+    Given I open the app
+    And the vault's pictures are slow to arrive
+    When I rewrite "late.html" as:
+      """
+      <h1>Late</h1>
+      <img loading="lazy" src="art/tall.png" alt="a tall picture, later">
+      """
+    And I click the page "late.html"
+    Then the preview shows the heading "Late"
+    # The picture did arrive and did decode — this is not a scenario about a
+    # picture that never came.
+    And the preview draws its picture "img"
+    # …and the frame did not follow it. The page in there is now 1200px taller
+    # than the frame around it.
+    And the preview is shorter than the page it shows
+    And the preview is shorter than the viewport
+    And there should be no page errors
+
+  # ── the other ways a page names a picture ────────────────────────────
+  #
+  # #201 shipped the pictures and named three shapes it had not covered:
+  # `srcset`, `<picture><source>`, and a CSS `background: url(…)`. The argument
+  # for deferring was that all three "work by consequence of the shared base" —
+  # a file served at its own address resolves every relative URL beside itself,
+  # whichever attribute or property carries it — and both reviewers agreed the
+  # gap was bounded. It is still a claim about three specific spellings that
+  # nothing checked, and one of them is CSS rather than markup, which the
+  # policy answers under `default-src` rather than under an `<img>`.
+  #
+  # A NESTED page on purpose, sitting in `art/` beside the picture it draws. At
+  # the served ROOT every wrong base — the app's root, the media root, the
+  # file's own directory — produces the same URL, so a scenario there could not
+  # tell them apart. From `art/`, `handle.png` is `/media/art/handle.png` and a
+  # base that had slipped anywhere gives `/media/handle.png` or `/handle.png`,
+  # which the step names.
+  #
+  # A QUERY PER SPELLING, and it is what makes this three claims instead of
+  # one: the route cuts at the `?` before it decodes a name, so all three are
+  # the same FILE and three different REQUESTS. Without them a browser answers
+  # the stylesheet's fetch out of the cache the `<img>` above it already
+  # filled, and a refused `background` would be indistinguishable from an
+  # allowed one.
+
+  @scratch:good
+  Scenario: A page draws pictures named by srcset, by source, and by a stylesheet
+    Given I open the app
+    When I rewrite "art/wall.html" as:
+      """
+      <style>
+        #painted {
+          width: 120px;
+          height: 60px;
+          background: url("handle.png?painted") no-repeat;
+        }
+      </style>
+      <h1>Wall</h1>
+      <img id="candidates" srcset="handle.png?srcset 1x" alt="by srcset">
+      <picture>
+        <source srcset="handle.png?source">
+        <img id="sourced" alt="by source">
+      </picture>
+      <div id="painted"></div>
+      """
+    And I expand the folder "art"
+    And I click the page "art/wall.html"
+    Then the preview shows the heading "Wall"
+    # The two with an element to read are read the strong way: decoded, not
+    # merely present, since a broken `<img>` is on screen too.
+    And the preview draws its picture "#candidates"
+    And the preview draws its picture "#sourced"
+    # And all three by the address they were fetched from, which is the only
+    # half a `background: url(…)` has an answer for — and the half that says
+    # the base is the file's own directory and not the vault's root.
+    And the preview fetched the vault's pictures at "/media/art/handle.png?srcset, /media/art/handle.png?source, /media/art/handle.png?painted"
+    And there should be no page errors
+
   # ── the frame comes home ─────────────────────────────────────────────
   #
   # A `sandbox` attribute belongs to the browsing CONTEXT and survives every
