@@ -4,6 +4,7 @@ import { Result } from "effect"
 import type { OutlineError } from "./errors.ts"
 import { failureOf, nodesOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
+import { byPath } from "./paths.ts"
 import { assemble, type DecodedFile } from "./set.ts"
 
 type Decoded = Result.Result<DecodedFile, ReadonlyArray<OutlineError>>
@@ -76,6 +77,36 @@ test("files, nodes and documents come out in path order, whatever order the map 
     "notes/apple.md",
     "notes/zebra.md",
   ])
+})
+
+// WHICH path order, and it is the one question a code-point sort answers
+// differently: `.` is 0x2E and `/` is 0x2F, so a plain compare puts `wing.olai`
+// ahead of the directory it names, while a walk descends into `wing` when it
+// meets it (`@olai/store`'s `disk.ts`) and reads `wing/kitchen.olai` first.
+// `byPath` is the walk's answer, it is what `assemble` sorts by, and slice 4 of
+// `model-indices` is why there is one of it: the patcher places an arriving
+// file by this order and the browser draws its sidebar in it, so a second
+// spelling anywhere would be the same directory read two ways.
+test("a directory sorts where descending into it would put it", () => {
+  expect(["wing.olai", "wing/kitchen.olai", "wing-annexe.olai"].sort(byPath)).toEqual([
+    "wing/kitchen.olai",
+    "wing-annexe.olai",
+    "wing.olai",
+  ])
+  // Deeper, and the same rule one level down.
+  expect(["a/b.olai", "a/b/c.olai"].sort(byPath)).toEqual(["a/b/c.olai", "a/b.olai"])
+  // Everything that is not the separator is code point order, unchanged.
+  expect(["b.olai", "A.olai", "a.olai"].sort(byPath)).toEqual(["A.olai", "a.olai", "b.olai"])
+
+  const set = assemble(decoded({
+    "wing.olai": outline("wing.olai", `{"id":"wing","ord":"a","title":"wing"}`),
+    "wing/kitchen.olai": outline(
+      "wing/kitchen.olai",
+      `{"id":"kitchen","ord":"a","title":"kitchen"}`,
+    ),
+  }))
+  expect(set.files).toEqual(["wing/kitchen.olai", "wing.olai"])
+  expect(ids(set.nodes)).toEqual(["kitchen", "wing"])
 })
 
 // `files` is not derived from `nodes`, and this is the case that proves it: an

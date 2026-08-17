@@ -14,7 +14,11 @@ test("files sort the way the directory walk found them", () => {
 
 // The whole reason this is not `.sort()`: `.` sorts before `/`, so a flat
 // compare puts `wing.olai` before `wing/kitchen.olai` while the walk, which
-// descends into `wing` when it meets it, puts the nested one first.
+// descends into `wing` when it meets it, puts the nested one first. It is the
+// FORMAT's comparator that says so now (`@olai/format`'s `byPath`), because the
+// same order places an arriving file in the view this client patches — the
+// sidebar and the corpus are one order or they are two answers about one
+// directory.
 test("a subdirectory sorts where descending into it would put it", () => {
   expect(sortByPath(["wing.olai", "wing/kitchen.olai"])).toEqual([
     "wing/kitchen.olai",

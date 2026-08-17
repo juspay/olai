@@ -78,12 +78,24 @@ export type { Reading } from "./validate.ts"
 export type { Previous } from "./validate.ts"
 
 export { assemble, BrokenFile, nodesIn, OutlineSet } from "./set.ts"
+/** WHICH FILE COMES FIRST — the order a directory is read in, and the one
+ *  spelling of it: the set is assembled in it, the patcher places an arriving
+ *  file by it, and the browser folds and draws in it. Exported because the
+ *  browser is one of those three (slice 4 of `model-indices`), and a client
+ *  ordering paths its own way would be the same directory read two ways. */
+export { byPath } from "./paths.ts"
 export type { DecodedFile, Outline } from "./set.ts"
-/** What a delta says: files upserted, files gone — Surface's own
- *  collection-delta frame, which is the vocabulary "what changed" already
- *  travels this system in. `patch` itself is not exported: applying one is
- *  `validate`'s business until the browser joins in, and a second caller of it
- *  would be a second view free to disagree with the validated one. */
+/** The view PATCHED rather than rebuilt, and what a delta says: files upserted,
+ *  files gone — Surface's own collection-delta frame, which is the vocabulary
+ *  "what changed" already travels this system in.
+ *
+ *  `patch` is exported because THE BROWSER JOINED IN (slice 4 of
+ *  `model-indices`): the client folds the frames it is already receiving into
+ *  the view it is already holding, with the function the validator uses. Two
+ *  patchers would be the counterexample to `derive`'s own argument — that the
+ *  validator and the view share one interpretation of the format — so there is
+ *  one, and both ends call it. */
+export { patch } from "./patch.ts"
 export type { SetDelta } from "./patch.ts"
 /** WHICH files a served directory is made of — one table, the two suffixes the
  *  ops layer mints paths with, and every suffix as a list for the one reader that

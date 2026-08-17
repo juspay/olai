@@ -54,6 +54,7 @@ import {
   storedMarker,
 } from "./derive.ts"
 import { isMirror, type Located, type Status, targetsOf } from "./node.ts"
+import { byPath } from "./paths.ts"
 
 /**
  * One file's records, as the delta carries them.
@@ -251,7 +252,7 @@ const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
     }
   }
   const ordered = reordered
-    ? new Map([...byFile].sort(([one], [other]) => (one < other ? -1 : one > other ? 1 : 0)))
+    ? new Map([...byFile].sort(([one], [other]) => byPath(one, other)))
     : byFile
   return { byFile: ordered, nodes: [...ordered.values()].flat(), touched }
 }
@@ -273,11 +274,14 @@ const recordsIn = (
 const elsewhere = (one: Located | undefined, other: Located | undefined): boolean =>
   one?.file !== other?.file || one?.line !== other?.line
 
-/** Corpus order, as a comparator: which file, then which line. The order
- *  `assemble` puts a set in, and the order every index below files its members
- *  in — spelled once here because three of them promise it. */
+/** Corpus order, as a comparator: which file ({@link byPath}), then which
+ *  line. The order `assemble` puts a set in, and the order every index below
+ *  files its members in — spelled once here because three of them promise it,
+ *  and reaching for the format's own path order rather than comparing two
+ *  strings, because a file and the directory beside it are exactly the pair the
+ *  two answers differ on. */
 const byCorpus = (a: Located, b: Located): number =>
-  a.file === b.file ? a.line - b.line : a.file < b.file ? -1 : 1
+  a.file === b.file ? a.line - b.line : byPath(a.file, b.file)
 
 /**
  * Sibling order, with the tie `derive` leaves to its input made explicit.
@@ -293,10 +297,18 @@ const bySibling = (a: Located, b: Located): number => byOrd(a, b) || byCorpus(a,
 
 /** What an id NAMES in a view — {@link Derived.after}'s own canonicalisation,
  *  asked of one side of the edit or the other. It is why an edge in a file the
- *  delta never named can move when a mirror somewhere else changes. */
+ *  delta never named can move when a mirror somewhere else changes.
+ *
+ *  The index the walk reads is wrapped ONCE, outside the returned function:
+ *  this is asked per target of every changed record and per key of every
+ *  disturbed edge, and a `{byId}` minted inside would be one throwaway object
+ *  per question. */
 const namedIn = (
   byId: ReadonlyMap<string, Located>,
-): ((id: string) => string) => (id) => nodeNamed({ byId }, id)?.node.id ?? id
+): ((id: string) => string) => {
+  const view = { byId }
+  return (id) => nodeNamed(view, id)?.node.id ?? id
+}
 
 /**
  * Who claims which id now.
@@ -455,6 +467,9 @@ const resolutions = (
    *  key. */
   const landing = new Map<string, Array<Located>>()
   const before = { byId: edit.before.byId }
+  // Wrapped once for the same reason `before` is, and it was not: this walk is
+  // one pass per dirty record.
+  const now = { byId }
   for (const id of dirty) {
     // Unfiled from where it WAS before it is filed where it is: the two are
     // different keys exactly when the chain moved, which is the case this
@@ -465,7 +480,7 @@ const resolutions = (
       if (found.kind === "found") shown.add(found.shows.node.id)
     }
     const at = byId.get(id)
-    const found = at === undefined ? undefined : follow({ byId }, at)
+    const found = at === undefined ? undefined : follow(now, at)
     const mark = found?.kind === "found" ? storedMarker(found.shows.node) : undefined
     // Set rather than deleted-and-set where there is still a mark, so a key
     // whose value did not change keeps its place in the map.
