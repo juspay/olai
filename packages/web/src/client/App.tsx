@@ -160,6 +160,10 @@ export default function App() {
     text: () => filterOf(router.route()),
     all: allRows,
     visible: shownRows,
+    // The one clock this tab has (./clock.ts), which is what `date:today` in
+    // the box counts from — and it moves, so a page left open past midnight
+    // narrows to the new day rather than to the one it was opened on.
+    today,
   })
   const rows = narrowing.rows
 

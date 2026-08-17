@@ -40,6 +40,7 @@ import {
   CreateDocumentRequest,
   CreateRequest,
   DateRequest,
+  dayOf,
   DescRequest,
   MARKS,
   MarkRequest,
@@ -68,6 +69,7 @@ import {
   type WriteResult as Applied,
 } from "@olai/format"
 
+import type { Context } from "./plan.ts"
 import * as Query from "./query.ts"
 
 // `Reading` — the set a reader sees, paired with the derivation every answer
@@ -133,8 +135,17 @@ export interface Asking {
  *
  *  The read is taken as an EFFECT rather than a value because that is what the
  *  ops layer has: "the served directory has never loaded" is one refusal,
- *  raised in one place, and every question inherits it. */
-export const asking = (read: Effect.Effect<Reading, OpFailure>): Asking => ({
+ *  raised in one place, and every question inherits it.
+ *
+ *  THE CLOCK comes in beside it, because one of the four questions is not a
+ *  function of the snapshot alone: `date:yesterday` counts from the day the
+ *  query is asked on. It is the layer's own {@link Context} — the same
+ *  `now()` a `done` mark is stamped with — read per call rather than captured,
+ *  so a server left running overnight answers `date:today` with today. */
+export const asking = (
+  read: Effect.Effect<Reading, OpFailure>,
+  context: Context,
+): Asking => ({
   outlines: Effect.map(read, (at) => ({
     outlines: Query.outlines(at.set, at.derived),
   })),
@@ -147,7 +158,8 @@ export const asking = (read: Effect.Effect<Reading, OpFailure>): Asking => ({
         request.id,
         request.depth === undefined ? {} : { depth: request.depth },
       ) ?? { missing: request.id }),
-  search: (request) => Effect.map(read, (at) => Query.search(at.derived, request)),
+  search: (request) =>
+    Effect.map(read, (at) => Query.search(at.derived, request, dayOf(context.now()))),
 })
 
 /**

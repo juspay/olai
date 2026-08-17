@@ -23,7 +23,10 @@
  *     sibling order, mirror expansion, one node's ancestry, what is standing in
  *     its way, what is on a day, what is overdue on it, which document that
  *     day's note is, and where a `doc` or a relative link lands, computing all
- *     of it with the same code;
+ *     of it with the same code — and, under all of it, the one place a date is
+ *     COUNTED rather than compared (`weekdayOf`, `shiftDay`, `daysOf`), which
+ *     is here because the query's relative words and the browser's calendar
+ *     grid must not each own a Monday;
  *   - what a QUERY means, `parseFilter` with `matchOf` / `matching` and the row
  *     transform `keeping` — the grammar (`is:`, `has:`, `date:`, `-`, and the
  *     substring terms around them), which nodes it selects, and what a tree
@@ -223,6 +226,22 @@ export {
   isDay,
 } from "./dates.ts"
 export type { DayEntry, DayGroup, Occasion } from "./dates.ts"
+/** The one place a date is COUNTED rather than compared (./calendar.ts): which
+ *  weekday a day falls on, the day before or after one, the days a month holds.
+ *  Public because two packages ask it — the query grammar's relative words are
+ *  here, and the browser's calendar grid and its `!` date widget are up there —
+ *  and a second copy would be two answers to which day a week starts on. */
+export {
+  daysOf,
+  isMonth,
+  isoDate,
+  isRealDay,
+  monthOfDay,
+  shiftDay,
+  shiftDayByMonth,
+  shiftMonth,
+  weekdayOf,
+} from "./calendar.ts"
 export { agendaOf, isOverdue, nothingDue, owedOf } from "./agenda.ts"
 export type { Agenda, AgendaDay, Owed } from "./agenda.ts"
 export { stampOf } from "./stamp.ts"

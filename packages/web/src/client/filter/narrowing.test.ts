@@ -30,8 +30,13 @@ const derived = derive(nodesOfFiles({
   ].join("\n"),
 }))
 
-/** The page, at one query and one preference — the same three inputs
- *  `App.tsx` hands over. */
+/** The day these pages are read on. Fixed, because the grammar's relative
+ *  words count from the tab's clock and a test that read the real one would
+ *  pass today and fail on Monday. */
+const TODAY = "2026-08-17"
+
+/** The page, at one query and one preference — the same inputs `App.tsx`
+ *  hands over. */
 const page = (text: string, hideDone = false): Narrowing => {
   const all = (): ReadonlyArray<Row> => rowsOf(derived, "house.olai")
   return createRoot(() =>
@@ -40,6 +45,7 @@ const page = (text: string, hideDone = false): Narrowing => {
       text: () => text,
       all,
       visible: () => (hideDone ? withoutDone(all()) : all()),
+      today: () => TODAY,
     })
   )
 }
@@ -88,6 +94,19 @@ test("`is:done` under a reader who hides finished work says why it found nothing
   expect(hiding.rows()).toEqual([])
   expect(hiding.shown()).toBe(0)
   expect(hiding.hiddenAsDone()).toBe(1)
+})
+
+// The one door that parses for itself gets the relative words from the same
+// grammar, counted from the tab's own clock — which is why the day is an input
+// of this reading rather than something `parseFilter` reaches for. `demo` was
+// finished on the 3rd of August, the month the page is being read in.
+test("a relative date is counted from the day the page is being read on", () => {
+  const narrowing = page("date:this-month")
+  expect(narrowing.shown()).toBe(1)
+  expect(flat(narrowing.rows())).toEqual(["kitchen", "demo"])
+  // The 3rd is not in the week of the 17th, and nothing else on this page is
+  // dated at all.
+  expect(page("date:this-week").rows()).toEqual([])
 })
 
 // A query the grammar could not read is ACTIVE — the bar stays up, the tree

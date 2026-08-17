@@ -20,6 +20,8 @@ One matcher was never quite the whole of it, because the question and the answer
 | `has:desc` `has:see` `has:after` `has:doc` | a field the record carries (an empty edge list is no edge) |
 | `has:date` | on any day at all — the unbounded `date:`, so the two cannot disagree |
 | `date:2026-08-10` `date:2026-08` `date:2026` | a day, a month, a year |
+| `date:today` `date:yesterday` `date:tomorrow` | the day the query is asked on, and the two beside it |
+| `date:this-week` `date:last-month` `date:next-year` | `this-` / `last-` / `next-`, with `week`, `month` or `year` |
 | `date:a..b` `date:..b` `date:a..` | an inclusive span, either end optional |
 | `prop:pr` | carries that custom property at all — `has:` asked of a map with no fixed list of keys |
 | `prop:agent=claude-opus` | carries it holding that value; a list matches on any member |
@@ -27,9 +29,17 @@ One matcher was never quite the whole of it, because the question and the answer
 
 `date:` reads the two dates a journal reads — what the node is scheduled for, and when it was finished. A dated `doing` or `todo` is on no day here, exactly as on the day page ([format.md](format.md)).
 
+**The relative words are twelve, and they are a spelling of a value rather than a second operator.** Three for a day — `today`, `yesterday`, `tomorrow`, because that is the shape English already has — and `this-`, `last-`, `next-` in front of `week`, `month` and `year`. Each resolves to the span it names and is then the same two string comparisons a written date is, which is why they compose with a range wherever one takes a date: `date:last-week..` is everything since Monday week, `date:..today` everything up to tonight, `date:last-month..yesterday` the span between. A month and a year resolve to exactly what their written forms do, so `date:this-month` and `date:2026-08` are one answer in August.
+
+**A week runs Monday to Sunday**, and that is not a second opinion: it is the same count the calendar in the sidebar lays its columns out by. Both read `@olai/format`'s `calendar.ts`, which is the one place in olai a date is counted rather than compared — there is one week convention here, and a query that started its week on Sunday would be selecting days the calendar draws in another row.
+
+**What day it is comes from the ONE clock the door has**: the tab's own local day for the filter the browser parses itself, the server's for the three doors that ask it — the same clock a `done` mark is stamped with. olai serves a directory on the machine you are reading it from, so those are the same day; a page left open past midnight re-reads the query against the new one rather than staying on the day it was opened. The resolution is a pure function of the word and that day, which is what lets a test pin the boundaries rather than pass until next Monday.
+
 `prop:` reads a node's `custom` map ([format.md](format.md)) and nothing else. A field is not a property however much the word looks like one: `prop:done` finds nothing, because a mark is a field and `is:done` is how it is asked about — one way to ask each question. The key and the value are folded like every other token, since a property is something somebody typed into a map that gives no key a spelling. `prop:stage=` is refused rather than selecting nothing: a key holding nothing is a key the file does not carry, so an empty value could only ever be a query that quietly found none.
 
 **A known operator with an unknown value is refused**, in the grammar's own words, and the query selects nothing: `is:blocked` says which values `is:` takes rather than quietly searching for that text and finding none. A colon after anything else (`TODO:`, `http://…`) is an ordinary word — colons occur in prose.
+
+A relative word the vocabulary does not hold joins that contract rather than excepting itself: `date:tomorrowish` is refused, and the refusal names all twelve — the same rule that makes `date:soon` say which values `date:` takes. A range is held to both of its ends, written or relative.
 
 A date that no calendar could hold is refused on the same terms: `date:2026-13`, `date:2026-08-32`. Month 13 is the reader's mistake exactly as `date:soon` is, and the worse of the two to swallow — it *sorts* between December and January, so an empty answer reads as a window rather than as nonsense. The line is what is impossible in **any** month: `date:2026-02-30` is accepted and finds nothing, because telling that from `2026-01-30` needs a calendar, and nothing here parses a date into one.
 

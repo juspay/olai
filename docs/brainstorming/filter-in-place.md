@@ -72,6 +72,12 @@ Comparison is TEXT, as everywhere else in the format: dates are validated ISO an
 
 Deferred, explicitly: **relative dates** (`date:today`, `date:7d`, Workflowy's `changed:`). `parseFilter` is pure and has no clock, and routes.ts already argues why a clock must not get into a thing that parses an address. Giving it one means threading `today` through the parse, and the value of that is worth its own decision.
 
+**Landed** (`search-relative-dates`), and the deferral's price was exactly what it said: `parseFilter` takes the day as an argument. It never reads a clock — the day is a fact about WHO IS ASKING, so each door hands over the one it already has (the tab's `clock.ts` for the filter it parses itself; the ops layer's `Context.now`, the clock a `done` is stamped with, for the three that ask the server), and the resolution stays a pure function of a word and a day that a test can pin. `date:7d` and `changed:` are still deferred: the first is a second spelling of a span the words already say, and the second is a question about history that nothing in the format answers.
+
+The vocabulary is TWELVE words and it is a spelling of a `date:` VALUE rather than a second operator — `today` / `yesterday` / `tomorrow`, and `this-` / `last-` / `next-` in front of `week`, `month` and `year`. Three shapes fell out of that decision rather than being designed: a relative word composes with a range wherever a written date does (`date:last-week..`), because both are read into the same span before they are two string comparisons; a month and a year resolve to exactly what `date:2026-08` and `date:2026` resolve to, `-31` upper bound and all, so there is one answer rather than two; and a word the vocabulary does not hold is REFUSED naming all twelve, because it is a known operator with an unknown value like every other one. The day words are three rather than a `this-day` family because English already has them; the week is in the list precisely because the written grammar cannot spell one at all.
+
+A WEEK RUNS MONDAY TO SUNDAY, read off the same `weekdayOf` the calendar grid lays its columns out with. That function moved down to `@olai/format` (`calendar.ts`) to make it possible: it was the browser's, and its own header called it the one place in the codebase that does date arithmetic, which is precisely the claim a second copy underneath the grammar would have broken. The grid, the headings and the month names stayed up in the client, where drawing a month belongs.
+
 ### Negation
 
 `-` in front of any token: `-is:done`, `-#home`, `-kitchen`. A node matches when the negated half does NOT. Cheap, and it is what makes the operator language worth typing at all — `#home -is:done` is the query somebody actually wants.
@@ -180,7 +186,7 @@ A `#tag` in a title becomes a real affordance: a pill that says it is pressable,
 
 ## Deferred, named
 
-- Relative and changed-since dates (`date:today`, `changed:7d`).
+- Changed-since dates (`changed:7d`) — the relative words landed (`search-relative-dates`); a question about HISTORY is a different one, and nothing in the format answers it.
 - Quoted phrases, `OR`, and the `>` ancestry operator.
 - `is:blocked` — it belongs with `edges-ui`'s blocked-derivation.
 - Filtering the day, agenda and trash pages.

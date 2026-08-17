@@ -269,6 +269,10 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
         "has:desc",
         "date:2026-08-10",
         "date:2026-08-01..2026-08-31",
+        // A relative word, counted from the day this runs — the fixture's
+        // dates are all in the past, so what it draws is stable rather than a
+        // screenshot of the week it was taken in.
+        "date:..today",
         "cabinets -is:doing",
       ]
     ) {

@@ -53,7 +53,7 @@ import {
 import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 
-import { readingOf, setOf } from "./fixtures.testlib.ts"
+import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
 import { asking, TOOLS } from "./tools.ts"
 
 /** One house, and everything a read can carry: both marker kinds, a note, a
@@ -84,7 +84,7 @@ const at = (): Reading => readingOf(EVERYTHING())
  * exactly as the per-call `at()` this replaced did. Nothing here can fail —
  * the read is a fixture — so every answer is `runSync`-able.
  */
-const ASKING = asking(Effect.sync(at))
+const ASKING = asking(Effect.sync(at), steady())
 
 /** One read, answered. The tools' own effects never fail over a fixture that
  *  loaded, so the failure channel is discharged here rather than threaded

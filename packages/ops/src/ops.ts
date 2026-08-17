@@ -330,7 +330,7 @@ export const make = (options: Options): Ops => {
     // each envelope ({@link ./tools.ts}'s `asking`), so the answer an agent
     // gets through a surface procedure and the answer a local tool call gets
     // are the same statement rather than two that agree.
-    ...asking(read),
+    ...asking(read, context),
     status: commits.status,
     pending: commits.pending,
     commit: commits.commit,
