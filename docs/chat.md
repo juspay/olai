@@ -128,6 +128,27 @@ Where a stretch of one agent's work begins, the lane says whose it is — the de
 
 None of this is anything you turn on, and there is nothing to fold: a turn that spawned nobody looks exactly as it always did. What it replaces is a panel where three agents grepping at once and one agent grepping three times were the same five lines — which was the only thing in this conversation that was not true.
 
+### An agent that has not reported back yet
+
+**A rail drops out of the call that sent an agent out, at the moment it sends one**, and it says the agent is starting — before the agent has done anything at all:
+
+```
+· read every note                        ↳ Explore
+│ ● starting…
+```
+
+That is the fix for the thing everything above missed. A lane is drawn out of work a subagent has ALREADY done, and a subagent's first act is to read its instructions, which produces nothing to draw — so for the whole of the stretch you actually watch a fan-out through, the panel had a pending dot with an ordinary title on it and nothing anywhere saying an agent had been started. Three agents out looked exactly like one slow `Read`.
+
+Three things are on that row and every one of them comes off the wire:
+
+- **who it is** — the kind of agent, on the right of the row, in the words of whoever defined it: *Explore*, *general-purpose*, a name out of your own agents. A spawn that named no kind says the bare word **agent**, which is the honest thing to say about an agent nobody labelled — never rounded to whichever kind looks closest.
+- **what it was asked** — the row's own title, which is the short description the call was made with. The whole prompt is one click away, in the fold, where a call's arguments always are.
+- **that it is running** — the rail, which says *starting…* until the agent's first report and *working…* after it, and which **goes away the moment the call stops**. A face that outlived the agent would say a fan-out was running after the turn was over, which is the same lie in the other direction.
+
+Then the calls arrive in the lane that is already open under it, and when the agent reports back the row completes and its answer is in the fold. Nothing about the rest of the drawing changes — the same rail, the same names, in the same places.
+
+**What is deliberately not drawn is the subagent's own prose.** The agent olai ships with does not send it: a spawned agent's text and thinking are stripped from the feed unless a client asks for a nested transcript, and olai does not ask. So a running subagent is its calls and its status here, and the one place its own words appear is the report it hands back at the end. That is a floor rather than a preference — but it also means the main agent's voice in this panel is only ever the main agent's, which is worth having.
+
 ## Attachments
 
 You can paste a file into the box — a screenshot, a photo of a whiteboard — or drag one onto the panel, or pick one with the **+** button, which is the way in on a phone. All three take the same kinds:

@@ -187,6 +187,36 @@ export const Wrote = Schema.Struct({
 export type Wrote = typeof Wrote.Type
 
 /**
+ * A call that SENT AN AGENT OUT, and what is known about the agent.
+ *
+ * It exists so that a spawn is legible as a spawn from the instant it is
+ * announced. The other half of the same feature — which `Agent` call a row was
+ * made INSIDE ({@link ChatEntry.parent}) — cannot say anything until the
+ * spawned agent has made a call, and a subagent that is still reading its
+ * instructions has made none: for the whole of that stretch, which is the
+ * stretch a person is watching, the panel had a pending row with an ordinary
+ * title on it and no reason to think anybody had been sent anywhere.
+ *
+ * PRESENCE is the fact, and the field inside it is the detail. A spawn is known
+ * to be one whether or not it named a kind of agent, so this is a struct with a
+ * nullable field rather than a nullable string: the two questions are "did this
+ * start an agent" and "which kind", and one value cannot answer both.
+ */
+export const Spawned = Schema.Struct({
+  /** Which kind of agent, in the words whoever configured it used —
+   *  `Explore`, `general-purpose`, a name out of somebody's own agent
+   *  definitions. `null` when the spawn named none, which is a spawn the panel
+   *  can still draw: an agent was sent out, and nobody said which.
+   *
+   *  The agent's own word, never mapped onto one of olai's. A name this end
+   *  does not recognise is drawn as it came, for the reason the header draws an
+   *  unrecognised model id raw: rounding somebody's agent to the nearest one
+   *  this panel has heard of would be naming an agent nobody started. */
+  kind: Schema.NullOr(Schema.String),
+})
+export type Spawned = typeof Spawned.Type
+
+/**
  * What a row of the conversation is.
  *
  * A union of six kinds rather than a struct with everything optional, because
@@ -203,7 +233,9 @@ export type Wrote = typeof Wrote.Type
  *     what it CHANGED in whichever of the two vocabularies applies: a
  *     {@link FileDiff} per file it rewrote directly, or the node-level
  *     {@link Wrote} story of a write that went through the ops layer — and,
- *     when a subagent made it, which `Agent` call it was made inside.
+ *     when a subagent made it, which `Agent` call it was made inside, or, when
+ *     it STARTED one, what is known about the agent it started
+ *     ({@link Spawned}).
  *   - `ask` — a question the agent asked, as a form to answer: the options it
  *     offered, the boxes it left, and — once it has been answered — what was
  *     chosen. The turn is blocked on it while `ask.outcome` is `null`.
@@ -275,6 +307,11 @@ export const ChatEntry = Schema.Struct({
    *  it in a lane, indented behind a rail, under the frame it names. Absent for
    *  the main agent's own calls, which are most of them. */
   parent: Schema.optionalKey(Schema.String),
+  /** `tool` only: this call SPAWNED an agent — see {@link Spawned}. The other
+   *  end of `parent`, and the end that can be known at the moment an agent is
+   *  sent out rather than at the moment it first reports back. Absent on every
+   *  call that spawned nobody, which is nearly all of them. */
+  spawned: Schema.optionalKey(Spawned),
   /** `refusal` only: the refusal itself, so the panel draws what it carries —
    *  a validation report's rows, each at its own `file:line` — rather than
    *  printing a sentence about them. */

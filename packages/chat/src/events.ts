@@ -19,6 +19,7 @@ import type {
   AskOutcome,
   FileDiff,
   MissingServer,
+  Spawned,
   Usage,
   Wrote,
 } from "@olai/surface"
@@ -90,6 +91,21 @@ export type AgentEvent =
      * saying twice and nothing ever needs taking back.
      */
     readonly parent: string | undefined
+    /**
+     * ... and, the other way round, that this call SENT one out
+     * ({@link ./interpret.ts}'s `spawnsAgentIn`).
+     *
+     * The two are not one field with two directions: `parent` is answered by
+     * frames a subagent produced, so it says nothing at all until the subagent
+     * has produced one — and a spawned agent that is still reading its
+     * instructions has produced none. This is answered by the spawn's own
+     * frame, which arrives when the agent is sent out.
+     *
+     * `undefined` is "unchanged" like everything beside it, and it is load
+     * bearing here: the beats that follow a spawn carry the agent's KIND
+     * without repeating that it is one, and its completion carries neither.
+     */
+    readonly spawned: Spawned | undefined
   }
   /**
    * The agent asked a person something, and the turn is stopped until it is

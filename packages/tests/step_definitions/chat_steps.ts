@@ -65,6 +65,8 @@ import {
   CHAT_SESSIONS,
   CHAT_SESSIONS_REFUSED,
   CHAT_SLASH_COMMAND,
+  CHAT_SPAWN,
+  CHAT_SPAWN_WORKING,
   CHAT_TITLE,
   CHAT_TOGGLE,
   CHAT_TOOL,
@@ -1195,6 +1197,69 @@ Then(
     );
   },
 );
+
+Then(
+  "the chat says an agent is working, of the kind {string}",
+  async function (this: OlaiWorld, kind: string) {
+    // THE LIVE HALF, and the whole of what this scenario is about: it has to
+    // be on screen while the agent has reported nothing, so it is found by
+    // waiting for it rather than by looking after the fact.
+    const working = this.page.locator(CHAT_SPAWN_WORKING).first();
+    await working.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const spawner = await working.getAttribute("data-lane");
+    assert.ok(
+      spawner !== null && spawner !== "",
+      "a rail that names no agent is an indent, not an attribution",
+    );
+    // WHO, off the frame the rail hangs from — the attribute rather than the
+    // words, so the claim stays about the kind of agent the call named and not
+    // about how the row spells it.
+    const frame = this.page.locator(entrySelector(spawner ?? ""));
+    await frame.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await frame.locator(CHAT_SPAWN).first().getAttribute("data-spawn-kind"),
+      kind,
+      `the call that spawned an agent does not say it started a "${kind}"`,
+    );
+    // ... and the same geometry a lane owes, for the same reason: the rail is
+    // the claim that this is somebody ELSE's work, and one drawn level with
+    // the conversation says the main agent is doing it.
+    const above = await frame.boundingBox();
+    const rail = await working.boundingBox();
+    assert.ok(
+      above !== null && rail !== null,
+      "the spawned agent's rail was not drawn",
+    );
+    assert.ok(
+      rail.y > above.y && rail.x > above.x,
+      `the rail for the agent that was sent out starts at ${rail.x},${rail.y} ` +
+        `rather than below and inset from the call that sent it ` +
+        `(${above.x},${above.y})`,
+    );
+  },
+);
+
+Then("no tool call is drawn in a subagent lane", async function (this: OlaiWorld) {
+  // The other half, and the one that makes the assertion above mean anything:
+  // the agent has produced NOTHING, so every lane the old panel could draw is
+  // absent and the face on screen is the spawn's own.
+  assert.strictEqual(
+    await this.page.locator(CHAT_LANE).count(),
+    0,
+    "a subagent's work is on screen; this scenario is about the stretch " +
+      "before any of it exists",
+  );
+});
+
+Then("the chat says no agent is still working", async function (this: OlaiWorld) {
+  // A face that outlives the agent is worse than none: it says a fan-out is
+  // running when the turn is over.
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_SPAWN_WORKING).count()) === 0,
+    "the panel to stop saying an agent is working",
+    HYDRATION_TIMEOUT,
+  );
+});
 
 Then(
   "the chat draws {int} tool calls in subagent lanes",

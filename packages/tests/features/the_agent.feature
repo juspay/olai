@@ -114,6 +114,27 @@ Feature: Talking to the agent
     And exactly one lane names itself, as "explore the outline"
 
   @scratch:chat
+  Scenario: An agent that has been sent out and reported nothing yet still has a face
+    # The human's screenshot: a fan-out running, and a panel drawing one
+    # pending dot with an ordinary title on it, because every lane above is
+    # hung off work a subagent has ALREADY done. A subagent's first act is to
+    # read its instructions, which produces no frame at all — so the whole of
+    # the stretch anybody watches a fan-out through was the stretch with
+    # nothing on screen to say an agent had been started.
+    #
+    # The spawn's own frame is what says it, and it arrives at the spawn: the
+    # adapter stamps `subagent: true` on it, with the kind of agent in the
+    # call's arguments. Asserted BEFORE the release, which is the only moment
+    # this claim is falsifiable — after it the lane fills and the old panel
+    # would look right too.
+    When I ask the agent "subagent slow"
+    Then the chat says an agent is working, of the kind "Explore"
+    And no tool call is drawn in a subagent lane
+    When the agent is released
+    Then the chat draws a subagent's tool call under the call that spawned it
+    And the chat says no agent is still working
+
+  @scratch:chat
   Scenario: A file the agent rewrote shows what changed, trimmed
     # The half of this feature that is NOT an outline. A direct edit to a `.md`
     # or a source file shows up in no tree, so until the panel drew the diff

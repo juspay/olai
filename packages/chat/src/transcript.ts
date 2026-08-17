@@ -35,6 +35,7 @@ import type {
   ChatEntry,
   FileDiff,
   OpFailure,
+  Spawned,
   Wrote,
 } from "@olai/surface"
 
@@ -233,6 +234,7 @@ export class Transcript {
       readonly wrote?: Wrote | undefined
       readonly locations?: ReadonlyArray<string> | undefined
       readonly parent?: string | undefined
+      readonly spawned?: Spawned | undefined
     },
   ): Change {
     const key = toolKey(id)
@@ -262,6 +264,18 @@ export class Transcript {
     // parent-less `_meta` is a shape it has — and a row that read that as "no
     // agent now" would step out of its lane at the moment the call finished.
     const parent = move.parent === undefined ? current?.parent : toolKey(move.parent)
+    // ... and what this call STARTED, which is the one field here that is
+    // sticky a level DOWN as well as at the top. The fact arrives split across
+    // frames — the spawn says it is one and carries the arguments the agent
+    // was sent with, the beats that follow name the agent's kind and say
+    // nothing about being a spawn, the completion says neither — so a report
+    // that answered about the spawn without naming a kind would take back a
+    // kind an earlier frame already gave. `undefined` is still "unchanged" at
+    // both levels; what is added is that a `null` kind is unchanged too,
+    // because "nobody said" is not "nobody said, and I mean it".
+    const spawned = move.spawned === undefined ? current?.spawned : {
+      kind: move.spawned.kind ?? current?.spawned?.kind ?? null,
+    }
     return both(
       this.#close(),
       this.#put(key, {
@@ -274,6 +288,7 @@ export class Transcript {
         ...(wrote === undefined ? {} : { wrote }),
         ...(locations === undefined ? {} : { locations }),
         ...(parent === undefined ? {} : { parent }),
+        ...(spawned === undefined ? {} : { spawned }),
       }),
     )
   }

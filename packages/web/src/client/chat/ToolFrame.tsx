@@ -27,6 +27,14 @@
  * the arguments are what was asked for, and this is what happened to somebody's
  * files. It is trimmed rather than folded, and the trim opens where it stands.
  *
+ * A CALL THAT SPAWNED AN AGENT says so on the line as well, in the slot the
+ * locations take — because it cannot have any, and because "an agent was sent
+ * out" is the fact a reader of a fan-out most needs and the one that used to
+ * be nowhere on screen until the agent reported back ({@link ./spawn.ts}).
+ * That is the whole of what this component does about a spawn: the live rail
+ * under it belongs to the list, which is the thing that has rows to put a rail
+ * beside.
+ *
  * The row is UPDATED rather than replaced. The transcript keys these by the
  * agent's own call id, so `pending` becoming `completed` is the same row
  * changing.
@@ -47,6 +55,7 @@ import { TESTID } from "../testids.ts"
 import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
+import { faceOf } from "./spawn.ts"
 import { Wrote } from "./Wrote.tsx"
 
 /** What each status looks like in one character. Words would wrap the line the
@@ -125,6 +134,27 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
           {MARK[status()] ?? "·"}
         </span>
         <span class="min-w-0 flex-1 truncate">{props.entry.text}</span>
+        {/* WHO WAS SENT, on the line, from the moment the spawn is announced —
+            which is a good while before the agent has done anything to draw a
+            lane out of ({@link ./spawn.ts}). It shares the slot a call's
+            locations take, and shares it safely: an `Agent` call works in no
+            file and reports none, so the two are never on one row. */}
+        <Show when={faceOf(props.entry)}>
+          {(face) => (
+            <span
+              class="flex min-w-0 shrink-0 items-center gap-1 text-muted/70"
+              data-testid={TESTID.chatSpawn}
+              data-spawn-kind={face().who}
+            >
+              {/* The lane's own glyph, so the marker on the row and the label
+                  on the rail under it are visibly the same fact: somebody
+                  else is doing this. Without it, a kind sitting where a file
+                  path usually sits reads as a file path. */}
+              <span aria-hidden="true">↳</span>
+              <span class="min-w-0 truncate">{face().who}</span>
+            </span>
+          )}
+        </Show>
         {/* Unfolded: where it is working, on the line, because a reader
             following an agent through a tree wants the file more often than
             the arguments. Truncated rather than wrapped — the frame's whole

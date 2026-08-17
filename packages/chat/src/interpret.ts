@@ -136,21 +136,134 @@ export const parentToolUseIn = (
   meta: { readonly [key: string]: unknown } | null | undefined,
 ): string | null => stringIn(meta, "parentToolUseId")
 
-/** One field of the adapter's own corner of a `_meta`, when it is a non-empty
- *  string and `null` for everything else — an absent `_meta`, an absent
- *  `claudeCode`, a field of some other type, the empty string. The two readers
- *  above are the same narrowing over two names, and a frame carries either,
- *  both or neither: a subagent's terminal output arrives with a `claudeCode`
- *  holding only the parent, and a plan exit's with only the name. */
+// ── which call STARTED an agent ────────────────────────────────────────
+
+/**
+ * Whether this call spawned an agent of its own.
+ *
+ * The other side of {@link parentToolUseIn}, and the half that was missing: the
+ * parent stamp says a call CAME OUT of a subagent, which is a thing nothing can
+ * say until the subagent has made a call. A spawned agent that is still reading
+ * its instructions has made none, so a panel with only that stamp to read has
+ * nothing at all to draw for the agent it is waiting on — the reader sees a
+ * pending row with an ordinary title and no reason to think anybody was sent
+ * anywhere.
+ *
+ * The adapter says so at the spawn itself. It stamps `subagent: true` beside
+ * the tool name on every frame it builds for an `Agent`/`Task` call
+ * (`claudeCodeMetaFromToolUse`, adapter 0.66.0), and that frame is emitted when
+ * the tool use starts — so it arrives at the moment the agent is sent out
+ * rather than at the moment it reports back.
+ *
+ * A BOOLEAN in the `_meta` rather than the tool NAME, which the same corner
+ * also carries: the name is a word one CLI's tool table happens to use, and the
+ * adapter maps two of them (`Agent` and `Task`) onto the one flag. Reading the
+ * flag is reading the adapter's own answer to the question instead of
+ * re-deriving it from a list of names that is somebody else's to extend.
+ *
+ * Positive recognition, failing the way everything here fails: a frame that
+ * does not say this spawned nobody as far as the panel is concerned, and an
+ * agent that is not this adapter draws exactly what it drew before.
+ */
+export const spawnsAgentIn = (
+  meta: { readonly [key: string]: unknown } | null | undefined,
+): boolean => claudeIn(meta)?.["subagent"] === true
+
+/**
+ * WHICH KIND of agent a spawn started — `Explore`, `general-purpose`, whatever
+ * the person running this agent has defined — or `null` when nothing said.
+ *
+ * TWO SOURCES, read as one, because they are one fact arriving on two frames
+ * and a caller that took either would be right half the time:
+ *
+ *   - the call's own INPUT. `subagent_type` is a field of the `Agent` tool's
+ *     arguments (the SDK's `AgentInput`), so it rides the `rawInput` of the
+ *     frame that announces the spawn — which is the first thing anybody hears
+ *     about the agent, and therefore the one that matters. It is optional
+ *     there: a spawn that named no type has none, and `null` is the answer.
+ *   - the adapter's HEARTBEAT. While a call runs the SDK emits `tool_progress`
+ *     beats, and the adapter forwards each as a `tool_call_update` carrying
+ *     `toolResponse.subagentType` for an Agent call. Those frames carry no
+ *     `rawInput` at all, so a reader of the input alone would answer `null` for
+ *     every one of them.
+ *
+ * The input is asked FIRST, and the order is the honest one rather than an
+ * arbitrary tie-break: a spawn's arguments are what the agent asked for, and
+ * the beat is a report about the task those arguments started. They do not
+ * disagree in practice; if they ever did, what was asked for is the answer a
+ * person reading the row is owed.
+ *
+ * The input arrives incrementally — the adapter emits the `tool_call` as the
+ * tool use starts and refines it with a `tool_call_update` as the arguments
+ * finish parsing — so an early frame can honestly answer `null` about a spawn
+ * whose type is known one frame later. Nothing here waits for that: the
+ * transcript's own stickiness is what carries a kind forward
+ * ({@link ./transcript.ts}), which is the rule every other field on a tool row
+ * already follows.
+ */
+export const agentKindIn = (
+  meta: { readonly [key: string]: unknown } | null | undefined,
+  input: unknown,
+): string | null => {
+  const asked = (input as { readonly subagent_type?: unknown } | null | undefined)
+    ?.subagent_type
+  if (typeof asked === "string" && asked !== "") return asked
+  const response = claudeIn(meta)?.["toolResponse"] as
+    | { readonly [key: string]: unknown }
+    | null
+    | undefined
+  const beat = response?.["subagentType"]
+  return typeof beat === "string" && beat !== "" ? beat : null
+}
+
+/*
+ * What is deliberately NOT read off a spawn, and why, because the next person
+ * to open this file will find it in the payload and wonder:
+ *
+ *   - **`toolResponse.elapsedTimeSeconds`**, which the heartbeat carries. It is
+ *     the agent's own clock and it is honest, but it only moves when a beat
+ *     arrives — so a subagent that has actually WEDGED reports the age it had
+ *     at its last beat, forever. A number that under-states how long something
+ *     has been stuck is worse in exactly the direction a person consults it
+ *     for, and the panel already says the true thing (it is running, and here
+ *     is every call it has made) without one.
+ *   - **`toolResponse.subagentRetry`**, the SDK's rate-limit retry counters,
+ *     forwarded so a client can say why a spawn looks stalled. Worth drawing
+ *     one day; it is a shape nothing in this repo has ever seen arrive, and a
+ *     row that renders a payload nobody has observed is a row that is wrong the
+ *     first time it is right.
+ *   - **the subagent's own PROSE**. The adapter strips a subagent's text and
+ *     thinking blocks from the feed unless the client declares
+ *     `subagent-transcript` in its `initialize` capabilities
+ *     (`supportsSubagentTranscript`) — so olai, which does not, cannot receive
+ *     it and cannot have it leak into the main agent's voice either. Drawing a
+ *     subagent's narration is a feature with a switch to throw, not a `_meta`
+ *     to read, and it is not this one.
+ */
+
+/** The adapter's own corner of a `_meta`, or `undefined` when there is none —
+ *  an absent `_meta`, an absent `claudeCode`, one that is not an object. Every
+ *  reader here starts by asking for it. */
+const claudeIn = (
+  meta: { readonly [key: string]: unknown } | null | undefined,
+): { readonly [key: string]: unknown } | undefined => {
+  const claude = meta?.["claudeCode"]
+  return typeof claude === "object" && claude !== null
+    ? claude as { readonly [key: string]: unknown }
+    : undefined
+}
+
+/** One field of that corner, when it is a non-empty string and `null` for
+ *  everything else — a field of some other type, the empty string. The two
+ *  readers above are the same narrowing over two names, and a frame carries
+ *  either, both or neither: a subagent's terminal output arrives with a
+ *  `claudeCode` holding only the parent, and a plan exit's with only the
+ *  name. */
 const stringIn = (
   meta: { readonly [key: string]: unknown } | null | undefined,
   field: string,
 ): string | null => {
-  const claude = meta?.["claudeCode"] as
-    | { readonly [key: string]: unknown }
-    | null
-    | undefined
-  const value = claude?.[field]
+  const value = claudeIn(meta)?.[field]
   return typeof value === "string" && value !== "" ? value : null
 }
 
