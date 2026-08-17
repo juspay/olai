@@ -141,6 +141,14 @@ test("a token match escapes its value exactly as equality does", () => {
  * construction, which is the correct direction — a false alarm is a line a
  * human reads and answers, and a miss is this paragraph again in a year.
  *
+ * WHAT IT SCANS is `step_definitions/` and `support/`, which is the SUITE — the
+ * code a scenario drives, where every value in a selector arrived as a Gherkin
+ * argument or was read back out of the page. `evidence.ts` is deliberately
+ * outside it and carries a hand-built `[data-node-id="${id}"]` of its own: it is
+ * a script somebody runs to take screenshots for a PR, its ids are its own
+ * literals a few lines up, and nothing a reader typed ever reaches it. That is
+ * the boundary, stated rather than left to be inferred from the glob.
+ *
  * Writing the first draft found a hole in the stripper itself, which is the
  * sort of thing a fence is for: it reported three of the four selectors below,
  * because a MIME type with a star in it inside a line comment opened a block
