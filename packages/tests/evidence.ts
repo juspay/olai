@@ -277,10 +277,13 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
         // screenshot of the week it was taken in.
         "date:..today",
         "cabinets -is:doing",
-        // A quoted PHRASE: one substring where the two words below are two,
-        // which is how the order of the words gets into a query.
+        // A quoted PHRASE: one substring where the same words unquoted are
+        // several, which is how the ORDER of the words gets into a query —
+        // the third of these is the first with its words shuffled, and it is
+        // the one that finds nothing.
         `"pick the hinges"`,
         "hinges the pick",
+        `"hinges the pick"`,
         // `OR` joins the tokens on either side of it...
         "handles OR knobs",
         // ...and binds TIGHTER than the space between two tokens, so this is
