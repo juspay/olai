@@ -183,6 +183,24 @@ test("an edge is not a wait: a finished target, and a source that is not work", 
   expect(selects("has:after -is:blocked")).toEqual(["order", "install"])
 })
 
+/**
+ * ...and they part company the OTHER way too, which is why `is:blocked` is not
+ * `has:after` with extra rules. `a blocks b` is the same arrow written from the
+ * other end, normalised into one graph before anything reads it (`derive.ts`),
+ * so a node can be waiting while carrying no `after` field at all — and the
+ * field is what `has:after` sees.
+ */
+test("a `blocks` written on the other record is waited on all the same", () => {
+  const sugared = derive(nodesOfFiles({
+    "a.olai": [
+      `{"id":"ship","ord":"a0","title":"ship it","todo":true}`,
+      `{"id":"review","ord":"a1","title":"read it over","doing":true,"blocks":["ship"]}`,
+    ].join("\n"),
+  }))
+  expect(selectsIn(sugared, "is:blocked")).toEqual(["ship"])
+  expect(selectsIn(sugared, "has:after")).toEqual([])
+})
+
 test("`is:blocked` composes and negates like every other clause", () => {
   expect(selects("is:blocked is:todo")).toEqual(["hinges"])
   expect(selects("#home -is:blocked")).toEqual(["kitchen"])

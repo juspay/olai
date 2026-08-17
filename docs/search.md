@@ -16,7 +16,7 @@ One matcher was never quite the whole of it, because the question and the answer
 |---|---|
 | `is:done` `is:doing` `is:todo` | the mark the node STORES — never a derived one, so a parent whose children are all ticked is not `is:done` unless somebody ticked it |
 | `is:marked` | any of the three; `is:marked -is:done` is "work, unfinished" |
-| `is:blocked` | what is WAITING: the node's own `after` points at a task nobody has finished. DERIVED — see below |
+| `is:blocked` | what is WAITING: something the node must come after is a task nobody has finished. DERIVED — see below |
 | `is:archived` | what was put away — see below |
 | `has:desc` `has:see` `has:after` `has:doc` | a field the record carries (an empty edge list is no edge) |
 | `has:date` | on any day at all — the unbounded `date:`, so the two cannot disagree |
@@ -30,7 +30,7 @@ One matcher was never quite the whole of it, because the question and the answer
 
 `prop:` reads a node's `custom` map ([format.md](format.md)) and nothing else. A field is not a property however much the word looks like one: `prop:done` finds nothing, because a mark is a field and `is:done` is how it is asked about — one way to ask each question. The key and the value are folded like every other token, since a property is something somebody typed into a map that gives no key a spelling. `prop:stage=` is refused rather than selecting nothing: a key holding nothing is a key the file does not carry, so an empty value could only ever be a query that quietly found none.
 
-**`is:blocked` is the one DERIVED value in the grammar**, and what it reads is the derivation the app already draws — the one that dims a row and writes its `blocked by` line ([editing.md](editing.md)). So a query cannot find a node the page does not show as waiting, or miss one it does, and what blockedness IS stays where it is defined rather than being said again here. Two things follow that a reader should not have to look up: it crosses files, because the derivation is of the whole directory; and `has:after` is a different question, since `order after demo` where `demo` is finished carries the edge and is waiting on nothing. `-is:blocked` is what can be started.
+**`is:blocked` is the one DERIVED value in the grammar**, and what it reads is the derivation the app already draws — the one that dims a row and writes its `blocked by` line ([editing.md](editing.md)). So a query cannot find a node the page does not show as waiting, or miss one it does, and what blockedness IS stays where it is defined rather than being said again here. Two things follow that a reader should not have to look up. It crosses files, because the derivation is of the whole directory. And it is a question about the ORDERING GRAPH where `has:after` is a question about the field — so the two come apart in both directions: `order after demo` with `demo` finished carries the edge and waits on nothing, while a node held up by a `blocks` somebody wrote on the other record is waiting with no `after` of its own to find.
 
 **A known operator with an unknown value is refused**, in the grammar's own words, and the query selects nothing: `is:open` says which values `is:` takes rather than quietly searching for that text and finding none. A colon after anything else (`TODO:`, `http://…`) is an ordinary word — colons occur in prose.
 

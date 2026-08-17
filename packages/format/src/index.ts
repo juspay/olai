@@ -165,11 +165,11 @@ export {
   siblingsOf,
   /** What a node's `after` targets hold up, asked of a node that is not work
    *  yet. Exported for the reason `drawnFrom` above is: two rules read
-   *  blockedness and they must agree. The web draws it with `blockersOf` — as
-   *  does the search grammar's `is:blocked`, one file over, so an agent's
-   *  answer and the drawn row are one reading; the ops layer refuses
-   *  `set_doing` with this one, which is the same reading from the other end
-   *  of the arrow. */
+   *  blockedness and they must agree. The web draws it with `blockersOf` and
+   *  the search grammar's `is:blocked` asks the same index for the yes-or-no
+   *  (`isBlocked`, one file over), so an agent's answer and the drawn row are
+   *  one reading; the ops layer refuses `set_doing` with THIS one, which is
+   *  the same reading from the other end of the arrow. */
   standingBefore,
   isTagName,
   mayHoldTag,
