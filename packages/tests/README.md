@@ -177,7 +177,7 @@ The chips themselves are a ROW of the preferences panel (`features/preferences.f
 
 `features/the_client_breaks.feature` is the one scenario whose subject is a bug in olai rather than in an outline, and it is the only place in this suite that reaches past the app's own surface. Every other error here is DATA — a fixture that does not validate — while a fault in a render is not data, and the app deliberately offers no way to ask for one: a fault switch shipped is a fault switch in production.
 
-So it is injected with `addInitScript`, into `String.prototype.padStart` and only for the exact call the client's own date arithmetic makes, which every page runs through before it can draw. Narrow because a builtin broken for everybody would take out a dependency's module initialisation or the fault card itself, and the scenario would be proving something else. The coupling is answered rather than hidden: if that call stops happening the app draws itself perfectly, and the step fails in a second saying exactly that instead of timing out with nothing to say.
+So it is injected with `addInitScript`, into `String.prototype.padStart` and only for the exact call the date arithmetic under the client makes (`@olai/format`'s `calendar.ts`), which every page runs through before it can draw. Narrow because a builtin broken for everybody would take out a dependency's module initialisation or the fault card itself, and the scenario would be proving something else. The coupling is answered rather than hidden: if that call stops happening the app draws itself perfectly, and the step fails in a second saying exactly that instead of timing out with nothing to say.
 
 ## The UI contract
 

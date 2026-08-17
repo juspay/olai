@@ -358,9 +358,13 @@ const byTime = (left: DayEntry, right: DayEntry): number =>
 /** A day, spelled out: four digits, two, two. The shape and nothing more —
  *  `2026-13-45.md` passes and names a day no month has, which is a day nothing
  *  can ever ask about (a calendar grid mints only real ones) and therefore a
- *  document that is quietly nobody's note. Checking the range here would be
- *  this package's first piece of calendar arithmetic, bought for a case that
- *  cannot reach a screen. */
+ *  document that is quietly nobody's note.
+ *
+ *  ./calendar.ts's `isRealDay` is the OTHER question — the shape plus the
+ *  month's own length — and it is a neighbour now rather than the arithmetic
+ *  this file declined to be the first to do. This one is still the right rule
+ *  HERE: a filename is matched by what it says, and a note named for a day no
+ *  month has is inert rather than wrong. */
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 
 /**
@@ -437,7 +441,11 @@ export const dailyNoteDays = (
  *  the shape a request to MINT one must arrive in. The same rule
  *  {@link noteDateOf} reads off a filename, exported for the writer's side of
  *  it: a minted note is named for its day, so what may name one is decided
- *  where the naming rule lives. */
+ *  where the naming rule lives.
+ *
+ *  SHAPE ONLY, which is the difference from ./calendar.ts's `isRealDay` beside
+ *  it on the package surface: this one asks what a FILENAME says, that one asks
+ *  whether a calendar holds the day. */
 export const isDay = (value: string): boolean => ISO_DAY.test(value)
 
 /**

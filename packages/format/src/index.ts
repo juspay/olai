@@ -232,7 +232,13 @@ export type { DayEntry, DayGroup, Occasion } from "./dates.ts"
  *  weekday a day falls on, the day before or after one, the days a month holds.
  *  Public because two packages ask it — the query grammar's relative words are
  *  here, and the browser's calendar grid and its `!` date widget are up there —
- *  and a second copy would be two answers to which day a week starts on. */
+ *  and a second copy would be two answers to which day a week starts on.
+ *
+ *  MOST OF THESE THIS PACKAGE DOES NOT CALL: the grammar needs three
+ *  (`weekdayOf`, `shiftDay`, `shiftMonth`) and the rest are the client's, which
+ *  is what it costs to have the counting live under both readers rather than
+ *  beside one of them. `isRealDay` is not `dates.ts`'s `isDay` — that one asks
+ *  what a filename says, this one whether a calendar holds the day. */
 export {
   daysOf,
   isMonth,

@@ -236,14 +236,15 @@ export type Filter =
  * write, and a grammar that refused every colon would be a grammar that could
  * not search prose.
  *
- * PURE, AND THE CLOCK IS AN ARGUMENT. `today` is the ISO day the reader is
- * standing on, and it is what the relative words count from (`date:yesterday`,
- * `date:last-week`). It is a parameter rather than something read in here for
- * two reasons that are really one: a function that read a clock could not be
- * tested against a boundary, and the day is a fact about WHO IS ASKING — the
- * tab's own local day for the filter the browser parses itself, the server's
- * for the three doors that ask it, and no door has two. The deferral this
- * lifts (docs/brainstorming/filter-in-place.md) named the price as "threading
+ * PURE, AND THE CLOCK IS AN ARGUMENT. `now` is what the relative words count
+ * from (`date:yesterday`, `date:last-week`) — the day the reader is standing
+ * on, or an instant on it ({@link relativeSpan} cuts one down to the other).
+ * It is a parameter rather than something read in here for two reasons that
+ * are really one: a function that read a clock could not be tested against a
+ * boundary, and the day is a fact about WHO IS ASKING — the tab's own local
+ * day for the filter the browser parses itself, the server's for the three
+ * doors that ask it, and no door has two. The deferral this lifts
+ * (docs/brainstorming/filter-in-place.md) named the price as "threading
  * `today` through the parse", and that is exactly what it cost.
  *
  * CASE IS FOLDED FOR MATCHING AND NOT FOR QUOTING. The words and the operator
@@ -253,7 +254,7 @@ export type Filter =
  * the same defect class the refusal exists to prevent — the split is why the
  * fold happens per token here rather than to the whole string on the way in.
  */
-export const parseFilter = (text: string, today: string): Filter => {
+export const parseFilter = (text: string, now: string): Filter => {
   const terms: Array<Term> = []
   const clauses: Array<Held> = []
   const refusals: Array<Refusal> = []
@@ -272,7 +273,7 @@ export const parseFilter = (text: string, today: string): Filter => {
       continue
     }
     const value = token.slice(colon + 1)
-    const clause = clauseOf(name, value, today)
+    const clause = clauseOf(name, value, now)
     if (clause === null) {
       refusals.push({ token: written, reason: teaching(name, value) })
       continue
@@ -299,7 +300,7 @@ export const parseFilter = (text: string, today: string): Filter => {
  * a compile error here and in {@link teaching}, which are the two places an
  * operator has to say something.
  */
-const clauseOf = (name: Operator, value: string, today: string): Clause | null => {
+const clauseOf = (name: Operator, value: string, now: string): Clause | null => {
   switch (name) {
     case "is":
       return (IS_VALUES as ReadonlyArray<string>).includes(value)
@@ -310,7 +311,7 @@ const clauseOf = (name: Operator, value: string, today: string): Clause | null =
         ? { kind: "has", field: value as HasField }
         : null
     case "date":
-      return dateClause(value, today)
+      return dateClause(value, now)
     case "prop":
       return propClause(value)
   }
@@ -397,7 +398,9 @@ const RELATIVE_UNITS = ["week", "month", "year"] as const
 type RelativeUnit = (typeof RELATIVE_UNITS)[number]
 
 /** Is the word after the prefix one of them? A type guard, {@link isOperator}'s
- *  shape, so the switch below is one the compiler checks. */
+ *  shape, so the branches below are ones the compiler checks — a fourth unit
+ *  added to the list above is an error there rather than a word that parses and
+ *  resolves to a year. */
 const isUnit = (name: string): name is RelativeUnit =>
   (RELATIVE_UNITS as ReadonlyArray<string>).includes(name)
 
@@ -433,34 +436,49 @@ interface Span {
  * A relative word, resolved against the day the query is being asked on — or
  * `null` for a word that is not one.
  *
- * A PURE FUNCTION OF (word, today), which is the whole of why the clock is a
+ * A PURE FUNCTION OF (word, now), which is the whole of why the clock is a
  * parameter of {@link parseFilter} rather than something read in here: a
  * boundary that moves with the machine is a boundary no test can pin, and every
  * one of these is right for most of the year and off by a day in some
- * particular week. `today` arrives from the ONE clock each door has — the tab's
+ * particular week. `now` arrives from the ONE clock each door has — the tab's
  * (`@olai/web`'s `clock.ts`) for the filter the browser parses itself, the
- * server's (`@olai/ops`' `Context.now`) for the three doors that ask it.
+ * server's (`@olai/ops`' `Context.now`, the clock a `done` is stamped with) for
+ * the three doors that ask it. EITHER SHAPE: a day, or an instant on one, cut
+ * down by ./dates.ts's own `dayOf` rather than by each door before it calls —
+ * which is the ruling `isOverdue` made about this same parameter, after an
+ * untrimmed instant reached it.
  *
- * A WEEK RUNS MONDAY TO SUNDAY, and it is not this file's opinion: it is
- * `./calendar.ts`'s `weekdayOf`, which is the same count the calendar grid
- * lays its columns out by. There is exactly one week convention in olai, and
- * a query that started its week on Sunday would be selecting days the grid
- * draws in another row.
+ * NOTHING IS COUNTED HERE. The three questions this needs — the day before or
+ * after one, the month or the year `n` away, which weekday today is — are all
+ * ./calendar.ts's, and a week is those composed rather than a fourth: back to
+ * the Monday, then whole weeks from there. So the claim that file makes about
+ * being the only place a date is counted survives its first caller.
+ *
+ * A WEEK RUNS MONDAY TO SUNDAY, and it is not this file's opinion either: it
+ * is `weekdayOf`'s count, which is the one the calendar grid lays its columns
+ * out by. A query that started its week on Sunday would be selecting days the
+ * grid draws in another row.
  *
  * A MONTH AND A YEAR are handed to the same {@link lowOf} / {@link highOf} the
  * absolute forms use, so `date:this-month` and `date:2026-08` are one answer
  * rather than two — including the upper bound being `-31` whether or not the
  * month has one, which is that pair's own argued rule.
  *
- * `null` for a `today` that names no day, which no door can hand over: a clock
+ * `null` for a `now` that names no day, which no door can hand over: a clock
  * that says nothing is not a day to count from, and inventing one would be
  * this grammar answering a date question out of thin air.
+ *
+ * EXPORTED for {@link spanOf} next door and for the test that pins these
+ * boundaries against a fixed day — which is the half of this feature a test can
+ * hold still, and the reason the clock is an argument at all.
  */
-export const relativeSpan = (word: string, today: string): Span | null => {
+export const relativeSpan = (word: string, now: string): Span | null => {
+  const today = dayOf(now)
   // Which weekday the reader is standing on — and, since it is `null` for text
   // that names no day, whether there is a day to count from at all. One
   // question, because a second validity check here would be a second answer to
-  // what a day is.
+  // what a day is. It costs one reading per `date:` token, which is once per
+  // query rather than once per node.
   const standing = weekdayOf(today)
   if (standing === null) return null
 
@@ -473,19 +491,22 @@ export const relativeSpan = (word: string, today: string): Span | null => {
   const at = word.indexOf("-")
   if (at === -1) return null
   const step = RELATIVE_STEPS[word.slice(0, at) as keyof typeof RELATIVE_STEPS]
-  const unit = word.slice(at + 1) as RelativeUnit
-  if (step === undefined || !(RELATIVE_UNITS as ReadonlyArray<string>).includes(unit)) {
-    return null
-  }
+  const unit = word.slice(at + 1)
+  if (step === undefined || !isUnit(unit)) return null
 
   if (unit === "week") {
     // Back to this week's Monday, then a whole number of weeks from there.
     const monday = shiftDay(today, step * 7 - standing)
     return { from: monday, to: shiftDay(monday, 6) }
   }
-  const whole = unit === "month"
-    ? shiftMonth(monthOf(today), step)
-    : String(Number(today.slice(0, 4)) + step).padStart(4, "0")
+  // A year is twelve months through the same counter, rather than four digits
+  // added to by hand: one arithmetic, and no second rule about how a year is
+  // spelled.
+  const months = unit === "month" ? step : step * 12
+  const stepped = shiftMonth(monthOf(today), months)
+  // …and then read at the width the unit names: `2026-09` or the `2026` in
+  // front of it, which is exactly what a reader would have typed.
+  const whole = unit === "month" ? stepped : stepped.slice(0, 4)
   return { from: lowOf(whole), to: highOf(whole) }
 }
 
@@ -531,8 +552,8 @@ const twoDigitsIn = (digits: string, low: number, high: number): boolean => {
  * second rule — `date:last-week..` is the low end of last week's span with
  * nothing above it, exactly as `date:2026-08..` is the low end of August's.
  */
-const spanOf = (value: string, today: string): Span | null => {
-  const relative = relativeSpan(value, today)
+const spanOf = (value: string, now: string): Span | null => {
+  const relative = relativeSpan(value, now)
   if (relative !== null) return relative
   return datePart(value) === null
     ? null
@@ -560,24 +581,20 @@ const spanOf = (value: string, today: string): Span | null => {
  * of the left, the high of the right — so `date:last-week..today` runs from
  * last Monday to tonight, and an end left empty is unbounded that way.
  */
-const dateClause = (value: string, today: string): Clause | null => {
+const dateClause = (value: string, now: string): Clause | null => {
   const at = value.indexOf(RANGE)
   if (at === -1) {
-    const span = spanOf(value, today)
+    const span = spanOf(value, now)
     return span === null ? null : { kind: "date", from: span.from, to: span.to }
   }
   const left = value.slice(0, at)
   const right = value.slice(at + RANGE.length)
   if (left === "" && right === "") return null
-  const low = left === "" ? null : spanOf(left, today)
+  const low = left === "" ? null : spanOf(left, now)
   if (left !== "" && low === null) return null
-  const high = right === "" ? null : spanOf(right, today)
+  const high = right === "" ? null : spanOf(right, now)
   if (right !== "" && high === null) return null
-  return {
-    kind: "date",
-    from: low === null ? null : low.from,
-    to: high === null ? null : high.to,
-  }
+  return { kind: "date", from: low?.from ?? null, to: high?.to ?? null }
 }
 
 const lowOf = (value: string): string =>

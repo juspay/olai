@@ -33,12 +33,13 @@ test("the 1st lands in the column its weekday names", () => {
   expect(lead("2026-03")).toBe(6)
 })
 
+// The grid draws every day the month holds and none it does not. HOW LONG a
+// month is belongs to `@olai/format`'s `calendar.test.ts` now, leap rule and
+// all — asserting it here too would pin one Gregorian rule in two packages.
 test("a month runs from its 1st to its last day", () => {
   expect(days("2026-08")[0]).toBe("2026-08-01")
   expect(days("2026-08").at(-1)).toBe("2026-08-31")
   expect(days("2026-08").length).toBe(31)
-  expect(days("2026-02").length).toBe(28)
-  expect(days("2028-02").length).toBe(29)
 })
 
 // A day of a month is that month's, and no cell of the grid belongs to

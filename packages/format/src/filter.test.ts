@@ -57,13 +57,11 @@ const selectsIn = (
 ): ReadonlyArray<string> =>
   matching(derivation, parseFilter(text, today)).map(({ at }) => at.node.id)
 
-/** The ids a query selects, in the set's own order, asked on some other day —
- *  what the three day-words need, since each of them names a different one. */
-const selectsOn = (text: string, today: string): ReadonlyArray<string> =>
+/** The ids a query selects, in the set's own order — asked on {@link TODAY},
+ *  or on some other day, which is what the three day-words need since each of
+ *  them names a different one. */
+const selects = (text: string, today = TODAY): ReadonlyArray<string> =>
   selectsIn(derived, text, today)
-
-/** The ids a query selects, in the set's own order. */
-const selects = (text: string): ReadonlyArray<string> => selectsIn(derived, text)
 
 // ── the grammar ────────────────────────────────────────────────────────
 
@@ -257,6 +255,22 @@ test("a month and a year resolve to the spans their written forms do", () => {
   expect(relativeSpan("next-year", TODAY)?.to).toBe("2027-12-31")
 })
 
+// A day or an INSTANT on one, cut down by the same `dayOf` every date reading
+// in this package uses — the ruling `isOverdue` made about the same parameter,
+// so a door that hands over its clock's own text (the ops layer's `now`, a
+// local ISO datetime with its offset) counts from the right day rather than
+// being refused for not having trimmed it first.
+test("an instant is the day it falls on", () => {
+  expect(relativeSpan("today", `${TODAY}T15:40:03-04:00`)).toEqual({
+    from: TODAY,
+    to: TODAY,
+  })
+  expect(relativeSpan("this-week", `${TODAY}T00:00:00+05:30`)).toEqual({
+    from: "2026-08-10",
+    to: "2026-08-16",
+  })
+})
+
 test("a word the vocabulary does not hold resolves to nothing", () => {
   expect(relativeSpan("tomorrowish", TODAY)).toBeNull()
   expect(relativeSpan("this-day", TODAY)).toBeNull()
@@ -290,10 +304,10 @@ test("a relative word selects the days it names", () => {
 // The same node found from three different days, which is what pins the ±1:
 // `order` is scheduled for the 10th.
 test("the day words count from the day the query is asked on", () => {
-  expect(selectsOn("date:today", "2026-08-10")).toEqual(["order"])
-  expect(selectsOn("date:yesterday", "2026-08-11")).toEqual(["order"])
-  expect(selectsOn("date:tomorrow", "2026-08-09")).toEqual(["order"])
-  expect(selectsOn("date:today", TODAY)).toEqual([])
+  expect(selects("date:today", "2026-08-10")).toEqual(["order"])
+  expect(selects("date:yesterday", "2026-08-11")).toEqual(["order"])
+  expect(selects("date:tomorrow", "2026-08-09")).toEqual(["order"])
+  expect(selects("date:today", TODAY)).toEqual([])
 })
 
 // A relative word is a `date:` VALUE, so a range takes one wherever it takes a

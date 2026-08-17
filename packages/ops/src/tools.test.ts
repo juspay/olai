@@ -84,7 +84,7 @@ const at = (): Reading => readingOf(EVERYTHING())
  * exactly as the per-call `at()` this replaced did. Nothing here can fail —
  * the read is a fixture — so every answer is `runSync`-able.
  */
-const ASKING = asking(Effect.sync(at), steady())
+const ASKING = asking(Effect.sync(at), steady().now)
 
 /** One read, answered. The tools' own effects never fail over a fixture that
  *  loaded, so the failure channel is discharged here rather than threaded
@@ -183,9 +183,8 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   expect(searches[1]?.["refusals"]).toBeArrayOfSize(1)
   // And a relative word is counted from THIS LAYER'S CLOCK — the one a `done`
   // is stamped with, which is what the door hands the grammar. `paint` was
-  // finished at the fixture clock's own instant, so `date:today` finds it; a
-  // door that passed the instant instead of the day it falls on would refuse
-  // the query, and a door that read a second clock would answer with nothing.
+  // finished at the fixture clock's own instant, so `date:today` finds it: a
+  // door that read a clock of its own would answer this with nothing.
   expect(searches[3]?.["hits"]).toMatchObject([{ id: "paint" }])
   expect(searches[3]).not.toHaveProperty("refusals")
 

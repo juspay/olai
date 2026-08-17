@@ -80,12 +80,14 @@ export const monthLabel = (month: string): string =>
  * calendar is not the place to explain a bad address.
  */
 export const monthGrid = (month: string): ReadonlyArray<string | null> => {
-  const days = daysOf(month)
-  if (days.length === 0) return []
+  // Which column the 1st goes in — and, since it is `null` for text that names
+  // no month, whether there is a grid to draw at all. One question, asked of
+  // the day the grid would open with.
+  const lead = weekdayOf(`${month}-01`)
+  if (lead === null) return []
 
-  const lead = weekdayOf(days[0]!) ?? 0
   const cells: Array<string | null> = Array.from({ length: lead }, () => null)
-  cells.push(...days)
+  for (const day of daysOf(month)) cells.push(day)
   const trailing = cells.length % WEEK
   if (trailing !== 0) {
     for (let filled = trailing; filled < WEEK; filled++) cells.push(null)

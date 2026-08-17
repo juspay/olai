@@ -90,7 +90,9 @@ export const isoDate = (year: number, month: number, day: number): string =>
 export const isMonth = (month: string): boolean => parseMonth(month) !== null
 
 /** Whether text names a real calendar day — the check ./dates.ts's `isDay`
- *  makes about SHAPE, plus the month's own length. */
+ *  makes about SHAPE, plus the month's own length, which is the whole
+ *  difference between the two: `2026-02-30` is a day-shaped name and not a
+ *  day. Ask `isDay` of a filename, this of a date somebody is counting from. */
 export const isRealDay = (date: string): boolean => parseDay(date) !== null
 
 /**
