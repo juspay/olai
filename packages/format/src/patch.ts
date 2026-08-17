@@ -132,14 +132,18 @@ export const patched = (
   // does, the work below is a rebuild with bookkeeping on top.
   if (![...derived.byFile.keys()].some((file) => !touched.has(file))) return undefined
 
-  const outgoing = recordsIn(derived.byFile, touched)
-  const incoming = recordsIn(byFile, touched)
+  const edit: Edit = {
+    before: derived,
+    touched,
+    outgoing: recordsIn(derived.byFile, touched),
+    incoming: recordsIn(byFile, touched),
+  }
 
   // The delta's own claims, checked against each other and against what stayed
   // standing. With the old view duplicate-free and the survivors untouched,
   // this is the whole proof that the new one is duplicate-free too.
   const claimed = new Set<string>()
-  for (const at of incoming) {
+  for (const at of edit.incoming) {
     const id = at.node.id
     if (claimed.has(id)) return undefined
     claimed.add(id)
@@ -147,68 +151,68 @@ export const patched = (
     if (held !== undefined && !touched.has(held.file)) return undefined
   }
 
-  const byId = ids(derived, nodes, outgoing, incoming, claimed)
-  const before = { byId: derived.byId }
-  const now = { byId }
-  /** What an id NAMES, on either side of the edit — {@link Derived.after}'s own
-   *  canonicalisation, which is the only reason an edge in an untouched file
-   *  can move when a mirror somewhere else changes. */
-  const namedBefore = (id: string): string => nodeNamed(before, id)?.node.id ?? id
-  const namedNow = (id: string): string => nodeNamed(now, id)?.node.id ?? id
+  // One step per index, in the order each needs the last: who claims which id,
+  // what hangs under what, what names what, what everything resolves to, the
+  // ordering graph, and what cannot start yet.
+  const byId = ids(edit, nodes, claimed)
+  const children = containment(edit)
+  const namedBy = namings(edit, nodes)
+  const { status, mirrorsOf, dirty } = resolutions(edit, byId)
+  const { after, edgesTo, rewritten } = orderings(edit, { byId, mirrorsOf, namedBy }, dirty)
+  const blocked = blockage(edit, { byId, status, after, edgesTo }, dirty, rewritten)
 
-  // ── what one file owns ───────────────────────────────────────────────
-  // `parent` is same-file by the format, so a file's records ARE its children
-  // keys — but a set the validator has condemned can say otherwise, and this
-  // runs over those too. So a key is rebuilt from what is left of it plus what
-  // arrived, never from an assumption about where its members live.
-  const children = new Map(derived.children)
+  return { nodes, byId, children, status, after, blocked, byFile, mirrorsOf, edgesTo, namedBy }
+}
+
+/**
+ * ONE EDIT, from both sides: the view it is against, which files it named, and
+ * the records those files held and hold now.
+ *
+ * The four travel together because every step below asks about all of them —
+ * what a key kept is "what is left of it once the touched files are out", and
+ * what it gains is "whatever arrived". Threading them one by one made each
+ * signature a list of the same four things in a different order, which is the
+ * shape a fifth would silently be left out of.
+ */
+interface Edit {
+  readonly before: Derived
+  readonly touched: ReadonlySet<string>
+  /** What the touched files held, and what they hold now — in the delta's own
+   *  order, which nothing reads: every index that promises an order sorts what
+   *  it files. */
+  readonly outgoing: ReadonlyArray<Located>
+  readonly incoming: ReadonlyArray<Located>
+}
+
+/**
+ * What hangs under what — {@link Derived.children} across the edit.
+ *
+ * `parent` is same-file by the format, so a file's records ARE its children
+ * keys — but a set the validator has condemned can say otherwise, and this runs
+ * over those too. So a key is rebuilt from what is left of it plus what
+ * arrived, never from an assumption about where its members live.
+ */
+const containment = (
+  edit: Edit,
+): ReadonlyMap<string, ReadonlyArray<Located>> => {
+  const children = new Map(edit.before.children)
   const arriving = Map.groupBy(
-    incoming.filter((at) => at.node.parent !== undefined),
+    edit.incoming.filter((at) => at.node.parent !== undefined),
     (at) => at.node.parent as string,
   )
-  for (const key of parentsTouched(outgoing, arriving)) {
+  const parents = new Set<string>(arriving.keys())
+  for (const at of edit.outgoing) {
+    if (at.node.parent !== undefined) parents.add(at.node.parent)
+  }
+  for (const key of parents) {
     const own = [
-      ...(derived.children.get(key) ?? []).filter((at) => !touched.has(at.file)),
+      ...(edit.before.children.get(key) ?? []).filter((at) => !edit.touched.has(at.file)),
       ...(arriving.get(key) ?? []),
     ].sort(bySibling)
     if (own.length === 0) children.delete(key)
     else children.set(key, own)
   }
-
-  const namedBy = namings(derived, nodes, outgoing, incoming, touched)
-
-  // ── what the change reaches ──────────────────────────────────────────
-  const { status, mirrorsOf, dirty } = resolutions(
-    derived,
-    byId,
-    outgoing,
-    incoming,
-  )
-
-  // Which ids MEAN something else now. A mirror chain that moved re-points
-  // every edge written at it, in files this delta never named — the reason
-  // `after` is canonical at all, and the reason this set is computed before a
-  // single edge is looked at.
-  const moved = new Set<string>()
-  for (const id of dirty) {
-    if (namedBefore(id) !== namedNow(id)) moved.add(id)
-  }
-
-  const { after, edgesTo, rewritten } = orderings({
-    derived,
-    byId,
-    mirrorsOf,
-    namedBy,
-    namedBefore,
-    namedNow,
-    outgoing,
-    incoming,
-    moved,
-  })
-
-  const blocked = blockage(derived, { byId, status, after }, edgesTo, dirty, rewritten)
-
-  return { nodes, byId, children, status, after, blocked, byFile, mirrorsOf, edgesTo, namedBy }
+  return children
 }
 
 /** The delta applied to the grouping, and the flat list that falls out of it —
@@ -229,10 +233,10 @@ const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
   // be made again: a file that was already there keeps its place when it is
   // re-set, and one that arrives is appended — which for a path that sorts
   // first would put the corpus in an order no assembly produces.
-  let arrivals = false
+  let reordered = false
   for (const file of delta.removes) {
     touched.add(file)
-    if (byFile.delete(file)) arrivals = true
+    if (byFile.delete(file)) reordered = true
   }
   for (const [file, entry] of delta.upserts) {
     touched.add(file)
@@ -240,20 +244,19 @@ const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
     // promise is about what the index MEANS — the records in the order they are
     // on disk — and not about the order a frame happened to carry them in.
     const own = [...entry.nodes].sort(byLine)
-    if (own.length === 0) arrivals = byFile.delete(file) || arrivals
+    if (own.length === 0) reordered = byFile.delete(file) || reordered
     else {
-      if (!byFile.has(file)) arrivals = true
+      if (!byFile.has(file)) reordered = true
       byFile.set(file, own)
     }
   }
-  const ordered = arrivals
+  const ordered = reordered
     ? new Map([...byFile].sort(([one], [other]) => (one < other ? -1 : one > other ? 1 : 0)))
     : byFile
   return { byFile: ordered, nodes: [...ordered.values()].flat(), touched }
 }
 
-/** The records of every named file — in the delta's own order, which nothing
- *  below reads: every index that promises an order sorts what it files. */
+/** The records of every named file, run together. */
 const recordsIn = (
   byFile: ReadonlyMap<string, ReadonlyArray<Located>>,
   files: ReadonlySet<string>,
@@ -288,16 +291,12 @@ const byCorpus = (a: Located, b: Located): number =>
  */
 const bySibling = (a: Located, b: Located): number => byOrd(a, b) || byCorpus(a, b)
 
-const parentsTouched = (
-  outgoing: ReadonlyArray<Located>,
-  arriving: ReadonlyMap<string, ReadonlyArray<Located>>,
-): ReadonlySet<string> => {
-  const parents = new Set<string>(arriving.keys())
-  for (const at of outgoing) {
-    if (at.node.parent !== undefined) parents.add(at.node.parent)
-  }
-  return parents
-}
+/** What an id NAMES in a view — {@link Derived.after}'s own canonicalisation,
+ *  asked of one side of the edit or the other. It is why an edge in a file the
+ *  delta never named can move when a mirror somewhere else changes. */
+const namedIn = (
+  byId: ReadonlyMap<string, Located>,
+): ((id: string) => string) => (id) => nodeNamed({ byId }, id)?.node.id ?? id
 
 /**
  * Who claims which id now.
@@ -313,21 +312,19 @@ const parentsTouched = (
  * what typing does.
  */
 const ids = (
-  derived: Derived,
+  edit: Edit,
   nodes: ReadonlyArray<Located>,
-  outgoing: ReadonlyArray<Located>,
-  incoming: ReadonlyArray<Located>,
   claimed: ReadonlySet<string>,
 ): ReadonlyMap<string, Located> => {
-  const left = outgoing.some((at) => !claimed.has(at.node.id))
-  const arrived = incoming.some((at) => !derived.byId.has(at.node.id))
+  const left = edit.outgoing.some((at) => !claimed.has(at.node.id))
+  const arrived = edit.incoming.some((at) => !edit.before.byId.has(at.node.id))
   if (left || arrived) {
     const byId = new Map<string, Located>()
     for (const at of nodes) if (!byId.has(at.node.id)) byId.set(at.node.id, at)
     return byId
   }
-  const byId = new Map(derived.byId)
-  for (const at of incoming) byId.set(at.node.id, at)
+  const byId = new Map(edit.before.byId)
+  for (const at of edit.incoming) byId.set(at.node.id, at)
   return byId
 }
 
@@ -348,24 +345,21 @@ const ids = (
  * a key it touched, so checking those is checking all of them.
  */
 const namings = (
-  derived: Derived,
+  edit: Edit,
   nodes: ReadonlyArray<Located>,
-  outgoing: ReadonlyArray<Located>,
-  incoming: ReadonlyArray<Located>,
-  touched: ReadonlySet<string>,
 ): ReadonlyMap<string, ReadonlyArray<Naming>> => {
   const arriving = new Map<string, Array<Filing>>()
-  for (const at of incoming) nameInto(arriving, at)
+  for (const at of edit.incoming) nameInto(arriving, at)
 
   const keys = new Set<string>(arriving.keys())
-  for (const at of outgoing) for (const [, target] of targetsOf(at.node)) keys.add(target)
+  for (const at of edit.outgoing) for (const [, target] of targetsOf(at.node)) keys.add(target)
 
   let shape = false
   const rewritten = new Map<string, ReadonlyArray<Naming>>()
   for (const key of keys) {
-    const held = derived.namedBy.get(key)
+    const held = edit.before.namedBy.get(key)
     const own = [
-      ...(held ?? []).filter((naming) => !touched.has(naming.at.file)),
+      ...(held ?? []).filter((naming) => !edit.touched.has(naming.at.file)),
       ...(arriving.get(key) ?? []),
     ].sort((one, other) => byCorpus(one.at, other.at))
     if (elsewhere(held?.[0]?.at, own[0]?.at)) shape = true
@@ -379,7 +373,7 @@ const namings = (
     for (const at of nodes) nameInto(namedBy, at)
     return namedBy
   }
-  const namedBy = new Map(derived.namedBy)
+  const namedBy = new Map(edit.before.namedBy)
   for (const [key, own] of rewritten) namedBy.set(key, own)
   return namedBy
 }
@@ -402,10 +396,8 @@ const namings = (
  * now does not.
  */
 const resolutions = (
-  derived: Derived,
+  edit: Edit,
   byId: ReadonlyMap<string, Located>,
-  outgoing: ReadonlyArray<Located>,
-  incoming: ReadonlyArray<Located>,
 ): {
   readonly status: ReadonlyMap<string, Status>
   readonly mirrorsOf: ReadonlyMap<string, ReadonlySet<string>>
@@ -415,7 +407,7 @@ const resolutions = (
    *  record that points AT this id with `mirror`. The union of the two is a
    *  superset of what really moved, and a superset only costs recomputation. */
   const arriving = new Map<string, Array<string>>()
-  for (const at of incoming) {
+  for (const at of edit.incoming) {
     if (!isMirror(at.node)) continue
     const shown = arriving.get(at.node.mirror)
     if (shown === undefined) arriving.set(at.node.mirror, [at.node.id])
@@ -429,18 +421,18 @@ const resolutions = (
     dirty.add(id)
     pending.push(id)
   }
-  for (const at of outgoing) wake(at.node.id)
-  for (const at of incoming) wake(at.node.id)
+  for (const at of edit.outgoing) wake(at.node.id)
+  for (const at of edit.incoming) wake(at.node.id)
   while (pending.length > 0) {
     const id = pending.pop() as string
-    for (const naming of derived.namedBy.get(id) ?? []) {
+    for (const naming of edit.before.namedBy.get(id) ?? []) {
       if (naming.fields.includes("mirror")) wake(naming.at.node.id)
     }
     for (const mirror of arriving.get(id) ?? []) wake(mirror)
   }
 
-  const status = new Map(derived.status)
-  const mirrorsOf = new Map(derived.mirrorsOf)
+  const status = new Map(edit.before.status)
+  const mirrorsOf = new Map(edit.before.mirrorsOf)
   /** The keys of `mirrorsOf` a dirty mirror left or joined — every one of them
    *  has to be made again, and no other one has moved. */
   const shown = new Set<string>()
@@ -448,12 +440,12 @@ const resolutions = (
    *  rebuild below is a lookup rather than a second walk of the dirty set per
    *  key. */
   const landing = new Map<string, Array<Located>>()
-  const before = { byId: derived.byId }
+  const before = { byId: edit.before.byId }
   for (const id of dirty) {
     // Unfiled from where it WAS before it is filed where it is: the two are
     // different keys exactly when the chain moved, which is the case this
     // whole walk exists for.
-    const was = derived.byId.get(id)
+    const was = edit.before.byId.get(id)
     if (was !== undefined && isMirror(was.node)) {
       const found = follow(before, was)
       if (found.kind === "found") shown.add(found.shows.node.id)
@@ -500,18 +492,23 @@ const resolutions = (
  * from elsewhere in corpus order. Who contributes to a key is a lookup rather
  * than a scan — the record that IS the key, and whatever named the key or any
  * mirror standing at it — which is what the two reverse indexes are for.
+ *
+ * IT IS THE ONE RULE THIS FILE RE-SPELLS, and {@link ./derive.ts}'s `orderings`
+ * says so from the other side. One pass over every record and one pass per
+ * disturbed key are different loops over the same rule, and neither can be
+ * written as the other without paying the corpus. What holds them together is
+ * the oracle: the property test compares both maps whole, so a change to that
+ * walk which this one does not follow fails rather than drifts.
  */
-const orderings = (from: {
-  readonly derived: Derived
-  readonly byId: ReadonlyMap<string, Located>
-  readonly mirrorsOf: ReadonlyMap<string, ReadonlySet<string>>
-  readonly namedBy: ReadonlyMap<string, ReadonlyArray<Naming>>
-  readonly namedBefore: (id: string) => string
-  readonly namedNow: (id: string) => string
-  readonly outgoing: ReadonlyArray<Located>
-  readonly incoming: ReadonlyArray<Located>
-  readonly moved: ReadonlySet<string>
-}): {
+const orderings = (
+  edit: Edit,
+  view: {
+    readonly byId: ReadonlyMap<string, Located>
+    readonly mirrorsOf: ReadonlyMap<string, ReadonlySet<string>>
+    readonly namedBy: ReadonlyMap<string, ReadonlyArray<Naming>>
+  },
+  dirty: ReadonlySet<string>,
+): {
   readonly after: ReadonlyMap<string, ReadonlyArray<string>>
   readonly edgesTo: ReadonlyMap<string, ReadonlySet<string>>
   /** The keys this made again — what blockedness has to be asked about next,
@@ -519,13 +516,15 @@ const orderings = (from: {
    *  corpus-sized walk this whole file exists to stop doing. */
   readonly rewritten: ReadonlySet<string>
 } => {
-  const { byId, derived, mirrorsOf, namedBefore, namedBy, namedNow } = from
+  const { byId, mirrorsOf, namedBy } = view
+  const namedBefore = namedIn(edit.before.byId)
+  const namedNow = namedIn(byId)
 
   const keys = new Set<string>()
   // A record that changed re-writes the key it IS, and moves whatever its own
   // fields land on — on both sides of the edit, since an edge that left has to
   // be taken off the key it used to be filed under.
-  for (const at of [...from.outgoing, ...from.incoming]) {
+  for (const at of [...edit.outgoing, ...edit.incoming]) {
     if (isMirror(at.node)) continue
     keys.add(at.node.id)
     for (const target of [...(at.node.after ?? []), ...(at.node.blocks ?? [])]) {
@@ -533,13 +532,17 @@ const orderings = (from: {
       keys.add(namedNow(target))
     }
   }
-  // An id that means something else now moves every edge written AT it, in
+  // An id that MEANS something else now moves every edge written AT it, in
   // whatever file wrote it: the source's own list changes, and the key its
-  // `blocks` lands on changes with it.
-  for (const id of from.moved) {
+  // `blocks` lands on changes with it. A mirror chain that moved is why `after`
+  // is canonical at all, and this is where that is paid for.
+  for (const id of dirty) {
+    if (namedBefore(id) === namedNow(id)) continue
     keys.add(namedBefore(id))
     keys.add(namedNow(id))
-    for (const naming of [...(derived.namedBy.get(id) ?? []), ...(namedBy.get(id) ?? [])]) {
+    for (
+      const naming of [...(edit.before.namedBy.get(id) ?? []), ...(namedBy.get(id) ?? [])]
+    ) {
       if (naming.fields.includes("after") || naming.fields.includes("blocks")) {
         keys.add(naming.at.node.id)
       }
@@ -566,8 +569,8 @@ const orderings = (from: {
     return found.sort(byCorpus)
   }
 
-  const after = new Map(derived.after)
-  const edgesTo = new Map(derived.edgesTo)
+  const after = new Map(edit.before.after)
+  const edgesTo = new Map(edit.before.edgesTo)
   for (const key of keys) {
     const own = byId.get(key)
     const mine = own === undefined || isMirror(own.node) ? undefined : own.node
@@ -602,20 +605,19 @@ const orderings = (from: {
  * lookup rather than a walk of the corpus.
  */
 const blockage = (
-  derived: Derived,
-  view: Pick<Derived, "byId" | "status" | "after">,
-  edgesTo: ReadonlyMap<string, ReadonlySet<string>>,
+  edit: Edit,
+  view: Pick<Derived, "byId" | "status" | "after" | "edgesTo">,
   dirty: ReadonlySet<string>,
   rewritten: ReadonlySet<string>,
 ): ReadonlyMap<string, ReadonlyArray<InTheWay>> => {
   const keys = new Set<string>(rewritten)
   for (const id of dirty) {
     keys.add(id)
-    for (const source of derived.edgesTo.get(id) ?? []) keys.add(source)
-    for (const source of edgesTo.get(id) ?? []) keys.add(source)
+    for (const source of edit.before.edgesTo.get(id) ?? []) keys.add(source)
+    for (const source of view.edgesTo.get(id) ?? []) keys.add(source)
   }
 
-  const blocked = new Map(derived.blocked)
+  const blocked = new Map(edit.before.blocked)
   for (const key of keys) {
     blocked.delete(key)
     const found = blockageAt(view, key)

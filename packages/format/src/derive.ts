@@ -22,6 +22,14 @@
  * also run against sets it has already condemned (a browser draws the outline
  * beside the errors), and a renderer that hangs is a worse way to learn about
  * a bug than a marked stub.
+ *
+ * {@link derive} IS THE ORACLE, since slice 3 of `model-indices`: a validation
+ * that follows another one patches the previous view instead of building a new
+ * one ({@link ./patch.ts}), and what says the two are the same value is a
+ * property test over generated corpora and generated deltas. So this file is
+ * still the definition of what a view of a set IS — the patcher is an
+ * optimisation held to it, and every rule it needs it calls here rather than
+ * spelling again.
  */
 
 import { Schema } from "effect"
@@ -597,6 +605,17 @@ export interface InTheWay {
  * named once, in the order it was first named. That is the same claim the two
  * paragraphs above make about spellings and about placements, carried to the
  * case where the two arrive at one pair — see {@link edge}.
+ *
+ * THE ONE RULE THE PATCHER RE-SPELLS, and the pointer is here so a change to
+ * this walk cannot be made without meeting it: {@link ./patch.ts} builds these
+ * same two maps ONE KEY AT A TIME — a node's own `after`, then whatever
+ * `blocks` it from elsewhere — because that is the only shape a key can be
+ * rebuilt in without walking the corpus. Everything else the patcher needs it
+ * calls (mirror resolution, the naming fold, blockedness); this is the walk
+ * whose SHAPE cannot be shared, since one pass over every record and one pass
+ * per disturbed key are different loops over the same rule. What holds them
+ * together is the oracle: the property test compares these two maps whole, so a
+ * change here that the patcher does not follow fails rather than drifts.
  *
  * BOTH DIRECTIONS, filed as the edge is made. {@link Derived.edgesTo} is this
  * map reversed — and to be exact about what that buys, since a later pass over
