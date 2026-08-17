@@ -53,6 +53,22 @@
  *     (the `commands` frame), so it is whatever that agent actually offers
  *     rather than a list olai maintains. Accepting one only writes `/name ` —
  *     sending is what invokes it, exactly as typing it would.
+ *   - **`@` opens the served directory's files**, and taking one writes
+ *     `@the/path ` into the sentence. It is the same gesture as the slash list
+ *     and draws the same box ({@link ./CompletionMenu.tsx}); what differs is
+ *     where the rows come from ({@link ./files.ts}, off the key sets this tab
+ *     already holds) and that the span it replaces is a WORD inside the
+ *     message rather than the whole line ({@link ./completion.ts}).
+ *
+ *     What it writes is TEXT, and deliberately not an attachment. The `+`
+ *     button's files are copies in a temp directory that the agent is handed
+ *     the path of (`@olai/chat`'s attachments) — the right arrangement for a
+ *     screenshot on the clipboard, which is nowhere until something puts it
+ *     somewhere, and the wrong one for a file that is already in the directory
+ *     the agent is working in: a copy stops being true the moment anything
+ *     writes, and this one would be a copy of a file the agent can read where
+ *     it lives. So the path rides the message as the word it is, and the
+ *     conversation reads the way it was typed.
  *
  * The draft is local to this tab and is deliberately NOT a surface member: it
  * is an editor, not committed state, and two tabs typing at once should not
@@ -63,14 +79,26 @@ import { nodeNamed } from "@olai/format"
 import { ATTACHMENT_EXTENSIONS } from "@olai/surface"
 import { createEffect, createMemo, createSignal, on, Show } from "solid-js"
 
+import { type Written, written } from "../complete/trigger.ts"
 import { useDerived } from "../derived.tsx"
+import { useServed } from "../served.tsx"
 import { TESTID } from "../testids.ts"
 import { armedNodes, disarmNode, releaseArmed, restoreArmed } from "./armed.ts"
 import { Attachments } from "./Attachments.tsx"
+import { type Completing, completingIn, inserted, tokenOf } from "./completion.ts"
+import { CompletionMenu, type MenuRow } from "./CompletionMenu.tsx"
 import { type Chip, ContextChips } from "./ContextChips.tsx"
+import { dirOf, folded, matchFiles, nameOf } from "./files.ts"
 import type { Holding } from "./holding.ts"
-import { SlashMenu } from "./SlashMenu.tsx"
 import type { Chat } from "./state.ts"
+
+/** One row of the completion, and what taking it does — the arrangement the
+ *  row editor's widgets use (`../complete/completing.tsx`'s `Choice`): the box
+ *  draws rows and reports an index, and every kind of row carries its own
+ *  answer to being chosen, so the menu knows nothing about commands or files. */
+interface Row extends MenuRow {
+  readonly take: () => void
+}
 
 /** Every control on the toolbar, the same height and the same corners. Written
  *  once because "these line up" is the property, and three copies of a class
@@ -85,12 +113,35 @@ export function Composer(props: {
   readonly holding: Holding
 }) {
   const [draft, setDraft] = createSignal("")
-  const [showing, setShowing] = createSignal(false)
+  /**
+   * WHERE THE CARET IS, which is the one fact a draft does not carry and the
+   * `@` list cannot be armed without: what is being completed is a word inside
+   * the message rather than the whole of it.
+   *
+   * Read off the element rather than tracked alongside it, for
+   * `../edit/RowEditor.tsx`'s reason — the caret moves for reasons no handler
+   * here sees (a click in the middle of a sentence, `Home`, a drag-selection,
+   * an IME), so every event that could have moved it re-reads it and the value
+   * is the element's own answer rather than this component's arithmetic about
+   * what the last key should have done.
+   */
+  const [caret, setCaret] = createSignal(0)
+  /** The one piece of MEMORY in the completion, and it remembers a token
+   *  rather than a mood: Escape over one `@` keeps that one shut while it is
+   *  being typed, and starting another `@` — or moving the caret to one — is a
+   *  fresh offer (`./completion.ts`'s `tokenOf`). Without it, Escape could
+   *  only mean "throw the sentence away", which is the wrong of the two
+   *  answers to a key pressed to make a popup go away. */
+  const [dismissed, setDismissed] = createSignal<string | null>(null)
   /** Opened by the BUTTON rather than by typing a slash — the difference is
    *  only which prefix the list is filtered by. */
   const [asked, setAsked] = createSignal(false)
   let input: HTMLTextAreaElement | undefined
   let picker: HTMLInputElement | undefined
+
+  const readCaret = (): void => {
+    setCaret(input?.selectionStart ?? 0)
+  }
 
   const working = () => props.chat.state().status === "thinking"
 
@@ -110,30 +161,81 @@ export function Composer(props: {
     })
   )
 
-  /** The word being completed: everything after a `/` that starts the draft.
-   *  Only at the start — a slash mid-sentence is a slash. `null` is "this is
-   *  not a command line", which is what closes the popover as you type past
-   *  one. */
-  const typed = () => {
-    const text = draft()
-    if (!text.startsWith("/")) return null
-    const upto = text.indexOf(" ")
-    return upto === -1 ? text.slice(1) : null
-  }
+  /**
+   * WHAT THE BOX HAS ARMED — a command, a file, or nothing ({@link
+   * ./completion.ts}, which is where every rule about the two lives and where
+   * the tests for them are).
+   *
+   * NOTHING HERE IS STATE: what is armed is a function of the draft and the
+   * caret, so backspacing over the `@` shuts the list and typing it again
+   * opens the same one. That is what makes the whole thing restartable from
+   * any keystroke, including the ones that arrive while a turn is running.
+   */
+  const trigger = createMemo<Completing | null>(() => completingIn(draft(), caret()))
 
-  /** What the list is filtered by. The BUTTON asks with an empty prefix, which
-   *  is the whole list; typing asks with what has been typed. */
-  const prefix = () => (asked() ? typed() ?? "" : typed())
+  /** ...and what is OFFERED, which is that minus a dismissal and plus the
+   *  button: the button asks for the whole command list whatever the line
+   *  says, which is the point of it. Two memos rather than one because the
+   *  effect below needs the answer BEFORE the dismissal is applied — a rule
+   *  that read the dismissed value would clear its own reason. */
+  const found = createMemo<Completing | null>(() => {
+    const now = trigger()
+    if (asked()) {
+      return now?.kind === "command" ? now : { kind: "command", from: 0, query: "" }
+    }
+    return now === null || tokenOf(now) === dismissed() ? null : now
+  })
 
-  const matches = () => {
-    const wanted = prefix()
-    if (wanted === null) return []
-    return props.chat
-      .state()
-      .commands.filter((command) => command.name.startsWith(wanted))
-  }
+  // A DISMISSAL LASTS AS LONG AS THE THING IT WAS ABOUT. Escape shuts the list
+  // over the word being typed and keeps it shut while that word goes on being
+  // typed — but the moment nothing is armed at all (a space typed, the `@`
+  // backspaced away, the caret moved out of the word) the memory goes with it.
+  // Without this the token is only the KIND and the OFFSET, so a second `@`
+  // typed where the first one was would come up already dismissed — a list
+  // that never returns for the rest of the message, for a key pressed about
+  // one word.
+  createEffect(() => {
+    if (trigger() === null) setDismissed(null)
+  })
 
-  const open = () => showing() && matches().length > 0
+  /** The served directory's paths — the two key sets this tab already holds
+   *  (`../served.tsx`), so there is no walk and no request behind an `@`. They
+   *  are folded for matching by {@link folded}, which keeps its answer against
+   *  the list it was given: asked only while a path is being typed, and done
+   *  once per version of the directory rather than once per keystroke. */
+  const files = useServed()
+
+  /** A SWITCH rather than a chain of `if`s whose last arm is a fall-through:
+   *  the two kinds and the two lists are one table the compiler checks, so a
+   *  third trigger could not quietly render commands. */
+  const rows = createMemo<ReadonlyArray<Row>>(() => {
+    const completing = found()
+    if (completing === null) return []
+    switch (completing.kind) {
+      case "command":
+        return props.chat
+          .state()
+          .commands.filter((command) => command.name.startsWith(completing.query))
+          .map((command) => ({
+            value: command.name,
+            label: `/${command.name}`,
+            hint: command.description,
+            take: () => accept(command.name),
+          }))
+      case "path":
+        return matchFiles(folded(files()), completing.query).map((path) => ({
+          value: path,
+          // The NAME is what a person is reading for, and where it sits is the
+          // hint beside it — a vault of daily notes is a column of identical
+          // prefixes otherwise. What is written is the whole path either way.
+          label: nameOf(path),
+          hint: dirOf(path),
+          take: () => rewrite(written(draft(), completing, inserted(path), caret())),
+        }))
+    }
+  })
+
+  const open = () => rows().length > 0
 
   // SOMETHING LANDED IN THE STRIP, so the caret comes here — a file let go of
   // anywhere on the panel, or a node armed from a row somewhere in the tree.
@@ -179,7 +281,11 @@ export function Composer(props: {
     // that was refused.
     const context = releaseArmed()
     setDraft("")
-    dismiss()
+    // The caret goes with the words: an empty box's caret is at its start, and
+    // a stale offset would arm the next `@` against the sentence just sent.
+    setCaret(0)
+    setAsked(false)
+    setDismissed(null)
     // Where the caret already is, unless something took it — a person sending
     // two messages in a row should not have to aim at the box for the second.
     input?.focus()
@@ -195,14 +301,46 @@ export function Composer(props: {
     restoreArmed(context)
   }
 
+  /** A command taken: `/name ` and nothing else — sending is what invokes it,
+   *  exactly as typing it would. The whole LINE is replaced because a command
+   *  is the whole line (`./completion.ts`). */
   const accept = (name: string) => {
-    setDraft(`/${name} `)
-    dismiss()
-    input?.focus()
+    rewrite({ text: `/${name} `, caret: name.length + 2 })
+    setAsked(false)
   }
 
+  /**
+   * Put `next` in the box, caret and all — the DOM half of taking a row.
+   *
+   * The ELEMENT first and the signal last, which is `../edit/RowEditor.tsx`'s
+   * order and load-bearing for the same reason: setting a field's `value` to a
+   * string it does not already hold moves the caret to the end, so the
+   * selection has to be set after the value is there — and Solid's own binding
+   * then assigns the identical string, which the platform treats as no change
+   * and leaves the caret where this put it.
+   *
+   * IT TAKES THE CARET BACK, which matters for the row that was CLICKED: the
+   * press moved focus to the button, and the button is gone a moment later
+   * because taking a row is what ends the trigger. Without this, completing
+   * with the mouse would leave the sentence half-typed and nothing focused —
+   * the one gesture where a completion costs a click instead of saving one.
+   */
+  const rewrite = (next: Written) => {
+    if (input !== undefined) {
+      input.value = next.text
+      input.setSelectionRange(next.caret, next.caret)
+      input.focus()
+    }
+    setDraft(next.text)
+    setCaret(next.caret)
+  }
+
+  /** Escape: the LIST goes and the sentence stays. What is remembered is the
+   *  token it was over, so typing on in the same word does not bring it back
+   *  and the next Enter is the send it was meant to be. */
   const dismiss = () => {
-    setShowing(false)
+    const completing = found()
+    if (completing !== null) setDismissed(tokenOf(completing))
     setAsked(false)
   }
 
@@ -212,33 +350,46 @@ export function Composer(props: {
       dismiss()
       return
     }
+    setDismissed(null)
     setAsked(true)
-    setShowing(true)
     input?.focus()
   }
 
   const onKey = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
-      dismiss()
+      // NOTHING ON SCREEN TAKES NOTHING (`../complete/completing.tsx`'s rule,
+      // kept). A visible list answers Escape itself, in the capture phase, so
+      // reaching HERE means there was no list to put away — and remembering a
+      // dismissal for one nobody saw would shut the next one silently. What is
+      // left to do is drop the BUTTON's ask, which is a state this row owns and
+      // can be true with an empty list under it.
+      setAsked(false)
       return
     }
     // Enter sends. It does NOT need a "unless the menu is open" guard: the menu
     // takes the key in the capture phase and stops it propagating, so this
-    // handler does not run while it is up (see ./SlashMenu.tsx). One mechanism
-    // for one rule — a second one here would be a guard nobody could test.
+    // handler does not run while it is up (see ./CompletionMenu.tsx). One
+    // mechanism for one rule — a second one here would be a guard nobody could
+    // test.
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
       void send()
     }
+    // AFTER the send, so a key that moved the caret has moved it:
+    // `queueMicrotask` is one turn later, which is when the field's selection
+    // reflects the press (`../edit/RowEditor.tsx` does the same, for the same
+    // widgets' sake).
+    queueMicrotask(readCaret)
   }
 
   return (
     <div class="relative shrink-0 p-2">
       <Show when={open()}>
-        <SlashMenu
-          commands={matches()}
+        <CompletionMenu
+          kind={found()?.kind ?? "command"}
+          rows={rows()}
           within={() => input}
-          onAccept={accept}
+          onAccept={(at) => rows()[at]?.take()}
           onDismiss={dismiss}
         />
       </Show>
@@ -277,11 +428,17 @@ export function Composer(props: {
         value={draft()}
         onInput={(event) => {
           setDraft(event.currentTarget.value)
+          readCaret()
           // Typing takes the popover back off the button: what is on screen
           // should be what the line says, not what a click said a moment ago.
           setAsked(false)
-          setShowing(event.currentTarget.value.startsWith("/"))
         }}
+        // The caret is the element's own answer, so everything that could have
+        // moved it re-reads it — a click into the middle of a sentence arms the
+        // `@` that is there as surely as typing one does.
+        onClick={readCaret}
+        onSelect={readCaret}
+        onFocus={readCaret}
         onKeyDown={onKey}
         // The clipboard's FILES, not its items: a screenshot pastes as one,
         // and text pasted alongside goes on being pasted — nothing is

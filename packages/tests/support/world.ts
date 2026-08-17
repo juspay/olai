@@ -632,7 +632,13 @@ export const CHAT_RESEND = selector(TESTID.chatResend);
 export const CHAT_WAITING = selector(TESTID.chatWaiting);
 export const CHAT_SEND = selector(TESTID.chatSend);
 export const CHAT_CANCEL = selector(TESTID.chatCancel);
-export const CHAT_SLASH_COMMAND = selector(TESTID.chatSlashCommand);
+/** The shortlist over the message box, and one row of it. Both lists the
+ *  composer completes draw the same box — the agent's commands under a `/`,
+ *  the directory's files under an `@` — so the row is named by its
+ *  `data-value` (the command's name, the file's path) and the box by its
+ *  `data-kind`. */
+export const CHAT_COMPLETION = selector(TESTID.chatCompletion);
+export const CHAT_COMPLETION_ROW = selector(TESTID.chatCompletionRow);
 /** A picture on a message — pending in the composer, or sent, on the row. Its
  *  `data-name` is the file name, which is the only thing about it every tab
  *  agrees on; the preview is drawn ONLY by the tab that has the Blob. */

@@ -113,6 +113,6 @@ export const WITHIN = {
    *  the chat panel's drop target. */
   cover: "z-2",
   /** A small panel opening inside the box, which has to clear whatever else is
-   *  in there — the chat composer's slash menu, the session list. */
+   *  in there — the chat composer's completion, the session list. */
   pop: "z-3",
 } as const

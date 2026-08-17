@@ -32,6 +32,8 @@ import {
   CHAT_ATTACH_BUTTON,
   CHAT_ATTACHMENT_SIZE,
   CHAT_CANCEL,
+  CHAT_COMPLETION,
+  CHAT_COMPLETION_ROW,
   CHAT_DIFF,
   CHAT_DIFF_EXPAND,
   CHAT_DIFF_GUTTER,
@@ -64,7 +66,6 @@ import {
   CHAT_SESSION_LIST,
   CHAT_SESSIONS,
   CHAT_SESSIONS_REFUSED,
-  CHAT_SLASH_COMMAND,
   CHAT_TITLE,
   CHAT_TOGGLE,
   CHAT_TOOL,
@@ -135,6 +136,14 @@ When("I ask the agent {string}", async function (this: OlaiWorld, text: string) 
 
 When("I type {string} into the chat", async function (this: OlaiWorld, text: string) {
   await typeInto(this, text);
+});
+
+/** Send WHAT IS IN THE BOX, rather than typing a message and sending it in one
+ *  gesture (`I ask the agent`). A scenario that got the words there some other
+ *  way — a completion taken, a draft put back — has to be able to press the
+ *  button without retyping over what it is asserting about. */
+When("I send the chat message", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_SEND).click();
 });
 
 /** Let a held turn go on. The fake agent waits for this file rather than for a
@@ -1229,20 +1238,107 @@ Then(
   },
 );
 
-// ── slash completion ───────────────────────────────────────────────────
+// ── the completion over the box ────────────────────────────────────────
+//
+// ONE set of steps for both lists — the agent's commands under a `/` and the
+// served directory's files under an `@` — because they are one box in the
+// client (`web/src/client/chat/CompletionMenu.tsx`) and a second spelling here
+// would be two scenarios' worth of drift about what "the completion offers"
+// means. A row is named by its `data-value`, which is what taking it writes:
+// the command's name, or the file's path.
+
+/** WHICH list, off `data-kind` — `command` or `path`. Named rather than
+ *  guessed from the rows, because the whole design claim is that one scan of
+ *  the line decides which character the caret is inside. */
+Then(
+  "the {word} completion is open",
+  async function (this: OlaiWorld, kind: string) {
+    const panel = this.page.locator(CHAT_COMPLETION);
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await panel.getAttribute("data-kind"), kind);
+  },
+);
+
+/** Nothing armed, or nothing matched — which are the same thing on screen and
+ *  deliberately so: a trigger with nothing to offer draws no box, so an `@`
+ *  that is somebody's address types straight through. */
+Then("no completion is open", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_COMPLETION).count()) === 0,
+    "the completion to be gone",
+  );
+});
 
 Then(
   "the completion offers {string}",
-  async function (this: OlaiWorld, name: string) {
+  async function (this: OlaiWorld, value: string) {
     await this.page
-      .locator(`${CHAT_SLASH_COMMAND}[data-command="${name}"]`)
+      .locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the completion does not offer {string}",
+  async function (this: OlaiWorld, value: string) {
+    await this.waitUntil(
+      async () =>
+        (await this.page
+          .locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`)
+          .count()) === 0,
+      `the completion to stop offering "${value}"`,
+    );
+  },
+);
+
+/** What a row READS, which is not what it writes: the file's own name, with
+ *  where it sits beside it. Asked once, for the one row whose folder is part
+ *  of the answer — a column of `2026-08-16.md` in a `Daily/` vault is the
+ *  reason the path is not the label. */
+Then(
+  "the completion row {string} reads {string} in {string}",
+  async function (this: OlaiWorld, value: string, label: string, hint: string) {
+    const row = this.page.locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await row.innerText()), `${label} ${hint}`);
   },
 );
 
 When("I accept the completion", async function (this: OlaiWorld) {
   await this.page.locator(CHAT_INPUT).press("Enter");
 });
+
+/** The pointer's door onto the same row, for the hand that is already there. */
+When(
+  "I click the completion {string}",
+  async function (this: OlaiWorld, value: string) {
+    await this.page
+      .locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`)
+      .click();
+  },
+);
+
+/** WHERE THE CARET IS after a row was taken with the pointer: the press moved
+ *  focus to a button that is gone a moment later, so a completion that did not
+ *  hand it back would cost a click instead of saving one. */
+Then("the caret is in the chat box", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () =>
+      await this.page
+        .locator(CHAT_INPUT)
+        .evaluate((box) => box === document.activeElement),
+    "the caret to be back in the message box",
+  );
+});
+
+/** A key aimed at the BOX rather than at the page — which is the whole of what
+ *  the list asks before answering one (`within`, in CompletionMenu.tsx). */
+When(
+  "I press {string} in the chat",
+  async function (this: OlaiWorld, key: string) {
+    await this.page.locator(CHAT_INPUT).press(key);
+  },
+);
 
 Then(
   "the chat input reads {string}",

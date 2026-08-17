@@ -97,9 +97,9 @@ anything about the nodes' children.
 ## `chat/` — a set the agent writes to
 
 Deliberately plain: one outline, one parent, three children of it — one done,
-one under way, one carrying no mark at all. Everything
-`features/the_agent.feature` asks for is a property of that shape rather than
-of anything ornamental in it:
+one under way, one carrying no mark at all — and two documents beside it.
+Everything `features/the_agent.feature` asks for is a property of that shape
+rather than of anything ornamental in it:
 
 | what | where |
 |---|---|
@@ -107,6 +107,14 @@ of anything ornamental in it:
 | a leaf that is already done | `demo` |
 | a leaf still under way | `install` |
 | a parent to mark | `kitchen` — an ordinary write, answered with a nudge naming `install` |
+| a document at the root | `finishes.md` — a path the `@` completion can offer whole |
+| a document in a folder | `notes/cabinets.md` — the nested case: the row reads its NAME with the folder beside it, and what is written into the message is the whole path |
+
+The two documents are what `features/chat_at_completion.feature` completes
+against, and they are the smallest set that asks the question: one file whose
+name is enough to find it and one whose folder is part of what is written, in a
+corpus that also holds an outline, so the completion is over the whole served
+directory rather than over one kind of file.
 
 The third child is the model in one line: `order` carries no mark, so it is a
 bullet rather than a task nobody has started, and the nudge above does **not**

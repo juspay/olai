@@ -1,27 +1,47 @@
 /**
- * The slash-command completion, over the input.
+ * The completion over the message box — one list for both of the things the
+ * composer completes.
  *
- * The list is the AGENT'S — it arrives on the chat cell as the agent's own
- * `commands`, so what is offered is what that agent actually has, and olai
- * maintains no list of its own to go stale. An agent that offers none draws
- * nothing (the composer does not open this at all).
+ * `/` offers the AGENT'S own commands (they arrive on the chat cell, so what
+ * is offered is what that agent actually has and olai maintains no list of its
+ * own to go stale) and `@` offers the served directory's files. One component
+ * rather than two, for `../complete/completing.tsx`'s reason one panel over:
+ * they are one gesture — type a character, see a shortlist, walk it with the
+ * arrows, press Enter — and two copies of the arrow keys is two chances for
+ * the arrows to mean something slightly different depending on which character
+ * opened the list. What differs between them is where the rows come from and
+ * what taking one writes, and both of those are the composer's
+ * ({@link ./Composer.tsx}).
  *
  * Keyboard first, because the whole point is not reaching for the mouse
  * mid-sentence: ↑/↓ walk, Enter and Tab accept, Escape closes. A click does the
  * same thing for the times a hand is already there.
  */
 
-import type { Command } from "@olai/surface"
 import { For, onCleanup, onMount } from "solid-js"
 
 import { listKey } from "../keys.ts"
-import { topmostWhileOpen } from "../topmost.ts"
 import { WITHIN } from "../layer.ts"
 import { createCursor } from "../search/cursor.ts"
 import { TESTID } from "../testids.ts"
+import { topmostWhileOpen } from "../topmost.ts"
 
-export function SlashMenu(props: {
-  readonly commands: ReadonlyArray<Command>
+/** One row. `value` is what taking it is ABOUT — a command's name, a file's
+ *  path — and it is what a scenario names the row by; `label` and `hint` are
+ *  what a person reads. What taking it DOES is the composer's, which is why
+ *  nothing here is a closure. */
+export interface MenuRow {
+  readonly value: string
+  readonly label: string
+  readonly hint?: string
+}
+
+export function CompletionMenu(props: {
+  /** WHICH list this is, as a fact in the markup rather than as a guess from
+   *  what is in it — the contract `../complete/Completions.tsx` keeps about
+   *  its own three widgets, kept here for the two. */
+  readonly kind: "command" | "path"
+  readonly rows: ReadonlyArray<MenuRow>
   /**
    * The BOX this list is completing, which is what makes it caret-scoped.
    *
@@ -38,15 +58,16 @@ export function SlashMenu(props: {
    * by its LIST layer.
    */
   readonly within: () => HTMLElement | undefined
-  readonly onAccept: (name: string) => void
+  /** Take the row at this index — the composer decides what that means. */
+  readonly onAccept: (at: number) => void
   readonly onDismiss: () => void
 }) {
   // WHICH row Enter takes — the one cursor every shortlist in this client
   // shares (`../search/cursor.ts`), so the arrows mean the same thing here, in
   // the ⌘K palette, in the header's box and in the row editor's completions.
-  // It also keeps the cursor on a row that EXISTS when the agent's command list
-  // changes underneath, which this menu had no answer for at all.
-  const cursor = createCursor(() => props.commands.length)
+  // It also keeps the cursor on a row that EXISTS when the list changes
+  // underneath, which this menu had no answer for at all.
+  const cursor = createCursor(() => props.rows.length)
 
   /**
    * This list on the client's one dismissal stack (`../topmost.ts`).
@@ -80,16 +101,15 @@ export function SlashMenu(props: {
   }
 
   const accept = (event: KeyboardEvent) => {
-    const chosen = props.commands[cursor.at()]
-    if (chosen === undefined) return
+    if (props.rows[cursor.at()] === undefined) return
     take(event)
-    props.onAccept(chosen.name)
+    props.onAccept(cursor.at())
   }
 
-  // WHICH key is the registry's (`../keys.ts`'s list layer); what each answer
-  // MEANS is this menu's. TAB is this surface's own extra — it accepts here and
-  // means nothing to the other lists, so it stays a case of this handler rather
-  // than an arm of the shared matcher.
+  // WHICH key it is, is the registry's (`../keys.ts`'s list layer); what each
+  // answer MEANS is this menu's. TAB is this surface's own extra — it accepts
+  // here and means nothing to the other lists, so it stays a case of this
+  // handler rather than an arm of the shared matcher.
   const onKey = (event: KeyboardEvent) => {
     // Aimed at the box this list completes, or it is not this list's (see
     // `within`). First, because it is the older and stronger of the two
@@ -129,23 +149,27 @@ export function SlashMenu(props: {
   return (
     <ul
       class={`absolute bottom-full left-2 right-2 ${WITHIN.pop} mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
-      data-testid={TESTID.chatSlashMenu}
+      data-testid={TESTID.chatCompletion}
+      data-kind={props.kind}
     >
-      <For each={props.commands}>
-        {(command, index) => (
+      <For each={props.rows}>
+        {(row, index) => (
           <li>
             <button
               type="button"
               class={`block w-full truncate rounded px-2 py-1 text-left text-xs ${
                 index() === cursor.at() ? "bg-rule" : ""
               }`}
-              data-testid={TESTID.chatSlashCommand}
-              data-command={command.name}
+              data-testid={TESTID.chatCompletionRow}
+              data-value={row.value}
               data-active={index() === cursor.at()}
-              onClick={() => props.onAccept(command.name)}
+              onClick={() => props.onAccept(index())}
             >
-              <span class="font-mono">/{command.name}</span>
-              <span class="ml-2 text-muted">{command.description}</span>
+              {/* The space between them is a real character as well as a
+                  margin: what the eye reads as two words has to be two words
+                  when the row is copied or read aloud, and `ml-2` is neither. */}
+              <span class="font-mono">{row.label}</span>{" "}
+              <span class="ml-1 text-muted">{row.hint}</span>
             </button>
           </li>
         )}
