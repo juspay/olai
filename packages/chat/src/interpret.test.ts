@@ -25,6 +25,7 @@ import {
   modelPickerIn,
   OPEN_SESSION_META,
   parentToolUseIn,
+  pickerValueFor,
   sameModel,
   STEER_METHOD,
   STEER_WHEN_IDLE,
@@ -528,5 +529,51 @@ describe("whether two model strings are the same model", () => {
     // into one `null`.
     expect(sameModel(OFFERED, "gpt-5", "claude-opus-4-5-20260101")).toBe(false)
     expect(sameModel(OFFERED, "sonnet", "gpt-5")).toBe(false)
+  })
+})
+
+describe("the picker's own word for a model", () => {
+  // The other direction of the same bridge, and the one a REQUEST crosses: what
+  // the panel remembers is what the CLI reported (`claude-sonnet-5`), and a
+  // `session/set_config_option` takes a value the picker offers (`sonnet`).
+  const OFFERED = new Map([
+    ["default", "Default (recommended)"],
+    ["opus[1m]", "Opus (1M context)"],
+    ["claude-fable-5[1m]", "Fable"],
+    ["sonnet", "Sonnet"],
+    ["haiku", "Haiku"],
+  ])
+
+  test("a live id is asked for as the row that names it", () => {
+    expect(pickerValueFor(OFFERED, "claude-sonnet-5")).toBe("sonnet")
+    expect(pickerValueFor(OFFERED, "claude-haiku-4-5")).toBe("haiku")
+    // The adapter's two spellings of one id are one row, so the row is found
+    // for the spelling the CLI uses as well as the one the picker does.
+    expect(pickerValueFor(OFFERED, "claude-fable-5")).toBe("claude-fable-5[1m]")
+  })
+
+  test("a value the picker offers is already its own word", () => {
+    expect(pickerValueFor(OFFERED, "sonnet")).toBe("sonnet")
+    expect(pickerValueFor(OFFERED, "opus[1m]")).toBe("opus[1m]")
+    // Including `default`, which names no model but IS a row: a conversation
+    // sitting on it is put back on it by name.
+    expect(pickerValueFor(OFFERED, "default")).toBe("default")
+  })
+
+  test("no row is `null`, and the caller asks in the words it has", () => {
+    // The refusals `modelNameIn` already makes, arriving here as "nothing to
+    // translate into": a lane the live id never claimed, a dated pin, a model
+    // from somewhere else entirely. An agent that resolves them still can.
+    expect(pickerValueFor(OFFERED, "claude-opus-5")).toBeNull()
+    expect(pickerValueFor(OFFERED, "claude-haiku-4-5-20251001")).toBeNull()
+    expect(pickerValueFor(OFFERED, "gpt-5")).toBeNull()
+  })
+
+  test("two rows sharing a name answer for neither", () => {
+    // A picker naming two values alike is a picker that cannot say which row a
+    // name means. Nothing is guessed; the raw string goes out instead.
+    const twice = new Map([["sonnet", "Sonnet"], ["sonnet-alt", "Sonnet"]])
+    expect(pickerValueFor(twice, "sonnet-alt")).toBe("sonnet-alt")
+    expect(pickerValueFor(twice, "claude-sonnet-5")).toBeNull()
   })
 })

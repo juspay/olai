@@ -635,20 +635,27 @@ Feature: Talking to the agent
     #
     # So the panel writes down the model this conversation is running and puts
     # it back after the load, through the config option the picker is.
-    When I ask the agent "model fake-model-2"
+    #
+    # SWITCHED TO AN API ID, which is the vocabulary this actually happens in:
+    # the CLI reports `claude-sonnet-5` where the picker offers `sonnet`, so
+    # what the panel writes down is a word the picker never offered — and the
+    # request that puts it back has to be made in the picker's own words. This
+    # agent refuses anything else, exactly as an agent reading its own list
+    # would.
+    When I ask the agent "model claude-sonnet-5"
     And I ask the agent "hello"
-    Then the panel header names the model "Fake Two"
+    Then the panel header names the model "Fake Sonnet"
     When the server stops
     And the server starts again on the same port
     And I open the app
     And the agent panel is open
     Then the conversation is titled "the last conversation"
-    And the panel header names the model "Fake Two"
+    And the panel header names the model "Fake Sonnet"
     # ... and it is the AGENT that is on it, not a label the panel drew from its
     # own note: the next turn's `init` says what the CLI is actually running, so
     # a re-assert that never reached the agent walks the header back to the pin.
     When I ask the agent "hello"
-    Then the panel header names the model "Fake Two"
+    Then the panel header names the model "Fake Sonnet"
 
   @scratch:chat
   Scenario: A message sent mid-turn STEERS the turn that is running

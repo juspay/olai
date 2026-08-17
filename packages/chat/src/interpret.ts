@@ -439,7 +439,7 @@ export const MODEL_CONFIG = "model"
  *
  * Asked by the one caller that has to decide whether to say anything at all:
  * the panel puts a restored conversation back on the model it was running
- * ({@link ../agent.ts}'s `reassert`), and a session that already came up on it
+ * ({@link ./agent.ts}'s `restore`), and a session that already came up on it
  * needs no such request. The two strings reach that question in DIFFERENT
  * vocabularies — the picker's own value (`sonnet`) against whatever the panel
  * last knew it was running, which is a live API id (`claude-sonnet-5`) as often
@@ -450,14 +450,43 @@ export const MODEL_CONFIG = "model"
  * are one model, because a picker never names two rows alike. A string the
  * picker cannot name answers for itself, so two unnameable ones agree only when
  * they are the same string — which is the truthful answer for a model nobody
- * here has a vocabulary for.
+ * here has a vocabulary for, and the reason the equal-strings case needs no
+ * line of its own.
  */
 export const sameModel = (
   labels: ReadonlyMap<string, string>,
   one: string,
   other: string,
-): boolean =>
-  one === other || (modelNameIn(labels, one) ?? one) === (modelNameIn(labels, other) ?? other)
+): boolean => (modelNameIn(labels, one) ?? one) === (modelNameIn(labels, other) ?? other)
+
+/**
+ * The picker's OWN word for a model, when it has one.
+ *
+ * The other direction of the same bridge, and the one a request has to cross.
+ * What the panel remembers a conversation running is, in practice, always the
+ * live API id the CLI reported (`claude-sonnet-5`) — that is the only source a
+ * `/model` ever reaches olai through — while the picker offers aliases
+ * (`sonnet`). A `session/set_config_option` carries a picker VALUE, so asking
+ * in the remembered spelling is asking with a word the picker never offered:
+ * the pinned adapter would resolve it (its `resolveModelPreference` matches a
+ * row's resolved id), and an agent that simply checked its own list would
+ * refuse — leaving the conversation on the pin, which is the whole bug.
+ *
+ * So the id is translated back through the labels first: the row this model is
+ * NAMED by is the row to ask for. `null` when no row answers, or when two do —
+ * the caller then asks in the words it has, which is what it would have done
+ * anyway, and an agent that can resolve them still does.
+ */
+export const pickerValueFor = (
+  labels: ReadonlyMap<string, string>,
+  model: string,
+): string | null => {
+  if (labels.has(model)) return model
+  const name = modelNameIn(labels, model)
+  if (name === null) return null
+  const rows = [...labels].filter(([, label]) => label === name)
+  return rows.length === 1 ? rows[0]?.[0] ?? null : null
+}
 
 /** The picker as value → label ("sonnet" → "Sonnet"), which is what the agent
  *  calls its own models. Exactly what the picker said and nothing more — the

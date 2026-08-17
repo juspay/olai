@@ -109,6 +109,8 @@ import {
   modelPickerIn,
   OPEN_SESSION_META,
   parentToolUseIn,
+  type Picker,
+  pickerValueFor,
   sameModel,
   SDK_MESSAGE,
   STEER_METHOD,
@@ -276,14 +278,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     // logging settings are captured once, here, with the agent's own command on
     // every line it will ever emit. `acp: ` used to be that, as a prefix.
     const say = yield* Effect.annotateLogs(emitter, { agent: options.command })
-
-    // ... and the same capture for the one thing this file does from a callback
-    // that is not a line of log: writing down the model a `/model` moved the
-    // conversation to ({@link moved}), which arrives on a notification with no
-    // fiber to yield in either. Taken separately from `say` because a memory
-    // write is not something anybody said, and a call reading `say(…)` over one
-    // would be this file lying about which of its two outputs it was using.
-    const run = yield* emitter
 
     // The spawn/handshake takes its own permit, so two callers racing a cold
     // start share one subprocess rather than each getting their own.
@@ -625,19 +619,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      */
     const moved = (value: string): void => {
       const at = held
-      if (at === null || at.model === value) return
-      // From a protocol callback, where there is no fiber to yield in — the
-      // same shape, and the same reason, as a line of the subprocess's stderr.
-      run(Effect.asVoid(note(
+      // ... and the same model in the other source's spelling is not a move
+      // either — `sonnet` and `claude-sonnet-5` are one model, judged the way
+      // {@link restore} judges it rather than as two strings.
+      if (at === null || (at.model !== null && sameModel(labels, at.model, value))) return
+      // `say` is this file's escape hatch out of a protocol callback, where
+      // there is no fiber to yield in — the same one a line of the subprocess's
+      // stderr goes out through, carrying a write rather than a log line.
+      say(note(
         { session: at.session, model: value },
         (why) => `the model this conversation is on will not survive a restart: ${why}`,
-      )))
+      ))
     }
 
-    const readModel = (
-      configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
-    ): void => {
-      const picker = modelPickerIn(configOptions)
+    /** The picker as read — taken already-parsed, because {@link restore} has
+     *  to look at one before it can decide whether to say anything, and parsing
+     *  the same options twice is how the two readings come to differ. */
+    const readPicker = (picker: Picker | null): void => {
       if (picker === null) return
       labels = picker.labels
       if (picker.picked === picked) return
@@ -645,6 +643,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       picked = picker.picked
       if (switched && picked !== null) moved(picked)
       show(picked === null ? null : modelNameIn(labels, picked) ?? picked)
+    }
+
+    const readModel = (
+      configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
+    ): void => {
+      readPicker(modelPickerIn(configOptions))
     }
 
     const readLiveModel = (params: unknown): void => {
@@ -850,7 +854,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // The model goes with the conversation it was written down for. Adopt
           // the FALLBACK — the remembered one is gone — and there is nothing
           // remembered about the one we opened instead.
-          yield* load(at, wanted.id, wanted.title, held?.session === wanted.id ? held.model : null)
+          yield* load(at, wanted.id, wanted.title, modelFor(wanted.id))
           return
         }
         yield* fresh(at)
@@ -898,6 +902,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      */
     let held: Held | null = null
 
+    /**
+     * The remembered model for THIS conversation, and `null` for every other.
+     *
+     * The invariant the whole note turns on, spelled once because it is the one
+     * that costs something when a call site forgets it: a model re-asserted
+     * onto a conversation it was not remembered for is this note doing the very
+     * thing it exists to undo. Every caller that opens a conversation asks
+     * here rather than reading `held.model`.
+     */
+    const modelFor = (id: string): string | null => held?.session === id ? held.model : null
+
     /** The one write, whatever moved. What a failure COSTS is the caller's to
      *  say — a lost conversation and a lost model are different sentences to
      *  the person who will meet the consequence — and everything else about
@@ -933,7 +948,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // running, and opening any OTHER one keeps nothing. A model carried
           // across would be re-asserted onto somebody else's conversation,
           // which is this note doing the thing it exists to undo.
-          { session: id, model: held?.session === id ? held.model : null },
+          { session: id, model: modelFor(id) },
           (why) => `this conversation will not be restored after a restart: ${why}`,
         )
       })
@@ -1045,6 +1060,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * same model. A conversation that came back on the model it left on is one
      * this says nothing about at all — no round trip, and no request to fail.
      *
+     * SAID IN THE PICKER'S OWN WORDS, for the same reason one step further on
+     * ({@link pickerValueFor}): a config option takes the values the picker
+     * offers, and what we remember is the id the CLI reported. The pinned
+     * adapter would resolve `claude-fable-5` onto its `fable` row; an agent
+     * that checked its own list would refuse, and refusing leaves the
+     * conversation on the pin. So the row is named where a row can be found.
+     *
      * WHAT IT COSTS, and this is the honest half: olai's note is not the only
      * way this conversation's model can move. A `/model` typed into a terminal
      * `claude --resume` on the SAME conversation between two olai boots lands
@@ -1068,18 +1090,30 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
         const picker = modelPickerIn(configOptions)
-        if (
-          wanted === null || picker === null ||
-          (picker.picked !== null && sameModel(picker.labels, picker.picked, wanted))
-        ) {
-          readModel(configOptions)
-          return
-        }
+        const settled = wanted === null || picker === null ||
+            (picker.picked !== null && sameModel(picker.labels, picker.picked, wanted))
+          ? picker
+          : yield* putModel(at, id, picker, wanted)
+        // ONE TAIL, whichever of the three ways it got here: what the header
+        // names is read from the picker that had the last word — the one the
+        // load answered with, or the one the agent answered our request with.
+        readPicker(settled)
+      })
+
+    /** The request half of {@link restore}, and what a refusal costs: a row,
+     *  the model the load already reported, and a memory left alone. */
+    const putModel = (
+      at: Live,
+      id: string,
+      picker: Picker,
+      wanted: string,
+    ): Effect.Effect<Picker | null> =>
+      Effect.gen(function*() {
         const answered = yield* Effect.result(
           ask(at.connection, methods.agent.session.setConfigOption, {
             sessionId: id,
             configId: MODEL_CONFIG,
-            value: wanted,
+            value: pickerValueFor(picker.labels, wanted) ?? wanted,
           }),
         )
         if (answered._tag === "Failure") {
@@ -1087,14 +1121,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             `this conversation was on ${modelNameIn(picker.labels, wanted) ?? wanted} and ` +
               `could not be put back: ${answered.failure.why}`,
           )
-          readModel(configOptions)
-          return
+          return picker
         }
         // The answer carries the WHOLE set with its new current value, so the
-        // header is read off what the agent confirmed rather than off what we
-        // asked for: an agent that resolved our id onto a row of its own — an
-        // alias, a context lane — is naming the model it actually landed on.
-        readModel((answered.success as SetSessionConfigOptionResponse).configOptions)
+        // header is read off what the agent CONFIRMED rather than off what we
+        // asked for: an agent that resolved our row onto another of its own —
+        // an alias, a context lane — is naming the model it actually landed on.
+        return modelPickerIn((answered.success as SetSessionConfigOptionResponse).configOptions)
       })
 
     /**
@@ -1287,7 +1320,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // conversation carries nothing, because nothing here is a fact
             // about that one. The memory is one conversation deep, like the id
             // beside it.
-            yield* load(at, id, wanted?.title ?? null, held?.session === id ? held.model : null)
+            yield* load(at, id, wanted?.title ?? null, modelFor(id))
           })
         ),
       sessions: withLive(storedFor),

@@ -33,7 +33,7 @@
  * reports what the agent decided, and a `/model` typed into the wrapped CLI
  * never reaches the picker at all — so remembering it is olai's job for exactly
  * the reason remembering the session id is. What the panel does with it after a
- * load is {@link ../agent.ts}'s (`reassert`).
+ * load is {@link ./agent.ts}'s (`restore`).
  *
  * ## Where it goes, and why not in the two obvious places
  *
@@ -159,7 +159,9 @@ interface Written {
 }
 
 const printed = (cwd: string, held: Held): string =>
-  `${JSON.stringify({ cwd, session: held.session, ...held.model === null ? {} : { model: held.model } })}\n`
+  // `undefined` is how `JSON.stringify` spells a field that is not there, which
+  // is what a model nothing has said about IS on disk.
+  `${JSON.stringify({ cwd, session: held.session, model: held.model ?? undefined })}\n`
 
 /** The text as what it is meant to be — or the reason it is not. A file that is
  *  about a DIFFERENT directory is answered `null` rather than refused: it is not

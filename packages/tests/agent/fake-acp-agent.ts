@@ -282,30 +282,27 @@ const storedSessions = () =>
  * it is the whole of what makes `chat-model-reverts-on-restart` reproducible
  * here.
  */
+const MODEL_ROWS = [
+  { value: "fake-model-1", name: "Fake One" },
+  { value: "fake-model-2", name: "Fake Two" },
+  { value: "sonnet", name: "Fake Sonnet" },
+  { value: "haiku", name: "Fake Haiku" },
+  { value: "opus[1m]", name: "Fake Opus (1M context)" },
+]
+
 let currentModel = "fake-model-1"
 
 const configOptions = () => [
-  {
-    id: "model",
-    name: "Model",
-    type: "select",
-    currentValue: currentModel,
-    options: [
-      { value: "fake-model-1", name: "Fake One" },
-      { value: "fake-model-2", name: "Fake Two" },
-      { value: "sonnet", name: "Fake Sonnet" },
-      { value: "haiku", name: "Fake Haiku" },
-      { value: "opus[1m]", name: "Fake Opus (1M context)" },
-    ],
-  },
+  { id: "model", name: "Model", type: "select", currentValue: currentModel, options: MODEL_ROWS },
 ]
 
 /** Every value the picker offers, for the one caller that has to refuse
- *  anything else — a real agent answers `Invalid value for config option`, and
- *  a fake that took any string would let a client send nonsense and pass. */
-const OFFERED = new Set(
-  configOptions().flatMap((option) => option.options.map((row) => row.value)),
-)
+ *  anything else. DELIBERATELY STRICT: the real adapter would also resolve an
+ *  alias or a live API id onto one of these rows (`resolveModelPreference`), so
+ *  a client that asked in a vocabulary the picker never offered would pass
+ *  against it and fail against an agent that simply reads its own list. What is
+ *  under test is that olai asks for a ROW. */
+const OFFERED = new Set(MODEL_ROWS.map((row) => row.value))
 
 /**
  * The two texts the `edit` verb reports — a `.md` a real agent would have
