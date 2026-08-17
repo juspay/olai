@@ -56,13 +56,15 @@ import type { OutlineSet } from "./set.ts"
  * and a reader above reads the view the validator built rather than building a
  * second one that is free to disagree with it.
  *
- * WHAT IT HIDES is where this earns its keep next. Every reader above — the
+ * WHAT IT HIDES is where it has now earned its keep. Every reader above — the
  * planner, the query walks, the keystroke resolver, the per-file projection the
- * wire is cut from — now names this pair and nothing else, so HOW the view came
- * to exist is behind it: rebuilt from scratch today, patched from the previous
- * revision when the patcher lands (`docs/brainstorming/model-indices.md`, slice
- * 3). That is a change of one function inside this file, with no consumer of
- * this type able to tell.
+ * wire is cut from — names this pair and nothing else, so HOW the view came to
+ * exist is behind it: PATCHED from the reading this one follows when a caller
+ * offers one and the records line up ({@link Previous}, {@link viewOf}), and
+ * built from scratch when either is missing. That landed as slice 3 of
+ * `docs/brainstorming/model-indices.md` and it was a change of one function
+ * inside this file, with no consumer of this type able to tell — which was the
+ * claim this paragraph made while the patcher was still ahead of it.
  */
 export interface Reading {
   readonly set: OutlineSet

@@ -301,15 +301,29 @@ const namedIn = (
 /**
  * Who claims which id now.
  *
- * REBUILT when the id set moved, patched when it did not, and the difference is
- * about ORDER rather than about cost: a `Map` re-set at a key keeps that key's
- * place, but a deleted one loses it and an added one goes to the end — and this
- * map is READ IN ORDER, by the did-you-mean behind every unknown-target error
- * ({@link ./suggest.ts} walks `byId.keys()`). A patch that reordered it would
- * be the same file suggesting a different id depending on how the reader got
- * there, which is exactly the kind of answer this project refuses to have two
- * of. A keystroke moves no ids, so the rebuild is what a creation costs and not
- * what typing does.
+ * REBUILT when a key could have changed PLACES, patched when none could, and
+ * the difference is about order rather than about cost. A `Map` re-set at a key
+ * keeps that key's place, but a deleted one loses it and an added one goes to
+ * the end — and this map is READ IN ORDER, by the did-you-mean behind every
+ * unknown-target error ({@link ./suggest.ts} walks `byId.keys()` and promises
+ * that ties go to the first candidate offered, so that two readings of one set
+ * suggest the same id). A patch that reordered it would be the same bytes on
+ * disk suggesting a different id depending on how the reader got there.
+ *
+ * WHICH IS NOT THE SAME QUESTION AS "did the id set change", and that was the
+ * bug grok found on review: a key sits where the record that claims it sits, so
+ * the ids can be exactly the ones they were and the ORDER still move — two
+ * lines swapped inside one file, or a node moved to a file further down the
+ * corpus with nothing minted or dropped, which is what an archive or a
+ * cross-file move is. Both kept the old order and both were returned rather
+ * than declined. So the test is about PLACES: an id whose claim now sits at a
+ * different `file:line` than the record that held it, or an id nothing claims
+ * any more. Arriving ids are the same test — nothing held them, so they are
+ * elsewhere by definition.
+ *
+ * A keystroke moves no record's place (a rewritten file re-emits the same
+ * records on the same lines), so the rebuild is what a structural edit costs
+ * and not what typing does.
  */
 const ids = (
   edit: Edit,
@@ -317,8 +331,8 @@ const ids = (
   claimed: ReadonlySet<string>,
 ): ReadonlyMap<string, Located> => {
   const left = edit.outgoing.some((at) => !claimed.has(at.node.id))
-  const arrived = edit.incoming.some((at) => !edit.before.byId.has(at.node.id))
-  if (left || arrived) {
+  const moved = edit.incoming.some((at) => elsewhere(edit.before.byId.get(at.node.id), at))
+  if (left || moved) {
     const byId = new Map<string, Located>()
     for (const at of nodes) if (!byId.has(at.node.id)) byId.set(at.node.id, at)
     return byId

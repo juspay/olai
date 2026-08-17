@@ -9,10 +9,20 @@
  *     patch(derive(before), delta) === derive(after)
  *
  * The generator writes the awkward sets on purpose — duplicate ids, mirrors of
- * mirrors, chains that dangle, edges that name a placement, `ord` ties across
- * files, an `Archive.olai` — because those are exactly the corners where an
+ * mirrors, chains that dangle, edges that name a placement, parents in another
+ * file, an `Archive.olai` — because those are exactly the corners where an
  * incremental index and a rebuilt one can quietly disagree, and because
  * `derive` itself is written to answer over sets the validator has condemned.
+ * The corners it reaches only by luck are pinned by hand below, each with the
+ * reason it could not be left to a seed.
+ *
+ * AND IT WRITES THE STRUCTURAL EDITS, which is the correction grok's review
+ * forced: a generator that only ever changed a record's FIELDS could not reach
+ * the case where the same ids arrive in a different order, and that was a real
+ * bug in `byId`'s key order that these five hundred rounds went green over. It
+ * swaps two records' lines, deletes one, and moves one from one file into
+ * another verbatim — the three edits that change where a record IS without
+ * changing which records there are.
  *
  * WHAT "the same" MEANS here is a decision, and it is made in {@link readable}
  * rather than left to a deep-equality helper: three of the ten indexes promise
@@ -32,6 +42,7 @@ import { expect, test } from "bun:test"
 import { derive, type Derived } from "./derive.ts"
 import { FIXTURE_FILE, nodesOf, setOf } from "./fixtures.testlib.ts"
 import { patch, patched, type SetDelta } from "./patch.ts"
+import { nearestId } from "./suggest.ts"
 
 /** A corpus as a fixture writes one: path → the file's JSONL. */
 type Corpus = Record<string, string>
@@ -151,7 +162,13 @@ const fileOf = (random: () => number, used: Set<string>): string => {
   for (let at = 0; at < many; at++) {
     const id = idFor(random, used)
     const record: Record<string, unknown> = { id, ord: pick(random, ORDS) }
-    if (own.length > 0 && random() < 0.4) record["parent"] = pick(random, own)
+    // Same-file usually, and now and then a parent in ANOTHER file — a set the
+    // validator condemns and `derive` still answers, and the only way to get
+    // two siblings whose `ord` tie has to break on corpus order rather than on
+    // line number alone (`bySibling`).
+    if (own.length > 0 && random() < 0.4) {
+      record["parent"] = random() < 0.7 ? pick(random, own) : pick(random, [...used])
+    }
     if (random() < 0.25) record["mirror"] = pick(random, IDS)
     else {
       record["title"] = `line ${at}`
@@ -187,27 +204,64 @@ const tweak = (random: () => number, text: string): string => {
   const lines = text.split("\n").filter((line) => line !== "")
   if (lines.length === 0) return text
   const at = Math.floor(random() * lines.length)
-  const record = JSON.parse(lines[at] as string) as Record<string, unknown>
   const roll = random()
-  if ("mirror" in record) record["mirror"] = pick(random, IDS)
-  else if (roll < 0.3) record["title"] = `edited ${Math.floor(random() * 100)}`
-  else if (roll < 0.55) {
-    for (const mark of ["done", "doing", "todo"]) delete record[mark]
-    if (random() < 0.75) record[pick(random, ["done", "doing", "todo"])] = true
-  } else if (roll < 0.75) {
-    if (random() < 0.5) record["after"] = [pick(random, IDS)]
-    else delete record["after"]
-  } else if (roll < 0.9) {
-    if (random() < 0.5) record["blocks"] = [pick(random, IDS)]
-    else delete record["blocks"]
-  } else {
-    // The record goes away, which is the delete a patcher has to answer for:
-    // an id leaves the corpus and whatever named it is left naming nothing.
+  // Two records SWAP LINES. No id is minted and none is dropped, and every
+  // index keyed by where a record IS has to move — which is the case the
+  // patcher got wrong until grok reproduced it, precisely because a generator
+  // that only ever edited fields could not reach it.
+  if (roll < 0.1 && lines.length > 1) {
+    const other = Math.floor(random() * lines.length)
+    const held = lines[at] as string
+    lines[at] = lines[other] as string
+    lines[other] = held
+    return lines.join("\n")
+  }
+  // The record goes away, which is the delete a patcher has to answer for: an
+  // id leaves the corpus and whatever named it is left naming nothing.
+  if (roll < 0.2) {
     lines.splice(at, 1)
     return lines.join("\n")
   }
+  const record = JSON.parse(lines[at] as string) as Record<string, unknown>
+  if ("mirror" in record) record["mirror"] = pick(random, IDS)
+  else if (roll < 0.45) record["title"] = `edited ${Math.floor(random() * 100)}`
+  else if (roll < 0.65) {
+    for (const mark of ["done", "doing", "todo"]) delete record[mark]
+    if (random() < 0.75) record[pick(random, ["done", "doing", "todo"])] = true
+  } else if (roll < 0.85) {
+    if (random() < 0.5) record["after"] = [pick(random, IDS)]
+    else delete record["after"]
+  } else {
+    if (random() < 0.5) record["blocks"] = [pick(random, IDS)]
+    else delete record["blocks"]
+  }
   lines[at] = JSON.stringify(record)
   return lines.join("\n")
+}
+
+/**
+ * One record moved OUT of a file and INTO another, verbatim.
+ *
+ * An archive, a reparent across outlines — and the second case the property
+ * test could not reach, because it is two files in one delta and nothing minted
+ * or dropped between them. The record keeps whatever it said, so a `parent` it
+ * carries becomes a foreign one: a set the validator condemns and `derive` is
+ * written to answer over.
+ */
+const relocated = (random: () => number, corpus: Corpus): Corpus => {
+  const holding = FILES.filter((file) => (corpus[file] ?? "") !== "")
+  if (holding.length === 0) return corpus
+  const from = pick(random, holding)
+  const lines = (corpus[from] as string).split("\n").filter((line) => line !== "")
+  if (lines.length === 0) return corpus
+  const [record] = lines.splice(Math.floor(random() * lines.length), 1)
+  const to = pick(random, FILES.filter((file) => file !== from))
+  const held = corpus[to] ?? ""
+  return {
+    ...corpus,
+    [from]: lines.join("\n"),
+    [to]: held === "" ? (record as string) : `${held}\n${record}`,
+  }
 }
 
 const editOf = (
@@ -215,14 +269,18 @@ const editOf = (
   before: Corpus,
   used: Set<string>,
 ): Corpus => {
-  const after = { ...before }
+  let after = { ...before }
   const many = 1 + Math.floor(random() * 2)
   for (let at = 0; at < many; at++) {
+    const roll = random()
+    if (roll < 0.15) {
+      after = relocated(random, after)
+      continue
+    }
     const file = pick(random, FILES)
     const held = after[file]
-    const roll = random()
-    if (roll < 0.1) delete after[file]
-    else if (roll < 0.35 || held === undefined) after[file] = fileOf(random, used)
+    if (roll < 0.25) delete after[file]
+    else if (roll < 0.45 || held === undefined) after[file] = fileOf(random, used)
     else after[file] = tweak(random, held)
   }
   return after
@@ -255,7 +313,15 @@ test("the patched view is the derived view, for any corpus and any delta", () =>
   // Not a performance assertion — a claim that the assertions above are about
   // the patcher at all. Left unchecked, a patcher that declined everything
   // would pass this whole file.
-  expect(declined).toBeLessThan(ROUNDS / 4)
+  // 96 of 500 as this is written, and BOTH bounds are the claim. The ceiling is
+  // what fails when the patcher stops patching — the whole suite would go on
+  // passing otherwise, since a decline is answered by `derive` and `derive` is
+  // the oracle. The floor is what fails when the generator stops writing the
+  // corners that decline (a duplicate id, a directory of one file), which is
+  // what would make the ceiling meaningless. The slack in each is for a
+  // generator that grows another arm, not for a patcher that loses one.
+  expect(declined).toBeGreaterThan(ROUNDS / 20)
+  expect(declined).toBeLessThan(ROUNDS / 4.5)
 })
 
 // ── what the reverse indexes are for ───────────────────────────────────
@@ -333,6 +399,82 @@ test("an edge written at a placement moves with the placement", () => {
   same(next as Derived, viewOf({ ...before, "b.olai": moved }), () => "a placement moves")
   expect((next as Derived).after.get("wait")).toEqual(["wash"])
   expect([...((next as Derived).edgesTo.get("wash") ?? [])]).toEqual(["wait"])
+})
+
+// ── where the key ORDER is the answer ──────────────────────────────────
+//
+// Two cases grok reproduced on review, and they are here by hand because the
+// generator could not reach them: `byId`'s key order is READ — the did-you-mean
+// behind every unknown-target error walks it and promises that ties go to the
+// first candidate offered — and both of these move a key's place without
+// minting or dropping a single id, which is what the patcher used to treat as
+// "nothing to redo". The values were right, the order was the old one, and the
+// view was returned rather than declined.
+
+test("two records swapping lines are two keys swapping places", () => {
+  const before: Corpus = {
+    "a.olai": `{"id":"p","ord":"a","title":"p"}\n{"id":"q","ord":"b","title":"q"}`,
+    "b.olai": `{"id":"r","ord":"a","title":"r"}`,
+  }
+  const swapped = `{"id":"q","ord":"b","title":"q"}\n{"id":"p","ord":"a","title":"p"}`
+  const view = viewOf(before)
+  const next = patched(view, editing("a.olai", swapped))
+  expect(next).toBeDefined()
+  same(next as Derived, viewOf({ ...before, "a.olai": swapped }), () => "lines swapped")
+  expect([...(next as Derived).byId.keys()]).toEqual(["q", "p", "r"])
+})
+
+test("a record moved to another file takes its key to the end of the corpus", () => {
+  // The id set does not change: nothing is minted, nothing is dropped. What
+  // changes is where the record IS — which is where its key is.
+  const before: Corpus = {
+    "a.olai": `{"id":"x","ord":"a","title":"x"}\n{"id":"keep","ord":"b","title":"keep"}`,
+    "b.olai": `{"id":"y","ord":"a","title":"y"}`,
+    "c.olai": `{"id":"z","ord":"a","title":"z"}`,
+  }
+  const emptied = `{"id":"keep","ord":"b","title":"keep"}`
+  const landed = `{"id":"z","ord":"a","title":"z"}\n{"id":"x","ord":"a","title":"x"}`
+  const view = viewOf(before)
+  const next = patched(view, {
+    upserts: [
+      ["a.olai", { nodes: nodesOf(emptied, "a.olai") }],
+      ["c.olai", { nodes: nodesOf(landed, "c.olai") }],
+    ],
+    removes: [],
+  })
+  expect(next).toBeDefined()
+  const after = { ...before, "a.olai": emptied, "c.olai": landed }
+  same(next as Derived, viewOf(after), () => "a record moves file")
+  expect([...(next as Derived).byId.keys()]).toEqual(["keep", "y", "z", "x"])
+  // What the order is FOR: an id nothing declares is answered with the first
+  // candidate within the budget, so a stale order is a different answer about
+  // the same bytes on disk.
+  expect(nearestId("aa", (next as Derived).byId.keys()))
+    .toBe(nearestId("aa", viewOf(after).byId.keys()))
+})
+
+test("siblings in two files with one `ord` and one line break the same way", () => {
+  // The tie `derive` never has to think about: it sorts a list already in
+  // corpus order, so two records with the same `ord` on the same LINE keep the
+  // order they were walked in. A patcher merges what stayed with what arrived
+  // and has to say that out loud (`bySibling`) — and this is the only shape
+  // where saying it wrong is visible, which is why it is written by hand rather
+  // than left to a generator that reaches it three times in five hundred
+  // rounds. A parent in another file is a set the validator condemns and
+  // `derive` is written to answer over.
+  const before: Corpus = {
+    "a.olai": `{"id":"one","parent":"p","ord":"a","title":"first file"}`,
+    "b.olai": `{"id":"two","parent":"p","ord":"a","title":"second file"}`,
+    "deep/c.olai": `{"id":"p","ord":"a","title":"the parent"}`,
+  }
+  const view = viewOf(before)
+  expect(view.children.get("p")?.map((at) => at.node.id)).toEqual(["one", "two"])
+
+  const edited = `{"id":"two","parent":"p","ord":"a","title":"edited"}`
+  const next = patched(view, editing("b.olai", edited))
+  expect(next).toBeDefined()
+  same(next as Derived, viewOf({ ...before, "b.olai": edited }), () => "a tied sibling")
+  expect((next as Derived).children.get("p")?.map((at) => at.node.id)).toEqual(["one", "two"])
 })
 
 // ── files coming and going ─────────────────────────────────────────────
