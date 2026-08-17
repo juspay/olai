@@ -11,6 +11,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  attr,
   nodeSelector,
   PANE,
   PANE_CLOSE,
@@ -26,7 +27,7 @@ import {
 import type { OlaiWorld } from "../support/world.ts";
 
 const paneAt = (world: OlaiWorld, index: number) =>
-  world.page.locator(`${PANE}[data-pane="${index}"]`);
+  world.page.locator(`${PANE}${attr("data-pane", String(index))}`);
 
 When(
   "I alt-click the zoom of {string}",
@@ -100,7 +101,7 @@ When(
   "I collapse pane {int} by dragging its divider",
   async function (this: OlaiWorld, index: number) {
     const handle = this.page.locator(
-      `${PANE_RESIZE}[data-left="${index}"], ${PANE_RESIZE}[data-right="${index}"]`,
+      `${PANE_RESIZE}${attr("data-left", String(index))}, ${PANE_RESIZE}${attr("data-right", String(index))}`,
     ).first();
     await handle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const box = await handle.boundingBox();
@@ -123,7 +124,7 @@ When(
 );
 
 When("I expand the pane rail {int}", async function (this: OlaiWorld, index: number) {
-  const rail = this.page.locator(`${PANE_RAIL}[data-pane="${index}"]`);
+  const rail = this.page.locator(`${PANE_RAIL}${attr("data-pane", String(index))}`);
   await rail.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await rail.click();
   await this.waitForFrame();
@@ -135,7 +136,7 @@ When("I shrink the window to a phone", async function (this: OlaiWorld) {
 });
 
 When("I tap pane tab {int}", async function (this: OlaiWorld, index: number) {
-  const tab = this.page.locator(`${PANE_TAB}[data-pane="${index}"]`);
+  const tab = this.page.locator(`${PANE_TAB}${attr("data-pane", String(index))}`);
   await tab.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await tab.click();
   await this.waitForFrame();
@@ -183,7 +184,7 @@ Then("there are {int} panes", async function (this: OlaiWorld, n: number) {
 
 Then("pane {int} is focused", async function (this: OlaiWorld, index: number) {
   await this.expectAttribute(
-    `${PANE}[data-pane="${index}"]`,
+    `${PANE}${attr("data-pane", String(index))}`,
     "data-pane-focused",
     "true",
     `pane ${index}`,
@@ -194,7 +195,7 @@ Then(
   "pane {int} is showing {string}",
   async function (this: OlaiWorld, index: number, href: string) {
     await this.expectAttribute(
-      `${PANE}[data-pane="${index}"]`,
+      `${PANE}${attr("data-pane", String(index))}`,
       "data-href",
       href,
       `pane ${index}`,
@@ -213,7 +214,7 @@ Then(
 
 Then("a pane rail is shown for pane {int}", async function (this: OlaiWorld, index: number) {
   await this.page
-    .locator(`${PANE_RAIL}[data-pane="${index}"]`)
+    .locator(`${PANE_RAIL}${attr("data-pane", String(index))}`)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
