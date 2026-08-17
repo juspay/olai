@@ -12,6 +12,7 @@ import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
   APP_HEADER,
+  attr,
   BLOCKED,
   CHECKBOX,
   DATE,
@@ -72,7 +73,7 @@ Then(
 Then(
   "the node {string} is a child of {string}",
   async function (this: OlaiWorld, child: string, parent: string) {
-    const nested = this.node(parent).locator(`${NODE}[data-node-id="${child}"]`);
+    const nested = this.node(parent).locator(`${NODE}${attr("data-node-id", child)}`);
     await nested
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
@@ -532,7 +533,7 @@ Then(
 Then(
   "the node {string} shows the fact {string} holding {string}",
   async function (this: OlaiWorld, id: string, key: string, value: string) {
-    const fact = this.node(id).first().locator(`${HOT_FACT}[data-key="${key}"]`);
+    const fact = this.node(id).first().locator(`${HOT_FACT}${attr("data-key", key)}`);
     await fact.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(readable(await fact.innerText()), `${key} ${value}`);
   },
@@ -738,7 +739,7 @@ Then(
           Array.from(document.querySelectorAll(selector)).every(
             (node) => node.getClientRects().length === 0,
           ),
-        `${NODE}[data-node-id="${id}"] ${NODE}`,
+        `${NODE}${attr("data-node-id", id)} ${NODE}`,
         { timeout: POLL_TIMEOUT },
       )
       .catch(() => undefined);
@@ -809,7 +810,7 @@ Then(
     // `~=` is a space-separated token match: the attribute lists every blocker,
     // and this step is about one of them being among them.
     await this.page
-      .locator(`${nodeSelector(id)}[data-blocked~="${blocker}"]`)
+      .locator(`${nodeSelector(id)}${attr("data-blocked", blocker, "~=")}`)
       .first()
       .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
     await this.node(id)

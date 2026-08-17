@@ -300,6 +300,31 @@ Feature: It stays live
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: An outline whose name carries a quote arrives like any other
+    # A vault is somebody's folder and a `"` is a legal character in a file
+    # name on every platform olai serves from, so this is an ordinary file —
+    # and it is the one shape this suite could not GRIP. Every step that finds
+    # a row by what it carries builds a `[data-…="…"]`, and a value with a
+    # quote in it used to end that string early: Playwright would refuse the
+    # selector and the step would die naming a parse error rather than the row.
+    # Nothing in the app was ever at risk — Solid writes dynamic attributes
+    # through `setAttribute`, so the DOM is escaped by construction.
+    #
+    # So this scenario is where a real browser agrees with
+    # `support/selectors.ts`' rule: `selectors.test.ts` holds the grammar, and
+    # the two assertions below are Chromium parsing what that rule builds and
+    # matching it against the attribute the client really wrote. Delete the
+    # escaping and this goes red on the selector, not on a timeout.
+    When I rewrite "say \"hi\".olai" as:
+      """
+      {"id":"quoted","ord":"a0","title":"an outline nobody could grip"}
+      """
+    # Root outlines only, Daily/ still collapsed: garden + house + this one.
+    Then the outline list has 3 entries
+    And the outline list links to "say \"hi\".olai"
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: A zoomed node's own page is as live as its outline
     # `/n/<id>` draws from the same store as a whole outline, so "it stays
     # live" has to mean the same thing there. Zooming is a route change and not

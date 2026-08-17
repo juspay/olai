@@ -16,7 +16,7 @@
 import * as assert from "node:assert";
 import type { Locator } from "playwright";
 
-import { ERROR_ROW, HYDRATION_TIMEOUT, oneLine, POLL_TIMEOUT } from "./world.ts";
+import { attr, ERROR_ROW, HYDRATION_TIMEOUT, oneLine, POLL_TIMEOUT } from "./world.ts";
 
 /** Every error row's text under a scope, flattened to one line each. */
 export const rowsIn = async (scope: Locator): Promise<Array<string>> =>
@@ -44,7 +44,7 @@ export const expectCodeIn = async (
   what: string,
 ): Promise<void> => {
   await showScope(scope);
-  const row = scope.locator(`${ERROR_ROW}[data-code="${code}"]`);
+  const row = scope.locator(`${ERROR_ROW}${attr("data-code", code)}`);
   await row
     .first()
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT })

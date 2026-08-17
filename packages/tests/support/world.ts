@@ -45,6 +45,7 @@ import type {
 } from "playwright";
 
 import type { TerminalAgent } from "./mcp.ts";
+import { attr } from "./selectors.ts";
 
 /** Per-step budget for interaction polls against a settled UI — a click
  *  landing, an attribute flipping, a subtree appearing. */
@@ -683,7 +684,7 @@ export const CHAT_MINE = selector(TESTID.chatMine);
  *  timeout. Note the id it carries is the RESOLVED one — a span saying `echo`
  *  points at the node `echo` is a placement of, because that is the node a
  *  reader can be shown. */
-export const chatNodeRef = (id: string): string => `[${CHAT_NODE_REF_ATTR}="${id}"]`;
+export const chatNodeRef = (id: string): string => attr(CHAT_NODE_REF_ATTR, id);
 /** ...and any of them at all, for the steps that assert an absence. */
 export const NODE_REF_ANY = `[${CHAT_NODE_REF_ATTR}]`;
 
@@ -725,15 +726,21 @@ export const NO_RELOAD_MARK = "__olaiNoReloadMark";
 export const oneLine = (text: string): string =>
   text.replace(/\s+/g, " ").trim();
 
+/** The one quote-safe way to grip a row by an attribute it carries, re-exported
+ *  from `./selectors.ts` so every step goes on importing its selector
+ *  vocabulary from one door. The rule lives next door because reaching it must
+ *  not start Cucumber; the argument for both halves is over there. */
+export { attr } from "./selectors.ts";
+
 /** One node, as a selector. Spelled once: the world composes locators from it,
  *  and the steps that need a selector STRING — the retrying attribute waits —
  *  cannot take a `Locator`. */
 export const nodeSelector = (id: string): string =>
-  `${NODE}[data-node-id="${id}"]`;
+  `${NODE}${attr("data-node-id", id)}`;
 
 /** One day of the month, by the date it stands for. Same reason as above. */
 export const daySelector = (date: string): string =>
-  `${CALENDAR_DAY}[data-date="${date}"]`;
+  `${CALENDAR_DAY}${attr("data-date", date)}`;
 
 /**
  * An ABSENCE, read off a page that has actually drawn something.
@@ -1141,7 +1148,7 @@ export class OlaiWorld extends World {
    *  are …" is asking about ONE of them — but the SELECTOR shape is one thing,
    *  and it was three copies of the same template string before this. */
   fileLink(testid: string, file: string): Locator {
-    return this.page.locator(`${testid}[data-file="${file}"]`);
+    return this.page.locator(`${testid}${attr("data-file", file)}`);
   }
 
   /**
@@ -1204,7 +1211,7 @@ export class OlaiWorld extends World {
 
   /** One folder in the sidebar's file tree, by its root-relative path. */
   fileDir(path: string): Locator {
-    return this.page.locator(`${FILE_DIR}[data-path="${path}"]`);
+    return this.page.locator(`${FILE_DIR}${attr("data-path", path)}`);
   }
 
   /** A node's `doc` reference — its own, not a descendant's. */
@@ -1532,7 +1539,7 @@ export class OlaiWorld extends World {
   ): Promise<void> {
     try {
       await this.page
-        .locator(`${selector}[${attribute}="${expected}"]`)
+        .locator(`${selector}${attr(attribute, expected)}`)
         .first()
         .waitFor({ state: "attached", timeout });
     } catch {

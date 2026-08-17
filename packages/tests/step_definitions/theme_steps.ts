@@ -30,7 +30,7 @@ import {
 
 import { manifestOf } from "./install_steps.ts";
 import { hintOf, showPreferences } from "./preferences_steps.ts";
-import { HYDRATION_TIMEOUT, POLL_TIMEOUT, THEME_CHIP } from "../support/world.ts";
+import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT, THEME_CHIP } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 /** What the parse probe leaves on `window`. Named once: an init script and two
@@ -76,7 +76,7 @@ const showChips = async (
  *  palettes can be compared on the page they paint. */
 const pick = async (world: OlaiWorld, theme: string): Promise<void> => {
   await showChips(world);
-  await world.press(world.page.locator(`${THEME_CHIP}[data-value="${theme}"]`));
+  await world.press(world.page.locator(`${THEME_CHIP}${attr("data-value", theme)}`));
   await world.expectAttribute("html", THEME_ATTRIBUTE, theme, "the page");
 };
 
@@ -150,7 +150,7 @@ Then("the lit theme chip is the default", async function (this: OlaiWorld) {
 const litChipIs = async (world: OlaiWorld, theme: string): Promise<void> => {
   await showChips(world);
   await world.expectAttribute(
-    `${THEME_CHIP}[data-value="${theme}"]`,
+    `${THEME_CHIP}${attr("data-value", theme)}`,
     "aria-pressed",
     "true",
     `the ${theme} chip`,
@@ -213,11 +213,11 @@ When(
     // wait for THAT tab to be in the theme, so everything after this step is
     // about the pick CROSSING rather than about the click landing.
     await showChips(this, other);
-    const chip = other.locator(`${THEME_CHIP}[data-value="${theme}"]`);
+    const chip = other.locator(`${THEME_CHIP}${attr("data-value", theme)}`);
     await chip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await chip.click();
     await other
-      .locator(`html[${THEME_ATTRIBUTE}="${theme}"]`)
+      .locator(`html${attr(THEME_ATTRIBUTE, theme)}`)
       .waitFor({ state: "attached", timeout: POLL_TIMEOUT })
       .catch(() => {
         throw new Error(

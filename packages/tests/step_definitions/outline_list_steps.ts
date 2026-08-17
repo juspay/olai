@@ -6,6 +6,7 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import {
+  attr,
   DOCUMENT_LINK,
   FILE_DIR,
   FILE_GLYPH,
@@ -23,7 +24,7 @@ import type { OlaiWorld } from "../support/world.ts";
 
 /** One folder in the file tree, as a selector string `expectAttribute` takes. */
 const folderSelector = (path: string): string =>
-  `${FILE_DIR}[data-path="${path}"]`;
+  `${FILE_DIR}${attr("data-path", path)}`;
 
 /** The fold button of ONE folder — a direct child of its `<li>`, not a
  *  descendant's. Nested folders nest their `li`s, so an unscoped
@@ -197,7 +198,7 @@ Then(
     // merely display:none — the same contract a collapsed outline node has
     // for its children.
     assert.strictEqual(
-      await this.page.locator(`${DOCUMENT_LINK}[data-file="${file}"]`).count(),
+      await this.page.locator(`${DOCUMENT_LINK}${attr("data-file", file)}`).count(),
       0,
       `the document "${file}" is still in the tree after its folder collapsed`,
     );
@@ -281,7 +282,7 @@ const drawnAs = async (
 ): Promise<void> => {
   await world.showSidebar();
   await world.expectAttribute(
-    `${testid}[data-file="${file}"] ${FILE_GLYPH}`,
+    `${testid}${attr("data-file", file)} ${FILE_GLYPH}`,
     "data-glyph",
     kind,
     `the ${what} "${file}"`,

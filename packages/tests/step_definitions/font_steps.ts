@@ -21,7 +21,7 @@ import {
 } from "@olai/fonts";
 
 import { hintOf, showPreferences } from "./preferences_steps.ts";
-import { FONT_SELECT, POLL_TIMEOUT } from "../support/world.ts";
+import { attr, FONT_SELECT, POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const PROBE = "__olaiFontLanded";
@@ -120,7 +120,7 @@ When(
     await showSelect(this, other);
     await other.locator(FONT_SELECT).selectOption(name);
     await other
-      .locator(`html[${FONT_ATTRIBUTE}="${name}"]`)
+      .locator(`html${attr(FONT_ATTRIBUTE, name)}`)
       .waitFor({ state: "attached", timeout: POLL_TIMEOUT })
       .catch(() => {
         throw new Error(

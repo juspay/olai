@@ -14,6 +14,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { SIDEBAR_WIDTH_KEY } from "@olai/web/src/client/layout/prefs.ts";
 import {
   APP_HEADER,
+  attr,
   CHAT_PANEL,
   CHAT_PILL,
   CHAT_SHEET,
@@ -276,7 +277,7 @@ const searchRowProp = (
     .locator(HEADER_SEARCH_ITEM)
     .filter({ hasText: title })
     .first()
-    .locator(`${HEADER_SEARCH_ITEM_PROP}[data-key="${key}"]`);
+    .locator(`${HEADER_SEARCH_ITEM_PROP}${attr("data-key", key)}`);
 
 Then(
   "the header search result {string} shows the property {string} holding {string}",

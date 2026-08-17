@@ -19,6 +19,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  attr,
   CHAT_CONTEXT_CHIP,
   CHAT_CONTEXT_REMOVE,
   CHAT_ENTRY,
@@ -40,7 +41,7 @@ const armed = (world: OlaiWorld, id?: string) =>
     .locator(
       id === undefined
         ? CHAT_CONTEXT_CHIP
-        : `${CHAT_CONTEXT_CHIP}[data-node="${id}"]`,
+        : `${CHAT_CONTEXT_CHIP}${attr("data-node", id)}`,
     )
     .filter({ has: world.page.locator(CHAT_CONTEXT_REMOVE) });
 
@@ -71,7 +72,7 @@ Then(
     // On the MESSAGE, which is the server's own record of what was sent —
     // never the composer's strip, which is empty by now.
     await this.page
-      .locator(`${CHAT_ENTRY}[data-kind="user"] ${CHAT_CONTEXT_CHIP}[data-node="${id}"]`)
+      .locator(`${CHAT_ENTRY}[data-kind="user"] ${CHAT_CONTEXT_CHIP}${attr("data-node", id)}`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },

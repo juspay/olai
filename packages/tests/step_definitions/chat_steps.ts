@@ -21,6 +21,7 @@ import type { Locator } from "playwright";
 import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
 import {
+  attr,
   CHAT_ASK,
   CHAT_ASK_CHOICE,
   CHAT_ASK_DISMISS,
@@ -501,7 +502,7 @@ Then(
   "the question offers {string}",
   async function (this: OlaiWorld, value: string) {
     await question(this)
-      .locator(`${CHAT_ASK_CHOICE}[data-value="${value}"]`)
+      .locator(`${CHAT_ASK_CHOICE}${attr("data-value", value)}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -529,7 +530,7 @@ When(
   "I type {string} into the question's {string} box",
   async function (this: OlaiWorld, text: string, field: string) {
     await question(this)
-      .locator(`${CHAT_ASK_TEXT}[data-field="${field}"]`)
+      .locator(`${CHAT_ASK_TEXT}${attr("data-field", field)}`)
       .fill(text);
   },
 );
@@ -537,7 +538,7 @@ When(
 Then(
   "the question's {string} box still reads {string}",
   async function (this: OlaiWorld, field: string, text: string) {
-    const box = question(this).locator(`${CHAT_ASK_TEXT}[data-field="${field}"]`);
+    const box = question(this).locator(`${CHAT_ASK_TEXT}${attr("data-field", field)}`);
     assert.strictEqual(
       await box.inputValue(),
       text,
@@ -585,7 +586,7 @@ Then(
     // Off the ROW rather than off this tab's memory of the click: a reloaded
     // page has no memory of the click, which is the point of asking.
     await this.expectAttribute(
-      `${CHAT_ASK} ${CHAT_ASK_CHOICE}[data-value="${value}"]`,
+      `${CHAT_ASK} ${CHAT_ASK_CHOICE}${attr("data-value", value)}`,
       "aria-pressed",
       "true",
       `the chosen option "${value}"`,
@@ -836,7 +837,7 @@ Then(
     // of this directory should see it spelled the way every `file:line` here
     // is.
     await this.page
-      .locator(`${CHAT_DIFF}[data-path="${file}"]`)
+      .locator(`${CHAT_DIFF}${attr("data-path", file)}`)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   },
 );
@@ -853,11 +854,11 @@ Then(
 Then(
   "the chat shows {int} diffs of {string}",
   async function (this: OlaiWorld, many: number, file: string) {
-    const boxes = this.page.locator(`${CHAT_DIFF}[data-path="${file}"]`);
+    const boxes = this.page.locator(`${CHAT_DIFF}${attr("data-path", file)}`);
     await this.page.waitForFunction(
       ([selector, wanted]) =>
         document.querySelectorAll(selector as string).length === wanted,
-      [`${CHAT_DIFF}[data-path="${file}"]`, many] as const,
+      [`${CHAT_DIFF}${attr("data-path", file)}`, many] as const,
       { timeout: HYDRATION_TIMEOUT },
     );
     assert.strictEqual(
@@ -950,6 +951,9 @@ Then("a wrapped diff line keeps its gutter", async function (this: OlaiWorld) {
   await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const geometry = await box.evaluate(
     (root, ids) => {
+      // Built here rather than through the world's `attr`, which is not
+      // reachable inside an `evaluate` callback — and does not need to be:
+      // `kind` is one of this function's own three literals.
       const of = (kind: string): ReadonlyArray<Element> =>
         [...root.querySelectorAll(`${ids.line}[data-kind="${kind}"]`)];
 
@@ -1078,7 +1082,7 @@ Then(
   "the chat shows the outline {string} changing",
   async function (this: OlaiWorld, file: string) {
     await this.page
-      .locator(`${CHAT_OUTLINE_DIFF}[data-path="${file}"]`)
+      .locator(`${CHAT_OUTLINE_DIFF}${attr("data-path", file)}`)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   },
 );
@@ -1144,7 +1148,7 @@ const firstLane = (world: OlaiWorld) => world.page.locator(CHAT_LANE).first();
 /** One row of the conversation, as a selector. Spelled once, the way a node
  *  and a day already are (`world.ts`): three literals of one scheme in one
  *  file is two of them being missed the day the scheme moves. */
-const entrySelector = (id: string): string => `${CHAT_ENTRY}[data-entry-id="${id}"]`;
+const entrySelector = (id: string): string => `${CHAT_ENTRY}${attr("data-entry-id", id)}`;
 
 /**
  * What hangs off a spawn has to be drawn BELOW it and INSET from it.
@@ -1284,7 +1288,7 @@ Then(
     // dot where a spawn was — which is the bug this feature exists for,
     // arriving at the end of the turn instead of the start.
     await this.page
-      .locator(`${CHAT_SPAWN}[data-spawn-kind="${kind}"]`)
+      .locator(`${CHAT_SPAWN}${attr("data-spawn-kind", kind)}`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
@@ -1368,7 +1372,7 @@ Then(
   "the completion offers {string}",
   async function (this: OlaiWorld, value: string) {
     await this.page
-      .locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`)
+      .locator(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -1379,7 +1383,7 @@ Then(
     await this.waitUntil(
       async () =>
         (await this.page
-          .locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`)
+          .locator(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}`)
           .count()) === 0,
       `the completion to stop offering "${value}"`,
     );
@@ -1393,7 +1397,7 @@ Then(
 Then(
   "the completion row {string} reads {string} in {string}",
   async function (this: OlaiWorld, value: string, label: string, hint: string) {
-    const row = this.page.locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`);
+    const row = this.page.locator(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}`);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(oneLine(await row.innerText()), `${label} ${hint}`);
   },
@@ -1408,7 +1412,7 @@ When(
   "I click the completion {string}",
   async function (this: OlaiWorld, value: string) {
     await this.page
-      .locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`)
+      .locator(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}`)
       .click();
   },
 );
@@ -1861,6 +1865,8 @@ const deliver = async (
         const bytes = Uint8Array.from(atob(spec.data), (char) => char.charCodeAt(0));
         transfer.items.add(new File([bytes], spec.name, { type: spec.type }));
       }
+      // Inside an `evaluate`: the world's `attr` cannot be called here, and `at`
+      // is a `TestId` — a kebab-case literal from a closed table.
       const target = document.querySelector(`[data-testid="${at}"]`);
       for (const kind of kinds) {
         target?.dispatchEvent(
@@ -1927,6 +1933,7 @@ When("the drag moves onto the composer", async function (this: OlaiWorld) {
  *  conversation with nothing over it. */
 const emptyDragAt = (world: OlaiWorld, at: TestId, kind: string): Promise<void> =>
   world.page.evaluate(({ at, kind }) => {
+    // `attr` is unreachable inside an `evaluate`, and `at` is a `TestId`.
     const target = document.querySelector(`[data-testid="${at}"]`)
     target?.dispatchEvent(
       new DragEvent(kind, {
@@ -1980,6 +1987,7 @@ When("I drag some selected text over the chat panel", async function (this: Olai
   await this.page.evaluate(({ at }) => {
     const transfer = new DataTransfer();
     transfer.setData("text/plain", "a sentence being dragged");
+    // Same as above: browser-side code, and a `TestId` for a value.
     const pane = document.querySelector(`[data-testid="${at}"]`);
     for (const kind of ["dragenter", "dragover"]) {
       pane?.dispatchEvent(
@@ -2117,7 +2125,7 @@ Then(
   },
 );
 
-const pictureChip = (name: string): string => `${CHAT_ATTACHMENT}[data-name="${name}"]`;
+const pictureChip = (name: string): string => `${CHAT_ATTACHMENT}${attr("data-name", name)}`;
 
 /** How full the context is, as the header draws it. The whole string — `22k/1M`
  *  rather than a substring — because the two halves are the claim: a scenario

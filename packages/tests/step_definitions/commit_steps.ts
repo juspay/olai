@@ -26,6 +26,7 @@ import {
   APP_CHROME,
   APP_CHROME_CONTROLS,
   APP_HEADER,
+  attr,
   COMMIT_BLOCKED,
   COMMIT_CHANGE,
   COMMIT_LAST,
@@ -241,7 +242,7 @@ Then(
   "the change to {string} is {string}",
   async function (this: OlaiWorld, id: string, sort: string) {
     await this.expectAttribute(
-      `${COMMIT_CHANGE}[data-node-id="${id}"]`,
+      `${COMMIT_CHANGE}${attr("data-node-id", id)}`,
       "data-sort",
       sort,
       `the pending change to "${id}"`,
@@ -315,7 +316,7 @@ Then(
   "the panel lists {string} as {string}",
   async function (this: OlaiWorld, file: string, how: string) {
     await this.expectAttribute(
-      `${COMMIT_OTHER}[data-path="${file}"]`,
+      `${COMMIT_OTHER}${attr("data-path", file)}`,
       "data-how",
       how,
       `the pending file "${file}"`,
@@ -327,7 +328,7 @@ Then(
   "the panel does not list {string}",
   async function (this: OlaiWorld, file: string) {
     await this.page
-      .locator(`${COMMIT_OTHER}[data-path="${file}"]`)
+      .locator(`${COMMIT_OTHER}${attr("data-path", file)}`)
       .waitFor({ state: "detached", timeout: POLL_TIMEOUT });
   },
 );
@@ -357,7 +358,7 @@ Then(
   "the panel lists {string} as renamed from {string}",
   async function (this: OlaiWorld, file: string, from: string) {
     await this.expectAttribute(
-      `${COMMIT_OTHER}[data-path="${file}"]`,
+      `${COMMIT_OTHER}${attr("data-path", file)}`,
       "data-from",
       from,
       `the pending file "${file}"`,
@@ -387,7 +388,7 @@ When(
   "I untick {string}",
   async function (this: OlaiWorld, file: string) {
     await this.page
-      .locator(`${COMMIT_TICK}[data-path="${file}"]`)
+      .locator(`${COMMIT_TICK}${attr("data-path", file)}`)
       .uncheck({ timeout: POLL_TIMEOUT });
   },
 );

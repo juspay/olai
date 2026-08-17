@@ -144,6 +144,44 @@ export const fileKind = (path: string): FileKind | null => {
   return null
 }
 
+/**
+ * A served file's NAME with the suffix that claims it taken off — `roadmap` for
+ * `docs/roadmap.olai`, `2026-08-12` for `Daily/2026/08/2026-08-12.md` — and the
+ * bare name for a file no kind claims, since there is no suffix of ours to take
+ * off one of those.
+ *
+ * It is here because it is {@link fileKind}'s question asked one step further:
+ * WHICH suffix a file has is the table's to answer, so how many characters come
+ * off the end is the table's too. Two callers were each answering it for
+ * themselves and had reached opposite rules — a commit subject spelled the
+ * outline's suffix and left every other name whole, while the daily-note rule
+ * cut at the last dot on purpose, so it would not be "taking the wrong number
+ * of characters off" the day a second kind arrived. Both are right about the
+ * file they were written for and neither is right about the other's:
+ * `2026-08-12.md` keeps its suffix under the first, and `README` comes back as
+ * `READM` under the second, because `lastIndexOf(".")` of `-1` drops the last
+ * character instead of nothing.
+ *
+ * So the rule is the registry's, and it is the only one that is right about
+ * both: cut what the table says is there, and cut nothing when it says there is
+ * nothing. ./stem.test.ts holds the two retired rules beside this one and shows,
+ * per name, that this one sides with whichever of them was right about that
+ * file — the daily-note rule for a `.md`, the commit-subject rule for a name no
+ * kind claims — and never invents a third answer. It is NOT that the divergent
+ * names go unpassed: every daily note is one of them. It is that no caller can
+ * reach a name where this rule would give it something its own rule would not.
+ *
+ * The BASENAME, so the directories above the file are gone first: a folder
+ * named `2026-08-12` holding a `notes.md` has no bearing on what that document
+ * is called, and a caller putting a stem in front of a reader means the name,
+ * not the path.
+ */
+export const stemOf = (path: string): string => {
+  const name = path.slice(path.lastIndexOf("/") + 1)
+  const kind = fileKind(name)
+  return kind === null ? name : name.slice(0, -FILE_KINDS[kind].ext.length)
+}
+
 /** Whether a kind's content is a body rather than records — the question the
  *  codec and the assembly both ask, in the form that narrows a `FileKind` to
  *  the ones a page can draw. */

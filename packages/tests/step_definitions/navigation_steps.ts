@@ -13,6 +13,7 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
 import {
+  attr,
   BLOCKED,
   NODE_REF,
   NOT_FOUND,
@@ -126,7 +127,7 @@ Then("a not-found is shown", async function (this: OlaiWorld) {
 const seeLinkTo = (world: OlaiWorld, source: string, target: string) =>
   world
     .node(source)
-    .locator(`${SEE_REFS} ${NODE_REF}:has([data-ref="${target}"])`)
+    .locator(`${SEE_REFS} ${NODE_REF}:has(${attr("data-ref", target)})`)
     .first();
 
 /** Click a link from a node to a node, and land. One helper for both relations
@@ -179,7 +180,7 @@ When(
     // instead, and that goes to this page rather than to any one blocker.
     await followRef(
       this,
-      this.node(id).locator(`${BLOCKED} [data-ref="${blocker}"]`).first(),
+      this.node(id).locator(`${BLOCKED} ${attr("data-ref", blocker)}`).first(),
     );
   },
 );

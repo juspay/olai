@@ -34,7 +34,7 @@
 
 import { biggestOf, type NodeChange, type Sort } from "./changes.ts"
 import type { Other } from "./committing.ts"
-import { OUTLINE_EXT } from "./kinds.ts"
+import { stemOf } from "./kinds.ts"
 
 /** Every message olai writes starts with this. In a project repository the
  *  prefix is what separates tool writes from a person's: `git log --grep
@@ -140,17 +140,12 @@ const subjectOf = (
   }
   const outlines = new Set(changes.map((change) => change.file))
   const count = `${changes.length} ${changes.length === 1 ? "edit" : "edits"}`
+  // The STEM — `roadmap`, not `roadmap.olai`. A subject is read at a glance and
+  // the suffix is the same on every outline there is. Which characters that
+  // costs is `./kinds.ts`'s to say, not this file's.
   const where = outlines.size === 1 ? ` to ${stemOf(biggest.file)}` : ""
   const also = others.length === 0 ? "" : ` · ${others.length} other ${
     others.length === 1 ? "file" : "files"
   }`
   return `${MESSAGE_PREFIX}: ${count}${where} — ${biggest.title} ${biggest.sort}${also}`
-}
-
-/** An outline's name without its extension — `roadmap`, not `roadmap.olai`.
- *  A subject is read at a glance and the extension is the same on every one of
- *  them. */
-const stemOf = (file: string): string => {
-  const name = file.slice(file.lastIndexOf("/") + 1)
-  return name.endsWith(OUTLINE_EXT) ? name.slice(0, -OUTLINE_EXT.length) : name
 }

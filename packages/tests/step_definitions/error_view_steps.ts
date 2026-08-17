@@ -18,6 +18,7 @@ import {
 } from "../support/errors.ts";
 import {
   APP_HEADER,
+  attr,
   CROSS_FILE_ERRORS,
   ERROR_FILE_GROUP,
   ERROR_ROW,
@@ -28,7 +29,7 @@ import type { OlaiWorld } from "../support/world.ts";
 import type { Locator } from "playwright";
 
 const groupFor = (world: OlaiWorld, file: string): Locator =>
-  world.page.locator(`${ERROR_FILE_GROUP}[data-file="${file}"]`);
+  world.page.locator(`${ERROR_FILE_GROUP}${attr("data-file", file)}`);
 
 Then("the error view is shown", async function (this: OlaiWorld) {
   await showScope(this.page.locator(ERROR_VIEW));
@@ -89,7 +90,7 @@ Then(
     const section = this.page.locator(CROSS_FILE_ERRORS);
     await showScope(section);
     assert.strictEqual(
-      await section.locator(`${ERROR_ROW}[data-code="${code}"]`).count(),
+      await section.locator(`${ERROR_ROW}${attr("data-code", code)}`).count(),
       0,
       `a "${code}" error implicates one file only, so it belongs under that ` +
         `file rather than in the cross-file section`,

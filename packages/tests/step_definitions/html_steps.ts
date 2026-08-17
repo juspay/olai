@@ -248,6 +248,66 @@ Then(
 );
 
 /**
+ * WHICH ADDRESS a picture was actually fetched from, and that it was allowed.
+ *
+ * The step above reads an `<img>` and asks whether it DECODED, which is the
+ * right question when there is an element to read. Three ways of naming a
+ * picture have no such element to read, or none that says which candidate won:
+ * a `srcset`, a `<picture>`'s `<source>`, and a CSS `background: url(…)`. They
+ * are the addresses a saved page uses most and the ones #201 named as untested,
+ * on the argument that they "work by consequence of the shared base" — which is
+ * exactly the kind of claim that is true until it is not.
+ *
+ * So this asks the network instead, and it asks the two halves separately
+ * because they can fail apart:
+ *
+ *   - **the URL is the one the file's own address resolves to.** `art/x.png`
+ *     inside `notes/page.html` is `/media/notes/art/x.png` and nothing else. A
+ *     base that had slipped — back to the app's root, to the media root, to a
+ *     `<base>` the file itself declared — produces a DIFFERENT path here, and a
+ *     step that only asked "was it refused?" would go green on a picture nobody
+ *     meant to serve;
+ *   - **and nothing refused it.** A request is recorded the moment a document
+ *     asks for one, before anything decides whether it may happen, so being in
+ *     the list proves only the asking. `world.refused` is the other half.
+ *
+ * Paths rather than whole URLs in the feature, because the port is this run's.
+ */
+Then(
+  "the preview fetched the vault's pictures at {string}",
+  async function (this: OlaiWorld, wanted: string) {
+    const paths = wanted.split(",").map((one) => one.trim());
+    // Path AND QUERY, because the query is how a fixture tells three requests
+    // for one picture apart. `mediaTarget` cuts at the `?` before it decodes a
+    // name, so `handle.png?painted` is the same FILE and a different REQUEST —
+    // which is what stops a browser answering the stylesheet's fetch out of the
+    // cache the `<img>` above it filled, and turns "all three were allowed"
+    // from a hope into three lines.
+    const pathOf = (url: string): string => {
+      try {
+        const at = new URL(url);
+        return `${at.pathname}${at.search}`;
+      } catch {
+        return url;
+      }
+    };
+    await this.waitUntil(async () => {
+      const asked = new Set(this.requests.map(pathOf));
+      return paths.every((one) => asked.has(one));
+    }, `the preview to fetch ${wanted}`);
+    const refused = this.refused
+      .filter((one) => paths.includes(pathOf(one.url)))
+      .map((one) => `${pathOf(one.url)} — ${one.why}`);
+    assert.deepStrictEqual(
+      refused,
+      [],
+      "these pictures are files of this vault, named beside the page that " +
+        "draws them, and the browser was not allowed to fetch them",
+    );
+  },
+);
+
+/**
  * WHAT LEFT, as against what was asked for — and on a page that names somebody
  * else's server on purpose, those are two different lists.
  *
@@ -457,6 +517,34 @@ Then("the preview is as tall as the page it shows", async function (this: OlaiWo
     ({ frame, page }) =>
       `the frame is ${frame}px tall and the page inside it is ${page}px — ` +
       `the frame is still a guess rather than the height of what it shows`,
+  );
+});
+
+/**
+ * THE COST OF TWO RUNGS, read as a height: the page in there is TALLER than the
+ * frame around it, and stayed that way.
+ *
+ * It is the negative of the step above and it is not a failure — it is the
+ * decision `../../web/src/client/document/rungs.ts` makes, named out loud where
+ * a reader meets it. A picture that arrives after `load` (a `loading="lazy"`
+ * one) grows the page and is refused a rung, because the message that says "my
+ * pictures landed" and the message that says "you made me taller and I am
+ * measured in `vh`" are the same message, and only one of them may be acted on.
+ * So the frame keeps the height it had and the rest scrolls inside it.
+ *
+ * A WAIT rather than a read, and the waiting is what gives it teeth: the two
+ * heights are equal until the late picture lands, so this can only go green
+ * after the page really grew — and if the frame had followed it they would be
+ * equal again and this would time out saying both numbers.
+ */
+Then("the preview is shorter than the page it shows", async function (this: OlaiWorld) {
+  await untilHeights(
+    this,
+    ({ frame, page }) => page - frame > ROUNDING_PX,
+    "the page inside the frame outgrew the frame",
+    ({ frame, page }) =>
+      `the frame is ${frame}px and the page in it is ${page}px — the frame ` +
+      `either followed the late picture up or the picture never arrived`,
   );
 });
 

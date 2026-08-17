@@ -26,6 +26,7 @@ import { SIZE_STORAGE_KEY } from "@olai/web/src/client/theme/sizes.ts";
 
 import {
   APP_HEADER,
+  attr,
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
   PREFS_CHOICE,
@@ -53,7 +54,7 @@ export const showPreferences = async (page: Page): Promise<void> => {
 /** One row of it, by the preference it sets rather than by its position: rows
  *  are a list somebody will reorder. */
 const row = (world: OlaiWorld, pref: string) =>
-  world.page.locator(`${PREFS_ROW}[data-pref="${pref}"]`);
+  world.page.locator(`${PREFS_ROW}${attr("data-pref", pref)}`);
 
 /** What that row says the choice in force MEANS. Exported for the theme steps,
  *  which read it for the promise the retired header pill used to keep. */
@@ -265,7 +266,7 @@ const pickChoice = async (
 ): Promise<void> => {
   await showPreferences(page);
   const choice = page.locator(
-    `${PREFS_ROW}[data-pref="${pref}"] ${PREFS_CHOICE}[data-value="${value}"]`,
+    `${PREFS_ROW}${attr("data-pref", pref)} ${PREFS_CHOICE}${attr("data-value", value)}`,
   );
   await choice.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await choice.click();

@@ -11,6 +11,7 @@
 import * as assert from "node:assert";
 import { Then } from "@cucumber/cucumber";
 
+import { attr } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 /** The manifest, parsed. Fetched per step rather than cached on the world: it
@@ -139,7 +140,7 @@ Then(
   "the page's {string} is {string}",
   async function (this: OlaiWorld, rel: string, href: string) {
     await this.expectAttribute(
-      `link[rel="${rel}"]`,
+      `link${attr("rel", rel)}`,
       "href",
       href,
       `the shell's <link rel="${rel}">`,
