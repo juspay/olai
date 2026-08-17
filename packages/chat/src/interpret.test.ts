@@ -285,6 +285,17 @@ describe("which call started an agent", () => {
     expect(spawnedIn(BEAT, undefined)).toEqual({ kind: "Explore" })
   })
 
+  test("a call nobody flagged is no spawn, whatever its arguments are called", () => {
+    // The tools on a session are not a closed set: `subagent_type` is a name
+    // the `Agent` tool gives one of ITS arguments, and an MCP server olai
+    // never handed this conversation is free to take one by the same name. A
+    // reader that trusted any `rawInput` would put a kind of agent, and a live
+    // rail, on that server's call.
+    expect(spawnedIn({ claudeCode: { toolName: "mcp__other__dispatch" } }, ASKED))
+      .toBeNull()
+    expect(spawnedIn(undefined, ASKED)).toBeNull()
+  })
+
   test("nothing else is a spawn", () => {
     expect(spawnedIn({ claudeCode: { toolName: "Grep" } }, { pattern: "x" })).toBeNull()
     // The frames a subagent's own calls arrive on say who they came from and
@@ -322,7 +333,10 @@ describe("which call started an agent", () => {
     // They do not disagree in practice; if they ever do, the arguments are
     // what a person reading the row is owed.
     const disagreeing = {
-      claudeCode: { toolResponse: { subagentType: "general-purpose" } },
+      claudeCode: {
+        subagent: true,
+        toolResponse: { subagentType: "general-purpose" },
+      },
     }
     expect(spawnedIn(disagreeing, ASKED)).toEqual({ kind: "Explore" })
   })

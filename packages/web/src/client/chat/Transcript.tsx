@@ -55,7 +55,7 @@ import { laneOf, RAIL } from "./lanes.ts"
 import { LIVE_DOT } from "./live.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
-import { faceOf } from "./spawn.ts"
+import { doingOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
 /** How close to the bottom still counts as "at the bottom". Anything under a
@@ -137,6 +137,17 @@ export function Transcript(props: { readonly chat: Chat }) {
    *  the whole list rather than one built per row per frame. */
   const titleOf = (key: string): string | undefined => props.chat.entry(key)()?.text
 
+  /**
+   * Whether anything is running in this conversation at all — the half of "is
+   * that agent still going" that a ROW cannot answer ({@link ./spawn.ts}).
+   *
+   * ONE memo for the whole list rather than one per row, and a BOOLEAN rather
+   * than the state: every row's rail would otherwise subscribe to the chat
+   * cell, which moves several times a turn as the context usage is revised, and
+   * re-run for each of them. A boolean propagates only when it flips.
+   */
+  const live = createMemo(() => props.chat.state().status === "thinking")
+
   return (
     <div
       class="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2"
@@ -188,10 +199,11 @@ export function Transcript(props: { readonly chat: Chat }) {
             /** The live rail under a spawn — what a running subagent looks
              *  like before it has made a call to draw a lane out of.
              *
-             *  `null` for every row that spawned nobody and for a spawn that
-             *  has stopped, so the same memo answers both "is there anything
-             *  to draw" and "what does it say" ({@link ./spawn.ts}). */
-            const working = createMemo(() => faceOf(entry())?.doing ?? null)
+             *  `null` for every row that spawned nobody, for a spawn that has
+             *  stopped, and for one whose CONVERSATION has, so the same memo
+             *  answers both "is there anything to draw" and "what does it say"
+             *  ({@link ./spawn.ts}). */
+            const working = createMemo(() => doingOf(entry(), live()))
             return (
               <Show when={entry()}>
                 {(row) => (

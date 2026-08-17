@@ -135,6 +135,24 @@ Feature: Talking to the agent
     And the chat says no agent is still working
 
   @scratch:chat
+  Scenario: A face does not outlive the agent that was wearing it
+    # The other way a live face goes wrong, and the one a row cannot catch on
+    # its own: a status is sticky, an agent that dies mid-spawn reports no
+    # completion for the call it was in the middle of, and the rows a dead
+    # agent left are deliberately kept on screen to read. So the `Agent` call
+    # says `pending` for as long as the panel is open, and a rail that asked
+    # the row alone would pulse "starting…" under a process that no longer
+    # exists.
+    #
+    # What the row keeps saying is who was sent, because that is a fact about
+    # what happened rather than about what is happening.
+    When I ask the agent "subagent crash"
+    Then the chat says an agent is working, of the kind "Explore"
+    When the agent is released
+    Then the chat says no agent is still working
+    And the chat still shows a call that sent out an "Explore"
+
+  @scratch:chat
   Scenario: A file the agent rewrote shows what changed, trimmed
     # The half of this feature that is NOT an outline. A direct edit to a `.md`
     # or a source file shows up in no tree, so until the panel drew the diff

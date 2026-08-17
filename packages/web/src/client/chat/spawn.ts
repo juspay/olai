@@ -21,63 +21,78 @@
  *     the description the call was made with, with the prompt itself one fold
  *     away. Neither is decided here: the row already draws them, and it draws
  *     them for a spawn exactly as it draws them for anything else;
- *   - **that it is running** — {@link Face.doing}, which is the agent's own
- *     status put into a word, and `null` the moment the call stops.
+ *   - **that it is running** — {@link doingOf}, which is the agent's own
+ *     status put into a word, and `null` the moment either the call or the
+ *     conversation stops.
  *
- * A PURE FUNCTION over one row, the way `./lanes.ts` and `./when.ts` are, and
- * for their reason: what a face is allowed to claim is exactly the kind of
- * thing that gets re-decided by looking at it, and a rule you expect to
- * re-decide is one worth being able to re-decide in one place and to assert
- * without starting an agent. Two callers read it — the row draws WHO, the list
- * draws the live rail underneath — and they must not be able to disagree about
- * whether a row is a spawn at all.
+ * PURE FUNCTIONS over a row, the way `./lanes.ts` and `./when.ts` are, and for
+ * their reason: what a face is allowed to claim is exactly the kind of thing
+ * that gets re-decided by looking at it, and a rule you expect to re-decide is
+ * one worth being able to re-decide in one place and to assert without
+ * starting an agent. Two callers read them — the row draws WHO, the list draws
+ * the live rail underneath — and being two readings of one field in one module
+ * is what stops them disagreeing about whether a row is a spawn at all.
  */
 
 import type { ChatEntry } from "@olai/surface"
 
-/** A spawn's face: who was sent, and what they are doing. */
-export interface Face {
-  /**
-   * The kind of agent, as the agent names its own.
-   *
-   * Always a word, which is the difference between this and the
-   * `Spawned.kind` it is read from: a spawn that named no kind still started
-   * somebody, and a row saying nothing where every other spawn says something
-   * reads as a row that failed rather than as an agent nobody labelled.
-   */
-  readonly who: string
-  /**
-   * What it is doing, in a word — or `null` once it has stopped, which is a
-   * face with nothing left to say and the cue to stop drawing the live half.
-   *
-   * THE WORD, not a flag saying a word is owed: `./lanes.ts`'s `label` learned
-   * that one edit ago. There are two of them and the difference between them
-   * is the agent's own status rather than a shade of meaning invented here —
-   * a call the agent calls `pending` has been announced and not yet reported
-   * on, and saying it is working would be this panel claiming something the
-   * agent did not.
-   */
-  readonly doing: string | null
-}
-
 /**
- * The face of the row, or `null` for a row that spawned nobody — which is
- * every row in a conversation where nothing was ever sent out.
+ * WHO the call sent out, or `null` for a row that sent nobody — which is every
+ * row in a conversation where nothing was ever spawned.
+ *
+ * Always a word for a spawn, which is the difference between this and the
+ * `Spawned.kind` it is read from: a spawn that named no kind still started
+ * somebody, and a row saying nothing where every other spawn says something
+ * reads as a row that failed rather than as an agent nobody labelled.
  *
  * `undefined` for the row is answered `null` too, for `laneOf`'s reason: the
  * list holds keys and reads their values a frame behind, so "which row" is a
  * question that can be asked about nothing.
  */
-export const faceOf = (entry: ChatEntry | undefined): Face | null => {
+export const whoOf = (entry: ChatEntry | undefined): string | null => {
   const spawned = entry?.spawned
-  if (spawned === undefined) return null
-  return {
-    who: spawned.kind ?? SOMEBODY,
-    // `pending` is the status a spawn is ANNOUNCED with and the one it keeps
-    // until the agent's first beat, so it is the status most spawns wear for
-    // the longest — the default, and not an edge case to fall through to.
-    doing: DOING[entry?.status ?? "pending"] ?? null,
-  }
+  return spawned === undefined ? null : spawned.kind ?? SOMEBODY
+}
+
+/**
+ * What that agent is DOING, in a word — or `null` for a row with no live half
+ * left, which is the cue to draw no rail at all.
+ *
+ * THE WORD, not a flag saying a word is owed: `./lanes.ts`'s `label` learned
+ * that one edit ago. There are two of them and the difference between them is
+ * the agent's own status rather than a shade of meaning invented here — a call
+ * the agent calls `pending` has been announced and not yet reported on, and
+ * saying it is working would be this panel claiming something the agent did
+ * not.
+ *
+ * TWO THINGS HAVE TO BE TRUE, and the second is the one a row cannot see. A
+ * spawn's status is STICKY, and the transcript is not cleared when an agent
+ * dies — deliberately, so the rows a dead conversation left are still there to
+ * read. So a subprocess that died between announcing an `Agent` call and
+ * reporting on it leaves that row `pending` for as long as the panel is open,
+ * and a rail that asked the row alone would go on pulsing "starting…" under a
+ * process that no longer exists. That is the exact failure this file was
+ * written against, arriving from the other end: a face that outlived its
+ * agent. Whether anything is running at all is the CONVERSATION's answer, so
+ * the conversation is asked.
+ *
+ * A BOOLEAN, handed in, rather than the state read here: the rule stays a
+ * function of its arguments, which is what lets a dead agent be a unit test
+ * rather than a subprocess somebody has to kill at the right moment. It is the
+ * same arrangement `laneOf` has with the transcript's lookup.
+ *
+ * @param entry the row being drawn
+ * @param live whether a turn is in flight in this conversation at all
+ */
+export const doingOf = (
+  entry: ChatEntry | undefined,
+  live: boolean,
+): string | null => {
+  if (!live || entry?.spawned === undefined) return null
+  // `pending` is the status a spawn is ANNOUNCED with and the one it keeps
+  // until the agent's first beat, so it is the status most spawns wear for the
+  // longest — the default, and not an edge case to fall through to.
+  return DOING[entry.status ?? "pending"] ?? null
 }
 
 /** What a spawn is called when it named no kind of agent. The `Agent` tool's

@@ -1266,6 +1266,21 @@ Then("no tool call is drawn in a subagent lane", async function (this: OlaiWorld
   );
 });
 
+Then(
+  "the chat still shows a call that sent out an {string}",
+  async function (this: OlaiWorld, kind: string) {
+    // The half that must NOT come off with the live one: who was sent is a
+    // fact about what happened, and the row is the record of it. A panel that
+    // took the whole face off when the agent died would leave a bare pending
+    // dot where a spawn was — which is the bug this feature exists for,
+    // arriving at the end of the turn instead of the start.
+    await this.page
+      .locator(`${CHAT_SPAWN}[data-spawn-kind="${kind}"]`)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
 Then("the chat says no agent is still working", async function (this: OlaiWorld) {
   // A face that outlives the agent is worse than none: it says a fan-out is
   // running when the turn is over.

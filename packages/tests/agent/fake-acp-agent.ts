@@ -46,6 +46,9 @@
  *                what a fan-out looks like for as long as anybody watches it:
  *                the spawn's own frame is on the wire and not one frame from
  *                the agent is
+ *   subagent crash  the same, and then FALL OVER while it is still out —
+ *                which leaves a `pending` Agent call nothing will ever
+ *                complete, on rows a dead agent's panel deliberately keeps
  *   refuse steering   turn `_session/steering` into an error from here on, so
  *                a scenario can see what a panel does with words it could not
  *                deliver
@@ -1317,6 +1320,19 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
      *  the one field that says whose it is. */
     const inside = (id: string, title: string, parent: string): void =>
       announce(id, title, { toolName: "Grep", parentToolUseId: parent })
+
+    // ... AND THEN FALLING OVER UNDER IT. The face has to come off, and the
+    // row's own status cannot be what takes it off: a status is sticky, an
+    // agent that dies mid-spawn reports no completion for the call it was in
+    // the middle of, and the rows a dead agent left are deliberately still on
+    // screen to read. So this one spawns, waits to be looked at, and exits —
+    // which is the shape that leaves a `pending` Agent call behind forever.
+    if (argument === "crash") {
+      spawn(`agent-${++nextMcpId}`, "read every note", "Explore")
+      say("sent an agent out.")
+      await released()
+      process.exit(1)
+    }
 
     // ONE AGENT, SENT OUT AND SLOW. The case the lanes above cannot show: a
     // fan-out is watched during the stretch BEFORE anybody reports, and until

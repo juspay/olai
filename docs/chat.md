@@ -143,7 +143,7 @@ Three things are on that row and every one of them comes off the wire:
 
 - **who it is** — the kind of agent, on the right of the row, in the words of whoever defined it: *Explore*, *general-purpose*, a name out of your own agents. A spawn that named no kind says the bare word **agent**, which is the honest thing to say about an agent nobody labelled — never rounded to whichever kind looks closest.
 - **what it was asked** — the row's own title, which is the short description the call was made with. The whole prompt is one click away, in the fold, where a call's arguments always are.
-- **that it is running** — the rail, which says *starting…* until the agent's first report and *working…* after it, and which **goes away the moment the call stops**. A face that outlived the agent would say a fan-out was running after the turn was over, which is the same lie in the other direction.
+- **that it is running** — the rail, which says *starting…* until the agent's first report and *working…* after it, and which **goes away the moment the call stops**. A face that outlived the agent would say a fan-out was running after the turn was over, which is the same lie in the other direction — so it also goes when the CONVERSATION stops, which is what covers the way this actually goes wrong: an agent that died between sending somebody out and reporting on it leaves a row that will never say it finished, and the rows a dead agent left are deliberately still on screen to read.
 
 Then the calls arrive in the lane that is already open under it, and when the agent reports back the row completes and its answer is in the fold. Nothing about the rest of the drawing changes — the same rail, the same names, in the same places.
 

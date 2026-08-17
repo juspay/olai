@@ -174,15 +174,19 @@ export const parentToolUseIn = (
  *     call. Those frames carry no `rawInput` and no flag at all, so a reader of
  *     either of the first two alone would answer nothing for every one of them.
  *
- * A KIND WITH NO FLAG STILL ANSWERS, and that is not a leniency: only an Agent
- * call has a `subagent_type` in its arguments and only an Agent call's beat
- * carries `subagentType`, so a frame that names one has said what it is.
+ * A BEAT ANSWERS WITHOUT THE FLAG, and the arguments do NOT — which is not a
+ * caprice but a difference in who else could be speaking. `toolResponse
+ * .subagentType` is a name in this adapter's own extension, sent for an Agent
+ * call and for nothing else; `subagent_type` is a name one tool gives one of
+ * its arguments, and the tools on a session are not a closed set. Trusting any
+ * `rawInput` that happened to carry that word would put a kind of agent, and a
+ * live rail, on a call some MCP server made.
  *
- * The input is asked before the beat, and the order is the honest one rather
- * than an arbitrary tie-break: a spawn's arguments are what the agent asked
- * for, and the beat is a report about the task those arguments started. They do
- * not disagree in practice; if they ever did, what was asked for is the answer
- * a person reading the row is owed.
+ * The arguments are asked before the beat, and the order is the honest one
+ * rather than an arbitrary tie-break: a spawn's arguments are what the agent
+ * asked for, and the beat is a report about the task those arguments started.
+ * They do not disagree in practice; if they ever did, what was asked for is the
+ * answer a person reading the row is owed.
  *
  * NOTHING IS ACCUMULATED HERE. The input arrives incrementally — the adapter
  * emits the `tool_call` as the tool use starts and refines it with a
@@ -202,26 +206,32 @@ export const spawnedIn = (
   input: unknown,
 ): { readonly kind?: string } | null => {
   const claude = claudeIn(meta)
-  const kind = kindOfAgent(claude, input)
-  if (kind !== null) return { kind }
-  return claude?.["subagent"] === true ? {} : null
-}
-
-/** Which kind of agent, out of the arguments or out of a beat — the two
- *  spellings {@link spawnedIn} reads as one, and `null` when neither said. */
-const kindOfAgent = (
-  claude: { readonly [key: string]: unknown } | undefined,
-  input: unknown,
-): string | null => {
-  const asked = (input as { readonly subagent_type?: unknown } | null | undefined)
-    ?.subagent_type
-  if (typeof asked === "string" && asked !== "") return asked
+  // THE ARGUMENTS ARE ONLY READ ON A FRAME THAT SAID IT IS A SPAWN, and the
+  // flag is what says so. `subagent_type` is a name the `Agent` tool happens
+  // to use for one of its arguments, and the tools on a session are not a
+  // closed set — an MCP server olai never handed this conversation is free to
+  // take an argument by that name, and a reader that trusted any `rawInput`
+  // would put a kind of agent and a live rail on its call. The adapter builds
+  // the flag and the arguments into the SAME frames (its own
+  // `claudeCodeMetaFromToolUse` rides every announcement and every refinement
+  // of an Agent call), so nothing is lost by requiring them together.
+  const flagged = claude?.["subagent"] === true
+  if (flagged) {
+    const asked = (input as { readonly subagent_type?: unknown } | null | undefined)
+      ?.subagent_type
+    if (typeof asked === "string" && asked !== "") return { kind: asked }
+  }
+  // The beat needs no flag and carries none: `subagentType` in the adapter's
+  // own `toolResponse` is a field only an Agent call's `tool_progress` has,
+  // which is a name in one adapter's extension rather than an argument
+  // anybody's tool may take.
   const response = claude?.["toolResponse"] as
     | { readonly [key: string]: unknown }
     | null
     | undefined
   const beat = response?.["subagentType"]
-  return typeof beat === "string" && beat !== "" ? beat : null
+  if (typeof beat === "string" && beat !== "") return { kind: beat }
+  return flagged ? {} : null
 }
 
 /*

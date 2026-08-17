@@ -55,7 +55,7 @@ import { TESTID } from "../testids.ts"
 import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
-import { faceOf } from "./spawn.ts"
+import { whoOf } from "./spawn.ts"
 import { Wrote } from "./Wrote.tsx"
 
 /** What each status looks like in one character. Words would wrap the line the
@@ -139,19 +139,19 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
             lane out of ({@link ./spawn.ts}). It shares the slot a call's
             locations take, and shares it safely: an `Agent` call works in no
             file and reports none, so the two are never on one row. */}
-        <Show when={faceOf(props.entry)}>
-          {(face) => (
+        <Show when={whoOf(props.entry)}>
+          {(who) => (
             <span
               class="flex min-w-0 shrink-0 items-center gap-1 text-muted/70"
               data-testid={TESTID.chatSpawn}
-              data-spawn-kind={face().who}
+              data-spawn-kind={who()}
             >
               {/* The lane's own glyph, so the marker on the row and the label
                   on the rail under it are visibly the same fact: somebody
                   else is doing this. Without it, a kind sitting where a file
                   path usually sits reads as a file path. */}
               <span aria-hidden="true">↳</span>
-              <span class="min-w-0 truncate">{face().who}</span>
+              <span class="min-w-0 truncate">{who()}</span>
             </span>
           )}
         </Show>

@@ -93,7 +93,7 @@ export type AgentEvent =
     readonly parent: string | undefined
     /**
      * ... and, the other way round, that this call SENT one out
-     * ({@link ./interpret.ts}'s `spawnsAgentIn`).
+     * ({@link ./interpret.ts}'s `spawnedIn`).
      *
      * The two are not one field with two directions: `parent` is answered by
      * frames a subagent produced, so it says nothing at all until the subagent
