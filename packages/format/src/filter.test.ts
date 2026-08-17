@@ -412,6 +412,7 @@ test("a phrase is folded and negated like any other word", () => {
   expect(parseFilter(`"-force"`, TODAY)).toEqual({
     kind: "asking",
     groups: [[{ kind: "term", word: "-force", negated: false }]],
+    namedProps: [],
     speaksOfArchive: false,
   })
 })
@@ -477,15 +478,41 @@ test("a quote nothing closes is refused rather than closed for the reader", () =
   expect(refusalsOf(`kitchen "pick the`)).toHaveLength(1)
   expect(refusalsOf(`is:open "pick the`)?.map((one) => one.token))
     .toEqual(["is:open", `"pick the`])
+  // ...but ONE thing wrong is told once. The reader did type a token after the
+  // `OR`; the quote ran away with it before the scan reached it, and a joiner
+  // refusal here would be a second mistake nobody made.
+  expect(refusalsOf(`hinges OR "pick the`)?.map((one) => one.token))
+    .toEqual([`"pick the`])
+})
+
+/** A lone quote is a quote nothing closes wherever it sits, which costs one
+ *  term and is named rather than excepted: an inch mark cannot be searched for.
+ *  The alternative is a second rule about the same character — it opens a
+ *  region unless nothing closes it — which decides what a token means by
+ *  reading the end of the line. */
+test("a quote in the middle of a word is still a quote", () => {
+  expect(refusalsOf(`36"`)?.[0]?.reason).toContain("a quote nothing closes")
+  // Closed, it is the space-suspending half of the rule and nothing more: the
+  // token still starts with `prop:`, so it is still an operator.
+  expect(parseFilter(`prop:stage="in review"`, TODAY).kind).toBe("asking")
 })
 
 /** An empty needle is inside every node ever written, so `""` is the query that
  *  answers with the whole directory — refused for `prop:stage=`'s reason, from
- *  the other end: a token that names a shape and then holds nothing. */
-test("a pair of quotes with nothing between them is refused", () => {
-  expect(refusalsOf(`""`)?.[0]?.reason).toContain("empty phrase")
+ *  the other end: a token that names a shape and then holds nothing.
+ *
+ *  A PHRASE OF WHITESPACE is the same query with the same answer, and it is the
+ *  half that slipped past the first spelling of this rule: `" "` is in every
+ *  title that has two words in it. */
+test("a phrase with no words in it is refused, space or nothing", () => {
+  expect(refusalsOf(`""`)?.[0]?.reason).toContain("no words in it")
   expect(refusalsOf(`-""`)).toHaveLength(1)
   expect(selects(`""`)).toEqual([])
+  expect(refusalsOf(`" "`)).toHaveLength(1)
+  expect(selects(`" "`)).toEqual([])
+  expect(selects(`"  "`)).toEqual([])
+  // ...while a phrase that HOLDS a space is what all this is for.
+  expect(selects(`"the cabinets"`)).toEqual(["order", "install"])
 })
 
 // ── OR ─────────────────────────────────────────────────────────────────
@@ -891,6 +918,19 @@ test("every positive clause is named, once, however many times it is asked", () 
   // `prop:pr prop:pr=…` is one key a reader would otherwise see twice.
   expect(propsOf("prop:pr prop:pr=https://github.com/juspay/olai/pull/176"))
     .toEqual(["pr"])
+})
+
+/**
+ * IN THE ORDER THE QUERY NAMED THEM, which is what a row draws its matched keys
+ * in (`@olai/web`'s `search/props.ts`) and which is NOT the order they are
+ * tested in: a `prop:` sharing a group with a word is tested last, because the
+ * groups holding no word go first. The clauses are collected where the tokens
+ * are read, so the reader's order survives the evaluation order.
+ */
+test("the keys are named in the order the query named them, not the order they are tested in", () => {
+  expect(propsOf("prop:agent prop:pr")).toEqual(["agent", "pr"])
+  expect(propsOf("prop:agent OR cabinets prop:pr")).toEqual(["agent", "pr"])
+  expect(propsOf("prop:pr OR cabinets prop:agent")).toEqual(["pr", "agent"])
 })
 
 /** The NODE's spelling, not the query's. The query is folded — `prop:PR` finds

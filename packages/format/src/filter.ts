@@ -240,6 +240,27 @@ export type Filter =
      *  does. In {@link inCostOrder} rather than in the reader's, which is a
      *  reordering of a conjunction and so cannot change an answer. */
     readonly groups: ReadonlyArray<Group>
+    /**
+     * The POSITIVE `prop:` clauses, in the order the query NAMED them — which
+     * is the order a hit's `matchedProps` comes back in, and the order a search
+     * row leads with (`@olai/web`'s `search/props.ts`: "the keys a `prop:`
+     * clause selected this node on lead, in the order the query named them").
+     *
+     * A SECOND LIST beside the groups rather than a walk of them, for two
+     * reasons that are the same reason. The groups are in {@link inCostOrder},
+     * which is an EVALUATION order and not the reader's — so a `prop:` sharing
+     * a group with a word is tested last and would have been reported last,
+     * quietly breaking that contract for exactly the queries this pass added.
+     * And it is read once per node a query SELECTS, where walking every group
+     * of every query — nearly none of which name a property — was a scan per
+     * hit for an answer that is a fact about the QUERY.
+     *
+     * Derived at parse time from the tokens it is built beside, exactly as
+     * `speaksOfArchive` below is, and negated clauses are left out here for the
+     * reason {@link Match.props} gives: a node found by `-prop:agent` was not
+     * found ON `agent`.
+     */
+    readonly namedProps: ReadonlyArray<Extract<Clause, { kind: "prop" }>>
     /** True when the query names the archive at all, in either polarity. The
      *  archive is out of every reading unless it is ASKED for
      *  (docs/search.md), and this is the flag that says it was — so
@@ -294,7 +315,8 @@ interface Token {
  * two rules and they buy two different things — the first is `prop:agent="two
  * words"`, which needs no rule of its own; the second is `"is:done"`, the only
  * way to search for the text somebody wrote in a note when the grammar has
- * claimed that spelling. A quote anywhere else is an ordinary character.
+ * claimed that spelling. The FRONT is about that second rule only: a quote
+ * anywhere in a token opens a region, wherever it sits.
  *
  * A QUOTE NOTHING CLOSES stops the scan and is reported, rather than being
  * closed at the end of the input on the reader's behalf: `"pick the` and `"pick
@@ -302,6 +324,14 @@ interface Token {
  * quiet answer to an unasked question this grammar refuses everywhere else. The
  * tokens READ SO FAR come back with it, so a query that got two things wrong is
  * told about both.
+ *
+ * WHICH COSTS ONE TERM, and it is named rather than excepted: a lone `"` is a
+ * quote nothing closes wherever it sits, so `36"` is refused instead of being
+ * searched for as an inch mark. The alternative is a second rule about the same
+ * character — a quote opens a region UNLESS nothing closes it, in which case it
+ * was a character all along — which is a rule nobody can hold and which decides
+ * what a token means by reading the end of the line. One rule and a refusal
+ * that teaches it; the word is reachable without the mark (`36`).
  *
  * THE DASH IS READ HERE for the reason the header above gives: after the quotes
  * come out, a dash that negated the token and a dash somebody quoted are the
@@ -386,11 +416,15 @@ const JOINING =
  *  phrase is delimited, and the delimiter that is missing is the news. */
 const UNCLOSED = `a quote nothing closes — a phrase runs from one ${QUOTE} to the next`
 
-/** ...and what a pair of quotes with nothing between them is. Refused rather
- *  than matched, and it is `prop:stage=`'s rule exactly: an empty needle is in
- *  every node ever written, so a query nobody meant would answer with the whole
- *  directory — the loud twin of the silent empty answer. */
-const NOTHING_QUOTED = `an empty phrase — the words to look for go between the ${QUOTE}s`
+/** ...and what a phrase with no words in it is. Refused rather than matched,
+ *  and it is `prop:stage=`'s rule exactly: an empty needle is in every node
+ *  ever written, so a query nobody meant would answer with the whole directory
+ *  — the loud twin of the silent empty answer. A phrase of nothing BUT
+ *  WHITESPACE is the same query with the same answer, which is why the test
+ *  below trims: `" "` finds every node whose title has a space in it, which is
+ *  all of them and none of what was meant. */
+const NOTHING_QUOTED =
+  `a phrase with no words in it — what to look for goes between the ${QUOTE}s`
 
 /**
  * Text into a query.
@@ -446,6 +480,7 @@ const NOTHING_QUOTED = `an empty phrase — the words to look for go between the
  */
 export const parseFilter = (text: string, now: string): Filter => {
   const groups: Array<Array<Alternative>> = []
+  const namedProps: Array<Extract<Clause, { kind: "prop" }>> = []
   const refusals: Array<Refusal> = []
   let speaksOfArchive = false
   // The last token was a joiner, so the next one lands in the group before it
@@ -479,10 +514,14 @@ export const parseFilter = (text: string, now: string): Filter => {
       refusals.push({ token: token.written, reason: alternative.reason })
       continue
     }
-    if (
-      alternative.kind === "clause" && alternative.clause.kind === "is" &&
-      alternative.clause.value === "archived"
-    ) speaksOfArchive = true
+    // The two facts about the WHOLE query that are read off its clauses, both
+    // collected here in the order they were typed rather than walked back out
+    // of the groups afterwards — where the order is no longer the reader's.
+    if (alternative.kind === "clause") {
+      const { clause } = alternative
+      if (clause.kind === "is" && clause.value === "archived") speaksOfArchive = true
+      if (clause.kind === "prop" && !alternative.negated) namedProps.push(clause)
+    }
     const last = groups[groups.length - 1]
     // Joined onto the group before it — unless the token that opened that group
     // was refused and there is none, which is a query that answers nothing
@@ -490,7 +529,12 @@ export const parseFilter = (text: string, now: string): Filter => {
     if (joined && last !== undefined) last.push(alternative)
     else groups.push([alternative])
   }
-  if (joining) refusals.push({ token: JOINER, reason: JOINING })
+  // A joiner still waiting at the end of the tokens — UNLESS the scan stopped
+  // early, in which case the reader did type something after it and the quote
+  // ran away with it. `hinges OR "pick the` is one mistake, and telling them
+  // the `OR` has nothing after it is the grammar reporting a second one that
+  // was never made, beside the one that was.
+  if (joining && unclosed === null) refusals.push({ token: JOINER, reason: JOINING })
   // LAST, because that is where it is in the text: the tokens before it were
   // read, and a query that got two things wrong is told about both.
   if (unclosed !== null) refusals.push({ token: unclosed, reason: UNCLOSED })
@@ -500,7 +544,7 @@ export const parseFilter = (text: string, now: string): Filter => {
   // nobody asked, which is the silent error the refusals exist to prevent.
   if (refusals.length > 0) return { kind: "refused", refusals }
   if (groups.length === 0) return { kind: "nothing" }
-  return { kind: "asking", groups: inCostOrder(groups), speaksOfArchive }
+  return { kind: "asking", groups: inCostOrder(groups), namedProps, speaksOfArchive }
 }
 
 /**
@@ -519,9 +563,10 @@ const alternativeOf = (
   token: Token,
   now: string,
 ): Alternative | { readonly reason: string } => {
-  // Only quotes can empty a token — a bare `-` is the character itself — and an
-  // empty needle is inside every node ever written.
-  if (token.text === "") return { reason: NOTHING_QUOTED }
+  // Only quotes can leave a token with no word in it — a bare `-` is the
+  // character itself — and TRIMMED, because a needle of one space is in every
+  // node ever written exactly as an empty one is.
+  if (token.text.trim() === "") return { reason: NOTHING_QUOTED }
   const asTerm = { kind: "term", word: token.text, negated: token.negated } as const
   if (token.quoted) return asTerm
   const colon = token.text.indexOf(":")
@@ -1032,21 +1077,19 @@ const matchOf = (
  */
 const propsOf = (node: RegularNode, filter: Extract<Filter, { kind: "asking" }>) => {
   const keys: Array<string> = []
-  // The groups walked NESTED rather than flattened: this runs for every node a
-  // query selects, and `flat()` would allocate an array per hit — including for
-  // the queries that name no property at all, which are nearly all of them.
-  for (const group of filter.groups) {
-    for (const one of group) {
-      if (one.kind !== "clause" || one.negated || one.clause.kind !== "prop") continue
-      // ASKED AGAIN rather than remembered from the gate, which is what makes
-      // an alternative honest: a node in a group like `prop:pr OR cabinets` may
-      // be here on the word alone, and naming a key it does not carry would be
-      // the row drawing a lie. `null` says so.
-      const key = propKeyOf(node, one.clause)
-      // Reported once however many clauses name it: `prop:pr prop:pr=x` is one
-      // key the reader would see twice.
-      if (key !== null && !keys.includes(key)) keys.push(key)
-    }
+  // The clauses the query NAMED, in the reader's own order and without walking
+  // the groups it is tested through — {@link Filter}'s `namedProps` argues both
+  // halves of that, and the second one is why a query that names no property
+  // does no work here at all.
+  for (const clause of filter.namedProps) {
+    // ASKED AGAIN rather than remembered from the gate, which is what makes an
+    // alternative honest: a node in a group like `prop:pr OR cabinets` may be
+    // here on the word alone, and naming a key it does not carry would be the
+    // row drawing a lie. `null` says so.
+    const key = propKeyOf(node, clause)
+    // Reported once however many clauses name it: `prop:pr prop:pr=x` is one
+    // key the reader would see twice.
+    if (key !== null && !keys.includes(key)) keys.push(key)
   }
   return keys
 }
