@@ -624,7 +624,7 @@ The corner unit is the **risky one** — see
     <h2>Finding, and filtering in place</h2>
     <p class="lead">One query language, four doors: the box in the header, the
     ⌘K palette, an agent’s <code>search_nodes</code>, and the filter that
-    narrows the outline in front of you. The first three list what they found;
+    narrows the page in front of you. The first three list what they found;
     the fourth takes rows away and leaves the rest standing where they live.</p>
     <div class="cols">
       <div class="panel">
@@ -644,14 +644,33 @@ The corner unit is the **risky one** — see
         whose children are all ticked is not <code>is:done</code> unless
         somebody ticked it. <code>has:desc</code>, <code>has:date</code>,
         <code>has:see</code> ask what the record carries.
-        <code>date:2026-08</code> takes a day, a month, a year or a range
+        <code>is:blocked</code> is the one that is <em>derived</em> — the node
+        is waiting, because something it must come after is a task nobody has
+        finished, which is the same reading that dims the row and writes its
+        <code>blocked by</code> line. <code>date:2026-08</code> takes a day,
+        a month, a year or a range
         (<code>date:2026-08-01..2026-08-14</code>), reading the same two dates
-        the journal reads. <code>prop:pr</code> and
+        the journal reads — or it takes the words:
+        <code>date:yesterday</code>, <code>date:last-week</code>,
+        <code>date:this-month</code>, counted from the day you ask on and
+        composing with a range like any other value
+        (<code>date:last-week..</code>). <code>prop:pr</code> and
         <code>prop:agent=claude-opus</code> ask after a property you put on a
         node yourself — by key, or by key and value. <code>-</code> in front of
         any of them takes it back out.</p>
+        <p><strong>Quote a phrase, or say <code>OR</code>.</strong>
+        <code>"kitchen remodel"</code> is one substring where two words are
+        two, so quoting is how the order of the words gets into a query — and a
+        quoted token is <em>text</em> rather than an operator, which is the only
+        way to search for the note that explains what <code>is:done</code>
+        means. <code>walnut OR birch</code> is either one; it joins the tokens
+        on each side of it and binds <em>tighter</em> than the space between
+        two tokens, so <code>#home kitchen OR bathroom</code> is
+        <code>#home</code> and one of the other two rather than every bathroom
+        in the directory. In capitals, because <code>or</code> is a word people
+        write.</p>
         <p><strong>An operator it does not know is refused, not guessed at.</strong>
-        <code>is:blocked</code> answers with the values <code>is:</code> takes
+        <code>is:open</code> answers with the values <code>is:</code> takes
         rather than quietly searching for that text and finding nothing, and a
         date no calendar could hold — <code>date:2026-13</code> — is refused on
         the same terms rather than answered with an empty page. The refusal
@@ -662,6 +681,14 @@ The corner unit is the **risky one** — see
         a narrowed page is a link you can send and the back button works.
         Archived nodes stay out of every reading until a query says
         <code>is:archived</code>.</p>
+        <p><strong>The box is above every page that draws nodes</strong> — an
+        outline, a zoomed node, a day, the agenda, the Trash — and it means the
+        same thing on each: what did not match goes, what did stays where it
+        lives. A day and the agenda keep no ancestors because their rows
+        already carry them; the Trash searches <em>within</em> what was put
+        away, since that page is the archive and the box is asking about the
+        rows in front of you. The one page with no filter is a document: it is
+        prose, and this grammar selects nodes.</p>
         <p>The same words reach an agent unchanged, with a scope a person gets
         from the page they are on: <code>search_nodes</code> takes
         <code>under</code> (a node and everything beneath it) and

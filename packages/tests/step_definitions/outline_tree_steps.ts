@@ -16,6 +16,7 @@ import {
   CHECKBOX,
   DATE,
   DESC,
+  expectGone,
   FOLDED_DONE,
   HOT_FACT,
   NODE,
@@ -54,18 +55,15 @@ Then("the node {string} is shown", async function (this: OlaiWorld, id: string) 
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-/** Not on screen at all. Poll for the node to GO — hiding what is done
- *  re-renders, and reading the count once races the frame that drops it. */
+/** Not on screen at all — the world's own reading of a row that has GONE
+ *  (`support/world.ts`), because hiding what is done and narrowing a page both
+ *  re-render and reading the count once races the frame that drops it. */
 Then(
   "the node {string} is not shown",
   async function (this: OlaiWorld, id: string) {
-    await this.node(id)
-      .first()
-      .waitFor({ state: "detached", timeout: POLL_TIMEOUT })
-      .catch(() => undefined);
-    assert.strictEqual(
-      await this.visibleNode(id).count(),
-      0,
+    await expectGone(
+      this,
+      nodeSelector(id),
       `"${id}" is on screen, and this step says it should not be`,
     );
   },

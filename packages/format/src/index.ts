@@ -23,7 +23,10 @@
  *     sibling order, mirror expansion, one node's ancestry, what is standing in
  *     its way, what is on a day, what is overdue on it, which document that
  *     day's note is, and where a `doc` or a relative link lands, computing all
- *     of it with the same code;
+ *     of it with the same code — and, under all of it, the one place a date is
+ *     COUNTED rather than compared (`weekdayOf`, `shiftDay`, `daysOf`), which
+ *     is here because the query's relative words and the browser's calendar
+ *     grid must not each own a Monday;
  *   - what a QUERY means, `parseFilter` with `matchOf` / `matching` and the row
  *     transform `keeping` — the grammar (`is:`, `has:`, `date:`, `-`, and the
  *     substring terms around them), which nodes it selects, and what a tree
@@ -175,9 +178,11 @@ export {
   siblingsOf,
   /** What a node's `after` targets hold up, asked of a node that is not work
    *  yet. Exported for the reason `drawnFrom` above is: two rules read
-   *  blockedness and they must agree. The web draws it with `blockersOf`; the
-   *  ops layer refuses `set_doing` with this one, which is the same reading
-   *  from the other end of the arrow. */
+   *  blockedness and they must agree. The web draws it with `blockersOf` and
+   *  the search grammar's `is:blocked` asks the same index for the yes-or-no
+   *  (`isBlocked`, one file over), so an agent's answer and the drawn row are
+   *  one reading; the ops layer refuses `set_doing` with THIS one, which is
+   *  the same reading from the other end of the arrow. */
   standingBefore,
   isTagName,
   mayHoldTag,
@@ -212,6 +217,7 @@ export type { Zoomed } from "./zoom.ts"
  *  the rule this module exists to be the only copy of. */
 export {
   keeping,
+  keepingDated,
   matchedIn,
   matching,
   parseFilter,
@@ -228,12 +234,42 @@ export {
   dailyNotePathFor,
   dailyNotesOn,
   datedDays,
+  datedIn,
   datedOn,
   dayOf,
   isDay,
 } from "./dates.ts"
 export type { DayEntry, DayGroup, Occasion } from "./dates.ts"
-export { agendaOf, isOverdue, nothingDue, owedOf } from "./agenda.ts"
+/** The one place a date is COUNTED rather than compared (./calendar.ts): which
+ *  weekday a day falls on, the day before or after one, the days a month holds.
+ *  Public because two packages ask it — the query grammar's relative words are
+ *  here, and the browser's calendar grid and its `!` date widget are up there —
+ *  and a second copy would be two answers to which day a week starts on.
+ *
+ *  MOST OF THESE THIS PACKAGE DOES NOT CALL: the grammar needs three
+ *  (`weekdayOf`, `shiftDay`, `shiftMonth`) and the rest are the client's, which
+ *  is what it costs to have the counting live under both readers rather than
+ *  beside one of them. `isRealDay` is not `dates.ts`'s `isDay` — that one asks
+ *  what a filename says, this one whether a calendar holds the day. */
+export {
+  daysOf,
+  isMonth,
+  isoDate,
+  isRealDay,
+  monthOfDay,
+  shiftDay,
+  shiftDayByMonth,
+  shiftMonth,
+  weekdayOf,
+} from "./calendar.ts"
+export {
+  agendaOf,
+  isOverdue,
+  keepingOwed,
+  nothingDue,
+  owedIn,
+  owedOf,
+} from "./agenda.ts"
 export type { Agenda, AgendaDay, Owed } from "./agenda.ts"
 export { stampOf } from "./stamp.ts"
 

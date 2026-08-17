@@ -23,8 +23,11 @@ import {
   liveModelIn,
   modelNameIn,
   modelPickerIn,
-  NEW_SESSION_META,
+  OPEN_SESSION_META,
   parentToolUseIn,
+  pickerValueFor,
+  sameModel,
+  spawnedIn,
   STEER_METHOD,
   STEER_WHEN_IDLE,
   steerTaken,
@@ -245,9 +248,139 @@ describe("which agent made a call", () => {
   })
 })
 
+describe("which call started an agent", () => {
+  /** The spawn's own frame, as the adapter builds one: the flag beside the
+   *  tool name (`claudeCodeMetaFromToolUse`), and the `Agent` tool's own
+   *  arguments as `rawInput`. */
+  const SPAWN = { claudeCode: { toolName: "Agent", subagent: true } }
+  const ASKED = {
+    description: "explore the outline",
+    prompt: "read every note and report back",
+    subagent_type: "Explore",
+  }
+  test("the spawn's own frame says an agent was sent out, and which kind", () => {
+    // The whole point of reading this rather than waiting for the parent
+    // stamp: it is on the frame that ANNOUNCES the spawn, so it is known
+    // before the agent has done anything anybody could draw.
+    expect(spawnedIn(SPAWN, ASKED)).toEqual({ kind: "Explore" })
+    // ... and what says so is the FLAG rather than the tool name, which the
+    // adapter maps two of its own words onto.
+    expect(spawnedIn({ claudeCode: { toolName: "Task", subagent: true } }, {}))
+      .toEqual({})
+  })
+
+  test("a call nobody flagged is no spawn, whatever its ARGUMENTS are called", () => {
+    // The tools on a session are not a closed set: `subagent_type` is a name
+    // the `Agent` tool gives one of ITS arguments, and an MCP server olai
+    // never handed this conversation is free to take one by the same name. A
+    // reader that trusted any `rawInput` would put a kind of agent, and a live
+    // rail, on that server's call.
+    expect(spawnedIn({ claudeCode: { toolName: "mcp__other__dispatch" } }, ASKED))
+      .toBeNull()
+    expect(spawnedIn(undefined, ASKED)).toBeNull()
+  })
+
+  test("... nor whatever its RESPONSE is shaped like", () => {
+    // The same hole on the other side, and the sharper one, because this
+    // payload is not the adapter's at all: `_meta.claudeCode.toolResponse` is
+    // built by the adapter on the `tool_progress` path and FORWARDED VERBATIM
+    // from the tool's own response on the PostToolUse path
+    // (`onPostToolUseHook`, for any tool). So a server answering with a
+    // `subagentType` in its structured output is one string away from being
+    // drawn as an agent somebody spawned, with a live rail under it — and
+    // nothing about a `mcp__other__*` call ever passed through this panel's
+    // hands.
+    const answered = {
+      claudeCode: {
+        toolName: "mcp__other__dispatch",
+        toolResponse: { ok: true, subagentType: "Explore" },
+      },
+    }
+    expect(spawnedIn(answered, { query: "anything" })).toBeNull()
+    // ... including when it is shaped like the beat it is imitating.
+    expect(
+      spawnedIn({
+        claudeCode: {
+          toolName: "mcp__other__dispatch",
+          toolResponse: { elapsedTimeSeconds: 12, subagentType: "Explore" },
+        },
+      }, undefined),
+    ).toBeNull()
+  })
+
+  test("a real beat is not a source either, and does not need to be", () => {
+    // The adapter's own `tool_progress` forwarding for an Agent call carries
+    // no flag, so it is answered `null` like anything else unflagged. Nothing
+    // is lost: the kind rode the flagged frames that announced and refined the
+    // spawn, and the transcript holds it from there.
+    expect(
+      spawnedIn({
+        claudeCode: {
+          toolName: "Agent",
+          toolResponse: { elapsedTimeSeconds: 12, subagentType: "Explore" },
+        },
+      }, undefined),
+    ).toBeNull()
+  })
+
+  test("nothing else is a spawn", () => {
+    expect(spawnedIn({ claudeCode: { toolName: "Grep" } }, { pattern: "x" })).toBeNull()
+    // The frames a subagent's own calls arrive on say who they came from and
+    // never that they started anybody.
+    expect(spawnedIn({ claudeCode: { parentToolUseId: "toolu_01AGENT" } }, {}))
+      .toBeNull()
+    expect(spawnedIn(undefined, undefined)).toBeNull()
+    expect(spawnedIn(null, null)).toBeNull()
+    expect(spawnedIn({}, {})).toBeNull()
+    expect(spawnedIn({ claudeCode: null }, null)).toBeNull()
+    expect(spawnedIn({ someOtherAgent: { subagent: true } }, {})).toBeNull()
+    // Truthy is not the word, for `steerTaken`'s reason: an agent that answers
+    // something else here has not said this.
+    expect(spawnedIn({ claudeCode: { subagent: "yes" } }, {})).toBeNull()
+    expect(spawnedIn({ claudeCode: { subagent: 1 } }, {})).toBeNull()
+  })
+
+  test("a spawn that named no kind of agent says so, rather than guessing", () => {
+    // `subagent_type` is optional on the tool that spawns one, and the
+    // arguments arrive incrementally besides. The frame is still a spawn; the
+    // kind is still unsaid, and an absent field is how this says that.
+    const { subagent_type: _named, ...anonymous } = ASKED
+    expect(spawnedIn(SPAWN, anonymous)).toEqual({})
+    expect(spawnedIn(SPAWN, undefined)).toEqual({})
+    expect(spawnedIn(SPAWN, { subagent_type: "" })).toEqual({})
+    expect(spawnedIn(SPAWN, { subagent_type: 7 })).toEqual({})
+  })
+
+  test("a spawn's own response cannot name the agent either", () => {
+    // The flag opens the door and the ARGUMENTS are what is read through it.
+    // A flagged frame carrying a `subagentType` and no `subagent_type` is a
+    // spawn whose kind nobody stated — not a spawn named by its response,
+    // which is the reading that let any tool's output through.
+    expect(
+      spawnedIn(
+        { claudeCode: { subagent: true, toolResponse: { subagentType: "Explore" } } },
+        undefined,
+      ),
+    ).toEqual({})
+    // ... and where they disagree, what was asked for is what a person reading
+    // the row is owed.
+    expect(
+      spawnedIn(
+        {
+          claudeCode: {
+            subagent: true,
+            toolResponse: { subagentType: "general-purpose" },
+          },
+        },
+        ASKED,
+      ),
+    ).toEqual({ kind: "Explore" })
+  })
+})
+
 describe("which model a turn is running on", () => {
   /** What the adapter forwards under `_claude/sdkMessage`, having been asked to
-   *  by {@link NEW_SESSION_META}: the CLI's own `init`, verbatim, with the
+   *  by {@link OPEN_SESSION_META}: the CLI's own `init`, verbatim, with the
    *  sessionId the notification carries. */
   const init = (model: unknown) => ({
     sessionId: "s1",
@@ -262,7 +395,7 @@ describe("which model a turn is running on", () => {
     // The ask and the read are one bet, so the message is built out of the
     // filter we subscribed with: a reader that drifted from the subscription
     // would go quiet on exactly the messages the adapter still sends.
-    const [subscribed] = NEW_SESSION_META.claudeCode.emitRawSDKMessages
+    const [subscribed] = OPEN_SESSION_META.claudeCode.emitRawSDKMessages
     expect(liveModelIn({ message: { ...subscribed, model: "claude-opus-4-5" } }))
       .toBe("claude-opus-4-5")
   })
@@ -474,5 +607,104 @@ describe("what the agent calls the model it is running", () => {
       .toBeNull()
     expect(modelNameIn(new Map(), "claude-sonnet-5")).toBeNull()
     expect(modelNameIn(OFFERED, "")).toBeNull()
+  })
+})
+
+describe("whether two model strings are the same model", () => {
+  // The question a restored conversation turns on: the panel remembers what
+  // this conversation was RUNNING and the load reports what the agent put it
+  // on, and the model is set back only when those two disagree
+  // (`chat-model-reverts-on-restart`). Answering "disagree" too readily costs a
+  // round trip and a picker moved for nothing; answering it too rarely is the
+  // bug still there.
+  const OFFERED = new Map([
+    ["default", "Default (recommended)"],
+    ["claude-fable-5[1m]", "Fable"],
+    ["sonnet", "Sonnet"],
+    ["haiku", "Haiku"],
+  ])
+
+  test("the same string is the same model, whatever anybody offers", () => {
+    expect(sameModel(OFFERED, "sonnet", "sonnet")).toBe(true)
+    // Including one nothing here has a name for: two strings that are the same
+    // string are the same model without a picker's help.
+    expect(sameModel(new Map(), "gpt-5", "gpt-5")).toBe(true)
+  })
+
+  test("a picker value and the live id it resolves to are one model", () => {
+    // The case that matters: what we remembered is a `/model`, which arrives as
+    // a concrete API id, and what the load reports is the picker's own alias.
+    // Read as strings these disagree, and the panel would set a model the
+    // session is already on at every single boot.
+    expect(sameModel(OFFERED, "sonnet", "claude-sonnet-5")).toBe(true)
+    expect(sameModel(OFFERED, "claude-fable-5[1m]", "claude-fable-5")).toBe(true)
+  })
+
+  test("two different models disagree, which is what makes it worth asking", () => {
+    expect(sameModel(OFFERED, "sonnet", "haiku")).toBe(false)
+    expect(sameModel(OFFERED, "sonnet", "claude-haiku-4-5")).toBe(false)
+  })
+
+  test("`default` is not the model it resolves to, because nothing here can know", () => {
+    // The adapter's word for "whichever one the CLI recommends today" resolves
+    // to a concrete model, and the picker's `configOptions` never say which —
+    // so a session on `default` and a note saying `claude-sonnet-5` are two
+    // different answers as far as anything on this wire goes. Erring this way
+    // costs one round trip; erring the other way is a `/model` silently lost.
+    expect(sameModel(OFFERED, "default", "claude-sonnet-5")).toBe(false)
+  })
+
+  test("a model the picker cannot name answers only for itself", () => {
+    // Both unnameable: `modelNameIn` gives up on each, each stands for itself,
+    // and two different ids stay two different models rather than collapsing
+    // into one `null`.
+    expect(sameModel(OFFERED, "gpt-5", "claude-opus-4-5-20260101")).toBe(false)
+    expect(sameModel(OFFERED, "sonnet", "gpt-5")).toBe(false)
+  })
+})
+
+describe("the picker's own word for a model", () => {
+  // The other direction of the same bridge, and the one a REQUEST crosses: what
+  // the panel remembers is what the CLI reported (`claude-sonnet-5`), and a
+  // `session/set_config_option` takes a value the picker offers (`sonnet`).
+  const OFFERED = new Map([
+    ["default", "Default (recommended)"],
+    ["opus[1m]", "Opus (1M context)"],
+    ["claude-fable-5[1m]", "Fable"],
+    ["sonnet", "Sonnet"],
+    ["haiku", "Haiku"],
+  ])
+
+  test("a live id is asked for as the row that names it", () => {
+    expect(pickerValueFor(OFFERED, "claude-sonnet-5")).toBe("sonnet")
+    expect(pickerValueFor(OFFERED, "claude-haiku-4-5")).toBe("haiku")
+    // The adapter's two spellings of one id are one row, so the row is found
+    // for the spelling the CLI uses as well as the one the picker does.
+    expect(pickerValueFor(OFFERED, "claude-fable-5")).toBe("claude-fable-5[1m]")
+  })
+
+  test("a value the picker offers is already its own word", () => {
+    expect(pickerValueFor(OFFERED, "sonnet")).toBe("sonnet")
+    expect(pickerValueFor(OFFERED, "opus[1m]")).toBe("opus[1m]")
+    // Including `default`, which names no model but IS a row: a conversation
+    // sitting on it is put back on it by name.
+    expect(pickerValueFor(OFFERED, "default")).toBe("default")
+  })
+
+  test("no row is `null`, and the caller asks in the words it has", () => {
+    // The refusals `modelNameIn` already makes, arriving here as "nothing to
+    // translate into": a lane the live id never claimed, a dated pin, a model
+    // from somewhere else entirely. An agent that resolves them still can.
+    expect(pickerValueFor(OFFERED, "claude-opus-5")).toBeNull()
+    expect(pickerValueFor(OFFERED, "claude-haiku-4-5-20251001")).toBeNull()
+    expect(pickerValueFor(OFFERED, "gpt-5")).toBeNull()
+  })
+
+  test("two rows sharing a name answer for neither", () => {
+    // A picker naming two values alike is a picker that cannot say which row a
+    // name means. Nothing is guessed; the raw string goes out instead.
+    const twice = new Map([["sonnet", "Sonnet"], ["sonnet-alt", "Sonnet"]])
+    expect(pickerValueFor(twice, "sonnet-alt")).toBe("sonnet-alt")
+    expect(pickerValueFor(twice, "claude-sonnet-5")).toBeNull()
   })
 })

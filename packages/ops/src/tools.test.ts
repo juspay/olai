@@ -53,7 +53,7 @@ import {
 import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 
-import { readingOf, setOf } from "./fixtures.testlib.ts"
+import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
 import { asking, TOOLS } from "./tools.ts"
 
 /** One house, and everything a read can carry: both marker kinds, a note, a
@@ -84,7 +84,7 @@ const at = (): Reading => readingOf(EVERYTHING())
  * exactly as the per-call `at()` this replaced did. Nothing here can fail —
  * the read is a fixture — so every answer is `runSync`-able.
  */
-const ASKING = asking(Effect.sync(at))
+const ASKING = asking(Effect.sync(at), steady().now)
 
 /** One read, answered. The tools' own effects never fail over a fixture that
  *  loaded, so the failure channel is discharged here rather than threaded
@@ -104,7 +104,13 @@ const answerOf = (
  */
 const CALLS: Record<string, ReadonlyArray<unknown>> = {
   list_outlines: [{}],
-  search_nodes: [{ text: "hall" }, { text: "is:blocked" }, { text: "" }],
+  search_nodes: [
+    { text: "hall" },
+    { text: "is:open" },
+    { text: "" },
+    { text: "date:today" },
+    { text: `"paint the hall" OR nothing-is-called-this` },
+  ],
   read_node: [{ id: "house" }, { id: "paint" }, { id: "shed" }],
   read_subtree: [{ id: "house", depth: 1 }, { id: "house" }, { id: "shed" }],
 }
@@ -176,6 +182,16 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   // A query the grammar could not read carries the reason rather than an
   // empty list with nothing to say.
   expect(searches[1]?.["refusals"]).toBeArrayOfSize(1)
+  // And a relative word is counted from THIS LAYER'S CLOCK — the one a `done`
+  // is stamped with, which is what the door hands the grammar. `paint` was
+  // finished at the fixture clock's own instant, so `date:today` finds it: a
+  // door that read a clock of its own would answer this with nothing.
+  expect(searches[3]?.["hits"]).toMatchObject([{ id: "paint" }])
+  expect(searches[3]).not.toHaveProperty("refusals")
+  // A quoted PHRASE and an `OR` group reach this door too — the tool's own
+  // `text` prose spells both, and a schema that decoded the words and not
+  // these would be the door advertising a grammar it does not answer.
+  expect(searches[4]?.["hits"]).toMatchObject([{ id: "paint", matched: "title" }])
 
   const [house, paint, gone] = of("read_node")
   expect(house).toMatchObject({

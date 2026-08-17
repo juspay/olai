@@ -529,3 +529,85 @@ test("a frame says where its anchor landed, zero and negative included", () => {
   // one as the other would be caught.
   expect(heard(`${LANDED}1298`)?.kind).not.toBe("reading")
 })
+
+/**
+ * A FRAME THAT HAS BEEN RESIZED SAYS WHERE THE ANCHOR IS NOW — the pin on the
+ * one moment the anchor moves without the page changing at all.
+ *
+ * RUN rather than read, the way the press rule above is, because what is being
+ * asserted is a behaviour and every cheap spelling of it is a lie: a test that
+ * greps for `"resize"` passes on a listener that posts a height, and a test that
+ * counts listeners passes on one registered for the wrong event.
+ *
+ * The world below is the failing case exactly. The page is 1550px of fixed
+ * content in a frame the embedder has guessed at 70dvh, so the browser has
+ * scrolled the page to its own anchor and the anchor sits 205px down the frame.
+ * Then the embedder applies the measured height: the frame grows, the page stops
+ * scrolling inside it, the anchor is 1195px down — and `documentElement` is
+ * 1550px tall throughout, which is the trap. The root box is auto-height by
+ * design ({@link SEAL}'s doctype, so a page cannot be pinned at the frame's own
+ * height), so its size has not changed and a `ResizeObserver` on it says
+ * nothing. Only the viewport changed.
+ */
+test("a frame that is resized says where the anchor is now, unasked", () => {
+  const [script] = scriptsIn(SEAL)
+  const said: string[] = []
+  const listeners = new Map<string, () => void>()
+  // Where the anchor is, in the frame's own viewport — the one thing the
+  // embedder's resize moves.
+  let anchor = 205
+  const frame = {
+    parent: { postMessage: (message: string) => said.push(message) },
+    document: {
+      // The CONTENT's height, and it does not move: this page is 1550px of
+      // fixed boxes before the resize and 1550px of them after.
+      documentElement: { offsetHeight: 1550 },
+      body: { scrollHeight: 1550 },
+      getElementById: (id: string) =>
+        id === "beds" ? { getBoundingClientRect: () => ({ top: anchor }) } : null,
+    },
+    location: { hash: "#beds" },
+    addEventListener: (kind: string, run: () => void) => listeners.set(kind, run),
+    // Delivers its first callback the moment it starts observing, as the real
+    // one does — that first callback IS the arriving measurement.
+    ResizeObserver: class {
+      constructor(private readonly run: () => void) {}
+      observe() {
+        this.run()
+      }
+    },
+  }
+  new Function(...Object.keys(frame), script!)(...Object.values(frame))
+
+  /** …and a missing listener is NAMED, rather than arriving as a `TypeError`
+   *  from a line that reads like the assertion's own bookkeeping. */
+  const fire = (kind: string): void => {
+    const run = listeners.get(kind)
+    if (run === undefined) {
+      throw new Error(
+        `the measure listens for no ${kind}, so nothing it could report would ` +
+          `reach the embedder: ${[...listeners.keys()].join(", ")}`,
+      )
+    }
+    run()
+  }
+
+  // Read back through the receiver's own parser rather than as text, for the
+  // reason everything else in this half is: what is being asserted is what the
+  // embedder will UNDERSTAND, and a substring agrees with the wrong kind.
+  fire("DOMContentLoaded")
+  fire("load")
+  expect(said.map(heard)).toContainEqual({ kind: "landed", top: 205 })
+
+  // THE RESIZE, with the page as unchanged as it really is: no ResizeObserver
+  // callback, because nothing that observer can see has moved.
+  anchor = 1195
+  said.length = 0
+  fire("resize")
+
+  // ONE message, and it is the anchor's: a whole-array `toEqual` is also what
+  // says no height came with it. A height from here is the `vh` ladder the
+  // receiver's per-width guard exists to refuse — the frame just got taller,
+  // and a page measured against it would answer with its new box every time.
+  expect(said.map(heard)).toEqual([{ kind: "landed", top: 1195 }])
+})

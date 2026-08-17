@@ -38,13 +38,17 @@ What this buys, structurally rather than aspirationally: `is:done` means one thi
 ## The grammar
 
 ```
-query   := token (WS token)*
-token   := ["-"] (clause | term)
+query   := group (WS group)*
+group   := token (WS "OR" WS token)*
+token   := ["-"] (clause | term | phrase)
 clause  := name ":" value        name ∈ { is, has, date }
 term    := a word — case-folded substring over title, id, tag, note
+phrase  := '"' text '"' — the same substring, spaces and all
 ```
 
-Every token must hold. Terms are ANDed as they already are ("every word must appear somewhere in the same node"), and clauses join the same conjunction. A leading `-` negates whichever it is in front of.
+Every group must hold, and a group holds when ANY of its tokens does. Terms are ANDed as they already were — "every word must appear somewhere in the same node" is now every GROUP, since `OR` is what joins two tokens into one — and clauses join the same conjunction. A leading `-` negates whichever it is in front of.
+
+The `group` line and the `phrase` line are `search-quoting-or`'s, and they are the whole of what it added: `OR` binds TIGHTER than the space, so the conjunction on the first line is the one that was always there and a token nobody joined is a group of one. The argument for that way round, and for the quoting rules, is under "What is not in the grammar" below, where both were deferred.
 
 ### `is:` — the stored mark
 
@@ -72,20 +76,29 @@ Comparison is TEXT, as everywhere else in the format: dates are validated ISO an
 
 Deferred, explicitly: **relative dates** (`date:today`, `date:7d`, Workflowy's `changed:`). `parseFilter` is pure and has no clock, and routes.ts already argues why a clock must not get into a thing that parses an address. Giving it one means threading `today` through the parse, and the value of that is worth its own decision.
 
+**Landed** (`search-relative-dates`), and the deferral's price was exactly what it said: `parseFilter` takes the day as an argument. It never reads a clock — the day is a fact about WHO IS ASKING, so each door hands over the one it already has (the tab's `clock.ts` for the filter it parses itself; the ops layer's `Context.now`, the clock a `done` is stamped with, for the three that ask the server), and the resolution stays a pure function of a word and a day that a test can pin. `date:7d` and `changed:` are still deferred: the first is a second spelling of a span the words already say, and the second is a question about history that nothing in the format answers.
+
+**Two clocks, and they are allowed to disagree.** A tab across a time-zone boundary from the server has its own local day, so for a few hours `date:today` in the filter over the page and `date:today` in the header box name different days. The alternative was considered and declined: putting the asker's day on `SearchRequest` makes the day a thing the wire has to be trusted about, grows a field an agent has to fill in to get today, and makes the server's answer depend on whichever browser asked last. Each door counting from its own reader's clock is the rule the format already keeps — `stampOf` writes a local instant with its offset because a mark belongs to the day the person marking it is having — and the gap is one day at most, in the one operator that reads a clock at all. Recorded rather than papered over, in search.md's own words.
+
+The vocabulary is TWELVE words and it is a spelling of a `date:` VALUE rather than a second operator — `today` / `yesterday` / `tomorrow`, and `this-` / `last-` / `next-` in front of `week`, `month` and `year`. Three shapes fell out of that decision rather than being designed: a relative word composes with a range wherever a written date does (`date:last-week..`), because both are read into the same span before they are two string comparisons; a month and a year resolve to exactly what `date:2026-08` and `date:2026` resolve to, `-31` upper bound and all, so there is one answer rather than two; and a word the vocabulary does not hold is REFUSED, taught the way the words are built rather than as a list of twelve, because it is a known operator with an unknown value like every other one. The day words are three rather than a `this-day` family because English already has them; the week is in the list precisely because the written grammar cannot spell one at all.
+
+A WEEK RUNS MONDAY TO SUNDAY, read off the same `weekdayOf` the calendar grid lays its columns out with. That function moved down to `@olai/format` (`calendar.ts`) to make it possible: it was the browser's, and its own header called it the one place in the codebase that does date arithmetic, which is precisely the claim a second copy underneath the grammar would have broken. The grid, the headings and the month names stayed up in the client, where drawing a month belongs.
+
 ### Negation
 
 `-` in front of any token: `-is:done`, `-#home`, `-kitchen`. A node matches when the negated half does NOT. Cheap, and it is what makes the operator language worth typing at all — `#home -is:done` is the query somebody actually wants.
 
 ### What is not in the grammar, and why
 
-- **Quoted phrases** (`"pick the hinges"`) — deferred. Every word already has to appear in the same node, which covers most of what quoting is for, and the tokenizer that supports quoting is a different tokenizer.
-- **`OR`** — deferred. A grammar with one binding level is a grammar a reader can hold; adding disjunction without parentheses is a trap and adding parentheses is a parser.
+- **Quoted phrases** (`"pick the hinges"`) — deferred here, **landed since** (`search-quoting-or`), and the stated cost was exactly right: the tokenizer that supports quoting IS a different tokenizer, and it is the only thing that changed. One `split(/\s+/)` became a scan that a quote can tell not to end a token, and the substring scan — already looking for a case-folded substring — was not touched at all: a phrase is a term whose word holds a space. What the deferral did not see is the second thing quoting buys, which turned out to be the reason to ship it with `OR` rather than after it. A grammar that claims spellings needs a way to ask for the TEXT of one, and there was none: `"is:done"` finds the note in which somebody wrote that down, and `"OR"` is the word in capitals for a note that shouts it. The rule is a quote at the FRONT of the token, and that is all the front decides: a quote opens a region wherever it sits and the region must be closed, which is how `prop:stage="in review"` writes a value that has a space — and why `36"` is refused rather than read as an inch mark, one term this costs and names.
+- **`OR`** — deferred here on the trap, **landed since** with the trap avoided rather than accepted. The deferral was right that parentheses are a parser and that one binding level is what a reader can hold. What it missed is that there are two ways to add disjunction without them, and only ONE of them is the trap: `OR` binding LOOSER than the implicit AND is the reading where `#home kitchen OR bathroom` quietly widens to every bathroom in the directory, arriving with no `#home` about it. Binding TIGHTER — `OR` joins the tokens on either side of it, the groups are ANDed exactly as adjacent tokens always were — is the reading somebody typing that line means, and it leaves the grammar with the same one conjunction it had, over groups instead of tokens. A token nobody joined is a group of one, which is why nothing else in the parse or the matcher moved. Negation stayed a TOKEN's, and that plus a second binding level turns out to be exactly enough for both of De Morgan's readings without a parenthesis anywhere: `-a -b` is "neither" (`NOT (a OR b)`, two groups that must both hold) and `-a OR -b` is "not both" (`NOT (a AND b)`, one group either half satisfies). A group-level `-` would have been a second spelling of one of the two.
+- **Three refusals came with them**, and they are one contract: `"pick the` is not closed at the end of the line on the reader's behalf (that would be picking one of two different queries), `kitchen OR` is a joiner missing one of its two sides, and `""` is refused for `prop:stage=`'s reason from the other end — an empty needle is inside every node ever written, so the query that silently finds none has a twin that loudly finds all.
 - **`>` (nested ancestry)** — deferred, and `>` is already spoken for: the ⌘K palette reads a leading `>` as an ask rather than a lookup.
-- **`is:blocked`** — deferred. Blockedness is DERIVED (`blockersOf`), which makes it a different kind of operator from every other one here, and `edges-ui`'s blocked-derivation is the item that owns it. The deferral has a stated cost: every clause today is a test of the RECORD, so the predicate takes a located node and nothing else. A derived-fact operator is the first one that would need the whole set, and that is a signature change rather than a new row in a table. Named here so the day it lands nobody is surprised — and not paid for in advance, because a parameter nothing reads is a knob.
+- **`is:blocked`** — deferred here, **landed since** ([search.md](../search.md)), and the deferral's stated cost is worth reading against what it actually was. It was: every clause is a test of the RECORD, so the predicate takes a located node and nothing else; a derived-fact operator is the first one that needs the whole set, and that is a signature change rather than a new row in a table. That is exactly what it cost — `matchOf` and `holds` take the `Derived` every caller of `matching` was already handing over, and the clause is one lookup in the index the views draw blockedness from. Nothing was paid in advance.
 
 ### Refusals reach every door
 
-The filter parses for itself, so it draws its own. The other three ask the server — and a refusal generated at the bottom and dropped in the middle would make `is:blocked` an empty list with no reason in exactly the three places a person is least able to guess why. So the answer carries `refusals`: through `Query.search`, onto the wire, and into a row of its own in the ⌘K palette and under the header box. That row is separate from the "the call failed" row for the reason that one is separate from the palette's `>` ask: a refused CALL and a refused QUERY are two pieces of news.
+The filter parses for itself, so it draws its own. The other three ask the server — and a refusal generated at the bottom and dropped in the middle would make `is:open` an empty list with no reason in exactly the three places a person is least able to guess why. So the answer carries `refusals`: through `Query.search`, onto the wire, and into a row of its own in the ⌘K palette and under the header box. That row is separate from the "the call failed" row for the reason that one is separate from the palette's `>` ask: a refused CALL and a refused QUERY are two pieces of news.
 
 ### Refusals — a colon is not always an operator
 
@@ -94,7 +107,7 @@ Two rules, and the split is the whole of it:
 - a token whose left side is one of the three operator NAMES and whose value is not understood — `is:open` (a mark this format stopped having), `date:soon`, `date:2026-13` — is a **refusal**. It is reported, the reader is shown what the operator takes, and the filter matches nothing. Never silently downgraded to a substring term: a query that quietly finds nothing is the silent-error the HACKING doctrine forbids;
 - a token with a colon whose left side is anything else — `TODO:`, `note:x`, `http://example.com` — is an ordinary **substring term**. Colons occur in prose, and refusing them would break searching for the words people write.
 
-A refusal quotes the token **as typed**. The words and the operator values are compared case-folded, so `IS:DONE` works — but `is:BLOCKED` refused as "you typed `is:blocked`" is the refusal misquoting the reader, which is the defect it exists to prevent, one turn in. So the fold is per token and for matching only.
+A refusal quotes the token **as typed**. The words and the operator values are compared case-folded, so `IS:DONE` works — but `is:OPEN` refused as "you typed `is:open`" is the refusal misquoting the reader, which is the defect it exists to prevent, one turn in. So the fold is per token and for matching only.
 
 An **impossible date** is refused on the same terms, and it needed saying because the shape regex alone accepts it: `date:2026-13` is well-formed and can never contain a validated day. It is also the worst kind to swallow, since it sorts between December and January and so reads as a window. The bound is 1–12 and 1–31 — what is impossible in ANY month. `date:2026-02-30` is accepted and matches nothing, and that is the deliberate line: telling it from `2026-01-30` needs a calendar, and the whole date stance here (the same one that makes a month's upper bound `-31`) is that a comparison over text answers without inventing one.
 
@@ -124,11 +137,23 @@ Recorded as reversible: it is one line in `App.tsx`'s `narrow`, and the e2e that
 
 `routes.ts` grows a `filter?: string` on those two arms only, and `routeOf` takes the address rather than the pathname, so the bijection its test holds covers the query string. The other five routes do not carry one: a document is prose, `/trash` is read-only, and `/agenda` / `/d/` / `/today` are date questions whose filter would be a second date question. Deferred, and it is a real gap — filtering a day page is a sensible thing to want.
 
+**Landed** (`search-everywhere`), and the two reasons given here did not survive being written down. A day and the agenda ARE date questions, and a filter over one is not a second one: it is "which of the things on this day", a narrowing of the answer rather than another way to ask for it — and the operators people actually type there (`is:blocked`, `#home`, a word) have nothing to do with dates. `/trash` being read-only is a fact about its VERBS, of which it has one; looking through a pile is not editing it. So the rule inverted, and `narrowable` is now the one exclusion rather than a list of two: **a document is the only page this grammar has nothing to say about**, because it selects nodes and a document is prose.
+
+What it cost, against what the deferral implied. `routes.ts` was one line (`route.kind !== "document"`) plus a `filter?` on four more arms. The reading (`filter/narrowing.ts`) took one switch instead of a second implementation, over a new value in the page model — `Drawn`, what the open page has PUT ON THE SCREEN, which is a different question from `Page` (what the address turned out to name) and the one a filter actually asks. Four shapes, because there are four: a tree, a day's groups, an agenda's three sections, an archive's trees. The format grew two prunes beside `keeping` (`keepingDated`, `keepingOwed`) and one count (`datedIn`, which `owedOf` then stopped spelling for itself).
+
+Three decisions were the whole of the design work, and each is where a per-page rule would have crept in:
+
+- **The archive.** `matching` excludes archived nodes unless the query says `is:archived`, and on the trash that rule would have taken away every row on the page — the matcher overruling a page about what the page is showing. So `Scope` grew `archived`, and the filter is the one door that passes it. THREE pages need it, which is exactly the three this format already puts an archived node on: the trash (it is the archive), a day (`dates.ts` decided that archived work stays on the day it happened) and the agenda (`agenda.ts` reads those same dates forward, so work put away after it was scheduled is still owed). It was passed unconditionally for a day, on the argument that the page has already decided and a page showing none pays nothing for the flag — which was half wrong, and the review caught it: `true` puts the whole archive in front of the matcher, so every keystroke on an ORDINARY OUTLINE was scanning the one file in a directory that only ever grows. It is read off the page's own headings and roots now: no drift with what is on screen, a zoom onto an archived node answering for itself, and the cost paid only by the pages that draw one. What it does not buy is a cheaper scan for those pages — the candidate set is the whole set there, which is what already lets a mirror of a node in another file stay drawn where it is placed.
+- **A day's note.** It goes while a filter is on. A note is a document, which is exactly the page kind that takes no filter, so it can never be a match; drawing it beside no rows would be answering a question nobody asked.
+- **Which sentence a page says when it is empty.** "Nothing is on this day", "Nothing is due.", "The Trash is empty." are claims about the day, the agenda and the archive; "no matches" is a claim about the query. The pages keep the first and the bar keeps the second, which is the division `OutlinePage`'s "write its first line" already had.
+
+And one thing that did NOT move: what is owed. The mark beside Agenda in the column counts the unnarrowed reading, because a filter is a question about the open page and late work is a fact about the directory.
+
 ## The filter and the two things it composes with
 
 ### Zoom
 
-The filter is scoped to the rows the page draws: an outline's roots, or a zoomed node's children. That IS Workflowy's "downstream" scoping, and it falls out of the address rather than being implemented — the page decides its own rows, the filter prunes them.
+The filter is scoped to the rows the page draws: an outline's roots, or a zoomed node's children. That IS Workflowy's "downstream" scoping, and it falls out of the address rather than being implemented — the page decides its own rows, the filter prunes them. (Which is also why the filter reached the other three pages for a switch rather than a rewrite: the page has always decided, and every page here is a query already.)
 
 **Zooming clears the filter**, because a zoom is a navigation and `router.go` builds the route for the page being asked for. Clicking a bullet means "show me that node", not "show me that node, still narrowed by what I typed on the last page". Back returns to the filtered address, which is where the filter is kept rather than lost.
 
@@ -172,17 +197,21 @@ The one real difference is which HALF each kind of hit satisfies. An exact hit s
 
 A bar above the tree on the two tree pages: the input, a count, a clear `×`, and — when the query holds one — the refusal line. The count is the honest version: how many rows matched, of how many the page draws, and how many matches the done-preference is holding back.
 
+(Since `search-everywhere`: above every page that draws nodes, and the condition it is drawn on is what the page DRAWS rather than which route is open — `Drawn`'s `none` arm is a page a query has nothing to narrow, which is a document, a file that would not parse, or an address that named nothing. So the box appears exactly where it can do something.)
+
 It is NOT the header's search box. Those are two different questions — "take me to a node anywhere in the directory" and "narrow what is in front of me" — and one box answering both would have to guess which was meant. The header box gains the operators anyway, because it is a caller of the same reading.
 
 A `#tag` in a title becomes a real affordance: a pill that says it is pressable, and pressing it sets this page's filter to that tag. The pill is drawn into HTML by `markdown/tags.ts` and reaches the page through `innerHTML`, so the press is answered by ONE delegated listener on the main pane — the same placement, and for the same reason, as the listener that answers a link inside rendered markdown (`router.tsx`'s `followed`). The row's own title click must therefore decline a click that landed on a pill, or one press would both filter the page and open an editor on the row.
 
 **Only where the press has somewhere to go.** Titles are drawn on pages that cannot carry a filter — a day, the agenda, a document — and the pill there is the same markup, because `markdown/tags.ts` is handed a string and knows nothing about the route. So the PANE says whether a tag in it is live (`data-narrowable`), the stylesheet draws the cursor and the hover from that, and the listener declines on the same condition: one fact, read by the thing that promises and by the thing that answers, rather than a pill that looks pressable and a press that is swallowed.
 
+(Since `search-everywhere` the list of such pages is down to the document, which draws no pills at all — `markdown/tags.ts` styles TITLES, and a document is a body. The machinery stays, because the condition is still a real one and is still read in two places; what changed is that a tag in a title is now live wherever a title is drawn. A tag inside an ancestry crumb is the one that still does not filter, and for the reason it never did: the crumb is a link, the tag walk skips anchors, and one press is one act.)
+
 ## Deferred, named
 
-- Relative and changed-since dates (`date:today`, `changed:7d`).
-- Quoted phrases, `OR`, and the `>` ancestry operator.
-- `is:blocked` — it belongs with `edges-ui`'s blocked-derivation.
-- Filtering the day, agenda and trash pages.
+- Changed-since dates (`changed:7d`) — the relative words landed (`search-relative-dates`); a question about HISTORY is a different one, and nothing in the format answers it.
+- ~~Quoted phrases~~ and ~~`OR`~~ — **landed** (`search-quoting-or`), struck rather than removed so the list still says what this design deferred; what each cost is above. The `>` ancestry operator is still deferred, and `>` is still spoken for by the palette.
+- ~~`is:blocked`~~ — **landed**, and the entry is struck rather than removed so the list still says what this design deferred (the cost it named, and what it turned out to be, is above).
+- ~~Filtering the day, agenda and trash pages.~~ — **landed** (`search-everywhere`), struck rather than removed so the list still says what this design deferred; what it cost, and which of the two reasons for deferring it were wrong, is under "Where the filter lives: the address" above.
 - Starred / saved searches and named shortcuts (viewing-web.md's own Open list).
 - A keyboard chord that focuses the filter box.

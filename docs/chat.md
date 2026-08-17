@@ -19,7 +19,7 @@ The conversation is the agent's own session for that directory: close olai, reop
 
 If that conversation is GONE — you deleted it, or you have pointed olai at a different agent since — the most recent one in this directory is opened instead, which is what always used to happen. Whichever you get, the header names it.
 
-The note lives with this machine's other state (`~/.local/state/olai/`, or wherever `XDG_STATE_HOME` points), never in the directory being served: it is one id and the path it belongs to, so a directory you serve from two machines remembers a conversation on each. If it cannot be read or written the panel says so in the conversation and carries on — a restart then opens the most recent conversation, which is the old behaviour and a working panel either way.
+The note lives with this machine's other state (`~/.local/state/olai/`, or wherever `XDG_STATE_HOME` points), never in the directory being served: it is one conversation id, the model that conversation was on (below), and the path both belong to — so a directory you serve from two machines remembers a conversation on each. If it cannot be read or written the panel says so in the conversation and carries on — a restart then opens the most recent conversation, which is the old behaviour and a working panel either way.
 
 **chats** lists the stored conversations for this directory, and each row says when it was last touched, to the minute. That is deliberate rather than decorative: `/clear` leaves two sessions sharing one name, and the protocol carries no fact that says which of them replaced the other, so the time is what tells you the row you mean. Picking one loads it — and makes it the conversation you come back to.
 
@@ -27,7 +27,7 @@ The note lives with this machine's other state (`~/.local/state/olai/`, or where
 
 Under the conversation's title, the header names the model — because a turn's cost and character depend on it and nothing else on screen says.
 
-It names the model the agent is **running**, which is not always the one the session was started on: `/model` is handled inside the CLI the adapter wraps, so the adapter never learns of it and its own picker goes on reporting the starting model for the life of the session. What the header follows instead is the CLI's own message, forwarded because olai asked for it at `session/new`.
+It names the model the agent is **running**, which is not always the one the session was started on: `/model` is handled inside the CLI the adapter wraps, so the adapter never learns of it and its own picker goes on reporting the starting model for the life of the session. What the header follows instead is the CLI's own message, forwarded because olai asks for it whenever it opens a conversation — a new one and a stored one alike.
 
 Two consequences, both of them the adapter's shape rather than a choice:
 
@@ -35,6 +35,23 @@ Two consequences, both of them the adapter's shape rather than a choice:
 - **it is named the way the agent names it.** The running model arrives as an API id (`claude-sonnet-5`) while the picker offers aliases (`sonnet`), so the two are matched up and the header says *Sonnet*. A model the picker does not offer at all is shown as the id it came as, which is truthful about a name nobody gave — never rounded to whichever row looks closest.
 
 **A raw id in that line is a refusal, not a failure**, and the commonest reason for one is worth knowing: the running model never states its **context window**. The CLI reports `claude-opus-5` whether the session has 200k or 1M, so when the only Opus the picker offers is the 1M one, that row is not allowed to answer — naming a window five times the real one, in the line you would read to decide whether to `/compact`, is worse than naming nothing. You get `claude-opus-5`, and what it does not say, it does not say.
+
+## The model you switched to survives a restart
+
+**Switch the chat with `/model` and it stays switched**, across an olai restart and a new deploy — the conversation comes back on the model you put it on, and the header names it before you type anything.
+
+That is a fix rather than a given, and what it is a fix for is worth knowing about because it happens at the agent's end, not olai's. The agent resolves a session's model in a fixed order — the `ANTHROPIC_MODEL` variable, then `settings.json`, then the model the conversation was actually running — and on *resuming* a conversation it deliberately re-asserts the first two over the third. So a machine whose settings pin `"model": "sonnet"` puts every restored conversation back on Sonnet, however it ended. A `/model` lives only in the conversation itself, which is the half that loses. The chat was on Fable on Friday and on Sonnet on Monday, and nothing said why.
+
+So olai writes down which model this conversation is running, and after a restore, if the conversation has come up on a different one, it says so back — through the same model setting the agent's own picker is. What you get is the model you chose; what a *new* conversation gets is still the machine's default, which is what a default is for.
+
+**And a `/model` made in a conversation you came back to is heard at all**, which is the quieter half of the same fix: the CLI's message is forwarded because olai asks for it when it opens a session, and it was only asking when it *started* one. Every conversation after a restart is a restored one, so the header had gone deaf in exactly the conversations you spend your time in — it went on naming the model the session came up on, however many times you switched.
+
+Two things follow, and both are the honest shape of it:
+
+- **only a switch you made while olai was watching is remembered.** A conversation that never left the machine's default comes back on the machine's default — olai has nothing of its own to say about it, and pinning a conversation to whatever the default resolved to that day would be inventing a choice nobody made. One consequence is worth knowing after an upgrade: a `/model` from before this existed is not a switch olai saw, so the first restart still opens on the default and switching again is what makes it stick.
+- **a switch made somewhere else, while olai was not running, loses.** The conversation is reachable from a terminal (`claude --resume`), and a `/model` typed there lands in the same place a static pin does, as far as anything on the wire can tell: the restored conversation simply comes up on a model olai's note disagrees with. Olai puts its own note back. Between a panel that loses the choice made *in* it every single restart and one that can lose a choice made elsewhere while it was off, this is the better of the two.
+
+If the model cannot be put back — an agent that will not take the setting — the conversation opens anyway, on whatever the agent chose, and the panel says so in a row rather than in a log. Nothing is retried behind your back; the next restart tries again.
 
 ## How full the context is
 
@@ -81,6 +98,24 @@ What the agent is handed is the node's **id**, with its title, its `file:line` a
 
 The chip says the title, but the title is not what is sent. Rename the node between arming and sending and the agent gets the name it has now; archive it and the send is refused, in the same words a tool call gets for an id nothing declares — because a question about a node is not one to ask without it.
 
+## Naming a file
+
+**Type `@` and the directory comes up**, filtered as you type, and taking a row writes the whole path into your sentence: `read @notes/cabinets.md `. It is the gesture a terminal agent already has, and it is here for the same reason — a vault spells its folders however it spells them, and a path half-remembered reaches the agent as a file that is not there.
+
+What it offers is **the files this directory serves** — every outline, every document, every saved page, which is the set the sidebar draws — because they are already on this tab's subscription. Nothing is walked to answer an `@`, nothing is asked of the server, and a vault with a thousand files costs the same as one with ten. The archives are in it, unlike in the sidebar, which hides them behind Trash: what a message may NAME is a different question from what a reader opens, and "what did we put away last month" is a fair thing to ask.
+
+A row reads the file's **name**, with its folder beside it, and writes the **path**: a `Daily/` vault is a column of identical dates otherwise. `@notes/` works too — a folder is the start of a path like any other prefix.
+
+**What it writes is a word, not an attachment.** The `+` button copies a file into a temporary directory and hands the agent the copy's path (see below), which is right for a screenshot on the clipboard and wrong for a file that is already in the directory the agent is working in: the copy stops being true the moment anything writes it. So a completed path goes in as text, the message reads the way you typed it, and the agent opens the file where it lives.
+
+**It never fights an `@` you meant as a person.** `@` is a tag sigil in olai's own format — `@alice` in a row's title is a tag, and the title editor completes those — but none of that vocabulary exists in this box: a message is prose on its way to an agent, and nothing here parses it. Three things follow, and they are what keep the two apart:
+
+- an `@` **inside a word** opens nothing, so `srid@example.com` is an address;
+- an `@` whose word matches **no file** draws nothing at all, so `@alice` types straight through and Enter sends;
+- and if one *does* match something you did not mean, **Escape** puts the list away and leaves the word alone — nothing is ever rewritten that you did not choose.
+
+While the list is up the keys are the list's: ↑/↓ walk it, Enter or Tab take the row, Escape closes it. A click does the same for a hand already on the mouse. It is the same box the `/` commands use, because it is the same gesture.
+
 ## Pointing back at a node
 
 Ids in the panel are pressable, and pressing one shows you that node: the row scrolls into view and says it is the one being talked about. If it is not on the page you are reading — another outline, a branch you have collapsed — you go to its own page instead.
@@ -110,6 +145,27 @@ An agent can spawn agents of its own — one to search, one to read, several at 
 Where a stretch of one agent's work begins, the lane says whose it is — the description the agent was sent with, *explore the outline*, *review the notes* — and then stops repeating itself: a subagent that reads ten files gets one name and ten rows, not ten names. That name comes back whenever the thread is picked up again, which is what makes two agents running at once readable: their calls interleave, and each stretch says which of them it was.
 
 None of this is anything you turn on, and there is nothing to fold: a turn that spawned nobody looks exactly as it always did. What it replaces is a panel where three agents grepping at once and one agent grepping three times were the same five lines — which was the only thing in this conversation that was not true.
+
+### An agent that has not reported back yet
+
+**A rail drops out of the call that sent an agent out, at the moment it sends one**, and it says the agent is working — which is already true before it has done anything you can see:
+
+```
+· read every note                        ↳ Explore
+│ ● working…
+```
+
+That is the fix for the thing everything above missed. A lane is drawn out of work a subagent has ALREADY done, and a subagent's first act is to read its instructions, which produces nothing to draw — so for the whole of the stretch you actually watch a fan-out through, the panel had a pending dot with an ordinary title on it and nothing anywhere saying an agent had been started. Three agents out looked exactly like one slow `Read`.
+
+Three things are on that row and every one of them comes off the wire:
+
+- **who it is** — the kind of agent, on the right of the row, in the words of whoever defined it: *Explore*, *general-purpose*, a name out of your own agents. A spawn that named no kind says the bare word **agent**, which is the honest thing to say about an agent nobody labelled — never rounded to whichever kind looks closest.
+- **what it was asked** — the row's own title, which is the short description the call was made with. The whole prompt is one click away, in the fold, where a call's arguments always are.
+- **that it is running** — the rail, which says *working…* and **goes away the moment the call stops**. One word, and it was briefly two: a *starting…* that became *working…* at the agent's first heartbeat. That read as more precise and was less true — every tool call is announced *pending* whether or not it has got going, the subagent is dispatched at once, and a heartbeat can be half a minute away, so a subagent whose work was already listed in the lane below went on being described as starting while you watched it. A face that outlived the agent would say a fan-out was running after the turn was over, which is the same lie in the other direction — so it also goes when the CONVERSATION stops, which is what covers the way this actually goes wrong: an agent that died between sending somebody out and reporting on it leaves a row that will never say it finished, and the rows a dead agent left are deliberately still on screen to read.
+
+Then the calls arrive in the lane that is already open under it, and when the agent reports back the row completes and its answer is in the fold. Nothing about the rest of the drawing changes — the same rail, the same names, in the same places.
+
+**What is deliberately not drawn is the subagent's own prose.** The agent olai ships with does not send it: a spawned agent's text and thinking are stripped from the feed unless a client asks for a nested transcript, and olai does not ask. So a running subagent is its calls and its status here, and the one place its own words appear is the report it hands back at the end. That is a floor rather than a preference — but it also means the main agent's voice in this panel is only ever the main agent's, which is worth having.
 
 ## Attachments
 

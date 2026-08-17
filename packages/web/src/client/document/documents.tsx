@@ -1,31 +1,53 @@
 /**
- * The documents of the set: the paths, and one body at a time.
+ * The documents of the set: the paths, the revision each of them is at, and one
+ * body at a time.
  *
- * ONE module owns `olai.collections.documents`, and that is the point of it
- * being one. The collection is served `keys` + `get` with no `deltas`
- * (`@olai/surface`), so a plain `.use()` — which opens the key stream AND a
- * value stream per key — would pull every `.md` body in the directory onto the
- * first paint, which is the defect `snapshot-scale` removed. That rule is
- * enforceable only where the member is reached, so the member is reached here
- * and nowhere else:
+ * ONE module owns `olai.collections.documents` AND the `heads` beside it, and
+ * that is the point of it being one. `documents` is served `keys` + `get` with
+ * no `deltas` (`@olai/surface`), so a plain `.use()` — which opens the key
+ * stream AND a value stream per key — would pull every `.md` body in the
+ * directory onto the first paint, which is the defect `snapshot-scale`
+ * removed. That rule is enforceable only where the member is reached, so the
+ * members are reached here and nowhere else:
  *
- *   - {@link Documents.paths} is the KEY SET, driven on its own through
- *     `rawStream`. That is the framework's composition for this shape — its
- *     `unenrolledKeys` docs describe feeding the raw list back into a narrowed
- *     `.use({ keys })`, which is exactly what happens below — and `rawStream`
- *     rather than a bare `unenrolledStreamCall` so the stream is still in
- *     `client.health()`: a key stream that died would otherwise read as a
- *     directory with no documents in it. Being in the fact is half of it and
- *     was for a while the whole of it — nothing in the client READ the fact,
- *     so the enrolment bought a dead stream that was findable and still not
- *     reported. The connection readout folds it now, upstream and unskippably
- *     (`connectSurface`, juspay/kolu#2160), which is what turns this line into
- *     the guarantee it always claimed: this stream stopping is a pill that
- *     says `partly live` and names `documents.keys`.
+ *   - {@link Documents.paths} and {@link Documents.head} are ONE subscription
+ *     on `heads`, the member that is every bodied file's key with the body left
+ *     off. It is cheap enough per entry to carry `deltas`, so a plain `.use()`
+ *     opens the single coalesced snapshot-then-delta stream and every file's
+ *     path and revision arrive on it — and being a `.use()` rather than a raw
+ *     reach means it is in `client.health()` for free, so this stream stopping
+ *     is a pill that says `partly live` and names it.
+ *
+ *     It replaced a `rawStream` on `documents.keys`, which carried the same
+ *     paths and no revisions. Both at once would have been the same list twice
+ *     on every first paint; a revision per path is the same list plus an
+ *     integer each, and it is what lets a page watch ONE file for changes
+ *     without opening a stream — or asking for a body — of its own.
+ *
+ *     WHAT THE BATCHED VERB COSTS, named because it is a trade and not a free
+ *     win: a `deltas` frame is FOLDED here, and the fold copies the whole
+ *     keyed dict before reconciling it, so a revision that touches any bodied
+ *     file costs every open tab one pass over the directory's paths — where
+ *     the key stream this replaced only ever fired on a file appearing or
+ *     going. It is the same shape and a smaller value than the `outlines` fold
+ *     this app already does on every revision (nodes, not an integer), and the
+ *     alternative — a per-key stream for each file being watched — buys O(1)
+ *     per tab at the price of a second subscription per open document and of
+ *     the file list having to come from somewhere else. Measured before it is
+ *     changed, like everything else here (`packages/tests/wire.ts`).
  *   - {@link Documents.read} is the BODY of one document, from a narrowed
  *     subscription whose keys are the documents somebody is showing. A body
  *     reaches this tab when a component asks for it and stops arriving when
  *     the last one that asked goes away.
+ *
+ * THE TWO ARE ASKED SEPARATELY ON PURPOSE, and a `.html` is why. A preview
+ * frame fetches the file over HTTP from `/media/` (`./Hypertext.tsx`), so
+ * nothing on that page is drawn out of the body — what it needs from this
+ * module is the revision, so that a file rewritten on disk re-points the frame.
+ * Reading the body to learn that sent a saved page's megabytes to a tab that
+ * drew none of them, and made the server read the file to send them; asking the
+ * head instead costs a number. That was PR #206's standing deferral and this is
+ * the shape it named.
  *
  * ONE subscription per PATH, however many components ask: `askers` is what
  * decides membership, so two rows attached to the same document share the
@@ -37,8 +59,10 @@
  * `doc` reference draws a one-line preview out of a whole body. An outline that
  * attaches hundreds of documents at once therefore pays for hundreds of them.
  * That is the shape the design agreed (`docs/brainstorming/surface-mcp-viewing.md`):
- * if a preview for many nodes at once is needed, the answer is a small head
- * member on the wire — measured first, not guessed at here.
+ * if a preview for many nodes at once is needed, the answer is a small member
+ * on the wire carrying what a row draws rather than what a page does — the head
+ * beside this one is that idea's first instance, and a one-line preview would
+ * be its second. Measured first, not guessed at here.
  *
  * A node's `doc` is drawn on every page there is — a tree row, a zoomed
  * heading, a day — so the reader is a CONTEXT rather than a prop: threading it
@@ -85,19 +109,31 @@ export type Served = DocumentEntry & { readonly text: string }
 
 export interface Documents {
   /** Every BODIED file the directory holds — every `.md` and every `.html`,
-   *  which is what the collection is keyed by (`@olai/surface`) — by path.
+   *  which is what both collections are keyed by (`@olai/surface`) — by path.
    *  ARRIVAL order, deliberately:
    *  the sidebar's tree sorts each of its own levels (`../fileTree.ts`) and the
    *  page model only asks whether a path is in here, so an order imposed on a
    *  corpus-sized list every time one file arrives would be work nobody reads. */
   readonly paths: Accessor<ReadonlyArray<string>>
-  /** One document's body, for as long as the calling owner lives. `undefined`
-   *  while it is still on the way — the normal first state, and the one a body
-   *  being read from disk shares with it ({@link Served}) — and also what a
-   *  set being edited answers for a `doc` naming a file that is no longer
-   *  there (a valid set cannot produce that: `doc` is validated against the
-   *  documents found). */
-  readonly read: (file: Accessor<string>) => Accessor<Served | undefined>
+  /** Which revision of the directory one file is at, or `undefined` for a path
+   *  this directory does not hold (and for every path before the first frame).
+   *  It MOVES when the file does and stays put when it does not, which is the
+   *  whole of what a reader watching one file needs — no body, no subscription
+   *  of its own, no read of the disk at the other end. */
+  readonly head: (file: Accessor<string>) => Accessor<number | undefined>
+  /** One document's body, for as long as the calling owner lives — and for as
+   *  long as `file()` names one: `undefined` is a caller that has nothing it
+   *  would do with a body (a page whose face cannot be written — see
+   *  `./DocumentPage.tsx`), and it asks the server for nothing at all.
+   *
+   *  `undefined` comes back while a body is still on the way — the normal first
+   *  state, and the one a body being read from disk shares with it ({@link
+   *  Served}) — and also for a `doc` naming a file that is no longer there (a
+   *  valid set cannot produce that: `doc` is validated against the documents
+   *  found). */
+  readonly read: (
+    file: Accessor<string | undefined>,
+  ) => Accessor<Served | undefined>
 }
 
 /** Whether an entry is one a page can draw — see {@link Served}. */
@@ -105,16 +141,15 @@ const arrived = (entry: DocumentEntry | undefined): entry is Served =>
   entry !== undefined && entry.text !== null
 
 export const createDocuments = (): Documents => {
-  const [paths, setPaths] = createSignal<ReadonlyArray<string>>([])
-  // No `onRetry`: every frame is the whole key set, so a reconnect replaces
-  // this list wholesale, and clearing it in the gap would empty the sidebar's
-  // documents for as long as the socket takes to come back.
-  olai.rawStream(
-    "documents.keys",
-    olai.collections.documents.unenrolledKeys,
-    undefined,
-    { onItem: setPaths },
-  )
+  // THE HEADS, whole: one batched stream carrying every bodied file's path and
+  // the revision it is at. A reconnect opens with a fresh snapshot — the
+  // framework's own contract for this verb — so there is nothing to resume and
+  // nothing to clear in the gap.
+  const heads = olai.collections.heads.use()
+  // The framework's own memo over the key set, handed on rather than wrapped: a
+  // memo around it could dedup nothing its own could not, and this is a module
+  // about not paying for a thing twice.
+  const paths = heads.keys
 
   /** Who wants what: a path is wanted while at least one owner is showing it.
    *  ONE value, so membership cannot disagree with the count that decides it —
@@ -140,24 +175,33 @@ export const createDocuments = (): Documents => {
 
   return {
     paths,
+    head: (file) => () => heads.byKey(file())?.()?.rev,
     read: (file) => {
       // An EFFECT, so the interest follows a component whose `file` moves (a
       // doc reference re-keyed onto another node) and is dropped when the
-      // component that wanted it goes away — the cleanup runs on both.
+      // component that wanted it goes away — the cleanup runs on both. A caller
+      // that names no file wants no body, so nothing is held for it: that is
+      // the whole of how a preview costs the wire nothing.
       createEffect(() => {
         const path = file()
+        if (path === undefined) return
         held(path, 1)
         onCleanup(() => held(path, -1))
       })
       return () => {
-        const entry = entries.byKey(file())?.()
+        const path = file()
+        if (path === undefined) return undefined
+        const entry = entries.byKey(path)?.()
         return arrived(entry) ? entry : undefined
       }
     },
   }
 }
 
-const DocumentsContext = createContext<Documents["read"]>()
+/** THE READER ITSELF, not one of its two questions. A context per question
+ *  would be two providers to keep in step for one value that already answers
+ *  both, and a page asks both of them about the same file. */
+const DocumentsContext = createContext<Documents>()
 
 export function DocumentsProvider(props: {
   /** The app's one reader of the documents collection. Handed in rather than
@@ -168,19 +212,29 @@ export function DocumentsProvider(props: {
   readonly children: JSX.Element
 }) {
   return (
-    <DocumentsContext.Provider value={props.documents.read}>
+    <DocumentsContext.Provider value={props.documents}>
       {props.children}
     </DocumentsContext.Provider>
   )
 }
 
-/** One served document, by its path — see {@link Documents.read}. */
-export const useDocument = (
-  file: () => string,
-): Accessor<Served | undefined> => {
-  const read = useContext(DocumentsContext)
-  if (read === undefined) {
+const reader = (): Documents => {
+  const documents = useContext(DocumentsContext)
+  if (documents === undefined) {
     throw new Error("a document reference outside <DocumentsProvider>")
   }
-  return read(file)
+  return documents
 }
+
+/** One served document, by its path — see {@link Documents.read}. A `file()`
+ *  of `undefined` asks for nothing, which is what a page whose face draws
+ *  without a body passes. */
+export const useDocument = (
+  file: () => string | undefined,
+): Accessor<Served | undefined> => reader().read(file)
+
+/** Which revision one served file is at — see {@link Documents.head}. The
+ *  question a reader asks when what it needs to know is that the file MOVED. */
+export const useHead = (
+  file: () => string,
+): Accessor<number | undefined> => reader().head(file)

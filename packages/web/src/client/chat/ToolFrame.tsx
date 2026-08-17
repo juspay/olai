@@ -27,6 +27,14 @@
  * the arguments are what was asked for, and this is what happened to somebody's
  * files. It is trimmed rather than folded, and the trim opens where it stands.
  *
+ * A CALL THAT SPAWNED AN AGENT says so on the line as well, in the slot the
+ * locations take — because it cannot have any, and because "an agent was sent
+ * out" is the fact a reader of a fan-out most needs and the one that used to
+ * be nowhere on screen until the agent reported back ({@link ./spawn.ts}).
+ * That is the whole of what this component does about a spawn: the live rail
+ * under it belongs to the list, which is the thing that has rows to put a rail
+ * beside.
+ *
  * The row is UPDATED rather than replaced. The transcript keys these by the
  * agent's own call id, so `pending` becoming `completed` is the same row
  * changing.
@@ -47,6 +55,7 @@ import { TESTID } from "../testids.ts"
 import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
+import { whoOf } from "./spawn.ts"
 import { Wrote } from "./Wrote.tsx"
 
 /** What each status looks like in one character. Words would wrap the line the
@@ -63,6 +72,29 @@ const TONE: Record<string, string> = {
   in_progress: "text-doing",
   completed: "text-done",
   failed: "text-alarm",
+}
+
+/**
+ * ... and what each status is CALLED, for the reader who gets no glyph and no
+ * colour. Beside the other two rather than in a module of its own, because the
+ * three are one table read three ways and a status that gained a mark without
+ * a word would be the gap this closes reopening. A status this table does not
+ * know is said as it came, which is the same refusal to invent a name the
+ * header makes for a model it cannot place.
+ *
+ * THE AGENT'S OWN WORDS, spelled for speech and interpreted no further. The
+ * rail under a spawn says *working…* for `pending`, and this deliberately does
+ * not: that rail is drawn only while the conversation is live
+ * ({@link ./spawn.ts}), and this word is on a row that outlives it. A dead
+ * agent leaves its last announced call `pending` forever, and a name that
+ * announced it as "running" would be saying out loud the one thing nobody can
+ * still promise.
+ */
+const SAID: Record<string, string> = {
+  pending: "pending",
+  in_progress: "in progress",
+  completed: "completed",
+  failed: "failed",
 }
 
 export function ToolFrame(props: { readonly entry: ChatEntry }) {
@@ -121,10 +153,46 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
         disabled={!body()}
         onClick={() => toggleFold(props.entry.id)}
       >
+        {/* The status, twice over and in two vocabularies, because the glyph
+            is not one: `·` and `…` and `✓` say nothing to a screen reader, so
+            the mark is hidden and the WORD is what lands in the button's
+            accessible name — which is where a status belongs, since the name
+            is the whole of what that reader gets. It went missing the moment
+            this row grew a second label: "read every note Explore" announces a
+            spawn and a kind and never says whether it finished, which for a
+            dead agent's row is the one thing worth hearing. */}
         <span class={TONE[status()] ?? "text-muted"} aria-hidden="true">
           {MARK[status()] ?? "·"}
         </span>
+        <span class="sr-only">{SAID[status()] ?? status()}</span>
         <span class="min-w-0 flex-1 truncate">{props.entry.text}</span>
+        {/* WHO WAS SENT, on the line, from the moment the spawn is announced —
+            which is a good while before the agent has done anything to draw a
+            lane out of ({@link ./spawn.ts}). It shares the slot a call's
+            locations take, and shares it safely: an `Agent` call works in no
+            file and reports none, so the two are never on one row. */}
+        <Show when={whoOf(props.entry)}>
+          {(who) => (
+            <span
+              class="flex min-w-0 shrink-0 items-center gap-1 text-muted/70"
+              data-testid={TESTID.chatSpawn}
+              data-spawn-kind={who()}
+            >
+              {/* The lane's own glyph, so the marker on the row and the label
+                  on the rail under it are visibly the same fact: somebody
+                  else is doing this. Without it, a kind sitting where a file
+                  path usually sits reads as a file path.
+
+                  A glyph says that to the eye and nothing at all to a screen
+                  reader, which would otherwise hear this row's name end in a
+                  bare "Explore" — so the word it stands for is spoken in its
+                  place, and the name comes out as a sentence. */}
+              <span aria-hidden="true">↳</span>
+              <span class="sr-only">sent out&#32;</span>
+              <span class="min-w-0 truncate">{who()}</span>
+            </span>
+          )}
+        </Show>
         {/* Unfolded: where it is working, on the line, because a reader
             following an agent through a tree wants the file more often than
             the arguments. Truncated rather than wrapped — the frame's whole

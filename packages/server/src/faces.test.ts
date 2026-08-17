@@ -146,6 +146,20 @@ test("the manifest cell is not exposed, and never was", () => {
   expect(resolved().resources.map((r) => r.key)).not.toContain("manifest")
 })
 
+test("the heads collection is the browser's alone", () => {
+  // Not a restatement of the exactness test above. This one names the member
+  // and the reason, so exposing it later trips a failure that explains itself.
+  // A head is "this file is at revision N" with no body on it — the question a
+  // tab asks because it is KEEPING a `.html` on screen and must notice the file
+  // moving under it without wanting what it now says. An agent reads a body
+  // when it wants one and is told about the change on the key it already holds,
+  // so a second resource carrying the revision it would then read anyway is a
+  // URI published for nobody.
+  expect(BROWSER["heads"]).toBe("resource")
+  expect(Object.keys(MCP)).not.toContain("heads")
+  expect(resolved().resources.map((r) => r.key)).not.toContain("heads")
+})
+
 test("the chat's state and transcript are not exposed", () => {
   const keys = resolved().resources.map((r) => r.key)
   expect(keys).not.toContain("chat")

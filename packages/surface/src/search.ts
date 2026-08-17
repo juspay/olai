@@ -46,7 +46,7 @@ export {
   DEFAULT_SEARCH_LIMIT,
   /** What the grammar could not read, quoted as the reader typed it — carried
    *  on the answer because three of the four doors ask the server, and a door
-   *  that answered `is:blocked` with an empty list and no reason would be the
+   *  that answered `is:open` with an empty list and no reason would be the
    *  one place a typo looks like an empty directory. */
   Refusal,
   SearchAnswer,

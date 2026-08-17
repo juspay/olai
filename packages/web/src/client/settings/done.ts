@@ -14,6 +14,7 @@ import type { Row } from "@olai/format"
 import { withoutDone } from "@olai/format"
 import type { Accessor } from "solid-js"
 
+import type { Drawn } from "../page.ts"
 import { boolCodec, createPreference } from "../preference.ts"
 
 export const DONE_HIDDEN_KEY = "olai.done.hidden"
@@ -39,6 +40,38 @@ export const setDoneHidden = (value: boolean): void => pref.set(value)
  *  re-deciding what "hidden" means. */
 export const visible = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
   doneHidden() ? withoutDone(rows) : rows
+
+/**
+ * The same question asked of a whole PAGE — and the answer to "which pages does
+ * this preference reach", which is here rather than at the composition for the
+ * reason above: it is a fact about the preference.
+ *
+ * It reaches a TREE and nothing else, and that is where it has always reached.
+ * A day and the agenda answer a date question and the trash is what was put
+ * away; hiding finished work inside any of the three would be this switch
+ * deciding something none of those pages was asked — a day page is a record of
+ * what happened, and half of what happened is work that got finished.
+ *
+ * THE SAME VALUE COMES BACK for a reader who is not hiding anything, identity
+ * and all: {@link visible} hands back the very array it was given when the
+ * preference is off, and this hands back the whole reading rather than
+ * rewrapping it. That identity is what `../filter/narrowing.ts`'s count of
+ * held-back matches reads as its zero, and a fresh wrapper per frame would make
+ * it walk the page twice to prove the answer was nothing.
+ *
+ * IT IS THE PREFERENCE AND NOT THE ROWS that the identity is about, which is
+ * worth being exact on: `withoutDone` is a `flatMap` and mints a new list
+ * whichever way it goes, so a reader who IS hiding finished work gets a fresh
+ * value even on a page where nothing is finished — and the count downstream
+ * then does the honest subtraction instead of short-circuiting. The check
+ * below still earns its place: it is the default reading, and it is every page
+ * this preference does not reach.
+ */
+export const visibleIn = (drawn: Drawn): Drawn => {
+  if (drawn.kind !== "tree") return drawn
+  const rows = visible(drawn.rows)
+  return rows === drawn.rows ? drawn : { kind: "tree", rows }
+}
 
 /** Follow it for as long as this document lives — the same shape as
  *  `followStoredTheme` and `followLayout`, started once from `main.tsx`,

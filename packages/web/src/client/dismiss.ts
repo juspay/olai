@@ -14,7 +14,7 @@
  * one stack, and only the last thing opened answers. Every caller here is on it
  * because {@link dismissOn} puts it there, and the panels whose gestures are
  * somebody else's (the `•••` menu's are Kobalte's, the ⌘K palette's are its
- * own, the chat's slash list takes keys in the capture phase) join that same
+ * own, the chat composer's completion takes keys in the capture phase) join that same
  * stack directly. That file lists them, and holds the one rule none of this can
  * enforce: a layer answers a dismissal from the DOCUMENT or later, never from
  * its own box.

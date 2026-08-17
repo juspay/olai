@@ -35,6 +35,7 @@ import { Schema } from "effect"
 import {
   ancestorsOf,
   type Derived,
+  isBlocked,
   mayHoldTag,
   type Row,
   storedMarker,
@@ -42,7 +43,8 @@ import {
   titleParts,
 } from "./derive.ts"
 import { customOf } from "./custom.ts"
-import { datesOf, dayOf } from "./dates.ts"
+import { shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
+import { type DayGroup, datesOf, dayOf, monthOf } from "./dates.ts"
 import { nothing } from "./write.ts"
 import {
   isArchived,
@@ -110,10 +112,13 @@ const positionBonus = (haystack: string, needle: string): number => {
 
 // ── the grammar ────────────────────────────────────────────────────────
 
-/** The marks `is:` selects on, plus the two questions that are not a mark:
- *  `marked` (any of the three — what makes `is:marked -is:done` sayable) and
- *  `archived` (below). */
-const IS_VALUES = ["done", "doing", "todo", "marked", "archived"] as const
+/** The marks `is:` selects on, plus the three questions that are not a mark:
+ *  `marked` (any of the three — what makes `is:marked -is:done` sayable),
+ *  `blocked` (the one DERIVED value here) and `archived` (below). Which of
+ *  them is answered by what is {@link being}, and that is a switch, so a value
+ *  added to this list is a compile error there rather than a query that finds
+ *  nothing. */
+const IS_VALUES = ["done", "doing", "todo", "marked", "blocked", "archived"] as const
 type IsValue = (typeof IS_VALUES)[number]
 
 /** The optional fields of a record `has:` asks about. One row per field a
@@ -125,7 +130,9 @@ const HAS_FIELDS = ["desc", "date", "see", "after", "doc"] as const
 type HasField = (typeof HAS_FIELDS)[number]
 
 /** The four operator names. A colon after anything else is a colon in a word
- *  — see {@link parseFilter}. */
+ *  — see {@link parseFilter}. A QUOTED token is never one of these, whatever it
+ *  spells: `"is:done"` is the text, which is the escape hatch out of this table
+ *  and the reason quoting and the operators shipped together. */
 const OPERATORS = ["is", "has", "date", "prop"] as const
 type Operator = (typeof OPERATORS)[number]
 
@@ -151,17 +158,35 @@ type Clause =
    */
   | { readonly kind: "prop"; readonly key: string; readonly value: string | null }
 
-/** One word to find, and whether the query wants it ABSENT. */
-interface Term {
-  readonly word: string
-  readonly negated: boolean
-}
+/**
+ * One thing a query can be satisfied BY — a word to find or a clause to hold —
+ * each with the same question about whether the query wants it ABSENT.
+ *
+ * A UNION where there used to be two lists, and the reason is `OR`: a group can
+ * hold both kinds (`is:todo OR overdue`), so "which alternatives are there" and
+ * "what kind is each" stopped being answerable by which array a thing was in.
+ * What the two lists were FOR — testing the cheap clauses before anything scans
+ * a note — is {@link inCostOrder}, over whole groups, where it is a fact about
+ * the query rather than about the shape of the value.
+ *
+ * A PHRASE is a term whose word holds spaces, and nothing here says so. That is
+ * the whole of what quoting cost: the tokenizer stopped ending a token at a
+ * space, and the matcher — which was already looking for a substring — went on
+ * doing exactly what it did.
+ */
+type Alternative =
+  | { readonly kind: "term"; readonly word: string; readonly negated: boolean }
+  | { readonly kind: "clause"; readonly clause: Clause; readonly negated: boolean }
 
-/** One clause, and the same question about it. */
-interface Held {
-  readonly clause: Clause
-  readonly negated: boolean
-}
+/**
+ * Tokens joined by `OR`: ONE of them has to hold.
+ *
+ * A token nobody joined is a group of one, which is what every token in every
+ * query was before this — so the AND across groups is the conjunction that was
+ * always here, unchanged, and `OR` is a second binding level UNDER it rather
+ * than a split over it. {@link parseFilter} argues why that way round.
+ */
+type Group = ReadonlyArray<Alternative>
 
 /**
  * A token the grammar knows the name of and not the value — `is:open` (a mark
@@ -180,7 +205,7 @@ interface Held {
  */
 export const Refusal = Schema.Struct({
   /** AS TYPED, case and all. A refusal that quoted the folded token would be
-   *  telling somebody who wrote `is:BLOCKED` that they wrote something else —
+   *  telling somebody who wrote `is:OPEN` that they wrote something else —
    *  the refusal misquoting the reader, which is the defect it exists to
    *  prevent (see {@link parseFilter}). */
   token: Schema.String,
@@ -211,8 +236,31 @@ export type Filter =
   | { readonly kind: "refused"; readonly refusals: ReadonlyArray<Refusal> }
   | {
     readonly kind: "asking"
-    readonly terms: ReadonlyArray<Term>
-    readonly clauses: ReadonlyArray<Held>
+    /** Every group must hold, and a group holds when any of its alternatives
+     *  does. In {@link inCostOrder} rather than in the reader's, which is a
+     *  reordering of a conjunction and so cannot change an answer. */
+    readonly groups: ReadonlyArray<Group>
+    /**
+     * The POSITIVE `prop:` clauses, in the order the query NAMED them — which
+     * is the order a hit's `matchedProps` comes back in, and the order a search
+     * row leads with (`@olai/web`'s `search/props.ts`: "the keys a `prop:`
+     * clause selected this node on lead, in the order the query named them").
+     *
+     * A SECOND LIST beside the groups rather than a walk of them, for two
+     * reasons that are the same reason. The groups are in {@link inCostOrder},
+     * which is an EVALUATION order and not the reader's — so a `prop:` sharing
+     * a group with a word is tested last and would have been reported last,
+     * quietly breaking that contract for exactly the queries this pass added.
+     * And it is read once per node a query SELECTS, where walking every group
+     * of every query — nearly none of which name a property — was a scan per
+     * hit for an answer that is a fact about the QUERY.
+     *
+     * Derived at parse time from the tokens it is built beside, exactly as
+     * `speaksOfArchive` below is, and negated clauses are left out here for the
+     * reason {@link Match.props} gives: a node found by `-prop:agent` was not
+     * found ON `agent`.
+     */
+    readonly namedProps: ReadonlyArray<Extract<Clause, { kind: "prop" }>>
     /** True when the query names the archive at all, in either polarity. The
      *  archive is out of every reading unless it is ASKED for
      *  (docs/search.md), and this is the flag that says it was — so
@@ -221,60 +269,338 @@ export type Filter =
     readonly speaksOfArchive: boolean
   }
 
+// ── the tokenizer ──────────────────────────────────────────────────────
+
+/**
+ * The one character that suspends a space, and so the one that can make a
+ * token out of two words. ONE kind of quote: an apostrophe is a character
+ * people write (`don't`), exactly as a colon is, and a grammar that read one as
+ * punctuation could not search prose.
+ */
+const QUOTE = `"`
+
+/** What ends a token — the split this file used to do with one regex, done a
+ *  character at a time because a quote can now say "not this one". */
+const SPACE = /\s/
+
+/**
+ * One token, as the reader typed it and as the grammar reads it.
+ *
+ * THREE FACTS BECAUSE THE FOLD AND THE QUOTES ARE BOTH LOSSY, and each is read
+ * by something different: {@link Refusal} quotes `written`, the matcher and the
+ * operator tables read `text`, and `quoted` is what says a token is TEXT
+ * whatever it spells. Deriving any of them from another is what the old
+ * `written` / `raw` pair could still do and this cannot — `"-force"` and
+ * `-force` fold to the same string and mean opposite things, which is why the
+ * dash is read here, where its position is still known.
+ */
+interface Token {
+  /** AS TYPED — dash, quotes, capitals and all. What a refusal shows. */
+  readonly written: string
+  /** What the grammar reads: the quotes taken out, the case folded, the
+   *  negation taken off the front. */
+  readonly text: string
+  /** Did the token OPEN with a quote (after at most one `-`)? Then it is a term
+   *  whatever it holds, and never the {@link JOINER}. */
+  readonly quoted: boolean
+  readonly negated: boolean
+}
+
+/**
+ * Text into tokens — and this is the whole of what quoting changed.
+ *
+ * A quote SUSPENDS the space that would have ended the token, so `"kitchen
+ * remodel"` is one thing to look for; a quote at the FRONT of a token (after at
+ * most one `-`) also says the token is text rather than an operator. Those are
+ * two rules and they buy two different things — the first is `prop:agent="two
+ * words"`, which needs no rule of its own; the second is `"is:done"`, the only
+ * way to search for the text somebody wrote in a note when the grammar has
+ * claimed that spelling. The FRONT is about that second rule only: a quote
+ * anywhere in a token opens a region, wherever it sits.
+ *
+ * A QUOTE NOTHING CLOSES stops the scan and is reported, rather than being
+ * closed at the end of the input on the reader's behalf: `"pick the` and `"pick
+ * the"` are two different queries, and guessing which was meant is exactly the
+ * quiet answer to an unasked question this grammar refuses everywhere else. The
+ * tokens READ SO FAR come back with it, so a query that got two things wrong is
+ * told about both.
+ *
+ * WHICH COSTS ONE TERM, and it is named rather than excepted: a lone `"` is a
+ * quote nothing closes wherever it sits, so `36"` is refused instead of being
+ * searched for as an inch mark. The alternative is a second rule about the same
+ * character — a quote opens a region UNLESS nothing closes it, in which case it
+ * was a character all along — which is a rule nobody can hold and which decides
+ * what a token means by reading the end of the line. One rule and a refusal
+ * that teaches it; the word is reachable without the mark (`36`).
+ *
+ * THE DASH IS READ HERE for the reason the header above gives: after the quotes
+ * come out, a dash that negated the token and a dash somebody quoted are the
+ * same character in the same place. `-"kitchen remodel"` is a phrase taken back
+ * out; `"-force"` is a word people write.
+ */
+const tokensOf = (text: string): {
+  readonly tokens: ReadonlyArray<Token>
+  /** The token that opened a quote nothing closed, as typed — `null` when every
+   *  quote was closed. */
+  readonly unclosed: string | null
+} => {
+  const tokens: Array<Token> = []
+  let at = 0
+  while (at < text.length) {
+    if (SPACE.test(text[at] as string)) {
+      at += 1
+      continue
+    }
+    const start = at
+    // ONE leading `-`, and only in front of something: a bare `-` is a
+    // character somebody typed, not a negation of nothing.
+    const negated = text[at] === "-" && at + 1 < text.length &&
+      !SPACE.test(text[at + 1] as string)
+    if (negated) at += 1
+    // Where a quote would be the token's FIRST character, which is what makes
+    // it a phrase rather than a suspended space.
+    const opens = at
+    let read = ""
+    let quoted = false
+    let dangling = false
+    while (at < text.length && !SPACE.test(text[at] as string)) {
+      if (text[at] !== QUOTE) {
+        read += text[at]
+        at += 1
+        continue
+      }
+      if (at === opens) quoted = true
+      const closes = text.indexOf(QUOTE, at + 1)
+      if (closes === -1) {
+        at = text.length
+        dangling = true
+        break
+      }
+      read += text.slice(at + 1, closes)
+      at = closes + 1
+    }
+    const written = text.slice(start, at)
+    if (dangling) return { tokens, unclosed: written }
+    tokens.push({ written, text: read.toLowerCase(), quoted, negated })
+  }
+  return { tokens, unclosed: null }
+}
+
+// ── the grammar, as tokens ─────────────────────────────────────────────
+
+/**
+ * What joins two tokens into one group, and THE ONE TOKEN IN THIS GRAMMAR THAT
+ * IS NOT FOLDED.
+ *
+ * In capitals because `or` is a word people write — a note that says `walnut or
+ * birch` is an ordinary note — and a grammar that read the lower-case one as a
+ * joiner would have taken a common English word out of the language it is
+ * searching. So the exception is the thing that keeps the rule: everything else
+ * folds, and `or` goes on being a word because `OR` is the joiner. A note that
+ * shouts it back has the other escape hatch: `"OR"` is the text.
+ *
+ * Compared against {@link Token.written} rather than against `text`, which is
+ * what makes the two lines above one comparison: the folded form would answer
+ * for `or`, and a quoted one carries its own quotes in `written` and so can
+ * never equal this.
+ */
+const JOINER = "OR"
+
+/** What a dangling `OR` is told. It NAMES THE RULE rather than the token, for
+ *  the reason every refusal in this file does: the reader typed a joiner, and
+ *  the honest answer is what a joiner joins. */
+const JOINING =
+  `${JOINER} joins the token before it to the token after it — one of them is missing`
+
+/** ...and what an unclosed quote is told. Same sentence shape, same reason: a
+ *  phrase is delimited, and the delimiter that is missing is the news. */
+const UNCLOSED = `a quote nothing closes — a phrase runs from one ${QUOTE} to the next`
+
+/** ...and what a phrase with no words in it is. Refused rather than matched,
+ *  and it is `prop:stage=`'s rule exactly: an empty needle is in every node
+ *  ever written, so a query nobody meant would answer with the whole directory
+ *  — the loud twin of the silent empty answer. A phrase of nothing BUT
+ *  WHITESPACE is the same query with the same answer, which is why the test
+ *  below trims: `" "` finds every node whose title has a space in it, which is
+ *  all of them and none of what was meant. */
+const NOTHING_QUOTED =
+  `a phrase with no words in it — what to look for goes between the ${QUOTE}s`
+
 /**
  * Text into a query.
  *
- * Whitespace-separated tokens; a leading `-` negates whichever kind the token
+ * Tokens ({@link tokensOf}); a leading `-` negates whichever kind the token
  * turns out to be; a token whose left-of-colon is one of {@link OPERATORS} is a
  * clause and everything else is a substring term. That last rule is the one
  * worth stating: `TODO:`, `note:x` and `http://example.com` are words people
  * write, and a grammar that refused every colon would be a grammar that could
  * not search prose.
  *
- * Pure, and with no clock in it — which is why `date:today` is not in the
- * grammar (docs/brainstorming/filter-in-place.md names it as deferred).
+ * TWO BINDING LEVELS AND NO PARENTHESES, which is the ruling this pass exists
+ * to make. `OR` joins the tokens on either side of it into one {@link Group};
+ * the groups are ANDed exactly as adjacent tokens always were. So `OR` binds
+ * TIGHTER than the conjunction, and `#home kitchen OR bathroom` is `#home` and
+ * one of the other two — which is what somebody typing it means. The other way
+ * round it reads `(#home AND kitchen) OR bathroom`, and the second half of that
+ * answer is every bathroom in the directory, arriving with no `#home` about it:
+ * a query that quietly WIDENED is the trap this grammar's deferral named, and
+ * it is worse than a narrow one because the extra rows look like a search
+ * working. The reader who wants the loose reading has the tighter one plus a
+ * second query; the reader who wants the tight one, under the loose rule, has
+ * nothing at all to type.
+ *
+ * A GROUP IS NOT NEGATED, and there is nothing missing, because the dash is a
+ * TOKEN's and there are now two binding levels — which is exactly enough for
+ * both of De Morgan's readings. `-a -b` is `NOT (a OR b)`, "neither": two
+ * groups, both of which must hold. `-a OR -b` is `NOT (a AND b)`, "not both":
+ * one group, either half of which will do. So this grammar is closed under both
+ * laws without a parenthesis in it, and a group-level `-` would only be a
+ * second spelling of one of the two.
+ *
+ * PURE, AND THE CLOCK IS AN ARGUMENT. `now` is what the relative words count
+ * from (`date:yesterday`, `date:last-week`) — the day the reader is standing
+ * on, or an instant on it ({@link relativeSpan} cuts one down to the other).
+ * It is a parameter rather than something read in here for two reasons that
+ * are really one: a function that read a clock could not be tested against a
+ * boundary, and the day is a fact about WHO IS ASKING — the tab's own local
+ * day for the filter the browser parses itself, the server's for the three
+ * doors that ask it, and no door has two. Those two CAN differ — a tab across
+ * a time-zone boundary from the server has its own local day — and docs/
+ * search.md says why that is accepted rather than fixed by putting a clock on
+ * the wire. The deferral this lifts (docs/brainstorming/filter-in-place.md)
+ * named the price as "threading `today` through the parse", and that is
+ * exactly what it cost.
  *
  * CASE IS FOLDED FOR MATCHING AND NOT FOR QUOTING. The words and the operator
  * values are compared folded, so `is:DONE` and `#Home` work; a REFUSAL quotes
- * the token exactly as it was typed. Telling somebody who typed `is:BLOCKED`
- * that they typed `is:blocked` is the refusal misquoting the reader, which is
+ * the token exactly as it was typed. Telling somebody who typed `is:OPEN`
+ * that they typed `is:open` is the refusal misquoting the reader, which is
  * the same defect class the refusal exists to prevent — the split is why the
  * fold happens per token here rather than to the whole string on the way in.
+ * {@link JOINER} is the one token this does not reach, and its own note says
+ * why the exception is what keeps the rule.
  */
-export const parseFilter = (text: string): Filter => {
-  const terms: Array<Term> = []
-  const clauses: Array<Held> = []
+export const parseFilter = (text: string, now: string): Filter => {
+  const groups: Array<Array<Alternative>> = []
+  const namedProps: Array<Extract<Clause, { kind: "prop" }>> = []
   const refusals: Array<Refusal> = []
   let speaksOfArchive = false
+  // The last token was a joiner, so the next one lands in the group before it
+  // rather than opening one of its own.
+  let joining = false
+  // Some token has been read — which is what a joiner needs on its left, and
+  // it is a TOKEN rather than a group: a token the grammar refused is still one
+  // the reader typed, and reporting a dangling `OR` beside it would be this
+  // grammar inventing a second mistake out of the first one.
+  let read = false
 
-  for (const written of text.split(/\s+/)) {
-    if (written === "") continue
-    const raw = written.toLowerCase()
-    // A bare `-` is a character somebody typed, not a negation of nothing.
-    const negated = raw.length > 1 && raw.startsWith("-")
-    const token = negated ? raw.slice(1) : raw
-    const colon = token.indexOf(":")
-    const name = colon === -1 ? "" : token.slice(0, colon)
-    if (!isOperator(name)) {
-      terms.push({ word: token, negated })
+  const { tokens, unclosed } = tokensOf(text)
+  for (const token of tokens) {
+    // The joiner, and it is the only token read as typed — see {@link JOINER}.
+    // A quoted one carries its quotes here and so is a word.
+    if (token.written === JOINER) {
+      // Nothing before it, or another joiner before it: either way one of the
+      // two things it joins is missing.
+      if (joining || !read) {
+        refusals.push({ token: token.written, reason: JOINING })
+        continue
+      }
+      joining = true
       continue
     }
-    const value = token.slice(colon + 1)
-    const clause = clauseOf(name, value)
-    if (clause === null) {
-      refusals.push({ token: written, reason: teaching(name, value) })
+    read = true
+    const alternative = alternativeOf(token, now)
+    const joined = joining
+    joining = false
+    if ("reason" in alternative) {
+      refusals.push({ token: token.written, reason: alternative.reason })
       continue
     }
-    if (clause.kind === "is" && clause.value === "archived") speaksOfArchive = true
-    clauses.push({ clause, negated })
+    // The two facts about the WHOLE query that are read off its clauses, both
+    // collected here in the order they were typed rather than walked back out
+    // of the groups afterwards — where the order is no longer the reader's.
+    if (alternative.kind === "clause") {
+      const { clause } = alternative
+      if (clause.kind === "is" && clause.value === "archived") speaksOfArchive = true
+      if (clause.kind === "prop" && !alternative.negated) namedProps.push(clause)
+    }
+    const last = groups[groups.length - 1]
+    // Joined onto the group before it — unless the token that opened that group
+    // was refused and there is none, which is a query that answers nothing
+    // whatever this does with it.
+    if (joined && last !== undefined) last.push(alternative)
+    else groups.push([alternative])
   }
+  // A joiner still waiting at the end of the tokens — UNLESS the scan stopped
+  // early, in which case the reader did type something after it and the quote
+  // ran away with it. `hinges OR "pick the` is one mistake, and telling them
+  // the `OR` has nothing after it is the grammar reporting a second one that
+  // was never made, beside the one that was.
+  if (joining && unclosed === null) refusals.push({ token: JOINER, reason: JOINING })
+  // LAST, because that is where it is in the text: the tokens before it were
+  // read, and a query that got two things wrong is told about both.
+  if (unclosed !== null) refusals.push({ token: unclosed, reason: UNCLOSED })
 
   // One refusal decides the whole query. The alternative — answering with the
   // half that parsed — is a list that looks like an answer to a question
   // nobody asked, which is the silent error the refusals exist to prevent.
   if (refusals.length > 0) return { kind: "refused", refusals }
-  if (terms.length === 0 && clauses.length === 0) return { kind: "nothing" }
-  return { kind: "asking", terms, clauses, speaksOfArchive }
+  if (groups.length === 0) return { kind: "nothing" }
+  return { kind: "asking", groups: inCostOrder(groups), namedProps, speaksOfArchive }
+}
+
+/**
+ * One token, as the thing it can satisfy — or the sentence that says why it is
+ * none of them.
+ *
+ * A QUOTED TOKEN IS A TERM AND IS NOT ASKED ANYTHING ELSE, which is the whole
+ * of how quoting meets the operators: `"is:done"` is the text `is:done`, found
+ * wherever somebody wrote it in a note, and there is otherwise NO way to look
+ * for the spelling of an operator. The check is before the colon rather than
+ * inside {@link isOperator} because the fact is about the token — the quotes
+ * are gone from `text` by now, and a table that had to know about them would be
+ * a second place quoting is decided.
+ */
+const alternativeOf = (
+  token: Token,
+  now: string,
+): Alternative | { readonly reason: string } => {
+  // Only quotes can leave a token with no word in it — a bare `-` is the
+  // character itself — and TRIMMED, because a needle of one space is in every
+  // node ever written exactly as an empty one is.
+  if (token.text.trim() === "") return { reason: NOTHING_QUOTED }
+  const asTerm = { kind: "term", word: token.text, negated: token.negated } as const
+  if (token.quoted) return asTerm
+  const colon = token.text.indexOf(":")
+  const name = colon === -1 ? "" : token.text.slice(0, colon)
+  if (!isOperator(name)) return asTerm
+  const value = token.text.slice(colon + 1)
+  const clause = clauseOf(name, value, now)
+  return clause === null
+    ? { reason: teaching(name, value) }
+    : { kind: "clause", clause, negated: token.negated }
+}
+
+/**
+ * The groups, cheapest first: the ones that hold no word at all, then the rest.
+ *
+ * A REORDERING OF A CONJUNCTION, so it cannot change an answer — every group
+ * has to hold, the score is a sum and the field a maximum, and none of the
+ * three cares in which order they were asked. What it buys is the gate order
+ * this file has always had and nearly lost to `OR`: `kitchen is:done` used to
+ * be two lists and so tested the mark, which is a field read, before scanning
+ * four haystacks it had to fold a whole note into. Typed order would have put
+ * the scan first on every node of the set, on every keystroke of a filter.
+ *
+ * The lazier half is {@link matchOf}'s: a group that holds no word never asks
+ * for a haystack, so a query of operators alone still folds nothing.
+ */
+const inCostOrder = (groups: ReadonlyArray<Group>): ReadonlyArray<Group> => {
+  // The second list is the COMPLEMENT of the first rather than its own test, so
+  // every group lands in exactly one of them by construction — which is what
+  // makes this a reordering rather than a filter that could quietly drop one.
+  const wordless = (group: Group) => group.every((one) => one.kind === "clause")
+  return [...groups.filter(wordless), ...groups.filter((group) => !wordless(group))]
 }
 
 /**
@@ -287,7 +613,7 @@ export const parseFilter = (text: string): Filter => {
  * a compile error here and in {@link teaching}, which are the two places an
  * operator has to say something.
  */
-const clauseOf = (name: Operator, value: string): Clause | null => {
+const clauseOf = (name: Operator, value: string, now: string): Clause | null => {
   switch (name) {
     case "is":
       return (IS_VALUES as ReadonlyArray<string>).includes(value)
@@ -298,7 +624,7 @@ const clauseOf = (name: Operator, value: string): Clause | null => {
         ? { kind: "has", field: value as HasField }
         : null
     case "date":
-      return dateClause(value)
+      return dateClause(value, now)
     case "prop":
       return propClause(value)
   }
@@ -350,7 +676,9 @@ const teaching = (name: Operator, value: string): string => {
     case "has":
       return `has: takes one of ${HAS_FIELDS.join(", ")}`
     case "date":
-      return "date: takes a day, month or year (2026-08-10, 2026-08, 2026) or a range (2026-08-01..2026-08-14, ..2026-08-10, 2026-08-10..)"
+      return "date: takes a day, month or year (2026-08-10, 2026-08, 2026), " +
+        `a relative word (${RELATIVE_TEACHING}), ` +
+        "or a range of either (2026-08-01..2026-08-14, ..2026-08-10, last-week..)"
     case "prop":
       // The one operator whose values are not a list this file holds — any key
       // is a key — so what it teaches is the SHAPE, and the two shapes are the
@@ -363,6 +691,159 @@ const teaching = (name: Operator, value: string): string => {
  *  SHAPE only; {@link datePart} is what says the numbers are possible. */
 const PARTIAL_DAY = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/
 const RANGE = ".."
+
+// ── the relative words ─────────────────────────────────────────────────
+
+/**
+ * The three words for a DAY near today, and how many days each is away.
+ *
+ * Three words rather than `this-day` and its family, because that is the shape
+ * English already has: a person who means the day they are standing on says
+ * `today`. The units below have no such words, so they take the prefixes.
+ *
+ * A MAP AND NOT AN OBJECT, here and for {@link RELATIVE_STEPS}, because the key
+ * is a WORD SOMEBODY TYPED. An object lookup answers for the prototype as well
+ * as for the table, with a value of the wrong kind: `date:constructor` came
+ * back with a function where a number of days was expected and minted a bound
+ * with that function's source text glued to the day, and `date:__proto__-week`
+ * came back with an object and minted `2026-08-NaN`. Both are a query that
+ * finds nothing and says nothing — the exact silence the refusal arm exists to
+ * prevent, since neither is a word this operator takes. `Map.get` answers for
+ * what was put in it and nothing else. The tables the grammar keys by its OWN
+ * values (the field weights, the operator names) are objects still; this is the
+ * distinction, not a new house style.
+ */
+const RELATIVE_DAYS: ReadonlyMap<string, number> = new Map([
+  ["today", 0],
+  ["yesterday", -1],
+  ["tomorrow", 1],
+])
+
+/** The units a `this-` / `last-` / `next-` word can name — the three the
+ *  absolute grammar can already spell a WHOLE of (`2026-08` is a month,
+ *  `2026` a year), plus the week, which it cannot spell at all and which is the
+ *  reason this vocabulary was asked for. */
+const RELATIVE_UNITS = ["week", "month", "year"] as const
+type RelativeUnit = (typeof RELATIVE_UNITS)[number]
+
+/** Is the word after the prefix one of them? A type guard, {@link isOperator}'s
+ *  shape, so the branches below are ones the compiler checks — a fourth unit
+ *  added to the list above is an error there rather than a word that parses and
+ *  resolves to a year. */
+const isUnit = (name: string): name is RelativeUnit =>
+  (RELATIVE_UNITS as ReadonlyArray<string>).includes(name)
+
+/** How far each prefix steps, in whole units of whatever it is prefixing. A
+ *  MAP for {@link RELATIVE_DAYS}' reason: `date:__proto__-week` is a token
+ *  somebody can type, and an object would have answered it. */
+const RELATIVE_STEPS: ReadonlyMap<string, number> = new Map([
+  ["this", 0],
+  ["last", -1],
+  ["next", 1],
+])
+
+/**
+ * The vocabulary as a refusal says it: the day words listed, and the other
+ * nine as the two lists they are the product of.
+ *
+ * IN FULL, which is this file's rule for what a refusal teaches — nothing is
+ * elided, and a reader can write any of the twelve off this sentence. It is
+ * generative rather than enumerated because that is what the words ARE: three
+ * prefixes over three units, and spelling out nine of them makes a line
+ * nobody reads to the end out of one somebody can. `prop:` teaches its shape
+ * for the same reason.
+ *
+ * Built from the tables above rather than written beside them, so a prefix or
+ * a unit added to one teaches itself exactly as an `is:` value does.
+ */
+const RELATIVE_TEACHING = `${[...RELATIVE_DAYS.keys()].join(", ")}, or ${
+  [...RELATIVE_STEPS.keys()].map((step) => `${step}-`).join(" / ")
+} with ${RELATIVE_UNITS.join(", ")}`
+
+/** An inclusive span of days, both ends spelled out. What every `date:` value
+ *  — absolute or relative — is read into before it becomes a clause. */
+interface Span {
+  readonly from: string
+  readonly to: string
+}
+
+/**
+ * A relative word, resolved against the day the query is being asked on — or
+ * `null` for a word that is not one.
+ *
+ * A PURE FUNCTION OF (word, now), which is the whole of why the clock is a
+ * parameter of {@link parseFilter} rather than something read in here: a
+ * boundary that moves with the machine is a boundary no test can pin, and every
+ * one of these is right for most of the year and off by a day in some
+ * particular week. `now` arrives from the ONE clock each door has — the tab's
+ * (`@olai/web`'s `clock.ts`) for the filter the browser parses itself, the
+ * server's (`@olai/ops`' `Context.now`, the clock a `done` is stamped with) for
+ * the three doors that ask it. EITHER SHAPE: a day, or an instant on one, cut
+ * down by ./dates.ts's own `dayOf` rather than by each door before it calls —
+ * which is the ruling `isOverdue` made about this same parameter, after an
+ * untrimmed instant reached it.
+ *
+ * NOTHING IS COUNTED HERE. The three questions this needs — the day before or
+ * after one, the month or the year `n` away, which weekday today is — are all
+ * ./calendar.ts's, and a week is those composed rather than a fourth: back to
+ * the Monday, then whole weeks from there. So the claim that file makes about
+ * being the only place a date is counted survives its first caller.
+ *
+ * A WEEK RUNS MONDAY TO SUNDAY, and it is not this file's opinion either: it
+ * is `weekdayOf`'s count, which is the one the calendar grid lays its columns
+ * out by. A query that started its week on Sunday would be selecting days the
+ * grid draws in another row.
+ *
+ * A MONTH AND A YEAR are handed to the same {@link lowOf} / {@link highOf} the
+ * absolute forms use, so `date:this-month` and `date:2026-08` are one answer
+ * rather than two — including the upper bound being `-31` whether or not the
+ * month has one, which is that pair's own argued rule.
+ *
+ * `null` for a `now` that names no day, which no door can hand over: a clock
+ * that says nothing is not a day to count from, and inventing one would be
+ * this grammar answering a date question out of thin air.
+ *
+ * EXPORTED for {@link spanOf} next door and for the test that pins these
+ * boundaries against a fixed day — which is the half of this feature a test can
+ * hold still, and the reason the clock is an argument at all.
+ */
+export const relativeSpan = (word: string, now: string): Span | null => {
+  const today = dayOf(now)
+  // Which weekday the reader is standing on — and, since it is `null` for text
+  // that names no day, whether there is a day to count from at all. One
+  // question, because a second validity check here would be a second answer to
+  // what a day is. It costs one reading per `date:` token, which is once per
+  // query rather than once per node.
+  const standing = weekdayOf(today)
+  if (standing === null) return null
+
+  const near = RELATIVE_DAYS.get(word)
+  if (near !== undefined) {
+    const day = shiftDay(today, near)
+    return { from: day, to: day }
+  }
+
+  const at = word.indexOf("-")
+  if (at === -1) return null
+  const step = RELATIVE_STEPS.get(word.slice(0, at))
+  const unit = word.slice(at + 1)
+  if (step === undefined || !isUnit(unit)) return null
+
+  if (unit === "week") {
+    // Back to this week's Monday, then a whole number of weeks from there.
+    const monday = shiftDay(today, step * 7 - standing)
+    return { from: monday, to: shiftDay(monday, 6) }
+  }
+  // A year is twelve months through the same counter, rather than four digits
+  // added to by hand: one arithmetic, and no second rule about how a year is
+  // spelled.
+  const months = unit === "month" ? step : step * 12
+  const stepped = shiftMonth(monthOf(today), months)
+  // …and then read at the width the unit names: `2026-09` or the `2026` in
+  // front of it, which is exactly what a reader would have typed.
+  const whole = unit === "month" ? stepped : stepped.slice(0, 4)
+  return { from: lowOf(whole), to: highOf(whole) }
+}
 
 /**
  * One end of a `date:`, read — or `null` for a value no day could ever match.
@@ -397,37 +878,58 @@ const twoDigitsIn = (digits: string, low: number, high: number): boolean => {
 }
 
 /**
- * `date:` — a day, a month, a year, or a span of them.
+ * One end of a `date:`, as the span of days it stands for — or `null` for a
+ * value this operator does not take.
+ *
+ * The ONE reading of a `date:` value, whichever form it is written in: a
+ * relative word first ({@link relativeSpan}), then the absolute prefix. Which
+ * is what makes a relative word compose with a range for free rather than by a
+ * second rule — `date:last-week..` is the low end of last week's span with
+ * nothing above it, exactly as `date:2026-08..` is the low end of August's.
+ */
+const spanOf = (value: string, now: string): Span | null => {
+  const relative = relativeSpan(value, now)
+  if (relative !== null) return relative
+  return datePart(value) === null
+    ? null
+    : { from: lowOf(value), to: highOf(value) }
+}
+
+/**
+ * `date:` — a day, a month, a year, a relative word, or a span of them.
  *
  * Bounds are DAY STRINGS and comparison is text, as everywhere else in this
  * package: dates are validated ISO and stored verbatim, so a day is a
  * ten-character prefix and a range is two string comparisons. Nothing is parsed
  * into an instant — a date-only value put through one comes back a datetime,
- * and ./dates.ts already says why this is not the place to risk it. The one
- * arithmetic here is {@link datePart}'s bound check, over two digits at a time.
+ * and ./dates.ts already says why this is not the place to risk it. The
+ * arithmetic a relative word needs is ./calendar.ts's, over integers, and it
+ * happens ONCE per query rather than per node: what a clause holds afterwards
+ * is the same two strings an absolute value produced.
  *
  * A month's upper bound is `-31` whether or not that month has one: as an
  * upper bound in a string comparison no real day of the month exceeds it, and
  * inventing a calendar here would be arithmetic to answer a question the
  * comparison already answers.
+ *
+ * A range takes each end's own span and keeps the OUTER edge of it — the low
+ * of the left, the high of the right — so `date:last-week..today` runs from
+ * last Monday to tonight, and an end left empty is unbounded that way.
  */
-const dateClause = (value: string): Clause | null => {
+const dateClause = (value: string, now: string): Clause | null => {
   const at = value.indexOf(RANGE)
   if (at === -1) {
-    return datePart(value) === null
-      ? null
-      : { kind: "date", from: lowOf(value), to: highOf(value) }
+    const span = spanOf(value, now)
+    return span === null ? null : { kind: "date", from: span.from, to: span.to }
   }
   const left = value.slice(0, at)
   const right = value.slice(at + RANGE.length)
   if (left === "" && right === "") return null
-  if (left !== "" && datePart(left) === null) return null
-  if (right !== "" && datePart(right) === null) return null
-  return {
-    kind: "date",
-    from: left === "" ? null : lowOf(left),
-    to: right === "" ? null : highOf(right),
-  }
+  const low = left === "" ? null : spanOf(left, now)
+  if (left !== "" && low === null) return null
+  const high = right === "" ? null : spanOf(right, now)
+  if (right !== "" && high === null) return null
+  return { kind: "date", from: low?.from ?? null, to: high?.to ?? null }
 }
 
 const lowOf = (value: string): string =>
@@ -482,55 +984,104 @@ export interface Matched {
 export interface Scope {
   readonly file?: string | undefined
   readonly under?: string | undefined
+  /**
+   * Whether what was put AWAY is in this corner of the set at all.
+   *
+   * The default is the grammar's own rule — archived nodes are out of every
+   * reading unless the query says `is:archived` (docs/search.md) — because the
+   * three doors that leave it alone are asking about the DIRECTORY, where an
+   * archive is a place a reader has to name before they are shown it.
+   *
+   * `true` is for the door whose scope is a PAGE that is already showing them:
+   * the filter over the page tests the rows in front of somebody, and THREE of
+   * those pages draw archived nodes for reasons of their own — the trash IS the
+   * archive; a day collects every dated node wherever it was filed (./dates.ts,
+   * which decided that and says why); and the agenda reads those same dates
+   * forward under the same rule (./agenda.ts), so work that was put away after
+   * somebody scheduled it is still owed. There the default is not a default, it
+   * is this matcher overruling a page about what the page is showing, and the
+   * reader watching rows vanish has nothing to read it by.
+   */
+  readonly archived?: boolean | undefined
 }
 
 /**
  * Does this node match, and why — or `null`.
  *
  * The order of the gates is the order of their cost: a query that is not
- * ASKING decides before anything is read, the archive is a filename, the
- * clauses are field tests, and the words are the only thing that scans text.
+ * ASKING decides before anything is read, the clauses are a field test or an
+ * index lookup, and the words are the only thing that scans text. (The archive
+ * is cheaper than all of them and is asked one level up, in {@link matching},
+ * because whether it is in the reading at all is a fact about the QUESTION —
+ * the query's own `is:archived`, or a caller whose scope already holds it.)
+ * That order survived `OR` in two halves — the groups
+ * arrive with the wordless ones in front ({@link inCostOrder}), and the
+ * haystacks are minted at the first word rather than at the top.
+ *
+ * THE DERIVATION IS A PARAMETER because one clause is not about the record:
+ * `is:blocked` is a question about the SET (what this node waits on, and
+ * whether that is still unfinished work), and the answer is an index every
+ * caller of {@link matching} already holds. Named as the cost of this operator
+ * in docs/brainstorming/filter-in-place.md when it was deferred, and it is the
+ * whole of it — a lookup at the gate, no walk.
  */
-const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
+const matchOf = (
+  derived: Derived,
+  at: LocatedRegular,
+  filter: Filter,
+): Match | null => {
   // Neither an empty box nor a query the grammar could not read selects
-  // anything — and neither of them HAS terms to be tempted by, which is what
+  // anything — and neither of them HAS groups to be tempted by, which is what
   // the union above is for.
   if (filter.kind !== "asking") return null
-  if (!filter.speaksOfArchive && isArchived(at.file)) return null
 
-  for (const held of filter.clauses) {
-    if (holds(at, held.clause) === held.negated) return null
-  }
-
-  // Collected only for a node that has already PASSED every clause, so the map
-  // is walked for the few nodes a query selects rather than for every node it
-  // considers.
-  const props = propsOf(at.node, filter)
-
-  // A query of operators alone is carried by no field, and nothing below would
-  // read the haystacks — which are four allocations and up to three case-folds
-  // of a whole note, per node of the set. `is:done` is exactly that query.
-  if (filter.terms.length === 0) return { field: null, score: 0, props }
-
-  const hay = haystacksOf(at.node)
+  // The four fields as text, folded — four allocations and up to three folds of
+  // a whole note, so they are minted at the first WORD this node is asked about
+  // and never for a query that names none. `is:done` on its own is exactly that
+  // query, and the groups that hold no word are tested first ({@link
+  // inCostOrder}), so a node it rejects is rejected before this is reached.
+  let hay: Record<SearchField, ReadonlyArray<string>> | null = null
   let score = 0
   let field: SearchField | null = null
   let weight = -1
-  for (const term of filter.terms) {
-    const hit = wordHit(hay, term.word)
-    if (term.negated) {
-      if (hit !== null) return null
-      continue
+
+  for (const group of filter.groups) {
+    // Every alternative is asked, rather than stopping at the first that holds,
+    // and the reason is the SCORE: a group is worth its best word, so which
+    // alternative the reader happened to type first must not decide how high
+    // the hit ranks. The cost is the same scan the conjunction did when these
+    // were separate tokens.
+    let holding = false
+    let best: { readonly field: SearchField; readonly score: number } | null = null
+    for (const one of group) {
+      if (one.kind === "clause") {
+        if (holds(derived, at, one.clause) !== one.negated) holding = true
+        continue
+      }
+      hay ??= haystacksOf(at.node)
+      const hit = wordHit(hay, one.word)
+      if (one.negated) {
+        if (hit === null) holding = true
+        continue
+      }
+      if (hit === null) continue
+      holding = true
+      if (best === null || hit.score > best.score) best = hit
     }
-    // Every word, in the same node. One miss and the node is not a hit.
-    if (hit === null) return null
-    score += hit.score
-    if (FIELD_WEIGHT[hit.field] > weight) {
-      weight = FIELD_WEIGHT[hit.field]
-      field = hit.field
+    // Every group, in the same node. One that nothing satisfied and the node is
+    // not a hit.
+    if (!holding) return null
+    if (best === null) continue
+    score += best.score
+    if (FIELD_WEIGHT[best.field] > weight) {
+      weight = FIELD_WEIGHT[best.field]
+      field = best.field
     }
   }
-  return { field, score, props }
+
+  // Collected only for a node that has already matched, so the map is walked
+  // for the few nodes a query selects rather than for every node it considers.
+  return { field, score, props: propsOf(at.node, filter) }
 }
 
 /**
@@ -549,9 +1100,16 @@ const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
  */
 const propsOf = (node: RegularNode, filter: Extract<Filter, { kind: "asking" }>) => {
   const keys: Array<string> = []
-  for (const held of filter.clauses) {
-    if (held.negated || held.clause.kind !== "prop") continue
-    const key = propKeyOf(node, held.clause)
+  // The clauses the query NAMED, in the reader's own order and without walking
+  // the groups it is tested through — {@link Filter}'s `namedProps` argues both
+  // halves of that, and the second one is why a query that names no property
+  // does no work here at all.
+  for (const clause of filter.namedProps) {
+    // ASKED AGAIN rather than remembered from the gate, which is what makes an
+    // alternative honest: a node in a group like `prop:pr OR cabinets` may be
+    // here on the word alone, and naming a key it does not carry would be the
+    // row drawing a lie. `null` says so.
+    const key = propKeyOf(node, clause)
     // Reported once however many clauses name it: `prop:pr prop:pr=x` is one
     // key the reader would see twice.
     if (key !== null && !keys.includes(key)) keys.push(key)
@@ -583,16 +1141,45 @@ const wordHit = (
   return field === null ? null : { field, score }
 }
 
-const holds = (at: LocatedRegular, clause: Clause): boolean => {
-  if (clause.kind === "is") {
-    if (clause.value === "archived") return isArchived(at.file)
+/**
+ * What `is:` asks of one node — a SWITCH over the value's own type, for the
+ * reason {@link clauseOf} is one: three of these six are answered by three
+ * different things, and the chain of `if`s this replaced ended in a comparison
+ * against the stored mark. So a value added to {@link IS_VALUES} that is not a
+ * mark fell through to `mark === "whatever"` and quietly selected nothing —
+ * the silent empty answer this file's whole refusal arm exists to prevent,
+ * arriving by a path no refusal can see. Now it is a compile error here, which
+ * is the second place (with {@link teaching}) a new value has to say something.
+ */
+const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean => {
+  switch (value) {
+    case "archived":
+      return isArchived(at.file)
+    // THE ONE DERIVED VALUE, and it is the index the views draw from rather
+    // than a second reading of `after`: the same answer that puts the `blocked
+    // by` line on a node's page and the dim on a row, so a query cannot find a
+    // node the app does not draw as waiting, or miss one it does. What
+    // blockedness IS — which targets stand in the way, and which sources can
+    // be said to be waiting at all — is `./derive.ts`'s `blockage` and is not
+    // restated here. Including the part nobody has to pay for: the derivation
+    // is of the whole SET, so this reaches across files exactly as the screen
+    // does.
+    case "blocked":
+      return isBlocked(derived, at.node.id)
+    case "marked":
+      return storedMarker(at.node) !== undefined
     // The STORED mark, never a derived one: a parent whose children are all
     // ticked is not `is:done` unless somebody ticked it (docs/format.md's
     // Status, and the `not-every-node-a-task` ruling behind it).
-    const mark = storedMarker(at.node)
-    if (clause.value === "marked") return mark !== undefined
-    return mark === clause.value
+    case "done":
+    case "doing":
+    case "todo":
+      return storedMarker(at.node) === value
   }
+}
+
+const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean => {
+  if (clause.kind === "is") return being(derived, at, clause.value)
   // `has:date` is `date:` WITH NO BOUNDS rather than a test of the `date`
   // field, and the one exception in the table is deliberate: a reader who can
   // find a node with `date:2026-08-03` and then not find it with `has:date`
@@ -670,6 +1257,12 @@ const within = (day: string, clause: Extract<Clause, { kind: "date" }>): boolean
  * one: a mirror is a second PLACEMENT of a node, so a hit for it would be the
  * same node twice, once at a place no write lands. What a filtered TREE does
  * with a placement is a different question, and {@link keeping} answers it.
+ *
+ * WHAT WAS PUT AWAY is decided here rather than per record, because it is a
+ * fact about the QUESTION and not about any node: the query named the archive
+ * ({@link Filter} `speaksOfArchive`), or the caller said its scope already
+ * holds it ({@link Scope.archived}). One boolean per call, read before the
+ * walk.
  */
 export const matching = (
   derived: Derived,
@@ -677,12 +1270,15 @@ export const matching = (
   scope: Scope = {},
 ): ReadonlyArray<Matched> => {
   const inScope = scoping(derived, scope)
+  const putAway = scope.archived === true ||
+    (filter.kind === "asking" && filter.speaksOfArchive)
   const out: Array<Matched> = []
   for (const located of derived.nodes) {
     if (isMirror(located.node)) continue
     const at = located as LocatedRegular
+    if (!putAway && isArchived(at.file)) continue
     if (!inScope(at)) continue
-    const match = matchOf(at, filter)
+    const match = matchOf(derived, at, filter)
     if (match !== null) out.push({ at, match })
   }
   return out
@@ -714,7 +1310,7 @@ const scoping = (
   }
 }
 
-// ── what a filtered tree looks like ────────────────────────────────────
+// ── what a filtered page looks like ────────────────────────────────────
 
 /**
  * The RECORD a row draws: what it shows, or — for a row that shows nothing (a
@@ -774,3 +1370,29 @@ export const matchedIn = (
       matchedIn(row.children, matched),
     0,
   )
+
+/**
+ * The same day groups narrowed to what matched — {@link keeping} for the pages
+ * that are a DATE QUESTION rather than a tree (a day, and each section of the
+ * agenda).
+ *
+ * A plain filter where a tree's is a walk, and that is a fact about those pages
+ * rather than a shortcut: their rows are flat, and every one of them already
+ * arrives carrying the ancestry that says what it is about (a `DayEntry` is
+ * `Situated`, ./dates.ts) — so "matches keep their ancestors", which is the
+ * whole promise of filtering in place, is true of every row before a query
+ * touches it. There is nothing here to keep as context, because none of it was
+ * context.
+ *
+ * A GROUP THAT HAS NOTHING LEFT GOES, and that is the same rule read one level
+ * up: the file heading is drawn because that outline had something on the day,
+ * and a heading over no rows would say it still does.
+ */
+export const keepingDated = (
+  groups: ReadonlyArray<DayGroup>,
+  matched: ReadonlySet<string>,
+): ReadonlyArray<DayGroup> =>
+  groups.flatMap((group) => {
+    const nodes = group.nodes.filter((entry) => matched.has(entry.shows.node.id))
+    return nodes.length === 0 ? [] : [{ ...group, nodes }]
+  })

@@ -1,9 +1,10 @@
 /**
  * How many Cucumber workers this run should start.
  *
- * Lives in plain JS because `cucumber.js` is loaded by cucumber-js's own
- * (Node) ESM loader, which cannot import TypeScript. `workers.ts` re-exports
- * these so the pins and the profile cannot drift.
+ * Lives in plain JS because `cucumber.js` is loaded by cucumber-js's own ESM
+ * loader — the one loader here that is not the suite's, and the one that need
+ * not read TypeScript. `workers.ts` re-exports these so the pins and the
+ * profile cannot drift.
  */
 
 import { availableParallelism } from "node:os";

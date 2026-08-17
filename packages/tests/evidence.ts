@@ -15,6 +15,8 @@ import { fileKind } from "@olai/format"
 import { readdirSync, readFileSync } from "node:fs"
 import { type Browser, chromium, type Locator, type Page } from "playwright"
 
+import { BROWSER_ARGS } from "./support/browser.ts"
+
 const BASE = process.env["BASE"] ?? "http://127.0.0.1:7788"
 const OUT = process.env["SHOTS"] ?? "."
 const SECTION = process.env["SECTION"] ?? ""
@@ -189,22 +191,35 @@ const FILTER_INPUT = '[data-testid="filter-input"]'
 const FILTER_COUNT = '[data-testid="filter-count"]'
 const FILTER_REFUSAL = '[data-testid="filter-refusal"]'
 
-/** The tree as a reader sees it: one line per row, indented by depth, with a
- *  `*` on the rows the query actually SELECTED — the rest are the ancestry that
- *  leads to one, which is the whole of what "filter in place" means. */
+/**
+ * A tree as a reader sees it: one line per row, indented by depth, with a `*`
+ * on the rows the query actually SELECTED — the rest is the ancestry (or, in
+ * the trash, the scaffold) that leads to one, which is the whole of what
+ * "filter in place" means.
+ *
+ * ONE reader for both trees this file drives, because it is one question
+ * wherever it is asked. What differs is which rows are the tree's and where a
+ * row keeps its title, so both are arguments.
+ */
+const branching = async (page: Page, rows: string, title: string) =>
+  (await page.locator(rows).evaluateAll((all, [rows, title]) =>
+    all.map((one) => {
+      let depth = 0
+      for (let up = one.parentElement; up !== null; up = up.parentElement) {
+        if (up.matches(rows)) depth += 1
+      }
+      const hit = one.getAttribute("data-match") === "true" ? "*" : " "
+      const said = one.querySelector(title)?.textContent ?? ""
+      return `${hit} ${"  ".repeat(depth)}${said.trim()}`
+    }), [rows, title] as const)).join("\n")
+
+/** The outline on screen. */
 const drawn = async (page: Page) =>
-  (await page.locator('[data-testid="outline-tree"] [data-testid="node"]')
-    .evaluateAll((rows) =>
-      rows.map((one) => {
-        let depth = 0
-        for (let up = one.parentElement; up !== null; up = up.parentElement) {
-          if (up.matches("[data-testid='node']")) depth += 1
-        }
-        const hit = one.getAttribute("data-match") === "true" ? "*" : " "
-        const title = one.querySelector("[data-testid='node-title']")?.textContent ?? ""
-        return `${hit} ${"  ".repeat(depth)}${title.trim()}`
-      })
-    )).join("\n")
+  branching(
+    page,
+    '[data-testid="outline-tree"] [data-testid="node"]',
+    '[data-testid="node-title"]',
+  )
 
 /** Type a query and let the tree settle. Filtering is local — no round trip and
  *  no debounce — so this is a render rather than a fetch. */
@@ -215,6 +230,41 @@ const narrow = async (page: Page, query: string) => {
 
 const said = async (page: Page, locator: string) =>
   (await page.locator(locator).first().textContent().catch(() => null)) ?? "(nothing)"
+
+// ── the same filter over the pages that are a query already ────────────
+
+const DAY_PAGE = '[data-testid="day-page"]'
+const AGENDA_PAGE = '[data-testid="agenda-page"]'
+const TRASH_PAGE = '[data-testid="trash-page"]'
+
+/** The rows of a day or of the agenda, under the file each was found in — flat
+ *  rows that carry their own ancestry, which is why a filtered one keeps
+ *  nothing as context. */
+const listed = async (page: Page, within: string) =>
+  (await page.locator(`${within} [data-testid="day-group"]`).evaluateAll((groups) =>
+    groups.flatMap((group) => [
+      `  ${group.getAttribute("data-file")}`,
+      ...[...group.querySelectorAll('[data-testid="node"]')].map((one) =>
+        `    ${one.querySelector('[data-testid="node-title"]')?.textContent?.trim() ?? ""}`
+      ),
+    ])
+  )).join("\n") || "  (nothing)"
+
+/** What the directory column says is owed — the sentence the entry announces,
+ *  read off the mark rather than off the page, because the whole claim is that
+ *  the two are answering different questions. */
+const owed = async (page: Page) =>
+  (await page.locator('[data-testid="agenda-link"]').first().getAttribute("title")) ??
+    "(nothing owed)"
+
+/** The pile in the trash: the same reading, over the rows a pile is made of
+ *  and the title each of them draws. */
+const piled = async (page: Page) =>
+  (await branching(
+    page,
+    `${TRASH_PAGE} [data-testid="trash-row"]`,
+    '[data-testid="node-title"]',
+  )) || "  (nothing)"
 
 const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
   /**
@@ -266,10 +316,30 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
       const query of [
         "is:done",
         "is:todo",
+        // The one DERIVED value: `hinges` waits on `order`, which is still
+        // `doing` — the same reading that dims the row on the unfiltered page.
+        "is:blocked",
         "has:desc",
         "date:2026-08-10",
         "date:2026-08-01..2026-08-31",
+        // A relative word, counted from the day this runs — the fixture's
+        // dates are all in the past, so what it draws is stable rather than a
+        // screenshot of the week it was taken in.
+        "date:..today",
         "cabinets -is:doing",
+        // A quoted PHRASE: one substring where the same words unquoted are
+        // several, which is how the ORDER of the words gets into a query —
+        // the third of these is the first with its words shuffled, and it is
+        // the one that finds nothing.
+        `"pick the hinges"`,
+        "hinges the pick",
+        `"hinges the pick"`,
+        // `OR` joins the tokens on either side of it...
+        "handles OR knobs",
+        // ...and binds TIGHTER than the space between two tokens, so this is
+        // `install` AND one of the other two rather than every `handles` in
+        // the directory.
+        "install cabinets OR handles",
       ]
     ) {
       await narrow(page, query)
@@ -281,22 +351,30 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
 
   "an-operator-it-cannot-read": async (page) => {
     // The silent-error rule, in the one place a query language invites one: a
-    // filter that searched for the TEXT `is:blocked` would draw an empty page
+    // filter that searched for the TEXT `is:open` would draw an empty page
     // and give no reason.
     for (
       const [query, why] of [
-        ["is:blocked", "a value the operator does not take"],
+        ["is:open", "a value the operator does not take"],
         // Shape-clean and impossible — and the worst kind to swallow, since
         // `2026-13` sorts between December and January and so reads as a
         // window rather than as nonsense.
         ["date:2026-13", "a date no calendar could hold"],
+        // A relative word the vocabulary does not hold, held to the same
+        // contract: the twelve are named rather than the text searched for.
+        ["date:tomorrowish", "a relative word the grammar does not know"],
         // Matched folded, quoted as typed: telling somebody who wrote
-        // `is:BLOCKED` that they wrote `is:blocked` is the refusal misquoting
+        // `is:OPEN` that they wrote `is:open` is the refusal misquoting
         // the reader.
-        ["is:BLOCKED", "the same refusal, quoting the reader"],
+        ["is:OPEN", "the same refusal, quoting the reader"],
         // A space after the colon is not "date: takes a day" — the reader
         // wrote a day; the tokenizer split one word into two.
         ["date: 2026", "an operator given no value at all"],
+        // Not closed at the end of the line on the reader's behalf: `"pick
+        // the` and `"pick the"` are two different queries.
+        [`"pick the`, "a quote nothing closes"],
+        // A joiner with one of its two sides missing.
+        ["hinges OR", "an `OR` with nothing after it"],
       ] as const
     ) {
       await narrow(page, query)
@@ -319,6 +397,68 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
     console.log(await drawn(page))
     await shot(page, "filtered-by-the-tag")
+  },
+
+  /**
+   * The same box on the three pages that ignored it until `search-everywhere`:
+   * a day, the agenda, and the trash.
+   *
+   * The shots are the half a transcript cannot show — that these are the SAME
+   * bar over pages made of different things — and the listings are the half a
+   * screenshot cannot: which rows the query selected, and on the trash which
+   * ones are the scaffold that leads to one.
+   */
+  "filter-every-page": async (page) => {
+    await page.goto(`${BASE}/d/2026-08-10`)
+    await page.locator(DAY_PAGE).first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  the day whole:\n${await listed(page, DAY_PAGE)}`)
+    await shot(page, "day-unfiltered")
+    await narrow(page, "cabinets")
+    // A day's rows are flat and already carry their ancestry, so there is
+    // nothing to keep as context: what is left is exactly what matched — and
+    // the other outline's heading goes with its row.
+    console.log(`  filtered by "cabinets":\n${await listed(page, DAY_PAGE)}`)
+    console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
+    console.log(`  the address:  ${new URL(page.url()).pathname}${new URL(page.url()).search}`)
+    await shot(page, "day-filtered")
+
+    await page.goto(`${BASE}/agenda`)
+    await page.locator(AGENDA_PAGE).first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  the agenda whole:\n${await listed(page, AGENDA_PAGE)}`)
+    await shot(page, "agenda-unfiltered")
+    console.log(`  the entry beside it: ${await owed(page)}`)
+    // A query nothing on the page answers: the sections go, the page does NOT
+    // say "Nothing is due." (that is a claim about the agenda, where "no
+    // matches" is a claim about the query) — and the mark in the column does
+    // not move, because a filter is a question about the open page and what is
+    // late is a fact about the directory.
+    await narrow(page, "bathroom")
+    console.log(`  filtered by "bathroom":\n${await listed(page, AGENDA_PAGE)}`)
+    console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
+    console.log(`  the page says: ${await said(page, '[data-testid="agenda-empty"]')}`)
+    console.log(`  the entry still: ${await owed(page)}`)
+    await shot(page, "agenda-filtered")
+
+    // The trash needs something in it first — and it is the page the archive
+    // rule had to except: a query normally leaves what was put away alone.
+    await page.goto(`${BASE}/o/house.olai`)
+    await page.locator('[data-testid="outline-tree"]').first().waitFor()
+    await openMenu(page, "install")
+    await page.locator('[data-testid="node-menu-panel"] >> text=Move to Trash').first().click()
+    await page.locator('[data-testid="node-menu-panel"] >> text=Move to Trash').first().click()
+    await page.waitForTimeout(SETTLE)
+    await page.goto(`${BASE}/trash`)
+    await page.locator(TRASH_PAGE).first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  what was put away:\n${await piled(page)}`)
+    await shot(page, "trash-unfiltered")
+    await narrow(page, "hinges")
+    console.log(`  filtered by "hinges" — * is a match, the rest is the scaffold:`)
+    console.log(await piled(page))
+    console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
+    await shot(page, "trash-filtered")
   },
 
   "a-fold-does-not-hide-a-match": async (page) => {
@@ -790,15 +930,7 @@ const main = async () => {
   // touch into the pointer events a long press is made of, so a section about a
   // finger silently held nothing. The rest are the flags that make Chromium
   // survive a container with a small `/dev/shm`, harmless on a laptop.
-  const browser = await chromium.launch({
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-gpu",
-      "--disable-dev-shm-usage",
-      "--headless=new",
-    ],
-  })
+  const browser = await chromium.launch({ args: [...BROWSER_ARGS] })
   // A CONTEXT of its own rather than `browser.newPage(options)`, which is the
   // same thing with an implicit one — except that a touchscreen is a property
   // of the context, and the DevTools session the finger's section opens has to

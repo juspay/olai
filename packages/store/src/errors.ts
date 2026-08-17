@@ -15,7 +15,7 @@
  * a live store exists to prevent.
  */
 
-import { Data } from "effect"
+import { Data, type PlatformError } from "effect"
 
 /** The served directory itself, in the same root-relative spelling every other
  *  path in this package uses. A failure about the ROOT used to carry the
@@ -59,3 +59,19 @@ export class StaleWrite extends Data.TaggedError("StaleWrite")<{
     return `the store is at revision ${this.currentRev}, not ${this.baseRev}: re-derive the write and try again`
   }
 }
+
+/**
+ * Whether the platform said a path is NOT THERE, as against being there and
+ * refusing to open.
+ *
+ * TWO callers ask it, for two reasons, about one error shape — which is why it
+ * is here rather than beside either of them. The probe asks because a file that
+ * was listed and then read back missing is a race to absorb rather than a
+ * failure ({@link ./disk.ts}). A server route asks because "gone" is a 404 the
+ * reader already has and nobody needs to hear about, while "there and will not
+ * open" is a permission bit somebody has to be told about (`@olai/server`'s
+ * `media.ts`). A platform that ever renames or wraps this reason then has one
+ * place to be followed instead of two that would disagree for a release.
+ */
+export const vanished = (error: PlatformError.PlatformError): boolean =>
+  error.reason._tag === "NotFound"

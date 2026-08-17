@@ -17,6 +17,15 @@
  * list and about nothing else. {@link ./lanes.ts} is that rule; this file is
  * where the only reader of it lives.
  *
+ * A LANE ALSO OPENS WITH NOTHING IN IT, and that is the same drawing decided
+ * from the other end. Every rail above is hung off work a subagent has already
+ * done, so an agent that has been sent out and has not called anything yet had
+ * no rail, no name and no dot — nothing but the spawning call's own pending
+ * row, which reads as an ordinary tool being slow. The row that SPAWNED an
+ * agent carries what is known about it ({@link ./spawn.ts}), so the rail can
+ * drop out of that row immediately and say what the agent is doing; when the
+ * calls arrive they land in the lane already open under it.
+ *
  * FOLLOWING THE BOTTOM is the other half of this file, and it is two questions
  * that were being answered as one:
  *
@@ -42,9 +51,11 @@ import { createMemo, For, onCleanup, onMount, Show } from "solid-js"
 import { useShowNode } from "../focus.ts"
 import { TESTID } from "../testids.ts"
 import { Entry } from "./Entry.tsx"
-import { laneOf } from "./lanes.ts"
+import { laneOf, RAIL } from "./lanes.ts"
+import { LIVE_DOT } from "./live.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
+import { doingOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
 /** How close to the bottom still counts as "at the bottom". Anything under a
@@ -126,6 +137,17 @@ export function Transcript(props: { readonly chat: Chat }) {
    *  the whole list rather than one built per row per frame. */
   const titleOf = (key: string): string | undefined => props.chat.entry(key)()?.text
 
+  /**
+   * Whether anything is running in this conversation at all — the half of "is
+   * that agent still going" that a ROW cannot answer ({@link ./spawn.ts}).
+   *
+   * ONE memo for the whole list rather than one per row, and a BOOLEAN rather
+   * than the state: every row's rail would otherwise subscribe to the chat
+   * cell, which moves several times a turn as the context usage is revised, and
+   * re-run for each of them. A boolean propagates only when it flips.
+   */
+  const live = createMemo(() => props.chat.state().status === "thinking")
+
   return (
     <div
       class="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2"
@@ -174,6 +196,14 @@ export function Transcript(props: { readonly chat: Chat }) {
                 : props.chat.entry(previous)()
             })
             const lane = createMemo(() => laneOf(entry(), above(), titleOf))
+            /** The live rail under a spawn — what a running subagent looks
+             *  like before it has made a call to draw a lane out of.
+             *
+             *  `null` for every row that spawned nobody, for a spawn that has
+             *  stopped, and for one whose CONVERSATION has, so the same memo
+             *  answers both "is there anything to draw" and "what does it say"
+             *  ({@link ./spawn.ts}). */
+            const working = createMemo(() => doingOf(entry(), live()))
             return (
               <Show when={entry()}>
                 {(row) => (
@@ -192,9 +222,13 @@ export function Transcript(props: { readonly chat: Chat }) {
                      without being drawn again from scratch — the same rule the
                      row list itself follows, one level down. */
                   <div
-                    class={lane() === null
-                      ? "pb-2"
-                      : "border-l-2 border-muted/70 pb-2 pl-2"}
+                    classList={{
+                      [RAIL]: lane() !== null,
+                      // ... unless the rail below is carrying it instead, so
+                      // that one line crosses the gap rather than stopping at
+                      // the edge of this box and starting again inside it.
+                      "pb-2": working() === null,
+                    }}
                     data-testid={lane() === null ? undefined : TESTID.chatLane}
                     data-lane={lane()?.parent}
                   >
@@ -212,6 +246,43 @@ export function Transcript(props: { readonly chat: Chat }) {
                       )}
                     </Show>
                     <Entry entry={row()} chat={props.chat} />
+                    {/* THE LANE, OPENED BY THE SPAWN ITSELF — a rail dropping
+                        out of the frame the moment an agent is sent out,
+                        rather than one that appears whenever the agent
+                        eventually greps something. It carries the gap to the
+                        next row (`pb-2`, taken off the wrapper above) so the
+                        rail runs down through it and meets the first call's
+                        own rail as one line, which is the same reason that
+                        gap is padding rather than a margin — and it is the
+                        same `RAIL`, from the module that owns what a lane
+                        looks like, so "meets as one line" is held by one
+                        spelling rather than by two that happen to agree.
+
+                        The pulsing dot is the header's, by import: a turn in
+                        flight and an agent in flight are the same kind of
+                        fact, and a panel with two spellings of "this is
+                        happening" is a panel with one of them to learn. */}
+                    <Show when={working()}>
+                      {(doing) => (
+                        <div class={`${RAIL} pb-2 pt-1`}>
+                          {/* The NAME is on the words rather than on the rail
+                              around them, so that what a scenario measures is
+                              what a reader sees inset — the rail's own box
+                              starts at the row's left edge, and asserting on
+                              that would pass on a build that had lost the
+                              indent entirely. */}
+                          <p
+                            class="flex items-center gap-1 font-mono text-[0.6875rem] text-doing"
+                            data-testid={TESTID.chatSpawnWorking}
+                            data-lane={row().id}
+                            aria-live="polite"
+                          >
+                            <span class={LIVE_DOT} aria-hidden="true" />
+                            {doing()}
+                          </p>
+                        </div>
+                      )}
+                    </Show>
                   </div>
                 )}
               </Show>

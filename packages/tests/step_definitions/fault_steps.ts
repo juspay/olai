@@ -9,10 +9,10 @@
  * production is a fault switch in production.
  *
  * So it is injected from outside the bundle, into `String.prototype.padStart`
- * and only for the exact call the client's own date arithmetic makes
- * (`calendar/month.ts`'s zero-padding, which the month grid and the clock both
- * run through before any page can be drawn). Narrow on purpose: a builtin
- * broken for everybody would take out the bundler's own runtime, a
+ * and only for the exact call the date arithmetic under the client makes
+ * (`@olai/format`'s `calendar.ts` zero-padding, which the month grid and the
+ * clock both run through before any page can be drawn). Narrow on purpose: a
+ * builtin broken for everybody would take out the bundler's own runtime, a
  * dependency's module initialisation, or the fault card itself, and the
  * scenario would be proving something else.
  *

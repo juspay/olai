@@ -51,6 +51,8 @@ It takes the same argv, so the harness cannot tell the difference — but it ser
 
 Bun hosts the runner. Bun executes `.ts` directly, so there is no tsx, no ts-node and no build step between a step definition and the browser — which is also why the dev shell needs no node.
 
+It hosts it because the `test` script names cucumber's entry file (`bun ./node_modules/@cucumber/cucumber/bin/cucumber.js`) rather than the `cucumber-js` bin. The bin is a shebang file that says `#!/usr/bin/env node`, and `bun run` executes a package script's argv rather than interpreting it — so the shebang is resolved against PATH. Bun supplies a `node`-to-bun shim there, but only when the host has no node of its own; a machine that has one hands the suite to it, and `nix develop` appends the host's PATH rather than replacing it, so being inside `.#e2e` does not save you. The symptom was the whole suite dying before its first scenario with `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`: node refusing the raw-TypeScript `@kolu/*` sources. `runner.test.ts` pins the spelling.
+
 ## Environment
 
 Which server the suite drives is two decisions, not one — **who owns the process** and **where it is** — so it is two variables. Set exactly one of them; setting both, or neither, fails at `BeforeAll` and says which to pick.
@@ -94,6 +96,19 @@ SHOTS=/tmp/shots bash evidence.sh
 One section per run, against a directory the driver has just re-copied and a server it has just started. Restoring the fixture underneath a running server is not the same thing — the store holds the snapshot it last wrote, and a file put back with the same length is a change its watcher is entitled not to notice, so a gesture made after one would be a gesture over a frame nobody can reproduce.
 
 `SECTION=` on its own lists the sections; `SECTION=<name>` runs one against a server you are already running (`BASE` says where).
+
+## Measuring what a session costs the wire
+
+```bash
+just build-client
+nix develop .#e2e -c bash
+cd packages/tests
+LABEL=after PORT=7802 bash wire.sh
+```
+
+`wire.ts` / `wire.sh` are the same kind of thing as `evidence.ts` one section up — not part of the suite, never run by `just e2e` — and they answer the question a screenshot cannot: how many bytes a session cost, and down which of the two wires. It opens the app, opens a saved page of a megabyte, rewrites it three times while it is on screen and then opens a note, counting every websocket frame the tab was delivered and every byte fetched off `/media/`.
+
+`ROOT=` is the knob it exists for: the driver imports nothing of olai, so pointing it at a second worktree measures THAT branch's server through the same session, and the two numbers are comparable. That is how `preview-body-not-shipped`'s were taken — a previewed page's body used to cross the socket as well as the route, so the same session read 3.9 MB on the socket before and about 50 kB after (which is the note, and only the note).
 
 ## Making it flake on purpose
 
@@ -139,6 +154,14 @@ Like `@kolu` and `@agent-stored`, it needs `@scratch:<corpus>` — what a server
 
 One of those scenarios goes the whole way rather than reading chrome: it asks the agent for a write under a broken git and opens the tool call's detail, which is the op's own reply as the reader gets it. That is the only assertion in the suite that follows one field (`Applied.why`) from the ops layer, through the internal MCP server and the transcript, onto a screen.
 
+## What the server SENT, as against what the page drew
+
+**`@wire`** keeps every websocket frame the tab was delivered, for the scenario's life, so a step can say what the server chose to send this reader — `the websocket carried "…"` and its negative. Nothing else in the suite can answer that: `world.requests` is what the page FETCHED, and the surface's traffic makes no requests at all.
+
+It is a tag rather than the default because unlike the request and error recorders it retains PAYLOADS — a transcript's token-by-token deltas, a document's whole body — and two scenarios ask — the pair below. A scenario that forgets it does not quietly pass a negative over an empty list: `world.socketCarried` throws, the way `world.requestsWatched` does for the same class of mistake. It also throws on a probe string carrying a character the framing escapes, since the frames are raw and such a probe would be absent whether or not the body was sent.
+
+The two scenarios it exists for are the halves of one rule (`html_previews.feature`): a previewed `.html`'s body must never cross the socket — the frame fetches the file over HTTP — while a `.md`'s body must, because that reader has no other way to have it.
+
 ## A phone, and the two things it changes
 
 **`@phone`** on a scenario gives it a handset context instead of a laptop one: 390×844 CSS pixels, a touch screen, no mouse. It is orthogonal to the corpus tags — a scenario carries both. `isMobile` is what makes Chromium honour the shell's `<meta name="viewport">` at all; without it the page is laid out as a very narrow desktop, which is a different thing that happens to fire the same media queries. It is not one of Playwright's `devices` presets, because those also install a Safari user agent on top of Chromium and none of these scenarios are about what the browser calls itself.
@@ -177,7 +200,7 @@ The chips themselves are a ROW of the preferences panel (`features/preferences.f
 
 `features/the_client_breaks.feature` is the one scenario whose subject is a bug in olai rather than in an outline, and it is the only place in this suite that reaches past the app's own surface. Every other error here is DATA — a fixture that does not validate — while a fault in a render is not data, and the app deliberately offers no way to ask for one: a fault switch shipped is a fault switch in production.
 
-So it is injected with `addInitScript`, into `String.prototype.padStart` and only for the exact call the client's own date arithmetic makes, which every page runs through before it can draw. Narrow because a builtin broken for everybody would take out a dependency's module initialisation or the fault card itself, and the scenario would be proving something else. The coupling is answered rather than hidden: if that call stops happening the app draws itself perfectly, and the step fails in a second saying exactly that instead of timing out with nothing to say.
+So it is injected with `addInitScript`, into `String.prototype.padStart` and only for the exact call the date arithmetic under the client makes (`@olai/format`'s `calendar.ts`), which every page runs through before it can draw. Narrow because a builtin broken for everybody would take out a dependency's module initialisation or the fault card itself, and the scenario would be proving something else. The coupling is answered rather than hidden: if that call stops happening the app draws itself perfectly, and the step fails in a second saying exactly that instead of timing out with nothing to say.
 
 ## The UI contract
 

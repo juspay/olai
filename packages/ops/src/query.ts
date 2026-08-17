@@ -192,8 +192,18 @@ const DONE_PENALTY = 300
 export const search = (
   derived: Derived,
   query: SearchRequest,
+  /** When the question is being asked — what the grammar's relative words count
+   *  from (`date:yesterday`). A day, or an instant on one: the grammar cuts it
+   *  down with the same `dayOf` every date reading in the format uses, so this
+   *  layer hands over its clock's own text rather than trimming it first.
+   *
+   *  Handed IN rather than read here, so this stays a pure function of a
+   *  snapshot: the clock is the ops layer's one ({@link ./tools.ts}'s `asking`,
+   *  over the `now` a `done` is stamped with), and a second `new Date()` in the
+   *  read path would be a second answer to what day it is. */
+  now: string,
 ): SearchAnswer => {
-  const filter = parseFilter(query.text)
+  const filter = parseFilter(query.text, now)
   // A query the grammar could not read answers with no hits AND WITH THE
   // REASON. An empty one answers with no hits and nothing to say — there is no
   // question to have refused.

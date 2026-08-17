@@ -134,6 +134,31 @@ test("the vault's other files are not served, however they are asked for", async
   })
 })
 
+/**
+ * A `.html` UNDER A FILE, which is a miss the platform reports as something
+ * other than "not found" — and BOTH halves of what this route owes for one.
+ *
+ * `mediaTarget` claims it: the guard is lexical and the suffix is right, so
+ * `notes/finishes.md/x.html` reaches the read, where the platform answers
+ * `BadResource` (`ENOTDIR`) rather than `NotFound`. The reader gets the 404
+ * every other miss gets. The LOG gets nothing, and that is the half worth a
+ * test of its own: the path in that URL is the caller's to choose and the
+ * request costs them nothing, so a line about it would let anybody who can
+ * reach the port write to this server's log at will, with their own text in it.
+ *
+ * The collector is what makes the negative assertable at all — `withServing`
+ * hands over everything the server said, so "it said nothing about this" is a
+ * fact here rather than a claim in a comment.
+ */
+test("a `.html` under a file is a 404 and is not in the log", async () => {
+  await withServing({ root: vault() }, async (url, said) => {
+    const at = "/media/notes/finishes.md/x.html"
+    const answer = await fetch(`${url}${at}`)
+    expect(answer.status).toBe(404)
+    expect(said.filter((line) => JSON.stringify(line).includes("x.html"))).toEqual([])
+  })
+})
+
 // THE HOST IS NOT TRUSTED, and the shape of the mistrust is the point: a
 // request that names a host this app will not spell gets a policy with no
 // sources in it at all. Fail-closed — a page that fetches nothing — rather than
@@ -147,4 +172,39 @@ test("a request whose host is not a host gets a policy that fetches nothing", as
     expect(policy).toContain("default-src 'none'")
     expect(policy).not.toContain("img-src *")
   })
+})
+
+// A `.html` THAT IS THERE AND WILL NOT OPEN, which is a different failure from
+// a file that is not there and is now this route's alone to answer for. The
+// preview stopped asking for the body over the wire (`@olai/surface`'s `Head`),
+// so nothing else in this process ever opens a saved page for a person: what a
+// reader gets is the same 404 every other miss gets — which of the ways a file
+// is unavailable is not their business — and what an OPERATOR gets is a line in
+// the log, because a permission bit nobody can see is exactly what the
+// never-silently-ignore rule is about.
+//
+// Root can read a 0000 file, so the assertion is skipped there rather than
+// inverted (`@olai/chat`'s `memory.test.ts` makes the same call).
+test("a page that cannot be read is a 404, and IS in the log", async () => {
+  if (typeof process.getuid === "function" && process.getuid() === 0) return
+  const root = vault()
+  const shut = path.join(root, "notes", "shut.html")
+  fs.writeFileSync(shut, "<h1>Shut</h1>\n")
+  fs.chmodSync(shut, 0o000)
+  try {
+    await withServing({ root }, async (url, said) => {
+      const answer = await fetch(`${url}/media/notes/shut.html`)
+      expect(answer.status).toBe(404)
+      // The pair the test above asserts the other way round. A file the
+      // directory really holds and this process cannot open is bounded by the
+      // disk rather than by what a stranger asks for, so it is exactly what the
+      // line is for — and the path is on the ANNOTATION, which is the field a
+      // structured reader uses, rather than only in the sentence.
+      const complaint = said.find((line) => line.annotations["file"] === "notes/shut.html")
+      expect(complaint?.level).toBe("Warn")
+      expect(complaint?.message).toContain("notes/shut.html")
+    })
+  } finally {
+    fs.chmodSync(shut, 0o600)
+  }
 })

@@ -17,7 +17,9 @@
  *     model is read off whichever result made the session. WHICH one it comes
  *     up in is {@link adopt}: the conversation this panel was last in, written
  *     down when it entered one ({@link ./memory.ts}), with the
- *     most-recently-updated one as the fallback for when that is gone.
+ *     most-recently-updated one as the fallback for when that is gone — and,
+ *     on the way back into it, the model it was switched to, put back through
+ *     the picker the agent's own boot has just overruled ({@link restore}).
  *   - **the questions the agent asks a person**, both kinds. An
  *     `elicitation/create` is a form; a `session/request_permission` that is not
  *     one of ours is a single-select. What is HERE is that both are the same
@@ -76,6 +78,7 @@ import type {
   RequestPermissionResponse,
   SessionConfigOption,
   SessionNotification,
+  SetSessionConfigOptionResponse,
   ToolCallContent,
   ToolCallLocation,
   ToolCallStatus,
@@ -101,11 +104,16 @@ import {
   allowedWithoutAsking,
   BYPASS_MODE,
   liveModelIn,
+  MODEL_CONFIG,
   modelNameIn,
   modelPickerIn,
-  NEW_SESSION_META,
+  OPEN_SESSION_META,
   parentToolUseIn,
+  type Picker,
+  pickerValueFor,
+  sameModel,
   SDK_MESSAGE,
+  spawnedIn,
   STEER_METHOD,
   STEER_TIMEOUT,
   STEER_WHEN_IDLE,
@@ -113,7 +121,7 @@ import {
   toolNameIn,
 } from "./interpret.ts"
 import * as Kolu from "./kolu.ts"
-import type { Memory, MemoryFailure } from "./memory.ts"
+import type { Held, Memory, MemoryFailure } from "./memory.ts"
 import { streamOver, unstartable } from "./pipes.ts"
 import * as Questions from "./questions.ts"
 import { wroteIn } from "./wrote.ts"
@@ -275,6 +283,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     // The spawn/handshake takes its own permit, so two callers racing a cold
     // start share one subprocess rather than each getting their own.
     const booting = yield* Semaphore.make(1)
+    // ... and the memory takes its own, for the reason {@link note} gives.
+    const remembering = yield* Semaphore.make(1)
 
     let live: Live | null = null
     let session: string | null = null
@@ -464,6 +474,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // in the protocol to tell them apart, so this is the only thing
             // that says a turn had more than one agent in it.
             parent: parentToolUseIn(update._meta) ?? undefined,
+            // ... and, the other way round, whether this call SENT an agent
+            // out. Read here rather than left to the parent stamp because the
+            // stamp is answered by a subagent's own frames and a subagent that
+            // has not made a call yet has produced none — which is the whole
+            // of the stretch a person is watching a fan-out through.
+            spawned: spawnedIn(update._meta, update.rawInput) ?? undefined,
           })
           return
         case "available_commands_update":
@@ -588,20 +604,64 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       announced = null
     }
 
-    const readModel = (
-      configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
-    ): void => {
-      const picker = modelPickerIn(configOptions)
+    /**
+     * A MOVE is what gets written down, and the first thing a source says in a
+     * conversation is not one.
+     *
+     * The note exists to outlast a restart ({@link ./memory.ts}), and what it
+     * is FOR is a model somebody switched to — a `/model` the agent's own boot
+     * would otherwise overrule. What a source says FIRST is not that: it is
+     * what this conversation came up on, which is the agent's answer already
+     * and needs nothing said back to it. Writing that down too would turn every
+     * conversation into a pin — a session that only ever ran the picker's
+     * `default` row would come back pinned to whichever concrete model that row
+     * resolved to on the day, which is a promise nobody made.
+     *
+     * So each source is compared against ITS OWN previous value in this session
+     * ({@link forgetModel} empties both when the conversation goes), and only
+     * the second value onwards is a switch. The one cost, said out loud: a
+     * `/model` chosen before this olai ever saw the conversation is not a move
+     * it watched, so the first restart after that still opens on the agent's
+     * own answer, and switching again is what makes it stick.
+     */
+    const moved = (value: string): void => {
+      const at = held
+      // ... and the same model in the other source's spelling is not a move
+      // either — `sonnet` and `claude-sonnet-5` are one model, judged the way
+      // {@link restore} judges it rather than as two strings.
+      if (at === null || (at.model !== null && sameModel(labels, at.model, value))) return
+      // `say` is this file's escape hatch out of a protocol callback, where
+      // there is no fiber to yield in — the same one a line of the subprocess's
+      // stderr goes out through, carrying a write rather than a log line.
+      say(note(
+        { session: at.session, model: value },
+        (why) => `the model this conversation is on will not survive a restart: ${why}`,
+      ))
+    }
+
+    /** The picker as read — taken already-parsed, because {@link restore} has
+     *  to look at one before it can decide whether to say anything, and parsing
+     *  the same options twice is how the two readings come to differ. */
+    const readPicker = (picker: Picker | null): void => {
       if (picker === null) return
       labels = picker.labels
       if (picker.picked === picked) return
+      const switched = picked !== null
       picked = picker.picked
+      if (switched && picked !== null) moved(picked)
       show(picked === null ? null : modelNameIn(labels, picked) ?? picked)
+    }
+
+    const readModel = (
+      configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
+    ): void => {
+      readPicker(modelPickerIn(configOptions))
     }
 
     const readLiveModel = (params: unknown): void => {
       const id = liveModelIn(params)
       if (id === null || id === announced) return
+      const switched = announced !== null
       announced = id
       const name = modelNameIn(labels, id)
       if (name === null) {
@@ -612,6 +672,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           ),
         )
       }
+      // The CLI is the only source that ever reports a `/model`, so this is the
+      // line the whole memory hangs off.
+      if (switched) moved(id)
       show(name ?? id)
     }
 
@@ -696,8 +759,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           .onNotification(methods.client.session.update, (context) => {
             onUpdate(context.params)
           })
-          // The CLI's own message, forwarded verbatim because `session/new`
-          // asked for it (`NEW_SESSION_META`). Asking and then not listening is
+          // The CLI's own message, forwarded verbatim because the call that
+          // OPENED this conversation asked for it (`OPEN_SESSION_META`, on
+          // `session/new` and `session/load` both — the adapter reads the
+          // subscription off whichever one made the session, and asking at
+          // `new` alone left every restored conversation silent).
+          // Asking and then not listening is
           // what this used to do, which is why the header could name a model
           // the session had stopped running. Custom method, so the SDK wants a
           // parser: there is nothing to validate beyond "it is an object", and
@@ -735,6 +802,22 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 // about, which is a different bargain and its own decision. An
                 // empty object is how the protocol spells "yes" here.
                 elicitation: { form: {} },
+                // WHAT IS NOT ASKED FOR, named here because this is where it
+                // would be asked for and a decision recorded anywhere else is a
+                // decision nobody finds: `_meta["subagent-transcript"]: true`.
+                // The pinned adapter reads that flag off these capabilities
+                // (`supportsSubagentTranscript`) and, with it, forwards a
+                // SPAWNED agent's own text and thinking as chunks stamped with
+                // the `Agent` call they came from; without it those blocks are
+                // stripped from the feed entirely. So a subagent's narration is
+                // not something this panel is missing — it is something it has
+                // not asked for, and the difference matters because asking is
+                // one line. It is not asked for yet because a second voice in
+                // the transcript is a feature with its own drawing to decide
+                // (`./interpret.ts` says what the panel does know about a
+                // spawn), and because the flag's absence is what guarantees a
+                // subagent's prose cannot arrive unattributed in the main
+                // agent's voice.
               },
               clientInfo: { name: "olai", version: "0.1.0" },
             },
@@ -785,9 +868,20 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // all then: an agent that keeps no conversations has no answer this
         // could change, and a boot that could not have restored anything must
         // not report a memory it never needed.
-        const wanted = stored.length === 0 ? undefined : adopt(yield* recalled, stored)
+        if (stored.length === 0) {
+          yield* fresh(at)
+          return
+        }
+        // Read INTO the mirror before anything is opened, because entering a
+        // conversation writes the mirror back out ({@link entered}) — a recall
+        // discarded here would be this boot forgetting what it had just read.
+        held = yield* recalled
+        const wanted = adopt(held?.session ?? null, stored)
         if (wanted !== undefined) {
-          yield* load(at, wanted.id, wanted.title)
+          // The model goes with the conversation it was written down for. Adopt
+          // the FALLBACK — the remembered one is gone — and there is nothing
+          // remembered about the one we opened instead.
+          yield* load(at, wanted.id, wanted.title, modelFor(wanted.id))
           return
         }
         yield* fresh(at)
@@ -816,13 +910,49 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           return null
         }))
 
-    /** The conversation this panel was last in, and `null` when nothing says. */
-    const recalled: Effect.Effect<string | null> = said(
+    /** What this panel was last in and on, and `null` when nothing says. */
+    const recalled: Effect.Effect<Held | null> = said(
       options.memory.recall,
       (why) =>
         `the conversation this directory was last in could not be read (${why}) — ` +
         `opening the most recent one instead`,
     )
+
+    /**
+     * What the memory says, as far as this process knows.
+     *
+     * MIRRORED rather than re-read, because both things that write it need the
+     * other half: entering a conversation has to keep the model already written
+     * down for it, and a model moving has to be written down against the
+     * conversation it moved in. Re-reading the file for each would be two disk
+     * reads answering a question this closure is holding the answer to.
+     */
+    let held: Held | null = null
+
+    /**
+     * The remembered model for THIS conversation, and `null` for every other.
+     *
+     * The invariant the whole note turns on, spelled once because it is the one
+     * that costs something when a call site forgets it: a model re-asserted
+     * onto a conversation it was not remembered for is this note doing the very
+     * thing it exists to undo. Every caller that opens a conversation asks
+     * here rather than reading `held.model`.
+     */
+    const modelFor = (id: string): string | null => held?.session === id ? held.model : null
+
+    /** The one write, whatever moved. What a failure COSTS is the caller's to
+     *  say — a lost conversation and a lost model are different sentences to
+     *  the person who will meet the consequence — and everything else about
+     *  remembering is the same either way. */
+    const note = (next: Held, cost: (why: string) => string): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        held = next
+        // ONE AT A TIME: entering a conversation and the model under it moving
+        // are two writes to one file, arriving from a boot fiber and a protocol
+        // callback. Unordered, the older of them can land last and the next
+        // boot reads a memory that was true a moment before it was written.
+        yield* remembering.withPermit(Effect.asVoid(said(options.memory.remember(next), cost)))
+      })
 
     /**
      * The panel is in this conversation now: the id the verbs act in, the row
@@ -839,8 +969,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       Effect.gen(function*() {
         session = id
         emit({ _tag: "session", id, title })
-        yield* said(
-          options.memory.remember(id),
+        yield* note(
+          // The model is a fact ABOUT a conversation, so it travels with one:
+          // coming back into the conversation we remember keeps what it was
+          // running, and opening any OTHER one keeps nothing. A model carried
+          // across would be re-asserted onto somebody else's conversation,
+          // which is this note doing the thing it exists to undo.
+          { session: id, model: modelFor(id) },
           (why) => `this conversation will not be restored after a restart: ${why}`,
         )
       })
@@ -879,7 +1014,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         const made = (yield* ask(at.connection, methods.agent.session.new, {
           cwd: options.cwd,
           mcpServers: [...(yield* servers)],
-          _meta: NEW_SESSION_META,
+          _meta: OPEN_SESSION_META,
         })) as NewSessionResponse
         yield* entered(made.sessionId, null)
         readModel(made.configOptions)
@@ -890,6 +1025,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       at: Live,
       id: string,
       title: string | null,
+      /** The model this conversation was last known to be running, when it is
+       *  one somebody switched it to — {@link restore}'s whole subject. */
+      wanted: string | null,
     ): Effect.Effect<void, AgentGone> =>
       Effect.gen(function*() {
         // Before the flag below, because a detection is not a replay.
@@ -903,7 +1041,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           ask(
             at.connection,
             methods.agent.session.load,
-            { sessionId: id, cwd: options.cwd, mcpServers },
+            // The same `_meta` a fresh session sends, and for a reason that is
+            // this call's own: the adapter reads the raw-message subscription
+            // off whichever request MADE the session, and a load makes one. Sent
+            // only at `session/new`, the CLI's `init` never arrived for a
+            // RESTORED conversation — so the header could not follow a `/model`
+            // in one, and neither could the memory that has to remember it.
+            { sessionId: id, cwd: options.cwd, mcpServers, _meta: OPEN_SESSION_META },
             LOAD_TIMEOUT,
           ),
           () =>
@@ -912,8 +1056,105 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               emit({ _tag: "replayEnded" })
             }),
         )) as LoadSessionResponse | undefined
-        readModel(loaded?.configOptions)
+        yield* restore(at, id, loaded?.configOptions, wanted)
         yield* askForBypass(at, id)
+      })
+
+    /**
+     * Put a restored conversation back on the model it was switched to.
+     *
+     * THE BUG THIS IS (`chat-model-reverts-on-restart`): a person switches the
+     * chat with `/model`, olai is redeployed, and the same conversation comes
+     * back on the model the container pins. Nothing in the panel had gone
+     * wrong — the agent really is running that model, and the header really is
+     * naming what it was told. The pin outranks the conversation at the agent's
+     * end: the pinned adapter (0.66.0) resolves a session's model as env, then
+     * `settings.json`, then the resumed transcript, and for a RESUMED session
+     * it deliberately re-asserts the first two over the third with `setModel`,
+     * because "a resumed session lands on the transcript's model regardless of
+     * env/settings". A `/model` lives only in that transcript. So it loses,
+     * every boot, silently, and the only remedy that did not need code was to
+     * go and delete a line from a file inside the container.
+     *
+     * WHAT IS DONE ABOUT IT: the model is the picker, and the picker is a
+     * config option a client may SET. So the panel says, once, after the load,
+     * what this conversation was running — and the agent's own re-assert, which
+     * ran during the load, is a thing that happened before we said it.
+     *
+     * SAID ONLY WHEN IT DISAGREES, and disagreement is judged in names rather
+     * than in strings ({@link sameModel}): what we remember is as often a live
+     * API id (`claude-fable-5`) as a picker value (`fable`), and those are the
+     * same model. A conversation that came back on the model it left on is one
+     * this says nothing about at all — no round trip, and no request to fail.
+     *
+     * SAID IN THE PICKER'S OWN WORDS, for the same reason one step further on
+     * ({@link pickerValueFor}): a config option takes the values the picker
+     * offers, and what we remember is the id the CLI reported. The pinned
+     * adapter would resolve `claude-fable-5` onto its `fable` row; an agent
+     * that checked its own list would refuse, and refusing leaves the
+     * conversation on the pin. So the row is named where a row can be found.
+     *
+     * WHAT IT COSTS, and this is the honest half: olai's note is not the only
+     * way this conversation's model can move. A `/model` typed into a terminal
+     * `claude --resume` on the SAME conversation between two olai boots lands
+     * in the transcript, arrives here as a picker that disagrees with the note,
+     * and is put back. Olai cannot tell that from the pin it exists to overrule
+     * — the wire says which model, never who decided it — and between a panel
+     * that loses the choice made IN it every single restart and one that can
+     * lose a choice made elsewhere while it was not running, the second is the
+     * better failure. Said in `docs/chat.md` rather than only here.
+     *
+     * A REFUSAL IS A ROW, not a boot failure: the conversation is open and
+     * usable on the agent's own model, which is exactly what it was before this
+     * existed. The memory is left ALONE on that path — untouched, so the next
+     * boot tries again — and the header goes on naming what the agent said.
+     */
+    const restore = (
+      at: Live,
+      id: string,
+      configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
+      wanted: string | null,
+    ): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        const picker = modelPickerIn(configOptions)
+        const settled = wanted === null || picker === null ||
+            (picker.picked !== null && sameModel(picker.labels, picker.picked, wanted))
+          ? picker
+          : yield* putModel(at, id, picker, wanted)
+        // ONE TAIL, whichever of the three ways it got here: what the header
+        // names is read from the picker that had the last word — the one the
+        // load answered with, or the one the agent answered our request with.
+        readPicker(settled)
+      })
+
+    /** The request half of {@link restore}, and what a refusal costs: a row,
+     *  the model the load already reported, and a memory left alone. */
+    const putModel = (
+      at: Live,
+      id: string,
+      picker: Picker,
+      wanted: string,
+    ): Effect.Effect<Picker | null> =>
+      Effect.gen(function*() {
+        const answered = yield* Effect.result(
+          ask(at.connection, methods.agent.session.setConfigOption, {
+            sessionId: id,
+            configId: MODEL_CONFIG,
+            value: pickerValueFor(picker.labels, wanted) ?? wanted,
+          }),
+        )
+        if (answered._tag === "Failure") {
+          trouble(
+            `this conversation was on ${modelNameIn(picker.labels, wanted) ?? wanted} and ` +
+              `could not be put back: ${answered.failure.why}`,
+          )
+          return picker
+        }
+        // The answer carries the WHOLE set with its new current value, so the
+        // header is read off what the agent CONFIRMED rather than off what we
+        // asked for: an agent that resolved our row onto another of its own —
+        // an alias, a context lane — is naming the model it actually landed on.
+        return modelPickerIn((answered.success as SetSessionConfigOptionResponse).configOptions)
       })
 
     /**
@@ -1101,7 +1342,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             session = null
             leaving()
             emit({ _tag: "sessionOver", why: "load" })
-            yield* load(at, id, wanted?.title ?? null)
+            // Re-opening the conversation this panel is the memory OF puts it
+            // back on its model, exactly as a restart does; opening any other
+            // conversation carries nothing, because nothing here is a fact
+            // about that one. The memory is one conversation deep, like the id
+            // beside it.
+            yield* load(at, id, wanted?.title ?? null, modelFor(id))
           })
         ),
       sessions: withLive(storedFor),

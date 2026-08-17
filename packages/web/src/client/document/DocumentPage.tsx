@@ -15,11 +15,20 @@
  * table (./faces.tsx). A page per kind would have been four copies of the parts
  * that are the same, and the first one to drift would do it silently.
  *
- * The page is handed a PATH and reads the body itself (../document/documents.tsx),
- * which is the shape of the wire: the directory's paths are known to every tab,
- * and a body travels to the tab that opens it. So the heading is on screen the
- * moment the route resolves, and the text follows — one frame later on a fresh
- * open, not at all if the reader moves on first.
+ * The page is handed a PATH and hands that path on, which is the shape of the
+ * wire: the directory's paths are known to every tab, and what a file SAYS
+ * travels to the reader who opens it. So the heading is on screen the moment
+ * the route resolves, and what is in the file follows — one frame later on a
+ * fresh open, not at all if the reader moves on first.
+ *
+ * WHAT IT ASKS THE WIRE FOR is the body, and only because of the EDITOR: a
+ * draft is a change to a text, judged against the text it was read from, so
+ * this page has to be holding one to open a caret over it. The reading faces
+ * ask for themselves (./faces.tsx) — the markdown one for the document's body,
+ * the hypertext one for the revision that says the file moved, its frame having
+ * fetched the file over HTTP already. So a page whose face cannot be written
+ * opens no body at all, which is what stopped a previewed saved page crossing
+ * the wire twice with the first copy gating the second (PR #206's deferral).
  *
  * The heading is the path, in the same voice a day page names its date: what
  * is IN the document is the document's own business, and a `# Title` on its
@@ -84,15 +93,24 @@ export function DocumentPage(props: { readonly file: string }) {
 }
 
 function OneDocument(props: { readonly file: string }) {
-  const document = useDocument(() => props.file)
   // WHICH FACE, off the file's own name — the format's registry answers what
-  // kind of body this is, and ./faces.tsx answers what that kind looks like and
-  // whether it can be written. A path this page model let through is a file the
-  // directory HOLDS, so it is a bodied kind by construction; the fallback is
-  // the markdown one because that is what a `/doc/` address meant before there
-  // was a second kind, and a blank page would be a worse answer than a
-  // rendering of the text.
+  // kind of body this is, and ./faces.tsx answers what that kind looks like,
+  // whether it can be written, and what this page must have before it draws
+  // one. A path this page model let through is a file the directory HOLDS, so
+  // it is a bodied kind by construction; the fallback is the markdown one
+  // because that is what a `/doc/` address meant before there was a second
+  // kind, and a blank page would be a worse answer than a rendering of the
+  // text.
   const face = () => FACES[bodyKind(props.file) ?? "document"]
+  // THE BODY, AND ONLY FOR A PAGE THAT MIGHT WRITE IT — the draft below is a
+  // change to a text, judged against the text it was read from, so the editor
+  // is the one thing here that cannot be given the file and left to fetch what
+  // it draws. A face that does not edit names no file, so no per-key
+  // subscription opens, the server is never told this reader opened the file,
+  // and a saved page's bytes stay on the disk its frame fetches them from over
+  // HTTP. That is what a `.html` preview costs this tab: nothing
+  // (./documents.tsx, and ./faces.tsx's `edits`).
+  const served = useDocument(() => (face().edits ? props.file : undefined))
   // Fresh per page mount — and a page is one FILE (see above), so navigating
   // anywhere else, another document included, closes the editor and the draft
   // goes with it: a draft is an editor's, never a file's.
@@ -102,7 +120,10 @@ function OneDocument(props: { readonly file: string }) {
     <section data-testid={TESTID.documentPage} data-file={props.file}>
       <header class="mb-4 flex items-baseline justify-between gap-2">
         <h1 class="m-0 font-mono text-sm text-muted">{props.file}</h1>
-        <Show when={face().edits && document() !== undefined && !editing()}>
+        {/* The control and the draft it opens read ONE value, so a page cannot
+            offer an editor it has nothing to open: `served()` is both the
+            condition here and the baseline below. */}
+        <Show when={served() !== undefined && !editing()}>
           <button
             type="button"
             class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
@@ -113,37 +134,29 @@ function OneDocument(props: { readonly file: string }) {
           </button>
         </Show>
       </header>
-      {/* No placeholder: the body of a document this directory HAS is on its
-          way, and a "reading…" line under a heading that is already drawn
-          would be a spinner for one frame. A path the directory does not have
-          never reaches this page — the page model answers that with its own
-          screen (../page.ts). */}
-      <Show when={document()}>
-        {(served) => (
-          <Show
-            when={editing()}
-            fallback={
-              /* `<Dynamic>` because the component genuinely arrives at RUNTIME
-                 — which kind of file this is, is a fact about the path (the
-                 primitive's own rule, stated beside `../menu/NodeMenu.tsx`'s).
-                 Calling `face().reads(…)` with a plain object instead would
-                 hand it a dead `text`: Solid compiles JSX props into getters,
-                 and a document rewritten on disk reaches an open page through
-                 exactly that. */
-              <Dynamic
-                component={face().reads}
-                file={props.file}
-                text={served().text}
-                rev={served().rev}
-              />
-            }
-          >
-            <DocEditor
-              file={props.file}
-              served={served().text}
-              onDone={() => setEditing(false)}
-            />
-          </Show>
+      {/* The face is drawn the moment the route resolves — the heading and the
+          file's own rendering are one mount — and what it draws from is its own
+          to ask for (./faces.tsx). A path the directory does not have never
+          reaches this page: the page model answers that with its own screen
+          (../page.ts). */}
+      <Show
+        when={editing() ? served() : undefined}
+        fallback={
+          /* `<Dynamic>` because the component genuinely arrives at RUNTIME —
+             which kind of file this is, is a fact about the path (the
+             primitive's own rule, stated beside `../menu/NodeMenu.tsx`'s).
+             Calling `face().reads(…)` with a plain object instead would hand it
+             a dead `file`: Solid compiles JSX props into getters, and this page
+             is keyed on the path, so the two agree only through one. */
+          <Dynamic component={face().reads} file={props.file} />
+        }
+      >
+        {(body) => (
+          <DocEditor
+            file={props.file}
+            served={body().text}
+            onDone={() => setEditing(false)}
+          />
         )}
       </Show>
     </section>

@@ -1,5 +1,6 @@
 /**
- * WHICH conversation the panel was in, remembered across a restart.
+ * WHICH conversation the panel was in — and which model it was running —
+ * remembered across a restart.
  *
  * Boot used to answer that question by guessing: the newest stored session in
  * the served directory was adopted as the panel's own, on the reasonable-looking
@@ -15,6 +16,24 @@
  * the fallback the guess used to be is still there for the case it is actually
  * an answer to: a remembered conversation that is GONE ({@link ../agent.ts}'s
  * `adopt`).
+ *
+ * ## And which MODEL it was running
+ *
+ * The second fact is here because it is the same fact's other half — "the panel
+ * was in THIS conversation, on THIS model" — and it is written down for a bug
+ * with the same shape as the one above: a `/model` chosen in the panel did not
+ * survive a restart, because the agent's own answer at every boot is a static
+ * one. The pinned Claude Code adapter reads `settings.json`, and a container
+ * whose settings pin `"model": "sonnet"` RE-ASSERTS that pin over the resumed
+ * conversation's own model, every time (0.66.0, `getAvailableModels`: env, then
+ * settings, then the transcript). The conversation was on Fable; it came back
+ * on Sonnet; nothing on screen said why.
+ *
+ * A model is not something an ACP session carries for us either — the picker
+ * reports what the agent decided, and a `/model` typed into the wrapped CLI
+ * never reaches the picker at all — so remembering it is olai's job for exactly
+ * the reason remembering the session id is. What the panel does with it after a
+ * load is {@link ./agent.ts}'s (`restore`).
  *
  * ## Where it goes, and why not in the two obvious places
  *
@@ -87,21 +106,38 @@ export class MemoryFailure extends Data.TaggedError("MemoryFailure")<{
 }
 
 /**
- * Two verbs and an id: the socket, and everything volatile is behind it.
+ * What a boot needs to know about the boot before it: which conversation, and
+ * the model it was running.
+ *
+ * ONE record rather than two verbs' worth of fields, because the model is only
+ * ever meaningful ABOUT a conversation: re-asserting the model of a session the
+ * panel is no longer in would put somebody else's conversation on it.
+ */
+export interface Held {
+  readonly session: string
+  /** `null` for "nothing says" — a conversation entered but never heard of
+   *  again, a file written by an olai that only remembered sessions, or a
+   *  panel that has not yet been told which model it is on. */
+  readonly model: string | null
+}
+
+/**
+ * Two verbs and a record: the socket, and everything volatile is behind it.
  *
  * What CHANGES back there is where the file lives, what is in it, whether it is
  * one file or a row of an index, and whether a machine keeps this at all. What
- * does not is the pair below — the panel enters a conversation and says so, and
- * a boot asks which one that was. That asymmetry is the whole reason this is an
+ * does not is the pair below — the panel says where it is and what it is on,
+ * and a boot asks what that was. That asymmetry is the whole reason this is an
  * interface with one implementation rather than two `fs` calls in `agent.ts`.
  */
 export interface Memory {
-  /** The conversation this directory's panel was last in, or `null` when
-   *  nothing has been written down yet. */
-  readonly recall: Effect.Effect<string | null, MemoryFailure>
-  /** ... and writing one down. Called whenever the panel enters a
-   *  conversation, which is the only moment the answer changes. */
-  readonly remember: (id: string) => Effect.Effect<void, MemoryFailure>
+  /** What this directory's panel was last in and on, or `null` when nothing
+   *  has been written down yet. */
+  readonly recall: Effect.Effect<Held | null, MemoryFailure>
+  /** ... and writing it down. Called whenever the panel enters a conversation
+   *  or learns that the model under it has moved, which are the only two
+   *  moments the answer changes. */
+  readonly remember: (held: Held) => Effect.Effect<void, MemoryFailure>
 }
 
 // ── what one of these files IS ─────────────────────────────────────────
@@ -113,23 +149,36 @@ export interface Memory {
 
 /** The `cwd` is not redundant with the file's name: the name is a digest, and
  *  this is what makes the file say whose it is — to a person reading their own
- *  state directory, and to {@link parsed}. */
-interface Remembered {
+ *  state directory, and to {@link parsed}. The `model` is optional ON DISK: a
+ *  file written before olai remembered one is a file that says nothing about
+ *  it, which is what `null` means everywhere else here. */
+interface Written {
   readonly cwd: string
   readonly session: string
+  readonly model?: string
 }
 
-const printed = (held: Remembered): string => `${JSON.stringify(held)}\n`
+const printed = (cwd: string, held: Held): string =>
+  // `undefined` is how `JSON.stringify` spells a field that is not there, which
+  // is what a model nothing has said about IS on disk.
+  `${JSON.stringify({ cwd, session: held.session, model: held.model ?? undefined })}\n`
 
 /** The text as what it is meant to be — or the reason it is not. A file that is
  *  about a DIFFERENT directory is answered `null` rather than refused: it is not
  *  damage, it is somebody else's note, and the honest answer to "what was this
- *  panel in" is that nothing here says. */
+ *  panel in" is that nothing here says.
+ *
+ * The SESSION is the load-bearing half and a file without one is damage; the
+ * MODEL is read leniently — anything that is not a non-empty string reads as
+ * "nothing says", the same as an absent field. A file whose model went strange
+ * is one the panel opens on whatever the agent offers, which is the behaviour
+ * of every olai before this one; refusing the whole memory over it would cost
+ * the conversation too. */
 const parsed = (
   at: string,
   cwd: string,
   text: string,
-): Effect.Effect<string | null, MemoryFailure> =>
+): Effect.Effect<Held | null, MemoryFailure> =>
   Effect.flatMap(
     Effect.try({
       try: () => JSON.parse(text) as unknown,
@@ -137,11 +186,12 @@ const parsed = (
         new MemoryFailure({ why: `\`${at}\` is not readable JSON: ${reasonOf(cause)}` }),
     }),
     (value) => {
-      const held = value as Partial<Remembered> | null
+      const held = value as Partial<Written> | null
       if (typeof held?.session !== "string" || held.session === "") {
         return Effect.fail(new MemoryFailure({ why: `\`${at}\` names no conversation` }))
       }
-      return Effect.succeed(held.cwd === cwd ? held.session : null)
+      const model = typeof held.model === "string" && held.model !== "" ? held.model : null
+      return Effect.succeed(held.cwd === cwd ? { session: held.session, model } : null)
     },
   )
 
@@ -154,7 +204,7 @@ export const forDirectory = (spelling: string): Memory => {
   const at = fileFor(cwd)
   const home = dirname(at)
 
-  const recall: Effect.Effect<string | null, MemoryFailure> = Effect.flatMap(
+  const recall: Effect.Effect<Held | null, MemoryFailure> = Effect.flatMap(
     Effect.tryPromise({
       // ENOENT is the ordinary answer rather than a fault — nothing has been
       // written down for this directory yet — so it is answered INSIDE the
@@ -175,7 +225,7 @@ export const forDirectory = (spelling: string): Memory => {
     (text) => text === null ? Effect.succeed(null) : parsed(at, cwd, text),
   )
 
-  const remember = (session: string): Effect.Effect<void, MemoryFailure> =>
+  const remember = (held: Held): Effect.Effect<void, MemoryFailure> =>
     Effect.tryPromise({
       try: async () => {
         await mkdir(home, { recursive: true, mode: 0o700 })
@@ -185,7 +235,7 @@ export const forDirectory = (spelling: string): Memory => {
         // wrong. `rename` within one directory is atomic.
         const staged = `${at}.${process.pid}.tmp`
         try {
-          await writeFile(staged, printed({ cwd, session }), { mode: 0o600 })
+          await writeFile(staged, printed(cwd, held), { mode: 0o600 })
           await rename(staged, at)
         } catch (cause) {
           await rm(staged, { force: true })

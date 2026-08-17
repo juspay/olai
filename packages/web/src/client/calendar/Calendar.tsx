@@ -36,6 +36,7 @@
  * it arrives.
  */
 
+import { monthOfDay, shiftMonth } from "@olai/format"
 import { createMemo, createSelector, createSignal, For, Show } from "solid-js"
 
 import { mintAndOpen } from "../document/minted.ts"
@@ -45,7 +46,7 @@ import { useRouter } from "../router.tsx"
 import { createStamped } from "../stamped.ts"
 import { TESTID, type TestId } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
-import { monthGrid, monthLabel, monthOfDay, shiftMonth, WEEKDAYS } from "./month.ts"
+import { monthGrid, monthLabel, WEEKDAYS } from "./month.ts"
 import { Day } from "./Day.tsx"
 
 export function Calendar(props: {

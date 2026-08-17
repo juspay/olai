@@ -32,6 +32,8 @@ import {
   CHAT_ATTACH_BUTTON,
   CHAT_ATTACHMENT_SIZE,
   CHAT_CANCEL,
+  CHAT_COMPLETION,
+  CHAT_COMPLETION_ROW,
   CHAT_DIFF,
   CHAT_DIFF_EXPAND,
   CHAT_DIFF_GUTTER,
@@ -64,7 +66,8 @@ import {
   CHAT_SESSION_LIST,
   CHAT_SESSIONS,
   CHAT_SESSIONS_REFUSED,
-  CHAT_SLASH_COMMAND,
+  CHAT_SPAWN,
+  CHAT_SPAWN_WORKING,
   CHAT_TITLE,
   CHAT_TOGGLE,
   CHAT_TOOL,
@@ -137,6 +140,14 @@ When("I type {string} into the chat", async function (this: OlaiWorld, text: str
   await typeInto(this, text);
 });
 
+/** Send WHAT IS IN THE BOX, rather than typing a message and sending it in one
+ *  gesture (`I ask the agent`). A scenario that got the words there some other
+ *  way — a completion taken, a draft put back — has to be able to press the
+ *  button without retyping over what it is asserting about. */
+When("I send the chat message", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_SEND).click();
+});
+
 /** Let a held turn go on. The fake agent waits for this file rather than for a
  *  clock, so "mid-turn" is a state the scenario ENDS rather than one it races.
  *  A dot-file: the store's walk prunes those, so this is not an edit. */
@@ -152,6 +163,17 @@ When(
   "the conversation {string} is gone from the agent",
   function (this: OlaiWorld, id: string) {
     fs.writeFileSync(path.join(this.scratch(), `.agent-forgot-${id}`), "");
+  },
+);
+
+/** Move the model the agent PINS — its `settings.json`, in effect, which is
+ *  the thing a redeploy edits. Read at every session open, so a scenario arms
+ *  it between two boots and the next one comes up on it. The same dot-file
+ *  idiom as the two above, and not an edit either. */
+When(
+  "the agent's pinned model becomes {string}",
+  function (this: OlaiWorld, model: string) {
+    fs.writeFileSync(path.join(this.scratch(), ".agent-pin"), model);
   },
 );
 
@@ -1124,6 +1146,54 @@ const firstLane = (world: OlaiWorld) => world.page.locator(CHAT_LANE).first();
  *  file is two of them being missed the day the scheme moves. */
 const entrySelector = (id: string): string => `${CHAT_ENTRY}[data-entry-id="${id}"]`;
 
+/**
+ * What hangs off a spawn has to be drawn BELOW it and INSET from it.
+ *
+ * The geometry half of every lane claim, asserted once for both things that
+ * make one: a call a subagent made, and the live rail under a spawn nobody has
+ * reported on yet. They are the same picture — the whole design is that the
+ * two segments meet as one line — so two copies of this measurement would be
+ * two chances to assert a different picture.
+ *
+ * Measured rather than read off a class, for the reason the bubble on your own
+ * message is measured: a class is a styling decision a refactor may change, and
+ * where a thing SITS is the claim. It is also the half a `data-` attribute
+ * cannot make — strip the rail and the indent from the panel and every other
+ * assertion in this section still passes.
+ *
+ * @param spawner the transcript key of the frame it should hang off
+ * @param hanging what should be hanging off it
+ * @param what a name for it, for the failure to read as a sentence
+ */
+const insetBelow = async (
+  world: OlaiWorld,
+  spawner: string,
+  hanging: Locator,
+  what: string,
+): Promise<void> => {
+  // The frame it names has to BE there: a lane pointing at a row the panel
+  // never drew would look right and say nothing.
+  const frame = world.page.locator(entrySelector(spawner));
+  await frame.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const above = await frame.boundingBox();
+  const mine = await hanging.boundingBox();
+  assert.ok(
+    above !== null && mine !== null,
+    `neither ${what} nor the call that spawned it was drawn`,
+  );
+  assert.ok(
+    mine.y > above.y,
+    `${what} is drawn above the call that spawned it (${mine.y} is not below ` +
+      `${above.y})`,
+  );
+  assert.ok(
+    mine.x > above.x,
+    `${what} starts at ${mine.x}, level with the call that spawned it at ` +
+      `${above.x} — a lane is an INDENT, and a reader who cannot see one is ` +
+      "being told a subagent's work was the main agent's",
+  );
+};
+
 Then(
   "the chat draws a subagent's tool call under the call that spawned it",
   async function (this: OlaiWorld) {
@@ -1134,34 +1204,11 @@ Then(
       parent !== null && parent !== "",
       "a lane that names no agent is an indent, not an attribution",
     );
-    // The frame it names has to BE there, and the subagent's row has to be
-    // drawn UNDER it and INSET from it. A lane pointing at a row the panel
-    // never drew would look right and say nothing; one level with its parent
-    // would say something false about who did the work.
-    //
-    // Measured rather than read off a class, for the reason the bubble on your
-    // own message is measured: a class is a styling decision a refactor may
-    // change, and where a thing SITS is the claim. It is also the half of this
-    // feature a `data-` attribute cannot make — strip the rail and the indent
-    // from the panel and every other assertion here still passes.
-    const spawner = this.page.locator(entrySelector(parent ?? ""));
-    await spawner.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const above = await spawner.boundingBox();
-    const mine = await lane.locator(CHAT_ENTRY).first().boundingBox();
-    assert.ok(
-      above !== null && mine !== null,
-      "neither the subagent's row nor the call that spawned it was drawn",
-    );
-    assert.ok(
-      mine.y > above.y,
-      `the subagent's work is drawn above the call that spawned it (${mine.y} ` +
-        `is not below ${above.y})`,
-    );
-    assert.ok(
-      mine.x > above.x,
-      `the subagent's row starts at ${mine.x}, level with the call that ` +
-        `spawned it at ${above.x} — a lane is an INDENT, and a reader who ` +
-        "cannot see one is being told a subagent's work was the main agent's",
+    await insetBelow(
+      this,
+      parent ?? "",
+      lane.locator(CHAT_ENTRY).first(),
+      "the subagent's row",
     );
   },
 );
@@ -1184,6 +1231,74 @@ Then(
     );
   },
 );
+
+Then(
+  "the chat says an agent is working, of the kind {string}",
+  async function (this: OlaiWorld, kind: string) {
+    // THE LIVE HALF, and the whole of what this scenario is about: it has to
+    // be on screen while the agent has reported nothing, so it is found by
+    // waiting for it rather than by looking after the fact.
+    const working = this.page.locator(CHAT_SPAWN_WORKING).first();
+    await working.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const spawner = await working.getAttribute("data-lane");
+    assert.ok(
+      spawner !== null && spawner !== "",
+      "a rail that names no agent is an indent, not an attribution",
+    );
+    // WHO, off the frame the rail hangs from — the attribute rather than the
+    // words, so the claim stays about the kind of agent the call named and not
+    // about how the row spells it.
+    const frame = this.page.locator(entrySelector(spawner ?? ""));
+    await frame.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await frame.locator(CHAT_SPAWN).first().getAttribute("data-spawn-kind"),
+      kind,
+      `the call that spawned an agent does not say it started a "${kind}"`,
+    );
+    // ... and the same geometry a lane owes, for the same reason: the rail is
+    // the claim that this is somebody ELSE's work, and one drawn level with
+    // the conversation says the main agent is doing it. The same measurement a
+    // subagent's own row is held to, because it is meant to be the same line.
+    await insetBelow(this, spawner ?? "", working, "the agent that was sent out");
+  },
+);
+
+Then("no tool call is drawn in a subagent lane", async function (this: OlaiWorld) {
+  // The other half, and the one that makes the assertion above mean anything:
+  // the agent has produced NOTHING, so every lane the old panel could draw is
+  // absent and the face on screen is the spawn's own.
+  assert.strictEqual(
+    await this.page.locator(CHAT_LANE).count(),
+    0,
+    "a subagent's work is on screen; this scenario is about the stretch " +
+      "before any of it exists",
+  );
+});
+
+Then(
+  "the chat still shows a call that sent out an {string}",
+  async function (this: OlaiWorld, kind: string) {
+    // The half that must NOT come off with the live one: who was sent is a
+    // fact about what happened, and the row is the record of it. A panel that
+    // took the whole face off when the agent died would leave a bare pending
+    // dot where a spawn was — which is the bug this feature exists for,
+    // arriving at the end of the turn instead of the start.
+    await this.page
+      .locator(`${CHAT_SPAWN}[data-spawn-kind="${kind}"]`)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then("the chat says no agent is still working", async function (this: OlaiWorld) {
+  // A face that outlives the agent is worse than none: it says a fan-out is
+  // running when the turn is over.
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_SPAWN_WORKING).count()) === 0,
+    "the panel to stop saying an agent is working",
+    HYDRATION_TIMEOUT,
+  );
+});
 
 Then(
   "the chat draws {int} tool calls in subagent lanes",
@@ -1218,20 +1333,159 @@ Then(
   },
 );
 
-// ── slash completion ───────────────────────────────────────────────────
+// ── the completion over the box ────────────────────────────────────────
+//
+// ONE set of steps for both lists — the agent's commands under a `/` and the
+// served directory's files under an `@` — because they are one box in the
+// client (`web/src/client/chat/CompletionMenu.tsx`) and a second spelling here
+// would be two scenarios' worth of drift about what "the completion offers"
+// means. A row is named by its `data-value`, which is what taking it writes:
+// the command's name, or the file's path.
+
+/** WHICH list, off `data-kind` — `command` or `path`. Named rather than
+ *  guessed from the rows, because the whole design claim is that one scan of
+ *  the line decides which character the caret is inside. */
+Then(
+  "the {word} completion is open",
+  async function (this: OlaiWorld, kind: string) {
+    const panel = this.page.locator(CHAT_COMPLETION);
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await panel.getAttribute("data-kind"), kind);
+  },
+);
+
+/** Nothing armed, or nothing matched — which are the same thing on screen and
+ *  deliberately so: a trigger with nothing to offer draws no box, so an `@`
+ *  that is somebody's address types straight through. */
+Then("no completion is open", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_COMPLETION).count()) === 0,
+    "the completion to be gone",
+  );
+});
 
 Then(
   "the completion offers {string}",
-  async function (this: OlaiWorld, name: string) {
+  async function (this: OlaiWorld, value: string) {
     await this.page
-      .locator(`${CHAT_SLASH_COMMAND}[data-command="${name}"]`)
+      .locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the completion does not offer {string}",
+  async function (this: OlaiWorld, value: string) {
+    await this.waitUntil(
+      async () =>
+        (await this.page
+          .locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`)
+          .count()) === 0,
+      `the completion to stop offering "${value}"`,
+    );
+  },
+);
+
+/** What a row READS, which is not what it writes: the file's own name, with
+ *  where it sits beside it. Asked once, for the one row whose folder is part
+ *  of the answer — a column of `2026-08-16.md` in a `Daily/` vault is the
+ *  reason the path is not the label. */
+Then(
+  "the completion row {string} reads {string} in {string}",
+  async function (this: OlaiWorld, value: string, label: string, hint: string) {
+    const row = this.page.locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(oneLine(await row.innerText()), `${label} ${hint}`);
   },
 );
 
 When("I accept the completion", async function (this: OlaiWorld) {
   await this.page.locator(CHAT_INPUT).press("Enter");
 });
+
+/** The pointer's door onto the same row, for the hand that is already there. */
+When(
+  "I click the completion {string}",
+  async function (this: OlaiWorld, value: string) {
+    await this.page
+      .locator(`${CHAT_COMPLETION_ROW}[data-value="${value}"]`)
+      .click();
+  },
+);
+
+/**
+ * WHERE IN THE TEXT the caret sits, read off the element rather than reasoned
+ * about.
+ *
+ * The completion sets the field's value and then its selection, and what keeps
+ * the second from being undone by the framework's own binding is a claim about
+ * Solid and about the platform that no comment can settle
+ * (`client/chat/Composer.tsx`'s `rewrite`). A real browser can, so it does:
+ * completing mid-sentence has to leave the caret after the path it wrote, not
+ * at the end of the line.
+ */
+Then(
+  "the caret in the chat box is at {int}",
+  async function (this: OlaiWorld, at: number) {
+    await this.waitUntil(
+      async () =>
+        (await this.page
+          .locator(CHAT_INPUT)
+          .evaluate((box) => (box as HTMLTextAreaElement).selectionStart)) === at,
+      `the caret to sit at ${at}`,
+    );
+  },
+);
+
+/** WHERE THE CARET IS after a row was taken with the pointer: the press moved
+ *  focus to a button that is gone a moment later, so a completion that did not
+ *  hand it back would cost a click instead of saving one. */
+Then("the caret is in the chat box", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () =>
+      await this.page
+        .locator(CHAT_INPUT)
+        .evaluate((box) => box === document.activeElement),
+    "the caret to be back in the message box",
+  );
+});
+
+/**
+ * The caret moved INTO the sentence, the way a click into the middle of one
+ * moves it — `editing_steps.ts`'s gesture, one box over.
+ *
+ * `setSelectionRange` fires the element's own `select` event, which is what
+ * the composer listens for: the caret is the element's answer there, never a
+ * signal this suite could set (`client/chat/Composer.tsx`).
+ */
+When(
+  "I put the caret after {string} in the chat",
+  async function (this: OlaiWorld, prefix: string) {
+    const box = this.page.locator(CHAT_INPUT);
+    await box.focus();
+    await box.evaluate((element, wanted) => {
+      const field = element as HTMLTextAreaElement;
+      const at = field.value.indexOf(wanted);
+      if (at === -1) {
+        throw new Error(
+          `the box holds ${JSON.stringify(field.value)}, which does not contain ${
+            JSON.stringify(wanted)
+          }`,
+        );
+      }
+      field.setSelectionRange(at + wanted.length, at + wanted.length);
+    }, prefix);
+  },
+);
+
+/** A key aimed at the BOX rather than at the page — which is the whole of what
+ *  the list asks before answering one (`within`, in CompletionMenu.tsx). */
+When(
+  "I press {string} in the chat",
+  async function (this: OlaiWorld, key: string) {
+    await this.page.locator(CHAT_INPUT).press(key);
+  },
+);
 
 Then(
   "the chat input reads {string}",

@@ -342,6 +342,19 @@ export const byOutline = (
     .map(([file, nodes]) => ({ file, nodes: nodes.sort(byTime) }))
 }
 
+/**
+ * How many ROWS a list of day groups draws.
+ *
+ * Entries rather than groups, because a group is one outline's worth of them
+ * and a reader counting what is on a day is counting the rows: "3 of 11" over a
+ * filtered day, and "3 overdue" on the mark beside the agenda, are the same
+ * number asked of the same list (./agenda.ts's `owedOf`, `@olai/web`'s filter
+ * bar). Spelled here, beside {@link byOutline} that produces the shape, so the
+ * two readings that count one cannot count it differently.
+ */
+export const datedIn = (groups: ReadonlyArray<DayGroup>): number =>
+  groups.reduce((total, group) => total + group.nodes.length, 0)
+
 /** Code-point order on the stored text, ties on the line — the same rule the
  *  error report sorts by (./errors.ts), and effect's own comparator rather
  *  than a hand-rolled one: `localeCompare` would put the same day in two
@@ -358,9 +371,13 @@ const byTime = (left: DayEntry, right: DayEntry): number =>
 /** A day, spelled out: four digits, two, two. The shape and nothing more —
  *  `2026-13-45.md` passes and names a day no month has, which is a day nothing
  *  can ever ask about (a calendar grid mints only real ones) and therefore a
- *  document that is quietly nobody's note. Checking the range here would be
- *  this package's first piece of calendar arithmetic, bought for a case that
- *  cannot reach a screen. */
+ *  document that is quietly nobody's note.
+ *
+ *  ./calendar.ts's `isRealDay` is the OTHER question — the shape plus the
+ *  month's own length — and it is a neighbour now rather than the arithmetic
+ *  this file declined to be the first to do. This one is still the right rule
+ *  HERE: a filename is matched by what it says, and a note named for a day no
+ *  month has is inert rather than wrong. */
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 
 /**
@@ -437,7 +454,11 @@ export const dailyNoteDays = (
  *  the shape a request to MINT one must arrive in. The same rule
  *  {@link noteDateOf} reads off a filename, exported for the writer's side of
  *  it: a minted note is named for its day, so what may name one is decided
- *  where the naming rule lives. */
+ *  where the naming rule lives.
+ *
+ *  SHAPE ONLY, which is the difference from ./calendar.ts's `isRealDay` beside
+ *  it on the package surface: this one asks what a FILENAME says, that one asks
+ *  whether a calendar holds the day. */
 export const isDay = (value: string): boolean => ISO_DAY.test(value)
 
 /**

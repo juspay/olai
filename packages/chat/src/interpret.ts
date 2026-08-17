@@ -136,21 +136,141 @@ export const parentToolUseIn = (
   meta: { readonly [key: string]: unknown } | null | undefined,
 ): string | null => stringIn(meta, "parentToolUseId")
 
-/** One field of the adapter's own corner of a `_meta`, when it is a non-empty
- *  string and `null` for everything else — an absent `_meta`, an absent
- *  `claudeCode`, a field of some other type, the empty string. The two readers
- *  above are the same narrowing over two names, and a frame carries either,
- *  both or neither: a subagent's terminal output arrives with a `claudeCode`
- *  holding only the parent, and a plan exit's with only the name. */
+// ── which call STARTED an agent ────────────────────────────────────────
+
+/**
+ * What this frame says about an agent this call STARTED, or `null` for a frame
+ * that says nothing about one — which is nearly all of them.
+ *
+ * The other side of {@link parentToolUseIn}, and the half that was missing: the
+ * parent stamp says a call CAME OUT of a subagent, which is a thing nothing can
+ * say until the subagent has made a call. A spawned agent that is still reading
+ * its instructions has made none, so a panel with only that stamp to read has
+ * nothing at all to draw for the agent it is waiting on — the reader sees a
+ * pending row with an ordinary title and no reason to think anybody was sent
+ * anywhere.
+ *
+ * TWO FIELDS, AND ONE OF THEM IS A GATE:
+ *
+ *   - **the spawn's own flag.** The adapter stamps `subagent: true` beside the
+ *     tool name on every frame it builds for an `Agent`/`Task` call
+ *     (`claudeCodeMetaFromToolUse`, adapter 0.66.0), and that frame is emitted
+ *     when the tool use starts — so it arrives at the moment the agent is sent
+ *     out rather than at the moment it reports back. The FLAG rather than the
+ *     tool NAME, which the same corner also carries: the name is a word one
+ *     CLI's tool table happens to use, and the adapter maps two of them onto
+ *     this one boolean. Reading the boolean is reading the adapter's own answer
+ *     instead of re-deriving it from a list that is somebody else's to extend.
+ *   - **the call's own INPUT.** `subagent_type` is a field of the `Agent`
+ *     tool's arguments (the SDK's `AgentInput`), so it rides the `rawInput` of
+ *     the frame that announces the spawn — the first thing anybody hears about
+ *     the agent. It is optional there: a spawn that named no kind has none.
+ *
+ * WHAT IS DELIBERATELY NOT READ, and this is the important half, because it is
+ * the reading a future reader will find in the payload and re-add:
+ * `toolResponse.subagentType`. The adapter's `tool_progress` forwarding really
+ * does put an Agent call's kind there while the call runs, and reading it
+ * looked like free redundancy. It is not free, because `_meta.claudeCode
+ * .toolResponse` is not one thing: on the `tool_progress` path the adapter
+ * builds it, and on the PostToolUse path it forwards **the tool's own response
+ * object, verbatim, for any tool** (`onPostToolUseHook`, which spreads
+ * `toolResponse` straight into the `_meta` of a `tool_call_update`). So that
+ * field is reachable by anything a session can call — an MCP server olai never
+ * handed this conversation has only to answer with a `subagentType` in its
+ * structured output to be drawn as an agent somebody spawned, with a live rail
+ * under it. Gating it on the flag would not save it either: the beat frames
+ * carry no flag, so a gate makes the read dead.
+ *
+ * And nothing is lost by dropping it. The kind rides the arguments of the
+ * flagged frame that announces the spawn and of the flagged one that refines
+ * it, and the transcript holds it sticky from there
+ * ({@link ./transcript.ts}) — so by the time any beat could speak, the answer
+ * is already on the row. The only case a beat could have answered alone is a
+ * spawn whose arguments never named a kind, and a task with no `subagent_type`
+ * in its input has none to report in a beat either.
+ *
+ * NOTHING IS ACCUMULATED HERE. The input arrives incrementally — the adapter
+ * emits the `tool_call` as the tool use starts and refines it with a
+ * `tool_call_update` as the arguments finish parsing — and the flag, the kind
+ * and the completion land on different frames. So a frame answers about the
+ * frame: `{}` is an honest "a spawn, and nobody has said which kind", and an
+ * absent `kind` reads as "unchanged" to the one thing that holds a row together
+ * across frames ({@link ./transcript.ts}), which is the rule every other field
+ * on a tool row already follows.
+ *
+ * Structural rather than `@olai/surface`'s `Spawned`, which is what a caller
+ * assigns this to: everything in this file is a pure function over a payload
+ * and none of them knows what a transcript is.
+ */
+export const spawnedIn = (
+  meta: { readonly [key: string]: unknown } | null | undefined,
+  input: unknown,
+): { readonly kind?: string } | null => {
+  // THE FLAG IS THE ONLY THING THAT OPENS THIS DOOR. Everything below is read
+  // off a frame the adapter itself said was an Agent call, and a frame that
+  // does not say so is answered `null` however suggestively it is shaped.
+  if (claudeIn(meta)?.["subagent"] !== true) return null
+  // ... and then the kind, off the `Agent` tool's own arguments. `rawInput` is
+  // the tool's payload rather than the adapter's word, which is exactly why it
+  // may not be read on its own: `subagent_type` is a name ONE tool gives one
+  // of its arguments, the tools on a session are not a closed set, and an MCP
+  // server olai never handed this conversation is free to take an argument by
+  // that name. Requiring the flag costs nothing — the adapter builds both into
+  // the same frames (`claudeCodeMetaFromToolUse` rides every announcement and
+  // every refinement of an Agent call).
+  const asked = (input as { readonly subagent_type?: unknown } | null | undefined)
+    ?.subagent_type
+  return typeof asked === "string" && asked !== "" ? { kind: asked } : {}
+}
+
+/*
+ * What is deliberately NOT read off a spawn, and why, because the next person
+ * to open this file will find it in the payload and wonder:
+ *
+ *   - **`toolResponse.elapsedTimeSeconds`**, which the heartbeat carries. It is
+ *     the agent's own clock and it is honest, but it only moves when a beat
+ *     arrives — so a subagent that has actually WEDGED reports the age it had
+ *     at its last beat, forever. A number that under-states how long something
+ *     has been stuck is worse in exactly the direction a person consults it
+ *     for, and the panel already says the true thing (it is running, and here
+ *     is every call it has made) without one.
+ *   - **`toolResponse.subagentRetry`**, the SDK's rate-limit retry counters,
+ *     forwarded so a client can say why a spawn looks stalled. Worth drawing
+ *     one day; it is a shape nothing in this repo has ever seen arrive, and a
+ *     row that renders a payload nobody has observed is a row that is wrong the
+ *     first time it is right.
+ *   - **the subagent's own PROSE**. The adapter strips a subagent's text and
+ *     thinking blocks from the feed unless the client declares
+ *     `subagent-transcript` in its `initialize` capabilities
+ *     (`supportsSubagentTranscript`) — so olai, which does not, cannot receive
+ *     it and cannot have it leak into the main agent's voice either. Drawing a
+ *     subagent's narration is a feature with a switch to throw, not a `_meta`
+ *     to read, and it is not this one.
+ */
+
+/** The adapter's own corner of a `_meta`, or `undefined` when there is none —
+ *  an absent `_meta`, an absent `claudeCode`, one that is not an object. Every
+ *  reader here starts by asking for it. */
+const claudeIn = (
+  meta: { readonly [key: string]: unknown } | null | undefined,
+): { readonly [key: string]: unknown } | undefined => {
+  const claude = meta?.["claudeCode"]
+  return typeof claude === "object" && claude !== null
+    ? claude as { readonly [key: string]: unknown }
+    : undefined
+}
+
+/** One field of that corner, when it is a non-empty string and `null` for
+ *  everything else — a field of some other type, the empty string. The two
+ *  readers above are the same narrowing over two names, and a frame carries
+ *  either, both or neither: a subagent's terminal output arrives with a
+ *  `claudeCode` holding only the parent, and a plan exit's with only the
+ *  name. */
 const stringIn = (
   meta: { readonly [key: string]: unknown } | null | undefined,
   field: string,
 ): string | null => {
-  const claude = meta?.["claudeCode"] as
-    | { readonly [key: string]: unknown }
-    | null
-    | undefined
-  const value = claude?.[field]
+  const value = claudeIn(meta)?.[field]
   return typeof value === "string" && value !== "" ? value : null
 }
 
@@ -239,20 +359,28 @@ export const steerTaken = (answered: unknown): boolean =>
 
 // ── which model a turn is running on ───────────────────────────────────
 
-/** What `session/new` asks the Claude Code adapter to forward, and why: the
+/** What OPENING a session asks the Claude Code adapter to forward, and why: the
  *  adapter handles a `/model` slash command inside the wrapped CLI, so it never
  *  sees a config change and its `configOptions` keep naming the model the
  *  session started on. The CLI's own `system`/`init` message carries the live
  *  one. An agent that is not that adapter ignores `_meta` and nothing changes —
- *  the config option is still read, and still enough. */
-export const NEW_SESSION_META = {
+ *  the config option is still read, and still enough.
+ *
+ *  Sent with `session/load` as well as `session/new`, and that is not
+ *  belt-and-braces: the adapter reads this off the `_meta` of whichever call
+ *  made the session, and a load makes one (`loadSession` hands its own `_meta`
+ *  to `createSession`, defaulting the flag to false). Asked only at `new`, the
+ *  running model went unreported for the life of every RESTORED conversation —
+ *  which is every conversation after a restart, and exactly the ones the panel
+ *  now has to hear a `/model` in ({@link ../memory.ts}). */
+export const OPEN_SESSION_META = {
   claudeCode: {
     emitRawSDKMessages: [{ type: "system", subtype: "init" }],
   },
 }
 
 /** The notification the Claude Code adapter forwards its wrapped CLI's own
- *  messages under, having been asked to by {@link NEW_SESSION_META}. */
+ *  messages under, having been asked to by {@link OPEN_SESSION_META}. */
 export const SDK_MESSAGE = "_claude/sdkMessage"
 
 /**
@@ -415,9 +543,69 @@ export const modelNameIn = (
 export const modelPickerIn = (
   configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
 ): Picker | null => {
-  const entry = (configOptions ?? []).find((option) => option.id === "model")
+  const entry = (configOptions ?? []).find((option) => option.id === MODEL_CONFIG)
   if (entry === undefined || entry.type !== "select") return null
   return { picked: entry.currentValue ?? null, labels: labelsOf(entry) }
+}
+
+/** The picker's own id, which is also what a `session/set_config_option`
+ *  naming the model has to be addressed to — READ in one place and WRITTEN in
+ *  another, so it is spelled once. The bet it embodies is
+ *  {@link modelPickerIn}'s. */
+export const MODEL_CONFIG = "model"
+
+/**
+ * Whether two model strings name the model, as far as anything here can tell.
+ *
+ * Asked by the one caller that has to decide whether to say anything at all:
+ * the panel puts a restored conversation back on the model it was running
+ * ({@link ./agent.ts}'s `restore`), and a session that already came up on it
+ * needs no such request. The two strings reach that question in DIFFERENT
+ * vocabularies — the picker's own value (`sonnet`) against whatever the panel
+ * last knew it was running, which is a live API id (`claude-sonnet-5`) as often
+ * as not — so string equality answers only the easy half.
+ *
+ * Resolved through {@link modelNameIn}, which is the bridge between those two
+ * vocabularies and already the header's: two strings the picker gives ONE name
+ * are one model, because a picker never names two rows alike. A string the
+ * picker cannot name answers for itself, so two unnameable ones agree only when
+ * they are the same string — which is the truthful answer for a model nobody
+ * here has a vocabulary for, and the reason the equal-strings case needs no
+ * line of its own.
+ */
+export const sameModel = (
+  labels: ReadonlyMap<string, string>,
+  one: string,
+  other: string,
+): boolean => (modelNameIn(labels, one) ?? one) === (modelNameIn(labels, other) ?? other)
+
+/**
+ * The picker's OWN word for a model, when it has one.
+ *
+ * The other direction of the same bridge, and the one a request has to cross.
+ * What the panel remembers a conversation running is, in practice, always the
+ * live API id the CLI reported (`claude-sonnet-5`) — that is the only source a
+ * `/model` ever reaches olai through — while the picker offers aliases
+ * (`sonnet`). A `session/set_config_option` carries a picker VALUE, so asking
+ * in the remembered spelling is asking with a word the picker never offered:
+ * the pinned adapter would resolve it (its `resolveModelPreference` matches a
+ * row's resolved id), and an agent that simply checked its own list would
+ * refuse — leaving the conversation on the pin, which is the whole bug.
+ *
+ * So the id is translated back through the labels first: the row this model is
+ * NAMED by is the row to ask for. `null` when no row answers, or when two do —
+ * the caller then asks in the words it has, which is what it would have done
+ * anyway, and an agent that can resolve them still does.
+ */
+export const pickerValueFor = (
+  labels: ReadonlyMap<string, string>,
+  model: string,
+): string | null => {
+  if (labels.has(model)) return model
+  const name = modelNameIn(labels, model)
+  if (name === null) return null
+  const rows = [...labels].filter(([, label]) => label === name)
+  return rows.length === 1 ? rows[0]?.[0] ?? null : null
 }
 
 /** The picker as value → label ("sonnet" → "Sonnet"), which is what the agent

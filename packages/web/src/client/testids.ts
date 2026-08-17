@@ -805,6 +805,22 @@ export const TESTID = {
   /** The lane naming itself — drawn once where a stretch of one agent's work
    *  opens, never on every call it makes. */
   chatLaneLabel: "chat-lane-label",
+  /** WHO a call sent out, on the line of the call that sent them.
+   *  `data-spawn-kind` is the agent's own word for the kind of agent it
+   *  started, or the bare category when the spawn named none — which is what a
+   *  scenario asserts, since the visible text is the same string and reading it
+   *  off the attribute keeps the claim about the fact rather than about the
+   *  layout. */
+  chatSpawn: "chat-spawn",
+  /** A spawned agent that has not stopped: what it is doing, on the rail that
+   *  drops out of the frame which started it — drawn from the spawn itself
+   *  rather than from the first call the agent makes. `data-lane` is that
+   *  frame's transcript key, the same key `chatLane` uses, so a scenario can
+   *  say WHICH agent is still going. It names the WORDS rather than the rail
+   *  around them, because the words are what a reader sees inset and the
+   *  rail's own box starts at the row's left edge. Absent the moment the call
+   *  completes or fails. */
+  chatSpawnWorking: "chat-spawn-working",
   /** One file the call REWROTE, drawn as a trimmed line diff. `data-path` is
    *  the file (root-relative when it is under the served directory) and
    *  `data-expanded` says whether the trim has been opened. */
@@ -898,8 +914,16 @@ export const TESTID = {
   /** The button that opens the WHOLE command list. Drawn only when the agent
    *  offers commands. */
   chatCommands: "chat-commands",
-  chatSlashMenu: "chat-slash-menu",
-  chatSlashCommand: "chat-slash-command",
+  /** The shortlist over the message box: the agent's commands under a `/`, the
+   *  served directory's files under an `@`. `data-kind` says which of the two
+   *  — `command` or `path` — so a scenario names the list rather than guessing
+   *  from what is in it. Absent whenever nothing is armed, which includes a
+   *  trigger whose query matches nothing at all. */
+  chatCompletion: "chat-completion",
+  /** One row of it. `data-value` is the command's name or the file's path —
+   *  what taking the row is about, and what it writes into the message;
+   *  `data-active` is which one Enter would take. */
+  chatCompletionRow: "chat-completion-row",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

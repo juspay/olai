@@ -151,6 +151,12 @@ Feature: An agent olai did not start
     When the terminal agent marks "order" todo
     And the terminal agent makes "install" wait on "order"
     Then the node "install" is blocked by "order"
+    # And the same derivation is a QUESTION it can ask. `is:blocked` is the one
+    # operator that reads what the app DRAWS rather than what the record
+    # carries, so the arrow just written answers a search a turn later — no
+    # re-reading of `after` and no second definition of what waiting means.
+    When the terminal agent searches for "is:blocked"
+    Then the terminal agent found exactly "install"
     And the page has not reloaded
     And there should be no page errors
 
@@ -163,8 +169,14 @@ Feature: An agent olai did not start
     # mid-serve is watched only from the next probe, so a rewrite inside one
     # reaches the page on the backstop — real, and too slow for a scenario
     # whose subject is the write path, not watcher latency.
+    # The document the corpus already holds is named with it, in the sidebar's
+    # own order: what is asserted is the directory's MEMBERSHIP after the
+    # write, and a list of one would be a claim about the fixture rather than
+    # about the write. `notes/cabinets.md` is in the corpus too and is NOT
+    # here, because folders start collapsed (`client/fold/folders.ts`) and a
+    # row nobody has opened is not drawn.
     When the terminal agent creates the document "plan.md" holding "# Plan"
-    Then the documents listed are "plan.md"
+    Then the documents listed are "finishes.md, plan.md"
     When I click the document "plan.md"
     And the terminal agent rewrites "plan.md" expecting "# Plan", as "# Plan Dig **here** first."
     Then the document renders bold text "here"
@@ -220,19 +232,61 @@ Feature: An agent olai did not start
     Then the terminal agent found exactly "order, install"
     When the terminal agent searches for "cabinets" under "install"
     Then the terminal agent found exactly "install"
+    # A phrase and a group reach this door through the same one grammar, so an
+    # agent can ask for the line a person quoted — and for either of two
+    # things, which is the query that used to be two calls.
+    When the terminal agent searches for '"the new cabinets"'
+    Then the terminal agent found exactly "order"
+    When the terminal agent searches for "counters OR cabinets"
+    Then the terminal agent found exactly "order, install, demo"
+    # A group takes a CLAUSE as readily as a word, including the one whose value
+    # is a word for a day — counted from the server's own clock, the one a
+    # `done` is stamped with. Every date in this fixture is in the past and
+    # stays there, so what this selects is the finished node plus whatever is
+    # under way: `install` carries a dated `doing`, which is on no day at all,
+    # and is here on the mark rather than on the date.
+    When the terminal agent searches for "date:..today OR is:doing"
+    Then the terminal agent found exactly "install, demo"
 
   Scenario: An operator it gets wrong is refused with the reason, not with silence
     # The fourth door onto the same grammar, and the one where silence is
-    # cheapest to ship: a tool that answered `is:blocked` with an empty `hits`
+    # cheapest to ship: a tool that answered `is:open` with an empty `hits`
     # and nothing else would leave a model to guess whether the directory is
     # empty or the query is wrong. The refusal rides the answer.
-    When the terminal agent searches for "is:blocked"
+    When the terminal agent searches for "is:open"
     Then the terminal agent found exactly ""
-    And the terminal agent was refused "is:blocked" and told "done, doing, todo, marked, archived"
+    And the terminal agent was refused "is:open" and told "done, doing, todo, marked, blocked, archived"
     # AS TYPED — an answer that echoed the folded token back would be quoting
     # the caller wrongly.
-    When the terminal agent searches for "is:BLOCKED"
-    Then the terminal agent was refused "is:BLOCKED" and told "done, doing, todo, marked, archived"
+    When the terminal agent searches for "is:OPEN"
+    Then the terminal agent was refused "is:OPEN" and told "done, doing, todo, marked, blocked, archived"
+    # ...and the same contract on the refusal that is a QUOTE rather than an
+    # operator, where "as typed" is the whole of what an agent has to echo back
+    # to a person: capitals and opening quote both survive the trip.
+    When the terminal agent searches for '"The New'
+    Then the terminal agent found exactly ""
+    And the terminal agent was refused '"The New' and told "a phrase runs from one"
+    # An empty phrase is refused rather than answered with the directory.
+    When the terminal agent searches for '""'
+    Then the terminal agent was refused '""' and told "no words in it"
     # ...and a query it CAN read carries no refusal at all.
     When the terminal agent searches for "cabinets"
     Then the terminal agent was refused nothing
+
+  Scenario: A saved page's body is still handed to the reader that asks for one
+    # THE OTHER SIDE OF THE PREVIEW'S DIET. A `.html` under an open page stopped
+    # crossing the websocket, because the page draws a frame that fetches the
+    # file over HTTP and what it needs from the wire is only the file's
+    # revision. That is a change to what ONE reader asks for, and this is what
+    # says it was only that: an agent has no frame, so the door it reads a body
+    # through has to go on answering with the file.
+    #
+    # It is the same collection and the same key the browser subscribes to,
+    # reached the way a `.mcp.json` client reaches it.
+    When I rewrite "quote.html" as:
+      """
+      <h1>Quote</h1>
+      <p>the joiner invoiced for the cabinets</p>
+      """
+    And the terminal agent reads the file "quote.html"
+    Then the terminal agent was handed "the joiner invoiced for the cabinets"

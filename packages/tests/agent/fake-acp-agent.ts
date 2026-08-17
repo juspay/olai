@@ -5,7 +5,8 @@
  * It speaks just enough of the protocol to be indistinguishable from a real
  * agent as far as `packages/server/src/chat/agent.ts` is concerned:
  * line-delimited JSON-RPC on stdio, `initialize` / `session/new` /
- * `session/list` / `session/load` / `session/set_mode` / `session/prompt`,
+ * `session/list` / `session/load` / `session/set_mode` /
+ * `session/set_config_option` / `session/prompt`,
  * `_session/steering`, `session/cancel` as a notification, and `session/update`
  * notifications on the way.
  *
@@ -41,6 +42,13 @@
  *   subagent     spawn TWO agents and interleave their tool calls with each
  *                other's, each frame stamped with the `Agent` call it came out
  *                of — the whole of what the adapter says about who did what
+ *   subagent slow  spawn ONE and have it do nothing until released, which is
+ *                what a fan-out looks like for as long as anybody watches it:
+ *                the spawn's own frame is on the wire and not one frame from
+ *                the agent is
+ *   subagent crash  the same, and then FALL OVER while it is still out —
+ *                which leaves a `pending` Agent call nothing will ever
+ *                complete, on rows a dead agent's panel deliberately keeps
  *   refuse steering   turn `_session/steering` into an error from here on, so
  *                a scenario can see what a panel does with words it could not
  *                deliver
@@ -96,7 +104,7 @@
  * run down with it. A directory of its own is what makes that unrepresentable.
  */
 
-import { existsSync, rmSync, statSync } from "node:fs"
+import { existsSync, readFileSync, rmSync, statSync } from "node:fs"
 import { basename } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
@@ -271,22 +279,54 @@ const storedSessions = () =>
  * id never states one, so it must NOT be allowed to answer for a bare
  * `claude-opus-5`: that named a 1M window over a session running 200k, in the
  * line a person reads to decide whether to `/compact`.
+ *
+ * WHAT THE PICKER IS PICKING is a variable rather than a constant, because a
+ * client may SET it (`session/set_config_option`) and because a boot resets it:
+ * `fake-model-1` is this agent's `settings.json` pin, asserted over whatever the
+ * last turn ran, on `session/new` and `session/load` alike. That is the shape
+ * the real adapter has (0.66.0: env, then settings, then the resumed
+ * transcript — and the first two are re-asserted over the third on resume), and
+ * it is the whole of what makes `chat-model-reverts-on-restart` reproducible
+ * here.
  */
-const CONFIG_OPTIONS = [
-  {
-    id: "model",
-    name: "Model",
-    type: "select",
-    currentValue: "fake-model-1",
-    options: [
-      { value: "fake-model-1", name: "Fake One" },
-      { value: "fake-model-2", name: "Fake Two" },
-      { value: "sonnet", name: "Fake Sonnet" },
-      { value: "haiku", name: "Fake Haiku" },
-      { value: "opus[1m]", name: "Fake Opus (1M context)" },
-    ],
-  },
+const MODEL_ROWS = [
+  { value: "fake-model-1", name: "Fake One" },
+  { value: "fake-model-2", name: "Fake Two" },
+  { value: "sonnet", name: "Fake Sonnet" },
+  { value: "haiku", name: "Fake Haiku" },
+  { value: "opus[1m]", name: "Fake Opus (1M context)" },
 ]
+
+/**
+ * THE PIN this agent boots on — its `settings.json`, in effect.
+ *
+ * A dot-file in the served directory, read at every session open, like
+ * {@link forgotten} and for the same reason: a scenario has to be able to move
+ * it BETWEEN boots, which is exactly what a redeployed container does when
+ * somebody edits its settings. Absent, it is `fake-model-1`, which is what
+ * every scenario that never touches it sees.
+ */
+const pinnedModel = (): string => {
+  try {
+    return readFileSync(`${cwd}/.agent-pin`, "utf8").trim() || "fake-model-1"
+  } catch {
+    return "fake-model-1"
+  }
+}
+
+let currentModel = "fake-model-1"
+
+const configOptions = () => [
+  { id: "model", name: "Model", type: "select", currentValue: currentModel, options: MODEL_ROWS },
+]
+
+/** Every value the picker offers, for the one caller that has to refuse
+ *  anything else. DELIBERATELY STRICT: the real adapter would also resolve an
+ *  alias or a live API id onto one of these rows (`resolveModelPreference`), so
+ *  a client that asked in a vocabulary the picker never offered would pass
+ *  against it and fail against an agent that simply reads its own list. What is
+ *  under test is that olai asks for a ROW. */
+const OFFERED = new Set(MODEL_ROWS.map((row) => row.value))
 
 /**
  * The two texts the `edit` verb reports — a `.md` a real agent would have
@@ -630,7 +670,12 @@ const takeSteering = async (): Promise<void> => {
  * started on. Reproducing that here is the only way an e2e can tell a header
  * that follows the running model from one that follows the picker.
  */
+/** Whether the client asked for those messages, per session — see
+ *  {@link openSession}. */
+let forwardsInit = false
+
 const sdkInit = (model: string): void => {
+  if (!forwardsInit) return
   notify("_claude/sdkMessage", {
     sessionId,
     message: { type: "system", subtype: "init", model },
@@ -1077,7 +1122,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "reconfig") {
     notify("session/update", {
       sessionId,
-      update: { sessionUpdate: "config_option_update", configOptions: CONFIG_OPTIONS },
+      update: { sessionUpdate: "config_option_update", configOptions: configOptions() },
     })
     say("the session's options were re-announced.")
     respond(id, { stopReason: "end_turn" })
@@ -1229,7 +1274,15 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const announce = (
       toolCallId: string,
       title: string,
-      claudeCode: Record<string, string>,
+      claudeCode: Record<string, unknown>,
+      // NAMED rather than two more positional tails: a spawn differs from a
+      // call made inside one by its arguments and its status, and a call site
+      // reading `announce(id, title, meta, {…}, "pending")` says neither of
+      // those out loud.
+      differs: {
+        readonly rawInput?: Record<string, unknown>
+        readonly status?: string
+      } = {},
     ): void => {
       notify("session/update", {
         sessionId,
@@ -1237,18 +1290,87 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
           sessionUpdate: "tool_call",
           toolCallId,
           title,
-          status: "in_progress",
-          rawInput: { description: title },
+          status: differs.status ?? "in_progress",
+          rawInput: differs.rawInput ?? { description: title },
           _meta: { claudeCode },
         },
       })
     }
-    const spawn = (id: string, title: string): void =>
-      announce(id, title, { toolName: "Agent" })
+    /** A SPAWN, as the adapter builds one. `subagent: true` rides beside the
+     *  tool name on every frame it makes for an `Agent`/`Task` call
+     *  (`claudeCodeMetaFromToolUse`, 0.66.0) and is the only thing on the wire
+     *  that says an agent was sent out BEFORE the agent has done anything —
+     *  the parent stamp below cannot be sent until it has. The arguments are
+     *  the `Agent` tool's own (`AgentInput`): a short description, the prompt,
+     *  and the optional kind of agent.
+     *
+     *  `pending` rather than in_progress, which is what the adapter announces
+     *  a tool use with — a spawn wears it until the first heartbeat, which for
+     *  a slow one is a long time and exactly the stretch under test. */
+    const spawn = (id: string, title: string, kind?: string): void =>
+      announce(id, title, { toolName: "Agent", subagent: true }, {
+        rawInput: {
+          description: title,
+          prompt: `${title}, and report back`,
+          ...(kind === undefined ? {} : { subagent_type: kind }),
+        },
+        status: "pending",
+      })
     /** One call made INSIDE a spawned agent — the main agent's own frame, plus
      *  the one field that says whose it is. */
     const inside = (id: string, title: string, parent: string): void =>
       announce(id, title, { toolName: "Grep", parentToolUseId: parent })
+
+    // ... AND THEN FALLING OVER UNDER IT. The face has to come off, and the
+    // row's own status cannot be what takes it off: a status is sticky, an
+    // agent that dies mid-spawn reports no completion for the call it was in
+    // the middle of, and the rows a dead agent left are deliberately still on
+    // screen to read. So this one spawns, waits to be looked at, and exits —
+    // which is the shape that leaves a `pending` Agent call behind forever.
+    if (argument === "crash") {
+      spawn(`agent-${++nextMcpId}`, "read every note", "Explore")
+      say("sent an agent out.")
+      await released()
+      process.exit(1)
+    }
+
+    // ONE AGENT, SENT OUT AND SLOW. The case the lanes above cannot show: a
+    // fan-out is watched during the stretch BEFORE anybody reports, and until
+    // the spawn itself was drawn that stretch was a pending dot with an
+    // ordinary title on it. So this one spawns and then does nothing at all
+    // until the scenario releases it — no beat, no call, no prose — which is
+    // the honest worst case, since a real subagent's first act is to read its
+    // instructions and that produces no frame.
+    if (argument === "slow") {
+      const alone = `agent-${++nextMcpId}`
+      const read = `sub-${++nextMcpId}`
+      spawn(alone, "read every note", "Explore")
+      say("sent an agent out.")
+      await released()
+      inside(read, "read the note", alone)
+      completed(read)
+      // The spawn's own completion, carrying the subagent's report the way the
+      // adapter does — content blocks on the call, never prose in the main
+      // agent's voice. It is what the face RESOLVES INTO.
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: alone,
+          status: "completed",
+          content: [
+            {
+              type: "content",
+              content: { type: "text", text: "there are three notes." },
+            },
+          ],
+        },
+      })
+      say(" the agent reported back.")
+      respond(id, { stopReason: "end_turn" })
+      return
+    }
+
     // MINTED, not spelled: a call id is unique to the call, and a transcript
     // is keyed by it — so a turn that reused last turn's ids would update last
     // turn's rows in place and draw nothing at all the second time it was
@@ -1259,7 +1381,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const cabinets = `sub-${++nextMcpId}`
     const note = `sub-${++nextMcpId}`
     const worktops = `sub-${++nextMcpId}`
-    spawn(first, "explore the outline")
+    spawn(first, "explore the outline", "Explore")
     inside(cabinets, "grep for cabinets", first)
     spawn(second, "review the notes")
     inside(note, "read the note", second)
@@ -1368,6 +1490,17 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 
 const openSession = (params: Record<string, unknown>): void => {
   if (typeof params["cwd"] === "string") cwd = params["cwd"].replace(/\/+$/, "")
+  // WHETHER THE CLI'S OWN MESSAGES ARE FORWARDED, off the `_meta` of the call
+  // that made this session — `session/new` and `session/load` alike, which is
+  // where the real adapter reads it (`loadSession` hands its own `_meta` to
+  // `createSession`, defaulting the flag to false). Honoured rather than assumed
+  // because assuming it hid a real gap: a client that asked only at
+  // `session/new` heard nothing about the running model for the whole life of
+  // every RESTORED conversation, and every scenario here still passed.
+  forwardsInit = Array.isArray(
+    ((params["_meta"] as { claudeCode?: { emitRawSDKMessages?: unknown } } | undefined)
+      ?.claudeCode?.emitRawSDKMessages),
+  )
   const given = (params["mcpServers"] ?? []) as ReadonlyArray<{
     type?: string
     name?: string
@@ -1496,12 +1629,14 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     case "session/new":
       openSession(params)
       sessionId = "fake-session-1"
-      // A fresh conversation is on whatever the picker says it is picking.
-      liveModel = "fake-model-1"
+      // A fresh conversation is on whatever the picker says it is picking, and
+      // what it is picking is the pin.
+      currentModel = pinnedModel()
+      liveModel = currentModel
       // ... and has spent nothing in a window of its own.
       used = 0
       size = 200_000
-      respond(id, { sessionId, configOptions: CONFIG_OPTIONS })
+      respond(id, { sessionId, configOptions: configOptions() })
       // NO `init` here, and that is the adapter's own shape: it forwards one
       // per PROMPT, so between opening a session and sending the first one the
       // picker is the only thing that has said which model this is. A client
@@ -1517,13 +1652,18 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       openSession(params)
       sessionId = String(params["sessionId"] ?? sessionId)
       replay()
-      liveModel = "fake-model-1"
+      // THE PIN, ASSERTED OVER THE CONVERSATION'S OWN MODEL — which is the bug
+      // `chat-model-reverts-on-restart` is about, and what the real adapter
+      // does on every resume when `settings.json` names a model. Whatever this
+      // conversation was switched to is gone unless somebody says otherwise.
+      currentModel = pinnedModel()
+      liveModel = currentModel
       // A different conversation is a different context. The client empties
       // what it was showing when the session goes, so nothing is drawn about
       // this one until its first turn reports.
       used = 0
       size = 200_000
-      respond(id, { configOptions: CONFIG_OPTIONS })
+      respond(id, { configOptions: configOptions() })
       notify("session/update", {
         sessionId,
         update: { sessionUpdate: "available_commands_update", availableCommands: COMMANDS },
@@ -1540,6 +1680,28 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     case "session/set_mode":
       respond(id, {})
       return
+
+    // A client SETTING what the picker picks — the one verb the panel has for
+    // saying which model a conversation should be on, and the way it puts a
+    // restored one back on the model it was switched to. The answer carries the
+    // whole set with its new current value, as the protocol says it must; the
+    // CLI moves with it, so the next turn's `init` announces the new model and
+    // a client that never sent this hears the pin instead.
+    case "session/set_config_option": {
+      const value = params["value"]
+      if (params["configId"] !== "model" || typeof value !== "string") {
+        refuse(id, -32602, `no such config option: ${String(params["configId"])}`)
+        return
+      }
+      if (!OFFERED.has(value)) {
+        refuse(id, -32602, `Invalid value for config option model: ${value}`)
+        return
+      }
+      currentModel = value
+      liveModel = value
+      respond(id, { configOptions: configOptions() })
+      return
+    }
 
     case "session/prompt": {
       const text = promptTextOf(params)

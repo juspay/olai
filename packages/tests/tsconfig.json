@@ -4,7 +4,8 @@
   // that hold TypeScript. `features/` is Gherkin and `cucumber.js` is plain
   // JS read by the runner, so neither is compiled. `allowJs` is for
   // `support/parallelism.js` — the count has to be JS because cucumber-js
-  // loads it with Node, and the TypeScript side re-exports it.
+  // reaches it through `cucumber.js`, with its own loader rather than the
+  // suite's, and the TypeScript side re-exports it.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "allowJs": true, "checkJs": false },
   "include": ["agent", "support", "step_definitions"]
