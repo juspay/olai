@@ -107,3 +107,18 @@ export const laneOf = (
 
 /** What a lane is called when the frame that spawned it is not on screen. */
 const SOMEBODY = "a subagent"
+
+/**
+ * THE RAIL: the line down the left of a lane, and the inset it holds its rows
+ * at.
+ *
+ * Here rather than in the component that draws one, because two things draw it
+ * and the whole claim of the second is that it is the SAME line. A row a
+ * subagent made hangs a rail off the frame above it; a spawn that has not been
+ * reported on yet hangs one off itself ({@link ./spawn.ts}), directly above
+ * that first row — so the two segments meet, and what makes them meet is that
+ * the border weight, the colour and the inset agree. Spelled twice they agreed
+ * by coincidence, and the first tweak to either would have shown a reader one
+ * line drawn as two.
+ */
+export const RAIL = "border-l-2 border-muted/70 pl-2"

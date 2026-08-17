@@ -198,21 +198,32 @@ export type Wrote = typeof Wrote.Type
  * title on it and no reason to think anybody had been sent anywhere.
  *
  * PRESENCE is the fact, and the field inside it is the detail. A spawn is known
- * to be one whether or not it named a kind of agent, so this is a struct with a
- * nullable field rather than a nullable string: the two questions are "did this
- * start an agent" and "which kind", and one value cannot answer both.
+ * to be one whether or not it named a kind of agent — so this is a STRUCT that
+ * may be empty rather than a nullable string, and which of the two it is
+ * decides how a caller can be wrong. A bare `spawned: string | null` puts "not
+ * a spawn" and "a spawn nobody labelled" one falsy value apart, and the first
+ * `if (entry.spawned)` anybody writes drops the second on the floor; an empty
+ * struct is truthy, and the only way to ask about the kind is to ask about the
+ * kind.
  */
 export const Spawned = Schema.Struct({
   /** Which kind of agent, in the words whoever configured it used —
    *  `Explore`, `general-purpose`, a name out of somebody's own agent
-   *  definitions. `null` when the spawn named none, which is a spawn the panel
-   *  can still draw: an agent was sent out, and nobody said which.
+   *  definitions.
+   *
+   *  ABSENT when nobody has said, which is an ordinary spawn rather than a
+   *  broken one: naming a kind is optional in the tool that starts an agent.
+   *  Absent rather than `null` so that "nobody said" is spelled the way
+   *  "unchanged" is spelled everywhere else on a tool row — the fact arrives
+   *  across several frames, and one word for a field that has nothing in it
+   *  means the transcript's stickiness needs no second rule to hold this
+   *  together.
    *
    *  The agent's own word, never mapped onto one of olai's. A name this end
    *  does not recognise is drawn as it came, for the reason the header draws an
    *  unrecognised model id raw: rounding somebody's agent to the nearest one
    *  this panel has heard of would be naming an agent nobody started. */
-  kind: Schema.NullOr(Schema.String),
+  kind: Schema.optionalKey(Schema.String),
 })
 export type Spawned = typeof Spawned.Type
 

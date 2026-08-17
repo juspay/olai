@@ -95,13 +95,12 @@ import {
 } from "@olai/acp"
 import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
-import type { AskAnswer, Spawned } from "@olai/surface"
+import type { AskAnswer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
 import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import {
-  agentKindIn,
   allowedWithoutAsking,
   BYPASS_MODE,
   liveModelIn,
@@ -114,7 +113,7 @@ import {
   pickerValueFor,
   sameModel,
   SDK_MESSAGE,
-  spawnsAgentIn,
+  spawnedIn,
   STEER_METHOD,
   STEER_TIMEOUT,
   STEER_WHEN_IDLE,
@@ -480,7 +479,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // stamp is answered by a subagent's own frames and a subagent that
             // has not made a call yet has produced none — which is the whole
             // of the stretch a person is watching a fan-out through.
-            spawned: spawnedIn(update._meta, update.rawInput),
+            spawned: spawnedIn(update._meta, update.rawInput) ?? undefined,
           })
           return
         case "available_commands_update":
@@ -1511,30 +1510,6 @@ const locationsOf = (
     const path = relativeTo(cwd, at.path)
     return typeof at.line === "number" ? `${path}:${at.line}` : path
   })
-}
-
-/**
- * What this frame says about an agent this call started, or `undefined` for a
- * frame that says nothing about one — which is nearly all of them.
- *
- * TWO READINGS, ONE FIELD, because the fact reaches the panel over more than
- * one frame and each of them carries a different half. The spawn's own frame
- * says `subagent: true` and carries the arguments the agent was sent with; the
- * beats that follow carry its KIND and no flag; its completion carries
- * neither. Answering `undefined` unless something was actually said is what
- * lets the transcript's stickiness hold the rest together — the same rule
- * every field beside this one is written to.
- *
- * A kind with no flag still answers, and that is not a leniency: only an Agent
- * call has a `subagent_type` in its arguments and only an Agent call's beat
- * carries `subagentType`, so a frame that names one has told us what it is.
- */
-const spawnedIn = (
-  meta: { readonly [key: string]: unknown } | null | undefined,
-  input: unknown,
-): Spawned | undefined => {
-  const kind = agentKindIn(meta, input)
-  return spawnsAgentIn(meta) || kind !== null ? { kind } : undefined
 }
 
 /** A tool call's arguments and result, as one folded block. JSON rather than

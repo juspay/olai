@@ -50,7 +50,7 @@ describe("who was sent", () => {
     // `subagent_type` is optional on the tool that spawns one, so this is an
     // ordinary spawn rather than a broken one — and a row saying nothing where
     // every other spawn says something reads as a row that failed.
-    expect(faceOf(row({ spawned: { kind: null } }))?.who).toBe("agent")
+    expect(faceOf(row({ spawned: {} }))?.who).toBe("agent")
   })
 })
 

@@ -40,10 +40,10 @@ export interface Face {
   /**
    * The kind of agent, as the agent names its own.
    *
-   * Never `null`, which is the difference between this and the `Spawned.kind`
-   * it is read from: a spawn that named no kind still started somebody, and a
-   * row saying nothing where every other spawn says something reads as a row
-   * that failed rather than as an agent nobody labelled.
+   * Always a word, which is the difference between this and the
+   * `Spawned.kind` it is read from: a spawn that named no kind still started
+   * somebody, and a row saying nothing where every other spawn says something
+   * reads as a row that failed rather than as an agent nobody labelled.
    */
   readonly who: string
   /**

@@ -139,7 +139,8 @@ export const parentToolUseIn = (
 // ── which call STARTED an agent ────────────────────────────────────────
 
 /**
- * Whether this call spawned an agent of its own.
+ * What this frame says about an agent this call STARTED, or `null` for a frame
+ * that says nothing about one — which is nearly all of them.
  *
  * The other side of {@link parentToolUseIn}, and the half that was missing: the
  * parent stamp says a call CAME OUT of a subagent, which is a thing nothing can
@@ -149,66 +150,73 @@ export const parentToolUseIn = (
  * pending row with an ordinary title and no reason to think anybody was sent
  * anywhere.
  *
- * The adapter says so at the spawn itself. It stamps `subagent: true` beside
- * the tool name on every frame it builds for an `Agent`/`Task` call
- * (`claudeCodeMetaFromToolUse`, adapter 0.66.0), and that frame is emitted when
- * the tool use starts — so it arrives at the moment the agent is sent out
- * rather than at the moment it reports back.
+ * ONE READER over three fields on two frames, rather than one per field,
+ * because the RULE is the part that is a bet and the rule is where the bet gets
+ * it wrong. The three:
  *
- * A BOOLEAN in the `_meta` rather than the tool NAME, which the same corner
- * also carries: the name is a word one CLI's tool table happens to use, and the
- * adapter maps two of them (`Agent` and `Task`) onto the one flag. Reading the
- * flag is reading the adapter's own answer to the question instead of
- * re-deriving it from a list of names that is somebody else's to extend.
+ *   - **the spawn's own flag.** The adapter stamps `subagent: true` beside the
+ *     tool name on every frame it builds for an `Agent`/`Task` call
+ *     (`claudeCodeMetaFromToolUse`, adapter 0.66.0), and that frame is emitted
+ *     when the tool use starts — so it arrives at the moment the agent is sent
+ *     out rather than at the moment it reports back. The FLAG rather than the
+ *     tool NAME, which the same corner also carries: the name is a word one
+ *     CLI's tool table happens to use, and the adapter maps two of them onto
+ *     this one boolean. Reading the boolean is reading the adapter's own answer
+ *     instead of re-deriving it from a list that is somebody else's to extend.
+ *   - **the call's own INPUT.** `subagent_type` is a field of the `Agent`
+ *     tool's arguments (the SDK's `AgentInput`), so it rides the `rawInput` of
+ *     the frame that announces the spawn — the first thing anybody hears about
+ *     the agent, and therefore the one that matters. It is optional there: a
+ *     spawn that named no kind has none.
+ *   - **the adapter's HEARTBEAT.** While a call runs the SDK emits
+ *     `tool_progress` beats, and the adapter forwards each as a
+ *     `tool_call_update` carrying `toolResponse.subagentType` for an Agent
+ *     call. Those frames carry no `rawInput` and no flag at all, so a reader of
+ *     either of the first two alone would answer nothing for every one of them.
  *
- * Positive recognition, failing the way everything here fails: a frame that
- * does not say this spawned nobody as far as the panel is concerned, and an
- * agent that is not this adapter draws exactly what it drew before.
+ * A KIND WITH NO FLAG STILL ANSWERS, and that is not a leniency: only an Agent
+ * call has a `subagent_type` in its arguments and only an Agent call's beat
+ * carries `subagentType`, so a frame that names one has said what it is.
+ *
+ * The input is asked before the beat, and the order is the honest one rather
+ * than an arbitrary tie-break: a spawn's arguments are what the agent asked
+ * for, and the beat is a report about the task those arguments started. They do
+ * not disagree in practice; if they ever did, what was asked for is the answer
+ * a person reading the row is owed.
+ *
+ * NOTHING IS ACCUMULATED HERE. The input arrives incrementally — the adapter
+ * emits the `tool_call` as the tool use starts and refines it with a
+ * `tool_call_update` as the arguments finish parsing — and the flag, the kind
+ * and the completion land on different frames. So a frame answers about the
+ * frame: `{}` is an honest "a spawn, and nobody has said which kind", and an
+ * absent `kind` reads as "unchanged" to the one thing that holds a row together
+ * across frames ({@link ./transcript.ts}), which is the rule every other field
+ * on a tool row already follows.
+ *
+ * Structural rather than `@olai/surface`'s `Spawned`, which is what a caller
+ * assigns this to: everything in this file is a pure function over a payload
+ * and none of them knows what a transcript is.
  */
-export const spawnsAgentIn = (
+export const spawnedIn = (
   meta: { readonly [key: string]: unknown } | null | undefined,
-): boolean => claudeIn(meta)?.["subagent"] === true
+  input: unknown,
+): { readonly kind?: string } | null => {
+  const claude = claudeIn(meta)
+  const kind = kindOfAgent(claude, input)
+  if (kind !== null) return { kind }
+  return claude?.["subagent"] === true ? {} : null
+}
 
-/**
- * WHICH KIND of agent a spawn started — `Explore`, `general-purpose`, whatever
- * the person running this agent has defined — or `null` when nothing said.
- *
- * TWO SOURCES, read as one, because they are one fact arriving on two frames
- * and a caller that took either would be right half the time:
- *
- *   - the call's own INPUT. `subagent_type` is a field of the `Agent` tool's
- *     arguments (the SDK's `AgentInput`), so it rides the `rawInput` of the
- *     frame that announces the spawn — which is the first thing anybody hears
- *     about the agent, and therefore the one that matters. It is optional
- *     there: a spawn that named no type has none, and `null` is the answer.
- *   - the adapter's HEARTBEAT. While a call runs the SDK emits `tool_progress`
- *     beats, and the adapter forwards each as a `tool_call_update` carrying
- *     `toolResponse.subagentType` for an Agent call. Those frames carry no
- *     `rawInput` at all, so a reader of the input alone would answer `null` for
- *     every one of them.
- *
- * The input is asked FIRST, and the order is the honest one rather than an
- * arbitrary tie-break: a spawn's arguments are what the agent asked for, and
- * the beat is a report about the task those arguments started. They do not
- * disagree in practice; if they ever did, what was asked for is the answer a
- * person reading the row is owed.
- *
- * The input arrives incrementally — the adapter emits the `tool_call` as the
- * tool use starts and refines it with a `tool_call_update` as the arguments
- * finish parsing — so an early frame can honestly answer `null` about a spawn
- * whose type is known one frame later. Nothing here waits for that: the
- * transcript's own stickiness is what carries a kind forward
- * ({@link ./transcript.ts}), which is the rule every other field on a tool row
- * already follows.
- */
-export const agentKindIn = (
-  meta: { readonly [key: string]: unknown } | null | undefined,
+/** Which kind of agent, out of the arguments or out of a beat — the two
+ *  spellings {@link spawnedIn} reads as one, and `null` when neither said. */
+const kindOfAgent = (
+  claude: { readonly [key: string]: unknown } | undefined,
   input: unknown,
 ): string | null => {
   const asked = (input as { readonly subagent_type?: unknown } | null | undefined)
     ?.subagent_type
   if (typeof asked === "string" && asked !== "") return asked
-  const response = claudeIn(meta)?.["toolResponse"] as
+  const response = claude?.["toolResponse"] as
     | { readonly [key: string]: unknown }
     | null
     | undefined

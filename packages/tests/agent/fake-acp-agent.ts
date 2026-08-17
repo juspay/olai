@@ -1272,8 +1272,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       toolCallId: string,
       title: string,
       claudeCode: Record<string, unknown>,
-      rawInput: Record<string, unknown> = { description: title },
-      status = "in_progress",
+      // NAMED rather than two more positional tails: a spawn differs from a
+      // call made inside one by its arguments and its status, and a call site
+      // reading `announce(id, title, meta, {…}, "pending")` says neither of
+      // those out loud.
+      differs: {
+        readonly rawInput?: Record<string, unknown>
+        readonly status?: string
+      } = {},
     ): void => {
       notify("session/update", {
         sessionId,
@@ -1281,8 +1287,8 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
           sessionUpdate: "tool_call",
           toolCallId,
           title,
-          status,
-          rawInput,
+          status: differs.status ?? "in_progress",
+          rawInput: differs.rawInput ?? { description: title },
           _meta: { claudeCode },
         },
       })
@@ -1299,17 +1305,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
      *  a tool use with — a spawn wears it until the first heartbeat, which for
      *  a slow one is a long time and exactly the stretch under test. */
     const spawn = (id: string, title: string, kind?: string): void =>
-      announce(
-        id,
-        title,
-        { toolName: "Agent", subagent: true },
-        {
+      announce(id, title, { toolName: "Agent", subagent: true }, {
+        rawInput: {
           description: title,
           prompt: `${title}, and report back`,
           ...(kind === undefined ? {} : { subagent_type: kind }),
         },
-        "pending",
-      )
+        status: "pending",
+      })
     /** One call made INSIDE a spawned agent — the main agent's own frame, plus
      *  the one field that says whose it is. */
     const inside = (id: string, title: string, parent: string): void =>

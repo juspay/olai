@@ -19,7 +19,6 @@ import type { PermissionOption, SessionConfigOption } from "@agentclientprotocol
 import { describe, expect, test } from "bun:test"
 
 import {
-  agentKindIn,
   allowedWithoutAsking,
   liveModelIn,
   modelNameIn,
@@ -28,7 +27,7 @@ import {
   parentToolUseIn,
   pickerValueFor,
   sameModel,
-  spawnsAgentIn,
+  spawnedIn,
   STEER_METHOD,
   STEER_WHEN_IDLE,
   steerTaken,
@@ -259,72 +258,73 @@ describe("which call started an agent", () => {
     prompt: "read every note and report back",
     subagent_type: "Explore",
   }
+  /** The adapter's `tool_progress` forwarding: a status and a `toolResponse`,
+   *  and no arguments and no flag at all. */
+  const BEAT = {
+    claudeCode: {
+      toolName: "Agent",
+      toolResponse: { elapsedTimeSeconds: 12, subagentType: "Explore" },
+    },
+  }
 
-  test("the spawn's own frame says an agent was sent out", () => {
+  test("the spawn's own frame says an agent was sent out, and which kind", () => {
     // The whole point of reading this rather than waiting for the parent
     // stamp: it is on the frame that ANNOUNCES the spawn, so it is known
     // before the agent has done anything anybody could draw.
-    expect(spawnsAgentIn(SPAWN)).toBe(true)
-    // ... and it is the FLAG rather than the name, which the adapter maps two
-    // of its own words onto.
-    expect(spawnsAgentIn({ claudeCode: { toolName: "Task", subagent: true } })).toBe(true)
+    expect(spawnedIn(SPAWN, ASKED)).toEqual({ kind: "Explore" })
+    // ... and what says so is the FLAG rather than the tool name, which the
+    // adapter maps two of its own words onto.
+    expect(spawnedIn({ claudeCode: { toolName: "Task", subagent: true } }, {}))
+      .toEqual({})
+  })
+
+  test("a beat carries the kind and no flag, and still answers", () => {
+    // Only an Agent call's beat carries `subagentType`, so a frame that names
+    // one has said what it is — and a reader that insisted on the flag would
+    // drop the kind off every beat there is.
+    expect(spawnedIn(BEAT, undefined)).toEqual({ kind: "Explore" })
   })
 
   test("nothing else is a spawn", () => {
-    expect(spawnsAgentIn({ claudeCode: { toolName: "Grep" } })).toBe(false)
+    expect(spawnedIn({ claudeCode: { toolName: "Grep" } }, { pattern: "x" })).toBeNull()
     // The frames a subagent's own calls arrive on say who they came from and
     // never that they started anybody.
-    expect(spawnsAgentIn({ claudeCode: { parentToolUseId: "toolu_01AGENT" } })).toBe(false)
-    expect(spawnsAgentIn(undefined)).toBe(false)
-    expect(spawnsAgentIn(null)).toBe(false)
-    expect(spawnsAgentIn({})).toBe(false)
-    expect(spawnsAgentIn({ claudeCode: null })).toBe(false)
-    expect(spawnsAgentIn({ someOtherAgent: { subagent: true } })).toBe(false)
+    expect(spawnedIn({ claudeCode: { parentToolUseId: "toolu_01AGENT" } }, {}))
+      .toBeNull()
+    expect(spawnedIn(undefined, undefined)).toBeNull()
+    expect(spawnedIn(null, null)).toBeNull()
+    expect(spawnedIn({}, {})).toBeNull()
+    expect(spawnedIn({ claudeCode: null }, null)).toBeNull()
+    expect(spawnedIn({ someOtherAgent: { subagent: true } }, {})).toBeNull()
     // Truthy is not the word, for `steerTaken`'s reason: an agent that answers
     // something else here has not said this.
-    expect(spawnsAgentIn({ claudeCode: { subagent: "yes" } })).toBe(false)
-    expect(spawnsAgentIn({ claudeCode: { subagent: 1 } })).toBe(false)
-  })
-
-  test("the kind of agent comes off the call's own arguments", () => {
-    expect(agentKindIn(SPAWN, ASKED)).toBe("Explore")
-  })
-
-  test("... and off the beats that follow, which carry no arguments at all", () => {
-    // The adapter's `tool_progress` forwarding: a status and a `toolResponse`,
-    // and nothing else. A reader of the input alone answers `null` for every
-    // one of these.
-    const beat = {
-      claudeCode: {
-        toolName: "Agent",
-        toolResponse: { elapsedTimeSeconds: 12, subagentType: "Explore" },
-      },
-    }
-    expect(agentKindIn(beat, undefined)).toBe("Explore")
-    // A beat is not a spawn frame — it says nothing about being one — so a
-    // caller that only asked the flag would drop the kind it carries.
-    expect(spawnsAgentIn(beat)).toBe(false)
+    expect(spawnedIn({ claudeCode: { subagent: "yes" } }, {})).toBeNull()
+    expect(spawnedIn({ claudeCode: { subagent: 1 } }, {})).toBeNull()
   })
 
   test("a spawn that named no kind of agent says so, rather than guessing", () => {
-    // `subagent_type` is optional on the tool that spawns one. The frame is
-    // still a spawn; the kind is still unknown.
+    // `subagent_type` is optional on the tool that spawns one, and the
+    // arguments arrive incrementally besides. The frame is still a spawn; the
+    // kind is still unsaid, and an absent field is how this says that.
     const { subagent_type: _named, ...anonymous } = ASKED
-    expect(spawnsAgentIn(SPAWN)).toBe(true)
-    expect(agentKindIn(SPAWN, anonymous)).toBeNull()
-    expect(agentKindIn(SPAWN, undefined)).toBeNull()
-    expect(agentKindIn(SPAWN, { subagent_type: "" })).toBeNull()
-    expect(agentKindIn(SPAWN, { subagent_type: 7 })).toBeNull()
-    expect(agentKindIn({ claudeCode: { toolResponse: null } }, null)).toBeNull()
-    expect(agentKindIn({ claudeCode: { toolResponse: { subagentType: 7 } } }, null))
-      .toBeNull()
+    expect(spawnedIn(SPAWN, anonymous)).toEqual({})
+    expect(spawnedIn(SPAWN, undefined)).toEqual({})
+    expect(spawnedIn(SPAWN, { subagent_type: "" })).toEqual({})
+    expect(spawnedIn(SPAWN, { subagent_type: 7 })).toEqual({})
+    expect(spawnedIn({ claudeCode: { subagent: true, toolResponse: null } }, null))
+      .toEqual({})
+    expect(
+      spawnedIn({ claudeCode: { subagent: true, toolResponse: { subagentType: 7 } } }, null),
+    ).toEqual({})
   })
 
   test("what was ASKED FOR wins over what a beat reports", () => {
     // They do not disagree in practice; if they ever do, the arguments are
     // what a person reading the row is owed.
-    const beat = { claudeCode: { toolResponse: { subagentType: "general-purpose" } } }
-    expect(agentKindIn(beat, ASKED)).toBe("Explore")
+    const disagreeing = {
+      claudeCode: { toolResponse: { subagentType: "general-purpose" } },
+    }
+    expect(spawnedIn(disagreeing, ASKED)).toEqual({ kind: "Explore" })
   })
 })
 

@@ -270,12 +270,16 @@ export class Transcript {
     // was sent with, the beats that follow name the agent's kind and say
     // nothing about being a spawn, the completion says neither — so a report
     // that answered about the spawn without naming a kind would take back a
-    // kind an earlier frame already gave. `undefined` is still "unchanged" at
-    // both levels; what is added is that a `null` kind is unchanged too,
-    // because "nobody said" is not "nobody said, and I mean it".
-    const spawned = move.spawned === undefined ? current?.spawned : {
-      kind: move.spawned.kind ?? current?.spawned?.kind ?? null,
-    }
+    // kind an earlier frame already gave.
+    //
+    // A SPREAD, so the rule is the same one word deeper rather than a second
+    // rule: an absent field is "unchanged" inside this object exactly as an
+    // absent `move` is unchanged outside it, and a field added to `Spawned`
+    // later inherits that instead of needing a line of its own here to stop
+    // being taken back off the row.
+    const spawned = move.spawned === undefined
+      ? current?.spawned
+      : { ...current?.spawned, ...move.spawned }
     return both(
       this.#close(),
       this.#put(key, {

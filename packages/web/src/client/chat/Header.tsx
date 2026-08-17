@@ -32,6 +32,7 @@ import { Show } from "solid-js"
 
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
+import { LIVE_DOT } from "./live.ts"
 import { Sessions } from "./Sessions.tsx"
 import type { Chat } from "./state.ts"
 import { usageOf } from "./usage.ts"
@@ -80,10 +81,7 @@ export function Header(props: {
               data-testid={TESTID.chatWorking}
               aria-live="polite"
             >
-              <span
-                class="inline-block size-1.5 animate-pulse rounded-full bg-doing"
-                aria-hidden="true"
-              />
+              <span class={LIVE_DOT} aria-hidden="true" />
               {state().asking > 0 ? "waiting on you" : "working…"}
             </span>
           </Show>

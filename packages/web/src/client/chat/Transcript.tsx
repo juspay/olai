@@ -51,7 +51,8 @@ import { createMemo, For, onCleanup, onMount, Show } from "solid-js"
 import { useShowNode } from "../focus.ts"
 import { TESTID } from "../testids.ts"
 import { Entry } from "./Entry.tsx"
-import { laneOf } from "./lanes.ts"
+import { laneOf, RAIL } from "./lanes.ts"
+import { LIVE_DOT } from "./live.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import { faceOf } from "./spawn.ts"
@@ -190,10 +191,7 @@ export function Transcript(props: { readonly chat: Chat }) {
              *  `null` for every row that spawned nobody and for a spawn that
              *  has stopped, so the same memo answers both "is there anything
              *  to draw" and "what does it say" ({@link ./spawn.ts}). */
-            const working = createMemo(() => {
-              const face = faceOf(entry())
-              return face === null || face.doing === null ? null : face.doing
-            })
+            const working = createMemo(() => faceOf(entry())?.doing ?? null)
             return (
               <Show when={entry()}>
                 {(row) => (
@@ -212,9 +210,13 @@ export function Transcript(props: { readonly chat: Chat }) {
                      without being drawn again from scratch — the same rule the
                      row list itself follows, one level down. */
                   <div
-                    class={`${lane() === null ? "" : "border-l-2 border-muted/70 pl-2"}${
-                      working() === null ? " pb-2" : ""
-                    }`}
+                    classList={{
+                      [RAIL]: lane() !== null,
+                      // ... unless the rail below is carrying it instead, so
+                      // that one line crosses the gap rather than stopping at
+                      // the edge of this box and starting again inside it.
+                      "pb-2": working() === null,
+                    }}
                     data-testid={lane() === null ? undefined : TESTID.chatLane}
                     data-lane={lane()?.parent}
                   >
@@ -239,15 +241,18 @@ export function Transcript(props: { readonly chat: Chat }) {
                         next row (`pb-2`, taken off the wrapper above) so the
                         rail runs down through it and meets the first call's
                         own rail as one line, which is the same reason that
-                        gap is padding rather than a margin.
+                        gap is padding rather than a margin — and it is the
+                        same `RAIL`, from the module that owns what a lane
+                        looks like, so "meets as one line" is held by one
+                        spelling rather than by two that happen to agree.
 
-                        The pulsing dot is the header's, unchanged: a turn in
+                        The pulsing dot is the header's, by import: a turn in
                         flight and an agent in flight are the same kind of
                         fact, and a panel with two spellings of "this is
                         happening" is a panel with one of them to learn. */}
                     <Show when={working()}>
                       {(doing) => (
-                        <div class="border-l-2 border-muted/70 pb-2 pl-2 pt-1">
+                        <div class={`${RAIL} pb-2 pt-1`}>
                           {/* The NAME is on the words rather than on the rail
                               around them, so that what a scenario measures is
                               what a reader sees inset — the rail's own box
@@ -260,10 +265,7 @@ export function Transcript(props: { readonly chat: Chat }) {
                             data-lane={row().id}
                             aria-live="polite"
                           >
-                            <span
-                              class="inline-block size-1.5 animate-pulse rounded-full bg-doing"
-                              aria-hidden="true"
-                            />
+                            <span class={LIVE_DOT} aria-hidden="true" />
                             {doing()}
                           </p>
                         </div>

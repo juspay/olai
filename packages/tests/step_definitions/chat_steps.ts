@@ -1137,6 +1137,54 @@ const firstLane = (world: OlaiWorld) => world.page.locator(CHAT_LANE).first();
  *  file is two of them being missed the day the scheme moves. */
 const entrySelector = (id: string): string => `${CHAT_ENTRY}[data-entry-id="${id}"]`;
 
+/**
+ * What hangs off a spawn has to be drawn BELOW it and INSET from it.
+ *
+ * The geometry half of every lane claim, asserted once for both things that
+ * make one: a call a subagent made, and the live rail under a spawn nobody has
+ * reported on yet. They are the same picture — the whole design is that the
+ * two segments meet as one line — so two copies of this measurement would be
+ * two chances to assert a different picture.
+ *
+ * Measured rather than read off a class, for the reason the bubble on your own
+ * message is measured: a class is a styling decision a refactor may change, and
+ * where a thing SITS is the claim. It is also the half a `data-` attribute
+ * cannot make — strip the rail and the indent from the panel and every other
+ * assertion in this section still passes.
+ *
+ * @param spawner the transcript key of the frame it should hang off
+ * @param hanging what should be hanging off it
+ * @param what a name for it, for the failure to read as a sentence
+ */
+const insetBelow = async (
+  world: OlaiWorld,
+  spawner: string,
+  hanging: Locator,
+  what: string,
+): Promise<void> => {
+  // The frame it names has to BE there: a lane pointing at a row the panel
+  // never drew would look right and say nothing.
+  const frame = world.page.locator(entrySelector(spawner));
+  await frame.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const above = await frame.boundingBox();
+  const mine = await hanging.boundingBox();
+  assert.ok(
+    above !== null && mine !== null,
+    `neither ${what} nor the call that spawned it was drawn`,
+  );
+  assert.ok(
+    mine.y > above.y,
+    `${what} is drawn above the call that spawned it (${mine.y} is not below ` +
+      `${above.y})`,
+  );
+  assert.ok(
+    mine.x > above.x,
+    `${what} starts at ${mine.x}, level with the call that spawned it at ` +
+      `${above.x} — a lane is an INDENT, and a reader who cannot see one is ` +
+      "being told a subagent's work was the main agent's",
+  );
+};
+
 Then(
   "the chat draws a subagent's tool call under the call that spawned it",
   async function (this: OlaiWorld) {
@@ -1147,34 +1195,11 @@ Then(
       parent !== null && parent !== "",
       "a lane that names no agent is an indent, not an attribution",
     );
-    // The frame it names has to BE there, and the subagent's row has to be
-    // drawn UNDER it and INSET from it. A lane pointing at a row the panel
-    // never drew would look right and say nothing; one level with its parent
-    // would say something false about who did the work.
-    //
-    // Measured rather than read off a class, for the reason the bubble on your
-    // own message is measured: a class is a styling decision a refactor may
-    // change, and where a thing SITS is the claim. It is also the half of this
-    // feature a `data-` attribute cannot make — strip the rail and the indent
-    // from the panel and every other assertion here still passes.
-    const spawner = this.page.locator(entrySelector(parent ?? ""));
-    await spawner.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const above = await spawner.boundingBox();
-    const mine = await lane.locator(CHAT_ENTRY).first().boundingBox();
-    assert.ok(
-      above !== null && mine !== null,
-      "neither the subagent's row nor the call that spawned it was drawn",
-    );
-    assert.ok(
-      mine.y > above.y,
-      `the subagent's work is drawn above the call that spawned it (${mine.y} ` +
-        `is not below ${above.y})`,
-    );
-    assert.ok(
-      mine.x > above.x,
-      `the subagent's row starts at ${mine.x}, level with the call that ` +
-        `spawned it at ${above.x} — a lane is an INDENT, and a reader who ` +
-        "cannot see one is being told a subagent's work was the main agent's",
+    await insetBelow(
+      this,
+      parent ?? "",
+      lane.locator(CHAT_ENTRY).first(),
+      "the subagent's row",
     );
   },
 );
@@ -1223,19 +1248,9 @@ Then(
     );
     // ... and the same geometry a lane owes, for the same reason: the rail is
     // the claim that this is somebody ELSE's work, and one drawn level with
-    // the conversation says the main agent is doing it.
-    const above = await frame.boundingBox();
-    const rail = await working.boundingBox();
-    assert.ok(
-      above !== null && rail !== null,
-      "the spawned agent's rail was not drawn",
-    );
-    assert.ok(
-      rail.y > above.y && rail.x > above.x,
-      `the rail for the agent that was sent out starts at ${rail.x},${rail.y} ` +
-        `rather than below and inset from the call that sent it ` +
-        `(${above.x},${above.y})`,
-    );
+    // the conversation says the main agent is doing it. The same measurement a
+    // subagent's own row is held to, because it is meant to be the same line.
+    await insetBelow(this, spawner ?? "", working, "the agent that was sent out");
   },
 );
 

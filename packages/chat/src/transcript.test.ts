@@ -171,7 +171,7 @@ describe("tool calls", () => {
       status: "pending",
       spawned: { kind: "Explore" },
     })
-    transcript.tool("toolu_01AGENT", { status: "in_progress", spawned: { kind: null } })
+    transcript.tool("toolu_01AGENT", { status: "in_progress", spawned: {} })
     transcript.tool("toolu_01AGENT", { status: "completed" })
 
     expect(rows(transcript)[0]).toMatchObject({
@@ -186,8 +186,8 @@ describe("tool calls", () => {
     // spawn happened and nothing about who. The row is drawable then; the
     // kind lands on the next frame.
     const transcript = new Transcript()
-    transcript.tool("toolu_01AGENT", { title: "Task", spawned: { kind: null } })
-    expect(rows(transcript)[0]).toMatchObject({ spawned: { kind: null } })
+    transcript.tool("toolu_01AGENT", { title: "Task", spawned: {} })
+    expect(rows(transcript)[0]?.spawned).toEqual({})
 
     transcript.tool("toolu_01AGENT", {
       title: "explore the outline",
