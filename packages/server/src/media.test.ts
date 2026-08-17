@@ -123,13 +123,6 @@ test("the vault's other files are not served, however they are asked for", async
         "/media/a.olai",
         "/media/notes/secret.env",
         "/media/notes/nothing.html",
-        // A `.html` UNDER a file, which this route claims (the guard is lexical
-        // and the suffix is right) and the platform refuses with a reason of
-        // its own — not `NotFound` but "that is not a directory". It is a miss
-        // like any other here, and it is deliberately not in the log either:
-        // anybody can type it, and a log line a stranger can provoke at will
-        // is not one this server writes (`./media.ts`'s `willNotOpen`).
-        "/media/notes/finishes.md/x.html",
         "/media/../../etc/hostname",
         "/media/%2e%2e/%2e%2e/etc/hostname",
         "/media/notes/",
@@ -138,6 +131,31 @@ test("the vault's other files are not served, however they are asked for", async
       const answer = await fetch(`${url}${at}`, { redirect: "manual" })
       expect([answer.status, at]).toEqual([404, at])
     }
+  })
+})
+
+/**
+ * A `.html` UNDER A FILE, which is a miss the platform reports as something
+ * other than "not found" — and BOTH halves of what this route owes for one.
+ *
+ * `mediaTarget` claims it: the guard is lexical and the suffix is right, so
+ * `notes/finishes.md/x.html` reaches the read, where the platform answers
+ * `BadResource` (`ENOTDIR`) rather than `NotFound`. The reader gets the 404
+ * every other miss gets. The LOG gets nothing, and that is the half worth a
+ * test of its own: the path in that URL is the caller's to choose and the
+ * request costs them nothing, so a line about it would let anybody who can
+ * reach the port write to this server's log at will, with their own text in it.
+ *
+ * The collector is what makes the negative assertable at all — `withServing`
+ * hands over everything the server said, so "it said nothing about this" is a
+ * fact here rather than a claim in a comment.
+ */
+test("a `.html` under a file is a 404 and is not in the log", async () => {
+  await withServing({ root: vault() }, async (url, said) => {
+    const at = "/media/notes/finishes.md/x.html"
+    const answer = await fetch(`${url}${at}`)
+    expect(answer.status).toBe(404)
+    expect(said.filter((line) => JSON.stringify(line).includes("x.html"))).toEqual([])
   })
 })
 
@@ -167,16 +185,24 @@ test("a request whose host is not a host gets a policy that fetches nothing", as
 //
 // Root can read a 0000 file, so the assertion is skipped there rather than
 // inverted (`@olai/chat`'s `memory.test.ts` makes the same call).
-test("a page that cannot be read is a 404, like one that is not there", async () => {
+test("a page that cannot be read is a 404, and IS in the log", async () => {
   if (typeof process.getuid === "function" && process.getuid() === 0) return
   const root = vault()
   const shut = path.join(root, "notes", "shut.html")
   fs.writeFileSync(shut, "<h1>Shut</h1>\n")
   fs.chmodSync(shut, 0o000)
   try {
-    await withServing({ root }, async (url) => {
+    await withServing({ root }, async (url, said) => {
       const answer = await fetch(`${url}/media/notes/shut.html`)
       expect(answer.status).toBe(404)
+      // The pair the test above asserts the other way round. A file the
+      // directory really holds and this process cannot open is bounded by the
+      // disk rather than by what a stranger asks for, so it is exactly what the
+      // line is for — and the path is on the ANNOTATION, which is the field a
+      // structured reader uses, rather than only in the sentence.
+      const complaint = said.find((line) => line.annotations["file"] === "notes/shut.html")
+      expect(complaint?.level).toBe("Warn")
+      expect(complaint?.message).toContain("notes/shut.html")
     })
   } finally {
     fs.chmodSync(shut, 0o600)

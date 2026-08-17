@@ -98,6 +98,12 @@ export const BACKSTOP_TIMEOUT = 90_000;
  *  scale so `hooks.ts` and this file cannot drift. */
 export const SERVER_START_TIMEOUT = HYDRATION_TIMEOUT;
 
+/** What a probe for `OlaiWorld.socketCarried` may be made of: printable ASCII,
+ *  no `"` and no `\`. Those are the characters no text encoding this wire could
+ *  use would rewrite, which is what makes "it is not in the raw frames" mean
+ *  "it was not sent" rather than "it was spelled differently in there". */
+const PLAIN_PROBE = /^[\x20-\x21\x23-\x5B\x5D-\x7E]*$/;
+
 /** Cucumber's outer kill-timeout. DERIVED, so the relationship
  *  `POLL_TIMEOUT < HYDRATION_TIMEOUT < setDefaultTimeout` holds structurally:
  *  raising either inner budget can never leave the outer envelope too tight to
@@ -839,7 +845,7 @@ export class OlaiWorld extends World {
    * BY REQUEST, unlike its two neighbours, and that is the one thing about it
    * worth a sentence. `requests` and `errors` are small records; this is every
    * byte the socket delivered, retained for the scenario's life — a
-   * transcript's token-by-token deltas, a document's whole body — and three
+   * transcript's token-by-token deltas, a document's whole body — and two
    * scenarios in the suite ask about it. So it is armed by a tag, and the
    * absence of the tag is a THROW rather than an empty list ({@link
    * socketCarried}), because the load-bearing assertion here is a negative one
@@ -851,15 +857,24 @@ export class OlaiWorld extends World {
    * Whether anything the socket delivered carried this text — see {@link
    * socketFrames}.
    *
-   * TWO ways this could quietly say "no" are refused rather than documented. A
-   * scenario that never armed the recorder throws, in `requestsWatched`'s
-   * voice and for its reason. And a probe carrying a character the framing
-   * would ESCAPE — a quote, a backslash, a newline, anything non-ASCII —
-   * throws too: the frames are raw, so `"a \"quote\""` is not in them however
-   * squarely the body was sent, and a "never carried" assertion over such a
-   * probe is a sentence about nothing. `JSON.stringify` is the test because
-   * JSON is what escapes it: a string that survives a round trip as itself
-   * between quotes is one that appears verbatim in any JSON frame carrying it.
+   * TWO ways this could quietly say "no" are refused rather than documented.
+   *
+   * A scenario that never armed the recorder throws, in `requestsWatched`'s
+   * voice and for its reason.
+   *
+   * And a probe this cannot honestly look for throws too. The frames are raw,
+   * so a probe only appears in them if the encoding carrying it left it alone —
+   * `"a \"quote\""` is not in a JSON frame however squarely the body was sent,
+   * and a "never carried" assertion over such a probe is a sentence about
+   * nothing. What is admitted is therefore narrower than any one encoding's
+   * rule and deliberately so: PRINTABLE ASCII with no `"` and no `\`
+   * ({@link PLAIN_PROBE}), which no text encoding this wire could use escapes.
+   * A conservative test is the right shape here because the assertion it guards
+   * is a negative — being refused a probe costs a scenario one rewording, and
+   * accepting one costs a passing test that proves nothing. Non-ASCII is
+   * refused for that reason rather than because JSON escapes it (JSON does not):
+   * whether `é` survives a frame is the encoder's business, and this is not the
+   * place to find out.
    */
   socketCarried(text: string): boolean {
     const frames = this.socketFrames;
@@ -869,11 +884,12 @@ export class OlaiWorld extends World {
           "the wire has to carry the @wire tag",
       );
     }
-    if (JSON.stringify(text) !== `"${text}"`) {
+    if (!PLAIN_PROBE.test(text)) {
       throw new Error(
-        `${JSON.stringify(text)} is not a probe this can look for: it carries ` +
-          "a character the wire's own encoding escapes, so the raw frames " +
-          "would not hold it whether or not the server sent it",
+        `${JSON.stringify(text)} is not a probe this can look for: only plain ` +
+          "printable ASCII without a quote or a backslash is certain to appear " +
+          "in a raw frame verbatim, so anything else would be absent from the " +
+          "recording whether or not the server sent it",
       );
     }
     return frames.some((frame) => frame.includes(text));

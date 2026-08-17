@@ -908,7 +908,7 @@ Before(
     // BY TAG, unlike its neighbours, because unlike them it retains PAYLOADS —
     // every byte of every frame for the life of the scenario, which for a chat
     // or a document is the whole session's traffic in the worker's heap. The
-    // three scenarios that ask are worth that; the other seven hundred are not.
+    // two scenarios that ask are worth that; the other seven hundred are not.
     // A scenario that forgot the tag does not quietly assert over nothing: the
     // list stays `undefined` and the step throws.
     //
