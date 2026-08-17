@@ -101,7 +101,7 @@ One section per run, against a directory the driver has just re-copied and a ser
 just build-client
 nix develop .#e2e -c bash
 cd packages/tests
-LABEL=after PORT=7802 sh wire.sh
+LABEL=after PORT=7802 bash wire.sh
 ```
 
 `wire.ts` / `wire.sh` are the same kind of thing as `evidence.ts` one section up — not part of the suite, never run by `just e2e` — and they answer the question a screenshot cannot: how many bytes a session cost, and down which of the two wires. It opens the app, opens a saved page of a megabyte, rewrites it three times while it is on screen and then opens a note, counting every websocket frame the tab was delivered and every byte fetched off `/media/`.

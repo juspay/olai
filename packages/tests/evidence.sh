@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Run each section of evidence.ts against a FRESH directory and a FRESH server.
 #
-#   SHOTS=/somewhere sh evidence.sh
-#   PORT=7801 SHOTS=/somewhere sh evidence.sh   # a second worktree at once
+#   SHOTS=/somewhere bash evidence.sh
+#   PORT=7801 SHOTS=/somewhere bash evidence.sh   # a second worktree at once
 #
 # Expects to be run from packages/tests, inside `nix develop .#e2e`, with the
 # client already built (`just build-client`).

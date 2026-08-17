@@ -26,8 +26,8 @@
 # readiness curl succeeds against the stranger, and every number or screenshot
 # is of the other branch. Not hypothetical; it cost two evidence runs.
 olai_port_free() {
-  port=$1
-  what=${2:-the run}
+  local port=$1
+  local what=${2:-the run}
   if ss -ltn 2>/dev/null | grep -q "127.0.0.1:$port "; then
     echo "port $port is already taken — another worktree's server, most" >&2
     echo "likely. Re-run with PORT=<free port>; $what would otherwise be of" >&2
@@ -45,10 +45,13 @@ olai_port_free() {
 # a driver has to be pointed at, and the one thing that makes `root` a knob
 # rather than a constant.
 olai_serve() {
-  root=$1
-  vault=$2
-  port=$3
-  log=$4
+  # `local`, so a caller's own `root` or `port` is not clobbered by calling
+  # this: both scripts happen to pass the same values under the same names,
+  # which is exactly how that stops being true one edit later.
+  local root=$1
+  local vault=$2
+  local port=$3
+  local log=$4
   OLAI_DIST_DIR="$root/packages/web/dist" OLAI_ACP_AGENT= \
     bun "$root/packages/server/src/main.ts" web "$vault" --port "$port" \
     > "$log" 2>&1 &

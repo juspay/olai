@@ -123,6 +123,13 @@ test("the vault's other files are not served, however they are asked for", async
         "/media/a.olai",
         "/media/notes/secret.env",
         "/media/notes/nothing.html",
+        // A `.html` UNDER a file, which this route claims (the guard is lexical
+        // and the suffix is right) and the platform refuses with a reason of
+        // its own — not `NotFound` but "that is not a directory". It is a miss
+        // like any other here, and it is deliberately not in the log either:
+        // anybody can type it, and a log line a stranger can provoke at will
+        // is not one this server writes (`./media.ts`'s `willNotOpen`).
+        "/media/notes/finishes.md/x.html",
         "/media/../../etc/hostname",
         "/media/%2e%2e/%2e%2e/etc/hostname",
         "/media/notes/",

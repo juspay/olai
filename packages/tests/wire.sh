@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Measure one edit-while-previewing session against a WORKTREE's own server.
 #
-#   ROOT=/path/to/a/worktree LABEL=before PORT=7802 sh wire.sh
+#   ROOT=/path/to/a/worktree LABEL=before PORT=7802 bash wire.sh
 #
 # Expects to be run from packages/tests, inside `nix develop .#e2e`, with the
 # named worktree's client already built there (`just build-client` in it).

@@ -44,7 +44,6 @@ import {
   FileSystem,
   Option,
   Path,
-  type PlatformError,
   Queue,
   Scope,
   Stream,
