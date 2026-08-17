@@ -27,7 +27,7 @@ const decoded = (
   new Map(
     Object.entries(files).map(([path, contents]) => [
       path,
-      codec.byName(path) ?? codec.decode(path, contents),
+      codec.byName?.(path) ?? codec.decode(path, contents),
     ]),
   )
 
@@ -84,7 +84,7 @@ const bothWays = (
   const files = new Map(held)
   for (const path of moved.removed) files.delete(path)
   for (const path of moved.changed) {
-    files.set(path, codec.byName(path) ?? codec.decode(path, after[path] as string))
+    files.set(path, codec.byName?.(path) ?? codec.decode(path, after[path] as string))
   }
   // The fixture's own claim, checked: the two lists really are the difference
   // between the two directories.
