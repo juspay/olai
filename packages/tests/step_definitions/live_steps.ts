@@ -24,6 +24,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import { expectCodeIn, expectSiteIn } from "../support/errors.ts";
 import {
+  attr,
   BACKSTOP_STEP_TIMEOUT,
   BACKSTOP_TIMEOUT,
   NODE,
@@ -201,7 +202,7 @@ const drawn = async (
   file: string,
 ): Promise<{ ids: string[]; sites: string[] }> => {
   const rendered = await world.page
-    .locator(`${NODE}[data-file="${file}"]`)
+    .locator(`${NODE}${attr("data-file", file)}`)
     .evaluateAll((nodes) =>
       nodes.map((node) => ({
         id: node.getAttribute("data-node-id") ?? "?",
@@ -278,7 +279,7 @@ Then(
   "the outline {string} is marked unreadable",
   async function (this: OlaiWorld, file: string) {
     await this.page
-      .locator(`${OUTLINE_LINK}[data-file="${file}"][data-broken="true"]`)
+      .locator(`${OUTLINE_LINK}${attr("data-file", file)}[data-broken="true"]`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
@@ -291,7 +292,7 @@ When(
     await this.showSidebar();
     await this.outlineLink(file).click();
     await this.page
-      .locator(`${OUTLINE_FAILURE}[data-file="${file}"]`)
+      .locator(`${OUTLINE_FAILURE}${attr("data-file", file)}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );

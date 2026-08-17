@@ -13,6 +13,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  attr,
   nodeSelector,
   oneLine,
   POLL_TIMEOUT,
@@ -32,7 +33,7 @@ import type { OlaiWorld } from "../support/world.ts";
 /** One line of the drawer on one node, by KEY — never by position, so a
  *  scenario says which fact it is reading. */
 const line = (world: OlaiWorld, id: string, key: string) =>
-  world.page.locator(`${nodeSelector(id)} ${PROP}[data-key="${key}"]`);
+  world.page.locator(`${nodeSelector(id)} ${PROP}${attr("data-key", key)}`);
 
 Then(
   "the node {string} shows the property {string} holding {string}",

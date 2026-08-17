@@ -14,6 +14,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  attr,
   expectAbsent,
   expectGone,
   oneLine,
@@ -29,7 +30,7 @@ import type { OlaiWorld } from "../support/world.ts";
 
 /** One trash row, by the archived node it draws. A selector string for the
  *  same reason `nodeSelector` is one. */
-const trashRow = (id: string): string => `${TRASH_ROW}[data-node-id="${id}"]`;
+const trashRow = (id: string): string => `${TRASH_ROW}${attr("data-node-id", id)}`;
 
 When("I open the Trash", async function (this: OlaiWorld) {
   await this.showSidebar();

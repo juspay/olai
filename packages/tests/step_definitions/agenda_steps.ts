@@ -32,6 +32,7 @@ import {
   AGENDA_OWED,
   AGENDA_PAGE,
   AGENDA_SECTION,
+  attr,
   DATE,
   DAY_GROUP,
   drawn,
@@ -57,7 +58,7 @@ const tomorrow = (): string => {
 
 /** One section of the page, by what it MEANS. */
 const sectionSelector = (section: string): string =>
-  `${AGENDA_SECTION}[data-section="${section}"]`;
+  `${AGENDA_SECTION}${attr("data-section", section)}`;
 
 // ── opening it ─────────────────────────────────────────────────────────
 
@@ -200,7 +201,7 @@ Then(
   "the upcoming day for tomorrow links to that day",
   async function (this: OlaiWorld) {
     const date = tomorrow();
-    const link = this.page.locator(`${AGENDA_DAY}[data-date="${date}"] a`).first();
+    const link = this.page.locator(`${AGENDA_DAY}${attr("data-date", date)} a`).first();
     await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(await link.getAttribute("href"), `/d/${date}`);
   },

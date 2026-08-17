@@ -26,6 +26,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import {
   AFTER_REFS,
+  attr,
   EDGE_DROP,
   EDGE_HELD,
   EDGE_HIT,
@@ -98,7 +99,7 @@ When(
   "I open the {word} panel from the page",
   async function (this: OlaiWorld, relation: string) {
     await this.press(
-      this.page.locator(`${EDGE_VERB}[data-relation="${relation}"]`),
+      this.page.locator(`${EDGE_VERB}${attr("data-relation", relation)}`),
     );
     await panelOf(this);
   },
@@ -124,7 +125,7 @@ When(
     // then for the list under it. Trimmed, because the query the search is
     // asked is the trimmed one.
     await this.page
-      .locator(`${EDGE_PANEL}[data-asked="${text.trim()}"]`)
+      .locator(`${EDGE_PANEL}${attr("data-asked", text.trim())}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.page
       .locator(EDGE_HIT)
@@ -143,7 +144,7 @@ Then(
       .locator(EDGE_HIT)
       .filter({ hasText: title })
       .first()
-      .locator(`[data-testid="edge-hit-prop"][data-key="${key}"]`);
+      .locator(`[data-testid="edge-hit-prop"]${attr("data-key", key)}`);
     await prop.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.equal((await prop.innerText()).trim(), `${key} ${value}`);
   },
@@ -242,7 +243,7 @@ Then(
   "the edge panel holds {string}",
   async function (this: OlaiWorld, target: string) {
     await (await panelOf(this))
-      .locator(`${EDGE_HELD} [data-ref="${target}"]`)
+      .locator(`${EDGE_HELD} ${attr("data-ref", target)}`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
@@ -254,7 +255,7 @@ When(
   "I drop {string} in the edge panel",
   async function (this: OlaiWorld, target: string) {
     const chip = (await panelOf(this))
-      .locator(`${EDGE_DROP}[data-ref="${target}"]`)
+      .locator(`${EDGE_DROP}${attr("data-ref", target)}`)
       .first();
     await this.press(chip);
     await drawnOrSaid(
@@ -286,7 +287,7 @@ When(
     id: string,
   ) {
     const chip = this.node(id)
-      .locator(`${refsOf(relation)} ${REF_DROP}[data-ref="${target}"]`)
+      .locator(`${refsOf(relation)} ${REF_DROP}${attr("data-ref", target)}`)
       .first();
     await this.press(chip);
     await drawnOrSaid(
