@@ -130,7 +130,9 @@ const HAS_FIELDS = ["desc", "date", "see", "after", "doc"] as const
 type HasField = (typeof HAS_FIELDS)[number]
 
 /** The four operator names. A colon after anything else is a colon in a word
- *  — see {@link parseFilter}. */
+ *  — see {@link parseFilter}. A QUOTED token is never one of these, whatever it
+ *  spells: `"is:done"` is the text, which is the escape hatch out of this table
+ *  and the reason quoting and the operators shipped together. */
 const OPERATORS = ["is", "has", "date", "prop"] as const
 type Operator = (typeof OPERATORS)[number]
 
@@ -156,17 +158,35 @@ type Clause =
    */
   | { readonly kind: "prop"; readonly key: string; readonly value: string | null }
 
-/** One word to find, and whether the query wants it ABSENT. */
-interface Term {
-  readonly word: string
-  readonly negated: boolean
-}
+/**
+ * One thing a query can be satisfied BY — a word to find or a clause to hold —
+ * each with the same question about whether the query wants it ABSENT.
+ *
+ * A UNION where there used to be two lists, and the reason is `OR`: a group can
+ * hold both kinds (`is:todo OR overdue`), so "which alternatives are there" and
+ * "what kind is each" stopped being answerable by which array a thing was in.
+ * What the two lists were FOR — testing the cheap clauses before anything scans
+ * a note — is {@link inCostOrder}, over whole groups, where it is a fact about
+ * the query rather than about the shape of the value.
+ *
+ * A PHRASE is a term whose word holds spaces, and nothing here says so. That is
+ * the whole of what quoting cost: the tokenizer stopped ending a token at a
+ * space, and the matcher — which was already looking for a substring — went on
+ * doing exactly what it did.
+ */
+type Alternative =
+  | { readonly kind: "term"; readonly word: string; readonly negated: boolean }
+  | { readonly kind: "clause"; readonly clause: Clause; readonly negated: boolean }
 
-/** One clause, and the same question about it. */
-interface Held {
-  readonly clause: Clause
-  readonly negated: boolean
-}
+/**
+ * Tokens joined by `OR`: ONE of them has to hold.
+ *
+ * A token nobody joined is a group of one, which is what every token in every
+ * query was before this — so the AND across groups is the conjunction that was
+ * always here, unchanged, and `OR` is a second binding level UNDER it rather
+ * than a split over it. {@link parseFilter} argues why that way round.
+ */
+type Group = ReadonlyArray<Alternative>
 
 /**
  * A token the grammar knows the name of and not the value — `is:open` (a mark
@@ -216,8 +236,10 @@ export type Filter =
   | { readonly kind: "refused"; readonly refusals: ReadonlyArray<Refusal> }
   | {
     readonly kind: "asking"
-    readonly terms: ReadonlyArray<Term>
-    readonly clauses: ReadonlyArray<Held>
+    /** Every group must hold, and a group holds when any of its alternatives
+     *  does. In {@link inCostOrder} rather than in the reader's, which is a
+     *  reordering of a conjunction and so cannot change an answer. */
+    readonly groups: ReadonlyArray<Group>
     /** True when the query names the archive at all, in either polarity. The
      *  archive is out of every reading unless it is ASKED for
      *  (docs/search.md), and this is the flag that says it was — so
@@ -226,15 +248,178 @@ export type Filter =
     readonly speaksOfArchive: boolean
   }
 
+// ── the tokenizer ──────────────────────────────────────────────────────
+
+/**
+ * The one character that suspends a space, and so the one that can make a
+ * token out of two words. ONE kind of quote: an apostrophe is a character
+ * people write (`don't`), exactly as a colon is, and a grammar that read one as
+ * punctuation could not search prose.
+ */
+const QUOTE = `"`
+
+/** What ends a token — the split this file used to do with one regex, done a
+ *  character at a time because a quote can now say "not this one". */
+const SPACE = /\s/
+
+/**
+ * One token, as the reader typed it and as the grammar reads it.
+ *
+ * THREE FACTS BECAUSE THE FOLD AND THE QUOTES ARE BOTH LOSSY, and each is read
+ * by something different: {@link Refusal} quotes `written`, the matcher and the
+ * operator tables read `text`, and `quoted` is what says a token is TEXT
+ * whatever it spells. Deriving any of them from another is what the old
+ * `written` / `raw` pair could still do and this cannot — `"-force"` and
+ * `-force` fold to the same string and mean opposite things, which is why the
+ * dash is read here, where its position is still known.
+ */
+interface Token {
+  /** AS TYPED — dash, quotes, capitals and all. What a refusal shows. */
+  readonly written: string
+  /** What the grammar reads: the quotes taken out, the case folded, the
+   *  negation taken off the front. */
+  readonly text: string
+  /** Did the token OPEN with a quote (after at most one `-`)? Then it is a term
+   *  whatever it holds, and never the {@link JOINER}. */
+  readonly quoted: boolean
+  readonly negated: boolean
+}
+
+/**
+ * Text into tokens — and this is the whole of what quoting changed.
+ *
+ * A quote SUSPENDS the space that would have ended the token, so `"kitchen
+ * remodel"` is one thing to look for; a quote at the FRONT of a token (after at
+ * most one `-`) also says the token is text rather than an operator. Those are
+ * two rules and they buy two different things — the first is `prop:agent="two
+ * words"`, which needs no rule of its own; the second is `"is:done"`, the only
+ * way to search for the text somebody wrote in a note when the grammar has
+ * claimed that spelling. A quote anywhere else is an ordinary character.
+ *
+ * A QUOTE NOTHING CLOSES stops the scan and is reported, rather than being
+ * closed at the end of the input on the reader's behalf: `"pick the` and `"pick
+ * the"` are two different queries, and guessing which was meant is exactly the
+ * quiet answer to an unasked question this grammar refuses everywhere else. The
+ * tokens READ SO FAR come back with it, so a query that got two things wrong is
+ * told about both.
+ *
+ * THE DASH IS READ HERE for the reason the header above gives: after the quotes
+ * come out, a dash that negated the token and a dash somebody quoted are the
+ * same character in the same place. `-"kitchen remodel"` is a phrase taken back
+ * out; `"-force"` is a word people write.
+ */
+const tokensOf = (text: string): {
+  readonly tokens: ReadonlyArray<Token>
+  /** The token that opened a quote nothing closed, as typed — `null` when every
+   *  quote was closed. */
+  readonly unclosed: string | null
+} => {
+  const tokens: Array<Token> = []
+  let at = 0
+  while (at < text.length) {
+    if (SPACE.test(text[at] as string)) {
+      at += 1
+      continue
+    }
+    const start = at
+    // ONE leading `-`, and only in front of something: a bare `-` is a
+    // character somebody typed, not a negation of nothing.
+    const negated = text[at] === "-" && at + 1 < text.length &&
+      !SPACE.test(text[at + 1] as string)
+    if (negated) at += 1
+    // Where a quote would be the token's FIRST character, which is what makes
+    // it a phrase rather than a suspended space.
+    const opens = at
+    let read = ""
+    let quoted = false
+    let dangling = false
+    while (at < text.length && !SPACE.test(text[at] as string)) {
+      if (text[at] !== QUOTE) {
+        read += text[at]
+        at += 1
+        continue
+      }
+      if (at === opens) quoted = true
+      const closes = text.indexOf(QUOTE, at + 1)
+      if (closes === -1) {
+        at = text.length
+        dangling = true
+        break
+      }
+      read += text.slice(at + 1, closes)
+      at = closes + 1
+    }
+    const written = text.slice(start, at)
+    if (dangling) return { tokens, unclosed: written }
+    tokens.push({ written, text: read.toLowerCase(), quoted, negated })
+  }
+  return { tokens, unclosed: null }
+}
+
+// ── the grammar, as tokens ─────────────────────────────────────────────
+
+/**
+ * What joins two tokens into one group, and THE ONE TOKEN IN THIS GRAMMAR THAT
+ * IS NOT FOLDED.
+ *
+ * In capitals because `or` is a word people write — a note that says `walnut or
+ * birch` is an ordinary note — and a grammar that read the lower-case one as a
+ * joiner would have taken a common English word out of the language it is
+ * searching. So the exception is the thing that keeps the rule: everything else
+ * folds, and `or` goes on being a word because `OR` is the joiner. A note that
+ * shouts it back has the other escape hatch: `"OR"` is the text.
+ *
+ * Compared against {@link Token.written} rather than against `text`, which is
+ * what makes the two lines above one comparison: the folded form would answer
+ * for `or`, and a quoted one carries its own quotes in `written` and so can
+ * never equal this.
+ */
+const JOINER = "OR"
+
+/** What a dangling `OR` is told. It NAMES THE RULE rather than the token, for
+ *  the reason every refusal in this file does: the reader typed a joiner, and
+ *  the honest answer is what a joiner joins. */
+const JOINING =
+  `${JOINER} joins the token before it to the token after it — one of them is missing`
+
+/** ...and what an unclosed quote is told. Same sentence shape, same reason: a
+ *  phrase is delimited, and the delimiter that is missing is the news. */
+const UNCLOSED = `a quote nothing closes — a phrase runs from one ${QUOTE} to the next`
+
+/** ...and what a pair of quotes with nothing between them is. Refused rather
+ *  than matched, and it is `prop:stage=`'s rule exactly: an empty needle is in
+ *  every node ever written, so a query nobody meant would answer with the whole
+ *  directory — the loud twin of the silent empty answer. */
+const NOTHING_QUOTED = `an empty phrase — the words to look for go between the ${QUOTE}s`
+
 /**
  * Text into a query.
  *
- * Whitespace-separated tokens; a leading `-` negates whichever kind the token
+ * Tokens ({@link tokensOf}); a leading `-` negates whichever kind the token
  * turns out to be; a token whose left-of-colon is one of {@link OPERATORS} is a
  * clause and everything else is a substring term. That last rule is the one
  * worth stating: `TODO:`, `note:x` and `http://example.com` are words people
  * write, and a grammar that refused every colon would be a grammar that could
  * not search prose.
+ *
+ * TWO BINDING LEVELS AND NO PARENTHESES, which is the ruling this pass exists
+ * to make. `OR` joins the tokens on either side of it into one {@link Group};
+ * the groups are ANDed exactly as adjacent tokens always were. So `OR` binds
+ * TIGHTER than the conjunction, and `#home kitchen OR bathroom` is `#home` and
+ * one of the other two — which is what somebody typing it means. The other way
+ * round it reads `(#home AND kitchen) OR bathroom`, and the second half of that
+ * answer is every bathroom in the directory, arriving with no `#home` about it:
+ * a query that quietly WIDENED is the trap this grammar's deferral named, and
+ * it is worse than a narrow one because the extra rows look like a search
+ * working. The reader who wants the loose reading has the tighter one plus a
+ * second query; the reader who wants the tight one, under the loose rule, has
+ * nothing at all to type.
+ *
+ * A GROUP IS NOT NEGATED, and there is nothing missing: `-a -b` is `NOT (a OR
+ * b)` already, by the one law of this shape everybody knows. What has no
+ * spelling is `NOT (a AND b)` — "not both" — which is not a query anybody has
+ * ever wanted to type, and buying it would cost the parentheses the whole
+ * design declines.
  *
  * PURE, AND THE CLOCK IS AN ARGUMENT. `now` is what the relative words count
  * from (`date:yesterday`, `date:last-week`) — the day the reader is standing
@@ -256,42 +441,117 @@ export type Filter =
  * that they typed `is:open` is the refusal misquoting the reader, which is
  * the same defect class the refusal exists to prevent — the split is why the
  * fold happens per token here rather than to the whole string on the way in.
+ * {@link JOINER} is the one token this does not reach, and its own note says
+ * why the exception is what keeps the rule.
  */
 export const parseFilter = (text: string, now: string): Filter => {
-  const terms: Array<Term> = []
-  const clauses: Array<Held> = []
+  const groups: Array<Array<Alternative>> = []
   const refusals: Array<Refusal> = []
   let speaksOfArchive = false
+  // The last token was a joiner, so the next one lands in the group before it
+  // rather than opening one of its own.
+  let joining = false
+  // Some token has been read — which is what a joiner needs on its left, and
+  // it is a TOKEN rather than a group: a token the grammar refused is still one
+  // the reader typed, and reporting a dangling `OR` beside it would be this
+  // grammar inventing a second mistake out of the first one.
+  let read = false
 
-  for (const written of text.split(/\s+/)) {
-    if (written === "") continue
-    const raw = written.toLowerCase()
-    // A bare `-` is a character somebody typed, not a negation of nothing.
-    const negated = raw.length > 1 && raw.startsWith("-")
-    const token = negated ? raw.slice(1) : raw
-    const colon = token.indexOf(":")
-    const name = colon === -1 ? "" : token.slice(0, colon)
-    if (!isOperator(name)) {
-      terms.push({ word: token, negated })
+  const { tokens, unclosed } = tokensOf(text)
+  for (const token of tokens) {
+    // The joiner, and it is the only token read as typed — see {@link JOINER}.
+    // A quoted one carries its quotes here and so is a word.
+    if (token.written === JOINER) {
+      // Nothing before it, or another joiner before it: either way one of the
+      // two things it joins is missing.
+      if (joining || !read) {
+        refusals.push({ token: token.written, reason: JOINING })
+        continue
+      }
+      joining = true
       continue
     }
-    const value = token.slice(colon + 1)
-    const clause = clauseOf(name, value, now)
-    if (clause === null) {
-      refusals.push({ token: written, reason: teaching(name, value) })
+    read = true
+    const alternative = alternativeOf(token, now)
+    const joined = joining
+    joining = false
+    if ("reason" in alternative) {
+      refusals.push({ token: token.written, reason: alternative.reason })
       continue
     }
-    if (clause.kind === "is" && clause.value === "archived") speaksOfArchive = true
-    clauses.push({ clause, negated })
+    if (
+      alternative.kind === "clause" && alternative.clause.kind === "is" &&
+      alternative.clause.value === "archived"
+    ) speaksOfArchive = true
+    const last = groups[groups.length - 1]
+    // Joined onto the group before it — unless the token that opened that group
+    // was refused and there is none, which is a query that answers nothing
+    // whatever this does with it.
+    if (joined && last !== undefined) last.push(alternative)
+    else groups.push([alternative])
   }
+  if (joining) refusals.push({ token: JOINER, reason: JOINING })
+  // LAST, because that is where it is in the text: the tokens before it were
+  // read, and a query that got two things wrong is told about both.
+  if (unclosed !== null) refusals.push({ token: unclosed, reason: UNCLOSED })
 
   // One refusal decides the whole query. The alternative — answering with the
   // half that parsed — is a list that looks like an answer to a question
   // nobody asked, which is the silent error the refusals exist to prevent.
   if (refusals.length > 0) return { kind: "refused", refusals }
-  if (terms.length === 0 && clauses.length === 0) return { kind: "nothing" }
-  return { kind: "asking", terms, clauses, speaksOfArchive }
+  if (groups.length === 0) return { kind: "nothing" }
+  return { kind: "asking", groups: inCostOrder(groups), speaksOfArchive }
 }
+
+/**
+ * One token, as the thing it can satisfy — or the sentence that says why it is
+ * none of them.
+ *
+ * A QUOTED TOKEN IS A TERM AND IS NOT ASKED ANYTHING ELSE, which is the whole
+ * of how quoting meets the operators: `"is:done"` is the text `is:done`, found
+ * wherever somebody wrote it in a note, and there is otherwise NO way to look
+ * for the spelling of an operator. The check is before the colon rather than
+ * inside {@link isOperator} because the fact is about the token — the quotes
+ * are gone from `text` by now, and a table that had to know about them would be
+ * a second place quoting is decided.
+ */
+const alternativeOf = (
+  token: Token,
+  now: string,
+): Alternative | { readonly reason: string } => {
+  // Only quotes can empty a token — a bare `-` is the character itself — and an
+  // empty needle is inside every node ever written.
+  if (token.text === "") return { reason: NOTHING_QUOTED }
+  const asTerm = { kind: "term", word: token.text, negated: token.negated } as const
+  if (token.quoted) return asTerm
+  const colon = token.text.indexOf(":")
+  const name = colon === -1 ? "" : token.text.slice(0, colon)
+  if (!isOperator(name)) return asTerm
+  const value = token.text.slice(colon + 1)
+  const clause = clauseOf(name, value, now)
+  return clause === null
+    ? { reason: teaching(name, value) }
+    : { kind: "clause", clause, negated: token.negated }
+}
+
+/**
+ * The groups, cheapest first: the ones that hold no word at all, then the rest.
+ *
+ * A REORDERING OF A CONJUNCTION, so it cannot change an answer — every group
+ * has to hold, the score is a sum and the field a maximum, and none of the
+ * three cares in which order they were asked. What it buys is the gate order
+ * this file has always had and nearly lost to `OR`: `kitchen is:done` used to
+ * be two lists and so tested the mark, which is a field read, before scanning
+ * four haystacks it had to fold a whole note into. Typed order would have put
+ * the scan first on every node of the set, on every keystroke of a filter.
+ *
+ * The lazier half is {@link matchOf}'s: a group that holds no word never asks
+ * for a haystack, so a query of operators alone still folds nothing.
+ */
+const inCostOrder = (groups: ReadonlyArray<Group>): ReadonlyArray<Group> => [
+  ...groups.filter((group) => group.every((one) => one.kind === "clause")),
+  ...groups.filter((group) => group.some((one) => one.kind === "term")),
+]
 
 /**
  * The value an operator takes, read — or `null` for one it does not.
@@ -682,7 +942,9 @@ export interface Scope {
  * The order of the gates is the order of their cost: a query that is not
  * ASKING decides before anything is read, the archive is a filename, the
  * clauses are a field test or an index lookup, and the words are the only
- * thing that scans text.
+ * thing that scans text. That order survived `OR` in two halves — the groups
+ * arrive with the wordless ones in front ({@link inCostOrder}), and the
+ * haystacks are minted at the first word rather than at the top.
  *
  * THE DERIVATION IS A PARAMETER because one clause is not about the record:
  * `is:blocked` is a question about the SET (what this node waits on, and
@@ -697,44 +959,58 @@ const matchOf = (
   filter: Filter,
 ): Match | null => {
   // Neither an empty box nor a query the grammar could not read selects
-  // anything — and neither of them HAS terms to be tempted by, which is what
+  // anything — and neither of them HAS groups to be tempted by, which is what
   // the union above is for.
   if (filter.kind !== "asking") return null
   if (!filter.speaksOfArchive && isArchived(at.file)) return null
 
-  for (const held of filter.clauses) {
-    if (holds(derived, at, held.clause) === held.negated) return null
-  }
-
-  // Collected only for a node that has already PASSED every clause, so the map
-  // is walked for the few nodes a query selects rather than for every node it
-  // considers.
-  const props = propsOf(at.node, filter)
-
-  // A query of operators alone is carried by no field, and nothing below would
-  // read the haystacks — which are four allocations and up to three case-folds
-  // of a whole note, per node of the set. `is:done` is exactly that query.
-  if (filter.terms.length === 0) return { field: null, score: 0, props }
-
-  const hay = haystacksOf(at.node)
+  // The four fields as text, folded — four allocations and up to three folds of
+  // a whole note, so they are minted at the first WORD this node is asked about
+  // and never for a query that names none. `is:done` on its own is exactly that
+  // query, and the groups that hold no word are tested first ({@link
+  // inCostOrder}), so a node it rejects is rejected before this is reached.
+  let hay: Record<SearchField, ReadonlyArray<string>> | null = null
   let score = 0
   let field: SearchField | null = null
   let weight = -1
-  for (const term of filter.terms) {
-    const hit = wordHit(hay, term.word)
-    if (term.negated) {
-      if (hit !== null) return null
-      continue
+
+  for (const group of filter.groups) {
+    // Every alternative is asked, rather than stopping at the first that holds,
+    // and the reason is the SCORE: a group is worth its best word, so which
+    // alternative the reader happened to type first must not decide how high
+    // the hit ranks. The cost is the same scan the conjunction did when these
+    // were separate tokens.
+    let holding = false
+    let best: { readonly field: SearchField; readonly score: number } | null = null
+    for (const one of group) {
+      if (one.kind === "clause") {
+        if (holds(derived, at, one.clause) !== one.negated) holding = true
+        continue
+      }
+      hay ??= haystacksOf(at.node)
+      const hit = wordHit(hay, one.word)
+      if (one.negated) {
+        if (hit === null) holding = true
+        continue
+      }
+      if (hit === null) continue
+      holding = true
+      if (best === null || hit.score > best.score) best = hit
     }
-    // Every word, in the same node. One miss and the node is not a hit.
-    if (hit === null) return null
-    score += hit.score
-    if (FIELD_WEIGHT[hit.field] > weight) {
-      weight = FIELD_WEIGHT[hit.field]
-      field = hit.field
+    // Every group, in the same node. One that nothing satisfied and the node is
+    // not a hit.
+    if (!holding) return null
+    if (best === null) continue
+    score += best.score
+    if (FIELD_WEIGHT[best.field] > weight) {
+      weight = FIELD_WEIGHT[best.field]
+      field = best.field
     }
   }
-  return { field, score, props }
+
+  // Collected only for a node that has already matched, so the map is walked
+  // for the few nodes a query selects rather than for every node it considers.
+  return { field, score, props: propsOf(at.node, filter) }
 }
 
 /**
@@ -753,9 +1029,13 @@ const matchOf = (
  */
 const propsOf = (node: RegularNode, filter: Extract<Filter, { kind: "asking" }>) => {
   const keys: Array<string> = []
-  for (const held of filter.clauses) {
-    if (held.negated || held.clause.kind !== "prop") continue
-    const key = propKeyOf(node, held.clause)
+  for (const one of filter.groups.flat()) {
+    if (one.kind !== "clause" || one.negated || one.clause.kind !== "prop") continue
+    // ASKED AGAIN rather than remembered from the gate, which is what makes an
+    // alternative honest: a node in a group like `prop:pr OR cabinets` may be
+    // here on the word alone, and naming a key it does not carry would be the
+    // row drawing a lie. `null` says so.
+    const key = propKeyOf(node, one.clause)
     // Reported once however many clauses name it: `prop:pr prop:pr=x` is one
     // key the reader would see twice.
     if (key !== null && !keys.includes(key)) keys.push(key)

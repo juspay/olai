@@ -414,8 +414,38 @@ describe("a query is words and operators", () => {
     expect(ids({ text: "date:this-month" })).toEqual(["book", "paint"])
   })
 
+  // A phrase and a group reach this door the way every other part of the
+  // grammar does — through the one `parseFilter` — so what an agent can ask for
+  // is what a person can type into the filter. Ranked here, and only here.
+  test("a phrase and an `OR` group reach the ranked door too", () => {
+    expect(ids({ text: `"book the flights"` })).toEqual(["book"])
+    // The same words, with the order between them no longer part of the query.
+    expect(ids({ text: `"flights the book"` })).toEqual([])
+    expect(ids({ text: "flights the book" })).toEqual(["book"])
+    // Either one, and both are still gated by the clause beside them.
+    expect(ids({ text: "flights OR hall" })).toEqual(["book", "paint"])
+    expect(ids({ text: "is:done flights OR hall" })).toEqual(["book", "paint"])
+    expect(ids({ text: "-is:done flights OR hall" })).toEqual([])
+  })
+
   test("a refused operator answers with nothing rather than with half the query", () => {
     expect(ids({ text: "is:open trip" })).toEqual([])
+  })
+
+  // The two refusals this grammar grew with quoting and `OR`, on the door three
+  // of the four faces read their refusals from: an unclosed quote and a joiner
+  // with nothing on one side of it are told the same way `is:open` is.
+  test("an unclosed quote and a dangling `OR` carry their reasons too", () => {
+    expect(search(derivedOf(WORK()), { text: `"book the` }, TODAY).refusals)
+      .toEqual([{
+        token: `"book the`,
+        reason: `a quote nothing closes — a phrase runs from one " to the next`,
+      }])
+    expect(search(derivedOf(WORK()), { text: "trip OR" }, TODAY).refusals)
+      .toEqual([{
+        token: "OR",
+        reason: "OR joins the token before it to the token after it — one of them is missing",
+      }])
   })
 
   // ...AND WITH THE REASON. This layer is the only one that has both the

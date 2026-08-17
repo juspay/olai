@@ -385,6 +385,214 @@ test("clauses and words compose", () => {
   expect(selects("has:date is:doing")).toEqual(["order"])
 })
 
+// ── quoted phrases ─────────────────────────────────────────────────────
+
+/**
+ * A phrase is a term whose word holds a space, and that is the whole of it: the
+ * tokenizer stopped ending a token at a space, and the matcher — which was
+ * already looking for a case-folded substring — went on doing exactly what it
+ * did. So a phrase is looked for in the same four fields, weighted the same
+ * way, and negated by the same dash.
+ */
+test("a phrase is one substring, where the words are four", () => {
+  expect(selects(`"the cabinets"`)).toEqual(["order", "install"])
+  // The pair that says what quoting BUYS: the same two words, unquoted, are
+  // two independent substrings and the order between them stops mattering.
+  expect(selects(`"cabinets the"`)).toEqual([])
+  expect(selects("cabinets the")).toEqual(["order", "install"])
+  expect(selects(`"kitchen remodel"`)).toEqual(["kitchen"])
+})
+
+test("a phrase is folded and negated like any other word", () => {
+  expect(selects(`"The Cabinets"`)).toEqual(["order", "install"])
+  expect(selects(`#home -"kitchen remodel"`)).toEqual(["herbs", "hinges"])
+  // A dash INSIDE the quotes is a character, which is the whole reason the
+  // negation is read where the position of the dash is still known: `--force`
+  // is a word people write, and so is `-force`.
+  expect(parseFilter(`"-force"`, TODAY)).toEqual({
+    kind: "asking",
+    groups: [[{ kind: "term", word: "-force", negated: false }]],
+    speaksOfArchive: false,
+  })
+})
+
+/** Quoting one word changes nothing — there is no second grammar for a phrase,
+ *  only a token that reached the matcher with its spaces still in it. */
+test("a phrase of one word is that word", () => {
+  expect(selects(`"#home"`)).toEqual(["herbs", "kitchen", "hinges"])
+  expect(selects(`"cabinets" "order"`)).toEqual(["order"])
+})
+
+/** It reaches the note as readily as the title, which is what the four fields
+ *  being one scan means — and `matched` still says which one carried it. */
+test("a phrase is found in a note, and says so", () => {
+  const [hit] = matching(derived, parseFilter(`"walnut or birch"`, TODAY))
+  expect(hit?.at.node.id).toBe("order")
+  expect(hit?.match.field).toBe("desc")
+})
+
+/**
+ * THE ESCAPE HATCH, and the reason quoting and `OR` are one change: the grammar
+ * has claimed some spellings, and quoting is how a reader asks for the TEXT of
+ * one. Without it there is no way at all to find the note in which somebody
+ * wrote down what `is:done` means.
+ */
+test("a quoted operator is the text, not the operator", () => {
+  const literal = derive(nodesOfFiles({
+    "a.olai": [
+      `{"id":"note","ord":"a0","title":"what is:done reads","todo":true}`,
+      `{"id":"ticked","ord":"a1","title":"something else","done":"2026-08-01"}`,
+    ].join("\n"),
+  }))
+  expect(selectsIn(literal, `"is:done"`)).toEqual(["note"])
+  expect(selectsIn(literal, "is:done")).toEqual(["ticked"])
+  // ...and a value the operator does not take is not refused once it is text:
+  // `is:open` in quotes is a query about prose, and there is no operator in it
+  // to have got wrong.
+  expect(parseFilter(`"is:open"`, TODAY).kind).toBe("asking")
+})
+
+/**
+ * A CONSEQUENCE RATHER THAN A RULE, and it is the one worth pinning: a phrase
+ * is a substring of the field's own text, newlines and all, so words on two
+ * lines of a note are not next to each other. Nothing in the matcher says so —
+ * it falls out of the note being stored verbatim.
+ */
+test("a phrase does not cross the line break a note keeps", () => {
+  const wrapped = derive(nodesOfFiles({
+    "a.olai": `{"id":"list","ord":"a0","title":"the list","desc":"pick the\\nhinges"}`,
+  }))
+  expect(selectsIn(wrapped, "pick hinges")).toEqual(["list"])
+  expect(selectsIn(wrapped, `"pick the hinges"`)).toEqual([])
+})
+
+test("a quote nothing closes is refused rather than closed for the reader", () => {
+  const refused = refusalsOf(`"pick the`)
+  // AS TYPED, opening quote and all — the token is what the reader wrote.
+  expect(refused?.map((one) => one.token)).toEqual([`"pick the`])
+  expect(refused?.[0]?.reason).toContain("a quote nothing closes")
+  expect(selects(`"pick the`)).toEqual([])
+  // The tokens BEFORE it were read, so a query that got two things wrong is
+  // told about both — in the order they were typed.
+  expect(refusalsOf(`kitchen "pick the`)).toHaveLength(1)
+  expect(refusalsOf(`is:open "pick the`)?.map((one) => one.token))
+    .toEqual(["is:open", `"pick the`])
+})
+
+/** An empty needle is inside every node ever written, so `""` is the query that
+ *  answers with the whole directory — refused for `prop:stage=`'s reason, from
+ *  the other end: a token that names a shape and then holds nothing. */
+test("a pair of quotes with nothing between them is refused", () => {
+  expect(refusalsOf(`""`)?.[0]?.reason).toContain("empty phrase")
+  expect(refusalsOf(`-""`)).toHaveLength(1)
+  expect(selects(`""`)).toEqual([])
+})
+
+// ── OR ─────────────────────────────────────────────────────────────────
+
+/** `OR` joins the tokens on either side of it; the groups it makes are ANDed
+ *  exactly as adjacent tokens always were. Both kinds of token can be an
+ *  alternative, because both were always the same conjunction. */
+test("`OR` is satisfied by any one of the tokens it joins", () => {
+  expect(selects("basil OR hinges")).toEqual(["basil", "hinges"])
+  expect(selects("basil OR hinges OR garden")).toEqual(["garden", "basil", "hinges"])
+  expect(selects("is:todo OR is:doing")).toEqual(["herbs", "kitchen", "order", "hinges"])
+  // ...which is a second spelling of a question the grammar could already ask,
+  // and the two answer alike: work, unfinished.
+  expect(selects("is:marked -is:done")).toEqual(selects("is:todo OR is:doing"))
+  // A word and a clause in one group — the union the two token lists became.
+  expect(selects("#home OR is:done")).toEqual([
+    "herbs",
+    "basil",
+    "kitchen",
+    "demo",
+    "hinges",
+  ])
+})
+
+/**
+ * THE PRECEDENCE RULING, and it is the whole design. `OR` binds TIGHTER than
+ * the conjunction between adjacent tokens, so this is `#home` AND one of the
+ * other two.
+ *
+ * Read the other way round — `(#home AND kitchen) OR cabinets` — the answer
+ * also holds `order` and `install`, which carry no `#home` at all: a query that
+ * quietly WIDENED, which is worse than one that found nothing, because the
+ * extra rows look exactly like a search working.
+ */
+test("`OR` binds tighter than the AND between adjacent tokens", () => {
+  expect(selects("#home kitchen OR cabinets")).toEqual(["kitchen"])
+  expect(selects("cabinets")).toEqual(["order", "install"])
+  // Negation is a token's, so it composes inside a group like anything else.
+  expect(selects("is:doing -herbs OR is:todo")).toEqual(["kitchen", "order"])
+})
+
+/** A group is worth its BEST alternative, not the first one the reader
+ *  happened to type: `order` carries `cabinets` in its title and `walnut` in
+ *  its note, and which of the two is written first must not decide what the
+ *  row says carried it. */
+test("a group reports the highest-weighted field any of its words hit", () => {
+  const best = (text: string) => matching(derived, parseFilter(text, TODAY))[0]?.match.field
+  expect(best("walnut OR cabinets")).toBe("title")
+  expect(best("cabinets OR walnut")).toBe("title")
+})
+
+/**
+ * `OR` IS THE ONE TOKEN THIS GRAMMAR DOES NOT FOLD, because `or` is a word
+ * people write — this corpus has a note that says `walnut or birch` — and a
+ * joiner that answered for the lower-case one would have taken it out of the
+ * language being searched.
+ */
+test("`or` is a word and `OR` is the joiner", () => {
+  expect(selects("walnut or birch")).toEqual(["order"])
+  // The same three tokens with the middle one shouted: two things to find
+  // rather than three, and nothing holds all three.
+  expect(selects("walnut OR hinges")).toEqual(["order", "hinges"])
+  expect(selects("walnut or hinges")).toEqual([])
+  // A leading dash makes it a token like any other, negated — the joiner is
+  // the two characters and nothing else.
+  expect(parseFilter("-OR", TODAY).kind).toBe("asking")
+  expect(selects("-OR")).not.toContain("order")
+})
+
+/** ...and the other way out, for a note that shouts it: quoting. The two
+ *  halves of this change are each other's escape hatch. */
+test("a quoted `OR` is the word, in capitals", () => {
+  const shouting = derive(nodesOfFiles({
+    "a.olai": [
+      `{"id":"ward","ord":"a0","title":"book the OR for Tuesday"}`,
+      `{"id":"list","ord":"a1","title":"the theatre list"}`,
+    ].join("\n"),
+  }))
+  expect(selectsIn(shouting, `"OR"`)).toEqual(["ward"])
+})
+
+test("an `OR` with nothing on one side of it is refused", () => {
+  for (const text of ["OR", "OR kitchen", "kitchen OR", "kitchen OR OR basil"]) {
+    const refused = refusalsOf(text)
+    expect(refused?.map((one) => one.token)).toEqual(["OR"])
+    expect(refused?.[0]?.reason).toContain("joins the token before it")
+    expect(selects(text)).toEqual([])
+  }
+  // A refused token SPENDS the joiner: `is:open OR kitchen` is one mistake,
+  // and a second refusal about the `OR` would be a mistake nobody made.
+  expect(refusalsOf("is:open OR kitchen")?.map((one) => one.token)).toEqual(["is:open"])
+  expect(refusalsOf("kitchen OR is:open")?.map((one) => one.token)).toEqual(["is:open"])
+})
+
+/** A GROUP IS NOT NEGATED, and nothing is missing: `-a -b` is "neither", which
+ *  is what negating a disjunction means. What has no spelling is "not both",
+ *  and that is a query nobody types. */
+test("negating a group is two negated tokens", () => {
+  expect(selects("#home -kitchen -herb")).toEqual(["hinges"])
+})
+
+/** The archive is opened by the query NAMING it, wherever it is named — an
+ *  alternative is part of the query exactly as a token has always been. */
+test("an alternative that names the archive opens it", () => {
+  expect(selects("is:archived OR nothing-is-called-this")).toEqual(["gone"])
+})
+
 // ── blockedness ────────────────────────────────────────────────────────
 
 /**
@@ -514,11 +722,32 @@ test("a value may contain an equals sign", () => {
   const filter = parseFilter("prop:source=https://news.ycombinator.com/item?id=6560560", TODAY)
   expect(filter.kind).toBe("asking")
   if (filter.kind !== "asking") return
-  expect(filter.clauses[0]?.clause).toEqual({
-    kind: "prop",
-    key: "source",
-    value: "https://news.ycombinator.com/item?id=6560560",
+  expect(filter.groups[0]?.[0]).toEqual({
+    kind: "clause",
+    negated: false,
+    clause: {
+      kind: "prop",
+      key: "source",
+      value: "https://news.ycombinator.com/item?id=6560560",
+    },
   })
+})
+
+/** ...and a quoted value is a value with a SPACE in it, which nothing else in
+ *  the grammar can spell. The quote suspends the space; the token still begins
+ *  with `prop:`, so it is still an operator — the two rules quoting is made of,
+ *  meeting on one token. */
+test("a value may hold a space, which is what quoting one is for", () => {
+  const spaced = derive(nodesOfFiles({
+    "a.olai": [
+      `{"id":"one","ord":"a0","title":"the first","custom":{"stage":"in review"}}`,
+      `{"id":"two","ord":"a1","title":"the second","custom":{"stage":"in"}}`,
+    ].join("\n"),
+  }))
+  expect(selectsIn(spaced, `prop:stage="in review"`)).toEqual(["one"])
+  // Without the quotes it is two tokens, and the second is a word nothing
+  // holds — the query the reader did not mean, and the reason for the first.
+  expect(selectsIn(spaced, "prop:stage=in review")).toEqual([])
 })
 
 // ── refusals ───────────────────────────────────────────────────────────

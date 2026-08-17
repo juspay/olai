@@ -232,6 +232,13 @@ Feature: An agent olai did not start
     Then the terminal agent found exactly "order, install"
     When the terminal agent searches for "cabinets" under "install"
     Then the terminal agent found exactly "install"
+    # A phrase and a group reach this door through the same one grammar, so an
+    # agent can ask for the line a person quoted — and for either of two
+    # things, which is the query that used to be two calls.
+    When the terminal agent searches for '"the new cabinets"'
+    Then the terminal agent found exactly "order"
+    When the terminal agent searches for "counters OR cabinets"
+    Then the terminal agent found exactly "order, install, demo"
 
   Scenario: An operator it gets wrong is refused with the reason, not with silence
     # The fourth door onto the same grammar, and the one where silence is

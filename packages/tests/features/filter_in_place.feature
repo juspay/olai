@@ -121,6 +121,88 @@ Feature: Filtering the outline in place
     Then the filter refuses "date:tomorrowish" and says "today, yesterday, tomorrow"
     And the outline has 0 rows
 
+  Scenario: A quoted phrase is one substring where two words are two
+    # `pick the hinges` and `pick the knobs` are both on this page, and the
+    # quotes are what put the ORDER of the words into the query. Unquoted, the
+    # same two words are two independent substrings that may sit anywhere in
+    # the node — which is what the second half of this scenario says.
+    Given I open the outline "house.olai"
+    When I filter the page by '"pick the hinges"'
+    Then the node "hinges" is a match
+    And the node "knobs" is not shown
+    And the filter found "1 of 10"
+    When I filter the page by '"hinges the pick"'
+    Then the filter found "no matches"
+    When I filter the page by "hinges the pick"
+    Then the node "hinges" is a match
+    And the filter found "1 of 10"
+
+  Scenario: `OR` is either one, and it binds tighter than the space
+    # The precedence ruling, on the page it was made for. `cabinets` is in two
+    # titles on this outline and `handles` in a third: `install cabinets OR
+    # handles` is `install` AND one of the other two, which is the node that
+    # says `install the cabinets` and nothing else. Read the other way round —
+    # `(install AND cabinets) OR handles` — the answer would also hold
+    # `handles`, a row with no `install` about it, which is a query that
+    # quietly widened.
+    Given I open the outline "house.olai"
+    When I filter the page by "handles OR knobs"
+    Then the node "handles" is a match
+    And the node "knobs" is a match
+    And the node "install" is context
+    And the filter found "2 of 10"
+    When I filter the page by "install cabinets OR handles"
+    Then the node "install" is a match
+    # Drawn, because a matching row keeps its whole subtree — and drawn as
+    # CONTEXT, which is the distinction that says what the query selected. The
+    # loose reading of the precedence would have made it a MATCH, on a row with
+    # no `install` about it.
+    And the node "handles" is context
+    And the filter found "1 of 10"
+
+  Scenario: `or` is a word and `OR` is the joiner
+    # The one token in the grammar that is not case-folded, and the reason:
+    # `or` is a word people write. This outline's note says "walnut ... birch",
+    # and the query that finds it is the lower-case one.
+    Given I open the outline "house.olai"
+    When I filter the page by "walnut OR knobs"
+    Then the node "order" is a match
+    And the node "knobs" is a match
+    And the filter found "2 of 10"
+    When I filter the page by "walnut or knobs"
+    Then the filter found "no matches"
+
+  Scenario: A quote nothing closes is refused, and so is a dangling `OR`
+    # The refusal contract, extended to the two ways this grammar can be typed
+    # wrong rather than asked wrong. Neither is closed or dropped on the
+    # reader's behalf: `"pick the` and `"pick the"` are two different queries,
+    # and picking one is the quiet answer to a question nobody asked.
+    Given I open the outline "house.olai"
+    When I filter the page by '"pick the'
+    Then the filter refuses '"pick the' and says "a phrase runs from one"
+    And the outline has 0 rows
+    When I filter the page by "hinges OR"
+    Then the filter refuses "OR" and says "one of them is missing"
+    And the outline has 0 rows
+
+  Scenario: The header's box reads the same phrase, and refuses in the same words
+    # One grammar, four doors — and this is the half that has to TRAVEL: the
+    # filter parses in the browser, the header box asks the server, and a
+    # phrase that meant one thing in each would be the drift the shared matcher
+    # exists to refuse. The refusal rides back the same way `is:open`'s does.
+    Given I open the outline "house.olai"
+    When I search the header for '"pick the hinges"'
+    Then the header search lists the node "pick the hinges"
+
+  Scenario: A dangling `OR` is refused at the door that has to ask the server
+    # The other half of the same seam. The box types one query per scenario —
+    # it appends rather than replaces — so this is its own, and it is worth its
+    # own: a door that answered `hinges OR` with an empty list and no reason
+    # would be the one place a half-typed query looks like an empty directory.
+    Given I open the outline "house.olai"
+    When I search the header for "hinges OR"
+    Then the search refuses "OR" and says "one of them is missing"
+
   Scenario: `-` takes a term or an operator back out
     Given I open the outline "house.olai"
     When I filter the page by "cabinets -is:doing"

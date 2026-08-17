@@ -277,6 +277,16 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
         // screenshot of the week it was taken in.
         "date:..today",
         "cabinets -is:doing",
+        // A quoted PHRASE: one substring where the two words below are two,
+        // which is how the order of the words gets into a query.
+        `"pick the hinges"`,
+        "hinges the pick",
+        // `OR` joins the tokens on either side of it...
+        "handles OR knobs",
+        // ...and binds TIGHTER than the space between two tokens, so this is
+        // `install` AND one of the other two rather than every `handles` in
+        // the directory.
+        "install cabinets OR handles",
       ]
     ) {
       await narrow(page, query)
@@ -307,6 +317,11 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
         // A space after the colon is not "date: takes a day" — the reader
         // wrote a day; the tokenizer split one word into two.
         ["date: 2026", "an operator given no value at all"],
+        // Not closed at the end of the line on the reader's behalf: `"pick
+        // the` and `"pick the"` are two different queries.
+        [`"pick the`, "a quote nothing closes"],
+        // A joiner with one of its two sides missing.
+        ["hinges OR", "an `OR` with nothing after it"],
       ] as const
     ) {
       await narrow(page, query)
