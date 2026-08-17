@@ -36,15 +36,17 @@
  *     the gate's own list to keep that true: a dialog that greys out a PDF the
  *     drop would have taken is the one half-truth a person meets without any
  *     refusal to explain it.
- *   - **a message can be ABOUT a node.** "Ask agent" on a row arms this box
- *     with that node ({@link ./armed.ts}), and it sits in a chip above the
- *     input until it is sent or taken off — the attachment strip's arrangement,
- *     because it is the attachment strip's claim: this went with the message.
- *     What is armed is an ID; what the chip reads is the title, out of the live
- *     set; what rides the send is the id again, and the SERVER says what the
- *     node is. So a row armed, renamed and then sent reaches the agent under
- *     the name it has now, and a row armed and then archived refuses the send
- *     rather than sending a question with no subject.
+ *   - **a message can be ABOUT a node**, and there are two doors onto that.
+ *     "Ask agent" on a row arms this box with that node ({@link ./armed.ts}),
+ *     and it sits in a chip above the input until it is sent or taken off — the
+ *     attachment strip's arrangement, because it is the attachment strip's
+ *     claim: this went with the message. Typing `@` and taking a node row is
+ *     the other, and it adds the WORD to the sentence as well as the chip
+ *     (below). What is armed either way is an ID; what the chip reads is the
+ *     title, out of the live set; what rides the send is the id again, and the
+ *     SERVER says what the node is. So a row armed, renamed and then sent
+ *     reaches the agent under the name it has now, and a row armed and then
+ *     DELETED refuses the send rather than sending a question with no subject.
  *   - **`/` opens the agent's own commands**, and so does the button beside
  *     the input, which shows the WHOLE list. Typing filters; the button is for
  *     when you do not know what to type, which is most of the time you want a
@@ -53,12 +55,14 @@
  *     (the `commands` frame), so it is whatever that agent actually offers
  *     rather than a list olai maintains. Accepting one only writes `/name ` —
  *     sending is what invokes it, exactly as typing it would.
- *   - **`@` opens the served directory's files**, and taking one writes
- *     `@the/path ` into the sentence. It is the same gesture as the slash list
- *     and draws the same box ({@link ./CompletionMenu.tsx}); what differs is
- *     where the rows come from ({@link ./files.ts}, off the key sets this tab
- *     already holds) and that the span it replaces is a WORD inside the
- *     message rather than the whole line ({@link ./completion.ts}).
+ *   - **`@` opens what the directory holds under that word** — its files and
+ *     its nodes, in one list of eight ({@link ./naming.ts}) — and taking a row
+ *     writes `@the/path ` or `@the-id ` into the sentence. It is the same
+ *     gesture as the slash list and draws the same box
+ *     ({@link ./CompletionMenu.tsx}); what differs is where the rows come from
+ *     (the key sets this tab already holds, and the set it has already derived)
+ *     and that the span it replaces is a WORD inside the message rather than
+ *     the whole line ({@link ./completion.ts}).
  *
  *     What it writes is TEXT, and deliberately not an attachment. The `+`
  *     button's files are copies in a temp directory that the agent is handed
@@ -70,6 +74,23 @@
  *     it lives. So the path rides the message as the word it is, and the
  *     conversation reads the way it was typed.
  *
+ *     A NODE'S WORD IS ITS ID, and taking one arms the node beside writing it.
+ *     The two halves carry different facts and neither is a copy of the other:
+ *     the word says WHERE in the sentence the node is meant — `compare @a with
+ *     @b` is unsayable by two chips — and the arming is what makes the id
+ *     resolvable, since the server answers it against the live set and puts the
+ *     title, the `file:line` and the ancestors under the message. A title
+ *     written into the sentence instead would be a copy that goes stale, and
+ *     one with no end inside a sentence: titles are prose and are not unique.
+ *
+ *     THE WORDS ARE THE LAST WORD. What this message is about is the nodes
+ *     taken off the list that the draft STILL NAMES ({@link namedIn}), so
+ *     deleting the word — or pressing ⌘Z over the completion that wrote it —
+ *     takes the chip with it, and nothing has to remember a disarm. The one
+ *     thing that is not read back is the `•••` menu's arming: that gesture put
+ *     a node there INSTEAD of a sentence, so there are no words for it to be
+ *     contradicted by.
+ *
  * The draft is local to this tab and is deliberately NOT a surface member: it
  * is an editor, not committed state, and two tabs typing at once should not
  * fight over one box.
@@ -79,17 +100,25 @@ import { nodeNamed } from "@olai/format"
 import { ATTACHMENT_EXTENSIONS } from "@olai/surface"
 import { createEffect, createMemo, createSignal, on, Show } from "solid-js"
 
+import { useToday } from "../today.tsx"
 import type { Written } from "../complete/trigger.ts"
 import { useDerived } from "../derived.tsx"
 import { useServed } from "../served.tsx"
 import { TESTID } from "../testids.ts"
 import { armedNodes, disarmNode, releaseArmed, restoreArmed } from "./armed.ts"
 import { Attachments } from "./Attachments.tsx"
-import { type Completing, completed, completingIn, tokenOf } from "./completion.ts"
+import {
+  type Completing,
+  completed,
+  completingIn,
+  namedIn,
+  tokenOf,
+  unnamed,
+} from "./completion.ts"
 import { CompletionMenu, type MenuRow } from "./CompletionMenu.tsx"
 import { type Chip, ContextChips } from "./ContextChips.tsx"
-import { dirOf, folded, matchFiles, nameOf } from "./files.ts"
 import type { Holding } from "./holding.ts"
+import { offers } from "./naming.ts"
 import type { Chat } from "./state.ts"
 
 /** Every control on the toolbar, the same height and the same corners. Written
@@ -128,6 +157,22 @@ export function Composer(props: {
   /** Opened by the BUTTON rather than by typing a slash — the difference is
    *  only which prefix the list is filtered by. */
   const [asked, setAsked] = createSignal(false)
+  /**
+   * The nodes TAKEN off the `@` list, which is not the same as the nodes this
+   * message is about: what it is about is these, minus the ones whose word is
+   * no longer in the draft ({@link namedIn}). A person who deletes `@hinges`,
+   * or presses ⌘Z over the completion that wrote it, has said the message is
+   * not about that node — and a chip that outlived its word would send a
+   * subject the sentence never mentions.
+   *
+   * A SET rather than a list, because order is the draft's: `compare @a with
+   * @b` says which is which, and this remembers only which rows were chosen.
+   *
+   * This composer's, like the draft it is read against — where the strip the
+   * `•••` menu fills is the app's (`./armed.ts`), because that gesture happens
+   * in a pane on the other side of the screen and belongs to no box.
+   */
+  const [taken, setTaken] = createSignal<ReadonlySet<string>>(new Set())
   let input: HTMLTextAreaElement | undefined
   let picker: HTMLInputElement | undefined
 
@@ -138,15 +183,34 @@ export function Composer(props: {
   const working = () => props.chat.state().status === "thinking"
 
   const derived = useDerived()
-  /** The armed nodes as chips: the id is what was armed and what will be sent,
-   *  and the TITLE is read out of the live set here — through the format's own
-   *  rule for what an id names, the one `see` links resolve with. So a row
-   *  armed and then retitled by anybody says the new title, and nothing about
-   *  the chip is a copy. An id the set does not declare reads as the id, which
-   *  is what a dangling `see` does and for the same reason: the strip says what
-   *  is armed rather than going blank about it. */
+  const today = useToday()
+
+  /**
+   * WHICH NODES THIS MESSAGE IS ABOUT, from the two doors onto one strip.
+   *
+   * The `•••` menu's, which are the app's and are held until they are taken off
+   * or sent — that gesture put the node there instead of a sentence, so there
+   * are no words for it to be contradicted by. Then the ones taken off this
+   * box's own `@` list, in the order the DRAFT names them, which is where the
+   * words are the last word ({@link namedIn}).
+   *
+   * Deduped with the armed door winning its place: a node armed from a row and
+   * then also named in the sentence is one node, and one chip.
+   */
+  const subjects = createMemo<ReadonlyArray<string>>(() => {
+    const said = namedIn(draft(), taken())
+    return [...armedNodes(), ...said.filter((id) => !armedNodes().includes(id))]
+  })
+
+  /** ...as chips: the id is what was armed and what will be sent, and the TITLE
+   *  is read out of the live set here — through the format's own rule for what
+   *  an id names, the one `see` links resolve with. So a row armed and then
+   *  retitled by anybody says the new title, and nothing about the chip is a
+   *  copy. An id the set does not declare reads as the id, which is what a
+   *  dangling `see` does and for the same reason: the strip says what is armed
+   *  rather than going blank about it. */
   const armed = createMemo<ReadonlyArray<Chip>>(() =>
-    armedNodes().map((id) => {
+    subjects().map((id) => {
       const indexes = derived()
       const named = indexes === undefined ? undefined : nodeNamed(indexes, id)
       return { id, title: named?.node.title ?? id }
@@ -192,8 +256,8 @@ export function Composer(props: {
 
   /** The served directory's paths — the two key sets this tab already holds
    *  (`../served.tsx`), so there is no walk and no request behind an `@`. They
-   *  are folded for matching by {@link folded}, which keeps its answer against
-   *  the list it was given: asked only while a path is being typed, and done
+   *  are folded for matching by `./files.ts`, which keeps its answer against
+   *  the list it was given: asked only while a name is being typed, and done
    *  once per version of the directory rather than once per keystroke. */
   const files = useServed()
 
@@ -214,19 +278,34 @@ export function Composer(props: {
             hint: command.description,
             take: () => accept(command.name),
           }))
-      case "path":
-        return matchFiles(folded(files()), completing.query).map((path) => ({
-          value: path,
-          // The NAME is what a person is reading for, and where it sits is the
-          // hint beside it — a vault of daily notes is a column of identical
-          // prefixes otherwise. What is written is the whole path either way.
-          label: nameOf(path),
-          hint: dirOf(path),
+      case "name":
+        // WHAT THE DIRECTORY HOLDS UNDER THAT WORD — the files and the nodes,
+        // in one list of eight, which is `./naming.ts`'s rule and its argument.
+        // Nothing is walked and nothing is asked of the server: the paths are
+        // the key sets this tab holds and the nodes are the set it has already
+        // derived.
+        return offers(files(), derived(), completing.query, today()).map((offer) => ({
+          value: offer.value,
+          label: offer.label,
+          hint: offer.hint,
+          section: offer.kind === "file" ? "files" : "nodes",
           // The draft and the caret are read when the row is TAKEN, not when
           // it was drawn — and what replaces the span is `./completion.ts`'s,
           // including the rule about not writing a second space into somebody
           // else's sentence.
-          take: () => rewrite(completed(draft(), completing, path, caret())),
+          take: () => {
+            // A NODE IS ARMED AS WELL AS WRITTEN, and the two halves say
+            // different things: the word says WHERE in the sentence this node
+            // is meant, and the arming is what makes the id resolvable — the
+            // server answers it against the set the write would be judged
+            // against, and the agent gets the title, the `file:line` and the
+            // ancestors under the message (`@olai/chat`'s `lineFor`). Neither
+            // half is a copy of the other's fact.
+            if (offer.kind === "node") {
+              setTaken((already) => new Set(already).add(offer.value))
+            }
+            rewrite(completed(draft(), completing, offer.value, caret()))
+          },
         }))
     }
   })
@@ -271,11 +350,16 @@ export function Composer(props: {
       armedNodes().length === 0
     ) return
     const attachments = props.holding.release()
+    // WHAT THE MESSAGE IS ABOUT, read once — before the box is cleared, since
+    // half of it is read off the words that are about to go.
+    const context = subjects()
     // Released with the attachments and put back with them: an armed node is
     // part of the message in exactly the way a picture is, and a refusal that
     // restored one and not the other would leave a message that is not the one
     // that was refused.
-    const context = releaseArmed()
+    const held = releaseArmed()
+    const chosen = taken()
+    setTaken(new Set<string>())
     setDraft("")
     // The caret goes with the words: an empty box's caret is at its start, and
     // a stale offset would arm the next `@` against the sentence just sent.
@@ -286,15 +370,20 @@ export function Composer(props: {
     // two messages in a row should not have to aim at the box for the second.
     input?.focus()
 
-    const taken = await props.chat.send(
+    const sent = await props.chat.send(
       text,
       attachments.map((attachment) => attachment.path),
       context,
     )
-    if (taken) return
+    if (sent) return
     setDraft((typing) => (typing === "" ? text : typing))
     props.holding.restore(attachments)
-    restoreArmed(context)
+    restoreArmed(held)
+    // ...and the record of which rows were taken, which is what makes the words
+    // that came back mean what they meant: without it the restored `@hinges`
+    // would be a word the panel had forgotten writing, and the message would go
+    // the second time without the subject it was refused with.
+    setTaken((now) => (now.size === 0 ? chosen : now))
   }
 
   /** A command taken: `/name ` and nothing else — sending is what invokes it,
@@ -338,6 +427,33 @@ export function Composer(props: {
     }
     setDraft(next.text)
     setCaret(next.caret)
+  }
+
+  /**
+   * The `×` on a chip: this message is not about that node.
+   *
+   * ONE PRESS, BOTH DOORS, because a reader pressing it is saying one thing and
+   * does not know which door the chip came through: the app's strip gives the
+   * node up (`./armed.ts`, a no-op for a node that was never on it), and the
+   * WORD comes out of the sentence — every `@id` that names it, since a message
+   * that says it twice means it once.
+   *
+   * Taking the word out is the whole reason this is not just a `disarmNode`:
+   * the words are what the strip is read from, so a chip removed while its word
+   * stayed would come straight back, and a message that went with the word in
+   * it would name a node it had just been told it was not about. The `×` is the
+   * only thing in the panel that edits somebody's draft, and it edits it to
+   * agree with what they pressed.
+   */
+  const unname = (id: string) => {
+    disarmNode(id)
+    setTaken((already) => {
+      const left = new Set(already)
+      left.delete(id)
+      return left
+    })
+    const next = unnamed(draft(), id, caret())
+    if (next.text !== draft()) rewrite(next)
   }
 
   /** Escape: the LIST goes and the sentence stays. What is remembered is the
@@ -406,7 +522,7 @@ export function Composer(props: {
           ABOUT is part of it until it is sent, and removable until then. Over
           the attachments rather than under them because it is the subject of
           the sentence and they are what came with it. */}
-      <ContextChips nodes={armed()} onRemove={disarmNode} />
+      <ContextChips nodes={armed()} onRemove={unname} />
 
       {/* Above the box, where what is being typed is: an attachment is part of
           the message until it is sent. */}

@@ -650,11 +650,14 @@ export const CHAT_SEND = selector(TESTID.chatSend);
 export const CHAT_CANCEL = selector(TESTID.chatCancel);
 /** The shortlist over the message box, and one row of it. Both lists the
  *  composer completes draw the same box — the agent's commands under a `/`,
- *  the directory's files under an `@` — so the row is named by its
- *  `data-value` (the command's name, the file's path) and the box by its
- *  `data-kind`. */
+ *  what the directory holds under an `@` — so the row is named by its
+ *  `data-value` (the command's name, the file's path, the node's id) and the
+ *  box by its `data-kind`. The `@` list holds two BLOCKS, each with a label
+ *  over its first row (`data-section`), which is a label and never a row: the
+ *  arrows do not land on it. */
 export const CHAT_COMPLETION = selector(TESTID.chatCompletion);
 export const CHAT_COMPLETION_ROW = selector(TESTID.chatCompletionRow);
+export const CHAT_COMPLETION_SECTION = selector(TESTID.chatCompletionSection);
 /** A picture on a message — pending in the composer, or sent, on the row. Its
  *  `data-name` is the file name, which is the only thing about it every tab
  *  agrees on; the preview is drawn ONLY by the tab that has the Blob. */

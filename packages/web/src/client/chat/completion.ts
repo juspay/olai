@@ -2,9 +2,10 @@
  * WHAT THE MESSAGE BOX HAS ARMED, read off the draft and the caret.
  *
  * Two characters open a list over the composer — `/` the agent's own commands,
- * `@` a file of the served directory — and this is the whole of the rule for
- * both. A value in, a value out: no element, no signal, no DOM, so "typing `@`
- * inside a word does nothing" is a unit test rather than a browser one. It is
+ * `@` something the served directory holds, a file or a node — and this is the
+ * whole of the rule for both. A value in, a value out: no element, no signal,
+ * no DOM, so "typing `@` inside a word does nothing" is a unit test rather than
+ * a browser one. It is
  * `../complete/trigger.ts`'s arrangement one panel over, and deliberately so:
  * that file's first argument — one scan, one answer, no "the popup is open"
  * flag anywhere — is what makes a completion survive everything else that can
@@ -15,8 +16,8 @@
  * Not by a precedence rule but by construction, which is better: a command is
  * the WHOLE line (`/` first character, no space anywhere yet), and an `@` only
  * opens a list where a word opens — the start of the box, or after a space or
- * a bracket. So `/review` is a command and never a path, `/rev@x` is a command
- * whose `@` sits inside a word, and `look at @no` is a path because the line
+ * a bracket. So `/review` is a command and never a name, `/rev@x` is a command
+ * whose `@` sits inside a word, and `look at @no` is a name because the line
  * stopped being a command at the space. There is no third case to order.
  *
  * ## What ends a trigger
@@ -25,29 +26,40 @@
  * and the caret, so backspacing over the `@` shuts the list and typing it
  * again opens the same one. What each one WILL NOT swallow is the rest of the
  * message, and each has its own fence: a command ends at the first space, and
- * a path ends at any whitespace at all. The cap below is a second fence rather
+ * a name ends at any whitespace at all. The cap below is a second fence rather
  * than the first.
+ *
+ * That fence is why the node half of the `@` list takes a query of ONE TOKEN
+ * where the grammar it is read by has quoting, `OR` and multi-word conjunctions
+ * (`./nodes.ts`): a trigger that took a space would be a completion eating the
+ * rest of somebody's sentence on the chance the next word was meant for it.
  *
  * ## `@` here is not the outline's `@`
  *
  * `@` IS a tag sigil in olai's format (`@olai/format`'s `TAG_SIGILS`), and a
  * row's title editor completes `@alice` against the tags the set already
  * writes (`../complete/tags.ts`). None of that vocabulary exists HERE: a chat
- * message is prose on its way to an agent, never a stored title, and nothing
- * in the panel parses a `#` or an `@` out of what was typed. So the two cannot
- * disagree about one string — they never read the same string.
+ * message is prose on its way to an agent, never a stored title, and no `#` or
+ * `@` in it is read as a tag by anything. So the two cannot disagree about one
+ * string — they never read the same string.
  *
  * Where they meet is a HABIT rather than a syntax: somebody who writes
  * `@alice` in titles will type `@alice` in the box meaning the person. Three
  * things keep that from being fought over, and they are the reason this file
  * offers rather than corrects:
  *
- *   - the list is drawn only when a served file actually matches, so an `@`
- *     naming a person types straight through;
+ *   - the list is drawn only when a served file or node actually matches, so an
+ *     `@` naming a person types straight through;
  *   - nothing is ever rewritten unless a row is CHOSEN — there is no
  *     autocorrect here, and a message sends exactly as it reads;
  *   - Escape puts the list away for that `@` and leaves the word alone, which
  *     is what makes the very next Enter the send it was meant to be.
+ *
+ * {@link namedIn} below is the one place the panel reads an `@` back out of a
+ * message, and it is deliberately not a parser of prose: it can only recognise
+ * words this box itself wrote, because it is asked which of the ids ALREADY
+ * TAKEN from the list the message still says. Typing `@alice` arms nothing,
+ * whatever the set declares.
  *
  * The one rule that IS shared is where a sigil may open at all: `tagOpensAt`
  * is the format's own, asked here rather than respelled, because "an `@` in
@@ -64,21 +76,25 @@ import { type Written, written } from "../complete/trigger.ts"
  *  which is what `../complete/trigger.ts`'s `written` takes. */
 export type Completing =
   | { readonly kind: "command"; readonly from: number; readonly query: string }
-  | { readonly kind: "path"; readonly from: number; readonly query: string }
+  /** An `@`: what the directory holds under that word, a file or a node. It
+   *  was `path` while a path was the only thing the list could offer, which
+   *  was never the name of the TRIGGER — the trigger is the `@`, and what it
+   *  completes is a name for something ({@link ./naming.ts}). */
+  | { readonly kind: "name"; readonly from: number; readonly query: string }
 
 /**
  * Past this many characters after an `@`, this is prose with an address in it.
  *
  * Generous, because it is the SECOND fence and not the first: whitespace ends
- * a path query outright, so prose can never run away into one. What this
- * catches is the other shape — one enormous unbroken token, a pasted URL, a
- * base64 blob — where a matcher would otherwise scan the whole directory on
- * every keystroke of something that was never going to be a path.
+ * the query outright, so prose can never run away into one. What this catches
+ * is the other shape — one enormous unbroken token, a pasted URL, a base64 blob
+ * — where two matchers would otherwise scan the whole directory and the whole
+ * set on every keystroke of something that was never going to be a name.
  */
-const PATH_CAP = 120
+const NAME_CAP = 120
 
 export const completingIn = (text: string, caret: number): Completing | null =>
-  commandIn(text) ?? pathIn(text, caret)
+  commandIn(text) ?? nameIn(text, caret)
 
 /**
  * The `/` that makes this whole line a command, if it still is one.
@@ -98,21 +114,21 @@ const commandIn = (text: string): Completing | null => {
 
 /**
  * The `@` nearest the caret that opens a word, if what follows it could still
- * be a path.
+ * be a name.
  *
  * It stops at the FIRST such character walking back, live or not: an earlier
  * `@` is behind whitespace by construction, and whitespace is exactly what
  * would have ended it. So there is nothing further left that could still be
  * open.
  */
-const pathIn = (text: string, caret: number): Completing | null => {
+const nameIn = (text: string, caret: number): Completing | null => {
   const before = text.slice(0, Math.max(0, caret))
   for (let at = before.length - 1; at >= 0; at--) {
     if (before[at] !== "@") continue
     if (!tagOpensAt(before, at)) continue
     const query = before.slice(at + 1)
-    return query.length <= PATH_CAP && !/\s/.test(query)
-      ? { kind: "path", from: at, query }
+    return query.length <= NAME_CAP && !/\s/.test(query)
+      ? { kind: "name", from: at, query }
       : null
   }
   return null
@@ -126,34 +142,147 @@ export const tokenOf = (found: Completing): string =>
   `${found.kind}:${found.from}`
 
 /**
- * What a chosen file writes into the message: the path, still wearing the `@`
- * it was completed from, and a space after it.
+ * What a chosen row writes into the message: what it names, still wearing the
+ * `@` it was completed from, and a space after it.
+ *
+ * ONE SPELLING FOR BOTH KINDS — a file's path, a node's id — because the two
+ * are one gesture and the person did one thing. `read @notes/cabinets.md ` and
+ * `look at @hinges ` are the same sentence shape, and a reader who has learned
+ * one has learned the other.
  *
  * THE `@` STAYS, which is the decision worth naming. It is not markup — the
  * agent is handed the message verbatim — so what it buys is what it buys in
  * every terminal that has this gesture: the message says out loud that this
- * word is a file, both to the person re-reading their own sentence before
- * sending and to the agent reading it after. A bare path in a sentence is a
- * word with a slash in it.
+ * word names something in the directory, both to the person re-reading their
+ * own sentence before sending and to the agent reading it after. A bare path
+ * in a sentence is a word with a slash in it, and a bare id is a word.
+ *
+ * It buys a second thing here that it did not have to buy for a path: the word
+ * stays COMPLETABLE. Backspace into `@hinges` and the same list comes back over
+ * the same word, because the trigger is a function of the text (above) and the
+ * text still has the `@` in it. A spelling that consumed the sigil — the id in
+ * backticks, say, which is how the agent writes one in prose — would be a word
+ * this box could no longer offer to fix, and it would be the only thing in the
+ * message the panel had written that the panel could not read back
+ * ({@link namedIn}).
  *
  * THE SPACE IS THE COMPOSER'S OWN habit, from the slash completion beside it
  * (`/review ` is what accepting a command writes): a message is prose and the
  * next thing typed is the next word. It is also what ends the trigger, since
- * whitespace is what a path query stops at — so the list is gone the moment
- * the row is taken, with nothing to remember.
+ * whitespace is what the query stops at — so the list is gone the moment the
+ * row is taken, with nothing to remember.
  *
  * That is the opposite of what the row editor's tag completion does, and the
  * two are right for their own reasons: a title is STORED verbatim, so a space
  * nobody typed is a space in somebody's git history. Nothing here is stored.
  *
- * THE PATH GOES IN AS IT IS, including a name with a space in it. Such a file
- * is still offered — the query stops at whitespace, so it is found by the
+ * WHAT IT NAMES GOES IN AS IT IS, including a path with a space in it. Such a
+ * file is still offered — the query stops at whitespace, so it is found by the
  * segment before the space — and what is written is the path, unquoted. A
  * quoting convention would be one only olai understands: the agent is handed
  * the sentence, not a syntax, and inventing punctuation for it to parse would
- * be worse than a sentence a reader can see the shape of.
+ * be worse than a sentence a reader can see the shape of. An id cannot hold a
+ * space at all (`@olai/format`'s `ID_SHAPE`), which is the other half of why a
+ * node is named by its id here and not by its title.
  */
-export const inserted = (path: string): string => `@${path} `
+export const inserted = (name: string): string => `@${name} `
+
+/**
+ * WHICH OF THE NODES ALREADY TAKEN this message still names, in the order it
+ * names them.
+ *
+ * The one place the panel reads an `@` back out of what was typed, and the
+ * shape of the question is what keeps it from being a parser of prose: it is
+ * asked which of a KNOWN SET of ids — the ones taken off this box's own list —
+ * the draft still holds. `@alice` arms nothing, whatever the set declares,
+ * because nobody took `alice` off a list. Nothing here can turn a word somebody
+ * typed into a claim about their message.
+ *
+ * It exists because the alternative is a chip that outlives its word. Taking a
+ * node writes `@<id>` into the sentence and arms the node, so the id rides the
+ * send and the server says what it is ({@link ./armed.ts}, `chat/context.ts`) —
+ * and then the person selects the word and deletes it, or presses ⌘Z, and the
+ * message that goes is about a node it does not mention. Reading the draft back
+ * makes the words the last word: delete `@hinges` and the chip goes with it,
+ * put it back and it returns. There is no disarm to remember and no undo to
+ * write, which is `./completion.ts`'s own argument about the trigger applied to
+ * what the trigger produced.
+ *
+ * IN THE ORDER THE MESSAGE NAMES THEM, because that order is a fact the words
+ * carry and the chips cannot: `compare @a with @b` says which is which, and two
+ * lines under a message do not. Named twice, drawn once — a message that says
+ * `@order` in two sentences is about one node.
+ *
+ * The `@` it looks for is the trigger's own — the format's `tagOpensAt`, so a
+ * word with an `@` inside it is a word here exactly as it is up there — and the
+ * token it reads ends where a query ends, at whitespace. So this and the list
+ * that wrote the word agree about what a word is by construction.
+ */
+export const namedIn = (
+  text: string,
+  taken: ReadonlySet<string>,
+): ReadonlyArray<string> => {
+  if (taken.size === 0) return []
+  const named: Array<string> = []
+  for (const found of namesOf(text)) {
+    if (taken.has(found.word) && !named.includes(found.word)) named.push(found.word)
+  }
+  return named
+}
+
+/**
+ * The message without the word that names `id` — what the `×` on a chip does to
+ * the sentence, since the sentence is what the strip is read from.
+ *
+ * EVERY occurrence of it, because a message that names one node twice is about
+ * one node and the chip that went was the chip for all of them. The space after
+ * the word goes with it when there is one, which is the space the completion
+ * wrote; anything else a person typed around it stays exactly as it is.
+ *
+ * A WHOLE WORD, never a substring — the reason this is a walk over the same
+ * tokens {@link namedIn} reads rather than a replace. Ids are slugs and one is
+ * routinely the start of another (`order`, `ordering`), so a text-level
+ * `@order` → `` would leave `@ing` in somebody's sentence, and the `@` it
+ * matched might have been inside a word in the first place.
+ *
+ * The caret moves only for what came out BEFORE it, so a person whose caret is
+ * three words further on stays three words further on.
+ */
+export const unnamed = (text: string, id: string, caret: number): Written => {
+  let out = ""
+  let read = 0
+  let moved = caret
+  for (const found of namesOf(text)) {
+    if (found.word !== id) continue
+    // The space the completion wrote after the word, if it is still there.
+    const end = text[found.at + 1 + id.length] === " "
+      ? found.at + 2 + id.length
+      : found.at + 1 + id.length
+    out += text.slice(read, found.at)
+    read = end
+    if (caret > found.at) moved -= Math.min(caret, end) - found.at
+  }
+  return { text: out + text.slice(read), caret: moved }
+}
+
+/** Every `@word` in a message, in the order it says them — where a `@` OPENS a
+ *  word (the format's own rule, the trigger's) and the word ends where a query
+ *  ends, at whitespace. One walk, so the two readers above cannot come to
+ *  disagree about what a word is, or with the list that wrote one. */
+const namesOf = (
+  text: string,
+): ReadonlyArray<{ readonly at: number; readonly word: string }> => {
+  const found: Array<{ at: number; word: string }> = []
+  for (let at = 0; at < text.length; at++) {
+    if (text[at] !== "@" || !tagOpensAt(text, at)) continue
+    const rest = text.slice(at + 1)
+    const end = rest.search(/\s/)
+    const word = end === -1 ? rest : rest.slice(0, end)
+    found.push({ at, word })
+    at += word.length
+  }
+  return found
+}
 
 /**
  * The message with the armed span replaced by the chosen path, and the caret
@@ -179,7 +308,7 @@ export const inserted = (path: string): string => `@${path} `
 export const completed = (
   text: string,
   at: Completing,
-  path: string,
+  name: string,
   caret: number,
 ): Written =>
-  written(text, at, inserted(path), text[caret] === " " ? caret + 1 : caret)
+  written(text, at, inserted(name), text[caret] === " " ? caret + 1 : caret)

@@ -1,0 +1,114 @@
+/**
+ * WHAT AN `@` OFFERS: the directory's files, and the directory's nodes, in one
+ * list of eight.
+ *
+ * Two halves with a matcher each ({@link ./files.ts}, {@link ./nodes.ts}) and
+ * one rule here about how they share a popup — which is the whole of what this
+ * file is, and the reason it is not two lists on screen.
+ *
+ * ## Two blocks, never interleaved
+ *
+ * A file's rank is three buckets — the name first, the path second, a substring
+ * last — and `./files.ts` says out loud that this "is not a score". A node's
+ * rank IS a score, the format's own (title 1000, id 750, tag 500, note 250,
+ * with a bonus for starting the field and a penalty for being finished). To mix
+ * them into one order somebody has to say what bucket two is worth in points,
+ * and that number would be the only ranking rule in this codebase with nothing
+ * behind it — invented here, re-ordering both halves on every keystroke, and
+ * unanswerable when a reader asks why their file sank.
+ *
+ * So the two are two answers to two questions, drawn one after the other under
+ * a word each, and the person picks. An ambiguous prefix is not a conflict to
+ * resolve: `@cab` offers `notes/cabinets.md` AND `order the new cabinets`,
+ * which is what the query honestly means.
+ *
+ * ## FILES FIRST, and each half keeps four
+ *
+ * Files first because `@cab` followed by Enter has written a path since the `@`
+ * list shipped (#213), and a completion that quietly changes what Enter does is
+ * a completion that has to be re-learned. It costs the node half almost
+ * nothing: a vault holds tens of files and thousands of nodes, so the file
+ * block is usually short and gives its slack away.
+ *
+ * Which is the other half of the rule — a RESERVE rather than a queue. Each
+ * kind is guaranteed {@link RESERVE} rows and may take the other's unused ones,
+ * so nine matching filenames can never push every node off the list and a vault
+ * full of matching rows can never bury the file somebody types every day.
+ *
+ * Both halves are asked for the WHOLE cap and trimmed here, which is not the
+ * same as asking each for its share: `./files.ts` stops walking the directory
+ * once its best bucket is full, so a file half asked for three rows could not
+ * grow back to eight when the node half came back empty. Ask for eight, keep
+ * what fits.
+ */
+
+import type { Derived } from "@olai/format"
+
+import { dirOf, folded, matchFiles, nameOf } from "./files.ts"
+import { matchNodes } from "./nodes.ts"
+
+/** How many rows the list offers — the eight every shortlist in this app shows
+ *  (`../complete/tags.ts`, `./files.ts`). */
+const LIMIT = 8
+
+/** ...and how many of them belong to a kind that has rows, whatever the other
+ *  kind found. Half the list each: any other split would be this file having an
+ *  opinion about which kind somebody meant, which is the opinion it exists not
+ *  to have. */
+const RESERVE = 4
+
+/** One row of the list, before the composer gives it something to do. `value`
+ *  is what taking it WRITES — a path, or a node's id — and it is what a
+ *  scenario names the row by. */
+export interface Offer {
+  readonly kind: "file" | "node"
+  readonly value: string
+  /** What a person READS to choose it: a file's own name, a node's title. */
+  readonly label: string
+  /** Where it sits, and — for a node — the id the row writes, first, because a
+   *  truncated line loses its end and the id is the only always-unique half. */
+  readonly hint: string
+}
+
+/**
+ * The whole list, in the order it is drawn.
+ *
+ * `now` is the tab's own day, for the grammar's relative words (`../clock.ts`);
+ * `files` is the served directory's paths, already folded once per version of
+ * it by {@link folded}.
+ */
+export const offers = (
+  files: ReadonlyArray<string>,
+  derived: Derived | undefined,
+  query: string,
+  now: string,
+): ReadonlyArray<Offer> => {
+  const paths = matchFiles(folded(files), query, LIMIT)
+  // A first frame has no indexes yet and nothing is drawn that needs them
+  // (`../derived.tsx`), so the file half answers alone rather than waiting.
+  const nodes = derived === undefined ? [] : matchNodes(derived, query, now, LIMIT)
+  const forFiles = Math.min(paths.length, Math.max(RESERVE, LIMIT - nodes.length))
+  const forNodes = Math.min(nodes.length, LIMIT - forFiles)
+  return [
+    ...paths.slice(0, forFiles).map((path): Offer => ({
+      kind: "file",
+      value: path,
+      // The NAME is what a person reads for, and where it sits is the hint
+      // beside it — a vault of daily notes is a column of identical prefixes
+      // otherwise. What is written is the whole path either way.
+      label: nameOf(path),
+      hint: dirOf(path),
+    })),
+    ...nodes.slice(0, forNodes).map((node): Offer => ({
+      kind: "node",
+      value: node.id,
+      label: node.label,
+      // The id FIRST — it is what the row writes into the sentence, and it is
+      // what tells two nodes of one title in one place apart when even the
+      // place cannot. Then why the row is here, when that is not visible on it
+      // ({@link ./nodes.ts}'s `note`), and then where it sits.
+      hint: [`@${node.id}`, ...(node.note ? ["in the note"] : []), node.place]
+        .join(" · "),
+    })),
+  ]
+}

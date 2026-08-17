@@ -24,7 +24,7 @@ Feature: Typing @ in the chat completes a file of the directory
   @scratch:chat
   Scenario: An @ offers the directory, and taking a row writes the path
     When I type "read @cab" into the chat
-    Then the path completion is open
+    Then the name completion is open
     And the completion offers "notes/cabinets.md"
     # The row READS its name with the folder beside it — a vault of daily notes
     # is a column of identical prefixes otherwise — and WRITES the whole path.

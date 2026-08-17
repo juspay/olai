@@ -44,13 +44,17 @@
  * message may NAME is a different question from what a reader opens, and "what
  * did we put away last month" is a fair thing to ask an agent.
  *
- * It is worth saying out loud because the OTHER completion in this app went the
- * other way, and the two are one `grep` apart: the tag vocabulary
+ * It is worth saying out loud because the other two lists over the same set go
+ * the other way, and the three are one `grep` apart: the tag vocabulary
  * (`../complete/tags.ts`) stopped counting archived nodes under the 2026-08-17
- * ruling. Neither should be "harmonized" into the other. That one ranks the
- * vocabulary of the set a reader is LOOKING at, where this one completes a path
- * somebody is about to name in a sentence — and a path half-remembered reaches
- * the agent as a file that is not there.
+ * ruling, and the NODE half of this very list (`./nodes.ts`) offers none unless
+ * the query says `is:archived`. None of the three should be "harmonized" into
+ * the others. The tag list ranks the vocabulary of the set a reader is LOOKING
+ * at; the node list names a row of a reading, where what was put away is drawn
+ * on the Trash and nowhere else; and this one completes a PATH somebody is
+ * about to name in a sentence — a file is bytes an agent will open, an archive
+ * is a file, and a path half-remembered reaches the agent as a file that is not
+ * there.
  *
  * ## A prefix first and a substring second, which is not a score
  *
@@ -65,10 +69,6 @@
  * An EMPTY query answers with the whole directory (capped), which is what
  * makes a bare `@` a way of seeing what this vault even holds.
  */
-
-/** How many rows the list offers. A completion is a shortlist — the same eight
- *  the row editor's widgets show (`../complete/tags.ts`). */
-const LIMIT = 8
 
 /** One served path, ready to be matched: its own spelling, and the two folded
  *  forms the buckets below ask about. Both are computed once, when the
@@ -96,16 +96,24 @@ export const folded = (paths: ReadonlyArray<string>): ReadonlyArray<Folded> => {
 }
 
 /**
- * The files `query` could be the start of, best first.
+ * The files `query` could be the start of, best first, at most `limit` of them.
  *
  * ONE PASS over the directory, with the three buckets filled as it goes rather
  * than filtered three times, and an early exit once the best bucket alone can
  * fill the list: a query typed towards a real file finds its answer without
  * reading the rest of the vault.
+ *
+ * THE CAP IS THE CALLER'S because the list is shared now: this half and the
+ * node half divide eight rows between them ({@link ./naming.ts}), and a cap
+ * kept here would be a second opinion about a number that has to be one. It is
+ * asked for the WHOLE list rather than for this half's share — the early exit
+ * above is why: a pass that stopped at three could not be asked for eight
+ * afterwards, when the other half turned out to have nothing to offer.
  */
 export const matchFiles = (
   files: ReadonlyArray<Folded>,
   query: string,
+  limit: number,
 ): ReadonlyArray<string> => {
   const wanted = query.toLowerCase()
   const named: Array<string> = []
@@ -115,9 +123,9 @@ export const matchFiles = (
     if (wanted === "" || file.name.startsWith(wanted)) named.push(file.path)
     else if (file.whole.startsWith(wanted)) pathed.push(file.path)
     else if (file.whole.includes(wanted)) buried.push(file.path)
-    if (named.length >= LIMIT) break
+    if (named.length >= limit) break
   }
-  return [...named, ...pathed, ...buried].slice(0, LIMIT)
+  return [...named, ...pathed, ...buried].slice(0, limit)
 }
 
 /** The file's own name — the row's label, because a directory of daily notes
