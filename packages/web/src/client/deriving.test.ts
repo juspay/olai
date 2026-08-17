@@ -53,17 +53,44 @@ const view = (corpus: Corpus, revs?: Record<string, number>) => {
   return viewOf(undefined, files, entryOf)
 }
 
-/** The two views, compared the way the format's own oracle test compares them:
- *  whole, with the flat list and the indexes read out. */
+/**
+ * The two views, compared the way the format's own oracle test compares them:
+ * whole, and ALL TEN indexes — the flat list, the three that promise a key
+ * order, and the six asked one key at a time.
+ *
+ * Ten rather than the seven this began with, which both reviews of slice 4
+ * caught: `children`, `mirrorsOf` and `edgesTo` were the three left out, and
+ * they are exactly the three a fold could get wrong without any of the others
+ * noticing — a placement filed under the node it no longer shows, an edge left
+ * on the key it used to land on, a sibling list merged from two directions in
+ * the wrong order. The patcher's own suite compares them, but it does so over
+ * deltas IT was handed; what is under test here is the delta this client
+ * RECONSTRUCTS, and a comparison that stops at seven cannot tell a wrong delta
+ * from a right one in those three.
+ *
+ * The two `Set`-valued indexes are spread rather than compared as sets, because
+ * both promise corpus order to whoever reads them and `toEqual` over a `Set`
+ * would only read membership.
+ */
 const same = (found: Derived, wanted: Derived): void => {
   expect(found.nodes).toEqual(wanted.nodes as never)
   expect([...found.byId]).toEqual([...wanted.byId] as never)
   expect([...found.byFile]).toEqual([...wanted.byFile] as never)
   expect([...found.namedBy]).toEqual([...wanted.namedBy] as never)
+  expect([...found.children]).toEqual([...wanted.children] as never)
   expect([...found.status]).toEqual([...wanted.status] as never)
   expect([...found.after]).toEqual([...wanted.after] as never)
   expect([...found.blocked]).toEqual([...wanted.blocked] as never)
+  expect(spread(found.mirrorsOf)).toEqual(spread(wanted.mirrorsOf) as never)
+  expect(spread(found.edgesTo)).toEqual(spread(wanted.edgesTo) as never)
 }
+
+/** A set-valued index as pairs, so the comparison reads its ORDER and not only
+ *  which ids are in it. */
+const spread = (
+  index: ReadonlyMap<string, ReadonlySet<string>>,
+): ReadonlyArray<readonly [string, ReadonlyArray<string>]> =>
+  [...index].map(([id, members]) => [id, [...members]] as const)
 
 const KITCHEN: Corpus = {
   "house.olai": `{"id":"cook","ord":"a","title":"cook","todo":true}\n` +
@@ -157,4 +184,49 @@ test("a nested file lands in one place, whichever frame it arrives on", () => {
   expect(folded.derived.nodes.map((at) => at.node.id)).toEqual(["attic", "kitchen", "wing"])
   same(folded.derived, atOnce.derived)
   expect(nested).toBeDefined()
+})
+
+// A FILE THAT HOLDS NOTHING is the case both reviews circled, because it is the
+// one a fold could plausibly get wrong: an empty outline and one that did not
+// parse contribute no records, so they leave no trace in a view at all, and
+// "arrived holding nothing" is indistinguishable from "not here" once the delta
+// has been applied. This walks the whole life of one: it arrives beside a
+// neighbour's edit, gains records, loses them again, and goes away — with the
+// rebuilt view asserted at every step.
+test("a file that holds no records comes, fills, empties and goes, and the view says what a rebuild says", () => {
+  const start: Corpus = { ...KITCHEN }
+  const first = held(start)
+  let view = viewOf(undefined, first.files, first.entryOf)
+  same(view.derived, oracle(start))
+
+  // ARRIVES, in the same frame as a neighbour's edit and therefore at that
+  // frame's revision — the shape the design doc's reviewer named.
+  const edited = `{"id":"weed","ord":"a","title":"weed the beds","todo":true}`
+  const withEmpty: Corpus = { ...start, "shed.olai": "", "garden.olai": edited }
+  const arriving = held(withEmpty, { "shed.olai": 2, "garden.olai": 2 })
+  view = viewOf(view, arriving.files, arriving.entryOf)
+  same(view.derived, oracle(withEmpty))
+  expect(view.derived.byFile.has("shed.olai")).toBe(false)
+  expect(view.revs.get("shed.olai")).toBe(2)
+
+  // FILLS: the file the view kept no trace of gains a record.
+  const filled: Corpus = { ...withEmpty, "shed.olai": `{"id":"rake","ord":"a","title":"rake"}` }
+  const filling = held(filled, { "shed.olai": 3, "garden.olai": 2 })
+  view = viewOf(view, filling.files, filling.entryOf)
+  same(view.derived, oracle(filled))
+
+  // EMPTIES again — which is also what a file that stopped parsing looks like
+  // from here, since a broken entry carries no nodes.
+  const emptied: Corpus = { ...filled, "shed.olai": "" }
+  const emptying = held(emptied, { "shed.olai": 4, "garden.olai": 2 })
+  view = viewOf(view, emptying.files, emptying.entryOf)
+  same(view.derived, oracle(emptied))
+
+  // AND GOES. A remove of a file the view never held records for is a no-op on
+  // every index, and the revisions stop naming it.
+  const { "shed.olai": _gone, ...without } = emptied
+  const leaving = held(without, { "garden.olai": 2 })
+  view = viewOf(view, leaving.files, leaving.entryOf)
+  same(view.derived, oracle(without))
+  expect(view.revs.has("shed.olai")).toBe(false)
 })

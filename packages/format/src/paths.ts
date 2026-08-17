@@ -7,10 +7,11 @@
  * this order and every reader spends it (`list_outlines` answers in it, a
  * search tie breaks on it, the sidebar draws it), {@link ./patch.ts} places an
  * arriving file by it, the browser folds its frames in it (`@olai/web`'s
- * `paths.ts`), and the four other questions this package asks about WHICH FILE
+ * `paths.ts`), and the five other questions this package asks about WHICH FILE
  * — what order a report reads in, where a cycle's report starts, which of two
- * inboxes a directory means, which of two daily notes is the example — are the
- * same question again, and each of them used to answer it with its own compare.
+ * inboxes a directory means, which of two daily notes is the example, and what
+ * order a day lists its notes in — are the same question again, and each of
+ * them used to answer it with its own compare.
  *
  * It is its own module rather than a function in `set.ts` because a rule about
  * PATHS depends on nothing: `node.ts` reaches for it and `set.ts` reaches for

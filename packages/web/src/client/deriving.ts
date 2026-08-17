@@ -32,7 +32,27 @@
  * processes' counters — which the wire does not let happen: the socket echoes
  * the process id it last saw, and a server that does not recognise itself
  * RETIRES the tab rather than feeding it frames (`./wire.ts`). A retired tab
- * stops updating and says so; it does not fold.
+ * stops updating and says so; it does not fold. That is not only an argument:
+ * `packages/tests/features/the_connection.feature` restarts the server under a
+ * live tab and asserts the retirement and the reload that recovers it, which is
+ * the executable half of "there are never two counters in play".
+ *
+ * WHERE THIS COULD DIVERGE from rebuilding every frame, said out loud because
+ * it is the question a reviewer should ask: only if `rev` lies — a file whose
+ * records moved without its number moving. Both ways that could happen are
+ * closed rather than hoped about. The publisher's side is a written contract
+ * with a test (`@olai/surface`'s `OutlineEntry`, `@olai/server`'s
+ * `published.test.ts`: the file that moved carries the new revision, the file
+ * that did not carries the very entry it was published with). The reader's side
+ * is the paragraph above. What is NOT a divergence, though it looks like one:
+ * a file that holds no records — an empty outline, or one that did not parse —
+ * leaves no trace in a view at all, so "arrived holding nothing" and "not here"
+ * are the same answer once the delta is applied, whether the view was folded or
+ * rebuilt. Its whole life is pinned in `./deriving.test.ts` (it arrives on a
+ * neighbour's revision, fills, empties, goes away) precisely because that is
+ * the case where the two could plausibly have parted and do not. Which files
+ * EXIST is the collection's key set, and the sidebar and the broken-file map
+ * read it there rather than here — as they always did.
  *
  * MIXED REVISIONS, said out loud rather than inherited silently. Only the files
  * that MOVED are upserted, so an unchanged neighbour keeps the number it was

@@ -148,6 +148,15 @@ import { SearchAnswer, SearchRequest } from "./search.ts"
  * is silently stale. `@olai/server`'s `published.ts` is what keeps it (an entry
  * is rebuilt exactly when the store re-decoded its path), and
  * `published.test.ts` is where that is pinned.
+ *
+ * WITHIN ONE PROCESS, which is the other half of the same promise: these
+ * numbers are a counter, so a tab comparing two servers' counters would be
+ * comparing nothing. It cannot: the socket echoes the process id it was given
+ * and a server that does not recognise itself retires the tab
+ * (`packages/tests/features/the_connection.feature` restarts a server under a
+ * live tab and asserts exactly that, plus the reload that recovers it). So a
+ * reader folding on these numbers is always folding within the run that minted
+ * them.
  */
 export const OutlineEntry = Schema.Struct({
   rev: Schema.Int,

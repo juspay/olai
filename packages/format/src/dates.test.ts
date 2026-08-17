@@ -361,6 +361,19 @@ test("two documents claiming one date are both the day's, in path order", () => 
   ])
 })
 
+// PATH ORDER IS `byPath`, and this is the pair that says so: a day's own
+// directory beside a note named for the same day is exactly the shape a vault
+// mid-migration writes, and it is the one pair a code-point sort orders the
+// other way (`.` is 0x2E, `/` is 0x2F). The sidebar lists these two nested-file
+// first, so a day page that listed them flat-file first would be the same two
+// documents in two orders on one screen.
+test("a day's note and a note inside the day's own directory read as the walk does", () => {
+  expect(dailyNotesOn(["2026-08-17.md", "2026-08-17/2026-08-17.md"], "2026-08-17")).toEqual([
+    "2026-08-17/2026-08-17.md",
+    "2026-08-17.md",
+  ])
+})
+
 // The calendar's second mark, asked of the same convention: the days of ONE
 // month that have a note, so a caller drawing August is not handed September.
 test("a month's noted days are the days of that month a note is written for", () => {

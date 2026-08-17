@@ -37,7 +37,7 @@
  * rather than a result.
  */
 
-import { derive } from "@olai/format"
+import { derive, type Derived, type Located } from "@olai/format"
 import { nodesOf, seeded } from "@olai/format/testlib"
 import { writeWrappedValue } from "@kolu/surface/solid"
 import { createMemo, createRoot } from "solid-js"
@@ -173,11 +173,16 @@ const folded = arm((read) =>
 
 // ── the run ────────────────────────────────────────────────────────────
 
+/** Which file edit `which` rewrites — asked by the edit and by the guard that
+ *  reads the answer back, so the two cannot come to mean different files. */
+const fileFor = (which: number): string =>
+  [...corpus.keys()][which % corpus.size] as string
+
 /** One edit: the title of one record in one file, as a whole new entry for that
  *  file at the next revision — which is exactly the frame a probe tick sends
  *  for one edited outline. */
 const editOf = (previous: Fold, which: number): Fold => {
-  const file = [...corpus.keys()][which % corpus.size] as string
+  const file = fileFor(which)
   const text = (corpus.get(file) as string).replace(
     /"title":"record 1 of file (\d+)"/,
     `"title":"edited ${which}"`,
@@ -199,17 +204,24 @@ const median = (times: ReadonlyArray<number>): number =>
  * and the read that follows is timed anyway, because a read that is not free is
  * a memo that did not run and a number that means nothing.
  *
- * `sizeOf` is what says the arm derived the corpus rather than nothing: a
- * benchmark comparing two memos neither of which ran is a fast benchmark.
+ * THE GUARD IS TWO CLAIMS, and the second is the one that matters. `records`
+ * says the arm derived the corpus rather than nothing, which the FIRST frame
+ * answers — and a first frame is answered even by SolidJS's server build, where
+ * a memo is computed once at creation and never invalidated again. So every
+ * frame after it is checked too: the edit rewrites one record's title to
+ * `edited <n>`, and the arm has to say so. An arm whose memo stopped re-running
+ * would go on reporting the corpus at its first revision, forty times, very
+ * fast — which is precisely the magnificent number this benchmark must never
+ * print.
  */
-const run = (name: string, end: Arm, sizeOf: (answer: unknown) => number): void => {
+const run = (name: string, end: Arm, probe: Probe): void => {
   const startedFirst = performance.now()
   end.write(end.first)
   const first = end.read()
   const firstFrame = performance.now() - startedFirst
-  if (sizeOf(first) !== records) {
+  if (probe.records(first) !== records) {
     throw new Error(
-      `${name} answered for ${sizeOf(first)} records of ${records}` +
+      `${name} answered for ${probe.records(first)} records of ${records}` +
         ` — the arm is not measuring what it says`,
     )
   }
@@ -221,8 +233,16 @@ const run = (name: string, end: Arm, sizeOf: (answer: unknown) => number): void 
     previous = next
     const before = performance.now()
     end.write(next)
-    end.read()
+    const answer = end.read()
     frames.push(performance.now() - before)
+    // Off the clock, and about the value the clock was just stopped on.
+    const said = probe.edited(answer, fileFor(which))
+    if (said !== `edited ${which}`) {
+      throw new Error(
+        `${name} still says ${said ?? "nothing"} after edit ${which}` +
+          ` — the arm answered a frame it never recomputed`,
+      )
+    }
   }
 
   const say = (ms: number) => `${ms.toFixed(2)}ms`
@@ -234,14 +254,43 @@ const run = (name: string, end: Arm, sizeOf: (answer: unknown) => number): void 
   )
 }
 
-/** How many records a view holds — the two arms answer with a `Derived` and a
- *  {@link View}, and the store-only arm with the frame itself. */
-const inView = (answer: unknown): number =>
-  (answer as { nodes: ReadonlyArray<unknown> }).nodes.length
-const inFold = (answer: unknown): number => (answer as View).derived.nodes.length
-const inFrame = (answer: unknown): number =>
-  Object.values((answer as Fold).byKey)
-    .reduce((total, entry) => total + entry.nodes.length, 0)
+/**
+ * What an arm is asked about its own answer: how much of the corpus is in it,
+ * and what it says the edited record's title is now.
+ *
+ * Per arm, because the three answer with three shapes — the frame itself, a
+ * `Derived`, a {@link View} — and the guard has to read each of them the way a
+ * reader of that arm would.
+ */
+interface Probe {
+  readonly records: (answer: unknown) => number
+  readonly edited: (answer: unknown, file: string) => string | undefined
+}
+
+/** The title this edit wrote, read out of one file's records — `undefined` when
+ *  the arm is still holding a revision that has not heard about it. */
+const editedIn = (nodes: ReadonlyArray<Located>): string | undefined =>
+  nodes
+    .map((at) => (at.node as { readonly title?: string }).title)
+    .find((title) => title?.startsWith("edited "))
+
+const frameProbe: Probe = {
+  records: (answer) =>
+    Object.values((answer as Fold | undefined)?.byKey ?? {})
+      .reduce((total, entry) => total + entry.nodes.length, 0),
+  edited: (answer, file) => editedIn((answer as Fold | undefined)?.byKey[file]?.nodes ?? []),
+}
+
+const viewProbe: Probe = {
+  records: (answer) => (answer as Derived | undefined)?.nodes.length ?? 0,
+  edited: (answer, file) => editedIn((answer as Derived | undefined)?.byFile.get(file) ?? []),
+}
+
+const foldProbe: Probe = {
+  records: (answer) => (answer as View | undefined)?.derived.nodes.length ?? 0,
+  edited: (answer, file) =>
+    editedIn((answer as View | undefined)?.derived.byFile.get(file) ?? []),
+}
 
 console.log(
   `vault: ${corpus.size} files, ${records} records, ${EDITS} one-file edits\n` +
@@ -249,6 +298,6 @@ console.log(
       process.versions.bun !== undefined ? `bun ${process.versions.bun}` : `node ${process.version}`
     }\n`,
 )
-run("store", merged, inFrame)
-run("rebuild", rebuild, inView)
-run("fold", folded, inFold)
+run("store", merged, frameProbe)
+run("rebuild", rebuild, viewProbe)
+run("fold", folded, foldProbe)
