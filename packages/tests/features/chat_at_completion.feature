@@ -62,6 +62,19 @@ Feature: Typing @ in the chat completes a file of the directory
     And the completion does not offer "finishes.md"
 
   @scratch:chat
+  Scenario: The arrows walk it, and Enter takes the row they are on
+    # The keys are the list's while it is up — the same cursor the ⌘K palette
+    # and the row editor's widgets walk (`client/search/cursor.ts`), which is
+    # the whole reason this box draws both of the composer's lists rather than
+    # each one growing arrows of its own.
+    When I type "read @" into the chat
+    Then the completion offers "finishes.md"
+    When I press "ArrowDown" in the chat
+    And I accept the completion
+    # Directory order, so the second row is the outline beside the document.
+    Then the chat input reads "read @house.olai "
+
+  @scratch:chat
   Scenario: A pointer takes the same row, and hands the caret back
     # The press moves focus to a button that the taking itself removes, so a
     # completion that did not put the caret back would leave the sentence
