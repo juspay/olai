@@ -145,6 +145,14 @@ const CAPTURE = {
    * you are standing, is exactly the trap {@link CAPTURE} exists to prevent — so
    * the edge list takes the name `set_after`'s own title gives it ("what a node
    * waits on") and the anchor keeps the word it has always had.
+   *
+   * IT LEAVES ONE EDGE WITH TWO NAMES — `waitsOn` here, `after` on
+   * {@link UpdateRequest}, which has no placement in it and so no collision to
+   * resolve — and that is the cheaper of the two costs rather than a free
+   * choice. Spelling it `waitsOn` in both would name the field after a
+   * collision that only one of them has; spelling it `after` in both is the
+   * trap. Both tool descriptions say which is which and why, because the
+   * descriptions are the agent's only manual.
    */
   waitsOn: Schema.optionalKey(
     Schema.Array(Schema.String).annotate({
@@ -169,16 +177,33 @@ export interface Capture extends CaptureFields {
   readonly children?: ReadonlyArray<Capture>
 }
 
-/** The same fields with their descriptions taken off, for every level BELOW the
- *  first ({@link childAt}). Derived rather than re-listed: a second field table
- *  is the drift {@link CAPTURE} exists to prevent, and the prose is the only
- *  thing that differs. */
-const TERSE = Object.fromEntries(
-  Object.entries(CAPTURE).map(([name, field]) => [
-    name,
-    field.annotate({ description: undefined }),
-  ]),
-) as unknown as typeof CAPTURE
+/**
+ * A field table with its PROSE taken off, and nothing else touched.
+ *
+ * TWO things in this file want it and they want it for one reason: a schema
+ * repeated inside another schema repeats every sentence on it, into the first
+ * frame of every agent session, where the sentence is already written on the
+ * tool that takes the request. {@link TERSE} is the capture's fields for every
+ * level below the first ({@link childAt}); {@link arm} is a whole request's
+ * fields inside `apply`'s union. The stripping is one rule, so it is one
+ * function — the second copy of it would be the one nobody remembers to change.
+ *
+ * The cast is the price of Effect's field types: `annotate` answers a `Top`,
+ * and what is being promised here is that the FIELDS are the ones handed in,
+ * which is true by construction and unsayable in the type.
+ */
+const stripped = <F extends Schema.Struct.Fields>(fields: F): F =>
+  Object.fromEntries(
+    Object.entries(fields).map((
+      [name, field],
+    ) => [name, (field as Schema.Top).annotate({ description: undefined })]),
+  ) as unknown as F
+
+/** The capture's fields with their descriptions taken off, for every level
+ *  BELOW the first ({@link childAt}). Derived rather than re-listed: a second
+ *  field table is the drift {@link CAPTURE} exists to prevent, and the prose is
+ *  the only thing that differs. */
+const TERSE = stripped(CAPTURE)
 
 /**
  * How many generations of `children` one call may nest below the node it adds.
@@ -801,13 +826,13 @@ export const UpdateRequest = Schema.Struct({
 /**
  * One batched arm: a request schema with its TOP-LEVEL prose taken off.
  *
- * {@link TERSE} one level up, made for the same reason and paid for by the same
- * measurement. Sixteen request schemas inside one array schema is sixteen more
- * copies of every field sentence in the FIRST frame of every agent session, and
- * every one of those sentences is already in that frame — on the tool that takes
- * the request, where the agent reads it. Measured on this repo's own surface:
- * this one schema is 14.1 kB of `tools/list` with the prose and 5.9 kB without,
- * against a whole tool list that was 44 kB before this feature.
+ * {@link stripped} over a whole request rather than over one field table, and
+ * paid for by a measurement: sixteen request schemas inside one array schema is
+ * sixteen more copies of every field sentence in the FIRST frame of every agent
+ * session, and every one of those sentences is already in that frame — on the
+ * tool that takes the request, where the agent reads it. On this repo's own
+ * surface the `apply` schema is 14.1 kB of `tools/list` with the prose and
+ * 5.9 kB without, against a whole tool list that was 44 kB before this feature.
  *
  * TOP LEVEL ONLY: a capture's `children` keeps its own nested prose, including
  * the sentence at the floor of the unrolling that says a fourth level is a
@@ -815,13 +840,7 @@ export const UpdateRequest = Schema.Struct({
  * a refusal, written where it will be met.
  */
 const arm = <F extends Schema.Struct.Fields>(schema: Schema.Struct<F>): Schema.Struct<F> =>
-  Schema.Struct(
-    Object.fromEntries(
-      Object.entries(schema.fields).map((
-        [name, field],
-      ) => [name, (field as Schema.Top).annotate({ description: undefined })]),
-    ) as unknown as F,
-  )
+  Schema.Struct(stripped(schema.fields))
 
 /**
  * Every verb {@link ApplyRequest} may carry, as the union it switches on.

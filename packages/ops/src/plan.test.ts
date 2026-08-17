@@ -23,8 +23,17 @@ import {
 import { describe, expect, test } from "bun:test"
 import { Result, Schema } from "effect"
 
-import { readingOf, setOf, STAMP, steady } from "./fixtures.testlib.ts"
-import { plan, type Plan } from "./plan.ts"
+import {
+  fileOf,
+  planned,
+  planning,
+  record,
+  refused,
+  setOf,
+  STAMP,
+  steady,
+} from "./fixtures.testlib.ts"
+import type { Plan } from "./plan.ts"
 
 const KITCHEN = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -35,49 +44,6 @@ const KITCHEN = [
 ].join("\n")
 
 const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
-
-const planning = (set: OutlineSet, request: Request): Result.Result<Plan, OpFailure> =>
-  plan(readingOf(set), steady(), request)
-
-/** The plan, or a failure quoted well enough to fix the test without a
- *  debugger. */
-const planned = (set: OutlineSet, request: Request): Plan => {
-  const outcome = planning(set, request)
-  if (Result.isFailure(outcome)) {
-    throw new Error(
-      `expected \`${request.op}\` to plan, and it refused: ` +
-        `${outcome.failure._tag} — ${outcome.failure.message}`,
-    )
-  }
-  return outcome.success
-}
-
-const refused = (set: OutlineSet, request: Request): OpFailure => {
-  const outcome = planning(set, request)
-  if (Result.isSuccess(outcome)) {
-    throw new Error(`expected \`${request.op}\` to be refused, and it planned`)
-  }
-  return outcome.failure
-}
-
-/** One file of a plan, by name. */
-const fileOf = (result: Plan, file: string): ReadonlyArray<Node> => {
-  const found = result.files.find((entry) => entry.file === file)
-  if (found === undefined) {
-    throw new Error(
-      `the plan does not write \`${file}\`; it writes ${
-        result.files.map((entry) => entry.file).join(", ") || "nothing"
-      }`,
-    )
-  }
-  return found.nodes
-}
-
-const record = (nodes: ReadonlyArray<Node>, id: string): RegularNode => {
-  const found = nodes.find((node) => node.id === id)
-  if (found === undefined) throw new Error(`no record \`${id}\` in the plan`)
-  return found as RegularNode
-}
 
 /** The set a plan leaves behind: every file re-serialized through the format's
  *  own writer and re-parsed, which is the path a real write takes.

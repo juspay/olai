@@ -12,21 +12,37 @@
  *
  * So this is the missing half: a plan in, the reading it produces out, and the
  * next op planned against that. No rule of the format lives here — what a plan
- * MEANS is `plan.ts`'s and what a set IS is `@olai/format`'s; this only puts
- * the two together the way the write path already does.
+ * MEANS is `plan.ts`'s, and what a SET is (how decoded files become one, how
+ * one is taken back apart, how a view is patched onto another) is
+ * `@olai/format`'s, reached through `assemble`, `apart` and `reading`. What is
+ * left in this file is the translation between them, which is the only half
+ * that is actually this layer's.
  *
- * **IT GOES THROUGH THE WRITER AND THE PARSER, deliberately, and that is the
- * one line worth defending.** A plan is whole RECORDS with no `file:line` on
- * them — a `Node`, not a `Located` — and line numbers are not decoration in
- * this format: siblings with equal `ord` break their tie on the line they sit
- * on, and every refusal names one. Making up line numbers here would make a
- * batch place a node somewhere a sequence of single calls would not. Serialising
- * through the format's own writer and reading the result back with the format's
- * own parser is exactly what the store does after a rename, so the reading an
- * op two sees is the reading it would have seen had op one been its own call
- * and its own commit. The round trip costs one serialise and one parse per
- * TOUCHED FILE per op, which is what a batch is buying its way out of paying
- * thirteen times over on the disk.
+ * **IT GOES THROUGH THE WRITER AND THE PARSER, deliberately, and there are two
+ * reasons rather than the one it is easy to remember.** A plan is whole RECORDS
+ * with no `file:line` on them — a `Node`, not a `Located` — and line numbers
+ * are not decoration in this format: siblings with equal `ord` break their tie
+ * on the line they sit on, and every refusal names one. That is the first. The
+ * second is NORMALISATION, and it is the one a shortcut would trip over: the
+ * records a planner builds are drafts, and a draft may spell something the file
+ * cannot hold — an empty `custom` map, a field the writer omits — so the record
+ * an op two would be judged against has to be the record the parser produces
+ * from the bytes, not the draft that produced them. Serialising through the
+ * format's own writer and reading the result back is exactly what the store
+ * does after a rename, so the reading op two sees is the reading it would have
+ * seen had op one been its own call and its own commit.
+ *
+ * **WHAT IT COSTS, honestly.** Per op, per file that op TOUCHED: one serialise
+ * and one parse of that whole file, one `assemble` of the directory, and one
+ * patched view. The serialise/parse pair is the dominant term and it is
+ * quadratic in the batch against one outline's size — a hundred ops over one
+ * large outline is a hundred round trips of it — which is the price of every
+ * intermediate being a real set rather than a shortcut. The patched view is
+ * cheap only when the batch leaves some file untouched: the patcher declines
+ * when nothing of the old view is left to patch onto (`@olai/format`'s
+ * `patch`), so a single-outline directory rebuilds its derivation each op. Both
+ * are bounded by `BATCH_AT_MOST`, and both are one write's worth of work rather
+ * than N writes' worth of disk.
  *
  * **WHAT IT DOES NOT DO IS VALIDATE**, and that is the batch's whole shape: one
  * validation pass over the set the LAST op leaves, run where every write is
@@ -39,14 +55,14 @@
  */
 
 import {
+  apart,
   assemble,
   type DecodedFile,
-  type Located,
   type OpFailure,
   type OutlineError,
   parseOutline,
-  patch,
   type Reading,
+  reading,
   serializeOutline,
   type SetDelta,
   ValidationFailure,
@@ -56,106 +72,67 @@ import { Result } from "effect"
 import type { Plan } from "./plan.ts"
 
 /** One decoded file, as `assemble` takes it. Spelled once because the map this
- *  module rebuilds is a map of them. */
+ *  module carries between ops is a map of them. */
 type Decoded = Result.Result<DecodedFile, ReadonlyArray<OutlineError>>
 
 /**
- * A set taken back APART into the per-file map `assemble` puts together.
+ * The fold over the planner: the reading each op is judged against, carried
+ * from the one before it.
  *
- * The inverse of `@olai/format`'s `assemble`, and written against it rather
- * than against a memory of it: a broken file keeps its place in `files` or in
- * `documents` AND is listed in `broken`, so the broken paths are read first and
- * the two lists below skip whatever they already answered. Getting that
- * backwards would hand a plan's fold an outline whose unreadable half had
- * quietly become an empty one.
+ * A CLOSURE rather than a function taking and returning a map, because the map
+ * is the thing being carried and a caller that had to thread it would be a
+ * caller that could thread the wrong one. It is built from a reading and it
+ * answers with readings; what it holds between calls is the inside of exactly
+ * one loop.
  */
-const apart = (at: Reading): Map<string, Decoded> => {
-  const files = new Map<string, Decoded>()
-  const torn = new Set<string>()
-  for (const file of at.set.broken) {
-    torn.add(file.file)
-    files.set(file.file, Result.fail(file.errors))
-  }
-  // The records grouped back by the file each one already names. `Located`
-  // carries its own path, so this is a regrouping rather than a guess, and the
-  // order within a file is the set's own (line order, as assembled).
-  const nodes = new Map<string, Array<Located>>()
-  for (const located of at.set.nodes) {
-    const held = nodes.get(located.file)
-    if (held === undefined) nodes.set(located.file, [located])
-    else held.push(located)
-  }
-  for (const file of at.set.files) {
-    if (torn.has(file)) continue
-    files.set(file, Result.succeed({ file, nodes: nodes.get(file) ?? [] }))
-  }
-  for (const document of at.set.documents) {
-    if (torn.has(document.file)) continue
-    files.set(document.file, Result.succeed(document))
-  }
-  return files
-}
-
-/**
- * A fold over the planner: the reading each op is judged against, carried from
- * the one before it.
- *
- * A CLASS-LESS object with one method rather than a function taking and
- * returning a map, because the map is the thing being carried and a caller that
- * had to thread it would be a caller that could thread the wrong one. It is
- * built from a reading and it answers with readings, so what it holds between
- * calls is an implementation detail of exactly one loop.
- */
-export interface Folding {
-  /** The reading that plan leaves behind, or the one refusal below. */
-  readonly following: (made: Plan) => Result.Result<Reading, OpFailure>
-}
+export type Folding = (made: Plan) => Result.Result<Reading, OpFailure>
 
 export const folding = (from: Reading): Folding => {
-  const files = apart(from)
+  // LAZY, and that is not a micro-optimisation: `folded` breaks before folding
+  // the LAST op — nothing is judged against the set it leaves — so a one-op run
+  // never calls this at all. A single-field `update` is exactly such a run, and
+  // it is a gesture an agent makes constantly; taking the directory apart for
+  // it would be a corpus walk to build a value nobody reads.
+  let files: Map<string, Decoded> | undefined
   let at = from
 
-  return {
-    following: (made) => {
-      const upserts: Array<SetDelta["upserts"][number]> = []
-      for (const planned of made.files) {
-        const text = serializeOutline(planned.nodes)
-        const read = parseOutline(planned.file, text)
-        if (Result.isFailure(read)) {
-          // Unreachable through any request: these records came out of the
-          // planner and went through the format's own writer, so a file that
-          // does not parse back is a defect in one of those two rather than
-          // anything a caller sent. It is a refusal and not a throw because the
-          // batch's promise is that nothing lands — a defect that took the
-          // process down would be a promise kept the expensive way — and it
-          // carries the parser's own rows so the defect is diagnosable.
-          return Result.fail(
-            new ValidationFailure({
-              reason:
-                `\`${planned.file}\` did not read back after being planned, so the ` +
-                `batch was abandoned and nothing was written. This is a defect in ` +
-                `olai rather than in the call.`,
-              errors: read.failure,
-            }),
-          )
-        }
-        files.set(planned.file, Result.succeed(read.success))
-        upserts.push([planned.file, { nodes: read.success.nodes }])
+  return (made) => {
+    files ??= apart(at.set)
+    const upserts: Array<SetDelta["upserts"][number]> = []
+    for (const planned of made.files) {
+      const text = serializeOutline(planned.nodes)
+      const read = parseOutline(planned.file, text)
+      if (Result.isFailure(read)) {
+        // Unreachable through any request: these records came out of the
+        // planner and went through the format's own writer, so a file that
+        // does not parse back is a defect in one of those two rather than
+        // anything a caller sent. It is a refusal and not a throw because the
+        // batch's promise is that nothing lands — a defect that took the
+        // process down would be a promise kept the expensive way — and it
+        // carries the parser's own rows so the defect is diagnosable.
+        return Result.fail(
+          new ValidationFailure({
+            reason:
+              `\`${planned.file}\` did not read back after being planned, so the ` +
+              `batch was abandoned and nothing was written. This is a defect in ` +
+              `olai rather than in the call.`,
+            errors: read.failure,
+          }),
+        )
       }
-      for (const document of made.documents ?? []) {
-        files.set(document.file, Result.succeed({ file: document.file, text: document.text }))
-      }
+      files.set(planned.file, Result.succeed(read.success))
+      upserts.push([planned.file, { nodes: read.success.nodes }])
+    }
+    for (const document of made.documents ?? []) {
+      files.set(document.file, Result.succeed({ file: document.file, text: document.text }))
+    }
 
-      // PATCHED rather than derived: the view the next op is judged against
-      // differs from this one by the files this op touched, which is the exact
-      // shape the format's patcher takes — and it is held to `derive` by that
-      // module's own property test, so a fold of thirteen ops does not walk the
-      // corpus thirteen times to learn what it already knew.
-      at = {
-        set: assemble(files),
-        derived: patch(at.derived, { upserts, removes: [] }),
-      }
-      return Result.succeed(at)
-    },
+    // The view PATCHED rather than derived — reached through `reading`, which
+    // is the patcher plus the disagreement check `validate` makes, so this
+    // caller cannot forget the half that turns a delta which missed a file into
+    // a rebuild instead of into a view where every record looks like a
+    // duplicate of itself.
+    at = reading(assemble(files), { read: at, delta: { upserts, removes: [] } })
+    return Result.succeed(at)
   }
 }

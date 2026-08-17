@@ -4,7 +4,7 @@ import { Result } from "effect"
 import type { OutlineError } from "./errors.ts"
 import { failureOf, nodesOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
-import { assemble, type DecodedFile } from "./set.ts"
+import { apart, assemble, type DecodedFile } from "./set.ts"
 
 type Decoded = Result.Result<DecodedFile, ReadonlyArray<OutlineError>>
 
@@ -118,4 +118,43 @@ test("a file that did not decode keeps its place and carries its errors", () => 
   expect(set.broken.map((file) => file.file)).toEqual(["bad.olai"])
   expect(set.broken[0]?.errors.map((error) => `${error.file}:${error.line} ${error.code}`))
     .toEqual(["bad.olai:1 not-json"])
+})
+
+// ── the inverse ────────────────────────────────────────────────────────
+
+/**
+ * `apart` is `assemble` read backwards, and the only thing that can say so is a
+ * round trip.
+ *
+ * Its caller — `@olai/ops`' batch fold, which swaps one file's records into the
+ * map and assembles again — depends on invariants that are easy to get subtly
+ * wrong from outside this module, and every one of them fails QUIETLY: a broken
+ * file listed in both `files` and `broken` comes back as an empty outline
+ * rather than an unreadable one, a document read before the broken paths loses
+ * its errors, a regrouping that trusted `set.files` order puts a node in the
+ * wrong file. So the pair is held to each other rather than to a memory of each
+ * other, over a set that carries one of each kind.
+ */
+test("a set taken apart and assembled again is the set it was", () => {
+  const set = assemble(decoded({
+    "home.olai": outline(
+      "home.olai",
+      [
+        `{"id":"kitchen","ord":"a","title":"kitchen"}`,
+        `{"id":"sink","parent":"kitchen","ord":"a","title":"sink"}`,
+        "",
+      ].join("\n"),
+    ),
+    "empty.olai": outline("empty.olai", ""),
+    "notes/cabinets.md": document("notes/cabinets.md", "# Cabinets\n"),
+    "saved.html": Result.succeed({ file: "saved.html", text: null }),
+    "bad.olai": unreadable("bad.olai", `{"id":"b","ord":"a",title:"b"}`),
+  }))
+
+  expect(assemble(apart(set))).toEqual(set)
+  // The records come back as the SAME objects, not as copies that compare
+  // equal: the validator's duplicate-id rule is an identity test, so a set
+  // rebuilt out of clones would make every record look like a duplicate of
+  // itself.
+  expect(assemble(apart(set)).nodes[0]).toBe(set.nodes[0])
 })

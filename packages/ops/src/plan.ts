@@ -52,6 +52,7 @@ import {
   type Status,
   NotFoundFailure,
   nodesOf,
+  nothing,
   type OpFailure,
   ordBetween,
   OUTLINE_EXT,
@@ -640,20 +641,9 @@ const planAdd = (
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
   const ord = ordFor(ords.success, id)
 
-  const refused = emit(scope, into, request, {
-    id,
-    parent,
-    ord,
-    below: NESTING,
-  })
-  if (refused !== null) return Result.fail(refused)
-
-  // The edges, now that every id in the tree is claimed ({@link wiring}) — so a
-  // child may wait on a sibling three lines further down, which is what makes a
-  // lane one call instead of one call plus nine.
-  const wired = wiring(scope, into)
-  if (Result.isFailure(wired)) return Result.fail(wired.failure)
-  const minted = wired.success
+  const built = captured(scope, into, request, { id, parent, ord, below: NESTING })
+  if (Result.isFailure(built)) return Result.fail(built.failure)
+  const minted = built.success
 
   // DOOR ONE, spelled in a capture: a tree that arrives already saying `done`
   // over a task it is bringing with it.
@@ -848,9 +838,14 @@ const capturedNode = (
   // here; what is left is writing them.
   const props = Object.entries(capture.props ?? {})
   if (props.length > 0) {
-    let custom: Custom = node.custom ?? {}
+    let custom: Custom = {}
     for (const [key, value] of props) custom = withCustom(custom, key.trim(), value)
-    if (Object.keys(custom).length > 0) node.custom = custom
+    // A map with no keys left is no `custom` field rather than `{}` — the
+    // format's own rule for absence (`@olai/format`'s `nothing`, which spells
+    // the empty map out), asked here rather than restated, so a capture whose
+    // every property was an empty string produces the record a `set_prop` of
+    // the same nothing would.
+    if (!nothing(custom)) node.custom = custom
   }
   // The EDGES are not written here, and that is the one asymmetry in this
   // function: `see` and `waitsOn` may name a node this same call has not minted
@@ -860,12 +855,15 @@ const capturedNode = (
   return node
 }
 
-/** One node's edge list, held until every id in the capture is known — what
- *  {@link emit} collects and {@link wiring} resolves. */
+/** One node's edges, held until every id in the capture is known — what
+ *  {@link emit} collects and {@link wiring} resolves. Both fields on one wire
+ *  rather than a wire per field: `emit` visits each node once, so a node's two
+ *  lists arrive together and a `field` discriminator would only be something
+ *  for the resolver to group back. */
 interface Wire {
   readonly id: string
-  readonly field: WritableEdge
-  readonly targets: ReadonlyArray<string>
+  readonly see?: ReadonlyArray<string> | undefined
+  readonly after?: ReadonlyArray<string> | undefined
 }
 
 /**
@@ -915,10 +913,8 @@ const emit = (
     if (named !== undefined) return named
   }
   into.records.push(capturedNode(scope, capture, at))
-  for (const [field, targets] of [["see", capture.see], ["after", capture.waitsOn]] as const) {
-    if (targets !== undefined && targets.length > 0) {
-      into.wires.push({ id: at.id, field, targets })
-    }
+  if ((capture.see?.length ?? 0) > 0 || (capture.waitsOn?.length ?? 0) > 0) {
+    into.wires.push({ id: at.id, see: capture.see, after: capture.waitsOn })
   }
 
   const children = capture.children ?? []
@@ -978,37 +974,67 @@ const emit = (
  * entirely between nodes that do not exist yet is caught here rather than by
  * the validator, against a file nobody has written.
  */
+/**
+ * A capture, as the records it becomes — the two passes, in the one order they
+ * may be run.
+ *
+ * BOTH ops that mint a tree call this and neither spells the sequence for
+ * itself: `add`'s capture, and the seed of a brand-new outline. The order is
+ * load-bearing rather than incidental (ids claimed, THEN edges resolved,
+ * {@link wiring}), so a caller free to write it down is a caller free to write
+ * it down differently — and there were two of them before this existed.
+ */
+const captured = (
+  scope: Scope,
+  into: Minting,
+  capture: Capture,
+  at: At & { readonly below: number },
+): Result.Result<ReadonlyArray<RegularNode>, OpFailure> => {
+  const refused = emit(scope, into, capture, at)
+  return refused !== null ? Result.fail(refused) : wiring(scope, into)
+}
+
 const wiring = (
   scope: Scope,
   into: Minting,
 ): Result.Result<ReadonlyArray<RegularNode>, OpFailure> => {
   if (into.wires.length === 0) return Result.succeed(into.records)
 
-  /** Every id this call may name — the set's, and the ones it is minting. The
-   *  SET answers "is this a target at all"; the same ids as an iterable are
-   *  what the did-you-mean is drawn from, so a typo of a sibling being born is
-   *  corrected to that sibling. */
-  const known = new Set([...scope.derived.byId.keys(), ...into.taken])
-  /** A target as the ORDERING GRAPH knows it: a placement resolved to the node
-   *  standing at it, exactly as `derive` resolves both ends of an edge, and a
-   *  node being born as itself (there is nothing to resolve it through). */
+  /** Is this a target this call may name at all — a node the set holds, or one
+   *  this call is minting? Asked directly of the two maps rather than of a
+   *  union of their keys: a corpus-sized copy per capture, to answer a handful
+   *  of lookups, is the walk this codebase spends its per-write budget
+   *  avoiding. What the REFUSAL needs is the ids as an iterable, and that is
+   *  built only on the path that refuses ({@link candidates}). */
+  const has = (target: string): boolean =>
+    into.taken.has(target) || scope.derived.byId.has(target)
+  /** Every id a did-you-mean may offer, the minted ones included — so a typo of
+   *  a sibling this call is bringing into being is corrected to that sibling,
+   *  which the set's own ids could never have offered. */
+  const candidates = function*(): Iterable<string> {
+    yield* scope.derived.byId.keys()
+    yield* into.taken
+  }
+  /** A target as the ORDERING GRAPH knows it — a node being born stands for
+   *  itself, since there is nothing to resolve it through. */
   const graphed = (target: string): string =>
-    into.taken.has(target) ? target : nodeNamed(scope.derived, target)?.node.id ?? target
+    into.taken.has(target) ? target : standingAt(scope, target)
 
   // The edges as they will read once this capture lands, per node, deduped in
   // the order they were written — `@olai/format`'s own rule that a target named
   // twice is named once, which `set_see` and `set_after` keep by never
-  // appending an id the list already holds.
-  const born = new Map<string, { see?: Array<string>; after?: Array<string> }>()
+  // appending an id the list already holds. A `Set` keeps insertion order, so
+  // the dedupe is the rule and not a reordering of it.
+  const born = new Map<string, Wire>()
   for (const wire of into.wires) {
-    const held = born.get(wire.id) ?? {}
-    const list = held[wire.field] ?? []
-    for (const target of wire.targets) {
-      if (!known.has(target)) return Result.fail(missingId(target, known))
-      if (!list.includes(target)) list.push(target)
+    for (const target of [...(wire.see ?? []), ...(wire.after ?? [])]) {
+      if (!has(target)) return Result.fail(missingId(target, candidates()))
     }
-    held[wire.field] = list
-    born.set(wire.id, held)
+    born.set(wire.id, {
+      id: wire.id,
+      ...(wire.see === undefined ? {} : { see: [...new Set(wire.see)] }),
+      ...(wire.after === undefined ? {} : { after: [...new Set(wire.after)] }),
+    })
   }
 
   // Only NOW is the loop question askable: an edge from a node being born to a
@@ -1018,9 +1044,8 @@ const wiring = (
     ...(scope.derived.after.get(id) ?? []),
     ...(born.get(id)?.after ?? []).map(graphed),
   ]
-  for (const wire of into.wires) {
-    if (wire.field !== "after") continue
-    for (const target of wire.targets) {
+  for (const wire of born.values()) {
+    for (const target of wire.after ?? []) {
       const refused = closesLoop(edges, wire.id, target, graphed(target))
       if (refused !== null) return Result.fail(refused)
     }
@@ -2279,7 +2304,7 @@ const planCreate = (
   if (Result.isFailure(chosen)) return Result.fail(chosen.failure)
   const id = chosen.success
 
-  const refused = emit(scope, into, seed, {
+  const built = captured(scope, into, seed, {
     id,
     // Top level of a file that does not exist yet, so there is nobody to place
     // it among: the first key, the one an `add` mints with no siblings.
@@ -2287,13 +2312,8 @@ const planCreate = (
     ord: nextOrd(null),
     below: NESTING,
   })
-  if (refused !== null) return Result.fail(refused)
-
-  // …and the same second pass, for the same reason: a seed is a capture, so its
-  // nodes may point at each other and at the set the new outline is joining.
-  const wired = wiring(scope, into)
-  if (Result.isFailure(wired)) return Result.fail(wired.failure)
-  const minted = wired.success
+  if (Result.isFailure(built)) return Result.fail(built.failure)
+  const minted = built.success
 
   // ...and the same DOOR ONE, in the same place in the sequence and for the
   // same reason ({@link planAdd}): a seed is a capture, so a node born done
@@ -2964,7 +2984,7 @@ const folded = (
     // for a reading nobody reads. A one-op batch therefore costs exactly what
     // the op costs.
     if (index === ops.length - 1) break
-    const next = fold.following(one)
+    const next = fold(one)
     if (Result.isFailure(next)) return Result.fail(next.failure)
     at = next.success
   }
@@ -3110,6 +3130,10 @@ const planUpdate = (
     // after exactly …". A pre-computed difference would have arrived empty and
     // been refused for naming nothing, which is a sentence about a call the
     // caller did not make.
+    //
+    // `held` is read from the reading this call STARTED at rather than from
+    // inside the fold, and the fixed field order above is what makes that
+    // correct: nothing planned before `after` touches a node's `after`.
     const held = node.after ?? []
     const want = request.after
     ops.push({
@@ -3122,6 +3146,19 @@ const planUpdate = (
   }
   if (request.mark !== undefined) {
     if (request.mark === null) {
+      // THE ONE REFUSAL HERE THAT NO SINGLE VERB MAKES, named as the exception
+      // it is: `mark: null` has no single-verb spelling — `set_done`,
+      // `set_doing` and `set_todo` each have to be TOLD which mark they are
+      // undoing — so "there is no mark to take off" is a sentence this shape
+      // needs and none of them has. It is worded after `set_prop`'s refusal for
+      // a key that is not there, which is the same gesture over the other kind
+      // of absence. Every other refusal in this function is the single verb's,
+      // verbatim, because every other field is that verb's own request.
+      //
+      // The node is read from the reading this call STARTED at, which is right
+      // because nothing before the mark in the fold touches a mark — and it is
+      // the only field here that reads across the fold, so the fixed order
+      // above is what makes it true.
       const stored = storedMarker(node)
       if (stored === undefined) {
         return Result.fail(
@@ -3180,12 +3217,22 @@ const planUpdate = (
  * agent that is told which loop it would close can fix the call instead of the
  * file. So the message NAMES it, with the validator's own arrow.
  */
+/** The node an edge target NAMES — a placement resolved to the node standing at
+ *  it, which is how `derive` resolves both ends of every ordering edge. Spelled
+ *  once because two callers ask it about one graph: the verb that writes an
+ *  edge onto a node that exists ({@link cycling}) and the capture that writes
+ *  one onto a node being born ({@link wiring}), and a loop refused by one of
+ *  them and not the other would be two answers to "is `x` the same node as the
+ *  placement `y`". */
+const standingAt = (scope: Scope, target: string): string =>
+  nodeNamed(scope.derived, target)?.node.id ?? target
+
 const cycling = (scope: Scope, node: RegularNode, target: string): OpFailure | null =>
   closesLoop(
     (id) => scope.derived.after.get(id) ?? [],
     node.id,
     target,
-    nodeNamed(scope.derived, target)?.node.id ?? target,
+    standingAt(scope, target),
   )
 
 /**

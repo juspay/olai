@@ -1148,7 +1148,7 @@ test("`update` writes several fields of one node, and the mark goes last", async
   })
 })
 
-test("a capture arrives with its edges and its properties, forward references included", async () => {
+test("a capture arrives with its edges and its properties, pointing forward", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
     const captured = await call(client, "add_node", {
       parent: "kitchen",
@@ -1186,5 +1186,71 @@ test("a capture arrives with its edges and its properties, forward references in
     expect(shadowed.isError).toBe(true)
     expect(String(shadowed.structured["reason"]))
       .toContain("a node already says `done` with a field of its own")
+  })
+})
+
+/**
+ * The two batching verbs advertise schemas an MCP host can actually read.
+ *
+ * `apply` carries a UNION of sixteen request schemas inside an array, which is
+ * the shape most likely to compile to a `$ref` into a `$defs` pool — and the
+ * adapter inlines local refs and STRIPS the pool, so a ref it could not inline
+ * would survive as a pointer into nothing and take the whole tool down. That is
+ * the same fence `add_node`'s unrolled `children` has, over the other schema
+ * this feature added.
+ */
+test("`apply` and `update` advertise finite schemas with no $ref", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
+    const { tools } = await client.listTools()
+
+    const apply = tools.find((tool) => tool.name === "apply")
+    expect(JSON.stringify(apply?.inputSchema)).not.toContain("$ref")
+    expect(JSON.stringify(apply?.inputSchema)).not.toContain("$defs")
+    // The `op` the tool's own NAME decides is subtracted from the top level, as
+    // it is for every write — and the ops INSIDE keep theirs, because that is
+    // what the agent picks a verb with.
+    expect(Object.keys(apply?.inputSchema.properties ?? {})).toEqual(["ops"])
+
+    // The verbs the union offers, read off each arm's own `op` rather than
+    // grepped out of the JSON: `done` appears in `add`'s `mark` enum too, so a
+    // substring test would say yes to a verb that has no arm at all.
+    const arms = (apply?.inputSchema as unknown as {
+      properties: { ops: { items: { anyOf: ReadonlyArray<Record<string, never>> } } }
+    }).properties.ops.items.anyOf
+    const verbs = arms.flatMap((one) =>
+      ((one as unknown as {
+        properties: { op: { enum: ReadonlyArray<string> } }
+      }).properties.op.enum)
+    ).sort()
+    expect(verbs).toEqual([
+      "add",
+      "after",
+      "archive",
+      "date",
+      "desc",
+      "doing",
+      "done",
+      "merge",
+      "mirror",
+      "move",
+      "prop",
+      "see",
+      "split",
+      "title",
+      "todo",
+      "unarchive",
+      "unmirror",
+      "update",
+    ])
+    // The four that are deliberately not batchable: the three writes whose
+    // subject is a FILE, and `apply` itself.
+    for (const op of ["create", "create-doc", "doc", "apply"]) {
+      expect(verbs).not.toContain(op)
+    }
+
+    const update = tools.find((tool) => tool.name === "update")
+    expect(JSON.stringify(update?.inputSchema)).not.toContain("$ref")
+    expect(Object.keys(update?.inputSchema.properties ?? {}).sort())
+      .toEqual(["after", "date", "desc", "id", "mark", "props", "title"])
   })
 })

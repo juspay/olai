@@ -76,28 +76,25 @@ export type { Reading } from "./validate.ts"
  *  PATCH its view rather than build one. The store's codec is what holds both
  *  halves; every other caller goes on passing a set and nothing else. */
 export type { Previous } from "./validate.ts"
+/** The pair WITHOUT the rules — a set and the view of it, patched from a
+ *  previous reading where that is exact and rebuilt where it is not. For the
+ *  one caller whose reading is speculative and validated later, exactly once:
+ *  `@olai/ops`' batch fold, which plans op two against the set op one would
+ *  leave. It is what `patch` is reached through, so the disagreement check
+ *  `validate` makes cannot be forgotten by a second caller. */
+export { reading } from "./validate.ts"
 
-export { assemble, BrokenFile, nodesIn, OutlineSet } from "./set.ts"
+export { apart, assemble, BrokenFile, nodesIn, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
-/**
- * What a delta says: files upserted, files gone — Surface's own
- * collection-delta frame, which is the vocabulary "what changed" already
- * travels this system in.
- *
- * `patch` rode below this line for as long as the only view anybody held was a
- * VALIDATED one: applying a delta was `validate`'s business, and a second
- * caller of it would have been a second view free to disagree with the one the
- * rules were run over. What crossed the line is a caller that holds no view at
- * all — `@olai/ops`' batch fold, which plans op two against the set op one
- * would leave and then throws that set away. It is speculative by construction:
- * nothing draws it, nothing is published at it, and the only set that reaches
- * disk is validated by the gate exactly once, as every write is. The rule the
- * old sentence was protecting is intact — one VALIDATED view, from one
- * validation — and the patcher is held to `derive` by this module's own
- * property test either way, so what the export buys is a corpus-sized walk per
- * op that nobody needed.
- */
-export { patch } from "./patch.ts"
+/** What a delta says: files upserted, files gone — Surface's own
+ *  collection-delta frame, which is the vocabulary "what changed" already
+ *  travels this system in. `patch` itself is STILL not exported, and the
+ *  sentence is the one it always was: applying a delta is `validate`'s
+ *  business, and a second caller of it would be a second view free to disagree
+ *  with the validated one — and, more concretely, one that has to remember
+ *  `viewOf`'s disagreement check. The caller that wanted a patched view
+ *  (`@olai/ops`' batch fold) reaches `reading` instead, which is that check and
+ *  the patcher together. */
 export type { SetDelta } from "./patch.ts"
 /** WHICH files a served directory is made of — one table, the two suffixes the
  *  ops layer mints paths with, and every suffix as a list for the one reader that

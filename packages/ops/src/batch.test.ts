@@ -15,19 +15,20 @@
  */
 
 import {
+  ApplyRequest,
   BATCH_AT_MOST,
   type BatchedRequest,
   type Node,
   type OpFailure,
   type OutlineSet,
   type RegularNode,
+  WriteRequest,
   type WriteRequest as Request,
 } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { readingOf, setOf, STAMP, steady } from "./fixtures.testlib.ts"
-import { plan, type Plan } from "./plan.ts"
+import { fileOf, planned, record, refused, setOf, STAMP } from "./fixtures.testlib.ts"
 
 const KITCHEN = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -38,46 +39,6 @@ const KITCHEN = [
 ].join("\n")
 
 const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
-
-const planning = (set: OutlineSet, request: Request): Result.Result<Plan, OpFailure> =>
-  plan(readingOf(set), steady(), request)
-
-const planned = (set: OutlineSet, request: Request): Plan => {
-  const outcome = planning(set, request)
-  if (Result.isFailure(outcome)) {
-    throw new Error(
-      `expected \`${request.op}\` to plan, and it refused: ` +
-        `${outcome.failure._tag} — ${outcome.failure.message}`,
-    )
-  }
-  return outcome.success
-}
-
-const refused = (set: OutlineSet, request: Request): OpFailure => {
-  const outcome = planning(set, request)
-  if (Result.isSuccess(outcome)) {
-    throw new Error(`expected \`${request.op}\` to be refused, and it planned`)
-  }
-  return outcome.failure
-}
-
-const fileOf = (result: Plan, file: string): ReadonlyArray<Node> => {
-  const found = result.files.find((entry) => entry.file === file)
-  if (found === undefined) {
-    throw new Error(
-      `the plan does not write \`${file}\`; it writes ${
-        result.files.map((entry) => entry.file).join(", ") || "nothing"
-      }`,
-    )
-  }
-  return found.nodes
-}
-
-const record = (nodes: ReadonlyArray<Node>, id: string): RegularNode => {
-  const found = nodes.find((node) => node.id === id)
-  if (found === undefined) throw new Error(`no record \`${id}\` in the plan`)
-  return found as RegularNode
-}
 
 /** A batch, spelled once so the tests below read as the list of ops they are
  *  about rather than as an envelope. */
@@ -565,4 +526,45 @@ describe("update", () => {
     // instant the planner's context minted for the whole call.
     expect(record(fileOf(result, "house.olai"), "order").changed).toBe(STAMP)
   })
+})
+
+// ── the two membership lists ───────────────────────────────────────────
+
+/**
+ * `apply` carries the write verbs, and NOT carrying one has to be a decision.
+ *
+ * The arms of `ApplyRequest` are the request schemas themselves, so nothing can
+ * drift about what an op LOOKS like. What is still two hand-written lists is
+ * which verbs are in each one — `BATCHED` and `WriteRequest` — and a node verb
+ * added to the second and forgotten in the first is silently un-batchable, with
+ * nothing anywhere to say so.
+ *
+ * So the DIFFERENCE is what is pinned, rather than either list: exactly the
+ * three writes whose subject is a FILE, and `apply` itself. A fifth name on
+ * either side fails here, which is the moment to decide rather than the moment
+ * to notice.
+ */
+test("the verbs `apply` will not carry are exactly the four it documents", () => {
+  // The `op` tag of every arm of a union, read off the schemas rather than
+  // listed here — a list would be a third thing to keep in step with the two
+  // this is about. `Schema.Literal` carries `literal`; `Schema.Literals` (the
+  // three marks, which share one request) carries `literals`.
+  const opsOf = (union: unknown): ReadonlyArray<string> =>
+    (union as { members: ReadonlyArray<{ fields: { op: unknown } }> }).members
+      .flatMap((member) => {
+        const op = member.fields.op as {
+          literal?: string
+          literals?: ReadonlyArray<string>
+        }
+        return op.literals ?? [op.literal as string]
+      })
+
+  const every = new Set(opsOf(WriteRequest))
+  const batched = new Set(
+    opsOf((ApplyRequest.fields.ops as unknown as { value: unknown }).value),
+  )
+  expect([...every].filter((op) => !batched.has(op)).sort())
+    .toEqual(["apply", "create", "create-doc", "doc"])
+  // …and nothing is batchable that is not a write at all.
+  expect([...batched].filter((op) => !every.has(op))).toEqual([])
 })
