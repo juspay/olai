@@ -63,7 +63,12 @@ import {
   storedMarker,
 } from "./derive.ts"
 import { fileKind } from "./kinds.ts"
-import { isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
+import {
+  isArchived,
+  isMirror,
+  type LocatedRegular,
+  type RegularNode,
+} from "./node.ts"
 import { byPath } from "./paths.ts"
 
 /** How many characters of an ISO value name the day, and the month. A
@@ -179,22 +184,36 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
  * field to carry a date or a mark — so a node on the 10th is on the 10th once,
  * however many places it is shown.
  *
- * The ARCHIVE is not excluded, and that is a decision rather than an omission
- * (resolved 2026-08-11, human). Blockedness exempts archived work at both ends
- * because nothing can be waiting on something that is over (./derive.ts) — a
- * journal asks a different question. It asks what happened, and archiving is
- * what people do with work AFTER they finish it, so a day that dropped the
- * archived half would be a record of the day with its ending torn out. The
- * node is still under `Archive.olai` when the day draws it, and the day view
- * groups by file, so the reader is told where it lives by the same heading
- * that tells them about every other row.
+ * THE ARCHIVE IS EXCLUDED, and this is the one place that says so for every
+ * date reading there is (ruled 2026-08-17, human, reversing 2026-08-11): what
+ * was put away is drawn on the TRASH PAGE AND NOWHERE ELSE. The earlier rule
+ * kept archived work on the day it happened — a journal asks what happened, and
+ * archiving is what people do with work after they finish it — and what that
+ * cost in practice was the other half of the sentence: a day and the agenda
+ * went on drawing rows a reader had already swept off the page, under an
+ * `Archive.olai` heading that explained where they lived without explaining why
+ * they were still there. Putting something away is that reader saying they are
+ * done looking at it, and the trash is where it is looked at again.
+ *
+ * ONE EXCLUSION, HERE, because there is one walk: the day page, the calendar's
+ * dots and the agenda's three sections ({@link datedByDay}, {@link datedDays},
+ * ./agenda.ts) are all readings of this list, so a rule spelled here cannot
+ * come to mean something different on one of them.
+ *
+ * What it does NOT touch is the grammar: `is:archived` still selects archived
+ * nodes at every door, including a `date:` clause beside it, because that
+ * reading asks {@link datesOf} of a record rather than asking this for a day
+ * (./filter.ts). The default presence is what was taken away; the reachability
+ * was not (docs/search.md).
  */
 const datedNodes = (derived: Derived): ReadonlyArray<Dated> =>
   derived.nodes.flatMap((located) =>
-    isMirror(located.node) ? [] : datesOf(located.node).map((dated) => ({
-      at: located as LocatedRegular,
-      ...dated,
-    }))
+    isMirror(located.node) || isArchived(located.file)
+      ? []
+      : datesOf(located.node).map((dated) => ({
+        at: located as LocatedRegular,
+        ...dated,
+      }))
   )
 
 /**

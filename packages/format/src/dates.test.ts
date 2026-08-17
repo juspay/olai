@@ -260,23 +260,39 @@ test("two records claiming one id are two rows, not one", () => {
   expect(idsOf(duplicated, "2026-08-11")).toEqual(["dup", "dup"])
 })
 
-// Work that was put away is still work that happened. Blockedness exempts the
-// archive at both ends — nothing waits on what is over — and a journal asks the
-// other question, so the exemption does not carry across (resolved 2026-08-11,
-// human). The `Archive.olai` heading on the group is what tells the reader
-// where the row lives.
-test("an archived node keeps the day its mark was dated", () => {
+// Work that was put away leaves the journal with it (ruled 2026-08-17, human,
+// reversing 2026-08-11): what is archived is drawn on the TRASH PAGE and
+// nowhere else. The day, the calendar's dot and the agenda read this one walk,
+// so the rule reaches all three at once — and `is:archived` is what still
+// reaches the node itself, at every door (./filter.ts).
+test("an archived node is on no day, and lights no day in the calendar", () => {
   const archived = derive(
     nodesOfFiles({
       "Archive.olai":
         `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
     }),
   )
-  expect(idsOf(archived, "2026-08-11")).toEqual(["deck"])
-  expect(datedOn(archived, "2026-08-11").map((group) => group.file)).toEqual([
-    "Archive.olai",
+  expect(idsOf(archived, "2026-08-11")).toEqual([])
+  expect(datedOn(archived, "2026-08-11")).toEqual([])
+  expect(datedDays(archived, "2026-08").has("2026-08-11")).toBe(false)
+})
+
+// The other half of the same rule: what a day loses is the archived rows and
+// nothing beside them. A live outline goes on answering for the day it shares
+// with an archive, heading and all.
+test("the live outline keeps the day the archive was taken off", () => {
+  const beside = derive(
+    nodesOfFiles({
+      "Archive.olai":
+        `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
+      "work.olai": `{"id":"rails","ord":"a0","title":"paint the rails","date":"2026-08-11"}`,
+    }),
+  )
+  expect(idsOf(beside, "2026-08-11")).toEqual(["rails"])
+  expect(datedOn(beside, "2026-08-11").map((group) => group.file)).toEqual([
+    "work.olai",
   ])
-  expect(datedDays(archived, "2026-08").has("2026-08-11")).toBe(true)
+  expect(datedDays(beside, "2026-08").has("2026-08-11")).toBe(true)
 })
 
 // A mirror is a second PLACEMENT of a node, and the format gives it no field

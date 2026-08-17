@@ -902,10 +902,11 @@ test("what was put away stays put away until it is asked for", () => {
 
 /**
  * ...unless the caller's scope IS what was put away, which is the one door that
- * says so: the filter over a page, on a page that is already drawing archived
- * rows (the trash, and a day that collects one). The default is a rule about
- * searching a DIRECTORY; a page has decided already, and a matcher overruling
- * it takes rows off a screen with nothing to read the absence by.
+ * says so: the filter over the TRASH, the one page that draws archived rows
+ * (ruled 2026-08-17 — a day and the agenda drew them until then). The default
+ * is a rule about searching a DIRECTORY; that page has decided already, and a
+ * matcher overruling it takes every row off a screen with nothing to read the
+ * absence by.
  */
 test("a scope that is already the archive is answered rather than overruled", () => {
   const home = parseFilter("#home", TODAY)
@@ -1087,10 +1088,10 @@ const listed = (groups: ReadonlyArray<DayGroup>): ReadonlyArray<string> =>
 
 const onDay = (day: string): ReadonlyArray<DayGroup> => datedOn(derived, day)
 
+/** The ids a query selects for a DAY's filter — no archive scope, because a day
+ *  draws none of it (./dates.ts). */
 const idsOf = (text: string): ReadonlySet<string> =>
-  new Set(matching(derived, parseFilter(text, TODAY), { archived: true }).map(
-    ({ at }) => at.node.id,
-  ))
+  new Set(matching(derived, parseFilter(text, TODAY)).map(({ at }) => at.node.id))
 
 test("a filtered day keeps what matched and nothing as context", () => {
   const tenth = onDay("2026-08-10")
@@ -1107,6 +1108,14 @@ test("an outline with nothing left is not a heading over no rows", () => {
   const tenth = onDay("2026-08-10")
   expect(tenth.map((group) => group.file)).toEqual(["house.olai"])
   expect(keepingDated(tenth, idsOf("nothing-is-called-this"))).toEqual([])
+})
+
+// The two halves of the 2026-08-17 ruling, side by side: `gone` was finished on
+// the 1st of June and then put away, so the day it happened on draws nothing —
+// and the operator that names the archive still answers with it, from any door.
+test("a day draws none of the archive, and `is:archived` still reaches it", () => {
+  expect(onDay("2026-06-01")).toEqual([])
+  expect(selects("is:archived")).toEqual(["gone"])
 })
 
 test("how many rows a day draws is how many entries it holds, not how many files", () => {

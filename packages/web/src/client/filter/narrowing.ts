@@ -25,12 +25,12 @@
  * nodes are out of every reading unless a query says `is:archived`
  * (docs/search.md), because the doors that rule is written for are searching
  * the DIRECTORY. This door is not: it tests the rows in front of somebody, and
- * some of the pages it runs on draw archived nodes for reasons of their own —
- * the trash IS the archive, and a day and the agenda collect dated nodes
- * wherever they were filed. Asked of the page's OWN ROWS ({@link showsArchived})
- * rather than of its kind, so it cannot come to disagree with what is on
- * screen, and so the commonest page — an outline, which never draws one —
- * does not scan the one file in a directory that only ever grows.
+ * the TRASH is the page that draws what was put away — applying the default
+ * there would take away every row and leave the reader nothing to read the
+ * absence by. A day and the agenda were the other two until 2026-08-17, when
+ * the human ruled that what is put away is drawn on the trash and nowhere else
+ * (`@olai/format`'s `dates.ts` is where they stopped drawing it), and the
+ * question here narrowed with them ({@link showsArchived}).
  *
  * The ORDER of the two prunings is the decision worth naming: done-hidden goes
  * FIRST. It is a standing claim about the reader ("I do not want to look at
@@ -210,54 +210,50 @@ const narrowed = (drawn: Drawn, matched: ReadonlySet<string>): Drawn => {
 /**
  * Is the page in front of the reader drawing anything that was PUT AWAY?
  *
- * Asked of the page's own rows rather than of its KIND, so it cannot come to
- * disagree with what is on screen. A day and the agenda collect dated nodes
- * wherever they were filed, archive included (`@olai/format`'s `dates.ts` says
- * why, and `agenda.ts` follows it); the trash is made of archives; a tree page
- * draws one outline, and an archive's own address opens the trash instead
- * (`../page.ts`) — except by a zoom onto an archived node, which answers for
- * itself here rather than being ruled out.
+ * TWO PAGES CAN BE, and after the 2026-08-17 ruling that is the whole list. The
+ * TRASH is the archive, every group of it — so the answer is its kind and not a
+ * scan, because a trash drawing no archived row is a trash drawing no row. And
+ * a TREE can be one node's: `/n/<id>` on a node somebody put away, which is
+ * exactly where an `is:archived` hit lands when it is clicked (docs/search.md —
+ * the ruling took away the default presence, not the reachability). An outline
+ * never holds one, since an archive's own address opens the trash instead
+ * (`../page.ts`).
  *
- * The GROUPS and the ROOTS, never a walk: a heading names its file, and a row
- * shows a record that names one. A pile nested under a live row is not reached,
- * and that is the honest bound — this runs per keystroke and the answer it
- * feeds is a default, not a permission.
+ * A DAY AND THE AGENDA ANSWER NO, and they answer it by construction rather
+ * than by a rule kept here: the walk those pages are built from leaves archived
+ * nodes out (`@olai/format`'s `dates.ts`), so there is nothing on either of
+ * them for this to find. Left as arms of the switch rather than folded into a
+ * default, because a page kind that starts drawing archived rows should have to
+ * come back here and say so.
  *
- * WHAT IT DECIDES IS THE CANDIDATE SET, AND THE COST IS WHOLE-ARCHIVE, which
- * is worth stating rather than leaving to be discovered. `true` puts every
+ * The tree arm reads the ROOTS, never a walk: a row shows a record that names a
+ * file, and a zoom is inside one file the whole way down. That is the honest
+ * bound — this runs per keystroke, and what it feeds is a default rather than a
+ * permission.
+ *
+ * WHAT IT DECIDES IS THE CANDIDATE SET, AND THE COST IS WHOLE-ARCHIVE, which is
+ * worth stating rather than leaving to be discovered. `true` puts every
  * archived node in the directory in front of the matcher — not only the ones
- * this page could draw — so a day holding ONE archived row pays for the whole
- * archive, and the rows that match somewhere else are then dropped by the
- * prune. That is not a leak in this reading, it is how the door already works
- * for every other node: it matches over the SET and narrows by the PAGE
- * ({@link narrowed}), which is what lets a mirror of a node in another file
- * stay drawn where it is placed. Scoping the candidates by file would break
- * exactly that, and a day and the agenda have no file to be scoped to. So what
- * this buys is the pages that draw NONE — every outline, which is the page
- * somebody types on all day — paying nothing for a file that only ever grows;
- * it does not make the scan cheaper for the pages that draw one.
+ * this page could draw — and the rows that match somewhere else are then
+ * dropped by the prune. That is not a leak in this reading, it is how the door
+ * already works for every other node: it matches over the SET and narrows by
+ * the PAGE ({@link narrowed}), which is what lets a mirror of a node in another
+ * file stay drawn where it is placed. What asking buys is the pages that draw
+ * NONE — every outline, which is the page somebody types on all day — paying
+ * nothing for a file that only ever grows.
  */
 const showsArchived = (drawn: Drawn): boolean => {
   switch (drawn.kind) {
+    case "trash":
+      return true
     case "tree":
       return drawn.rows.some((row) => isArchived(shownRecord(row).file))
     case "day":
-      return drawn.groups.some(fromArchive)
     case "agenda":
-      return drawn.agenda.overdue.some(fromArchive) ||
-        drawn.agenda.today.some(fromArchive) ||
-        drawn.agenda.upcoming.some((day) => day.groups.some(fromArchive))
-    case "trash":
-      return drawn.groups.some(fromArchive)
     case "none":
       return false
   }
 }
-
-/** A heading that names an archive — the one thing a day group and a trash
- *  group have in common, which is the file they are drawn under. */
-const fromArchive = (group: { readonly file: string }): boolean =>
-  isArchived(group.file)
 
 const keepingArchives = (
   groups: ReadonlyArray<TrashGroup>,

@@ -24,7 +24,9 @@ import {
   derive,
   type Row,
   rowsOf,
+  rowsUnder,
   withoutDone,
+  zoom,
 } from "@olai/format"
 import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
@@ -43,10 +45,11 @@ const derived = derive(nodesOfFiles({
     `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":true,"date":"2026-08-14"}`,
   ].join("\n"),
   // What was put away — the trash's own page, and the one reading whose rows a
-  // query would otherwise refuse to look at. `shims` is DATED, which is what
-  // puts an archived row on the other two pages that draw one: a day keeps the
-  // work that was put away after it happened (`@olai/format`'s `dates.ts`) and
-  // the agenda reads those same dates forward.
+  // query would otherwise refuse to look at. `shims` is DATED on purpose, and
+  // what it proves is now an ABSENCE: a day and the agenda collect dates out of
+  // a walk that leaves the archive out (`@olai/format`'s `dates.ts`, ruled
+  // 2026-08-17), so this row reaches neither page and the trash is where it is
+  // read.
   "Archive.olai": [
     `{"id":"old-kitchen","ord":"a0","title":"kitchen remodel #home"}`,
     `{"id":"tiles","parent":"old-kitchen","ord":"a0","title":"choose the tiles","todo":true}`,
@@ -165,13 +168,13 @@ const dayOf = (date: string, notes: ReadonlyArray<string> = []): Drawn => ({
 // one keeps nothing as context: what is left is exactly what matched.
 test("a day keeps the rows that matched, and drops the outline that has none", () => {
   const whole = dayOf("2026-08-14")
-  // The archive first, in path order — a day collects dated nodes wherever they
-  // were filed, and `shims` was put away after somebody scheduled it.
-  expect(datedIds(whole)).toEqual(["shims", "order", "hinges"])
+  // `shims` is dated the 14th and was put away, so it is on neither of these
+  // pages any more (the test below is the claim; this is the count it changes).
+  expect(datedIds(whole)).toEqual(["order", "hinges"])
 
   const reading = narrowing(whole, "hinges")
   expect(reading.shown()).toBe(1)
-  expect(reading.total()).toBe(3)
+  expect(reading.total()).toBe(2)
   expect(datedIds(reading.drawn())).toEqual(["hinges"])
 
   // Nothing on the day matched, so the outline that held both rows goes with
@@ -180,37 +183,36 @@ test("a day keeps the rows that matched, and drops the outline that has none", (
   const none = narrowing(whole, "bathroom")
   expect(groupsIn(none.drawn())).toEqual([])
   expect(none.shown()).toBe(0)
-  expect(none.total()).toBe(3)
+  expect(none.total()).toBe(2)
 })
 
 /**
- * The archive on a page that is not the trash.
+ * The archive on a page that is not the trash: there is none to find.
  *
- * The rule the matcher keeps — archived nodes are out unless a query says
- * `is:archived` — would take this row off a page that has already decided to
- * draw it, and the reader would have nothing to read the absence by. So the
- * flag is read off what the page SHOWS, and here it is a day whose only
- * archived row is one the format put there.
+ * The 2026-08-17 ruling, read from the filter's side. `shims` is an archived
+ * node dated the 14th, and it is off the day and off the agenda before a query
+ * is typed (`@olai/format`'s `dates.ts`) — so the flag this file used to set for
+ * those two pages has nothing left to be true about, and the operator that
+ * reaches the archive from anywhere reaches nothing HERE, because a filter
+ * narrows the page rather than re-asking its question.
  */
-test("a plain word finds the archived row a day is already drawing", () => {
+test("a day draws no archived row, so no query finds one on it", () => {
   const whole = dayOf("2026-08-14")
-  const found = narrowing(whole, "shims")
-  expect(datedIds(found.drawn())).toEqual(["shims"])
-  expect(found.shown()).toBe(1)
-  // ...and the operator still takes it back out, which is the other half of the
-  // claim: the archive is IN this reading rather than exempt from the grammar.
-  const live = narrowing(whole, "-is:archived")
-  expect(datedIds(live.drawn())).toEqual(["order", "hinges"])
-  expect(narrowing(whole, "is:archived").shown()).toBe(1)
+  expect(narrowing(whole, "shims").shown()).toBe(0)
+  expect(datedIds(narrowing(whole, "shims").drawn())).toEqual([])
+  // The operator says the same thing from either side: nothing to select, and
+  // nothing for its negation to take away.
+  expect(narrowing(whole, "is:archived").shown()).toBe(0)
+  expect(datedIds(narrowing(whole, "-is:archived").drawn()))
+    .toEqual(["order", "hinges"])
 })
 
 test("the agenda answers the same way, over the dates read forward", () => {
   const forward: Drawn = { kind: "agenda", agenda: agendaOf(derived, TODAY) }
-  expect(datedIds(forward)).toEqual(["shims", "order", "hinges"])
+  expect(datedIds(forward)).toEqual(["order", "hinges"])
 
-  const found = narrowing(forward, "shims")
-  expect(datedIds(found.drawn())).toEqual(["shims"])
-  expect(found.shown()).toBe(1)
+  expect(narrowing(forward, "shims").shown()).toBe(0)
+  expect(narrowing(forward, "is:archived").shown()).toBe(0)
   expect(datedIds(narrowing(forward, "-is:archived").drawn()))
     .toEqual(["order", "hinges"])
 })
@@ -238,18 +240,21 @@ const agenda: Agenda = agendaOf(derived, TODAY)
 const owed: Drawn = { kind: "agenda", agenda }
 
 test("the agenda narrows section by section, and counts every row it draws", () => {
-  // Everything dated the 14th slipped, and none of it is finished — including
-  // the archived one, which the agenda keeps for the reason the day does.
+  // Everything dated the 14th slipped, and none of it is finished — except the
+  // archived one, which is on no section at all now that what was put away is
+  // the trash's alone.
   expect(agenda.overdue.flatMap((group) => group.nodes.map((one) => one.shows.node.id)))
-    .toEqual(["shims", "order", "hinges"])
+    .toEqual(["order", "hinges"])
 
   const reading = narrowing(owed, "is:todo")
-  expect(reading.total()).toBe(3)
-  expect(reading.shown()).toBe(2)
+  expect(reading.total()).toBe(2)
+  expect(reading.shown()).toBe(1)
   const drawn = reading.drawn()
-  // Two outlines' worth of overdue rows, narrowed to the two that say `todo`.
-  expect(drawn.kind === "agenda" ? drawn.agenda.overdue.length : -1).toBe(2)
-  expect(datedIds(drawn)).toEqual(["shims", "hinges"])
+  // One outline's worth of overdue rows left, narrowed to the one that says
+  // `todo` — `order` is `doing`, and the archive is not here to be a second
+  // group.
+  expect(drawn.kind === "agenda" ? drawn.agenda.overdue.length : -1).toBe(1)
+  expect(datedIds(drawn)).toEqual(["hinges"])
 })
 
 // ── the trash, where a query would otherwise refuse to look ────────────
@@ -291,6 +296,24 @@ test("a tree page draws nothing more for the archive being in scope", () => {
   const reading = page("is:archived")
   expect(rowsIn(reading)).toEqual([])
   expect(reading.shown()).toBe(0)
+})
+
+// The OTHER tree, and the reason that arm survived the ruling: `/n/<id>` on a
+// node somebody put away is a tree whose rows are archived, and it is exactly
+// where an `is:archived` hit lands when a reader clicks it (docs/search.md —
+// what was taken away is the default presence, never the reachability). A
+// matcher applying the default there would empty a page the reader asked for
+// by name.
+test("a zoom onto an archived node is searched like the pile it is in", () => {
+  const zoomed = zoom(derived, "old-kitchen")
+  const inArchive: Drawn = {
+    kind: "tree",
+    rows: zoomed.kind === "node" ? rowsUnder(derived, zoomed.shows, zoomed.trail) : [],
+  }
+  const reading = narrowing(inArchive, "grout")
+  expect(flat(rowsIn(reading))).toEqual(["grout"])
+  expect(reading.shown()).toBe(1)
+  expect(narrowing(inArchive, "is:archived").shown()).toBe(3)
 })
 
 // ── a page a filter has nothing to narrow ──────────────────────────────

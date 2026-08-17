@@ -126,11 +126,17 @@ export const UPCOMING_DAYS = 7
 /**
  * The agenda: one reading of the whole set, at `today`.
  *
- * The ARCHIVE is not excluded, for the reason a day page does not exclude it
- * (./dates.ts): blockedness exempts archived work because nothing can wait on
- * work that is over, and this is asking the other question — a node that says
- * `todo` and names a day still says both of those things wherever it was filed,
- * and the group heading says which file that was.
+ * The ARCHIVE is out of it, and not by a rule of this module's: what is owed is
+ * read out of the same bucketed walk a day page is (./dates.ts), and that walk
+ * leaves archived nodes out for every reading built on it (ruled 2026-08-17,
+ * human — what was put away is drawn on the trash page and nowhere else). It is
+ * inherited rather than restated for the reason every other date question here
+ * is: two spellings of "which nodes have days" would be two chances for the
+ * agenda and the day page it links to to disagree about the same node.
+ *
+ * So a task put away after somebody scheduled it stops being owed. That is the
+ * ruling in one sentence — archiving is a reader saying they are done looking
+ * at something, and a page that went on asking them for it would be arguing.
  */
 export const agendaOf = (derived: Derived, today: string): Agenda => {
   // ONE walk over the set, for all three sections and every day in the third:

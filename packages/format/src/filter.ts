@@ -989,18 +989,16 @@ export interface Scope {
    *
    * The default is the grammar's own rule — archived nodes are out of every
    * reading unless the query says `is:archived` (docs/search.md) — because the
-   * three doors that leave it alone are asking about the DIRECTORY, where an
-   * archive is a place a reader has to name before they are shown it.
+   * doors that leave it alone are asking about the DIRECTORY, where an archive
+   * is a place a reader has to name before they are shown it.
    *
-   * `true` is for the door whose scope is a PAGE that is already showing them:
-   * the filter over the page tests the rows in front of somebody, and THREE of
-   * those pages draw archived nodes for reasons of their own — the trash IS the
-   * archive; a day collects every dated node wherever it was filed (./dates.ts,
-   * which decided that and says why); and the agenda reads those same dates
-   * forward under the same rule (./agenda.ts), so work that was put away after
-   * somebody scheduled it is still owed. There the default is not a default, it
-   * is this matcher overruling a page about what the page is showing, and the
-   * reader watching rows vanish has nothing to read it by.
+   * `true` is for THE TRASH, and now for nothing else: it is the one page that
+   * draws what was put away (ruled 2026-08-17, human; a day and the agenda used
+   * to, and ./dates.ts is where they stopped). The filter over that page tests
+   * the rows in front of somebody, and the trash IS the archive — a matcher
+   * applying the default there would take away every row and leave the reader
+   * nothing to read the absence by. The flag is that page saying what it is
+   * showing, never a permission to widen a search of the directory.
    */
   readonly archived?: boolean | undefined
 }

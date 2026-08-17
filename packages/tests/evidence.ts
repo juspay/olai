@@ -461,6 +461,86 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     await shot(page, "trash-filtered")
   },
 
+  /**
+   * The 2026-08-17 ruling, page by page: what is put away is drawn on the
+   * TRASH and nowhere else.
+   *
+   * `order the new cabinets` is `doing`, dated the 10th, and the one late thing
+   * in this vault — so one Move to Trash is enough to empty the agenda, take
+   * the row off its day, and quieten the mark in the directory column. The
+   * shots are the half a transcript cannot show (an agenda that says "Nothing
+   * is due." where a row was, with the entry beside it no longer on fire); the
+   * listings are the half a screenshot cannot (that the record is in the
+   * archive, with its date and its mark still on it, and that `is:archived`
+   * still finds it from a page drawing none of the archive).
+   */
+  "archived-only-in-trash": async (page) => {
+    await page.goto(`${BASE}/agenda`)
+    await page.locator(AGENDA_PAGE).first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  what is owed:\n${await listed(page, AGENDA_PAGE)}`)
+    console.log(`  the entry beside it: ${await owed(page)}`)
+    await shot(page, "agenda-before")
+
+    await page.goto(`${BASE}/d/2026-08-10`)
+    await page.locator(DAY_PAGE).first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  the 10th:\n${await listed(page, DAY_PAGE)}`)
+    await shot(page, "day-before")
+
+    // The gesture a person makes: the row's own menu, and the confirm that
+    // names how many rows go with it.
+    await page.goto(`${BASE}/o/house.olai`)
+    await page.locator('[data-testid="outline-tree"]').first().waitFor()
+    await openMenu(page, "order")
+    await page.locator('[data-testid="node-menu-panel"] >> text=Move to Trash').first().click()
+    await shot(page, "the-confirm-names-what-goes")
+    await page.locator('[data-testid="node-menu-panel"] >> text=Move to Trash').first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the record now reads: ${recordOf("order")}`)
+
+    await page.goto(`${BASE}/agenda`)
+    await page.locator(AGENDA_PAGE).first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  what is owed now:\n${await listed(page, AGENDA_PAGE)}`)
+    console.log(`  the page says: ${await said(page, '[data-testid="agenda-empty"]')}`)
+    console.log(`  the entry beside it: ${await owed(page)}`)
+    await shot(page, "agenda-after")
+
+    await page.goto(`${BASE}/d/2026-08-10`)
+    await page.locator(DAY_PAGE).first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  the 10th now:\n${await listed(page, DAY_PAGE)}`)
+    // Nothing archived is on this page for a query to find, which is the rule
+    // said from the filter's side: the box narrows the page rather than
+    // re-asking its question.
+    await narrow(page, "is:archived")
+    console.log(`  filtered by "is:archived": ${await said(page, FILTER_COUNT)}`)
+    await shot(page, "day-after")
+
+    await page.goto(`${BASE}/trash`)
+    await page.locator(TRASH_PAGE).first().waitFor()
+    await page.waitForTimeout(400)
+    console.log(`  and the one page that draws it:\n${await piled(page)}`)
+    await shot(page, "trash-holds-it")
+
+    // The other half of the ruling: what went is the DEFAULT presence, never
+    // the way to ask. The header's box is the same matcher, from any page.
+    await page.keyboard.press("Control+k")
+    await page.locator('[data-testid="palette-input"]').first().waitFor()
+    await page.locator('[data-testid="palette-input"]').first().fill("is:archived")
+    await page.waitForTimeout(600)
+    console.log(`  \`is:archived\` still answers with:`)
+    const hits = await page
+      .locator('[data-testid="palette-item"][data-id^="node-"]')
+      .allInnerTexts()
+    console.log(
+      hits.map((one) => `    ${one.replace(/\s+/g, " ").trim()}`).join("\n") ||
+        "    (nothing)",
+    )
+    await shot(page, "is-archived-still-finds-it")
+  },
+
   "a-fold-does-not-hide-a-match": async (page) => {
     // Folds are SUSPENDED while a filter is on: a collapse is a claim about the
     // tree the reader was reading, and honouring it inside a filtered tree would
