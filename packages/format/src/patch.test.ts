@@ -456,12 +456,11 @@ test("a record moved to another file takes its key to the end of the corpus", ()
 test("siblings in two files with one `ord` and one line break the same way", () => {
   // The tie `derive` never has to think about: it sorts a list already in
   // corpus order, so two records with the same `ord` on the same LINE keep the
-  // order they were walked in. A patcher merges what stayed with what arrived
-  // and has to say that out loud (`bySibling`) — and this is the only shape
-  // where saying it wrong is visible, which is why it is written by hand rather
-  // than left to a generator that reaches it three times in five hundred
-  // rounds. A parent in another file is a set the validator condemns and
-  // `derive` is written to answer over.
+  // order they were walked in. A patcher merges what STAYED with what ARRIVED
+  // and has to say that out loud (`bySibling`), which is why this is written by
+  // hand rather than left to a generator that reaches it three times in five
+  // hundred rounds. A parent in another file is a set the validator condemns
+  // and `derive` is written to answer over.
   const before: Corpus = {
     "a.olai": `{"id":"one","parent":"p","ord":"a","title":"first file"}`,
     "b.olai": `{"id":"two","parent":"p","ord":"a","title":"second file"}`,
@@ -470,11 +469,27 @@ test("siblings in two files with one `ord` and one line break the same way", () 
   const view = viewOf(before)
   expect(view.children.get("p")?.map((at) => at.node.id)).toEqual(["one", "two"])
 
-  const edited = `{"id":"two","parent":"p","ord":"a","title":"edited"}`
-  const next = patched(view, editing("b.olai", edited))
-  expect(next).toBeDefined()
-  same(next as Derived, viewOf({ ...before, "b.olai": edited }), () => "a tied sibling")
-  expect((next as Derived).children.get("p")?.map((at) => at.node.id)).toEqual(["one", "two"])
+  // BOTH DIRECTIONS, and only the second one is the test — grok's note on the
+  // first pass at this. Editing the LATER file leaves the merge already in
+  // corpus order (what stayed is `a.olai`'s, what arrives is `b.olai`'s), so it
+  // passes for a comparator that never looks at the file at all.
+  const later = `{"id":"two","parent":"p","ord":"a","title":"edited"}`
+  const afterLater = patched(view, editing("b.olai", later))
+  expect(afterLater).toBeDefined()
+  same(afterLater as Derived, viewOf({ ...before, "b.olai": later }), () => "the later file")
+  expect((afterLater as Derived).children.get("p")?.map((at) => at.node.id))
+    .toEqual(["one", "two"])
+
+  // Editing the EARLIER file is the one that bites: what stayed is `b.olai`'s
+  // record and what arrives is `a.olai`'s, so the merge is `[two, one]` and the
+  // `ord` and the line are both ties. Nothing but corpus order puts it back,
+  // which is exactly what `bySibling` adds to `byOrd`.
+  const earlier = `{"id":"one","parent":"p","ord":"a","title":"edited"}`
+  const afterEarlier = patched(view, editing("a.olai", earlier))
+  expect(afterEarlier).toBeDefined()
+  same(afterEarlier as Derived, viewOf({ ...before, "a.olai": earlier }), () => "the earlier file")
+  expect((afterEarlier as Derived).children.get("p")?.map((at) => at.node.id))
+    .toEqual(["one", "two"])
 })
 
 // ── files coming and going ─────────────────────────────────────────────
