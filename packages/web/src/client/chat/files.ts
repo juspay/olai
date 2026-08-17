@@ -37,6 +37,21 @@
  * re-sent the same paths does not mint one. Without that this would be once
  * per frame, which is a cache that misses exactly when it is asked.
  *
+ * ## The archives ARE offered, and that is a decision — not an oversight
+ *
+ * An `Archive.olai` is a file the directory serves, so it is in this list; the
+ * sidebar hides it behind the Trash and this does not (docs/chat.md). What a
+ * message may NAME is a different question from what a reader opens, and "what
+ * did we put away last month" is a fair thing to ask an agent.
+ *
+ * It is worth saying out loud because the OTHER completion in this app went the
+ * other way, and the two are one `grep` apart: the tag vocabulary
+ * (`../complete/tags.ts`) stopped counting archived nodes under the 2026-08-17
+ * ruling. Neither should be "harmonized" into the other. That one ranks the
+ * vocabulary of the set a reader is LOOKING at, where this one completes a path
+ * somebody is about to name in a sentence — and a path half-remembered reaches
+ * the agent as a file that is not there.
+ *
  * ## A prefix first and a substring second, which is not a score
  *
  * The same order `../complete/tags.ts` argues for, for the same reason: the

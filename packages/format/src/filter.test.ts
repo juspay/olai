@@ -1118,6 +1118,20 @@ test("a day draws none of the archive, and `is:archived` still reaches it", () =
   expect(selects("is:archived")).toEqual(["gone"])
 })
 
+// ...and the CONJUNCTION, which is the sentence docs/search.md actually makes
+// and the one neither half above can hold on its own. `date:` reads a record's
+// own dates (`datesOf`) where a day page reads the walk that drops the archive,
+// so the two clauses compose: `is:archived` opens the reading and `date:` finds
+// the day inside it. Pinned because the obvious "tidy-up" — gating `datesOf` on
+// the file the record sits in — kills this query while every test above stays
+// green.
+test("`is:archived` and `date:` compose over a day the page itself draws empty", () => {
+  expect(selects("is:archived date:2026-06-01")).toEqual(["gone"])
+  // Without the operator the same day selects nothing: the archive is out of
+  // the reading, not out of the record.
+  expect(selects("date:2026-06-01")).toEqual([])
+})
+
 test("how many rows a day draws is how many entries it holds, not how many files", () => {
   const third = onDay("2026-08-03")
   expect(third.map((group) => group.file)).toEqual(["house.olai"])

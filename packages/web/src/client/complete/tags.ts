@@ -72,6 +72,16 @@ const LIMIT = 8
  * WRITABLE, exactly as any word is — this list is what the set has used, never
  * what a title may say.
  *
+ * THE OTHER COMPLETION IN THIS APP GOES THE OTHER WAY ON PURPOSE, and the two
+ * are cross-referenced so that neither is "harmonized" into the other by
+ * somebody meeting one of them alone: the chat composer's `@` offers every file
+ * the directory serves, ARCHIVES INCLUDED (`../chat/files.ts`, argued in
+ * docs/chat.md). They differ because they complete different things. That one
+ * completes a PATH a person is about to name in a sentence — "what did we put
+ * away last month" is a fair thing to ask an agent, and a path half-remembered
+ * reaches it as a file that is not there. This one ranks the vocabulary of the
+ * set a reader is looking at, and what is put away is not in it.
+ *
  * ONE WALK PER DERIVATION, kept in a `WeakMap` keyed on the derivation itself.
  * The alternative — a memo in the component — walks the whole set again every
  * time a `TitleEditor` mounts, and one mounts per row the caret is moved to; a

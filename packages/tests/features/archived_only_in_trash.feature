@@ -8,12 +8,14 @@ Feature: What is put away is on the Trash and nowhere else
   meeting it: putting something away is saying you are done looking at it, and a
   page that keeps handing it back is arguing with the person who put it there.
 
-  So the rule is one door. **The Trash draws what was archived; no other page
-  does** — not a day, not the calendar's dots, not the agenda, not the count
-  beside it in the sidebar. Nothing on disk moves for that: the record keeps its
-  dates and its mark, Put back returns it to its days along with its outline,
-  and `is:archived` reaches it from every search box in the meantime. What was
-  taken away is the DEFAULT presence, never the way to ask.
+  So the rule is one PAGE — and pointedly not one door, because the doors are
+  the four ways to search and every one of them still reaches the archive when
+  a query names it. **The Trash draws what was archived; no other page does** —
+  not a day, not the calendar's dots, not the agenda, not the count beside it in
+  the sidebar. Nothing on disk moves for that: the record keeps its dates and
+  its mark, Put back returns it to its days along with its outline, and
+  `is:archived` reaches it from every search box in the meantime. What was taken
+  away is the DEFAULT presence, never the way to ask.
 
   These scenarios are that rule read once per page, over the vault the rest of
   the suite writes to: `order the new cabinets` is dated the 10th of August and

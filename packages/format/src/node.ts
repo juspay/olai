@@ -354,18 +354,37 @@ export const targetsOf = (
  *  field for it, and there is not going to be one, for the reason no derived
  *  state is stored. It lives here rather than in ./kinds.ts because it is a
  *  fact about ONE kind — which outline a directory puts its finished work in —
- *  and the registry holds only what every kind has an answer to. Five rules
- *  read it, and the census is kept because it is what makes the one spelling
- *  honest: the op that moves a subtree there; blockedness, which exempts what
- *  has been put away at both ends of an arrow (./derive.ts); ./changes.ts,
- *  which is what tells a cross-file move that landed here (*archived*) from one
- *  that did not (*moved*); ./dates.ts, which leaves the archive out of every
- *  date reading, because what was put away is drawn on the trash page and
- *  nowhere else (ruled 2026-08-17); and, one package up, `@olai/web`'s tag
- *  vocabulary, whose count is a promise about rows the same ruling made. Two
- *  spellings would be two answers about the same file — and the commit-message
- *  reader makes that permanent, since a subject cannot be corrected after the
- *  fact. */
+ *  and the registry holds only what every kind has an answer to.
+ *
+ *  THE CENSUS IS KEPT because it is what makes the one spelling honest, and it
+ *  is longer than it looks — nine rules in three packages, which is exactly why
+ *  none of them may re-derive the name:
+ *
+ *    - `@olai/ops` — the op that MOVES a subtree there, and `unarchive`'s
+ *      rules about what may come back out and where it lands;
+ *    - ./derive.ts — blockedness, which exempts what has been put away at both
+ *      ends of an arrow, so archived work holds nothing up and nothing holds
+ *      it up;
+ *    - ./changes.ts — what tells a cross-file move that landed here
+ *      (*archived*) from one that did not (*moved*);
+ *    - ./dates.ts — the walk every date reading is built from, which leaves
+ *      the archive out because what was put away is drawn on the trash page
+ *      and nowhere else (ruled 2026-08-17);
+ *    - ./filter.ts, twice — the `is:archived` clause, which is how a query
+ *      NAMES the archive, and the default one node up that keeps it out of
+ *      every reading that did not;
+ *    - `@olai/web`, four times, all of them the same ruling read on a screen:
+ *      an archive's own address opens the TRASH rather than an editable tree
+ *      (`page.ts`, which also skips archives when `/` picks a first outline);
+ *      the sidebar's file tree does not list one (`Sidebar.tsx`), because the
+ *      Trash entry at the foot of the column is where they are read; the
+ *      filter widens its scope only on a page already drawing archived rows
+ *      (`filter/narrowing.ts`); and the tag vocabulary does not count them
+ *      (`complete/tags.ts`), because that count is a promise about rows.
+ *
+ *  Two spellings would be two answers about the same file — and the
+ *  commit-message reader makes that permanent, since a subject cannot be
+ *  corrected after the fact. */
 export const ARCHIVE = `Archive${OUTLINE_EXT}`
 
 export const isArchived = (file: string): boolean =>

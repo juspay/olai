@@ -406,3 +406,53 @@ test("hiding finished work does not take the archive out of a zoom's scope", () 
   expect(reading.shown()).toBe(0)
   expect(reading.hiddenAsDone()).toBe(2)
 })
+
+/**
+ * The flat pages answer NO about the archive — pinned here, where the arms are.
+ *
+ * `showsArchived`'s `day` and `agenda` arms are `false` because the walk those
+ * pages are built from leaves the archive out (`@olai/format`'s `dates.ts`), so
+ * the format can no longer produce a day group under an `Archive.olai` heading
+ * — which is exactly why the fixture below is built BY HAND. Handed the page
+ * the old rule would have drawn, the arms still refuse to widen the matcher's
+ * scope: the archive is out of the reading because a page's own rows are not a
+ * licence to search the directory's, and the row that survived the format is
+ * not selected.
+ *
+ * Without this, both arms are unfalsifiable from outside — every real day and
+ * agenda now draws no archived row, so a regression that restored the scan
+ * (`drawn.groups.some(fromArchive)`) would go unnoticed until somebody typed a
+ * word on a page nobody can build any more.
+ */
+const putAwayOnADay = (): DayGroup => {
+  const shims = zoom(derived, "shims")
+  if (shims.kind !== "node") throw new Error("the fixture's archive lost `shims`")
+  return {
+    file: "Archive.olai",
+    nodes: [{ ...shims, occasion: "date", date: "2026-08-14" }],
+  }
+}
+
+test("a day handed an archived row still does not widen the scope", () => {
+  const drawn: Drawn = { kind: "day", groups: [putAwayOnADay()], notes: [] }
+  const reading = narrowing(drawn, "shims")
+  expect(reading.shown()).toBe(0)
+  expect(datedIds(reading.drawn())).toEqual([])
+  // The operator is the door that still opens: it names the archive, so it does
+  // not need the page's permission.
+  expect(narrowing(drawn, "is:archived").shown()).toBe(1)
+})
+
+test("the agenda handed one does not either, in any of its three sections", () => {
+  const group = putAwayOnADay()
+  const sections: ReadonlyArray<Agenda> = [
+    { overdue: [group], today: [], upcoming: [] },
+    { overdue: [], today: [group], upcoming: [] },
+    { overdue: [], today: [], upcoming: [{ date: "2026-08-14", groups: [group] }] },
+  ]
+  for (const agenda of sections) {
+    const reading = narrowing({ kind: "agenda", agenda }, "shims")
+    expect(reading.shown()).toBe(0)
+    expect(datedIds(reading.drawn())).toEqual([])
+  }
+})
