@@ -41,7 +41,7 @@
  * would make the preference mean two things depending on what else was typed.
  */
 
-import type { Derived, Refusal, Row } from "@olai/format"
+import type { Derived, Refusal } from "@olai/format"
 import {
   datedIn,
   isArchived,
@@ -52,6 +52,7 @@ import {
   matching,
   owedIn,
   parseFilter,
+  rowsIn,
   shownRecord,
 } from "@olai/format"
 import { type Accessor, createMemo } from "solid-js"
@@ -293,13 +294,13 @@ const keepingArchives = (
 const placesIn = (drawn: Drawn): number => {
   switch (drawn.kind) {
     case "tree":
-      return countRows(drawn.rows)
+      return rowsIn(drawn.rows)
     case "day":
       return datedIn(drawn.groups)
     case "agenda":
       return owedIn(drawn.agenda)
     case "trash":
-      return drawn.groups.reduce((total, group) => total + countRows(group.rows), 0)
+      return drawn.groups.reduce((total, group) => total + rowsIn(group.rows), 0)
     case "none":
       return 0
   }
@@ -335,6 +336,3 @@ const matchesIn = (drawn: Drawn, matched: ReadonlySet<string>): number => {
       return 0
   }
 }
-
-const countRows = (rows: ReadonlyArray<Row>): number =>
-  rows.reduce((total, row) => total + 1 + countRows(row.children), 0)

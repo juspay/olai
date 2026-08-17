@@ -1376,6 +1376,24 @@ export const matchedIn = (
   )
 
 /**
+ * How many places these rows ARE — the other half of "3 of 41".
+ *
+ * Here rather than beside the bar that prints it, and that is the whole reason
+ * it moved: the numerator is {@link matchedIn} and the denominator was a second
+ * recursion in the browser, so the day a `Row` kind arrives that is drawn and
+ * is not a place (or the reverse) the two were free to disagree about the same
+ * tree. It is the argument {@link datedIn} was moved down for one shape over,
+ * and the flat pages have had it since: one walk defines what a row is, and
+ * both numbers are asked of it.
+ *
+ * SUBTREES INCLUDED, because a filtered tree draws them: a match keeps what
+ * hangs under it, and a reader counting what is in front of them is counting
+ * every line of it.
+ */
+export const rowsIn = (rows: ReadonlyArray<Row>): number =>
+  rows.reduce((total, row) => total + 1 + rowsIn(row.children), 0)
+
+/**
  * The same day groups narrowed to what matched — {@link keeping} for the pages
  * that are a DATE QUESTION rather than a tree (a day, and each section of the
  * agenda).
