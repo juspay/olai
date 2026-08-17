@@ -54,7 +54,7 @@ A pane is a route: the same page (an outline, a zoom, a day, the agenda, the tra
 
 Exactly one pane is focused (a visible ring when there are two or more). Keyboard shortcuts, the palette and filter typing act on that pane. A plain click navigates the pane the link was in; Alt+click opens the target in the pane to the **right** (reusing one that is already there; Alt+Shift+click forces a new one). No rule targets "leftmost". Closing the second-to-last pane returns to a plain page. Below a minimum width a pane collapses to a labelled rail — collapse and close are different verbs. On a narrow screen the same list is a tab strip over one column.
 
-Panes are sibling views over the one store. Dragging a node from one pane to another is the outline's own `place`, and is not wired yet: the drag measures one page's rows (`web/src/client/pane/crossing.ts` is the named seam). Saved layouts (a node whose children restore a split) are a follow-up. The design as built is [brainstorming/second-pane.md](brainstorming/second-pane.md).
+Panes are sibling views over the one store. Dragging a node from one pane to another is the outline's own `place`, and is not wired yet: the drag measures one page's rows. Saved layouts (a node whose children restore a split) are a follow-up. The design as built is [brainstorming/second-pane.md](brainstorming/second-pane.md).
 
 ## Stack
 

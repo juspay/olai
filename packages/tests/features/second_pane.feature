@@ -96,3 +96,34 @@ Feature: The second pane
     And there are 1 panes
     And pane 1 is showing "/n/install"
     And there should be no page errors
+
+  Scenario: Tapping a tab switches the page, and closing it returns to a plain page
+    When I open the address "/s/o%2Fhouse.olai/n%2Finstall?f=1"
+    And I shrink the window to a phone
+    Then pane 1 is showing "/n/install"
+    When I tap pane tab 0
+    Then pane 0 is showing "/o/house.olai"
+    And pane 0 is focused
+    When I close the focused pane from the keyboard
+    Then there are 1 panes
+    And pane 0 is showing "/n/install"
+    And the address is exactly "/n/install"
+    And there should be no page errors
+
+  Scenario: Alt-click reuse expands a collapsed neighbour
+    Given I open the outline "house.olai"
+    When I alt-click the zoom of "install"
+    And I collapse pane 1 by dragging its divider
+    Then a pane rail is shown for pane 1
+    When I alt-click the zoom of "kitchen" in pane 0
+    Then there are 2 panes
+    And pane 1 is showing "/n/kitchen"
+    And pane 1 is focused
+    And no pane rail is shown
+
+  Scenario: On a lone page Alt+Right reaches the editor
+    Given I open the outline "house.olai"
+    When I click the title of "install"
+    And I press Alt+Right without the page claiming it
+    Then the row "install" holds the caret
+    And the address is exactly "/o/house.olai"

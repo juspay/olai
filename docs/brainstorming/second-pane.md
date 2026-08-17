@@ -27,7 +27,7 @@ Exactly one pane is focused. When there are two or more it wears a visible ring.
 - Alt+click on a bullet, breadcrumb or internal link opens it in the pane to the **right** — reusing that neighbour if it exists.
 - Alt+Shift+click forces a new pane immediately to the right.
 
-No rule ever targets "leftmost". A click in the sidebar or the palette has no pane around it, so it acts on the focused pane; Alt+click from there opens to the right of the focused pane.
+No rule ever targets "leftmost". A click in the sidebar or the palette has no pane around it, so it acts on the focused pane. Sidebar links are `<Link>`s, so Alt+click on one opens to the right of the focused pane. Palette rows and the header search box activate with `go` — they are not links, and they do not claim Alt.
 
 Ctrl/Cmd+click is still the browser's (a new tab). Alt is the one modifier this app claims, and it is claimed **beside** `ours`, not inside it — the seal that ships `ours` into a previewed page must not start intercepting a key the frame would have given to the browser.
 
@@ -40,13 +40,13 @@ Ctrl/Cmd+click is still the browser's (a new tab). Alt is the one modifier this 
 
 ## Drag between panes
 
-Panes are sibling components over the one store, so a drop from one tree into another is the outline's own `place`. The drag today measures **one page's** rows when the gesture begins (`edit/Editable.tsx` owns that lifetime). Crossing panes is a rewrite of that lifetime, not a hook — named at `web/src/client/pane/crossing.ts`. Until that rewrite, a row carried out of its pane has no landing.
+Panes are sibling components over the one store, so a drop from one tree into another is the outline's own `place`. The drag today measures **one page's** rows when the gesture begins (`edit/Editable.tsx` owns that lifetime). Crossing panes is a rewrite of that lifetime, not a hook. Until that rewrite, a row carried out of its pane has no landing.
 
 ## Previews and dismissal
 
 #219 freed document bodies from a shared watch set: interest is counted per path, so two panes showing two documents (or the same one) do not evict each other. Landing on a heading is **per pane** (`router.landing()` carries the index), so a document in the other pane is not yanked to a fragment it did not ask for.
 
-The dismissal stack and completion stay scoped per composer / per editor, the way they already were. A pane does not share a stack with its neighbour.
+The overlay stack stays **global**: one Escape, one top layer (`topmost.ts`). Completions stay per field, the way they already were. A pane does not get a stack of its own.
 
 ## Out of scope
 

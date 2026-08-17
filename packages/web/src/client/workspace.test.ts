@@ -185,6 +185,34 @@ test("reopening a reused right pane uncollapses it", () => {
   const reused = openRight(two, 0, garden)
   expect(isCollapsed(reused.panes[1]!)).toBe(false)
   expect(reused.panes[1]!.route).toEqual(garden)
+  // Not merely "width is not 0" — a cleared width next to a stored 1
+  // made flexOf give the reused pane nothing, so it stayed a rail.
+  expect(flexOf(reused.panes)[1]!).toBeGreaterThan(0)
+})
+
+test("an expanded sliver does not print as a collapsed rail", () => {
+  let ws = openRight(lone(house), 0, kitchen)
+  ws = resizeTo(ws, [0.996, 0.004])
+  expect(isCollapsed(ws.panes[1]!)).toBe(false)
+  const back = workspaceOf(hrefOfWorkspace(ws))
+  expect(isCollapsed(back.panes[1]!)).toBe(false)
+  expect(flexOf(back.panes)[1]!).toBeGreaterThan(0)
+})
+
+test("pathological w= is a kindness, not a throw", () => {
+  const two = "/s/o%2Fhouse.olai/n%2Fkitchen"
+  // Both zeros: nothing expanded to be a fraction of. Equal shares.
+  const allRails = workspaceOf(`${two}?w=0,0`)
+  expect(allRails.panes.length).toBe(2)
+  expect(allRails.panes.every((pane) => pane.width === undefined)).toBe(true)
+  // Junk beside a number: the junk is no share, the number is.
+  const junk = workspaceOf(`${two}?w=abc,50`)
+  expect(junk.panes[0]!.width).toBeUndefined()
+  expect(junk.panes[1]!.width).toBe(1)
+  // A negative is a rail, not a throw.
+  const neg = workspaceOf(`${two}?w=-10,50`)
+  expect(isCollapsed(neg.panes[0]!)).toBe(true)
+  expect(neg.panes[1]!.width).toBe(1)
 })
 
 test("reorder follows the moved pane when it was focused", () => {

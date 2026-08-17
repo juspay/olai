@@ -160,9 +160,12 @@ const sharesOf = (panes: readonly Pane[]): ReadonlyArray<number> => {
  *  Expanded panes that have no stored fraction share what is left
  *  equally, so a URL we write can be read back as the same shares. */
 const printWidths = (panes: readonly Pane[]): string => {
-  const percents = sharesOf(panes).map((fraction) =>
-    Math.max(0, Math.round(fraction * 100)),
-  )
+  const percents = sharesOf(panes).map((fraction) => {
+    if (fraction <= 0) return 0
+    // A sliver that rounds to 0 must not print as a rail: reload would
+    // collapse what the reader still had open. Floor of one percent.
+    return Math.max(1, Math.round(fraction * 100))
+  })
   // Rounding can leave the expanded total off 100 by a point; put the
   // remainder on the last expanded pane so a reload does not drift.
   const expandedIdx = percents
@@ -260,10 +263,17 @@ export const openRight = (
   const i = clampFocus(from, workspace.panes.length)
   const right = i + 1
   if (!forceNew && right < workspace.panes.length) {
+    const collapsed = workspace.panes[right]?.width === 0
     const panes = workspace.panes.map((pane, at) =>
-      at === right ? { ...pane, route, width: pane.width === 0 ? undefined : pane.width } : pane,
+      at === right ? { ...pane, route } : pane,
     )
-    return { panes, focus: right }
+    const reused = { panes, focus: right }
+    // A rail is still the neighbour to the right. Reuse writes the
+    // route and then EXPANDS — clearing width to `undefined` and
+    // leaving the others' stored fractions made flexOf give the
+    // reused pane `0`, so it stayed a rail that expandAt would
+    // refuse (width was no longer `0`).
+    return collapsed ? expandAt(reused, right) : reused
   }
   const born: Pane = { route }
   const panes = [

@@ -134,6 +134,46 @@ When("I shrink the window to a phone", async function (this: OlaiWorld) {
   await this.waitForFrame();
 });
 
+When("I tap pane tab {int}", async function (this: OlaiWorld, index: number) {
+  const tab = this.page.locator(`${PANE_TAB}[data-pane="${index}"]`);
+  await tab.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await tab.click();
+  await this.waitForFrame();
+});
+
+When("I close the focused pane from the keyboard", async function (this: OlaiWorld) {
+  // The header's × is desktop chrome. On a phone the same verb is the
+  // chord, and it is the one that must not throw after a tab switch.
+  await this.page.keyboard.press("Control+Shift+w");
+  await this.waitForFrame();
+});
+
+When(
+  "I press Alt+Right without the page claiming it",
+  async function (this: OlaiWorld) {
+    await this.page.evaluate(() => {
+      const onKey = (event: KeyboardEvent) => {
+        if (event.key !== "ArrowRight" || !event.altKey) return;
+        window.removeEventListener("keydown", onKey);
+        (window as unknown as { __claimed?: boolean }).__claimed =
+          event.defaultPrevented;
+      };
+      (window as unknown as { __claimed?: boolean }).__claimed = undefined;
+      window.addEventListener("keydown", onKey);
+    });
+    await this.page.keyboard.press("Alt+ArrowRight");
+    const claimed = await this.page.evaluate(
+      () => (window as unknown as { __claimed?: boolean }).__claimed,
+    );
+    assert.strictEqual(
+      claimed,
+      false,
+      "Alt+Right was preventDefaulted on a lone page",
+    );
+    await this.waitForFrame();
+  },
+);
+
 Then("there are {int} panes", async function (this: OlaiWorld, n: number) {
   await this.waitUntil(
     async () => (await this.page.locator(PANE).count()) === n,
@@ -175,6 +215,13 @@ Then("a pane rail is shown for pane {int}", async function (this: OlaiWorld, ind
   await this.page
     .locator(`${PANE_RAIL}[data-pane="${index}"]`)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("no pane rail is shown", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(PANE_RAIL).count()) === 0,
+    "no pane rail on screen",
+  );
 });
 
 Then("the pane tabs are shown", async function (this: OlaiWorld) {

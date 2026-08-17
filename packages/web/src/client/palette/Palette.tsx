@@ -86,6 +86,7 @@ import { type Said, useUndo } from "../edit/undoing.ts"
 import { applied, applying } from "../writes.ts"
 import { isEditingTarget, listKey, matchKey, paneKey } from "../keys.ts"
 import { useRouter } from "../router.tsx"
+import { isLone } from "../workspace.ts"
 import { Shortcuts } from "./Shortcuts.tsx"
 
 /**
@@ -513,7 +514,7 @@ export function Palette(props: {
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
       const pane = paneKey(event)
-      if (pane !== null) {
+      if (pane !== null && !isLone(router.workspace())) {
         event.preventDefault()
         router.stepFocus(pane === "focusLeft" ? -1 : 1)
         return

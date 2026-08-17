@@ -141,7 +141,14 @@ function Rendered(props: Reading) {
     if (land === undefined || land.index !== here() || !markdownReady()) return
     const id = landingId(text(), props.file, land.at)
     const frame = requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ block: "start" })
+      // Two panes of the SAME file mint the same heading ids. Look
+      // under THIS pane's root, not the first copy in document order.
+      const root = document.querySelector(
+        `[data-testid="${TESTID.pane}"][data-pane="${String(here())}"]`,
+      )
+      root?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({
+        block: "start",
+      })
     })
     onCleanup(() => cancelAnimationFrame(frame))
   })
