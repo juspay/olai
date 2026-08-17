@@ -49,6 +49,22 @@ test("date text is minted from parts, zero-padded", () => {
   expect(isoDate(2026, 12, 31)).toBe("2026-12-31")
 })
 
+// THE YEAR TOO, which is not pedantry about the first millennium: every reader
+// of this text is a four-digit regex, this module's own parsers included. A
+// step off the front of the year 1000 used to mint `999-12-31` — a value that
+// is neither a date nor an error, and one that comes back out of `shiftDay`
+// and straight into a `date:` bound.
+test("a year is four characters wherever this mints one", () => {
+  expect(isoDate(999, 12, 31)).toBe("0999-12-31")
+  expect(shiftDay("1000-01-01", -1)).toBe("0999-12-31")
+  expect(shiftMonth("1000-01", -1)).toBe("0999-12")
+  // …and what it mints, it can read back. That is the property the padding is
+  // for: nothing here answers with text its own parser refuses.
+  expect(isRealDay(shiftDay("1000-01-01", -1))).toBe(true)
+  expect(isMonth(shiftMonth("1000-01", -1))).toBe(true)
+  expect(daysOf(shiftMonth("1000-01", -1)).length).toBe(31)
+})
+
 // ── paging ─────────────────────────────────────────────────────────────
 
 test("paging crosses a year end without a special case", () => {

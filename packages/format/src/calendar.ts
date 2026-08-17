@@ -76,9 +76,22 @@ const parseDay = (date: string): Day | null => {
     : null
 }
 
-const pad = (value: number): string => String(value).padStart(2, "0")
+/** Zero-padded, and wide enough to be handed a year — ./stamp.ts's own helper,
+ *  spelled the same way for the same reason it is: a year is FOUR characters in
+ *  this format, and a number is not. */
+const pad = (value: number, width = 2): string => String(value).padStart(width, "0")
 
-const monthText = (year: number, month: number): string => `${year}-${pad(month)}`
+/** `YYYY-MM`, with the year padded.
+ *
+ *  THE YEAR IS PADDED because every reader of this text is a four-digit regex:
+ *  {@link parseMonth} and {@link parseDay} here, `isDay` and `noteDateOf` in
+ *  ./dates.ts, `datePart` in the query grammar. Unpadded, a step off the front
+ *  of the first millennium — `shiftDay("1000-01-01", -1)` — minted `999-12-31`,
+ *  a string this module's own parser then refuses, which is a value that is
+ *  neither a date nor an error. Two lines from a year nobody has, and a year
+ *  nobody has is exactly what an arithmetic module owes an answer about. */
+const monthText = (year: number, month: number): string =>
+  `${pad(year, 4)}-${pad(month)}`
 
 /** ISO date text from calendar parts. One spelling for the whole codebase —
  *  the grid mints dates, the browser's clock reads one off the machine, and

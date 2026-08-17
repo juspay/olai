@@ -243,9 +243,12 @@ export type Filter =
  * are really one: a function that read a clock could not be tested against a
  * boundary, and the day is a fact about WHO IS ASKING — the tab's own local
  * day for the filter the browser parses itself, the server's for the three
- * doors that ask it, and no door has two. The deferral this lifts
- * (docs/brainstorming/filter-in-place.md) named the price as "threading
- * `today` through the parse", and that is exactly what it cost.
+ * doors that ask it, and no door has two. Those two CAN differ — a tab across
+ * a time-zone boundary from the server has its own local day — and docs/
+ * search.md says why that is accepted rather than fixed by putting a clock on
+ * the wire. The deferral this lifts (docs/brainstorming/filter-in-place.md)
+ * named the price as "threading `today` through the parse", and that is
+ * exactly what it cost.
  *
  * CASE IS FOLDED FOR MATCHING AND NOT FOR QUOTING. The words and the operator
  * values are compared folded, so `is:DONE` and `#Home` work; a REFUSAL quotes
@@ -387,8 +390,24 @@ const RANGE = ".."
  * Three words rather than `this-day` and its family, because that is the shape
  * English already has: a person who means the day they are standing on says
  * `today`. The units below have no such words, so they take the prefixes.
+ *
+ * A MAP AND NOT AN OBJECT, here and for {@link RELATIVE_STEPS}, because the key
+ * is a WORD SOMEBODY TYPED. An object lookup answers for the prototype as well
+ * as for the table, with a value of the wrong kind: `date:constructor` came
+ * back with a function where a number of days was expected and minted a bound
+ * with that function's source text glued to the day, and `date:__proto__-week`
+ * came back with an object and minted `2026-08-NaN`. Both are a query that
+ * finds nothing and says nothing — the exact silence the refusal arm exists to
+ * prevent, since neither is a word this operator takes. `Map.get` answers for
+ * what was put in it and nothing else. The tables the grammar keys by its OWN
+ * values (the field weights, the operator names) are objects still; this is the
+ * distinction, not a new house style.
  */
-const RELATIVE_DAYS = { today: 0, yesterday: -1, tomorrow: 1 } as const
+const RELATIVE_DAYS: ReadonlyMap<string, number> = new Map([
+  ["today", 0],
+  ["yesterday", -1],
+  ["tomorrow", 1],
+])
 
 /** The units a `this-` / `last-` / `next-` word can name — the three the
  *  absolute grammar can already spell a WHOLE of (`2026-08` is a month,
@@ -404,8 +423,14 @@ type RelativeUnit = (typeof RELATIVE_UNITS)[number]
 const isUnit = (name: string): name is RelativeUnit =>
   (RELATIVE_UNITS as ReadonlyArray<string>).includes(name)
 
-/** How far each prefix steps, in whole units of whatever it is prefixing. */
-const RELATIVE_STEPS = { this: 0, last: -1, next: 1 } as const
+/** How far each prefix steps, in whole units of whatever it is prefixing. A
+ *  MAP for {@link RELATIVE_DAYS}' reason: `date:__proto__-week` is a token
+ *  somebody can type, and an object would have answered it. */
+const RELATIVE_STEPS: ReadonlyMap<string, number> = new Map([
+  ["this", 0],
+  ["last", -1],
+  ["next", 1],
+])
 
 /**
  * The vocabulary as a refusal says it: the day words listed, and the other
@@ -421,8 +446,8 @@ const RELATIVE_STEPS = { this: 0, last: -1, next: 1 } as const
  * Built from the tables above rather than written beside them, so a prefix or
  * a unit added to one teaches itself exactly as an `is:` value does.
  */
-const RELATIVE_TEACHING = `${Object.keys(RELATIVE_DAYS).join(", ")}, or ${
-  Object.keys(RELATIVE_STEPS).map((step) => `${step}-`).join(" / ")
+const RELATIVE_TEACHING = `${[...RELATIVE_DAYS.keys()].join(", ")}, or ${
+  [...RELATIVE_STEPS.keys()].map((step) => `${step}-`).join(" / ")
 } with ${RELATIVE_UNITS.join(", ")}`
 
 /** An inclusive span of days, both ends spelled out. What every `date:` value
@@ -482,7 +507,7 @@ export const relativeSpan = (word: string, now: string): Span | null => {
   const standing = weekdayOf(today)
   if (standing === null) return null
 
-  const near = RELATIVE_DAYS[word as keyof typeof RELATIVE_DAYS]
+  const near = RELATIVE_DAYS.get(word)
   if (near !== undefined) {
     const day = shiftDay(today, near)
     return { from: day, to: day }
@@ -490,7 +515,7 @@ export const relativeSpan = (word: string, now: string): Span | null => {
 
   const at = word.indexOf("-")
   if (at === -1) return null
-  const step = RELATIVE_STEPS[word.slice(0, at) as keyof typeof RELATIVE_STEPS]
+  const step = RELATIVE_STEPS.get(word.slice(0, at))
   const unit = word.slice(at + 1)
   if (step === undefined || !isUnit(unit)) return null
 

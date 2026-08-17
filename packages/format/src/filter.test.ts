@@ -283,6 +283,26 @@ test("a word the vocabulary does not hold resolves to nothing", () => {
   expect(relativeSpan("this-week", "2026-02-30")).toBeNull()
 })
 
+// THE VOCABULARY IS A MAP, AND THIS IS WHY. The key is a word somebody typed,
+// and an object would have answered for its prototype as well as for the table
+// — with a value of the wrong kind. `date:constructor` minted a bound with a
+// function's source text glued to the day; `date:__proto__-week` minted
+// `2026-08-NaN`. Both select nothing and say nothing, which is the exact
+// silence the refusal arm exists to prevent.
+test("a word the prototype answers for is not a word this vocabulary holds", () => {
+  for (const word of ["constructor", "__proto__", "toString", "valueOf", "hasOwnProperty"]) {
+    expect(relativeSpan(word, TODAY)).toBeNull()
+    expect(relativeSpan(`${word}-week`, TODAY)).toBeNull()
+    expect(relativeSpan(`this-${word}`, TODAY)).toBeNull()
+  }
+  // …and through the grammar, where it matters: REFUSED, in the words the
+  // operator takes, rather than answered with an empty page.
+  for (const token of ["date:constructor", "date:__proto__", "date:__proto__-week"]) {
+    expect(refusalsOf(token)?.map((one) => one.token)).toEqual([token])
+    expect(selects(token)).toEqual([])
+  }
+})
+
 // ...and the same words as a QUERY, over the corpus.
 
 test("a relative word selects the days it names", () => {
