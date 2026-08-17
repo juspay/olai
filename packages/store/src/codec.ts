@@ -29,6 +29,30 @@ import type { Result } from "effect"
 
 import type { PlatformFailure } from "./errors.ts"
 
+/**
+ * The last verdict, and what has moved since it — what makes the next
+ * validation a patch rather than a rebuild ({@link Codec.validate}).
+ *
+ * The two lists are the probe's own stamp diff ({@link ./probe.ts}), spanning
+ * every look at the disk since the value below was published rather than the
+ * last one alone: a probe whose set the codec refused published nothing, and
+ * the files it re-decoded are still what changed for whoever holds `value`.
+ * They are the same lists a snapshot carries for the consumer that publishes
+ * per file, arrived at from the same place, so a codec reading them is trusting
+ * exactly what the wire already trusts.
+ *
+ * A path may appear in BOTH — deleted out of band and written back by the same
+ * commit — so a reader applies the removals first and the changes after.
+ */
+export interface Since<S> {
+  /** What {@link Codec.validate} answered with, as published. */
+  readonly value: S
+  /** Re-decoded since then, and therefore possibly different. */
+  readonly changed: ReadonlyArray<string>
+  /** Gone from the listing since then. */
+  readonly removed: ReadonlyArray<string>
+}
+
 export interface Codec<F, S, E> {
   /** Which files under the root belong to the set. Paths are relative to the
    *  root and use `/`, so a codec's rules read the same on every platform. */
@@ -55,6 +79,19 @@ export interface Codec<F, S, E> {
   /**
    * The whole set, each file decoded or failed.
    *
+   * WHAT CAME BEFORE is the second argument, and it is an OFFER rather than an
+   * instruction: the value this codec last answered with, and every path that
+   * has moved since. A codec that can answer incrementally — swap one file's
+   * entries in its indexes and leave the rest standing — takes it; one that
+   * cannot ignores it and validates the map, and both are correct. Absent means
+   * there is nothing to build on: the first load, or a store whose last verdict
+   * was a refusal.
+   *
+   * The store is what can know this and the codec is what can use it. Nothing
+   * here looks inside `S`, so what "incrementally" means is entirely the
+   * codec's business ({@link ../../format/src/patch.ts} is olai's, and it holds
+   * itself to the from-scratch answer with a property test).
+   *
    * NO ORDER IS PROMISED, and the correction is one this package owed: it used
    * to say "in path order", which was true of the map a PROBE builds — the
    * walk is depth-first through sorted entries — and never true of the one the
@@ -67,7 +104,9 @@ export interface Codec<F, S, E> {
    */
   readonly validate: (
     files: ReadonlyMap<string, Result.Result<F, E>>,
+    since?: Since<S>,
   ) => Result.Result<S, E>
+
   /**
    * What "the directory itself could not be read" looks like in the caller's
    * own error vocabulary.

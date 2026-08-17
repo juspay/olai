@@ -19,6 +19,7 @@ import {
   bodyKind,
   type DecodedFile,
   fileKind,
+  nodesIn,
   type OutlineError,
   parseOutline,
   type Reading,
@@ -76,8 +77,34 @@ export const codec: Codec<DecodedFile, Reading, ReadonlyArray<OutlineError>> = {
    *  call here is the whole corpus derived and six whole-set rules run over it,
    *  so it used to be that walk twice per keystroke. The store states the
    *  property generically because it must; the argument for olai is
-   *  `docs/brainstorming/model-indices.md`, slice 2. */
-  validate: (files) => validate(assemble(files)),
+   *  `docs/brainstorming/model-indices.md`, slice 2.
+   *
+   *  AND THE DERIVATION IS NOW PATCHED, which is slice 3 of the same argument
+   *  and the whole of what this seam adds to it. The store says what it last
+   *  published and which paths have moved since; the format says what a set
+   *  means. Between them is one translation and no rule: each moved path, with
+   *  the records it decoded to, is an upsert, and the format's own patcher does
+   *  the rest — held to `derive` by a property test, and free to hand the whole
+   *  thing back to `derive` whenever it would rather. A corpus-sized walk per
+   *  keystroke becomes a walk of what the keystroke touched. */
+  validate: (files, since) =>
+    validate(
+      assemble(files),
+      since === undefined ? undefined : {
+        read: since.value,
+        // The paths the store names, read out of the very map `assemble` is
+        // reading — so the delta and the set it is about cannot be two
+        // different accounts of one directory. A path in both lists (deleted
+        // out of band, written back by this commit) is a remove the upsert
+        // then answers, which is the order a delta is applied in.
+        delta: {
+          upserts: since.changed.map(
+            (file) => [file, { nodes: nodesIn(files.get(file)) }] as const,
+          ),
+          removes: since.removed,
+        },
+      },
+    ),
 
   /** The store's own failure — the directory would not be listed, a file would
    *  not be read — said in the format's vocabulary, so it travels the channel
