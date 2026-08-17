@@ -363,8 +363,14 @@ export const targetsOf = (
  *  permanent, since a commit message cannot be corrected after the fact. */
 export const ARCHIVE = `Archive${OUTLINE_EXT}`
 
+/** {@link ARCHIVE} as it appears anywhere but the root — hoisted rather than
+ *  built inside {@link isArchived}, which is asked once per file per probe and
+ *  was minting this same string every time to throw it away. A constant folded
+ *  at module load says the same thing and allocates nothing. */
+const ARCHIVE_UNDER = `/${ARCHIVE}`
+
 export const isArchived = (file: string): boolean =>
-  file === ARCHIVE || file.endsWith(`/${ARCHIVE}`)
+  file === ARCHIVE || file.endsWith(ARCHIVE_UNDER)
 
 /** The archive that sits beside `file`: same directory, the one name above.
  *  `archive` writes there and `unarchive` reads back from there, and one

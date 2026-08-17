@@ -1,9 +1,10 @@
 /**
- * TWO RULES for taking a served file's suffix off, held side by side before
- * either of them moves.
+ * TWO RULES for taking a served file's suffix off, and the ONE they became —
+ * held side by side, so the merge is a table a reader can check rather than a
+ * claim they have to trust.
  *
- * `./message.ts` and `./dates.ts` each strip an extension, and each states the
- * opposite argument for how:
+ * `./message.ts` and `./dates.ts` each used to strip an extension, and each
+ * stated the opposite argument for how:
  *
  *   - `./message.ts`'s private `stemOf` SPELLS the suffix — `endsWith(OUTLINE_EXT)`,
  *     and a name that does not end in that one string is left exactly as it is;
@@ -12,26 +13,27 @@
  *     one does not leave this reading a name it has taken the wrong number of
  *     characters off".
  *
- * Both arguments are good and they are not the same function. Unifying them is
- * therefore a change that can silently move a caller, and this file is what
- * makes that impossible: the two rules are copied here VERBATIM, every input
- * they agree on is listed, every input they disagree on is listed WITH BOTH
- * ANSWERS, and each caller's REACHABLE domain is pinned through its own public
- * seam. A unification is then judged against a table rather than against a
- * reader's memory of two docstrings.
+ * Both arguments are good and they were not the same function. Merging them was
+ * therefore a change that could silently move a caller, so the two rules are
+ * copied here VERBATIM: every input they agree on is listed, every input they
+ * disagree on is listed WITH BOTH ANSWERS, and each caller's REACHABLE domain is
+ * pinned through its own public seam. The merge is then judged against a table
+ * rather than against a reader's memory of two docstrings.
  *
- * What the table says, once it is written out, is the thing worth knowing
- * before the merge: the two rules agree on OUTLINES and nowhere else. So
- * neither of them can simply absorb the other — `bySpelling` hands a daily
- * note back with `.md` still on it, and `byFinding` answers `READM` for
- * `README`. The rule that fits both callers is a THIRD one, and it is already
- * spelled in this package: take off the suffix the registry says claims this
- * file, and leave a file it claims nothing about alone. On an outline that is
- * `bySpelling`; on a document it is `byFinding`; and the names where the two
- * differ from it are exactly the names no caller passes.
+ * What the table says is the thing worth knowing: the two agree on OUTLINES and
+ * nowhere else, so neither could simply absorb the other. `bySpelling` hands a
+ * daily note back with `.md` still on it; `byFinding` answers `READM` for
+ * `README`, because `lastIndexOf(".")` of `-1` drops the last character rather
+ * than nothing. The rule that is right for both callers is a THIRD one, and the
+ * package already had the thing that knows it: take off the suffix the REGISTRY
+ * says claims this file, and leave a file it claims nothing about alone
+ * (`./kinds.ts`'s {@link stemOf}). On an outline that is `bySpelling`; on a
+ * document it is `byFinding`; and every name where it differs from one of them
+ * is a name no caller passes — which is what the third column below asserts,
+ * row by row, and what the caller tests underneath it hold from the outside.
  *
  * The copies are the point, not a smell. A test that called the two functions
- * would stop being able to say anything the moment they became one, which is
+ * stopped being able to say anything the moment they became one, which is
  * exactly the moment the claim matters.
  */
 
@@ -39,18 +41,18 @@ import { describe, expect, test } from "bun:test"
 
 import type { NodeChange } from "./changes.ts"
 import { noteDateOf } from "./dates.ts"
-import { OUTLINE_EXT } from "./kinds.ts"
+import { OUTLINE_EXT, stemOf } from "./kinds.ts"
 import { composed } from "./message.ts"
 
-/** `./message.ts:153`, as it stands: the basename, and the suffix taken off
- *  only when the name really ends in the one string this package spells. */
+/** `./message.ts`'s retired private `stemOf`: the basename, and the suffix taken
+ *  off only when the name really ends in the one string this package spells. */
 const bySpelling = (file: string): string => {
   const name = file.slice(file.lastIndexOf("/") + 1)
   return name.endsWith(OUTLINE_EXT) ? name.slice(0, -OUTLINE_EXT.length) : name
 }
 
-/** `./dates.ts:405`, as it stands: the basename, cut at its last dot, whatever
- *  that dot turns out to be — and whether or not there is one. */
+/** `./dates.ts`'s retired cut inside `noteDateOf`: the basename, cut at its last
+ *  dot, whatever that dot turns out to be — and whether or not there is one. */
 const byFinding = (file: string): string => {
   const name = file.slice(file.lastIndexOf("/") + 1)
   return name.slice(0, name.lastIndexOf("."))
@@ -93,19 +95,25 @@ const AGREE: ReadonlyArray<readonly [path: string, stem: string]> = [
  *     `-1`, `slice(0, -1)` drops the name's LAST CHARACTER, and `README` comes
  *     back as `READM`. Nothing throws and nothing is empty; the answer is just
  *     quietly one letter short.
+ *
+ * The fourth column is what {@link stemOf} answers, and it is written out per
+ * row rather than derived, because "the merged rule sides with whichever of the
+ * two was right about this file" is the claim and a derivation would assume it.
+ * It sides with `byFinding` on a registered kind and with `bySpelling` on
+ * everything else, which is one sentence — the registry's — read twice.
  */
 const DIVERGE: ReadonlyArray<
-  readonly [path: string, spelled: string, found: string]
+  readonly [path: string, spelled: string, found: string, unified: string]
 > = [
-  ["2026-08-11.md", "2026-08-11.md", "2026-08-11"],
-  ["Daily/2026/08/2026-08-12.md", "2026-08-12.md", "2026-08-12"],
-  ["report.html", "report.html", "report"],
-  ["notes/report.html", "report.html", "report"],
-  ["shot.png", "shot.png", "shot"],
-  ["house.olai.bak", "house.olai.bak", "house.olai"],
-  ["README", "README", "READM"],
-  ["docs/README", "README", "READM"],
-  ["justfile", "justfile", "justfil"],
+  ["2026-08-11.md", "2026-08-11.md", "2026-08-11", "2026-08-11"],
+  ["Daily/2026/08/2026-08-12.md", "2026-08-12.md", "2026-08-12", "2026-08-12"],
+  ["report.html", "report.html", "report", "report"],
+  ["notes/report.html", "report.html", "report", "report"],
+  ["shot.png", "shot.png", "shot", "shot.png"],
+  ["house.olai.bak", "house.olai.bak", "house.olai", "house.olai.bak"],
+  ["README", "README", "READM", "README"],
+  ["docs/README", "README", "READM", "README"],
+  ["justfile", "justfile", "justfil", "justfile"],
 ]
 
 describe("the two suffix rules", () => {
@@ -121,6 +129,27 @@ describe("the two suffix rules", () => {
       expect(bySpelling(path), path).toBe(spelled)
       expect(byFinding(path), path).toBe(found)
       expect(spelled === found, `${path} is listed as a divergence`).toBe(false)
+    }
+  })
+})
+
+describe("the one rule they became", () => {
+  test("is both of them on an outline, which is where they already agreed", () => {
+    for (const [path, stem] of AGREE) {
+      expect(stemOf(path), path).toBe(stem)
+    }
+  })
+
+  // The merge, stated as the thing it has to be: on every name the two rules
+  // disagreed about, the registry's answer is ONE OF THE TWO — never a third
+  // reading nobody had. Which one it is, is the row.
+  test("and takes the side of whichever was right about the file, on every other", () => {
+    for (const [path, spelled, found, unified] of DIVERGE) {
+      expect(stemOf(path), path).toBe(unified)
+      expect(
+        unified === spelled || unified === found,
+        `${path}: the merged rule invented an answer neither rule gave`,
+      ).toBe(true)
     }
   })
 })

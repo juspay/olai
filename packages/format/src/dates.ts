@@ -62,7 +62,7 @@ import {
   type Status,
   storedMarker,
 } from "./derive.ts"
-import { fileKind } from "./kinds.ts"
+import { fileKind, stemOf } from "./kinds.ts"
 import { isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
 import { byPath } from "./paths.ts"
 
@@ -395,17 +395,20 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
  *
  * Read of a PATH, so the directories above the file are cut off first — a
  * folder named `2026-08-12` holding a `notes.md` is not a daily note, and the
- * folder is not consulted because the file is what carries the name.
+ * folder is not consulted because the file is what carries the name. That is
+ * {@link stemOf}'s rule and not this file's any more.
  *
- * WHICH files are documents is {@link fileKind}'s and stays there — the
- * extension is cut off by finding it rather than by spelling it a second time,
- * so a package that ever admitted another one does not leave this reading a
- * name it has taken the wrong number of characters off.
+ * WHICH files are documents is {@link fileKind}'s and stays there, and so now
+ * is how much of the name the suffix costs. This used to cut at the last dot
+ * itself, so that "a package that ever admitted another one does not leave this
+ * reading a name it has taken the wrong number of characters off" — the right
+ * worry, answered in the wrong place. The registry that knows which suffix is
+ * on this file is the thing that knows how long it is, and it is one import
+ * away.
  */
 export const noteDateOf = (file: string): string | null => {
   if (fileKind(file) !== "document") return null
-  const name = file.slice(file.lastIndexOf("/") + 1)
-  const stem = name.slice(0, name.lastIndexOf("."))
+  const stem = stemOf(file)
   return ISO_DAY.test(stem) ? stem : null
 }
 
