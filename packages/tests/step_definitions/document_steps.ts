@@ -13,6 +13,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  attr,
   DOC_LINK,
   DOC_REF,
   DOCUMENT_BODY,
@@ -196,7 +197,7 @@ Then(
 
     const target = (await reference.getAttribute("href"))?.slice(1);
     assert.ok(target !== undefined && target !== "", "the footnote link names nothing");
-    const note = rendered.locator(`[id="${target}"]`);
+    const note = rendered.locator(attr("id", target));
     assert.strictEqual(
       await note.count(),
       1,
@@ -212,7 +213,7 @@ Then(
 Then(
   "the picture {string} is drawn in the document",
   async function (this: OlaiWorld, src: string) {
-    const picture = body(this).locator(`img[src="${src}"]`).first();
+    const picture = body(this).locator(`img${attr("src", src)}`).first();
     await picture.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // Decoded, not merely present: an `<img>` whose fetch 404'd is on screen
     // too, and reports a natural width of zero.

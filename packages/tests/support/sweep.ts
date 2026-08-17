@@ -67,16 +67,31 @@ export const tracked = (self: string): ReadonlyArray<string> => {
   return listed.stdout.split("\0").filter((one) => one !== "" && one !== mine);
 };
 
-/** One file's text, with its comments removed — for a sweep whose claim is
- *  about CODE, so prose stays free to discuss the spelling being hunted.
+/**
+ * One file's text, with its comments removed — for a sweep whose claim is about
+ * CODE, so prose stays free to discuss the spelling being hunted.
  *
- *  `@olai/web`'s `claims.test.ts` stripper, and deliberately the same one: a
- *  line comment is only taken when `//` opens the line or follows whitespace,
- *  so a `https://…` inside a string survives. The cost is a comment pasted
- *  mid-expression surviving too, which for a sweep means a false alarm a human
- *  reads, never a silent pass. */
+ * `@olai/web`'s `claims.test.ts` stripper, and deliberately the same one: a line
+ * comment is only taken when `//` opens the line or follows whitespace, so a
+ * `https://…` inside a string survives. The cost is a comment pasted
+ * mid-expression surviving too, which for a sweep means a false alarm a human
+ * reads, never a silent pass.
+ *
+ * LINE COMMENTS COME OUT FIRST, and that order is the whole of a bug this used
+ * to have. Taking blocks first means a block OPENER written inside a line
+ * comment — a MIME type with a star in it, a path to a glob — opens a block the
+ * stripper then honours until the next closer, which is typically sixty lines
+ * further down and all of it code. The sweep goes on passing and simply never
+ * reads that region: a SILENT PASS, which is the one failure the paragraph
+ * above claims this stripper does not have. Two files in this tree do it today
+ * — `step_definitions/chat_steps.ts` and `@olai/server`'s `listener.ts` — and
+ * `../selectors.test.ts`' fence is what found it, reporting three hand-built
+ * selectors where the file plainly has four. Line-first, the line comment is
+ * gone before anything can read an opener out of it, and an opener inside a
+ * STRING is no worse off than it was.
+ */
 export const withoutComments = (code: string): string =>
-  code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|\s)\/\/.*$/gm, "$1");
+  code.replace(/(^|\s)\/\/.*$/gm, "$1").replace(/\/\*[\s\S]*?\*\//g, "");
 
 /** A tracked file's contents. */
 export const read = (file: string): string =>

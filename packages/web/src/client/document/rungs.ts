@@ -22,7 +22,10 @@
  *     rather than be guessed out here.
  *
  * Two rungs, then, and not an open ladder: at one width this takes at most one
- * arriving reading and at most one settled one. What that COSTS is worth
+ * arriving reading and at most one settled one. A page that DRAWS ITSELF with
+ * its own script needs nothing further — whatever it draws is drawn before its
+ * `load`, and the `ResizeObserver` in the measure reports the box it drew, so
+ * it is the arriving rung doing its job. What the two rungs COST is worth
  * writing down, because it is a decision and not an oversight — a picture that
  * arrives after `load` (a `loading="lazy"` one, say) grows the page and is
  * refused a rung, so the frame keeps the height it had and the rest of the page

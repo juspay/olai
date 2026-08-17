@@ -30,12 +30,20 @@ const SELF = import.meta.filename
 /** The file's code, with its comments removed. Line comments are only taken
  *  when `//` opens the line or follows whitespace, so a `https://…` inside a
  *  string survives; the cost is a comment pasted mid-expression surviving too,
- *  which for a sweep means a false alarm a human reads, never a silent pass. */
+ *  which for a sweep means a false alarm a human reads, never a silent pass.
+ *
+ *  LINE COMMENTS FIRST, which is not cosmetic: a block OPENER written inside a
+ *  line comment — a MIME type with a star in it, a path to a glob — would
+ *  otherwise open a block the stripper honours until the next closer, silently
+ *  swallowing every line of code between. That is a sweep that passes without
+ *  reading, which is the one thing the sentence above promises it is not.
+ *  `@olai/tests`' `support/sweep.ts` carries the same stripper, deliberately,
+ *  and the same order with the argument written out. */
 const codeOf = (file: string): string =>
   fs
     .readFileSync(file, "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|\s)\/\/.*$/gm, "$1")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
 
 /** Every source file under the client — client-relative path and stripped
  *  code, read ONCE for however many sweeps accrue below. This file is

@@ -83,3 +83,24 @@ test("comments come out and a URL in a string does not", () => {
   expect(stripped).not.toContain("a whole line");
   expect(stripped).not.toContain("trailing");
 });
+
+// …and the ORDER, which is not cosmetic. A block opener written inside a LINE
+// comment — a MIME type with a star in it, a path to a glob — used to open a
+// block the stripper honoured until the next closer, swallowing every line of
+// code between: a sweep that passes without reading, which is the one failure
+// the stripper's own docstring promises it does not have. Two files in this
+// tree write such a comment today, and `selectors.test.ts`' fence is what
+// noticed, reporting three hand-built selectors where there are four.
+test("a block opener inside a line comment swallows no code", () => {
+  const code = [
+    "// the accepted type is image/* here",
+    "const kept = 'this line is code'",
+    "/** and this really is a block */",
+    "const also = 'so is this'",
+  ].join("\n");
+  const stripped = withoutComments(code);
+  expect(stripped).toContain("this line is code");
+  expect(stripped).toContain("so is this");
+  expect(stripped).not.toContain("the accepted type");
+  expect(stripped).not.toContain("and this really is a block");
+});
