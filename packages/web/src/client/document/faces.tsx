@@ -29,8 +29,7 @@ import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { landingId, outlineOf } from "../markdown/render.ts"
-import { usePane } from "../pane/context.tsx"
-import { useRouter } from "../router.tsx"
+import { useHere, useRouter } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { useDocument } from "./documents.tsx"
 import { Hypertext } from "./Hypertext.tsx"
@@ -99,7 +98,7 @@ export const FACES: Record<BodyKind, Face> = {
  *  placeholder mean here as they did when the page held it. */
 function Rendered(props: Reading) {
   const router = useRouter()
-  const pane = usePane()
+  const here = useHere()
   const served = useDocument(() => props.file)
   /** The body, or the empty document there is nothing to draw yet — every
    *  reader below wants a string and none of them can do anything useful with
@@ -139,8 +138,7 @@ function Rendered(props: Reading) {
   // somewhere arbitrary. A `.md` whose heading was renamed is exactly that case.
   createEffect(() => {
     const land = router.landing()
-    const here = pane?.index ?? router.workspace().focus
-    if (land === undefined || land.index !== here || !markdownReady()) return
+    if (land === undefined || land.index !== here() || !markdownReady()) return
     const id = landingId(text(), props.file, land.at)
     const frame = requestAnimationFrame(() => {
       document.getElementById(id)?.scrollIntoView({ block: "start" })

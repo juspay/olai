@@ -30,12 +30,11 @@ import { NodePage } from "../NodePage.tsx"
 import { Nothing } from "../Nothing.tsx"
 import { drawnBy, type Found, NOTHING_DRAWN, pageOf } from "../page.ts"
 import { OutlinePage } from "../OutlinePage.tsx"
-import { followed, followedSplit, useRouter } from "../router.tsx"
+import { followed, followedSplit, useGo, useHere, useRouter } from "../router.tsx"
 import { filterOf, hrefOf, narrowable, narrowedTo, samePage } from "../routes.ts"
 import { visibleIn } from "../settings/done.ts"
 import { TESTID } from "../testids.ts"
 import { TrashPage } from "../trash/TrashPage.tsx"
-import { usePane } from "./context.tsx"
 
 export function PageView(props: {
   readonly derived: Derived | undefined
@@ -44,11 +43,11 @@ export function PageView(props: {
   readonly agenda: Agenda | undefined
 }) {
   const router = useRouter()
-  const pane = usePane()
-  const index = () => pane?.index ?? router.workspace().focus
+  const here = useHere()
+  const go = useGo()
   const route = createMemo(() => {
     const ws = router.workspace()
-    return ws.panes[index()]?.route ?? router.route()
+    return ws.panes[here()]?.route ?? router.route()
   })
   const opened = createMemo(route, undefined, { equals: samePage })
 
@@ -82,12 +81,7 @@ export function PageView(props: {
   const trash = () => only(narrowing.drawn(), "trash")
 
   const narrow = (text: string): void => {
-    router.replaceIn(index(), narrowedTo(route(), text))
-  }
-
-  const goHere = (next: ReturnType<typeof followed>): void => {
-    if (next === null) return
-    router.goIn(index(), next)
+    router.replaceIn(here(), narrowedTo(route(), text))
   }
 
   return (
@@ -96,11 +90,11 @@ export function PageView(props: {
         !desktop() && !chatOpen() ? "pb-16" : ""
       }`}
       data-testid={TESTID.pane}
-      data-pane={String(index())}
-      data-focused={index() === router.workspace().focus ? "true" : undefined}
+      data-pane={String(here())}
+      data-focused={here() === router.workspace().focus ? "true" : undefined}
       data-href={hrefOf(route())}
       data-narrowable={narrowable(route()) ? "true" : undefined}
-      onPointerDown={() => router.focus(index())}
+      onPointerDown={() => router.focus(here())}
       onClick={(event) => {
         const tag = narrowable(route()) ? taggedBy(event) : null
         if (tag !== null) {
@@ -111,13 +105,13 @@ export function PageView(props: {
         const split = followedSplit(event)
         if (split !== null) {
           event.preventDefault()
-          router.openRight(index(), split, event.shiftKey)
+          router.openRight(here(), split, event.shiftKey)
           return
         }
         const next = followed(event)
         if (next === null) return
         event.preventDefault()
-        goHere(next)
+        go(next)
       }}
     >
       <NarrowedProvider narrowed={narrowing}>

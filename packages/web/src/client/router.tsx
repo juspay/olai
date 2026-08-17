@@ -159,24 +159,21 @@ export const createRouter = (): Router => {
   addEventListener("popstate", onPopState)
   onCleanup(() => removeEventListener("popstate", onPopState))
 
+  const goIn = (index: number, next: Route): void => {
+    commit(navigateIn(workspace(), index, next), "push", landingOf(index, next))
+  }
+  const replaceIn = (index: number, next: Route): void => {
+    commit(navigateIn(workspace(), index, next), "replace")
+  }
+
   return {
     workspace,
     route: () => focusedRoute(workspace()),
     landing,
-    go: (next) => {
-      const here = workspace()
-      commit(navigateIn(here, here.focus, next), "push", landingOf(here.focus, next))
-    },
-    goIn: (index, next) => {
-      commit(navigateIn(workspace(), index, next), "push", landingOf(index, next))
-    },
-    replace: (next) => {
-      const here = workspace()
-      commit(navigateIn(here, here.focus, next), "replace")
-    },
-    replaceIn: (index, next) => {
-      commit(navigateIn(workspace(), index, next), "replace")
-    },
+    go: (next) => goIn(workspace().focus, next),
+    goIn,
+    replace: (next) => replaceIn(workspace().focus, next),
+    replaceIn,
     openRight: (from, next, forceNew) => {
       const after = openRight(workspace(), from, next, forceNew === true)
       commit(after, "push", landingOf(after.focus, next))
@@ -239,16 +236,21 @@ export const useRouter = (): Router => {
   return router
 }
 
+/** Which pane a gesture in this component is about: the one we are
+ *  drawn in, or the focused pane when we sit outside every pane. */
+export const useHere = (): (() => number) => {
+  const router = useRouter()
+  const pane = usePane()
+  return () => pane?.index ?? router.workspace().focus
+}
+
 /** Navigate the pane this component is in, or the focused pane when it is
  *  chrome that sits outside every pane. One helper so a `<Link>`, a menu
  *  "Zoom in" and a `.html` preview cannot pick three different panes. */
 export const useGo = (): ((route: Route) => void) => {
   const router = useRouter()
-  const pane = usePane()
-  return (route) => {
-    if (pane === undefined) router.go(route)
-    else router.goIn(pane.index, route)
-  }
+  const here = useHere()
+  return (route) => router.goIn(here(), route)
 }
 
 export interface LinkProps {
@@ -272,40 +274,40 @@ export interface LinkProps {
  * — they fail `ours`, so the pane's own listener can see Alt and open
  * right without this claiming the event as a same-pane go.
  */
-export const followed = (event: MouseEvent): Route | null => {
-  if (!ours(event)) return null
+const routeFrom = (
+  event: MouseEvent,
+  claimed: (event: MouseEvent) => boolean,
+): Route | null => {
+  if (!claimed(event)) return null
   const target = event.target
   if (!(target instanceof Element)) return null
   const href = target.closest("a")?.getAttribute("href")
   return href === undefined || href === null ? null : routeIn(href)
 }
+
+export const followed = (event: MouseEvent): Route | null =>
+  routeFrom(event, ours)
 
 /** The route an Alt+click on a written link is asking to open to the right,
  *  or `null`. Pair of {@link followed}, for the press `ours` declines. */
-export const followedSplit = (event: MouseEvent): Route | null => {
-  if (splitClick(event) === null) return null
-  const target = event.target
-  if (!(target instanceof Element)) return null
-  const href = target.closest("a")?.getAttribute("href")
-  return href === undefined || href === null ? null : routeIn(href)
-}
+export const followedSplit = (event: MouseEvent): Route | null =>
+  routeFrom(event, (event) => splitClick(event) !== null)
 
 export function Link(props: LinkProps) {
   const router = useRouter()
-  const pane = usePane()
+  const here = useHere()
+  const go = useGo()
 
   const onClick = (event: MouseEvent) => {
-    const from = pane?.index ?? router.workspace().focus
     const split = splitClick(event)
     if (split !== null) {
       event.preventDefault()
-      router.openRight(from, props.route, split === "force")
+      router.openRight(here(), props.route, split === "force")
       return
     }
     if (!ours(event)) return
     event.preventDefault()
-    if (pane === undefined) router.go(props.route)
-    else router.goIn(pane.index, props.route)
+    go(props.route)
   }
 
   return (

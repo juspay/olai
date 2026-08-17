@@ -25,6 +25,7 @@ import {
   hrefOf,
   type Route,
   routeOf,
+  splitAddress,
 } from "./routes.ts"
 
 /** One pane of a workspace: the route it is showing, and how much of the
@@ -88,11 +89,7 @@ export const hrefOfWorkspace = (workspace: Workspace): string => {
  *  with no panes (a typed `/s/` and nothing after it) is the default
  *  outline, the same kindness `routeOf` shows an unknown path. */
 export const workspaceOf = (address: string): Workspace => {
-  const hash = address.indexOf("#")
-  const whole = hash === -1 ? address : address.slice(0, hash)
-  const cut = whole.indexOf("?")
-  const pathname = cut === -1 ? whole : whole.slice(0, cut)
-  const search = cut === -1 ? "" : whole.slice(cut + 1)
+  const { pathname, search } = splitAddress(address)
   if (!pathname.startsWith(WORKSPACE_PREFIX)) {
     return lone(routeOf(address))
   }

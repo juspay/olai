@@ -45,7 +45,7 @@ import { ServedProvider } from "./served.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
 import { connectionReadout, olai } from "./wire.ts"
-import { focusedRoute, isLone } from "./workspace.ts"
+import { isLone } from "./workspace.ts"
 
 export default function App() {
   const outlines = createOutlines()
@@ -80,7 +80,7 @@ export default function App() {
     const indexes = outlines.derived()
     return indexes === undefined
       ? undefined
-      : pageOf(indexes, found(), focusedRoute(router.workspace()), today())
+      : pageOf(indexes, found(), router.route(), today())
   })
 
   const agenda = createMemo(() => {

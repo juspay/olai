@@ -107,8 +107,7 @@ import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-
 import { SaidLine } from "../edit/SaidLine.tsx"
 import type { Said } from "../edit/undoing.ts"
 import { useOpens } from "../opens.tsx"
-import { usePane } from "../pane/context.tsx"
-import { useRouter } from "../router.tsx"
+import { useGo, useHere, useRouter } from "../router.tsx"
 import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import { useHead } from "./documents.tsx"
@@ -288,8 +287,8 @@ export function Hypertext(props: { readonly file: string }) {
   // reason the effect below gives.
   const [landedAt, setLandedAt] = createSignal<number>()
   const router = useRouter()
-  const pane = usePane()
-  const here = () => pane?.index ?? router.workspace().focus
+  const here = useHere()
+  const go = useGo()
   const landingAt = () => {
     const land = router.landing()
     return land !== undefined && land.index === here() ? land.at : undefined
@@ -460,8 +459,7 @@ export function Hypertext(props: { readonly file: string }) {
     const route = opens(named, at)
     if (route === undefined) return setRefused(REFUSED)
     if (fileNamed(route) === props.file) return
-    if (pane === undefined) router.go(route)
-    else router.goIn(pane.index, route)
+    go(route)
   }
 
   /** Put the file back, or — once the budget is out — nothing at all. */
