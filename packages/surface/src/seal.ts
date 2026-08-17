@@ -420,9 +420,7 @@ const MEASURE = `(function () {
       post(${JSON.stringify(READING.settled)})
       landed()
     })
-    addEventListener("resize", function () {
-      landed()
-    })
+    addEventListener("resize", landed)
   })
   var landed = function () {
     var named = location.hash.slice(1)

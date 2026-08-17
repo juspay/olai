@@ -592,9 +592,12 @@ test("a frame that is resized says where the anchor is now, unasked", () => {
     run()
   }
 
+  // Read back through the receiver's own parser rather than as text, for the
+  // reason everything else in this half is: what is being asserted is what the
+  // embedder will UNDERSTAND, and a substring agrees with the wrong kind.
   fire("DOMContentLoaded")
   fire("load")
-  expect(said.filter((one) => one.endsWith("205"))).not.toHaveLength(0)
+  expect(said.map(heard)).toContainEqual({ kind: "landed", top: 205 })
 
   // THE RESIZE, with the page as unchanged as it really is: no ResizeObserver
   // callback, because nothing that observer can see has moved.
@@ -602,9 +605,10 @@ test("a frame that is resized says where the anchor is now, unasked", () => {
   said.length = 0
   fire("resize")
 
-  expect(said).toEqual([expect.stringContaining("1195") as unknown as string])
-  // …and it reports the anchor ALONE. A height from here is the `vh` ladder the
-  // receiver's per-width guard exists to refuse — the frame just got taller, and
-  // a page measured against it would answer with its new box every time.
-  expect(said.filter((one) => one.includes("1550"))).toEqual([])
+  expect(said.map(heard)).toEqual([{ kind: "landed", top: 1195 }])
+  // …which is also to say it reports the anchor ALONE: a height from here is
+  // the `vh` ladder the receiver's per-width guard exists to refuse — the frame
+  // just got taller, and a page measured against it would answer with its new
+  // box every time.
+  expect(said.map(heard).filter((one) => one?.kind === "reading")).toEqual([])
 })
