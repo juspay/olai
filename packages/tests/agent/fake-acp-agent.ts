@@ -42,6 +42,13 @@
  *   subagent     spawn TWO agents and interleave their tool calls with each
  *                other's, each frame stamped with the `Agent` call it came out
  *                of — the whole of what the adapter says about who did what
+ *   subagent slow  spawn ONE and have it do nothing until released, which is
+ *                what a fan-out looks like for as long as anybody watches it:
+ *                the spawn's own frame is on the wire and not one frame from
+ *                the agent is
+ *   subagent crash  the same, and then FALL OVER while it is still out —
+ *                which leaves a `pending` Agent call nothing will ever
+ *                complete, on rows a dead agent's panel deliberately keeps
  *   refuse steering   turn `_session/steering` into an error from here on, so
  *                a scenario can see what a panel does with words it could not
  *                deliver
@@ -1267,7 +1274,15 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const announce = (
       toolCallId: string,
       title: string,
-      claudeCode: Record<string, string>,
+      claudeCode: Record<string, unknown>,
+      // NAMED rather than two more positional tails: a spawn differs from a
+      // call made inside one by its arguments and its status, and a call site
+      // reading `announce(id, title, meta, {…}, "pending")` says neither of
+      // those out loud.
+      differs: {
+        readonly rawInput?: Record<string, unknown>
+        readonly status?: string
+      } = {},
     ): void => {
       notify("session/update", {
         sessionId,
@@ -1275,18 +1290,87 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
           sessionUpdate: "tool_call",
           toolCallId,
           title,
-          status: "in_progress",
-          rawInput: { description: title },
+          status: differs.status ?? "in_progress",
+          rawInput: differs.rawInput ?? { description: title },
           _meta: { claudeCode },
         },
       })
     }
-    const spawn = (id: string, title: string): void =>
-      announce(id, title, { toolName: "Agent" })
+    /** A SPAWN, as the adapter builds one. `subagent: true` rides beside the
+     *  tool name on every frame it makes for an `Agent`/`Task` call
+     *  (`claudeCodeMetaFromToolUse`, 0.66.0) and is the only thing on the wire
+     *  that says an agent was sent out BEFORE the agent has done anything —
+     *  the parent stamp below cannot be sent until it has. The arguments are
+     *  the `Agent` tool's own (`AgentInput`): a short description, the prompt,
+     *  and the optional kind of agent.
+     *
+     *  `pending` rather than in_progress, which is what the adapter announces
+     *  a tool use with — a spawn wears it until the first heartbeat, which for
+     *  a slow one is a long time and exactly the stretch under test. */
+    const spawn = (id: string, title: string, kind?: string): void =>
+      announce(id, title, { toolName: "Agent", subagent: true }, {
+        rawInput: {
+          description: title,
+          prompt: `${title}, and report back`,
+          ...(kind === undefined ? {} : { subagent_type: kind }),
+        },
+        status: "pending",
+      })
     /** One call made INSIDE a spawned agent — the main agent's own frame, plus
      *  the one field that says whose it is. */
     const inside = (id: string, title: string, parent: string): void =>
       announce(id, title, { toolName: "Grep", parentToolUseId: parent })
+
+    // ... AND THEN FALLING OVER UNDER IT. The face has to come off, and the
+    // row's own status cannot be what takes it off: a status is sticky, an
+    // agent that dies mid-spawn reports no completion for the call it was in
+    // the middle of, and the rows a dead agent left are deliberately still on
+    // screen to read. So this one spawns, waits to be looked at, and exits —
+    // which is the shape that leaves a `pending` Agent call behind forever.
+    if (argument === "crash") {
+      spawn(`agent-${++nextMcpId}`, "read every note", "Explore")
+      say("sent an agent out.")
+      await released()
+      process.exit(1)
+    }
+
+    // ONE AGENT, SENT OUT AND SLOW. The case the lanes above cannot show: a
+    // fan-out is watched during the stretch BEFORE anybody reports, and until
+    // the spawn itself was drawn that stretch was a pending dot with an
+    // ordinary title on it. So this one spawns and then does nothing at all
+    // until the scenario releases it — no beat, no call, no prose — which is
+    // the honest worst case, since a real subagent's first act is to read its
+    // instructions and that produces no frame.
+    if (argument === "slow") {
+      const alone = `agent-${++nextMcpId}`
+      const read = `sub-${++nextMcpId}`
+      spawn(alone, "read every note", "Explore")
+      say("sent an agent out.")
+      await released()
+      inside(read, "read the note", alone)
+      completed(read)
+      // The spawn's own completion, carrying the subagent's report the way the
+      // adapter does — content blocks on the call, never prose in the main
+      // agent's voice. It is what the face RESOLVES INTO.
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: alone,
+          status: "completed",
+          content: [
+            {
+              type: "content",
+              content: { type: "text", text: "there are three notes." },
+            },
+          ],
+        },
+      })
+      say(" the agent reported back.")
+      respond(id, { stopReason: "end_turn" })
+      return
+    }
+
     // MINTED, not spelled: a call id is unique to the call, and a transcript
     // is keyed by it — so a turn that reused last turn's ids would update last
     // turn's rows in place and draw nothing at all the second time it was
@@ -1297,7 +1381,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const cabinets = `sub-${++nextMcpId}`
     const note = `sub-${++nextMcpId}`
     const worktops = `sub-${++nextMcpId}`
-    spawn(first, "explore the outline")
+    spawn(first, "explore the outline", "Explore")
     inside(cabinets, "grep for cabinets", first)
     spawn(second, "review the notes")
     inside(note, "read the note", second)

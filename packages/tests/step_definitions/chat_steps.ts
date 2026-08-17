@@ -66,6 +66,8 @@ import {
   CHAT_SESSION_LIST,
   CHAT_SESSIONS,
   CHAT_SESSIONS_REFUSED,
+  CHAT_SPAWN,
+  CHAT_SPAWN_WORKING,
   CHAT_TITLE,
   CHAT_TOGGLE,
   CHAT_TOOL,
@@ -1144,6 +1146,54 @@ const firstLane = (world: OlaiWorld) => world.page.locator(CHAT_LANE).first();
  *  file is two of them being missed the day the scheme moves. */
 const entrySelector = (id: string): string => `${CHAT_ENTRY}[data-entry-id="${id}"]`;
 
+/**
+ * What hangs off a spawn has to be drawn BELOW it and INSET from it.
+ *
+ * The geometry half of every lane claim, asserted once for both things that
+ * make one: a call a subagent made, and the live rail under a spawn nobody has
+ * reported on yet. They are the same picture — the whole design is that the
+ * two segments meet as one line — so two copies of this measurement would be
+ * two chances to assert a different picture.
+ *
+ * Measured rather than read off a class, for the reason the bubble on your own
+ * message is measured: a class is a styling decision a refactor may change, and
+ * where a thing SITS is the claim. It is also the half a `data-` attribute
+ * cannot make — strip the rail and the indent from the panel and every other
+ * assertion in this section still passes.
+ *
+ * @param spawner the transcript key of the frame it should hang off
+ * @param hanging what should be hanging off it
+ * @param what a name for it, for the failure to read as a sentence
+ */
+const insetBelow = async (
+  world: OlaiWorld,
+  spawner: string,
+  hanging: Locator,
+  what: string,
+): Promise<void> => {
+  // The frame it names has to BE there: a lane pointing at a row the panel
+  // never drew would look right and say nothing.
+  const frame = world.page.locator(entrySelector(spawner));
+  await frame.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const above = await frame.boundingBox();
+  const mine = await hanging.boundingBox();
+  assert.ok(
+    above !== null && mine !== null,
+    `neither ${what} nor the call that spawned it was drawn`,
+  );
+  assert.ok(
+    mine.y > above.y,
+    `${what} is drawn above the call that spawned it (${mine.y} is not below ` +
+      `${above.y})`,
+  );
+  assert.ok(
+    mine.x > above.x,
+    `${what} starts at ${mine.x}, level with the call that spawned it at ` +
+      `${above.x} — a lane is an INDENT, and a reader who cannot see one is ` +
+      "being told a subagent's work was the main agent's",
+  );
+};
+
 Then(
   "the chat draws a subagent's tool call under the call that spawned it",
   async function (this: OlaiWorld) {
@@ -1154,34 +1204,11 @@ Then(
       parent !== null && parent !== "",
       "a lane that names no agent is an indent, not an attribution",
     );
-    // The frame it names has to BE there, and the subagent's row has to be
-    // drawn UNDER it and INSET from it. A lane pointing at a row the panel
-    // never drew would look right and say nothing; one level with its parent
-    // would say something false about who did the work.
-    //
-    // Measured rather than read off a class, for the reason the bubble on your
-    // own message is measured: a class is a styling decision a refactor may
-    // change, and where a thing SITS is the claim. It is also the half of this
-    // feature a `data-` attribute cannot make — strip the rail and the indent
-    // from the panel and every other assertion here still passes.
-    const spawner = this.page.locator(entrySelector(parent ?? ""));
-    await spawner.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const above = await spawner.boundingBox();
-    const mine = await lane.locator(CHAT_ENTRY).first().boundingBox();
-    assert.ok(
-      above !== null && mine !== null,
-      "neither the subagent's row nor the call that spawned it was drawn",
-    );
-    assert.ok(
-      mine.y > above.y,
-      `the subagent's work is drawn above the call that spawned it (${mine.y} ` +
-        `is not below ${above.y})`,
-    );
-    assert.ok(
-      mine.x > above.x,
-      `the subagent's row starts at ${mine.x}, level with the call that ` +
-        `spawned it at ${above.x} — a lane is an INDENT, and a reader who ` +
-        "cannot see one is being told a subagent's work was the main agent's",
+    await insetBelow(
+      this,
+      parent ?? "",
+      lane.locator(CHAT_ENTRY).first(),
+      "the subagent's row",
     );
   },
 );
@@ -1204,6 +1231,74 @@ Then(
     );
   },
 );
+
+Then(
+  "the chat says an agent is working, of the kind {string}",
+  async function (this: OlaiWorld, kind: string) {
+    // THE LIVE HALF, and the whole of what this scenario is about: it has to
+    // be on screen while the agent has reported nothing, so it is found by
+    // waiting for it rather than by looking after the fact.
+    const working = this.page.locator(CHAT_SPAWN_WORKING).first();
+    await working.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const spawner = await working.getAttribute("data-lane");
+    assert.ok(
+      spawner !== null && spawner !== "",
+      "a rail that names no agent is an indent, not an attribution",
+    );
+    // WHO, off the frame the rail hangs from — the attribute rather than the
+    // words, so the claim stays about the kind of agent the call named and not
+    // about how the row spells it.
+    const frame = this.page.locator(entrySelector(spawner ?? ""));
+    await frame.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await frame.locator(CHAT_SPAWN).first().getAttribute("data-spawn-kind"),
+      kind,
+      `the call that spawned an agent does not say it started a "${kind}"`,
+    );
+    // ... and the same geometry a lane owes, for the same reason: the rail is
+    // the claim that this is somebody ELSE's work, and one drawn level with
+    // the conversation says the main agent is doing it. The same measurement a
+    // subagent's own row is held to, because it is meant to be the same line.
+    await insetBelow(this, spawner ?? "", working, "the agent that was sent out");
+  },
+);
+
+Then("no tool call is drawn in a subagent lane", async function (this: OlaiWorld) {
+  // The other half, and the one that makes the assertion above mean anything:
+  // the agent has produced NOTHING, so every lane the old panel could draw is
+  // absent and the face on screen is the spawn's own.
+  assert.strictEqual(
+    await this.page.locator(CHAT_LANE).count(),
+    0,
+    "a subagent's work is on screen; this scenario is about the stretch " +
+      "before any of it exists",
+  );
+});
+
+Then(
+  "the chat still shows a call that sent out an {string}",
+  async function (this: OlaiWorld, kind: string) {
+    // The half that must NOT come off with the live one: who was sent is a
+    // fact about what happened, and the row is the record of it. A panel that
+    // took the whole face off when the agent died would leave a bare pending
+    // dot where a spawn was — which is the bug this feature exists for,
+    // arriving at the end of the turn instead of the start.
+    await this.page
+      .locator(`${CHAT_SPAWN}[data-spawn-kind="${kind}"]`)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then("the chat says no agent is still working", async function (this: OlaiWorld) {
+  // A face that outlives the agent is worse than none: it says a fan-out is
+  // running when the turn is over.
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_SPAWN_WORKING).count()) === 0,
+    "the panel to stop saying an agent is working",
+    HYDRATION_TIMEOUT,
+  );
+});
 
 Then(
   "the chat draws {int} tool calls in subagent lanes",

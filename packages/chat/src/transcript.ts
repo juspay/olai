@@ -35,6 +35,7 @@ import type {
   ChatEntry,
   FileDiff,
   OpFailure,
+  Spawned,
   Wrote,
 } from "@olai/surface"
 
@@ -233,6 +234,7 @@ export class Transcript {
       readonly wrote?: Wrote | undefined
       readonly locations?: ReadonlyArray<string> | undefined
       readonly parent?: string | undefined
+      readonly spawned?: Spawned | undefined
     },
   ): Change {
     const key = toolKey(id)
@@ -262,6 +264,23 @@ export class Transcript {
     // parent-less `_meta` is a shape it has — and a row that read that as "no
     // agent now" would step out of its lane at the moment the call finished.
     const parent = move.parent === undefined ? current?.parent : toolKey(move.parent)
+    // ... and what this call STARTED, which is the one field here that is
+    // sticky a level DOWN as well as at the top. The fact arrives split across
+    // frames because the ARGUMENTS DO: the adapter announces the call as the
+    // tool use starts, refines it once they have finished parsing, and sends a
+    // frame with no `rawInput` at all when the input would not serialize.
+    // Every one of those is honestly a spawn and some of them honestly name no
+    // kind — so a later report that said only "this is a spawn" would take
+    // back a kind an earlier frame already gave.
+    //
+    // A SPREAD, so the rule is the same one word deeper rather than a second
+    // rule: an absent field is "unchanged" inside this object exactly as an
+    // absent `move` is unchanged outside it, and a field added to `Spawned`
+    // later inherits that instead of needing a line of its own here to stop
+    // being taken back off the row.
+    const spawned = move.spawned === undefined
+      ? current?.spawned
+      : { ...current?.spawned, ...move.spawned }
     return both(
       this.#close(),
       this.#put(key, {
@@ -274,6 +293,7 @@ export class Transcript {
         ...(wrote === undefined ? {} : { wrote }),
         ...(locations === undefined ? {} : { locations }),
         ...(parent === undefined ? {} : { parent }),
+        ...(spawned === undefined ? {} : { spawned }),
       }),
     )
   }

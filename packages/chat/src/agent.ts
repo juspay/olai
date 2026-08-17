@@ -113,6 +113,7 @@ import {
   pickerValueFor,
   sameModel,
   SDK_MESSAGE,
+  spawnedIn,
   STEER_METHOD,
   STEER_TIMEOUT,
   STEER_WHEN_IDLE,
@@ -473,6 +474,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // in the protocol to tell them apart, so this is the only thing
             // that says a turn had more than one agent in it.
             parent: parentToolUseIn(update._meta) ?? undefined,
+            // ... and, the other way round, whether this call SENT an agent
+            // out. Read here rather than left to the parent stamp because the
+            // stamp is answered by a subagent's own frames and a subagent that
+            // has not made a call yet has produced none — which is the whole
+            // of the stretch a person is watching a fan-out through.
+            spawned: spawnedIn(update._meta, update.rawInput) ?? undefined,
           })
           return
         case "available_commands_update":
@@ -795,6 +802,22 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 // about, which is a different bargain and its own decision. An
                 // empty object is how the protocol spells "yes" here.
                 elicitation: { form: {} },
+                // WHAT IS NOT ASKED FOR, named here because this is where it
+                // would be asked for and a decision recorded anywhere else is a
+                // decision nobody finds: `_meta["subagent-transcript"]: true`.
+                // The pinned adapter reads that flag off these capabilities
+                // (`supportsSubagentTranscript`) and, with it, forwards a
+                // SPAWNED agent's own text and thinking as chunks stamped with
+                // the `Agent` call they came from; without it those blocks are
+                // stripped from the feed entirely. So a subagent's narration is
+                // not something this panel is missing — it is something it has
+                // not asked for, and the difference matters because asking is
+                // one line. It is not asked for yet because a second voice in
+                // the transcript is a feature with its own drawing to decide
+                // (`./interpret.ts` says what the panel does know about a
+                // spawn), and because the flag's absence is what guarantees a
+                // subagent's prose cannot arrive unattributed in the main
+                // agent's voice.
               },
               clientInfo: { name: "olai", version: "0.1.0" },
             },

@@ -101,6 +101,28 @@ test("only pill.ts spells the alarm pill button", () => {
   expect(filesSpelling(spelling)).toEqual(["pill.ts"])
 })
 
+// chat/live.ts's claim — one spelling of the panel's "this is happening now"
+// cue. Two places wear it and they are the same fact one level apart: the
+// header says a TURN is in flight, a spawn's rail says an AGENT the turn sent
+// out is. They were two copies with a comment in one of them asserting they
+// matched, which is the arrangement this file exists to replace.
+test("only chat/live.ts spells the live dot", () => {
+  const spelling = /inline-block size-1\.5 animate-pulse rounded-full bg-doing/
+  expect(filesSpelling(spelling)).toEqual(["chat/live.ts"])
+})
+
+// chat/lanes.ts's claim — one spelling of a lane's rail, and this one is a
+// claim about GEOMETRY rather than about tone. Two things draw the rail and
+// the whole point of the second is that it is the same line continued: a row
+// a subagent made hangs one off the frame above it, and a spawn nobody has
+// reported on yet hangs one off itself, directly above that row. Spelled
+// twice they agreed by coincidence, and the first tweak to either would have
+// drawn a reader one line as two.
+test("only chat/lanes.ts spells the lane rail", () => {
+  const spelling = /border-l-2 border-muted\/70 pl-2/
+  expect(filesSpelling(spelling)).toEqual(["chat/lanes.ts"])
+})
+
 // layer.ts's claim — every `z-index` in this client comes from its table. The
 // numbers were never wrong before that module existed; they were spread over
 // twenty call sites, where two of them meant something entirely different from

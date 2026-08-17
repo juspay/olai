@@ -317,6 +317,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               wrote: event.wrote,
               locations: event.locations,
               parent: event.parent,
+              spawned: event.spawned,
             }),
           )
           return

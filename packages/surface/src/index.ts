@@ -575,6 +575,7 @@ export {
   NodeContext,
   OpFailure,
   SessionInfo,
+  Spawned,
   Usage,
   UsageFailure,
   Wrote,
