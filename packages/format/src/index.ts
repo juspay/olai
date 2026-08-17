@@ -76,8 +76,16 @@ export type { Reading } from "./validate.ts"
  *  PATCH its view rather than build one. The store's codec is what holds both
  *  halves; every other caller goes on passing a set and nothing else. */
 export type { Previous } from "./validate.ts"
+/** The pair WITHOUT the rules — a set and the view of it, patched from a
+ *  previous reading where that is exact and rebuilt where it is not. For the
+ *  one caller whose reading is speculative and validated later, exactly once:
+ *  `@olai/ops`' batch fold, which plans op two against the set op one would
+ *  leave. It is `patch` PLUS the disagreement check, which is what a caller
+ *  holding a set needs and the browser's own fold does not (see `patch`
+ *  below). */
+export { reading } from "./validate.ts"
 
-export { assemble, BrokenFile, nodesIn, OutlineSet } from "./set.ts"
+export { apart, assemble, BrokenFile, nodesIn, OutlineSet } from "./set.ts"
 /** WHICH FILE COMES FIRST — the order a directory is read in, and the one
  *  spelling of it: the set is assembled in it, the patcher places an arriving
  *  file by it, and the browser folds and draws in it. Exported because the
@@ -94,7 +102,17 @@ export type { DecodedFile, Outline } from "./set.ts"
  *  the view it is already holding, with the function the validator uses. Two
  *  patchers would be the counterexample to `derive`'s own argument — that the
  *  validator and the view share one interpretation of the format — so there is
- *  one, and both ends call it. */
+ *  one, and both ends call it.
+ *
+ *  IT IS STILL NOT THE DOOR FOR A CALLER HOLDING A SET, and `olai-batch-verbs`
+ *  is why that distinction is worth keeping now that the export exists. The
+ *  browser folds frames into a view and has no set to hold the result against;
+ *  `@olai/ops`' batch fold assembles a real `OutlineSet` per op and plans the
+ *  next one against it, which is exactly the shape {@link viewOf}'s
+ *  disagreement check exists for — a delta that missed a file makes every
+ *  record look like a duplicate of itself. So that caller reaches `reading`
+ *  below, which is this function AND that check, and the two consumers differ
+ *  by what they are holding rather than by what they remembered. */
 export { patch } from "./patch.ts"
 export type { SetDelta } from "./patch.ts"
 /** WHICH files a served directory is made of — one table, the two suffixes the
@@ -342,7 +360,10 @@ export {
 export {
   AddRequest,
   AfterRequest,
+  ApplyRequest,
   ArchiveRequest,
+  BATCH_AT_MOST,
+  type BatchedRequest,
   type Capture,
   CreateDocumentRequest,
   CreateRequest,
@@ -360,6 +381,7 @@ export {
   TitleRequest,
   UnarchiveRequest,
   UnmirrorRequest,
+  UpdateRequest,
   WriteDocumentRequest,
   WriteRequest,
   WriteResult,

@@ -472,3 +472,53 @@ Then(
     );
   },
 );
+
+/**
+ * A batch, and the one property the browser is the right place to prove: the
+ * page sees ONE snapshot for the whole run.
+ *
+ * Three ops that a loop would have sent as three calls at three revisions, so a
+ * tab would have drawn the first, then the second, then the third. `apply` is
+ * one plan, one validation, one rename and one publication — a page that has
+ * any of it has all of it, which is the same claim `add_node`'s `children`
+ * makes one level down and the reason the assertion reads the tree once.
+ */
+When(
+  "the terminal agent applies three ops in one call",
+  async function (this: OlaiWorld) {
+    this.toolAnswer = await callTool(agentOf(this), "apply", {
+      ops: [
+        { op: "add", parent: "kitchen", id: "worktop", title: "fit the worktop" },
+        { op: "after", id: "worktop", add: ["install"] },
+        { op: "prop", id: "worktop", key: "agent", value: "claude-opus" },
+      ],
+    });
+  },
+);
+
+When(
+  "the terminal agent applies a batch whose last op is refused",
+  async function (this: OlaiWorld) {
+    // The first two would land on their own; the third names an id nothing
+    // declares. All-or-nothing means the first two do not.
+    this.toolAnswer = await tryTool(agentOf(this), "apply", {
+      ops: [
+        { op: "add", parent: "kitchen", id: "never", title: "never written" },
+        { op: "title", id: "order", title: "renamed by a batch" },
+        { op: "done", id: "nowhere" },
+      ],
+    });
+  },
+);
+
+When(
+  "the terminal agent updates {string} in one call",
+  async function (this: OlaiWorld, id: string) {
+    this.toolAnswer = await callTool(agentOf(this), "update", {
+      id,
+      title: "order the walnut cabinets",
+      desc: "walnut, six week lead time",
+      props: { supplier: "the joiner" },
+    });
+  },
+);

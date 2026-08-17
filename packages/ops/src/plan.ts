@@ -28,9 +28,13 @@ import {
   ancestorsOf,
   ARCHIVE,
   archiveBeside,
+  BATCH_AT_MOST,
+  type BatchedRequest,
   bodyKind,
+  BusyFailure,
   chainOf,
   countedChildren,
+  type Custom,
   isArchived,
   derive,
   type Derived,
@@ -48,6 +52,7 @@ import {
   type Status,
   NotFoundFailure,
   nodesOf,
+  nothing,
   type OpFailure,
   ordBetween,
   OUTLINE_EXT,
@@ -69,6 +74,8 @@ import {
   type WriteRequest as Request,
 } from "@olai/format"
 import { Result } from "effect"
+
+import { folding } from "./following.ts"
 
 /** One outline, as the records it will hold after the write. */
 export interface FilePlan {
@@ -214,6 +221,13 @@ export const plan = (
       return planWriteDocument(scope, request)
     case "create-doc":
       return planCreateDocument(scope, request)
+    // The two that plan no outline of their own: both fold this same switch over
+    // a run of ops ({@link folded}), which is why they can be listed here beside
+    // the verbs they are made of rather than living somewhere above them.
+    case "update":
+      return planUpdate(scope, request)
+    case "apply":
+      return planApply(scope, request)
   }
 }
 
@@ -283,10 +297,22 @@ const editable = (
  * one sentence by the agent and another by the keyboard would be reading two
  * products.
  */
-export const notFound = (derived: Derived, id: string): OpFailure => {
+export const notFound = (derived: Derived, id: string): OpFailure =>
+  missingId(id, derived.byId.keys())
+
+/**
+ * The same sentence over whatever ids are KNOWN — the set's, or the set's plus
+ * the ones a capture is about to mint.
+ *
+ * Split out for exactly one caller ({@link wiring}): a capture's edges may name
+ * a sibling in the same call, so an id that is a typo of one of THOSE has to be
+ * offered too. A second spelling of this refusal would be a `see` target
+ * corrected one way by `set_see` and another by `add_node`.
+ */
+const missingId = (id: string, known: Iterable<string>): OpFailure => {
   // The CLAUSE is the format's too, not just the budget behind it: a refusal
   // and a load error say "did you mean" in one voice or in two.
-  const near = didYouMean(id, derived.byId.keys())
+  const near = didYouMean(id, known)
   return new NotFoundFailure({
     reason: near === ""
       ? `\`${id}\` is not a node in the loaded set, and nothing in it is spelled ` +
@@ -606,8 +632,8 @@ const planAdd = (
   // Every id in the tree is decided before any record is built, and the set of
   // ids this call has claimed is what makes the second collision — one child
   // against another — a refusal rather than a duplicate the validator finds.
-  const taken = new Set<string>()
-  const root = idFor(scope, taken, request.id)
+  const into = minting()
+  const root = idFor(scope, into.taken, request.id)
   if (Result.isFailure(root)) return Result.fail(root.failure)
   const id = root.success
 
@@ -615,27 +641,37 @@ const planAdd = (
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
   const ord = ordFor(ords.success, id)
 
-  const minted: Array<RegularNode> = []
-  const refused = emit(scope, taken, minted, request, {
-    id,
-    parent,
-    ord,
-    below: NESTING,
-  })
-  if (refused !== null) return Result.fail(refused)
+  // ANCHORED: this capture's root carries a placement, so its own `after` names
+  // the sibling it lands after and is the caller's business rather than
+  // {@link misplacedAfter}'s. Every node below it is the other case.
+  const built = captured(scope, into, request, { id, parent, ord, below: NESTING }, true)
+  if (Result.isFailure(built)) return Result.fail(built.failure)
+  const minted = built.success
 
   // DOOR ONE, spelled in a capture: a tree that arrives already saying `done`
   // over a task it is bringing with it.
   //
-  // AFTER {@link emit}, and that order is load-bearing rather than incidental.
-  // The floor of the unrolled capture schema declares `children` as anything at
-  // all — deliberately, so the planner can refuse it by name (`@olai/format`'s
-  // `writing.ts`) — so a fourth level arrives typed `Capture` by a cast and
-  // checked by nothing. `emit` never touches it (it reads the length and
-  // refuses); a walk that ran first would be reading unvalidated JSON, where a
-  // `null` is a crash rather than an answer. Nothing has landed either way: a
-  // plan is returned whole or not at all, so "before anything is minted" was
-  // never what made a capture atomic.
+  // AFTER {@link emit}, and that order is a REQUIREMENT rather than a
+  // preference. The floor of the unrolled capture schema declares `children` as
+  // anything at all — deliberately, so the planner can refuse it by name
+  // (`@olai/format`'s `writing.ts`) — so a fourth level arrives typed `Capture`
+  // by a cast and checked by nothing. This walk reads `mark` off every
+  // descendant, so run first it would dereference that level, where a `null` is
+  // a crash rather than an answer; `emit` refuses the depth before it can.
+  // ({@link misplacedAfter} runs first and is the exception that shows the
+  // rule: it guards the entry instead, because what it teaches is worth
+  // hearing before anything else.)
+  //
+  // AFTER {@link wiring} is a different kind of decision and is one: nothing
+  // makes it necessary — wiring resolves edges and this reads marks, and
+  // neither can change the other's answer — so what the order fixes is which
+  // refusal a capture that trips BOTH gets. It gets wiring's. An unknown target
+  // or a loop is a fact about a name the caller typed, and can be corrected
+  // where it was typed; a `done` over open work is a judgement about the shape
+  // of the tree, and is the message worth arriving at second because acting on
+  // it means rewriting the capture. Nothing has landed either way: a plan is
+  // returned whole or not at all, so "before anything is minted" was never what
+  // made a capture atomic.
   const contradicts = capturedOverOpenWork(request)
   if (contradicts !== undefined) return Result.fail(contradicts)
 
@@ -646,6 +682,11 @@ const planAdd = (
   // DOOR TWO: the door the 2026-08-16 incident actually walked through, and
   // the flow it matters most for — somebody writing down work that has just
   // come up, under a branch somebody else called finished last week.
+  //
+  // It asks the REQUEST rather than the records `wiring` just produced, and
+  // that stays correct for one reason worth pinning: what door two wants is
+  // whether the arriving tree holds an unfinished MARK, and wiring writes only
+  // `see` and `after`. The two record sets differ by edges alone.
   return Result.succeed(arriving(scope, { file, parent }, () => capturesOpenWork(request), {
     files: [
       { file, nodes: withOrds([...recordsOf(scope, file), ...minted], ords.success) },
@@ -810,8 +851,57 @@ const capturedNode = (
   if (capture.mark !== undefined) node[capture.mark] = marker(scope, capture.mark)
   if (capture.date !== undefined) node.date = capture.date
   if (capture.desc !== undefined) node.desc = capture.desc
+  // The properties, through the SAME writer one `set_prop` per key would reach
+  // (`@olai/format`'s `withCustom`), so "a key holding nothing is a key the
+  // file does not carry" is one rule and not a second one spelled for captures.
+  // The keys were judged by {@link propKey} in {@link emit} before anything got
+  // here; what is left is writing them.
+  const props = Object.entries(capture.props ?? {})
+  if (props.length > 0) {
+    let custom: Custom = {}
+    for (const [key, value] of props) custom = withCustom(custom, key.trim(), value)
+    // A map with no keys left is no `custom` field rather than `{}` — the
+    // format's own rule for absence (`@olai/format`'s `nothing`, which spells
+    // the empty map out), asked here rather than restated, so a capture whose
+    // every property was an empty string produces the record a `set_prop` of
+    // the same nothing would.
+    if (!nothing(custom)) node.custom = custom
+  }
+  // The EDGES are not written here, and that is the one asymmetry in this
+  // function: `see` and `waitsOn` may name a node this same call has not minted
+  // yet ({@link wiring}), so they are collected and resolved once every id in
+  // the tree is known. A record built with them would be a record built against
+  // half a capture.
   return node
 }
+
+/** One node's edges, held until every id in the capture is known — what
+ *  {@link emit} collects and {@link wiring} resolves. Both fields on one wire
+ *  rather than a wire per field: `emit` visits each node once, so a node's two
+ *  lists arrive together and a `field` discriminator would only be something
+ *  for the resolver to group back. */
+interface Wire {
+  readonly id: string
+  readonly see?: ReadonlyArray<string> | undefined
+  readonly after?: ReadonlyArray<string> | undefined
+}
+
+/**
+ * A capture under construction: the ids it has claimed, the records it has
+ * built, and the edges it still owes.
+ *
+ * ONE accumulator rather than three parameters threaded through a recursive
+ * walk, because the three are one thing — what this call has decided so far —
+ * and a walk that took them apart could be handed two of them from one capture
+ * and the third from another.
+ */
+interface Minting {
+  readonly taken: Set<string>
+  readonly records: Array<RegularNode>
+  readonly wires: Array<Wire>
+}
+
+const minting = (): Minting => ({ taken: new Set(), records: [], wires: [] })
 
 /**
  * One captured node and everything under it, appended to `records` in the order
@@ -825,8 +915,7 @@ const capturedNode = (
  */
 const emit = (
   scope: Scope,
-  taken: Set<string>,
-  records: Array<RegularNode>,
+  into: Minting,
   capture: Capture,
   /** Where this node lands, and how many further generations may hang off it. */
   at: At & { readonly below: number },
@@ -834,7 +923,19 @@ const emit = (
   if (capture.title.trim() === "") {
     return new UsageFailure({ reason: "a node needs a title" })
   }
-  records.push(capturedNode(scope, capture, at))
+  // The property KEYS, judged before the record is built and in `set_prop`'s own
+  // words ({@link propKey}). Here rather than at the end of the walk because a
+  // shadowed key is a fact about the key alone — it needs no id resolved and no
+  // sibling minted — and a refusal that arrives at the node it is about is the
+  // one worth reading.
+  for (const key of Object.keys(capture.props ?? {})) {
+    const named = propKey(key.trim())
+    if (named !== undefined) return named
+  }
+  into.records.push(capturedNode(scope, capture, at))
+  if ((capture.see?.length ?? 0) > 0 || (capture.waitsOn?.length ?? 0) > 0) {
+    into.wires.push({ id: at.id, see: capture.see, after: capture.waitsOn })
+  }
 
   const children = capture.children ?? []
   if (children.length === 0) return null
@@ -855,9 +956,9 @@ const emit = (
   let previous: string | null = null
   for (const child of children) {
     const ord = nextOrd(previous)
-    const id = idFor(scope, taken, child.id)
+    const id = idFor(scope, into.taken, child.id)
     if (Result.isFailure(id)) return id.failure
-    const refused = emit(scope, taken, records, child, {
+    const refused = emit(scope, into, child, {
       id: id.success,
       parent: at.id,
       ord,
@@ -867,6 +968,176 @@ const emit = (
     previous = ord
   }
   return null
+}
+
+/**
+ * The capture's edges, once every id in it is known — `see` and `waitsOn`
+ * resolved, checked and written onto the records {@link emit} built.
+ *
+ * **A SECOND PASS, and the reason is forward references.** A capture is a tree
+ * given in reading order, and the thing a lane actually wants to say is "step
+ * two waits on step one" — but also, freely, "step one is followed by step two",
+ * where the target is a sibling three lines further down that has no id until
+ * this same call mints one. Resolving an edge as the walk reaches it would make
+ * the first legal and the second a refusal about an id that is right there in
+ * the request, which is a rule nobody could hold in their head. So the ids are
+ * all claimed first ({@link Minting.taken}) and the edges are answered against
+ * the whole call.
+ *
+ * **THE REFUSALS ARE `set_see`'s AND `set_after`'s**, reached through the same
+ * two functions: an unknown target is {@link missingId}, with the closest id
+ * that exists — and the ids a capture is minting are among the candidates, so a
+ * typo of a sibling is corrected to that sibling — and an `after` edge that
+ * closes a loop is {@link closesLoop}, naming the loop with the validator's own
+ * arrow. What differs is only the GRAPH the loop is looked for in: the set's
+ * ordering edges plus the ones this capture is bringing, so a cycle drawn
+ * entirely between nodes that do not exist yet is caught here rather than by
+ * the validator, against a file nobody has written.
+ */
+/**
+ * A capture, as the records it becomes — the two passes, in the one order they
+ * may be run.
+ *
+ * BOTH ops that mint a tree call this and neither spells the sequence for
+ * itself: `add`'s capture, and the seed of a brand-new outline. The order is
+ * load-bearing rather than incidental (ids claimed, THEN edges resolved,
+ * {@link wiring}), so a caller free to write it down is a caller free to write
+ * it down differently — and there were two of them before this existed.
+ */
+const captured = (
+  scope: Scope,
+  into: Minting,
+  capture: Capture,
+  at: At & { readonly below: number },
+  /** Whether the ROOT of this capture has a placement anchor — true for
+   *  `add_node`, whose `after` at the top level names the sibling it lands
+   *  after, and false for a seed, whose file has no other rows to land among.
+   *  It decides one thing only: whether the root's own `after` is a word this
+   *  call means or {@link misplacedAfter}'s footgun. */
+  anchored: boolean,
+): Result.Result<ReadonlyArray<RegularNode>, OpFailure> => {
+  const bent = misplacedAfter(capture, anchored, at.below)
+  if (bent !== undefined) return Result.fail(bent)
+  const refused = emit(scope, into, capture, at)
+  return refused !== null ? Result.fail(refused) : wiring(scope, into)
+}
+
+/**
+ * `after` written where it means nothing — the bend {@link Capture}'s `waitsOn`
+ * pays for, caught rather than dropped.
+ *
+ * A capture spells its ordering edges `waitsOn`, because at `add_node`'s top
+ * level `after` is the placement anchor. Below that level `after` is not a
+ * field at all, and an Effect struct DROPS a key it does not declare — so an
+ * agent that has read `set_after`, or that is looking at the anchor one line
+ * up, writes `after` on a child, loses the whole dependency and is told the
+ * capture succeeded. A silent half-write is the one outcome this layer refuses
+ * outright, so the schema declares the key ({@link Capture}'s `after`) purely
+ * to make it REFUSABLE, and this is where it is refused: by name, pointing at
+ * the word that works.
+ *
+ * WALKED FIRST, before anything is minted, for what it teaches: an agent that
+ * misspelled the edge field wants to hear THAT, not a refusal about an id it
+ * named somewhere else. Going first is what makes the DEPTH BOUND below part of
+ * this function rather than a nicety — the door-one walk can descend blindly
+ * because `emit` has already refused a fourth level by the time it runs, and
+ * this one cannot. Below {@link NESTING} the schema validated nothing
+ * ({@link ../../format/src/writing.ts}'s `childrenOf`, whose floor accepts an
+ * array of anything at all), so a node down there is raw JSON: its `children`
+ * may be a number, and `for…of` over a number throws where a refusal belongs.
+ * The walk therefore stops exactly where the schema stopped, and `emit` refuses
+ * the depth a moment later in its own words.
+ */
+const misplacedAfter = (
+  capture: Capture,
+  anchored: boolean,
+  /** How many further generations the SCHEMA vouched for. */
+  below: number,
+): OpFailure | undefined => {
+  if (!anchored && capture.after !== undefined) {
+    return new UsageFailure({
+      reason: `\`${capture.title}\` carries \`after\`, which is not what a captured node ` +
+        `says about its edges — write \`waitsOn\` instead, with the same ids. ` +
+        `\`after\` at the top of a capture names the SIBLING the node is placed ` +
+        `after, so a node further down has no use for the word and this one was ` +
+        `about to be dropped. Nothing was written.`,
+    })
+  }
+  // The floor of what the schema checked. Everything the walk has touched so
+  // far is a decoded node; one level further is not, and is `emit`'s to refuse.
+  if (below === 0) return undefined
+  for (const child of capture.children ?? []) {
+    const bent = misplacedAfter(child, false, below - 1)
+    if (bent !== undefined) return bent
+  }
+  return undefined
+}
+
+const wiring = (
+  scope: Scope,
+  into: Minting,
+): Result.Result<ReadonlyArray<RegularNode>, OpFailure> => {
+  if (into.wires.length === 0) return Result.succeed(into.records)
+
+  /** Is this a target this call may name at all — a node the set holds, or one
+   *  this call is minting? Asked directly of the two maps rather than of a
+   *  union of their keys: a corpus-sized copy per capture, to answer a handful
+   *  of lookups, is the walk this codebase spends its per-write budget
+   *  avoiding. What the REFUSAL needs is the ids as an iterable, and that is
+   *  built only on the path that refuses ({@link candidates}). */
+  const has = (target: string): boolean =>
+    into.taken.has(target) || scope.derived.byId.has(target)
+  /** Every id a did-you-mean may offer, the minted ones included — so a typo of
+   *  a sibling this call is bringing into being is corrected to that sibling,
+   *  which the set's own ids could never have offered. */
+  const candidates = function*(): Iterable<string> {
+    yield* scope.derived.byId.keys()
+    yield* into.taken
+  }
+  /** A target as the ORDERING GRAPH knows it — a node being born stands for
+   *  itself, since there is nothing to resolve it through. */
+  const graphed = (target: string): string =>
+    into.taken.has(target) ? target : standingAt(scope, target)
+
+  // The edges as they will read once this capture lands, per node, deduped in
+  // the order they were written — `@olai/format`'s own rule that a target named
+  // twice is named once, which `set_see` and `set_after` keep by never
+  // appending an id the list already holds. A `Set` keeps insertion order, so
+  // the dedupe is the rule and not a reordering of it.
+  const born = new Map<string, Wire>()
+  for (const wire of into.wires) {
+    for (const target of [...(wire.see ?? []), ...(wire.after ?? [])]) {
+      if (!has(target)) return Result.fail(missingId(target, candidates()))
+    }
+    born.set(wire.id, {
+      id: wire.id,
+      ...(wire.see === undefined ? {} : { see: [...new Set(wire.see)] }),
+      ...(wire.after === undefined ? {} : { after: [...new Set(wire.after)] }),
+    })
+  }
+
+  // Only NOW is the loop question askable: an edge from a node being born to a
+  // sibling being born is a link in a chain neither end of which the derivation
+  // has heard of, so the walk reads both maps.
+  const edges = (id: string): Iterable<string> => [
+    ...(scope.derived.after.get(id) ?? []),
+    ...(born.get(id)?.after ?? []).map(graphed),
+  ]
+  for (const wire of born.values()) {
+    for (const target of wire.after ?? []) {
+      const refused = closesLoop(edges, wire.id, target, graphed(target))
+      if (refused !== null) return Result.fail(refused)
+    }
+  }
+
+  return Result.succeed(into.records.map((record) => {
+    const wired = born.get(record.id)
+    if (wired === undefined) return record
+    const next: Draft<RegularNode> = { ...record }
+    if (wired.see !== undefined) next.see = wired.see
+    if (wired.after !== undefined) next.after = wired.after
+    return next
+  }))
 }
 
 // ── the marks ──────────────────────────────────────────────────────────
@@ -1063,11 +1334,18 @@ const planMark = (
  * "waiting on something somebody is doing" and "waiting on something nobody
  * has picked up" are different positions to be in.
  *
- * NOT the capture path, and that is a property of the format rather than an
- * omission: a node born marked (`add_node`'s `mark`) has no `after` edges of
- * its own — the capture schema's `after` is a sibling ANCHOR — and a `blocks`
- * pointing at an id the set does not declare yet is `unknown-target`, which
- * the validator refuses. A capture cannot arrive blocked.
+ * NOT A CAPTURE, which may be born `doing` with `waitsOn` naming an unfinished
+ * task and is not refused. The rule this is an instance of is the one below: a
+ * gate on STARTING is a gate on the instruction, never on the pair of facts. A
+ * capture states both at once, by a caller that knows both, which is the
+ * discovery — the same thing `set_doing` followed by `set_after` states in two
+ * calls and is refused nowhere. What is refused is being told to start
+ * something the set ALREADY says cannot start, and a node that does not exist
+ * yet has no already. The row lands, drawn blocked, saying what it waits for.
+ *
+ * NOT SOFTENED BY `apply`, and by construction rather than by a rule of its
+ * own: a batch plans each op against what the ops before it left, so
+ * `[set_after, set_doing]` meets this gate exactly as those two calls do.
  *
  * NOT `set_after` EITHER, and that one is a choice. Wiring an edge onto a node
  * that is already `doing` leaves a started row waiting on something, and that
@@ -1513,6 +1791,30 @@ const planEdit = (
 }
 
 /**
+ * What is wrong with a property's KEY — or `undefined`, which is nearly every
+ * key.
+ *
+ * The two refusals {@link planProp} makes before it has looked at a node at
+ * all, and they are out here rather than inside it because a CAPTURE writes
+ * properties too now (`add_node`'s `props`, `olai-batch-verbs`): a key spelled
+ * like a field has to be turned toward the same verb whether it arrives on a
+ * node that exists or on one being born, and the sentence saying so may not
+ * have two versions.
+ */
+const propKey = (key: string): OpFailure | undefined => {
+  if (key === "") return new UsageFailure({ reason: "a property needs a key" })
+  const shadow = shadowFor(key)
+  if (shadow === undefined) return undefined
+  return new UsageFailure({
+    reason: `${
+      shadow.field
+        ? `a node already says \`${key}\` with a field of its own`
+        : `\`${key}\` is what a node's own fields already answer`
+    }, so a property by that name would be a second answer to one question — ${shadow.door}`,
+  })
+}
+
+/**
  * One custom key, set or taken off — the only writer of `custom`, and the one
  * op in this file whose subject is a key rather than a field.
  *
@@ -1527,7 +1829,7 @@ const planEdit = (
  * is a legal record and an unreadable one — a drawer would show `done` beside a
  * checkbox that says something else, and a reader would have two answers to one
  * word. So a key spelled like a field is turned toward the verb that writes
- * that fact.
+ * that fact ({@link propKey}, which a capture asks too).
  *
  * A key is otherwise not judged. The map takes any key, so a rule here about
  * hyphens or case would be this op inventing a spelling the format does not
@@ -1539,21 +1841,8 @@ const planProp = (
   request: Extract<Request, { op: "prop" }>,
 ): Planned => {
   const key = request.key.trim()
-  if (key === "") {
-    return Result.fail(new UsageFailure({ reason: "a property needs a key" }))
-  }
-  const shadow = shadowFor(key)
-  if (shadow !== undefined) {
-    return Result.fail(
-      new UsageFailure({
-        reason: `${
-          shadow.field
-            ? `a node already says \`${key}\` with a field of its own`
-            : `\`${key}\` is what a node's own fields already answer`
-        }, so a property by that name would be a second answer to one question — ${shadow.door}`,
-      }),
-    )
-  }
+  const named = propKey(key)
+  if (named !== undefined) return Result.fail(named)
 
   const value = request.value
   return planEdit(
@@ -2083,21 +2372,24 @@ const planCreate = (
   // renamed together, so a seed that is refused leaves no file behind rather
   // than an empty outline nobody asked for.
   const seed = request.seed
-  const taken = new Set<string>()
-  const chosen = idFor(scope, taken, seed.id)
+  const into = minting()
+  const chosen = idFor(scope, into.taken, seed.id)
   if (Result.isFailure(chosen)) return Result.fail(chosen.failure)
   const id = chosen.success
 
-  const minted: Array<RegularNode> = []
-  const refused = emit(scope, taken, minted, seed, {
+  const built = captured(scope, into, seed, {
     id,
     // Top level of a file that does not exist yet, so there is nobody to place
     // it among: the first key, the one an `add` mints with no siblings.
     parent: undefined,
     ord: nextOrd(null),
     below: NESTING,
-  })
-  if (refused !== null) return Result.fail(refused)
+    // …which is also why the seed is NOT anchored: with no siblings to land
+    // among there is no placement, so `after` on a seed's root is the same
+    // misspelling it is on any child, and is refused the same way.
+  }, false)
+  if (Result.isFailure(built)) return Result.fail(built.failure)
+  const minted = built.success
 
   // ...and the same DOOR ONE, in the same place in the sequence and for the
   // same reason ({@link planAdd}): a seed is a capture, so a node born done
@@ -2690,6 +2982,332 @@ const bareScaffold = (node: Node): boolean => {
   return Object.keys(rest).length === 0
 }
 
+// ── several writes, one plan ───────────────────────────────────────────
+
+/**
+ * A run of ops, folded into ONE plan — what `apply` and `update` are both made
+ * of, and the only place in this file that plans more than one thing.
+ *
+ * **IT CALLS {@link plan}, WHICH IS THE WHOLE DESIGN.** There is no batch
+ * planner: there is the planner, run N times, each time against the reading the
+ * run before it left behind ({@link ./following.ts}). Every refusal is
+ * therefore the single verb's own refusal, in the single verb's own words, made
+ * at the single verb's own moment — a shadowed property key, an unknown id
+ * answered with the closest one, an `after` edge named as a loop, a `done` that
+ * would come to stand over unfinished work. Nothing here decides anything about
+ * an outline, and nothing here can drift from what one call does, because it IS
+ * what one call does.
+ *
+ * **WHAT IT MERGES, and why each is that way:**
+ *
+ *   - the FILES, by path, LAST WINS. Every plan is whole files, and a plan made
+ *     against the reading its predecessors produced already holds their work —
+ *     so the last plan to touch a file is that file, finished. Anything else
+ *     would be two writers of one path. The DOCUMENTS the same way: no verb in
+ *     the batched list writes one today, and the day one joins it the merge is
+ *     already right rather than a field somebody has to notice;
+ *   - `captured`, CONCATENATED in op order, so a caller that captured three
+ *     subtrees across a batch gets every id it did not choose;
+ *   - the `nudge`s, JOINED. Each is news about a write that landed — a mark
+ *     re-opened, a parent whose last task just finished — and news does not
+ *     stop being true for arriving beside other news;
+ *   - `id` / `title` / `file` from the LAST op. One answer has to name one node
+ *     and the ops name several; the last one is the only choice that is right
+ *     for `update`, where the run is one node and the last plan is the only one
+ *     that has seen every field this call wrote (a retitle followed by a mark
+ *     reports the NEW title). `captured` is where a batch's real inventory is.
+ *
+ * **WHAT IT DOES NOT DO IS WRITE, VALIDATE OR RETRY.** One plan comes out, and
+ * the write gate does to it exactly what it does to every other plan: validates
+ * the set it would produce once, renames once, produces one revision. That is
+ * the atomicity, and it is inherited rather than implemented.
+ */
+const folded = (
+  scope: Scope,
+  ops: ReadonlyArray<BatchedRequest>,
+  /** What a refused op's failure LOOKS LIKE to the caller. `apply` names the
+   *  index; `update` hands the verb's refusal back untouched, because the caller
+   *  wrote fields rather than a list and there is no index to name. */
+  dress: (index: number, op: BatchedRequest, failure: OpFailure) => OpFailure,
+  /** The commit subject, off the subjects of the ops it is made of and the last
+   *  plan of the run — which is the only one that has seen every op's work, and
+   *  the only place the FINAL title of a node this run retitled is written. */
+  summarize: (summaries: ReadonlyArray<string>, last: Plan) => string,
+): Planned => {
+  const fold = folding(scope)
+  const files = new Map<string, FilePlan>()
+  const documents = new Map<string, DocumentPlan>()
+  const captured: Array<Minted> = []
+  const nudges: Array<string> = []
+  const summaries: Array<string> = []
+  let last: Plan | undefined
+  let at: Reading = scope
+
+  for (const [index, op] of ops.entries()) {
+    const made = plan(at, scope.context, op)
+    if (Result.isFailure(made)) return Result.fail(dress(index, op, made.failure))
+    const one = made.success
+
+    for (const planned of one.files) files.set(planned.file, planned)
+    for (const planned of one.documents ?? []) documents.set(planned.file, planned)
+    if (one.captured !== undefined) captured.push(...one.captured)
+    if (one.nudge !== undefined) nudges.push(one.nudge)
+    summaries.push(one.summary)
+    last = one
+
+    // NOT after the last op: nothing is judged against the set it leaves, and
+    // producing that set means serialising and parsing every file it touched
+    // for a reading nobody reads. A one-op batch therefore costs exactly what
+    // the op costs.
+    if (index === ops.length - 1) break
+    const next = fold(one)
+    if (Result.isFailure(next)) return Result.fail(next.failure)
+    at = next.success
+  }
+
+  // Unreachable: both callers refuse an empty run before they get here, with a
+  // sentence of their own about what to give instead.
+  if (last === undefined) {
+    return Result.fail(new UsageFailure({ reason: "nothing to do" }))
+  }
+
+  return Result.succeed({
+    files: [...files.values()],
+    ...(documents.size === 0 ? {} : { documents: [...documents.values()] }),
+    id: last.id,
+    title: last.title,
+    file: last.file,
+    ...(captured.length === 0 ? {} : { captured }),
+    summary: summarize(summaries, last),
+    ...(nudges.length === 0 ? {} : { nudge: nudges.join(" ") }),
+  })
+}
+
+/**
+ * A refused op, named by where it sat in the batch.
+ *
+ * The KIND is carried across rather than flattened — a batch whose third op
+ * named a missing id is a `not-found`, and a caller that switches on the kind
+ * must not be told `usage` because the refusal changed hands on the way out.
+ * `named` and the validator's `errors` ride along for the same reason: the
+ * detail is what the refusal was FOR.
+ */
+const refusedAt = (index: number, op: BatchedRequest, failure: OpFailure): OpFailure => {
+  const reason = `\`ops[${index}]\` (\`${op.op}\`) was refused, so nothing in this ` +
+    `batch was written: ${failure.message}`
+  switch (failure._tag) {
+    case "NotFoundFailure":
+      return new NotFoundFailure({
+        reason,
+        ...(failure.named === undefined ? {} : { named: failure.named }),
+      })
+    case "ValidationFailure":
+      return new ValidationFailure({ reason, errors: failure.errors })
+    case "BusyFailure":
+      return new BusyFailure({ reason })
+    case "UsageFailure":
+      return new UsageFailure({ reason })
+  }
+}
+
+const planApply = (
+  scope: Scope,
+  request: Extract<Request, { op: "apply" }>,
+): Planned => {
+  const ops = request.ops
+  if (ops.length === 0) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          "give at least one op — `apply` runs a list of the write verbs you already " +
+          "have, in order, as one write",
+      }),
+    )
+  }
+  if (ops.length > BATCH_AT_MOST) {
+    return Result.fail(
+      new UsageFailure({
+        reason: `a batch runs at most ${BATCH_AT_MOST} ops and this one has ` +
+          `${ops.length}, so nothing was written. Split it: each call is still one ` +
+          `validation and one revision, and a batch that large is a plan nobody can ` +
+          `read in a refusal.`,
+      }),
+    )
+  }
+  return folded(
+    scope,
+    ops,
+    refusedAt,
+    (summaries) =>
+      `apply: ${summaries.length} op${summaries.length === 1 ? "" : "s"} — ${
+        capped(summaries, (one) => one)
+      }`,
+  )
+}
+
+/**
+ * Several fields of ONE node, folded into the verbs that write them.
+ *
+ * The desugaring is the whole implementation, and the ORDER of it is the one
+ * decision this function makes: `title`, `desc`, `date`, the properties in the
+ * order the caller wrote them, `after`, and the MARK LAST. Everything before
+ * the mark is a fact about the node; the mark is a claim about it, and a claim
+ * is judged against the node this call has finished making. `{mark: "doing",
+ * after: ["order"]}` therefore meets `set_doing`'s gate with the edge already
+ * in place, and is refused — which is the answer a caller asking for both in one
+ * breath should get, and the opposite order would have landed a `doing` and
+ * drawn it blocked a frame later.
+ *
+ * `after` REPLACES, and this is where that becomes a difference of what is
+ * written: the whole list arrives, the difference against what the node holds is
+ * computed, and `set_after` is handed exactly that difference. So the edges an
+ * update does not mention come OFF — which is what "this is the list" means —
+ * while every refusal is still the incremental verb's, including its no-op one:
+ * a list identical to what is there changes nothing, and is turned away rather
+ * than written.
+ */
+const planUpdate = (
+  scope: Scope,
+  request: Extract<Request, { op: "update" }>,
+): Planned => {
+  // Resolved FIRST, so an id nothing declares is answered before any field is
+  // read — the same refusal, in the same place in the call, as every other verb
+  // that names one node.
+  const target = editable(scope, request.id)
+  if (Result.isFailure(target)) return Result.fail(target.failure)
+  const { node } = target.success
+
+  const id = request.id
+  const ops: Array<BatchedRequest> = []
+  const wrote: Array<string> = []
+
+  // A CONDITION ON A WRITE THAT IS NOT HAPPENING is a caller that mis-typed one
+  // of the two fields, and it is refused rather than ignored — the whole reason
+  // `was` is spelled here at all is that a conditional silently going missing is
+  // the failure this shape had to close.
+  const was = request.was ?? {}
+  for (const field of ["title", "desc"] as const) {
+    if (was[field] !== undefined && request[field] === undefined) {
+      return Result.fail(
+        new UsageFailure({
+          reason: `\`was.${field}\` says what this write expects \`${field}\` to hold, ` +
+            `but this call does not write \`${field}\` — give the new value too, or ` +
+            `drop the condition. Nothing was written.`,
+        }),
+      )
+    }
+  }
+
+  if (request.title !== undefined) {
+    ops.push({
+      op: "title",
+      id,
+      title: request.title,
+      // `set_title`'s OWN field, handed straight through — so the condition is
+      // tested inside the plan and therefore on every attempt the write gate
+      // makes, which is the whole point of it living there rather than here.
+      ...(was.title === undefined ? {} : { was: was.title }),
+    })
+    wrote.push("title")
+  }
+  if (request.desc !== undefined) {
+    ops.push({
+      op: "desc",
+      id,
+      desc: request.desc,
+      // `null` is a real answer here — "expects no note at all" — which is why
+      // the test is on the key being present, exactly as `set_desc`'s is.
+      ...(was.desc === undefined ? {} : { was: was.desc }),
+    })
+    wrote.push("note")
+  }
+  if (request.date !== undefined) {
+    ops.push({ op: "date", id, date: request.date })
+    wrote.push("date")
+  }
+  for (const [key, value] of Object.entries(request.props ?? {})) {
+    ops.push({ op: "prop", id, key, value })
+    wrote.push(`\`${key}\``)
+  }
+  if (request.after !== undefined) {
+    // The list, handed to `set_after` as the whole `add` plus whatever it
+    // displaces — never as a difference on both sides. That is what carries the
+    // incremental verb's refusals unchanged, the no-op one included: a list
+    // identical to what is there arrives as an `add` of every target the node
+    // already names, which is precisely the call that answers "already comes
+    // after exactly …". A pre-computed difference would have arrived empty and
+    // been refused for naming nothing, which is a sentence about a call the
+    // caller did not make.
+    //
+    // `held` is read from the reading this call STARTED at rather than from
+    // inside the fold, and the fixed field order above is what makes that
+    // correct: nothing planned before `after` touches a node's `after`.
+    const held = node.after ?? []
+    const want = request.after
+    ops.push({
+      op: "after",
+      id,
+      add: want,
+      remove: held.filter((one) => !want.includes(one)),
+    })
+    wrote.push("after")
+  }
+  if (request.mark !== undefined) {
+    if (request.mark === null) {
+      // THE ONE REFUSAL HERE THAT NO SINGLE VERB MAKES, named as the exception
+      // it is: `mark: null` has no single-verb spelling — `set_done`,
+      // `set_doing` and `set_todo` each have to be TOLD which mark they are
+      // undoing — so "there is no mark to take off" is a sentence this shape
+      // needs and none of them has. It is worded after `set_prop`'s refusal for
+      // a key that is not there, which is the same gesture over the other kind
+      // of absence. Every other refusal in this function is the single verb's,
+      // verbatim, because every other field is that verb's own request.
+      //
+      // The node is read from the reading this call STARTED at, which is right
+      // because nothing before the mark in the fold touches a mark — and it is
+      // the only field here that reads across the fold, so the fixed order
+      // above is what makes it true.
+      const stored = storedMarker(node)
+      if (stored === undefined) {
+        return Result.fail(
+          new UsageFailure({
+            reason: `\`${node.title}\` carries no mark, so there is none to take off`,
+          }),
+        )
+      }
+      ops.push({ op: stored, id, undo: true })
+      wrote.push(`un-${stored}`)
+    } else {
+      ops.push({ op: request.mark, id })
+      wrote.push(request.mark)
+    }
+  }
+
+  if (ops.length === 0) {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          "give at least one field to write — `title`, `desc`, `date`, `props`, " +
+          "`after` or `mark`",
+      }),
+    )
+  }
+
+  return folded(
+    scope,
+    ops,
+    // The verb's own refusal, UNDRESSED. A caller of `update` wrote fields, not
+    // a list, so there is no index to name — and a `set_prop` refusal about a
+    // shadowed key reads exactly as it does when `set_prop` is what was called.
+    (_index, _op, failure) => failure,
+    // The fields, not the sub-summaries: `update: the header (title, note,
+    // done)` says what one gesture did, where five subjects strung together
+    // would say it five times about one node. The title is the LAST plan's,
+    // which is the new one when this call retitled.
+    (_summaries, last) => `update: ${last.title} (${wrote.join(", ")})`,
+  )
+}
+
 // ── the edges: see, after ──────────────────────────────────────────────
 
 /**
@@ -2707,15 +3325,52 @@ const bareScaffold = (node: Node): boolean => {
  * agent that is told which loop it would close can fix the call instead of the
  * file. So the message NAMES it, with the validator's own arrow.
  */
-const cycling = (scope: Scope, node: RegularNode, target: string): OpFailure | null => {
-  const named = nodeNamed(scope.derived, target)?.node.id ?? target
-  const back = pathTo(named, node.id, (id) => scope.derived.after.get(id) ?? [])
+/** The node an edge target NAMES — a placement resolved to the node standing at
+ *  it, which is how `derive` resolves both ends of every ordering edge. Spelled
+ *  once because two callers ask it about one graph: the verb that writes an
+ *  edge onto a node that exists ({@link cycling}) and the capture that writes
+ *  one onto a node being born ({@link wiring}), and a loop refused by one of
+ *  them and not the other would be two answers to "is `x` the same node as the
+ *  placement `y`". */
+const standingAt = (scope: Scope, target: string): string =>
+  nodeNamed(scope.derived, target)?.node.id ?? target
+
+const cycling = (scope: Scope, node: RegularNode, target: string): OpFailure | null =>
+  closesLoop(
+    (id) => scope.derived.after.get(id) ?? [],
+    node.id,
+    target,
+    standingAt(scope, target),
+  )
+
+/**
+ * The refusal itself, over whatever ordering graph the caller is holding.
+ *
+ * TWO graphs ask now, which is why the walk and the sentence are split from the
+ * one that reads the derivation. `set_after` asks over the set's edges, which is
+ * `derive`'s own normalised map. A CAPTURE asks over that map plus the edges the
+ * capture is bringing with it ({@link wiring}) — nodes that do not exist yet,
+ * pointing at each other and at nodes that do — and there is no derivation of a
+ * tree nobody has written. The words are identical because they are these words,
+ * once.
+ */
+const closesLoop = (
+  edges: (id: string) => Iterable<string>,
+  /** The node the edge is being written ON. */
+  id: string,
+  /** The target AS THE CALLER SPELLED IT — what the sentence quotes. */
+  target: string,
+  /** …and as the graph knows it: a placement resolved to the node standing at
+   *  it, or the spelling itself when the graph is not the set's. */
+  named: string,
+): OpFailure | null => {
+  const back = pathTo(named, id, edges)
   if (back === null) return null
   // `back` already ends where it started from, so the node's own id in front of
   // it IS the closed loop: `a → b → a`, and `a → a` for an edge onto itself.
   return new UsageFailure({
-    reason: `\`${node.id}\` after \`${target}\` closes a loop — ${
-      chainOf([node.id, ...back])
+    reason: `\`${id}\` after \`${target}\` closes a loop — ${
+      chainOf([id, ...back])
     } — and \`after\` (counting \`blocks\`) must stay acyclic, so nothing in it ` +
       `could ever start first`,
   })

@@ -134,9 +134,9 @@ bun test packages/format
 
 ## What a write ASKS for, and what one that landed says
 
-`src/writing.ts` is the third time this move was made — after `committing.ts` and `reading.ts`/`searching.ts`, and for the identical reason. It holds the seventeen request schemas, the `WriteRequest` union over them, and `WriteResult`, which is what an op that succeeded answers with.
+`src/writing.ts` is the third time this move was made — after `committing.ts` and `reading.ts`/`searching.ts`, and for the identical reason. It holds the twenty request schemas, the `WriteRequest` union over them, and `WriteResult`, which is what an op that succeeded answers with.
 
-**Seventeen schemas, nineteen tools**, and the gap is not a typo: the three marks share `MarkRequest`, because the format allows at most one mark and `set_done` / `set_doing` / `set_todo` differ only in the `op` their own NAME fixes. `@olai/ops`' table generates those three off the format's own `MARKS` list — which is the point of keying them, since a mark that was plannable and writable everywhere and had no tool would otherwise be silently missing.
+**Twenty schemas, twenty-two write tools**, and the gap is not a typo: the three marks share `MarkRequest`, because the format allows at most one mark and `set_done` / `set_doing` / `set_todo` differ only in the `op` their own NAME fixes. `@olai/ops`' table generates those three off the format's own `MARKS` list — which is the point of keying them, since a mark that was plannable and writable everywhere and had no tool would otherwise be silently missing.
 
 It moved here from `@olai/ops` when the writes went onto the surface: `ops.run` is a procedure now, so the request an agent sends and the answer it gets back are values that CROSS this floor. The ops layer produces them, the surface carries them, and `@olai/ops` re-exports the two under its own names — `Request` and `Applied` — the way `Pending` and `CommitRequest` are already re-exported by their consumers rather than declared twice.
 
@@ -145,7 +145,9 @@ Both are renamed at the move, and the second rename is the load-bearing one:
 - `Request` → **`WriteRequest`**, because among `NodeRequest`, `SubtreeRequest`, `SearchRequest` and `CommitRequest` a bare `Request` is the one that does not say which question it is;
 - `Applied` → **`WriteResult`**, because `@olai/surface` exports an `Applied` of its own and it is a DIFFERENT type — the keyboard's answer, which adds `undo` and drops `summary`, `sort`, `captured` and `rev`. Two things called `Applied`, both about a write that landed, both carrying `id`/`title`/`nudge`, is the `Outline`/`OutlineSummary` trap again: not a rename away from a compile error, a rename away from a plausible one.
 
-The PLANNER stays in `@olai/ops`, exactly as the matcher and the walks did. What is here is only the shape, plus the one number the shape imposes — `NESTING`, the depth to which `add_node`'s `children` is unrolled, which lives beside the schema that unrolls it because it is a fact about the JSON Schema an MCP host can read rather than about the format.
+The PLANNER stays in `@olai/ops`, exactly as the matcher and the walks did. What is here is only the shape, plus the two numbers the shapes impose — `NESTING`, the depth to which `add_node`'s `children` is unrolled, and `BATCH_AT_MOST`, how many ops one `apply` may carry. Both live beside the schema that quotes them, and both are facts about what an agent READS (a JSON Schema an MCP host can hold; a refusal a reader can hold) rather than about the format.
+
+**Two of the twenty carry the others** (`olai-batch-verbs`): `UpdateRequest` names several fields of one node, and `ApplyRequest` an ordered list of the write verbs. `ApplyRequest`'s arms are the request schemas THEMSELVES — each already carries the `op` literal that names it, so a batched `set_done` and a called one decode against one declaration and a parallel list of "batch forms" never exists to fall behind. What is taken off on the way in is only the top-level PROSE (`arm`, `TERSE` one level up): every one of those sentences is already in the same `tools/list` frame, on the tool that takes the request, and leaving them doubled cost 8 kB of the first frame of every agent session. Left out of the list are the three writes whose subject is a FILE rather than a node, and `apply` itself.
 
 ## Writing is here too, and for the same reason reading is
 

@@ -155,6 +155,36 @@ export const validate = (
  * which is the same claim the wire already spends when it publishes per file;
  * this is what makes a broken claim cost a rebuild rather than a wrong answer.
  */
+/**
+ * The pair, without the rules — a set and the view of it, patched from a
+ * previous reading where that is exact and rebuilt where it is not.
+ *
+ * {@link validate}'s first line and its last, with the six whole-set rules
+ * taken out from between them, and it exists for one caller: `@olai/ops`' batch
+ * fold, which plans op two against the set op one would leave and then throws
+ * that set away. That reading is SPECULATIVE by construction — nothing draws
+ * it, nothing is published at it, and the only set that reaches disk is the one
+ * the write gate validates, exactly once, as it validates every write. Running
+ * the rules over each intermediate would be N whole-corpus checks to reject
+ * something the final check either catches or was never true of.
+ *
+ * IT IS THIS FUNCTION AND NOT `patch`, and that is the whole of why it is here.
+ * IT IS THIS FUNCTION AND NOT `patch` for a caller that holds a SET. The
+ * patcher is exported — the browser folds its delta frames with it
+ * (`model-indices` slice 4) — and that caller is right to reach it: a tab holds
+ * a view and the frames that moved it, and has nothing to hold the result
+ * against. This one does. It assembles a real {@link OutlineSet} per op and
+ * plans the next one against it, which is precisely what {@link viewOf}'s
+ * disagreement check is for — the identity test that turns a delta which missed
+ * a file into a rebuild rather than into a view where every record looks like a
+ * duplicate of itself. So the door a set-holding caller comes through is the
+ * patcher AND that guard, together, and nobody has to remember the second half.
+ */
+export const reading = (set: OutlineSet, previous?: Previous): Reading => ({
+  set,
+  derived: viewOf(set, previous),
+})
+
 const viewOf = (set: OutlineSet, previous: Previous | undefined): Derived => {
   if (previous === undefined) return derive(set.nodes)
   const view = patch(previous.read.derived, previous.delta)

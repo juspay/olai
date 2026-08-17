@@ -290,3 +290,32 @@ Feature: An agent olai did not start
       """
     And the terminal agent reads the file "quote.html"
     Then the terminal agent was handed "the joiner invoiced for the cabinets"
+
+  Scenario: A terminal runs three ops as one write and the page sees one snapshot
+    # `olai-batch-verbs`. A loop of three calls is three revisions, and a tab
+    # would draw the row, then the edge, then the property. One `apply` is one
+    # plan, one validation, one atomic rename and one publication — so the page
+    # that has the new row has everything the batch said about it.
+    When the terminal agent applies three ops in one call
+    Then the node "worktop" is a child of "kitchen"
+    And the terminal agent was told it captured 1 nodes
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: A batch refused at its last op writes nothing at all
+    # The property a caller cannot build out of a loop: the seventh call
+    # refusing leaves six on disk with nothing to say which six. Here the first
+    # two ops are perfectly good and neither of them happens.
+    When the terminal agent applies a batch whose last op is refused
+    Then the terminal agent was refused with the kind "not-found"
+    And the node "never" is not shown
+    And the node "order" is a child of "kitchen"
+    And there should be no page errors
+
+  Scenario: A terminal writes three fields of one node in one call
+    # `update` is the narrow half of the same pair: one node, several facts,
+    # one write — where a title, a note and a property used to be three.
+    When the terminal agent updates "order" in one call
+    Then the node "order" is a child of "kitchen"
+    And the page has not reloaded
+    And there should be no page errors

@@ -26,6 +26,17 @@
  * is deliberate: archiving plans a dated bucket in the archive as well as the
  * subtree that goes into it, so the biggest change alone reads *created* about
  * a write whose whole point was to take something away.
+ *
+ * **A BATCH IS THE ONE WRITE WHERE "the node it was about" IS A STAND-IN**, and
+ * it is worth saying out loud rather than leaving to be discovered. `apply`
+ * plans a run of ops over any number of nodes, and `WriteResult` has one `id`;
+ * the fold puts the LAST op's there (`@olai/ops`' `plan.ts`'s `folded`, which
+ * argues why), so a batch of twenty `done`s ending in a `move` reads *moved*
+ * and names the node that moved. That is a true sentence about the last thing
+ * the run did rather than a summary of the run, and it is the honest limit of a
+ * one-word classification: what a batch really changed is `captured` and the
+ * files. `update` has no such gap — the run is one node, and the last plan is
+ * the only one that has seen every field the call wrote.
  */
 
 import {

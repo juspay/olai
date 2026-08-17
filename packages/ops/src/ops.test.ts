@@ -743,3 +743,137 @@ describe("the auto-commit", () => {
       }), { git: true }))
 })
 
+
+// ── a batch on the disk ────────────────────────────────────────────────
+
+/**
+ * What batching is actually FOR, at the only level where the claim can be made.
+ *
+ * {@link ./batch.test.ts} proves that a run of ops decides what the same ops
+ * decide one at a time. Neither of the two properties that make it worth having
+ * is visible there, because both are about what reaches a disk: one revision for
+ * the whole run, and a refused run leaving the file byte for byte as it was.
+ */
+describe("apply, against a real directory", () => {
+  test("a batch of three ops moves the store ONE revision", () =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        // The load is revision 1, so a single write lands at 2. Three ops in a
+        // batch land at 2 as well — which is the whole claim: one plan, one
+        // validation, one rename, one publication. Three calls would have been
+        // 2, 3 and 4, and three frames to every open page.
+        expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(1)
+        const applied = yield* run(fixture, {
+          op: "apply",
+          ops: [
+            { op: "done", id: "order" },
+            { op: "prop", id: "install", key: "pr", value: "https://x/1" },
+            { op: "title", id: "demo", title: "demolition, done" },
+          ],
+        })
+        expect(applied.rev).toBe(2)
+        expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(2)
+
+        const text = fixture.read("house.olai") ?? ""
+        expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
+        expect(text).toContain(`"custom":{"pr":"https://x/1"}`)
+        expect(text).toContain("demolition, done")
+        // Still one record per line, read back by the parser that wrote it.
+        expect(Result.isSuccess(parseOutline("house.olai", text))).toBe(true)
+      })))
+
+  test("a batch refused halfway leaves the file untouched, byte for byte", () =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const before = fixture.read("house.olai")
+        // The three are chosen so op 2 can only refuse for a reason ops 0 and 1
+        // MADE. `install` arrives `doing` and `order` arrives a bullet, so
+        // against the set this call was handed, `kitchen` holds exactly one
+        // unfinished task and it is `install`. Op 0 finishes it; op 1 turns the
+        // bullet into a task, which is unfinished work that did not exist a
+        // moment ago; op 2 is refused NAMING THAT — a sentence no
+        // implementation that planned each op against the arriving set could
+        // produce, since `order` is not work there at all.
+        const outcome = yield* Effect.result(fixture.ops.run({
+          op: "apply",
+          ops: [
+            { op: "done", id: "install" },
+            { op: "todo", id: "order" },
+            { op: "done", id: "kitchen" },
+          ],
+        }, "mcp"))
+
+        expect(Result.isFailure(outcome)).toBe(true)
+        if (Result.isFailure(outcome)) {
+          expect(outcome.failure.message).toContain("`ops[2]` (`done`)")
+          expect(outcome.failure.message).toContain("holds 1 unfinished task")
+          expect(outcome.failure.message).toContain("`order the cabinets` (`order`, todo)")
+          // …and NOT the one the arriving set would have named.
+          expect(outcome.failure.message).not.toContain("`install them`")
+        }
+        // Nothing landed — not the two ops that would have, not a stamp, not a
+        // rewritten line. The bytes are the bytes.
+        expect(fixture.read("house.olai")).toBe(before)
+        // …and the store never moved, so no open page saw a half-run.
+        expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(1)
+        expect(fixture.refusals).toEqual(["apply: UsageFailure"])
+      })))
+
+  test("a batch is ONE commit, with the subject the run composed", () =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        yield* run(fixture, {
+          op: "apply",
+          ops: [
+            { op: "done", id: "order" },
+            { op: "title", id: "demo", title: "demolition, done" },
+          ],
+        })
+        const log = gitLog(fixture.root)
+        expect(log).toHaveLength(2)
+        expect(log[0]).toContain("apply: 2 ops")
+        expect(log[0]).toContain("done: order the cabinets")
+      }), { git: true }))
+
+  test("`update` writes four fields of one node in one revision", () =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const applied = yield* run(fixture, {
+          op: "update",
+          id: "order",
+          title: "order the cabinets #kitchen",
+          desc: "from the joiner",
+          props: { pr: "https://x/1" },
+          mark: "done",
+        })
+        expect(applied.rev).toBe(2)
+        expect(applied.title).toBe("order the cabinets #kitchen")
+        const text = fixture.read("house.olai") ?? ""
+        expect(text).toContain(`"desc":"from the joiner"`)
+        expect(text).toContain(`"custom":{"pr":"https://x/1"}`)
+        expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
+      })))
+
+  test("a capture arrives on disk with its edges and its facts", () =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        const applied = yield* run(fixture, {
+          op: "add",
+          parent: "kitchen",
+          title: "worktop",
+          props: { agent: "claude-opus" },
+          children: [
+            { id: "cut", title: "cut it", waitsOn: ["measure"] },
+            { id: "measure", title: "measure up" },
+          ],
+        })
+        expect(applied.rev).toBe(2)
+        const text = fixture.read("house.olai") ?? ""
+        expect(text).toContain(`"after":["measure"]`)
+        expect(text).toContain(`"custom":{"agent":"claude-opus"}`)
+        // The whole set still validates — the forward reference resolved to a
+        // record in the same write, which is what makes it legal at all.
+        const set = yield* fixture.set()
+        expect(set.broken).toEqual([])
+      })))
+})

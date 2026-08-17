@@ -178,3 +178,51 @@ export const assemble = (
   }
   return { files: outlines, nodes, documents, broken }
 }
+
+/**
+ * A set taken back APART into the map {@link assemble} puts together — the
+ * inverse, declared beside what it inverts.
+ *
+ * It is here rather than at its caller because it is a statement about
+ * `assemble`'s own invariants, and every one of them is easy to get subtly
+ * wrong from outside: a file that did not decode keeps its place in `files` or
+ * in `documents` AND is listed in `broken`, so the broken paths have to be read
+ * FIRST and the two lists below have to skip whatever they already answered.
+ * Getting that backwards turns an unreadable outline into an empty one,
+ * silently. `./set.test.ts` holds the pair to a round trip rather than to a
+ * memory of one.
+ *
+ * WHAT IT CANNOT RECOVER, and does not pretend to: the errors of a file that
+ * decoded as a document, which `assemble` replaces with an empty text. That is
+ * a document the set holds no content for either way, and nothing above reads
+ * the difference. Every outline round-trips exactly.
+ *
+ * Its one caller is `@olai/ops`' batch fold, which plans op two against the set
+ * op one would leave — so it needs the map back to swap one file's records into
+ * it. The alternative was a hand-written inverse a package away from the thing
+ * it inverts.
+ */
+export const apart = (
+  set: OutlineSet,
+): Map<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>> => {
+  const files = new Map<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>>()
+  for (const broken of set.broken) files.set(broken.file, Result.fail(broken.errors))
+  // Regrouped by the file each record already names, which is why this is a
+  // regrouping rather than a guess — and the order within a file is the set's
+  // own, since `assemble` laid the nodes out file by file and line by line.
+  const nodes = new Map<string, Array<Located>>()
+  for (const located of set.nodes) {
+    const held = nodes.get(located.file)
+    if (held === undefined) nodes.set(located.file, [located])
+    else held.push(located)
+  }
+  for (const file of set.files) {
+    if (files.has(file)) continue
+    files.set(file, Result.succeed({ file, nodes: nodes.get(file) ?? [] }))
+  }
+  for (const document of set.documents) {
+    if (files.has(document.file)) continue
+    files.set(document.file, Result.succeed(document))
+  }
+  return files
+}
