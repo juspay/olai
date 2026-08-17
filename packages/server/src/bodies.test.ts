@@ -15,7 +15,7 @@
 
 import { PlatformFailure } from "@olai/store"
 import { expect, test } from "bun:test"
-import { Effect, Queue } from "effect"
+import { Effect, Exit, Queue, Scope } from "effect"
 
 import * as Bodies from "./bodies.ts"
 
@@ -32,10 +32,12 @@ interface Fixture {
    *  the event itself. A body that never comes fails here with what was
    *  published instead, rather than hanging until the runner gives up. */
   readonly took: (count: number) => Effect.Effect<void>
-  /** A reader opening a file: the hold and the ask together, which is what the
-   *  two callers in `./runtime.ts` amount to for a path whose body the set does
-   *  not keep. What comes back is that reader leaving. */
-  readonly opens: (path: string) => () => void
+  /** A reader opening a file: a scope of its own, the hold taken in it, and the
+   *  ask — which is what the two callers in `./runtime.ts` amount to for a path
+   *  whose body the set does not keep. What comes back is that reader LEAVING,
+   *  which is that scope closing (the wire's own release is a subscription's
+   *  scope, `@olai/surface`'s `holding.ts`). */
+  readonly opens: (path: string) => Effect.Effect<Effect.Effect<void>>
 }
 
 /** How long a body may take to arrive before the test says it never did.
@@ -81,11 +83,13 @@ const withBodies = <A>(
         }
       })
 
-    const opens = (path: string): (() => void) => {
-      const release = bodies.held(path)
-      bodies.unread([path])
-      return release
-    }
+    const opens = (path: string): Effect.Effect<Effect.Effect<void>> =>
+      Effect.gen(function*() {
+        const reader = yield* Scope.make()
+        yield* Scope.provide(bodies.held(path), reader)
+        bodies.unread([path])
+        return Scope.close(reader, Exit.void)
+      })
 
     return yield* use({ bodies, reads, published, took, opens })
   }).pipe(Effect.scoped, Effect.runPromise)
@@ -94,7 +98,7 @@ const withBodies = <A>(
 test("opening a file reads its body once and hands it over", () =>
   withBodies({ "report.html": "<h1>Cabinet quote</h1>" }, (fixture) =>
     Effect.gen(function*() {
-      fixture.opens("report.html")
+      yield* fixture.opens("report.html")
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["report.html"])
@@ -107,7 +111,7 @@ test("opening a file reads its body once and hands it over", () =>
 test("a file somebody holds is re-read when it moves", () =>
   withBodies({ "report.html": "before" }, (fixture) =>
     Effect.gen(function*() {
-      fixture.opens("report.html")
+      yield* fixture.opens("report.html")
       yield* fixture.took(1)
 
       fixture.bodies.unread(["report.html"])
@@ -121,7 +125,7 @@ test("a file somebody holds is re-read when it moves", () =>
 test("a file nobody has opened is not read when it moves", () =>
   withBodies({ "report.html": "before", "other.html": "also" }, (fixture) =>
     Effect.gen(function*() {
-      fixture.opens("report.html")
+      yield* fixture.opens("report.html")
       yield* fixture.took(1)
 
       fixture.bodies.unread(["other.html"])
@@ -137,14 +141,14 @@ test("a file nobody has opened is not read when it moves", () =>
 test("a file whose last reader has gone is not re-read", () =>
   withBodies({ "report.html": "before", "other.html": "also" }, (fixture) =>
     Effect.gen(function*() {
-      const release = fixture.opens("report.html")
+      const release = yield* fixture.opens("report.html")
       yield* fixture.took(1)
 
-      release()
+      yield* release
       fixture.bodies.unread(["report.html"])
       // The barrier: a file somebody IS holding, asked for after the one that
       // must not be read.
-      fixture.opens("other.html")
+      yield* fixture.opens("other.html")
       yield* fixture.took(2)
       expect(fixture.reads).toEqual(["report.html", "other.html"])
     })))
@@ -156,23 +160,23 @@ test("a file whose last reader has gone is not re-read", () =>
 test("a second reader keeps the file live, and a doubled release takes nothing extra", () =>
   withBodies({ "report.html": "before", "other.html": "also" }, (fixture) =>
     Effect.gen(function*() {
-      const first = fixture.opens("report.html")
+      const first = yield* fixture.opens("report.html")
       yield* fixture.took(1)
-      const second = fixture.opens("report.html")
+      const second = yield* fixture.opens("report.html")
       yield* fixture.took(2)
 
       // The first reader leaves, twice. A release that counted twice would drop
       // the hold the second reader still has, and the re-read below would not
       // happen.
-      first()
-      first()
+      yield* first
+      yield* first
       fixture.bodies.unread(["report.html"])
       yield* fixture.took(3)
 
       // …and when the second one goes too, the file goes quiet.
-      second()
+      yield* second
       fixture.bodies.unread(["report.html"])
-      fixture.opens("other.html")
+      yield* fixture.opens("other.html")
       yield* fixture.took(4)
       expect(fixture.reads).toEqual([
         "report.html",
@@ -188,9 +192,9 @@ test("a second reader keeps the file live, and a doubled release takes nothing e
 test("a file released before the read is taken is never opened", () =>
   withBodies({ "gone.html": "quickly", "other.html": "also" }, (fixture) =>
     Effect.gen(function*() {
-      const release = fixture.opens("gone.html")
-      release()
-      fixture.opens("other.html")
+      const release = yield* fixture.opens("gone.html")
+      yield* release
+      yield* fixture.opens("other.html")
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["other.html"])
@@ -203,10 +207,10 @@ test("a file released before the read is taken is never opened", () =>
 test("a file that has gone publishes nothing", () =>
   withBodies({ "here.html": "still here" }, (fixture) =>
     Effect.gen(function*() {
-      fixture.opens("gone.html")
+      yield* fixture.opens("gone.html")
       // Asked second and answered first, which is the whole proof: the reader
       // is serial, so `gone.html` had already been read and dropped.
-      fixture.opens("here.html")
+      yield* fixture.opens("here.html")
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["gone.html", "here.html"])
@@ -219,8 +223,8 @@ test("a file that has gone publishes nothing", () =>
 test("a body that cannot be read publishes nothing and does not stop the reader", () =>
   withBodies({ "locked.html": "unreadable", "fine.html": "readable" }, (fixture) =>
     Effect.gen(function*() {
-      fixture.opens("locked.html")
-      fixture.opens("fine.html")
+      yield* fixture.opens("locked.html")
+      yield* fixture.opens("fine.html")
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["locked.html", "fine.html"])

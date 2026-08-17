@@ -10,11 +10,11 @@
  * Two facts drive it, and they are the only two:
  *
  *   - {@link Bodies.held} — a reader HAS this key open, for as long as the
- *     release it answers with is uncalled. That is the wire's own subscription
- *     lifetime, wrapped around the per-key `get` (`@olai/surface`'s
- *     `holding.ts`): the hold is taken when the subscription starts and dropped
- *     when it ends, whether it ends by a tab navigating, a socket dropping or a
- *     one-shot reader taking its frame and leaving.
+ *     scope it is run in is. That scope is the wire's own subscription, wrapped
+ *     around the per-key `get` (`@olai/surface`'s `holding.ts`): the hold is
+ *     taken when the subscription starts and dropped when it ends, whether it
+ *     ends by a tab navigating, a socket dropping or a one-shot reader taking
+ *     its frame and leaving.
  *   - {@link Bodies.unread} — paths whose body is not on the wire
  *     (`./published.ts`'s `unread`), from the two moments that produce them: a
  *     reader that has just subscribed to a key the set holds a path and no text
@@ -42,13 +42,15 @@
  * until sixteen newer opens pushed it out. Both were the cost of not knowing
  * when a reader leaves. The wire says now.
  *
- * A RELEASE IS IDEMPOTENT and holds do not merge: two readers of one file are
- * two holds, and the first to leave takes its own hold and nobody else's — the
- * shape kolu's refcounted watchers landed on (`refcounted-dir-watcher.ts`:
- * first subscribe installs, all consumers share, last unsubscribe tears down).
- * The teardown half is here too: a path asked for and then released before the
- * reader got to it is DROPPED rather than read, so a page opened and closed in
- * one frame costs no disk at all.
+ * THE COUNTING IS NOT OURS. Two readers of one file are two holds and the first
+ * to leave takes its own and nobody else's, which is what kolu's refcounted
+ * watchers spell by hand (`refcounted-dir-watcher.ts`: first subscribe installs,
+ * all consumers share, last unsubscribe tears down, and the unsubscribe is
+ * idempotent) — and what `effect`'s `RcMap` already is, keyed and scope-tracked,
+ * so what is written here is the RESOURCE (a path being shown) and not the
+ * arithmetic. The teardown lesson from those watchers survives as a line of our
+ * own: a path asked for and then released before the reader got to it is DROPPED
+ * rather than read, so a page opened and closed in one frame costs no disk.
  *
  * ONE failure is quieter than it used to be, and it is a trade rather than an
  * oversight: a `.html` that cannot be READ (not gone — unreadable) reaches the
@@ -61,19 +63,22 @@
  */
 
 import type { PlatformFailure } from "@olai/store"
-import { Effect, Queue, type Scope } from "effect"
+import { Effect, Queue, RcMap, type Scope } from "effect"
 
 export interface Bodies {
   /**
-   * A reader has this file OPEN — read its body for them, and go on re-reading
-   * it on every revision that moves the file until they let go.
+   * A reader has this file OPEN, for the lifetime of the SCOPE this is run in —
+   * which is the subscription's own (`@olai/surface`'s `holding.ts`). While any
+   * scope holding it is open, the body is re-read on every revision that moves
+   * the file; when the last one closes, it is not.
    *
-   * What comes back is that ONE reader leaving, and calling it twice is calling
-   * it once. It reads nothing by itself: whether this reader is owed a body now
-   * is a question about the SET, which is answered where the set is read
+   * A scope rather than a returned release function, because a lifetime with two
+   * ends a caller has to pair by hand is a lifetime one interrupted caller
+   * leaks. It reads nothing by itself either: whether this reader is owed a body
+   * NOW is a question about the SET, which is answered where the set is read
    * ({@link Bodies.unread}, and `../runtime.ts`'s `readOne` is the caller).
    */
-  readonly held: (path: string) => () => void
+  readonly held: (path: string) => Effect.Effect<void, never, Scope.Scope>
   /** These files' bodies are not on the wire. The ones somebody is holding are
    *  read and published; the rest are not touched. */
   readonly unread: (paths: Iterable<string>) => void
@@ -92,11 +97,32 @@ export const make = (
   options: Options,
 ): Effect.Effect<Bodies, never, Scope.Scope> =>
   Effect.gen(function*() {
-    /** How many readers hold each path. A path with none is ABSENT rather than
-     *  zero, so the map is the set of files somebody is showing and nothing
-     *  else — which is the same thing as "what to re-read", and one
-     *  representation of it cannot disagree with itself. */
-    const holders = new Map<string, number>()
+    /** The files somebody is showing, as a SET that can be read on the spot:
+     *  {@link Bodies.unread} is called from the middle of a revision and cannot
+     *  await an answer. It is written by the refcount below and by nothing else
+     *  — the first holder of a path puts it here and the last one out takes it
+     *  away — so it is a projection of that count rather than a second account
+     *  of it. */
+    const reading = new Set<string>()
+    /** The refcount itself, and it is the ecosystem's rather than ours: an
+     *  `RcMap` shares one entry per key across every caller's SCOPE and releases
+     *  it when the last of them closes — first reader in, last reader out, with
+     *  the idempotence a hand-rolled release has to remember (`idleTimeToLive`
+     *  defaults to zero, so the last release is immediate rather than deferred).
+     *  Its "resource" is the membership above and NOTHING else: no body is held
+     *  here, which is the whole memory claim. */
+    const holders = yield* RcMap.make({
+      lookup: (path: string) =>
+        Effect.acquireRelease(
+          Effect.sync(() => {
+            reading.add(path)
+          }),
+          () =>
+            Effect.sync(() => {
+              reading.delete(path)
+            }),
+        ),
+    })
     /** What is on the queue and not yet taken, so a burst of asks about one
      *  file is one read. A path is forgotten the moment the reader TAKES it,
      *  which is what keeps a change arriving mid-read from being swallowed. */
@@ -121,7 +147,7 @@ export const make = (
         // disk read for a page nobody is showing, and publishing it would be a
         // frame to a subscription that has gone — the late callback kolu's
         // watchers clear their timers to prevent.
-        if (!holders.has(path)) return
+        if (!reading.has(path)) return
         const text = yield* Effect.catch(
           options.read(path),
           (failure: PlatformFailure) =>
@@ -140,19 +166,9 @@ export const make = (
     ).pipe(Effect.forkScoped)
 
     return {
-      held: (path) => {
-        holders.set(path, (holders.get(path) ?? 0) + 1)
-        let holding = true
-        return () => {
-          if (!holding) return
-          holding = false
-          const count = holders.get(path)
-          if (count === undefined || count <= 1) holders.delete(path)
-          else holders.set(path, count - 1)
-        }
-      },
+      held: (path) => Effect.asVoid(RcMap.get(holders, path)),
       unread: (paths) => {
-        for (const path of paths) if (holders.has(path)) ask(path)
+        for (const path of paths) if (reading.has(path)) ask(path)
       },
     }
   })

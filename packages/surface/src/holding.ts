@@ -14,10 +14,9 @@
  * sixteen paths and named this module as what would replace it).
  *
  * This is that fact, taken from where it already exists rather than invented:
- * {@link holding} wraps one collection's `get` in a scoped acquire — hold on
- * the way in, release on the way out — so a member's holders are counted by the
- * same lifetime the framework already manages. There is nothing to age out and
- * no number to choose.
+ * {@link holding} wraps one collection's `get` so that the {@link Hold} runs in
+ * the STREAM's scope, which makes a hold and a subscription the same lifetime by
+ * construction. There is nothing to age out and no number to choose.
  *
  * IT IS NOT A MEMBER OF THE SPEC, and that is the decision worth stating. A
  * verb a reader had to CALL to say "I am done with this key" would be a promise
@@ -27,14 +26,26 @@
  * what notices, so the transport is what is asked, and nothing new crosses the
  * wire at all.
  *
- * WHY THE HANDLER AND NOT THE DEPS. `readOne` is the other place a subscription
- * is visible, and it is a read of the SET: it is called once per subscription,
- * it cannot see the end of one, and a lifetime whose two halves lived in
- * different places would be a hold with no matching release the first time a
- * reader was interrupted between subscribing and being snapshotted. The wrap is
- * one acquire/release pair, so the two halves cannot come apart — and a release
- * is idempotent besides ({@link Hold}), which is the shape kolu's refcounted
- * watchers landed on for the same reason.
+ * WHY THE HANDLER, and not one of the two other seams that could carry this:
+ *
+ *   - `readOne` is a read of the SET. It is called once per subscription, it
+ *     cannot see the end of one, and a lifetime whose two halves lived in
+ *     different places would be a hold with no matching release the first time
+ *     a reader was interrupted between subscribing and being snapshotted.
+ *   - the CHANNEL under the member is the framework's own bookkeeping, and its
+ *     in-memory implementation does count subscribers (`subscriberCount`,
+ *     `onIdle`). Reaching for it means serving on a caller-provided channel
+ *     factory and recognising a member's per-key channel BY NAME — a string
+ *     shape the framework mints for its own use — to learn a fact about a
+ *     member. The handler is the same fact one layer up, in the vocabulary the
+ *     surface already publishes.
+ *
+ * WHERE IT WOULD RATHER LIVE is upstream: this is a property of any keyed
+ * collection, not of olai's, and a `holders` seam beside `readOne` in
+ * `@kolu/surface`'s own `CollectionHandlerDeps` would serve every consumer of
+ * the framework and let the wrap go. It is written here because that is the
+ * repository this change is in; the shape is deliberately one function over a
+ * handler record so that moving it costs its callers one import.
  *
  * WHAT IT DOES NOT DO: it counts, and it does not decide. Which member is
  * instrumented, what a hold is worth and what happens when the count reaches
@@ -44,7 +55,7 @@
 
 import { surfaceTag } from "@kolu/surface/define"
 import { emptyHandlers, type SurfaceHandler, type SurfaceHandlers } from "@kolu/surface/server"
-import { Effect, Stream } from "effect"
+import { Effect, type Scope, Stream } from "effect"
 
 import { surface } from "./index.ts"
 
@@ -53,14 +64,15 @@ import { surface } from "./index.ts"
 export type Keyed = keyof typeof surface.spec.collections
 
 /**
- * A reader has taken this key.
+ * A reader has taken this key, for the lifetime of the scope this runs in.
  *
- * What comes back is that ONE reader letting go, and calling it twice is
- * calling it once — a scope that closes more than once, or a caller that
- * releases and is then torn down, must not take a hold somebody else still has.
- * Two readers of one key are two holds and two releases.
+ * A SCOPE rather than a returned release, because the two ends of a lifetime a
+ * caller has to pair by hand are two ends one interrupted caller leaks — and
+ * because a scope is what the framework itself uses for exactly this (its
+ * channel subscription is one `acquireRelease`, and the release is the
+ * unsubscribe). Two readers of one key are two holds and two closes.
  */
-export type Hold = (key: string) => () => void
+export type Hold = (key: string) => Effect.Effect<unknown, never, Scope.Scope>
 
 /**
  * The same handlers, with one collection's `get` reporting its holders.
@@ -87,21 +99,14 @@ export const holding = (
       `holding: no handler at "${tag}" — the "${member}" collection does not serve a per-key \`get\`, so there is no subscription to hold.`,
     )
   }
-  /** The acquire is the hold and the release is the reader leaving. Both hang
-   *  off the STREAM's scope rather than the handler call, so a subscription
-   *  that is never run holds nothing and one that is interrupted anywhere —
-   *  mid-snapshot included — releases exactly once (`Stream.unwrap` runs the
-   *  scoped effect in the stream's own scope, which is what the framework's own
-   *  channel subscription is built on). */
+  /** The hold runs in the STREAM's scope rather than at the handler call, so a
+   *  subscription nobody runs holds nothing and one that is interrupted
+   *  anywhere — mid-snapshot included — releases exactly once. `Stream.unwrap`
+   *  is what provides that scope, which is the same construction the
+   *  framework's own channel subscription is built on. */
   const held: SurfaceHandler = (payload: { readonly key: string }) =>
     Stream.unwrap(
-      Effect.map(
-        Effect.acquireRelease(
-          Effect.sync(() => hold(payload.key)),
-          (release) => Effect.sync(release),
-        ),
-        () => answer(payload) as Stream.Stream<unknown, unknown>,
-      ),
+      Effect.map(hold(payload.key), () => answer(payload) as Stream.Stream<unknown, unknown>),
     )
 
   const reported = emptyHandlers()

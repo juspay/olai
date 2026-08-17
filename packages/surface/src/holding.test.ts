@@ -34,12 +34,15 @@ interface Watched {
   readonly events: ReadonlyArray<string>
 }
 
+/** A hold that says so, and says so again when its scope closes — the whole of
+ *  what a consumer of this module has to be given. */
 const watching = (frames: Stream.Stream<number>): Watched => {
   const events: Array<string> = []
-  const handlers = holding(record(frames), "documents", (key) => {
-    events.push(`hold ${key}`)
-    return () => events.push(`release ${key}`)
-  })
+  const handlers = holding(record(frames), "documents", (key) =>
+    Effect.acquireRelease(
+      Effect.sync(() => events.push(`hold ${key}`)),
+      () => Effect.sync(() => events.push(`release ${key}`)),
+    ))
   return { handlers, events }
 }
 
@@ -118,7 +121,7 @@ test("two readers of one key are two holds", async () => {
 
 test("every other handler comes through as the value it was", () => {
   const before = record(Stream.fromArray([1]))
-  const after = holding(before, "documents", () => () => {})
+  const after = holding(before, "documents", () => Effect.void)
 
   expect(Object.keys(after).sort()).toEqual(Object.keys(before).sort())
   expect(after[HEADS]).toBe(before[HEADS])
@@ -129,7 +132,7 @@ test("every other handler comes through as the value it was", () => {
 // nothing would leave a refcount permanently at zero, which reads as "nobody is
 // watching anything" at every consumer.
 test("a member the record has no `get` for refuses to be wrapped", () => {
-  expect(() => holding(emptyHandlers(), "documents", () => () => {})).toThrow(
+  expect(() => holding(emptyHandlers(), "documents", () => Effect.void)).toThrow(
     /no handler at "surface\/documents\/get"/,
   )
 })
