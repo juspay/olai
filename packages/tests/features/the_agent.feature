@@ -141,7 +141,7 @@ Feature: Talking to the agent
     # completion for the call it was in the middle of, and the rows a dead
     # agent left are deliberately kept on screen to read. So the `Agent` call
     # says `pending` for as long as the panel is open, and a rail that asked
-    # the row alone would pulse "starting…" under a process that no longer
+    # the row alone would pulse "working…" under a process that no longer
     # exists.
     #
     # What the row keeps saying is who was sent, because that is a fact about

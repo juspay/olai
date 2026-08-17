@@ -802,6 +802,22 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 // about, which is a different bargain and its own decision. An
                 // empty object is how the protocol spells "yes" here.
                 elicitation: { form: {} },
+                // WHAT IS NOT ASKED FOR, named here because this is where it
+                // would be asked for and a decision recorded anywhere else is a
+                // decision nobody finds: `_meta["subagent-transcript"]: true`.
+                // The pinned adapter reads that flag off these capabilities
+                // (`supportsSubagentTranscript`) and, with it, forwards a
+                // SPAWNED agent's own text and thinking as chunks stamped with
+                // the `Agent` call they came from; without it those blocks are
+                // stripped from the feed entirely. So a subagent's narration is
+                // not something this panel is missing — it is something it has
+                // not asked for, and the difference matters because asking is
+                // one line. It is not asked for yet because a second voice in
+                // the transcript is a feature with its own drawing to decide
+                // (`./interpret.ts` says what the panel does know about a
+                // spawn), and because the flag's absence is what guarantees a
+                // subagent's prose cannot arrive unattributed in the main
+                // agent's voice.
               },
               clientInfo: { name: "olai", version: "0.1.0" },
             },

@@ -258,15 +258,6 @@ describe("which call started an agent", () => {
     prompt: "read every note and report back",
     subagent_type: "Explore",
   }
-  /** The adapter's `tool_progress` forwarding: a status and a `toolResponse`,
-   *  and no arguments and no flag at all. */
-  const BEAT = {
-    claudeCode: {
-      toolName: "Agent",
-      toolResponse: { elapsedTimeSeconds: 12, subagentType: "Explore" },
-    },
-  }
-
   test("the spawn's own frame says an agent was sent out, and which kind", () => {
     // The whole point of reading this rather than waiting for the parent
     // stamp: it is on the frame that ANNOUNCES the spawn, so it is known
@@ -278,14 +269,7 @@ describe("which call started an agent", () => {
       .toEqual({})
   })
 
-  test("a beat carries the kind and no flag, and still answers", () => {
-    // Only an Agent call's beat carries `subagentType`, so a frame that names
-    // one has said what it is — and a reader that insisted on the flag would
-    // drop the kind off every beat there is.
-    expect(spawnedIn(BEAT, undefined)).toEqual({ kind: "Explore" })
-  })
-
-  test("a call nobody flagged is no spawn, whatever its arguments are called", () => {
+  test("a call nobody flagged is no spawn, whatever its ARGUMENTS are called", () => {
     // The tools on a session are not a closed set: `subagent_type` is a name
     // the `Agent` tool gives one of ITS arguments, and an MCP server olai
     // never handed this conversation is free to take one by the same name. A
@@ -294,6 +278,49 @@ describe("which call started an agent", () => {
     expect(spawnedIn({ claudeCode: { toolName: "mcp__other__dispatch" } }, ASKED))
       .toBeNull()
     expect(spawnedIn(undefined, ASKED)).toBeNull()
+  })
+
+  test("... nor whatever its RESPONSE is shaped like", () => {
+    // The same hole on the other side, and the sharper one, because this
+    // payload is not the adapter's at all: `_meta.claudeCode.toolResponse` is
+    // built by the adapter on the `tool_progress` path and FORWARDED VERBATIM
+    // from the tool's own response on the PostToolUse path
+    // (`onPostToolUseHook`, for any tool). So a server answering with a
+    // `subagentType` in its structured output is one string away from being
+    // drawn as an agent somebody spawned, with a live rail under it — and
+    // nothing about a `mcp__other__*` call ever passed through this panel's
+    // hands.
+    const answered = {
+      claudeCode: {
+        toolName: "mcp__other__dispatch",
+        toolResponse: { ok: true, subagentType: "Explore" },
+      },
+    }
+    expect(spawnedIn(answered, { query: "anything" })).toBeNull()
+    // ... including when it is shaped like the beat it is imitating.
+    expect(
+      spawnedIn({
+        claudeCode: {
+          toolName: "mcp__other__dispatch",
+          toolResponse: { elapsedTimeSeconds: 12, subagentType: "Explore" },
+        },
+      }, undefined),
+    ).toBeNull()
+  })
+
+  test("a real beat is not a source either, and does not need to be", () => {
+    // The adapter's own `tool_progress` forwarding for an Agent call carries
+    // no flag, so it is answered `null` like anything else unflagged. Nothing
+    // is lost: the kind rode the flagged frames that announced and refined the
+    // spawn, and the transcript holds it from there.
+    expect(
+      spawnedIn({
+        claudeCode: {
+          toolName: "Agent",
+          toolResponse: { elapsedTimeSeconds: 12, subagentType: "Explore" },
+        },
+      }, undefined),
+    ).toBeNull()
   })
 
   test("nothing else is a spawn", () => {
@@ -322,23 +349,32 @@ describe("which call started an agent", () => {
     expect(spawnedIn(SPAWN, undefined)).toEqual({})
     expect(spawnedIn(SPAWN, { subagent_type: "" })).toEqual({})
     expect(spawnedIn(SPAWN, { subagent_type: 7 })).toEqual({})
-    expect(spawnedIn({ claudeCode: { subagent: true, toolResponse: null } }, null))
-      .toEqual({})
-    expect(
-      spawnedIn({ claudeCode: { subagent: true, toolResponse: { subagentType: 7 } } }, null),
-    ).toEqual({})
   })
 
-  test("what was ASKED FOR wins over what a beat reports", () => {
-    // They do not disagree in practice; if they ever do, the arguments are
-    // what a person reading the row is owed.
-    const disagreeing = {
-      claudeCode: {
-        subagent: true,
-        toolResponse: { subagentType: "general-purpose" },
-      },
-    }
-    expect(spawnedIn(disagreeing, ASKED)).toEqual({ kind: "Explore" })
+  test("a spawn's own response cannot name the agent either", () => {
+    // The flag opens the door and the ARGUMENTS are what is read through it.
+    // A flagged frame carrying a `subagentType` and no `subagent_type` is a
+    // spawn whose kind nobody stated — not a spawn named by its response,
+    // which is the reading that let any tool's output through.
+    expect(
+      spawnedIn(
+        { claudeCode: { subagent: true, toolResponse: { subagentType: "Explore" } } },
+        undefined,
+      ),
+    ).toEqual({})
+    // ... and where they disagree, what was asked for is what a person reading
+    // the row is owed.
+    expect(
+      spawnedIn(
+        {
+          claudeCode: {
+            subagent: true,
+            toolResponse: { subagentType: "general-purpose" },
+          },
+        },
+        ASKED,
+      ),
+    ).toEqual({ kind: "Explore" })
   })
 })
 

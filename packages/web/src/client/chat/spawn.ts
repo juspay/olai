@@ -59,18 +59,31 @@ export const whoOf = (entry: ChatEntry | undefined): string | null => {
  * left, which is the cue to draw no rail at all.
  *
  * THE WORD, not a flag saying a word is owed: `./lanes.ts`'s `label` learned
- * that one edit ago. There are two of them and the difference between them is
- * the agent's own status rather than a shade of meaning invented here — a call
- * the agent calls `pending` has been announced and not yet reported on, and
- * saying it is working would be this panel claiming something the agent did
- * not.
+ * that one edit ago.
+ *
+ * ONE WORD, and it used to be two. `pending` became *starting…* and
+ * `in_progress` became *working…*, on the reading that a call the agent has
+ * not reported on is one that has not got going — and that reading is wrong
+ * twice over. The adapter emits `status: "pending"` on the announcement of
+ * EVERY tool call, so it means "announced" rather than "not started"; the
+ * subagent is dispatched immediately, and what the panel is actually reporting
+ * with *starting…* is its own ignorance, dressed as a fact about somebody
+ * else's agent. And the beat that would correct it is a heartbeat: a subagent
+ * that had been grepping for twenty seconds, with its calls drawn in the lane
+ * DIRECTLY BELOW this rail, went on being described as starting until one
+ * arrived. A word that contradicts the rows under it is worse than no word.
+ *
+ * So the two only ever differed in the case the lane itself already answers —
+ * there are rows under the rail or there are not — and being redundant there
+ * was the good half of it. What is left is the fact this rail exists to carry:
+ * an agent was sent out and has not come back.
  *
  * TWO THINGS HAVE TO BE TRUE, and the second is the one a row cannot see. A
  * spawn's status is STICKY, and the transcript is not cleared when an agent
  * dies — deliberately, so the rows a dead conversation left are still there to
  * read. So a subprocess that died between announcing an `Agent` call and
  * reporting on it leaves that row `pending` for as long as the panel is open,
- * and a rail that asked the row alone would go on pulsing "starting…" under a
+ * and a rail that asked the row alone would go on pulsing "working…" under a
  * process that no longer exists. That is the exact failure this file was
  * written against, arriving from the other end: a face that outlived its
  * agent. Whether anything is running at all is the CONVERSATION's answer, so
@@ -89,10 +102,11 @@ export const doingOf = (
   live: boolean,
 ): string | null => {
   if (!live || entry?.spawned === undefined) return null
-  // `pending` is the status a spawn is ANNOUNCED with and the one it keeps
-  // until the agent's first beat, so it is the status most spawns wear for the
-  // longest — the default, and not an edge case to fall through to.
-  return DOING[entry.status ?? "pending"] ?? null
+  // `pending` is what a spawn is ANNOUNCED with and what most of them wear for
+  // most of their lives, so it is the default rather than a case to fall
+  // through — and it is a RUNNING state here, which is the whole of the note
+  // above.
+  return RUNNING.has(entry.status ?? "pending") ? WORKING : null
 }
 
 /** What a spawn is called when it named no kind of agent. The `Agent` tool's
@@ -100,10 +114,11 @@ export const doingOf = (
  *  broken one, and the honest thing to say about it is the category. */
 const SOMEBODY = "agent"
 
-/** The agent's own status, in the word a person reads. Only the two live ones
- *  are here: a call that has completed or failed has no live half, and is
- *  drawn by the mark and the report the frame already carries. */
-const DOING: { readonly [status: string]: string } = {
-  pending: "starting…",
-  in_progress: "working…",
-}
+/** What the rail says while an agent is out. */
+const WORKING = "working…"
+
+/** The statuses that mean it has not come back. A call that has completed or
+ *  failed has no live half and is drawn by the mark and the report the frame
+ *  already carries; anything the agent spells some other way is not something
+ *  this panel will call running. */
+const RUNNING: ReadonlySet<string> = new Set(["pending", "in_progress"])

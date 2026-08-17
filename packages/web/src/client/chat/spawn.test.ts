@@ -69,16 +69,16 @@ describe("who was sent", () => {
 })
 
 describe("whether it is still going", () => {
-  test("a spawn is announced pending, and that is what most of them wear", () => {
-    // The status a spawn keeps until its first beat, which for a slow one is
-    // the whole of the stretch this exists for — so it is the default rather
-    // than a case to fall through.
-    expect(doingOf(row({ spawned: { kind: "Explore" } }), TURNING)).toBe("starting…")
+  test("an announced spawn is a RUNNING one, and says the same word as a beaten one", () => {
+    // The adapter announces every tool call `pending` and dispatches the
+    // subagent immediately, so `pending` here means "announced" rather than
+    // "not started" — and the two used to say different words. The one that
+    // made it wrong is the `pending` case: a heartbeat can be half a minute
+    // away, so a subagent whose calls were already drawn in the lane below
+    // this rail went on being described as *starting…* while they arrived.
+    expect(doingOf(row({ spawned: { kind: "Explore" } }), TURNING)).toBe("working…")
     expect(doingOf(row({ spawned: { kind: "Explore" }, status: "pending" }), TURNING))
-      .toBe("starting…")
-  })
-
-  test("a spawn the agent says is running says so", () => {
+      .toBe("working…")
     expect(doingOf(row({ spawned: { kind: "Explore" }, status: "in_progress" }), TURNING))
       .toBe("working…")
   })
@@ -97,7 +97,7 @@ describe("whether it is still going", () => {
     // status is sticky, and the rows a dead agent left are deliberately still
     // on screen to read — so an agent that died between announcing a spawn and
     // reporting on it leaves a row that says `pending` for as long as the panel
-    // is open. Asked of the row alone, that is a rail pulsing "starting…" under
+    // is open. Asked of the row alone, that is a rail pulsing "working…" under
     // a process that no longer exists.
     expect(doingOf(row({ spawned: { kind: "Explore" }, status: "pending" }), false))
       .toBeNull()

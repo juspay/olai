@@ -74,6 +74,29 @@ const TONE: Record<string, string> = {
   failed: "text-alarm",
 }
 
+/**
+ * ... and what each status is CALLED, for the reader who gets no glyph and no
+ * colour. Beside the other two rather than in a module of its own, because the
+ * three are one table read three ways and a status that gained a mark without
+ * a word would be the gap this closes reopening. A status this table does not
+ * know is said as it came, which is the same refusal to invent a name the
+ * header makes for a model it cannot place.
+ *
+ * THE AGENT'S OWN WORDS, spelled for speech and interpreted no further. The
+ * rail under a spawn says *working…* for `pending`, and this deliberately does
+ * not: that rail is drawn only while the conversation is live
+ * ({@link ./spawn.ts}), and this word is on a row that outlives it. A dead
+ * agent leaves its last announced call `pending` forever, and a name that
+ * announced it as "running" would be saying out loud the one thing nobody can
+ * still promise.
+ */
+const SAID: Record<string, string> = {
+  pending: "pending",
+  in_progress: "in progress",
+  completed: "completed",
+  failed: "failed",
+}
+
 export function ToolFrame(props: { readonly entry: ChatEntry }) {
   const open = () => isUnfolded(props.entry.id)
   const status = () => props.entry.status ?? "pending"
@@ -130,9 +153,18 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
         disabled={!body()}
         onClick={() => toggleFold(props.entry.id)}
       >
+        {/* The status, twice over and in two vocabularies, because the glyph
+            is not one: `·` and `…` and `✓` say nothing to a screen reader, so
+            the mark is hidden and the WORD is what lands in the button's
+            accessible name — which is where a status belongs, since the name
+            is the whole of what that reader gets. It went missing the moment
+            this row grew a second label: "read every note Explore" announces a
+            spawn and a kind and never says whether it finished, which for a
+            dead agent's row is the one thing worth hearing. */}
         <span class={TONE[status()] ?? "text-muted"} aria-hidden="true">
           {MARK[status()] ?? "·"}
         </span>
+        <span class="sr-only">{SAID[status()] ?? status()}</span>
         <span class="min-w-0 flex-1 truncate">{props.entry.text}</span>
         {/* WHO WAS SENT, on the line, from the moment the spawn is announced —
             which is a good while before the agent has done anything to draw a
@@ -149,8 +181,14 @@ export function ToolFrame(props: { readonly entry: ChatEntry }) {
               {/* The lane's own glyph, so the marker on the row and the label
                   on the rail under it are visibly the same fact: somebody
                   else is doing this. Without it, a kind sitting where a file
-                  path usually sits reads as a file path. */}
+                  path usually sits reads as a file path.
+
+                  A glyph says that to the eye and nothing at all to a screen
+                  reader, which would otherwise hear this row's name end in a
+                  bare "Explore" — so the word it stands for is spoken in its
+                  place, and the name comes out as a sentence. */}
               <span aria-hidden="true">↳</span>
+              <span class="sr-only">sent out&#32;</span>
               <span class="min-w-0 truncate">{who()}</span>
             </span>
           )}
