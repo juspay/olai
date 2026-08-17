@@ -251,6 +251,11 @@ export {
   matchedIn,
   matching,
   parseFilter,
+  /** Both halves of "3 of 41" over a tree: {@link matchedIn} counts the rows a
+   *  query selected and `rowsIn` counts the rows there are, so the two cannot
+   *  come to disagree about what a row is — the pairing the flat pages have in
+   *  `datedIn` and `owedIn`. */
+  rowsIn,
   /** A token the grammar knows the name of and not the value. A SCHEMA, not an
    *  interface: it rides `SearchAnswer.refusals` to a browser and to an agent,
    *  so it is one declaration like the hit it travels beside. */
