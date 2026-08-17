@@ -2,11 +2,12 @@
  * What a sweep over this repository reads: every file it owns, and the code in
  * one with its prose taken out.
  *
- * Two tests in this package hunt spellings across the tree — `extension.test.ts`
- * bans the extension outlines used to have, `kinds.test.ts` holds the file-kind
- * registry's monopoly — and they were assembling the same corpus twice, down to
- * the same failure message. The invariants below are what make such a sweep
- * honest, and they are the part that must not exist in two copies:
+ * Three tests in this package hunt spellings across the tree —
+ * `extension.test.ts` bans the extension outlines used to have, `kinds.test.ts`
+ * holds the file-kind registry's monopoly, `stdio.test.ts` bans the retired
+ * subcommand — and each of them was assembling the same corpus for itself, down
+ * to the same failure message. The invariants below are what make such a sweep
+ * honest, and they are the part that must not exist in three copies:
  *
  *   - **`git ls-files` is what "a file this repo owns" means.** The idiom is the
  *     justfile's own (`nix_files`, "so node_modules and .direnv stay out"). It is
@@ -22,6 +23,22 @@
  *   - **A sweep never reads itself.** Each of these files quotes what it hunts,
  *     and one that caught its own net would teach the next reader to weaken the
  *     pattern rather than fix the code.
+ *   - **What may still spell it is a LIST, and a trailing `/` is what makes an
+ *     entry a directory.** Two of the three carry such a list and had written
+ *     the same four lines of prefix-or-exact matching for it ({@link granting}).
+ *     The rule is easy to get subtly wrong in a way nothing catches: matching
+ *     every entry by prefix quietly grants `docs/format.mdx` and
+ *     `docs/format.md.bak` beside the file that was meant, which is a real
+ *     review finding on `extension.test.ts` rather than a hypothetical.
+ *
+ * WHAT IS NOT SHARED, and why. `@olai/web`'s `claims.test.ts` and `@olai/acp`'s
+ * `manifest.test.ts` also walk a tree, and neither is a caller here: they walk
+ * ONE PACKAGE'S directory rather than what the repository owns, they live in
+ * packages that do not depend on `@olai/tests` — the dependency runs the other
+ * way — and `manifest.test.ts`'s own first claim is that its package imports no
+ * `@olai` sibling at all, so reaching for this file would be the thing it exists
+ * to fail. The duplication that was worth closing is the one INSIDE this
+ * package, where three sweeps ask the identical question of the identical tree.
  */
 
 import { spawnSync } from "node:child_process";
@@ -64,3 +81,26 @@ export const withoutComments = (code: string): string =>
 /** A tracked file's contents. */
 export const read = (file: string): string =>
   fs.readFileSync(path.join(ROOT, file), "utf8");
+
+/** Whether a tracked path is really on disk. `git ls-files` goes on naming a
+ *  file that is deleted in the work tree until the deletion is staged, and a
+ *  missing file cannot spell anything — so a sweep that would rather skip such a
+ *  path than throw at it asks this first. */
+export const exists = (file: string): boolean =>
+  fs.existsSync(path.join(ROOT, file));
+
+/**
+ * A grant list, as the question a sweep asks of each file: may THIS one still
+ * spell the thing being hunted?
+ *
+ * A trailing `/` makes an entry a DIRECTORY, matched by prefix; everything else
+ * is one exact path, and that asymmetry is the whole of the rule. Prefix-matching
+ * the lot is the easy mistake — it grants `docs/format.mdx` and
+ * `docs/format.md.bak` along with `docs/format.md`, silently — which is why the
+ * rule is here once rather than re-spelled per sweep.
+ */
+export const granting = (
+  allowed: ReadonlyArray<string>,
+): ((file: string) => boolean) =>
+(file: string) =>
+  allowed.some((one) => (one.endsWith("/") ? file.startsWith(one) : file === one));

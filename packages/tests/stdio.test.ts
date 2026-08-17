@@ -13,7 +13,9 @@
  * the hand-edited ones no test reads.
  *
  * **`git ls-files` is what "a file this repo owns" means here.** Untracked
- * files have not landed; this is a fence about what lands.
+ * files have not landed; this is a fence about what lands. The listing, that
+ * guarantee and the grant rule are `./support/sweep.ts`', shared with the two
+ * sweeps next door rather than spelled a third time.
  *
  * The RECORD OF THE PAST may still say it: `docs/brainstorming/` holds the
  * decisions and why the alternatives lost — including the argument for the
@@ -26,44 +28,26 @@
  */
 
 import { expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
-import * as fs from "node:fs";
-import * as path from "node:path";
 
-const ROOT = path.dirname(path.dirname(import.meta.dirname));
+import { exists, granting, read, tracked } from "./support/sweep.ts";
 
-const MAY_SPELL_IT: ReadonlyArray<string> = [
+const granted = granting([
   "docs/Archive.olai",
   "docs/RCA/",
   "docs/brainstorming/",
   "docs/lowy-electricity/",
   "docs/roadmap.olai",
-];
+]);
 
-const SELF = path.relative(ROOT, import.meta.filename);
-
-const TRACKED: ReadonlyArray<string> = (() => {
-  const listed = spawnSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" });
-  if (listed.status !== 0) {
-    throw new Error(`git ls-files failed in ${ROOT}: ${listed.stderr || listed.error}`);
-  }
-  return listed.stdout.split("\0").filter((one) => one !== "" && one !== SELF);
-})();
-
-const granted = (file: string): boolean =>
-  MAY_SPELL_IT.some((allowed) =>
-    allowed.endsWith("/") ? file.startsWith(allowed) : file === allowed
-  );
+const TRACKED = tracked(import.meta.filename);
 
 const spelling = (pattern: RegExp): ReadonlyArray<string> =>
   TRACKED
     .filter((file) => !granted(file))
-    .filter((file) => {
-      const full = path.join(ROOT, file)
-      // `git ls-files` still names a path that is deleted in the work tree
-      // until the deletion is staged. A missing file cannot spell anything.
-      return fs.existsSync(full) && pattern.test(fs.readFileSync(full, "utf8"))
-    })
+    // `exists` first: `git ls-files` still names a path that is deleted in the
+    // work tree until the deletion is staged, and a missing file cannot spell
+    // anything.
+    .filter((file) => exists(file) && pattern.test(read(file)))
     .sort();
 
 test("the sweep is actually reading the repository", () => {

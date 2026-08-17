@@ -53,7 +53,7 @@
 
 import { expect, test } from "bun:test";
 
-import { read, tracked } from "./support/sweep.ts";
+import { granting, read, tracked } from "./support/sweep.ts";
 
 /**
  * What may still spell it, and why each one may.
@@ -91,7 +91,8 @@ import { read, tracked } from "./support/sweep.ts";
  * A trailing `/` is what makes an entry a DIRECTORY, matched by prefix;
  * everything else is one exact path. The first draft prefix-matched all of
  * them, which quietly granted `docs/format.mdx` and `docs/format.md.bak` too —
- * same review.
+ * same review, and the reason the rule is `./support/sweep.ts`' `granting`
+ * rather than four lines each sweep writes for itself.
  */
 const MAY_SPELL_IT: ReadonlyArray<string> = [
   "docs/Archive.olai",
@@ -119,10 +120,7 @@ const TRACKED = tracked(import.meta.filename);
 /** Root-relative paths of every tracked file matching `pattern`, minus the ones
  *  allowed to. A prefix in the list covers a directory; an exact string covers
  *  a file. */
-const granted = (file: string): boolean =>
-  MAY_SPELL_IT.some((allowed) =>
-    allowed.endsWith("/") ? file.startsWith(allowed) : file === allowed
-  );
+const granted = granting(MAY_SPELL_IT);
 
 const spelling = (pattern: RegExp): ReadonlyArray<string> =>
   TRACKED
