@@ -99,6 +99,42 @@ test("only the files the probe re-decoded are upserted", () => {
   expect(published.documents.upserts.map(([path]) => path)).toEqual(["notes.md"])
 })
 
+// `rev` IS THE CHANGE TOKEN, which is the half of the sentence above a reader
+// now rests its whole view on: a browser folds its derivation from these
+// numbers — a file whose number moved is an upsert, and nothing else is
+// re-read (`@olai/web`'s `deriving.ts`) — because the client library consumes
+// the delta frames and hands a tab a keyed store rather than the frame. So the
+// promise is two-sided and both sides are asserted here: the file that moved
+// carries the new revision, and the file that did not carries the very entry it
+// was published with, at the old one. A neighbour rebuilt at the new revision
+// would cost a reader a needless patch; a changed file republished at the old
+// one would leave every tab silently stale.
+test("a revision moves for the files that moved and for no others", () => {
+  const first = publishedOf(
+    revision(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })),
+    NOTHING_HELD,
+  )
+  const held = first.outlines.entries.get("garden.olai")
+  const next = publishedOf(
+    revision(
+      setOf({
+        "house.olai": `${HOUSE}{"id":"sink","parent":"kitchen","ord":"a0","title":"sink"}\n`,
+        "garden.olai": GARDEN,
+      }, []),
+      { changed: ["house.olai"], removed: [] },
+      2,
+    ),
+    first,
+  )
+
+  expect(next.outlines.entries.get("house.olai")?.rev).toBe(2)
+  expect(next.outlines.entries.get("garden.olai")?.rev).toBe(1)
+  // The entry itself, not merely a number equal to it: an unchanged file is the
+  // value the wire already sent, so a fold keyed on identity would see nothing
+  // move either.
+  expect(next.outlines.entries.get("garden.olai")).toBe(held as never)
+})
+
 // A collection may not be told to drop a key it never had — the store talks
 // about a directory, and a `.md` leaving it is not an outline leaving this.
 test("a removed path that was never an entry is not a remove", () => {

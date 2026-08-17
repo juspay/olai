@@ -297,10 +297,18 @@ const bySibling = (a: Located, b: Located): number => byOrd(a, b) || byCorpus(a,
 
 /** What an id NAMES in a view — {@link Derived.after}'s own canonicalisation,
  *  asked of one side of the edit or the other. It is why an edge in a file the
- *  delta never named can move when a mirror somewhere else changes. */
+ *  delta never named can move when a mirror somewhere else changes.
+ *
+ *  The index the walk reads is wrapped ONCE, outside the returned function:
+ *  this is asked per target of every changed record and per key of every
+ *  disturbed edge, and a `{byId}` minted inside would be one throwaway object
+ *  per question. */
 const namedIn = (
   byId: ReadonlyMap<string, Located>,
-): ((id: string) => string) => (id) => nodeNamed({ byId }, id)?.node.id ?? id
+): ((id: string) => string) => {
+  const view = { byId }
+  return (id) => nodeNamed(view, id)?.node.id ?? id
+}
 
 /**
  * Who claims which id now.
@@ -459,6 +467,9 @@ const resolutions = (
    *  key. */
   const landing = new Map<string, Array<Located>>()
   const before = { byId: edit.before.byId }
+  // Wrapped once for the same reason `before` is, and it was not: this walk is
+  // one pass per dirty record.
+  const now = { byId }
   for (const id of dirty) {
     // Unfiled from where it WAS before it is filed where it is: the two are
     // different keys exactly when the chain moved, which is the case this
@@ -469,7 +480,7 @@ const resolutions = (
       if (found.kind === "found") shown.add(found.shows.node.id)
     }
     const at = byId.get(id)
-    const found = at === undefined ? undefined : follow({ byId }, at)
+    const found = at === undefined ? undefined : follow(now, at)
     const mark = found?.kind === "found" ? storedMarker(found.shows.node) : undefined
     // Set rather than deleted-and-set where there is still a mark, so a key
     // whose value did not change keeps its place in the map.

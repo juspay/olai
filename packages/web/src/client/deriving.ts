@@ -44,7 +44,7 @@
  * `docs/brainstorming/outlines-as-collection.md`).
  */
 
-import { byPath, derive, type Derived, type Located, patch } from "@olai/format"
+import { derive, type Derived, type Located, patch } from "@olai/format"
 
 /**
  * One file's slice, as this fold reads it — the wire's `OutlineEntry` narrowed
@@ -93,28 +93,41 @@ export const viewOf = (
   entryOf: (file: string) => Entry | undefined,
 ): View => {
   const revs = new Map<string, number>()
-  const upserts: Array<readonly [string, { readonly nodes: ReadonlyArray<Located> }]> = []
+  // The entry itself, because the patcher's own input shape is structural and
+  // an `Entry` satisfies it by having `nodes` — one object per changed file
+  // that nobody has to mint.
+  const upserts: Array<readonly [string, Entry]> = []
+  /** How many of the files the held view knew about are still here — counted
+   *  on the way past, so the ordinary frame (nothing deleted) never builds the
+   *  list of what might have been. */
+  let kept = 0
   for (const file of files) {
     const entry = entryOf(file)
     // A key the fold holds no value for yet is a file this view does not know
     // about — the same thing the flatten it replaces said with `?? []`.
     if (entry === undefined) continue
     revs.set(file, entry.rev)
-    if (held?.revs.get(file) !== entry.rev) upserts.push([file, { nodes: entry.nodes }])
+    const before = held?.revs.get(file)
+    if (before !== undefined) kept++
+    if (before !== entry.rev) upserts.push([file, entry])
   }
+  const removes = held === undefined || kept === held.revs.size
+    ? []
+    : [...held.revs.keys()].filter((file) => !revs.has(file))
 
-  // NOTHING TO PATCH ONTO — the first frame of a subscription, or a manifest
-  // that has just arrived. Every file is an upsert, so this is what the
-  // patcher would decline at anyway, and the records go in the order a set is
-  // assembled in ({@link byPath}) rather than the order the collection's keys
-  // happen to arrive in: the flat list of a view IS its files read in order,
-  // and a browser holding them in another one would be a different corpus.
-  if (held === undefined) {
-    const ordered = [...upserts].sort(([one], [other]) => byPath(one, other))
-    return { derived: derive(ordered.flatMap(([, entry]) => entry.nodes)), revs }
-  }
-
-  const removes = [...held.revs.keys()].filter((file) => !revs.has(file))
-  if (upserts.length === 0 && removes.length === 0) return held
-  return { derived: patch(held.derived, { upserts, removes }), revs }
+  if (held !== undefined && upserts.length === 0 && removes.length === 0) return held
+  // ONE CALL, and the first frame is not a special case: a tab with nothing yet
+  // holds the view of an empty directory, and every file is an upsert onto it.
+  // The patcher declines that — there is nothing standing to patch onto — and
+  // answers with the rebuild it falls back to, which is the point of going
+  // through it anyway: WHERE a file's records land in the flat list is
+  // `assemble`'s rule ({@link byPath}, then line order within a file), and a
+  // browser that spelled it again here would be a second answer about what
+  // corpus this is.
+  return { derived: patch(held?.derived ?? EMPTY, { upserts, removes }), revs }
 }
+
+/** The view of a directory with nothing in it — what a first frame is patched
+ *  onto. Minted once: it holds no records, so every tab's first frame can be
+ *  handed the same one. */
+const EMPTY: Derived = derive([])

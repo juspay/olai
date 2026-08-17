@@ -17,19 +17,13 @@
  */
 
 import { expect, test } from "bun:test"
-import { byPath, derive, type Derived, type Located, parseOutline } from "@olai/format"
-import { Result } from "effect"
+import { derive, type Derived } from "@olai/format"
+import { nodesOf, nodesOfFiles } from "@olai/format/testlib"
 
 import { type Entry, viewOf } from "./deriving.ts"
 
 /** A corpus as a fixture writes one: path → the file's JSONL. */
 type Corpus = Record<string, string>
-
-const nodesOf = (file: string, text: string): ReadonlyArray<Located> => {
-  const parsed = parseOutline(file, text)
-  if (Result.isFailure(parsed)) throw new Error(`fixture ${file} did not parse`)
-  return parsed.success.nodes
-}
 
 /** The collection as a tab holds it: an entry per key, each at the revision it
  *  was last published at. Arrival order is the object's own, deliberately not
@@ -41,21 +35,18 @@ const held = (corpus: Corpus, revs: Record<string, number> = {}): {
   const entries = new Map<string, Entry>(
     Object.entries(corpus).map((
       [file, text],
-    ) => [file, { rev: revs[file] ?? 1, nodes: nodesOf(file, text) }]),
+    ) => [file, { rev: revs[file] ?? 1, nodes: nodesOf(text, file) }]),
   )
   return { files: [...entries.keys()], entryOf: (file) => entries.get(file) }
 }
 
-/** What `derive` says about the same corpus, in the order `assemble` puts a set
- *  in — the oracle every assertion below is against. The comparator is the
- *  format's own, because the claim being made here is "the same view as a
- *  rebuild of the same set"; WHICH order a set is in is pinned where it is
- *  decided (`@olai/format`'s `set.test.ts`) and, for this client, by the last
- *  test in this file. */
-const oracle = (corpus: Corpus): Derived =>
-  derive(
-    Object.keys(corpus).sort(byPath).flatMap((file) => nodesOf(file, corpus[file] as string)),
-  )
+/** What `derive` says about the same corpus — the oracle every assertion below
+ *  is against, and it goes through the real ASSEMBLY (`nodesOfFiles` is
+ *  `assemble(...).nodes`) rather than a flatten written here. That is the whole
+ *  weight of the comparison: a client that came to hold its records in another
+ *  order than a validated set does would fail here, where an oracle that sorted
+ *  the way this client sorts could only ever agree with it. */
+const oracle = (corpus: Corpus): Derived => derive(nodesOfFiles(corpus))
 
 const view = (corpus: Corpus, revs?: Record<string, number>) => {
   const { files, entryOf } = held(corpus, revs)

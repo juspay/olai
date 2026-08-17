@@ -40,7 +40,7 @@
 import { expect, test } from "bun:test"
 
 import { derive, type Derived } from "./derive.ts"
-import { FIXTURE_FILE, nodesOf, setOf } from "./fixtures.testlib.ts"
+import { FIXTURE_FILE, nodesOf, seeded, setOf } from "./fixtures.testlib.ts"
 import { patch, patched, type SetDelta } from "./patch.ts"
 import { nearestId } from "./suggest.ts"
 
@@ -107,20 +107,6 @@ const same = (found: Derived, oracle: Derived, story: () => string): void => {
 }
 
 // ── the property ───────────────────────────────────────────────────────
-
-/** Mulberry32: eight lines of arithmetic and one seed, so a failure is a case
- *  that can be re-run rather than a case that happened once on somebody's
- *  machine. `Math.random` would make this suite a lottery whose losing tickets
- *  are unprintable. */
-const source = (seed: number): (() => number) => {
-  let at = seed >>> 0
-  return () => {
-    at = (at + 0x6D2B79F5) | 0
-    let mixed = Math.imul(at ^ (at >>> 15), 1 | at)
-    mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed
-    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296
-  }
-}
 
 const pick = <T>(random: () => number, from: ReadonlyArray<T>): T =>
   from[Math.floor(random() * from.length)] as T
@@ -292,7 +278,7 @@ const editOf = (
 const ROUNDS = 500
 
 test("the patched view is the derived view, for any corpus and any delta", () => {
-  const random = source(20260816)
+  const random = seeded(20260816)
   let declined = 0
   for (let round = 0; round < ROUNDS; round++) {
     const { files: before, used } = corpusOf(random)

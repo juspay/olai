@@ -37,9 +37,9 @@
  * rather than a result.
  */
 
-import { derive, parseOutline } from "@olai/format"
+import { derive } from "@olai/format"
+import { nodesOf, seeded } from "@olai/format/testlib"
 import { writeWrappedValue } from "@kolu/surface/solid"
-import { Result } from "effect"
 import { createMemo, createRoot } from "solid-js"
 import { createStore } from "solid-js/store"
 
@@ -47,18 +47,6 @@ import { type Entry, type View, viewOf } from "./deriving.ts"
 import { sortByPath } from "./paths.ts"
 
 // ── the vault ──────────────────────────────────────────────────────────
-
-/** Mulberry32, as the format's own property test uses: a seed, so two runs of
- *  this harness measure the same directory. */
-const source = (seed: number): (() => number) => {
-  let at = seed >>> 0
-  return () => {
-    at = (at + 0x6D2B79F5) | 0
-    let mixed = Math.imul(at ^ (at >>> 15), 1 | at)
-    mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed
-    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296
-  }
-}
 
 /** One file's JSONL: a root and its children, some marked, a few naming each
  *  other and a few standing for a record in the file before them — a directory
@@ -94,15 +82,7 @@ const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)
 const EDITS = Number(process.env["OLAI_BENCH_EDITS"] ?? 40)
 
-const nodesOf = (file: string, text: string) => {
-  const parsed = parseOutline(file, text)
-  if (Result.isFailure(parsed)) {
-    throw new Error(`the bench wrote a file that does not parse: ${file}`)
-  }
-  return parsed.success.nodes
-}
-
-const random = source(20260817)
+const random = seeded(20260817)
 /** Paths a directory really holds: mostly flat, some nested, and a few in a
  *  directory named after a file beside it — the pair the two readings of path
  *  order used to disagree about. */
@@ -137,7 +117,7 @@ const snapshot = (): Fold => {
   const byKey: Record<string, Entry> = Object.create(null) as Record<string, Entry>
   const order: Array<string> = []
   for (const [file, text] of corpus) {
-    byKey[file] = { rev: 1, nodes: nodesOf(file, text) }
+    byKey[file] = { rev: 1, nodes: nodesOf(text, file) }
     order.push(file)
   }
   return { byKey, order }
@@ -203,7 +183,7 @@ const editOf = (previous: Fold, which: number): Fold => {
     `"title":"edited ${which}"`,
   )
   const byKey = Object.assign(Object.create(null) as Record<string, Entry>, previous.byKey)
-  byKey[file] = { rev: previous.byKey[file]!.rev + 1, nodes: nodesOf(file, text) }
+  byKey[file] = { rev: previous.byKey[file]!.rev + 1, nodes: nodesOf(text, file) }
   return { byKey, order: previous.order }
 }
 

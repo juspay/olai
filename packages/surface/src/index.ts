@@ -135,6 +135,19 @@ import { SearchAnswer, SearchRequest } from "./search.ts"
  * `docs/brainstorming/outlines-as-collection.md`. Only the files that MOVED in
  * a tick are upserted, so an unchanged neighbour keeps the older number until
  * something changes it.
+ *
+ * WHICH MAKES IT THE CHANGE TOKEN, and that is a contract rather than an
+ * accident of the implementation, because a reader now rests on it: this number
+ * moves when THIS FILE's records move and at no other time. A tab folds its
+ * whole derived view from it (`@olai/web`'s `deriving.ts`) — a file whose
+ * number moved is an upsert, a key that went away is a remove — because the
+ * client library consumes the collection's delta frames and hands a reader a
+ * keyed store rather than the frame. So an entry rebuilt at a new revision for
+ * a file that did not change costs a reader wasted work, and an entry whose
+ * records changed published at a revision a reader already holds is a view that
+ * is silently stale. `@olai/server`'s `published.ts` is what keeps it (an entry
+ * is rebuilt exactly when the store re-decoded its path), and
+ * `published.test.ts` is where that is pinned.
  */
 export const OutlineEntry = Schema.Struct({
   rev: Schema.Int,
