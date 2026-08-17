@@ -143,10 +143,10 @@ const BY_HAND: ReadonlyArray<string> = [
 ];
 
 test("no step builds an attribute selector by hand, but the four that must", () => {
-  const mine = "packages/tests/selectors.test.ts";
+  // `tracked` leaves the caller out of its own listing, which is what excludes
+  // this file — it quotes the shape it hunts, in an assertion above.
   const found = tracked(import.meta.filename)
     .filter((file) =>
-      file !== mine &&
       /^packages\/tests\/(step_definitions|support)\/[^/]+\.ts$/.test(file)
     )
     .flatMap((file) =>
