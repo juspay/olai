@@ -624,6 +624,32 @@ Feature: Talking to the agent
     Then the agent is idle
     And the panel header names the model "Fake Sonnet"
 
+  @agent-stored @scratch:chat
+  Scenario: A model the conversation was switched to survives a restart
+    # The bug (`chat-model-reverts-on-restart`), as the human hit it: switch the
+    # chat to another model, redeploy olai, and the conversation comes back on
+    # the one the container's `settings.json` pins. That pin is the agent's own
+    # answer at every boot — this agent gives the same one, its picker naming
+    # `fake-model-1` on every `session/load` however the last turn ended — and a
+    # panel that only ever READ what it was told had nothing to say back.
+    #
+    # So the panel writes down the model this conversation is running and puts
+    # it back after the load, through the config option the picker is.
+    When I ask the agent "model fake-model-2"
+    And I ask the agent "hello"
+    Then the panel header names the model "Fake Two"
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the conversation is titled "the last conversation"
+    And the panel header names the model "Fake Two"
+    # ... and it is the AGENT that is on it, not a label the panel drew from its
+    # own note: the next turn's `init` says what the CLI is actually running, so
+    # a re-assert that never reached the agent walks the header back to the pin.
+    When I ask the agent "hello"
+    Then the panel header names the model "Fake Two"
+
   @scratch:chat
   Scenario: A message sent mid-turn STEERS the turn that is running
     # Three arrangements, and only the third is this one. The box used to be

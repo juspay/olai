@@ -5,7 +5,8 @@
  * It speaks just enough of the protocol to be indistinguishable from a real
  * agent as far as `packages/server/src/chat/agent.ts` is concerned:
  * line-delimited JSON-RPC on stdio, `initialize` / `session/new` /
- * `session/list` / `session/load` / `session/set_mode` / `session/prompt`,
+ * `session/list` / `session/load` / `session/set_mode` /
+ * `session/set_config_option` / `session/prompt`,
  * `_session/steering`, `session/cancel` as a notification, and `session/update`
  * notifications on the way.
  *
@@ -271,13 +272,24 @@ const storedSessions = () =>
  * id never states one, so it must NOT be allowed to answer for a bare
  * `claude-opus-5`: that named a 1M window over a session running 200k, in the
  * line a person reads to decide whether to `/compact`.
+ *
+ * WHAT THE PICKER IS PICKING is a variable rather than a constant, because a
+ * client may SET it (`session/set_config_option`) and because a boot resets it:
+ * `fake-model-1` is this agent's `settings.json` pin, asserted over whatever the
+ * last turn ran, on `session/new` and `session/load` alike. That is the shape
+ * the real adapter has (0.66.0: env, then settings, then the resumed
+ * transcript — and the first two are re-asserted over the third on resume), and
+ * it is the whole of what makes `chat-model-reverts-on-restart` reproducible
+ * here.
  */
-const CONFIG_OPTIONS = [
+let currentModel = "fake-model-1"
+
+const configOptions = () => [
   {
     id: "model",
     name: "Model",
     type: "select",
-    currentValue: "fake-model-1",
+    currentValue: currentModel,
     options: [
       { value: "fake-model-1", name: "Fake One" },
       { value: "fake-model-2", name: "Fake Two" },
@@ -287,6 +299,13 @@ const CONFIG_OPTIONS = [
     ],
   },
 ]
+
+/** Every value the picker offers, for the one caller that has to refuse
+ *  anything else — a real agent answers `Invalid value for config option`, and
+ *  a fake that took any string would let a client send nonsense and pass. */
+const OFFERED = new Set(
+  configOptions().flatMap((option) => option.options.map((row) => row.value)),
+)
 
 /**
  * The two texts the `edit` verb reports — a `.md` a real agent would have
@@ -630,7 +649,12 @@ const takeSteering = async (): Promise<void> => {
  * started on. Reproducing that here is the only way an e2e can tell a header
  * that follows the running model from one that follows the picker.
  */
+/** Whether the client asked for those messages, per session — see
+ *  {@link openSession}. */
+let forwardsInit = false
+
 const sdkInit = (model: string): void => {
+  if (!forwardsInit) return
   notify("_claude/sdkMessage", {
     sessionId,
     message: { type: "system", subtype: "init", model },
@@ -1077,7 +1101,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "reconfig") {
     notify("session/update", {
       sessionId,
-      update: { sessionUpdate: "config_option_update", configOptions: CONFIG_OPTIONS },
+      update: { sessionUpdate: "config_option_update", configOptions: configOptions() },
     })
     say("the session's options were re-announced.")
     respond(id, { stopReason: "end_turn" })
@@ -1368,6 +1392,17 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 
 const openSession = (params: Record<string, unknown>): void => {
   if (typeof params["cwd"] === "string") cwd = params["cwd"].replace(/\/+$/, "")
+  // WHETHER THE CLI'S OWN MESSAGES ARE FORWARDED, off the `_meta` of the call
+  // that made this session — `session/new` and `session/load` alike, which is
+  // where the real adapter reads it (`loadSession` hands its own `_meta` to
+  // `createSession`, defaulting the flag to false). Honoured rather than assumed
+  // because assuming it hid a real gap: a client that asked only at
+  // `session/new` heard nothing about the running model for the whole life of
+  // every RESTORED conversation, and every scenario here still passed.
+  forwardsInit = Array.isArray(
+    ((params["_meta"] as { claudeCode?: { emitRawSDKMessages?: unknown } } | undefined)
+      ?.claudeCode?.emitRawSDKMessages),
+  )
   const given = (params["mcpServers"] ?? []) as ReadonlyArray<{
     type?: string
     name?: string
@@ -1496,12 +1531,14 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     case "session/new":
       openSession(params)
       sessionId = "fake-session-1"
-      // A fresh conversation is on whatever the picker says it is picking.
+      // A fresh conversation is on whatever the picker says it is picking, and
+      // what it is picking is the pin.
+      currentModel = "fake-model-1"
       liveModel = "fake-model-1"
       // ... and has spent nothing in a window of its own.
       used = 0
       size = 200_000
-      respond(id, { sessionId, configOptions: CONFIG_OPTIONS })
+      respond(id, { sessionId, configOptions: configOptions() })
       // NO `init` here, and that is the adapter's own shape: it forwards one
       // per PROMPT, so between opening a session and sending the first one the
       // picker is the only thing that has said which model this is. A client
@@ -1517,13 +1554,18 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       openSession(params)
       sessionId = String(params["sessionId"] ?? sessionId)
       replay()
+      // THE PIN, ASSERTED OVER THE CONVERSATION'S OWN MODEL — which is the bug
+      // `chat-model-reverts-on-restart` is about, and what the real adapter
+      // does on every resume when `settings.json` names a model. Whatever this
+      // conversation was switched to is gone unless somebody says otherwise.
+      currentModel = "fake-model-1"
       liveModel = "fake-model-1"
       // A different conversation is a different context. The client empties
       // what it was showing when the session goes, so nothing is drawn about
       // this one until its first turn reports.
       used = 0
       size = 200_000
-      respond(id, { configOptions: CONFIG_OPTIONS })
+      respond(id, { configOptions: configOptions() })
       notify("session/update", {
         sessionId,
         update: { sessionUpdate: "available_commands_update", availableCommands: COMMANDS },
@@ -1540,6 +1582,28 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     case "session/set_mode":
       respond(id, {})
       return
+
+    // A client SETTING what the picker picks — the one verb the panel has for
+    // saying which model a conversation should be on, and the way it puts a
+    // restored one back on the model it was switched to. The answer carries the
+    // whole set with its new current value, as the protocol says it must; the
+    // CLI moves with it, so the next turn's `init` announces the new model and
+    // a client that never sent this hears the pin instead.
+    case "session/set_config_option": {
+      const value = params["value"]
+      if (params["configId"] !== "model" || typeof value !== "string") {
+        refuse(id, -32602, `no such config option: ${String(params["configId"])}`)
+        return
+      }
+      if (!OFFERED.has(value)) {
+        refuse(id, -32602, `Invalid value for config option model: ${value}`)
+        return
+      }
+      currentModel = value
+      liveModel = value
+      respond(id, { configOptions: configOptions() })
+      return
+    }
 
     case "session/prompt": {
       const text = promptTextOf(params)

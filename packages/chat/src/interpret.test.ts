@@ -23,8 +23,9 @@ import {
   liveModelIn,
   modelNameIn,
   modelPickerIn,
-  NEW_SESSION_META,
+  OPEN_SESSION_META,
   parentToolUseIn,
+  sameModel,
   STEER_METHOD,
   STEER_WHEN_IDLE,
   steerTaken,
@@ -247,7 +248,7 @@ describe("which agent made a call", () => {
 
 describe("which model a turn is running on", () => {
   /** What the adapter forwards under `_claude/sdkMessage`, having been asked to
-   *  by {@link NEW_SESSION_META}: the CLI's own `init`, verbatim, with the
+   *  by {@link OPEN_SESSION_META}: the CLI's own `init`, verbatim, with the
    *  sessionId the notification carries. */
   const init = (model: unknown) => ({
     sessionId: "s1",
@@ -262,7 +263,7 @@ describe("which model a turn is running on", () => {
     // The ask and the read are one bet, so the message is built out of the
     // filter we subscribed with: a reader that drifted from the subscription
     // would go quiet on exactly the messages the adapter still sends.
-    const [subscribed] = NEW_SESSION_META.claudeCode.emitRawSDKMessages
+    const [subscribed] = OPEN_SESSION_META.claudeCode.emitRawSDKMessages
     expect(liveModelIn({ message: { ...subscribed, model: "claude-opus-4-5" } }))
       .toBe("claude-opus-4-5")
   })
@@ -474,5 +475,58 @@ describe("what the agent calls the model it is running", () => {
       .toBeNull()
     expect(modelNameIn(new Map(), "claude-sonnet-5")).toBeNull()
     expect(modelNameIn(OFFERED, "")).toBeNull()
+  })
+})
+
+describe("whether two model strings are the same model", () => {
+  // The question a restored conversation turns on: the panel remembers what
+  // this conversation was RUNNING and the load reports what the agent put it
+  // on, and the model is set back only when those two disagree
+  // (`chat-model-reverts-on-restart`). Answering "disagree" too readily costs a
+  // round trip and a picker moved for nothing; answering it too rarely is the
+  // bug still there.
+  const OFFERED = new Map([
+    ["default", "Default (recommended)"],
+    ["claude-fable-5[1m]", "Fable"],
+    ["sonnet", "Sonnet"],
+    ["haiku", "Haiku"],
+  ])
+
+  test("the same string is the same model, whatever anybody offers", () => {
+    expect(sameModel(OFFERED, "sonnet", "sonnet")).toBe(true)
+    // Including one nothing here has a name for: two strings that are the same
+    // string are the same model without a picker's help.
+    expect(sameModel(new Map(), "gpt-5", "gpt-5")).toBe(true)
+  })
+
+  test("a picker value and the live id it resolves to are one model", () => {
+    // The case that matters: what we remembered is a `/model`, which arrives as
+    // a concrete API id, and what the load reports is the picker's own alias.
+    // Read as strings these disagree, and the panel would set a model the
+    // session is already on at every single boot.
+    expect(sameModel(OFFERED, "sonnet", "claude-sonnet-5")).toBe(true)
+    expect(sameModel(OFFERED, "claude-fable-5[1m]", "claude-fable-5")).toBe(true)
+  })
+
+  test("two different models disagree, which is what makes it worth asking", () => {
+    expect(sameModel(OFFERED, "sonnet", "haiku")).toBe(false)
+    expect(sameModel(OFFERED, "sonnet", "claude-haiku-4-5")).toBe(false)
+  })
+
+  test("`default` is not the model it resolves to, because nothing here can know", () => {
+    // The adapter's word for "whichever one the CLI recommends today" resolves
+    // to a concrete model, and the picker's `configOptions` never say which —
+    // so a session on `default` and a note saying `claude-sonnet-5` are two
+    // different answers as far as anything on this wire goes. Erring this way
+    // costs one round trip; erring the other way is a `/model` silently lost.
+    expect(sameModel(OFFERED, "default", "claude-sonnet-5")).toBe(false)
+  })
+
+  test("a model the picker cannot name answers only for itself", () => {
+    // Both unnameable: `modelNameIn` gives up on each, each stands for itself,
+    // and two different ids stay two different models rather than collapsing
+    // into one `null`.
+    expect(sameModel(OFFERED, "gpt-5", "claude-opus-4-5-20260101")).toBe(false)
+    expect(sameModel(OFFERED, "sonnet", "gpt-5")).toBe(false)
   })
 })
