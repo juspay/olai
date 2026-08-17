@@ -684,7 +684,7 @@ export const CHAT_MINE = selector(TESTID.chatMine);
  *  timeout. Note the id it carries is the RESOLVED one — a span saying `echo`
  *  points at the node `echo` is a placement of, because that is the node a
  *  reader can be shown. */
-export const chatNodeRef = (id: string): string => `[${CHAT_NODE_REF_ATTR}="${id}"]`;
+export const chatNodeRef = (id: string): string => attr(CHAT_NODE_REF_ATTR, id);
 /** ...and any of them at all, for the steps that assert an absence. */
 export const NODE_REF_ANY = `[${CHAT_NODE_REF_ATTR}]`;
 
@@ -1539,7 +1539,7 @@ export class OlaiWorld extends World {
   ): Promise<void> {
     try {
       await this.page
-        .locator(`${selector}[${attribute}="${expected}"]`)
+        .locator(`${selector}${attr(attribute, expected)}`)
         .first()
         .waitFor({ state: "attached", timeout });
     } catch {

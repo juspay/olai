@@ -810,7 +810,7 @@ Then(
     // `~=` is a space-separated token match: the attribute lists every blocker,
     // and this step is about one of them being among them.
     await this.page
-      .locator(`${nodeSelector(id)}[data-blocked~="${blocker}"]`)
+      .locator(`${nodeSelector(id)}${attr("data-blocked", blocker, "~=")}`)
       .first()
       .waitFor({ state: "attached", timeout: POLL_TIMEOUT });
     await this.node(id)

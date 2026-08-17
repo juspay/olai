@@ -26,7 +26,20 @@
  *
  * The FULL attribute name, not a `data-` stem, so a call site still reads as
  * the attribute the client writes and `grep data-node-id` still finds both ends
- * of the contract.
+ * of the contract. It is a `string` rather than a union because two callers pass
+ * a CONSTANT imported from the client that owns the attribute (`THEME_ATTRIBUTE`,
+ * `FONT_ATTRIBUTE`) and one — the world's `expectAttribute` — takes the name
+ * from its own caller: the name is never text a reader typed, and the thing
+ * being escaped is the VALUE.
+ *
+ * `match` is the CSS attribute MATCHER, and the escaping is the same whichever
+ * one it is — the value sits inside the same quoted string either way. Two of
+ * the six exist here because two are used: plain equality, and `~=`, the
+ * space-separated token match a step needs when the attribute lists several
+ * things and the question is whether one of them is among them
+ * (`data-blocked`). A union rather than a `string` so a typo is a type error
+ * rather than a selector that matches nothing; the other four are absent for
+ * this repository's usual reason, which is that nothing asks for them yet.
  *
  * A MODULE OF ITS OWN rather than a function in `./world.ts`, where the rest of
  * the selector vocabulary lives and where every caller still reaches it — the
@@ -36,18 +49,21 @@
  * invalid-installation error for its trouble. A rule with an edge in it that
  * can only be checked by driving a browser is a rule nobody checks, so the edge
  * is held next door in `../selectors.test.ts` and the browser's agreement is
- * held by a scenario (`features/serve_a_directory.feature`).
+ * held by a scenario (`features/it_stays_live.feature`, the outline whose file
+ * name carries a quote).
  *
  * FOUR SELECTORS IN THIS SUITE ARE NOT BUILT HERE, and each says so where it
  * is: they sit inside a `page.evaluate` callback, which is serialised and run
  * in the browser, where nothing in this module exists to be called. All four
  * interpolate a value from a CLOSED TABLE — a `TestId`, or a diff line's
- * `add`/`del`/`context` — so there is no value with a quote in it for them to
+ * `add`/`remove`/`same` — so there is no value with a quote in it for them to
  * meet. `@olai/web`'s own `selector(id: TestId)` is the same case one package
  * over, and stays as it is for the same reason: its argument is a union of
  * kebab-case literals the type checker enforces, not text a reader typed.
  */
-export const attr = (name: string, value: string): string =>
-  `[${name}="${
+export type Match = "=" | "~=";
+
+export const attr = (name: string, value: string, match: Match = "="): string =>
+  `[${name}${match}"${
     value.replace(/[\\"]/g, (char) => `\\${char}`).replace(/\n/g, "\\a ")
   }"]`;

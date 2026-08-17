@@ -84,13 +84,16 @@ test("comments come out and a URL in a string does not", () => {
   expect(stripped).not.toContain("trailing");
 });
 
-// …and the ORDER, which is not cosmetic. A block opener written inside a LINE
-// comment — a MIME type with a star in it, a path to a glob — used to open a
-// block the stripper honoured until the next closer, swallowing every line of
-// code between: a sweep that passes without reading, which is the one failure
-// the stripper's own docstring promises it does not have. Two files in this
-// tree write such a comment today, and `selectors.test.ts`' fence is what
-// noticed, reporting three hand-built selectors where there are four.
+// …and the two ways a stripper eats code it was supposed to read. These are a
+// PAIR on purpose: each is what the other's fix causes, so a rewrite that
+// closes one by running the passes in the other order fails the other test
+// rather than shipping. Both are silent — the sweep goes on passing and simply
+// reads less — which is the one failure the stripper promises it does not have,
+// and `selectors.test.ts`' fence is what caught the first (three hand-built
+// selectors reported in a file that plainly has four).
+//
+// Blocks-first is what honours a block OPENER written inside a line comment.
+// Two files in this tree write one today.
 test("a block opener inside a line comment swallows no code", () => {
   const code = [
     "// the accepted type is image/* here",
@@ -103,4 +106,32 @@ test("a block opener inside a line comment swallows no code", () => {
   expect(stripped).toContain("so is this");
   expect(stripped).not.toContain("the accepted type");
   expect(stripped).not.toContain("and this really is a block");
+});
+
+// …and lines-first is what honours a `//` written inside a BLOCK comment: the
+// line rule eats to the end of that line, taking the block's closer with it, so
+// the block runs on to whatever closer comes next and everything between is
+// gone. A prose comment mentioning a URL scheme or a path is all it takes.
+test("a line comment inside a block comment swallows no code either", () => {
+  const code = [
+    "/* a note // with a slash-slash in it */",
+    "const kept = 'this line is code'",
+    "/** and this really is a block */",
+    "const also = 'so is this'",
+  ].join("\n");
+  const stripped = withoutComments(code);
+  expect(stripped).toContain("this line is code");
+  expect(stripped).toContain("so is this");
+  expect(stripped).not.toContain("with a slash-slash");
+  expect(stripped).not.toContain("and this really is a block");
+});
+
+// The output is LINE-PRESERVING, not line-compacting: a line comment's newline
+// survives, so the code above a comment does not become adjacent to the code
+// below it. Two sweeps match with `^…` under `m`, and an invented adjacency is
+// a match the file does not contain.
+test("stripping a comment leaves the line break it was on", () => {
+  const stripped = withoutComments("const a = 1\n// a note\nconst b = 2\n");
+  expect(stripped.split("\n").length).toBe(4);
+  expect(stripped).not.toContain("a note");
 });

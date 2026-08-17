@@ -28,9 +28,18 @@
  * package already had the thing that knows it: take off the suffix the REGISTRY
  * says claims this file, and leave a file it claims nothing about alone
  * (`./kinds.ts`'s {@link stemOf}). On an outline that is `bySpelling`; on a
- * document it is `byFinding`; and every name where it differs from one of them
- * is a name no caller passes — which is what the third column below asserts,
- * row by row, and what the caller tests underneath it hold from the outside.
+ * document it is `byFinding`.
+ *
+ * BE PRECISE ABOUT WHAT THAT BUYS, because the loose version of the sentence —
+ * "the names where they differ are names no caller passes" — is false, and
+ * every daily note is a counterexample: `2026-08-11.md` is a divergent row and
+ * `noteDateOf` passes one of those on every read. The true claim is narrower
+ * and is what the third column below asserts row by row: on every divergent
+ * name the merged answer is ONE OF THE TWO, never a third reading, and it is
+ * the one belonging to whichever caller can reach that name. What no caller
+ * passes is a name where the merge would have moved it — which is the thing the
+ * caller tests underneath hold, from the outside, through each caller's own
+ * public seam.
  *
  * The copies are the point, not a smell. A test that called the two functions
  * stopped being able to say anything the moment they became one, which is

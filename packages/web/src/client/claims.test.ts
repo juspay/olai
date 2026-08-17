@@ -32,18 +32,18 @@ const SELF = import.meta.filename
  *  string survives; the cost is a comment pasted mid-expression surviving too,
  *  which for a sweep means a false alarm a human reads, never a silent pass.
  *
- *  LINE COMMENTS FIRST, which is not cosmetic: a block OPENER written inside a
- *  line comment — a MIME type with a star in it, a path to a glob — would
- *  otherwise open a block the stripper honours until the next closer, silently
- *  swallowing every line of code between. That is a sweep that passes without
- *  reading, which is the one thing the sentence above promises it is not.
+ *  ONE PASS, LEFT TO RIGHT, which is not cosmetic: whichever comment starts
+ *  first consumes the other. Two passes have a silent-pass hole whichever order
+ *  they run in — blocks first honours a block opener written inside a LINE
+ *  comment (a MIME type with a star in it), lines first honours a `//` written
+ *  inside a BLOCK comment and eats its closer — and either way the stripper
+ *  swallows a stretch of real code and the sweep passes without reading it.
  *  `@olai/tests`' `support/sweep.ts` carries the same stripper, deliberately,
- *  and the same order with the argument written out. */
+ *  with the argument and both fixtures written out. */
 const codeOf = (file: string): string =>
   fs
     .readFileSync(file, "utf8")
-    .replace(/(^|\s)\/\/.*$/gm, "$1")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\*[\s\S]*?\*\/|(^|\s)\/\/[^\n]*/g, (_taken, lead) => lead ?? "")
 
 /** Every source file under the client — client-relative path and stripped
  *  code, read ONCE for however many sweeps accrue below. This file is

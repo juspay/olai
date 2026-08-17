@@ -77,21 +77,41 @@ export const tracked = (self: string): ReadonlyArray<string> => {
  * mid-expression surviving too, which for a sweep means a false alarm a human
  * reads, never a silent pass.
  *
- * LINE COMMENTS COME OUT FIRST, and that order is the whole of a bug this used
- * to have. Taking blocks first means a block OPENER written inside a line
- * comment — a MIME type with a star in it, a path to a glob — opens a block the
- * stripper then honours until the next closer, which is typically sixty lines
- * further down and all of it code. The sweep goes on passing and simply never
- * reads that region: a SILENT PASS, which is the one failure the paragraph
- * above claims this stripper does not have. Two files in this tree do it today
- * — `step_definitions/chat_steps.ts` and `@olai/server`'s `listener.ts` — and
- * `../selectors.test.ts`' fence is what found it, reporting three hand-built
- * selectors where the file plainly has four. Line-first, the line comment is
- * gone before anything can read an opener out of it, and an opener inside a
- * STRING is no worse off than it was.
+ * ONE PASS, LEFT TO RIGHT, and that is the whole of the rule: whichever comment
+ * STARTS FIRST wins, and consumes through. It is not a stylistic preference —
+ * two passes have a silent-pass hole whichever order they run in, and each order
+ * hides the other's:
+ *
+ *   - **blocks first** honours a block OPENER written inside a LINE comment. A
+ *     MIME type with a star in it (`// the accepted type is image/*`) opens a
+ *     block that runs to the next closer, typically sixty lines further down and
+ *     all of it code. `step_definitions/chat_steps.ts` and `@olai/server`'s
+ *     `listener.ts` both write such a comment today, and ../selectors.test.ts'
+ *     fence is what caught it, reporting three hand-built selectors in a file
+ *     that plainly has four;
+ *   - **lines first** honours a `//` written inside a BLOCK comment. The line
+ *     rule eats to the end of that line — taking the block's CLOSER with it when
+ *     the two share a line — so the block never closes and swallows everything
+ *     up to whatever closer comes next. Exactly the same failure, mirrored, and
+ *     it is the one a first attempt at this file introduced while closing the
+ *     other.
+ *
+ * A single alternation cannot have either, because at the `/*` there is no line
+ * comment to match and at the `//` there is no block: the scan reaches one of
+ * them first and that one consumes the other. Both fixtures are held next door
+ * (../sweep.test.ts), because a hole that only shows up as a sweep quietly
+ * reading less is not a thing anybody notices later.
+ *
+ * The LEADING WHITESPACE of a line comment is put back, and so is its NEWLINE
+ * (`[^\n]*` stops short of it). Stripped code therefore gains blank lines where
+ * comments were, which is deliberate rather than tolerated: every sweep here
+ * matches patterns against the text, two of them anchored per line with `^…`
+ * under `m`, and joining the code above a comment to the code below it would
+ * invent adjacencies that are not in the file. A caller that ever wants to DIFF
+ * this output by line should know it is line-preserving, not line-compacting.
  */
 export const withoutComments = (code: string): string =>
-  code.replace(/(^|\s)\/\/.*$/gm, "$1").replace(/\/\*[\s\S]*?\*\//g, "");
+  code.replace(/\/\*[\s\S]*?\*\/|(^|\s)\/\/[^\n]*/g, (_taken, lead) => lead ?? "");
 
 /** A tracked file's contents. */
 export const read = (file: string): string =>

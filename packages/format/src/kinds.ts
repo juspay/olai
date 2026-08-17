@@ -164,8 +164,12 @@ export const fileKind = (path: string): FileKind | null => {
  *
  * So the rule is the registry's, and it is the only one that is right about
  * both: cut what the table says is there, and cut nothing when it says there is
- * nothing. ./stem.test.ts holds the two retired rules beside this one and shows
- * that the names where they differ from it are names no caller passes.
+ * nothing. ./stem.test.ts holds the two retired rules beside this one and shows,
+ * per name, that this one sides with whichever of them was right about that
+ * file — the daily-note rule for a `.md`, the commit-subject rule for a name no
+ * kind claims — and never invents a third answer. It is NOT that the divergent
+ * names go unpassed: every daily note is one of them. It is that no caller can
+ * reach a name where this rule would give it something its own rule would not.
  *
  * The BASENAME, so the directories above the file are gone first: a folder
  * named `2026-08-12` holding a `notes.md` has no bearing on what that document

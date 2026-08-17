@@ -217,7 +217,7 @@ When(
     await chip.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await chip.click();
     await other
-      .locator(`html[${THEME_ATTRIBUTE}="${theme}"]`)
+      .locator(`html${attr(THEME_ATTRIBUTE, theme)}`)
       .waitFor({ state: "attached", timeout: POLL_TIMEOUT })
       .catch(() => {
         throw new Error(

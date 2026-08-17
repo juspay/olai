@@ -27,7 +27,7 @@
  *
  * The proof that the whole thing actually works in a BROWSER is not here and
  * cannot be: `bun test` has no DOM. It is
- * `features/serve_a_directory.feature`'s scenario about a file whose name
+ * `features/it_stays_live.feature`'s scenario about an outline whose file name
  * carries a quote, which grips that file through this very helper — a real
  * Chromium parsing a real selector against a real attribute. This file is the
  * grammar; that scenario is the engine agreeing with it.
@@ -96,6 +96,16 @@ test("an empty value is an empty string, not a missing one", () => {
   expect(attr("data-value", "")).toBe(`[data-value=""]`);
 });
 
+// The matcher rides in front of the same quoted string, so the escaping is the
+// rule's whatever the comparison is. `~=` is the space-separated token match a
+// step needs when an attribute LISTS things — `data-blocked` names every
+// blocker — and the value it is asked about is a node id a scenario typed.
+test("a token match escapes its value exactly as equality does", () => {
+  expect(attr("data-blocked", "order", "~=")).toBe(`[data-blocked~="order"]`);
+  expect(attr("data-blocked", `sa"y`, "~=")).toBe(`[data-blocked~="sa\\"y"]`);
+  expect(attr("data-blocked", "order")).toBe(`[data-blocked="order"]`);
+});
+
 /**
  * …and the rule is a FENCE, not a tidy-up, because the thing it is about is
  * drift.
@@ -117,13 +127,28 @@ test("an empty value is an empty string, not a missing one", () => {
  * one sweep further along: it quotes the shape in an assertion, and a sweep
  * that caught its own net teaches the next reader to weaken the pattern.
  *
- * Writing this found a hole in the stripper itself, which is the sort of thing
- * a fence is for: it reported three of the four selectors below, because a MIME
- * type with a star in it inside a line comment opened a block comment that ran
- * sixty lines past the fourth. `support/sweep.ts` takes line comments first now,
- * and says why.
+ * THE PATTERN IS THE WHOLE OF WHAT THIS OWNS, and its first draft owned one
+ * spelling of four. A fence that reads `[` + a literal name + `="${…}"` misses
+ * every other way the same defect is written, and this suite had five of them:
+ * a MATCHER other than `=` (`[data-blocked~="${blocker}"]`, whose value is a
+ * node id a scenario types), an interpolated NAME (`[${attribute}="${expected}"]`
+ * in the world's own `expectAttribute`, which is the highest-traffic one there
+ * is, plus `chatNodeRef` and the theme and font steps' `html[${ATTR}="${…}"]`).
+ * None of them was safe on purpose; they were safe because no scenario had yet
+ * typed a quote. All five go through `attr` now, and the pattern below reads
+ * the shape rather than one spelling of it: either kind of name, any of the six
+ * matchers, and a value quoted either way or not at all. It over-matches by
+ * construction, which is the correct direction — a false alarm is a line a
+ * human reads and answers, and a miss is this paragraph again in a year.
+ *
+ * Writing the first draft found a hole in the stripper itself, which is the
+ * sort of thing a fence is for: it reported three of the four selectors below,
+ * because a MIME type with a star in it inside a line comment opened a block
+ * comment that ran sixty lines past the fourth. `support/sweep.ts` takes
+ * comments in ONE left-to-right pass now, and says why.
  */
-const BUILT_BY_HAND = /\[[a-z-]+="\$\{[^}]*\}"\]/g;
+const BUILT_BY_HAND =
+  /\[(?:[a-zA-Z-]+|\$\{[^}]*\})[~^|*$]?=\s*(?:"\$\{[^}]*\}"|'\$\{[^}]*\}'|\$\{[^}]*\})\]/g;
 
 /**
  * Every selector still built by hand, and why each may be.
@@ -131,7 +156,7 @@ const BUILT_BY_HAND = /\[[a-z-]+="\$\{[^}]*\}"\]/g;
  * All four sit inside a `page.evaluate` callback, which is serialised and run
  * in the browser where nothing importable exists to be called — and all four
  * interpolate a value from a CLOSED TABLE, a `TestId` or a diff line's
- * `add`/`del`/`context`, so there is no value with a quote in it for them to
+ * `add`/`remove`/`same`, so there is no value with a quote in it for them to
  * meet. Listed by the TEXT they match rather than by line, so the list survives
  * an edit above them and still names exactly four things.
  */
@@ -141,6 +166,48 @@ const BY_HAND: ReadonlyArray<string> = [
   `step_definitions/chat_steps.ts: [data-testid="\${at}"]`,
   `step_definitions/chat_steps.ts: [data-testid="\${at}"]`,
 ];
+
+// The FENCE'S OWN EDGE, and the reason this test is here rather than trusted:
+// the first draft of the pattern read `[` + a literal name + `="${…}"` and was
+// blind to five real call sites in this suite. A fence is only worth what its
+// pattern covers, so the shapes it must catch are spelled out — including the
+// three it once missed. Every one of these is the same defect wearing different
+// punctuation.
+test("the pattern reads the shape, not one spelling of it", () => {
+  for (
+    const shape of [
+      `[data-node-id="\${id}"]`,
+      // A matcher other than plain equality.
+      `[data-blocked~="\${blocker}"]`,
+      // A name that is itself interpolated — `expectAttribute`'s shape, which
+      // is the one most steps reach the DOM through.
+      `[\${attribute}="\${expected}"]`,
+      `html[\${THEME_ATTRIBUTE}="\${theme}"]`,
+      // …and the two quotings nothing writes today but nothing forbids either.
+      `[data-value='\${value}']`,
+      `[data-value=\${value}]`,
+    ]
+  ) {
+    expect(new RegExp(BUILT_BY_HAND.source).test(shape), shape).toBe(true);
+  }
+});
+
+// …and what it must NOT claim, since a fence that cried wolf would be turned
+// off. An attribute with no value escapes nothing, and a literal value is not
+// built from anything a reader typed.
+test("the pattern leaves alone what carries no interpolated value", () => {
+  for (
+    const shape of [
+      `[\${CHAT_NODE_REF_ATTR}]`,
+      `[data-testid="node"]`,
+      `:not([\${attribute}])`,
+      // A failure MESSAGE that happens to read like a selector.
+      `\${selector}[\${at}] is not rendered`,
+    ]
+  ) {
+    expect(new RegExp(BUILT_BY_HAND.source).test(shape), shape).toBe(false);
+  }
+});
 
 test("no step builds an attribute selector by hand, but the four that must", () => {
   // `tracked` leaves the caller out of its own listing, which is what excludes
