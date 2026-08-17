@@ -31,7 +31,7 @@
 
 import { type Accessor, createSignal, onCleanup } from "solid-js"
 
-import { isoDate } from "./calendar/month.ts"
+import { isoDate } from "@olai/format"
 
 /** The local calendar day of an instant, as the ISO text the format stores. */
 export const isoDayOf = (at: Date): string =>

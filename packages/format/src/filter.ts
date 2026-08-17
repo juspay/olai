@@ -43,7 +43,8 @@ import {
   titleParts,
 } from "./derive.ts"
 import { customOf } from "./custom.ts"
-import { datesOf, dayOf } from "./dates.ts"
+import { shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
+import { datesOf, dayOf, monthOf } from "./dates.ts"
 import { nothing } from "./write.ts"
 import {
   isArchived,
@@ -235,8 +236,19 @@ export type Filter =
  * write, and a grammar that refused every colon would be a grammar that could
  * not search prose.
  *
- * Pure, and with no clock in it — which is why `date:today` is not in the
- * grammar (docs/brainstorming/filter-in-place.md names it as deferred).
+ * PURE, AND THE CLOCK IS AN ARGUMENT. `now` is what the relative words count
+ * from (`date:yesterday`, `date:last-week`) — the day the reader is standing
+ * on, or an instant on it ({@link relativeSpan} cuts one down to the other).
+ * It is a parameter rather than something read in here for two reasons that
+ * are really one: a function that read a clock could not be tested against a
+ * boundary, and the day is a fact about WHO IS ASKING — the tab's own local
+ * day for the filter the browser parses itself, the server's for the three
+ * doors that ask it, and no door has two. Those two CAN differ — a tab across
+ * a time-zone boundary from the server has its own local day — and docs/
+ * search.md says why that is accepted rather than fixed by putting a clock on
+ * the wire. The deferral this lifts (docs/brainstorming/filter-in-place.md)
+ * named the price as "threading `today` through the parse", and that is
+ * exactly what it cost.
  *
  * CASE IS FOLDED FOR MATCHING AND NOT FOR QUOTING. The words and the operator
  * values are compared folded, so `is:DONE` and `#Home` work; a REFUSAL quotes
@@ -245,7 +257,7 @@ export type Filter =
  * the same defect class the refusal exists to prevent — the split is why the
  * fold happens per token here rather than to the whole string on the way in.
  */
-export const parseFilter = (text: string): Filter => {
+export const parseFilter = (text: string, now: string): Filter => {
   const terms: Array<Term> = []
   const clauses: Array<Held> = []
   const refusals: Array<Refusal> = []
@@ -264,7 +276,7 @@ export const parseFilter = (text: string): Filter => {
       continue
     }
     const value = token.slice(colon + 1)
-    const clause = clauseOf(name, value)
+    const clause = clauseOf(name, value, now)
     if (clause === null) {
       refusals.push({ token: written, reason: teaching(name, value) })
       continue
@@ -291,7 +303,7 @@ export const parseFilter = (text: string): Filter => {
  * a compile error here and in {@link teaching}, which are the two places an
  * operator has to say something.
  */
-const clauseOf = (name: Operator, value: string): Clause | null => {
+const clauseOf = (name: Operator, value: string, now: string): Clause | null => {
   switch (name) {
     case "is":
       return (IS_VALUES as ReadonlyArray<string>).includes(value)
@@ -302,7 +314,7 @@ const clauseOf = (name: Operator, value: string): Clause | null => {
         ? { kind: "has", field: value as HasField }
         : null
     case "date":
-      return dateClause(value)
+      return dateClause(value, now)
     case "prop":
       return propClause(value)
   }
@@ -354,7 +366,9 @@ const teaching = (name: Operator, value: string): string => {
     case "has":
       return `has: takes one of ${HAS_FIELDS.join(", ")}`
     case "date":
-      return "date: takes a day, month or year (2026-08-10, 2026-08, 2026) or a range (2026-08-01..2026-08-14, ..2026-08-10, 2026-08-10..)"
+      return "date: takes a day, month or year (2026-08-10, 2026-08, 2026), " +
+        `a relative word (${RELATIVE_TEACHING}), ` +
+        "or a range of either (2026-08-01..2026-08-14, ..2026-08-10, last-week..)"
     case "prop":
       // The one operator whose values are not a list this file holds — any key
       // is a key — so what it teaches is the SHAPE, and the two shapes are the
@@ -367,6 +381,159 @@ const teaching = (name: Operator, value: string): string => {
  *  SHAPE only; {@link datePart} is what says the numbers are possible. */
 const PARTIAL_DAY = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/
 const RANGE = ".."
+
+// ── the relative words ─────────────────────────────────────────────────
+
+/**
+ * The three words for a DAY near today, and how many days each is away.
+ *
+ * Three words rather than `this-day` and its family, because that is the shape
+ * English already has: a person who means the day they are standing on says
+ * `today`. The units below have no such words, so they take the prefixes.
+ *
+ * A MAP AND NOT AN OBJECT, here and for {@link RELATIVE_STEPS}, because the key
+ * is a WORD SOMEBODY TYPED. An object lookup answers for the prototype as well
+ * as for the table, with a value of the wrong kind: `date:constructor` came
+ * back with a function where a number of days was expected and minted a bound
+ * with that function's source text glued to the day, and `date:__proto__-week`
+ * came back with an object and minted `2026-08-NaN`. Both are a query that
+ * finds nothing and says nothing — the exact silence the refusal arm exists to
+ * prevent, since neither is a word this operator takes. `Map.get` answers for
+ * what was put in it and nothing else. The tables the grammar keys by its OWN
+ * values (the field weights, the operator names) are objects still; this is the
+ * distinction, not a new house style.
+ */
+const RELATIVE_DAYS: ReadonlyMap<string, number> = new Map([
+  ["today", 0],
+  ["yesterday", -1],
+  ["tomorrow", 1],
+])
+
+/** The units a `this-` / `last-` / `next-` word can name — the three the
+ *  absolute grammar can already spell a WHOLE of (`2026-08` is a month,
+ *  `2026` a year), plus the week, which it cannot spell at all and which is the
+ *  reason this vocabulary was asked for. */
+const RELATIVE_UNITS = ["week", "month", "year"] as const
+type RelativeUnit = (typeof RELATIVE_UNITS)[number]
+
+/** Is the word after the prefix one of them? A type guard, {@link isOperator}'s
+ *  shape, so the branches below are ones the compiler checks — a fourth unit
+ *  added to the list above is an error there rather than a word that parses and
+ *  resolves to a year. */
+const isUnit = (name: string): name is RelativeUnit =>
+  (RELATIVE_UNITS as ReadonlyArray<string>).includes(name)
+
+/** How far each prefix steps, in whole units of whatever it is prefixing. A
+ *  MAP for {@link RELATIVE_DAYS}' reason: `date:__proto__-week` is a token
+ *  somebody can type, and an object would have answered it. */
+const RELATIVE_STEPS: ReadonlyMap<string, number> = new Map([
+  ["this", 0],
+  ["last", -1],
+  ["next", 1],
+])
+
+/**
+ * The vocabulary as a refusal says it: the day words listed, and the other
+ * nine as the two lists they are the product of.
+ *
+ * IN FULL, which is this file's rule for what a refusal teaches — nothing is
+ * elided, and a reader can write any of the twelve off this sentence. It is
+ * generative rather than enumerated because that is what the words ARE: three
+ * prefixes over three units, and spelling out nine of them makes a line
+ * nobody reads to the end out of one somebody can. `prop:` teaches its shape
+ * for the same reason.
+ *
+ * Built from the tables above rather than written beside them, so a prefix or
+ * a unit added to one teaches itself exactly as an `is:` value does.
+ */
+const RELATIVE_TEACHING = `${[...RELATIVE_DAYS.keys()].join(", ")}, or ${
+  [...RELATIVE_STEPS.keys()].map((step) => `${step}-`).join(" / ")
+} with ${RELATIVE_UNITS.join(", ")}`
+
+/** An inclusive span of days, both ends spelled out. What every `date:` value
+ *  — absolute or relative — is read into before it becomes a clause. */
+interface Span {
+  readonly from: string
+  readonly to: string
+}
+
+/**
+ * A relative word, resolved against the day the query is being asked on — or
+ * `null` for a word that is not one.
+ *
+ * A PURE FUNCTION OF (word, now), which is the whole of why the clock is a
+ * parameter of {@link parseFilter} rather than something read in here: a
+ * boundary that moves with the machine is a boundary no test can pin, and every
+ * one of these is right for most of the year and off by a day in some
+ * particular week. `now` arrives from the ONE clock each door has — the tab's
+ * (`@olai/web`'s `clock.ts`) for the filter the browser parses itself, the
+ * server's (`@olai/ops`' `Context.now`, the clock a `done` is stamped with) for
+ * the three doors that ask it. EITHER SHAPE: a day, or an instant on one, cut
+ * down by ./dates.ts's own `dayOf` rather than by each door before it calls —
+ * which is the ruling `isOverdue` made about this same parameter, after an
+ * untrimmed instant reached it.
+ *
+ * NOTHING IS COUNTED HERE. The three questions this needs — the day before or
+ * after one, the month or the year `n` away, which weekday today is — are all
+ * ./calendar.ts's, and a week is those composed rather than a fourth: back to
+ * the Monday, then whole weeks from there. So the claim that file makes about
+ * being the only place a date is counted survives its first caller.
+ *
+ * A WEEK RUNS MONDAY TO SUNDAY, and it is not this file's opinion either: it
+ * is `weekdayOf`'s count, which is the one the calendar grid lays its columns
+ * out by. A query that started its week on Sunday would be selecting days the
+ * grid draws in another row.
+ *
+ * A MONTH AND A YEAR are handed to the same {@link lowOf} / {@link highOf} the
+ * absolute forms use, so `date:this-month` and `date:2026-08` are one answer
+ * rather than two — including the upper bound being `-31` whether or not the
+ * month has one, which is that pair's own argued rule.
+ *
+ * `null` for a `now` that names no day, which no door can hand over: a clock
+ * that says nothing is not a day to count from, and inventing one would be
+ * this grammar answering a date question out of thin air.
+ *
+ * EXPORTED for {@link spanOf} next door and for the test that pins these
+ * boundaries against a fixed day — which is the half of this feature a test can
+ * hold still, and the reason the clock is an argument at all.
+ */
+export const relativeSpan = (word: string, now: string): Span | null => {
+  const today = dayOf(now)
+  // Which weekday the reader is standing on — and, since it is `null` for text
+  // that names no day, whether there is a day to count from at all. One
+  // question, because a second validity check here would be a second answer to
+  // what a day is. It costs one reading per `date:` token, which is once per
+  // query rather than once per node.
+  const standing = weekdayOf(today)
+  if (standing === null) return null
+
+  const near = RELATIVE_DAYS.get(word)
+  if (near !== undefined) {
+    const day = shiftDay(today, near)
+    return { from: day, to: day }
+  }
+
+  const at = word.indexOf("-")
+  if (at === -1) return null
+  const step = RELATIVE_STEPS.get(word.slice(0, at))
+  const unit = word.slice(at + 1)
+  if (step === undefined || !isUnit(unit)) return null
+
+  if (unit === "week") {
+    // Back to this week's Monday, then a whole number of weeks from there.
+    const monday = shiftDay(today, step * 7 - standing)
+    return { from: monday, to: shiftDay(monday, 6) }
+  }
+  // A year is twelve months through the same counter, rather than four digits
+  // added to by hand: one arithmetic, and no second rule about how a year is
+  // spelled.
+  const months = unit === "month" ? step : step * 12
+  const stepped = shiftMonth(monthOf(today), months)
+  // …and then read at the width the unit names: `2026-09` or the `2026` in
+  // front of it, which is exactly what a reader would have typed.
+  const whole = unit === "month" ? stepped : stepped.slice(0, 4)
+  return { from: lowOf(whole), to: highOf(whole) }
+}
 
 /**
  * One end of a `date:`, read — or `null` for a value no day could ever match.
@@ -401,37 +568,58 @@ const twoDigitsIn = (digits: string, low: number, high: number): boolean => {
 }
 
 /**
- * `date:` — a day, a month, a year, or a span of them.
+ * One end of a `date:`, as the span of days it stands for — or `null` for a
+ * value this operator does not take.
+ *
+ * The ONE reading of a `date:` value, whichever form it is written in: a
+ * relative word first ({@link relativeSpan}), then the absolute prefix. Which
+ * is what makes a relative word compose with a range for free rather than by a
+ * second rule — `date:last-week..` is the low end of last week's span with
+ * nothing above it, exactly as `date:2026-08..` is the low end of August's.
+ */
+const spanOf = (value: string, now: string): Span | null => {
+  const relative = relativeSpan(value, now)
+  if (relative !== null) return relative
+  return datePart(value) === null
+    ? null
+    : { from: lowOf(value), to: highOf(value) }
+}
+
+/**
+ * `date:` — a day, a month, a year, a relative word, or a span of them.
  *
  * Bounds are DAY STRINGS and comparison is text, as everywhere else in this
  * package: dates are validated ISO and stored verbatim, so a day is a
  * ten-character prefix and a range is two string comparisons. Nothing is parsed
  * into an instant — a date-only value put through one comes back a datetime,
- * and ./dates.ts already says why this is not the place to risk it. The one
- * arithmetic here is {@link datePart}'s bound check, over two digits at a time.
+ * and ./dates.ts already says why this is not the place to risk it. The
+ * arithmetic a relative word needs is ./calendar.ts's, over integers, and it
+ * happens ONCE per query rather than per node: what a clause holds afterwards
+ * is the same two strings an absolute value produced.
  *
  * A month's upper bound is `-31` whether or not that month has one: as an
  * upper bound in a string comparison no real day of the month exceeds it, and
  * inventing a calendar here would be arithmetic to answer a question the
  * comparison already answers.
+ *
+ * A range takes each end's own span and keeps the OUTER edge of it — the low
+ * of the left, the high of the right — so `date:last-week..today` runs from
+ * last Monday to tonight, and an end left empty is unbounded that way.
  */
-const dateClause = (value: string): Clause | null => {
+const dateClause = (value: string, now: string): Clause | null => {
   const at = value.indexOf(RANGE)
   if (at === -1) {
-    return datePart(value) === null
-      ? null
-      : { kind: "date", from: lowOf(value), to: highOf(value) }
+    const span = spanOf(value, now)
+    return span === null ? null : { kind: "date", from: span.from, to: span.to }
   }
   const left = value.slice(0, at)
   const right = value.slice(at + RANGE.length)
   if (left === "" && right === "") return null
-  if (left !== "" && datePart(left) === null) return null
-  if (right !== "" && datePart(right) === null) return null
-  return {
-    kind: "date",
-    from: left === "" ? null : lowOf(left),
-    to: right === "" ? null : highOf(right),
-  }
+  const low = left === "" ? null : spanOf(left, now)
+  if (left !== "" && low === null) return null
+  const high = right === "" ? null : spanOf(right, now)
+  if (right !== "" && high === null) return null
+  return { kind: "date", from: low?.from ?? null, to: high?.to ?? null }
 }
 
 const lowOf = (value: string): string =>

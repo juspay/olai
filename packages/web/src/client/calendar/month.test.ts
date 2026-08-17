@@ -1,17 +1,9 @@
 import { expect, test } from "bun:test"
 
-import {
-  dayNumber,
-  isRealDay,
-  monthGrid,
-  monthLabel,
-  monthOfDay,
-  shiftDay,
-  shiftDayByMonth,
-  shiftMonth,
-  weekdayOf,
-  WEEKDAYS,
-} from "./month.ts"
+import { dayNumber, monthGrid, monthLabel, WEEKDAYS } from "./month.ts"
+
+// The arithmetic these are drawn from is tested where it now lives
+// (`@olai/format`'s `calendar.test.ts`) — what is left here is the grid.
 
 /** The grid's days, with the padding dropped — what the month actually holds. */
 const days = (month: string): ReadonlyArray<string> =>
@@ -41,20 +33,13 @@ test("the 1st lands in the column its weekday names", () => {
   expect(lead("2026-03")).toBe(6)
 })
 
+// The grid draws every day the month holds and none it does not. HOW LONG a
+// month is belongs to `@olai/format`'s `calendar.test.ts` now, leap rule and
+// all — asserting it here too would pin one Gregorian rule in two packages.
 test("a month runs from its 1st to its last day", () => {
   expect(days("2026-08")[0]).toBe("2026-08-01")
   expect(days("2026-08").at(-1)).toBe("2026-08-31")
   expect(days("2026-08").length).toBe(31)
-  expect(days("2026-04").length).toBe(30)
-})
-
-// The Gregorian rule, all three clauses: 2028 is a leap year, 2026 is not,
-// 2100 is not (a hundredth), 2000 was (a four-hundredth).
-test("February is as long as the leap rule says", () => {
-  expect(days("2026-02").length).toBe(28)
-  expect(days("2028-02").length).toBe(29)
-  expect(days("2100-02").length).toBe(28)
-  expect(days("2000-02").length).toBe(29)
 })
 
 // A day of a month is that month's, and no cell of the grid belongs to
@@ -64,42 +49,12 @@ test("every cell that is not padding is a day of this month", () => {
   for (const day of days("2026-08")) expect(day.startsWith("2026-08-")).toBe(true)
 })
 
-// ── paging ─────────────────────────────────────────────────────────────
-
-test("paging crosses a year end without a special case", () => {
-  expect(shiftMonth("2026-08", 1)).toBe("2026-09")
-  expect(shiftMonth("2026-12", 1)).toBe("2027-01")
-  expect(shiftMonth("2026-01", -1)).toBe("2025-12")
-  expect(shiftMonth("2026-08", -8)).toBe("2025-12")
-  expect(shiftMonth("2026-08", 0)).toBe("2026-08")
-})
-
-test("paging is reversible", () => {
-  for (const month of ["2026-01", "2026-08", "2026-12"]) {
-    expect(shiftMonth(shiftMonth(month, 1), -1)).toBe(month)
-  }
-})
-
 // ── text this file did not mint ────────────────────────────────────────
-
-// `/d/<anything>` is an address a person can type, and its month is whatever
-// the first seven characters were. A grid is not the place to explain that:
-// it draws nothing, and the day view says what is wrong.
-test("a day names its month, and text that is not one names none", () => {
-  expect(monthOfDay("2026-08-10")).toBe("2026-08")
-  expect(monthOfDay("2026-08-10T14:30")).toBe("2026-08")
-  expect(monthOfDay("2026-08")).toBe("2026-08")
-  expect(monthOfDay("2026-13-01")).toBeNull()
-  expect(monthOfDay("2026-00-01")).toBeNull()
-  expect(monthOfDay("2026-8-1")).toBeNull()
-  expect(monthOfDay("hello")).toBeNull()
-  expect(monthOfDay(undefined)).toBeNull()
-})
 
 test("text that names no month draws no grid", () => {
   expect(monthGrid("hello")).toEqual([])
   expect(monthGrid("")).toEqual([])
-  expect(shiftMonth("hello", 1)).toBe("hello")
+  expect(monthGrid("2026-13")).toEqual([])
   expect(monthLabel("")).toBe("")
 })
 
@@ -120,50 +75,4 @@ test("the heading over a month names it in words", () => {
   expect(monthLabel("2026-01")).toBe("January 2026")
   expect(monthLabel("2026-12")).toBe("December 2026")
   expect(monthLabel("hello")).toBe("hello")
-})
-
-// ── one day at a time ──────────────────────────────────────────────────
-
-// The arithmetic the `!` widget is built on, and it lives here because this is
-// the one place in the client that does date arithmetic at all — never leaving
-// integers, so no reader west of Greenwich gets yesterday for "today".
-
-test("a day is real when its month has one", () => {
-  expect(isRealDay("2026-08-31")).toBe(true)
-  expect(isRealDay("2026-02-29")).toBe(false)
-  expect(isRealDay("2028-02-29")).toBe(true)
-  expect(isRealDay("2026-13-01")).toBe(false)
-  expect(isRealDay("2026-08-1")).toBe(false)
-  expect(isRealDay("tomorrow")).toBe(false)
-})
-
-test("which weekday a day falls on, counted from Monday", () => {
-  expect(weekdayOf("2026-08-14")).toBe(4) // a Friday
-  expect(weekdayOf("2026-08-17")).toBe(0) // the Monday after
-  expect(weekdayOf("nonsense")).toBeNull()
-})
-
-test("shifting a day crosses months and years", () => {
-  expect(shiftDay("2026-08-14", 1)).toBe("2026-08-15")
-  expect(shiftDay("2026-08-31", 1)).toBe("2026-09-01")
-  expect(shiftDay("2026-12-31", 1)).toBe("2027-01-01")
-  expect(shiftDay("2026-01-01", -1)).toBe("2025-12-31")
-  expect(shiftDay("2026-03-01", -1)).toBe("2026-02-28")
-  expect(shiftDay("2028-03-01", -1)).toBe("2028-02-29")
-  expect(shiftDay("2026-08-14", 0)).toBe("2026-08-14")
-  expect(shiftDay("2026-01-01", 400)).toBe("2027-02-05")
-})
-
-test("shifting text that names no day gives it back unchanged", () => {
-  // The rule `shiftMonth` already follows: looking around is never a way to end
-  // up somewhere that is not a date.
-  expect(shiftDay("hello", 1)).toBe("hello")
-  expect(shiftDayByMonth("hello", 1)).toBe("hello")
-})
-
-test("a month step keeps the day, or the last one the month has", () => {
-  expect(shiftDayByMonth("2026-08-14", 1)).toBe("2026-09-14")
-  expect(shiftDayByMonth("2026-01-31", 1)).toBe("2026-02-28")
-  expect(shiftDayByMonth("2026-12-15", 1)).toBe("2027-01-15")
-  expect(shiftDayByMonth("2026-01-15", -1)).toBe("2025-12-15")
 })

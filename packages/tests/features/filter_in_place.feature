@@ -93,6 +93,34 @@ Feature: Filtering the outline in place
     And the node "hinges" is not shown
     And the filter found "2 of 10"
 
+  Scenario: `date:` takes the words for a day as well as the day
+    # Counted from the day the page is being READ on, out of the tab's own
+    # clock — so what these select moves, and only the shapes that stay true
+    # are asserted: every date in this fixture is in the past, and stays there.
+    # The grammar's own boundaries are pinned where they can be
+    # (`format/filter.test.ts`, against a fixed day).
+    Given I open the outline "house.olai"
+    When I filter the page by "date:..today"
+    Then the node "order" is a match
+    And the node "demo" is a match
+    # Three, not two: the herb bed is mirrored into this outline, and the row
+    # showing `basil` (sown in July) is a match wherever it is drawn — the same
+    # rule every other filter here follows.
+    And the filter found "3 of 10"
+    # A relative word at the other end of a range, and nothing here is
+    # scheduled beyond today.
+    When I filter the page by "date:tomorrow.."
+    Then the filter found "no matches"
+
+  Scenario: A word the relative vocabulary does not hold is refused
+    # The same contract every unknown value is held to: `date:tomorrowish` is
+    # not searched for as text and answered with an empty page — the reader is
+    # told which words the operator takes.
+    Given I open the outline "house.olai"
+    When I filter the page by "date:tomorrowish"
+    Then the filter refuses "date:tomorrowish" and says "today, yesterday, tomorrow"
+    And the outline has 0 rows
+
   Scenario: `-` takes a term or an operator back out
     Given I open the outline "house.olai"
     When I filter the page by "cabinets -is:doing"

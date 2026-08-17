@@ -650,7 +650,11 @@ The corner unit is the **risky one** — see
         <code>blocked by</code> line. <code>date:2026-08</code> takes a day,
         a month, a year or a range
         (<code>date:2026-08-01..2026-08-14</code>), reading the same two dates
-        the journal reads. <code>prop:pr</code> and
+        the journal reads — or it takes the words:
+        <code>date:yesterday</code>, <code>date:last-week</code>,
+        <code>date:this-month</code>, counted from the day you ask on and
+        composing with a range like any other value
+        (<code>date:last-week..</code>). <code>prop:pr</code> and
         <code>prop:agent=claude-opus</code> ask after a property you put on a
         node yourself — by key, or by key and value. <code>-</code> in front of
         any of them takes it back out.</p>

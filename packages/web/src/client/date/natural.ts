@@ -5,8 +5,8 @@
  * what has been typed after the `!`, and what day it is. No clock, no `Date`,
  * no locale — today arrives from the one clock this client has
  * (`../today.tsx`), and everything after that is integer arithmetic in
- * `../calendar/month.ts`, which is the one place this codebase does date
- * arithmetic at all. So this file is unit-tested directly, which is what a
+ * `@olai/format`'s `calendar.ts`, which is the one place this codebase does
+ * date arithmetic at all. So this file is unit-tested directly, which is what a
  * grammar like this needs: every one of these phrases is right for most of the
  * year and off by a day in some particular week.
  *
@@ -37,8 +37,8 @@
  * numbered forms below.
  *
  * And every such library speaks `Date`. This client deliberately does not
- * (`../calendar/month.ts`: `new Date("2026-08-01")` is midnight UTC, which is
- * the 31st of July in half the world), so an instant would have to be
+ * (`@olai/format`'s `calendar.ts`: `new Date("2026-08-01")` is midnight UTC,
+ * which is the 31st of July in half the world), so an instant would have to be
  * converted back to a local day at exactly the seam this whole feature is
  * about — a day is TEXT in this format, and the ten characters that reach the
  * record are supposed to be the ten that were meant.
@@ -55,14 +55,9 @@
  * the DAY it stands for beside the words.
  */
 
-import {
-  isRealDay,
-  MONTH_NAMES,
-  shiftDay,
-  shiftDayByMonth,
-  weekdayOf,
-  WEEKDAY_NAMES,
-} from "../calendar/month.ts"
+import { isoDate, isRealDay, shiftDay, shiftDayByMonth, weekdayOf } from "@olai/format"
+
+import { MONTH_NAMES, WEEKDAY_NAMES } from "../calendar/month.ts"
 
 /** One day a phrase names. */
 export interface Named {
@@ -184,8 +179,9 @@ const monthDay = (wanted: string, today: string): ReadonlyArray<Named> => {
   const month = MONTH_NAMES.findIndex((name) => name.toLowerCase().startsWith(word))
   if (month === -1) return []
   const day = Number(number)
-  const named = (on: number): string =>
-    `${on}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+  // The format's own spelling of a date from parts, so nothing here can
+  // zero-pad differently from the counter that checks it below.
+  const named = (on: number): string => isoDate(on, month + 1, day)
   // A year said out loud is taken as said — including a `feb 29 2027`, which is
   // not a day and is answered with nothing rather than with a nearby one.
   if (year !== undefined) {

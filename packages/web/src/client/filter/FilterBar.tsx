@@ -34,7 +34,7 @@ import type { Narrowing } from "./narrowing.ts"
 
 /** What the box says when it is empty — the whole grammar in one line, because
  *  an operator language nobody is told about is a feature nobody uses. */
-const PLACEHOLDER = "filter — words, #tag, is:done, has:desc, date:2026-08, -not"
+const PLACEHOLDER = "filter — words, #tag, is:done, has:desc, date:last-week, -not"
 
 export function FilterBar(props: {
   readonly narrowing: Narrowing

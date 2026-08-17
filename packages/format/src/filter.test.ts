@@ -7,6 +7,7 @@ import {
   matching,
   parseFilter,
   type Refusal,
+  relativeSpan,
   shownRecord,
 } from "./filter.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
@@ -36,26 +37,41 @@ const CORPUS = {
 
 const derived = derive(nodesOfFiles(CORPUS))
 
+/** The day every query below is asked on — a THURSDAY, deliberately: a week
+ *  computed from the middle of one is wrong in both directions when the
+ *  arithmetic is off, where a Monday hides half the mistakes. The corpus sits
+ *  around it: `order` is scheduled for Monday the 10th, `demo` was finished the
+ *  Monday before that, `basil` in the month before.
+ *
+ *  A CONSTANT rather than a clock, which is the whole reason `parseFilter`
+ *  takes the day: every one of these boundaries is right for most of the year
+ *  and off by one in some particular week. */
+const TODAY = "2026-08-13"
+
 /** The ids a query selects out of a derivation, in the set's own order — for
- *  the two tests that ask a corpus other than the one above. */
+ *  the tests that ask a corpus, or a day, other than the one above. */
 const selectsIn = (
   derivation: Derived,
   text: string,
+  today = TODAY,
 ): ReadonlyArray<string> =>
-  matching(derivation, parseFilter(text)).map(({ at }) => at.node.id)
+  matching(derivation, parseFilter(text, today)).map(({ at }) => at.node.id)
 
-/** The ids a query selects, in the set's own order. */
-const selects = (text: string): ReadonlyArray<string> => selectsIn(derived, text)
+/** The ids a query selects, in the set's own order — asked on {@link TODAY},
+ *  or on some other day, which is what the three day-words need since each of
+ *  them names a different one. */
+const selects = (text: string, today = TODAY): ReadonlyArray<string> =>
+  selectsIn(derived, text, today)
 
 // ── the grammar ────────────────────────────────────────────────────────
 
 // The three states a query can be in, and they are three different things to
 // DO: draw the page whole, draw nothing and say why, or ask.
 test("nothing typed, refused, and asking are told apart", () => {
-  expect(parseFilter("").kind).toBe("nothing")
-  expect(parseFilter("   ").kind).toBe("nothing")
-  expect(parseFilter("is:done").kind).toBe("asking")
-  expect(parseFilter("is:open").kind).toBe("refused")
+  expect(parseFilter("", TODAY).kind).toBe("nothing")
+  expect(parseFilter("   ", TODAY).kind).toBe("nothing")
+  expect(parseFilter("is:done", TODAY).kind).toBe("asking")
+  expect(parseFilter("is:open", TODAY).kind).toBe("refused")
   expect(selects("is:open")).toEqual([])
 })
 
@@ -143,13 +159,224 @@ test("a month and a year are prefixes; a range is two comparisons", () => {
   expect(selects("date:2026-08-04..")).toEqual(["order"])
 })
 
+// ── the relative words ─────────────────────────────────────────────────
+
+// The RESOLUTION, on its own: a pure function of a word and a day, which is
+// what makes a boundary something a test can pin rather than something that is
+// true until next Monday. Every span below is inclusive at both ends.
+
+test("a week runs Monday to Sunday, wherever in it the question is asked", () => {
+  // The 13th is a Thursday; its week opens on Monday the 10th and closes on
+  // Sunday the 16th. Asked from EVERY day of that week, the answer is the same
+  // seven days — which is what "this week" has to mean to be worth having.
+  for (const day of [
+    "2026-08-10",
+    "2026-08-11",
+    "2026-08-12",
+    "2026-08-13",
+    "2026-08-14",
+    "2026-08-15",
+    "2026-08-16",
+  ]) {
+    expect(relativeSpan("this-week", day)).toEqual({
+      from: "2026-08-10",
+      to: "2026-08-16",
+    })
+  }
+  // The Monday after is the next week's, not the same one's last day.
+  expect(relativeSpan("this-week", "2026-08-17")).toEqual({
+    from: "2026-08-17",
+    to: "2026-08-23",
+  })
+})
+
+test("last week and next week are that span, seven days either way", () => {
+  expect(relativeSpan("last-week", TODAY)).toEqual({
+    from: "2026-08-03",
+    to: "2026-08-09",
+  })
+  expect(relativeSpan("next-week", TODAY)).toEqual({
+    from: "2026-08-17",
+    to: "2026-08-23",
+  })
+  // And a week that crosses a year end is arithmetic rather than a special
+  // case: the 1st of January 2026 is a Thursday.
+  expect(relativeSpan("this-week", "2026-01-01")).toEqual({
+    from: "2025-12-29",
+    to: "2026-01-04",
+  })
+  expect(relativeSpan("last-week", "2026-01-01")).toEqual({
+    from: "2025-12-22",
+    to: "2025-12-28",
+  })
+})
+
+test("the day words are the day, and the two beside it", () => {
+  expect(relativeSpan("today", TODAY)).toEqual({ from: TODAY, to: TODAY })
+  expect(relativeSpan("yesterday", TODAY)).toEqual({
+    from: "2026-08-12",
+    to: "2026-08-12",
+  })
+  expect(relativeSpan("tomorrow", TODAY)).toEqual({
+    from: "2026-08-14",
+    to: "2026-08-14",
+  })
+  // Across a year end, and across a leap February, by the same arithmetic.
+  expect(relativeSpan("yesterday", "2026-01-01")?.from).toBe("2025-12-31")
+  expect(relativeSpan("tomorrow", "2028-02-28")?.from).toBe("2028-02-29")
+})
+
+// A month and a year are handed to the SAME bounds the absolute forms use, so
+// `date:this-month` and `date:2026-08` cannot disagree — including the upper
+// bound being `-31` whether or not the month has one, which is that pair's own
+// argued rule (no real day of the month exceeds it in a string comparison).
+test("a month and a year resolve to the spans their written forms do", () => {
+  expect(relativeSpan("this-month", TODAY)).toEqual({
+    from: "2026-08-01",
+    to: "2026-08-31",
+  })
+  expect(relativeSpan("last-month", TODAY)).toEqual({
+    from: "2026-07-01",
+    to: "2026-07-31",
+  })
+  expect(relativeSpan("next-month", TODAY)).toEqual({
+    from: "2026-09-01",
+    to: "2026-09-31",
+  })
+  expect(relativeSpan("last-month", "2026-01-15")).toEqual({
+    from: "2025-12-01",
+    to: "2025-12-31",
+  })
+  expect(relativeSpan("this-year", TODAY)).toEqual({
+    from: "2026-01-01",
+    to: "2026-12-31",
+  })
+  expect(relativeSpan("last-year", TODAY)?.from).toBe("2025-01-01")
+  expect(relativeSpan("next-year", TODAY)?.to).toBe("2027-12-31")
+})
+
+// A day or an INSTANT on one, cut down by the same `dayOf` every date reading
+// in this package uses — the ruling `isOverdue` made about the same parameter,
+// so a door that hands over its clock's own text (the ops layer's `now`, a
+// local ISO datetime with its offset) counts from the right day rather than
+// being refused for not having trimmed it first.
+test("an instant is the day it falls on", () => {
+  expect(relativeSpan("today", `${TODAY}T15:40:03-04:00`)).toEqual({
+    from: TODAY,
+    to: TODAY,
+  })
+  expect(relativeSpan("this-week", `${TODAY}T00:00:00+05:30`)).toEqual({
+    from: "2026-08-10",
+    to: "2026-08-16",
+  })
+})
+
+test("a word the vocabulary does not hold resolves to nothing", () => {
+  expect(relativeSpan("tomorrowish", TODAY)).toBeNull()
+  expect(relativeSpan("this-day", TODAY)).toBeNull()
+  expect(relativeSpan("last-fortnight", TODAY)).toBeNull()
+  expect(relativeSpan("2026-08-10", TODAY)).toBeNull()
+  // A clock that says nothing is not a day to count from. No door can hand
+  // that over — but inventing a Monday out of it would be this grammar
+  // answering a date question from thin air.
+  expect(relativeSpan("today", "")).toBeNull()
+  expect(relativeSpan("this-week", "2026-02-30")).toBeNull()
+})
+
+// THE VOCABULARY IS A MAP, AND THIS IS WHY. The key is a word somebody typed,
+// and an object would have answered for its prototype as well as for the table
+// — with a value of the wrong kind. `date:constructor` minted a bound with a
+// function's source text glued to the day; `date:__proto__-week` minted
+// `2026-08-NaN`. Both select nothing and say nothing, which is the exact
+// silence the refusal arm exists to prevent.
+test("a word the prototype answers for is not a word this vocabulary holds", () => {
+  for (const word of ["constructor", "__proto__", "toString", "valueOf", "hasOwnProperty"]) {
+    expect(relativeSpan(word, TODAY)).toBeNull()
+    expect(relativeSpan(`${word}-week`, TODAY)).toBeNull()
+    expect(relativeSpan(`this-${word}`, TODAY)).toBeNull()
+  }
+  // …and through the grammar, where it matters: REFUSED, in the words the
+  // operator takes, rather than answered with an empty page.
+  for (const token of ["date:constructor", "date:__proto__", "date:__proto__-week"]) {
+    expect(refusalsOf(token)?.map((one) => one.token)).toEqual([token])
+    expect(selects(token)).toEqual([])
+  }
+})
+
+// ...and the same words as a QUERY, over the corpus.
+
+test("a relative word selects the days it names", () => {
+  // `order` is scheduled for Monday the 10th, this week; `demo` was finished
+  // on Monday the 3rd, the week before.
+  expect(selects("date:this-week")).toEqual(["order"])
+  expect(selects("date:last-week")).toEqual(["demo"])
+  expect(selects("date:next-week")).toEqual([])
+  expect(selects("date:this-month")).toEqual(["demo", "order"])
+  expect(selects("date:last-month")).toEqual(["basil"])
+  expect(selects("date:this-year")).toEqual(["basil", "demo", "order"])
+  // Folded like every other token — `date:THIS-MONTH` is the same question.
+  expect(selects("date:THIS-MONTH")).toEqual(["demo", "order"])
+  // The negation is the clause's, unchanged: everything dated, minus this
+  // week's.
+  expect(selects("has:date -date:this-week")).toEqual(["basil", "demo"])
+})
+
+// The same node found from three different days, which is what pins the ±1:
+// `order` is scheduled for the 10th.
+test("the day words count from the day the query is asked on", () => {
+  expect(selects("date:today", "2026-08-10")).toEqual(["order"])
+  expect(selects("date:yesterday", "2026-08-11")).toEqual(["order"])
+  expect(selects("date:tomorrow", "2026-08-09")).toEqual(["order"])
+  expect(selects("date:today", TODAY)).toEqual([])
+})
+
+// A relative word is a `date:` VALUE, so a range takes one wherever it takes a
+// written date — the low end of the left span, the high end of the right.
+test("a relative word composes with a range at either end", () => {
+  expect(selects("date:last-week..")).toEqual(["demo", "order"])
+  expect(selects("date:..last-week")).toEqual(["basil", "demo"])
+  expect(selects("date:last-month..last-week")).toEqual(["basil", "demo"])
+  expect(selects("date:2026-08-04..today")).toEqual(["order"])
+  // ...and a range is still held to both ends: one word it cannot read refuses
+  // the whole query.
+  expect(refusalsOf("date:last-week..soonish")).toHaveLength(1)
+  expect(refusalsOf("date:whenever..today")).toHaveLength(1)
+})
+
+// The refusal contract, extended rather than excepted: a word the vocabulary
+// does not hold is a known operator with an unknown value, so it is REFUSED —
+// never quietly searched for as the text `tomorrowish`, and never answered
+// with an empty page and no reason.
+test("a relative word the grammar does not know is refused, and names them all", () => {
+  const refused = refusalsOf("date:tomorrowish")
+  expect(refused?.map((one) => one.token)).toEqual(["date:tomorrowish"])
+  // In full, generatively: the three day words, and the two lists the other
+  // nine are the product of — so any of the twelve can be written off the
+  // sentence, without a line nobody reads to the end.
+  expect(refused?.[0]?.reason).toContain("today, yesterday, tomorrow")
+  expect(refused?.[0]?.reason).toContain("this- / last- / next- with week, month, year")
+  // ...and the words it teaches are the words it takes. Read off the same
+  // sentence, so a table that grew a value nobody taught fails here.
+  for (const word of ["today", "yesterday", "tomorrow"]) {
+    expect(relativeSpan(word, TODAY)).not.toBeNull()
+  }
+  for (const step of ["this", "last", "next"]) {
+    for (const unit of ["week", "month", "year"]) {
+      expect(relativeSpan(`${step}-${unit}`, TODAY)).not.toBeNull()
+    }
+  }
+  expect(selects("date:tomorrowish")).toEqual([])
+  // Quoted as typed, like every other refusal.
+  expect(refusalsOf("Date:Tomorrowish")?.[0]?.token).toBe("Date:Tomorrowish")
+})
+
 test("`-` negates whichever kind of token it is in front of", () => {
   expect(selects("#home -is:done")).toEqual(["herbs", "kitchen", "hinges"])
   expect(selects("cabinets -is:doing")).toEqual(["install"])
   expect(selects("is:done -basil")).toEqual(["demo"])
   // A bare `-` is a character somebody typed, not a negation of nothing — so
   // it is a word to look for, and nothing in this corpus holds one.
-  expect(parseFilter("-").kind).toBe("asking")
+  expect(parseFilter("-", TODAY).kind).toBe("asking")
   expect(selects("-")).toEqual([])
 })
 
@@ -284,7 +511,7 @@ test("a `prop:` token with no key, or a key with an empty value, is refused", ()
 /** The first `=` splits it, so a value may hold its own. A URL with a query
  *  string is the ordinary case, not a corner. */
 test("a value may contain an equals sign", () => {
-  const filter = parseFilter("prop:source=https://news.ycombinator.com/item?id=6560560")
+  const filter = parseFilter("prop:source=https://news.ycombinator.com/item?id=6560560", TODAY)
   expect(filter.kind).toBe("asking")
   if (filter.kind !== "asking") return
   expect(filter.clauses[0]?.clause).toEqual({
@@ -300,7 +527,7 @@ test("a value may contain an equals sign", () => {
  *  narrowing rather than a field read, which is the union's own point: the
  *  refusals exist only on the arm that has them. */
 const refusalsOf = (text: string): ReadonlyArray<Refusal> | null => {
-  const filter = parseFilter(text)
+  const filter = parseFilter(text, TODAY)
   return filter.kind === "refused" ? filter.refusals : null
 }
 
@@ -336,8 +563,8 @@ test("a date no calendar could hold is refused, not answered with an empty tree"
   expect(refusalsOf("date:..2026-99")).toHaveLength(1)
   expect(refusalsOf("date:2026-99..")).toHaveLength(1)
   // ...and the shapes that ARE possible still parse.
-  expect(parseFilter("date:2026-12-31").kind).toBe("asking")
-  expect(parseFilter("date:2026-01").kind).toBe("asking")
+  expect(parseFilter("date:2026-12-31", TODAY).kind).toBe("asking")
+  expect(parseFilter("date:2026-01", TODAY).kind).toBe("asking")
 })
 
 // The line is what is impossible in ANY month, not in the month named. Telling
@@ -345,7 +572,7 @@ test("a date no calendar could hold is refused, not answered with an empty tree"
 // stance is that a comparison over text answers without inventing one — so it is
 // accepted, and matches nothing.
 test("a day that only some months have is accepted, and finds nothing", () => {
-  expect(parseFilter("date:2026-02-30").kind).toBe("asking")
+  expect(parseFilter("date:2026-02-30", TODAY).kind).toBe("asking")
   expect(selects("date:2026-02-30")).toEqual([])
 })
 
@@ -396,12 +623,12 @@ test("what was put away stays put away until it is asked for", () => {
 // ── which field carried it ─────────────────────────────────────────────
 
 test("the field a match is reported under is the highest-weighted one that held it", () => {
-  const [hit] = matching(derived, parseFilter("cabinets order"))
+  const [hit] = matching(derived, parseFilter("cabinets order", TODAY))
   expect(hit?.match.field).toBe("title")
-  const [note] = matching(derived, parseFilter("walnut"))
+  const [note] = matching(derived, parseFilter("walnut", TODAY))
   expect(note?.match.field).toBe("desc")
   // A query of operators alone is carried by no field at all.
-  const [marked] = matching(derived, parseFilter("is:todo"))
+  const [marked] = matching(derived, parseFilter("is:todo", TODAY))
   expect(marked?.match.field).toBe(null)
 })
 
@@ -416,10 +643,10 @@ test("the field a match is reported under is the highest-weighted one that held 
  * reason there are two of them.
  */
 const propsOf = (text: string): ReadonlyArray<string> =>
-  matching(derived, parseFilter(text))[0]?.match.props ?? []
+  matching(derived, parseFilter(text, TODAY))[0]?.match.props ?? []
 
 test("a `prop:` clause names the key it selected on, beside the field the words did", () => {
-  const [both] = matching(derived, parseFilter("cabinets prop:agent"))
+  const [both] = matching(derived, parseFilter("cabinets prop:agent", TODAY))
   // BOTH, from one hit: the title carried the word and the map carried the key.
   expect(both?.match.field).toBe("title")
   expect(both?.match.props).toEqual(["agent"])
@@ -449,7 +676,7 @@ test("the key is reported as the NODE spells it, whatever was typed", () => {
  *  here because it carries no such key at all, and a row that pointed at
  *  `agent` would be drawing a lie the matcher never told. */
 test("a negated clause names nothing, because nothing carried it", () => {
-  const [hit] = matching(derived, parseFilter("is:done -prop:agent"))
+  const [hit] = matching(derived, parseFilter("is:done -prop:agent", TODAY))
   expect(hit?.at.node.id).toBe("demo")
   expect(hit?.match.props).toEqual([])
 })
@@ -457,7 +684,7 @@ test("a negated clause names nothing, because nothing carried it", () => {
 // ── scope ──────────────────────────────────────────────────────────────
 
 test("a scope narrows to one outline, or to one node and everything beneath it", () => {
-  const home = parseFilter("#home")
+  const home = parseFilter("#home", TODAY)
   expect(
     matching(derived, home, { file: "garden.olai" }).map(({ at }) => at.node.id),
   ).toEqual(["herbs"])
@@ -481,7 +708,7 @@ const drawn = (rows: ReadonlyArray<Row>, depth = 0): ReadonlyArray<string> =>
   ])
 
 const narrowed = (file: string, text: string): ReadonlyArray<string> => {
-  const filter = parseFilter(text)
+  const filter = parseFilter(text, TODAY)
   const matched = new Set(matching(derived, filter).map(({ at }) => at.node.id))
   return drawn(keeping(rowsOf(derived, file), matched))
 }
@@ -517,7 +744,7 @@ test("a mirror is narrowed by the node it SHOWS, wherever it is drawn", () => {
 })
 
 test("the count is of PLACES, which is what a reader counts on the screen", () => {
-  const filter = parseFilter("#home")
+  const filter = parseFilter("#home", TODAY)
   const matched = new Set(matching(derived, filter).map(({ at }) => at.node.id))
   const house = keeping(rowsOf(derived, "house.olai"), matched)
   // `kitchen`, `hinges`, and the mirror of `herbs` under `kitchen` — three

@@ -75,8 +75,13 @@ export const createNarrowing = (source: {
   readonly all: Accessor<ReadonlyArray<Row>>
   /** The same rows with this reader's preference applied. */
   readonly visible: Accessor<ReadonlyArray<Row>>
+  /** What day it is here, from the tab's one clock (`../clock.ts`) — what the
+   *  grammar's relative words count from. An ACCESSOR, because that clock moves
+   *  at midnight and a page left open on `date:today` should be narrowed to the
+   *  day the reader is looking at rather than the one they opened it on. */
+  readonly today: Accessor<string>
 }): Narrowing => {
-  const query = createMemo(() => parseFilter(source.text()))
+  const query = createMemo(() => parseFilter(source.text(), source.today()))
   const active = createMemo(() => query().kind !== "nothing")
 
   const matched = createMemo(() => {
