@@ -125,7 +125,10 @@ function DesktopRow(props: {
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">
       <Index each={router.workspace().panes}>
         {(pane, i) => {
-          const share = grow()[i] ?? 0
+          // A function, not a const: Index does not re-run a slot of the
+          // same length, so a captured number would stay the share the
+          // pane was born with and a collapse would never become a rail.
+          const share = () => grow()[i] ?? 0
           return (
             <>
               <Show when={i > 0}>
@@ -137,7 +140,7 @@ function DesktopRow(props: {
                 />
               </Show>
               <Show
-                when={share > 0}
+                when={share() > 0}
                 fallback={
                   <Rail index={i} pane={pane()} />
                 }
@@ -145,7 +148,7 @@ function DesktopRow(props: {
                 <Column
                   index={i}
                   pane={pane()}
-                  grow={share}
+                  grow={share()}
                   derived={props.derived}
                   found={props.found}
                   today={props.today}
