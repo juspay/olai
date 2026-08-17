@@ -64,6 +64,7 @@ import {
 } from "./derive.ts"
 import { fileKind } from "./kinds.ts"
 import { isMirror, type LocatedRegular, type RegularNode } from "./node.ts"
+import { byPath } from "./paths.ts"
 
 /** How many characters of an ISO value name the day, and the month. A
  *  datetime is a day plus a time, so the day is the prefix they share. */
@@ -417,7 +418,11 @@ export const noteDateOf = (file: string): string | null => {
  * files are the reader's, both of them say they are the 12th, and a view that
  * chose between them would be hiding a file somebody wrote on the strength of
  * a tiebreak nobody asked for. Path order, because it is the only order these
- * have and it is the one the sidebar already lists them in.
+ * have and it is the one the sidebar already lists them in — and PATH ORDER IS
+ * `byPath` ({@link ./paths.ts}), which is what makes that sentence true rather
+ * than nearly true: a code-point sort agrees with the sidebar for every pair of
+ * paths except a file and a directory sharing a name, which is exactly the pair
+ * a vault mid-migration writes (`2026-08-12.md` beside `2026-08-12/`).
  *
  * The DOCUMENTS are passed in rather than read off a {@link Derived}, and that
  * is what the shape of the wire decides: a browser holds every document's PATH
@@ -428,7 +433,7 @@ export const dailyNotesOn = (
   documents: ReadonlyArray<string>,
   day: string,
 ): ReadonlyArray<string> =>
-  documents.filter((file) => noteDateOf(file) === day).sort(Order.String)
+  documents.filter((file) => noteDateOf(file) === day).sort(byPath)
 
 /**
  * The days of `month` (`YYYY-MM`) that a note is written for — the calendar's
@@ -500,7 +505,7 @@ export const dailyNotePathFor = (
     if (date === null) continue
     if (
       example === null || date > example.date ||
-      (date === example.date && file < example.file)
+      (date === example.date && byPath(file, example.file) < 0)
     ) {
       example = { file, date }
     }

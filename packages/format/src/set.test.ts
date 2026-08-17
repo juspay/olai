@@ -4,6 +4,7 @@ import { Result } from "effect"
 import type { OutlineError } from "./errors.ts"
 import { failureOf, nodesOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
+import { byPath } from "./paths.ts"
 import { apart, assemble, type DecodedFile } from "./set.ts"
 
 type Decoded = Result.Result<DecodedFile, ReadonlyArray<OutlineError>>
@@ -76,6 +77,36 @@ test("files, nodes and documents come out in path order, whatever order the map 
     "notes/apple.md",
     "notes/zebra.md",
   ])
+})
+
+// WHICH path order, and it is the one question a code-point sort answers
+// differently: `.` is 0x2E and `/` is 0x2F, so a plain compare puts `wing.olai`
+// ahead of the directory it names, while a walk descends into `wing` when it
+// meets it (`@olai/store`'s `disk.ts`) and reads `wing/kitchen.olai` first.
+// `byPath` is the walk's answer, it is what `assemble` sorts by, and slice 4 of
+// `model-indices` is why there is one of it: the patcher places an arriving
+// file by this order and the browser draws its sidebar in it, so a second
+// spelling anywhere would be the same directory read two ways.
+test("a directory sorts where descending into it would put it", () => {
+  expect(["wing.olai", "wing/kitchen.olai", "wing-annexe.olai"].sort(byPath)).toEqual([
+    "wing/kitchen.olai",
+    "wing-annexe.olai",
+    "wing.olai",
+  ])
+  // Deeper, and the same rule one level down.
+  expect(["a/b.olai", "a/b/c.olai"].sort(byPath)).toEqual(["a/b/c.olai", "a/b.olai"])
+  // Everything that is not the separator is code point order, unchanged.
+  expect(["b.olai", "A.olai", "a.olai"].sort(byPath)).toEqual(["A.olai", "a.olai", "b.olai"])
+
+  const set = assemble(decoded({
+    "wing.olai": outline("wing.olai", `{"id":"wing","ord":"a","title":"wing"}`),
+    "wing/kitchen.olai": outline(
+      "wing/kitchen.olai",
+      `{"id":"kitchen","ord":"a","title":"kitchen"}`,
+    ),
+  }))
+  expect(set.files).toEqual(["wing/kitchen.olai", "wing.olai"])
+  expect(ids(set.nodes)).toEqual(["kitchen", "wing"])
 })
 
 // `files` is not derived from `nodes`, and this is the case that proves it: an
@@ -157,4 +188,26 @@ test("a set taken apart and assembled again is the set it was", () => {
   // rebuilt out of clones would make every record look like a duplicate of
   // itself.
   expect(assemble(apart(set)).nodes[0]).toBe(set.nodes[0])
+})
+
+// The pair the two halves of `model-indices` slice 4 and `olai-batch-verbs`
+// share, and the reason it gets a case of its own: `assemble` orders by
+// `byPath` rather than by code point, so a file and the directory beside it
+// sort the way a WALK meets them and not the way `<` does. `apart` returns a
+// map and lets `assemble` do the ordering, which is what makes the inverse
+// hold — but a `apart` that had rebuilt `files` from its own sort would pass
+// every other case here and fail exactly this one, silently, by handing the
+// batch fold a set in an order no load produces.
+test("the inverse holds for the pair path order exists to settle", () => {
+  const set = assemble(decoded({
+    "wing.olai": outline("wing.olai", `{"id":"wing","ord":"a","title":"wing"}`),
+    "wing/kitchen.olai": outline(
+      "wing/kitchen.olai",
+      `{"id":"kitchen","ord":"a","title":"kitchen"}`,
+    ),
+    "wing/notes.md": document("wing/notes.md", "n\n"),
+  }))
+  expect(set.files).toEqual(["wing/kitchen.olai", "wing.olai"])
+  expect(assemble(apart(set))).toEqual(set)
+  expect(assemble(apart(set)).files).toEqual(["wing/kitchen.olai", "wing.olai"])
 })

@@ -18,6 +18,7 @@ import {
   ApplyRequest,
   BATCH_AT_MOST,
   type BatchedRequest,
+  byPath,
   derive,
   nodesOf,
   type OutlineSet,
@@ -466,6 +467,39 @@ describe("apply", () => {
     expect(record(fileOf(result, "Archive.olai"), "order").title)
       .toBe("order the walnut cabinets")
     expect(fileOf(result, "house.olai").some((one) => one.id === "order")).toBe(false)
+  })
+
+  test("the fold and the patcher agree about a file beside a directory", () => {
+    // WHERE THE TWO HALVES OF format/ MEET. The fold rebuilds a real set per op
+    // (`assemble`, which orders by `byPath`) and asks the format to patch the
+    // view onto it (`reading`, whose `patch` orders the same way) — and slice 4
+    // of `model-indices` is what made those one answer instead of two, because
+    // `.` sorts before `/` and a bare code-point compare puts `wing.olai` ahead
+    // of the directory it names while a walk descends first.
+    //
+    // A batch across exactly that pair is the case where a disagreement would
+    // show: `viewOf`'s identity check would fail, the fold would silently fall
+    // back to a full `derive` — still correct, which is why nothing else here
+    // would catch it — and op 1 would be planned against a set in an order no
+    // load produces. Both ops land, in the right files, in the right order.
+    const wing = setOf({
+      "wing.olai": `{"id":"wing","ord":"a0","title":"the wing"}`,
+      "wing/kitchen.olai": `{"id":"kitchen","ord":"a0","title":"the kitchen"}`,
+    })
+    const result = planned(
+      wing,
+      batch(
+        { op: "add", parent: "kitchen", id: "sink", title: "the sink" },
+        { op: "after", id: "sink", add: ["wing"] },
+        { op: "title", id: "wing", title: "the west wing" },
+      ),
+    )
+    expect(result.files.map((one) => one.file).sort(byPath))
+      .toEqual(["wing/kitchen.olai", "wing.olai"])
+    // Op 1 resolved an id declared in the OTHER file, against the view the
+    // patcher produced — which is the half that needs the two orders to agree.
+    expect(record(fileOf(result, "wing/kitchen.olai"), "sink").after).toEqual(["wing"])
+    expect(record(fileOf(result, "wing.olai"), "wing").title).toBe("the west wing")
   })
 
   test("a batch that touches two outlines plans both", () => {

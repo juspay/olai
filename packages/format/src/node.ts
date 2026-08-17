@@ -24,6 +24,7 @@ import { Schema } from "effect"
 
 import { Custom } from "./custom.ts"
 import { OUTLINE_EXT } from "./kinds.ts"
+import { byPath } from "./paths.ts"
 
 /** `true`, or the ISO date/datetime the state was reached at. */
 const Marker = Schema.Union([Schema.Literal(true), Schema.String])
@@ -401,11 +402,15 @@ export const INBOX = `Inbox${OUTLINE_EXT}`
  * SHALLOWEST WINS, then path order — one answer, and a stable one, for the
  * directory that somehow holds two. "First in path order" would let a file
  * three directories down claim the capture from the obvious one beside it.
+ * PATH ORDER is the set's own ({@link ./paths.ts}), rather than a compare
+ * spelled here: there is one answer in this package to "which file comes
+ * first", and a second one would be a directory whose inbox depended on who
+ * was asking.
  */
 export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
   files
     .filter((file) => basenameOf(file).toLowerCase() === INBOX.toLowerCase())
-    .sort((a, b) => depthOf(a) - depthOf(b) || (a < b ? -1 : a > b ? 1 : 0))
+    .sort((a, b) => depthOf(a) - depthOf(b) || byPath(a, b))
     .at(0)
 
 const basenameOf = (file: string): string => file.slice(file.lastIndexOf("/") + 1)

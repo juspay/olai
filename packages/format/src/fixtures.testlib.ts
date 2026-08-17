@@ -175,6 +175,28 @@ export const nodesOfFiles = (
   files: Record<string, string>,
 ): ReadonlyArray<Located> => setOf(files).nodes
 
+/**
+ * A seeded pseudo-random source: Mulberry32, eight lines of arithmetic and one
+ * seed.
+ *
+ * Here for the reason everything else in this module is here: two callers were
+ * about to hold byte-identical copies of it. What it buys is that a GENERATED
+ * corpus is a fixture like any other — the property test's five hundred rounds
+ * and the browser's benchmark vault are both re-runnable, so a failure is a
+ * case somebody can reproduce rather than one that happened once on a machine.
+ * `Math.random` would make either of them a lottery whose losing tickets are
+ * unprintable.
+ */
+export const seeded = (seed: number): (() => number) => {
+  let at = seed >>> 0
+  return () => {
+    at = (at + 0x6D2B79F5) | 0
+    let mixed = Math.imul(at ^ (at >>> 15), 1 | at)
+    mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296
+  }
+}
+
 const unparsable = (
   file: string,
   contents: string,

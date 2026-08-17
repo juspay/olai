@@ -40,7 +40,7 @@
 import { expect, test } from "bun:test"
 
 import { derive, type Derived } from "./derive.ts"
-import { FIXTURE_FILE, nodesOf, setOf } from "./fixtures.testlib.ts"
+import { FIXTURE_FILE, nodesOf, seeded, setOf } from "./fixtures.testlib.ts"
 import { patch, patched, type SetDelta } from "./patch.ts"
 import { nearestId } from "./suggest.ts"
 
@@ -108,27 +108,16 @@ const same = (found: Derived, oracle: Derived, story: () => string): void => {
 
 // ── the property ───────────────────────────────────────────────────────
 
-/** Mulberry32: eight lines of arithmetic and one seed, so a failure is a case
- *  that can be re-run rather than a case that happened once on somebody's
- *  machine. `Math.random` would make this suite a lottery whose losing tickets
- *  are unprintable. */
-const source = (seed: number): (() => number) => {
-  let at = seed >>> 0
-  return () => {
-    at = (at + 0x6D2B79F5) | 0
-    let mixed = Math.imul(at ^ (at >>> 15), 1 | at)
-    mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed
-    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296
-  }
-}
-
 const pick = <T>(random: () => number, from: ReadonlyArray<T>): T =>
   from[Math.floor(random() * from.length)] as T
 
-/** Four paths, and each of them says something: two plain outlines, one in a
- *  directory (so path order is not file-name order), and the archive, whose
- *  records are exempt from blockedness at both ends of an arrow. */
-const FILES = ["a.olai", "b.olai", "deep/c.olai", "Archive.olai"] as const
+/** Five paths, and each of them says something: two plain outlines, one in a
+ *  directory (so path order is not file-name order), one in a directory NAMED
+ *  after a file beside it (so the two readings of path order — a plain string
+ *  compare and a walk that descends — disagree about which comes first, which
+ *  is slice 4's landmine and is now one answer, `byPath`), and the archive,
+ *  whose records are exempt from blockedness at both ends of an arrow. */
+const FILES = ["a.olai", "a/inner.olai", "b.olai", "deep/c.olai", "Archive.olai"] as const
 /** The names records are drawn from — small enough that a target often names a
  *  record that is really there, and often one that is not. */
 const IDS = Array.from({ length: 24 }, (_, at) => `n${at}`)
@@ -289,7 +278,7 @@ const editOf = (
 const ROUNDS = 500
 
 test("the patched view is the derived view, for any corpus and any delta", () => {
-  const random = source(20260816)
+  const random = seeded(20260816)
   let declined = 0
   for (let round = 0; round < ROUNDS; round++) {
     const { files: before, used } = corpusOf(random)
@@ -504,6 +493,27 @@ test("a file that arrives takes its place in path order", () => {
   const next = patch(view, editing("b.olai", added["b.olai"] as string))
   same(next, viewOf(added), () => "a file arrives")
   expect(next.nodes.map((at) => at.node.id)).toEqual(["one", "two", "three"])
+})
+
+test("a file arriving in a directory named after its neighbour lands where a walk puts it", () => {
+  // THE SLICE-4 LANDMINE, pinned. `a.olai` and `a/inner.olai` are the one pair
+  // of paths the two readings of "path order" disagree about: a plain string
+  // compare puts `a.olai` first (`.` is 0x2E, `/` is 0x2F), and a walk that
+  // descends into `a` when it meets it puts the nested file first. `assemble`
+  // and this patcher now answer with the walk's order (`byPath`) and so does
+  // the browser's sidebar — one order, three readers, and the assertion below
+  // is what says the patcher did not place an arriving file by the other one.
+  const before: Corpus = {
+    "a.olai": `{"id":"flat","ord":"a","title":"flat"}`,
+    "b.olai": `{"id":"other","ord":"a","title":"other"}`,
+  }
+  const view = viewOf(before)
+  const inner = `{"id":"nested","ord":"a","title":"nested"}`
+  const next = patch(view, editing("a/inner.olai", inner))
+  const after = { ...before, "a/inner.olai": inner }
+  same(next, viewOf(after), () => "a nested file arrives")
+  expect(next.nodes.map((at) => at.node.id)).toEqual(["nested", "flat", "other"])
+  expect([...next.byFile.keys()]).toEqual(["a/inner.olai", "a.olai", "b.olai"])
 })
 
 test("a file that goes away takes its records with it", () => {

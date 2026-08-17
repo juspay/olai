@@ -80,21 +80,40 @@ export type { Previous } from "./validate.ts"
  *  previous reading where that is exact and rebuilt where it is not. For the
  *  one caller whose reading is speculative and validated later, exactly once:
  *  `@olai/ops`' batch fold, which plans op two against the set op one would
- *  leave. It is what `patch` is reached through, so the disagreement check
- *  `validate` makes cannot be forgotten by a second caller. */
+ *  leave. It is `patch` PLUS the disagreement check, which is what a caller
+ *  holding a set needs and the browser's own fold does not (see `patch`
+ *  below). */
 export { reading } from "./validate.ts"
 
 export { apart, assemble, BrokenFile, nodesIn, OutlineSet } from "./set.ts"
+/** WHICH FILE COMES FIRST — the order a directory is read in, and the one
+ *  spelling of it: the set is assembled in it, the patcher places an arriving
+ *  file by it, and the browser folds and draws in it. Exported because the
+ *  browser is one of those three (slice 4 of `model-indices`), and a client
+ *  ordering paths its own way would be the same directory read two ways. */
+export { byPath } from "./paths.ts"
 export type { DecodedFile, Outline } from "./set.ts"
-/** What a delta says: files upserted, files gone — Surface's own
- *  collection-delta frame, which is the vocabulary "what changed" already
- *  travels this system in. `patch` itself is STILL not exported, and the
- *  sentence is the one it always was: applying a delta is `validate`'s
- *  business, and a second caller of it would be a second view free to disagree
- *  with the validated one — and, more concretely, one that has to remember
- *  `viewOf`'s disagreement check. The caller that wanted a patched view
- *  (`@olai/ops`' batch fold) reaches `reading` instead, which is that check and
- *  the patcher together. */
+/** The view PATCHED rather than rebuilt, and what a delta says: files upserted,
+ *  files gone — Surface's own collection-delta frame, which is the vocabulary
+ *  "what changed" already travels this system in.
+ *
+ *  `patch` is exported because THE BROWSER JOINED IN (slice 4 of
+ *  `model-indices`): the client folds the frames it is already receiving into
+ *  the view it is already holding, with the function the validator uses. Two
+ *  patchers would be the counterexample to `derive`'s own argument — that the
+ *  validator and the view share one interpretation of the format — so there is
+ *  one, and both ends call it.
+ *
+ *  IT IS STILL NOT THE DOOR FOR A CALLER HOLDING A SET, and `olai-batch-verbs`
+ *  is why that distinction is worth keeping now that the export exists. The
+ *  browser folds frames into a view and has no set to hold the result against;
+ *  `@olai/ops`' batch fold assembles a real `OutlineSet` per op and plans the
+ *  next one against it, which is exactly the shape {@link viewOf}'s
+ *  disagreement check exists for — a delta that missed a file makes every
+ *  record look like a duplicate of itself. So that caller reaches `reading`
+ *  below, which is this function AND that check, and the two consumers differ
+ *  by what they are holding rather than by what they remembered. */
+export { patch } from "./patch.ts"
 export type { SetDelta } from "./patch.ts"
 /** WHICH files a served directory is made of — one table, the two suffixes the
  *  ops layer mints paths with, and every suffix as a list for the one reader that

@@ -36,6 +36,7 @@ import {
 import { fileKind } from "./kinds.ts"
 import { isMirror, type Located, type Site } from "./node.ts"
 import { patch, type SetDelta } from "./patch.ts"
+import { byPath } from "./paths.ts"
 import { didYouMean } from "./suggest.ts"
 import type { OutlineSet } from "./set.ts"
 
@@ -168,11 +169,16 @@ export const validate = (
  * something the final check either catches or was never true of.
  *
  * IT IS THIS FUNCTION AND NOT `patch`, and that is the whole of why it is here.
- * The patcher stays unexported, as it has been: a caller reaching for it
- * directly would be a caller that has to remember {@link viewOf}'s
- * disagreement check — the identity test that turns a delta which missed a file
- * into a rebuild rather than into a view where every record looks like a
- * duplicate of itself. One function, both callers, one guard.
+ * IT IS THIS FUNCTION AND NOT `patch` for a caller that holds a SET. The
+ * patcher is exported — the browser folds its delta frames with it
+ * (`model-indices` slice 4) — and that caller is right to reach it: a tab holds
+ * a view and the frames that moved it, and has nothing to hold the result
+ * against. This one does. It assembles a real {@link OutlineSet} per op and
+ * plans the next one against it, which is precisely what {@link viewOf}'s
+ * disagreement check is for — the identity test that turns a delta which missed
+ * a file into a rebuild rather than into a view where every record looks like a
+ * duplicate of itself. So the door a set-holding caller comes through is the
+ * patcher AND that guard, together, and nobody has to remember the second half.
  */
 export const reading = (set: OutlineSet, previous?: Previous): Reading => ({
   set,
@@ -479,7 +485,10 @@ const rotateToEarliest = (
   cycle.forEach((step, index) => {
     const best = cycle[at]
     if (best === undefined) return
-    if (step.file < best.file || (step.file === best.file && step.line < best.line)) {
+    // CORPUS ORDER, which is the set's own path order and not a string compare
+    // ({@link ./paths.ts}): the earliest step of a loop is the one a reader
+    // meets first walking the directory.
+    if (byPath(step.file, best.file) < 0 || (step.file === best.file && step.line < best.line)) {
       at = index
     }
   })

@@ -21,6 +21,7 @@ import { Document } from "./documents.ts"
 import { OutlineError } from "./errors.ts"
 import { bodyKind } from "./kinds.ts"
 import { Located } from "./node.ts"
+import { byPath } from "./paths.ts"
 
 /**
  * A file of the set that could not be read, and why.
@@ -119,9 +120,10 @@ export const nodesIn = <E>(
  * `documents`, and its errors go to `broken`. Only its nodes are missing, and
  * that is the whole of what one unreadable file costs the set.
  *
- * IN PATH ORDER, and it sorts for itself rather than inheriting that from
- * whoever built the map. {@link OutlineSet.files} promises it, `nodes` follows
- * it file by file, and every reader spends it: `list_outlines` answers in it,
+ * IN PATH ORDER ({@link ./paths.ts}'s `byPath`), and it sorts for itself rather
+ * than inheriting that from whoever built the map. {@link OutlineSet.files}
+ * promises it, `nodes` follows it file by file, and every reader spends it:
+ * `list_outlines` answers in it,
  * a search tie breaks on it, the sidebar draws it. Until #208 the promise held
  * only because the one caller in the tree walks a directory in sorted order —
  * so a caller that built its map any other way got a set that broke the
@@ -132,6 +134,12 @@ export const nodesIn = <E>(
  * documented order a fact about `assemble` rather than a fact about its
  * callers, and makes the set a function of the map's ENTRIES rather than of the
  * order they were put in.
+ *
+ * WHICH order that is stopped being a plain `.sort()` in slice 4 of
+ * `model-indices`: the promise was always the WALK's, and a bare code-point
+ * sort keeps it for every pair of paths except the one where a file and a
+ * directory share a name — which is exactly the pair a patched view and a
+ * client's own sort came to disagree about ({@link ./paths.ts}).
  */
 export const assemble = (
   files: ReadonlyMap<string, Result.Result<DecodedFile, ReadonlyArray<OutlineError>>>,
@@ -150,7 +158,7 @@ export const assemble = (
   // The paths are put in order FIRST, so every list below comes out in it and
   // none of them has to be sorted afterwards — `nodes` in particular could not
   // be, since its order is file order and then line order within a file.
-  for (const path of [...files.keys()].sort()) {
+  for (const path of [...files.keys()].sort(byPath)) {
     const decoded = files.get(path)!
     if (Result.isFailure(decoded)) {
       broken.push({ file: path, errors: decoded.failure })

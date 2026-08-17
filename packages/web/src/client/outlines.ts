@@ -29,18 +29,23 @@
  * out in the design doc's cross-file consistency paragraph; what it costs THIS
  * module is nothing, because everything below is derived from whatever the
  * entries currently say rather than from a claim about which revision they are
- * all at.
+ * all at. The numbers themselves are now READ, mind — they are how the fold
+ * below tells which files moved (`./deriving.ts`) — but they are read one file
+ * at a time, which is what they mean, and never compared across two.
  *
  * Nothing here writes to what the wire hands it — see App.tsx's note on
- * `reconcile` — and nothing here interprets it either: the nodes of every entry
- * go into `@olai/format`'s own derivation, the same call the validator makes.
+ * `reconcile` — and nothing here interprets it either: the entries go into
+ * `@olai/format`'s own derivation, the same call the validator makes — and
+ * since slice 4 of `model-indices` they go into the same PATCH of it, so a
+ * keystroke costs the file it touched rather than the directory (`./deriving.ts`
+ * holds the fold and says how the delta is worked out).
  */
 
 import type { BrokenFile, Derived } from "@olai/format"
-import { derive } from "@olai/format"
 import type { Manifest } from "@olai/surface"
 import { type Accessor, createMemo } from "solid-js"
 
+import { type View, viewOf } from "./deriving.ts"
 import { sortByPath } from "./paths.ts"
 import { olai } from "./wire.ts"
 
@@ -53,8 +58,9 @@ export interface Outlines {
   /** The files that did not parse, by path — the sidebar marks them and the
    *  main pane draws one of them instead of a tree. */
   readonly broken: Accessor<ReadonlyMap<string, BrokenFile>>
-  /** One derivation over every node of every entry — the same call the
-   *  validator makes. `undefined` until there is a set to derive. */
+  /** One derivation of the whole set, patched frame by frame with the format's
+   *  own patcher — the same value the validator judges a write against, and
+   *  reached the same way. `undefined` until there is a set to derive. */
   readonly derived: Accessor<Derived | undefined>
 }
 
@@ -64,12 +70,27 @@ export const createOutlines = (): Outlines => {
 
   const files = createMemo(() => sortByPath(entries.keys()))
 
-  /** Every node of the set: file by file, each file's nodes in file order —
-   *  which is the order the flat `nodes` list had when the whole set travelled
-   *  as one value, so every derivation downstream sees what it always did. */
-  const nodes = createMemo(() =>
-    files().flatMap((file) => entries.byKey(file)?.()?.nodes ?? [])
-  )
+  /**
+   * THE ONE DERIVATION, folded rather than rebuilt.
+   *
+   * What it READS is a revision per file, which is what makes it cheap and what
+   * makes it correct: reading `rev` off each entry is the dependency this memo
+   * wants (a file that moved says so in one number), and it is what
+   * `./deriving.ts` turns into the delta the format's patcher takes. A memo
+   * that read every record instead — the flatten this replaces — woke on the
+   * same frames and then paid for the whole corpus to answer for one file.
+   *
+   * A set that has never loaded has nothing to derive FROM, and the page it
+   * gets is the error report rather than an empty tree — so the `undefined`
+   * here is the manifest's two absent states and not a third one. Dropping back
+   * to it also drops the held view, which is right: what comes after a
+   * never-loaded directory is a first frame, and a first frame is a derivation.
+   */
+  const view = createMemo((held: View | undefined) => {
+    const loaded = manifest.value()
+    if (loaded === undefined || loaded === null) return undefined
+    return viewOf(held, entries.keys(), (file) => entries.byKey(file)?.())
+  }, undefined)
 
   return {
     manifest: manifest.value,
@@ -82,12 +103,6 @@ export const createOutlines = (): Outlines => {
       }
       return found
     }),
-    // A set that has never loaded has nothing to derive FROM, and the page it
-    // gets is the error report rather than an empty tree — so the `undefined`
-    // here is the manifest's two absent states and not a third one.
-    derived: createMemo(() => {
-      const loaded = manifest.value()
-      return loaded === undefined || loaded === null ? undefined : derive(nodes())
-    }),
+    derived: createMemo(() => view()?.derived),
   }
 }

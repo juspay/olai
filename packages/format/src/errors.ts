@@ -23,6 +23,7 @@
 import { Order, Schema } from "effect"
 
 import { Site } from "./node.ts"
+import { byPath } from "./paths.ts"
 
 /**
  * Which half of the codec rejects it.
@@ -210,9 +211,12 @@ export const chainOf = (path: ReadonlyArray<string>): string =>
  *
  *  Code point order, not `localeCompare` — a locale-sensitive sort would make
  *  "two loads of the same broken set produce the same list" false across two
- *  machines, which is the whole point of ordering it at all. */
+ *  machines, which is the whole point of ordering it at all. BY FILE is the
+ *  set's own path order ({@link ./paths.ts}), so a report reads down the
+ *  directory the way the sidebar beside it does; it is a comparator rather than
+ *  `Order.String` for that one pair of paths they differ on. */
 export const compareErrors: Order.Order<OutlineError> = Order.Struct({
-  file: Order.String,
+  file: byPath,
   line: Order.Number,
   code: Order.String,
 })
