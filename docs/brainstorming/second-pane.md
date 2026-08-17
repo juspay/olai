@@ -8,10 +8,9 @@ The bugs this exists not to reproduce: a second pane that is a stripped view; fo
 
 A pane holds exactly what a lone view holds: the page (an outline file, a zoom, a day, the agenda, the trash, a document), the zoom target, and the filter. It renders the **same** page component (`PageView`) with all its chrome — breadcrumbs, filter box, widgets. There is no side-view.
 
-The split is a list of those routes, in the URL:
+The addressable layout is a small tree: a **leaf** (one route) or a **split** (an axis + ordered children + their fractions). Collapse is a fraction of zero. Today's product only writes a lone leaf or a **single root split on the row axis** — children side by side. A one-level row still prints as the flat `/s/` list this app has always written (`?w=` fractions, `?f=` the focused leaf, no `a=`, no `t=`), so existing links stay byte-for-byte.
 
-- One pane is the address this app has always written (`/o/house.olai?q=…`, `/n/install`, `/doc/notes.md#beds`).
-- Two or more wear `/s/`, each pane an encoded `hrefOf` as one path segment, optional `?w=50,50` for width fractions (a `0` is collapsed) and `?f=` for the focused index.
+The codec already has a place to grow: `?a=col` is a one-level column; `?t=col(leaf,row(leaf,leaf))` (and a nested `?w=`) is a tree. Absent or unknown axis is a row. The product does not write those yet.
 
 Reload restores the layout. Back/forward walks it. Sharing the URL shares the workspace. Closing the second-to-last pane returns to a plain page address.
 
@@ -48,6 +47,14 @@ Panes are sibling components over the one store, so a drop from one tree into an
 
 The overlay stack stays **global**: one Escape, one top layer (`topmost.ts`). Completions stay per field, the way they already were. A pane does not get a stack of its own.
 
-## Out of scope
+## What the shape permits, and what a horizontal-split PR still adds
 
-Saved layouts — a node whose children restore a split — are a follow-up.
+The value and the URL can already name a column, and a column that holds a row. `workspace.ts` is that value, next to the bijection. `Panes.tsx` is still the only projection: one horizontal row, a rail below 180px, a tab strip on a narrow screen. `pane/geometry.ts` is the pure snap (delta + extent, so a column can hand `dy` and a height).
+
+A future PR that ships horizontal splits still has to add, and only there:
+
+- a **column projection** (stacked children, a horizontal divider, a rail that is a horizontal strip)
+- **nested gestures** (which split a divider belongs to; Alt+click “to the right” when the neighbour is a column)
+- the **tab story** for a column, and for a tree, on a narrow screen (today's tabs assume one row of leaves)
+
+Saved layouts — a node whose children restore a split — remain a follow-up.

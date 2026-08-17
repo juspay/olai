@@ -50,7 +50,7 @@ files on disk ── load + validate ──▶ snapshot ── surface collectio
 
 ## Split panes
 
-A pane is a route: the same page (an outline, a zoom, a day, the agenda, the trash, a document), the same filter, the same chrome. The workspace is a **list** of those routes, serialized in the address (`/s/<encoded-route>/…`, with optional `?w=` fractions and `?f=` for which pane is focused). One pane prints as the address it has always been, so every existing link stays. Reload restores the layout; Back walks it; sharing the URL shares the workspace.
+A pane is a route: the same page (an outline, a zoom, a day, the agenda, the trash, a document), the same filter, the same chrome. The workspace is a **layout tree** — a leaf (one route) or a split (an axis and children with fractions; a `0` is collapsed). Today's product writes only a lone leaf or a one-level **row**. That row still serializes as the flat `/s/<encoded-route>/…` list (`?w=` fractions, `?f=` focus) so every existing link stays. Axis and nesting have room in the codec (`?a=`, `?t=`) and are not written yet. Reload restores the layout; Back walks it; sharing the URL shares the workspace.
 
 Exactly one pane is focused (a visible ring when there are two or more). Keyboard shortcuts, the palette and filter typing act on that pane. A plain click navigates the pane the link was in; Alt+click opens the target in the pane to the **right** (reusing one that is already there; Alt+Shift+click forces a new one). No rule targets "leftmost". Closing the second-to-last pane returns to a plain page. Below a minimum width a pane collapses to a labelled rail — collapse and close are different verbs. On a narrow screen the same list is a tab strip over one column.
 

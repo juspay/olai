@@ -32,6 +32,7 @@ import { drawnBy, type Found, NOTHING_DRAWN, pageOf } from "../page.ts"
 import { OutlinePage } from "../OutlinePage.tsx"
 import { followed, followedSplit, useGo, useHere, useRouter } from "../router.tsx"
 import { filterOf, hrefOf, narrowable, narrowedTo, samePage } from "../routes.ts"
+import { panesOf } from "../workspace.ts"
 import { visibleIn } from "../settings/done.ts"
 import { TESTID } from "../testids.ts"
 import { TrashPage } from "../trash/TrashPage.tsx"
@@ -45,7 +46,7 @@ export function PageView(props: {
   const router = useRouter()
   const here = useHere()
   const go = useGo()
-  const route = createMemo(() => router.workspace().panes[here()]!.route)
+  const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
   const opened = createMemo(route, undefined, { equals: samePage })
 
   const page = createMemo(() => {

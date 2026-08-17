@@ -27,17 +27,16 @@ import { TARGET_BOX } from "../touch.ts"
 import {
   flexOf,
   isLone,
+  panesOf,
   type Pane,
 } from "../workspace.ts"
 import { PaneProvider } from "./context.tsx"
+import { PANE_RAIL_PX, snap } from "./geometry.ts"
 import { labelOf } from "./label.ts"
 import { PageView } from "./PageView.tsx"
 import { SHELL_LONE, SHELL_SPLIT } from "./shell.ts"
 
-/** Below this, an expanded pane becomes a rail. Collapse, not close. */
-export const PANE_MIN_PX = 180
-/** The rail's own width — a labelled strip, not a sliver of the page. */
-export const PANE_RAIL_PX = 36
+export { PANE_MIN_PX, PANE_RAIL_PX } from "./geometry.ts"
 
 export function Panes(props: {
   readonly derived: Derived | undefined
@@ -119,11 +118,11 @@ function DesktopRow(props: {
   // on release, so a pointermove is not a replaceState and a remount.
   const [live, setLive] = createSignal<ReadonlyArray<number> | undefined>()
 
-  const grow = () => live() ?? flexOf(router.workspace().panes)
+  const grow = () => live() ?? flexOf(panesOf(router.workspace()))
 
   return (
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">
-      <Index each={router.workspace().panes}>
+      <Index each={panesOf(router.workspace())}>
         {(pane, i) => {
           // A function, not a const: Index does not re-run a slot of the
           // same length, so a captured number would stay the share the
@@ -284,20 +283,6 @@ function Divider(props: {
   let stop: (() => void) | undefined
   onCleanup(() => stop?.())
 
-  const snap = (start: ReadonlyArray<number>, dx: number, width: number): number[] => {
-    const frac = width <= 0 ? 0 : dx / width
-    const next = [...start]
-    const left = Math.max(0, (start[props.left] ?? 0) + frac)
-    const right = Math.max(0, (start[props.right] ?? 0) - frac)
-    next[props.left] = left
-    next[props.right] = right
-    const leftPx = left * width
-    const rightPx = right * width
-    if (leftPx < PANE_MIN_PX && leftPx < rightPx) next[props.left] = 0
-    if (rightPx < PANE_MIN_PX && rightPx <= leftPx) next[props.right] = 0
-    return next
-  }
-
   return (
     <div
       role="separator"
@@ -312,19 +297,19 @@ function Divider(props: {
         const row = props.row()
         if (row === undefined) return
         const box = row.getBoundingClientRect()
-        const start = flexOf(router.workspace().panes)
+        const start = flexOf(panesOf(router.workspace()))
         const originX = event.clientX
         event.preventDefault()
         stop?.()
         stop = pointerDrag(event, {
           onMove: (move) => {
-            props.onLive(snap(start, move.clientX - originX, box.width))
+            props.onLive(snap(start, move.clientX - originX, box.width, props.left, props.right))
           },
           onEnd: (up) => {
             stop = undefined
             const last = up === null
-              ? snap(start, 0, box.width)
-              : snap(start, up.clientX - originX, box.width)
+              ? snap(start, 0, box.width, props.left, props.right)
+              : snap(start, up.clientX - originX, box.width, props.left, props.right)
             props.onLive(undefined)
             router.resize(last)
           },
@@ -348,7 +333,7 @@ function TabStrip() {
       role="tablist"
       aria-label="panes"
     >
-      <For each={router.workspace().panes}>
+      <For each={panesOf(router.workspace())}>
         {(pane, i) => {
           const focused = () => router.workspace().focus === i()
           return (

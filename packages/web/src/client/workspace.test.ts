@@ -17,8 +17,10 @@ import {
   lone,
   navigateIn,
   openRight,
+  panesOf,
   reorder,
   resizeTo,
+  splitOf,
   workspaceOf,
   WORKSPACE_PREFIX,
 } from "./workspace.ts"
@@ -64,11 +66,11 @@ test("every existing page address is a workspace of one", () => {
 test("two panes encode as /s/ segments and read back", () => {
   const ws = openRight(lone(house), 0, kitchen)
   expect(isLone(ws)).toBe(false)
-  expect(ws.panes.map((pane) => pane.route)).toEqual([house, kitchen])
+  expect(panesOf(ws).map((pane) => pane.route)).toEqual([house, kitchen])
   expect(ws.focus).toBe(1)
   const href = hrefOfWorkspace(ws)
   expect(href.startsWith(WORKSPACE_PREFIX)).toBe(true)
-  expect(workspaceOf(href).panes.map((pane) => pane.route)).toEqual([
+  expect(panesOf(workspaceOf(href)).map((pane) => pane.route)).toEqual([
     house,
     kitchen,
   ])
@@ -79,8 +81,8 @@ test("a pane's own filter and a document fragment survive the split", () => {
   const ws = openRight(lone(filtered), 0, doc)
   const href = hrefOfWorkspace(ws)
   const back = workspaceOf(href)
-  expect(back.panes[0]!.route).toEqual(filtered)
-  expect(back.panes[1]!.route).toEqual(doc)
+  expect(panesOf(back)[0]!.route).toEqual(filtered)
+  expect(panesOf(back)[1]!.route).toEqual(doc)
 })
 
 test("three panes, a width split and a collapsed rail round-trip", () => {
@@ -90,33 +92,33 @@ test("three panes, a width split and a collapsed rail round-trip", () => {
   ws = focusAt(ws, 2)
   const href = hrefOfWorkspace(ws)
   const back = workspaceOf(href)
-  expect(back.panes.map((pane) => pane.route)).toEqual([house, kitchen, agenda])
+  expect(panesOf(back).map((pane) => pane.route)).toEqual([house, kitchen, agenda])
   expect(back.focus).toBe(2)
-  expect(isCollapsed(back.panes[2]!)).toBe(true)
-  expect(back.panes[0]!.width).toBeCloseTo(0.5, 5)
-  expect(back.panes[1]!.width).toBeCloseTo(0.5, 5)
+  expect(isCollapsed(panesOf(back)[2]!)).toBe(true)
+  expect(panesOf(back)[0]!.width).toBeCloseTo(0.5, 5)
+  expect(panesOf(back)[1]!.width).toBeCloseTo(0.5, 5)
 })
 
 test("Alt+click reuses the pane to the right, and never the leftmost", () => {
   const two = openRight(lone(house), 0, kitchen)
   const reused = openRight(two, 0, garden)
-  expect(reused.panes.length).toBe(2)
-  expect(reused.panes[0]!.route).toEqual(house)
-  expect(reused.panes[1]!.route).toEqual(garden)
+  expect(panesOf(reused).length).toBe(2)
+  expect(panesOf(reused)[0]!.route).toEqual(house)
+  expect(panesOf(reused)[1]!.route).toEqual(garden)
   expect(reused.focus).toBe(1)
 })
 
 test("Alt+click from the rightmost pane creates a new one", () => {
   const two = openRight(lone(house), 0, kitchen)
   const three = openRight(two, 1, garden)
-  expect(three.panes.map((pane) => pane.route)).toEqual([house, kitchen, garden])
+  expect(panesOf(three).map((pane) => pane.route)).toEqual([house, kitchen, garden])
   expect(three.focus).toBe(2)
 })
 
 test("Alt+Shift+click forces a new pane even when a right neighbour exists", () => {
   const two = openRight(lone(house), 0, kitchen)
   const forced = openRight(two, 0, garden, true)
-  expect(forced.panes.map((pane) => pane.route)).toEqual([
+  expect(panesOf(forced).map((pane) => pane.route)).toEqual([
     house,
     garden,
     kitchen,
@@ -128,7 +130,7 @@ test("closing the second-to-last pane returns a plain page address", () => {
   const two = openRight(lone(house), 0, kitchen)
   const one = closeFocused(two)
   expect(isLone(one)).toBe(true)
-  expect(one.panes[0]!.route).toEqual(house)
+  expect(panesOf(one)[0]!.route).toEqual(house)
   expect(hrefOfWorkspace(one)).toBe("/o/house.olai")
 })
 
@@ -137,7 +139,7 @@ test("closing a middle pane keeps the others and moves focus right", () => {
   ws = openRight(ws, 1, garden)
   ws = focusAt(ws, 1)
   const after = closeFocused(ws)
-  expect(after.panes.map((pane) => pane.route)).toEqual([house, garden])
+  expect(panesOf(after).map((pane) => pane.route)).toEqual([house, garden])
   expect(after.focus).toBe(1)
 })
 
@@ -150,8 +152,8 @@ test("closing the last remaining pane is a no-op", () => {
 test("navigateIn writes the pane you named, and focuses it", () => {
   const two = openRight(lone(house), 0, kitchen)
   const next = navigateIn(two, 0, today)
-  expect(next.panes[0]!.route).toEqual(today)
-  expect(next.panes[1]!.route).toEqual(kitchen)
+  expect(panesOf(next)[0]!.route).toEqual(today)
+  expect(panesOf(next)[1]!.route).toEqual(kitchen)
   expect(next.focus).toBe(0)
 })
 
@@ -166,13 +168,13 @@ test("focus walks with wrap, and a lone pane does not move", () => {
 test("collapse and expand are different verbs from close", () => {
   const two = openRight(lone(house), 0, kitchen)
   const rail = collapseAt(two, 1)
-  expect(rail.panes.length).toBe(2)
-  expect(isCollapsed(rail.panes[1]!)).toBe(true)
-  expect(isCollapsed(rail.panes[0]!)).toBe(false)
+  expect(panesOf(rail).length).toBe(2)
+  expect(isCollapsed(panesOf(rail)[1]!)).toBe(true)
+  expect(isCollapsed(panesOf(rail)[0]!)).toBe(false)
   const open = expandAt(rail, 1)
-  expect(isCollapsed(open.panes[1]!)).toBe(false)
-  expect(open.panes.length).toBe(2)
-  expect(closeAt(two, 1).panes.length).toBe(1)
+  expect(isCollapsed(panesOf(open)[1]!)).toBe(false)
+  expect(panesOf(open).length).toBe(2)
+  expect(panesOf(closeAt(two, 1)).length).toBe(1)
 })
 
 test("a lone pane refuses to collapse", () => {
@@ -181,38 +183,38 @@ test("a lone pane refuses to collapse", () => {
 
 test("reopening a reused right pane uncollapses it", () => {
   const two = collapseAt(openRight(lone(house), 0, kitchen), 1)
-  expect(isCollapsed(two.panes[1]!)).toBe(true)
+  expect(isCollapsed(panesOf(two)[1]!)).toBe(true)
   const reused = openRight(two, 0, garden)
-  expect(isCollapsed(reused.panes[1]!)).toBe(false)
-  expect(reused.panes[1]!.route).toEqual(garden)
+  expect(isCollapsed(panesOf(reused)[1]!)).toBe(false)
+  expect(panesOf(reused)[1]!.route).toEqual(garden)
   // Not merely "width is not 0" — a cleared width next to a stored 1
   // made flexOf give the reused pane nothing, so it stayed a rail.
-  expect(flexOf(reused.panes)[1]!).toBeGreaterThan(0)
+  expect(flexOf(panesOf(reused))[1]!).toBeGreaterThan(0)
 })
 
 test("an expanded sliver does not print as a collapsed rail", () => {
   let ws = openRight(lone(house), 0, kitchen)
   ws = resizeTo(ws, [0.996, 0.004])
-  expect(isCollapsed(ws.panes[1]!)).toBe(false)
+  expect(isCollapsed(panesOf(ws)[1]!)).toBe(false)
   const back = workspaceOf(hrefOfWorkspace(ws))
-  expect(isCollapsed(back.panes[1]!)).toBe(false)
-  expect(flexOf(back.panes)[1]!).toBeGreaterThan(0)
+  expect(isCollapsed(panesOf(back)[1]!)).toBe(false)
+  expect(flexOf(panesOf(back))[1]!).toBeGreaterThan(0)
 })
 
 test("pathological w= is a kindness, not a throw", () => {
   const two = "/s/o%2Fhouse.olai/n%2Fkitchen"
   // Both zeros: nothing expanded to be a fraction of. Equal shares.
   const allRails = workspaceOf(`${two}?w=0,0`)
-  expect(allRails.panes.length).toBe(2)
-  expect(allRails.panes.every((pane) => pane.width === undefined)).toBe(true)
+  expect(panesOf(allRails).length).toBe(2)
+  expect(panesOf(allRails).every((pane) => pane.width === undefined)).toBe(true)
   // Junk beside a number: the junk is no share, the number is.
   const junk = workspaceOf(`${two}?w=abc,50`)
-  expect(junk.panes[0]!.width).toBeUndefined()
-  expect(junk.panes[1]!.width).toBe(1)
+  expect(panesOf(junk)[0]!.width).toBeUndefined()
+  expect(panesOf(junk)[1]!.width).toBe(1)
   // A negative is a rail, not a throw.
   const neg = workspaceOf(`${two}?w=-10,50`)
-  expect(isCollapsed(neg.panes[0]!)).toBe(true)
-  expect(neg.panes[1]!.width).toBe(1)
+  expect(isCollapsed(panesOf(neg)[0]!)).toBe(true)
+  expect(panesOf(neg)[1]!.width).toBe(1)
 })
 
 test("reorder follows the moved pane when it was focused", () => {
@@ -220,13 +222,13 @@ test("reorder follows the moved pane when it was focused", () => {
   ws = openRight(ws, 1, garden)
   ws = focusAt(ws, 0)
   const moved = reorder(ws, 0, 2)
-  expect(moved.panes.map((pane) => pane.route)).toEqual([kitchen, garden, house])
+  expect(panesOf(moved).map((pane) => pane.route)).toEqual([kitchen, garden, house])
   expect(moved.focus).toBe(2)
 })
 
 test("flexOf gives collapsed panes nothing and shares the rest", () => {
   const two = collapseAt(openRight(lone(house), 0, kitchen), 1)
-  const flex = flexOf(two.panes)
+  const flex = flexOf(panesOf(two))
   expect(flex[1]).toBe(0)
   expect(flex[0]).toBeGreaterThan(0)
 })
@@ -234,4 +236,57 @@ test("flexOf gives collapsed panes nothing and shares the rest", () => {
 test("an empty /s/ is the default outline, not a throw", () => {
   expect(workspaceOf("/s/")).toEqual(lone({ kind: "outline", file: null }))
   expect(workspaceOf("/s")).toEqual(lone(routeOf("/s")))
+})
+
+test("a one-level row writes today's flat URL, byte for byte", () => {
+  const ws = openRight(lone(house), 0, kitchen)
+  expect(hrefOfWorkspace(ws)).toBe("/s/o%2Fhouse.olai/n%2Fkitchen?w=50%2C50&f=1")
+  expect(hrefOfWorkspace(ws).includes("a=")).toBe(false)
+  expect(hrefOfWorkspace(ws).includes("t=")).toBe(false)
+})
+
+test("an absent or unknown axis is a row", () => {
+  const flat = workspaceOf("/s/o%2Fhouse.olai/n%2Fkitchen")
+  expect(flat.layout.kind).toBe("split")
+  if (flat.layout.kind === "split") expect(flat.layout.axis).toBe("row")
+  const unknown = workspaceOf("/s/o%2Fhouse.olai/n%2Fkitchen?a=diagonal")
+  expect(unknown.layout.kind).toBe("split")
+  if (unknown.layout.kind === "split") expect(unknown.layout.axis).toBe("row")
+})
+
+test("a nested value round-trips through the address", () => {
+  const nested = splitOf(
+    "col",
+    [
+      { layout: { kind: "leaf", route: house }, fraction: 0.4 },
+      {
+        layout: splitOf("row", [
+          { layout: { kind: "leaf", route: kitchen }, fraction: 0.5 },
+          { layout: { kind: "leaf", route: garden }, fraction: 0.5 },
+        ]).layout,
+        fraction: 0.6,
+      },
+    ],
+    2,
+  )
+  const href = hrefOfWorkspace(nested)
+  expect(href.includes("t=")).toBe(true)
+  expect(href.includes("col")).toBe(true)
+  const back = workspaceOf(href)
+  expect(back.layout).toEqual(nested.layout)
+  expect(back.focus).toBe(2)
+  expect(hrefOfWorkspace(back)).toBe(href)
+})
+
+test("a one-level column is a=col, not a tree", () => {
+  const col = splitOf("col", [
+    { layout: { kind: "leaf", route: house }, fraction: 0.5 },
+    { layout: { kind: "leaf", route: kitchen }, fraction: 0.5 },
+  ])
+  const href = hrefOfWorkspace(col)
+  expect(href.includes("a=col")).toBe(true)
+  expect(href.includes("t=")).toBe(false)
+  const back = workspaceOf(href)
+  expect(back.layout.kind).toBe("split")
+  if (back.layout.kind === "split") expect(back.layout.axis).toBe("col")
 })
