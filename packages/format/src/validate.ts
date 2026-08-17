@@ -155,7 +155,11 @@ export const validate = (
 const viewOf = (set: OutlineSet, previous: Previous | undefined): Derived => {
   if (previous === undefined) return derive(set.nodes)
   const view = patch(previous.read.derived, previous.delta)
-  return isSet(view.nodes, set.nodes) ? view : derive(set.nodes)
+  // The set's own list, once the two are known to hold the same records in the
+  // same places: a `Reading` whose view and set share one array is what a
+  // rebuilt one has always been, and one difference between the two paths is
+  // one thing a reader could come to depend on without meaning to.
+  return isSet(view.nodes, set.nodes) ? { ...view, nodes: set.nodes } : derive(set.nodes)
 }
 
 const isSet = (
