@@ -52,7 +52,7 @@ import { type JSX, Show } from "solid-js"
 
 import { CRUMB } from "../Breadcrumbs.tsx"
 import { DayGroups } from "../day/DayGroups.tsx"
-import { useNarrowed } from "../filter/narrowed.tsx"
+import { unfiltered, useNarrowed } from "../filter/narrowed.tsx"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 
@@ -72,8 +72,10 @@ export function AgendaPage(props: {
 
       {/* Said once, as the one condition it is: nothing is late, nothing is on
           today, and nothing is coming. Never over a filter, which empties this
-          page for a reason of its own and says so in its own words. */}
-      <Show when={nothingDue(props.agenda) && !narrowed.active()}>
+          page for a reason of its own and says so in its own words — the one
+          reading every page with a sentence like this is drawn on
+          (`../filter/narrowed.tsx`). */}
+      <Show when={unfiltered(narrowed) && nothingDue(props.agenda)}>
         <p class="text-muted" data-testid={TESTID.agendaEmpty}>
           Nothing is due.
         </p>

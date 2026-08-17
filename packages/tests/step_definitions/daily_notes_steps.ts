@@ -24,7 +24,9 @@ import {
   DAY_GROUP,
   DAY_NOTE,
   DAY_NOTE_LINK,
+  DAY_PAGE,
   daySelector,
+  expectAbsent,
   expectDrawn,
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
@@ -73,26 +75,11 @@ Then(
   },
 );
 
-/**
- * One half of the day is absent, asked once the OTHER half is on screen.
- *
- * An empty count is a perfectly plausible wrong answer on a page that has not
- * been drawn yet, and a day page has no single moment of being finished — so
- * the wait is on the half that IS expected, which is the only thing on this
- * page that says the frame has arrived.
- */
-const expectAbsent = async (
-  world: OlaiWorld,
-  drawn: string,
-  absent: string,
-  complaint: string,
-): Promise<void> => {
-  await world.page
-    .locator(drawn)
-    .first()
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  assert.strictEqual(await world.page.locator(absent).count(), 0, complaint);
-};
+// One half of the day is absent, asked once the OTHER half is on screen: an
+// empty count is a perfectly plausible wrong answer on a page that has not been
+// drawn yet, and a day page has no single moment of being finished. The reading
+// is `support/world.ts`'s now that the filter gave three more pages a sentence
+// they must NOT say while they are narrowed.
 
 Then("the day shows no note", async function (this: OlaiWorld) {
   await expectAbsent(
@@ -113,13 +100,15 @@ Then("the day has no dated nodes", async function (this: OlaiWorld) {
 });
 
 /** The line a day says when it holds NOTHING — and a day holding a note does
- *  not hold nothing. Asserted as an absence, which is a real answer here: the
- *  note above it is already on screen by the time this is asked. */
+ *  not hold nothing, nor does a day a query narrowed to nothing ("no matches"
+ *  is a claim about the query, and the bar makes it). Read off the PAGE, so it
+ *  is asked of a day that has drawn one. */
 Then("the day does not say it is empty", async function (this: OlaiWorld) {
-  assert.strictEqual(
-    await this.page.locator(DAY_EMPTY).count(),
-    0,
-    "a day whose note is on screen is telling the reader it is empty",
+  await expectAbsent(
+    this,
+    DAY_PAGE,
+    DAY_EMPTY,
+    "a day is telling the reader it is empty when it is not",
   );
 });
 

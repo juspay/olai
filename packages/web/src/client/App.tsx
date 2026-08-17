@@ -53,7 +53,7 @@ import { createRouter, followed, RouterProvider } from "./router.tsx"
 import { filterOf, narrowable, narrowedTo, samePage } from "./routes.ts"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
-import { visible } from "./settings/done.ts"
+import { visibleIn } from "./settings/done.ts"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
 import { TrashPage } from "./trash/TrashPage.tsx"
@@ -160,24 +160,9 @@ export default function App() {
       : drawnBy(indexes, page(), agenda())
   })
 
-  // The preference reaches the TREE pages and no others, which is where it has
-  // always reached: a day and the agenda answer a date question and the trash
-  // is what was put away, and hiding finished work inside any of the three
-  // would be this switch deciding something none of those pages was asked. The
-  // same value comes back untouched for them, which is also how the count of
-  // held-back matches knows to be zero (`./filter/narrowing.ts`).
-  //
-  // THE SAME VALUE comes back when nothing is hidden, identity and all —
-  // `visible` returns the very array it was given in that case, and this hands
-  // the whole reading straight back rather than rewrapping it. That is what
-  // `./filter/narrowing.ts`'s count of held-back matches tests, and a fresh
-  // wrapper per frame would make it walk the page twice to prove it was zero.
-  const shownDrawn = createMemo(() => {
-    const drawn = allDrawn()
-    if (drawn.kind !== "tree") return drawn
-    const rows = visible(drawn.rows)
-    return rows === drawn.rows ? drawn : { kind: "tree" as const, rows }
-  })
+  // Which pages the done preference reaches, and what it hands back when it is
+  // hiding nothing, are both the preference's own (`./settings/done.ts`).
+  const shownDrawn = createMemo(() => visibleIn(allDrawn()))
 
   const narrowing = createNarrowing({
     derived: outlines.derived,
@@ -195,9 +180,9 @@ export default function App() {
   // memo up, and asking for the wrong one is a page drawing nothing rather than
   // a page drawing something else.
   const rows = () => only(narrowing.drawn(), "tree")?.rows ?? []
-  const dayGroups = () => only(narrowing.drawn(), "day")?.groups ?? []
+  const day = () => only(narrowing.drawn(), "day")
   const owed = () => only(narrowing.drawn(), "agenda")?.agenda
-  const archives = () => only(narrowing.drawn(), "trash")?.groups ?? []
+  const trash = () => only(narrowing.drawn(), "trash")
 
   /** Typing in the filter box, and pressing a `#tag`, are the same act: the
    *  address of this page changes, and the entry is REPLACED rather than
@@ -479,10 +464,13 @@ export default function App() {
                         </Match>
                         <Match when={only(open(), "day")}>
                           {(open) => (
+                            // The DATE is the address's; what is on the day —
+                            // its rows and the note somebody wrote on it — is
+                            // what the page draws, narrowed.
                             <DayPage
                               date={open().date}
-                              groups={dayGroups()}
-                              notes={open().notes}
+                              groups={day()?.groups ?? []}
+                              notes={day()?.notes ?? []}
                               today={today()}
                             />
                           )}
@@ -508,9 +496,10 @@ export default function App() {
                           )}
                         </Match>
                         <Match when={only(open(), "trash")}>
-                          {(open) => (
-                            <TrashPage files={open().files} groups={archives()} />
-                          )}
+                          <TrashPage
+                            files={trash()?.files ?? []}
+                            groups={trash()?.groups ?? []}
+                          />
                         </Match>
                         <Match when={only(open(), "nothing")}>
                           {(nothing) => (

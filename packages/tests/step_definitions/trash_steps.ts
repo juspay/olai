@@ -14,6 +14,8 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import {
+  expectAbsent,
+  expectGone,
   oneLine,
   POLL_TIMEOUT,
   TRASH_EMPTY,
@@ -52,13 +54,9 @@ Then(
 Then(
   "the Trash does not list the node {string}",
   async function (this: OlaiWorld, id: string) {
-    await this.page
-      .locator(trashRow(id))
-      .waitFor({ state: "detached", timeout: POLL_TIMEOUT })
-      .catch(() => undefined);
-    assert.strictEqual(
-      await this.page.locator(`${trashRow(id)}:visible`).count(),
-      0,
+    await expectGone(
+      this,
+      trashRow(id),
       `"${id}" is in the Trash, and this step says it should not be drawn`,
     );
   },
@@ -95,12 +93,10 @@ Then("the Trash is empty", async function (this: OlaiWorld) {
  *  about the query — which the bar makes. Saying both would be the page
  *  telling the reader their archive had been emptied by a search. */
 Then("the Trash does not say it is empty", async function (this: OlaiWorld) {
-  await this.page
-    .locator(TRASH_PAGE)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  assert.strictEqual(
-    await this.page.locator(TRASH_EMPTY).count(),
-    0,
+  await expectAbsent(
+    this,
+    TRASH_PAGE,
+    TRASH_EMPTY,
     "the Trash says it is empty over a page a filter narrowed to nothing",
   );
 });

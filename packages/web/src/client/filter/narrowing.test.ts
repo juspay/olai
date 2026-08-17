@@ -30,6 +30,7 @@ import { nodesOfFiles } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
+import { only } from "../narrow.ts"
 import type { Drawn } from "../page.ts"
 import { createNarrowing, type Narrowing } from "./narrowing.ts"
 
@@ -147,7 +148,14 @@ test("a refused operator empties the page and carries its reason", () => {
 
 // ── the pages that are a date question ─────────────────────────────────
 
-const dayOf = (date: string): Drawn => ({ kind: "day", groups: datedOn(derived, date) })
+/** A day, as the app hands it over: the dated nodes, and the note somebody
+ *  wrote on it — both on the screen, and only one of them something a query can
+ *  select. */
+const dayOf = (date: string, notes: ReadonlyArray<string> = []): Drawn => ({
+  kind: "day",
+  groups: datedOn(derived, date),
+  notes,
+})
 
 // A day's rows are FLAT and each arrives with its own ancestry, so narrowing
 // one keeps nothing as context: what is left is exactly what matched.
@@ -167,6 +175,17 @@ test("a day keeps the rows that matched, and drops the outline that has none", (
   expect(groupsIn(none.drawn())).toEqual([])
   expect(none.shown()).toBe(0)
   expect(none.total()).toBe(2)
+})
+
+// A note is a DOCUMENT, which is the one page kind that takes no filter at all
+// — so it can never be a match, and a filtered day is the answer rather than
+// the answer plus somebody's prose.
+test("a day's note goes while a filter is on, and comes back when it clears", () => {
+  const written = dayOf("2026-08-14", ["Daily/2026-08-14.md"])
+  expect(notesIn(narrowing(written, "").drawn())).toEqual(["Daily/2026-08-14.md"])
+  expect(notesIn(narrowing(written, "hinges").drawn())).toEqual([])
+  // Including the query that found nothing at all: the page is the answer.
+  expect(notesIn(narrowing(written, "bathroom").drawn())).toEqual([])
 })
 
 const agenda: Agenda = agendaOf(derived, TODAY)
@@ -189,6 +208,7 @@ test("the agenda narrows section by section, and counts every row it draws", () 
 
 const trash: Drawn = {
   kind: "trash",
+  files: ["Archive.olai"],
   groups: [{ file: "Archive.olai", rows: rowsOf(derived, "Archive.olai") }],
 }
 
@@ -234,24 +254,27 @@ test("a page with nothing to narrow counts nothing and stays itself", () => {
   expect(reading.total()).toBe(0)
 })
 
-const rowsIn = (reading: Narrowing): ReadonlyArray<Row> => {
-  const drawn = reading.drawn()
-  return drawn.kind === "tree" ? drawn.rows : []
-}
+const rowsIn = (reading: Narrowing): ReadonlyArray<Row> =>
+  only(reading.drawn(), "tree")?.rows ?? []
 
 const archiveRows = (drawn: Drawn): ReadonlyArray<Row> =>
-  drawn.kind === "trash" ? drawn.groups.flatMap((group) => group.rows) : []
+  only(drawn, "trash")?.groups.flatMap((group) => group.rows) ?? []
 
-const groupsIn = (drawn: Drawn): ReadonlyArray<DayGroup> =>
-  drawn.kind === "day"
-    ? drawn.groups
-    : drawn.kind === "agenda"
-    ? [
-      ...drawn.agenda.overdue,
-      ...drawn.agenda.today,
-      ...drawn.agenda.upcoming.flatMap((day) => day.groups),
-    ]
-    : []
+const notesIn = (drawn: Drawn): ReadonlyArray<string> =>
+  only(drawn, "day")?.notes ?? []
+
+/** Every group a date-shaped page draws, whichever of the two it is — the
+ *  agenda's three sections read as the one list they are made of. */
+const groupsIn = (drawn: Drawn): ReadonlyArray<DayGroup> => {
+  const day = only(drawn, "day")
+  if (day !== undefined) return day.groups
+  const owed = only(drawn, "agenda")?.agenda
+  return owed === undefined ? [] : [
+    ...owed.overdue,
+    ...owed.today,
+    ...owed.upcoming.flatMap((ahead) => ahead.groups),
+  ]
+}
 
 const datedIds = (drawn: Drawn): ReadonlyArray<string> =>
   groupsIn(drawn).flatMap((group) => group.nodes.map((one) => one.shows.node.id))

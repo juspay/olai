@@ -36,23 +36,24 @@
  * cost nothing to keep here — every row on this page already arrives carrying
  * its own trail, which is what a day page is for.
  *
- * THE NOTE GOES while a filter is on, and the two sentences below go with it.
- * A note is a DOCUMENT — prose this grammar has nothing to say about, which is
+ * THE NOTE GOES while a filter is on, and it has gone before it reaches here:
+ * a note is a DOCUMENT — prose this grammar has nothing to say about, which is
  * why `/doc/` is the one address that takes no `?q=` (`../routes.ts`) — so it
- * can never be a match, and a page that answered a query with a page of prose
- * plus no rows would be answering something nobody asked. What is left is the
- * answer and only the answer; clearing the box brings the day back whole.
+ * can never be a match, and what a narrowed page draws is one switch's answer
+ * (`../filter/narrowing.ts`) rather than a rule each page keeps for itself.
+ * What is left is the answer and only the answer; clearing the box brings the
+ * day back whole.
  *
- * And "Nothing is on this day" is not said over a filtered page: it is a claim
- * about the DAY, and the query found nothing is a claim about the query, which
- * the bar makes in its own words ("no matches") — the same division the outline
- * page keeps for "this outline is empty — write its first line".
+ * What this page does still decide is its own SENTENCE. "Nothing is on this
+ * day" is a claim about the DAY, where "the query found none of it" is a claim
+ * about the query and the bar's to make ("no matches") — so it is drawn on
+ * `unfiltered`, the one reading the four pages with a sentence like that share.
  */
 
 import type { DayGroup } from "@olai/format"
 import { For, Show } from "solid-js"
 
-import { useNarrowed } from "../filter/narrowed.tsx"
+import { unfiltered, useNarrowed } from "../filter/narrowed.tsx"
 import { TESTID } from "../testids.ts"
 import { DayGroups } from "./DayGroups.tsx"
 import { DayNote } from "./DayNote.tsx"
@@ -81,15 +82,12 @@ export function DayPage(props: {
         </div>
       </header>
 
-      {/* The written half, first — and not at all while a filter is on, for
-          the reason the header gives: prose is not something this grammar
-          selects, so it cannot be part of an answer. `For` rather than `<Key>`:
-          these are PATHS, and a string is its own key — two frames naming the
-          same file are the same file, so the note keeps its DOM and its
-          rendering across every frame the live store publishes. */}
-      <For each={narrowed.active() ? [] : props.notes}>
-        {(file) => <DayNote file={file} />}
-      </For>
+      {/* The written half, first — and a filtered day arrives with none, for
+          the reason the header gives. `For` rather than `<Key>`: these are
+          PATHS, and a string is its own key — two frames naming the same file
+          are the same file, so the note keeps its DOM and its rendering across
+          every frame the live store publishes. */}
+      <For each={props.notes}>{(file) => <DayNote file={file} />}</For>
 
       {/* NOTHING here at all — said once, as the one condition it is. A day
           whose note is on screen is not a day with nothing on it, and saying so
@@ -97,8 +95,8 @@ export function DayPage(props: {
           itself. A filtered day says nothing either: what is empty then is the
           ANSWER, and the bar above is where that is said. */}
       <Show
-        when={props.groups.length === 0 && props.notes.length === 0 &&
-          !narrowed.active()}
+        when={unfiltered(narrowed) && props.groups.length === 0 &&
+          props.notes.length === 0}
       >
         <p class="text-muted" data-testid={TESTID.dayEmpty}>
           {/* "On", not "dated": a day holds what was scheduled for it and what

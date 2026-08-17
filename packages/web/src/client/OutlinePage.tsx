@@ -11,7 +11,7 @@ import { Show } from "solid-js"
 
 import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
-import { useNarrowed } from "./filter/narrowed.tsx"
+import { unfiltered, useNarrowed } from "./filter/narrowed.tsx"
 import { doneHidden } from "./settings/done.ts"
 import { Tree } from "./Tree.tsx"
 
@@ -32,7 +32,9 @@ export function OutlinePage(props: {
           what is done — or because a FILTER matched nothing — and "write its
           first line" would be a lie over a tree that is one click from coming
           back. The filter bar says what happened in that case. */}
-      <Show when={props.rows.length === 0 && !doneHidden() && !narrowed.active()}>
+      <Show
+        when={unfiltered(narrowed) && props.rows.length === 0 && !doneHidden()}
+      >
         <StartLine
           at={{ kind: "first", file: props.file }}
           label="This outline is empty — write its first line."

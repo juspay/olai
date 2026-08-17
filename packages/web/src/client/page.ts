@@ -11,6 +11,10 @@
  * rather than a clock read further down: `/today` and `/d/<date>` are the same
  * page, and the only difference between them is who says which day it is.
  *
+ * A route is what the address SAYS and a page is what it named; what that page
+ * has PUT ON THE SCREEN is a third question, and {@link Drawn} is where it is
+ * answered — because that, rather than the page, is what a filter narrows.
+ *
  * Every arm carries exactly what its screen needs and nothing else, so no
  * component re-decides what it is looking at. Two things are the exception and
  * for opposite reasons: the ROWS, because {@link rowsFor} says why, and the
@@ -303,9 +307,24 @@ export type Drawn =
   /** An outline's roots, or a zoomed node's children — one shape, because a
    *  file is the widest zoom there is. */
   | { readonly kind: "tree"; readonly rows: ReadonlyArray<Row> }
-  | { readonly kind: "day"; readonly groups: ReadonlyArray<DayGroup> }
+  /** A day's dated nodes AND the note somebody wrote on it, because both are
+   *  on the screen and a filter takes one of them away (`filter/narrowing.ts`
+   *  says why prose can never be a match). */
+  | {
+    readonly kind: "day"
+    readonly groups: ReadonlyArray<DayGroup>
+    readonly notes: ReadonlyArray<string>
+  }
   | { readonly kind: "agenda"; readonly agenda: Agenda }
-  | { readonly kind: "trash"; readonly groups: ReadonlyArray<TrashGroup> }
+  /** The archives with rows in them, and the FILES the directory holds —
+   *  which is not the same list: what is drawn narrows with the query, and
+   *  whether a pile is worth a file heading is a fact about the directory
+   *  (`trash/TrashPage.tsx`). */
+  | {
+    readonly kind: "trash"
+    readonly files: ReadonlyArray<string>
+    readonly groups: ReadonlyArray<TrashGroup>
+  }
   | { readonly kind: "none" }
 
 /** Nothing to narrow, as one value: `none` carries nothing, so a fresh object
@@ -337,11 +356,15 @@ export const drawnBy = (
   if (page.kind === "outline" || page.kind === "node") {
     return { kind: "tree", rows: rowsFor(derived, page) }
   }
-  if (page.kind === "day") return { kind: "day", groups: page.groups }
+  if (page.kind === "day") {
+    return { kind: "day", groups: page.groups, notes: page.notes }
+  }
   if (page.kind === "agenda") {
     return { kind: "agenda", agenda: agenda ?? NOTHING_OWED }
   }
-  if (page.kind === "trash") return { kind: "trash", groups: archivesOf(derived, page) }
+  if (page.kind === "trash") {
+    return { kind: "trash", files: page.files, groups: archivesOf(derived, page) }
+  }
   return NOTHING_DRAWN
 }
 

@@ -47,7 +47,7 @@ import { Match, Show, Switch } from "solid-js"
 
 import { SaidLine } from "../edit/SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
-import { useNarrowed } from "../filter/narrowed.tsx"
+import { matchedAttr, unfiltered, useNarrowed } from "../filter/narrowed.tsx"
 import { NodeTitle } from "../NodeTitle.tsx"
 import type { TrashGroup } from "../page.ts"
 import { createSaying } from "../saying.ts"
@@ -78,7 +78,10 @@ export function TrashPage(props: {
       <Show
         when={props.groups.length > 0}
         fallback={
-          <Show when={!narrowed.active()}>
+          // "The Trash is empty." is a claim about the ARCHIVE; a query that
+          // found none of it is a claim about the query, and the bar makes
+          // that one (`../filter/narrowed.tsx` holds the division).
+          <Show when={unfiltered(narrowed)}>
             <p class="text-muted" data-testid={TESTID.trashEmpty}>
               The Trash is empty.
             </p>
@@ -149,12 +152,10 @@ function Branch(props: {
       data-testid={TESTID.trashRow}
       data-node-id={props.row.at.node.id}
       // Whether the filter SELECTED this row or kept it as the scaffold that
-      // leads to one — the tree's own fact (`../Tree.tsx`), said the same way
-      // and asked of the node the row SHOWS, because a placement in a pile
-      // matches by what it stands for.
-      data-match={narrowed.active()
-        ? String(narrowed.matched().has(shownRecord(props.row).node.id))
-        : undefined}
+      // leads to one — one spelling for every surface that says it
+      // (`../filter/narrowed.tsx`), asked of the node the row SHOWS, because a
+      // placement in a pile matches by what it stands for.
+      data-match={matchedAttr(narrowed, shownRecord(props.row).node.id)}
     >
       <div class="group flex min-h-6 items-baseline gap-2 py-0.5">
         <span class="select-none text-muted" aria-hidden="true">
@@ -162,6 +163,11 @@ function Branch(props: {
         </span>
         <span
           class="flex-1 text-ink"
+          // What a row is CALLED, said the way every other surface says it
+          // (`../NodeLine.tsx`): a title span is a title span, and a reader of
+          // this page — a scenario, the evidence pass — should not have to
+          // know that this one is drawn by a different component.
+          data-testid={TESTID.nodeTitle}
           classList={{ "line-through opacity-60": props.row.status === "done" }}
         >
           <Title row={props.row} />

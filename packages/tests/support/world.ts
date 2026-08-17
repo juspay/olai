@@ -729,6 +729,56 @@ export const nodeSelector = (id: string): string =>
 export const daySelector = (date: string): string =>
   `${CALENDAR_DAY}[data-date="${date}"]`;
 
+/**
+ * An ABSENCE, read off a page that has actually drawn something.
+ *
+ * "X is not on screen" is the assertion that passes for free on a page which
+ * has drawn nothing at all, so it is never asked alone: `present` is the thing
+ * whose arrival says the page is up, and only then is `absent` counted. Five
+ * steps across three feature areas ask exactly this — a day drawing no note, a
+ * day with no groups, and the three pages that must NOT say they are empty
+ * while a filter is narrowing them — so it is one reading rather than five
+ * copies of the wait-then-count.
+ */
+export const expectAbsent = async (
+  world: OlaiWorld,
+  present: string,
+  absent: string,
+  complaint: string,
+): Promise<void> => {
+  await world.page
+    .locator(present)
+    .first()
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(await world.page.locator(absent).count(), 0, complaint);
+};
+
+/**
+ * GONE — a row that was on screen and is not any more, which is what hiding
+ * finished work and narrowing a page both do.
+ *
+ * Polled for the element to detach rather than counted once: both of those
+ * re-render, and reading the count in the same tick races the frame that drops
+ * the row. The `catch` is deliberate — a row that was never there is already
+ * gone, and the assertion below is what says so.
+ */
+export const expectGone = async (
+  world: OlaiWorld,
+  selector: string,
+  complaint: string,
+): Promise<void> => {
+  await world.page
+    .locator(selector)
+    .first()
+    .waitFor({ state: "detached", timeout: POLL_TIMEOUT })
+    .catch(() => undefined);
+  assert.strictEqual(
+    await world.page.locator(`${selector}:visible`).count(),
+    0,
+    complaint,
+  );
+};
+
 /** Wait for a list to be drawn before reading it. Reading a locator's elements
  *  the instant a page renders races the frame that adds the second one, and an
  *  empty list compares as a perfectly plausible wrong answer. */

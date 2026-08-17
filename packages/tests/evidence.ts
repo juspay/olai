@@ -189,22 +189,35 @@ const FILTER_INPUT = '[data-testid="filter-input"]'
 const FILTER_COUNT = '[data-testid="filter-count"]'
 const FILTER_REFUSAL = '[data-testid="filter-refusal"]'
 
-/** The tree as a reader sees it: one line per row, indented by depth, with a
- *  `*` on the rows the query actually SELECTED — the rest are the ancestry that
- *  leads to one, which is the whole of what "filter in place" means. */
+/**
+ * A tree as a reader sees it: one line per row, indented by depth, with a `*`
+ * on the rows the query actually SELECTED — the rest is the ancestry (or, in
+ * the trash, the scaffold) that leads to one, which is the whole of what
+ * "filter in place" means.
+ *
+ * ONE reader for both trees this file drives, because it is one question
+ * wherever it is asked. What differs is which rows are the tree's and where a
+ * row keeps its title, so both are arguments.
+ */
+const branching = async (page: Page, rows: string, title: string) =>
+  (await page.locator(rows).evaluateAll((all, [rows, title]) =>
+    all.map((one) => {
+      let depth = 0
+      for (let up = one.parentElement; up !== null; up = up.parentElement) {
+        if (up.matches(rows)) depth += 1
+      }
+      const hit = one.getAttribute("data-match") === "true" ? "*" : " "
+      const said = one.querySelector(title)?.textContent ?? ""
+      return `${hit} ${"  ".repeat(depth)}${said.trim()}`
+    }), [rows, title] as const)).join("\n")
+
+/** The outline on screen. */
 const drawn = async (page: Page) =>
-  (await page.locator('[data-testid="outline-tree"] [data-testid="node"]')
-    .evaluateAll((rows) =>
-      rows.map((one) => {
-        let depth = 0
-        for (let up = one.parentElement; up !== null; up = up.parentElement) {
-          if (up.matches("[data-testid='node']")) depth += 1
-        }
-        const hit = one.getAttribute("data-match") === "true" ? "*" : " "
-        const title = one.querySelector("[data-testid='node-title']")?.textContent ?? ""
-        return `${hit} ${"  ".repeat(depth)}${title.trim()}`
-      })
-    )).join("\n")
+  branching(
+    page,
+    '[data-testid="outline-tree"] [data-testid="node"]',
+    '[data-testid="node-title"]',
+  )
 
 /** Type a query and let the tree settle. Filtering is local — no round trip and
  *  no debounce — so this is a render rather than a fetch. */
@@ -242,20 +255,14 @@ const owed = async (page: Page) =>
   (await page.locator('[data-testid="agenda-link"]').first().getAttribute("title")) ??
     "(nothing owed)"
 
-/** The pile in the trash, indented, with a `*` on the rows the query SELECTED
- *  — the rest is the scaffold of ancestor titles the archive wrote to remember
- *  where things hung. */
+/** The pile in the trash: the same reading, over the rows a pile is made of
+ *  and the title each of them draws. */
 const piled = async (page: Page) =>
-  (await page.locator(`${TRASH_PAGE} [data-testid="trash-row"]`).evaluateAll((rows) =>
-    rows.map((one) => {
-      let depth = 0
-      for (let up = one.parentElement; up !== null; up = up.parentElement) {
-        if (up.matches('[data-testid="trash-row"]')) depth += 1
-      }
-      const hit = one.getAttribute("data-match") === "true" ? "*" : " "
-      return `${hit} ${"  ".repeat(depth)}${one.textContent?.split("Put back")[0]?.trim() ?? ""}`
-    })
-  )).join("\n") || "  (nothing)"
+  (await branching(
+    page,
+    `${TRASH_PAGE} [data-testid="trash-row"]`,
+    '[data-testid="node-title"]',
+  )) || "  (nothing)"
 
 const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
   /**

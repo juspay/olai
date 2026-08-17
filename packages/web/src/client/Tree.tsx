@@ -84,7 +84,7 @@ import { datePick } from "./date/pick.ts"
 import { useDerived } from "./derived.tsx"
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
-import { useNarrowed } from "./filter/narrowed.tsx"
+import { matchedAttr, useNarrowed } from "./filter/narrowed.tsx"
 import { onATag } from "./filter/tag.ts"
 import { useUndo } from "./edit/undoing.ts"
 import { NewRow } from "./edit/NewRow.tsx"
@@ -394,13 +394,12 @@ function Branch(props: {
       data-blocked={blockedIds(props.row.blocked)}
       // Whether the filter SELECTED this row or kept it as the context that
       // leads to one. Absent on an unfiltered page, which is the difference
-      // between "not a match" and "there is no query". No memo: a JSX
-      // attribute is already its own computation, and this one has no second
-      // reader — asked of the node the row SHOWS, which is the rule a fold
-      // follows too and the format now spells once (`shownRecord`).
-      data-match={narrowed.active()
-        ? String(narrowed.matched().has(shownRecord(props.row).node.id))
-        : undefined}
+      // between "not a match" and "there is no query" — one spelling for the
+      // three surfaces that draw a row now (`./filter/narrowed.tsx`). No memo:
+      // a JSX attribute is already its own computation, and this one has no
+      // second reader — asked of the node the row SHOWS, which is the rule a
+      // fold follows too and the format spells once (`shownRecord`).
+      data-match={matchedAttr(narrowed, shownRecord(props.row).node.id)}
     >
       {/* group/row is on the LINE, not the <li>: a parent li also contains
           every nested child, and a named group-hover on the li would reveal

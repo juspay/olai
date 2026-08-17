@@ -25,11 +25,12 @@
  * nodes are out of every reading unless a query says `is:archived`
  * (docs/search.md), because the doors that rule is written for are searching
  * the DIRECTORY. This door is not: it tests the rows in front of somebody, and
- * two of the pages it now runs on draw archived nodes for reasons of their own
- * — the trash IS the archive, and a day collects every dated node wherever it
- * was filed. On a page that shows none the flag changes nothing, which is why
- * it is not a per-page decision: the page has already decided, and the scope of
- * this filter is the page.
+ * some of the pages it runs on draw archived nodes for reasons of their own —
+ * the trash IS the archive, and a day and the agenda collect dated nodes
+ * wherever they were filed. Asked of the page's OWN ROWS ({@link showsArchived})
+ * rather than of its kind, so it cannot come to disagree with what is on
+ * screen, and so the commonest page — an outline, which never draws one —
+ * does not scan the one file in a directory that only ever grows.
  *
  * The ORDER of the two prunings is the decision worth naming: done-hidden goes
  * FIRST. It is a standing claim about the reader ("I do not want to look at
@@ -40,9 +41,10 @@
  * would make the preference mean two things depending on what else was typed.
  */
 
-import type { DayGroup, Derived, Refusal, Row } from "@olai/format"
+import type { Derived, Refusal, Row } from "@olai/format"
 import {
   datedIn,
+  isArchived,
   keeping,
   keepingDated,
   keepingOwed,
@@ -50,6 +52,7 @@ import {
   matching,
   owedIn,
   parseFilter,
+  shownRecord,
 } from "@olai/format"
 import { type Accessor, createMemo } from "solid-js"
 
@@ -116,11 +119,11 @@ export const createNarrowing = (source: {
   const matched = createMemo(() => {
     const indexes = source.derived()
     if (indexes === undefined || !active()) return NOTHING_MATCHED
-    // `archived` because the scope of this door is a PAGE — the file header
-    // says why it is not asked per page.
-    return new Set(
-      matching(indexes, query(), { archived: true }).map(({ at }) => at.node.id),
-    )
+    // The one thing the matcher is told about the QUESTION rather than asked
+    // about the answer — the file header says why, and why it is read off the
+    // page rather than off its kind.
+    const scope = { archived: showsArchived(source.visible()) }
+    return new Set(matching(indexes, query(), scope).map(({ at }) => at.node.id))
   })
 
   // The ONE guard that is load-bearing: narrowing by an empty set is an empty
@@ -130,7 +133,10 @@ export const createNarrowing = (source: {
     active() ? narrowed(source.visible(), matched()) : source.visible()
   )
 
-  const shown = createMemo(() => matchesIn(drawn(), matched()))
+  // Guarded like the count beside it, and for the same reason: an unfiltered
+  // page would otherwise walk everything it draws, on every revision the store
+  // publishes, to arrive at a zero the bar is not drawing.
+  const shown = createMemo(() => (active() ? matchesIn(drawn(), matched()) : 0))
 
   return {
     text: source.text,
@@ -178,16 +184,60 @@ const narrowed = (drawn: Drawn, matched: ReadonlySet<string>): Drawn => {
   switch (drawn.kind) {
     case "tree":
       return { kind: "tree", rows: keeping(drawn.rows, matched) }
+    // THE NOTE GOES WITH THE ROWS THAT DID NOT MATCH, and it is decided here
+    // rather than in the page for the reason everything else about a narrowed
+    // page is: a note is a DOCUMENT — prose, which is exactly the page kind
+    // that takes no filter (`../routes.ts`) — so it can never be a match, and
+    // a day answering a query with somebody's prose plus no rows would be
+    // answering something nobody asked.
     case "day":
-      return { kind: "day", groups: keepingDated(drawn.groups, matched) }
+      return { kind: "day", groups: keepingDated(drawn.groups, matched), notes: [] }
     case "agenda":
       return { kind: "agenda", agenda: keepingOwed(drawn.agenda, matched) }
     case "trash":
-      return { kind: "trash", groups: keepingArchives(drawn.groups, matched) }
+      return { ...drawn, groups: keepingArchives(drawn.groups, matched) }
     case "none":
       return drawn
   }
 }
+
+/**
+ * Is the page in front of the reader drawing anything that was PUT AWAY?
+ *
+ * Asked of the page's own rows rather than of its KIND, so it cannot come to
+ * disagree with what is on screen. A day and the agenda collect dated nodes
+ * wherever they were filed, archive included (`@olai/format`'s `dates.ts` says
+ * why, and `agenda.ts` follows it); the trash is made of archives; a tree page
+ * draws one outline, and an archive's own address opens the trash instead
+ * (`../page.ts`) — except by a zoom onto an archived node, which answers for
+ * itself here rather than being ruled out.
+ *
+ * The GROUPS and the ROOTS, never a walk: a heading names its file, and a row
+ * shows a record that names one. A pile nested under a live row is not reached,
+ * and that is the honest bound — this runs per keystroke and the answer it
+ * feeds is a default, not a permission.
+ */
+const showsArchived = (drawn: Drawn): boolean => {
+  switch (drawn.kind) {
+    case "tree":
+      return drawn.rows.some((row) => isArchived(shownRecord(row).file))
+    case "day":
+      return drawn.groups.some(fromArchive)
+    case "agenda":
+      return drawn.agenda.overdue.some(fromArchive) ||
+        drawn.agenda.today.some(fromArchive) ||
+        drawn.agenda.upcoming.some((day) => day.groups.some(fromArchive))
+    case "trash":
+      return drawn.groups.some(fromArchive)
+    case "none":
+      return false
+  }
+}
+
+/** A heading that names an archive — the one thing a day group and a trash
+ *  group have in common, which is the file they are drawn under. */
+const fromArchive = (group: { readonly file: string }): boolean =>
+  isArchived(group.file)
 
 const keepingArchives = (
   groups: ReadonlyArray<TrashGroup>,
@@ -227,15 +277,14 @@ const matchesIn = (drawn: Drawn, matched: ReadonlySet<string>): number => {
   switch (drawn.kind) {
     case "tree":
       return matchedIn(drawn.rows, matched)
+    // The prune, counted — never a second reading of which rows a set of ids
+    // selects. A count written here would be free to disagree with the very
+    // pruning it is counting, which is the drift `datedIn` was moved down to
+    // `@olai/format` to prevent one layer lower.
     case "day":
-      return datedMatches(drawn.groups, matched)
+      return datedIn(keepingDated(drawn.groups, matched))
     case "agenda":
-      return datedMatches(drawn.agenda.overdue, matched) +
-        datedMatches(drawn.agenda.today, matched) +
-        drawn.agenda.upcoming.reduce(
-          (total, day) => total + datedMatches(day.groups, matched),
-          0,
-        )
+      return owedIn(keepingOwed(drawn.agenda, matched))
     case "trash":
       return drawn.groups.reduce(
         (total, group) => total + matchedIn(group.rows, matched),
@@ -245,17 +294,6 @@ const matchesIn = (drawn: Drawn, matched: ReadonlySet<string>): number => {
       return 0
   }
 }
-
-const datedMatches = (
-  groups: ReadonlyArray<DayGroup>,
-  matched: ReadonlySet<string>,
-): number =>
-  groups.reduce(
-    (total, group) =>
-      total +
-      group.nodes.filter((entry) => matched.has(entry.shows.node.id)).length,
-    0,
-  )
 
 const countRows = (rows: ReadonlyArray<Row>): number =>
   rows.reduce((total, row) => total + 1 + countRows(row.children), 0)
