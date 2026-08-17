@@ -60,3 +60,38 @@ export function NarrowedProvider(props: {
  *  provider. A default rather than a throw, because "no filter" is a real
  *  state a page can be in and not a bug. */
 export const useNarrowed = (): Narrowed => useContext(NarrowedContext)
+
+/**
+ * What a ROW publishes as `data-match`: whether the filter SELECTED it, or kept
+ * it as the context that leads to one — and NOTHING at all on an unfiltered
+ * page, which is the difference between "not a match" and "there is no query".
+ *
+ * One spelling, because three surfaces draw the attribute now — the outline
+ * tree, a day's rows and the trash's piles — and it is the one fact a scenario
+ * reads to tell a hit from the ancestry around it. Three copies could drift on
+ * the absent-when-inactive half, which is exactly the half nothing would fail
+ * over.
+ *
+ * Asked of an ID rather than of a row, because the three surfaces disagree
+ * about what a row IS: a tree row and a trash row match by the node they SHOW
+ * (`shownRecord`, the rule a fold follows too), where a day entry is a situated
+ * record with no placement about it.
+ */
+export const matchedAttr = (
+  narrowed: Narrowed,
+  id: string,
+): string | undefined =>
+  narrowed.active() ? String(narrowed.matched().has(id)) : undefined
+
+/**
+ * May this page say what it HOLDS?
+ *
+ * "Nothing is on this day", "Nothing is due.", "The Trash is empty.", "write
+ * its first line" — each of those is a claim about the PAGE, and a query that
+ * selected none of it is a claim about the QUERY, which the filter bar makes in
+ * its own words ("no matches"). So every one of them is drawn on this, and it
+ * is one reading rather than four `!active()`s: a page that forgot would not go
+ * quiet, it would tell somebody their day was empty over a query that simply
+ * found nothing.
+ */
+export const unfiltered = (narrowed: Narrowed): boolean => !narrowed.active()

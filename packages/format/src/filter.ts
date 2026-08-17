@@ -44,7 +44,7 @@ import {
 } from "./derive.ts"
 import { customOf } from "./custom.ts"
 import { shiftDay, shiftMonth, weekdayOf } from "./calendar.ts"
-import { datesOf, dayOf, monthOf } from "./dates.ts"
+import { type DayGroup, datesOf, dayOf, monthOf } from "./dates.ts"
 import { nothing } from "./write.ts"
 import {
   isArchived,
@@ -984,15 +984,37 @@ export interface Matched {
 export interface Scope {
   readonly file?: string | undefined
   readonly under?: string | undefined
+  /**
+   * Whether what was put AWAY is in this corner of the set at all.
+   *
+   * The default is the grammar's own rule — archived nodes are out of every
+   * reading unless the query says `is:archived` (docs/search.md) — because the
+   * three doors that leave it alone are asking about the DIRECTORY, where an
+   * archive is a place a reader has to name before they are shown it.
+   *
+   * `true` is for the door whose scope is a PAGE that is already showing them:
+   * the filter over the page tests the rows in front of somebody, and THREE of
+   * those pages draw archived nodes for reasons of their own — the trash IS the
+   * archive; a day collects every dated node wherever it was filed (./dates.ts,
+   * which decided that and says why); and the agenda reads those same dates
+   * forward under the same rule (./agenda.ts), so work that was put away after
+   * somebody scheduled it is still owed. There the default is not a default, it
+   * is this matcher overruling a page about what the page is showing, and the
+   * reader watching rows vanish has nothing to read it by.
+   */
+  readonly archived?: boolean | undefined
 }
 
 /**
  * Does this node match, and why — or `null`.
  *
  * The order of the gates is the order of their cost: a query that is not
- * ASKING decides before anything is read, the archive is a filename, the
- * clauses are a field test or an index lookup, and the words are the only
- * thing that scans text. That order survived `OR` in two halves — the groups
+ * ASKING decides before anything is read, the clauses are a field test or an
+ * index lookup, and the words are the only thing that scans text. (The archive
+ * is cheaper than all of them and is asked one level up, in {@link matching},
+ * because whether it is in the reading at all is a fact about the QUESTION —
+ * the query's own `is:archived`, or a caller whose scope already holds it.)
+ * That order survived `OR` in two halves — the groups
  * arrive with the wordless ones in front ({@link inCostOrder}), and the
  * haystacks are minted at the first word rather than at the top.
  *
@@ -1012,7 +1034,6 @@ const matchOf = (
   // anything — and neither of them HAS groups to be tempted by, which is what
   // the union above is for.
   if (filter.kind !== "asking") return null
-  if (!filter.speaksOfArchive && isArchived(at.file)) return null
 
   // The four fields as text, folded — four allocations and up to three folds of
   // a whole note, so they are minted at the first WORD this node is asked about
@@ -1236,6 +1257,12 @@ const within = (day: string, clause: Extract<Clause, { kind: "date" }>): boolean
  * one: a mirror is a second PLACEMENT of a node, so a hit for it would be the
  * same node twice, once at a place no write lands. What a filtered TREE does
  * with a placement is a different question, and {@link keeping} answers it.
+ *
+ * WHAT WAS PUT AWAY is decided here rather than per record, because it is a
+ * fact about the QUESTION and not about any node: the query named the archive
+ * ({@link Filter} `speaksOfArchive`), or the caller said its scope already
+ * holds it ({@link Scope.archived}). One boolean per call, read before the
+ * walk.
  */
 export const matching = (
   derived: Derived,
@@ -1243,10 +1270,13 @@ export const matching = (
   scope: Scope = {},
 ): ReadonlyArray<Matched> => {
   const inScope = scoping(derived, scope)
+  const putAway = scope.archived === true ||
+    (filter.kind === "asking" && filter.speaksOfArchive)
   const out: Array<Matched> = []
   for (const located of derived.nodes) {
     if (isMirror(located.node)) continue
     const at = located as LocatedRegular
+    if (!putAway && isArchived(at.file)) continue
     if (!inScope(at)) continue
     const match = matchOf(derived, at, filter)
     if (match !== null) out.push({ at, match })
@@ -1280,7 +1310,7 @@ const scoping = (
   }
 }
 
-// ── what a filtered tree looks like ────────────────────────────────────
+// ── what a filtered page looks like ────────────────────────────────────
 
 /**
  * The RECORD a row draws: what it shows, or — for a row that shows nothing (a
@@ -1340,3 +1370,29 @@ export const matchedIn = (
       matchedIn(row.children, matched),
     0,
   )
+
+/**
+ * The same day groups narrowed to what matched — {@link keeping} for the pages
+ * that are a DATE QUESTION rather than a tree (a day, and each section of the
+ * agenda).
+ *
+ * A plain filter where a tree's is a walk, and that is a fact about those pages
+ * rather than a shortcut: their rows are flat, and every one of them already
+ * arrives carrying the ancestry that says what it is about (a `DayEntry` is
+ * `Situated`, ./dates.ts) — so "matches keep their ancestors", which is the
+ * whole promise of filtering in place, is true of every row before a query
+ * touches it. There is nothing here to keep as context, because none of it was
+ * context.
+ *
+ * A GROUP THAT HAS NOTHING LEFT GOES, and that is the same rule read one level
+ * up: the file heading is drawn because that outline had something on the day,
+ * and a heading over no rows would say it still does.
+ */
+export const keepingDated = (
+  groups: ReadonlyArray<DayGroup>,
+  matched: ReadonlySet<string>,
+): ReadonlyArray<DayGroup> =>
+  groups.flatMap((group) => {
+    const nodes = group.nodes.filter((entry) => matched.has(entry.shows.node.id))
+    return nodes.length === 0 ? [] : [{ ...group, nodes }]
+  })

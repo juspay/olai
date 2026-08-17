@@ -207,6 +207,7 @@ export type { Zoomed } from "./zoom.ts"
  *  the rule this module exists to be the only copy of. */
 export {
   keeping,
+  keepingDated,
   matchedIn,
   matching,
   parseFilter,
@@ -223,6 +224,7 @@ export {
   dailyNotePathFor,
   dailyNotesOn,
   datedDays,
+  datedIn,
   datedOn,
   dayOf,
   isDay,
@@ -250,7 +252,14 @@ export {
   shiftMonth,
   weekdayOf,
 } from "./calendar.ts"
-export { agendaOf, isOverdue, nothingDue, owedOf } from "./agenda.ts"
+export {
+  agendaOf,
+  isOverdue,
+  keepingOwed,
+  nothingDue,
+  owedIn,
+  owedOf,
+} from "./agenda.ts"
 export type { Agenda, AgendaDay, Owed } from "./agenda.ts"
 export { stampOf } from "./stamp.ts"
 

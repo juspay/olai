@@ -342,6 +342,19 @@ export const byOutline = (
     .map(([file, nodes]) => ({ file, nodes: nodes.sort(byTime) }))
 }
 
+/**
+ * How many ROWS a list of day groups draws.
+ *
+ * Entries rather than groups, because a group is one outline's worth of them
+ * and a reader counting what is on a day is counting the rows: "3 of 11" over a
+ * filtered day, and "3 overdue" on the mark beside the agenda, are the same
+ * number asked of the same list (./agenda.ts's `owedOf`, `@olai/web`'s filter
+ * bar). Spelled here, beside {@link byOutline} that produces the shape, so the
+ * two readings that count one cannot count it differently.
+ */
+export const datedIn = (groups: ReadonlyArray<DayGroup>): number =>
+  groups.reduce((total, group) => total + group.nodes.length, 0)
+
 /** Code-point order on the stored text, ties on the line — the same rule the
  *  error report sorts by (./errors.ts), and effect's own comparator rather
  *  than a hand-rolled one: `localeCompare` would put the same day in two

@@ -42,11 +42,11 @@
  * outline path), and what such an address opens is the trash view, because an
  * archive is not a place you edit (`page.ts` decides that, not this parser).
  *
- * One of them carries a QUERY as well as a path, and only one thing rides in
- * it: `?q=<filter>` on `/o/<file>` and `/n/<id>`, which is what those two pages
- * are narrowed by. That is an address rather than a signal for the same reason
- * the pages are — a filtered outline is a link somebody can send, and Back is
- * the browser's own history. See {@link FILTER_KEY}.
+ * Most of them carry a QUERY as well as a path, and only one thing rides in it:
+ * `?q=<filter>`, which is what the page is narrowed by. That is an address
+ * rather than a signal for the same reason the pages are — a filtered page is a
+ * link somebody can send, and Back is the browser's own history. See
+ * {@link FILTER_KEY}.
  *
  * Pure, and parsing and printing live beside each other on purpose: they are
  * one bijection, and the test that says so (`routes.test.ts`) is the only
@@ -74,16 +74,16 @@ export type Route =
   | { readonly kind: "document"; readonly file: string; readonly at?: string }
   | { readonly kind: "node"; readonly id: string; readonly filter?: string }
   /** One day of the journal, by its ISO date. */
-  | { readonly kind: "day"; readonly date: string }
+  | { readonly kind: "day"; readonly date: string; readonly filter?: string }
   /** Whichever day it is when this is read. */
-  | { readonly kind: "today" }
+  | { readonly kind: "today"; readonly filter?: string }
   /** What is owed, read forward from whatever day it is. */
-  | { readonly kind: "agenda" }
+  | { readonly kind: "agenda"; readonly filter?: string }
   /** What was put away: every `Archive.olai` under the directory, read-only.
    *  It spells no file for the reason `/agenda` spells no horizon — which
    *  archives exist is the set's answer, and an address that named one would
    *  mean something different the day a subdirectory gets its own. */
-  | { readonly kind: "trash" }
+  | { readonly kind: "trash"; readonly filter?: string }
 
 const OUTLINE_PREFIX = "/o/"
 const DOCUMENT_PREFIX = "/doc/"
@@ -103,10 +103,15 @@ const TRASH = "/trash"
  * answer to "what is on screen", free to disagree with the URL the moment a
  * `popstate` lands.
  *
- * On the two TREE routes only. A document is prose, `/trash` is read-only, and
- * `/agenda` / `/d/` / `/today` are date questions whose filter would be a
- * second date question — named as a real gap in
- * docs/brainstorming/filter-in-place.md rather than quietly skipped.
+ * On every route but the DOCUMENT's. It was the two tree routes for one
+ * release, and the three that were left out were left out on a guess that did
+ * not survive being written down: a day and the agenda are date questions, but
+ * a filter over one is "which of the things on this day", which is a narrowing
+ * of the answer rather than a second question about it — and the trash is
+ * read-only, which is a fact about its VERBS and not about whether a pile of
+ * archived rows can be looked through. What stays out is the one page whose
+ * content the grammar has nothing to say about: a document is prose, and this
+ * grammar selects nodes.
  */
 const FILTER_KEY = "q"
 
@@ -116,10 +121,12 @@ export const hrefOf = (route: Route): string => {
   if (route.kind === "node") {
     return NODE_PREFIX + encodeURIComponent(route.id) + narrowing(route.filter)
   }
-  if (route.kind === "day") return DAY_PREFIX + encodeURIComponent(route.date)
-  if (route.kind === "today") return TODAY
-  if (route.kind === "agenda") return AGENDA
-  if (route.kind === "trash") return TRASH
+  if (route.kind === "day") {
+    return DAY_PREFIX + encodeURIComponent(route.date) + narrowing(route.filter)
+  }
+  if (route.kind === "today") return TODAY + narrowing(route.filter)
+  if (route.kind === "agenda") return AGENDA + narrowing(route.filter)
+  if (route.kind === "trash") return TRASH + narrowing(route.filter)
   if (route.kind === "document") {
     return DOCUMENT_PREFIX + spell(route.file) + landing(route.at)
   }
@@ -237,13 +244,17 @@ export const routeOf = (address: string): Route => {
       ...(at === undefined ? {} : { at }),
     }
     : pathname.startsWith(DAY_PREFIX)
-    ? { kind: "day", date: decodeURIComponent(pathname.slice(DAY_PREFIX.length)) }
+    ? {
+      kind: "day",
+      date: decodeURIComponent(pathname.slice(DAY_PREFIX.length)),
+      ...narrowed,
+    }
     : pathname === TODAY
-    ? { kind: "today" }
+    ? { kind: "today", ...narrowed }
     : pathname === AGENDA
-    ? { kind: "agenda" }
+    ? { kind: "agenda", ...narrowed }
     : pathname === TRASH
-    ? { kind: "trash" }
+    ? { kind: "trash", ...narrowed }
     : pathname.startsWith(OUTLINE_PREFIX)
     ? {
       kind: "outline",
@@ -254,24 +265,30 @@ export const routeOf = (address: string): Route => {
 }
 
 /**
- * Which addresses may be narrowed — the two TREE pages, and the one place that
- * list is written down.
+ * Which addresses may be narrowed — every one but a document's, and the one
+ * place that list is written down.
  *
- * It was said three times before this: once in the arms that carry a `filter`,
- * once in {@link narrowedTo}'s guard and once in {@link filterOf}'s. Three
- * spellings of "the outline and the zoomed node" is three edits the day a day
- * page grows one, and two of them are easy to miss because nothing fails when
- * they disagree — the filter simply goes nowhere.
+ * It was said three times before it was a function: once in the arms that carry
+ * a `filter`, once in {@link narrowedTo}'s guard and once in {@link filterOf}'s.
+ * Three spellings of the same list is three edits the day another page grows a
+ * filter, and two of them are easy to miss because nothing fails when they
+ * disagree — the filter simply goes nowhere. The day a day page grew one, this
+ * was the only line that changed.
+ *
+ * Written as the ONE EXCLUSION rather than as a list of five, because that is
+ * the shape of the rule now: a filter selects nodes, and a document is the one
+ * page here that is not made of them.
  */
 export const narrowable = (route: Route): route is Extract<Route, { filter?: string }> =>
-  route.kind === "outline" || route.kind === "node"
+  route.kind !== "document"
 
 /**
  * The same page, narrowed — or not, when `filter` is blank.
  *
- * Here rather than at the call site because a filter typed on a day page has
- * nowhere to go, and a caller that spread it onto the route anyway would mint
- * an address {@link hrefOf} silently drops and {@link routeOf} never returns.
+ * Here rather than at the call site because a filter typed on a document page
+ * has nowhere to go, and a caller that spread it onto the route anyway would
+ * mint an address {@link hrefOf} silently drops and {@link routeOf} never
+ * returns.
  */
 export const narrowedTo = (route: Route, filter: string): Route => {
   if (!narrowable(route)) return route

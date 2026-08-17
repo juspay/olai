@@ -1,6 +1,6 @@
 # Search
 
-One query language, four doors. An agent asks `search_nodes` over MCP; a person types into the **search box in the header**, or into the `⌘K` palette — and on a phone, where the bar has no room for a box, taps the magnifier, which opens that same palette. The fourth is different in kind and the same in meaning: the **filter over the page**, which takes rows away from the outline in front of you instead of listing hits somewhere else.
+One query language, four doors. An agent asks `search_nodes` over MCP; a person types into the **search box in the header**, or into the `⌘K` palette — and on a phone, where the bar has no room for a box, taps the magnifier, which opens that same palette. The fourth is different in kind and the same in meaning: the **filter over the page**, which takes rows away from whatever is in front of you instead of listing hits somewhere else — an outline, a zoomed node, a day, the agenda, the trash.
 
 The first three are callers of one function over one snapshot (`@olai/ops`' `Query.search`). All four are gated by one matcher, `@olai/format`'s `parseFilter` / `matching` — so what an agent finds and what a person finds cannot drift, and `is:done` means one thing everywhere. The browser holds every node and could grep them itself; it deliberately does not.
 
@@ -64,7 +64,7 @@ A date that no calendar could hold is refused on the same terms: `date:2026-13`,
 
 The refusal reaches **every door**. The filter parses for itself and draws its own; the other three ask the server, so the answer carries `refusals` and the palette and the header box draw them beside their rows. A door that answered `is:open` with an empty list and no reason would be the one place a typo looks exactly like an empty directory.
 
-**Archived nodes are out of every reading unless the query says `is:archived`.** What was put away should stay put away until somebody asks, and now there is a way to ask.
+**Archived nodes are out of every reading unless the query says `is:archived`.** What was put away should stay put away until somebody asks, and now there is a way to ask. The one exception is a door whose SCOPE is already a page showing them — the filter over the trash, over a day that collected an archived node, and over the agenda, which reads those same dates forward — where the page has decided and the matcher has no business overruling it ("which pages filter", below).
 
 Title hits outrank id, tag and note; a field that starts with the word beats one that buries it; a done node loses ties. Hits carry `file:line`, the ancestor titles, the mark if the node has one, the node's own `see` / `after` edges, and its `custom` properties — plus `matched`, which field carried the words, absent for a query that named none. Mirrors are never hits — a placement is a second view of a node, not a node.
 
@@ -78,7 +78,7 @@ Title hits outrank id, tag and note; a field that starts with the word beats one
 
 ## Filtering the page in place
 
-On an outline (`/o/<file>`) and on a zoomed node (`/n/<id>`) there is a filter box above the tree. It is not the header's search box, and the difference is the question: the header takes you TO a node anywhere in the directory, this narrows what is already in front of you.
+Above every page that draws nodes there is a filter box. It is not the header's search box, and the difference is the question: the header takes you TO a node anywhere in the directory, this narrows what is already in front of you.
 
 - **Matches keep their ancestors.** A matching row is drawn with the chain that leads to it and with its own subtree; everything else goes. The context is what makes a bare title like "order" mean something.
 - **Clicking a `#tag` or `@mention` filters by it**, ancestors kept, scoped to the page you are on.
@@ -86,6 +86,30 @@ On an outline (`/o/<file>`) and on a zoomed node (`/n/<id>`) there is a filter b
 - **Folds are suspended while a filter is on.** A collapse is a claim about the tree you were reading, and honouring it inside a filtered one would hide the match you typed for. Nothing is written: clearing the filter brings every collapse back.
 - **Hiding finished work happens first.** The Prefs switch is a standing claim about the reader; the filter is a question about the page. So `is:done` under a done-hiding preference draws nothing — and the bar says how many matches are being held back, rather than leaving it a mystery.
 - The bar reports **"3 of 41"**: how many drawn rows are matches, of how many rows the page draws.
+
+### Which pages filter, and what it means on each
+
+**Every page but a document.** The filter shipped on the two tree pages and stopped there for a release; a day, the agenda and the trash drew the same rows out of the same set and ignored the box. They do not any more, and the promise is that there is nothing new to learn — same grammar, same address, same count, same refusal. What differs is only what each page is made of.
+
+| page | what a filter takes away | what stays |
+|---|---|---|
+| `/o/<file>`, `/n/<id>` | every row that did not match | the matches, their subtrees, and the ancestors that lead to one |
+| `/d/<date>`, `/today` | every row that did not match, and an outline heading left with none | the matches — and their ancestry, which was never a row |
+| `/agenda` | the same, in each of the three sections; a section or an upcoming day left with nothing is not drawn | the matches, under the headings that still hold one |
+| `/trash` | the same as a tree, per archive; an archive left with nothing goes | the matches, their subtrees, and the scaffold that says where the pile came from |
+| `/doc/<file>` | — no box, and no `?q=` in the address | — |
+
+**A day and the agenda keep no context, and that is not a shortcut.** Their rows are flat and every one already arrives with the crumb that says what it is about, which is what those pages are FOR. So "matches keep their ancestors" is true of every row before a query touches it, and what is left after one is exactly what matched.
+
+**A day's note leaves while a filter is on.** It is a document — prose, which is exactly why `/doc/` is the one address with no `?q=` — so it can never be a match, and a day answering a query with somebody's prose plus no rows would be answering something nobody asked. Clearing the box brings the day back whole.
+
+**The trash searches WITHIN what it shows.** Archived nodes are out of every other reading unless the query says `is:archived` (below) — because those doors are searching the directory. This one is not: it tests the rows in front of you, and the trash IS the archive, so a word typed there finds what was put away. Read-only is a fact about the page's one verb, Put back; it was never a claim that a pile cannot be looked through.
+
+**And the trash is not the only page that shows them.** The same applies wherever a page has already decided to draw archived rows, which is three of them: the trash, a **day** (it collects every dated node wherever it was filed) and the **agenda** (it reads those same dates forward, so work put away after somebody scheduled it is still owed). On each, the filter searches what is in front of you and `-is:archived` is how you take it back out. Which of them a given page is showing is read off its own rows rather than off its kind, so the answer cannot drift from what is on screen; the cost of asking is that a page drawing one archived row has the whole archive in front of the matcher, which is the same whole-set scan every other node already gets.
+
+**A page's own empty sentence is not the filter's.** "Nothing is on 2026-08-10", "Nothing is due.", "The Trash is empty." are claims about the day, the agenda and the archive; "no matches" is a claim about your query, and the bar is where it is made. A filtered page says one or the other, never both.
+
+**What is owed does not move.** The mark beside Agenda in the sidebar counts the unnarrowed reading: a filter is a question about the open page, and what is late is a fact about the directory.
 
 The design, and the alternatives that lost, is [brainstorming/filter-in-place.md](brainstorming/filter-in-place.md).
 
