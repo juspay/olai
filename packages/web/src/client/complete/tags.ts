@@ -31,7 +31,14 @@
  * other's sigil would be the widget inventing tags the set does not hold.
  */
 
-import { type Derived, isMirror, mayHoldTag, type TagSigil, titleParts } from "@olai/format"
+import {
+  type Derived,
+  isArchived,
+  isMirror,
+  mayHoldTag,
+  type TagSigil,
+  titleParts,
+} from "@olai/format"
 
 /** One tag of the set, and how much of it there is. */
 export interface Tag {
@@ -57,6 +64,24 @@ const LIMIT = 8
  * follows: a placement has no title of its own, so a tag counted through one
  * would be the same node's tag counted twice.
  *
+ * WHAT WAS PUT AWAY IS SKIPPED TOO, and the count is why (ruled 2026-08-17:
+ * archived nodes are drawn on the trash page and nowhere else). This number
+ * says how much the LIVE set uses a name, and the list is which names are worth
+ * reusing: counting the archive would rank a word by rows only the trash draws,
+ * and would go on offering a tag whose every user is put away. The tag stays
+ * WRITABLE, exactly as any word is — this list is what the set has used, never
+ * what a title may say.
+ *
+ * THE OTHER COMPLETION IN THIS APP GOES THE OTHER WAY ON PURPOSE, and the two
+ * are cross-referenced so that neither is "harmonized" into the other by
+ * somebody meeting one of them alone: the chat composer's `@` offers every file
+ * the directory serves, ARCHIVES INCLUDED (`../chat/files.ts`, argued in
+ * docs/chat.md). They differ because they complete different things. That one
+ * completes a PATH a person is about to name in a sentence — "what did we put
+ * away last month" is a fair thing to ask an agent, and a path half-remembered
+ * reaches it as a file that is not there. This one ranks the vocabulary of the
+ * set a reader is looking at, and what is put away is not in it.
+ *
  * ONE WALK PER DERIVATION, kept in a `WeakMap` keyed on the derivation itself.
  * The alternative — a memo in the component — walks the whole set again every
  * time a `TitleEditor` mounts, and one mounts per row the caret is moved to; a
@@ -79,7 +104,7 @@ export const tagsOf = (derived: Derived | undefined): ReadonlyArray<Tag> => {
 const walk = (derived: Derived): ReadonlyArray<Tag> => {
   const counts = new Map<string, Tag>()
   for (const located of derived.nodes) {
-    if (isMirror(located.node)) continue
+    if (isMirror(located.node) || isArchived(located.file)) continue
     // The format's own cheap negative first: `titleParts` runs a global regex
     // and allocates a part per segment, and most titles hold no sigil at all.
     if (!mayHoldTag(located.node.title)) continue

@@ -320,19 +320,31 @@ test("nothing due is nothing counted", () => {
   })
 })
 
-test("the archive keeps its place, for the reason a day page keeps it", () => {
-  // Blockedness exempts archived work because nothing can wait on work that is
-  // over; a day asks the other question and so does this. A node put away still
-  // says `todo` and still names a day, and its group heading says where it now
-  // lives.
+test("nothing put away is owed: the archive is the trash's and no page else's", () => {
+  // The 2026-08-17 ruling, read on the page it was reported against. A node in
+  // an archive still says `todo` and still names a day — and it is on no
+  // section here, because putting something away is the reader saying they are
+  // done looking at it. The one door left to it is `is:archived`
+  // (docs/search.md), and the one page is the trash.
+  //
+  // ONE OF EACH — slipped, due today, coming up — because the exclusion is the
+  // bucketed walk's (./dates.ts) and so cannot reach one section and miss
+  // another. A fixture holding only the late one would pass under a rule that
+  // had been written three times and got one of them wrong.
   const archived: Derived = derive(
     nodesOfFiles({
-      "Archive.olai": `{"id":"gate","ord":"a0","title":"the old gate","todo":true,"date":"2026-08-01"}`,
+      "Archive.olai": [
+        `{"id":"gate","ord":"a0","title":"the old gate","todo":true,"date":"2026-08-01"}`,
+        `{"id":"bell","ord":"a1","title":"the bell","doing":true,"date":"2026-08-12"}`,
+        `{"id":"hedge","ord":"a2","title":"the hedge","todo":true,"date":"2026-08-14"}`,
+      ].join("\n"),
     }),
   )
-  expect(agendaOf(archived, TODAY).overdue.map((group) => group.file)).toEqual([
-    "Archive.olai",
-  ])
+  const agenda = agendaOf(archived, TODAY)
+  expect(agenda.overdue).toEqual([])
+  expect(nothingDue(agenda)).toBe(true)
+  // And the mark outside the page counts what the page draws, which is nothing.
+  expect(owedOf(agenda)).toEqual({ overdue: 0, today: 0 })
 })
 
 // ── the agenda, narrowed ───────────────────────────────────────────────
@@ -342,13 +354,12 @@ test("the archive keeps its place, for the reason a day page keeps it", () => {
 // somebody typed in a box, and the mark beside the page goes on counting the
 // unnarrowed one.
 
-/** The ids a query selects here — the page's own scope, so what was put away is
- *  in it (the agenda does not exclude the archive either). */
+/** The ids a query selects here — the page's own scope, which asks the archive
+ *  for nothing: the agenda draws none of it, so the flag that excepts the rule
+ *  belongs to the trash and to no page this file is about (./filter.ts). */
 const selecting = (text: string): ReadonlySet<string> =>
   new Set(
-    matching(SET, parseFilter(text, TODAY), { archived: true }).map(
-      ({ at }) => at.node.id,
-    ),
+    matching(SET, parseFilter(text, TODAY)).map(({ at }) => at.node.id),
   )
 
 test("every section narrows, and one left with nothing stops being a section", () => {

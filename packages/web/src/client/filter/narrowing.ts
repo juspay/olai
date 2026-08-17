@@ -25,12 +25,14 @@
  * nodes are out of every reading unless a query says `is:archived`
  * (docs/search.md), because the doors that rule is written for are searching
  * the DIRECTORY. This door is not: it tests the rows in front of somebody, and
- * some of the pages it runs on draw archived nodes for reasons of their own —
- * the trash IS the archive, and a day and the agenda collect dated nodes
- * wherever they were filed. Asked of the page's OWN ROWS ({@link showsArchived})
- * rather than of its kind, so it cannot come to disagree with what is on
- * screen, and so the commonest page — an outline, which never draws one —
- * does not scan the one file in a directory that only ever grows.
+ * the TRASH is the page that draws what was put away — applying the default
+ * there would take away every row and leave the reader nothing to read the
+ * absence by — and so is a TREE that is a zoom onto an archived node, which is
+ * where an `is:archived` hit lands when it is clicked ({@link showsArchived}
+ * names both, and the mirror case it cannot rule out). A day and the agenda
+ * were two more until 2026-08-17, when the human ruled that what is put away is
+ * drawn on the trash and nowhere else (`@olai/format`'s `dates.ts` is where
+ * they stopped drawing it), and the question here narrowed with them.
  *
  * The ORDER of the two prunings is the decision worth naming: done-hidden goes
  * FIRST. It is a standing claim about the reader ("I do not want to look at
@@ -41,7 +43,7 @@
  * would make the preference mean two things depending on what else was typed.
  */
 
-import type { Derived, Refusal, Row } from "@olai/format"
+import type { Derived, Refusal } from "@olai/format"
 import {
   datedIn,
   isArchived,
@@ -52,6 +54,7 @@ import {
   matching,
   owedIn,
   parseFilter,
+  rowsIn,
   shownRecord,
 } from "@olai/format"
 import { type Accessor, createMemo } from "solid-js"
@@ -116,14 +119,35 @@ export const createNarrowing = (source: {
   const query = createMemo(() => parseFilter(source.text(), source.today()))
   const active = createMemo(() => query().kind !== "nothing")
 
+  // The one thing the matcher is told about the QUESTION rather than asked
+  // about the answer — the file header says why, and why it is read off the
+  // page rather than off its kind.
+  //
+  // ASKED OF THE UNFILTERED PAGE, which is the one thing about it the done
+  // preference may not decide. An archive is mostly finished work, so a zoom
+  // into one is the page where hiding `done` can take away every row — and
+  // asked of what was LEFT, this would answer "no archive here", the matcher
+  // would leave the whole archive out, and the bar would say "0 of 0" with
+  // nothing about the matches being held back. That sentence
+  // ({@link Narrowing.hiddenAsDone}) is measured against `all()`, so what
+  // decides its candidate set is measured against `all()` too. Which pages draw
+  // archived rows is a fact about the PAGE; what a reader hides is not.
+  //
+  // A MEMO OF ITS OWN, so the scan below does not track the page. What the page
+  // draws is a fresh value on every revision the store publishes and on every
+  // navigation — and the whole of what this reading takes from it is a boolean
+  // that is constant for four of the five shapes — only a tree is scanned
+  // ({@link showsArchived}). Read
+  // inline, every one of those frames re-ran the matcher over the entire set to
+  // arrive at the same answer.
+  const archived = createMemo(() => showsArchived(source.all()))
+
   const matched = createMemo(() => {
     const indexes = source.derived()
     if (indexes === undefined || !active()) return NOTHING_MATCHED
-    // The one thing the matcher is told about the QUESTION rather than asked
-    // about the answer — the file header says why, and why it is read off the
-    // page rather than off its kind.
-    const scope = { archived: showsArchived(source.visible()) }
-    return new Set(matching(indexes, query(), scope).map(({ at }) => at.node.id))
+    return new Set(
+      matching(indexes, query(), { archived: archived() }).map(({ at }) => at.node.id),
+    )
   })
 
   // The ONE guard that is load-bearing: narrowing by an empty set is an empty
@@ -210,54 +234,55 @@ const narrowed = (drawn: Drawn, matched: ReadonlySet<string>): Drawn => {
 /**
  * Is the page in front of the reader drawing anything that was PUT AWAY?
  *
- * Asked of the page's own rows rather than of its KIND, so it cannot come to
- * disagree with what is on screen. A day and the agenda collect dated nodes
- * wherever they were filed, archive included (`@olai/format`'s `dates.ts` says
- * why, and `agenda.ts` follows it); the trash is made of archives; a tree page
- * draws one outline, and an archive's own address opens the trash instead
- * (`../page.ts`) — except by a zoom onto an archived node, which answers for
- * itself here rather than being ruled out.
+ * TWO PAGES CAN BE, and after the 2026-08-17 ruling that is the whole list. The
+ * TRASH is the archive, every group of it — so the answer is its kind and not a
+ * scan, because a trash drawing no archived row is a trash drawing no row. And
+ * a TREE can be one node's: `/n/<id>` on a node somebody put away, which is
+ * exactly where an `is:archived` hit lands when it is clicked (docs/search.md —
+ * the ruling took away the default presence, not the reachability). An
+ * outline's own tree is a live file, since an archive's address opens the trash
+ * instead (`../page.ts`) — with one gap that is not this file's to close: a
+ * MIRROR still resolves to a node that was archived after it was placed
+ * (`@olai/format`'s `follow`, which the ops layer keeps resolving on purpose),
+ * so a placement can draw an archived row on a live page. What that row should
+ * be is a ruling about the SET rather than about a filter, and it is filed as
+ * one (docs/search.md, docs/brainstorming/editing-web.md's Open).
  *
- * The GROUPS and the ROOTS, never a walk: a heading names its file, and a row
- * shows a record that names one. A pile nested under a live row is not reached,
- * and that is the honest bound — this runs per keystroke and the answer it
- * feeds is a default, not a permission.
+ * A DAY AND THE AGENDA ANSWER NO, and they answer it by construction rather
+ * than by a rule kept here: the walk those pages are built from leaves archived
+ * nodes out (`@olai/format`'s `dates.ts`), so there is nothing on either of
+ * them for this to find. Left as arms of the switch rather than folded into a
+ * default, because a page kind that starts drawing archived rows should have to
+ * come back here and say so.
  *
- * WHAT IT DECIDES IS THE CANDIDATE SET, AND THE COST IS WHOLE-ARCHIVE, which
- * is worth stating rather than leaving to be discovered. `true` puts every
+ * The tree arm reads the ROOTS, never a walk: a row shows a record that names a
+ * file, and a zoom is inside one file the whole way down. That is the honest
+ * bound — this runs per keystroke, and what it feeds is a default rather than a
+ * permission.
+ *
+ * WHAT IT DECIDES IS THE CANDIDATE SET, AND THE COST IS WHOLE-ARCHIVE, which is
+ * worth stating rather than leaving to be discovered. `true` puts every
  * archived node in the directory in front of the matcher — not only the ones
- * this page could draw — so a day holding ONE archived row pays for the whole
- * archive, and the rows that match somewhere else are then dropped by the
- * prune. That is not a leak in this reading, it is how the door already works
- * for every other node: it matches over the SET and narrows by the PAGE
- * ({@link narrowed}), which is what lets a mirror of a node in another file
- * stay drawn where it is placed. Scoping the candidates by file would break
- * exactly that, and a day and the agenda have no file to be scoped to. So what
- * this buys is the pages that draw NONE — every outline, which is the page
- * somebody types on all day — paying nothing for a file that only ever grows;
- * it does not make the scan cheaper for the pages that draw one.
+ * this page could draw — and the rows that match somewhere else are then
+ * dropped by the prune. That is not a leak in this reading, it is how the door
+ * already works for every other node: it matches over the SET and narrows by
+ * the PAGE ({@link narrowed}), which is what lets a mirror of a node in another
+ * file stay drawn where it is placed. What asking buys is the pages that draw
+ * NONE — every outline, which is the page somebody types on all day — paying
+ * nothing for a file that only ever grows.
  */
 const showsArchived = (drawn: Drawn): boolean => {
   switch (drawn.kind) {
+    case "trash":
+      return true
     case "tree":
       return drawn.rows.some((row) => isArchived(shownRecord(row).file))
     case "day":
-      return drawn.groups.some(fromArchive)
     case "agenda":
-      return drawn.agenda.overdue.some(fromArchive) ||
-        drawn.agenda.today.some(fromArchive) ||
-        drawn.agenda.upcoming.some((day) => day.groups.some(fromArchive))
-    case "trash":
-      return drawn.groups.some(fromArchive)
     case "none":
       return false
   }
 }
-
-/** A heading that names an archive — the one thing a day group and a trash
- *  group have in common, which is the file they are drawn under. */
-const fromArchive = (group: { readonly file: string }): boolean =>
-  isArchived(group.file)
 
 const keepingArchives = (
   groups: ReadonlyArray<TrashGroup>,
@@ -272,13 +297,13 @@ const keepingArchives = (
 const placesIn = (drawn: Drawn): number => {
   switch (drawn.kind) {
     case "tree":
-      return countRows(drawn.rows)
+      return rowsIn(drawn.rows)
     case "day":
       return datedIn(drawn.groups)
     case "agenda":
       return owedIn(drawn.agenda)
     case "trash":
-      return drawn.groups.reduce((total, group) => total + countRows(group.rows), 0)
+      return drawn.groups.reduce((total, group) => total + rowsIn(group.rows), 0)
     case "none":
       return 0
   }
@@ -314,6 +339,3 @@ const matchesIn = (drawn: Drawn, matched: ReadonlySet<string>): number => {
       return 0
   }
 }
-
-const countRows = (rows: ReadonlyArray<Row>): number =>
-  rows.reduce((total, row) => total + 1 + countRows(row.children), 0)

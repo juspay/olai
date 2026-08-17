@@ -989,18 +989,22 @@ export interface Scope {
    *
    * The default is the grammar's own rule — archived nodes are out of every
    * reading unless the query says `is:archived` (docs/search.md) — because the
-   * three doors that leave it alone are asking about the DIRECTORY, where an
-   * archive is a place a reader has to name before they are shown it.
+   * doors that leave it alone are asking about the DIRECTORY, where an archive
+   * is a place a reader has to name before they are shown it.
    *
-   * `true` is for the door whose scope is a PAGE that is already showing them:
-   * the filter over the page tests the rows in front of somebody, and THREE of
-   * those pages draw archived nodes for reasons of their own — the trash IS the
-   * archive; a day collects every dated node wherever it was filed (./dates.ts,
-   * which decided that and says why); and the agenda reads those same dates
-   * forward under the same rule (./agenda.ts), so work that was put away after
-   * somebody scheduled it is still owed. There the default is not a default, it
-   * is this matcher overruling a page about what the page is showing, and the
-   * reader watching rows vanish has nothing to read it by.
+   * `true` is for a caller whose scope ALREADY HOLDS what was put away, and it
+   * says nothing about which page that is — the flag is the caller answering
+   * for its own corner of the set, never a permission to widen a search of the
+   * directory. The filter over a page is the caller there, and it passes `true`
+   * where the rows in front of somebody are archived ones: the trash, which IS
+   * the archive, and a zoom onto an archived node, which is where an
+   * `is:archived` hit lands. A matcher applying the default to either would
+   * take every row off the screen and leave nothing to read the absence by.
+   *
+   * That was three pages until 2026-08-17, when the human ruled that what is
+   * put away is drawn on the trash and nowhere else; a day and the agenda drew
+   * archived rows until ./dates.ts stopped them, and the caller narrowed with
+   * them (`@olai/web`'s `filter/narrowing.ts`).
    */
   readonly archived?: boolean | undefined
 }
@@ -1183,7 +1187,11 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
   // `has:date` is `date:` WITH NO BOUNDS rather than a test of the `date`
   // field, and the one exception in the table is deliberate: a reader who can
   // find a node with `date:2026-08-03` and then not find it with `has:date`
-  // has met two answers to one word. So both read ./dates.ts's walk.
+  // has met two answers to one word. So both read ./dates.ts's `datesOf` — the
+  // per-RECORD rule, and pointedly not the walk above it, which is where the
+  // archive comes out: a `date:` clause answers about a node wherever it was
+  // filed, which is what makes `is:archived date:2026-08-11` a question with an
+  // answer (docs/search.md).
   if (clause.kind === "has") {
     return clause.field === "date"
       ? datesOf(at.node).length > 0
@@ -1370,6 +1378,24 @@ export const matchedIn = (
       matchedIn(row.children, matched),
     0,
   )
+
+/**
+ * How many places these rows ARE — the other half of "3 of 41".
+ *
+ * Here rather than beside the bar that prints it, and that is the whole reason
+ * it moved: the numerator is {@link matchedIn} and the denominator was a second
+ * recursion in the browser, so the day a `Row` kind arrives that is drawn and
+ * is not a place (or the reverse) the two were free to disagree about the same
+ * tree. It is the argument {@link datedIn} was moved down for one shape over,
+ * and the flat pages have had it since: one walk defines what a row is, and
+ * both numbers are asked of it.
+ *
+ * SUBTREES INCLUDED, because a filtered tree draws them: a match keeps what
+ * hangs under it, and a reader counting what is in front of them is counting
+ * every line of it.
+ */
+export const rowsIn = (rows: ReadonlyArray<Row>): number =>
+  rows.reduce((total, row) => total + 1 + rowsIn(row.children), 0)
 
 /**
  * The same day groups narrowed to what matched — {@link keeping} for the pages

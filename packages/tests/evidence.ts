@@ -159,8 +159,48 @@ const openMenu = async (page: Page, id: string) => {
   await page.waitForTimeout(200)
 }
 
+/** One line out of however many the markup wrapped it over — what a console
+ *  line can hold, spelled once for every reader here that prints something the
+ *  page drew. */
+const oneLine = (said: string): string => said.replace(/\s+/g, " ").trim()
+
 const textOf = async (page: Page, locator: string) =>
-  (await page.locator(locator).first().innerText()).replace(/\s+/g, " ").trim()
+  oneLine(await page.locator(locator).first().innerText())
+
+/** The `•••` menu's archive verb, and the confirm it raises — ONE spelling,
+ *  because the confirm answers with the same words on the same panel, and a
+ *  section that photographs the question in between still presses this. */
+const TRASH_VERB = '[data-testid="node-menu-panel"] >> text=Move to Trash'
+
+/**
+ * Move a row and everything under it to the Trash, through that menu and that
+ * confirm — the gesture a person makes, twice over, because the second press
+ * answers the question the first one raises.
+ *
+ * Beside {@link openMenu} rather than inside a section: two sections need
+ * something in the archive before they can photograph anything, and a verb
+ * renamed in one copy would leave the other clicking nothing.
+ */
+const putAway = async (page: Page, id: string) => {
+  await openMenu(page, id)
+  await page.locator(TRASH_VERB).first().click()
+  await page.locator(TRASH_VERB).first().click()
+  await page.waitForTimeout(SETTLE)
+}
+
+/** How long a freshly opened page is given to draw before it is read or
+ *  photographed — a render and a subscription's first frame, not a write
+ *  ({@link SETTLE} is that one). */
+const DRAWN = 400
+
+/** A page, opened cold and left to settle — the trio every section starts a
+ *  leg with, so the wait that makes a screenshot reproducible has one name and
+ *  one value rather than a bare number per call. */
+const opened = async (page: Page, path: string, marker: string) => {
+  await page.goto(`${BASE}${path}`)
+  await page.locator(marker).first().waitFor()
+  await page.waitForTimeout(DRAWN)
+}
 
 /**
  * What the FILE says about one node — the record, off the disk the driver is
@@ -233,9 +273,16 @@ const said = async (page: Page, locator: string) =>
 
 // ── the same filter over the pages that are a query already ────────────
 
+const OUTLINE_TREE = '[data-testid="outline-tree"]'
 const DAY_PAGE = '[data-testid="day-page"]'
 const AGENDA_PAGE = '[data-testid="agenda-page"]'
 const TRASH_PAGE = '[data-testid="trash-page"]'
+
+/** The ⌘K box, and the rows of it that are NODES — a shell item that happens to
+ *  share a word is not an answer to a query, which is what `data-id` tells
+ *  apart (the browser tests read the same pair). */
+const PALETTE_INPUT = '[data-testid="palette-input"]'
+const PALETTE_HIT = '[data-testid="palette-item"][data-id^="node-"]'
 
 /** The rows of a day or of the agenda, under the file each was found in — flat
  *  rows that carry their own ancestry, which is why a filtered one keeps
@@ -443,15 +490,9 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
 
     // The trash needs something in it first — and it is the page the archive
     // rule had to except: a query normally leaves what was put away alone.
-    await page.goto(`${BASE}/o/house.olai`)
-    await page.locator('[data-testid="outline-tree"]').first().waitFor()
-    await openMenu(page, "install")
-    await page.locator('[data-testid="node-menu-panel"] >> text=Move to Trash').first().click()
-    await page.locator('[data-testid="node-menu-panel"] >> text=Move to Trash').first().click()
-    await page.waitForTimeout(SETTLE)
-    await page.goto(`${BASE}/trash`)
-    await page.locator(TRASH_PAGE).first().waitFor()
-    await page.waitForTimeout(400)
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await putAway(page, "install")
+    await opened(page, "/trash", TRASH_PAGE)
     console.log(`  what was put away:\n${await piled(page)}`)
     await shot(page, "trash-unfiltered")
     await narrow(page, "hinges")
@@ -459,6 +500,72 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
     console.log(await piled(page))
     console.log(`  the bar says: ${await said(page, FILTER_COUNT)}`)
     await shot(page, "trash-filtered")
+  },
+
+  /**
+   * The 2026-08-17 ruling, page by page: what is put away is drawn on the
+   * TRASH and nowhere else.
+   *
+   * `order the new cabinets` is `doing`, dated the 10th, and the one late thing
+   * in this vault — so one Move to Trash is enough to empty the agenda, take
+   * the row off its day, and quieten the mark in the directory column. The
+   * shots are the half a transcript cannot show (an agenda that says "Nothing
+   * is due." where a row was, with the entry beside it no longer on fire); the
+   * listings are the half a screenshot cannot (that the record is in the
+   * archive, with its date and its mark still on it, and that `is:archived`
+   * still finds it from a page drawing none of the archive).
+   */
+  "archived-only-in-trash": async (page) => {
+    await opened(page, "/agenda", AGENDA_PAGE)
+    console.log(`  what is owed:\n${await listed(page, AGENDA_PAGE)}`)
+    console.log(`  the entry beside it: ${await owed(page)}`)
+    await shot(page, "agenda-before")
+
+    await opened(page, "/d/2026-08-10", DAY_PAGE)
+    console.log(`  the 10th:\n${await listed(page, DAY_PAGE)}`)
+    await shot(page, "day-before")
+
+    // The gesture a person makes: the row's own menu, and the confirm that
+    // names how many rows go with it. Spelled out rather than through
+    // `putAway`, for the one thing that helper cannot do — photograph the
+    // question between the two presses.
+    await opened(page, "/o/house.olai", OUTLINE_TREE)
+    await openMenu(page, "order")
+    await page.locator(TRASH_VERB).first().click()
+    await shot(page, "the-confirm-names-what-goes")
+    await page.locator(TRASH_VERB).first().click()
+    await page.waitForTimeout(SETTLE)
+    console.log(`  the record now reads: ${recordOf("order")}`)
+
+    await opened(page, "/agenda", AGENDA_PAGE)
+    console.log(`  what is owed now:\n${await listed(page, AGENDA_PAGE)}`)
+    console.log(`  the page says: ${await said(page, '[data-testid="agenda-empty"]')}`)
+    console.log(`  the entry beside it: ${await owed(page)}`)
+    await shot(page, "agenda-after")
+
+    await opened(page, "/d/2026-08-10", DAY_PAGE)
+    console.log(`  the 10th now:\n${await listed(page, DAY_PAGE)}`)
+    // Nothing archived is on this page for a query to find, which is the rule
+    // said from the filter's side: the box narrows the page rather than
+    // re-asking its question.
+    await narrow(page, "is:archived")
+    console.log(`  filtered by "is:archived": ${await said(page, FILTER_COUNT)}`)
+    await shot(page, "day-after")
+
+    await opened(page, "/trash", TRASH_PAGE)
+    console.log(`  and the one page that draws it:\n${await piled(page)}`)
+    await shot(page, "trash-holds-it")
+
+    // The other half of the ruling: what went is the DEFAULT presence, never
+    // the way to ask. The header's box is the same matcher, from any page.
+    await page.keyboard.press("Control+k")
+    await page.locator(PALETTE_INPUT).first().waitFor()
+    await page.locator(PALETTE_INPUT).first().fill("is:archived")
+    await page.waitForTimeout(SETTLE)
+    console.log(`  \`is:archived\` still answers with:`)
+    const hits = await page.locator(PALETTE_HIT).allInnerTexts()
+    console.log(hits.map((one) => `    ${oneLine(one)}`).join("\n") || "    (nothing)")
+    await shot(page, "is-archived-still-finds-it")
   },
 
   "a-fold-does-not-hide-a-match": async (page) => {
