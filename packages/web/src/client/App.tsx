@@ -111,6 +111,7 @@ export default function App() {
   createEffect(on(openFile, () => undo.clear(), { defer: true }))
 
   const docked = () => outlines.manifest() !== null && focusedPage() !== undefined
+  const split = () => !isLone(router.workspace())
 
   return (
     <UndoContext.Provider value={undo}>
@@ -146,7 +147,7 @@ export default function App() {
           class="flex-1"
           classList={{
             "lg:pr-[var(--width-chat)]": chatOpen(),
-            "min-h-0": !isLone(router.workspace()),
+            "min-h-0": split(),
           }}
         >
           <Switch fallback={<p class="p-8 text-muted">Reading…</p>}>
@@ -160,10 +161,8 @@ export default function App() {
                   <div
                     class="relative md:grid md:grid-cols-[var(--width-sidebar)_1fr]"
                     classList={{
-                      "h-[calc(100dvh-var(--height-header))] min-h-0":
-                        !isLone(router.workspace()),
-                      "min-h-[calc(100dvh-var(--height-header))]":
-                        isLone(router.workspace()),
+                      "h-[calc(100dvh-var(--height-header))] min-h-0": split(),
+                      "min-h-[calc(100dvh-var(--height-header))]": !split(),
                     }}
                   >
                     <Show when={desktop() && !sidebarOpen()}>

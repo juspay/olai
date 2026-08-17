@@ -58,11 +58,10 @@ export const lone = (route: Route): Workspace => ({
   focus: 0,
 })
 
-/** Whether this workspace is just a page: one pane, no stored width. A
- *  collapsed lone pane is not a thing this app writes (closing the
- *  second-to-last returns to a plain page), so a single pane with a width
- *  is treated as a page too — the fraction has nothing to be a fraction
- *  OF. */
+/** Whether this workspace is just a page. One pane, whatever width it
+ *  might carry: a lone pane has nothing to be a fraction of, and this
+ *  app never writes a collapsed lone pane (closing the second-to-last
+ *  returns a plain page). */
 export const isLone = (workspace: Workspace): boolean =>
   workspace.panes.length === 1
 
@@ -101,9 +100,8 @@ export const workspaceOf = (address: string): Workspace => {
   if (routes.length === 0) return lone({ kind: "outline", file: null })
   const params = new URLSearchParams(search)
   const widths = widthsIn(params.get(WIDTH_KEY), routes.length)
-  const collapsed = collapsedIn(params.get(WIDTH_KEY), routes.length)
   const panes = routes.map((route, i) => {
-    const width = collapsed[i] === true ? 0 : widths[i]
+    const width = widths[i]
     return width === undefined ? { route } : { route, width }
   })
   const focus = clampFocus(intIn(params.get(FOCUS_KEY), 0), panes.length)
@@ -144,24 +142,27 @@ const workspaceQuery = (workspace: Workspace): string => {
   return params.toString()
 }
 
-/** Print stored fractions as integer percents. A collapsed pane is `0`.
- *  Expanded panes that have no stored fraction share what is left
- *  equally, so a URL we write can be read back as the same shares. */
-const printWidths = (panes: readonly Pane[]): string => {
-  const n = panes.length
-  const collapsed = panes.map((pane) => pane.width === 0)
-  const expanded = panes
-    .map((pane, i) => ({ i, width: pane.width }))
-    .filter((pane) => !collapsed[pane.i]!)
+/** Fraction of the row each pane owns. Collapsed is `0`. Expanded
+ *  panes with no stored width share what is left equally. */
+const sharesOf = (panes: readonly Pane[]): ReadonlyArray<number> => {
+  const expanded = panes.filter((pane) => pane.width !== 0)
   const known = expanded.reduce((sum, pane) => sum + (pane.width ?? 0), 0)
   const unknown = expanded.filter((pane) => pane.width === undefined).length
   const leftover = Math.max(0, 1 - known)
   const each = unknown === 0 ? 0 : leftover / unknown
-  const percents = panes.map((pane, i) => {
-    if (collapsed[i] === true) return 0
-    const fraction = pane.width ?? each
-    return Math.max(0, Math.round(fraction * 100))
+  return panes.map((pane) => {
+    if (pane.width === 0) return 0
+    return pane.width ?? each
   })
+}
+
+/** Print stored fractions as integer percents. A collapsed pane is `0`.
+ *  Expanded panes that have no stored fraction share what is left
+ *  equally, so a URL we write can be read back as the same shares. */
+const printWidths = (panes: readonly Pane[]): string => {
+  const percents = sharesOf(panes).map((fraction) =>
+    Math.max(0, Math.round(fraction * 100)),
+  )
   // Rounding can leave the expanded total off 100 by a point; put the
   // remainder on the last expanded pane so a reload does not drift.
   const expandedIdx = percents
@@ -196,16 +197,6 @@ const widthsIn = (
     if (value <= 0) return 0
     return value / total
   })
-}
-
-const collapsedIn = (
-  raw: string | null,
-  n: number,
-): ReadonlyArray<boolean> => {
-  if (raw === null || raw === "") return Array.from({ length: n }, () => false)
-  const parts = raw.split(",")
-  if (parts.length !== n) return Array.from({ length: n }, () => false)
-  return parts.map((part) => Number(part) === 0)
 }
 
 const intIn = (raw: string | null, fallback: number): number => {
@@ -395,17 +386,8 @@ const normalize = (panes: readonly Pane[]): readonly Pane[] => {
 /** The flex-grow each pane should take in a row, given the stored
  *  fractions. Collapsed panes are `0` (the rail is a fixed width beside
  *  the flex). Expanded panes with no stored width share equally. */
-export const flexOf = (panes: readonly Pane[]): ReadonlyArray<number> => {
-  const expanded = panes.filter((pane) => pane.width !== 0)
-  const known = expanded.reduce((sum, pane) => sum + (pane.width ?? 0), 0)
-  const unknown = expanded.filter((pane) => pane.width === undefined).length
-  const leftover = Math.max(0, 1 - known)
-  const each = unknown === 0 ? 0 : leftover / unknown
-  return panes.map((pane) => {
-    if (pane.width === 0) return 0
-    return pane.width ?? (known > 0 ? each : 1)
-  })
-}
+export const flexOf = (panes: readonly Pane[]): ReadonlyArray<number> =>
+  sharesOf(panes)
 
 /** Whether a pane is the collapsed rail. */
 export const isCollapsed = (pane: Pane): boolean => pane.width === 0

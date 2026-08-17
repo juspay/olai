@@ -45,10 +45,7 @@ export function PageView(props: {
   const router = useRouter()
   const here = useHere()
   const go = useGo()
-  const route = createMemo(() => {
-    const ws = router.workspace()
-    return ws.panes[here()]?.route ?? router.route()
-  })
+  const route = createMemo(() => router.workspace().panes[here()]!.route)
   const opened = createMemo(route, undefined, { equals: samePage })
 
   const page = createMemo(() => {

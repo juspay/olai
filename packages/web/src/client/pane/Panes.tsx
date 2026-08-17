@@ -65,16 +65,17 @@ export function Panes(props: {
       <Show when={split() && !desktop()}>
         <TabStrip />
       </Show>
-      <Show when={split() && desktop()} fallback={
-        <Show when={!split() || !desktop()}>
+      <Show
+        when={split() && desktop()}
+        fallback={
           <FocusedOrLone
             derived={props.derived}
             found={props.found}
             today={props.today}
             agenda={props.agenda}
           />
-        </Show>
-      }>
+        }
+      >
         <DesktopRow
           derived={props.derived}
           found={props.found}
