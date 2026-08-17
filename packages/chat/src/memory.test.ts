@@ -21,7 +21,7 @@ import { chmodSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { forDirectory } from "./memory.ts"
+import { forDirectory, type Held } from "./memory.ts"
 
 let state = ""
 const was = process.env["XDG_STATE_HOME"]
@@ -68,6 +68,10 @@ const outcome = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(Effect.
 const HERE = "/tmp/olai-somewhere"
 const ELSEWHERE = "/tmp/olai-somewhere-else"
 
+/** A conversation with nothing said about its model, which is what ENTERING one
+ *  writes: the model is learned afterwards, from the agent, or never. */
+const IN = (session: string): Held => ({ session, model: null })
+
 describe("the panel's own conversation, across a restart", () => {
   test("a directory that has never been served remembers nothing", async () => {
     const memory = forDirectory(HERE)
@@ -75,35 +79,35 @@ describe("the panel's own conversation, across a restart", () => {
   })
 
   test("what was entered is what comes back", async () => {
-    await Effect.runPromise(forDirectory(HERE).remember("session-a"))
+    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
     // A SECOND memory over the same directory: the point is the disk, not the
     // closure — the next boot is a different process.
-    expect(await Effect.runPromise(forDirectory(HERE).recall)).toBe("session-a")
+    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual(IN("session-a"))
   })
 
   test("the last conversation entered is the one remembered", async () => {
     const memory = forDirectory(HERE)
-    await Effect.runPromise(memory.remember("session-a"))
-    await Effect.runPromise(memory.remember("session-b"))
-    expect(await Effect.runPromise(forDirectory(HERE).recall)).toBe("session-b")
+    await Effect.runPromise(memory.remember(IN("session-a")))
+    await Effect.runPromise(memory.remember(IN("session-b")))
+    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual(IN("session-b"))
   })
 
   test("a trailing slash is the same directory, not a second one", async () => {
-    await Effect.runPromise(forDirectory(HERE).remember("session-a"))
-    expect(await Effect.runPromise(forDirectory(`${HERE}/`).recall)).toBe("session-a")
+    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    expect(await Effect.runPromise(forDirectory(`${HERE}/`).recall)).toEqual(IN("session-a"))
     // ... and one file rather than two, which is the fact behind it.
     expect(files().length).toBe(1)
   })
 
   test("another directory's panel is not this one's", async () => {
-    await Effect.runPromise(forDirectory(HERE).remember("session-a"))
+    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
     expect(await Effect.runPromise(forDirectory(ELSEWHERE).recall)).toBe(null)
   })
 
   test("nothing is written under the served directory", async () => {
     const served = mkdtempSync(join(tmpdir(), "olai-served-"))
     try {
-      await Effect.runPromise(forDirectory(served).remember("session-a"))
+      await Effect.runPromise(forDirectory(served).remember(IN("session-a")))
       // The served directory is somebody's outline set — the store probes it
       // and a commit would commit it. The memory goes to the state home.
       expect(readdirSync(served)).toEqual([])
@@ -114,6 +118,54 @@ describe("the panel's own conversation, across a restart", () => {
   })
 })
 
+describe("the model that conversation was on", () => {
+  // The bug (`chat-model-reverts-on-restart`): a `/model` chosen in the panel
+  // did not survive a restart, because the agent's own boot re-asserts a
+  // container's `settings.json` pin over the conversation's own model. Putting
+  // it back is `agent.ts`'s (`restore`); HAVING it to put back is this file's,
+  // and it is the half a restart cannot fake — the process is gone, and what is
+  // on disk is the whole of what the next one knows.
+
+  test("the model comes back with the conversation it was on", async () => {
+    await Effect.runPromise(
+      forDirectory(HERE).remember({ session: "session-a", model: "claude-fable-5" }),
+    )
+    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual({
+      session: "session-a",
+      model: "claude-fable-5",
+    })
+  })
+
+  test("a conversation entered says nothing about a model", async () => {
+    // Which is not the same as saying it is on the default: it is the panel
+    // having heard nothing yet, and the agent's own answer standing.
+    await Effect.runPromise(
+      forDirectory(HERE).remember({ session: "session-a", model: "claude-fable-5" }),
+    )
+    await Effect.runPromise(forDirectory(HERE).remember(IN("session-b")))
+    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual(IN("session-b"))
+  })
+
+  test("a memory written before olai remembered models still opens", async () => {
+    // The file olai 0.1 wrote, and the shape every state directory in the world
+    // has right now: a conversation and no model. It must read as "nothing says
+    // which model" rather than as damage — the conversation is the load-bearing
+    // half and it is right there.
+    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    writeFileSync(only(), `{"cwd":"${HERE}","session":"session-a"}\n`)
+    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual(IN("session-a"))
+  })
+
+  test("a model that is not a name is nothing said, not a refusal", async () => {
+    // The lenient half of the read, and the reason for it: a strange `model`
+    // costs a restart on the agent's own model, while refusing the whole file
+    // over one would cost the conversation too.
+    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    writeFileSync(only(), `{"cwd":"${HERE}","session":"session-a","model":7}\n`)
+    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual(IN("session-a"))
+  })
+})
+
 describe("a memory that cannot be trusted", () => {
   /** The one file that was written, with something else in it. */
   const damage = (text: string): void => {
@@ -121,7 +173,7 @@ describe("a memory that cannot be trusted", () => {
   }
 
   test("a file that is not JSON is a reason, not a shrug", async () => {
-    await Effect.runPromise(forDirectory(HERE).remember("session-a"))
+    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
     damage("{ half a fi")
     const answer = await outcome(forDirectory(HERE).recall)
     expect(Result.isFailure(answer)).toBe(true)
@@ -131,7 +183,7 @@ describe("a memory that cannot be trusted", () => {
   })
 
   test("JSON that names no conversation is a reason too", async () => {
-    await Effect.runPromise(forDirectory(HERE).remember("session-a"))
+    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
     damage(`{"cwd":"${HERE}"}`)
     expect(Result.isFailure(await outcome(forDirectory(HERE).recall))).toBe(true)
   })
@@ -141,7 +193,7 @@ describe("a memory that cannot be trusted", () => {
     // it is read back as a guard: whatever put this file here, it is not about
     // us, so the honest answer is that nothing says — never a refusal, and
     // never somebody else's conversation.
-    await Effect.runPromise(forDirectory(HERE).remember("session-a"))
+    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
     damage(`{"cwd":"${ELSEWHERE}","session":"session-b"}`)
     expect(await Effect.runPromise(forDirectory(HERE).recall)).toBe(null)
   })
@@ -153,7 +205,7 @@ describe("a memory that cannot be trusted", () => {
     if (typeof process.getuid === "function" && process.getuid() === 0) return
     chmodSync(state, 0o500)
     try {
-      expect(Result.isFailure(await outcome(forDirectory(HERE).remember("session-a"))))
+      expect(Result.isFailure(await outcome(forDirectory(HERE).remember(IN("session-a")))))
         .toBe(true)
     } finally {
       chmodSync(state, 0o700)

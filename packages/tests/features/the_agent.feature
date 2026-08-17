@@ -624,6 +624,97 @@ Feature: Talking to the agent
     Then the agent is idle
     And the panel header names the model "Fake Sonnet"
 
+  @agent-stored @scratch:chat
+  Scenario: A model the conversation was switched to survives a restart
+    # The bug (`chat-model-reverts-on-restart`), as the human hit it: switch the
+    # chat to another model, redeploy olai, and the conversation comes back on
+    # the one the container's `settings.json` pins. That pin is the agent's own
+    # answer at every boot — this agent gives the same one, its picker naming
+    # `fake-model-1` on every `session/load` however the last turn ended — and a
+    # panel that only ever READ what it was told had nothing to say back.
+    #
+    # So the panel writes down the model this conversation is running and puts
+    # it back after the load, through the config option the picker is.
+    #
+    # SWITCHED TO AN API ID, which is the vocabulary this actually happens in:
+    # the CLI reports `claude-sonnet-5` where the picker offers `sonnet`, so
+    # what the panel writes down is a word the picker never offered — and the
+    # request that puts it back has to be made in the picker's own words. This
+    # agent refuses anything else, exactly as an agent reading its own list
+    # would.
+    When I ask the agent "model claude-sonnet-5"
+    And I ask the agent "hello"
+    Then the panel header names the model "Fake Sonnet"
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the conversation is titled "the last conversation"
+    And the panel header names the model "Fake Sonnet"
+    # ... and it is the AGENT that is on it, not a label the panel drew from its
+    # own note: the next turn's `init` says what the CLI is actually running, so
+    # a re-assert that never reached the agent walks the header back to the pin.
+    When I ask the agent "hello"
+    Then the panel header names the model "Fake Sonnet"
+
+  @agent-stored @scratch:chat
+  Scenario: A conversation nobody switched follows the machine's default, and is not pinned to it
+    # The other side of the rule, and the one that keeps this feature from
+    # becoming a pin on everything it touches: what a source says FIRST is what
+    # the agent decided, not a choice somebody made, so it is never written
+    # down. A conversation that ran `Fake One` because that is what this
+    # machine pins must move when the machine's pin moves — and it can only do
+    # that if nothing was remembered about it.
+    #
+    # A turn first, so the CLI has reported a running model at least once: that
+    # report is exactly the value a panel writing down its first hearing would
+    # come back and re-assert.
+    Then the panel header names the model "Fake One"
+    When I ask the agent "hello"
+    Then the panel header names the model "Fake One"
+    # The container is redeployed with a different model in its settings.
+    When the agent's pinned model becomes "fake-model-2"
+    And the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the conversation is titled "the last conversation"
+    And the panel header names the model "Fake Two"
+    # ... and nothing was said back to the agent about it, because there was
+    # nothing to say: no request, so no refusal either.
+    And the chat says nothing went wrong
+
+  @agent-stored @scratch:chat
+  Scenario: A model that cannot be put back says so, and is still tried at the next restart
+    # The refusal path, which the panel promises three things about: a row
+    # where a person is looking, a header that goes on naming what the agent
+    # actually said, and a memory left ALONE — so the next boot tries again
+    # rather than quietly adopting the pin as the answer.
+    #
+    # `claude-opus-5` is the model this picker cannot name without inventing a
+    # context window (the scenario above this one), so nothing translates it
+    # into a row and the request goes out in the words the CLI used — which
+    # this agent refuses, exactly as an agent reading its own list would.
+    When I ask the agent "model claude-opus-5"
+    And I ask the agent "hello"
+    Then the panel header names the model "claude-opus-5"
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the conversation is titled "the last conversation"
+    And the chat eventually shows "could not be put back"
+    # The agent's own answer, still named — the conversation is open and usable
+    # on the model the pin gave it, which is where it was before any of this.
+    And the panel header names the model "Fake One"
+    # ... and the note was not overwritten by the model we failed to leave, so
+    # the next boot asks again rather than treating the pin as settled.
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the chat eventually shows "could not be put back"
+
   @scratch:chat
   Scenario: A message sent mid-turn STEERS the turn that is running
     # Three arrangements, and only the third is this one. The box used to be

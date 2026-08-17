@@ -239,20 +239,28 @@ export const steerTaken = (answered: unknown): boolean =>
 
 // ── which model a turn is running on ───────────────────────────────────
 
-/** What `session/new` asks the Claude Code adapter to forward, and why: the
+/** What OPENING a session asks the Claude Code adapter to forward, and why: the
  *  adapter handles a `/model` slash command inside the wrapped CLI, so it never
  *  sees a config change and its `configOptions` keep naming the model the
  *  session started on. The CLI's own `system`/`init` message carries the live
  *  one. An agent that is not that adapter ignores `_meta` and nothing changes —
- *  the config option is still read, and still enough. */
-export const NEW_SESSION_META = {
+ *  the config option is still read, and still enough.
+ *
+ *  Sent with `session/load` as well as `session/new`, and that is not
+ *  belt-and-braces: the adapter reads this off the `_meta` of whichever call
+ *  made the session, and a load makes one (`loadSession` hands its own `_meta`
+ *  to `createSession`, defaulting the flag to false). Asked only at `new`, the
+ *  running model went unreported for the life of every RESTORED conversation —
+ *  which is every conversation after a restart, and exactly the ones the panel
+ *  now has to hear a `/model` in ({@link ../memory.ts}). */
+export const OPEN_SESSION_META = {
   claudeCode: {
     emitRawSDKMessages: [{ type: "system", subtype: "init" }],
   },
 }
 
 /** The notification the Claude Code adapter forwards its wrapped CLI's own
- *  messages under, having been asked to by {@link NEW_SESSION_META}. */
+ *  messages under, having been asked to by {@link OPEN_SESSION_META}. */
 export const SDK_MESSAGE = "_claude/sdkMessage"
 
 /**
@@ -415,9 +423,69 @@ export const modelNameIn = (
 export const modelPickerIn = (
   configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
 ): Picker | null => {
-  const entry = (configOptions ?? []).find((option) => option.id === "model")
+  const entry = (configOptions ?? []).find((option) => option.id === MODEL_CONFIG)
   if (entry === undefined || entry.type !== "select") return null
   return { picked: entry.currentValue ?? null, labels: labelsOf(entry) }
+}
+
+/** The picker's own id, which is also what a `session/set_config_option`
+ *  naming the model has to be addressed to — READ in one place and WRITTEN in
+ *  another, so it is spelled once. The bet it embodies is
+ *  {@link modelPickerIn}'s. */
+export const MODEL_CONFIG = "model"
+
+/**
+ * Whether two model strings name the model, as far as anything here can tell.
+ *
+ * Asked by the one caller that has to decide whether to say anything at all:
+ * the panel puts a restored conversation back on the model it was running
+ * ({@link ./agent.ts}'s `restore`), and a session that already came up on it
+ * needs no such request. The two strings reach that question in DIFFERENT
+ * vocabularies — the picker's own value (`sonnet`) against whatever the panel
+ * last knew it was running, which is a live API id (`claude-sonnet-5`) as often
+ * as not — so string equality answers only the easy half.
+ *
+ * Resolved through {@link modelNameIn}, which is the bridge between those two
+ * vocabularies and already the header's: two strings the picker gives ONE name
+ * are one model, because a picker never names two rows alike. A string the
+ * picker cannot name answers for itself, so two unnameable ones agree only when
+ * they are the same string — which is the truthful answer for a model nobody
+ * here has a vocabulary for, and the reason the equal-strings case needs no
+ * line of its own.
+ */
+export const sameModel = (
+  labels: ReadonlyMap<string, string>,
+  one: string,
+  other: string,
+): boolean => (modelNameIn(labels, one) ?? one) === (modelNameIn(labels, other) ?? other)
+
+/**
+ * The picker's OWN word for a model, when it has one.
+ *
+ * The other direction of the same bridge, and the one a request has to cross.
+ * What the panel remembers a conversation running is, in practice, always the
+ * live API id the CLI reported (`claude-sonnet-5`) — that is the only source a
+ * `/model` ever reaches olai through — while the picker offers aliases
+ * (`sonnet`). A `session/set_config_option` carries a picker VALUE, so asking
+ * in the remembered spelling is asking with a word the picker never offered:
+ * the pinned adapter would resolve it (its `resolveModelPreference` matches a
+ * row's resolved id), and an agent that simply checked its own list would
+ * refuse — leaving the conversation on the pin, which is the whole bug.
+ *
+ * So the id is translated back through the labels first: the row this model is
+ * NAMED by is the row to ask for. `null` when no row answers, or when two do —
+ * the caller then asks in the words it has, which is what it would have done
+ * anyway, and an agent that can resolve them still does.
+ */
+export const pickerValueFor = (
+  labels: ReadonlyMap<string, string>,
+  model: string,
+): string | null => {
+  if (labels.has(model)) return model
+  const name = modelNameIn(labels, model)
+  if (name === null) return null
+  const rows = [...labels].filter(([, label]) => label === name)
+  return rows.length === 1 ? rows[0]?.[0] ?? null : null
 }
 
 /** The picker as value → label ("sonnet" → "Sonnet"), which is what the agent

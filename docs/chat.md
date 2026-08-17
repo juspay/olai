@@ -19,7 +19,7 @@ The conversation is the agent's own session for that directory: close olai, reop
 
 If that conversation is GONE — you deleted it, or you have pointed olai at a different agent since — the most recent one in this directory is opened instead, which is what always used to happen. Whichever you get, the header names it.
 
-The note lives with this machine's other state (`~/.local/state/olai/`, or wherever `XDG_STATE_HOME` points), never in the directory being served: it is one id and the path it belongs to, so a directory you serve from two machines remembers a conversation on each. If it cannot be read or written the panel says so in the conversation and carries on — a restart then opens the most recent conversation, which is the old behaviour and a working panel either way.
+The note lives with this machine's other state (`~/.local/state/olai/`, or wherever `XDG_STATE_HOME` points), never in the directory being served: it is one conversation id, the model that conversation was on (below), and the path both belong to — so a directory you serve from two machines remembers a conversation on each. If it cannot be read or written the panel says so in the conversation and carries on — a restart then opens the most recent conversation, which is the old behaviour and a working panel either way.
 
 **chats** lists the stored conversations for this directory, and each row says when it was last touched, to the minute. That is deliberate rather than decorative: `/clear` leaves two sessions sharing one name, and the protocol carries no fact that says which of them replaced the other, so the time is what tells you the row you mean. Picking one loads it — and makes it the conversation you come back to.
 
@@ -27,7 +27,7 @@ The note lives with this machine's other state (`~/.local/state/olai/`, or where
 
 Under the conversation's title, the header names the model — because a turn's cost and character depend on it and nothing else on screen says.
 
-It names the model the agent is **running**, which is not always the one the session was started on: `/model` is handled inside the CLI the adapter wraps, so the adapter never learns of it and its own picker goes on reporting the starting model for the life of the session. What the header follows instead is the CLI's own message, forwarded because olai asked for it at `session/new`.
+It names the model the agent is **running**, which is not always the one the session was started on: `/model` is handled inside the CLI the adapter wraps, so the adapter never learns of it and its own picker goes on reporting the starting model for the life of the session. What the header follows instead is the CLI's own message, forwarded because olai asks for it whenever it opens a conversation — a new one and a stored one alike.
 
 Two consequences, both of them the adapter's shape rather than a choice:
 
@@ -35,6 +35,23 @@ Two consequences, both of them the adapter's shape rather than a choice:
 - **it is named the way the agent names it.** The running model arrives as an API id (`claude-sonnet-5`) while the picker offers aliases (`sonnet`), so the two are matched up and the header says *Sonnet*. A model the picker does not offer at all is shown as the id it came as, which is truthful about a name nobody gave — never rounded to whichever row looks closest.
 
 **A raw id in that line is a refusal, not a failure**, and the commonest reason for one is worth knowing: the running model never states its **context window**. The CLI reports `claude-opus-5` whether the session has 200k or 1M, so when the only Opus the picker offers is the 1M one, that row is not allowed to answer — naming a window five times the real one, in the line you would read to decide whether to `/compact`, is worse than naming nothing. You get `claude-opus-5`, and what it does not say, it does not say.
+
+## The model you switched to survives a restart
+
+**Switch the chat with `/model` and it stays switched**, across an olai restart and a new deploy — the conversation comes back on the model you put it on, and the header names it before you type anything.
+
+That is a fix rather than a given, and what it is a fix for is worth knowing about because it happens at the agent's end, not olai's. The agent resolves a session's model in a fixed order — the `ANTHROPIC_MODEL` variable, then `settings.json`, then the model the conversation was actually running — and on *resuming* a conversation it deliberately re-asserts the first two over the third. So a machine whose settings pin `"model": "sonnet"` puts every restored conversation back on Sonnet, however it ended. A `/model` lives only in the conversation itself, which is the half that loses. The chat was on Fable on Friday and on Sonnet on Monday, and nothing said why.
+
+So olai writes down which model this conversation is running, and after a restore, if the conversation has come up on a different one, it says so back — through the same model setting the agent's own picker is. What you get is the model you chose; what a *new* conversation gets is still the machine's default, which is what a default is for.
+
+**And a `/model` made in a conversation you came back to is heard at all**, which is the quieter half of the same fix: the CLI's message is forwarded because olai asks for it when it opens a session, and it was only asking when it *started* one. Every conversation after a restart is a restored one, so the header had gone deaf in exactly the conversations you spend your time in — it went on naming the model the session came up on, however many times you switched.
+
+Two things follow, and both are the honest shape of it:
+
+- **only a switch you made while olai was watching is remembered.** A conversation that never left the machine's default comes back on the machine's default — olai has nothing of its own to say about it, and pinning a conversation to whatever the default resolved to that day would be inventing a choice nobody made. One consequence is worth knowing after an upgrade: a `/model` from before this existed is not a switch olai saw, so the first restart still opens on the default and switching again is what makes it stick.
+- **a switch made somewhere else, while olai was not running, loses.** The conversation is reachable from a terminal (`claude --resume`), and a `/model` typed there lands in the same place a static pin does, as far as anything on the wire can tell: the restored conversation simply comes up on a model olai's note disagrees with. Olai puts its own note back. Between a panel that loses the choice made *in* it every single restart and one that can lose a choice made elsewhere while it was off, this is the better of the two.
+
+If the model cannot be put back — an agent that will not take the setting — the conversation opens anyway, on whatever the agent chose, and the panel says so in a row rather than in a log. Nothing is retried behind your back; the next restart tries again.
 
 ## How full the context is
 
