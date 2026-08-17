@@ -19,14 +19,17 @@
  * preview to show what the file now says. A `.md` is opened at the end, because
  * the fix must not have cost the reader who genuinely needs a body.
  *
- * It is VERSION-INDEPENDENT on purpose — Playwright and a URL, no olai imports
- * — so the same driver measures a server built from this branch and one built
- * from master, which is the only way the two numbers are comparable.
- * `wire.sh` is what stands each of those up.
+ * It is VERSION-INDEPENDENT on purpose — Playwright, a URL, and this package's
+ * own browser argv, with no `@olai/*` import anywhere — so the same driver
+ * measures a server built from this branch and one built from master, and the
+ * two numbers are of the same session. `wire.sh` is what stands each of those
+ * up.
  */
 import { chromium } from "playwright"
 import { writeFileSync } from "node:fs"
 import * as path from "node:path"
+
+import { BROWSER_ARGS } from "./support/browser.ts"
 
 const BASE = process.env["BASE"] ?? "http://127.0.0.1:7788"
 const VAULT = process.env["VAULT"] ?? ""
@@ -70,9 +73,7 @@ const main = async () => {
   write(PAGE, pageAt("Before"))
   write(NOTE, note())
 
-  const browser = await chromium.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--headless=new"],
-  })
+  const browser = await chromium.launch({ args: [...BROWSER_ARGS] })
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const page = await context.newPage()
 

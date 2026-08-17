@@ -65,12 +65,15 @@ export interface Published {
    * The same files as {@link documents}, one revision each and no body
    * (`@olai/surface`'s `Head`).
    *
-   * ONE PASS BUILDS BOTH, off one list, through the same rule — which is what
-   * the wire's promise that these two key sets are the same key set rests on
-   * (a reader takes its file list from the heads). Two `changeOf` calls over
-   * `set.documents` rather than one, because they are two collections with two
-   * held revisions of their own; one list and one `keyOf`, because they are
-   * two slices of one fact.
+   * WHAT MAKES THAT "the same files" rather than "similar files" is worth being
+   * exact about, because a reader takes its FILE LIST from the heads and a key
+   * missing here is a file the sidebar stops showing. It is not one loop: it is
+   * two `changeOf` calls, because these are two collections with two held
+   * revisions of their own. What holds them together is that both are given the
+   * same `sources` binding and the same `keyOf`, in one function, three lines
+   * apart — so the way to break it is to hand one of them a different list,
+   * which is a visible edit rather than a drift. `./published.test.ts` asserts
+   * the equality, and that is the belt to this brace.
    */
   readonly heads: Change<Head>
   /**
@@ -89,10 +92,11 @@ export interface Published {
  * The documents half of a revision: what the two collections keyed by a bodied
  * file are told, and what is owed to the body reader.
  *
- * ONE function over ONE reading of the previous revision, which is the whole
- * reason it is not three: the slice, the head and the split all need "what the
- * wire had before this", and callers passing that separately are callers who
- * can pass different things.
+ * ONE function over ONE reading of the previous revision, and over ONE binding
+ * of the source list, which is the whole reason it is not three: the slice, the
+ * head and the split all need "what the wire had before this" and all three
+ * must be about the same files, and callers passing those separately are
+ * callers who can pass different things.
  *
  * An entry carrying its text is sent as it is. An entry saying `null` is a body
  * the set does not keep, and it is the body reader's: writing that value to a

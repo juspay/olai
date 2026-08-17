@@ -1102,7 +1102,7 @@ Feature: A `.html` in the vault
     Then the preview shows the heading "After"
     And the page has not reloaded
 
-  @scratch:good
+  @scratch:good @wire
   Scenario: A previewed page's body reaches the frame and never the tab
     # The two wires, and the rule between them. The frame fetches this file over
     # HTTP from `/media/` and draws what it fetched; the SOCKET's business is
@@ -1137,7 +1137,7 @@ Feature: A `.html` in the vault
     And the websocket never carried "the cabinets came to four thousand"
     And the websocket never carried "the cabinets came to five thousand"
 
-  @scratch:good
+  @scratch:good @wire
   Scenario: A note's body still travels to the reader who opens one
     # The other half of the same rule, and the one a fix aimed at the preview
     # could break without any scenario noticing: a `.md` is drawn FROM its body,

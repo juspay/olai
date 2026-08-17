@@ -48,7 +48,8 @@
 
 import { fileKind } from "@olai/format"
 import { MEDIA_PREFIX, mediaTarget, SEAL, sealPolicy, spellsHost } from "@olai/surface"
-import { Effect, FileSystem, type PlatformError, Stream } from "effect"
+import { vanished } from "@olai/store"
+import { Effect, FileSystem, Stream } from "effect"
 import {
   HttpRouter,
   HttpServerRequest,
@@ -229,16 +230,20 @@ const page = (
     // said (`./bodies.ts`). It does not ask any more — a preview costs a
     // revision now — so the only process left that ever opens a saved page for
     // a person is this route, and a permission bit nobody can see is exactly
-    // the failure this app's log rule exists for. A file that has GONE says
-    // nothing: it is not there, which the 404 already says to the one person
-    // who asked.
-    Effect.tapError((failure: PlatformError.PlatformError) =>
-      failure.reason._tag === "NotFound"
-        ? Effect.void
-        : Effect.annotateLogs(
-          Effect.logWarning(`olai server: cannot read ${target}: ${failure.message}`),
-          { file: target },
-        )
+    // the failure this app's log rule exists for. It is `bodies.ts`'s sentence,
+    // deliberately: one story, told the same way, wherever the read happened.
+    //
+    // A file that has GONE says nothing, and that is what {@link vanished}
+    // decides — `@olai/store`'s own reading of the platform's error, because
+    // the probe asks the identical question about the identical shape and two
+    // spellings of it would disagree the day a platform renames the reason.
+    // Nothing is owed for a miss: the reader asked for something that is not
+    // there and the 404 says exactly that.
+    Effect.tapError((failure) =>
+      vanished(failure) ? Effect.void : Effect.annotateLogs(
+        Effect.logWarning(`olai server: ${failure.message}`),
+        { file: target },
+      )
     ),
     // A file that cannot be read is answered exactly like one that never was:
     // which of the ways it is missing is not the reader's business, and saying

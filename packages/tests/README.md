@@ -152,6 +152,14 @@ Like `@kolu` and `@agent-stored`, it needs `@scratch:<corpus>` — what a server
 
 One of those scenarios goes the whole way rather than reading chrome: it asks the agent for a write under a broken git and opens the tool call's detail, which is the op's own reply as the reader gets it. That is the only assertion in the suite that follows one field (`Applied.why`) from the ops layer, through the internal MCP server and the transcript, onto a screen.
 
+## What the server SENT, as against what the page drew
+
+**`@wire`** keeps every websocket frame the tab was delivered, for the scenario's life, so a step can say what the server chose to send this reader — `the websocket carried "…"` and its negative. Nothing else in the suite can answer that: `world.requests` is what the page FETCHED, and the surface's traffic makes no requests at all.
+
+It is a tag rather than the default because unlike the request and error recorders it retains PAYLOADS — a transcript's token-by-token deltas, a document's whole body — and three scenarios ask. A scenario that forgets it does not quietly pass a negative over an empty list: `world.socketCarried` throws, the way `world.requestsWatched` does for the same class of mistake. It also throws on a probe string carrying a character the framing escapes, since the frames are raw and such a probe would be absent whether or not the body was sent.
+
+The two scenarios it exists for are the halves of one rule (`html_previews.feature`): a previewed `.html`'s body must never cross the socket — the frame fetches the file over HTTP — while a `.md`'s body must, because that reader has no other way to have it.
+
 ## A phone, and the two things it changes
 
 **`@phone`** on a scenario gives it a handset context instead of a laptop one: 390×844 CSS pixels, a touch screen, no mouse. It is orthogonal to the corpus tags — a scenario carries both. `isMobile` is what makes Chromium honour the shell's `<meta name="viewport">` at all; without it the page is laid out as a very narrow desktop, which is a different thing that happens to fire the same media queries. It is not one of Playwright's `devices` presets, because those also install a Safari user agent on top of Chromium and none of these scenarios are about what the browser calls itself.

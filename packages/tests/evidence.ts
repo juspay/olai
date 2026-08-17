@@ -15,6 +15,8 @@ import { fileKind } from "@olai/format"
 import { readdirSync, readFileSync } from "node:fs"
 import { type Browser, chromium, type Locator, type Page } from "playwright"
 
+import { BROWSER_ARGS } from "./support/browser.ts"
+
 const BASE = process.env["BASE"] ?? "http://127.0.0.1:7788"
 const OUT = process.env["SHOTS"] ?? "."
 const SECTION = process.env["SECTION"] ?? ""
@@ -793,15 +795,7 @@ const main = async () => {
   // touch into the pointer events a long press is made of, so a section about a
   // finger silently held nothing. The rest are the flags that make Chromium
   // survive a container with a small `/dev/shm`, harmless on a laptop.
-  const browser = await chromium.launch({
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-gpu",
-      "--disable-dev-shm-usage",
-      "--headless=new",
-    ],
-  })
+  const browser = await chromium.launch({ args: [...BROWSER_ARGS] })
   // A CONTEXT of its own rather than `browser.newPage(options)`, which is the
   // same thing with an implicit one — except that a touchscreen is a property
   // of the context, and the DevTools session the finger's section opens has to

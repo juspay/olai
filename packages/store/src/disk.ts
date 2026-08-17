@@ -50,7 +50,7 @@ import {
   Stream,
 } from "effect"
 
-import { PlatformFailure, ROOT_ITSELF } from "./errors.ts"
+import { PlatformFailure, ROOT_ITSELF, vanished } from "./errors.ts"
 
 /** What "this file did not change" is decided on: mtime and size, the two the
  *  kernel already knows. Coarse — a same-second rewrite of the same length
@@ -434,7 +434,3 @@ const stampOf = (info: FileSystem.File.Info): Stamp => ({
   }),
   size: Number(info.size),
 })
-
-/** The file was there when the directory was listed and is not there now. */
-const vanished = (error: PlatformError.PlatformError): boolean =>
-  error.reason._tag === "NotFound"

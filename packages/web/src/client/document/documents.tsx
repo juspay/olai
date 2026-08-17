@@ -23,18 +23,30 @@
  *     on every first paint; a revision per path is the same list plus an
  *     integer each, and it is what lets a page watch ONE file for changes
  *     without opening a stream — or asking for a body — of its own.
+ *
+ *     WHAT THE BATCHED VERB COSTS, named because it is a trade and not a free
+ *     win: a `deltas` frame is FOLDED here, and the fold copies the whole
+ *     keyed dict before reconciling it, so a revision that touches any bodied
+ *     file costs every open tab one pass over the directory's paths — where
+ *     the key stream this replaced only ever fired on a file appearing or
+ *     going. It is the same shape and a smaller value than the `outlines` fold
+ *     this app already does on every revision (nodes, not an integer), and the
+ *     alternative — a per-key stream for each file being watched — buys O(1)
+ *     per tab at the price of a second subscription per open document and of
+ *     the file list having to come from somewhere else. Measured before it is
+ *     changed, like everything else here (`packages/tests/wire.ts`).
  *   - {@link Documents.read} is the BODY of one document, from a narrowed
  *     subscription whose keys are the documents somebody is showing. A body
  *     reaches this tab when a component asks for it and stops arriving when
  *     the last one that asked goes away.
  *
  * THE TWO ARE ASKED SEPARATELY ON PURPOSE, and a `.html` is why. A preview
- * frame fetches the file over HTTP from `/media/` (`./Hypertext.tsx`), so the
- * page draws nothing out of the body — what it needs from this module is the
- * revision, so that a file rewritten on disk re-points the frame. Reading the
- * body to learn that sent a saved page's megabytes to a tab that drew none of
- * them, and made the server read the file to send them; asking the head
- * instead costs a number. That was PR #206's standing deferral and this is
+ * frame fetches the file over HTTP from `/media/` (`./Hypertext.tsx`), so
+ * nothing on that page is drawn out of the body — what it needs from this
+ * module is the revision, so that a file rewritten on disk re-points the frame.
+ * Reading the body to learn that sent a saved page's megabytes to a tab that
+ * drew none of them, and made the server read the file to send them; asking the
+ * head instead costs a number. That was PR #206's standing deferral and this is
  * the shape it named.
  *
  * ONE subscription per PATH, however many components ask: `askers` is what
@@ -47,8 +59,10 @@
  * `doc` reference draws a one-line preview out of a whole body. An outline that
  * attaches hundreds of documents at once therefore pays for hundreds of them.
  * That is the shape the design agreed (`docs/brainstorming/surface-mcp-viewing.md`):
- * if a preview for many nodes at once is needed, the answer is a small head
- * member on the wire — measured first, not guessed at here.
+ * if a preview for many nodes at once is needed, the answer is a small member
+ * on the wire carrying what a row draws rather than what a page does — the head
+ * beside this one is that idea's first instance, and a one-line preview would
+ * be its second. Measured first, not guessed at here.
  *
  * A node's `doc` is drawn on every page there is — a tree row, a zoomed
  * heading, a day — so the reader is a CONTEXT rather than a prop: threading it
@@ -108,9 +122,9 @@ export interface Documents {
    *  of its own, no read of the disk at the other end. */
   readonly head: (file: Accessor<string>) => Accessor<number | undefined>
   /** One document's body, for as long as the calling owner lives — and for as
-   *  long as `file()` names one: `undefined` is a caller that is drawing
-   *  something which needs no body (`./faces.tsx`'s `Face.needs`), and it asks
-   *  the server for nothing at all.
+   *  long as `file()` names one: `undefined` is a caller that has nothing it
+   *  would do with a body (a page whose face cannot be written — see
+   *  `./DocumentPage.tsx`), and it asks the server for nothing at all.
    *
    *  `undefined` comes back while a body is still on the way — the normal first
    *  state, and the one a body being read from disk shares with it ({@link
@@ -132,7 +146,10 @@ export const createDocuments = (): Documents => {
   // framework's own contract for this verb — so there is nothing to resume and
   // nothing to clear in the gap.
   const heads = olai.collections.heads.use()
-  const paths = createMemo(() => heads.keys())
+  // The framework's own memo over the key set, handed on rather than wrapped: a
+  // memo around it could dedup nothing its own could not, and this is a module
+  // about not paying for a thing twice.
+  const paths = heads.keys
 
   /** Who wants what: a path is wanted while at least one owner is showing it.
    *  ONE value, so membership cannot disagree with the count that decides it —

@@ -431,9 +431,10 @@ export const surface = defineSurface({
      * WHICH IS WHY THE KEY SET IS THE SAME KEY SET, and not merely similar: a
      * reader takes its file list from HERE (`@olai/web`'s `documents.tsx`), so
      * a head missing for a file the directory holds is a file the sidebar
-     * stops listing. Both slices are built in one pass over one list on the
-     * server (`@olai/server`'s `published.ts`), which is what makes that an
-     * invariant rather than a coincidence two loops have to keep.
+     * stops listing. Both slices are cut in one function, from one binding of
+     * one list, through one `keyOf` (`@olai/server`'s `published.ts`, where
+     * that is spelled out and asserted) — so breaking it takes an edit rather
+     * than a drift.
      *
      * Read-only on the wire, like every other file-shaped member: what a head
      * says is what the disk said.

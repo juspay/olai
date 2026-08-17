@@ -43,6 +43,7 @@ import { findLogfmt } from "@olai/log/testlib";
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
 
+import { BROWSER_ARGS } from "./browser.ts";
 import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
 import type { GitMode } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
@@ -54,19 +55,6 @@ import {
   releasePort,
   workerId,
 } from "./workers.ts";
-
-/** Chromium under Nix, in a container, on a CI runner with no display and a
- *  64 MB `/dev/shm`. Every flag is load-bearing there and harmless locally, so
- *  the same argv is used everywhere rather than branching on `CI`: a browser
- *  configured differently in CI than on a laptop is a class of bug that only
- *  ever reproduces where it is hardest to debug. */
-const ciArgs = [
-  "--no-sandbox",
-  "--disable-setuid-sandbox",
-  "--disable-gpu",
-  "--disable-dev-shm-usage",
-  "--headless=new",
-];
 
 const FIXTURES = path.resolve(import.meta.dirname, "..", "fixtures");
 const REPORTS = path.resolve(import.meta.dirname, "..", "reports");
@@ -115,6 +103,11 @@ const BROKEN_GIT_DIR = path.resolve(import.meta.dirname, "..", "bin", "broken-gi
 /** `@kolu`: this scenario's host is running kolu, so its session should be
  *  handed kolu's terminals alongside olai's own tools. */
 const KOLU_TAG = "@kolu";
+
+/** `@wire`: this scenario asks what the SERVER SENT rather than what the page
+ *  drew, so every websocket frame the tab is delivered is kept for it
+ *  (`world.socketFrames`, which says why that is a tag and not the default). */
+const WIRE_TAG = "@wire";
 
 /** `@agent-stored`: the fake agent answers `session/list` with two stored
  *  conversations, so the server's boot loads one of them and replays it. Unset,
@@ -779,7 +772,7 @@ BeforeAll(async () => {
   fixturesWere = fixtureStatus();
   browser = await chromium.launch({
     headless: process.env.HEADLESS !== "false",
-    args: ciArgs,
+    args: [...BROWSER_ARGS],
   });
 });
 
@@ -890,7 +883,6 @@ Before(
     this.errors = [];
     this.requests = [];
     this.refused = [];
-    this.socketFrames = [];
     // ONE listener, recording everything: which of those left this server, and
     // which arrived after a step started watching, are both questions asked of
     // the same list afterwards (see `world.offSite` / `world.watchRequests`).
@@ -908,20 +900,33 @@ Before(
         why: request.failure()?.errorText ?? "no reason given",
       });
     });
-    // …and the OTHER wire: what the surface delivered down the socket. It makes
-    // no requests, so nothing in the two lists above can see it, and "what did
-    // the server send this reader" is a question only this can answer
-    // (`world.socketCarried`). Registered per SOCKET because a tab that
-    // reconnects opens another one, and the recording is of the tab.
-    this.page.on("websocket", (socket) => {
-      socket.on("framereceived", (frame) => {
-        this.socketFrames.push(
-          typeof frame.payload === "string"
-            ? frame.payload
-            : frame.payload.toString("utf8"),
-        );
+    // …and the OTHER wire, for the scenarios that asked: what the surface
+    // delivered down the socket. It makes no requests, so nothing in the two
+    // lists above can see it, and "what did the server send this reader" is a
+    // question only this can answer (`world.socketCarried`).
+    //
+    // BY TAG, unlike its neighbours, because unlike them it retains PAYLOADS —
+    // every byte of every frame for the life of the scenario, which for a chat
+    // or a document is the whole session's traffic in the worker's heap. The
+    // three scenarios that ask are worth that; the other seven hundred are not.
+    // A scenario that forgot the tag does not quietly assert over nothing: the
+    // list stays `undefined` and the step throws.
+    //
+    // Registered per SOCKET because a tab that reconnects opens another one,
+    // and the recording is of the tab.
+    if (scenario.pickle.tags.some((tag) => tag.name === WIRE_TAG)) {
+      const frames: string[] = [];
+      this.socketFrames = frames;
+      this.page.on("websocket", (socket) => {
+        socket.on("framereceived", (frame) => {
+          frames.push(
+            typeof frame.payload === "string"
+              ? frame.payload
+              : frame.payload.toString("utf8"),
+          );
+        });
       });
-    });
+    }
     this.page.on("pageerror", (error) => {
       this.errors.push(`pageerror: ${error.message}`);
     });

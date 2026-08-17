@@ -820,8 +820,8 @@ export class OlaiWorld extends World {
   refused: Array<{ readonly url: string; readonly why: string }> = [];
 
   /**
-   * Every frame the WEBSOCKET delivered to this tab, as text, collected by the
-   * same hook.
+   * Every frame the WEBSOCKET delivered to this tab, as text — or `undefined`
+   * for a scenario that did not ask to be recorded (`@wire`, `hooks.ts`).
    *
    * The other wire, and the one nothing else here can see: `requests` is what
    * the page FETCHED, and everything a served file's content does afterwards
@@ -835,13 +835,48 @@ export class OlaiWorld extends World {
    * after the real one changed shape. A binary frame is decoded as UTF-8 for
    * the same reason: the question is about text that either is or is not in
    * those bytes.
+   *
+   * BY REQUEST, unlike its two neighbours, and that is the one thing about it
+   * worth a sentence. `requests` and `errors` are small records; this is every
+   * byte the socket delivered, retained for the scenario's life — a
+   * transcript's token-by-token deltas, a document's whole body — and three
+   * scenarios in the suite ask about it. So it is armed by a tag, and the
+   * absence of the tag is a THROW rather than an empty list ({@link
+   * socketCarried}), because the load-bearing assertion here is a negative one
+   * and a negative over nothing recorded passes for the wrong reason.
    */
-  socketFrames: string[] = [];
+  socketFrames?: string[];
 
-  /** Whether anything the socket delivered carried this text — see
-   *  {@link socketFrames}. */
+  /**
+   * Whether anything the socket delivered carried this text — see {@link
+   * socketFrames}.
+   *
+   * TWO ways this could quietly say "no" are refused rather than documented. A
+   * scenario that never armed the recorder throws, in `requestsWatched`'s
+   * voice and for its reason. And a probe carrying a character the framing
+   * would ESCAPE — a quote, a backslash, a newline, anything non-ASCII —
+   * throws too: the frames are raw, so `"a \"quote\""` is not in them however
+   * squarely the body was sent, and a "never carried" assertion over such a
+   * probe is a sentence about nothing. `JSON.stringify` is the test because
+   * JSON is what escapes it: a string that survives a round trip as itself
+   * between quotes is one that appears verbatim in any JSON frame carrying it.
+   */
   socketCarried(text: string): boolean {
-    return this.socketFrames.some((frame) => frame.includes(text));
+    const frames = this.socketFrames;
+    if (frames === undefined) {
+      throw new Error(
+        "nothing recorded what the socket delivered; a scenario asking about " +
+          "the wire has to carry the @wire tag",
+      );
+    }
+    if (JSON.stringify(text) !== `"${text}"`) {
+      throw new Error(
+        `${JSON.stringify(text)} is not a probe this can look for: it carries ` +
+          "a character the wire's own encoding escapes, so the raw frames " +
+          "would not hold it whether or not the server sent it",
+      );
+    }
+    return frames.some((frame) => frame.includes(text));
   }
 
   /** How far down the page a scenario deliberately scrolled, so a later step

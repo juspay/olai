@@ -110,6 +110,7 @@ import { useOpens } from "../opens.tsx"
 import { useRouter } from "../router.tsx"
 import { fileNamed } from "../routes.ts"
 import { TESTID } from "../testids.ts"
+import { useHead } from "./documents.tsx"
 
 /**
  * How many times a page may walk the frame off the vault without identifying
@@ -266,9 +267,13 @@ const REFUSED: Said = {
 const landing = (at: string | undefined): string =>
   at === undefined || at === "" ? "" : `#${encodeURIComponent(at)}`
 
-export function Hypertext(
-  props: { readonly file: string; readonly rev: number; readonly at?: string },
-) {
+export function Hypertext(props: { readonly file: string }) {
+  // WHICH REVISION THIS FILE IS AT, which is the whole of what this component
+  // asks the wire for — the effect at the bottom is what spends it. A number,
+  // off the one stream the tab's file list already arrives on
+  // (`@olai/surface`'s `Head`), and never the body: the body is what the frame
+  // below fetches for itself, over HTTP, which is the point of all this.
+  const rev = useHead(() => props.file)
   const [measured, setMeasured] = createSignal<string>()
   // What the last click could not be answered with, or nothing. It is CLEARED
   // by the next pointing rather than by a timer ({@link fresh}), which is the
@@ -607,29 +612,32 @@ export function Hypertext(
   // file's whole history.
   //
   // WHAT ASKING COSTS, named rather than hidden: a path and an integer, off a
-  // stream the sidebar's file list is already arriving on (`@olai/surface`'s
-  // `heads`). It used to cost the whole file over the websocket — the body was
-  // the only frame that carried a revision, so this page opened the document's
-  // body to learn a number, and the frame it drew was not created until that
-  // unread copy had landed. Two full transfers of a saved dashboard,
-  // serialized. That was PR #206's standing deferral and it is closed here; the
-  // shape it named — "this path is at revision N", with no body on it — is the
-  // member this reads.
+  // stream the sidebar's file list is already arriving on. Why that member
+  // exists, and what it replaced, is written where it is declared
+  // (`@olai/surface`'s `Head`).
   //
-  // IT IS ALSO NO LONGER BOUNDED. A body was re-read only while the server was
-  // watching the path, and it watched the sixteen most recently opened paths
-  // across every reader at once (`@olai/server`'s `bodies.ts`), so sixteen
-  // newer opens anywhere could leave this frame showing what the file said when
-  // it was opened. A head moves on every revision, for every file, to every
-  // tab: nothing ages out, because there is nothing to read.
+  // IT IS ALSO NO LONGER BOUNDED, which is the part that belongs here because
+  // it is a fact about this frame. What this used to watch was a BODY, re-read
+  // only while the server was watching the path — the sixteen most recently
+  // opened, across every reader at once (`@olai/server`'s `bodies.ts`) — so
+  // sixteen newer opens anywhere could leave this frame showing what the file
+  // said when it was opened. A head moves on every revision, for every file, to
+  // every tab: nothing ages out, because there is nothing to read.
   // …and the SECTION is watched beside it, for the case the revision cannot
   // cover: the page is keyed by FILE (`./DocumentPage.tsx`), so arriving at
   // another place inside the file already open is the same element being asked
   // for a different landing. The frame is re-pointed, because where a document
   // is scrolled to is a fact about its URL and this is the only way to change
   // one from out here.
+  //
+  // DEFERRED also covers the one transition a head has that a prop did not: the
+  // revision ARRIVING. It is already here when this element mounts — the page
+  // model refuses a path the heads do not hold, so the route this component is
+  // under could not have resolved without one (`../page.ts`) — and if that ever
+  // stopped being true the cost is one re-pointing at the file already shown,
+  // which is what a walk-off already does and what the budget above bounds.
   createEffect(
-    on(() => [props.rev, router.landing()], () => {
+    on(() => [rev(), router.landing()], () => {
       walkOffs = 0
       show()
     }, { defer: true }),
