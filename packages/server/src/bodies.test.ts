@@ -6,6 +6,11 @@
  * were not, and a real directory would only make that harder to say. The one
  * thing they do wait on is the reading fiber, which is what publishing a body
  * goes through.
+ *
+ * Every absence below is read the same way, and it is a fact rather than a
+ * race: `unread` offers in the order it is given and the reader takes ONE path
+ * at a time, so a read that should not have happened would appear in the list
+ * BEFORE the later one each test waits for.
  */
 
 import { PlatformFailure } from "@olai/store"
@@ -27,6 +32,10 @@ interface Fixture {
    *  the event itself. A body that never comes fails here with what was
    *  published instead, rather than hanging until the runner gives up. */
   readonly took: (count: number) => Effect.Effect<void>
+  /** A reader opening a file: the hold and the ask together, which is what the
+   *  two callers in `./runtime.ts` amount to for a path whose body the set does
+   *  not keep. What comes back is that reader leaving. */
+  readonly opens: (path: string) => () => void
 }
 
 /** How long a body may take to arrive before the test says it never did.
@@ -37,7 +46,6 @@ const NEVER_CAME = "5 seconds"
 const withBodies = <A>(
   disk: Readonly<Record<string, string | "unreadable">>,
   use: (fixture: Fixture) => Effect.Effect<A, unknown>,
-  options: { readonly watching?: number } = {},
 ): Promise<A> => {
   const reads: Array<string> = []
   const published: Array<readonly [string, string]> = []
@@ -56,7 +64,6 @@ const withBodies = <A>(
       publish: (path, text) => {
         Queue.offerUnsafe(arrivals, [path, text])
       },
-      ...(options.watching === undefined ? {} : { watching: options.watching }),
     })
 
     const took = (count: number): Effect.Effect<void> =>
@@ -74,14 +81,20 @@ const withBodies = <A>(
         }
       })
 
-    return yield* use({ bodies, reads, published, took })
+    const opens = (path: string): (() => void) => {
+      const release = bodies.held(path)
+      bodies.unread([path])
+      return release
+    }
+
+    return yield* use({ bodies, reads, published, took, opens })
   }).pipe(Effect.scoped, Effect.runPromise)
 }
 
 test("opening a file reads its body once and hands it over", () =>
   withBodies({ "report.html": "<h1>Cabinet quote</h1>" }, (fixture) =>
     Effect.gen(function*() {
-      fixture.bodies.opened("report.html")
+      fixture.opens("report.html")
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["report.html"])
@@ -91,13 +104,13 @@ test("opening a file reads its body once and hands it over", () =>
 // The live half: a file somebody is showing, rewritten under them, is read
 // again and republished — which is how a page that was open before a `git pull`
 // is showing what the file says after it.
-test("a file somebody is watching is re-read when it moves", () =>
+test("a file somebody holds is re-read when it moves", () =>
   withBodies({ "report.html": "before" }, (fixture) =>
     Effect.gen(function*() {
-      fixture.bodies.opened("report.html")
+      fixture.opens("report.html")
       yield* fixture.took(1)
 
-      fixture.bodies.moved(["report.html"])
+      fixture.bodies.unread(["report.html"])
       yield* fixture.took(2)
       expect(fixture.reads).toEqual(["report.html", "report.html"])
     })))
@@ -105,49 +118,84 @@ test("a file somebody is watching is re-read when it moves", () =>
 // …and the half that is about the cost: a revision that moved four hundred
 // saved pages nobody has open opens none of them. Without this the module would
 // be a cache with extra steps.
-//
-// The absence is read AFTER a later ask has come back, which is what makes it a
-// fact rather than a race: the reader takes one path at a time in the order
-// they were asked for, so a read of `other.html` queued before this one would
-// have happened before it.
 test("a file nobody has opened is not read when it moves", () =>
   withBodies({ "report.html": "before", "other.html": "also" }, (fixture) =>
     Effect.gen(function*() {
-      fixture.bodies.opened("report.html")
+      fixture.opens("report.html")
       yield* fixture.took(1)
 
-      fixture.bodies.moved(["other.html"])
-      fixture.bodies.opened("report.html")
+      fixture.bodies.unread(["other.html"])
+      fixture.bodies.unread(["report.html"])
       yield* fixture.took(2)
       expect(fixture.reads).toEqual(["report.html", "report.html"])
     })))
 
-// The bound, which is what makes "no eviction" untrue rather than unlikely. The
-// STALEST path goes, and losing it costs live updates on a page nobody is
-// looking at — never a body, since opening one asks again.
-test("only the last few opened files stay watched", () =>
-  withBodies(
-    { "first.html": "one", "second.html": "two" },
-    (fixture) =>
-      Effect.gen(function*() {
-        fixture.bodies.opened("first.html")
-        fixture.bodies.opened("second.html")
-        yield* fixture.took(2)
+// THE WHOLE CHANGE, in one test: the reader LEFT, so the file stops being read.
+// This is what the sixteen-slot LRU could only approximate — a closed tab used
+// to leave its path behind, re-read on every revision that touched it until
+// sixteen newer opens pushed it out.
+test("a file whose last reader has gone is not re-read", () =>
+  withBodies({ "report.html": "before", "other.html": "also" }, (fixture) =>
+    Effect.gen(function*() {
+      const release = fixture.opens("report.html")
+      yield* fixture.took(1)
 
-        // BOTH files move. Only `second.html` is still watched — opening it
-        // pushed `first.html` out, the bound here being one — so only its body
-        // is read again, and the third read is what the assertion waits for.
-        //
-        // Nothing is inferred from a timeout: `moved` offers in the order it is
-        // given, and the reader takes one path at a time, so a re-read of
-        // `first.html` would have been taken BEFORE the third read and would
-        // appear in the list below.
-        fixture.bodies.moved(["first.html", "second.html"])
-        yield* fixture.took(3)
-        expect(fixture.reads).toEqual(["first.html", "second.html", "second.html"])
-      }),
-    { watching: 1 },
-  ))
+      release()
+      fixture.bodies.unread(["report.html"])
+      // The barrier: a file somebody IS holding, asked for after the one that
+      // must not be read.
+      fixture.opens("other.html")
+      yield* fixture.took(2)
+      expect(fixture.reads).toEqual(["report.html", "other.html"])
+    })))
+
+// Two readers of one file are two holds, and the first to leave takes its own
+// and nobody else's — kolu's refcounted watchers, whose `unsubscribe` is
+// idempotent for exactly this reason. Releasing twice must not evict the reader
+// still showing the page.
+test("a second reader keeps the file live, and a doubled release takes nothing extra", () =>
+  withBodies({ "report.html": "before", "other.html": "also" }, (fixture) =>
+    Effect.gen(function*() {
+      const first = fixture.opens("report.html")
+      yield* fixture.took(1)
+      const second = fixture.opens("report.html")
+      yield* fixture.took(2)
+
+      // The first reader leaves, twice. A release that counted twice would drop
+      // the hold the second reader still has, and the re-read below would not
+      // happen.
+      first()
+      first()
+      fixture.bodies.unread(["report.html"])
+      yield* fixture.took(3)
+
+      // …and when the second one goes too, the file goes quiet.
+      second()
+      fixture.bodies.unread(["report.html"])
+      fixture.opens("other.html")
+      yield* fixture.took(4)
+      expect(fixture.reads).toEqual([
+        "report.html",
+        "report.html",
+        "report.html",
+        "other.html",
+      ])
+    })))
+
+// The teardown half of the refcount: a path asked for and released before the
+// reader got to it is DROPPED rather than read, so a page opened and closed in
+// one frame costs no disk at all.
+test("a file released before the read is taken is never opened", () =>
+  withBodies({ "gone.html": "quickly", "other.html": "also" }, (fixture) =>
+    Effect.gen(function*() {
+      const release = fixture.opens("gone.html")
+      release()
+      fixture.opens("other.html")
+      yield* fixture.took(1)
+
+      expect(fixture.reads).toEqual(["other.html"])
+      expect(fixture.published).toEqual([["other.html", "also"]])
+    })))
 
 // A file that went between the listing and the read is not this module's news
 // to break: the next probe drops the key, and the page says there is no such
@@ -155,10 +203,10 @@ test("only the last few opened files stay watched", () =>
 test("a file that has gone publishes nothing", () =>
   withBodies({ "here.html": "still here" }, (fixture) =>
     Effect.gen(function*() {
-      fixture.bodies.opened("gone.html")
+      fixture.opens("gone.html")
       // Asked second and answered first, which is the whole proof: the reader
       // is serial, so `gone.html` had already been read and dropped.
-      fixture.bodies.opened("here.html")
+      fixture.opens("here.html")
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["gone.html", "here.html"])
@@ -171,8 +219,8 @@ test("a file that has gone publishes nothing", () =>
 test("a body that cannot be read publishes nothing and does not stop the reader", () =>
   withBodies({ "locked.html": "unreadable", "fine.html": "readable" }, (fixture) =>
     Effect.gen(function*() {
-      fixture.bodies.opened("locked.html")
-      fixture.bodies.opened("fine.html")
+      fixture.opens("locked.html")
+      fixture.opens("fine.html")
       yield* fixture.took(1)
 
       expect(fixture.reads).toEqual(["locked.html", "fine.html"])

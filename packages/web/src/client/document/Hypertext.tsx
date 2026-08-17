@@ -601,11 +601,12 @@ export function Hypertext(props: { readonly file: string }) {
   //
   // IT IS ALSO NO LONGER BOUNDED, which is the part that belongs here because
   // it is a fact about this frame. What this used to watch was a BODY, re-read
-  // only while the server was watching the path — the sixteen most recently
-  // opened, across every reader at once (`@olai/server`'s `bodies.ts`) — so
-  // sixteen newer opens anywhere could leave this frame showing what the file
-  // said when it was opened. A head moves on every revision, for every file, to
-  // every tab: nothing ages out, because there is nothing to read.
+  // only while the server was watching the path — for a while, the sixteen most
+  // recently opened across every reader at once, so newer opens anywhere could
+  // leave this frame showing what the file said when it was opened. The server
+  // counts holders now and bounds nothing (`@olai/server`'s `bodies.ts`), so
+  // that is history twice over: a head moves on every revision, for every file,
+  // to every tab, and nothing ages out because there is nothing to read.
   // …and the SECTION is watched beside it, for the case the revision cannot
   // cover: the page is keyed by FILE (`./DocumentPage.tsx`), so arriving at
   // another place inside the file already open is the same element being asked

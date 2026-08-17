@@ -7,42 +7,48 @@
  * decision and says why). What is left over is one job, and this module is it:
  * the reader who OPENS such a file still has to be handed its content.
  *
- * Two moments ask for a body, and they are the only two:
+ * Two facts drive it, and they are the only two:
  *
- *   - {@link Bodies.opened} — a per-key `get` snapshot, which is the wire's own
- *     word for "somebody is showing this file". The collection's entry says
- *     `text: null` while the read is in flight, and the body arrives on that
- *     key's next frame (`@olai/surface`'s `DocumentEntry`).
- *   - {@link Bodies.moved} — a published revision naming files that changed. A
- *     body is re-read only for a file somebody is WATCHING, so a `git pull`
+ *   - {@link Bodies.held} — a reader HAS this key open, for as long as the
+ *     release it answers with is uncalled. That is the wire's own subscription
+ *     lifetime, wrapped around the per-key `get` (`@olai/surface`'s
+ *     `holding.ts`): the hold is taken when the subscription starts and dropped
+ *     when it ends, whether it ends by a tab navigating, a socket dropping or a
+ *     one-shot reader taking its frame and leaving.
+ *   - {@link Bodies.unread} — paths whose body is not on the wire
+ *     (`./published.ts`'s `unread`), from the two moments that produce them: a
+ *     reader that has just subscribed to a key the set holds a path and no text
+ *     for, and a published revision naming the bodied files that changed. The
+ *     ones somebody HOLDS are read; the rest are not touched, so a `git pull`
  *     that rewrites four hundred saved pages nobody has open reads none of
- *     them, and the one page somebody does have open updates as it always did.
+ *     them.
  *
- * WHAT IS HELD is a bounded set of PATHS and nothing else — never a body. The
- * bodies themselves are read one at a time and handed straight to the
- * publisher, so what this costs at any instant is one file, and what it costs
- * at rest is nothing. That is the whole of the memory claim: a served
- * directory's saved pages stop being resident, and stay non-resident however
- * many of them a reader visits.
+ * WHAT IS HELD is a count of readers per PATH and nothing else — never a body.
+ * The bodies themselves are read one at a time and handed straight to the
+ * publisher, so what this costs at any instant is one file, and what it costs at
+ * rest is nothing. That is the whole of the memory claim: a served directory's
+ * saved pages stop being resident, and stay non-resident however many of them a
+ * reader visits.
  *
- * The bound on the watched paths is what makes "no eviction" untrue rather than
- * merely unlikely ({@link WATCHING}). Losing the oldest costs live updates on a
- * page somebody stopped looking at; it never costs a body, because opening one
- * asks again.
+ * NOTHING IS EVICTED AND THERE IS NO BOUND, because there is no longer anything
+ * to guess. A path is here while a reader holds it and gone the moment the last
+ * one lets go, so the live set is exactly the pages somebody has open — one
+ * entry per file being shown, across every reader at once. It was a bounded LRU
+ * of the sixteen most recently opened paths for as long as the wire said when a
+ * reader arrived and never when one left; that made "no eviction" untrue rather
+ * than merely unlikely (sixteen newer opens anywhere silenced a still-visible
+ * page, which then held what the file said when it was asked for), and it made a
+ * closed tab leave a path behind that was re-read on every revision touching it
+ * until sixteen newer opens pushed it out. Both were the cost of not knowing
+ * when a reader leaves. The wire says now.
  *
- * It is a bound rather than a lifetime because there is no socket for the
- * lifetime to come out of: the wire says when a reader OPENS a key and nothing
- * says when the last one lets go — the framework owns subscription lifetime and
- * does not publish it. So "who is watching" is inferred from opens and aged
- * out, which is the honest approximation of a fact this process cannot see. A
- * `keys`-style member for "who holds this key" upstream is what would replace
- * it, and until one exists the bound is the whole of the eviction story.
- *
- * The set is the SERVER's rather than one connection's, so the number is paths
- * across every reader at once, and what a closed tab leaves behind is a path
- * whose file is re-read on the revisions that touch it until sixteen newer
- * opens have pushed it out. That is the cost of not knowing when a reader
- * leaves, and it is bytes read and dropped rather than bytes held.
+ * A RELEASE IS IDEMPOTENT and holds do not merge: two readers of one file are
+ * two holds, and the first to leave takes its own hold and nobody else's — the
+ * shape kolu's refcounted watchers landed on (`refcounted-dir-watcher.ts`:
+ * first subscribe installs, all consumers share, last unsubscribe tears down).
+ * The teardown half is here too: a path asked for and then released before the
+ * reader got to it is DROPPED rather than read, so a page opened and closed in
+ * one frame costs no disk at all.
  *
  * ONE failure is quieter than it used to be, and it is a trade rather than an
  * oversight: a `.html` that cannot be READ (not gone — unreadable) reaches the
@@ -58,11 +64,19 @@ import type { PlatformFailure } from "@olai/store"
 import { Effect, Queue, type Scope } from "effect"
 
 export interface Bodies {
-  /** A reader has opened this file — read its body and publish it. */
-  readonly opened: (path: string) => void
-  /** These files moved on the revision just published. The ones somebody is
-   *  watching are re-read; the rest are not touched. */
-  readonly moved: (changed: Iterable<string>) => void
+  /**
+   * A reader has this file OPEN — read its body for them, and go on re-reading
+   * it on every revision that moves the file until they let go.
+   *
+   * What comes back is that ONE reader leaving, and calling it twice is calling
+   * it once. It reads nothing by itself: whether this reader is owed a body now
+   * is a question about the SET, which is answered where the set is read
+   * ({@link Bodies.unread}, and `../runtime.ts`'s `readOne` is the caller).
+   */
+  readonly held: (path: string) => () => void
+  /** These files' bodies are not on the wire. The ones somebody is holding are
+   *  read and published; the rest are not touched. */
+  readonly unread: (paths: Iterable<string>) => void
 }
 
 export interface Options {
@@ -72,29 +86,17 @@ export interface Options {
   /** Hand a body to whoever is reading that key. Called on the reading fiber,
    *  once per read that found something. */
   readonly publish: (path: string, text: string) => void
-  /** How many paths to keep watching. Tests set it; nothing else does. */
-  readonly watching?: number
 }
-
-/**
- * How many paths a server goes on refreshing bodies for.
- *
- * It bounds a set of STRINGS, so the number is not about memory — it is about
- * work: a path stays here after the tab that opened it has gone, and every
- * change to that file would otherwise be re-read forever. Comfortably more than
- * the pages one person reads at once, and small enough that a session spent
- * browsing a vault of saved pages does not accumulate.
- */
-export const WATCHING = 16
 
 export const make = (
   options: Options,
 ): Effect.Effect<Bodies, never, Scope.Scope> =>
   Effect.gen(function*() {
-    const limit = options.watching ?? WATCHING
-    /** Insertion-ordered, oldest first — a `Set` is the whole LRU, since the
-     *  only two operations are "touch this path" and "drop the stalest". */
-    const watching = new Set<string>()
+    /** How many readers hold each path. A path with none is ABSENT rather than
+     *  zero, so the map is the set of files somebody is showing and nothing
+     *  else — which is the same thing as "what to re-read", and one
+     *  representation of it cannot disagree with itself. */
+    const holders = new Map<string, number>()
     /** What is on the queue and not yet taken, so a burst of asks about one
      *  file is one read. A path is forgotten the moment the reader TAKES it,
      *  which is what keeps a change arriving mid-read from being swallowed. */
@@ -109,12 +111,17 @@ export const make = (
 
     // ONE at a time, on purpose: the peak this module can be responsible for is
     // one body, whatever a burst of readers asks for. They are megabyte files,
-    // and reading sixteen of them at once to hand them over one frame at a time
+    // and reading a dozen of them at once to hand them over one frame at a time
     // would be the residency this exists to remove, spent all at once.
     yield* Effect.forever(
       Effect.gen(function*() {
         const path = yield* Queue.take(queue)
         asked.delete(path)
+        // The reader LEFT while this sat on the queue. Reading now would be a
+        // disk read for a page nobody is showing, and publishing it would be a
+        // frame to a subscription that has gone — the late callback kolu's
+        // watchers clear their timers to prevent.
+        if (!holders.has(path)) return
         const text = yield* Effect.catch(
           options.read(path),
           (failure: PlatformFailure) =>
@@ -133,17 +140,19 @@ export const make = (
     ).pipe(Effect.forkScoped)
 
     return {
-      opened: (path) => {
-        watching.delete(path)
-        watching.add(path)
-        if (watching.size > limit) {
-          const [stalest] = watching
-          if (stalest !== undefined) watching.delete(stalest)
+      held: (path) => {
+        holders.set(path, (holders.get(path) ?? 0) + 1)
+        let holding = true
+        return () => {
+          if (!holding) return
+          holding = false
+          const count = holders.get(path)
+          if (count === undefined || count <= 1) holders.delete(path)
+          else holders.set(path, count - 1)
         }
-        ask(path)
       },
-      moved: (changed) => {
-        for (const path of changed) if (watching.has(path)) ask(path)
+      unread: (paths) => {
+        for (const path of paths) if (holders.has(path)) ask(path)
       },
     }
   })
