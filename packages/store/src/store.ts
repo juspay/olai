@@ -68,7 +68,7 @@ import {
 } from "effect"
 import type { FileSystem, Path, Scope } from "effect"
 
-import type { Codec } from "./codec.ts"
+import type { Codec, Since } from "./codec.ts"
 import * as Disk from "./disk.ts"
 import { PlatformFailure, StaleWrite } from "./errors.ts"
 import * as Probe from "./probe.ts"
@@ -252,6 +252,28 @@ interface Judged<F, S, E> {
   readonly outcome: Result.Result<S, E>
 }
 
+/**
+ * What the codec last answered and what has moved since, in the shape it takes
+ * it in ({@link Since}) — `undefined` when there is no last answer to build on,
+ * which is a first load or a store whose every verdict so far has been a
+ * refusal.
+ *
+ * `also` is the write gate's half: the paths a commit is about to put down are
+ * not in the probe's diff yet, and they are the rest of what the published
+ * revision differs from. One spelling for both callers, so the two cannot come
+ * to disagree about what "since" means.
+ */
+const sinceOf = <S>(
+  held: Snapshot<S> | null,
+  moved: Moved,
+  also: ReadonlyArray<string> = [],
+): Since<S> | undefined =>
+  held === null ? undefined : {
+    value: held.value,
+    changed: [...moved.changed, ...also],
+    removed: [...moved.removed],
+  }
+
 const DEFAULT_SETTLE = Duration.millis(75)
 const DEFAULT_BACKSTOP = Duration.seconds(60)
 /** How long to wait before re-establishing a watcher that failed. The backstop
@@ -337,10 +359,14 @@ export const make = <F, S, E>(
     ): Effect.Effect<Result.Result<Snapshot<S>, E>> =>
       Effect.gen(function*() {
         const since = yield* Ref.updateAndGet(moved, (before) => absorb(before, found))
+        const held = yield* SubscriptionRef.get(snapshot)
         const outcome = already !== undefined &&
             Probe.sameDecoded(already.files, found.files)
           ? already.outcome
-          : options.codec.validate(found.files)
+          // What the codec last answered, and everything that has moved since
+          // — which is `since` exactly, because it is kept rather than cleared
+          // when a verdict refuses ({@link Codec.Since}).
+          : options.codec.validate(found.files, sinceOf(held, since))
         if (Result.isFailure(outcome)) {
           // The snapshot stays where it is, so what moved is still owed to
           // whoever reads the next one: `since` is kept rather than cleared.
@@ -434,10 +460,16 @@ export const make = <F, S, E>(
             promised.set(change.path, promise)
           }
           // The verdict and the set it is about, made together and spent
-          // together ({@link Judged}).
+          // together ({@link Judged}) — reached from the published one, which
+          // this write's own changes and whatever an earlier probe left owed
+          // are the whole difference from.
+          const outstanding = yield* Ref.get(moved)
           const judged: Judged<F, S, E> = {
             files: candidate,
-            outcome: options.codec.validate(candidate),
+            outcome: options.codec.validate(
+              candidate,
+              sinceOf(current, outstanding, write.changes.map((change) => change.path)),
+            ),
           }
           if (Result.isFailure(judged.outcome)) return Result.fail(judged.outcome.failure)
 

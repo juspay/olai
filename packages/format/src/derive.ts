@@ -22,6 +22,14 @@
  * also run against sets it has already condemned (a browser draws the outline
  * beside the errors), and a renderer that hangs is a worse way to learn about
  * a bug than a marked stub.
+ *
+ * {@link derive} IS THE ORACLE, since slice 3 of `model-indices`: a validation
+ * that follows another one patches the previous view instead of building a new
+ * one ({@link ./patch.ts}), and what says the two are the same value is a
+ * property test over generated corpora and generated deltas. So this file is
+ * still the definition of what a view of a set IS — the patcher is an
+ * optimisation held to it, and every rule it needs it calls here rather than
+ * spelling again.
  */
 
 import { Schema } from "effect"
@@ -190,6 +198,53 @@ export interface Naming {
   readonly fields: ReadonlyArray<TargetField>
 }
 
+/**
+ * One entry of {@link Derived.namedBy} while it is still being built — the
+ * fields are pushed into as the record's own list is read, and the map is
+ * handed out `ReadonlyArray` once the walk is over.
+ */
+export interface Filing {
+  readonly at: Located
+  readonly fields: Array<TargetField>
+}
+
+/**
+ * One record's namings, filed into `namedBy` — the WHOLE of how that index is
+ * built, in one place.
+ *
+ * Asked once per record, and nearly every record names nothing, which is why
+ * {@link targetsOf} answers that with a shared empty list.
+ *
+ * A record naming one id with two fields is ONE dependent carrying both, and
+ * the entry to add the second field to is the LAST one — entries are appended
+ * as the walk reaches each record, so an entry already filed by the record in
+ * hand can only be the one on the end. That is what makes the fold free: no
+ * per-record scratch map, no search.
+ *
+ * It is a function rather than a loop body because a SECOND walk files records
+ * into this index now — the patcher's, over the records one changed file
+ * brought in ({@link ./patch.ts}) — and the folding rule above is exactly the
+ * kind of thing two spellings drift on: one of them would go on filing a record
+ * that names an id twice as two dependents, and the ops layer's refusals would
+ * quote a file that says something else.
+ */
+export const nameInto = (
+  namedBy: Map<string, Array<Filing>>,
+  located: Located,
+): void => {
+  for (const [field, target] of targetsOf(located.node)) {
+    const naming = namedBy.get(target)
+    const held = naming?.[naming.length - 1]
+    if (held?.at === located) {
+      if (!held.fields.includes(field)) held.fields.push(field)
+    } else if (naming === undefined) {
+      namedBy.set(target, [{ at: located, fields: [field] }])
+    } else {
+      naming.push({ at: located, fields: [field] })
+    }
+  }
+}
+
 export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   // `Map.groupBy` is the language's own group-by-key, and grouping by file is
   // exactly that — a hand-rolled accumulator here would be a second spelling
@@ -215,24 +270,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
       else siblings.push(located)
     }
 
-    // Asked once per record, and nearly every record names nothing — which is
-    // why `targetsOf` answers that with a shared empty list.
-    for (const [field, target] of targetsOf(located.node)) {
-      const naming = namedBy.get(target)
-      // A record naming one id with two fields is ONE dependent carrying both,
-      // and the entry to add the second field to is the LAST one — entries are
-      // appended as the walk reaches each record, so an entry already filed by
-      // the record in hand can only be the one on the end. That is what makes
-      // the fold free: no per-record scratch map, no search.
-      const held = naming?.[naming.length - 1]
-      if (held?.at === located) {
-        if (!held.fields.includes(field)) held.fields.push(field)
-      } else if (naming === undefined) {
-        namedBy.set(target, [{ at: located, fields: [field] }])
-      } else {
-        naming.push({ at: located, fields: [field] })
-      }
-    }
+    nameInto(namedBy, located)
   }
 
   // Sorted rather than trusted: a set assembled file by file already arrives
@@ -261,8 +299,10 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
 }
 
 /** The order the records are on disk — {@link Derived.byFile}'s promise, and
- *  the only comparator here that is not about meaning. */
-const byLine = (a: Located, b: Located): number => a.line - b.line
+ *  the only comparator here that is not about meaning. Exported for the
+ *  patcher, which sorts ONE file's arriving records into the same promise
+ *  rather than re-deciding what disk order is. */
+export const byLine = (a: Located, b: Located): number => a.line - b.line
 
 /**
  * One file's records, in the order they are written.
@@ -566,6 +606,17 @@ export interface InTheWay {
  * paragraphs above make about spellings and about placements, carried to the
  * case where the two arrive at one pair — see {@link edge}.
  *
+ * THE ONE RULE THE PATCHER RE-SPELLS, and the pointer is here so a change to
+ * this walk cannot be made without meeting it: {@link ./patch.ts} builds these
+ * same two maps ONE KEY AT A TIME — a node's own `after`, then whatever
+ * `blocks` it from elsewhere — because that is the only shape a key can be
+ * rebuilt in without walking the corpus. Everything else the patcher needs it
+ * calls (mirror resolution, the naming fold, blockedness); this is the walk
+ * whose SHAPE cannot be shared, since one pass over every record and one pass
+ * per disturbed key are different loops over the same rule. What holds them
+ * together is the oracle: the property test compares these two maps whole, so a
+ * change here that the patcher does not follow fails rather than drifts.
+ *
  * BOTH DIRECTIONS, filed as the edge is made. {@link Derived.edgesTo} is this
  * map reversed — and to be exact about what that buys, since a later pass over
  * a finished `after` would reverse ids that are already canonical and could
@@ -688,22 +739,38 @@ const blockage = (
   status: ReadonlyMap<string, Status>,
   after: ReadonlyMap<string, ReadonlyArray<string>>,
 ): ReadonlyMap<string, ReadonlyArray<InTheWay>> => {
-  const index = { byId }
-
+  const view = { byId, status, after }
   const blocked = new Map<string, ReadonlyArray<InTheWay>>()
-  for (const [id, targets] of after) {
-    const source = inPlay(index, status, id)
-    if (source === undefined) continue
-
-    const waiting = waitingOn(index, status, targets)
-    if (waiting.length === 0) continue
-
-    // Keyed by the NODE. Both spellings of an edge were resolved to one before
-    // they became keys above, so a node has one list here however many records
-    // pointed at it and however they addressed it.
-    blocked.set(source.at.node.id, waiting)
+  for (const id of after.keys()) {
+    const found = blockageAt(view, id)
+    if (found !== undefined) blocked.set(found.at, found.waiting)
   }
   return blocked
+}
+
+/**
+ * ONE key of {@link Derived.blocked}: what the node an `after` key names is
+ * waiting on, and the id the index files that under — or `undefined` for a key
+ * the index carries nothing for, which is nearly every key.
+ *
+ * Keyed by the NODE. Both spellings of an edge were resolved to one before they
+ * became `after` keys, so a node has one list here however many records pointed
+ * at it and however they addressed it — and that resolution is why the id it is
+ * filed under is answered rather than assumed by the caller.
+ *
+ * The whole of {@link blockage} is this function over every key, and the
+ * patcher is this function over the few keys an edit disturbed
+ * ({@link ./patch.ts}). Two spellings of "what is in the way" would be a
+ * patched view that draws a blocker a rebuilt one does not.
+ */
+export const blockageAt = (
+  view: Pick<Derived, "byId" | "status" | "after">,
+  id: string,
+): { readonly at: string; readonly waiting: ReadonlyArray<InTheWay> } | undefined => {
+  const source = inPlay(view, view.status, id)
+  if (source === undefined) return undefined
+  const waiting = standingBefore(view, id)
+  return waiting.length === 0 ? undefined : { at: source.at.node.id, waiting }
 }
 
 /**

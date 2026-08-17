@@ -35,6 +35,7 @@ import {
 } from "./errors.ts"
 import { fileKind } from "./kinds.ts"
 import { isMirror, type Located, type Site } from "./node.ts"
+import { patch, type SetDelta } from "./patch.ts"
 import { didYouMean } from "./suggest.ts"
 import type { OutlineSet } from "./set.ts"
 
@@ -55,21 +56,43 @@ import type { OutlineSet } from "./set.ts"
  * and a reader above reads the view the validator built rather than building a
  * second one that is free to disagree with it.
  *
- * WHAT IT HIDES is where this earns its keep next. Every reader above — the
+ * WHAT IT HIDES is where it has now earned its keep. Every reader above — the
  * planner, the query walks, the keystroke resolver, the per-file projection the
- * wire is cut from — now names this pair and nothing else, so HOW the view came
- * to exist is behind it: rebuilt from scratch today, patched from the previous
- * revision when the patcher lands (`docs/brainstorming/model-indices.md`, slice
- * 3). That is a change of one function inside this file, with no consumer of
- * this type able to tell.
+ * wire is cut from — names this pair and nothing else, so HOW the view came to
+ * exist is behind it: PATCHED from the reading this one follows when a caller
+ * offers one and the records line up ({@link Previous}, {@link viewOf}), and
+ * built from scratch when either is missing. That landed as slice 3 of
+ * `docs/brainstorming/model-indices.md` and it was a change of one function
+ * inside this file, with no consumer of this type able to tell — which was the
+ * claim this paragraph made while the patcher was still ahead of it.
  */
 export interface Reading {
   readonly set: OutlineSet
   readonly derived: Derived
 }
 
+/**
+ * The reading this one FOLLOWS, and what has moved since — what lets a
+ * validation PATCH its view instead of building one ({@link ./patch.ts}).
+ *
+ * Offered, never required: {@link validate} without it is exactly the function
+ * it always was. What it buys is the keystroke case, where the difference
+ * between the two views is one record and the difference in cost is the whole
+ * corpus.
+ *
+ * The delta must be about the SET being validated — the same files, the same
+ * records — because the answer is a view of that set. Its one caller is the
+ * store's codec, which is handed both by a package whose whole job is knowing
+ * which files moved ({@link ../../store/src/codec.ts}'s `Since`).
+ */
+export interface Previous {
+  readonly read: Reading
+  readonly delta: SetDelta
+}
+
 export const validate = (
   set: OutlineSet,
+  previous?: Previous,
 ): Result.Result<Reading, ReadonlyArray<OutlineError>> => {
   const errors: Array<OutlineError> = []
   // One set of indexes, built once and shared by every rule below, so no two
@@ -77,7 +100,7 @@ export const validate = (
   // — and so the browser derives the tree from the same code. It LEAVES with
   // the verdict ({@link Reading}) rather than being dropped here: the caller
   // that publishes what this approves has no second corpus to walk.
-  const derived = derive(set.nodes)
+  const derived = viewOf(set, previous)
 
   reportDuplicateIds(set.nodes, derived, errors)
   checkParents(set.nodes, derived, errors)
@@ -106,6 +129,45 @@ export const validate = (
     ? Result.fail([...unreadable, ...found].sort(compareErrors))
     : Result.succeed({ set, derived })
 }
+
+/**
+ * The view every rule below is run over: patched from the last one where that
+ * is possible, built from scratch where it is not.
+ *
+ * The two are the same value — that is the patcher's contract and its property
+ * test — so this is a statement about COST and about nothing else. Which is why
+ * it is one branch inside this file rather than a decision any caller makes:
+ * `Reading` was written to hide exactly this.
+ *
+ * THE RECORDS THEMSELVES ARE COMPARED, and identity is the right question
+ * rather than a strict one. The rules below read the view against the set: a
+ * duplicate id is "the record `byId` kept is not THIS record"
+ * ({@link reportDuplicateIds}), and that is an identity test. So a view built
+ * from a delta that missed a file — or from records equal to the set's rather
+ * than the set's own — is not merely stale, it makes every record look like a
+ * duplicate of itself. Nothing about that could be caught by counting, and the
+ * two lists are already in hand: one pass of pointer comparisons over a list
+ * this function was going to walk six times anyway.
+ *
+ * It is a DISAGREEMENT check and not a proof of the delta. What stands behind
+ * that is the store's own claim that these paths are every path that moved,
+ * which is the same claim the wire already spends when it publishes per file;
+ * this is what makes a broken claim cost a rebuild rather than a wrong answer.
+ */
+const viewOf = (set: OutlineSet, previous: Previous | undefined): Derived => {
+  if (previous === undefined) return derive(set.nodes)
+  const view = patch(previous.read.derived, previous.delta)
+  // The set's own list, once the two are known to hold the same records in the
+  // same places: a `Reading` whose view and set share one array is what a
+  // rebuilt one has always been, and one difference between the two paths is
+  // one thing a reader could come to depend on without meaning to.
+  return isSet(view.nodes, set.nodes) ? { ...view, nodes: set.nodes } : derive(set.nodes)
+}
+
+const isSet = (
+  view: ReadonlyArray<Located>,
+  nodes: ReadonlyArray<Located>,
+): boolean => view.length === nodes.length && view.every((at, index) => at === nodes[index])
 
 // ── ids ────────────────────────────────────────────────────────────────
 

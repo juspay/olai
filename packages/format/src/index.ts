@@ -72,9 +72,19 @@ export { validate } from "./validate.ts"
  *  rules ran over — the pairing `Derived` already makes about its own nodes,
  *  made once more one layer up. */
 export type { Reading } from "./validate.ts"
+/** The last reading and what has moved since it — what `validate` takes to
+ *  PATCH its view rather than build one. The store's codec is what holds both
+ *  halves; every other caller goes on passing a set and nothing else. */
+export type { Previous } from "./validate.ts"
 
-export { assemble, BrokenFile, OutlineSet } from "./set.ts"
+export { assemble, BrokenFile, nodesIn, OutlineSet } from "./set.ts"
 export type { DecodedFile, Outline } from "./set.ts"
+/** What a delta says: files upserted, files gone — Surface's own
+ *  collection-delta frame, which is the vocabulary "what changed" already
+ *  travels this system in. `patch` itself is not exported: applying one is
+ *  `validate`'s business until the browser joins in, and a second caller of it
+ *  would be a second view free to disagree with the validated one. */
+export type { SetDelta } from "./patch.ts"
 /** WHICH files a served directory is made of — one table, the two suffixes the
  *  ops layer mints paths with, and every suffix as a list for the one reader that
  *  runs where no function of this package can be called. The table is

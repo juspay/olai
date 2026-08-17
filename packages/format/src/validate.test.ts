@@ -65,6 +65,46 @@ test("a set using every relation loads clean", () => {
   )
 })
 
+// ── the view a validation is offered ───────────────────────────────────
+//
+// A validation may be handed the reading it FOLLOWS and what has moved since,
+// and then the view its rules run over is patched rather than built
+// (`./patch.ts`). What that rests on is that the view is about THIS set: the
+// rules read the two against each other by identity — a duplicate id is "the
+// record `byId` kept is not this record" — so a view of some other moment does
+// not merely go stale, it condemns every record in the set as a duplicate of
+// itself.
+
+test("a view that is not about this set is not the view the rules run over", () => {
+  const before = setOf({
+    "a.olai": `{"id":"x","ord":"a","title":"one"}`,
+    "b.olai": `{"id":"y","ord":"a","title":"two"}`,
+  })
+  const first = validate(before)
+  if (Result.isFailure(first)) throw new Error("expected the first set to be valid")
+
+  // A delta that claims nothing moved, about a set where something did — the
+  // shape a caller with a wrong idea of what changed would hand over.
+  const after = setOf({
+    "a.olai": `{"id":"x","ord":"a","title":"edited"}`,
+    "b.olai": `{"id":"y","ord":"a","title":"two"}`,
+  })
+  const answer = validate(after, {
+    read: first.success,
+    delta: { upserts: [], removes: [] },
+  })
+
+  if (Result.isFailure(answer)) {
+    throw new Error(
+      `expected the set in hand to be judged: ${answer.failure.map((e) => e.code).join(", ")}`,
+    )
+  }
+  // The view is the set's own, whichever way it was reached — same records, in
+  // the same list.
+  expect(answer.success.derived.nodes).toBe(after.nodes)
+  expect(answer.success.derived.byId.get("x")).toBe(after.nodes[0])
+})
+
 // The set is flat: `files` is the list found on disk and the nodes are one
 // list. A `.olai` holding no nodes is still a file of the set — which is why
 // `files` is not derived from `nodes`, and why an empty one is not an error.

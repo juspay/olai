@@ -22,7 +22,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import type { Codec } from "./codec.ts"
+import type { Codec, Since } from "./codec.ts"
 import * as Store from "./store.ts"
 
 // ── the test codec ─────────────────────────────────────────────────────
@@ -45,6 +45,12 @@ let decodes: Array<string> = []
  *  builds a view of the whole corpus — makes "how many times per write" a
  *  number worth pinning, and the gate's answer is once. */
 let validations: Array<ReadonlyArray<string>> = []
+/** What the store OFFERED at each of those calls: the verdict it last
+ *  published and every path that has moved since — `undefined` when there is
+ *  nothing to build on. A codec that can answer incrementally spends it
+ *  ({@link Since}); this one only writes it down, which is all that is needed
+ *  to say what the store promises about it. */
+let offered: Array<Since<Loaded> | undefined> = []
 /**
  * Two one-shot hooks, each fired from a codec member and disarmed as it fires,
  * so a test can reach INSIDE one `commit` — which is otherwise one call with
@@ -86,8 +92,9 @@ const codec: Codec<string, Loaded, ReadonlyArray<string>> = {
       : Result.succeed(contents)
   },
 
-  validate: (files) => {
+  validate: (files, since) => {
     validations.push([...files.keys()])
+    offered.push(since)
     const text: Record<string, string> = {}
     const broken: Array<string> = []
     for (const [path, decoded] of files) {
@@ -151,6 +158,7 @@ const withStore = <A>(
 ): Promise<A> => {
   decodes = []
   validations = []
+  offered = []
   whileDecoding = null
   whileListing = null
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-store-"))
@@ -907,6 +915,71 @@ test("bytes that are not the ones promised are decoded, and are what publishes",
       expect((yield* snapshotOf(store))?.value.text).toEqual({
         "a.txt": "somebody else's",
       })
+    })))
+
+// ── what the last verdict is worth ─────────────────────────────────────
+//
+// The store knows two things no codec can work out for itself: what it last
+// published, and which paths have moved since. Handing both over is what lets a
+// codec whose validation is a whole-corpus derivation patch that derivation
+// instead ({@link Since}) — and the three tests here are the promise that makes
+// possible, since a codec that trusted a wrong "what moved" would publish a
+// view of a directory nobody has.
+
+test("a validation is offered the last verdict, and what has moved since it", () =>
+  withStore({ "a.txt": "alpha" }, ({ store, write }) =>
+    Effect.gen(function*() {
+      // The first load has nothing behind it, and says so rather than saying
+      // "nothing changed" — which is what a caller would read an empty pair as.
+      expect(offered).toEqual([undefined])
+      const first = yield* snapshotOf(store)
+
+      write("b.txt", "beta")
+      yield* store.refresh
+
+      const since = offered.at(-1)
+      // IDENTITY: the very value on the published snapshot, so a codec may
+      // build on the indexes inside it rather than on something equal to them.
+      expect(since?.value).toBe(first?.value as Loaded)
+      expect(since?.changed).toEqual(["b.txt"])
+      expect(since?.removed).toEqual([])
+    })))
+
+test("a commit is offered the published verdict and its own files", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      offered = []
+
+      yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "alpha, committed" }],
+      })
+
+      // One validation, as the section above proves — and it is reached from
+      // the revision this write named as its base, which is exactly the pairing
+      // an incremental codec needs: this view, plus this file.
+      expect(offered.length).toBe(1)
+      expect(offered[0]?.value).toBe(before?.value as Loaded)
+      expect(offered[0]?.changed).toEqual(["a.txt"])
+    })))
+
+test("what moved while a verdict was refused is still owed to the next one", () =>
+  withStore({ "a.txt": "alpha" }, ({ store, write }) =>
+    Effect.gen(function*() {
+      const first = yield* snapshotOf(store)
+
+      // Refused whole: the reference names a file the set does not hold. The
+      // snapshot stays where it is, so `b.txt` has still not been accounted for
+      // to anybody holding it.
+      write("b.txt", "needs nowhere")
+      yield* store.refresh
+      write("c.txt", "gamma")
+      yield* store.refresh
+
+      const since = offered.at(-1)
+      expect(since?.value).toBe(first?.value as Loaded)
+      expect(since?.changed).toEqual(["b.txt", "c.txt"])
     })))
 
 test("a new file arrives through the gate, directory and all", () =>

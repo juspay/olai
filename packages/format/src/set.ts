@@ -85,6 +85,28 @@ export type DecodedFile = Outline | Document
 const isDocument = (decoded: DecodedFile): decoded is Document => "text" in decoded
 
 /**
+ * What one decoded file contributes to the set's records — nothing for a
+ * document, and nothing for a file that did not parse.
+ *
+ * {@link assemble}'s per-file answer, asked one file at a time, and here rather
+ * than at the asker for that reason: which files hold records is this module's
+ * sentence, and a second reading of it somewhere above would be a caller
+ * deciding for itself that a `.md` holds none. What asks is the store's codec,
+ * building the delta a patched validation takes ({@link ./patch.ts}) out of the
+ * files a probe re-decoded — the same values `assemble` reads, one path at a
+ * time instead of all of them.
+ *
+ * `undefined` answers the same as a failure: a path the map does not hold
+ * contributes no records, which is what the delta means by a file with none.
+ */
+export const nodesIn = <E>(
+  decoded: Result.Result<DecodedFile, E> | undefined,
+): ReadonlyArray<Located> =>
+  decoded === undefined || Result.isFailure(decoded) || isDocument(decoded.success)
+    ? []
+    : decoded.success.nodes
+
+/**
  * Decoded files into the set the validator judges.
  *
  * The assembly is a statement about the format — which files are outlines,
