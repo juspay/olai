@@ -81,7 +81,7 @@ Deferred, explicitly: **relative dates** (`date:today`, `date:7d`, Workflowy's `
 - **Quoted phrases** (`"pick the hinges"`) — deferred. Every word already has to appear in the same node, which covers most of what quoting is for, and the tokenizer that supports quoting is a different tokenizer.
 - **`OR`** — deferred. A grammar with one binding level is a grammar a reader can hold; adding disjunction without parentheses is a trap and adding parentheses is a parser.
 - **`>` (nested ancestry)** — deferred, and `>` is already spoken for: the ⌘K palette reads a leading `>` as an ask rather than a lookup.
-- **`is:blocked`** — deferred here, **landed since** ([search.md](../search.md)), and the deferral's stated cost is worth reading against what it actually was. It was: every clause is a test of the RECORD, so the predicate takes a located node and nothing else; a derived-fact operator is the first one that needs the whole set, and that is a signature change rather than a new row in a table. That is exactly what it cost — `matchOf` and `holds` take the `Derived` every caller of `matching` was already handing over, and the clause is one lookup in the index the views draw blockedness from (`blockersOf`). Nothing was paid in advance, and the knob that would have been a parameter nothing reads is now a parameter one clause reads.
+- **`is:blocked`** — deferred here, **landed since** ([search.md](../search.md)), and the deferral's stated cost is worth reading against what it actually was. It was: every clause is a test of the RECORD, so the predicate takes a located node and nothing else; a derived-fact operator is the first one that needs the whole set, and that is a signature change rather than a new row in a table. That is exactly what it cost — `matchOf` and `holds` take the `Derived` every caller of `matching` was already handing over, and the clause is one lookup in the index the views draw blockedness from. Nothing was paid in advance.
 
 ### Refusals reach every door
 
@@ -182,6 +182,7 @@ A `#tag` in a title becomes a real affordance: a pill that says it is pressable,
 
 - Relative and changed-since dates (`date:today`, `changed:7d`).
 - Quoted phrases, `OR`, and the `>` ancestry operator.
+- ~~`is:blocked`~~ — **landed**, and the entry is struck rather than removed so the list still says what this design deferred (the cost it named, and what it turned out to be, is above).
 - Filtering the day, agenda and trash pages.
 - Starred / saved searches and named shortcuts (viewing-web.md's own Open list).
 - A keyboard chord that focuses the filter box.

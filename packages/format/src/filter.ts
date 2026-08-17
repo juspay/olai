@@ -34,8 +34,8 @@ import { Schema } from "effect"
 
 import {
   ancestorsOf,
-  blockersOf,
   type Derived,
+  isBlocked,
   mayHoldTag,
   type Row,
   storedMarker,
@@ -113,8 +113,10 @@ const positionBonus = (haystack: string, needle: string): number => {
 
 /** The marks `is:` selects on, plus the three questions that are not a mark:
  *  `marked` (any of the three — what makes `is:marked -is:done` sayable),
- *  `blocked` (the one DERIVED value here — see {@link holds}) and `archived`
- *  (below). */
+ *  `blocked` (the one DERIVED value here) and `archived` (below). Which of
+ *  them is answered by what is {@link being}, and that is a switch, so a value
+ *  added to this list is a compile error there rather than a query that finds
+ *  nothing. */
 const IS_VALUES = ["done", "doing", "todo", "marked", "blocked", "archived"] as const
 type IsValue = (typeof IS_VALUES)[number]
 
@@ -597,29 +599,45 @@ const wordHit = (
   return field === null ? null : { field, score }
 }
 
-const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean => {
-  if (clause.kind === "is") {
-    if (clause.value === "archived") return isArchived(at.file)
-    // THE ONE DERIVED VALUE, and it is the derivation the views draw rather
-    // than a second reading of `after`: `blockersOf` is what puts the `blocked
+/**
+ * What `is:` asks of one node — a SWITCH over the value's own type, for the
+ * reason {@link clauseOf} is one: three of these six are answered by three
+ * different things, and the chain of `if`s this replaced ended in a comparison
+ * against the stored mark. So a value added to {@link IS_VALUES} that is not a
+ * mark fell through to `mark === "whatever"` and quietly selected nothing —
+ * the silent empty answer this file's whole refusal arm exists to prevent,
+ * arriving by a path no refusal can see. Now it is a compile error here, which
+ * is the second place (with {@link teaching}) a new value has to say something.
+ */
+const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean => {
+  switch (value) {
+    case "archived":
+      return isArchived(at.file)
+    // THE ONE DERIVED VALUE, and it is the index the views draw from rather
+    // than a second reading of `after`: the same answer that puts the `blocked
     // by` line on a node's page and the dim on a row, so a query cannot find a
-    // node the app does not draw as waiting, or miss one it does. Everything
-    // that makes blockedness what it is lives there and is not restated here —
-    // a target with no mark blocks nothing (a bullet is not work), a `done`
-    // one has happened, archived work at either end is out of it, and both
-    // spellings of an edge (`after` and `blocks`) were normalised into one
-    // graph before this index was built. Which is also what makes it reach
-    // ACROSS FILES for free: the derivation is of the whole set, so a node
-    // waiting on one in another outline is blocked here exactly as it is on
-    // screen.
-    if (clause.value === "blocked") return blockersOf(derived, at.node.id).length > 0
+    // node the app does not draw as waiting, or miss one it does. What
+    // blockedness IS — which targets stand in the way, and which sources can
+    // be said to be waiting at all — is `./derive.ts`'s `blockage` and is not
+    // restated here. Including the part nobody has to pay for: the derivation
+    // is of the whole SET, so this reaches across files exactly as the screen
+    // does.
+    case "blocked":
+      return isBlocked(derived, at.node.id)
+    case "marked":
+      return storedMarker(at.node) !== undefined
     // The STORED mark, never a derived one: a parent whose children are all
     // ticked is not `is:done` unless somebody ticked it (docs/format.md's
     // Status, and the `not-every-node-a-task` ruling behind it).
-    const mark = storedMarker(at.node)
-    if (clause.value === "marked") return mark !== undefined
-    return mark === clause.value
+    case "done":
+    case "doing":
+    case "todo":
+      return storedMarker(at.node) === value
   }
+}
+
+const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean => {
+  if (clause.kind === "is") return being(derived, at, clause.value)
   // `has:date` is `date:` WITH NO BOUNDS rather than a test of the `date`
   // field, and the one exception in the table is deliberate: a reader who can
   // find a node with `date:2026-08-03` and then not find it with `has:date`

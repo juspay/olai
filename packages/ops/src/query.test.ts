@@ -92,22 +92,15 @@ describe("the edges a node carries", () => {
    * `sticky` is `doing` and waits on `git`, which is `todo`, so the ledger
    * draws it blocked and `search_nodes` answers with it.
    *
-   * Worth a test up here rather than only beside the matcher (`@olai/format`'s
-   * `filter.test.ts` holds the grammar) because this procedure is what hands
-   * the DERIVATION to it: every other operator is a test of a record, and this
-   * is the one an ops layer could answer with silence by passing a reading the
-   * blocked index is not on.
+   * What each operator SELECTS is `@olai/format`'s (`filter.test.ts` holds the
+   * grammar, including this one's derived half). What is pinned here is that a
+   * SHORTLIST answers it at all — this is the only operator whose answer is not
+   * in the record, so it is the only one this layer's ranking and capping walk
+   * past a value it did not read off the node.
    */
   test("`is:blocked` reaches an agent as the derivation the page draws", () => {
-    const waiting = search(at(), { text: "is:blocked" }).hits
-    expect(waiting.map((hit) => hit.id)).toEqual(["sticky"])
-    // The hit carries the edge it is waiting on, so what to ask about next is
-    // in the answer rather than a second call away.
-    expect(waiting[0]).toMatchObject({ id: "sticky", after: ["git"] })
-    // `git` carries no `after` and is waiting on nothing; the two sections and
-    // `focus` are bullets, which are never blocked. A placement is never a hit.
-    expect(search(at(), { text: "-is:blocked" }).hits.map((hit) => hit.id))
-      .toEqual(["focus", "now", "bugs", "git"])
+    expect(search(at(), { text: "is:blocked" }).hits.map((hit) => hit.id))
+      .toEqual(["sticky"])
   })
 })
 

@@ -740,6 +740,23 @@ export const blockersOf = (
 ): ReadonlyArray<InTheWay> => derived.blocked.get(id) ?? []
 
 /**
+ * WHETHER anything is in this node's way — {@link blockersOf} asked by a caller
+ * that only wants the answer yes or no.
+ *
+ * Beside it rather than spelled as `blockersOf(…).length > 0` at the call site,
+ * and for the reason that one exists: absence is how the index spells
+ * "nothing", and both halves of that convention belong to the reading side.
+ * {@link blockage} never files an empty list — a node with nothing in its way
+ * is a node with no entry — so the presence of a key IS the answer, with no
+ * array minted to have its length read. That matters because the caller is
+ * `filter.ts`'s `is:blocked`, which asks this of every node of the directory,
+ * on every keystroke of the filter box, and whose negation (`-is:blocked`, what
+ * can be started) is the form that touches nearly all of them.
+ */
+export const isBlocked = (derived: Derived, id: string): boolean =>
+  derived.blocked.has(id)
+
+/**
  * What this node's `after` targets hold up — whether or not the node is WORK
  * yet.
  *

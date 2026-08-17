@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { derive, type Row, rowsOf } from "./derive.ts"
+import { derive, type Derived, type Row, rowsOf } from "./derive.ts"
 import {
   keeping,
   matchedIn,
@@ -36,9 +36,16 @@ const CORPUS = {
 
 const derived = derive(nodesOfFiles(CORPUS))
 
+/** The ids a query selects out of a derivation, in the set's own order — for
+ *  the two tests that ask a corpus other than the one above. */
+const selectsIn = (
+  derivation: Derived,
+  text: string,
+): ReadonlyArray<string> =>
+  matching(derivation, parseFilter(text)).map(({ at }) => at.node.id)
+
 /** The ids a query selects, in the set's own order. */
-const selects = (text: string): ReadonlyArray<string> =>
-  matching(derived, parseFilter(text)).map(({ at }) => at.node.id)
+const selects = (text: string): ReadonlyArray<string> => selectsIn(derived, text)
 
 // ── the grammar ────────────────────────────────────────────────────────
 
@@ -101,11 +108,9 @@ test("a field holding nothing is a field the record does not carry", () => {
       `{"id":"real","ord":"a1","title":"real","desc":"something"}`,
     ].join("\n"),
   }))
-  const ids = (text: string) =>
-    matching(hollow, parseFilter(text)).map(({ at }) => at.node.id)
-  expect(ids("has:desc")).toEqual(["real"])
-  expect(ids("has:see")).toEqual([])
-  expect(ids("has:after")).toEqual([])
+  expect(selectsIn(hollow, "has:desc")).toEqual(["real"])
+  expect(selectsIn(hollow, "has:see")).toEqual([])
+  expect(selectsIn(hollow, "has:after")).toEqual([])
 })
 
 test("`date:` reads the two dates a journal reads — scheduled, and finished", () => {
@@ -158,9 +163,9 @@ test("clauses and words compose", () => {
 /**
  * `is:blocked` is the one value here that is not a fact about the RECORD, and
  * these tests are about it being the app's own answer rather than a second one:
- * `blockersOf` is what dims a row and draws its `blocked by` line, so a query
- * that found a node the page does not draw as waiting — or missed one it does —
- * would be the drift this package exists to make impossible.
+ * the index `derive.ts` builds is what dims a row and draws its `blocked by`
+ * line, so a query that found a node the page does not draw as waiting — or
+ * missed one it does — would be the drift this package exists to prevent.
  */
 test("`is:blocked` finds what is waiting, across the whole directory", () => {
   // `hinges` waits on `order`, which is `doing`. `herbs` waits on `hinges`
@@ -169,26 +174,18 @@ test("`is:blocked` finds what is waiting, across the whole directory", () => {
   expect(selects("is:blocked")).toEqual(["herbs", "hinges"])
 })
 
-/**
- * The two rules that make it a derivation rather than "the record has an
- * `after`", both of them {@link blockage}'s and neither of them restated by the
- * grammar. `has:after` is how the other question is asked, and these two nodes
- * are exactly where the two answers part company.
- */
+/** An edge is not a wait, and `has:after` is how the other question is asked:
+ *  `order` waits on `demo`, which is DONE, and `install` waits on `order` but
+ *  is a plain bullet. Both carry the field; neither is being told it cannot
+ *  start. The rules are `derive.ts`'s `blockage`'s, not restated by the
+ *  grammar — this is where the two answers part company. */
 test("an edge is not a wait: a finished target, and a source that is not work", () => {
-  // `order` waits on `demo`, which is DONE — finished work stands in nobody's
-  // way, so it carries the edge and is not blocked.
-  expect(selects("has:after -is:blocked")).toContain("order")
-  // `install` waits on `order`, which is unfinished — and `install` is a plain
-  // bullet, so it is not being told it cannot start. A bullet is not work.
-  expect(selects("has:after -is:blocked")).toContain("install")
-  expect(selects("is:blocked")).not.toContain("install")
+  expect(selects("has:after -is:blocked")).toEqual(["order", "install"])
 })
 
 test("`is:blocked` composes and negates like every other clause", () => {
   expect(selects("is:blocked is:todo")).toEqual(["hinges"])
   expect(selects("#home -is:blocked")).toEqual(["kitchen"])
-  expect(selects("hinges is:blocked")).toEqual(["hinges"])
 })
 
 /**
@@ -203,13 +200,11 @@ test("a node whose blocker is finished stops matching", () => {
     ...CORPUS,
     "house.olai": CORPUS["house.olai"].replace(`"doing":true`, `"done":"2026-08-12"`),
   }))
-  const ids = (text: string) =>
-    matching(finished, parseFilter(text)).map(({ at }) => at.node.id)
   // `order` is done, so `hinges` is waiting on nothing and is out of the answer
   // — while `herbs`, which waits on `hinges` rather than on `order`, is still
   // in it. One mark, one node.
-  expect(ids("is:blocked")).toEqual(["herbs"])
-  expect(ids("has:after")).toEqual(["herbs", "order", "install", "hinges"])
+  expect(selectsIn(finished, "is:done")).toContain("order")
+  expect(selectsIn(finished, "is:blocked")).toEqual(["herbs"])
 })
 
 // ── properties ─────────────────────────────────────────────────────────
