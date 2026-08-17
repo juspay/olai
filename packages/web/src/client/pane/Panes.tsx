@@ -26,13 +26,13 @@ import { TESTID } from "../testids.ts"
 import { TARGET_BOX } from "../touch.ts"
 import {
   flexOf,
-  isCollapsed,
   isLone,
   type Pane,
 } from "../workspace.ts"
 import { PaneProvider } from "./context.tsx"
 import { labelOf } from "./label.ts"
 import { PageView } from "./PageView.tsx"
+import { SHELL_LONE, SHELL_SPLIT } from "./shell.ts"
 
 /** Below this, an expanded pane becomes a rail. Collapse, not close. */
 export const PANE_MIN_PX = 180
@@ -53,8 +53,8 @@ export function Panes(props: {
     <div
       class="flex min-w-0 flex-col"
       classList={{
-        "h-[calc(100dvh-var(--height-header))] min-h-0": split(),
-        "min-h-[calc(100dvh-var(--height-header))]": !split(),
+        [SHELL_SPLIT]: split(),
+        [SHELL_LONE]: !split(),
       }}
     >
       <Show when={props.problems.length > 0}>
@@ -119,49 +119,42 @@ function DesktopRow(props: {
   // on release, so a pointermove is not a replaceState and a remount.
   const [live, setLive] = createSignal<ReadonlyArray<number> | undefined>()
 
-  const grow = () => {
-    const held = live()
-    if (held !== undefined) return held
-    return flexOf(router.workspace().panes)
-  }
-
-  const collapsed = (i: number): boolean => {
-    const held = live()
-    if (held !== undefined) return held[i] === 0
-    return isCollapsed(router.workspace().panes[i]!)
-  }
+  const grow = () => live() ?? flexOf(router.workspace().panes)
 
   return (
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">
       <Index each={router.workspace().panes}>
-        {(pane, i) => (
-          <>
-            <Show when={i > 0}>
-              <Divider
-                left={i - 1}
-                right={i}
-                row={() => row}
-                onLive={setLive}
-              />
-            </Show>
-            <Show
-              when={!collapsed(i)}
-              fallback={
-                <Rail index={i} pane={pane()} />
-              }
-            >
-              <Column
-                index={i}
-                pane={pane()}
-                grow={grow()[i] ?? 1}
-                derived={props.derived}
-                found={props.found}
-                today={props.today}
-                agenda={props.agenda}
-              />
-            </Show>
-          </>
-        )}
+        {(pane, i) => {
+          const share = grow()[i] ?? 0
+          return (
+            <>
+              <Show when={i > 0}>
+                <Divider
+                  left={i - 1}
+                  right={i}
+                  row={() => row}
+                  onLive={setLive}
+                />
+              </Show>
+              <Show
+                when={share > 0}
+                fallback={
+                  <Rail index={i} pane={pane()} />
+                }
+              >
+                <Column
+                  index={i}
+                  pane={pane()}
+                  grow={share}
+                  derived={props.derived}
+                  found={props.found}
+                  today={props.today}
+                  agenda={props.agenda}
+                />
+              </Show>
+            </>
+          )
+        }}
       </Index>
     </div>
   )

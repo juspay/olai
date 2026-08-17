@@ -39,6 +39,7 @@ import { createOutlines } from "./outlines.ts"
 import { fileOf, opensAt, pageOf } from "./page.ts"
 import { Palette } from "./palette/Palette.tsx"
 import { Panes } from "./pane/Panes.tsx"
+import { SHELL_LONE, SHELL_SPLIT } from "./pane/shell.ts"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
@@ -161,8 +162,8 @@ export default function App() {
                   <div
                     class="relative md:grid md:grid-cols-[var(--width-sidebar)_1fr]"
                     classList={{
-                      "h-[calc(100dvh-var(--height-header))] min-h-0": split(),
-                      "min-h-[calc(100dvh-var(--height-header))]": !split(),
+                      [SHELL_SPLIT]: split(),
+                      [SHELL_LONE]: !split(),
                     }}
                   >
                     <Show when={desktop() && !sidebarOpen()}>
