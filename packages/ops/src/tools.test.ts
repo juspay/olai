@@ -104,7 +104,7 @@ const answerOf = (
  */
 const CALLS: Record<string, ReadonlyArray<unknown>> = {
   list_outlines: [{}],
-  search_nodes: [{ text: "hall" }, { text: "is:blocked" }, { text: "" }],
+  search_nodes: [{ text: "hall" }, { text: "is:open" }, { text: "" }],
   read_node: [{ id: "house" }, { id: "paint" }, { id: "shed" }],
   read_subtree: [{ id: "house", depth: 1 }, { id: "house" }, { id: "shed" }],
 }

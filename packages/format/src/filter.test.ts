@@ -12,19 +12,21 @@ import {
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 
 /** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
- *  a mirror, and an archive beside it. Every assertion below is about this. */
+ *  a mirror, an archive beside it — and a chain of `after` edges that crosses
+ *  a file, so blockedness has something to be derived from. Every assertion
+ *  below is about this. */
 const CORPUS = {
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"walnut or birch","after":["demo"],"see":["herbs"],"custom":{"agent":"Claude-Opus","pr":"https://github.com/juspay/olai/pull/176","tags":["cabinets","walnut"]}}`,
-    `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md"}`,
-    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11"}`,
+    `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md","after":["order"]}`,
+    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11","after":["order"]}`,
     `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
   ].join("\n"),
   "garden.olai": [
     `{"id":"garden","ord":"a0","title":"garden #outdoors"}`,
-    `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","doing":true}`,
+    `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","doing":true,"after":["hinges"]}`,
     `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20","custom":{"agent":"claude-opus"}}`,
   ].join("\n"),
   "Archive.olai": [
@@ -46,8 +48,8 @@ test("nothing typed, refused, and asking are told apart", () => {
   expect(parseFilter("").kind).toBe("nothing")
   expect(parseFilter("   ").kind).toBe("nothing")
   expect(parseFilter("is:done").kind).toBe("asking")
-  expect(parseFilter("is:blocked").kind).toBe("refused")
-  expect(selects("is:blocked")).toEqual([])
+  expect(parseFilter("is:open").kind).toBe("refused")
+  expect(selects("is:open")).toEqual([])
 })
 
 test("words are case-folded substrings, and every one must be in the same node", () => {
@@ -83,7 +85,9 @@ test("`has:` asks what the record carries, and an empty edge list is no edge", (
   expect(selects("has:desc")).toEqual(["order"])
   expect(selects("has:doc")).toEqual(["install"])
   expect(selects("has:see")).toEqual(["order"])
-  expect(selects("has:after")).toEqual(["order"])
+  // The FIELD, which is a different question from what the node is waiting on
+  // — see the blockedness section below, where these four part company.
+  expect(selects("has:after")).toEqual(["herbs", "order", "install", "hinges"])
 })
 
 // The four ways a field can hold nothing are the WRITER's list (`write.ts`'s
@@ -147,6 +151,65 @@ test("`-` negates whichever kind of token it is in front of", () => {
 test("clauses and words compose", () => {
   expect(selects("#home is:todo")).toEqual(["hinges"])
   expect(selects("has:date is:doing")).toEqual(["order"])
+})
+
+// ── blockedness ────────────────────────────────────────────────────────
+
+/**
+ * `is:blocked` is the one value here that is not a fact about the RECORD, and
+ * these tests are about it being the app's own answer rather than a second one:
+ * `blockersOf` is what dims a row and draws its `blocked by` line, so a query
+ * that found a node the page does not draw as waiting — or missed one it does —
+ * would be the drift this package exists to make impossible.
+ */
+test("`is:blocked` finds what is waiting, across the whole directory", () => {
+  // `hinges` waits on `order`, which is `doing`. `herbs` waits on `hinges`
+  // FROM ANOTHER FILE — the derivation is of the set, so blockedness crosses an
+  // outline exactly as it does on screen.
+  expect(selects("is:blocked")).toEqual(["herbs", "hinges"])
+})
+
+/**
+ * The two rules that make it a derivation rather than "the record has an
+ * `after`", both of them {@link blockage}'s and neither of them restated by the
+ * grammar. `has:after` is how the other question is asked, and these two nodes
+ * are exactly where the two answers part company.
+ */
+test("an edge is not a wait: a finished target, and a source that is not work", () => {
+  // `order` waits on `demo`, which is DONE — finished work stands in nobody's
+  // way, so it carries the edge and is not blocked.
+  expect(selects("has:after -is:blocked")).toContain("order")
+  // `install` waits on `order`, which is unfinished — and `install` is a plain
+  // bullet, so it is not being told it cannot start. A bullet is not work.
+  expect(selects("has:after -is:blocked")).toContain("install")
+  expect(selects("is:blocked")).not.toContain("install")
+})
+
+test("`is:blocked` composes and negates like every other clause", () => {
+  expect(selects("is:blocked is:todo")).toEqual(["hinges"])
+  expect(selects("#home -is:blocked")).toEqual(["kitchen"])
+  expect(selects("hinges is:blocked")).toEqual(["hinges"])
+})
+
+/**
+ * THE DERIVED HALF, and the whole of what makes this operator worth having: no
+ * record moved — one mark did, on a node neither query mentions.
+ *
+ * Written as a substitution over the corpus above rather than as a second one,
+ * so nothing else can have changed between the two readings.
+ */
+test("a node whose blocker is finished stops matching", () => {
+  const finished = derive(nodesOfFiles({
+    ...CORPUS,
+    "house.olai": CORPUS["house.olai"].replace(`"doing":true`, `"done":"2026-08-12"`),
+  }))
+  const ids = (text: string) =>
+    matching(finished, parseFilter(text)).map(({ at }) => at.node.id)
+  // `order` is done, so `hinges` is waiting on nothing and is out of the answer
+  // — while `herbs`, which waits on `hinges` rather than on `order`, is still
+  // in it. One mark, one node.
+  expect(ids("is:blocked")).toEqual(["herbs"])
+  expect(ids("has:after")).toEqual(["herbs", "order", "install", "hinges"])
 })
 
 // ── properties ─────────────────────────────────────────────────────────
@@ -229,15 +292,15 @@ const refusalsOf = (text: string): ReadonlyArray<Refusal> | null => {
 }
 
 test("a known operator with an unknown value is refused, and teaches", () => {
-  const refused = refusalsOf("is:blocked")
-  expect(refused?.map((one) => one.token)).toEqual(["is:blocked"])
-  expect(refused?.[0]?.reason).toContain("done, doing, todo, marked, archived")
+  const refused = refusalsOf("is:open")
+  expect(refused?.map((one) => one.token)).toEqual(["is:open"])
+  expect(refused?.[0]?.reason).toContain("done, doing, todo, marked, blocked, archived")
   // Refused means it selects NOTHING — never "the half of the query I could
   // read", which is the silent error that would look like an answer. The union
   // is what makes that structural: a refused filter HAS no terms to fall back
   // on.
-  expect(refusalsOf("is:blocked kitchen")).toHaveLength(1)
-  expect(selects("is:blocked kitchen")).toEqual([])
+  expect(refusalsOf("is:open kitchen")).toHaveLength(1)
+  expect(selects("is:open kitchen")).toEqual([])
 })
 
 test("each operator says what it takes", () => {
@@ -286,10 +349,10 @@ test("an operator given no value says what actually went wrong", () => {
 })
 
 // The words are matched FOLDED and the refusal is quoted AS TYPED. Telling
-// somebody who wrote `is:BLOCKED` that they wrote `is:blocked` is the refusal
+// somebody who wrote `is:OPEN` that they wrote `is:open` is the refusal
 // misquoting the reader — the same defect class the refusal exists to prevent.
 test("a refusal quotes the token the way it was typed", () => {
-  expect(refusalsOf("is:BLOCKED")?.[0]?.token).toBe("is:BLOCKED")
+  expect(refusalsOf("is:OPEN")?.[0]?.token).toBe("is:OPEN")
   expect(refusalsOf("Date:Soon")?.[0]?.token).toBe("Date:Soon")
   expect(refusalsOf("-HAS:tags")?.[0]?.token).toBe("-HAS:tags")
   // ...while everything that MATCHES still folds, so the two cannot be confused.

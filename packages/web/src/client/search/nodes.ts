@@ -58,7 +58,7 @@ export interface NodeSearch {
   readonly failure: Accessor<string | null>
   /**
    * What the QUERY LANGUAGE could not read — a known operator with an unknown
-   * value (`is:blocked`), with what that operator takes. Empty for every query
+   * value (`is:open`), with what that operator takes. Empty for every query
    * it could read.
    *
    * A different thing from {@link failure}, and so a different slot, which is

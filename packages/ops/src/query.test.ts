@@ -86,6 +86,29 @@ describe("the edges a node carries", () => {
       .toMatchObject({ after: ["git"] })
     expect(detail(at(), "sticky")).toMatchObject({ after: ["git"], see: ["git"] })
   })
+
+  /**
+   * And the QUESTION about those edges, asked through the door an agent uses:
+   * `sticky` is `doing` and waits on `git`, which is `todo`, so the ledger
+   * draws it blocked and `search_nodes` answers with it.
+   *
+   * Worth a test up here rather than only beside the matcher (`@olai/format`'s
+   * `filter.test.ts` holds the grammar) because this procedure is what hands
+   * the DERIVATION to it: every other operator is a test of a record, and this
+   * is the one an ops layer could answer with silence by passing a reading the
+   * blocked index is not on.
+   */
+  test("`is:blocked` reaches an agent as the derivation the page draws", () => {
+    const waiting = search(at(), { text: "is:blocked" }).hits
+    expect(waiting.map((hit) => hit.id)).toEqual(["sticky"])
+    // The hit carries the edge it is waiting on, so what to ask about next is
+    // in the answer rather than a second call away.
+    expect(waiting[0]).toMatchObject({ id: "sticky", after: ["git"] })
+    // `git` carries no `after` and is waiting on nothing; the two sections and
+    // `focus` are bullets, which are never blocked. A placement is never a hit.
+    expect(search(at(), { text: "-is:blocked" }).hits.map((hit) => hit.id))
+      .toEqual(["focus", "now", "bugs", "git"])
+  })
 })
 
 /**
@@ -372,24 +395,24 @@ describe("a query is words and operators", () => {
   })
 
   test("a refused operator answers with nothing rather than with half the query", () => {
-    expect(ids({ text: "is:blocked trip" })).toEqual([])
+    expect(ids({ text: "is:open trip" })).toEqual([])
   })
 
   // ...AND WITH THE REASON. This layer is the only one that has both the
   // parser's answer and a caller to hand it to, so a door that dropped it would
-  // answer `is:blocked` with an empty list and no explanation — the silent
+  // answer `is:open` with an empty list and no explanation — the silent
   // failure the refusals were written to prevent. Three of the four doors read
   // it from here.
   test("a refused query carries the reason to whoever asked", () => {
-    const answer = search(derivedOf(WORK()), { text: "is:blocked trip" })
+    const answer = search(derivedOf(WORK()), { text: "is:open trip" })
     expect(answer.refusals).toEqual([{
-      token: "is:blocked",
-      reason: "is: takes one of done, doing, todo, marked, archived",
+      token: "is:open",
+      reason: "is: takes one of done, doing, todo, marked, blocked, archived",
     }])
     // As TYPED — an agent that echoed the folded token back to a person would
     // be quoting them wrongly.
-    expect(search(derivedOf(WORK()), { text: "is:BLOCKED" }).refusals?.[0]?.token)
-      .toBe("is:BLOCKED")
+    expect(search(derivedOf(WORK()), { text: "is:OPEN" }).refusals?.[0]?.token)
+      .toBe("is:OPEN")
   })
 
   // An empty query and a refused one both answer with no hits, and only one of

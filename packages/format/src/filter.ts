@@ -34,6 +34,7 @@ import { Schema } from "effect"
 
 import {
   ancestorsOf,
+  blockersOf,
   type Derived,
   mayHoldTag,
   type Row,
@@ -110,10 +111,11 @@ const positionBonus = (haystack: string, needle: string): number => {
 
 // ── the grammar ────────────────────────────────────────────────────────
 
-/** The marks `is:` selects on, plus the two questions that are not a mark:
- *  `marked` (any of the three — what makes `is:marked -is:done` sayable) and
- *  `archived` (below). */
-const IS_VALUES = ["done", "doing", "todo", "marked", "archived"] as const
+/** The marks `is:` selects on, plus the three questions that are not a mark:
+ *  `marked` (any of the three — what makes `is:marked -is:done` sayable),
+ *  `blocked` (the one DERIVED value here — see {@link holds}) and `archived`
+ *  (below). */
+const IS_VALUES = ["done", "doing", "todo", "marked", "blocked", "archived"] as const
 type IsValue = (typeof IS_VALUES)[number]
 
 /** The optional fields of a record `has:` asks about. One row per field a
@@ -180,7 +182,7 @@ interface Held {
  */
 export const Refusal = Schema.Struct({
   /** AS TYPED, case and all. A refusal that quoted the folded token would be
-   *  telling somebody who wrote `is:BLOCKED` that they wrote something else —
+   *  telling somebody who wrote `is:OPEN` that they wrote something else —
    *  the refusal misquoting the reader, which is the defect it exists to
    *  prevent (see {@link parseFilter}). */
   token: Schema.String,
@@ -236,8 +238,8 @@ export type Filter =
  *
  * CASE IS FOLDED FOR MATCHING AND NOT FOR QUOTING. The words and the operator
  * values are compared folded, so `is:DONE` and `#Home` work; a REFUSAL quotes
- * the token exactly as it was typed. Telling somebody who typed `is:BLOCKED`
- * that they typed `is:blocked` is the refusal misquoting the reader, which is
+ * the token exactly as it was typed. Telling somebody who typed `is:OPEN`
+ * that they typed `is:open` is the refusal misquoting the reader, which is
  * the same defect class the refusal exists to prevent — the split is why the
  * fold happens per token here rather than to the whole string on the way in.
  */
@@ -489,9 +491,21 @@ export interface Scope {
  *
  * The order of the gates is the order of their cost: a query that is not
  * ASKING decides before anything is read, the archive is a filename, the
- * clauses are field tests, and the words are the only thing that scans text.
+ * clauses are a field test or an index lookup, and the words are the only
+ * thing that scans text.
+ *
+ * THE DERIVATION IS A PARAMETER because one clause is not about the record:
+ * `is:blocked` is a question about the SET (what this node waits on, and
+ * whether that is still unfinished work), and the answer is an index every
+ * caller of {@link matching} already holds. Named as the cost of this operator
+ * in docs/brainstorming/filter-in-place.md when it was deferred, and it is the
+ * whole of it — a lookup at the gate, no walk.
  */
-const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
+const matchOf = (
+  derived: Derived,
+  at: LocatedRegular,
+  filter: Filter,
+): Match | null => {
   // Neither an empty box nor a query the grammar could not read selects
   // anything — and neither of them HAS terms to be tempted by, which is what
   // the union above is for.
@@ -499,7 +513,7 @@ const matchOf = (at: LocatedRegular, filter: Filter): Match | null => {
   if (!filter.speaksOfArchive && isArchived(at.file)) return null
 
   for (const held of filter.clauses) {
-    if (holds(at, held.clause) === held.negated) return null
+    if (holds(derived, at, held.clause) === held.negated) return null
   }
 
   // Collected only for a node that has already PASSED every clause, so the map
@@ -583,9 +597,22 @@ const wordHit = (
   return field === null ? null : { field, score }
 }
 
-const holds = (at: LocatedRegular, clause: Clause): boolean => {
+const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean => {
   if (clause.kind === "is") {
     if (clause.value === "archived") return isArchived(at.file)
+    // THE ONE DERIVED VALUE, and it is the derivation the views draw rather
+    // than a second reading of `after`: `blockersOf` is what puts the `blocked
+    // by` line on a node's page and the dim on a row, so a query cannot find a
+    // node the app does not draw as waiting, or miss one it does. Everything
+    // that makes blockedness what it is lives there and is not restated here —
+    // a target with no mark blocks nothing (a bullet is not work), a `done`
+    // one has happened, archived work at either end is out of it, and both
+    // spellings of an edge (`after` and `blocks`) were normalised into one
+    // graph before this index was built. Which is also what makes it reach
+    // ACROSS FILES for free: the derivation is of the whole set, so a node
+    // waiting on one in another outline is blocked here exactly as it is on
+    // screen.
+    if (clause.value === "blocked") return blockersOf(derived, at.node.id).length > 0
     // The STORED mark, never a derived one: a parent whose children are all
     // ticked is not `is:done` unless somebody ticked it (docs/format.md's
     // Status, and the `not-every-node-a-task` ruling behind it).
@@ -682,7 +709,7 @@ export const matching = (
     if (isMirror(located.node)) continue
     const at = located as LocatedRegular
     if (!inScope(at)) continue
-    const match = matchOf(at, filter)
+    const match = matchOf(derived, at, filter)
     if (match !== null) out.push({ at, match })
   }
   return out
