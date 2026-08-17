@@ -36,7 +36,7 @@ When instructing the agent in terminal:
   
 ## Reviewing the PR
   
-Once the agent has finished the implementation, spawn a new reviewer agent (Grok, if main agent is Claude Opus; and vice-versa) in a split terminal of same worktree asking it to review the PR per guidelines in HACKING.md in the repo. Then have the original agent address those reviews, to full green CI.
+Once the agent has finished the implementation, spawn a new reviewer agent (Grok, if main agent is Claude Opus; and vice-versa) in a split terminal of same worktree asking it to review the PR per guidelines in HACKING.md in the repo. The reviewer agents must post their review as PR comment. Then have the original agent address those reviews (giving it the PR comment link), to full green CI.
   
 Finally, the agent create a screenshot (or video) as evidence that you, the orchestrator, will verify before fielding the PR to the human for approval. 
   
