@@ -301,18 +301,29 @@ const OPEN = "olai:open-page:"
  * The embedder adds that to where the frame is and needs to know nothing about
  * which case it is in.
  *
- * SAID AGAIN EVERY TIME THE PAGE IS MEASURED, and that is not belt and braces —
- * it is the whole of what makes the number true. The first reading is taken
+ * SAID AGAIN EVERY TIME THE FRAME CHANGES SIZE, and that is not belt and braces
+ * — it is the whole of what makes the number true. The first reading is taken
  * while the frame is still the embedder's `70dvh` guess, so the page overflows
- * a box it is about to stop overflowing: the browser has scrolled the anchor to
- * the top and the answer is nearly zero. Then the embedder applies the measured
- * height, the frame grows, the page stops scrolling inside it, and the anchor is
- * suddenly a thousand pixels down. Nothing in here knows the resize is coming —
- * the `ResizeObserver` above is what NOTICES it, and it is already watching the
- * one box whose size changes. So the anchor rides along with the height, and the
- * last thing the embedder hears describes the geometry the reader is looking at.
+ * a box it is about to stop overflowing: the browser has scrolled the anchor
+ * nearly to the top and the answer is a couple of hundred pixels. Then the
+ * embedder applies the measured height, the frame grows, the page stops
+ * scrolling inside it, and the anchor is suddenly a thousand pixels down.
  * (Measured, not reasoned: reported once at `load`, it said 273 for an anchor
  * that ended up at 1297.)
+ *
+ * WHAT NOTICES THAT RESIZE IS THE FRAME'S OWN `resize`, and it has to be — the
+ * `ResizeObserver` above cannot see it. That observer watches the ROOT BOX,
+ * whose `offsetHeight` is the CONTENT's height and deliberately not the frame's
+ * (see {@link MEASURE}: reporting the frame's own height back to the frame
+ * would pin a short page at whatever it was first given). A page of fixed-height
+ * content is therefore exactly as tall before the embedder's resize as after,
+ * the observer never fires, and the last thing the embedder hears is whichever
+ * of the two early readings happened to be last — which is a RACE, between the
+ * frame's `load` and the embedder applying a height, and it was lost about one
+ * run in five (`html_previews.feature`, "A section is on screen even when the
+ * reader arrives from halfway down"). The viewport is the box that actually
+ * changed, `resize` is the event that says so, and a reading taken from it
+ * describes the geometry the reader is looking at.
  *
  * NOT A HEIGHT, so it is not one of {@link READING}'s: it may be zero and it
  * may be negative, and folding it into the height parser would mean widening
@@ -374,6 +385,13 @@ const LANDED = "olai:page-landed:"
  * because its pictures landed" from "the page grew because I made the frame
  * taller and it is measured in `vh`", and it may only act on the first of those.
  *
+ * A THIRD listener measures nothing, and that is why it is not one of the two:
+ * `resize` says the FRAME changed size, which moves the anchor without moving
+ * anything the observer above is watching, so it re-reports {@link LANDED} and
+ * posts no height at all. A height from there would be the `vh` ladder that
+ * guard exists to refuse; where the anchor ended up is the one thing that
+ * genuinely did change.
+ *
  * Guarded rather than assumed, because an exception thrown in here would land
  * on the console of somebody else's page, which is a confusing place to leave
  * one of ours.
@@ -400,6 +418,9 @@ const MEASURE = `(function () {
     }
     addEventListener("load", function () {
       post(${JSON.stringify(READING.settled)})
+      landed()
+    })
+    addEventListener("resize", function () {
       landed()
     })
   })
