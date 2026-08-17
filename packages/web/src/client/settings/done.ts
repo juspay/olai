@@ -52,12 +52,20 @@ export const visible = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
  * deciding something none of those pages was asked — a day page is a record of
  * what happened, and half of what happened is work that got finished.
  *
- * THE SAME VALUE COMES BACK when nothing is hidden, identity and all —
- * `withoutDone` hands back the very array it was given in that case, and this
- * hands back the whole reading rather than rewrapping it. That identity is what
- * `../filter/narrowing.ts`'s count of held-back matches tests, and a fresh
- * wrapper per frame would make it walk the page twice to prove the answer was
- * zero.
+ * THE SAME VALUE COMES BACK for a reader who is not hiding anything, identity
+ * and all: {@link visible} hands back the very array it was given when the
+ * preference is off, and this hands back the whole reading rather than
+ * rewrapping it. That identity is what `../filter/narrowing.ts`'s count of
+ * held-back matches reads as its zero, and a fresh wrapper per frame would make
+ * it walk the page twice to prove the answer was nothing.
+ *
+ * IT IS THE PREFERENCE AND NOT THE ROWS that the identity is about, which is
+ * worth being exact on: `withoutDone` is a `flatMap` and mints a new list
+ * whichever way it goes, so a reader who IS hiding finished work gets a fresh
+ * value even on a page where nothing is finished — and the count downstream
+ * then does the honest subtraction instead of short-circuiting. The check
+ * below still earns its place: it is the default reading, and it is every page
+ * this preference does not reach.
  */
 export const visibleIn = (drawn: Drawn): Drawn => {
   if (drawn.kind !== "tree") return drawn

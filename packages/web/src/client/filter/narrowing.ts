@@ -158,12 +158,18 @@ export const createNarrowing = (source: {
     // is not on this screen.
     //
     // The identity check is exact rather than an optimisation that hopes: the
-    // done preference returns THE SAME VALUE when it is hiding nothing
-    // (`../App.tsx` hands the same `Drawn` through), so two identical readings
-    // cannot differ by a match. It is also how the three pages the preference
-    // does not touch answer zero without saying so twice.
+    // preference hands back THE SAME VALUE when this reader is not hiding
+    // anything at all, and for every page it does not reach
+    // (`../settings/done.ts` is exact about which case that is), so two
+    // identical readings cannot differ by a match. A reader who IS hiding
+    // finished work gets a fresh value whether or not anything was hidden, and
+    // then this does the subtraction it exists to do.
+    //
+    // Guarded like the two counts above, and for their reason: the sentence
+    // this feeds is only ever drawn beside an active filter, and a memo is a
+    // computation whether or not anybody reads it.
     hiddenAsDone: createMemo(() =>
-      source.all() === source.visible()
+      !active() || source.all() === source.visible()
         ? 0
         : matchesIn(source.all(), matched()) - shown()
     ),
@@ -216,6 +222,20 @@ const narrowed = (drawn: Drawn, matched: ReadonlySet<string>): Drawn => {
  * shows a record that names one. A pile nested under a live row is not reached,
  * and that is the honest bound — this runs per keystroke and the answer it
  * feeds is a default, not a permission.
+ *
+ * WHAT IT DECIDES IS THE CANDIDATE SET, AND THE COST IS WHOLE-ARCHIVE, which
+ * is worth stating rather than leaving to be discovered. `true` puts every
+ * archived node in the directory in front of the matcher — not only the ones
+ * this page could draw — so a day holding ONE archived row pays for the whole
+ * archive, and the rows that match somewhere else are then dropped by the
+ * prune. That is not a leak in this reading, it is how the door already works
+ * for every other node: it matches over the SET and narrows by the PAGE
+ * ({@link narrowed}), which is what lets a mirror of a node in another file
+ * stay drawn where it is placed. Scoping the candidates by file would break
+ * exactly that, and a day and the agenda have no file to be scoped to. So what
+ * this buys is the pages that draw NONE — every outline, which is the page
+ * somebody types on all day — paying nothing for a file that only ever grows;
+ * it does not make the scan cheaper for the pages that draw one.
  */
 const showsArchived = (drawn: Drawn): boolean => {
   switch (drawn.kind) {

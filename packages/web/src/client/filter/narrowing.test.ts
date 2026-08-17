@@ -43,11 +43,15 @@ const derived = derive(nodesOfFiles({
     `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":true,"date":"2026-08-14"}`,
   ].join("\n"),
   // What was put away — the trash's own page, and the one reading whose rows a
-  // query would otherwise refuse to look at.
+  // query would otherwise refuse to look at. `shims` is DATED, which is what
+  // puts an archived row on the other two pages that draw one: a day keeps the
+  // work that was put away after it happened (`@olai/format`'s `dates.ts`) and
+  // the agenda reads those same dates forward.
   "Archive.olai": [
     `{"id":"old-kitchen","ord":"a0","title":"kitchen remodel #home"}`,
     `{"id":"tiles","parent":"old-kitchen","ord":"a0","title":"choose the tiles","todo":true}`,
     `{"id":"grout","parent":"old-kitchen","ord":"a1","title":"pick the grout"}`,
+    `{"id":"shims","parent":"old-kitchen","ord":"a2","title":"return the shims","todo":true,"date":"2026-08-14"}`,
   ].join("\n"),
 }))
 
@@ -161,11 +165,13 @@ const dayOf = (date: string, notes: ReadonlyArray<string> = []): Drawn => ({
 // one keeps nothing as context: what is left is exactly what matched.
 test("a day keeps the rows that matched, and drops the outline that has none", () => {
   const whole = dayOf("2026-08-14")
-  expect(datedIds(whole)).toEqual(["order", "hinges"])
+  // The archive first, in path order — a day collects dated nodes wherever they
+  // were filed, and `shims` was put away after somebody scheduled it.
+  expect(datedIds(whole)).toEqual(["shims", "order", "hinges"])
 
   const reading = narrowing(whole, "hinges")
   expect(reading.shown()).toBe(1)
-  expect(reading.total()).toBe(2)
+  expect(reading.total()).toBe(3)
   expect(datedIds(reading.drawn())).toEqual(["hinges"])
 
   // Nothing on the day matched, so the outline that held both rows goes with
@@ -174,7 +180,47 @@ test("a day keeps the rows that matched, and drops the outline that has none", (
   const none = narrowing(whole, "bathroom")
   expect(groupsIn(none.drawn())).toEqual([])
   expect(none.shown()).toBe(0)
-  expect(none.total()).toBe(2)
+  expect(none.total()).toBe(3)
+})
+
+/**
+ * The archive on a page that is not the trash.
+ *
+ * The rule the matcher keeps — archived nodes are out unless a query says
+ * `is:archived` — would take this row off a page that has already decided to
+ * draw it, and the reader would have nothing to read the absence by. So the
+ * flag is read off what the page SHOWS, and here it is a day whose only
+ * archived row is one the format put there.
+ */
+test("a plain word finds the archived row a day is already drawing", () => {
+  const whole = dayOf("2026-08-14")
+  const found = narrowing(whole, "shims")
+  expect(datedIds(found.drawn())).toEqual(["shims"])
+  expect(found.shown()).toBe(1)
+  // ...and the operator still takes it back out, which is the other half of the
+  // claim: the archive is IN this reading rather than exempt from the grammar.
+  const live = narrowing(whole, "-is:archived")
+  expect(datedIds(live.drawn())).toEqual(["order", "hinges"])
+  expect(narrowing(whole, "is:archived").shown()).toBe(1)
+})
+
+test("the agenda answers the same way, over the dates read forward", () => {
+  const forward: Drawn = { kind: "agenda", agenda: agendaOf(derived, TODAY) }
+  expect(datedIds(forward)).toEqual(["shims", "order", "hinges"])
+
+  const found = narrowing(forward, "shims")
+  expect(datedIds(found.drawn())).toEqual(["shims"])
+  expect(found.shown()).toBe(1)
+  expect(datedIds(narrowing(forward, "-is:archived").drawn()))
+    .toEqual(["order", "hinges"])
+})
+
+// And the page that draws NONE of them is unchanged by any of it: an outline
+// never holds an archived row (an archive's own address opens the trash), so
+// the flag is off there and the whole file stays out of the reading.
+test("an outline is not searched against the archive at all", () => {
+  expect(page("shims").shown()).toBe(0)
+  expect(rowsIn(page("shims"))).toEqual([])
 })
 
 // A note is a DOCUMENT, which is the one page kind that takes no filter at all
@@ -192,16 +238,18 @@ const agenda: Agenda = agendaOf(derived, TODAY)
 const owed: Drawn = { kind: "agenda", agenda }
 
 test("the agenda narrows section by section, and counts every row it draws", () => {
-  // Both dated tasks slipped on the 14th, and neither is finished.
+  // Everything dated the 14th slipped, and none of it is finished — including
+  // the archived one, which the agenda keeps for the reason the day does.
   expect(agenda.overdue.flatMap((group) => group.nodes.map((one) => one.shows.node.id)))
-    .toEqual(["order", "hinges"])
+    .toEqual(["shims", "order", "hinges"])
 
   const reading = narrowing(owed, "is:todo")
-  expect(reading.total()).toBe(2)
-  expect(reading.shown()).toBe(1)
+  expect(reading.total()).toBe(3)
+  expect(reading.shown()).toBe(2)
   const drawn = reading.drawn()
-  expect(drawn.kind === "agenda" ? drawn.agenda.overdue.length : -1).toBe(1)
-  expect(datedIds(drawn)).toEqual(["hinges"])
+  // Two outlines' worth of overdue rows, narrowed to the two that say `todo`.
+  expect(drawn.kind === "agenda" ? drawn.agenda.overdue.length : -1).toBe(2)
+  expect(datedIds(drawn)).toEqual(["shims", "hinges"])
 })
 
 // ── the trash, where a query would otherwise refuse to look ────────────
@@ -218,7 +266,7 @@ const trash: Drawn = {
 test("a word typed on the trash searches what was put away", () => {
   const reading = narrowing(trash, "grout")
   expect(reading.shown()).toBe(1)
-  expect(reading.total()).toBe(3)
+  expect(reading.total()).toBe(4)
   // The pile's own scaffold is kept as the context that says where it came
   // from — the tree rule, on a tree of archives.
   expect(flat(archiveRows(reading.drawn()))).toEqual(["old-kitchen", "grout"])
@@ -233,7 +281,7 @@ test("an archive with nothing left is not drawn at all", () => {
 // The operator still means what it means: on the page that is the archive,
 // `is:archived` selects everything and its negation selects nothing.
 test("`is:archived` and its negation still say what they say here", () => {
-  expect(narrowing(trash, "is:archived").shown()).toBe(3)
+  expect(narrowing(trash, "is:archived").shown()).toBe(4)
   expect(narrowing(trash, "-is:archived").shown()).toBe(0)
 })
 

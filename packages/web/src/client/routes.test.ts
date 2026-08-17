@@ -86,6 +86,28 @@ test("a page with no filter wears no query at all", () => {
   })
 })
 
+// The NEGATIVE round trip, and the only page that has one: a document takes no
+// filter, and `routeOf`'s document arm is the single place that exclusion is
+// enforced — it is the one arm that does not spread the parsed query onto the
+// route. So an address somebody typed a `?q=` into by hand opens the document
+// and nothing else: no filter on the route, no bar over the page (which is
+// drawn on what the page DRAWS, `page.ts`), and the address the app writes back
+// is the bare one.
+test("a `?q=` typed onto a document address is dropped, not carried", () => {
+  expect(routeOf("/doc/finishes.md?q=hinges")).toEqual({
+    kind: "document",
+    file: "finishes.md",
+  })
+  // ...including beside the one thing that address DOES carry.
+  expect(routeOf("/doc/garden.md?q=hinges#beds")).toEqual({
+    kind: "document",
+    file: "garden.md",
+    at: "beds",
+  })
+  expect(filterOf(routeOf("/doc/finishes.md?q=hinges"))).toBe("")
+  expect(hrefOf(routeOf("/doc/finishes.md?q=hinges"))).toBe("/doc/finishes.md")
+})
+
 test("a filtered page spells it in the query", () => {
   expect(hrefOf({ kind: "outline", file: "house.olai", filter: "#home" })).toBe(
     "/o/house.olai?q=%23home",

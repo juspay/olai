@@ -993,12 +993,14 @@ export interface Scope {
    * archive is a place a reader has to name before they are shown it.
    *
    * `true` is for the door whose scope is a PAGE that is already showing them:
-   * the filter over the page tests the rows in front of somebody, and two of
+   * the filter over the page tests the rows in front of somebody, and THREE of
    * those pages draw archived nodes for reasons of their own — the trash IS the
-   * archive, and a day collects every dated node wherever it was filed
-   * (./dates.ts). There the default is not a default, it is this matcher
-   * overruling a page about what the page is showing, and the reader watching
-   * rows vanish has nothing to read it by.
+   * archive; a day collects every dated node wherever it was filed (./dates.ts,
+   * which decided that and says why); and the agenda reads those same dates
+   * forward under the same rule (./agenda.ts), so work that was put away after
+   * somebody scheduled it is still owed. There the default is not a default, it
+   * is this matcher overruling a page about what the page is showing, and the
+   * reader watching rows vanish has nothing to read it by.
    */
   readonly archived?: boolean | undefined
 }
