@@ -317,13 +317,11 @@ const OPEN = "olai:open-page:"
  * (see {@link MEASURE}: reporting the frame's own height back to the frame
  * would pin a short page at whatever it was first given). A page of fixed-height
  * content is therefore exactly as tall before the embedder's resize as after,
- * the observer never fires, and the last thing the embedder hears is whichever
- * of the two early readings happened to be last — which is a RACE, between the
- * frame's `load` and the embedder applying a height, and it was lost about one
- * run in five (`html_previews.feature`, "A section is on screen even when the
- * reader arrives from halfway down"). The viewport is the box that actually
- * changed, `resize` is the event that says so, and a reading taken from it
- * describes the geometry the reader is looking at.
+ * and the observer never fires. Without the viewport's own event the last thing
+ * the embedder hears is whichever of the two early readings happened to be last
+ * — a race between the frame's `load` and the embedder applying a height, and
+ * a reader left a screen above the section whenever it goes the wrong way. The
+ * viewport is the box that changed, so the viewport's event is what reports.
  *
  * NOT A HEIGHT, so it is not one of {@link READING}'s: it may be zero and it
  * may be negative, and folding it into the height parser would mean widening

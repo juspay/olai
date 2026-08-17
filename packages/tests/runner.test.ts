@@ -1,19 +1,14 @@
 /**
- * Pins on WHO runs the runner. Bun executes the step definitions' TypeScript
- * natively; node does not, and refuses the raw-TypeScript @kolu/* sources
- * outright (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING). So the one thing
- * that must not regress is the interpreter — and it regresses INVISIBLY on
- * the machines that do not have a node, which is where a regression would be
- * written and reviewed.
+ * Pins on WHO runs the runner: `test` hands the suite to bun by naming
+ * cucumber's entry file, never the `cucumber-js` bin whose shebang says node.
+ * README.md is where why that matters is written down.
  *
- * The sabotage target is `test` going back to a bin name: `cucumber-js` is a
- * shebang file, and `bun run` executes a package script's argv rather than
- * interpreting it, so `#!/usr/bin/env node` is resolved against PATH. Bun's
- * own `node`-to-bun shim covers that only when the host has no node — so the
- * bin name passes on a node-free box and dies on a developer's laptop, inside
- * `nix develop .#e2e` as much as outside it, since the shell APPENDS the
- * host's PATH. Naming the .js file makes bun the interpreter unconditionally,
- * which is why this pin reads the manifest rather than running anything.
+ * WHY A UNIT PIN, when the e2e leg runs this script for real every time: the
+ * bin name PASSES on a box with no node, because bun's own shim stands in
+ * then. So the regression is invisible exactly where it would be written and
+ * reviewed, and a leg that only fails on some machines is worth less here than
+ * an assertion that fails on all of them. Hence a pin that reads the manifest
+ * rather than running anything.
  */
 
 import { expect, test } from "bun:test";
