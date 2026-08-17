@@ -41,6 +41,7 @@
 import { type Accessor, createSignal } from "solid-js"
 
 import { useRouter } from "./router.tsx"
+import { TESTID } from "./testids.ts"
 
 const [focused, setFocused] = createSignal<string | null>(null)
 
@@ -72,7 +73,13 @@ const FOCUSED = "data-focused"
 const focusNode = (id: string, elsewhere: () => void): void => {
   setFocused(id)
   requestAnimationFrame(() => {
-    const row = document.querySelector(`[${FOCUSED}="true"]`)
+    // The ROW, not any other `data-focused` — a focused pane wears the
+    // same attribute (`./pane/PageView.tsx`) and sits above every row, so
+    // a bare `[data-focused]` would always find the pane and never walk
+    // a collapsed or hidden node to its own address.
+    const row = document.querySelector(
+      `[data-testid="${TESTID.node}"][${FOCUSED}="true"]`,
+    )
     if (row === null) {
       elsewhere()
       return
