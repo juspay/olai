@@ -266,6 +266,9 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
       const query of [
         "is:done",
         "is:todo",
+        // The one DERIVED value: `hinges` waits on `order`, which is still
+        // `doing` — the same reading that dims the row on the unfiltered page.
+        "is:blocked",
         "has:desc",
         "date:2026-08-10",
         "date:2026-08-01..2026-08-31",
@@ -285,11 +288,11 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
 
   "an-operator-it-cannot-read": async (page) => {
     // The silent-error rule, in the one place a query language invites one: a
-    // filter that searched for the TEXT `is:blocked` would draw an empty page
+    // filter that searched for the TEXT `is:open` would draw an empty page
     // and give no reason.
     for (
       const [query, why] of [
-        ["is:blocked", "a value the operator does not take"],
+        ["is:open", "a value the operator does not take"],
         // Shape-clean and impossible — and the worst kind to swallow, since
         // `2026-13` sorts between December and January and so reads as a
         // window rather than as nonsense.
@@ -298,9 +301,9 @@ const SECTIONS: Record<string, (page: Page) => Promise<void>> = {
         // contract: the twelve are named rather than the text searched for.
         ["date:tomorrowish", "a relative word the grammar does not know"],
         // Matched folded, quoted as typed: telling somebody who wrote
-        // `is:BLOCKED` that they wrote `is:blocked` is the refusal misquoting
+        // `is:OPEN` that they wrote `is:open` is the refusal misquoting
         // the reader.
-        ["is:BLOCKED", "the same refusal, quoting the reader"],
+        ["is:OPEN", "the same refusal, quoting the reader"],
         // A space after the colon is not "date: takes a day" — the reader
         // wrote a day; the tokenizer split one word into two.
         ["date: 2026", "an operator given no value at all"],

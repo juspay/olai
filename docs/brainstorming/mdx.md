@@ -10,7 +10,7 @@ Precedent worth remembering: the racket olai's files WERE programs (#lang olai).
 
 The interesting ones aren't widgets, they're views over your own outline:
 
-- <Query filter="is:open #techdebt"/> — a live node list inside prose
+- <Query filter="-is:done #techdebt"/> — a live node list inside prose
 - <Tree node="…"/> — transclude a subtree where you're writing
 - <Calendar/>, day/journal embeds
 - eventually whatever search's operator language can say, embeddable

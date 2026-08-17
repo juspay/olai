@@ -106,7 +106,7 @@ const CALLS: Record<string, ReadonlyArray<unknown>> = {
   list_outlines: [{}],
   search_nodes: [
     { text: "hall" },
-    { text: "is:blocked" },
+    { text: "is:open" },
     { text: "" },
     { text: "date:today" },
   ],

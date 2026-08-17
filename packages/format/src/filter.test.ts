@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { derive, type Row, rowsOf } from "./derive.ts"
+import { derive, type Derived, type Row, rowsOf } from "./derive.ts"
 import {
   keeping,
   matchedIn,
@@ -13,19 +13,21 @@ import {
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 
 /** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
- *  a mirror, and an archive beside it. Every assertion below is about this. */
+ *  a mirror, an archive beside it — and a chain of `after` edges that crosses
+ *  a file, so blockedness has something to be derived from. Every assertion
+ *  below is about this. */
 const CORPUS = {
   "house.olai": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","desc":"walnut or birch","after":["demo"],"see":["herbs"],"custom":{"agent":"Claude-Opus","pr":"https://github.com/juspay/olai/pull/176","tags":["cabinets","walnut"]}}`,
-    `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md"}`,
-    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11"}`,
+    `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doc":"finishes.md","after":["order"]}`,
+    `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11","after":["order"]}`,
     `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
   ].join("\n"),
   "garden.olai": [
     `{"id":"garden","ord":"a0","title":"garden #outdoors"}`,
-    `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","doing":true}`,
+    `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","doing":true,"after":["hinges"]}`,
     `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20","custom":{"agent":"claude-opus"}}`,
   ].join("\n"),
   "Archive.olai": [
@@ -46,13 +48,22 @@ const derived = derive(nodesOfFiles(CORPUS))
  *  and off by one in some particular week. */
 const TODAY = "2026-08-13"
 
+/** The ids a query selects out of a derivation, in the set's own order — for
+ *  the tests that ask a corpus, or a day, other than the one above. */
+const selectsIn = (
+  derivation: Derived,
+  text: string,
+  today = TODAY,
+): ReadonlyArray<string> =>
+  matching(derivation, parseFilter(text, today)).map(({ at }) => at.node.id)
+
 /** The ids a query selects, in the set's own order, asked on some other day —
  *  what the three day-words need, since each of them names a different one. */
 const selectsOn = (text: string, today: string): ReadonlyArray<string> =>
-  matching(derived, parseFilter(text, today)).map(({ at }) => at.node.id)
+  selectsIn(derived, text, today)
 
 /** The ids a query selects, in the set's own order. */
-const selects = (text: string): ReadonlyArray<string> => selectsOn(text, TODAY)
+const selects = (text: string): ReadonlyArray<string> => selectsIn(derived, text)
 
 // ── the grammar ────────────────────────────────────────────────────────
 
@@ -62,8 +73,8 @@ test("nothing typed, refused, and asking are told apart", () => {
   expect(parseFilter("", TODAY).kind).toBe("nothing")
   expect(parseFilter("   ", TODAY).kind).toBe("nothing")
   expect(parseFilter("is:done", TODAY).kind).toBe("asking")
-  expect(parseFilter("is:blocked", TODAY).kind).toBe("refused")
-  expect(selects("is:blocked")).toEqual([])
+  expect(parseFilter("is:open", TODAY).kind).toBe("refused")
+  expect(selects("is:open")).toEqual([])
 })
 
 test("words are case-folded substrings, and every one must be in the same node", () => {
@@ -99,7 +110,9 @@ test("`has:` asks what the record carries, and an empty edge list is no edge", (
   expect(selects("has:desc")).toEqual(["order"])
   expect(selects("has:doc")).toEqual(["install"])
   expect(selects("has:see")).toEqual(["order"])
-  expect(selects("has:after")).toEqual(["order"])
+  // The FIELD, which is a different question from what the node is waiting on
+  // — see the blockedness section below, where these four part company.
+  expect(selects("has:after")).toEqual(["herbs", "order", "install", "hinges"])
 })
 
 // The four ways a field can hold nothing are the WRITER's list (`write.ts`'s
@@ -113,11 +126,9 @@ test("a field holding nothing is a field the record does not carry", () => {
       `{"id":"real","ord":"a1","title":"real","desc":"something"}`,
     ].join("\n"),
   }))
-  const ids = (text: string) =>
-    matching(hollow, parseFilter(text, TODAY)).map(({ at }) => at.node.id)
-  expect(ids("has:desc")).toEqual(["real"])
-  expect(ids("has:see")).toEqual([])
-  expect(ids("has:after")).toEqual([])
+  expect(selectsIn(hollow, "has:desc")).toEqual(["real"])
+  expect(selectsIn(hollow, "has:see")).toEqual([])
+  expect(selectsIn(hollow, "has:after")).toEqual([])
 })
 
 test("`date:` reads the two dates a journal reads — scheduled, and finished", () => {
@@ -340,6 +351,73 @@ test("clauses and words compose", () => {
   expect(selects("has:date is:doing")).toEqual(["order"])
 })
 
+// ── blockedness ────────────────────────────────────────────────────────
+
+/**
+ * `is:blocked` is the one value here that is not a fact about the RECORD, and
+ * these tests are about it being the app's own answer rather than a second one:
+ * the index `derive.ts` builds is what dims a row and draws its `blocked by`
+ * line, so a query that found a node the page does not draw as waiting — or
+ * missed one it does — would be the drift this package exists to prevent.
+ */
+test("`is:blocked` finds what is waiting, across the whole directory", () => {
+  // `hinges` waits on `order`, which is `doing`. `herbs` waits on `hinges`
+  // FROM ANOTHER FILE — the derivation is of the set, so blockedness crosses an
+  // outline exactly as it does on screen.
+  expect(selects("is:blocked")).toEqual(["herbs", "hinges"])
+})
+
+/** An edge is not a wait, and `has:after` is how the other question is asked:
+ *  `order` waits on `demo`, which is DONE, and `install` waits on `order` but
+ *  is a plain bullet. Both carry the field; neither is being told it cannot
+ *  start. The rules are `derive.ts`'s `blockage`'s, not restated by the
+ *  grammar — this is where the two answers part company. */
+test("an edge is not a wait: a finished target, and a source that is not work", () => {
+  expect(selects("has:after -is:blocked")).toEqual(["order", "install"])
+})
+
+/**
+ * ...and they part company the OTHER way too, which is why `is:blocked` is not
+ * `has:after` with extra rules. `a blocks b` is the same arrow written from the
+ * other end, normalised into one graph before anything reads it (`derive.ts`),
+ * so a node can be waiting while carrying no `after` field at all — and the
+ * field is what `has:after` sees.
+ */
+test("a `blocks` written on the other record is waited on all the same", () => {
+  const sugared = derive(nodesOfFiles({
+    "a.olai": [
+      `{"id":"ship","ord":"a0","title":"ship it","todo":true}`,
+      `{"id":"review","ord":"a1","title":"read it over","doing":true,"blocks":["ship"]}`,
+    ].join("\n"),
+  }))
+  expect(selectsIn(sugared, "is:blocked")).toEqual(["ship"])
+  expect(selectsIn(sugared, "has:after")).toEqual([])
+})
+
+test("`is:blocked` composes and negates like every other clause", () => {
+  expect(selects("is:blocked is:todo")).toEqual(["hinges"])
+  expect(selects("#home -is:blocked")).toEqual(["kitchen"])
+})
+
+/**
+ * THE DERIVED HALF, and the whole of what makes this operator worth having: no
+ * record moved — one mark did, on a node neither query mentions.
+ *
+ * Written as a substitution over the corpus above rather than as a second one,
+ * so nothing else can have changed between the two readings.
+ */
+test("a node whose blocker is finished stops matching", () => {
+  const finished = derive(nodesOfFiles({
+    ...CORPUS,
+    "house.olai": CORPUS["house.olai"].replace(`"doing":true`, `"done":"2026-08-12"`),
+  }))
+  // `order` is done, so `hinges` is waiting on nothing and is out of the answer
+  // — while `herbs`, which waits on `hinges` rather than on `order`, is still
+  // in it. One mark, one node.
+  expect(selectsIn(finished, "is:done")).toContain("order")
+  expect(selectsIn(finished, "is:blocked")).toEqual(["herbs"])
+})
+
 // ── properties ─────────────────────────────────────────────────────────
 
 /**
@@ -420,15 +498,15 @@ const refusalsOf = (text: string): ReadonlyArray<Refusal> | null => {
 }
 
 test("a known operator with an unknown value is refused, and teaches", () => {
-  const refused = refusalsOf("is:blocked")
-  expect(refused?.map((one) => one.token)).toEqual(["is:blocked"])
-  expect(refused?.[0]?.reason).toContain("done, doing, todo, marked, archived")
+  const refused = refusalsOf("is:open")
+  expect(refused?.map((one) => one.token)).toEqual(["is:open"])
+  expect(refused?.[0]?.reason).toContain("done, doing, todo, marked, blocked, archived")
   // Refused means it selects NOTHING — never "the half of the query I could
   // read", which is the silent error that would look like an answer. The union
   // is what makes that structural: a refused filter HAS no terms to fall back
   // on.
-  expect(refusalsOf("is:blocked kitchen")).toHaveLength(1)
-  expect(selects("is:blocked kitchen")).toEqual([])
+  expect(refusalsOf("is:open kitchen")).toHaveLength(1)
+  expect(selects("is:open kitchen")).toEqual([])
 })
 
 test("each operator says what it takes", () => {
@@ -477,10 +555,10 @@ test("an operator given no value says what actually went wrong", () => {
 })
 
 // The words are matched FOLDED and the refusal is quoted AS TYPED. Telling
-// somebody who wrote `is:BLOCKED` that they wrote `is:blocked` is the refusal
+// somebody who wrote `is:OPEN` that they wrote `is:open` is the refusal
 // misquoting the reader — the same defect class the refusal exists to prevent.
 test("a refusal quotes the token the way it was typed", () => {
-  expect(refusalsOf("is:BLOCKED")?.[0]?.token).toBe("is:BLOCKED")
+  expect(refusalsOf("is:OPEN")?.[0]?.token).toBe("is:OPEN")
   expect(refusalsOf("Date:Soon")?.[0]?.token).toBe("Date:Soon")
   expect(refusalsOf("-HAS:tags")?.[0]?.token).toBe("-HAS:tags")
   // ...while everything that MATCHES still folds, so the two cannot be confused.

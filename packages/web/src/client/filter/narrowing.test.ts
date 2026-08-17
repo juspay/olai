@@ -113,10 +113,10 @@ test("a relative date is counted from the day the page is being read on", () => 
 // empties, and the refusal is what the reader is shown. Answering with the half
 // that parsed would be a list that looks like an answer.
 test("a refused operator empties the page and carries its reason", () => {
-  const narrowing = page("is:blocked")
+  const narrowing = page("is:open")
   expect(narrowing.active()).toBe(true)
   expect(narrowing.rows()).toEqual([])
-  expect(narrowing.refusals().map((one) => one.token)).toEqual(["is:blocked"])
+  expect(narrowing.refusals().map((one) => one.token)).toEqual(["is:open"])
 })
 
 const flat = (rows: ReadonlyArray<Row>): ReadonlyArray<string> =>

@@ -151,6 +151,12 @@ Feature: An agent olai did not start
     When the terminal agent marks "order" todo
     And the terminal agent makes "install" wait on "order"
     Then the node "install" is blocked by "order"
+    # And the same derivation is a QUESTION it can ask. `is:blocked` is the one
+    # operator that reads what the app DRAWS rather than what the record
+    # carries, so the arrow just written answers a search a turn later — no
+    # re-reading of `after` and no second definition of what waiting means.
+    When the terminal agent searches for "is:blocked"
+    Then the terminal agent found exactly "install"
     And the page has not reloaded
     And there should be no page errors
 
@@ -229,16 +235,16 @@ Feature: An agent olai did not start
 
   Scenario: An operator it gets wrong is refused with the reason, not with silence
     # The fourth door onto the same grammar, and the one where silence is
-    # cheapest to ship: a tool that answered `is:blocked` with an empty `hits`
+    # cheapest to ship: a tool that answered `is:open` with an empty `hits`
     # and nothing else would leave a model to guess whether the directory is
     # empty or the query is wrong. The refusal rides the answer.
-    When the terminal agent searches for "is:blocked"
+    When the terminal agent searches for "is:open"
     Then the terminal agent found exactly ""
-    And the terminal agent was refused "is:blocked" and told "done, doing, todo, marked, archived"
+    And the terminal agent was refused "is:open" and told "done, doing, todo, marked, blocked, archived"
     # AS TYPED — an answer that echoed the folded token back would be quoting
     # the caller wrongly.
-    When the terminal agent searches for "is:BLOCKED"
-    Then the terminal agent was refused "is:BLOCKED" and told "done, doing, todo, marked, archived"
+    When the terminal agent searches for "is:OPEN"
+    Then the terminal agent was refused "is:OPEN" and told "done, doing, todo, marked, blocked, archived"
     # ...and a query it CAN read carries no refusal at all.
     When the terminal agent searches for "cabinets"
     Then the terminal agent was refused nothing

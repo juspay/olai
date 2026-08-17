@@ -92,6 +92,30 @@ describe("the edges a node carries", () => {
       .toMatchObject({ after: ["git"] })
     expect(detail(at(), "sticky")).toMatchObject({ after: ["git"], see: ["git"] })
   })
+
+  /**
+   * And the QUESTION about those edges, asked through the door an agent uses:
+   * `sticky` is `doing` and waits on `git`, which is `todo`, so the ledger
+   * draws it blocked and `search_nodes` answers with it.
+   *
+   * What each operator SELECTS is `@olai/format`'s (`filter.test.ts` holds the
+   * grammar, including this one's derived half). What is pinned here is that a
+   * SHORTLIST answers it at all — this is the only operator whose answer is not
+   * in the record, so it is the only one this layer's ranking and capping walk
+   * past a value it did not read off the node.
+   */
+  test("`is:blocked` reaches an agent as the derivation the page draws", () => {
+    expect(search(at(), { text: "is:blocked" }, TODAY).hits.map((hit) => hit.id))
+      .toEqual(["sticky"])
+    // And the negation through the same door. Named rather than enumerated:
+    // what the clause has to get right is that `sticky` LEAVES and `git` —
+    // unfinished work with nothing in its way, the blocker itself — stays. A
+    // list of every other node in the fixture would break for reasons that
+    // have nothing to do with blockedness.
+    const free = search(at(), { text: "-is:blocked" }, TODAY).hits.map((hit) => hit.id)
+    expect(free).not.toContain("sticky")
+    expect(free).toContain("git")
+  })
 })
 
 /**
@@ -391,24 +415,24 @@ describe("a query is words and operators", () => {
   })
 
   test("a refused operator answers with nothing rather than with half the query", () => {
-    expect(ids({ text: "is:blocked trip" })).toEqual([])
+    expect(ids({ text: "is:open trip" })).toEqual([])
   })
 
   // ...AND WITH THE REASON. This layer is the only one that has both the
   // parser's answer and a caller to hand it to, so a door that dropped it would
-  // answer `is:blocked` with an empty list and no explanation — the silent
+  // answer `is:open` with an empty list and no explanation — the silent
   // failure the refusals were written to prevent. Three of the four doors read
   // it from here.
   test("a refused query carries the reason to whoever asked", () => {
-    const answer = search(derivedOf(WORK()), { text: "is:blocked trip" }, TODAY)
+    const answer = search(derivedOf(WORK()), { text: "is:open trip" }, TODAY)
     expect(answer.refusals).toEqual([{
-      token: "is:blocked",
-      reason: "is: takes one of done, doing, todo, marked, archived",
+      token: "is:open",
+      reason: "is: takes one of done, doing, todo, marked, blocked, archived",
     }])
     // As TYPED — an agent that echoed the folded token back to a person would
     // be quoting them wrongly.
-    expect(search(derivedOf(WORK()), { text: "is:BLOCKED" }, TODAY).refusals?.[0]?.token)
-      .toBe("is:BLOCKED")
+    expect(search(derivedOf(WORK()), { text: "is:OPEN" }, TODAY).refusals?.[0]?.token)
+      .toBe("is:OPEN")
   })
 
   // An empty query and a refused one both answer with no hits, and only one of
