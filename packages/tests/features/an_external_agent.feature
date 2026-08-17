@@ -163,8 +163,14 @@ Feature: An agent olai did not start
     # mid-serve is watched only from the next probe, so a rewrite inside one
     # reaches the page on the backstop — real, and too slow for a scenario
     # whose subject is the write path, not watcher latency.
+    # The document the corpus already holds is named with it, in the sidebar's
+    # own order: what is asserted is the directory's MEMBERSHIP after the
+    # write, and a list of one would be a claim about the fixture rather than
+    # about the write. `notes/cabinets.md` is in the corpus too and is NOT
+    # here, because folders start collapsed (`client/fold/folders.ts`) and a
+    # row nobody has opened is not drawn.
     When the terminal agent creates the document "plan.md" holding "# Plan"
-    Then the documents listed are "plan.md"
+    Then the documents listed are "finishes.md, plan.md"
     When I click the document "plan.md"
     And the terminal agent rewrites "plan.md" expecting "# Plan", as "# Plan Dig **here** first."
     Then the document renders bold text "here"

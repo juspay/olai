@@ -11,8 +11,9 @@ Feature: Dismiss is one stack, and the topmost answers
 
   Everything dismissable in this client is on one stack now (`client/topmost.ts`
   lists them): the header's two popovers, a row's expanded note, the chat's
-  session picker (`the_agent.feature` holds that one) and its slash list, the
-  ⌘K palette, and the menu — which joins the stack rather than keeping its own.
+  session picker (`the_agent.feature` holds that one) and the composer's
+  completion, the ⌘K palette, and the menu — which joins the stack rather than
+  keeping its own.
   **The last thing opened is the thing a gesture is for**, and the one under it
   is still there for the next gesture, which is what a person pressing Escape
   twice means by it.

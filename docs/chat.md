@@ -98,6 +98,24 @@ What the agent is handed is the node's **id**, with its title, its `file:line` a
 
 The chip says the title, but the title is not what is sent. Rename the node between arming and sending and the agent gets the name it has now; archive it and the send is refused, in the same words a tool call gets for an id nothing declares — because a question about a node is not one to ask without it.
 
+## Naming a file
+
+**Type `@` and the directory comes up**, filtered as you type, and taking a row writes the whole path into your sentence: `read @notes/cabinets.md `. It is the gesture a terminal agent already has, and it is here for the same reason — a vault spells its folders however it spells them, and a path half-remembered reaches the agent as a file that is not there.
+
+What it offers is **the files this directory serves** — every outline, every document, every saved page, which is the set the sidebar draws — because they are already on this tab's subscription. Nothing is walked to answer an `@`, nothing is asked of the server, and a vault with a thousand files costs the same as one with ten. The archives are in it, unlike in the sidebar, which hides them behind Trash: what a message may NAME is a different question from what a reader opens, and "what did we put away last month" is a fair thing to ask.
+
+A row reads the file's **name**, with its folder beside it, and writes the **path**: a `Daily/` vault is a column of identical dates otherwise. `@notes/` works too — a folder is the start of a path like any other prefix.
+
+**What it writes is a word, not an attachment.** The `+` button copies a file into a temporary directory and hands the agent the copy's path (see below), which is right for a screenshot on the clipboard and wrong for a file that is already in the directory the agent is working in: the copy stops being true the moment anything writes it. So a completed path goes in as text, the message reads the way you typed it, and the agent opens the file where it lives.
+
+**It never fights an `@` you meant as a person.** `@` is a tag sigil in olai's own format — `@alice` in a row's title is a tag, and the title editor completes those — but none of that vocabulary exists in this box: a message is prose on its way to an agent, and nothing here parses it. Three things follow, and they are what keep the two apart:
+
+- an `@` **inside a word** opens nothing, so `srid@example.com` is an address;
+- an `@` whose word matches **no file** draws nothing at all, so `@alice` types straight through and Enter sends;
+- and if one *does* match something you did not mean, **Escape** puts the list away and leaves the word alone — nothing is ever rewritten that you did not choose.
+
+While the list is up the keys are the list's: ↑/↓ walk it, Enter or Tab take the row, Escape closes it. A click does the same for a hand already on the mouse. It is the same box the `/` commands use, because it is the same gesture.
+
 ## Pointing back at a node
 
 Ids in the panel are pressable, and pressing one shows you that node: the row scrolls into view and says it is the one being talked about. If it is not on the page you are reading — another outline, a branch you have collapsed — you go to its own page instead.

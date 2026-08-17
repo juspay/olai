@@ -30,8 +30,10 @@
  *   - the keyboard-shortcuts dialog (`palette/Shortcuts.tsx`), which the
  *     palette opens — the same two, and it answered neither until review
  *     found it;
- *   - the chat's slash list (`chat/SlashMenu.tsx`) — a capture-phase listener
- *     that takes the key before anything else on the page can see it.
+ *   - the chat composer's completion (`chat/CompletionMenu.tsx`) — the box
+ *     over the message input, drawing the agent's commands under a `/` and the
+ *     directory's files under an `@`; a capture-phase listener that takes the
+ *     key before anything else on the page can see it.
  *
  * `claims.test.ts` sweeps that list, in both directions.
  *
