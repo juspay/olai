@@ -23,14 +23,18 @@
  * fence over two declarations was the fallback, and this package existing is
  * why it was not needed.
  *
- * **Why the SHAPE lives here and the RANKING does not.** Every field of a hit
+ * **Why the SHAPE lives here and the SITUATING does not.** Every field of a hit
  * is a statement about records in this package's own vocabulary — an id, a
  * title, a `file:line`, a {@link Status}, the ancestor titles `ancestorsOf`
- * walks, the edge lists a record carries. Which node matches, how hits are
- * ordered, and which field carried a match are questions about a QUERY, and
- * they stay in `@olai/ops` where the matcher is. So this is the same division
- * `./committing.ts` keeps: the shape of what is pending is here, and the survey
- * that produces one is not.
+ * walks, the edge lists a record carries. What `@olai/ops` keeps is the act of
+ * BUILDING one out of a set: the same division `./committing.ts` makes, where
+ * the shape of what is pending is here and the survey that produces one is not.
+ *
+ * This paragraph used to say the ranking stayed up there too, "where the
+ * matcher is". The matcher came down in the filter-in-place change and the
+ * ranking followed it one door later (`./filter.ts`'s `shortlisted`), for the
+ * same reason both times: a browser cannot call a procedure per keystroke, and
+ * a second spelling of a rule is a second answer to it.
  *
  * **{@link Found} is next door**, in `./reading.ts`, and started here. It is
  * the atom of EVERY read — the node a detail, a subtree and a curated list's

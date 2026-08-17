@@ -8,23 +8,28 @@
  * second one written to the same paragraph is the thing this package exists to
  * make impossible.
  *
- * FOUR CALLERS, and naming them is the argument:
+ * FIVE CALLERS, and naming them is the argument:
  *
  *   - `@olai/ops`' `Query.search`, which is what an agent's `search_nodes` and
  *     the wire's `search.nodes` answer with. It calls {@link matching} as its
- *     gate and keeps what was always its own — the field weights, the position
- *     bonus, the done penalty, the cap, the total;
+ *     gate and {@link shortlisted} to keep the best twelve, and what is left of
+ *     its own is the situating and the total;
  *   - the ⌘K palette and the header's search box, which are callers of that
  *     procedure and so get every operator here for free;
  *   - the browser's FILTER over the tree on screen, which cannot be a caller of
  *     that procedure — it runs on every keystroke over rows the browser already
  *     holds, it wants every match rather than twelve, and it wants them as a set
- *     of ids to test rows against rather than as a ranked list of situated hits.
+ *     of ids to test rows against rather than as a ranked list of situated hits;
+ *   - the chat composer's `@` list (`@olai/web`'s `chat/nodes.ts`), which is
+ *     the filter's shape with a shortlist on the end: one token, matched here,
+ *     ranked by {@link shortlisted}, eight rows.
  *
- * That last one is why the matcher is down here rather than in the ops layer.
+ * The last two are why the matcher is down here rather than in the ops layer.
  * The alternative was a client-side predicate written to the same description,
  * which is exactly the drift docs/search.md was written to forbid — `is:done`
- * meaning one thing to an agent and another to the box a person types in.
+ * meaning one thing to an agent and another to the box a person types in. The
+ * ranking followed it down for the same reason, one door later: see
+ * {@link shortlisted}.
  *
  * The design, with the alternatives that lost, is
  * docs/brainstorming/filter-in-place.md.
@@ -65,10 +70,11 @@ export type SearchField = (typeof SEARCH_FIELDS)[number]
 /** What a field is worth when a word is found in it. The order is racket's:
  *  the closer a hit is to what a node CALLS itself, the higher it goes.
  *
- *  Here rather than in the ops layer's ranking because {@link matchOf} has to
- *  answer WHICH field carried a match, and "which" and "how much" are one
- *  table. What the ops layer keeps is everything about presenting a shortlist:
- *  the penalty a finished node takes, the cap, the total. */
+ *  Here rather than beside the penalty a finished node takes because {@link
+ *  matchOf} has to answer WHICH field carried a match, and "which" and "how
+ *  much" are one table. The penalty and the cap are {@link shortlisted}'s, one
+ *  section down; the total is the caller's, since it is a fact about the answer
+ *  rather than about any row of it. */
 const FIELD_WEIGHT = { title: 1000, id: 750, tag: 500, desc: 250 } as const
 
 /** The case-folded text of one node, per field — what a word is looked for in.
@@ -1290,6 +1296,55 @@ export const matching = (
     if (match !== null) out.push({ at, match })
   }
   return out
+}
+
+/** A done node is demoted by about a field's worth: enough to lose a tie, not
+ *  enough to disappear. The reason to look for a node you finished is usually
+ *  that you finished it. */
+const DONE_PENALTY = 300
+
+/**
+ * The best `limit` of them, best first — what a SHORTLIST is, as against the
+ * whole answer {@link matching} gives.
+ *
+ * It was the ops layer's, and every word of the rule is still its words; what
+ * moved is where it lives, for the reason the matcher itself moved here in the
+ * filter-in-place change. A browser cannot call a procedure on every keystroke,
+ * and a browser that respelled this would be a second opinion about whether a
+ * finished node outranks an open one — the ⌘K palette and the chat composer
+ * ranking the same words in the same directory differently, which is the exact
+ * drift docs/search.md exists to forbid. So the two callers are `@olai/ops`'
+ * `Query.search` (whose own header keeps the argument) and `@olai/web`'s `@`
+ * completion, and neither of them owns it.
+ *
+ * OVER {@link Matched}, before anything is situated, which is the other half of
+ * why this is a function rather than three lines in each caller: the ops layer
+ * used to build a whole hit — ancestors and all — for every node a query
+ * selected and then keep twelve of them, so a one-word query on a large vault
+ * walked the ancestry of thousands of nodes to throw it away. Ranking is a
+ * question about a score and a mark; both are in hand before a hit is made.
+ *
+ * TIES KEEP THE SET'S OWN ORDER, because {@link matching} walks it in
+ * file-then-line order and `sort` is stable — so an answer does not move under
+ * the cursor between two keystrokes that scored the same. Sorted in a copy:
+ * the array a caller passes is the caller's.
+ */
+export const shortlisted = (
+  derived: Pick<Derived, "status">,
+  matched: ReadonlyArray<Matched>,
+  limit: number,
+): ReadonlyArray<Matched> => {
+  // The penalty is read ONCE PER NODE rather than once per comparison, which is
+  // what a comparator asking the status map would be: a sort is n log n
+  // comparisons and this is n lookups.
+  const ranked = matched.map((one) => ({
+    one,
+    score: derived.status.get(one.at.node.id) === "done"
+      ? one.match.score - DONE_PENALTY
+      : one.match.score,
+  }))
+  ranked.sort((a, b) => b.score - a.score)
+  return ranked.slice(0, limit).map((entry) => entry.one)
 }
 
 /**
