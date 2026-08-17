@@ -31,6 +31,7 @@ export type PaletteAction =
   | { readonly kind: "toggle-sidebar" }
   | { readonly kind: "toggle-chat" }
   | { readonly kind: "reset-widths" }
+  | { readonly kind: "close-pane" }
   /**
    * ONE OP, at the write gate every other write in this app goes through
    * (`../writes.ts`) — the row carries the {@link Edit} it will send, decided
@@ -161,6 +162,13 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     hint: "defaults",
     action: { kind: "reset-widths" },
     search: "reset panel widths sidebar chat default size",
+  },
+  {
+    id: "close-pane",
+    label: "Close pane",
+    hint: "⌘⇧W",
+    action: { kind: "close-pane" },
+    search: "close pane split view",
   },
 ]
 

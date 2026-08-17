@@ -16,6 +16,10 @@ Click a title and the caret is in it. From there it is the outliner's loop on th
 | **Escape** | drop what you were typing |
 | **⌘Z** / **Ctrl+Z** | take back your last edit on this outline |
 | **⌘⇧Z** / **Ctrl+⇧Z** | put it back |
+| **Alt+click** | open a link in the pane to the right |
+| **Alt+Shift+click** | open it in a new pane to the right |
+| **Alt+←** / **Alt+→** | move focus to the neighbouring pane |
+| **⌘⇧W** / **Ctrl+⇧W** | close the focused pane |
 
 Nothing has a mode: the title becomes an input in the same place, at the same size, and the row you are in is toned so you can see where the caret went. What you type is the SOURCE — `**bold**` and `#tags` as they are written — and the rendering comes back the moment you leave. A note is the same trade one line down.
 

@@ -27,4 +27,29 @@
  * always been finds it.
  */
 
-export { ours } from "@olai/surface"
+import { ours, type Press } from "@olai/surface"
+
+export { ours }
+
+/**
+ * Is this press an "open to the right" — Alt+click — and should it force a
+ * NEW pane (Alt+Shift+click) or reuse the one already there?
+ *
+ * `ours` is the rule a modified click is the browser's (a new tab, a
+ * download). That rule stays: Ctrl/Cmd+click is still a new tab, because
+ * the href is real. Alt is the one modifier this app claims, and it claims
+ * it here rather than inside `ours`, so the seal that ships `ours` into a
+ * previewed page does not start intercepting a key the frame would have
+ * given to the browser.
+ *
+ * Shift without Alt is still not ours (and not this): a shifted click is
+ * not a split.
+ */
+export type Split = "reuse" | "force"
+
+export const splitClick = (press: Press): Split | null => {
+  if (press.defaultPrevented || press.button !== 0) return null
+  if (press.metaKey || press.ctrlKey) return null
+  if (!press.altKey) return null
+  return press.shiftKey ? "force" : "reuse"
+}

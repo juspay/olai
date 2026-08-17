@@ -106,7 +106,7 @@ import { NodeLine } from "./NodeLine.tsx"
 import { nodeMenuActions } from "./menu/actions.ts"
 import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
-import { useRouter } from "./router.tsx"
+import { useGo } from "./router.tsx"
 import { density, showsPreview, startsOpen } from "./settings/density.ts"
 import { TESTID } from "./testids.ts"
 import { useToday } from "./today.tsx"
@@ -213,7 +213,7 @@ function Branch(props: {
   const foldable = () => foldsUnder(props.row)
   // SPA navigate for the menu's "Zoom in" — same path as the bullet, never
   // location.assign (which reloads the document and kills the reading).
-  const router = useRouter()
+  const go = useGo()
   // The SET's own indexes, for the one menu verb whose question the rows
   // cannot answer: how much an archive takes with it. These rows are a
   // reading — done-hidden has already dropped branches from them — and the
@@ -494,7 +494,7 @@ function Branch(props: {
               derived: derived(),
               collapsed: collapsed(),
               foldable: foldable(),
-              go: router.go,
+              go,
               record: undo.record,
               pickDate: openPicker,
               pickEdge: edges.open,

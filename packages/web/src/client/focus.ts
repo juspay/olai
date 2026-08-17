@@ -41,6 +41,7 @@
 import { type Accessor, createSignal } from "solid-js"
 
 import { useRouter } from "./router.tsx"
+import { TESTID } from "./testids.ts"
 
 const [focused, setFocused] = createSignal<string | null>(null)
 
@@ -72,7 +73,15 @@ const FOCUSED = "data-focused"
 const focusNode = (id: string, elsewhere: () => void): void => {
   setFocused(id)
   requestAnimationFrame(() => {
-    const row = document.querySelector(`[${FOCUSED}="true"]`)
+    // The ROW, named as such. A focused pane used to wear this same
+    // attribute and sat above every row, so a bare `[data-focused]`
+    // always found the pane and never walked a collapsed node to its
+    // own address. Panes now wear `data-pane-focused`. The selector
+    // still names the row so that fact cannot sit in front of this one
+    // again.
+    const row = document.querySelector(
+      `[data-testid="${TESTID.node}"][${FOCUSED}="true"]`,
+    )
     if (row === null) {
       elsewhere()
       return

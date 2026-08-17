@@ -220,16 +220,36 @@ export const routeIn = (href: string): Route | null =>
  * of one could only ever answer half. Callers pass `location.pathname +
  * location.search`; a bare path parses exactly as it did before.
  */
-export const routeOf = (address: string): Route => {
-  // THE FRAGMENT COMES OFF FIRST, because it is last in the address: a `#` ends
-  // the query, so cutting on `?` before it would leave `#beds` inside the
-  // filter and a page narrowed by a word nobody typed.
+/**
+ * Path, query and fragment of an address, cut the way this app writes them.
+ *
+ * ONE split, so a lone page (`routeOf`) and a workspace that embeds those
+ * pages (`workspaceOf`) cannot disagree about where the query ends and
+ * the fragment starts. The fragment comes off first: a `#` ends the
+ * query, so cutting on `?` before it would leave `#beds` inside a filter
+ * and a page narrowed by a word nobody typed.
+ */
+export const splitAddress = (
+  address: string,
+): {
+  readonly pathname: string
+  readonly search: string
+  readonly at: string | undefined
+} => {
   const hash = address.indexOf("#")
   const whole = hash === -1 ? address : address.slice(0, hash)
   const at = hash === -1 ? undefined : landed(address.slice(hash + 1))
   const cut = whole.indexOf("?")
-  const pathname = cut === -1 ? whole : whole.slice(0, cut)
-  const filter = cut === -1 ? undefined : filterIn(whole.slice(cut + 1))
+  return {
+    pathname: cut === -1 ? whole : whole.slice(0, cut),
+    search: cut === -1 ? "" : whole.slice(cut + 1),
+    at,
+  }
+}
+
+export const routeOf = (address: string): Route => {
+  const { pathname, search, at } = splitAddress(address)
+  const filter = search === "" ? undefined : filterIn(search)
   const narrowed = filter === undefined ? {} : { filter }
   return pathname.startsWith(NODE_PREFIX)
     ? {

@@ -29,7 +29,7 @@ import { createEffect, createMemo, type JSX, onCleanup, Show } from "solid-js"
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
 import { landingId, outlineOf } from "../markdown/render.ts"
-import { useRouter } from "../router.tsx"
+import { useHere, useRouter } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { useDocument } from "./documents.tsx"
 import { Hypertext } from "./Hypertext.tsx"
@@ -98,6 +98,7 @@ export const FACES: Record<BodyKind, Face> = {
  *  placeholder mean here as they did when the page held it. */
 function Rendered(props: Reading) {
   const router = useRouter()
+  const here = useHere()
   const served = useDocument(() => props.file)
   /** The body, or the empty document there is nothing to draw yet — every
    *  reader below wants a string and none of them can do anything useful with
@@ -136,11 +137,18 @@ function Rendered(props: Reading) {
   // naming no id: the reader stays at the top of the page rather than being sent
   // somewhere arbitrary. A `.md` whose heading was renamed is exactly that case.
   createEffect(() => {
-    const at = router.landing()
-    if (at === undefined || !markdownReady()) return
-    const id = landingId(text(), props.file, at)
+    const land = router.landing()
+    if (land === undefined || land.index !== here() || !markdownReady()) return
+    const id = landingId(text(), props.file, land.at)
     const frame = requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ block: "start" })
+      // Two panes of the SAME file mint the same heading ids. Look
+      // under THIS pane's root, not the first copy in document order.
+      const root = document.querySelector(
+        `[data-testid="${TESTID.pane}"][data-pane="${String(here())}"]`,
+      )
+      root?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({
+        block: "start",
+      })
     })
     onCleanup(() => cancelAnimationFrame(frame))
   })
