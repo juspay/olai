@@ -73,10 +73,12 @@ const FOCUSED = "data-focused"
 const focusNode = (id: string, elsewhere: () => void): void => {
   setFocused(id)
   requestAnimationFrame(() => {
-    // The ROW, not any other `data-focused` — a focused pane wears the
-    // same attribute (`./pane/PageView.tsx`) and sits above every row, so
-    // a bare `[data-focused]` would always find the pane and never walk
-    // a collapsed or hidden node to its own address.
+    // The ROW, named as such. A focused pane used to wear this same
+    // attribute and sat above every row, so a bare `[data-focused]`
+    // always found the pane and never walked a collapsed node to its
+    // own address. Panes now wear `data-pane-focused`. The selector
+    // still names the row so that fact cannot sit in front of this one
+    // again.
     const row = document.querySelector(
       `[data-testid="${TESTID.node}"][${FOCUSED}="true"]`,
     )

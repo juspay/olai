@@ -4,7 +4,7 @@
  *
  * Selectors come from the client's testids, same as every other step
  * file. A pane is found by `data-pane` (its index) and asserted by
- * `data-focused` / `data-href` — facts, never a colour.
+ * `data-pane-focused` / `data-href` — facts, never a colour.
  */
 
 import * as assert from "node:assert";
@@ -76,7 +76,7 @@ When("I focus pane {int}", async function (this: OlaiWorld, index: number) {
 });
 
 When("I close the focused pane", async function (this: OlaiWorld) {
-  const close = this.page.locator(`${PANE_HEADER}[data-focused="true"] ${PANE_CLOSE}`);
+  const close = this.page.locator(`${PANE_HEADER}[data-pane-focused="true"] ${PANE_CLOSE}`);
   await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await close.click();
   await this.waitForFrame();
@@ -144,7 +144,7 @@ Then("there are {int} panes", async function (this: OlaiWorld, n: number) {
 Then("pane {int} is focused", async function (this: OlaiWorld, index: number) {
   await this.expectAttribute(
     `${PANE}[data-pane="${index}"]`,
-    "data-focused",
+    "data-pane-focused",
     "true",
     `pane ${index}`,
   );

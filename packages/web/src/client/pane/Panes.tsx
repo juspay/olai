@@ -203,7 +203,7 @@ function Header(props: { readonly index: number; readonly pane: Pane }) {
       class="flex shrink-0 cursor-grab items-center gap-1 border-b border-rule/70 bg-desk px-2 py-1"
       data-testid={TESTID.paneHeader}
       data-pane={String(props.index)}
-      data-focused={focused() ? "true" : undefined}
+      data-pane-focused={focused() ? "true" : undefined}
       onPointerDown={(event) => {
         if (event.button !== 0) return
         if ((event.target as HTMLElement).closest("button")) return

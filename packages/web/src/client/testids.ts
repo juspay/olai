@@ -707,9 +707,11 @@ export const TESTID = {
   filterRefusal: "filter-refusal",
 
   // ── split panes ──────────────────────────────────────────────────────
-  /** One pane of a split workspace. `data-pane` is its index, `data-focused`
-   *  whether it is the one keyboard and the palette act on, `data-href` the
-   *  route it is showing. A lone page is still a pane of one. */
+  /** One pane of a split workspace. `data-pane` is its index,
+   *  `data-pane-focused` whether it is the one keyboard and the palette
+   *  act on (not `data-focused` — that attribute is the ROW a chat
+   *  reference is pointing at), `data-href` the route it is showing. A
+   *  lone page is still a pane of one. */
   pane: "pane",
   /** The labelled rail a pane collapses to — present instead of the page,
    *  never as well as. Click expands. */

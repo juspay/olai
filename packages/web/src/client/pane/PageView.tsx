@@ -88,7 +88,7 @@ export function PageView(props: {
       }`}
       data-testid={TESTID.pane}
       data-pane={String(here())}
-      data-focused={here() === router.workspace().focus ? "true" : undefined}
+      data-pane-focused={here() === router.workspace().focus ? "true" : undefined}
       data-href={hrefOf(route())}
       data-narrowable={narrowable(route()) ? "true" : undefined}
       onPointerDown={() => router.focus(here())}
