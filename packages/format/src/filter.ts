@@ -449,11 +449,13 @@ const NOTHING_QUOTED =
  * second query; the reader who wants the tight one, under the loose rule, has
  * nothing at all to type.
  *
- * A GROUP IS NOT NEGATED, and there is nothing missing: `-a -b` is `NOT (a OR
- * b)` already, by the one law of this shape everybody knows. What has no
- * spelling is `NOT (a AND b)` — "not both" — which is not a query anybody has
- * ever wanted to type, and buying it would cost the parentheses the whole
- * design declines.
+ * A GROUP IS NOT NEGATED, and there is nothing missing, because the dash is a
+ * TOKEN's and there are now two binding levels — which is exactly enough for
+ * both of De Morgan's readings. `-a -b` is `NOT (a OR b)`, "neither": two
+ * groups, both of which must hold. `-a OR -b` is `NOT (a AND b)`, "not both":
+ * one group, either half of which will do. So this grammar is closed under both
+ * laws without a parenthesis in it, and a group-level `-` would only be a
+ * second spelling of one of the two.
  *
  * PURE, AND THE CLOCK IS AN ARGUMENT. `now` is what the relative words count
  * from (`date:yesterday`, `date:last-week`) — the day the reader is standing

@@ -550,6 +550,12 @@ test("`OR` is satisfied by any one of the tokens it joins", () => {
 test("`OR` binds tighter than the AND between adjacent tokens", () => {
   expect(selects("#home kitchen OR cabinets")).toEqual(["kitchen"])
   expect(selects("cabinets")).toEqual(["order", "install"])
+  // ...and from the OTHER side, which is the half a rule about "the tokens on
+  // either side of it" has to be held to as well: `(garden OR cabinets) AND
+  // the`. The loose reading — `garden OR (cabinets AND the)` — would also
+  // answer with `garden`, whose title carries no `the` at all.
+  expect(selects("garden OR cabinets the")).toEqual(["order", "install"])
+  expect(selects("garden")).toEqual(["garden"])
   // Negation is a token's, so it composes inside a group like anything else.
   expect(selects("is:doing -herbs OR is:todo")).toEqual(["kitchen", "order"])
 })
@@ -607,11 +613,27 @@ test("an `OR` with nothing on one side of it is refused", () => {
   expect(refusalsOf("kitchen OR is:open")?.map((one) => one.token)).toEqual(["is:open"])
 })
 
-/** A GROUP IS NOT NEGATED, and nothing is missing: `-a -b` is "neither", which
- *  is what negating a disjunction means. What has no spelling is "not both",
- *  and that is a query nobody types. */
-test("negating a group is two negated tokens", () => {
+/**
+ * A GROUP IS NOT NEGATED, and nothing is missing: the dash is a TOKEN's and
+ * there are two binding levels, which is exactly enough for both of De Morgan's
+ * readings without a parenthesis anywhere.
+ *
+ * `-a -b` is NEITHER — two groups, both of which must hold. `-a OR -b` is NOT
+ * BOTH — one group, either half of which will do; `order` and `install` are the
+ * two nodes carrying `cabinets` AND `the`, and they are exactly what it leaves
+ * out.
+ */
+test("both De Morgan readings are sayable: neither, and not both", () => {
   expect(selects("#home -kitchen -herb")).toEqual(["hinges"])
+  expect(selects("cabinets the")).toEqual(["order", "install"])
+  expect(selects("-cabinets OR -the")).toEqual([
+    "garden",
+    "herbs",
+    "basil",
+    "kitchen",
+    "demo",
+    "hinges",
+  ])
 })
 
 /** The archive is opened by the query NAMING it, wherever it is named — an

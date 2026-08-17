@@ -172,11 +172,11 @@ Feature: Filtering the outline in place
     When I filter the page by "walnut or knobs"
     Then the filter found "no matches"
 
-  Scenario: A quote nothing closes is refused, and so is a dangling `OR`
-    # The refusal contract, extended to the two ways this grammar can be typed
-    # wrong rather than asked wrong. Neither is closed or dropped on the
-    # reader's behalf: `"pick the` and `"pick the"` are two different queries,
-    # and picking one is the quiet answer to a question nobody asked.
+  Scenario: The three ways this grammar can be typed wrong are all refused
+    # The refusal contract, extended to being typed wrong rather than asked
+    # wrong. Nothing is closed or dropped on the reader's behalf: `"pick the`
+    # and `"pick the"` are two different queries, and picking one is the quiet
+    # answer to a question nobody asked.
     Given I open the outline "house.olai"
     When I filter the page by '"pick the'
     Then the filter refuses '"pick the' and says "a phrase runs from one"
@@ -184,6 +184,27 @@ Feature: Filtering the outline in place
     When I filter the page by "hinges OR"
     Then the filter refuses "OR" and says "one of them is missing"
     And the outline has 0 rows
+    # The loud twin of the silent empty answer: an empty needle is inside every
+    # node ever written, so this is the query that would draw the whole page
+    # back. A phrase of nothing but spaces is the same query and says so too.
+    When I filter the page by '""'
+    Then the filter refuses '""' and says "no words in it"
+    And the outline has 0 rows
+    When I filter the page by '" "'
+    Then the filter refuses '" "' and says "no words in it"
+    And the outline has 0 rows
+
+  Scenario: A group takes the derived operator and the field test together
+    # `OR` joins TOKENS, so a clause is an alternative like anything else —
+    # including the one derived value in the grammar. `hinges` is waiting on
+    # `order`; `order` is the node carrying a note. Neither query is the other,
+    # and this is the one page that draws both answers at once.
+    Given I open the outline "house.olai"
+    When I filter the page by "is:blocked OR has:desc"
+    Then the node "hinges" is a match
+    And the node "order" is a match
+    And the node "install" is context
+    And the filter found "2 of 10"
 
   Scenario: The header's box reads the same phrase, and refuses in the same words
     # One grammar, four doors — and this is the half that has to TRAVEL: the
@@ -280,6 +301,17 @@ Feature: Filtering the outline in place
     When I press the palette shortcut
     And I type "is:open" into the palette
     Then the search refuses "is:open" and says "done, doing, todo, marked, blocked, archived"
+
+  Scenario: The ⌘K palette takes a phrase, over the same wire
+    # And the same door on the day it ANSWERS. The palette is the one that
+    # reads a query for two other things first — a leading `>` is an ask and a
+    # `+` is a capture, neither of which is a lookup — so a grammar that grew a
+    # new punctuation mark is worth asking it about: the quotes are a search,
+    # and the row that comes back is the server's.
+    Given I open the outline "house.olai"
+    When I press the palette shortcut
+    And I type '"pick the hinges"' into the palette
+    Then the palette lists the node "pick the hinges"
 
   Scenario: Pressing a `#tag` filters the page by it
     # The gesture the tags have been decorative for since title-markdown. It is
