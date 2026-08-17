@@ -114,9 +114,8 @@ const leafCount = (layout: Layout): number =>
     ? 1
     : layout.children.reduce((sum, child) => sum + leafCount(child.layout), 0)
 
-const isFlatSplit = (layout: Layout, axis?: Axis): layout is Split =>
-  layout.kind === "split"
-  && (axis === undefined || layout.axis === axis)
+const isFlatSplit = (layout: Split, axis?: Axis): boolean =>
+  (axis === undefined || layout.axis === axis)
   && layout.children.every((child) => child.layout.kind === "leaf")
 
 // ── address ────────────────────────────────────────────────────────────
