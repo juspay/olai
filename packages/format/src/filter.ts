@@ -1187,7 +1187,11 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
   // `has:date` is `date:` WITH NO BOUNDS rather than a test of the `date`
   // field, and the one exception in the table is deliberate: a reader who can
   // find a node with `date:2026-08-03` and then not find it with `has:date`
-  // has met two answers to one word. So both read ./dates.ts's walk.
+  // has met two answers to one word. So both read ./dates.ts's `datesOf` — the
+  // per-RECORD rule, and pointedly not the walk above it, which is where the
+  // archive comes out: a `date:` clause answers about a node wherever it was
+  // filed, which is what makes `is:archived date:2026-08-11` a question with an
+  // answer (docs/search.md).
   if (clause.kind === "has") {
     return clause.field === "date"
       ? datesOf(at.node).length > 0

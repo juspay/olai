@@ -4,8 +4,11 @@
  * A node's dates are the whole of the journal. There is no stored year →
  * month hierarchy, no `Daily.olai`, no filename anything is special about
  * (docs/format.md; rewrite decision 11): a day is a QUESTION asked of every
- * node in every outline, and the answer is computed here, at view time, from
- * the same records the validator approved.
+ * node in every LIVE outline, and the answer is computed here, at view time,
+ * from the same records the validator approved. What was put AWAY is the one
+ * thing the question does not reach — it is drawn on the trash page and nowhere
+ * else (ruled 2026-08-17, and argued where the walk drops it: {@link
+ * datedNodes}) — which is why "every outline" reads with that word in it.
  *
  * TWO fields put a node on a day, and that is the 2026-08-11 decision: `date`,
  * which is what the node is scheduled for, and a dated `done` —
@@ -44,7 +47,7 @@
  * documents are this day's" would be two chances to disagree about a day
  * somebody is looking at. The doctrine is amended rather than abandoned: the
  * note JOINS the query's answer and never replaces it, so a day is still a
- * question asked of every node, and a day with neither is still inert.
+ * question asked of every live node, and a day with neither is still inert.
  *
  * Dates are TEXT here, as they are everywhere else in this package: the format
  * validates them as ISO and stores them verbatim, so a day is a prefix and a

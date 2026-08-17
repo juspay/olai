@@ -902,11 +902,11 @@ test("what was put away stays put away until it is asked for", () => {
 
 /**
  * ...unless the caller's scope IS what was put away, which is the one door that
- * says so: the filter over the TRASH, the one page that draws archived rows
- * (ruled 2026-08-17 — a day and the agenda drew them until then). The default
- * is a rule about searching a DIRECTORY; that page has decided already, and a
- * matcher overruling it takes every row off a screen with nothing to read the
- * absence by.
+ * says so: the filter over a page whose rows are archived ones — the trash, or
+ * a zoom onto an archived node (ruled 2026-08-17 — a day and the agenda drew
+ * them until then). The default is a rule about searching a DIRECTORY; such a
+ * page has decided already, and a matcher overruling it takes every row off a
+ * screen with nothing to read the absence by.
  */
 test("a scope that is already the archive is answered rather than overruled", () => {
   const home = parseFilter("#home", TODAY)

@@ -65,12 +65,12 @@ const LIMIT = 8
  * would be the same node's tag counted twice.
  *
  * WHAT WAS PUT AWAY IS SKIPPED TOO, and the count is why (ruled 2026-08-17:
- * archived nodes are drawn on the trash page and nowhere else). This number is
- * a promise about rows — `#kitchen 7` beside a name a reader is about to type,
- * and pressing that tag filters the page they are on. Counting the archive
- * would promise seven and draw four, and would go on offering a tag whose every
- * user is in the trash. The tag is still WRITABLE, exactly as any word is: this
- * list is what the set has used, not what a title may say.
+ * archived nodes are drawn on the trash page and nowhere else). This number
+ * says how much the LIVE set uses a name, and the list is which names are worth
+ * reusing: counting the archive would rank a word by rows only the trash draws,
+ * and would go on offering a tag whose every user is put away. The tag stays
+ * WRITABLE, exactly as any word is — this list is what the set has used, never
+ * what a title may say.
  *
  * ONE WALK PER DERIVATION, kept in a `WeakMap` keyed on the derivation itself.
  * The alternative — a memo in the component — walks the whole set again every

@@ -87,7 +87,7 @@ const page = (text: string, hideDone = false): Narrowing =>
 test("an empty box is not a filter, and the page is the page", () => {
   const reading = page("")
   expect(reading.active()).toBe(false)
-  expect(rowsIn(reading)).toHaveLength(1)
+  expect(treeRows(reading)).toHaveLength(1)
   // The counts are only ever drawn beside an active filter, so an unfiltered
   // page does not walk its own tree to produce them.
   expect(reading.total()).toBe(0)
@@ -106,7 +106,7 @@ test("a query keeps its matches and the ancestors that lead to them", () => {
   expect(reading.shown()).toBe(1)
   // `kitchen` → `install` → `hinges`: one match, two ancestors kept as the
   // context that makes a bare title mean something.
-  expect(flat(rowsIn(reading))).toEqual(["kitchen", "install", "hinges"])
+  expect(flat(treeRows(reading))).toEqual(["kitchen", "install", "hinges"])
 })
 
 // The preference is a standing claim about the READER; the filter is a question
@@ -125,7 +125,7 @@ test("finished work is hidden before the query is asked, and the difference is r
 
 test("`is:done` under a reader who hides finished work says why it found nothing", () => {
   const hiding = page("is:done", true)
-  expect(rowsIn(hiding)).toEqual([])
+  expect(treeRows(hiding)).toEqual([])
   expect(hiding.shown()).toBe(0)
   expect(hiding.hiddenAsDone()).toBe(1)
 })
@@ -137,10 +137,10 @@ test("`is:done` under a reader who hides finished work says why it found nothing
 test("a relative date is counted from the day the page is being read on", () => {
   const reading = page("date:this-month")
   expect(reading.shown()).toBe(3)
-  expect(flat(rowsIn(reading)))
+  expect(flat(treeRows(reading)))
     .toEqual(["kitchen", "demo", "order", "install", "hinges"])
   // Nothing on this page is dated in the week of the 17th.
-  expect(rowsIn(page("date:this-week"))).toEqual([])
+  expect(treeRows(page("date:this-week"))).toEqual([])
 })
 
 // A query the grammar could not read is ACTIVE — the bar stays up, the tree
@@ -149,7 +149,7 @@ test("a relative date is counted from the day the page is being read on", () => 
 test("a refused operator empties the page and carries its reason", () => {
   const reading = page("is:open")
   expect(reading.active()).toBe(true)
-  expect(rowsIn(reading)).toEqual([])
+  expect(treeRows(reading)).toEqual([])
   expect(reading.refusals().map((one) => one.token)).toEqual(["is:open"])
 })
 
@@ -218,12 +218,17 @@ test("the agenda answers the same way, over the dates read forward", () => {
     .toEqual(["order", "hinges"])
 })
 
-// And the page that draws NONE of them is unchanged by any of it: an outline
-// never holds an archived row (an archive's own address opens the trash), so
-// the flag is off there and the whole file stays out of the reading.
-test("an outline is not searched against the archive at all", () => {
+// And the page that draws NONE of them: an outline holds no archived row of its
+// own (an archive's address opens the trash), so nothing the archive carries is
+// on it whatever the query says.
+//
+// WHAT THIS DOES NOT PIN is the flag: `shims` is dropped here by the page prune
+// whether the scope was widened or not, so a `tree` arm that regressed to
+// `true` would leave it green. The observable half is the zoom below, which
+// fails without the arm.
+test("an outline draws no archived row, whatever is typed", () => {
   expect(page("shims").shown()).toBe(0)
-  expect(rowsIn(page("shims"))).toEqual([])
+  expect(treeRows(page("shims"))).toEqual([])
 })
 
 // A note is a DOCUMENT, which is the one page kind that takes no filter at all
@@ -291,11 +296,12 @@ test("`is:archived` and its negation still say what they say here", () => {
   expect(narrowing(trash, "-is:archived").shown()).toBe(0)
 })
 
-// ...and the page that shows no archived rows is unaffected by the flag: the
-// scope is the page, and this page's rows are the outline's.
-test("a tree page draws nothing more for the archive being in scope", () => {
+// ...and `is:archived` typed on an outline draws nothing, which is the prune
+// rather than the scope: the operator opens the archive by naming it, and the
+// page has none of it to keep.
+test("`is:archived` on an outline still draws that outline's nothing", () => {
   const reading = page("is:archived")
-  expect(rowsIn(reading)).toEqual([])
+  expect(treeRows(reading)).toEqual([])
   expect(reading.shown()).toBe(0)
 })
 
@@ -315,7 +321,7 @@ test("a zoom onto an archived node is searched like the pile it is in", () => {
     rows: rowsUnder(derived, zoomed.shows, zoomed.trail),
   }
   const reading = narrowing(inArchive, "grout")
-  expect(flat(rowsIn(reading))).toEqual(["grout"])
+  expect(flat(treeRows(reading))).toEqual(["grout"])
   expect(reading.shown()).toBe(1)
   expect(narrowing(inArchive, "is:archived").shown()).toBe(3)
 })
@@ -329,7 +335,7 @@ test("a page with nothing to narrow counts nothing and stays itself", () => {
   expect(reading.total()).toBe(0)
 })
 
-const rowsIn = (reading: Narrowing): ReadonlyArray<Row> =>
+const treeRows = (reading: Narrowing): ReadonlyArray<Row> =>
   only(reading.drawn(), "tree")?.rows ?? []
 
 const archiveRows = (drawn: Drawn): ReadonlyArray<Row> =>
@@ -396,7 +402,7 @@ test("hiding finished work does not take the archive out of a zoom's scope", () 
       today: () => TODAY,
     })
   )
-  expect(rowsIn(reading)).toEqual([])
+  expect(treeRows(reading)).toEqual([])
   expect(reading.shown()).toBe(0)
   expect(reading.hiddenAsDone()).toBe(2)
 })

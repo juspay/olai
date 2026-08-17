@@ -27,10 +27,12 @@
  * the DIRECTORY. This door is not: it tests the rows in front of somebody, and
  * the TRASH is the page that draws what was put away — applying the default
  * there would take away every row and leave the reader nothing to read the
- * absence by. A day and the agenda were the other two until 2026-08-17, when
- * the human ruled that what is put away is drawn on the trash and nowhere else
- * (`@olai/format`'s `dates.ts` is where they stopped drawing it), and the
- * question here narrowed with them ({@link showsArchived}).
+ * absence by — and so is a TREE that is a zoom onto an archived node, which is
+ * where an `is:archived` hit lands when it is clicked ({@link showsArchived}
+ * names both, and the mirror case it cannot rule out). A day and the agenda
+ * were two more until 2026-08-17, when the human ruled that what is put away is
+ * drawn on the trash and nowhere else (`@olai/format`'s `dates.ts` is where
+ * they stopped drawing it), and the question here narrowed with them.
  *
  * The ORDER of the two prunings is the decision worth naming: done-hidden goes
  * FIRST. It is a standing claim about the reader ("I do not want to look at
@@ -134,7 +136,8 @@ export const createNarrowing = (source: {
   // A MEMO OF ITS OWN, so the scan below does not track the page. What the page
   // draws is a fresh value on every revision the store publishes and on every
   // navigation — and the whole of what this reading takes from it is a boolean
-  // that is constant for three of the five shapes ({@link showsArchived}). Read
+  // that is constant for four of the five shapes — only a tree is scanned
+  // ({@link showsArchived}). Read
   // inline, every one of those frames re-ran the matcher over the entire set to
   // arrive at the same answer.
   const archived = createMemo(() => showsArchived(source.all()))

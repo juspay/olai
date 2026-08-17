@@ -64,7 +64,7 @@ A date that no calendar could hold is refused on the same terms: `date:2026-13`,
 
 The refusal reaches **every door**. The filter parses for itself and draws its own; the other three ask the server, so the answer carries `refusals` and the palette and the header box draw them beside their rows. A door that answered `is:open` with an empty list and no reason would be the one place a typo looks exactly like an empty directory.
 
-**Archived nodes are out of every reading unless the query says `is:archived`.** What was put away should stay put away until somebody asks, and `is:archived` is how you ask — at every door, from any page, whatever the page itself is drawing. The one exception is the door whose SCOPE is the page that IS the archive: the filter over the **trash**, where the default would take away every row and leave nothing to read the absence by ("which pages filter", below). That used to be three pages; a day and the agenda drew archived rows until the [one-door rule](#the-one-door-rule) took them off.
+**Archived nodes are out of every reading unless the query says `is:archived`.** What was put away should stay put away until somebody asks, and `is:archived` is how you ask — at every door, from any page, whatever the page itself is drawing. The one exception is the door whose SCOPE is already showing what was put away: the filter over the **trash** — and over a zoom onto an archived node, which is where such a hit lands — where the default would take away every row and leave nothing to read the absence by ("which pages filter", below). That used to reach three more pages; a day and the agenda drew archived rows until the [one-page rule](#the-one-page-rule) took them off.
 
 Title hits outrank id, tag and note; a field that starts with the word beats one that buries it; a done node loses ties. Hits carry `file:line`, the ancestor titles, the mark if the node has one, the node's own `see` / `after` edges, and its `custom` properties — plus `matched`, which field carried the words, absent for a query that named none. Mirrors are never hits — a placement is a second view of a node, not a node.
 
@@ -105,7 +105,7 @@ Above every page that draws nodes there is a filter box. It is not the header's 
 
 **The trash searches WITHIN what it shows.** Archived nodes are out of every other reading unless the query says `is:archived` (below) — because those doors are searching the directory. This one is not: it tests the rows in front of you, and the trash IS the archive, so a word typed there finds what was put away. Read-only is a fact about the page's one verb, Put back; it was never a claim that a pile cannot be looked through.
 
-<a id="the-one-door-rule"></a>
+<a id="the-one-page-rule"></a>
 
 **And it is the only page that shows them.** *(Ruled 2026-08-17, reversing what shipped a day earlier.)* **What is archived is drawn on the Trash and nowhere else** — not on a day, not on the agenda, not in the calendar's dots, not on any page but the one that is the archive. A day used to collect every dated node wherever it was filed, and the agenda read those same dates forward, so work put away after somebody scheduled it went on being owed; what that meant in front of a reader is that putting something away did not take it off the page they had put it away from. Archiving is somebody saying they are done looking at a thing, and the Trash is where it is looked at again.
 

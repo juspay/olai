@@ -458,7 +458,7 @@ export const TOOLS: ReadonlyArray<Tool> = [
   write(
     "archive_node",
     "Archive a subtree",
-    "Move a node and everything under it into `Archive.olai` beside its outline, re-creating the chain of ancestor titles it hung off. Ids move with the nodes, so mirrors and edges pointing at them keep resolving. Nothing is stamped: archiving is not finishing. `unarchive_node` is the way back.",
+    "Move a node and everything under it into `Archive.olai` beside its outline, re-creating the chain of ancestor titles it hung off. Ids move with the nodes, so mirrors and edges pointing at them keep resolving. Nothing is stamped: archiving is not finishing. What DOES change beyond the file is which readings draw it: an archived node is out of every date reading — no day page, no calendar day, nothing owed on the agenda — and out of a search unless the query says `is:archived`. Its own dates and marks are untouched, and `unarchive_node` is the way back.",
     ArchiveRequest,
     { op: "archive" },
   ),
